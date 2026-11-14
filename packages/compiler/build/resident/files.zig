@@ -4,17 +4,17 @@
 //! file's last change is older than the read by more than the clock's resolution could hide; a file changed close
 //! to its read is read again. Replaced texts stay alive until `release`, since analyses may point into them.
 const std = @import("std");
-const bytes = @import("compiler").bytes;
+const compiler = @import("compiler");
+const bytes = compiler.bytes;
+const snapshot = compiler.input_snapshot;
 const Self = @This();
-/// How much older than the read a file's last change must be for its metadata to vouch for its contents.
-const settled = std.time.ns_per_s;
 
 gpa: std.mem.Allocator,
 entries: bytes.Map(Entry) = .empty,
 replaced: std.ArrayList([]u8) = .empty,
 /// What vouches for a file's text: it is the same file, of the same size, unchanged since.
-pub const Metadata = struct { inode: std.Io.File.INode, size: u64, mtime: i96, ctime: i96 };
-const Entry = struct { inode: std.Io.File.INode, size: u64, mtime: i96, ctime: i96, read: i96, text: []u8, digest: ?[32]u8 = null };
+pub const Metadata = snapshot.Metadata;
+const Entry = struct { metadata: Metadata, read: i96, text: []u8, digest: ?[32]u8 = null };
 
 pub fn deinit(self: *Self) void {
     self.release();
@@ -47,7 +47,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
     if (try file.readPositionalAll(io, text, 0) != text.len) return error.FileChanged;
 
     const found = try self.entries.getOrPut(self.gpa, key);
-    const observed: Entry = .{ .inode = stat.inode, .size = stat.size, .mtime = stat.mtime.nanoseconds, .ctime = stat.ctime.nanoseconds, .read = started, .text = text };
+    const observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text };
 
     if (found.found_existing) {
         const previous = found.value_ptr;
@@ -84,7 +84,7 @@ pub fn unchanged(self: *const Self, io: std.Io, directory: std.Io.Dir, path: []c
     const entry = self.entries.get(key) orelse return null;
     const found = known orelse metadata(try directory.statFile(io, path, .{}));
 
-    return if (vouches(entry, found)) entry.text else null;
+    return if (snapshot.residentReuse(entry.metadata, found, entry.read)) entry.text else null;
 }
 
 pub fn metadata(stat: std.Io.File.Stat) Metadata {
@@ -96,7 +96,7 @@ pub const Version = struct { metadata: Metadata, read: i96 };
 pub fn version(self: *const Self, key: []const u8) ?Version {
     const entry = self.entries.get(key) orelse return null;
 
-    return .{ .metadata = .{ .inode = entry.inode, .size = entry.size, .mtime = entry.mtime, .ctime = entry.ctime }, .read = entry.read };
+    return .{ .metadata = entry.metadata, .read = entry.read };
 }
 
 /// The Blake3 digest of `text`, remembered with the text `read` returned for `key` so an unchanged file is hashed once.
@@ -122,8 +122,4 @@ pub fn release(self: *Self) void {
     for (self.replaced.items) |text| self.gpa.free(text);
 
     self.replaced.clearRetainingCapacity();
-}
-
-fn vouches(entry: Entry, found: Metadata) bool {
-    return entry.inode == found.inode and entry.size == found.size and entry.mtime == found.mtime and entry.ctime == found.ctime and found.ctime + settled < entry.read;
 }

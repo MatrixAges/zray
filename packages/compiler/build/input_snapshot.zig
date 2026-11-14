@@ -88,9 +88,9 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
 pub fn current(self: Self, io: std.Io, allocator: std.mem.Allocator) !?[32]u8 {
     const previous = self.previous orelse return null;
     const current_files = try columns(allocator, self.facts, null);
-    const now: u96 = @bitCast(std.Io.Timestamp.now(io, .real).nanoseconds);
+    const now = source.timestamp(std.Io.Timestamp.now(io, .real).nanoseconds);
 
-    if (!try source.reuse(allocator, .{ .context = self.context, .current = &current_files, .previous = previous, .now_high = @bitCast(@as(u32, @truncate(now >> 64))), .now_low = @truncate(now), .stored_checksum = self.stored_checksum, .actual_checksum = self.actual_checksum })) return null;
+    if (!try source.reuse(allocator, .{ .context = self.context, .current = &current_files, .previous = previous, .now_high = now.high, .now_low = now.low, .stored_checksum = self.stored_checksum, .actual_checksum = self.actual_checksum })) return null;
 
     var digest: [32]u8 = undefined;
 
@@ -151,8 +151,8 @@ fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Fil
 }
 
 fn timestamp(columns_value: *source.Files, comptime field: []const u8, index: usize, value: i96) void {
-    const bits: u96 = @bitCast(value);
+    const parts = source.timestamp(value);
 
-    @constCast(@field(columns_value, field ++ "_low"))[index] = @truncate(bits);
-    @constCast(@field(columns_value, field ++ "_high"))[index] = @bitCast(@as(u32, @truncate(bits >> 64)));
+    @constCast(@field(columns_value, field ++ "_low"))[index] = parts.low;
+    @constCast(@field(columns_value, field ++ "_high"))[index] = parts.high;
 }
