@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+
+export type Input = {
+    paths: string[],
+    texts: string[],
+    incoming_paths: string[],
+    incoming_texts: string[]
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { paths, texts, incoming_paths, incoming_texts } = in
+
+    return loop({
+        position: 0,
+        same: true
+    }, {
+        while: state => state.same && state.position < paths.length,
+        next: state => {
+            const at = state.position
+            const path = bytes.fromText(paths[at])
+            const text = bytes.fromText(texts[at])
+            const next_path = bytes.fromText(incoming_paths[at])
+            const next_text = bytes.fromText(incoming_texts[at])
+
+            state.same =
+                bytes.equals(path, next_path) && bytes.equals(text, next_text)
+            state.position += 1
+        },
+        return: state => state.same
+    })
+}

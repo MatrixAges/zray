@@ -29,7 +29,7 @@ fn parseDocument(allocator: std.mem.Allocator, source: []const u8, comptime inde
         var issue = parsed.value.diagnostic;
         issue.message = try arena.allocator().dupe(u8, issue.message);
 
-        return .{ .xml = .{ .arena = arena, .value = .{ .diagnostic = issue } } };
+        return .{ .xml = .{ .arena = arena, .source = "", .value = .{ .diagnostic = issue } } };
     }
 
     const owned_source = try arena.allocator().dupe(u8, source);
@@ -44,7 +44,7 @@ fn parseDocument(allocator: std.mem.Allocator, source: []const u8, comptime inde
         parsed.value.document,
     );
 
-    return .{ .xml = .{ .arena = arena, .value = .{ .node = document.node } }, .references = document.references };
+    return .{ .xml = .{ .arena = arena, .source = owned_source, .value = .{ .node = document.node } }, .references = document.references };
 }
 
 fn boundary(source: []const u8, start: usize) dsl.ExpressionBoundary {

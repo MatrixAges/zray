@@ -3,26 +3,27 @@
 //! until `release`, since analyses may point into its nodes.
 const std = @import("std");
 const rx = @import("rx");
-const bytes = @import("compiler").bytes;
+const compiler = @import("compiler");
+const inputs = compiler.parsed_inputs;
 const Self = @This();
 
 gpa: std.mem.Allocator,
 current: ?rx.TextResult = null,
 packages: [32]u8 = undefined,
 /// The paths and texts `current` was parsed from, in turn.
-texts: std.ArrayList([]u8) = .empty,
+comparison: ?inputs.Columns = null,
 replaced: std.ArrayList(rx.TextResult) = .empty,
 pub fn deinit(self: *Self) void {
     self.release();
     self.replaced.deinit(self.gpa);
-    self.forget();
-    self.texts.deinit(self.gpa);
     if (self.current) |*parsed| parsed.deinit();
 }
 
 /// The parse of `sources`; the kept one while their paths and texts match it.
 pub fn parse(self: *Self, sources: []const rx.TextSource, packages: [32]u8) !*const rx.TextResult {
-    if (self.current != null and bytes.equal(&self.packages, &packages) and self.matches(sources)) return &self.current.?;
+    if (self.comparison) |previous| {
+        if (compiler.bytes.equal(&self.packages, &packages) and inputs.same(previous, sources)) return &self.current.?;
+    }
 
     var parsed = try rx.parseModules(self.gpa, sources);
 
@@ -30,27 +31,11 @@ pub fn parse(self: *Self, sources: []const rx.TextSource, packages: [32]u8) !*co
 
     if (self.current != null) try self.replaced.ensureUnusedCapacity(self.gpa, 1);
 
-    var texts: std.ArrayList([]u8) = .empty;
-
-    errdefer {
-        for (texts.items) |text| self.gpa.free(text);
-
-        texts.deinit(self.gpa);
-    }
-
-    try texts.ensureTotalCapacity(self.gpa, 2 * sources.len);
-
-    for (sources) |source| {
-        texts.appendAssumeCapacity(try self.gpa.dupe(u8, source.path));
-        texts.appendAssumeCapacity(try self.gpa.dupe(u8, source.source));
-    }
+    const comparison = try retainInputs(&parsed, sources);
 
     if (self.current) |old| self.replaced.appendAssumeCapacity(old);
 
-    self.forget();
-    self.texts.deinit(self.gpa);
-
-    self.texts = texts;
+    self.comparison = comparison;
     self.current = parsed;
     self.packages = packages;
 
@@ -64,18 +49,15 @@ pub fn release(self: *Self) void {
     self.replaced.clearRetainingCapacity();
 }
 
-fn matches(self: *const Self, sources: []const rx.TextSource) bool {
-    if (self.texts.items.len != 2 * sources.len) return false;
+fn retainInputs(parsed: *rx.TextResult, sources: []const rx.TextSource) !inputs.Columns {
+    const owned = parsed.arena.allocator();
+    const paths = try owned.alloc([]const u8, sources.len);
+    const texts = try owned.alloc([]const u8, sources.len);
 
-    for (sources, 0..) |source, index| {
-        if (!bytes.equal(self.texts.items[2 * index], source.path) or !bytes.equal(self.texts.items[2 * index + 1], source.source)) return false;
+    for (sources, paths, texts, 0..) |source, *path, *text, index| {
+        path.* = try owned.dupe(u8, source.path);
+        text.* = if (parsed.value == .data) parsed.parsed[index].source else try owned.dupe(u8, source.source);
     }
 
-    return true;
-}
-
-fn forget(self: *Self) void {
-    for (self.texts.items) |text| self.gpa.free(text);
-
-    self.texts.clearRetainingCapacity();
+    return .{ .paths = paths, .texts = texts };
 }

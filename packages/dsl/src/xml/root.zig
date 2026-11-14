@@ -7,6 +7,7 @@ pub const ExpressionReader = @import("expression.zig").Reader;
 
 pub const Result = struct {
     arena: std.heap.ArenaAllocator,
+    source: []const u8 = "",
     value: union(enum) { node: ast.Node, diagnostic: diagnostics.Diagnostic },
     pub fn deinit(self: *Result) void {
         self.arena.deinit();
@@ -36,8 +37,8 @@ pub fn parseWith(allocator: std.mem.Allocator, source: []const u8, read_expressi
     const node = parser.document() catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
-        return .{ .arena = arena, .value = .{ .diagnostic = reporter.diagnostic.? } };
+        return .{ .arena = arena, .source = parser.source, .value = .{ .diagnostic = reporter.diagnostic.? } };
     };
 
-    return .{ .arena = arena, .value = .{ .node = node } };
+    return .{ .arena = arena, .source = parser.source, .value = .{ .node = node } };
 }
