@@ -1,0 +1,45 @@
+import integers from "std:integer"
+
+import { signatures_file, types_file } from "../const"
+import partition from "./partition"
+
+import type { Manifest as Input, Member, Selection as Output } from "./model"
+
+export default function (in: Input): Output {
+    const members: Member[] = []
+    const missing: u64? = null
+
+    const { paths, hashes, count } = in
+
+    return loop({
+        position: 0,
+        types: missing,
+        signatures: missing,
+        members
+    }, {
+        while: state => state.position < paths.length,
+        next: state => {
+            const position = state.position
+            const path = paths[position]
+            const owner = partition(path)
+
+            if (owner != null && owner < count) {
+                state.members = state.members.push({
+                    partition: owner,
+                    row: integers.narrow(position)
+                })[0]
+            } else if (path == types_file) {
+                state.types = hashes[position]
+            } else if (path == signatures_file) {
+                state.signatures = hashes[position]
+            }
+
+            state.position += 1
+        },
+        return: state => state.pick([
+            "types",
+            "signatures",
+            "members"
+        ])
+    })
+}

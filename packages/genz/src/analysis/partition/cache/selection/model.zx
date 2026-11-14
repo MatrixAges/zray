@@ -1,0 +1,16 @@
+export type Member = {
+    partition: u32,
+    row: u32
+}
+
+export type Manifest = {
+    paths: string[],
+    hashes: u64[],
+    count: u32
+}
+
+export type Selection = {
+    types?: u64,
+    signatures?: u64,
+    members: Member[]
+}

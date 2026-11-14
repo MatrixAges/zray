@@ -34,20 +34,22 @@ pub fn main(init: std.process.Init) !void {
     const manifest_path = try std.fs.path.join(allocator, &.{ plan.generated, file_manifest.name });
     const text = try cwd.readFileAlloc(init.io, manifest_path, allocator, .unlimited);
     const listed = try file_manifest.list(rules.output_manifest_read, allocator, text);
-    var manifest: std.StringHashMapUnmanaged(u64) = .empty;
 
-    try manifest.ensureTotalCapacity(allocator, @intCast(listed.paths.len));
-    for (listed.paths, listed.hashes) |path, hash| manifest.putAssumeCapacity(path, hash);
+    const selected = try rules.partition_cache_selection.executeValue(allocator, &.{
+        .paths = listed.paths,
+        .hashes = listed.hashes,
+        .count = plan.count,
+    });
 
     const zig_stat = try cwd.statFile(init.io, plan.zig, .{});
     var shared: cache_key.Shared = .{};
 
     shared.init();
-    shared.prefix(plan.zig, zig_stat, plan.template, manifest.get("types.zig") orelse return error.MissingGeneratedFile, manifest.get("signatures.zig") orelse return error.MissingGeneratedFile);
+    shared.prefix(plan.zig, zig_stat, plan.template, selected.types orelse return error.MissingGeneratedFile, selected.signatures orelse return error.MissingGeneratedFile);
 
     for (args[5..separator]) |path| try shared.input(init.io, allocator, path);
 
-    const digests = try cache_key.partitions(allocator, plan.count, shared.state(), &manifest);
+    const digests = try cache_key.partitions(allocator, plan.count, shared.state(), listed, selected.members);
     const keys = try state.Keys.init(allocator, digests);
     const state_path = try std.fs.path.join(allocator, &.{ plan.objects, "state" });
 

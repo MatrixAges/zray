@@ -1,1 +1,7 @@
 export const domain: string = "zxc.partition.objects.v3"
+
+export const partition_prefix: string = "part_"
+
+export const types_file: string = "types.zig"
+
+export const signatures_file: string = "signatures.zig"

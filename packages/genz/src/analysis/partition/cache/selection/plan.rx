@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Manifest} out={Cache.Selection} />
+
+    <Call fn="select" in={$in} />
+
+    <Call
+        fn="order"
+        in={{
+            paths: $in.paths,
+            selected: $ctx.select.members
+        }}
+    />
+
+    <Return
+        value={{
+            types: $ctx.select.types,
+            signatures: $ctx.select.signatures,
+            members: $ctx.order
+        }}
+    />
+</Module>

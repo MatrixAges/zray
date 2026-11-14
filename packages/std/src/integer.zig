@@ -32,6 +32,10 @@ pub fn parseHex(value: []const u8) std.fmt.ParseIntError!u64 {
     return std.fmt.parseInt(u64, value, 16);
 }
 
+pub fn parseDecimalU32(value: []const u8) ?u32 {
+    return std.fmt.parseInt(u32, value, 10) catch null;
+}
+
 pub fn bitMask(index: u64) error{IntegerOverflow}!u64 {
     if (index >= @bitSizeOf(u64)) return error.IntegerOverflow;
 

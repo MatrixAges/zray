@@ -43,13 +43,7 @@ pub fn create(b: *std.Build, source: std.Build.LazyPath) *std.Build.Step.Compile
 
 pub fn generated(b: *std.Build, source: std.Build.LazyPath, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, strip: ?bool, shared_standard: ?*std.Build.Module) *std.Build.Module {
     const abi = b.createModule(.{ .root_source_file = source.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
-
-    const standard = shared_standard orelse b.createModule(.{
-        .root_source_file = b.dependency("zxc_std", .{}).path("src/root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "zxc_abi", .module = abi }},
-    });
+    const standard = shared_standard orelse standardModule(b, target, optimize, abi);
 
     return b.createModule(.{
         .root_source_file = source.path(b, "root.zig"),
@@ -57,5 +51,19 @@ pub fn generated(b: *std.Build, source: std.Build.LazyPath, target: std.Build.Re
         .optimize = optimize,
         .strip = strip,
         .imports = &.{ .{ .name = "zxc_abi", .module = abi }, .{ .name = "zxc_standard", .module = standard } },
+    });
+}
+
+fn standardModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, abi: *std.Build.Module) *std.Build.Module {
+    const standard = b.dependency("zxc_std", .{ .target = target, .optimize = optimize });
+
+    return b.createModule(.{
+        .root_source_file = standard.path("src/root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zxc_abi", .module = abi },
+            .{ .name = "bytes_backend", .module = standard.module("bytes_backend") },
+        },
     });
 }

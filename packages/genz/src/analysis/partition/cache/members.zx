@@ -1,30 +1,43 @@
 import bytes from "std:bytes"
+import integers from "std:integer"
 
 import type { Writer } from "std:bytes"
+import type { Member } from "./selection/model"
 
 export type Input = {
     out: Writer,
     paths: string[],
-    hashes: u64[]
+    hashes: u64[],
+    members: Member[]
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { out, paths, hashes } = in
+    const { out, paths, hashes, members } = in
 
     const position = loop({
         index: 0
     }, {
-        while: state => state.index < paths.length,
+        while: state => state.index < members.length,
         next: state => {
             const index = state.index
-            const path = bytes.fromText(paths[index])
+            const row = integers.widen(members[index].row)
+            const path = paths[row]
+            const next = index + 1
 
-            bytes.writeU64Le(out, path.length)
-            bytes.write(out, path)
-            bytes.writeU64Le(out, hashes[index])
-            state.index += 1
+            if (
+                next == members.length ||
+                    paths[integers.widen(members[next].row)] != path
+            ) {
+                const raw = bytes.fromText(path)
+
+                bytes.writeU64Le(out, raw.length)
+                bytes.write(out, raw)
+                bytes.writeU64Le(out, hashes[row])
+            }
+
+            state.index = next
         }
     })
 }

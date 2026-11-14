@@ -5,6 +5,8 @@ const Blake3 = std.crypto.hash.Blake3;
 pub const Digest = [Blake3.digest_length]u8;
 const HashWriter = Io.Writer.Hashing(Blake3);
 const buffer_size = 16 * 1024;
+const Listed = @import("file_manifest.zig").Listed;
+const Members = @FieldType(std.meta.Child(rules.partition_cache_selection.Output), "members");
 
 pub const Shared = struct {
     buffer: [buffer_size]u8 = undefined,
@@ -93,64 +95,33 @@ fn external(hash: *HashWriter, path: []const u8, size: ?u64) void {
     rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(&hash.writer), .path = path, .size = size }) catch unreachable;
 }
 
-pub fn partitions(allocator: std.mem.Allocator, count: u32, shared: Blake3, manifest: *const std.StringHashMapUnmanaged(u64)) ![]Digest {
-    const groups = try allocator.alloc(std.ArrayList(Member), count);
-
-    @memset(groups, .empty);
-
-    var entries = manifest.iterator();
-
-    while (entries.next()) |entry| {
-        const path = entry.key_ptr.*;
-
-        if (!std.mem.startsWith(u8, path, "part_")) continue;
-
-        const slash = std.mem.indexOfScalar(u8, path, '/') orelse continue;
-        const index = std.fmt.parseInt(u32, path["part_".len..slash], 10) catch continue;
-
-        if (index < count) try groups[index].append(allocator, .{ .path = path, .hash = entry.value_ptr.* });
-    }
-
+pub fn partitions(allocator: std.mem.Allocator, count: u32, shared: Blake3, manifest: Listed, ordered: Members) ![]Digest {
     const digests = try allocator.alloc(Digest, count);
+    var end: usize = 0;
 
-    for (groups, digests) |group, *digest| {
-        std.mem.sort(Member, group.items, {}, Member.less);
-        members(shared, group.items, digest);
+    for (digests, 0..) |*digest, partition| {
+        const start = end;
+
+        while (end < ordered.len and ordered[end].partition == partition) : (end += 1) {}
+
+        members(shared, manifest, ordered[start..end], digest);
     }
 
     return digests;
 }
 
-const Member = struct {
-    path: []const u8,
-    hash: u64,
-    fn less(_: void, left: Member, right: Member) bool {
-        return std.mem.lessThan(u8, left.path, right.path);
-    }
-};
-
-fn members(shared: Blake3, group: []const Member, digest: *Digest) void {
+fn members(shared: Blake3, manifest: Listed, group: Members, digest: *Digest) void {
     var buffer: [1024]u8 = undefined;
-    const batch_size = 64;
-    var paths: [batch_size][]const u8 = undefined;
-    var hashes: [batch_size]u64 = undefined;
     var stream: HashWriter = .initHasher(shared, &buffer);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     const rule = rules.partition_cache_members;
-    var remaining = group;
 
-    while (remaining.len != 0) {
-        const count = @min(remaining.len, batch_size);
-
-        for (remaining[0..count], paths[0..count], hashes[0..count]) |member, *path, *hash| {
-            path.* = member.path;
-            hash.* = member.hash;
-        }
-
-        rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(&stream.writer), .paths = paths[0..count], .hashes = hashes[0..count] }) catch unreachable;
-
-        remaining = remaining[count..];
-    }
+    rule.executeValue(empty.allocator(), &.{
+        .out = @ptrCast(&stream.writer),
+        .paths = manifest.paths,
+        .hashes = manifest.hashes,
+        .members = group,
+    }) catch unreachable;
 
     stream.writer.flush() catch unreachable;
     stream.hasher.final(digest);

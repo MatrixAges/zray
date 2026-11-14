@@ -1,0 +1,38 @@
+import bytes from "std:bytes"
+
+import {
+    sort_equal,
+    sort_greater,
+    sort_less
+} from
+"../../../uniqueness/replay/ordered/const"
+
+import type { Member } from "./model"
+
+export type Input = {
+    left: Member,
+    right: Member,
+    left_path: string,
+    right_path: string
+}
+
+export type Output = i64
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    if (left.partition != right.partition) {
+        return left.partition < right.partition ? sort_less : sort_greater
+    }
+
+    const left_path = bytes.fromText(in.left_path)
+    const right_path = bytes.fromText(in.right_path)
+
+    return match {
+        bytes.lessThan(left_path, right_path) => sort_less,
+        !bytes.equals(left_path, right_path) => sort_greater,
+        left.row < right.row => sort_less,
+        left.row == right.row => sort_equal,
+        _ => sort_greater
+    }
+}

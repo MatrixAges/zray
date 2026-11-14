@@ -1,0 +1,29 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import integers from "std:integer"
+import { ascii_slash } from "core/ascii/const"
+
+import { partition_prefix } from "../const"
+
+export type Input = string
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const source = bytes.fromText(in)
+
+    if (!bytes.startsWithText(source, 0, partition_prefix)) {
+        return null
+    }
+
+    const start = partition_prefix.length
+    const end = bytes.indexOfScalar(source, start, ascii_slash)
+
+    if (end == null || end == start) {
+        return null
+    }
+
+    const number = encoding.sliceBytes(in, start, end)
+
+    return integers.parseDecimalU32(number)
+}

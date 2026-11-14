@@ -1,0 +1,25 @@
+import integers from "std:integer"
+
+import compare from "./compare"
+
+import type { Member } from "./model"
+
+export type Input = {
+    paths: string[],
+    selected: Member[]
+}
+
+export type Output = Member[]
+
+export default function (in: Input): Output {
+    const { paths, selected } = in
+
+    return selected.sort(
+        (left, right) => compare({
+            left,
+            right,
+            left_path: paths[integers.widen(left.row)],
+            right_path: paths[integers.widen(right.row)]
+        })
+    )[0]
+}
