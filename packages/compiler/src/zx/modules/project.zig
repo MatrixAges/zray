@@ -844,18 +844,18 @@ fn analyzeWithCaches(allocator: std.mem.Allocator, raw_sources: []const Source, 
     program.constant_exports = unit.constants;
     program.native_modules = project.native_modules.view();
 
-    const visible_count = try @import("project/publication/host.zig").publishEntry(
+    const publication = try @import("project/publication/host.zig").publishEntry(
         temporary,
         &program,
         unit.function,
         project.functions.view(),
     );
 
-    project.verified.functions = @min(visible_count, project.verified.functions);
+    project.verified.functions = @min(publication.visible_count, project.verified.functions);
 
     if (try Validate.validateProjectPrefix(allocator, program, project.verified)) |issue| return .{ .arena = arena, .value = .{ .diagnostic = issue } };
 
-    var result = Analysis.Result{ .arena = arena, .value = .{ .ir = program }, .nominal_types = project.nominal_origins.items.view(), .modules = project.modules.items, .store_initializers = project.store_initializers.items };
+    var result = Analysis.Result{ .arena = arena, .value = .{ .ir = program }, .nominal_types = project.nominal_origins.items.view(), .modules = project.modules.items, .store_initializers = project.store_initializers.items, .entry_function = publication.recursive };
 
     if (project.semantic_cache) |semantic| {
         if (try CachePublication.publish(allocator, semantic, &result, project.cache_records.items, project.cache_root, &project.cache_context)) |issue| {

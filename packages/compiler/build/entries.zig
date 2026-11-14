@@ -222,6 +222,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/link/signature/bind.rx", .name = "artifact_signature" },
     .{ .path = "zx/modules/link/surface/admit.rx", .name = "artifact_type_admission" },
     .{ .path = "zx/modules/forward_entry/build.rx", .name = "recursive_forward_entry" },
+    .{ .path = "zx/modules/forward_entry/recursive.zx", .name = "recursive_call" },
     .{ .path = "zx/ir/canonical/refinement/facts/mark.rx", .name = "refinement_mark" },
     .{ .path = "zx/ir/canonical/refinement/facts/restore.rx", .name = "refinement_restore" },
     .{ .path = "zx/ir/canonical/refinement/facts/add.rx", .name = "refinement_add" },

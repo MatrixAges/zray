@@ -100,7 +100,9 @@ const Entry = struct {
     visible_count: usize,
 };
 
-pub fn publishEntry(allocator: std.mem.Allocator, program: *ir.Program, own: ?ir.FunctionId, table: ir.FunctionTable) std.mem.Allocator.Error!usize {
+pub const PublishedEntry = struct { visible_count: usize, recursive: ?ir.FunctionId };
+
+pub fn publishEntry(allocator: std.mem.Allocator, program: *ir.Program, own: ?ir.FunctionId, table: ir.FunctionTable) std.mem.Allocator.Error!PublishedEntry {
     const publication = finalize(program, own, table);
 
     if (publication.body) |id| {
@@ -126,7 +128,7 @@ pub fn publishEntry(allocator: std.mem.Allocator, program: *ir.Program, own: ?ir
         } else try functions.entry(allocator, program, id);
     }
 
-    return publication.visible_count;
+    return .{ .visible_count = publication.visible_count, .recursive = if (publication.native) null else publication.forward };
 }
 
 fn finalize(program: *const ir.Program, own: ?ir.FunctionId, table: ir.FunctionTable) Entry {

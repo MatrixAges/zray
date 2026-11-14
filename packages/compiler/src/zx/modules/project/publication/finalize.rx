@@ -15,7 +15,7 @@
     </If>
 
     <Call
-        fn="../../artifact/remapping/recursive"
+        fn="../../forward_entry/recursive"
         in={{
             calls: $in.calls,
             candidate: $in.own

@@ -52,7 +52,7 @@
     />
 
     <Call
-        fn="recursive"
+        fn="../../forward_entry/recursive"
         in={{
             calls: $ctx.columns.functions,
             candidate: $in.candidate

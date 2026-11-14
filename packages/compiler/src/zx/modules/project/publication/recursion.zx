@@ -1,4 +1,4 @@
-import recursive from "../../artifact/remapping/recursive"
+import recursive from "../../forward_entry/recursive"
 
 import type { Request } from "./model"
 
