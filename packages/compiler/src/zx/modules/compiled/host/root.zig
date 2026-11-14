@@ -24,7 +24,7 @@ pub fn validate(allocator: std.mem.Allocator, graph: model.Graph) (std.mem.Alloc
 
 pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options, call_scratch: ?load_model.CallScratch) !model.Loaded {
     var types = try @import("../../../analysis/type_table.zig").storage(allocator, options.types);
-    var origins = try @import("origins.zig").copy(allocator, options.nominal_types);
+    var origins = try @import("../../nominal_origins.zig").copy(allocator, options.nominal_types);
 
     return loadPrepared(allocator, options.library, .{
         .types = &types,

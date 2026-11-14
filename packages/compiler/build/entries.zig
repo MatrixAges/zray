@@ -181,6 +181,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/constants/validate.rx", .name = "constant_values" },
     .{ .path = "zx/analysis/constants/bindings.rx", .name = "constant_bindings" },
     .{ .path = "zx/analysis/semantic/origins.rx", .name = "origin_validation" },
+    .{ .path = "zx/modules/nominal_origins/materialize.zx", .name = "origin_materialization" },
     .{ .path = "zx/analysis/semantic/produce.rx", .name = "origin_production" },
     .{ .path = "zx/analysis/semantic/preflight.rx", .name = "merge_preflight" },
     .{ .path = "zx/analysis/semantic/merge.rx", .name = "type_merge" },

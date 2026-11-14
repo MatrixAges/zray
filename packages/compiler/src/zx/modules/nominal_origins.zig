@@ -2,6 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Self = @This();
 const data = @import("nominal_data");
+const generated = @import("parser_options").generated_parser;
 pub const Origin = data.Origin;
 pub const Item = data.Item;
 pub const Table = data.Table;
@@ -31,6 +32,8 @@ pub fn seed(self: *Self, types: ir.TypeTable, values: Table) (std.mem.Allocator.
 
 /// Seeds from a trusted shared table that outlives this one, borrowing its origin strings.
 pub fn borrow(self: *Self, types: ir.TypeTable, values: Table) std.mem.Allocator.Error!void {
+    if (comptime generated) return @import("nominal_origins/materialize.zig").append(self.allocator, &self.items, values, types.labels, false);
+
     for (0..values.count()) |index| {
         const item = values.at(index);
 
@@ -39,6 +42,8 @@ pub fn borrow(self: *Self, types: ir.TypeTable, values: Table) std.mem.Allocator
 }
 
 pub fn copyValidated(self: *Self, types: ir.TypeTable, values: Table) std.mem.Allocator.Error!void {
+    if (comptime generated) return @import("nominal_origins/materialize.zig").append(self.allocator, &self.items, values, types.labels, true);
+
     for (0..values.count()) |index| {
         const item = values.at(index);
 
@@ -48,4 +53,16 @@ pub fn copyValidated(self: *Self, types: ir.TypeTable, values: Table) std.mem.Al
             .name = types.at(@backingInt(item.type_id)).nominalName().?,
         });
     }
+}
+
+pub fn copy(allocator: std.mem.Allocator, values: Table) std.mem.Allocator.Error!Self {
+    var result: Self = .{ .allocator = allocator };
+
+    errdefer inline for (@typeInfo(Storage).@"struct".field_names) |name| {
+        @field(result.items, name).deinit(allocator);
+    };
+
+    try @import("nominal_origins/materialize.zig").append(allocator, &result.items, values, null, true);
+
+    return result;
 }
