@@ -6,7 +6,7 @@
 ![Experimental](https://img.shields.io/badge/status-experimental-orange.svg)
 ![Zig 0.17.0](https://img.shields.io/badge/zig-0.17.0-f7a41d.svg)
 
-[CLI](packages/cli/README.md) · [RX Reference](packages/compiler/src/rx/README.md) · [Compiler](packages/compiler/README.md) · [Feature Reference](docs/2026-10-05/功能参考索引.md) · [Design](docs/zxc_deisgn_doc.md)
+[Repository](https://github.com/MatrixAges/zray) · [CLI](packages/cli/README.md) · [RX Reference](packages/compiler/src/rx/README.md) · [Compiler](packages/compiler/README.md) · [Feature Reference](docs/2026-10-05/功能参考索引.md) · [Design](docs/zxc_deisgn_doc.md)
 
 ## Example
 
