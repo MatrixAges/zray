@@ -11,6 +11,8 @@ export type Body = {
     root?: u32
 }
 
+export type BodyValues = Body.Pick("symbols", "expressions")
+
 export type Predicate = {
     symbols: Symbols,
     expressions: Expressions,

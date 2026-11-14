@@ -1,0 +1,32 @@
+<Module>
+    <Type from="core/ir/body" as="IR" />
+
+    <Args in={IR.Body} out={IR.Body} />
+
+    <Call fn="../../modules/artifact/materializing/control" in={$in.control} />
+
+    <Call
+        module="values"
+        in={{
+            symbols: $in.symbols,
+            expressions: $in.expressions
+        }}
+    />
+
+    <Call
+        fn="../../modules/artifact/materializing/stores/own"
+        in={{
+            source: $in.stores
+        }}
+    />
+
+    <Return
+        value={{
+            stores: $ctx.own,
+            symbols: $ctx.values.symbols,
+            expressions: $ctx.values.expressions,
+            control: $ctx.control,
+            root: $in.root
+        }}
+    />
+</Module>

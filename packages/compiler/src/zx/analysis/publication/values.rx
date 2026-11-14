@@ -1,0 +1,36 @@
+<Module>
+    <Type from="core/ir/body" as="IR" />
+
+    <Args in={IR.BodyValues} out={IR.BodyValues} />
+
+    <Task name="names" out={$ctx.copy_names}>
+        <Call fn="../../modules/copy_names" in={$in.symbols.names} />
+    </Task>
+
+    <Task name="strings" out={$ctx.copy_names}>
+        <Call fn="../../modules/copy_names" in={$in.expressions.strings} />
+    </Task>
+
+    <Call
+        fn="../../modules/artifact/materializing/symbols"
+        in={{
+            source: $in.symbols,
+            names: $ctx.task.names
+        }}
+    />
+
+    <Call
+        fn="../../modules/artifact/materializing/expressions"
+        in={{
+            source: $in.expressions,
+            strings: $ctx.task.strings
+        }}
+    />
+
+    <Return
+        value={{
+            symbols: $ctx.symbols,
+            expressions: $ctx.expressions
+        }}
+    />
+</Module>

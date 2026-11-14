@@ -1,0 +1,14 @@
+<Module>
+    <Type from="core/contract_table/model" as="IR" />
+
+    <Args in={IR.Contracts} out={IR.Contracts} />
+
+    <Call
+        fn="../../modules/artifact/remapping/contracts"
+        in={{
+            source: $in
+        }}
+    />
+
+    <Return value={$ctx.contracts} />
+</Module>

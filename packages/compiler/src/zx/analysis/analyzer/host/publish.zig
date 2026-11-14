@@ -2,8 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Context = @import("context.zig");
-const borrow = @import("../../../ir/canonical/borrow.zig");
-const own = @import("../../../modules/artifact/nodes/columns.zig").own;
+const publication = @import("../../publication/host.zig");
 const model = @import("model.zig");
 
 pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const u8) zx.Error!ir.Program {
@@ -20,8 +19,7 @@ pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const
 
     try @import("../../semantic/merging/commit.zig").append(allocator, analyzer.types, &analyzer.origins.items, output.type_delta.*, output.nominal_delta.*);
 
-    const control = try allocator.create(ir.ControlTable);
-    control.* = try own(allocator, borrow.columns(ir.ControlTable, output.body.control.*), .{});
+    const body = try publication.body(allocator, output.body);
     const exports = try allocator.alloc(ir.Export, output.export_names.len);
 
     for (output.export_names, output.export_types, exports) |name, type_id, *exported| {
@@ -38,11 +36,11 @@ pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const
             .Borrowed => .borrowed,
             .Owned => .owned,
         },
-        .symbols = try own(allocator, borrow.columns(ir.SymbolTable, output.body.symbols.*), .{}),
-        .expressions = try own(allocator, borrow.columns(ir.ExpressionTable, output.body.expressions.*), .{}),
-        .body = .{ .control = control, .root = if (output.body.root) |root| @fromBackingInt(root) else null },
-        .stores = try own(allocator, borrow.columns(ir.StoreTable, output.body.stores.*), .{}),
-        .contracts = try @import("contracts.zig").copy(allocator, borrow.columns(ir.ContractTable, output.contracts.*)),
+        .symbols = body.symbols,
+        .expressions = body.expressions,
+        .body = body.control,
+        .stores = body.stores,
+        .contracts = try publication.contracts(allocator, output.contracts),
         .exports = exports,
         .constant_exports = try @import("../../constants/exports.zig").own(allocator, output.constant_scope, output.constant_first),
         .type_only = output.type_only,

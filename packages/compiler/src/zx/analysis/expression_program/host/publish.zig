@@ -2,14 +2,12 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Options = @import("../../expression.zig").Options;
 const Output = std.meta.Child(@import("generated_expression_analysis").Output);
-const borrow = @import("../../../ir/canonical/borrow.zig");
-const own = @import("../../../modules/artifact/nodes/columns.zig").own;
+const body_publication = @import("../../publication/host.zig");
 const type_table = @import("../../type_table.zig");
 const publication = @import("../../semantic/merging/commit.zig");
 
 pub fn apply(allocator: std.mem.Allocator, output: *const Output, options: Options, file_name: []const u8) std.mem.Allocator.Error!ir.Program {
-    const control = try allocator.create(ir.ControlTable);
-    control.* = try own(allocator, borrow.columns(ir.ControlTable, output.body.control.*), .{});
+    const body = try body_publication.body(allocator, output.body);
 
     return .{
         .file_name = try allocator.dupe(u8, file_name),
@@ -22,18 +20,21 @@ pub fn apply(allocator: std.mem.Allocator, output: *const Output, options: Optio
             .Borrowed => .borrowed,
             .Owned => .owned,
         },
-        .symbols = try own(allocator, borrow.columns(ir.SymbolTable, output.body.symbols.*), .{}),
-        .expressions = try own(allocator, borrow.columns(ir.ExpressionTable, output.body.expressions.*), .{}),
-        .body = .{ .control = control, .root = if (output.body.root) |root| @fromBackingInt(root) else null },
-        .stores = try own(allocator, borrow.columns(ir.StoreTable, output.body.stores.*), .{}),
+        .symbols = body.symbols,
+        .expressions = body.expressions,
+        .body = body.control,
+        .stores = body.stores,
     };
 }
 
 pub fn expression(allocator: std.mem.Allocator, output: *const Output, options: Options) std.mem.Allocator.Error!@import("../../expression.zig").Expression {
+    const types = try extended(allocator, output, options);
+    const values = try body_publication.values(allocator, output.body);
+
     return .{
-        .types = try extended(allocator, output, options),
-        .symbols = try own(allocator, borrow.columns(ir.SymbolTable, output.body.symbols.*), .{}),
-        .expressions = try own(allocator, borrow.columns(ir.ExpressionTable, output.body.expressions.*), .{}),
+        .types = types,
+        .symbols = values.symbols,
+        .expressions = values.expressions,
         .value = @fromBackingInt(output.value),
     };
 }
