@@ -1,6 +1,6 @@
 import strings from "std:string"
 
-import copyNames from "../materializing/copy_names"
+import copyNames from "../../copy_names"
 
 export type Input = {
     specifier: string,

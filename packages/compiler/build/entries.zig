@@ -198,6 +198,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/ir/canonical/refinement/facts/contains_value.rx", .name = "refinement_contains" },
     .{ .path = "zx/ir/canonical/refinement/facts/add_value.rx", .name = "refinement_add_value" },
     .{ .path = "zx/ir/canonical/native_modules_check.rx", .name = "native_modules" },
+    .{ .path = "zx/modules/native_context/copy.zx", .name = "native_context_copy" },
     .{ .path = "zx/modules/native/load.rx", .name = "native_interface" },
     .{ .path = "zx/modules/native/parse.rx", .name = "native_syntax" },
     .{ .path = "zx/modules/link/native/bind.rx", .name = "native_link_binding" },

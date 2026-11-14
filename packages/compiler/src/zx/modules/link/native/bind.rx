@@ -40,7 +40,7 @@
     />
 
     <Call
-        fn="../../artifact/materializing/copy_binding"
+        fn="../../native_context/copy_binding"
         in={{
             source: $in.value,
             mapped_ids: $ctx.ids

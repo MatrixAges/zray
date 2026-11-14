@@ -1,6 +1,7 @@
 import strings from "std:string"
 
-import copyNames from "./copy_names"
+import copyNames from "../copy_names"
+import copyOptionalName from "../copy_optional_name"
 
 import type { Binding } from "core/native_module_table/model"
 
@@ -14,13 +15,8 @@ export type Output = Binding
 export default function (in: Input): Output {
     const { source, mapped_ids } = in
 
-    const identity: string? = match {
-        source.identity != null => strings.copy(source.identity),
-        _ => null
-    }
-
     return {
-        identity,
+        identity: copyOptionalName(source.identity),
         specifier: strings.copy(source.specifier),
         import_name: strings.copy(source.import_name),
         namespace: copyNames(source.namespace),

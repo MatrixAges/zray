@@ -3,6 +3,9 @@ export type U32Buffer = opaque
 export type U64Buffer = opaque
 export type OptionalU32Buffer = opaque
 export type StringBuffer = opaque
+export type OptionalStringBuffer = opaque
+export type U32ListBuffer = opaque
+export type StringListBuffer = opaque
 
 export declare function readU32(
     target: U32Buffer,
@@ -56,6 +59,24 @@ export declare function writeString(
     target: StringBuffer,
     index: u64,
     value: string
+): void throws { IndexOutOfBounds }
+
+export declare function writeOptionalString(
+    target: OptionalStringBuffer,
+    index: u64,
+    value: string?
+): void throws { IndexOutOfBounds }
+
+export declare function writeU32List(
+    target: U32ListBuffer,
+    index: u64,
+    value: u32[]
+): void throws { IndexOutOfBounds }
+
+export declare function writeStringList(
+    target: StringListBuffer,
+    index: u64,
+    value: string[]
 ): void throws { IndexOutOfBounds }
 
 export declare function copyStrings(

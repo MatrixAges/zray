@@ -1,4 +1,4 @@
-import copyNames from "../../../artifact/materializing/copy_names"
+import copyNames from "../../../copy_names"
 import store from "../../identity/store"
 import ids from "./ids"
 

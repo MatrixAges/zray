@@ -1,6 +1,5 @@
-import strings from "std:string"
-
-import copyNames from "./copy_names"
+import copyNames from "../../copy_names"
+import copyOptionalName from "../../copy_optional_name"
 import copyParameters from "./copy_parameters"
 
 import type { Errors, Names } from "core/signature_table/model"
@@ -22,10 +21,7 @@ export default function (in: Input): Output {
         _ => null
     }
 
-    const export_name: string? = match {
-        in.export_name != null => strings.copy(in.export_name),
-        _ => null
-    }
+    const export_name = copyOptionalName(in.export_name)
 
     const parameters: Names? = match {
         in.parameters != null => copyParameters(in.parameters),

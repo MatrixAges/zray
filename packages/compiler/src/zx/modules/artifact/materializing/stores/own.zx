@@ -1,4 +1,4 @@
-import copyNames from "../copy_names"
+import copyNames from "../../../copy_names"
 
 import type { Stores } from "core/store_table/model"
 

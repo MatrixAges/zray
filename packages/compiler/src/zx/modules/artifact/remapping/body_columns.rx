@@ -60,11 +60,11 @@
     />
 
     <Task name="names" out={$ctx.copy_names}>
-        <Call fn="../materializing/copy_names" in={$in.symbols.names} />
+        <Call fn="../../copy_names" in={$in.symbols.names} />
     </Task>
 
     <Task name="strings" out={$ctx.copy_names}>
-        <Call fn="../materializing/copy_names" in={$in.expressions.strings} />
+        <Call fn="../../copy_names" in={$in.expressions.strings} />
     </Task>
 
     <Call

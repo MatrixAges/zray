@@ -1,4 +1,4 @@
-import copyNames from "../materializing/copy_names"
+import copyNames from "../../copy_names"
 import ownExpressions from "../materializing/expressions"
 import ownSymbols from "../materializing/symbols"
 import ids from "./ids"

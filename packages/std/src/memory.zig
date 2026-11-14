@@ -44,6 +44,18 @@ pub inline fn writeString(target: *const anyopaque, index: u64, value: []const u
     return write([]const u8, target, index, value);
 }
 
+pub inline fn writeOptionalString(target: *const anyopaque, index: u64, value: ?[]const u8) error{IndexOutOfBounds}!void {
+    return write(?[]const u8, target, index, value);
+}
+
+pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {
+    return write([]const u32, target, index, value);
+}
+
+pub inline fn writeStringList(target: *const anyopaque, index: u64, value: []const []const u8) error{IndexOutOfBounds}!void {
+    return write([]const []const u8, target, index, value);
+}
+
 /// Copies text into an exclusively borrowed destination and releases partial copies on failure.
 pub fn copyStrings(allocator: std.mem.Allocator, target: *const anyopaque, source: []const []const u8) (std.mem.Allocator.Error || error{IndexOutOfBounds})!void {
     const output: *const [][]const u8 = @ptrCast(@alignCast(target));
