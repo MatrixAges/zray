@@ -1,0 +1,30 @@
+import copyNames from "../../modules/copy_names"
+
+import type { Table } from "core/type_table/model"
+
+export type Input = {
+    source: Table,
+    own_text: bool
+}
+
+export type Output = Table
+
+export default function (in: Input): Output {
+    const { source, own_text } = in
+
+    const field_names = match {
+        own_text => copyNames(source.field_names),
+        _ => source.field_names.slice()
+    }
+
+    return {
+        kinds: source.kinds.slice(),
+        first: source.first.slice(),
+        second: source.second.slice(),
+        labels: own_text ? copyNames(source.labels) : source.labels.slice(),
+        children: source.children.slice(),
+        field_types: source.field_types.slice(),
+        field_names,
+        names: own_text ? copyNames(source.names) : source.names.slice()
+    }
+}

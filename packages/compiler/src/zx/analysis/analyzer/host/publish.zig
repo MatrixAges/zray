@@ -1,8 +1,8 @@
-const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Context = @import("context.zig");
 const publication = @import("../../publication/host.zig");
+const interface = @import("../../publication/interface.zig");
 const model = @import("model.zig");
 
 pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const u8) zx.Error!ir.Program {
@@ -20,11 +20,7 @@ pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const
     try @import("../../semantic/merging/commit.zig").append(allocator, analyzer.types, &analyzer.origins.items, output.type_delta.*, output.nominal_delta.*);
 
     const body = try publication.body(allocator, output.body);
-    const exports = try allocator.alloc(ir.Export, output.export_names.len);
-
-    for (output.export_names, output.export_types, exports) |name, type_id, *exported| {
-        exported.* = .{ .name = try allocator.dupe(u8, name), .type_id = @fromBackingInt(type_id) };
-    }
+    const exports = try interface.types(allocator, output.export_names, output.export_types);
 
     return .{
         .file_name = try allocator.dupe(u8, file_name),
@@ -42,7 +38,7 @@ pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const
         .stores = body.stores,
         .contracts = try publication.contracts(allocator, output.contracts),
         .exports = exports,
-        .constant_exports = try @import("../../constants/exports.zig").own(allocator, output.constant_scope, output.constant_first),
+        .constant_exports = try interface.constants(allocator, output.constant_scope, output.constant_first),
         .type_only = output.type_only,
     };
 }

@@ -231,6 +231,8 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/publication/body.rx", .name = "analysis_publish_body" },
     .{ .path = "zx/analysis/publication/values.rx", .name = "analysis_publish_values" },
     .{ .path = "zx/analysis/publication/contracts.rx", .name = "analysis_publish_contracts" },
+    .{ .path = "zx/analysis/publication/declaration.zx", .name = "analysis_publish_declaration" },
+    .{ .path = "zx/analysis/publication/base_types.zx", .name = "analysis_publish_base_types" },
     .{ .path = "zx/modules/source_signature/analyze.rx", .name = "source_signature" },
     .{ .path = "zx/analysis/expression_program/compile.rx", .name = "expression_analysis" },
     .{ .path = "zx/analysis/expression_program/bindings/path/valid.zx", .name = "binding_path_valid" },

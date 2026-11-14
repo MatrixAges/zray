@@ -5,6 +5,7 @@ const Origins = @import("../nominal_origins.zig");
 const Signature = @import("../source_signature.zig");
 const generated = @import("generated_source_signature");
 const borrow = @import("../../ir/canonical/borrow.zig");
+const interface = @import("../../analysis/publication/interface.zig");
 const Input = std.meta.Child(generated.Input);
 const Declarations = std.meta.Child(@FieldType(Input, "declarations"));
 
@@ -89,16 +90,10 @@ fn run(types: *Types, arena: *zx.Arena, source: []const u8, syntax: @FieldType(D
 
     try @import("../../analysis/semantic/merging/commit.zig").append(types.allocator, &types.items, origins, output.type_delta.*, output.nominal_delta.*);
 
-    const exports = try types.allocator.alloc(zx.ir.Export, output.export_names.len);
-
-    for (output.export_names, output.export_types, exports) |name, type_id, *exported| {
-        exported.* = .{ .name = try types.allocator.dupe(u8, name), .type_id = @fromBackingInt(type_id) };
-    }
-
     return .{
         .ports = .{ .input_type = @fromBackingInt(output.input_type), .output_type = @fromBackingInt(output.output_type) },
-        .exports = exports,
-        .constant_exports = try @import("../../analysis/constants/exports.zig").own(types.allocator, output.constant_scope, output.constant_first),
+        .exports = try interface.types(types.allocator, output.export_names, output.export_types),
+        .constant_exports = try interface.constants(types.allocator, output.constant_scope, output.constant_first),
         .type_only = output.type_only,
         .has_store = output.has_store,
     };
