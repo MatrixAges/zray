@@ -1,6 +1,7 @@
 """Prune historical build verification outputs from this repository."""
 
 import argparse
+import fcntl
 import os
 from pathlib import Path
 import re
@@ -13,8 +14,12 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / ".zig-cache"
 HISTORY = CACHE / "cold-build-analysis"
+VERIFICATION_GLOBAL = CACHE / "verification-global"
+VERIFICATION_TEMP = CACHE / "verification-tmp"
 DOC_SUFFIXES = {".gz", ".json", ".jsonl", ".log", ".txt"}
 CACHE_KEYS = {
+    "args": re.compile(r"[0-9a-f]{64}"),
+    "b": re.compile(r"[0-9a-f]{32}"),
     "bootstrap-functions": re.compile(r"[0-9a-f]{64}\.cache"),
     "c": re.compile(r"[0-9a-f]{32}"),
     "h": re.compile(r"[0-9a-f]{32}"),
@@ -30,16 +35,22 @@ def git_paths(*args):
 
 
 def expired_output(path, cutoff):
-    metadata = path.lstat()
-    if metadata.st_mtime >= cutoff:
-        return False
+    try:
+        metadata = path.lstat()
+        if metadata.st_mtime >= cutoff:
+            return False
 
-    return not stat.S_ISDIR(metadata.st_mode) or all(
-        expired_output(child, cutoff) for child in path.iterdir()
-    )
+        return not stat.S_ISDIR(metadata.st_mode) or all(
+            expired_output(child, cutoff) for child in path.iterdir()
+        )
+    except FileNotFoundError:
+        return False
 
 
 def history_outputs():
+    if VERIFICATION_TEMP.is_dir() and VERIFICATION_TEMP.resolve() == VERIFICATION_TEMP:
+        yield from VERIFICATION_TEMP.iterdir()
+
     if not HISTORY.is_dir() or HISTORY.resolve() != HISTORY:
         return
 
@@ -56,12 +67,6 @@ def history_outputs():
             yield workspace
 
 
-def old_history(cutoff, keep):
-    for path in history_outputs():
-        if not path.is_symlink() and not keep(path) and expired_output(path, cutoff):
-            yield path
-
-
 def package_caches():
     for package in (ROOT / "packages").iterdir():
         cache = package / ".zig-cache"
@@ -74,12 +79,36 @@ def old_package_caches(caches, cutoff):
         children = list(cache.iterdir())
         expired = [
             child for child in children
-            if not child.is_symlink() and child.lstat().st_mtime < cutoff
+            if not child.is_symlink() and expired_output(child, cutoff)
         ]
         if cache.stat().st_mtime < cutoff and len(expired) == len(children):
             yield cache
         else:
             yield from expired
+
+
+def cache_buckets(cache):
+    for name in CACHE_KEYS:
+        bucket = cache / name
+        if bucket.is_dir() and bucket.resolve() == bucket:
+            yield bucket
+
+
+def history_cache_buckets(outputs, retained):
+    for output in outputs:
+        if output.is_symlink() or not output.is_dir() or retained(output):
+            continue
+
+        for directory, names, _ in os.walk(output):
+            path = Path(directory)
+            if retained(path):
+                names.clear()
+                continue
+
+            if {"h", "o"}.issubset(names):
+                buckets = list(cache_buckets(path))
+                yield from buckets
+                names[:] = [name for name in names if path / name not in buckets]
 
 
 def unused_docs(cutoff):
@@ -116,9 +145,7 @@ def expired_cache_entries(directory, cutoff):
                 continue
 
             path = Path(entry.path)
-            if entry.is_dir(follow_symlinks=False) and any(
-                child.lstat().st_mtime >= cutoff for child in path.iterdir()
-            ):
+            if entry.is_dir(follow_symlinks=False) and not expired_output(path, cutoff):
                 continue
 
             yield path
@@ -134,6 +161,79 @@ def remove(path):
         print(error, flush=True)
         return False
     return True
+
+
+def clean(options, protected):
+    def retained(path):
+        return any(path.is_relative_to(saved) for saved in protected)
+
+    def keep(path):
+        return retained(path) or any(saved.is_relative_to(path) for saved in protected)
+
+    cutoff = time.time() - options.min_age_hours * 3_600
+    packages = list(package_caches())
+    outputs = list(history_outputs())
+    history = [
+        path for path in outputs
+        if not path.is_symlink() and not keep(path) and expired_output(path, cutoff)
+    ]
+    history.extend(path for path in old_package_caches(packages, cutoff) if not keep(path))
+    retired = set(history)
+    buckets = [
+        bucket
+        for cache in (CACHE, VERIFICATION_GLOBAL, *packages)
+        if cache not in retired
+        for bucket in cache_buckets(cache)
+    ]
+    buckets.extend(history_cache_buckets((path for path in outputs if path not in retired), retained))
+    buckets = [bucket for bucket in buckets if bucket not in retired and not retained(bucket)]
+    files = [path for path in unused_docs(cutoff) if not keep(path)]
+    print(
+        f"Selected {len(history):,} historical outputs and {len(files):,} documents' intermediate files. "
+        f"Scanning {len(buckets):,} Zig cache directories for expired entries.",
+        flush=True,
+    )
+    if not options.apply:
+        for path in history[:12]:
+            print(path.relative_to(ROOT))
+
+    before = shutil.disk_usage(ROOT).free
+    errors = 0
+    if options.apply:
+        for index, path in enumerate(history, 1):
+            if path.exists() and expired_output(path, cutoff):
+                errors += not remove(path)
+            if index % 10 == 0:
+                print(f"Processed {index:,}/{len(history):,} historical outputs.", flush=True)
+
+        for path in files:
+            if path.exists() and expired_output(path, cutoff):
+                errors += not remove(path)
+
+    for directory in buckets:
+        count = 0
+        for path in expired_cache_entries(directory, cutoff):
+            if keep(path):
+                continue
+
+            success = not options.apply or remove(path)
+            errors += not success
+            count += success
+
+        if count:
+            action = "Removed" if options.apply else "Selected"
+            print(f"{action} {count:,} entries from {directory.relative_to(ROOT)}.", flush=True)
+
+    if not options.apply:
+        print("Run again with --apply to remove the selected outputs.")
+        return
+
+    free = shutil.disk_usage(ROOT).free
+    print(
+        f"Free space: {free / 2**30:.2f} GiB "
+        f"({(free - before) / 2**30:+.2f} GiB during this run)."
+    )
+    return bool(errors)
 
 
 def main():
@@ -155,59 +255,21 @@ def main():
     if any(not path.is_relative_to(ROOT) for path in protected):
         parser.error("--keep paths must be inside the repository")
 
-    def keep(path):
-        return any(path.is_relative_to(saved) or saved.is_relative_to(path) for saved in protected)
+    if CACHE.resolve() != CACHE:
+        parser.error(".zig-cache must be inside the repository")
 
-    cutoff = time.time() - options.min_age_hours * 3_600
-    packages = list(package_caches())
-    history = list(old_history(cutoff, keep))
-    history.extend(path for path in old_package_caches(packages, cutoff) if not keep(path))
-    retired = set(history)
-    buckets = [
-        cache / name
-        for cache in (CACHE, *packages)
-        if cache not in retired
-        for name in CACHE_KEYS
-        if (cache / name).is_dir()
-        and (cache / name).resolve() == cache / name
-        and cache / name not in retired
-        and not keep(cache / name)
-    ]
-    files = [path for path in unused_docs(cutoff) if not keep(path)]
-    print(
-        f"Selected {len(history):,} historical outputs and {len(files):,} documents' intermediate files. "
-        f"Scan {len(buckets):,} Zig cache directories for expired entries.",
-        flush=True,
-    )
     if not options.apply:
-        for path in history[:12]:
-            print(path.relative_to(ROOT))
-        print("Run again with --apply to remove the selected outputs.")
-        return
+        return clean(options, protected)
 
-    before = shutil.disk_usage(ROOT).free
-    errors = 0
-    for index, path in enumerate(history, 1):
-        errors += not remove(path)
-        if index % 10 == 0:
-            print(f"Processed {index:,}/{len(history):,} historical outputs.", flush=True)
+    CACHE.mkdir(exist_ok=True)
+    with (CACHE / ".cleanup.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("Build artifact cleanup is already running.")
+            return
 
-    for path in files:
-        errors += not remove(path)
-    for directory in buckets:
-        removed = 0
-        for path in expired_cache_entries(directory, cutoff):
-            success = remove(path)
-            errors += not success
-            removed += success
-        if removed:
-            print(f"Removed {removed:,} entries from {directory.relative_to(ROOT)}.", flush=True)
-    free = shutil.disk_usage(ROOT).free
-    print(
-        f"Free space: {free / 2**30:.2f} GiB "
-        f"({(free - before) / 2**30:+.2f} GiB during this run)."
-    )
-    return bool(errors)
+        return clean(options, protected)
 
 
 if __name__ == "__main__":
