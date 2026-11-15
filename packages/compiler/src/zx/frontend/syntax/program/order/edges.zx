@@ -1,0 +1,51 @@
+import memory from "std:memory"
+
+import { Chain } from "./model"
+
+import type { U64Buffer } from "std:memory"
+import type { Trees } from "./model"
+
+export type Input = {
+    trees: Trees,
+    target: U64Buffer,
+    kind: Chain,
+    first: u64,
+    head: u64,
+    count: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const expressions = in.trees.expressions
+    const blocks = in.trees.blocks
+    const target = in.target
+    const end = in.first + in.count
+    const kind = in.kind
+
+    return loop({
+        row: in.head,
+        position: end
+    }, {
+        while: state => state.position > in.first,
+        next: state => {
+            const row = state.row - 1
+
+            state.position -= 1
+            memory.writeU64(target, state.position, row)
+
+            state.row = match kind {
+                Chain.Arguments => expressions.items[row].previous,
+                Chain.Fields => expressions.fields[row].previous,
+                Chain.Parameters => expressions.parameters[row].previous,
+                Chain.Parts => expressions.parts[row].previous,
+                Chain.Arms => expressions.arms[row].previous,
+                Chain.Statements => blocks.items[row].previous,
+                Chain.Names => blocks.names[row].previous,
+                Chain.Cases => blocks.cases[row].previous,
+                _ => 0
+            }
+        },
+        return: state => end
+    })
+}

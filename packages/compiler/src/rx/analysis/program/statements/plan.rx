@@ -1,0 +1,84 @@
+<Module>
+    <Type from="model" as="Steps" />
+
+    <Args in={Steps.Input} out={Steps.Output} />
+
+    <Switch on={$in}>
+        <Case value={Steps.Form.CallWithArgument}>
+            <Return
+                value={[
+                    Steps.Step.BindGetters,
+                    Steps.Step.EvaluateArgument,
+                    Steps.Step.RestoreBindings,
+                    Steps.Step.ResolveStores,
+                    Steps.Step.ImportCallee,
+                    Steps.Step.WriteCall
+                ]}
+            />
+        </Case>
+
+        <Case value={Steps.Form.CallWithoutArgument}>
+            <Return
+                value={[
+                    Steps.Step.BindGetters,
+                    Steps.Step.UnitArgument,
+                    Steps.Step.RestoreBindings,
+                    Steps.Step.ResolveStores,
+                    Steps.Step.ImportCallee,
+                    Steps.Step.WriteCall
+                ]}
+            />
+        </Case>
+
+        <Case value={Steps.Form.Task}>
+            <Return
+                value={[
+                    Steps.Step.LowerTask,
+                    Steps.Step.RestoreBindings
+                ]}
+            />
+        </Case>
+
+        <Case value={Steps.Form.TaskWithEvaluation}>
+            <Return
+                value={[
+                    Steps.Step.LowerTask,
+                    Steps.Step.EvaluateTaskOutput,
+                    Steps.Step.WriteEvaluation,
+                    Steps.Step.RestoreBindings
+                ]}
+            />
+        </Case>
+
+        <Case value={Steps.Form.TaskWithBinding}>
+            <Return
+                value={[
+                    Steps.Step.LowerTask,
+                    Steps.Step.EvaluateTaskOutput,
+                    Steps.Step.DefineTaskBinding,
+                    Steps.Step.RestoreBindings,
+                    Steps.Step.PublishTaskBinding
+                ]}
+            />
+        </Case>
+
+        <Case value={Steps.Form.Case}>
+            <Return
+                value={[
+                    Steps.Step.EvaluateLabel,
+                    Steps.Step.LowerBranch,
+                    Steps.Step.WriteCase
+                ]}
+            />
+        </Case>
+
+        <Case value={Steps.Form.Default}>
+            <Return
+                value={[
+                    Steps.Step.LowerBranch,
+                    Steps.Step.WriteCase
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

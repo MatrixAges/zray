@@ -27,7 +27,7 @@ pub fn borrow(graph: *const Graph, parents: *const []u32) View {
 pub fn restrict(graph: *Graph, id: Graph.Id, allowed: Scalar.Mask, span: zx.Span) zx.Error!void {
     if (!enabled) return restrictSeed(graph, id, allowed, span);
 
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{

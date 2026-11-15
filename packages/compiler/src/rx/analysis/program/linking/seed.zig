@@ -71,5 +71,9 @@ pub fn plan(allocator: std.mem.Allocator, builder: *const Builder, program: ir.P
         }
     }
 
-    return .{ .returned = returned.result.?, .rows = rows, .bindings = bindings };
+    const index = @backingInt(returned.result.?);
+
+    if (index >= rows.len or rows[index] == linking.missing) return error.InvalidModule;
+
+    return .{ .returned = @fromBackingInt(rows[index]), .rows = rows, .bindings = bindings, .count = next_id - builder.expressions.count() };
 }

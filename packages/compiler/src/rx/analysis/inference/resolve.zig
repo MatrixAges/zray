@@ -3,7 +3,18 @@ const zx = @import("zx");
 const Graph = @import("types.zig");
 const Nodes = @import("nodes.zig");
 
-pub fn resolve(graph: *Graph, value: Graph.Id) zx.Error!zx.ir.TypeId {
+pub const Workspace = struct {
+    local_frames: [16]u64 = undefined,
+    local_values: [32]u32 = undefined,
+    extra_frames: std.ArrayList(u64) = .empty,
+    extra_values: std.ArrayList(u32) = .empty,
+    pub fn deinit(self: *Workspace, allocator: std.mem.Allocator) void {
+        self.extra_frames.deinit(allocator);
+        self.extra_values.deinit(allocator);
+    }
+};
+
+pub fn resolve(graph: *Graph, value: Graph.Id, workspace: *Workspace) zx.Error!zx.ir.TypeId {
     if (!@import("rx_options").generated_graph) return @import("resolve/seed.zig").resolve(graph, value, 0);
 
     const rows = graph.nodes.slice();
@@ -11,10 +22,10 @@ pub fn resolve(graph: *Graph, value: Graph.Id) zx.Error!zx.ir.TypeId {
 
     if (rows.items(.kind)[index] == .Known) return @fromBackingInt(rows.items(.argument)[index]);
 
-    return run(graph, rows, index);
+    return run(graph, rows, index, workspace);
 }
 
-fn run(graph: *Graph, rows: Nodes.Storage.Slice, root: u32) zx.Error!zx.ir.TypeId {
+fn run(graph: *Graph, rows: Nodes.Storage.Slice, root: u32, workspace: *Workspace) zx.Error!zx.ir.TypeId {
     const generated = @import("generated_rx_resolve_type");
     const Request = @typeInfo(@TypeOf(generated.executeState)).@"fn".param_types[1].?;
     const View = std.meta.Child(@FieldType(Request, "graph"));
@@ -43,19 +54,19 @@ fn run(graph: *Graph, rows: Nodes.Storage.Slice, root: u32) zx.Error!zx.ir.TypeI
         .known_kind = @backingInt(Nodes.Kind.Known),
     };
 
-    var overflow = std.heap.ArenaAllocator.init(graph.scratch);
-
-    defer overflow.deinit();
-
-    var buffer: [512]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, overflow.allocator());
+    var frames: []u64 = if (workspace.extra_frames.capacity == 0) &workspace.local_frames else workspace.extra_frames.allocatedSlice();
+    var values: []u32 = if (workspace.extra_values.capacity == 0) &workspace.local_values else workspace.extra_values.allocatedSlice();
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const parents = graph.parents();
 
     var state: Request = .{
         .graph = &view,
         .publication = &publication,
-        .parents = graph.forest.state,
-        .frames = .{ .items = &.{}, .storage = .plain },
-        .values = .{ .items = &.{}, .storage = .plain },
+        .parents = @ptrCast(&parents),
+        .frames = @ptrCast(&frames),
+        .values = @ptrCast(&values),
+        .frame_capacity = frames.len,
+        .value_capacity = values.len,
         .depth = 0,
         .used = 0,
         .count = 0,
@@ -65,20 +76,46 @@ fn run(graph: *Graph, rows: Nodes.Storage.Slice, root: u32) zx.Error!zx.ir.TypeI
     };
 
     while (true) {
-        state = generated.executeState(scratch.allocator(), state) catch |err| switch (err) {
-            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        state = generated.executeState(empty.allocator(), state) catch |err| switch (err) {
+            error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
             else => unreachable,
         };
 
-        std.debug.assert(state.parents.items.ptr == graph.forest.state.items.ptr);
-
-        if (state.route == .Complete) return @fromBackingInt(state.completed.?);
-
-        state.completed = @backingInt(try continueType(graph, rows, state));
+        switch (state.route) {
+            .Complete => return @fromBackingInt(state.completed.?),
+            .GrowFrames => {
+                frames = try grow(u64, graph.scratch, &workspace.extra_frames, frames, @intCast(state.depth * 2), 2);
+                state.frame_capacity = frames.len;
+                state.route = .Search;
+            },
+            .GrowValues => {
+                values = try grow(u32, graph.scratch, &workspace.extra_values, values, @intCast(state.used), 1);
+                state.value_capacity = values.len;
+                state.route = .Search;
+            },
+            else => {
+                const members = values[@intCast(state.used)..][0..@intCast(state.count)];
+                state.completed = @backingInt(try continueType(graph, rows, state, members));
+            },
+        }
     }
 }
 
-fn continueType(graph: *Graph, rows: Nodes.Storage.Slice, state: anytype) zx.Error!zx.ir.TypeId {
+fn grow(comptime T: type, allocator: std.mem.Allocator, storage: *std.ArrayList(T), previous: []const T, used: usize, added: usize) std.mem.Allocator.Error![]T {
+    if (storage.capacity == 0) {
+        try storage.ensureTotalCapacity(allocator, used + added);
+
+        storage.appendSliceAssumeCapacity(previous[0..used]);
+    } else {
+        storage.items.len = used;
+
+        try storage.ensureUnusedCapacity(allocator, added);
+    }
+
+    return storage.allocatedSlice();
+}
+
+fn continueType(graph: *Graph, rows: Nodes.Storage.Slice, state: anytype, members: []const u32) zx.Error!zx.ir.TypeId {
     const generated = @import("generated_rx_continue_type");
     const Input = std.meta.Child(generated.Input);
     const Tables = std.meta.Child(@FieldType(Input, "tables"));
@@ -98,9 +135,7 @@ fn continueType(graph: *Graph, rows: Nodes.Storage.Slice, state: anytype) zx.Err
         .pending = &@as(Pending, .{
             .route = @fromBackingInt(@backingInt(state.route)),
             .child = state.completed orelse 0,
-            .values = state.values.items,
-            .start = state.used,
-            .count = state.count,
+            .members = members,
             .names = names,
         }),
     };
@@ -123,5 +158,5 @@ fn continueType(graph: *Graph, rows: Nodes.Storage.Slice, state: anytype) zx.Err
         return graph.reporter.fail(code, rows.items(.span)[state.node], result.diagnostic.message);
     }
 
-    return @import("frontend").commitTypeConstruction(&graph.types, scratch.allocator(), result, .{ .start = 0, .end = 0 }, false);
+    return @import("frontend").commitTypeConstruction(&graph.types, result, .{ .start = 0, .end = 0 }, false);
 }

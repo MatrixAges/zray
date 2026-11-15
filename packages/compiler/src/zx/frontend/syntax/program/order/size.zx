@@ -1,0 +1,76 @@
+import expressionChain from "./expression_chain"
+import { Chain } from "./model"
+import statementChain from "./statement_chain"
+
+import type { Output, Trees } from "./model"
+
+export type Input = Trees
+
+export default function (in: Input): Output {
+    const expressions = in.expressions.nodes
+    const blocks = in.blocks
+
+    const expression_edges = loop({
+        row: 0,
+        count: 0
+    }, {
+        while: state => state.row < expressions.length,
+        next: state => {
+            const node = expressions[state.row]
+
+            if (expressionChain(node.kind) != Chain.Empty) {
+                state.count += node.count
+            }
+
+            state.row += 1
+        },
+        return: state => state.count
+    })
+
+    const statements = blocks.statements
+
+    const statement_edges = loop({
+        row: 0,
+        count: expression_edges
+    }, {
+        while: state => state.row < statements.length,
+        next: state => {
+            const statement = statements[state.row]
+
+            if (statementChain(statement.kind) != Chain.Empty) {
+                state.count += statement.count
+            }
+
+            state.row += 1
+        },
+        return: state => state.count
+    })
+
+    const block_rows = blocks.blocks
+
+    const block_edges = loop({
+        row: 0,
+        count: statement_edges
+    }, {
+        while: state => state.row < block_rows.length,
+        next: state => {
+            state.count += block_rows[state.row].count
+            state.row += 1
+        },
+        return: state => state.count
+    })
+
+    const names = blocks.names
+
+    return loop({
+        row: 0,
+        count: block_edges
+    }, {
+        while: state => state.row < names.length,
+        next: state => {
+            state.count += names[state.row].count
+            state.row += 1
+        },
+        return: state => state.count
+    })
+}

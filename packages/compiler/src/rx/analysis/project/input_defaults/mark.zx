@@ -1,13 +1,14 @@
 import integers from "std:integer"
 
-import representative from "../../inference/forest/representative"
+import representative from "../../inference/forest/borrowed_root"
 
+import type { U32Buffer } from "std:memory"
 import type { Edges } from "../../inference/assignment/model"
 import type { Kind } from "../../inference/unification/model"
 
 export type Input = {
     edges: Edges,
-    parents: u32[],
+    parents: U32Buffer,
     kinds: Kind[],
     marked: bool[],
     index: u64,
@@ -15,7 +16,6 @@ export type Input = {
 }
 
 export type Output = {
-    parents: u32[],
     marked: bool[]
 }
 
@@ -36,8 +36,7 @@ export default function (in: Input): Output {
                     value: endpoint
                 })
 
-                state.parents = root.parents
-                state.marked[integers.widen(root.item)] = true
+                state.marked[integers.widen(root)] = true
 
                 if (!state.left) {
                     state.index += 1
@@ -47,7 +46,6 @@ export default function (in: Input): Output {
             }
         },
         return: state => ({
-            parents: state.parents,
             marked: state.marked
         })
     })

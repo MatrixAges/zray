@@ -1,0 +1,36 @@
+import type { U64Buffer } from "std:memory"
+import type { ExprTree } from "../../../zx/frontend/parser/expressions/state/model"
+
+export enum Issue {
+    None,
+    Unsupported,
+    SelectionArity,
+    SelectionArray,
+    SelectionLiteral,
+    NestedConditional
+}
+
+export type Order = {
+    offsets: u64[],
+    edges: u64[]
+}
+
+export type Input = {
+    source: string,
+    tree: ExprTree,
+    order: Order,
+    root: u64,
+    ancestors: U64Buffer,
+    positions: U64Buffer
+}
+
+export type Cursor = {
+    walk: Input,
+    node: u64,
+    index: u64
+}
+
+export type Output = {
+    issue: Issue,
+    node: u64
+}

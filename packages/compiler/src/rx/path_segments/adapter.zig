@@ -4,14 +4,18 @@ const write = @import("generated_path_write").executeValue;
 const Request = Input(analyze);
 const Kind = @FieldType(Request, "kind");
 const Error = error{ InvalidPath, OutOfMemory };
+const Plan = @typeInfo(@typeInfo(@TypeOf(analyze)).@"fn".return_type.?).error_union.payload;
 
 pub fn normalize(allocator: std.mem.Allocator, path: []const u8, kind: Kind, suffix: []const u8) Error![]const u8 {
     return resolve(allocator, &.{}, path, kind, suffix);
 }
 
-pub fn resolve(allocator: std.mem.Allocator, directory: []const u8, path: []const u8, kind: Kind, suffix: []const u8) Error![]const u8 {
+pub fn validate(path: []const u8, kind: Kind, suffix: []const u8) Error!void {
+    _ = try plan(.{ .directory = &.{}, .path = path, .kind = kind, .suffix = suffix });
+}
+
+fn plan(request: Request) Error!Plan {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const request: Request = .{ .directory = directory, .path = path, .kind = kind, .suffix = suffix };
 
     const result = invoke(analyze, empty.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
         error.Overflow, error.OutOfMemory => return error.OutOfMemory,
@@ -20,8 +24,14 @@ pub fn resolve(allocator: std.mem.Allocator, directory: []const u8, path: []cons
 
     if (!result.valid) return error.InvalidPath;
 
+    return result;
+}
+
+pub fn resolve(allocator: std.mem.Allocator, directory: []const u8, path: []const u8, kind: Kind, suffix: []const u8) Error![]const u8 {
+    const result = try plan(.{ .directory = directory, .path = path, .kind = kind, .suffix = suffix });
     const length = std.math.cast(usize, result.length) orelse return error.OutOfMemory;
     const output = try allocator.alloc(u8, length);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const emit: Input(write) = .{
         .directory = directory,

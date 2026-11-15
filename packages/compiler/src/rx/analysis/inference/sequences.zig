@@ -4,8 +4,12 @@ const syntax = zx.syntax.borrow;
 const Graph = @import("types.zig");
 const Expression = @import("expression.zig");
 const Target = @import("sequences/target.zig");
+const Registration = @import("assignment/registration.zig");
+const generated = @import("rx_options").generated_graph;
 
 pub const Sequence = struct { value: Graph.Id, elements: []const Graph.Id, spans: []const zx.Span, span: zx.Span };
+
+const Elements = std.MultiArrayList(struct { element: Graph.Id, span: zx.Span });
 
 pub fn infer(self: *Expression, expression: anytype, expected: ?Graph.Id) zx.Error!Graph.Id {
     const span = self.sourceSpan(expression.span);
@@ -14,8 +18,15 @@ pub fn infer(self: *Expression, expression: anytype, expected: ?Graph.Id) zx.Err
     if (expected) |target| try self.graph.expect(value, target, span);
 
     const items = syntax.value(expression).list;
-    const elements = try self.graph.pending.allocator.alloc(Graph.Id, items.len);
-    const spans = try self.graph.pending.allocator.alloc(zx.Span, items.len);
+    var storage: Elements = .empty;
+
+    try storage.setCapacity(self.graph.pending.allocator, items.len);
+
+    storage.len = items.len;
+
+    const rows = storage.slice();
+    const elements = rows.items(.element);
+    const spans = rows.items(.span);
 
     for (elements, 0..) |*element, index| {
         const item = syntax.item(items, index);
@@ -29,36 +40,57 @@ pub fn infer(self: *Expression, expression: anytype, expected: ?Graph.Id) zx.Err
     return value;
 }
 
-pub fn propagate(graph: *Graph, sequence: Sequence) zx.Error!void {
-    if (!@import("rx_options").generated_graph) return seedPropagate(graph, sequence);
+pub fn replay(graph: *Graph) zx.Error!void {
+    const sequences = graph.pending.sequences.slice();
 
-    const entry = @import("generated_rx_sequence");
-    const root = @backingInt(graph.root(sequence.value));
-    const view = Target.borrow(entry, graph);
+    if (comptime !generated) {
+        for (0..sequences.len) |row| try seedPropagate(graph, sequences.get(row));
+
+        return;
+    }
+
+    const entry = @import("generated_rx_sequence_replay");
+    const Input = std.meta.Child(entry.Input);
+    const values = sequences.items(.value);
+    const elements = sequences.items(.elements);
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var start: usize = 0;
 
-    const plan = entry.executeValue(scratch.allocator(), &.{
-        .graph = &view,
-        .root = root,
-        .count = sequence.elements.len,
-    }) catch unreachable;
+    while (start < sequences.len) {
+        const view = Target.borrow(entry, graph);
+        const parents: []u32 = graph.parents();
 
-    switch (plan.route) {
-        .Wait => return,
-        .Length => return lengthMismatch(graph, sequence.span),
-        .Invalid => return invalidSequence(graph, sequence.span),
-        .List => try expectList(graph, sequence, plan.argument, plan.declared),
-        .Tuple => {
-            const children = if (plan.declared)
-                view.type_children[plan.argument..][0..sequence.elements.len]
+        const input: Input = .{
+            .graph = &view,
+            .parents = @ptrCast(&parents),
+            .values = @ptrCast(values),
+            .elements = @ptrCast(elements),
+            .start = start,
+        };
 
-            else
-                view.members[root];
+        const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
 
-            for (sequence.elements, sequence.spans, children) |element, span, child| {
-                try graph.expect(element, try Target.child(graph, child, plan.declared, span), span);
-            }
-        },
+        if (result.plan.route == .Wait) return;
+
+        const row: usize = @intCast(result.row);
+        const sequence = sequences.get(row);
+        const plan = result.plan;
+
+        switch (plan.route) {
+            .Wait => unreachable,
+            .Length => return lengthMismatch(graph, sequence.span),
+            .Invalid => return invalidSequence(graph, sequence.span),
+            .List => try expectList(graph, sequence, plan.argument, plan.declared),
+            .Tuple => {
+                const targets: Registration.Targets = if (plan.declared) .{
+                    .declared = view.type_children[plan.argument..][0..sequence.elements.len],
+                } else .{ .inferred = view.members[@intCast(result.root)] };
+
+                try Registration.expectMany(graph, sequence.elements, sequence.spans, targets);
+            },
+        }
+
+        start = row + 1;
     }
 }
 
@@ -87,6 +119,7 @@ fn expectList(graph: *Graph, sequence: Sequence, child: u32, declared: bool) zx.
 
     const member = try Target.child(graph, child, declared, sequence.spans[0]);
 
+    if (generated) return Registration.expectMany(graph, sequence.elements, sequence.spans, .{ .repeated = member });
     for (sequence.elements, sequence.spans) |element, span| try graph.expect(element, member, span);
 }
 

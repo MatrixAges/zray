@@ -1,0 +1,28 @@
+import type { Cursor } from "./model"
+
+export type Input = Cursor
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const node = in.walk.tree.nodes[in.node]
+    const has_subject = node.first != 0
+
+    if (has_subject && in.index == 0) {
+        return node.first - 1
+    }
+
+    const position = has_subject ? in.index - 1 : in.index
+    const arm = position / 2
+    const condition = position % 2 == 0
+
+    if (arm < node.count) {
+        const order = in.walk.order
+        const first = order.offsets[in.node]
+        const pair = in.walk.tree.arms[order.edges[first + arm]]
+
+        return condition ? pair.condition : pair.result
+    }
+
+    return arm == node.count && condition ? node.second : null
+}

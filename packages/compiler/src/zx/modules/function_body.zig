@@ -33,12 +33,16 @@ pub fn calls(expressions: ir.ExpressionTable, id: ir.FunctionId) bool {
 }
 
 pub fn own(program: ir.Program) ?ir.FunctionId {
-    if (program.type_only or program.functions.count() == 0) return null;
+    return ownTail(program, program.functions, 0);
+}
 
-    const index = program.functions.count() - 1;
-    const id: ir.FunctionId = @fromBackingInt(@intCast(index));
+pub fn ownTail(program: ir.Program, tail: ir.FunctionTable, first: usize) ?ir.FunctionId {
+    if (program.type_only or tail.count() == 0) return null;
 
-    return if (calls(program.expressions, id) and std.meta.eql(value(program), program.functions.at(index))) id else null;
+    const row = tail.count() - 1;
+    const id: ir.FunctionId = @fromBackingInt(@intCast(first + row));
+
+    return if (calls(program.expressions, id) and std.meta.eql(value(program), tail.at(row))) id else null;
 }
 
 pub fn entry(allocator: std.mem.Allocator, program: *ir.Program, id: ir.FunctionId) std.mem.Allocator.Error!void {

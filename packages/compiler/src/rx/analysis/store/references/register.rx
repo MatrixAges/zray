@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Namespace" />
+
+    <Args in={Namespace.Input} out={Namespace.Output} />
+
+    <Call
+        fn="../../result_name/identifier"
+        in={{
+            name: $in.name,
+            allow_dollar: false
+        }}
+    />
+
+    <If on={!$ctx.identifier}>
+        <Return
+            value={{
+                index: $in.index,
+                status: Namespace.Status.Invalid
+            }}
+        />
+    </If>
+
+    <Call fn="claim" in={$in} />
+
+    <Return value={$ctx.claim} />
+</Module>

@@ -1,6 +1,8 @@
 //! Column-wise operations over the shared tables, which store each row field in its own list. A table view has the
 //! same fields as its storage, each holding that list's items.
 const std = @import("std");
+const zx = @import("zx");
+const generated = @import("rx_options").generated_graph;
 
 /// The length of every column of `Storage`.
 pub fn Lengths(comptime Storage: type) type {
@@ -25,11 +27,68 @@ pub fn equal(left: anytype, left_start: anytype, left_end: @TypeOf(left_start), 
     return true;
 }
 
-/// Appends the rows `source` holds between `start` and `end` to `storage`, sharing what they point to.
-pub fn transplant(allocator: std.mem.Allocator, storage: anytype, source: anytype, start: Lengths(@TypeOf(storage.*)), end: Lengths(@TypeOf(storage.*))) std.mem.Allocator.Error!void {
-    inline for (@typeInfo(@TypeOf(storage.*)).@"struct".field_names, 0..) |name, index| {
-        try @field(storage, name).appendSlice(allocator, @field(source, name)[start[index]..end[index]]);
+/// Writes the selected ranges into reserved tails, sharing the payloads owned by the earlier analysis.
+pub fn transplant(allocator: std.mem.Allocator, ranges: anytype) std.mem.Allocator.Error!void {
+    inline for (ranges) |range| {
+        inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
+            try @field(range.storage, name).ensureUnusedCapacity(allocator, range.end[index] - range.start[index]);
+        }
     }
+
+    if (comptime generated) {
+        const rule = @import("generated_rx_history_column_write");
+        const Input = std.meta.Child(rule.Input);
+        const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "writes")));
+        const capacity = comptime countColumns(@TypeOf(ranges));
+        var descriptions: [capacity]Column = undefined;
+        var writes: [capacity]*const Column = undefined;
+        var targets: [capacity][]u8 = undefined;
+        var count: usize = 0;
+
+        inline for (ranges) |range| {
+            inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
+                const source = @field(range.source, name)[range.start[index]..range.end[index]];
+
+                if (source.len != 0) {
+                    const tail = @field(range.storage, name).unusedCapacitySlice()[0..source.len];
+                    targets[count] = std.mem.sliceAsBytes(tail);
+                    descriptions[count] = .{ .source = std.mem.sliceAsBytes(source), .target = @ptrCast(&targets[count]) };
+                    writes[count] = &descriptions[count];
+                    count += 1;
+                }
+            }
+        }
+
+        if (count != 0) {
+            const input: Input = .{ .writes = writes[0..count] };
+            var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+            zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+        }
+    }
+
+    inline for (ranges) |range| {
+        inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
+            const column = &@field(range.storage, name);
+
+            if (comptime generated) {
+                column.items.len += range.end[index] - range.start[index];
+            } else {
+                column.appendSliceAssumeCapacity(@field(range.source, name)[range.start[index]..range.end[index]]);
+            }
+        }
+    }
+}
+
+fn countColumns(comptime Ranges: type) usize {
+    var count: usize = 0;
+
+    for (@typeInfo(Ranges).@"struct".field_types) |Range| {
+        const Storage = std.meta.Child(@FieldType(Range, "storage"));
+        count += @typeInfo(Storage).@"struct".field_names.len;
+    }
+
+    return count;
 }
 
 /// Structural equality: slices and single pointers compare what they reference.

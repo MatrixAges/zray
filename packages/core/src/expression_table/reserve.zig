@@ -2,9 +2,12 @@ const std = @import("std");
 const Storage = @import("storage.zig");
 
 pub fn expression(self: *Storage, allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!void {
-    @setEvalBranchQuota(100_000);
+    try headers(self, allocator, 1);
+    try payload(self, allocator, source);
+}
 
-    try prepare(self, allocator, &.{ "kinds", "types", "span_start", "span_end", "payloads" }, 1);
+pub fn payload(self: *Storage, allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!void {
+    @setEvalBranchQuota(100_000);
 
     switch (source.value) {
         .none, .unit => {},
@@ -62,15 +65,26 @@ pub fn expression(self: *Storage, allocator: std.mem.Allocator, source: anytype)
             try prepare(self, allocator, &.{ "match_subjects", "match_fallbacks", "match_first", "match_count" }, 1);
             try prepare(self, allocator, &.{ "match_conditions", "match_results" }, value.arms.len);
         },
-        .object => |value| {
-            try prepare(self, allocator, &.{ "object_first", "object_count", "object_evaluation_first", "object_evaluation_count" }, 1);
-            try prepare(self, allocator, &.{ "object_field_indices", "object_field_values" }, value.fields.len);
-            try prepare(self, allocator, &.{"object_evaluation_values"}, value.evaluation.len);
-        },
+        .object => |value| try objectPayload(self, allocator, value.fields.len, value.evaluation.len),
     }
 }
 
-fn prepare(self: *Storage, allocator: std.mem.Allocator, comptime names: []const []const u8, count: usize) std.mem.Allocator.Error!void {
+pub fn object(self: *Storage, allocator: std.mem.Allocator, fields: usize, evaluation: usize) std.mem.Allocator.Error!void {
+    try headers(self, allocator, 1);
+    try objectPayload(self, allocator, fields, evaluation);
+}
+
+pub fn headers(self: *Storage, allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!void {
+    return prepare(self, allocator, &.{ "kinds", "types", "span_start", "span_end", "payloads" }, count);
+}
+
+fn objectPayload(self: *Storage, allocator: std.mem.Allocator, fields: usize, evaluation: usize) std.mem.Allocator.Error!void {
+    try prepare(self, allocator, &.{ "object_first", "object_count", "object_evaluation_first", "object_evaluation_count" }, 1);
+    try prepare(self, allocator, &.{ "object_field_indices", "object_field_values" }, fields);
+    try prepare(self, allocator, &.{"object_evaluation_values"}, evaluation);
+}
+
+pub fn prepare(self: *Storage, allocator: std.mem.Allocator, comptime names: []const []const u8, count: usize) std.mem.Allocator.Error!void {
     inline for (names) |name| {
         const length = @field(self, name).items.len;
 

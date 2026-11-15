@@ -1,0 +1,39 @@
+import bytes from "std:bytes"
+
+import type { Entries } from "./model"
+
+export type Input = Entries
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop({
+        position: 0,
+        selected: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.position < in.earlier_order.length,
+        next: state => {
+            const row = in.earlier_order[state.position]
+
+            if (row < in.earlier_paths.length) {
+                const selected = state.selected
+
+                if (selected == in.current_rows.length) {
+                    state.equal = false
+                } else {
+                    const earlier = bytes.fromText(in.earlier_paths[row])
+                    const current = bytes.fromText(
+                        in.current_paths[in.current_rows[selected]]
+                    )
+
+                    state.equal = bytes.equals(earlier, current)
+                    state.selected += 1
+                }
+            }
+
+            state.position += 1
+        },
+        return: state => state.equal && state.selected == in.current_rows.length
+    })
+}

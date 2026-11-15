@@ -1,3 +1,4 @@
+import type { U32Buffer } from "std:memory"
 import type { Kind as ShapeKind } from "../unification/model"
 
 export enum Kind {
@@ -49,10 +50,18 @@ export type Target = {
     declared: bool
 }
 
-export type SequenceInput = {
+export type ReplayInput = {
     graph: Graph,
+    parents: U32Buffer,
+    values: u32[],
+    elements: u32[][],
+    start: u64
+}
+
+export type ReplayOutput = {
+    row: u64,
     root: u64,
-    count: u64
+    plan: SequencePlan
 }
 
 export type SequenceCheck = {
@@ -77,6 +86,10 @@ export type IndexPlan = {
     route: IndexRoute,
     child: u32,
     declared: bool
+}
+
+export type IndexTarget = IndexInput & {
+    target: Target
 }
 
 export type TupleIndex = {

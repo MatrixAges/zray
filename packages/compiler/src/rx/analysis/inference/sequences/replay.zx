@@ -1,0 +1,65 @@
+import integers from "std:integer"
+
+import representative from "../forest/borrowed_root"
+import { Kind } from "../unification/model"
+import { SequenceRoute } from "./model"
+import sequence from "./sequence"
+import target from "./target"
+
+import type { ReplayInput, ReplayOutput, SequencePlan } from "./model"
+
+export type Input = ReplayInput
+
+export type Output = ReplayOutput
+
+export default function (in: Input): Output {
+    const pending: SequencePlan = {
+        route: SequenceRoute.Wait,
+        argument: 0,
+        declared: false
+    }
+
+    return loop({
+        row: in.start,
+        root: 0,
+        plan: pending
+    }, {
+        while: state =>
+            state.row < in.values.length && state.plan.route == SequenceRoute.Wait,
+        next: state => {
+            const row = state.row
+            const parent = representative({
+                parents: in.parents,
+                value: in.values[row]
+            })
+            const root = integers.widen(parent)
+
+            if (in.graph.kinds[root] != Kind.Sequence) {
+                const shape = target({
+                    graph: in.graph,
+                    root
+                })
+                const count = in.elements[row].length
+                const route = sequence({
+                    kind: shape.kind,
+                    length: shape.length,
+                    count
+                })
+
+                if (route != SequenceRoute.List || count != 0) {
+                    state.plan = {
+                        route,
+                        argument: shape.argument,
+                        declared: shape.declared
+                    }
+                    state.root = root
+                }
+            }
+
+            if (state.plan.route == SequenceRoute.Wait) {
+                state.row += 1
+            }
+        },
+        return: state => state
+    })
+}

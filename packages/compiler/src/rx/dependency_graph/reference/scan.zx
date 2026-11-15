@@ -5,9 +5,13 @@ import memory from "std:memory"
 
 import { Tag } from "../../schema/execution/model"
 import classify from "../../schema/execution/tag"
-import { declaration, max_task_rank } from "../flow/const"
+import bodyEvent from "../flow/body_event"
+import { declaration } from "../flow/const"
+import layout from "../flow/layout"
 import parallelParent from "../flow/parallel_parent"
+import place from "../flow/place"
 import project from "../flow/project"
+import taskExit from "../flow/task_exit"
 import select from "./select"
 
 import type { U32Buffer, U64Buffer } from "std:memory"
@@ -22,13 +26,23 @@ export type Input = {
     parents: U64Buffer,
     slots: u64[],
     facts: U32Buffer,
+    unit_firsts: U32Buffer,
+    unit_counts: U32Buffer,
+    step_rows: U32Buffer,
+    events: U64Buffer,
     project_flow: bool
 }
 
 export type Output = {
     references: Reference[],
-    module_steps: u64,
-    parallel_tasks: u64
+    parallel_tasks: u64,
+    steps: u64,
+    calls: u64,
+    results: u64,
+    tasks: u64,
+    groups: u64,
+    selections: u64,
+    events: u64,
     source_extent: u64
 }
 
@@ -42,7 +56,6 @@ export default function (in: Input): Output {
         facts: in.facts
     }
 
-    const rank_tasks = in.nodes.length <= max_task_rank
     const references: Reference[] = []
 
     return loop({
@@ -51,6 +64,13 @@ export default function (in: Input): Output {
         finishing: false,
         module_steps: 0,
         parallel_tasks: 0,
+        steps: 0,
+        calls: 0,
+        results: 0,
+        tasks: 0,
+        groups: 0,
+        selections: 0,
+        events: 0,
         source_extent: 0,
         references
     }, {
@@ -58,6 +78,18 @@ export default function (in: Input): Output {
         next: state => {
             const row = state.next - 1
             const node = in.nodes[row]
+
+            if (in.project_flow && !state.finishing) {
+                state.events = taskExit({
+                    source,
+                    node,
+                    attributes: in.attributes,
+                    slot: in.slots[row],
+                    facts: in.facts,
+                    events: in.events,
+                    cursor: state.events
+                })
+            }
 
             if (!state.finishing && node.children != 0) {
                 memory.writeU64(parents, state.depth, state.next)
@@ -75,8 +107,8 @@ export default function (in: Input): Output {
                 }
 
                 if (in.project_flow) {
-                    const task = rank_tasks && tag == Tag.Task
-                    const parallel = task && parallelParent({
+                    const slot = in.slots[row]
+                    const parallel = tag == Tag.Task && parallelParent({
                         source,
                         nodes: view.nodes,
                         parents,
@@ -87,11 +119,12 @@ export default function (in: Input): Output {
                         state.parallel_tasks += 1
                     }
 
+                    const implicit = parallel && memory.readU32(in.facts, slot) != 0
+
                     const flags = project({
                         view,
                         row,
-                        tag,
-                        task_rank: parallel ? state.parallel_tasks : 0
+                        tag
                     })
 
                     const skipped = integers.andBits(
@@ -101,6 +134,68 @@ export default function (in: Input): Output {
 
                     if (state.depth == 1 && skipped == 0) {
                         state.module_steps += 1
+                    }
+
+                    const root_steps = match state.depth {
+                        0 => state.module_steps,
+                        _ => node.child_count
+                    }
+
+                    const count = layout({
+                        children: {
+                            view,
+                            head: node.children
+                        },
+                        node,
+                        tag,
+                        root_steps,
+                        implicit_result: implicit
+                    })
+
+                    const first = match {
+                        count == 0 => state.steps,
+                        _ => place({
+                            view,
+                            step_rows: in.step_rows,
+                            node,
+                            tag,
+                            first: state.steps,
+                            count
+                        })
+                    }
+                    state.steps += count
+
+                    if (state.depth != 0) {
+                        const event = bodyEvent({
+                            tag,
+                            slot,
+                            parallel_rank: parallel ? state.parallel_tasks : null
+                        })
+
+                        if (event != null) {
+                            memory.writeU64(in.events, state.events, event)
+                            state.events += 1
+                        }
+                    }
+
+                    memory.writeU32(in.unit_firsts, slot, integers.narrow(first))
+                    memory.writeU32(
+                        in.unit_counts,
+                        slot,
+                        integers.narrow(state.steps - first)
+                    )
+
+                    if (tag == Tag.Call) {
+                        state.calls += 1
+                    } else if (tag == Tag.Return) {
+                        state.results += 1
+                    } else if (tag == Tag.Task) {
+                        state.tasks += 1
+                        state.results += count - node.child_count
+                    } else if (tag == Tag.Parallel) {
+                        state.groups += 1
+                    } else if (tag == Tag.Switch || tag == Tag.If) {
+                        state.selections += 1
                     }
                 }
 
@@ -130,8 +225,14 @@ export default function (in: Input): Output {
         },
         return: state => ({
             references: state.references,
-            module_steps: state.module_steps,
             parallel_tasks: state.parallel_tasks,
+            steps: state.steps,
+            calls: state.calls,
+            results: state.results,
+            tasks: state.tasks,
+            groups: state.groups,
+            selections: state.selections,
+            events: state.events,
             source_extent: state.source_extent
         })
     })

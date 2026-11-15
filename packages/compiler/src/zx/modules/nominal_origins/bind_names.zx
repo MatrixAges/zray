@@ -1,0 +1,33 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { StringBuffer } from "std:memory"
+
+export type Input = {
+    origin_ids: u32[],
+    base_labels: string[],
+    delta_labels: string[],
+    origin_names_out: StringBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { origin_ids, base_labels, delta_labels, origin_names_out } = in
+
+    const count = base_labels.length
+
+    const result = loop(0, {
+        while: index => index < origin_ids.length,
+        next: index => {
+            const id = integers.widen(origin_ids[index])
+            const name = match {
+                id < count => base_labels[id],
+                _ => delta_labels[id - count]
+            }
+
+            memory.writeString(origin_names_out, index, name)
+            index += 1
+        }
+    })
+}

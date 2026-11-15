@@ -5,20 +5,42 @@ const target = @import("../call/target.zig");
 const Libraries = @import("../call/library_bindings.zig");
 const Inputs = @import("call_inputs.zig");
 const Store = @import("../store.zig");
+const StoreReferences = @import("../store/references.zig");
 const Flow = @import("flow.zig");
 const Action = rx.IndexedFlow.Operation;
 const zx = @import("zx");
 const Graph = @import("source_graph/model.zig");
 const Signatures = @import("references/signatures.zig");
+const Attributes = @import("../call/attributes.zig");
+const availability = @import("../call/availability.zig");
 const generated = @import("rx_options").generated_graph;
 const Callee = union(enum) { module: usize, signature: frontend.project.signature_project.Ports };
-pub const Call = struct { setter: ?target.Setter = null, getters: []const Store.Binding = &.{}, node: rx.ast.Node, edge: *const Graph.Edge, callee: Callee };
-pub const Module = struct { source: rx.ModuleSource, shortcut: ?usize = null, calls: []const Call, steps: []const Flow.Step, type_imports: []const @import("zx").ir.Export = &.{}, value_imports: []const @import("zx").ir.Export = &.{} };
-pub const Loaded = struct { modules: []const Module, project: frontend.project.Options };
+
+pub const Call = struct {
+    setter: ?target.Setter = null,
+    getters: []const Store.Binding = &.{},
+    node: rx.ast.Node,
+    input: ?*const rx.ast.Attribute,
+    name_source: *const rx.ast.Attribute,
+    edge: *const Graph.Edge,
+    callee: Callee,
+};
+
+pub const Module = struct {
+    source: rx.ModuleSource,
+    shortcut: ?usize = null,
+    calls: []Call,
+    plan: Flow.Plan,
+    type_imports: []const zx.ir.Export = &.{},
+    value_imports: frontend.expressions.BindingColumns = .{},
+};
+
+pub const Loaded = struct { modules: []Module, local_calls: []const bool, project: frontend.project.Options };
 pub const Value = union(enum) { loaded: Loaded, diagnostic: target.Diagnostic };
 
-pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules: []const rx.ModuleSource, registered: []const Graph.Module, initial_project: frontend.project.Options, definitions: []const Store.Definition, signatures: Signatures, inputs: *Inputs) std.mem.Allocator.Error!Value {
+pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules: []const rx.ModuleSource, registered: []const []const Graph.Edge, initial_project: frontend.project.Options, definitions: []const Store.Definition, signatures: Signatures, inputs: *Inputs) std.mem.Allocator.Error!Value {
     const plans = try allocator.alloc(Module, modules.len);
+    const local_calls = try allocator.alloc(bool, modules.len);
 
     var loader = Loader{
         .allocator = allocator,
@@ -31,58 +53,64 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
 
     defer loader.libraries.scratch.deinit();
 
-    for (modules, registered, plans, 0..) |source, module, *plan, index| {
+    var store_memory = std.heap.ArenaAllocator.init(backing);
+
+    defer store_memory.deinit();
+
+    for (modules, registered, plans, 0..) |source, edges, *plan, index| {
+        if (definitions.len != 0 and !store_memory.reset(.retain_capacity)) return error.OutOfMemory;
+
         loader.owner = source.path;
-        loader.references = .{ .remaining = module.dependencies };
+        loader.references = .{ .remaining = edges };
         loader.calls = .empty;
+        loader.local_calls = true;
         loader.arguments = .empty;
+        loader.plan = .{};
         loader.task_count = 0;
         loader.deferred_shortcut = null;
 
-        const references = try @import("../store/references.zig").resolve(allocator, source, module.dependencies, signatures.graph.modules, definitions);
+        const references = try StoreReferences.resolve(allocator, store_memory.allocator(), source, edges, signatures.graph.sources, definitions);
 
         if (references == .diagnostic) return .{ .diagnostic = references.diagnostic };
 
-        loader.stores = references.bindings;
-        loader.flow = source.indexedFlow();
+        loader.stores = references.scope;
 
-        const steps = loader.moduleBody(source.node) catch |err| {
+        const flow = loader.moduleBody(source) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
 
             return .{ .diagnostic = loader.issue.? };
         };
 
-        const imported = try @import("type_imports.zig").collect(allocator, source, module, signatures);
+        const imported = try @import("type_imports.zig").collect(allocator, allocator, source, edges, signatures, loader.project.context.types.kinds);
 
         if (imported == .diagnostic) return .{ .diagnostic = imported.diagnostic };
         try inputs.publish(modules.len, index, loader.arguments.items);
 
-        plan.* = .{ .source = source, .shortcut = loader.deferred_shortcut, .calls = loader.calls.items, .steps = steps, .type_imports = imported.imports, .value_imports = try @import("type_imports.zig").values(allocator, loader.project.context.types, imported.imports) };
+        plan.* = .{
+            .source = source,
+            .shortcut = loader.deferred_shortcut,
+            .calls = loader.calls.items,
+            .plan = flow,
+            .type_imports = imported.imports.types,
+            .value_imports = imported.imports.values,
+        };
+
+        local_calls[index] = loader.local_calls;
     }
 
-    return .{ .loaded = .{ .modules = plans, .project = loader.project } };
+    return .{ .loaded = .{ .modules = plans, .local_calls = local_calls, .project = loader.project } };
 }
 
-pub fn completeShortcuts(allocator: std.mem.Allocator, loaded: Loaded, signatures: []const @import("signatures.zig").Signature) std.mem.Allocator.Error!Loaded {
-    const pending = for (loaded.modules) |module| {
-        if (module.shortcut != null) break true;
-    } else false;
-
-    if (!pending) return loaded;
-
-    const modules = try allocator.dupe(Module, loaded.modules);
+pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signatures: []const @import("signatures.zig").Signature) std.mem.Allocator.Error!void {
     const shorthand = @import("shorthand.zig");
 
     for (modules, signatures) |*module, signature| {
         const index = module.shortcut orelse continue;
-        const calls = try allocator.dupe(Call, module.calls);
         const plan = try shorthand.lower(allocator, module.source.node, index, signature.input_type, signature.output_type);
-        calls[index].node = plan.node;
-        module.calls = calls;
-        module.steps = plan.steps;
+        module.calls[index].node = plan.node;
+        module.calls[index].input = plan.input;
+        module.plan = plan.flow;
     }
-
-    return .{ .modules = modules, .project = loaded.project };
 }
 
 const Loader = struct {
@@ -95,15 +123,16 @@ const Loader = struct {
     arguments: std.ArrayList(?*const frontend.ExpressionInput.Result) = .empty,
     references: Graph.References = .{ .remaining = &.{} },
     owner: []const u8 = "",
-    flow: ?rx.IndexedFlow = null,
-    stores: []const Store.Binding = &.{},
+    stores: StoreReferences.Scope = .{},
     calls: std.ArrayList(Call) = .empty,
+    local_calls: bool = true,
+    plan: Flow.Builder = .{},
     task_count: usize = 0,
     deferred_shortcut: ?usize = null,
     issue: ?target.Diagnostic = null,
-    const Error = std.mem.Allocator.Error || error{InvalidFlow};
+    pub const Error = std.mem.Allocator.Error || error{InvalidFlow};
 
-    fn shortcut(self: *Loader, node: rx.ast.Node) Error![]const Flow.Step {
+    fn shortcut(self: *Loader, node: rx.ast.Node) Error!Flow.Plan {
         const shorthand = @import("shorthand.zig");
         const index = try self.call(try shorthand.call(self.allocator, node, false));
         const callee = self.calls.items[index].callee;
@@ -113,81 +142,87 @@ const Loader = struct {
             .module => {
                 self.deferred_shortcut = index;
 
-                return &.{};
+                return .{};
             },
         };
 
         const plan = try shorthand.lower(self.allocator, node, index, ports.input_type, ports.output_type);
 
         self.calls.items[index].node = plan.node;
+        self.calls.items[index].input = plan.input;
 
-        return plan.steps;
+        return plan.flow;
     }
-    fn moduleBody(self: *Loader, node: rx.ast.Node) Error![]const Flow.Step {
+    fn moduleBody(self: *Loader, source: rx.ModuleSource) Error!Flow.Plan {
+        const node = source.node;
+
         if (target.optionalAttribute(node, "fn") != null) return self.shortcut(node);
+        if (source.indexedFlow()) |flow| return @import("prepare/indexed.zig").bind(self, flow);
 
-        const count = if (self.flow) |flow| flow.module_steps else node.children.len;
+        const root = Flow.Unit{ .first = try self.plan.reserve(self.allocator, node.children.len) };
+        const sequence = try self.steps(node.children, root);
 
-        return (try self.steps(node.children, count)).steps.items;
+        return self.plan.finish(sequence.unit);
     }
-    fn steps(self: *Loader, nodes: []const rx.ast.Node, count: usize) Error!Flow.Sequence {
-        var sequence: Flow.Sequence = .{};
-
-        if (self.flow != null) sequence.steps = try std.ArrayList(Flow.Step).initCapacity(self.allocator, count);
+    fn unit(self: *Loader, count: usize) Error!Flow.Unit {
+        return .{ .first = try self.plan.reserve(self.allocator, count) };
+    }
+    fn steps(self: *Loader, nodes: []const rx.ast.Node, region: Flow.Unit) Error!Flow.Sequence {
+        var sequence: Flow.Sequence = .{ .unit = region };
+        var cursor = region.first;
 
         for (nodes) |*node| {
-            const flags = if (self.flow) |flow| flow.get(node) else null;
-            const action = if (flags) |fact| fact.action else seedAction(node.name);
+            const action = seedAction(node.name);
 
             if (action == .declaration) continue;
-
-            const unreachable_step = if (flags) |fact| fact.unreachable_step else sequence.exits.terminates;
-
-            if (unreachable_step) return self.fail(node.location, "return_path", "steps after a terminating Return, Switch or If are unreachable");
+            if (sequence.exits.terminates) return self.fail(node.location, "return_path", "steps after a terminating Return, Switch or If are unreachable");
 
             var exits: Flow.Exits = .{};
 
-            const value: @FieldType(Flow.Step, "value") = switch (action) {
+            const value: Flow.Operation = switch (action) {
                 .result => result: {
                     exits = Flow.Exits.returned;
 
-                    break :result .{ .result = target.attribute(node.*, "value") };
+                    break :result .{ .Result = target.attribute(node.*, "value") };
                 },
-                .call => .{ .call = try self.call(node.*) },
+                .call => .{ .Call = try self.call(node.*) },
                 .task => task: {
-                    const body = try self.taskBody(node, false);
+                    const output = target.optionalAttribute(node.*, "out");
+                    const body = try self.taskBody(node, output, false);
 
                     exits = body.exits;
 
-                    break :task .{ .task = .{ .node = node.*, .body = body.steps.items } };
+                    break :task .{ .Task = .{ .node = node, .body = body.unit, .output = output } };
                 },
-                .parallel => .{ .parallel = try self.parallel(node.*) },
+                .parallel => .{ .Parallel = try self.parallel(node) },
                 .switch_flow, .if_flow => selection: {
                     const subject = target.attribute(node.*, "on");
                     var branches: Flow.BranchExits = .{};
-                    const cases = if (action == .switch_flow) try self.switchCases(node.*, &branches) else try self.ifCases(node.*, subject, &branches);
+                    const cases = if (action == .switch_flow) try self.switchCases(node.*, &branches) else try self.ifCases(node, subject, &branches);
 
                     exits = branches.finish();
 
-                    break :selection .{ .selection = .{ .subject = subject, .cases = cases } };
+                    break :selection .{ .Selection = .{ .subject = subject, .cases = cases } };
                 },
                 else => return self.fail(node.location, "unsupported", "RX execution supports Store declarations, Call, Return, Task, Switch, If and pure Parallel branches; events require host linking"),
             };
 
-            if (flags == null) {
-                try sequence.append(self.allocator, value, exits);
-            } else {
-                sequence.steps.appendAssumeCapacity(.{ .value = value });
-            }
+            try self.plan.write(self.allocator, cursor, value);
+
+            cursor += 1;
+
+            sequence.exits.advance(exits);
         }
+
+        sequence.unit.count = cursor - region.first;
 
         return sequence;
     }
-    fn switchCases(self: *Loader, node: rx.ast.Node, exits: *Flow.BranchExits) Error![]const Flow.Case {
+    fn switchCases(self: *Loader, node: rx.ast.Node, exits: *Flow.BranchExits) Error![]Flow.Case {
         const cases = try self.allocator.alloc(Flow.Case, node.children.len);
 
         for (node.children, cases) |*child, *case| {
-            const default = if (self.flow) |flow| flow.get(child).alternate else rx.execution.admit(child.name, .Any) == .Default;
+            const default = rx.execution.admit(child.name, .Any) == .Default;
             const value = if (default) null else target.attribute(child.*, "value");
 
             case.* = try self.selectionCase(value, child.children, exits);
@@ -195,9 +230,9 @@ const Loader = struct {
 
         return cases;
     }
-    fn ifCases(self: *Loader, node: rx.ast.Node, subject: rx.ast.Attribute, exits: *Flow.BranchExits) Error![]const Flow.Case {
+    fn ifCases(self: *Loader, node: *const rx.ast.Node, subject: rx.ast.Attribute, exits: *Flow.BranchExits) Error![]Flow.Case {
         const last = &node.children[node.children.len - 1];
-        const has_else = if (self.flow) |flow| flow.get(last).alternate else rx.execution.admit(last.name, .Any) == .Else;
+        const has_else = rx.execution.admit(last.name, .Any) == .Else;
         const body = if (has_else) node.children[0 .. node.children.len - 1] else node.children;
         const cases = try self.allocator.alloc(Flow.Case, if (has_else) 2 else 1);
         const value = rx.ast.Attribute{ .name = "value", .value = "true", .kind = .expression, .location = subject.location, .value_location = subject.value_location };
@@ -208,37 +243,34 @@ const Loader = struct {
         return cases;
     }
     fn selectionCase(self: *Loader, value: ?rx.ast.Attribute, nodes: []const rx.ast.Node, exits: *Flow.BranchExits) Error!Flow.Case {
-        const body = try self.steps(nodes, nodes.len);
+        const body = try self.steps(nodes, try self.unit(nodes.len));
 
-        if (self.flow == null) exits.add(value == null, body.exits);
+        exits.add(value == null, body.exits);
 
-        return .{ .value = value, .body = body.steps.items };
+        return .{ .value = value, .body = body.unit };
     }
-    fn parallel(self: *Loader, node: rx.ast.Node) Error![]const Flow.Branch {
-        const branches = try self.allocator.alloc(Flow.Branch, node.children.len);
+    fn parallel(self: *Loader, node: *const rx.ast.Node) Error!Flow.Unit {
+        const branches = try self.unit(node.children.len);
 
-        for (node.children, branches) |*child, *branch| {
-            const flags = if (self.flow) |flow| flow.get(child) else null;
-            const action = if (flags) |fact| fact.action else seedAction(child.name);
+        for (node.children, 0..) |*child, position| {
+            const row = branches.first + @as(u32, @intCast(position));
+            const action = seedAction(child.name);
 
             if (action == .call) {
-                branch.* = .{ .call = try self.call(child.*) };
+                const call_index = try self.call(child.*);
+
+                try self.plan.write(self.allocator, row, .{ .Call = call_index });
 
                 continue;
             }
 
-            const id = if (self.flow) |flow|
-                flow.taskId(flags.?) orelse self.nextTaskId()
+            const id = self.nextTaskId();
+            const body = try self.taskBody(child, target.optionalAttribute(child.*, "out"), true);
 
-            else
-                self.nextTaskId();
-
-            const body = try self.taskBody(child, true);
-
-            branch.* = .{ .task = .{ .id = id, .node = child.*, .body = body.steps.items } };
+            try self.plan.write(self.allocator, row, .{ .ParallelTask = .{ .id = id, .node = child, .body = body.unit } });
         }
 
-        return branches;
+        return .{ .first = branches.first, .count = @intCast(node.children.len) };
     }
     fn nextTaskId(self: *Loader) usize {
         const id = self.task_count;
@@ -247,22 +279,30 @@ const Loader = struct {
 
         return id;
     }
-    fn taskBody(self: *Loader, node: *const rx.ast.Node, parallel_task: bool) Error!Flow.Sequence {
-        const output = target.optionalAttribute(node.*, "out");
-        const count = node.children.len + @intFromBool(parallel_task and output != null);
-        var body = try self.steps(node.children, count);
+    fn taskBody(self: *Loader, node: *const rx.ast.Node, output: ?rx.ast.Attribute, parallel_task: bool) Error!Flow.Sequence {
+        const has_implicit_result = parallel_task and output != null;
+        const count = node.children.len + @intFromBool(has_implicit_result);
+        const region = try self.unit(count);
+        var body = try self.steps(node.children, region);
         const attribute = output orelse return body;
-        const returns = if (self.flow) |flow| flow.get(node).returns else body.exits.returns;
 
-        if (returns) return self.fail(attribute.value_location, "return_path", "Task.out and Return cannot both define the same task output");
-        if (parallel_task) try body.append(self.allocator, .{ .result = attribute }, Flow.Exits.returned);
+        if (body.exits.returns) return self.fail(attribute.value_location, "return_path", "Task.out and Return cannot both define the same task output");
+
+        if (parallel_task) {
+            try self.plan.write(self.allocator, body.unit.first + body.unit.count, .{ .Result = attribute });
+
+            body.unit.count += 1;
+
+            body.exits.advance(Flow.Exits.returned);
+        }
 
         return body;
     }
-    fn call(self: *Loader, node: rx.ast.Node) Error!usize {
+    pub fn call(self: *Loader, node: rx.ast.Node) Error!usize {
         const index = self.calls.items.len;
-        const input = if (target.optionalAttribute(node, "in")) |value| try self.inputs.parse(value, self.owner) else null;
-        const authorized = try @import("../store/call.zig").analyze(self.allocator, self.backing, self.owner, node, self.stores, input);
+        const attributes = Attributes.scan(node);
+        const input = if (attributes.argument) |attribute| try self.inputs.parse(attribute.*, self.owner) else null;
+        const authorized = try @import("../store/call.zig").analyze(self.allocator, self.backing, self.owner, attributes, self.stores, input);
 
         if (authorized == .diagnostic) {
             self.issue = authorized.diagnostic;
@@ -273,9 +313,19 @@ const Loader = struct {
         const capability = authorized.authorized;
         const edge = self.references.next(.call);
 
+        const admission = availability.check(.{
+            .source = edge.target == .source,
+            .check_authority = edge.target == .compiled,
+            .declared_setter = attributes.setter != null,
+            .setter = capability.setter != null,
+            .ambient_store = self.project.context.stores.len != 0,
+        });
+
+        if (!admission.authorized) return self.fail(node.location, "capability", "Store calls require explicit per-call authorization from module declarations");
+
         const callee = switch (edge.target) {
             .source => |source| try self.sourceCallee(source, edge.location, capability.setter != null),
-            .compiled => |selected| try self.compiledCallee(node, selected, capability.setter),
+            .compiled => |selected| try self.compiledCallee(attributes.module.?.value_location, selected, capability.setter != null),
             .native => return self.fail(edge.location, "module", "native and standard imports must use the interface registry"),
         };
 
@@ -283,9 +333,13 @@ const Loader = struct {
             .node = node,
             .setter = capability.setter,
             .getters = capability.getters,
+            .input = attributes.argument,
+            .name_source = attributes.function orelse attributes.module.?,
             .edge = edge,
             .callee = callee,
         });
+
+        self.local_calls = self.local_calls and admission.local;
 
         if (input) |parsed| {
             const first = self.arguments.items.len;
@@ -299,9 +353,8 @@ const Loader = struct {
 
         return index;
     }
-
     fn sourceCallee(self: *Loader, source: usize, location: rx.ast.Location, setter: bool) Error!Callee {
-        switch (self.signatures.graph.modules[source].source) {
+        switch (self.signatures.graph.sources.at(source)) {
             .rx => |index| return .{ .module = index },
             .store => return self.fail(location, "module", "Call.module target is not registered"),
             .zx => {},
@@ -319,13 +372,11 @@ const Loader = struct {
             .MissingStore => self.fail(location, "capability", "a Call.setter target must declare its second parameter as { store }"),
         };
     }
-    fn compiledCallee(self: *Loader, node: rx.ast.Node, selected: frontend.project.compiled.Target, setter: ?target.Setter) Error!Callee {
-        if ((target.optionalAttribute(node, "setter") != null) != (setter != null) or self.project.context.stores.len != 0) return self.fail(node.location, "capability", "Store calls require explicit per-call authorization from module declarations");
-
+    fn compiledCallee(self: *Loader, location: rx.ast.Location, selected: frontend.project.compiled.Target, setter: bool) Error!Callee {
         const result = try self.libraries.bind(&self.project, .{
             .owner = self.owner,
-            .location = target.attribute(node, "module").value_location,
-            .setter = setter != null,
+            .location = location,
+            .setter = setter,
             .selected = selected,
         });
 
@@ -337,7 +388,7 @@ const Loader = struct {
 
         return .{ .signature = result.ports };
     }
-    fn fail(self: *Loader, location: rx.ast.Location, code: []const u8, message: []const u8) Error {
+    pub fn fail(self: *Loader, location: rx.ast.Location, code: []const u8, message: []const u8) Error {
         const result = try target.failure(self.allocator, .{ .path = self.owner, .location = location, .code = code, .message = message });
 
         self.issue = result.diagnostic;

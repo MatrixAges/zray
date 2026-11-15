@@ -1,16 +1,10 @@
-import type { U32Buffer } from "std:memory"
-import type { Index } from "core/integer/wide_index/model"
+import type { U8Buffer, U32Buffer, U64Buffer } from "std:memory"
+import type { State as KnownTypes } from "core/integer/map/model"
 
 export type Endpoints = {
     parents: U32Buffer,
     left: u32,
     right: u32
-}
-
-export type Input = {
-    endpoints: Endpoints,
-    index: Index,
-    needs_reserve: bool
 }
 
 export type Pair = {
@@ -19,7 +13,62 @@ export type Pair = {
     key: u64
 }
 
-export type Output = {
+export enum Action {
+    Skip,
+    Reserve,
+    Added,
+    Register,
+    Overflow
+}
+
+export type Rows = {
+    left: U32Buffer,
+    right: U32Buffer,
+    keys: U64Buffer,
+    buckets: U32Buffer,
+    position: u64,
+    capacity: u64
+}
+
+export type Input = {
+    endpoints: Endpoints,
+    keys: u64[],
+    buckets: u32[],
+    rows: Rows
+}
+
+export type Admission = Input.Omit("endpoints") & {
+    pair: Pair
+}
+
+export type Publication = {
     pair: Pair,
-    skip: bool
+    rows: Rows,
+    slot: u64
+}
+
+export type Output = {
+    action: Action,
+    capacity: u64
+}
+
+export type Spans = {
+    source: u8[],
+    target: U8Buffer,
+    width: u64
+}
+
+export type Series = Input.Omit("endpoints") & {
+    parents: U32Buffer,
+    values: u32[],
+    targets: u32[],
+    repeated?: u32,
+    known?: KnownTypes,
+    spans: Spans,
+    next: u64
+}
+
+export type Progress = Output & {
+    next: u64,
+    position: u64
 }

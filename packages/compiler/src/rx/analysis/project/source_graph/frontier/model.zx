@@ -1,0 +1,37 @@
+import type { U32Buffer, U64Buffer } from "std:memory"
+import type { Output as Request, Ranges } from "../source"
+
+export type Queue = {
+    seen: U32Buffer,
+    queue: U64Buffer,
+    end: u64,
+    targets: u64[]
+}
+
+export type Position = {
+    queue: U64Buffer,
+    cursor: u64,
+    end: u64,
+    sources: Ranges
+}
+
+export type Publication = {
+    queue: U64Buffer,
+    cursor: u64,
+    starts: U64Buffer,
+    ends: U64Buffer,
+    edge_start: u64,
+    edge_end: u64
+}
+
+export type Input = Queue & Position.Omit("queue", "end") &
+    Publication.Omit("queue", "cursor")
+
+export type Selection = {
+    cursor: u64,
+    request?: Request
+}
+
+export type Output = Selection & {
+    end: u64
+}

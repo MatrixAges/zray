@@ -26,14 +26,23 @@ pub const Route = if (enabled) @FieldType(Output, "route") else enum {
     ConcreteTupleMismatch,
 };
 
-pub const Work = struct { left: Graph.Id, right: Graph.Id, route: Route };
+pub const Work = struct {
+    left: Graph.Id,
+    right: Graph.Id,
+    route: Route,
+    action: if (enabled) @FieldType(Output, "action") else void = if (enabled) .Adopt else {},
+    source: u32 = 0,
+    left_operand: u32 = 0,
+    right_operand: u32 = 0,
+    right_size: u32 = 0,
+};
 
 pub fn prepare(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!Work {
     if (!enabled) return prepareSeed(graph, left, right, span, depth);
 
     const rows = graph.nodes.slice();
     const types = &graph.types.items;
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const result = generated.executeValue(scratch.allocator(), &.{
@@ -42,7 +51,7 @@ pub fn prepare(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Sp
             .members = rows.items(.members),
             .arguments = rows.items(.argument),
         },
-        .types = &.{ .kinds = types.kinds.items, .sizes = types.second.items },
+        .types = &.{ .kinds = types.kinds.items, .arguments = types.first.items, .sizes = types.second.items },
         .parents = @ptrCast(&parents),
         .left = @backingInt(left),
         .right = @backingInt(right),
@@ -52,7 +61,16 @@ pub fn prepare(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Sp
         else => unreachable,
     };
 
-    return .{ .left = @fromBackingInt(result.left), .right = @fromBackingInt(result.right), .route = result.route };
+    return .{
+        .left = @fromBackingInt(result.left),
+        .right = @fromBackingInt(result.right),
+        .route = result.route,
+        .action = result.action,
+        .source = result.source,
+        .left_operand = result.left_operand,
+        .right_operand = result.right_operand,
+        .right_size = result.right_size,
+    };
 }
 
 fn prepareSeed(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!Work {

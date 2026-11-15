@@ -1,0 +1,51 @@
+import { Collision } from "../bindings/model"
+import collision from "./collision"
+
+import type { Topology } from "../bindings/model"
+import type { Active } from "./model"
+
+export type Input = {
+    topology: Topology,
+    active: Active,
+    row: u64,
+    next: u64
+}
+
+export type Output = {
+    row: u64,
+    next: u64,
+    action: Collision
+}
+
+export default function (in: Input): Output {
+    const active = in.active
+
+    return loop({
+        row: in.row,
+        next: in.next,
+        action: Collision.Ignore
+    }, {
+        while: state =>
+            state.action == Collision.Ignore && state.row < active.names.length,
+        next: state => {
+            const row = state.row
+            const result = collision({
+                topology: in.topology,
+                active,
+                name: active.names[row],
+                value: active.values[row],
+                start: state.next,
+                end: row
+            })
+
+            if (result.action == Collision.Ignore) {
+                state.row += 1
+                state.next = 0
+            } else {
+                state.action = result.action
+                state.next = result.next
+            }
+        },
+        return: state => state
+    })
+}

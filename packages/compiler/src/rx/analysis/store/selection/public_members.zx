@@ -1,0 +1,43 @@
+import integers from "std:integer"
+import find from "core/store_table/find"
+
+import { Output } from "./model"
+
+import type { Members } from "./model"
+
+export type Input = {
+    members: Members,
+    identity: string
+}
+
+export default function (in: Input): Output {
+    const members = in.members
+    const identity = in.identity
+
+    return loop({
+        position: 0,
+        result: Output.Unused
+    }, {
+        while: state =>
+            state.position < members.ids.length && state.result == Output.Unused,
+        next: state => {
+            const row = integers.widen(members.ids[state.position])
+
+            if (row >= members.stores.length) {
+                state.result = Output.InvalidMember
+            } else {
+                const paths = members.stores[row].paths
+
+                if (find({
+                    paths,
+                    identity
+                }) != null) {
+                    state.result = Output.Needed
+                }
+            }
+
+            state.position += 1
+        },
+        return: state => state.result
+    })
+}

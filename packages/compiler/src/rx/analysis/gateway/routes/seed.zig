@@ -2,16 +2,35 @@ const std = @import("std");
 const dsl = @import("dsl");
 const rx = @import("rx");
 const target = @import("../../call/target.zig");
-const Route = @import("../routes.zig").Route;
+const Routes = @import("../routes.zig");
+const Route = Routes.Route;
 
-pub fn collect(allocator: std.mem.Allocator, owner: []const u8, node: rx.ast.Node, reporter: *dsl.Reporter) dsl.Error![]const Route {
+pub fn collect(allocator: std.mem.Allocator, owner: []const u8, node: rx.ast.Node, reporter: *dsl.Reporter) dsl.Error!Routes.Collected {
     var builder = Builder{ .allocator = allocator, .owner = owner, .reporter = reporter };
 
     defer builder.methods.deinit(allocator);
 
     try builder.append(node.children, "");
 
-    return builder.routes.toOwnedSlice(allocator);
+    const routes = try builder.routes.toOwnedSlice(allocator);
+    var seen: std.StringHashMapUnmanaged(u32) = .empty;
+    var service_routes: std.ArrayList(u32) = .empty;
+
+    defer seen.deinit(allocator);
+
+    for (routes, 0..) |*route, index| {
+        const found = try seen.getOrPut(allocator, route.service);
+
+        if (!found.found_existing) {
+            found.value_ptr.* = std.math.cast(u32, service_routes.items.len) orelse return error.OutOfMemory;
+
+            try service_routes.append(allocator, std.math.cast(u32, index) orelse return error.OutOfMemory);
+        }
+
+        route.service_index = found.value_ptr.*;
+    }
+
+    return .{ .routes = routes, .service_routes = try service_routes.toOwnedSlice(allocator) };
 }
 
 const Builder = struct {
@@ -37,7 +56,7 @@ const Builder = struct {
             }
 
             const method = if (target.optionalAttribute(node, "method")) |name| std.meta.stringToEnum(rx.gateway.Method, name.value).? else null;
-            const mask: u16 = if (method) |value| @as(u16, 1) << @intCast(@intFromEnum(value)) else std.math.maxInt(u16);
+            const mask: u16 = if (method) |value| @as(u16, 1) << @intCast(@backingInt(value)) else std.math.maxInt(u16);
             const entry = try self.methods.getOrPut(self.allocator, joined);
 
             if (entry.found_existing and entry.value_ptr.* & mask != 0) return fail(node, "path", "Gateway routes overlap after Group prefix expansion", self.reporter);

@@ -2,6 +2,29 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const generated = @import("parser_options").generated_parser;
+const scalars = std.enums.values(ir.Scalar);
+
+const scalar_ids = blk: {
+    var ids: [scalars.len]u32 = undefined;
+
+    for (scalars, &ids) |scalar, *id| id.* = @backingInt(scalar);
+
+    break :blk ids;
+};
+
+pub const scalar_rows: ir.TypeTable = .{
+    .kinds = &@as([scalars.len]u8, @splat(@backingInt(std.meta.Tag(ir.Type).scalar))),
+    .first = &scalar_ids,
+    .second = &@as([scalars.len]u32, @splat(0)),
+    .labels = &@as([scalars.len][]const u8, @splat("")),
+};
+
+pub fn initializeScalars(allocator: std.mem.Allocator, target: *ir.TypeStorage) std.mem.Allocator.Error!void {
+    const ids = try target.reserveDelta(allocator, scalar_rows);
+
+    @memcpy(ids, scalar_rows.first);
+    target.publishDelta(scalar_rows);
+}
 
 pub fn copy(allocator: std.mem.Allocator, values: ir.TypeTable) std.mem.Allocator.Error!ir.TypeTable {
     const result = try storage(allocator, values);

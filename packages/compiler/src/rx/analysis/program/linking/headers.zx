@@ -1,0 +1,74 @@
+import memory from "std:memory"
+import { max_u32 } from "core/const"
+
+import type { U8Buffer } from "std:memory"
+
+export type Input = {
+    rows: u32[],
+    kinds: u8[],
+    types: u8[],
+    starts: u8[],
+    ends: u8[],
+    target_kinds: U8Buffer,
+    target_types: U8Buffer,
+    target_starts: U8Buffer,
+    target_ends: U8Buffer,
+    type_width: u64,
+    span_width: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop({
+        source: 0,
+        target: 0
+    }, {
+        while: state => state.source < in.rows.length,
+        next: state => {
+            const source = state.source
+            if (in.rows[source] == max_u32) {
+                state.source += 1
+            } else {
+                const end = loop(source + 1, {
+                    while: row => row < in.rows.length && in.rows[row] != max_u32,
+                    next: row => {
+                        row += 1
+                    }
+                })
+                const target = state.target
+                const kinds = memory.copyBytes(
+                    in.target_kinds,
+                    target,
+                    in.kinds,
+                    source,
+                    end
+                )
+                const types = memory.copyBytes(
+                    in.target_types,
+                    target * in.type_width,
+                    in.types,
+                    source * in.type_width,
+                    end * in.type_width
+                )
+                const starts = memory.copyBytes(
+                    in.target_starts,
+                    target * in.span_width,
+                    in.starts,
+                    source * in.span_width,
+                    end * in.span_width
+                )
+                const ends = memory.copyBytes(
+                    in.target_ends,
+                    target * in.span_width,
+                    in.ends,
+                    source * in.span_width,
+                    end * in.span_width
+                )
+
+                state.target += end - source
+                state.source = end
+            }
+        }
+    })
+}

@@ -1,0 +1,43 @@
+import bytes from "std:bytes"
+import fixed from "core/bytes/index/fixed"
+
+import source from "../source_graph/source"
+import { Kind } from "../source_graph/source"
+
+import type { U64Buffer } from "std:memory"
+import type { Ranges } from "../source_graph/source"
+
+export type Input = {
+    keys: u8[][],
+    buckets: U64Buffer,
+    capacity: u64,
+    path: string,
+    sources: Ranges
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    if (in.capacity == 0) {
+        return null
+    }
+
+    const row = fixed({
+        keys: in.keys,
+        buckets: in.buckets,
+        capacity: in.capacity,
+        key: bytes.fromText(in.path),
+        insert: null
+    })
+
+    if (row == null) {
+        return null
+    }
+
+    const target = source({
+        sources: in.sources,
+        owner: row
+    })
+
+    return target.kind == Kind.RX ? target.row : null
+}

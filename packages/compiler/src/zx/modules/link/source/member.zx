@@ -1,0 +1,63 @@
+import integers from "std:integer"
+import strings from "std:string"
+
+import remap from "../../artifact/remapping/id"
+
+import type { Input as Binding } from "../../artifact/surface/binding"
+
+export type Input = Binding.Omit("namespace", "types") & {
+    intrinsic: bool,
+    type_ids: u32[]
+}
+
+export type Member = Binding.Pick("name", "id", "input_type", "output_type") & {
+    entry: bool
+}
+
+export type Output = Member?
+
+export default function (in: Input): Output {
+    const id = in.id
+    const input = in.input_type
+    const output = in.output_type
+    const count = in.type_ids.length
+    const outside_function = id != null && integers.widen(id) >= in.functions.count
+    const outside_input = input != null && integers.widen(input) >= count
+    const outside_output = output != null && integers.widen(output) >= count
+
+    const invalid = (
+        - outside_function
+        - or outside_input
+        - or outside_output
+    )
+
+    if (invalid) {
+        return null
+    }
+
+    const function_id: u32? = match {
+        id == null => null,
+        _ => remap({
+            id,
+            mapping: in.functions
+        })
+    }
+
+    const input_type: u32? = match {
+        input == null => null,
+        _ => in.type_ids[integers.widen(input)]
+    }
+
+    const output_type: u32? = match {
+        output == null => null,
+        _ => in.type_ids[integers.widen(output)]
+    }
+
+    return {
+        name: strings.copy(in.name),
+        id: function_id,
+        input_type,
+        output_type,
+        entry: in.name == "" && !in.intrinsic
+    }
+}

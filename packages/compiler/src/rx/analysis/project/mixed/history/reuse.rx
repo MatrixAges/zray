@@ -1,0 +1,43 @@
+<Module>
+    <Type from="reuse_model" as="History" />
+
+    <Args in={History.Input} out={bool} />
+
+    <If on={$in.compiled_dependency}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="links"
+        in={$in.pick([
+            "before",
+            "after"
+        ])}
+    />
+
+    <If on={!$ctx.links}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="same_source" in={$in.source} />
+
+    <If on={!$ctx.same_source}>
+        <Return value={false} />
+    </If>
+
+    <If on={$in.signature != null}>
+        <Call fn="../../../../../zx/ir/compare/columns" in={$in.signature} />
+
+        <If on={!$ctx.columns}>
+            <Return value={false} />
+        </If>
+    </If>
+
+    <If on={$in.dependencies != null}>
+        <Call fn="changed" in={$in.dependencies} />
+
+        <Return value={!$ctx.changed} />
+    </If>
+
+    <Return value={true} />
+</Module>

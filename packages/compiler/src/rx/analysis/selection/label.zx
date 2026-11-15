@@ -1,0 +1,63 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import { Kind } from "./model"
+
+import type { Label, Labels } from "./model"
+
+export type Input = {
+    labels: Labels,
+    index: u64
+}
+
+export type Output = Label
+
+export default function (in: Input): Output {
+    const root = in.labels.roots[in.index]
+
+    const empty: Label = {
+        kind: Kind.Default,
+        number: 0,
+        text: ""
+    }
+
+    if (root == null) {
+        return empty
+    }
+
+    const table = in.labels.expressions[in.index]
+    const row = integers.widen(root)
+    const payload = integers.widen(table.payloads[row])
+
+    return match table.kinds[row] {
+        ExpressionKind.Integer => {
+            ...empty,
+            kind: Kind.Integer,
+            number: table.integers[payload]
+        },
+        ExpressionKind.NegativeInteger => {
+            ...empty,
+            kind: Kind.Negative,
+            number: table.negative_integers[payload]
+        },
+        ExpressionKind.String => {
+            ...empty,
+            kind: Kind.String,
+            text: table.strings[payload]
+        },
+        ExpressionKind.Boolean => {
+            ...empty,
+            kind: Kind.Boolean,
+            number: table.booleans[payload] ? 1 : 0
+        },
+        ExpressionKind.EnumValue => {
+            ...empty,
+            kind: Kind.Enumeration,
+            number: integers.widen(table.enumerations[payload])
+        },
+        _ => {
+            ...empty,
+            kind: Kind.Invalid
+        }
+    }
+}

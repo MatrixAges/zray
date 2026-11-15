@@ -1,0 +1,63 @@
+import integers from "std:integer"
+
+import { Kind } from "../model"
+import { Action } from "./model"
+
+import type { Application, Request } from "./model"
+
+export type Input = Request
+
+export type Output = Application
+
+export default function (in: Input): Output {
+    const first = integers.widen(in.left)
+    const left_known = in.graph.kinds[first] == Kind.Known
+    const source = left_known ? in.left : in.right
+    const inferred = left_known ? in.right : in.left
+    const index = integers.widen(inferred)
+    const kind = in.graph.kinds[index]
+
+    const action = match kind {
+        Kind.List => Action.KnownChild,
+        Kind.Optional => Action.KnownChild,
+        Kind.Tuple => Action.KnownTuple,
+        Kind.Object => Action.KnownObject,
+        _ => Action.Adopt
+    }
+
+    const no_members = action == Action.KnownTuple || action == Action.KnownObject
+
+    const no_operands =
+        action == Action.Adopt || (no_members && in.graph.members[index].length == 0)
+
+    if (no_operands) {
+        return {
+            action: Action.Adopt,
+            source,
+            left_operand: 0,
+            right_operand: 0,
+            right_size: 0
+        }
+    }
+
+    const declared = in.graph.arguments[integers.widen(source)]
+    const type_index = integers.widen(declared)
+    const argument = in.types.arguments[type_index]
+
+    return match action {
+        Action.KnownChild => {
+            action,
+            source,
+            left_operand: in.graph.arguments[index],
+            right_operand: argument,
+            right_size: 0
+        },
+        _ => {
+            action,
+            source,
+            left_operand: inferred,
+            right_operand: argument,
+            right_size: in.types.sizes[type_index]
+        }
+    }
+}

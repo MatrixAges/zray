@@ -1,0 +1,87 @@
+import { Action, Step } from "./model"
+
+import type { PairInput, PairOutput } from "./model"
+
+export type Input = PairInput
+
+export type Output = PairOutput
+
+export default function (in: Input): Output {
+    const position = in.position
+    const action = in.action
+    const left = in.left
+    const right = in.right
+    const positions = in.positions
+
+    if (action == Action.Child || action == Action.KnownChild) {
+        if (position == 0) {
+            return {
+                step: action == Action.Child ? Step.Merge : Step.MergeKnown,
+                position: 1,
+                left: in.left_operand,
+                right: in.right_operand
+            }
+        }
+    }
+
+    if (action == Action.Tuple || action == Action.KnownTuple) {
+        if (position < left.length) {
+            return {
+                step: action == Action.Tuple ? Step.Merge : Step.MergeKnown,
+                position: position + 1,
+                left: left[position],
+                right: right[position]
+            }
+        }
+    }
+
+    if (action == Action.KnownObject) {
+        if (position < positions.length) {
+            return {
+                step: Step.MergeKnown,
+                position: position + 1,
+                left: left[position],
+                right: right[positions[position]]
+            }
+        }
+
+        if (position < left.length) {
+            return {
+                step: Step.MissingField,
+                position,
+                left: 0,
+                right: 0
+            }
+        }
+    }
+
+    if (action == Action.Object) {
+        const row = loop({
+            position
+        }, {
+            while: state =>
+                state.position < positions.length &&
+                positions[state.position] >= left.length,
+            next: state => {
+                state.position += 1
+            },
+            return: state => state.position
+        })
+
+        if (row < positions.length) {
+            return {
+                step: Step.Merge,
+                position: row + 1,
+                left: left[positions[row]],
+                right: right[row]
+            }
+        }
+    }
+
+    return {
+        step: Step.Publish,
+        position,
+        left: 0,
+        right: 0
+    }
+}

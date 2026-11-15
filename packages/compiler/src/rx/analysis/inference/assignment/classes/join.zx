@@ -1,45 +1,48 @@
 import integers from "std:integer"
+import memory from "std:memory"
 
 import root from "./root"
 
-import type { Kind } from "../../unification/model"
 import type { Edges } from "../model"
+import type { Storage } from "./model"
 
 export type Input = {
     payloads: u32[],
-    kinds: Kind[],
-    edges: Edges
+    parents: u32[],
+    ranks: u8[],
+    edges: Edges,
+    storage: Storage
 }
 
-export type Output = u32[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const empty_rank: u8 = 0
+    const { parents, ranks, edges, storage } = in
 
-    return loop({
-        parents: in.kinds.map((kind, index) => integers.narrow(index))[0],
-        ranks: in.kinds.map(kind => empty_rank)[0],
+    const joined = loop({
         edge: 0,
         index: 0
     }, {
-        while: state => state.edge < in.edges.left.length ||
-            state.index < state.parents.length,
+        while: state =>
+            state.edge < edges.left.length || state.index < parents.length,
         next: state => {
-            if (state.edge == in.edges.left.length) {
-                state.parents[state.index] = root({
-                    parents: state.parents,
+            if (state.edge == edges.left.length) {
+                const parent = root({
+                    parents,
                     item: integers.narrow(state.index)
                 })
+
+                memory.writeU32(storage.parents, state.index, parent)
                 state.index += 1
             } else {
-                const source = in.edges.left[state.edge]
-                const target = in.edges.right[state.edge]
+                const source = edges.left[state.edge]
+                const target = edges.right[state.edge]
                 const left_root = root({
-                    parents: state.parents,
+                    parents,
                     item: in.payloads[integers.widen(source)]
                 })
                 const right_root = root({
-                    parents: state.parents,
+                    parents,
                     item: in.payloads[integers.widen(target)]
                 })
 
@@ -47,23 +50,26 @@ export default function (in: Input): Output {
                 const right = integers.widen(right_root)
 
                 if (left != right) {
-                    const left_rank = state.ranks[left]
-                    const right_rank = state.ranks[right]
+                    const left_rank = ranks[left]
+                    const right_rank = ranks[right]
 
                     if (left_rank < right_rank) {
-                        state.parents[left] = right_root
+                        memory.writeU32(storage.parents, left, right_root)
                     } else {
-                        state.parents[right] = left_root
+                        memory.writeU32(storage.parents, right, left_root)
 
                         if (left_rank == right_rank) {
-                            state.ranks[left] += 1
+                            memory.writeU8(
+                                storage.ranks,
+                                left,
+                                left_rank + 1
+                            )
                         }
                     }
                 }
 
                 state.edge += 1
             }
-        },
-        return: state => state.parents
+        }
     })
 }

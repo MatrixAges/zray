@@ -1,19 +1,22 @@
-import type { U32Buffer } from "std:memory"
-import type { Graph, IndexRoute } from "../sequences/model"
+import type { U8Buffer, U32Buffer } from "std:memory"
+import type { State as KnownTypes } from "core/integer/map/model"
+import type { Graph, IndexPlan } from "../sequences/model"
 
 export type Input = {
     graph: Graph,
     parents: U32Buffer,
     targets: u32[],
+    values: u32[],
     resolved: bool[],
+    resolution: U8Buffer,
     positions: u64?[],
+    known: KnownTypes,
     start: u64
 }
 
 export type Output = {
     found: bool,
     row: u64,
-    route: IndexRoute,
-    child: u32,
-    declared: bool
+    plan: IndexPlan,
+    node?: u32
 }

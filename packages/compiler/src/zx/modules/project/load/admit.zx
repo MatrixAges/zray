@@ -1,5 +1,7 @@
-import { max_dependency_depth } from "./const"
-import { Admission, State } from "./model"
+import memory from "std:memory"
+
+import { done, max_dependency_depth, visiting } from "./const"
+import { Admission } from "./model"
 
 import type { Frame } from "./model"
 
@@ -8,9 +10,17 @@ export type Input = Frame
 export type Output = Admission
 
 export default function (in: Input): Output {
-    return match in.state {
-        State.Done => Admission.Skip,
-        State.Visiting => Admission.Cycle,
-        _ => in.depth < max_dependency_depth ? Admission.Push : Admission.Depth
+    const { states, marks, row, depth } = in
+
+    const decision = match states[row] {
+        done => Admission.Skip,
+        visiting => Admission.Cycle,
+        _ => depth < max_dependency_depth ? Admission.Push : Admission.Depth
     }
+
+    if (decision == Admission.Push) {
+        memory.writeU8(marks, row, visiting)
+    }
+
+    return decision
 }

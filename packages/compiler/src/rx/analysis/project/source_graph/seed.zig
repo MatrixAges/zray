@@ -6,7 +6,7 @@ const Frame = struct { index: usize, dependency: usize = 0 };
 /// Dependencies before their dependents. The first root's modules come first and close with it; the modules the other
 /// roots add follow. Each part comes in order of depth, so the modules of one depth form runs that depend on no module
 /// of their run.
-pub fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, modules: []const model.Module, roots: []const u64) std.mem.Allocator.Error!model.Scheduled {
+pub fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, modules: model.Modules.Slice, ranges: model.Sources, roots: []const u64, sources: []const @import("frontend").project.Source) std.mem.Allocator.Error!model.Scheduled {
     const states = try scratch.alloc(State, modules.len);
 
     defer scratch.free(states);
@@ -31,7 +31,7 @@ pub fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, modules: 
 
         while (pending.items.len != 0) {
             const frame = &pending.items[pending.items.len - 1];
-            const module = modules[frame.index];
+            const module = modules.get(frame.index);
 
             if (frame.dependency == module.dependencies.len) {
                 try result.append(allocator, frame.index);
@@ -55,7 +55,7 @@ pub fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, modules: 
                 .visiting => {
                     result.deinit(allocator);
 
-                    return model.cycle(module, edge);
+                    return model.cycle(module, ranges.at(frame.index), edge, sources);
                 },
                 .unseen => {
                     states[index] = .visiting;
@@ -95,13 +95,13 @@ pub fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, modules: 
 }
 
 /// Each module's depth: one more than its deepest source dependency, from a dependency order.
-fn depth(allocator: std.mem.Allocator, modules: []const model.Module, order: []const usize) std.mem.Allocator.Error![]u32 {
+fn depth(allocator: std.mem.Allocator, modules: model.Modules.Slice, order: []const usize) std.mem.Allocator.Error![]u32 {
     const result = try allocator.alloc(u32, modules.len);
 
     @memset(result, 0);
 
     for (order) |index| {
-        for (modules[index].dependencies) |edge| {
+        for (modules.items(.dependencies)[index]) |edge| {
             if (edge.target == .source) result[index] = @max(result[index], result[edge.target.source] + 1);
         }
     }

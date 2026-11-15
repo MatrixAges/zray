@@ -1,0 +1,89 @@
+import position from "core/integer/index/lookup"
+
+import { Kind } from "../unification/model"
+
+import type { Kind as Shape } from "../unification/model"
+
+export type Snapshot = {
+    revision: u64,
+    keys: u32[],
+    buckets: u32[],
+    spread?: bool[],
+    selection?: bool[]
+}
+
+export type Input = {
+    root: u32,
+    kind: Shape,
+    revision: u64,
+    constructions: u64,
+    selections: u64,
+    snapshot?: Snapshot,
+    spread: bool
+}
+
+export enum Action {
+    Accept,
+    Reject,
+    Rebuild,
+    Propagate
+}
+
+export type Output = {
+    action: Action,
+    position: u64,
+    shared: bool
+}
+
+export default function (in: Input): Output {
+    const rejected: Output = {
+        action: Action.Reject,
+        position: 0,
+        shared: false
+    }
+
+    if (in.kind == Kind.Known) {
+        return {
+            ...rejected,
+            action: Action.Accept
+        }
+    }
+
+    if (in.constructions == 0 && in.selections == 0) {
+        return rejected
+    }
+
+    const snapshot = in.snapshot
+
+    if (snapshot == null || snapshot.revision != in.revision) {
+        return {
+            ...rejected,
+            action: Action.Rebuild
+        }
+    }
+
+    const entry = position({
+        keys: snapshot.keys,
+        buckets: snapshot.buckets,
+        key: in.root
+    })
+
+    if (entry == null) {
+        return rejected
+    }
+
+    const cached = in.spread ? snapshot.spread : snapshot.selection
+
+    if (cached == null) {
+        return {
+            action: Action.Propagate,
+            position: entry,
+            shared: in.selections == 0
+        }
+    }
+
+    return {
+        ...rejected,
+        action: cached[entry] ? Action.Accept : Action.Reject
+    }
+}

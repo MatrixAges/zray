@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+
+import entries from "../../history/entries"
+
+import type { Graph } from "./model"
+
+export type Input = Graph
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (!bytes.equals(in.earlier_order, in.current_order)) {
+        return false
+    }
+
+    if (in.shared_paths) {
+        return true
+    }
+
+    return entries({
+        earlier: in.earlier_paths,
+        current: in.current_paths
+    })
+}

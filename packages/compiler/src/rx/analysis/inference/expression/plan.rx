@@ -1,0 +1,47 @@
+<Module>
+    <Type from="model" as="Constraints" />
+
+    <Args in={Constraints.Input} out={Constraints.Output} />
+
+    <Switch on={$in}>
+        <Case value={Constraints.Form.Template}>
+            <Return
+                value={[
+                    Constraints.Step.InferInterpolations,
+                    Constraints.Step.StringResult
+                ]}
+            />
+        </Case>
+
+        <Case value={Constraints.Form.Match}>
+            <Return
+                value={[
+                    Constraints.Step.MatchResult,
+                    Constraints.Step.InferSubject,
+                    Constraints.Step.InferArms,
+                    Constraints.Step.InferFallback
+                ]}
+            />
+        </Case>
+
+        <Case value={Constraints.Form.Index}>
+            <Return
+                value={[
+                    Constraints.Step.InferTarget,
+                    Constraints.Step.InferPosition,
+                    Constraints.Step.RegisterIndex
+                ]}
+            />
+        </Case>
+
+        <Case value={Constraints.Form.Selection}>
+            <Return
+                value={[
+                    Constraints.Step.ReadKeys,
+                    Constraints.Step.InferReceiver,
+                    Constraints.Step.RegisterSelection
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

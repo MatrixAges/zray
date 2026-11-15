@@ -22,8 +22,12 @@ export const return_action: u32 = 192
 
 export const declaration_action: u32 = 224
 
-export const task_rank_stride: u64 = 256
-
-export const max_task_rank: u64 = 16777215
-
 export const parallel_tag: string = "Parallel"
+
+export const task_tag: string = "Task"
+
+export const task_output_attribute: string = "out"
+
+export const event_stride: u64 = 4294967296
+
+export const check_task_event: u64 = event_stride

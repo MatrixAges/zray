@@ -1,8 +1,18 @@
 const std = @import("std");
 const dsl = @import("dsl");
 const rx = @import("rx");
+const zx = @import("zx");
 const target = @import("../call/target.zig");
-pub const Route = struct { path: []const u8, method: ?rx.gateway.Method, service: []const u8, location: rx.ast.Location };
+
+pub const Route = struct {
+    path: []const u8,
+    method: ?rx.gateway.Method,
+    service: []const u8,
+    service_index: u32 = 0,
+    location: rx.ast.Location,
+};
+
+pub const Collected = struct { routes: []const Route = &.{}, service_routes: []const u32 = &.{} };
 
 const Row = struct {
     node: *const rx.ast.Node,
@@ -12,8 +22,8 @@ const Row = struct {
     method: ?u32,
 };
 
-pub fn collect(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: []const u8, node: rx.ast.Node, reporter: *dsl.Reporter) dsl.Error![]const Route {
-    if (node.children.len == 0) return &.{};
+pub fn collect(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: []const u8, node: rx.ast.Node, reporter: *dsl.Reporter) dsl.Error!Collected {
+    if (node.children.len == 0) return .{};
     if (comptime !@import("rx_options").generated_graph) return @import("routes/seed.zig").collect(allocator, owner, node, reporter);
 
     var scratch = std.heap.ArenaAllocator.init(backing);
@@ -30,43 +40,40 @@ pub fn collect(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
     const groups = rows.items(.group);
     const parts = rows.items(.part);
     const methods = rows.items(.method);
-    const layout = try plan(temporary, parts, groups, parents);
-    const paths = try temporary.alloc([]const u8, layout.len);
-    const services = try temporary.alloc([]const u8, layout.len);
-    const present = try temporary.alloc(bool, layout.len);
-    var count: usize = 0;
+    const layout = @import("generated_rx_gateway_layout").executeValue(temporary, &.{ .parts = parts, .groups = groups, .parents = parents }) catch |err| return generatedError(err);
+    const size = std.math.cast(usize, layout.bytes) orelse return error.OutOfMemory;
+    const buffer = try allocator.alloc(u8, size);
 
-    for (layout, paths, services, present, 0..) |length, *path, *service, *valid, row| {
-        const prefix = if (parents[row]) |parent| paths[parent] else "";
-        const scope = if (groups[row]) temporary else allocator;
-        const size = std.math.cast(usize, length) orelse return error.OutOfMemory;
-        const joined = try scope.alloc(u8, size);
+    try writePaths(parts, groups, parents, layout.lengths, buffer);
 
-        @memcpy(joined[0..prefix.len], prefix);
-        @memcpy(joined[prefix.len..], parts[row][0 .. size - prefix.len]);
+    const lengths = layout.lengths;
+    const paths = try temporary.alloc([]const u8, lengths.len);
+    const services = try temporary.alloc(?[]const u8, lengths.len);
+    var offset: usize = 0;
 
-        path.* = joined;
-        service.* = "";
-        valid.* = false;
+    for (lengths, paths, services, 0..) |length, *path, *service, row| {
+        path.* = "";
+        service.* = null;
 
         if (groups[row]) continue;
 
-        count += 1;
+        const end = offset + @as(usize, @intCast(length));
 
-        service.* = rx.resolveModulePath(allocator, owner, target.attribute(nodes[row].*, "service").value) catch |err| {
+        path.* = buffer[offset..end];
+        offset = end;
+
+        service.* = rx.resolveModulePath(temporary, owner, target.attribute(nodes[row].*, "service").value) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
 
             continue;
         };
-
-        valid.* = true;
     }
 
     const conflicts = @import("generated_rx_gateway_conflicts").executeValue(temporary, &.{
         .paths = paths,
         .groups = groups,
         .methods = methods,
-        .services = present,
+        .services = services,
     }) catch |err| return generatedError(err);
 
     switch (conflicts.issue) {
@@ -75,29 +82,34 @@ pub fn collect(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
         .Service => return fail(nodes[@intCast(conflicts.row)].*, "service", "Gateway service must resolve to an ordinary module inside the project", reporter),
     }
 
-    if (layout.len != rows.len) {
-        const key = if (groups[layout.len]) "prefix" else "path";
+    if (lengths.len != rows.len) {
+        const key = if (groups[lengths.len]) "prefix" else "path";
 
-        return fail(nodes[layout.len].*, key, "Gateway paths must be absolute literal paths without query, fragment, parameters or wildcards", reporter);
+        return fail(nodes[lengths.len].*, key, "Gateway paths must be absolute literal paths without query, fragment, parameters or wildcards", reporter);
     }
 
-    const routes = try allocator.alloc(Route, count);
+    const routes = try allocator.alloc(Route, @intCast(layout.routes));
     var next: usize = 0;
 
     for (nodes, paths, services, groups, methods) |source, path, service, group, method| {
         if (group) continue;
 
+        const service_index = conflicts.route_services[next];
+        const first = conflicts.service_routes[service_index];
+        const name = if (first == next) try allocator.dupe(u8, service.?) else routes[first].service;
+
         routes[next] = .{
             .path = path,
-            .method = if (method) |tag| @as(rx.gateway.Method, @enumFromInt(tag)) else null,
-            .service = service,
+            .method = if (method) |tag| @as(rx.gateway.Method, @fromBackingInt(@intCast(tag))) else null,
+            .service = name,
+            .service_index = service_index,
             .location = source.location,
         };
 
         next += 1;
     }
 
-    return routes;
+    return .{ .routes = routes, .service_routes = try allocator.dupe(u32, conflicts.service_routes) };
 }
 
 fn flatten(allocator: std.mem.Allocator, rows: *std.MultiArrayList(Row), nodes: []const rx.ast.Node, parent: ?u32) std.mem.Allocator.Error!void {
@@ -112,15 +124,23 @@ fn flatten(allocator: std.mem.Allocator, rows: *std.MultiArrayList(Row), nodes: 
             .parent = parent,
             .group = group,
             .part = target.attribute(node.*, key).value,
-            .method = if (method) |value| @intFromEnum(value) else null,
+            .method = if (method) |value| @backingInt(value) else null,
         });
 
         if (group) try flatten(allocator, rows, node.children, row);
     }
 }
 
-fn plan(allocator: std.mem.Allocator, parts: []const []const u8, groups: []const bool, parents: []const ?u32) std.mem.Allocator.Error![]const u64 {
-    return @import("generated_rx_gateway_layout").executeValue(allocator, &.{ .parts = parts, .groups = groups, .parents = parents }) catch |err| generatedError(err);
+fn writePaths(parts: []const []const u8, groups: []const bool, parents: []const ?u32, lengths: []const u64, target_buffer: []u8) std.mem.Allocator.Error!void {
+    if (target_buffer.len == 0) return;
+
+    const rule = @import("generated_rx_gateway_write_routes");
+    const Input = std.meta.Child(rule.Input);
+    const input: Input = .{ .parts = parts, .groups = groups, .parents = parents, .lengths = lengths, .target = @ptrCast(&target_buffer) };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const written = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| return generatedError(err);
+
+    std.debug.assert(written == target_buffer.len);
 }
 
 fn generatedError(err: anyerror) std.mem.Allocator.Error {

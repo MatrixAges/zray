@@ -6,26 +6,27 @@ const Store = @import("../store.zig");
 const target = @import("../call/target.zig");
 const getters = @import("getters.zig");
 const access = @import("access.zig");
+const Scope = @import("references.zig").Scope;
 const generated = @import("rx_options").generated_graph;
 
 pub const Authorization = struct { getters: []const Store.Binding, setter: ?target.Setter = null };
 pub const Value = union(enum) { authorized: Authorization, diagnostic: target.Diagnostic };
 
-pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: []const u8, node: rx.ast.Node, bindings: []const Store.Binding, argument: ?*const frontend.ExpressionInput.Result) std.mem.Allocator.Error!Value {
+pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: []const u8, attributes: @import("../call/attributes.zig"), scope: Scope, argument: ?*const frontend.ExpressionInput.Result) std.mem.Allocator.Error!Value {
     var reads: std.ArrayList(Store.Binding) = .empty;
 
-    if (target.optionalAttribute(node, "in")) |input| {
+    if (attributes.argument) |input| {
         const parsed = argument.?;
 
         if (parsed.diagnostic()) |issue| {
-            return failure(allocator, owner, input, issue.span.start, @tagName(issue.code), issue.message);
+            return failure(allocator, owner, input.*, issue.span.start, @tagName(issue.code), issue.message);
         }
 
-        if (bindings.len != 0) switch (parsed.*) {
-            .native => |result| try collectReads(allocator, &reads, result.value.parsed.expression, bindings),
+        if (scope.names.len != 0) switch (parsed.*) {
+            .native => |result| try collectReads(allocator, &reads, result.value.parsed.expression, scope),
             .indexed => |result| if (frontend.ExpressionInput.indexed_enabled) indexed: {
                 if (comptime generated) {
-                    reads = .fromOwnedSlice(try access.reads(allocator, backing, result, bindings));
+                    reads = .fromOwnedSlice(try access.reads(allocator, backing, result, scope));
 
                     break :indexed;
                 }
@@ -36,16 +37,15 @@ pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
 
                 const view = try result.view(scratch.allocator());
 
-                try collectReads(allocator, &reads, view.expression(result.output.result), bindings);
+                try collectReads(allocator, &reads, view.expression(result.output.result), scope);
             } else unreachable,
         };
     }
 
     var setter: ?target.Setter = null;
 
-    for (node.attributes) |attribute| {
-        if (!std.mem.eql(u8, attribute.name, "setter")) continue;
-
+    if (attributes.setter) |item| {
+        const attribute = item.*;
         var writes = try @import("../attribute.zig").parse(backing, attribute, owner);
 
         defer writes.deinit();
@@ -55,13 +55,13 @@ pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
         }
 
         const selected = switch (writes) {
-            .native => |result| selectSetter(result.value.parsed.expression, bindings),
+            .native => |result| selectSetter(result.value.parsed.expression, scope),
             .indexed => |result| if (frontend.ExpressionInput.indexed_enabled) block: {
                 if (comptime generated) {
-                    const placement = try access.setter(backing, result, bindings);
+                    const placement = try access.setter(backing, result, scope.names);
 
                     if (!placement.list) break :block invalidSetterList();
-                    if (placement.position) |index| break :block selectedSetter(bindings[index]);
+                    if (placement.position) |index| break :block selectedSetter(scope.at(index));
 
                     break :block missingSetter(placement.offset);
                 }
@@ -72,7 +72,7 @@ pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
 
                 const view = try result.view(scratch.allocator());
 
-                break :block selectSetter(view.expression(result.output.result), bindings);
+                break :block selectSetter(view.expression(result.output.result), scope);
             } else unreachable,
         };
 
@@ -85,23 +85,23 @@ pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
     return .{ .authorized = .{ .getters = reads.items, .setter = setter } };
 }
 
-fn collectReads(allocator: std.mem.Allocator, reads: *std.ArrayList(Store.Binding), expression: anytype, bindings: []const Store.Binding) std.mem.Allocator.Error!void {
-    for (bindings) |binding| if (getters.contains(expression, binding.name)) {
-        try reads.append(allocator, binding);
+fn collectReads(allocator: std.mem.Allocator, reads: *std.ArrayList(Store.Binding), expression: anytype, scope: Scope) std.mem.Allocator.Error!void {
+    for (scope.names, 0..) |name, index| if (getters.contains(expression, name)) {
+        try reads.append(allocator, scope.at(index));
     };
 }
 
 const SetterResult = union(enum) { setter: target.Setter, invalid: struct { offset: usize, message: []const u8 } };
 
-fn selectSetter(expression: anytype, bindings: []const Store.Binding) SetterResult {
+fn selectSetter(expression: anytype, scope: Scope) SetterResult {
     const value = syntax.value(expression);
 
     if (value != .list or value.list.len != 1) return invalidSetterList();
 
     const path = syntax.item(value.list, 0);
 
-    for (bindings) |binding| if (getters.matches(path, binding.name)) {
-        return selectedSetter(binding);
+    for (scope.names, 0..) |name, index| if (getters.matches(path, name)) {
+        return selectedSetter(scope.at(index));
     };
 
     return missingSetter(path.span.start);

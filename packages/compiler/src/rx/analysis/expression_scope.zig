@@ -1,70 +1,82 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
-const Binding = frontend.expressions.Binding;
+const Bindings = frontend.expressions.BindingColumns;
 const Result = frontend.ExpressionInput.Result;
 const generated = @import("rx_options").generated_graph;
 
 pub const Selection = struct {
-    bindings: []const Binding,
+    bindings: Bindings,
     positions: ?[]const u32 = null,
 };
 
-pub fn select(allocator: std.mem.Allocator, parsed: *const Result, bindings: []const Binding, facts: []const []const u8) std.mem.Allocator.Error!Selection {
-    if (bindings.len < 2 or parsed.diagnostic() != null) return .{ .bindings = bindings };
+pub fn select(allocator: std.mem.Allocator, parsed: *const Result, bindings: Bindings, facts: []const []const u8) std.mem.Allocator.Error!Selection {
+    const names = bindings.names;
+
+    if (names.len < 2 or parsed.diagnostic() != null) return .{ .bindings = bindings };
 
     const positions = switch (parsed.*) {
-        .native => |result| try native(allocator, result.value.parsed.expression, bindings, facts),
+        .native => |result| try native(allocator, result.value.parsed.expression, names, facts),
         .indexed => |result| if (frontend.ExpressionInput.indexed_enabled) block: {
-            if (comptime generated) break :block try indexed(allocator, result, bindings, facts);
+            if (comptime generated) return indexed(allocator, result, bindings, facts);
 
             const view = try result.view(allocator);
 
-            break :block try indexSeed(allocator, view, bindings, facts);
+            break :block try indexSeed(allocator, view, names, facts);
         } else unreachable,
     };
 
-    if (positions.len == bindings.len) return .{ .bindings = bindings };
+    if (positions.len == names.len) return .{ .bindings = bindings };
 
-    const selected = try allocator.alloc(Binding, positions.len);
+    const selected_names = try allocator.alloc([]const u8, positions.len);
+    const selected_types = try allocator.alloc(zx.ir.TypeId, positions.len);
 
-    for (selected, positions) |*slot, index| slot.* = bindings[index];
+    for (positions, selected_names, selected_types) |index, *name, *type_id| {
+        name.* = names[index];
+        type_id.* = bindings.types[index];
+    }
 
-    return .{ .bindings = selected, .positions = positions };
+    return .{ .bindings = .{ .names = selected_names, .types = selected_types }, .positions = positions };
 }
 
-fn indexed(allocator: std.mem.Allocator, input: frontend.ExpressionInput.Indexed, bindings: []const Binding, facts: []const []const u8) std.mem.Allocator.Error![]const u32 {
-    const names = try allocator.alloc([]const u8, bindings.len);
-
-    for (names, bindings) |*name, binding| name.* = binding.name;
-
+fn indexed(allocator: std.mem.Allocator, input: frontend.ExpressionInput.Indexed, bindings: Bindings, facts: []const []const u8) std.mem.Allocator.Error!Selection {
     const rule = @import("generated_rx_expression_scope");
 
-    return rule.executeValue(allocator, &.{ .source = input.source, .nodes = input.output.expressions.nodes, .names = names, .facts = facts }) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+    const request: std.meta.Child(rule.Input) = .{
+        .source = input.source,
+        .nodes = input.output.expressions.nodes,
+        .names = bindings.names,
+        .types = @ptrCast(bindings.types),
+        .facts = facts,
+    };
+
+    const selected = zx.columns.invoke(rule.executeValue, allocator, &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    return .{ .bindings = .{ .names = selected.names, .types = @ptrCast(selected.types) }, .positions = selected.positions };
 }
 
-fn native(allocator: std.mem.Allocator, expression: *const zx.ast.Expression, bindings: []const Binding, facts: []const []const u8) std.mem.Allocator.Error![]const u32 {
+fn native(allocator: std.mem.Allocator, expression: *const zx.ast.Expression, names: []const []const u8, facts: []const []const u8) std.mem.Allocator.Error![]const u32 {
     var selected: std.ArrayList(u32) = .empty;
 
-    for (bindings, 0..) |binding, index| {
-        if (@import("expression_scope/seed.zig").includes(expression, facts, binding.name)) try selected.append(allocator, @intCast(index));
+    for (names, 0..) |name, index| {
+        if (@import("expression_scope/seed.zig").includes(expression, facts, name)) try selected.append(allocator, @intCast(index));
     }
 
     return selected.items;
 }
 
-fn indexSeed(allocator: std.mem.Allocator, view: frontend.ExpressionInput.View, bindings: []const Binding, facts: []const []const u8) std.mem.Allocator.Error![]const u32 {
+fn indexSeed(allocator: std.mem.Allocator, view: frontend.ExpressionInput.View, names: []const []const u8, facts: []const []const u8) std.mem.Allocator.Error![]const u32 {
     var selected: std.ArrayList(u32) = .empty;
     const paths = frontend.binding_path;
 
-    for (bindings, 0..) |binding, index| {
+    for (names, 0..) |name, index| {
         const found = for (0..view.storage.expressions.nodes.len) |node| {
-            if (paths.matches(view.expression(node), binding.name)) break true;
+            if (paths.matches(view.expression(node), name)) break true;
         } else for (facts) |fact| {
-            if (binding.name.len <= fact.len and paths.overlaps(binding.name, fact)) break true;
+            if (name.len <= fact.len and paths.overlaps(name, fact)) break true;
         } else false;
 
         if (found) try selected.append(allocator, @intCast(index));

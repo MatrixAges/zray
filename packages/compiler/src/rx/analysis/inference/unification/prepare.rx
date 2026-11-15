@@ -31,10 +31,7 @@
     <If on={$ctx.check == Occurs.Reach.Present}>
         <Return
             value={{
-                ...$ctx.roots.pick([
-                    "left",
-                    "right"
-                ]),
+                ...$ctx.roots,
                 route: Unification.Route.Recursive
             }}
         />
@@ -43,10 +40,7 @@
     <If on={$ctx.check == Occurs.Reach.Depth}>
         <Return
             value={{
-                ...$ctx.roots.pick([
-                    "left",
-                    "right"
-                ]),
+                ...$ctx.roots,
                 route: Unification.Route.Depth
             }}
         />
@@ -66,13 +60,25 @@
 
     <Call module="decide" in={$ctx.rows} />
 
+    <Call
+        fn="application/project"
+        in={{
+            graph: $in.graph,
+            types: $in.types,
+            route: $ctx.decide,
+            left: $ctx.roots.left,
+            right: $ctx.roots.right
+        }}
+    />
+
     <Return
         value={{
             ...$ctx.roots.pick([
                 "left",
                 "right"
             ]),
-            route: $ctx.decide
+            route: $ctx.decide,
+            ...$ctx.project
         }}
     />
 </Module>

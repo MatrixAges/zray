@@ -1,14 +1,20 @@
 const std = @import("std");
 const zx = @import("zx");
+const model = @import("model.zig");
 const Self = @This();
 const enabled = @import("rx_options").generated_graph;
 
+pub const Request = struct { owner: usize, source: model.Source };
+const Edges = struct { targets: []const u64, end: usize };
+
 seen: []u32,
 queue: []u64,
+sources: model.Sources,
 end: usize = 0,
 
 cursor: usize = 0,
-pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
+edge_end: usize = 0,
+pub fn init(allocator: std.mem.Allocator, count: usize, sources: model.Sources) std.mem.Allocator.Error!Self {
     const seen = try allocator.alloc(u32, count);
 
     errdefer allocator.free(seen);
@@ -17,7 +23,7 @@ pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!
 
     @memset(seen, 0);
 
-    return .{ .seen = seen, .queue = queue };
+    return .{ .seen = seen, .queue = queue, .sources = sources };
 }
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
@@ -25,37 +31,53 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.seen);
 }
 
-pub fn next(self: *Self) ?usize {
-    if (self.cursor == self.end) return null;
+pub fn advance(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?Request {
+    if (comptime !enabled) return self.advanceSeed(adjacency, edges);
 
-    const row = self.queue[self.cursor];
+    const rule = @import("generated_source_graph_frontier");
 
-    self.cursor += 1;
+    const input: std.meta.Child(rule.Input) = .{
+        .seen = @ptrCast(&self.seen),
+        .queue = @ptrCast(&self.queue),
+        .end = self.end,
+        .targets = edges.targets,
+        .cursor = self.cursor,
+        .sources = &.{ .zx_count = self.sources.zx_count, .rx_end = self.sources.rx_end },
+        .starts = @ptrCast(&adjacency.starts),
+        .ends = @ptrCast(&adjacency.ends),
+        .edge_start = self.edge_end,
+        .edge_end = edges.end,
+    };
 
-    return @intCast(row);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    self.end = @intCast(result.end);
+    self.cursor = @intCast(result.cursor);
+    self.edge_end = edges.end;
+
+    const request = result.request orelse return null;
+    const row: usize = @intCast(request.row);
+
+    return .{
+        .owner = @intCast(request.owner),
+        .source = switch (request.kind) {
+            .ZX => .{ .zx = row },
+            .RX => .{ .rx = row },
+            .Store => .{ .store = row },
+        },
+    };
 }
 
-pub fn enqueue(self: *Self, targets: []const u64) void {
-    if (targets.len == 0) return;
-
-    if (comptime enabled) {
-        const generated = @import("generated_source_graph_enqueue");
-
-        const input: std.meta.Child(generated.Input) = .{
-            .seen = @ptrCast(&self.seen),
-            .queue = @ptrCast(&self.queue),
-            .end = self.end,
-            .targets = targets,
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        self.end = @intCast(zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable);
-
-        return;
+fn advanceSeed(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?Request {
+    if (self.cursor != 0) {
+        const previous: usize = @intCast(self.queue[self.cursor - 1]);
+        adjacency.starts[previous] = self.edge_end;
+        adjacency.ends[previous] = edges.end;
     }
 
-    for (targets) |target| {
+    self.edge_end = edges.end;
+
+    for (edges.targets) |target| {
         const row: usize = @intCast(target);
 
         if (self.seen[row] != 0) continue;
@@ -64,4 +86,12 @@ pub fn enqueue(self: *Self, targets: []const u64) void {
         self.queue[self.end] = target;
         self.end += 1;
     }
+
+    if (self.cursor == self.end) return null;
+
+    const owner: usize = @intCast(self.queue[self.cursor]);
+
+    self.cursor += 1;
+
+    return .{ .owner = owner, .source = self.sources.at(owner) };
 }

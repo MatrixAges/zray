@@ -11,6 +11,7 @@ const ir = @import("zx").ir;
 const frontend = @import("frontend");
 const columns = @import("history/columns.zig");
 const admission = @import("history/admission.zig");
+const Graph = @import("source_graph/model.zig").Graph;
 const Types = frontend.project.artifact.type_link.Table;
 const Source = frontend.project.artifact.source_link;
 pub const OriginStorage = @FieldType(@FieldType(Types, "origins"), "items");
@@ -20,13 +21,12 @@ pub const OriginTable = @typeInfo(@TypeOf(OriginStorage.view)).@"fn".return_type
 pub const Frame = struct {
     stores: []const @import("rx").ModuleSource = &.{},
     modules: []const @import("rx").ModuleSource,
-    dependencies: @import("source_graph/model.zig").Graph,
+    dependencies: Graph,
     export_roots: []const usize,
     definitions: []@import("../store.zig").Definition,
     loaded: @import("prepare.zig").Loaded,
     signatures: frontend.project.signature_project.Data,
-    signature_entries: []const []const u8,
-    signature_indices: []const ?usize,
+    signature_indices: []const i64,
     resolved: []const @import("signatures.zig").Signature,
     types: ir.TypeTable,
 };
@@ -52,11 +52,10 @@ pub const Retained = struct {
     modules: []const @import("rx").ModuleSource,
     sources: []const frontend.project.Source,
     derived: Frame,
-    initial: Checkpoint,
     /// Each module's source digest.
     digests: []const ?[32]u8,
-    before: []const Checkpoint,
-    after: []const Checkpoint,
+    /// The initial extent, followed by each scheduled module's ending extent in dependency order.
+    boundaries: []const Checkpoint,
     finished: []const ?Source.Loaded,
     types: ir.TypeTable,
     origins: OriginTable,
@@ -118,13 +117,13 @@ pub const History = struct {
 
         if (!admission.sameInputs(&earlier.frame, &self.frame, earlier.sources.len, sources.len)) return false;
 
-        const modules = earlier.derived.dependencies.modules[0..sources.len];
+        const paths = earlier.derived.dependencies.modules.items(.path)[0..sources.len];
 
-        for (earlier.sources, sources, modules) |*before, *after, *module| switch (admission.source(before, after)) {
+        for (earlier.sources, sources, paths) |*before, *after, path| switch (admission.source(before, after)) {
             .DifferentPath => return false,
             .Unchanged => {},
             .Edited => {
-                const parsed = try cache.getModule(after.source, module.path);
+                const parsed = try cache.getModule(after.source, path);
                 const body = parsed.bodyStart() orelse return false;
 
                 if (!admission.sameHeader(before.source, after.source, body)) return false;
@@ -136,10 +135,10 @@ pub const History = struct {
 
     /// The earlier analysis's signatures when they hold again: the same shape, the same ZX sources, and `entries`, the
     /// modules signed, in the same order. An edit to RX sources alone keeps them.
-    pub fn signatures(self: *const History, sources: []const frontend.project.Source, entries: []const []const u8) ?frontend.project.signature_project.Data {
+    pub fn signatures(self: *const History, sources: []const frontend.project.Source, graph: *const Graph, entries: []const u64) ?frontend.project.signature_project.Data {
         const earlier = if (self.previous) |*value| value else return null;
 
-        if (!admission.signed(&earlier.shape, &self.shape, earlier.sources.len, sources.len, earlier.derived.signature_entries, entries)) return null;
+        if (!admission.signed(&earlier.shape, &self.shape, &earlier.derived.dependencies, graph, entries)) return null;
 
         for (earlier.sources, sources) |*before, *after| if (admission.source(before, after) != .Unchanged) return null;
 

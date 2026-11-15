@@ -1,18 +1,19 @@
+const std = @import("std");
 const frontend = @import("frontend");
 const ir = @import("zx").ir;
 const State = @import("state.zig");
 const Prepared = @import("../prepare.zig");
 
-pub fn load(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, module: Prepared.Module) State.Error![]const ir.FunctionId {
+pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, module: Prepared.Module) State.Error![]const ir.FunctionId {
     const owner = state.owner;
-    const ids = try state.allocator.alloc(ir.FunctionId, module.calls.len);
+    const ids = try allocator.alloc(ir.FunctionId, module.calls.len);
 
     for (module.calls, ids) |call, *id| {
         const location = call.node.location;
 
         id.* = switch (call.edge.target) {
             .compiled => |library| block: {
-                const exported = try @import("library.zig").load(state, library, location);
+                const exported = try @import("library.zig").load(state, library, location, "");
 
                 switch (@import("../../call/compiled_admission.zig").check(exported.function, &state.functions, call.setter != null)) {
                     .Executable => {},
@@ -23,7 +24,7 @@ pub fn load(state: *State, cache: *frontend.project.ParseCache, sources: []const
                 break :block exported.function.?;
             },
             .source => |index| block: {
-                const is_rx = state.graph.modules[index].source == .rx;
+                const is_rx = state.graph.sources.at(index) == .rx;
 
                 const loaded = if (call.setter != null and !is_rx)
                     try @import("zx.zig").compile(state, cache, sources, index, call.setter)
@@ -39,14 +40,4 @@ pub fn load(state: *State, cache: *frontend.project.ParseCache, sources: []const
     }
 
     return ids;
-}
-
-/// Whether every call of `module` binds a source function the shared tables already hold, so loading them changes
-/// nothing: no compiled library to load and no Store setter to analyze.
-pub fn local(module: Prepared.Module) bool {
-    for (module.calls) |call| {
-        if (call.setter != null or call.edge.target != .source) return false;
-    }
-
-    return true;
 }

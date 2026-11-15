@@ -1,0 +1,32 @@
+export enum Form {
+    CallWithArgument,
+    CallWithoutArgument,
+    Task,
+    TaskWithEvaluation,
+    TaskWithBinding,
+    Case,
+    Default
+}
+
+export enum Step {
+    Done,
+    BindGetters,
+    EvaluateArgument,
+    UnitArgument,
+    RestoreBindings,
+    ResolveStores,
+    ImportCallee,
+    WriteCall,
+    LowerTask,
+    EvaluateTaskOutput,
+    WriteEvaluation,
+    DefineTaskBinding,
+    PublishTaskBinding,
+    EvaluateLabel,
+    LowerBranch,
+    WriteCase
+}
+
+export type Input = Form
+
+export type Output = Step[]

@@ -1,13 +1,8 @@
 import memory from "std:memory"
 
-import type { U32Buffer, U64Buffer } from "std:memory"
+import type { Queue } from "./frontier/model"
 
-export type Input = {
-    seen: U32Buffer,
-    queue: U64Buffer,
-    end: u64,
-    targets: u64[]
-}
+export type Input = Queue
 
 export type Output = u64
 

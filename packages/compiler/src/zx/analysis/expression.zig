@@ -7,11 +7,25 @@ pub const compileInput = @import("expression_program.zig").compileInput;
 pub const compile = @import("expression_program.zig").compile;
 pub const compileForLinking = @import("expression_program.zig").compileForLinking;
 pub const Binding = struct { name: []const u8, type_id: ir.TypeId };
+pub const BindingStorage = std.MultiArrayList(Binding);
+
+pub const BindingColumns = struct {
+    names: []const []const u8 = &.{},
+    types: []const ir.TypeId = &.{},
+    pub fn view(rows: BindingStorage.Slice) BindingColumns {
+        return .{ .names = rows.items(.name), .types = rows.items(.type_id) };
+    }
+
+    pub fn at(self: BindingColumns, index: usize) Binding {
+        return .{ .name = self.names[index], .type_id = self.types[index] };
+    }
+};
 
 /// `borrow_types` states that `types` comes from validated programs and outlives the result: the result then
 /// borrows its strings, and the table is re-validated only in internal builds. `type_storage`, with `borrow_types`,
 /// is the storage `types` views whole: the expression then extends it in place rather than copying the table. The
 /// caller can provide `type_allocator` to keep the extended storage alive independently of the result arena.
+/// When `borrow_native_modules` is set, the native module table must also outlive the result.
 /// Linking programs reserve symbol 0 for the environment. Their value bindings follow consecutively in
 /// `bindings` order. Unit bindings do not allocate a symbol.
 pub const Options = struct {
@@ -20,13 +34,33 @@ pub const Options = struct {
     type_storage: ?*ir.TypeStorage = null,
     type_allocator: ?std.mem.Allocator = null,
     native_modules: ir.NativeModuleTable = .{},
+    borrow_native_modules: bool = false,
     aliases: []const ir.Export = &.{},
+    alias_columns: ?BindingColumns = null,
     constants: []const ir.Constant = &.{},
     bindings: []const Binding = &.{},
+    binding_columns: ?BindingColumns = null,
     unit_bindings: []const []const u8 = &.{},
     nonnull_bindings: []const []const u8 = &.{},
     expected: ?ir.TypeId = null,
     scratch_backing: ?std.mem.Allocator = null,
+    pub fn bindingCount(self: Options) usize {
+        return if (self.binding_columns) |columns| columns.names.len else self.bindings.len;
+    }
+
+    pub fn bindingAt(self: Options, index: usize) Binding {
+        return if (self.binding_columns) |columns| columns.at(index) else self.bindings[index];
+    }
+    pub fn aliasRows(self: Options, allocator: std.mem.Allocator) std.mem.Allocator.Error![]const ir.Export {
+        const columns = self.alias_columns orelse return self.aliases;
+        const rows = try allocator.alloc(ir.Export, columns.names.len);
+
+        for (rows, columns.names, columns.types) |*row, name, type_id| {
+            row.* = .{ .name = name, .type_id = type_id };
+        }
+
+        return rows;
+    }
 };
 
 pub const Expression = struct { types: ir.TypeTable, symbols: ir.SymbolTable, expressions: ir.ExpressionTable, value: ir.ExprId };
@@ -62,20 +96,26 @@ pub fn analyze(allocator: std.mem.Allocator, parsed: Parsed, options: Options) s
 fn analyzeIn(allocator: std.mem.Allocator, parsed: Parsed, options: Options, reporter: *zx.Reporter) zx.Error!Expression {
     if (options.types.count() != 0 and !@import("../ir/type_rules.zig").validate(options.types)) return reporter.fail(.contract, parsed.expression.span, "invalid shared type table");
 
+    const aliases = try options.aliasRows(allocator);
+
+    defer if (options.alias_columns != null) allocator.free(aliases);
+
     var analyzer = Analyzer{
         .allocator = allocator,
         .reporter = reporter,
         .constants = options.constants,
-        .types = .{ .allocator = allocator, .reporter = reporter, .declarations = &.{}, .aliases = options.aliases },
+        .types = .{ .allocator = allocator, .reporter = reporter, .declarations = &.{}, .aliases = aliases },
     };
 
     try analyzer.types.items.appendDelta(allocator, try @import("type_table.zig").copy(allocator, options.types));
     try analyzer.types.initialize();
     if (!@import("constants/input.zig").nativeValid(analyzer.types.items.view(), options.constants)) return reporter.fail(.contract, parsed.expression.span, "invalid typed constant bindings");
-    try checkAliases(options.aliases, analyzer.types.items.count(), reporter, parsed.expression.span);
+    try checkAliases(aliases, analyzer.types.items.count(), reporter, parsed.expression.span);
     for (options.unit_bindings) |name| try @import("expression_binding.zig").bindUnit(&analyzer, .{ .text = name, .span = parsed.expression.span });
 
-    for (options.bindings) |binding| {
+    for (0..options.bindingCount()) |index| {
+        const binding = options.bindingAt(index);
+
         if (@backingInt(binding.type_id) >= analyzer.types.items.count()) return reporter.fail(.contract, parsed.expression.span, "expression binding type is missing from the shared type table");
         try @import("expression_binding.zig").bind(&analyzer, .{ .text = binding.name, .span = parsed.expression.span }, binding.type_id);
     }

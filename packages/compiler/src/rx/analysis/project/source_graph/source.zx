@@ -1,0 +1,43 @@
+export enum Kind {
+    ZX,
+    RX,
+    Store
+}
+
+export type Ranges = {
+    zx_count: u64,
+    rx_end: u64
+}
+
+export type Input = {
+    sources: Ranges,
+    owner: u64
+}
+
+export type Output = {
+    owner: u64,
+    kind: Kind,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { owner, sources } = in
+
+    return match {
+        owner < sources.zx_count => ({
+            owner,
+            kind: Kind.ZX,
+            row: owner
+        }),
+        owner < sources.rx_end => ({
+            owner,
+            kind: Kind.RX,
+            row: owner - sources.zx_count
+        }),
+        _ => ({
+            owner,
+            kind: Kind.Store,
+            row: owner - sources.rx_end
+        })
+    }
+}

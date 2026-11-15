@@ -1,0 +1,50 @@
+import integers from "std:integer"
+
+export type Input = {
+    function?: u32,
+    natives: u32?[],
+    rx: bool,
+    has_exports: bool,
+    has_members: bool
+}
+
+export type Output = {
+    visible: u64,
+    entry?: u32
+}
+
+export default function (in: Input): Output {
+    const id = in.function
+    const count = in.natives.length
+
+    if (id == null) {
+        return {
+            visible: count
+        }
+    }
+
+    const row = integers.widen(id)
+
+    const inline_body = (
+        - in.rx
+        - and !in.has_exports
+        - and !in.has_members
+    )
+
+    if (inline_body) {
+        return {
+            visible: row
+        }
+    }
+
+    const entry: u32? = match {
+        row >= count => null,
+        in.natives[row] != null => null,
+        _ => id
+    }
+
+    return {
+        visible: count,
+        entry
+    }
+}

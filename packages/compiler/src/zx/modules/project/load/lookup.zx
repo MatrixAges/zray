@@ -8,15 +8,27 @@ export type Input = Source
 export type Output = u64?
 
 export default function (in: Input): Output {
+    const known = in.row
+
+    if (known != null) {
+        return known < in.states.length ? known : null
+    }
+
     if (in.capacity == 0) {
         return null
     }
 
-    return fixed({
+    const row = fixed({
         keys: in.keys,
         buckets: in.buckets,
         capacity: in.capacity,
         key: bytes.fromText(in.path),
         insert: null
     })
+
+    if (row == null) {
+        return null
+    }
+
+    return row < in.states.length ? row : null
 }

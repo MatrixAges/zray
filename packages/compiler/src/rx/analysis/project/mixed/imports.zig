@@ -5,14 +5,14 @@ const State = @import("state.zig");
 const Binding = std.meta.Child(@FieldType(frontend.ResolvedImports, "imports"));
 pub const Result = struct { functions: []const Binding, published: []const Binding };
 
-pub fn collect(state: *State, header: anytype, index: usize, signature: frontend.project.signature_project.Module) State.Error!Result {
+pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, index: usize, signature: frontend.project.signature_project.Module, source_text: []const u8) State.Error!Result {
     var bindings: std.ArrayList(Binding) = .empty;
     var published: std.ArrayList(Binding) = .empty;
 
-    try bindings.appendSlice(state.allocator, signature.function_imports);
-    try published.appendSlice(state.allocator, signature.reexport_functions);
+    try bindings.appendSlice(allocator, signature.function_imports);
+    try published.appendSlice(allocator, signature.reexport_functions);
 
-    const edges = state.graph.modules[index].dependencies;
+    const edges = state.graph.modules.items(.dependencies)[index];
 
     if (edges.len != header.importCount()) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source import declarations do not match the dependency graph");
 
@@ -23,11 +23,11 @@ pub fn collect(state: *State, header: anytype, index: usize, signature: frontend
 
         const dependency = switch (edge.target) {
             .source => |source| source_block: {
-                const loaded = state.finished[source] orelse return state.fail(edge.location, "source function dependency has not been analyzed in its required context");
+                const loaded = state.finished[source] orelse return state.fail(edge.locate(source_text), "source function dependency has not been analyzed in its required context");
 
                 break :source_block frontend.project.compiled.Export{ .name = "", .path = "", .function = loaded.function, .types = loaded.exports, .constants = loaded.constant_exports, .members = loaded.members };
             },
-            .compiled => |target| try @import("library.zig").load(state, target, edge.location),
+            .compiled => |target| try @import("library.zig").load(state, target, edge.location, source_text),
             .native => unreachable,
         };
 
@@ -49,16 +49,16 @@ pub fn collect(state: *State, header: anytype, index: usize, signature: frontend
         const selected = binding.select(temporary, state.allocator, view, &symbols, &reporter) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
 
-            return state.fail(edge.location, reporter.diagnostic.?.message);
+            return state.fail(edge.locate(source_text), reporter.diagnostic.?.message);
         };
 
         const destination = if (item.exported) &published else &bindings;
 
         for (selected.functions.names, selected.functions.indices) |name, selected_index| {
             var member = members.at(@intCast(selected_index)).*;
-            member.name = try state.allocator.dupe(u8, name);
+            member.name = try allocator.dupe(u8, name);
 
-            try destination.append(state.allocator, member);
+            try destination.append(allocator, member);
         }
     }
 

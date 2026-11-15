@@ -1,25 +1,17 @@
 const std = @import("std");
 const Graph = @import("../types.zig");
+const enabled = @import("rx_options").generated_graph;
+pub const query = if (enabled) @import("generated_object_closure_query") else void;
+pub const QueryInput = if (enabled) std.meta.Child(query.Input) else void;
+pub const QuerySnapshot = if (enabled) std.meta.Child(std.meta.Child(@FieldType(QueryInput, "snapshot"))) else void;
 
 pub const Snapshot = struct {
-    keys: []const u32,
-    buckets: []const u32,
+    query: QuerySnapshot,
     known: []const bool,
     sizes: []const u64,
     results: []const u64,
     offsets: []const u64,
     dependents: []const u64,
-    pub fn position(self: *const Snapshot, id: Graph.Id) ?usize {
-        const index = @import("generated_object_closure_index");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const result = index.executeIn(empty.allocator(), &.{
-            .index = &.{ .count = self.keys.len, .keys = self.keys, .buckets = self.buckets },
-            .key = @backingInt(id),
-        }) catch unreachable;
-
-        return if (result) |value| @intCast(value) else null;
-    }
 };
 
 pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocator.Error!Snapshot {
@@ -29,6 +21,7 @@ pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocato
     const constructions = graph.pending.constructions.slice();
     const parts = graph.pending.construction_parts.slice();
     const selections = graph.pending.selections.slice();
+    const parents = graph.parents();
 
     const normalized = roots.executeState(allocator, .{
         .columns = &.{
@@ -40,7 +33,7 @@ pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocato
             .selection_results = @ptrCast(selections.items(.result)),
             .selection_sources = @ptrCast(selections.items(.source)),
         },
-        .parents = graph.forest.state,
+        .parents = @ptrCast(&parents),
         .keys = .{ .items = &.{}, .storage = .plain },
         .buckets = .{ .items = &.{}, .storage = .plain },
         .sizes = .{ .items = &.{}, .storage = .plain },
@@ -53,8 +46,6 @@ pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocato
         .open = false,
     }) catch |err| return failure(err);
 
-    std.debug.assert(normalized.parents.items.ptr == graph.forest.state.items.ptr);
-
     const result = layout.executeValue(allocator, &.{
         .kinds = rows.items(.kind),
         .keys = normalized.keys.items,
@@ -63,8 +54,13 @@ pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocato
     }) catch |err| return failure(err);
 
     return .{
-        .keys = normalized.keys.items,
-        .buckets = normalized.buckets.items,
+        .query = .{
+            .revision = graph.object_revision,
+            .keys = normalized.keys.items,
+            .buckets = normalized.buckets.items,
+            .spread = null,
+            .selection = null,
+        },
         .known = result.known,
         .sizes = normalized.sizes.items,
         .results = normalized.results.items,

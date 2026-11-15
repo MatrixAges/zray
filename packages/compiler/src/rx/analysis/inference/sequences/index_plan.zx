@@ -1,0 +1,27 @@
+import classify from "./index_kind"
+import { IndexRoute } from "./model"
+import tuple from "./tuple_index"
+
+import type { IndexPlan as Output, IndexTarget as Input } from "./model"
+
+export default function (in: Input): Output {
+    const target = in.target
+    const route = classify(target)
+
+    if (route == IndexRoute.Tuple) {
+        return tuple({
+            members: in.graph.members[in.root],
+            type_children: in.graph.type_children,
+            length: target.length,
+            position: in.position,
+            offset: target.argument,
+            declared: target.declared
+        })
+    }
+
+    return {
+        route,
+        child: target.argument,
+        declared: target.declared
+    }
+}

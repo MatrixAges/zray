@@ -46,19 +46,13 @@ pub const Result = struct {
 pub const Loaded = struct {
     getters: []const @import("store.zig").Binding = &.{},
     node: rx.ast.Node,
+    input: ?*const rx.ast.Attribute,
     function: target.Function,
     argument: ?*const frontend.ExpressionInput.Result = null,
 };
 
-pub const Binding = struct { name: []const u8, type_id: zx.ir.TypeId };
-
-pub const Bindings = struct {
-    names: []const []const u8,
-    types: []const zx.ir.TypeId,
-    pub fn at(self: Bindings, index: usize) Binding {
-        return .{ .name = self.names[index], .type_id = self.types[index] };
-    }
-};
+pub const Binding = frontend.expressions.Binding;
+pub const Bindings = frontend.expressions.BindingColumns;
 
 pub fn infer(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Error!Result {
     const sources = [_]rx.ModuleSource{.{ .path = options.owner, .node = options.module }};

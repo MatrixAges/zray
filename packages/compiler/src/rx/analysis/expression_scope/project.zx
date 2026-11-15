@@ -1,0 +1,19 @@
+import integers from "std:integer"
+
+import type { Bindings, Selection } from "./model"
+
+export type Input = Bindings & {
+    positions: u32[]
+}
+
+export type Output = Selection
+
+export default function (in: Input): Output {
+    const { names, types, positions } = in
+
+    return {
+        names: positions.map(row => names[integers.widen(row)])[0],
+        types: positions.map(row => types[integers.widen(row)])[0],
+        positions
+    }
+}

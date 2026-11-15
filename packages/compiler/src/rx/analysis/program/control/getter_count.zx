@@ -1,0 +1,25 @@
+import integers from "std:integer"
+
+export type Input = {
+    getters: u32[],
+    first: u64,
+    count: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const end = in.first + in.count
+
+    return loop({
+        index: in.first,
+        total: 0
+    }, {
+        while: state => state.index < end,
+        next: state => {
+            state.total += integers.widen(in.getters[state.index])
+            state.index += 1
+        },
+        return: state => state.total
+    })
+}

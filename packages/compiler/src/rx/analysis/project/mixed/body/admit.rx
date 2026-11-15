@@ -3,23 +3,13 @@
 
     <Args in={Body.Admission} out={Body.Action} />
 
-    <If on={$in.preview}>
-        <If on={$in.reusable || $in.compiled_dependency}>
-            <Return value={Body.Action.Skip} />
-        </If>
-
-        <If on={$in.entry && $in.source == Body.Source.RX}>
-            <Return value={Body.Action.Skip} />
-        </If>
-    </If>
-
     <Switch on={$in.source}>
         <Case value={Body.Source.ZX}>
-            <If on={!$in.signature}>
+            <If on={$in.signature == 0}>
                 <Return value={Body.Action.MissingSignature} />
             </If>
 
-            <If on={$in.setter}>
+            <If on={$in.signature < 0}>
                 <Return value={Body.Action.Skip} />
             </If>
 

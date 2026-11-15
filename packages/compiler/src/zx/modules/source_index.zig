@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const Map = if (@import("parser_options").generated_parser) @import("source_index/fixed.zig") else @import("source_index/seed.zig");
+pub const Owned = @import("source_index/owned.zig");
 
 /// The map and canonical keys belong to the surrounding analysis arena.
 pub fn buildIn(allocator: std.mem.Allocator, sources: anytype, root: []const u8) std.mem.Allocator.Error!*const Map {
@@ -18,7 +19,12 @@ pub fn buildIn(allocator: std.mem.Allocator, sources: anytype, root: []const u8)
 
 pub const Known = struct {
     paths: *const Map,
+    matched_row: ?*?usize = null,
     pub fn has(self: Known, path: []const u8) std.mem.Allocator.Error!bool {
-        return self.paths.get(path) != null;
+        const row = self.paths.get(path);
+
+        if (self.matched_row) |matched| matched.* = row;
+
+        return row != null;
     }
 };

@@ -1,0 +1,84 @@
+import equivalent from "../fields/equivalent"
+import { Action as FieldAction } from "../fields/existing"
+import field from "../fields/existing"
+import find from "../known/find"
+import { Receiver, Route } from "./model"
+
+import type { U32Buffer } from "std:memory"
+import type { State as Known } from "core/integer/map/model"
+import type { Object, Output as Field } from "../fields/existing"
+import type { Candidates } from "./model"
+
+export type Input = {
+    names: string[],
+    plan: Candidates,
+    object: Object,
+    parents: U32Buffer,
+    known: Known,
+    start: u64
+}
+
+export type Output = {
+    row: u64,
+    target: Field,
+    source?: u32
+}
+
+export default function (in: Input): Output {
+    const fallback: Field = {
+        action: FieldAction.Field,
+        value: 0
+    }
+
+    const missing: u32? = null
+
+    return loop({
+        row: in.start,
+        target: fallback,
+        source: missing,
+        found: false
+    }, {
+        while: state => !state.found && state.row < in.names.length,
+        next: state => {
+            const row = state.row
+            const target = field({
+                object: in.object,
+                known: in.known,
+                name: in.names[row]
+            })
+            const route = in.plan.routes[row]
+            const source: u32? = match in.plan.receivers[row] {
+                Receiver.Type => find({
+                    known: in.known,
+                    type_id: in.plan.values[row]
+                }),
+                Receiver.Target => target.value,
+                _ => in.plan.values[row]
+            }
+
+            const skip = match route {
+                Route.Skip => target.action == FieldAction.Reuse,
+                Route.Register => target.action == FieldAction.Reuse && source != null,
+                Route.Bind => equivalent({
+                    target,
+                    source,
+                    parents: in.parents
+                }),
+                _ => false
+            }
+
+            if (skip) {
+                state.row += 1
+            } else {
+                state.target = target
+                state.source = source
+                state.found = true
+            }
+        },
+        return: state => ({
+            row: state.row,
+            target: state.target,
+            source: state.source
+        })
+    })
+}

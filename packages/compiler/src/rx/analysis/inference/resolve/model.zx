@@ -12,6 +12,8 @@ export enum Route {
     Optional,
     Object,
     Tuple,
+    GrowFrames,
+    GrowValues,
     Depth,
     Sequence,
     Unconstrained,
@@ -36,9 +38,11 @@ export type Publication = {
 export type Request = {
     graph: View,
     publication: Publication,
-    parents: u32[],
-    frames: u64[],
-    values: u32[],
+    parents: U32Buffer,
+    frames: U64Buffer,
+    values: U32Buffer,
+    frame_capacity: u64,
+    value_capacity: u64,
     depth: u64,
     used: u64,
     count: u64,
@@ -50,9 +54,7 @@ export type Request = {
 export type Pending = {
     route: Route,
     child: u32,
-    values: u32[],
-    start: u64,
-    count: u64,
+    members: u32[],
     names: string[]
 }
 

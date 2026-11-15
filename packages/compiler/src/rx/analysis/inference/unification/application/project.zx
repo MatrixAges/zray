@@ -1,0 +1,63 @@
+import integers from "std:integer"
+
+import { Route } from "../model"
+import declared from "./declared"
+import { Action } from "./model"
+
+import type { Application, Request } from "./model"
+
+export type Input = Request
+
+export type Output = Application
+
+export default function (in: Input): Output {
+    const route = in.route
+    const left = in.left
+    const right = in.right
+
+    if (route == Route.Known) {
+        return declared(in)
+    }
+
+    if (route == Route.Child) {
+        const arguments = in.graph.arguments
+
+        return {
+            action: Action.Child,
+            source: left,
+            left_operand: arguments[integers.widen(left)],
+            right_operand: arguments[integers.widen(right)],
+            right_size: 0
+        }
+    }
+
+    if (route == Route.Object) {
+        const members = in.graph.members
+        const first = members[integers.widen(left)]
+        const second = members[integers.widen(right)]
+
+        if (first.length == 0 || second.length == 0) {
+            return {
+                action: Action.Adopt,
+                source: first.length == 0 ? right : left,
+                left_operand: left,
+                right_operand: right,
+                right_size: 0
+            }
+        }
+    }
+
+    const action = match route {
+        Route.Tuple => Action.Tuple,
+        Route.Object => Action.Object,
+        _ => Action.Adopt
+    }
+
+    return {
+        action,
+        source: route == Route.Right ? right : left,
+        left_operand: left,
+        right_operand: right,
+        right_size: 0
+    }
+}

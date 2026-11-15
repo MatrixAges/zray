@@ -14,16 +14,20 @@ pub fn View(comptime Storage: type) type {
         order: Order,
         types: TypeView,
         pub fn init(allocator: std.mem.Allocator, source: []const u8, storage: Storage) std.mem.Allocator.Error!Self {
+            return fromOrder(source, storage, try Order.create(allocator, storage));
+        }
+        pub fn fromOrder(source: []const u8, storage: Storage, order: Order) Self {
             return .{
                 .source = source,
                 .storage = storage,
-                .order = try Order.create(allocator, storage),
+                .order = order,
                 .types = .{
                     .source = source,
                     .storage = storage,
                 },
             };
         }
+
         pub fn program(self: *const Self) Model.Program {
             return .{
                 .body = if (self.storage.body) |index| self.block(index) else null,
@@ -44,7 +48,7 @@ pub fn View(comptime Storage: type) type {
 
             return .{
                 .span = Header.span(node.span),
-                .statements = .{ .context = self, .first = self.order.blocks[id], .len = @intCast(node.count) },
+                .statements = .{ .context = self, .first = if (node.count == 0) 0 else @intCast(self.order.blocks[id]), .len = @intCast(node.count) },
             };
         }
         pub fn typeValue(self: *const Self, index: u64) Model.Type {

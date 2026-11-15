@@ -1,0 +1,28 @@
+import memory from "std:memory"
+
+import source from "../source"
+
+import type { Position, Selection } from "./model"
+
+export type Input = Position
+
+export type Output = Selection
+
+export default function (in: Input): Output {
+    if (in.cursor == in.end) {
+        return {
+            cursor: in.cursor,
+            request: null
+        }
+    }
+
+    const owner = memory.readU64(in.queue, in.cursor)
+
+    return {
+        cursor: in.cursor + 1,
+        request: source({
+            owner,
+            sources: in.sources
+        })
+    }
+}

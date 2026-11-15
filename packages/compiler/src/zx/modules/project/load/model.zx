@@ -1,10 +1,4 @@
-import type { U64Buffer } from "std:memory"
-
-export enum State {
-    Fresh,
-    Visiting,
-    Done
-}
+import type { U8Buffer, U64Buffer } from "std:memory"
 
 export enum Admission {
     Push,
@@ -14,7 +8,15 @@ export enum Admission {
 }
 
 export type Frame = {
-    state: State,
+    states: u8[],
+    marks: U8Buffer,
+    row: u64,
+    depth: u64
+}
+
+export type Completed = {
+    marks: U8Buffer,
+    row: u64,
     depth: u64
 }
 
@@ -35,10 +37,12 @@ export type Source = {
     function_import: bool,
     exported: bool,
     depth: u64,
+    row?: u64,
     keys: u8[][],
     buckets: U64Buffer,
     capacity: u64,
-    states: State[]
+    states: u8[],
+    marks: U8Buffer
 }
 
 export type SourcePlan = {

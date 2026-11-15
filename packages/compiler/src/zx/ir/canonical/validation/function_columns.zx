@@ -1,0 +1,12 @@
+import type { Contracts } from "core/contract_table/model"
+import type { Expressions } from "core/expression_table/model"
+import type { Stores } from "core/store_table/model"
+import type { Symbols } from "core/symbol_table/model"
+
+export type Input = {
+    stores: Stores,
+    symbols: Symbols,
+    expressions: Expressions,
+    contracts: Contracts,
+    max_offset: u64
+}

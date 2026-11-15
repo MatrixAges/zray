@@ -31,5 +31,7 @@ pub fn read(reference: anytype) @TypeOf(reference).Value {
 }
 
 fn sequence(comptime kind: Kind, reference: anytype, count: u64) @TypeOf(reference.context.*).Model.Sequence(kind) {
-    return .{ .context = reference.context, .first = reference.context.order.expressions[reference.index], .len = @intCast(count) };
+    const first = if (count == 0) 0 else reference.context.order.expressions[reference.index];
+
+    return .{ .context = reference.context, .first = @intCast(first), .len = @intCast(count) };
 }

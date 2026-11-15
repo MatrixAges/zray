@@ -1,0 +1,67 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { U8Buffer } from "std:memory"
+import type { Input as Rows } from "./model"
+
+export type Input = Rows & {
+    lengths: u64[],
+    target: U8Buffer
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop({
+        row: 0,
+        offset: 0
+    }, {
+        while: state => state.row < in.lengths.length,
+        next: state => {
+            const row = state.row
+
+            if (!in.groups[row]) {
+                const length = in.lengths[row]
+                const start = loop({
+                    current: row,
+                    end: state.offset + length,
+                    active: true
+                }, {
+                    while: path => path.active,
+                    next: path => {
+                        const current = path.current
+                        const parent = in.parents[current]
+                        const prefix = match {
+                            parent != null => in.lengths[integers.widen(parent)],
+                            _ => 0
+                        }
+                        const count = in.lengths[current] - prefix
+
+                        const copied = memory.copyBytes(
+                            in.target,
+                            path.end - count,
+                            bytes.fromText(in.parts[current]),
+                            0,
+                            count
+                        )
+
+                        path.end -= copied
+
+                        if (parent == null) {
+                            path.active = false
+                        } else {
+                            path.current = integers.widen(parent)
+                        }
+                    },
+                    return: path => path.end
+                })
+
+                state.offset = start + length
+            }
+
+            state.row += 1
+        },
+        return: state => state.offset
+    })
+}

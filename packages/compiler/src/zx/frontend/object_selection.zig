@@ -1,6 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
+pub const arity_message = "object selection requires one static field array";
+pub const array_message = "object selection fields must be a string literal array";
+pub const literal_message = "object selection fields must be string literals";
 
 pub fn name(value: []const u8) bool {
     return std.mem.eql(u8, value, "pick") or std.mem.eql(u8, value, "omit");
@@ -23,17 +26,17 @@ pub fn validate(expression: anytype) ?zx.Diagnostic {
 pub fn validateAt(expression: anytype, offset: usize) ?zx.Diagnostic {
     const call = syntax.value(expression).call;
 
-    if (call.type_argument != null or call.arguments.len != offset + 1) return issue(expression.span, "object selection requires one static field array");
+    if (call.type_argument != null or call.arguments.len != offset + 1) return issue(expression.span, arity_message);
 
     const argument = syntax.item(call.arguments, offset);
     const value = syntax.value(argument);
 
-    if (value != .list) return issue(argument.span, "object selection fields must be a string literal array");
+    if (value != .list) return issue(argument.span, array_message);
 
     for (0..value.list.len) |index| {
         const key = syntax.item(value.list, index);
 
-        if (syntax.value(key) != .string) return issue(key.span, "object selection fields must be string literals");
+        if (syntax.value(key) != .string) return issue(key.span, literal_message);
     }
 
     return null;

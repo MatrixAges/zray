@@ -1,0 +1,22 @@
+export type Links = {
+    native_modules: u64,
+    initializers: u64,
+    libraries: u64
+}
+
+export type Input = {
+    before: Links,
+    after: Links
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const before = in.before
+    const after = in.after
+    const natives = before.native_modules == after.native_modules
+    const initializers = before.initializers == after.initializers
+    const libraries = before.libraries == after.libraries
+
+    return natives && initializers && libraries
+}

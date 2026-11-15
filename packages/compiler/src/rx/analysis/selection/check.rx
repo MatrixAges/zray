@@ -21,8 +21,11 @@
 
     <Return
         value={{
-            coverage: $ctx.domain,
-            failure: $ctx.labels
+            coverage: {
+                valid: $ctx.domain.valid,
+                exhaustive: $ctx.domain.exhaustive || $ctx.labels.has_default
+            },
+            failure: $ctx.labels.failure
         }}
     />
 </Module>

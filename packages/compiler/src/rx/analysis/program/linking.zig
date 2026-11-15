@@ -9,6 +9,7 @@ pub const Plan = struct {
     returned: ir.ExprId,
     rows: []const u32,
     bindings: []const u32,
+    count: usize,
 };
 
 pub fn plan(allocator: std.mem.Allocator, builder: *const Builder, program: ir.Program) Builder.Error!Plan {
@@ -60,5 +61,7 @@ pub fn plan(allocator: std.mem.Allocator, builder: *const Builder, program: ir.P
 
     const returned = result.returned orelse return error.InvalidModule;
 
-    return .{ .returned = @fromBackingInt(returned), .rows = result.rows, .bindings = result.bindings };
+    if (returned == missing) return error.InvalidModule;
+
+    return .{ .returned = @fromBackingInt(returned), .rows = result.rows, .bindings = result.bindings, .count = @intCast(result.count) };
 }

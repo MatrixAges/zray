@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import { results_lane } from "../const"
+import header from "./header"
+
+import type { OptionalU32Buffer } from "std:memory"
+import type { Header } from "./header"
+
+export type Input = {
+    header: Header,
+    values: OptionalU32Buffer,
+    value?: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const row = memory.readU32(in.header.cursor, results_lane)
+
+    memory.writeOptionalU32(in.values, integers.widen(row), in.value)
+
+    header({
+        header: in.header,
+        row,
+        lane: results_lane
+    })
+}

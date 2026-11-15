@@ -23,7 +23,6 @@ export enum Status {
 export type Steps = {
     kinds: Kind[],
     outputs: Publish[],
-    getters: u32[],
     firsts: u32[],
     counts: u32[],
     exhaustive: bool[]
@@ -35,15 +34,27 @@ export type Units = {
     blocks: bool[]
 }
 
+export type Calls = {
+    getters: u32[],
+    publishes: bool[]
+}
+
 export type Shape = {
     steps: Steps,
     units: Units,
-    cases: u32[]
+    cases: u32[],
+    calls: Calls
+}
+
+export type Blocks = {
+    firsts: U32Buffer,
+    counts: U32Buffer
 }
 
 export type Input = {
     shape: Shape,
     layout: U32Buffer,
+    blocks: Blocks,
     capture_count: u64,
     void_output: bool
 }
@@ -57,6 +68,5 @@ export type Output = {
     selections: u64,
     cases: u64,
     results: u64,
-    block_count: u64,
     implicit_return: bool
 }

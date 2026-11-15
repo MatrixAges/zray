@@ -26,8 +26,8 @@ pub fn validateUses(graph: *const Graph) zx.Error!void {
     return graph.reporter.fail(.name, uses.items(.span)[index], missing_message);
 }
 
-pub fn distinct(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, message: []const u8) zx.Error!void {
-    switch (rules.pair(graph, left, right, false)) {
+pub fn distinct(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, message: []const u8, action: rules.Collision) zx.Error!void {
+    switch (action) {
         .Ignore => {},
         .Conflict => return graph.reporter.fail(.name, span, message),
         .Defer => try graph.pending.binding_collisions.append(graph.pending.allocator, .{ .left = left, .right = right, .span = span, .message = message }),
@@ -56,12 +56,13 @@ pub fn propagate(graph: *Graph, final: bool) zx.Error!void {
     var start: usize = 0;
 
     while (true) {
-        const parents: []u32 = @constCast(graph.forest.state.items);
+        const parents: []u32 = graph.parents();
 
         const result = entry.executeValue(empty.allocator(), &.{
             .topology = &.{ .graph = &rules.view(entry, graph), .parents = @ptrCast(&parents) },
             .collisions = &.{ .left = @ptrCast(collisions.items(.left)), .right = @ptrCast(collisions.items(.right)), .final = final },
             .candidates = @ptrCast(lookups.items(.candidates)),
+            .values = @ptrCast(lookups.items(.value)),
             .start = start,
         }) catch unreachable;
 

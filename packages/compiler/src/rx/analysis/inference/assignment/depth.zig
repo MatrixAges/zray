@@ -9,7 +9,8 @@ pub fn solve(graph: *Graph, scratch: std.mem.Allocator) zx.Error![]const u64 {
     const assignments = graph.pending.assignments.slice();
     const left: []u32 = @ptrCast(assignments.items(.value));
     const right: []u32 = @ptrCast(assignments.items(.expected));
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
+    const depths = try scratch.alloc(u64, rows.len);
 
     const solution = @import("generated_assignment_depth").executeValue(scratch, &.{
         .graph = &.{
@@ -20,12 +21,13 @@ pub fn solve(graph: *Graph, scratch: std.mem.Allocator) zx.Error![]const u64 {
         .assignments = &.{ .left = left, .right = right },
         .write = &.{ .left = @ptrCast(&left), .right = @ptrCast(&right), .count = left.len },
         .parents = @ptrCast(&parents),
+        .lower = &.{ .values = depths, .output = @ptrCast(&depths) },
     }) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    if (solution.issue == .None) return solution.depths;
+    if (solution.issue == .None) return depths;
 
     const spans = assignments.items(.span);
 

@@ -1,0 +1,14 @@
+import { StatementKind } from "../../../parser/body/model"
+import { Chain } from "./model"
+
+export type Input = StatementKind
+
+export type Output = Chain
+
+export default function (in: Input): Output {
+    return match in {
+        StatementKind.Destructure => Chain.Names,
+        StatementKind.Switch => Chain.Cases,
+        _ => Chain.Empty
+    }
+}

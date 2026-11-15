@@ -1,6 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
-const Shape = @import("shape.zig");
+const Shape = @import("../flow.zig");
 const Error = @import("../builder.zig").Error;
 const enabled = @import("rx_options").generated_graph;
 const Self = @This();
@@ -33,16 +33,16 @@ pub const Row = extern struct {
     tag: u32,
 };
 
-const no_block = std.math.maxInt(u32);
+pub const Blocks = struct { firsts: []u32, counts: []u32 };
 
 rows: []const Row,
+blocks: []const bool,
 size: Counts,
-blocks: u32,
 implicit_return: bool,
-pub fn make(allocator: std.mem.Allocator, shape: *const Shape, capture_count: usize, void_output: bool) Error!Self {
+pub fn make(allocator: std.mem.Allocator, shape: *const Shape, blocks: Blocks, capture_count: usize, void_output: bool) Error!Self {
     const rows = try allocator.alloc(Row, shape.units.len);
 
-    if (comptime !enabled) return @import("seed.zig").plan(shape, rows, capture_count, void_output);
+    if (comptime !enabled) return @import("seed.zig").plan(shape, rows, blocks, capture_count, void_output);
 
     const rule = @import("generated_rx_control_layout");
     const Input = std.meta.Child(rule.Input);
@@ -55,15 +55,16 @@ pub fn make(allocator: std.mem.Allocator, shape: *const Shape, capture_count: us
             .steps = &.{
                 .kinds = zx.columns.slice(@FieldType(Steps, "kinds"), @as([]const Shape.Kind, shape.steps.items(.kind))),
                 .outputs = zx.columns.slice(@FieldType(Steps, "outputs"), @as([]const Shape.Publish, shape.steps.items(.output))),
-                .getters = shape.steps.items(.getters),
                 .firsts = shape.steps.items(.first),
                 .counts = shape.steps.items(.count),
                 .exhaustive = shape.steps.items(.exhaustive),
             },
             .units = &.{ .firsts = shape.units.items(.first), .counts = shape.units.items(.count), .blocks = shape.units.items(.block) },
-            .cases = shape.cases.items,
+            .cases = shape.cases.items(.body),
+            .calls = &.{ .getters = shape.calls.items(.getters), .publishes = shape.calls.items(.publishes) },
         },
         .layout = @ptrCast(&items),
+        .blocks = &.{ .firsts = @ptrCast(&blocks.firsts), .counts = @ptrCast(&blocks.counts) },
         .capture_count = capture_count,
         .void_output = void_output,
     };
@@ -88,19 +89,22 @@ pub fn make(allocator: std.mem.Allocator, shape: *const Shape, capture_count: us
         @field(size, name) = std.math.cast(u32, @field(result, name)) orelse return error.OutOfMemory;
     }
 
-    if (size.statements() > no_block) return error.OutOfMemory;
+    if (size.statements() > std.math.maxInt(u32)) return error.OutOfMemory;
 
-    return .{ .rows = rows, .size = size, .blocks = @intCast(result.block_count), .implicit_return = result.implicit_return };
+    return .{ .rows = rows, .blocks = shape.units.items(.block), .size = size, .implicit_return = result.implicit_return };
 }
 
 pub fn root(self: Self) u32 {
     return @intCast(self.rows.len - 1);
 }
 
-pub fn end(self: Self, unit: u32) Counts {
-    for (self.rows[@as(usize, unit) + 1 ..]) |*row| {
-        if (row.tag != no_block) return row.first;
-    }
+pub fn end(self: *const Self, unit: u32) *const Counts {
+    const next = @as(usize, unit) + 1;
 
-    return self.size;
+    if (next == self.rows.len) return &self.size;
+
+    // Placement records the successor on the first row of each run of inline units.
+    const successor = if (self.blocks[next]) next else self.rows[next].tag;
+
+    return &self.rows[successor].first;
 }

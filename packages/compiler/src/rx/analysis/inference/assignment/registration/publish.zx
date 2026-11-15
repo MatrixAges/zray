@@ -1,0 +1,17 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { Publication as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const pair = in.pair
+    const rows = in.rows
+    const row = integers.narrow(rows.position + 1) - 1
+
+    memory.writeU64(rows.keys, rows.position, pair.key)
+    memory.writeU32(rows.left, rows.position, pair.left)
+    memory.writeU32(rows.right, rows.position, pair.right)
+    memory.writeU32(rows.buckets, in.slot, row)
+}

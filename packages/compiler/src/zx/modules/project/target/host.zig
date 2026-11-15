@@ -8,9 +8,16 @@ const source_index = @import("../../source_index.zig");
 const compiled = @import("../../compiled.zig");
 const registry = @import("registry.zig");
 const enabled = @import("parser_options").generated_parser;
-
 pub const Target = union(enum) { source: []const u8, compiled: compiled.Target };
+pub const Resolved = struct { target: Target, source_row: ?usize = null };
+pub const SourceSelection = struct { path: []const u8, row: ?usize = null };
 pub const Route = if (enabled) Output(@import("generated_project_import_route")) else enum { File, Package, Intrinsic, Interface, Invalid };
+pub const Scope = @import("scope.zig");
+
+pub const Memory = struct {
+    source: std.mem.Allocator,
+    compiled: std.mem.Allocator,
+};
 
 const FilePlan = if (enabled) Output(@import("generated_project_file_target")) else struct {
     kind: enum { Relative, Root, Extension, Invalid },
@@ -122,40 +129,58 @@ fn filePlan(path: []const u8, allow_rx: bool) FilePlan {
 pub fn resolve(allocator: std.mem.Allocator, from: []const u8, path: []const u8, route: Route, options: anytype, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
     if (route == .Invalid) return reporter.fail(.module, span, "invalid or unknown import specifier");
 
-    const owner = scopes.owner(options.package_scopes, from);
-    const root = if (owner) |index| options.package_scopes[index].root else options.root_dir;
+    return resolveScoped(.{ .source = allocator, .compiled = allocator }, from, path, route, options, Scope.init(options.package_scopes, from), null, reporter, span);
+}
 
-    if (options.package_scopes.len != 0 and owner == null) return reporter.fail(.module, span, "source file does not belong to a declared package");
+pub fn resolveScoped(memory: Memory, from: []const u8, path: []const u8, route: Route, options: anytype, scope: Scope, matched_package: ?registry.Match, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
+    return (try resolveIn(false, memory, from, path, route, options, scope, matched_package, reporter, span)).target;
+}
+
+pub fn resolveIndexed(memory: Memory, from: []const u8, path: []const u8, route: Route, options: anytype, scope: Scope, matched_package: ?registry.Match, reporter: *zx.Reporter, span: zx.Span) zx.Error!Resolved {
+    return resolveIn(true, memory, from, path, route, options, scope, matched_package, reporter, span);
+}
+
+fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []const u8, route: Route, options: anytype, scope: Scope, matched_package: ?registry.Match, reporter: *zx.Reporter, span: zx.Span) zx.Error!Resolved {
+    if (route == .Invalid) return reporter.fail(.module, span, "invalid or unknown import specifier");
+    try scope.checkOwner(reporter, span);
 
     switch (route) {
         .File => {
+            const allocator = memory.source;
+            const root = scope.root(options.root_dir);
             const file = try resolveFile(allocator, from, path, root, true, reporter, span);
             var resolved = file.path;
 
             errdefer allocator.free(resolved);
 
-            const selected = if (file.fallback) try select(allocator, resolved, options.source_index) else resolved;
+            const selected: SourceSelection = if (!file.fallback)
+                .{ .path = resolved }
 
-            if (selected.ptr != resolved.ptr) allocator.free(resolved);
+            else if (comptime keep_row)
+                try selectIndexed(allocator, resolved, options.source_index)
+            else
+                .{ .path = try select(allocator, resolved, options.source_index) };
 
-            resolved = selected;
+            if (selected.path.ptr != resolved.ptr) allocator.free(resolved);
 
-            if (options.package_scopes.len != 0 and scopes.owner(options.package_scopes, resolved) != owner) return crossedPackage(reporter, span);
+            resolved = selected.path;
 
-            return .{ .source = resolved };
+            try scope.checkFile(resolved, reporter, span);
+
+            return .{ .target = .{ .source = resolved }, .source_row = selected.row };
         },
         .Package => {
-            const dependencies = if (owner) |index| options.package_scopes[index].packages else options.packages;
+            const dependencies = scope.dependencies(options.packages);
+            const package = matched_package orelse registry.package(dependencies, path, true);
 
-            return dependency(allocator, path, options.root_dir, dependencies, reporter, span);
+            return .{ .target = try dependency(memory, options.root_dir, dependencies, package, reporter, span) };
         },
         .Intrinsic, .Interface => return reporter.fail(.module, span, "native and standard imports must use the interface registry"),
         .Invalid => unreachable,
     }
 }
 
-fn dependency(allocator: std.mem.Allocator, path: []const u8, root: []const u8, packages: []const scopes.Package, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
-    const selected = registry.select(packages, "specifier", path, true);
+fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package, selected: registry.Match, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
     const index = selected.first orelse return reporter.fail(.module, span, "ZX package is not declared in the project dependencies");
     const package = &packages[index];
 
@@ -168,6 +193,7 @@ fn dependency(allocator: std.mem.Allocator, path: []const u8, root: []const u8, 
     if (selected.duplicate) return reporter.fail(.module, span, "duplicate ZX package specifier");
 
     if (package.compiled) |value| {
+        const allocator = memory.compiled;
         const instance = try allocator.dupe(u8, value.instance);
 
         errdefer allocator.free(instance);
@@ -183,7 +209,7 @@ fn dependency(allocator: std.mem.Allocator, path: []const u8, root: []const u8, 
         } };
     }
 
-    return .{ .source = try std.fs.path.resolve(allocator, &.{ root, package.entry }) };
+    return .{ .source = try std.fs.path.resolve(memory.source, &.{ root, package.entry }) };
 }
 
 fn packageShape(package: *const scopes.Package) Shape {
@@ -216,14 +242,14 @@ pub fn select(allocator: std.mem.Allocator, candidate: []const u8, index: ?*cons
     return paths.select(allocator, candidate, source_index.Known{ .paths = known });
 }
 
-pub fn checkFile(from: []const u8, target: []const u8, packages: []const scopes.Scope, reporter: *zx.Reporter, span: zx.Span) zx.Error!void {
-    if (packages.len == 0) return;
+pub fn selectIndexed(allocator: std.mem.Allocator, candidate: []const u8, index: ?*const source_index.Map) std.mem.Allocator.Error!SourceSelection {
+    const known = index orelse return .{ .path = candidate };
+    var row: ?usize = null;
+    const selected = try paths.select(allocator, candidate, source_index.Known{ .paths = known, .matched_row = &row });
 
-    const owner = scopes.owner(packages, from) orelse return reporter.fail(.module, span, "source file does not belong to a declared package");
-
-    if (scopes.owner(packages, target) != owner) return crossedPackage(reporter, span);
+    return .{ .path = selected, .row = row };
 }
 
-fn crossedPackage(reporter: *zx.Reporter, span: zx.Span) zx.Error {
-    return reporter.fail(.module, span, "file import crosses a package boundary; declare and import the package dependency");
+pub fn checkFile(from: []const u8, target: []const u8, packages: []const scopes.Scope, reporter: *zx.Reporter, span: zx.Span) zx.Error!void {
+    return Scope.init(packages, from).checkFile(target, reporter, span);
 }

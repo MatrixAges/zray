@@ -1,0 +1,29 @@
+import { Tag } from "../../schema/execution/model"
+import { event_stride } from "./const"
+
+export type Input = {
+    tag: Tag,
+    slot: u64,
+    parallel_rank?: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const rank = in.parallel_rank
+
+    if (rank != null) {
+        return (rank + 1) * event_stride + in.slot
+    }
+
+    return match in.tag {
+        Tag.Args => null,
+        Tag.Import => null,
+        Tag.Store => null,
+        Tag.Type => null,
+        Tag.Case => null,
+        Tag.Default => null,
+        Tag.Else => null,
+        _ => in.slot
+    }
+}

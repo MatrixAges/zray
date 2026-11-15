@@ -26,7 +26,7 @@ pub fn status(graph: *const Graph, id: Graph.Id) Status {
         return .Value;
     }
 
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return status_rule.executeIn(empty.allocator(), &.{
@@ -48,7 +48,7 @@ pub fn pair(graph: *const Graph, left: Graph.Id, right: Graph.Id, final: bool) C
         return if (final or (first == .Value and second == .Value)) .Conflict else .Defer;
     }
 
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return pair_rule.executeIn(empty.allocator(), &.{
@@ -70,7 +70,7 @@ pub fn missing(graph: *const Graph, values: []const Graph.Id) ?usize {
         return null;
     }
 
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const result = uses_rule.executeIn(empty.allocator(), &.{

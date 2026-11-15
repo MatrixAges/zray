@@ -12,7 +12,7 @@ pub fn apply(allocator: std.mem.Allocator, output: *const Output, options: Optio
     return .{
         .file_name = try allocator.dupe(u8, file_name),
         .types = try extended(allocator, output, options),
-        .native_modules = try @import("../../../modules/native_context.zig").copy(allocator, options.native_modules),
+        .native_modules = if (options.borrow_native_modules) options.native_modules else try @import("../../../modules/native_context.zig").copy(allocator, options.native_modules),
         .input_type = @fromBackingInt(output.input_type),
         .output_type = @fromBackingInt(output.output_type),
         .output_ownership = switch (output.output_ownership) {

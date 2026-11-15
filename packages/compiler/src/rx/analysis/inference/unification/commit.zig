@@ -1,16 +1,23 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
+const Nodes = @import("../nodes.zig");
 const Restriction = @import("../scalar/restriction.zig");
 const seed = @import("../scalar/seed.zig");
+pub const Constraints = struct { allowed: ?u16, fallback: ?u8 };
 
-pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Graph.Node, second: Graph.Node, shape: Graph.Shape, span: zx.Span) zx.Error!void {
-    graph.setShape(@backingInt(parent), shape);
+pub fn snapshot(rows: Nodes.Storage.Slice, id: Graph.Id) Constraints {
+    const index = @backingInt(id);
 
-    if (!@import("rx_options").generated_graph) return publishSeed(graph, parent, child, first, second, span);
+    return .{ .allowed = rows.items(.allowed)[index], .fallback = rows.items(.fallback)[index] };
+}
 
+pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constraints, second: Constraints, shape: Nodes.Encoded, span: zx.Span) zx.Error!void {
     const generated = @import("generated_rx_unification_commit");
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
+    const Input = std.meta.Child(generated.Input);
+    const Columns = std.meta.Child(@FieldType(Input, "columns"));
+    const rows = Nodes.writable(graph.nodes.slice());
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const result = generated.executeValue(scratch.allocator(), &.{
@@ -18,13 +25,15 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Graph.No
         .graph = &Restriction.borrow(graph, &parents),
         .parent = @backingInt(parent),
         .child = @backingInt(child),
+        .columns = &rows.borrow(Columns),
+        .shape = &.{ .kind = @backingInt(shape.kind), .argument = shape.argument, .members = shape.members },
         .left = &.{
-            .allowed = if (first.allowed) |allowed| allowed.bits.mask else null,
-            .fallback = if (first.fallback) |fallback| @backingInt(fallback) else null,
+            .allowed = if (first.allowed) |mask| @as(u64, mask) else null,
+            .fallback = if (first.fallback) |code| @as(u32, code) else null,
         },
         .right = &.{
-            .allowed = if (second.allowed) |allowed| allowed.bits.mask else null,
-            .fallback = if (second.fallback) |fallback| @backingInt(fallback) else null,
+            .allowed = if (second.allowed) |mask| @as(u64, mask) else null,
+            .fallback = if (second.fallback) |code| @as(u32, code) else null,
         },
     }) catch unreachable;
 
@@ -36,8 +45,9 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Graph.No
     if (result.restriction) |restriction| try Restriction.apply(graph, restriction, span);
 }
 
-fn publishSeed(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Graph.Node, second: Graph.Node, span: zx.Span) zx.Error!void {
-    graph.forest.state.items[@backingInt(child)] = @backingInt(parent);
+pub fn publishSeed(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Graph.Node, second: Graph.Node, shape: Graph.Shape, span: zx.Span) zx.Error!void {
+    graph.setShape(@backingInt(parent), shape);
+    graph.parents()[@backingInt(child)] = @backingInt(parent);
 
     const constraints = seed.combine(
         .{ .allowed = first.allowed, .fallback = first.fallback },

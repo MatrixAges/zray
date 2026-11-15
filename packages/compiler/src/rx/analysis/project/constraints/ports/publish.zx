@@ -1,0 +1,23 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { Ports } from "./model"
+
+export type Input = Ports
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const initialized = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const input = in.first_node + row * 2
+
+            memory.writeU32(in.inputs, row, integers.narrow(input))
+            memory.writeU32(in.outputs, row, integers.narrow(input + 1))
+            memory.writeU8(in.fixed, row, 0)
+
+            row += 1
+        }
+    })
+}

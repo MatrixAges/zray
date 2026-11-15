@@ -7,16 +7,28 @@ const Self = @This();
 pub const Error = anyerror;
 
 allocator: std.mem.Allocator,
+temporary: *std.heap.ArenaAllocator,
 options: compiler.project.Options,
 owner: []const u8,
+package_scope: ?compiler.project.ImportScope = null,
 queue: *std.ArrayList([]const u8),
 queued: *std.StringHashMapUnmanaged(void),
 io: std.Io,
 inputs: ?*@import("../../watch/inputs.zig"),
 libraries: ?*@import("../../library/inputs.zig"),
 writer: *std.Io.Writer,
-pub fn ownerPath(self: *const Self) []const u8 {
-    return self.owner;
+fn scope(self: *Self) compiler.project.ImportScope {
+    if (self.package_scope) |previous| return previous;
+
+    const current = compiler.project.ImportScope.init(self.options.package_scopes, self.owner);
+
+    self.package_scope = current;
+
+    return current;
+}
+
+pub fn dependencies(self: *Self) []const compiler.project.Package {
+    return self.scope().dependencies(self.options.packages);
 }
 
 pub fn fail(self: *Self, location: rx.ast.Location, message: []const u8) Error {
@@ -42,21 +54,30 @@ pub fn store(self: *Self, path: []const u8, location: rx.ast.Location, _: []cons
     return self.local(path, location, .dependency);
 }
 
-pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, role: Reference) Error!void {
-    const kind = compiler.project.specifier.classify(reference) catch return self.fail(location, "invalid module reference");
+pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, role: Reference, known: ?compiler.project.PackageMatch) Error!void {
+    const route = compiler.project.importRoute(reference);
 
-    if (kind != .file and kind != .package) return;
+    switch (route) {
+        .Invalid => return self.fail(location, "invalid module reference"),
+        .Intrinsic, .Interface => return,
+        .File, .Package => {},
+    }
 
     var reporter: zx.Reporter = .{};
+    const temporary = self.temporary.allocator();
 
-    const target = compiler.project.resolveModuleTarget(self.allocator, self.owner, reference, self.options, &reporter, .{ .start = location.offset, .end = location.offset }) catch |err| {
+    const target = compiler.project.resolveScopedTarget(.{ .source = temporary, .compiled = self.allocator }, self.owner, reference, route, self.options, self.scope(), known, &reporter, .{ .start = location.offset, .end = location.offset }) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return self.fail(location, reporter.diagnostic.?.message);
     };
 
     switch (target) {
-        .source => |path| try self.local(path, location, role),
+        .source => |path| {
+            defer temporary.free(path);
+
+            try self.local(path, location, role);
+        },
         .compiled => |compiled| if (self.libraries) |libraries| try libraries.add(self.io, compiled, self.options, self.inputs),
     }
 }
@@ -65,6 +86,6 @@ pub fn header(self: *Self, view: anytype) Error!void {
     for (0..view.importCount()) |index| {
         const item = view.importAt(index);
 
-        try self.import(item.path, .{ .offset = item.span.start, .line = 1, .column = 1 }, .dependency);
+        try self.import(item.path, .{ .offset = item.span.start, .line = 1, .column = 1 }, .dependency, null);
     }
 }

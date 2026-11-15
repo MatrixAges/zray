@@ -23,8 +23,9 @@ pub fn propagate(graph: *Graph, infer_source: bool) zx.Error!void {
     if (projections.len == 0) return;
 
     const generated = @import("generated_rx_non_null_scan");
-    const Request = @typeInfo(@TypeOf(generated.executeState)).@"fn".param_types[1].?;
+    const Request = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
     const View = std.meta.Child(@FieldType(Request, "graph"));
+    const Known = @FieldType(Request, "known");
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     var start: usize = 0;
 
@@ -37,18 +38,19 @@ pub fn propagate(graph: *Graph, infer_source: bool) zx.Error!void {
             .types = &.{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items },
         };
 
-        const action = generated.executeState(empty.allocator(), .{
+        const parents = graph.parents();
+
+        const action = generated.executeValue(empty.allocator(), .{
             .graph = &view,
-            .parents = graph.forest.state,
-            .sources = .{ .items = @ptrCast(projections.items(.source)), .storage = .plain },
-            .values = .{ .items = @ptrCast(projections.items(.value)), .storage = .plain },
+            .parents = @ptrCast(&parents),
+            .sources = @ptrCast(projections.items(.source)),
+            .values = @ptrCast(projections.items(.value)),
+            .known = graph.pending.known_types.borrow(Known),
             .infer_source = infer_source,
             .next = start,
             .value = 0,
             .action = .Wait,
         }) catch unreachable;
-
-        std.debug.assert(action.parents.items.ptr == graph.forest.state.items.ptr);
 
         if (action.action == .Wait) break;
 

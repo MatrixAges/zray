@@ -1,0 +1,46 @@
+import memory from "std:memory"
+
+import { Status } from "../bindings/model"
+import inspect from "../bindings/node"
+
+import type { U32Buffer } from "std:memory"
+import type { Query } from "./model"
+
+export type Input = Query & {
+    target: U32Buffer,
+    capacity: u64
+}
+
+export type Output = {
+    next: u64,
+    count: u64
+}
+
+export default function (in: Input): Output {
+    const active = in.active
+    const topology = in.topology
+
+    return loop({
+        next: in.start,
+        count: 0
+    }, {
+        while: state => state.next < active.names.length && state.count < in.capacity,
+        next: state => {
+            const row = state.next
+            state.next += 1
+
+            if (active.names[row] == in.name) {
+                const value = active.values[row]
+                const status = inspect({
+                    topology,
+                    value
+                })
+
+                if (status != Status.Void) {
+                    memory.writeU32(in.target, state.count, value)
+                    state.count += 1
+                }
+            }
+        }
+    })
+}

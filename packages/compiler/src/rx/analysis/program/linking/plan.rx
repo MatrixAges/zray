@@ -16,7 +16,8 @@
             value={{
                 returned: null,
                 rows: [],
-                bindings: []
+                bindings: [],
+                count: 0
             }}
         />
     </If>
@@ -28,7 +29,8 @@
             value={{
                 returned: null,
                 rows: [],
-                bindings: []
+                bindings: [],
+                count: 0
             }}
         />
     </If>
@@ -38,6 +40,7 @@
         in={{
             expressions: $in.expressions,
             rows: $ctx.shape.rows,
+            returned: $ctx.shape.returned,
             index: 0,
             next_id: $in.base,
             valid: true
@@ -46,9 +49,10 @@
 
     <Return
         value={{
-            returned: $ctx.rows.valid ? $ctx.shape.returned : null,
+            returned: $ctx.rows.returned,
             rows: $ctx.rows.items,
-            bindings: $ctx.bindings.ids
+            bindings: $ctx.bindings.ids,
+            count: $ctx.rows.next_id - $in.base
         }}
     />
 </Module>

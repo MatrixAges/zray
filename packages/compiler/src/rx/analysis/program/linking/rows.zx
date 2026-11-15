@@ -7,6 +7,7 @@ import type { Expressions } from "./model"
 export type Input = {
     expressions: Expressions,
     rows: u32[],
+    returned?: u32,
     index: u64,
     next_id: u64,
     valid: bool
@@ -14,10 +15,20 @@ export type Input = {
 
 export type Output = {
     items: u32[],
-    valid: bool
+    returned?: u32,
+    next_id: u64
 }
 
 export default function (in: Input): Output {
+    const returned = in.returned
+
+    if (returned == null) {
+        return {
+            items: in.rows,
+            next_id: in.next_id
+        }
+    }
+
     return loop(in, {
         while: state => state.valid && state.index < state.rows.length,
         next: state => {
@@ -58,7 +69,8 @@ export default function (in: Input): Output {
         },
         return: state => ({
             items: state.rows,
-            valid: state.valid
+            returned: state.valid ? state.rows[integers.widen(returned)] : null,
+            next_id: state.next_id
         })
     })
 }

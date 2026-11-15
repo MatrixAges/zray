@@ -1,0 +1,41 @@
+import find from "core/store_table/find"
+
+export type Input = {
+    paths: string[],
+    types: u32[],
+    read: bool[],
+    write: bool[],
+    identity: string,
+    type_id: u32,
+    readable: bool,
+    writable: bool
+}
+
+export type Output = {
+    row?: u64,
+    compatible: bool,
+    readable: bool,
+    writable: bool
+}
+
+export default function (in: Input): Output {
+    const row = find({
+        paths: in.paths,
+        identity: in.identity
+    })
+
+    if (row == null) {
+        return {
+            compatible: true,
+            readable: in.readable,
+            writable: in.writable
+        }
+    }
+
+    return {
+        row,
+        compatible: in.types[row] == in.type_id,
+        readable: in.read[row] || in.readable,
+        writable: in.write[row] || in.writable
+    }
+}

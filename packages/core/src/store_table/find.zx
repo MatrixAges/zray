@@ -1,0 +1,25 @@
+export type Input = {
+    paths: string[],
+    identity: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const found: u64? = null
+
+    return loop({
+        index: 0,
+        found
+    }, {
+        while: current => current.found == null && current.index < in.paths.length,
+        next: current => {
+            if (in.paths[current.index] == in.identity) {
+                current.found = current.index
+            }
+
+            current.index += 1
+        },
+        return: current => current.found
+    })
+}

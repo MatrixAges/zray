@@ -1,9 +1,11 @@
 import integers from "std:integer"
+import memory from "std:memory"
 import { kind_optional } from "core/type_table/const"
 
-import representative from "../../forest/representative"
+import representative from "../../forest/borrowed_root"
 import { Kind } from "../../unification/model"
 
+import type { U32Buffer } from "std:memory"
 import type { ClassLookup, Nodes } from "../model"
 
 export type Input = {
@@ -11,12 +13,12 @@ export type Input = {
     arguments: u32[],
     type_kinds: u8[],
     classes: ClassLookup,
-    parents: u32[],
+    parents: U32Buffer,
     next: u64,
     other?: u32
 }
 
-export type Output = Input.Pick("parents", "next", "other")
+export type Output = Input.Pick("next", "other")
 
 export default function (in: Input): Output {
     return loop(in, {
@@ -26,13 +28,12 @@ export default function (in: Input): Output {
             const index = state.next
             const node = integers.narrow(index)
 
-            if (state.parents[index] != node) {
+            if (memory.readU32(state.parents, index) != node) {
                 const root = representative({
                     parents: state.parents,
                     value: node
                 })
 
-                state.parents = root.parents
             } else {
                 const kind = state.nodes.kinds[index]
                 const argument = integers.widen(state.arguments[index])
@@ -53,9 +54,7 @@ export default function (in: Input): Output {
                             value: other
                         })
 
-                        state.parents = target.parents
-
-                        if (target.item != node) {
+                        if (target != node) {
                             state.other = other
                         }
                     }
@@ -65,7 +64,6 @@ export default function (in: Input): Output {
             state.next += 1
         },
         return: state => ({
-            parents: state.parents,
             next: state.next,
             other: state.other
         })

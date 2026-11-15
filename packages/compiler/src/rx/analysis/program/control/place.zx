@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import memory from "std:memory"
-import { max_u32 } from "core/const"
 
 import {
     cases_lane,
@@ -19,11 +18,12 @@ import exchange from "./exchange"
 import { Status } from "./model"
 
 import type { U32Buffer } from "std:memory"
-import type { Output, Units } from "./model"
+import type { Blocks, Output, Units } from "./model"
 
 export type Input = {
     units: Units,
     layout: U32Buffer,
+    blocks: Blocks,
     capture_count: u64,
     void_output: bool
 }
@@ -33,12 +33,16 @@ export default function (in: Input): Output {
     const layout = in.layout
     const root = memory.readU32(layout, last * lane_count + tag_lane)
     const implicit_return = root == continues && in.void_output
+    const extra_return = implicit_return ? 1 : 0
+    const root_extra = in.capture_count + extra_return
 
     const status = match {
         root == unreachable => Status.Unreachable,
         root == continues && !in.void_output => Status.Incomplete,
         _ => Status.Ready
     }
+
+    const inline_start: u64? = null
 
     return loop({
         evaluations: 0,
@@ -48,7 +52,9 @@ export default function (in: Input): Output {
         selections: 0,
         cases: 0,
         results: 0,
+        statement: 0,
         block_count: 0,
+        inline_start,
         unit: 0
     }, {
         while: state => status == Status.Ready && state.unit <= last,
@@ -56,6 +62,17 @@ export default function (in: Input): Output {
             const row = state.unit * lane_count
 
             if (in.units.blocks[state.unit]) {
+                const inline_start = state.inline_start
+
+                if (inline_start != null) {
+                    memory.writeU32(
+                        layout,
+                        inline_start * lane_count + tag_lane,
+                        integers.narrow(state.unit)
+                    )
+                    state.inline_start = null
+                }
+
                 state.evaluations += exchange({
                     layout,
                     position: row + evaluations_lane,
@@ -97,9 +114,32 @@ export default function (in: Input): Output {
                     row + tag_lane,
                     integers.narrow(state.block_count)
                 )
+
+                const end =
+                    state.evaluations +
+                    state.constants +
+                    state.parallels +
+                    state.selections +
+                    state.results
+
+                const extra = state.unit == last ? root_extra : 0
+                const count = end - state.statement + extra
+
+                memory.writeU32(
+                    in.blocks.firsts,
+                    state.block_count,
+                    integers.narrow(state.statement)
+                )
+                memory.writeU32(
+                    in.blocks.counts,
+                    state.block_count,
+                    integers.narrow(count)
+                )
+
+                state.statement = end
                 state.block_count += 1
-            } else {
-                memory.writeU32(layout, row + tag_lane, max_u32)
+            } else if (state.inline_start == null) {
+                state.inline_start = state.unit
             }
 
             state.unit += 1
@@ -113,7 +153,6 @@ export default function (in: Input): Output {
             selections: state.selections,
             cases: state.cases,
             results: state.results + (implicit_return ? 1 : 0),
-            block_count: state.block_count,
             implicit_return
         })
     })

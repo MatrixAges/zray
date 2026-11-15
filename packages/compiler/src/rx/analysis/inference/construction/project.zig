@@ -1,12 +1,18 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
+const View = @import("../fields/view.zig");
+const Fields = @import("../fields/replay.zig");
 const ObjectClosure = @import("../object_closure.zig");
 const Object = @import("../construction.zig").Object;
 const generated = @import("generated_object_construction_resolve");
-const Input = @typeInfo(generated.Input).pointer.child;
-const Parts = @typeInfo(@FieldType(Input, "parts")).pointer.child;
+const Input = std.meta.Child(generated.Input);
+const Parts = std.meta.Child(@FieldType(Input, "parts"));
+const sources = @import("generated_object_construction_sources");
+const Source = @typeInfo(@typeInfo(@TypeOf(sources.executeValue)).@"fn".return_type.?).error_union.payload;
 const NameSet = std.StringHashMapUnmanaged(void);
+const Spread = struct { fields: []const []const u8, values: []const u32, root: u64, open: bool, aliases: bool };
+const unknown_spread = "object spread source cannot be inferred from the available constraints";
 
 pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, final: bool) zx.Error!void {
     var arena = std.heap.ArenaAllocator.init(graph.scratch);
@@ -26,160 +32,213 @@ pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, final: 
 
     for (keys) |*key| key.* = iterator.next().?.*;
 
-    const plan = generated.executeValue(allocator, &.{
-        .parts = &parts,
-        .names = keys,
-        .final = final,
-    }) catch |err| return failure(err);
+    const plan = generated.executeValue(allocator, &.{ .parts = &parts, .names = keys, .final = final }) catch |err| switch (err) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    const Decision = struct { action: @TypeOf(plan.open), gate: @TypeOf(plan.open_gate) };
+    try apply(graph, object, keys, plan);
+}
 
-    for (keys, plan.kinds, plan.parts, plan.fields) |name, kind, part_index, field_index| {
-        const target = try graph.field(object.result, name, object.span);
+fn apply(graph: *Graph, object: Object, keys: []const []const u8, plan: anytype) zx.Error!void {
+    const replay = @import("generated_object_construction_replay");
+    const Replay = std.meta.Child(replay.Input);
+    const Candidates = std.meta.Child(@FieldType(Replay, "plan"));
 
-        const decision: Decision = switch (kind) {
-            .Named => .{ .action = plan.named, .gate = .Always },
-            .AmbiguousNamed, .AmbiguousOpen => .{ .action = plan.ambiguous, .gate = .Always },
-            .Open => .{ .action = plan.open, .gate = plan.open_gate },
-            .Absent => .{ .action = plan.absent, .gate = plan.absent_gate },
+    const candidates: Candidates = .{
+        .parts = plan.parts,
+        .values = plan.values,
+        .routes = zx.columns.slice(@FieldType(Candidates, "routes"), plan.routes),
+        .receivers = zx.columns.slice(@FieldType(Candidates, "receivers"), plan.receivers),
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var start: usize = 0;
+
+    while (start < keys.len) {
+        const root = graph.root(object.result);
+        const target_object = Fields.borrow(std.meta.Child(@FieldType(Replay, "object")), graph, root);
+        const known = graph.pending.known_types.borrow(std.meta.Child(@FieldType(Replay, "known")));
+        const parents = graph.parents();
+
+        const input: Replay = .{
+            .names = keys,
+            .plan = &candidates,
+            .object = &target_object,
+            .parents = @ptrCast(&parents),
+            .known = &known,
+            .start = start,
         };
 
-        const action = action: {
-            if (decision.gate == .Always or decision.action == .Skip) break :action decision.action;
+        const next = zx.columns.invoke(replay.executeValue, empty.allocator(), &input) catch unreachable;
+        const row: usize = @intCast(next.row);
 
-            const node = graph.nodeAt(@backingInt(graph.root(target)));
-            const optional = node.shape == .optional or (node.shape == .known and graph.types.get(node.shape.known) == .optional);
-            const unrestricted = node.shape == .unknown and node.allowed == null;
+        if (row == keys.len) return;
 
-            if (optional or (decision.gate == .Constrained and unrestricted)) break :action .Skip;
+        const name = keys[row];
+        const part_index: usize = @intCast(plan.parts[row]);
+        const target = try Fields.field(graph, object.result, root, name, next.target, object.span);
+        const route = plan.routes[row];
 
-            break :action decision.action;
-        };
+        start = row + 1;
 
-        // Concrete fields are registered even when an open spread makes the choice ambiguous.
-        const direct = switch (kind) {
-            .Named, .AmbiguousNamed => try concrete(graph, object, target, parts, @intCast(part_index), @intCast(field_index)),
-            else => null,
-        };
-
-        switch (action) {
+        switch (route) {
             .Skip => {},
-            .Bind => try graph.expect(direct.?, target, object.span),
-            .Infer => {
-                const part = object.part(graph, @intCast(part_index));
-                const value = try graph.field(part.value, name, object.span);
+            .Bind, .Register, .RegisterAmbiguous => {
+                const direct: Graph.Id = switch (plan.receivers[row]) {
+                    .Node => @fromBackingInt(plan.values[row]),
+                    .Target => target,
+                    .Type => if (next.source) |id|
+                        @fromBackingInt(id)
+                    else
+                        try graph.known(@fromBackingInt(plan.values[row]), object.part(graph, part_index).span),
+                };
 
-                try graph.expect(value, target, object.span);
+                if (route == .Bind) try graph.expect(direct, target, object.span);
+                if (route == .RegisterAmbiguous) return ambiguous(graph, object.span);
             },
-            .Ambiguous => return graph.reporter.fail(.type_mismatch, object.span, "multiple spread sources may provide a required field; their input types cannot be inferred uniquely"),
-            .Missing => return graph.reporter.fail(.type_mismatch, object.span, "constructed object is missing a required field"),
+            .Ambiguous => return ambiguous(graph, object.span),
+            .InferRequired, .InferConstrained, .MissingRequired => {
+                const entry = @import("generated_object_construction_activate");
+                const shape = View.describe(graph, graph.root(target));
+
+                const request: std.meta.Child(entry.Input) = .{
+                    .route = route,
+                    .kind = shape.kind,
+                    .type_kind = shape.type_kind,
+                    .restricted = shape.restricted,
+                };
+
+                switch (zx.columns.invoke(entry.executeValue, empty.allocator(), &request) catch unreachable) {
+                    .Skip => {},
+                    .Infer => {
+                        const part = object.part(graph, part_index);
+                        const value = try graph.field(part.value, name, object.span);
+
+                        try graph.expect(value, target, object.span);
+                    },
+                    .Missing => return graph.reporter.fail(.type_mismatch, object.span, "constructed object is missing a required field"),
+                }
+            },
         }
     }
 }
 
 fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator, object: Object, final: bool, names: *NameSet) zx.Error!Parts {
     const result = graph.root(object.result);
-    const result_fields = try Fields.from(graph, graph.shapeAt(@backingInt(result)), object.span);
+    const result_fields = View.read(graph, result);
 
-    try result_fields.register(allocator, names);
+    switch (result_fields.mode) {
+        .Invalid => return invalidObject(graph, object.span, false),
+        .InvalidDeclared => return invalidObject(graph, object.span, true),
+        else => {},
+    }
+
+    for (result_fields.names) |name| try names.put(allocator, name, {});
 
     const count: usize = @intCast(object.count);
     const first: usize = @intCast(object.first);
-    const part_names = graph.pending.construction_parts.items(.name)[first..][0..count];
+    const part_columns = graph.pending.construction_parts.slice();
+    const part_names = part_columns.items(.name)[first..][0..count];
+    const part_values: []const u32 = @ptrCast(part_columns.items(.value)[first..][0..count]);
+    var next = nextSpread(graph, part_names, part_values, result, 0, final);
+    var spread: std.MultiArrayList(Spread) = .empty;
 
-    const spreads = for (part_names) |name| {
-        if (name == null) break true;
-    } else false;
+    try spread.resize(allocator, if (next.row < count) count else 0);
 
-    const spread_columns = if (spreads) count else 0;
-    const fields = try allocator.alloc([]const []const u8, spread_columns);
-    const roots = try allocator.alloc(u64, spread_columns);
-    const open = try allocator.alloc(bool, spread_columns);
-    const aliases = try allocator.alloc(bool, spread_columns);
+    const columns = spread.slice();
+    const fields = columns.items(.fields);
+    const values = columns.items(.values);
+    const roots = columns.items(.root);
+    const open = columns.items(.open);
+    const aliases = columns.items(.aliases);
 
     @memset(fields, &.{});
+    @memset(values, &.{});
     @memset(roots, 0);
     @memset(open, false);
     @memset(aliases, false);
 
-    for (part_names, 0..) |name, index| {
-        if (name) |value| {
-            try names.put(allocator, value, {});
+    var start: usize = 0;
 
-            continue;
-        }
+    while (start < count) {
+        const index: usize = @intCast(next.row);
 
+        for (part_names[start..index]) |name| try names.put(allocator, name.?, {});
+
+        if (index == count) break;
+
+        const root: Graph.Id = @fromBackingInt(next.root);
         const part = object.part(graph, index);
-        const root = graph.root(part.value);
-        const shape = graph.shapeAt(@backingInt(root));
-
-        if (final and shape == .unknown) return graph.reporter.fail(.type_mismatch, part.span, "object spread source cannot be inferred from the available constraints");
-
-        const source = try Fields.from(graph, shape, part.span);
+        const source = View.readMode(graph, root, @fromBackingInt(@backingInt(next.mode)));
         const alias = root == result;
-        const closed = shape == .known or (if (!alias or (final and source.empty())) try closure.prove(graph, root, .spread) else false);
 
-        if (final and source.empty() and !closed) return graph.reporter.fail(.type_mismatch, part.span, "object spread source cannot be inferred from the available constraints");
+        const closed = switch (next.action) {
+            .Closed => true,
+            .Open => false,
+            .Prove => try closure.proveRoot(graph, root, .spread),
+            .ProveRequired => if (try closure.proveRoot(graph, root, .spread)) true else return graph.reporter.fail(.type_mismatch, part.span, unknown_spread),
+            .Unknown => return graph.reporter.fail(.type_mismatch, part.span, unknown_spread),
+            .Invalid => return invalidObject(graph, part.span, false),
+            .InvalidDeclared => return invalidObject(graph, part.span, true),
+        };
 
-        try source.register(allocator, names);
+        for (source.names) |field| try names.put(allocator, field, {});
 
         roots[index] = @backingInt(root);
         aliases[index] = alias;
         open[index] = !closed;
 
-        if (!alias) fields[index] = source.names();
+        if (!alias) {
+            fields[index] = source.names;
+            values[index] = source.values;
+        }
+
+        start = index + 1;
+
+        if (start < count) next = nextSpread(graph, part_names, part_values, result, start, final);
     }
 
-    return .{ .explicit = part_names, .fields = fields, .roots = roots, .open = open, .aliases = aliases };
-}
-
-fn concrete(graph: *Graph, object: Object, target: Graph.Id, parts: Parts, part_index: usize, field_index: usize) zx.Error!Graph.Id {
-    const part = object.part(graph, part_index);
-
-    if (part.name != null) return part.value;
-    if (parts.aliases[part_index]) return target;
-
-    return switch (graph.shape(part.value)) {
-        .object => |fields| fields.values()[field_index],
-        .known => |id| graph.known(graph.types.get(id).object.at(field_index).type_id, part.span),
-        else => unreachable,
+    return .{
+        .explicit = part_names,
+        .explicit_values = part_values,
+        .fields = fields,
+        .values = values,
+        .roots = roots,
+        .open = open,
+        .aliases = aliases,
+        .shapes = graph.nodes.items(.kind),
     };
 }
 
-const Fields = union(enum) {
-    inferred: Graph.Fields,
-    known: zx.ir.TypeFields,
-    fn from(graph: *Graph, shape: Graph.Shape, span: zx.Span) zx.Error!Fields {
-        return switch (shape) {
-            .unknown => .{ .inferred = .{} },
-            .object => |items| .{ .inferred = items },
-            .known => |id| switch (graph.types.get(id)) {
-                .object => |value| .{ .known = value },
-                else => graph.reporter.fail(.type_mismatch, span, "object construction requires an object source and result"),
-            },
-            else => graph.reporter.fail(.type_mismatch, span, "object spread requires an object source"),
-        };
-    }
-    fn empty(self: Fields) bool {
-        return switch (self) {
-            .inferred => |items| items.len == 0,
-            .known => |items| items.len == 0,
-        };
-    }
-    fn register(self: Fields, allocator: std.mem.Allocator, set: *NameSet) std.mem.Allocator.Error!void {
-        for (self.names()) |name| try set.put(allocator, name, {});
-    }
-    fn names(self: Fields) []const []const u8 {
-        return switch (self) {
-            .known => |items| items.names[0..items.len],
-            .inferred => |items| items.names(),
-        };
-    }
-};
+fn nextSpread(graph: *const Graph, names: []const ?[]const u8, values: []const u32, result: Graph.Id, start: usize, final: bool) Source {
+    const rows = graph.nodes.slice();
+    const types = &graph.types.items;
+    const parents = graph.parents();
 
-fn failure(err: anyerror) zx.Error {
-    return switch (err) {
-        error.OutOfMemory, error.Overflow => error.OutOfMemory,
-        else => unreachable,
+    const input: std.meta.Child(sources.Input) = .{
+        .names = names,
+        .values = values,
+        .parents = @ptrCast(&parents),
+        .kinds = rows.items(.kind),
+        .arguments = rows.items(.argument),
+        .members = rows.items(.members),
+        .type_kinds = types.kinds.items,
+        .type_sizes = types.second.items,
+        .result = @backingInt(result),
+        .start = start,
+        .final = final,
     };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return zx.columns.invoke(sources.executeValue, empty.allocator(), &input) catch unreachable;
+}
+
+fn invalidObject(graph: *Graph, span: zx.Span, declared: bool) zx.Error {
+    return graph.reporter.fail(.type_mismatch, span, if (declared) "object construction requires an object source and result" else "object spread requires an object source");
+}
+
+fn ambiguous(graph: *Graph, span: zx.Span) zx.Error {
+    return graph.reporter.fail(.type_mismatch, span, "multiple spread sources may provide a required field; their input types cannot be inferred uniquely");
 }

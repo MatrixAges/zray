@@ -1,7 +1,48 @@
+const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
-const object_selection = @import("frontend").object_selection;
+const frontend = @import("frontend");
+const object_selection = frontend.object_selection;
 pub const message = "RX values cannot contain calls or callbacks; move logic to ZX and use Call.fn or Call.module";
+
+pub fn indexed(allocator: std.mem.Allocator, view: *const frontend.ExpressionInput.View, root: u64) std.mem.Allocator.Error!?zx.Diagnostic {
+    const rule = @import("generated_rx_value_policy");
+    const Input = std.meta.Child(rule.Input);
+    const tree = view.storage.expressions;
+    const depth: usize = @intCast(tree.nodes[@intCast(root)].depth);
+    var buffer: [64 * @sizeOf(u64)]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    const memory = scratch.allocator();
+    const frames = try memory.alloc(u64, depth * 2);
+
+    defer memory.free(frames);
+
+    var ancestors = frames[0..depth];
+    var positions = frames[depth..];
+
+    const input: Input = .{
+        .source = view.source,
+        .tree = zx.columns.pointer(@FieldType(Input, "tree"), tree),
+        .order = &.{ .offsets = view.order.expressions, .edges = view.order.edges },
+        .root = root,
+        .ancestors = @ptrCast(&ancestors),
+        .positions = @ptrCast(&positions),
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+    const detail: struct { @FieldType(zx.Diagnostic, "code"), []const u8 } = switch (result.issue) {
+        .None => return null,
+        .Unsupported => .{ .unsupported, message },
+        .SelectionArity => .{ .type_mismatch, object_selection.arity_message },
+        .SelectionArray => .{ .type_mismatch, object_selection.array_message },
+        .SelectionLiteral => .{ .type_mismatch, object_selection.literal_message },
+        .NestedConditional => .{ .style, @import("lint").nested_rx_conditional },
+    };
+
+    return .{ .code = detail[0], .message = detail[1], .span = zx.syntax.header.span(tree.nodes[@intCast(result.node)].span) };
+}
 
 pub fn validate(expression: anytype) ?zx.Diagnostic {
     switch (syntax.value(expression)) {

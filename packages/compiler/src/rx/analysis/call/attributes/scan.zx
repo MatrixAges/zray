@@ -1,0 +1,58 @@
+import {
+    argument_attribute,
+    function_attribute,
+    module_attribute,
+    setter_attribute
+} from "./const"
+
+export type Slots = {
+    argument?: u64,
+    function?: u64,
+    module?: u64,
+    setter?: u64
+}
+
+export type Input = {
+    names: string[],
+    offset: u64,
+    slots: Slots
+}
+
+export type Output = Slots
+
+export default function (in: Input): Output {
+    const { names, offset } = in
+
+    return loop({
+        slots: in.slots,
+        row: 0
+    }, {
+        while: state => state.row < names.length,
+        next: state => {
+            const index = offset + state.row
+
+            state.slots = match names[state.row] {
+                argument_attribute => {
+                    ...state.slots,
+                    argument: state.slots.argument ?? index
+                },
+                function_attribute => {
+                    ...state.slots,
+                    function: state.slots.function ?? index
+                },
+                module_attribute => {
+                    ...state.slots,
+                    module: state.slots.module ?? index
+                },
+                setter_attribute => {
+                    ...state.slots,
+                    setter: state.slots.setter ?? index
+                },
+                _ => state.slots
+            }
+
+            state.row += 1
+        },
+        return: state => state.slots
+    })
+}

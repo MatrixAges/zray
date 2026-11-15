@@ -103,8 +103,10 @@ pub fn view(self: *const Self) Table {
 }
 
 pub fn retainPrefix(self: *Self, len: usize) void {
-    const prefix = self.view().prefix(len);
+    self.retainColumns(self.view().prefix(len));
+}
 
+pub fn retainColumns(self: *Self, prefix: Table) void {
     inline for (@typeInfo(Self).@"struct".field_names) |name| {
         @field(self, name).items.len = @field(prefix, name).len;
     }
@@ -158,19 +160,31 @@ pub fn reserveDelta(self: *Self, allocator: std.mem.Allocator, delta: Table) Err
 
 /// Publishes a reserved delta after its first-column tail is initialized.
 pub fn publishDelta(self: *Self, delta: Table) void {
-    self.publish(delta, false);
+    self.publish(delta, .borrow_all);
 }
 
-/// Publishes a reserved delta whose text columns are already initialized in their tails.
-pub fn publishOwnedDelta(self: *Self, delta: Table) void {
-    self.publish(delta, true);
+/// Publishes a delta after all its reserved column tails have been written.
+pub fn publishReserved(self: *Self, delta: Table) void {
+    inline for (@typeInfo(Self).@"struct".field_names) |name| {
+        _ = @field(self, name).addManyAsSliceAssumeCapacity(@field(delta, name).len);
+    }
 }
 
-fn publish(self: *Self, delta: Table, comptime text_in_tail: bool) void {
+/// Publishes a constructed type after its name payload was copied into the reserved tail.
+pub fn publishOwnedNames(self: *Self, delta: Table) void {
+    self.publish(delta, .own_names);
+}
+
+fn publish(self: *Self, delta: Table, comptime text: enum { borrow_all, own_names }) void {
     inline for (@typeInfo(Self).@"struct".field_names) |name| {
         const source = @field(delta, name);
 
-        if (comptime std.mem.eql(u8, name, "first") or (text_in_tail and std.meta.Elem(@TypeOf(source)) == []const u8)) {
+        const text_in_tail = comptime switch (text) {
+            .borrow_all => false,
+            .own_names => std.mem.eql(u8, name, "names"),
+        };
+
+        if (comptime std.mem.eql(u8, name, "first") or text_in_tail) {
             _ = @field(self, name).addManyAsSliceAssumeCapacity(source.len);
         } else {
             @field(self, name).appendSliceAssumeCapacity(source);

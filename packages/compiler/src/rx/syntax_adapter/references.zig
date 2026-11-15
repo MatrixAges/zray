@@ -19,9 +19,22 @@ const Storage = struct {
     entries: []const Entry,
     attributes: []const ast.Attribute,
     flow: []const Fact,
-    module_steps: usize,
+    unit_firsts: []const u32,
+    unit_counts: []const u32,
+    step_rows: []const u32,
+    events: []const Event,
     parallel_tasks: usize,
+    capacity: Capacity,
     source_extent: usize,
+};
+
+pub const Capacity = struct {
+    steps: u32,
+    calls: u32,
+    results: u32,
+    tasks: u32,
+    groups: u32,
+    selections: u32,
 };
 
 pub const Action = enum(u3) {
@@ -42,26 +55,51 @@ pub const Fact = packed struct(u32) {
     declaration: bool,
     alternate: bool,
     action: Action,
-    reverse_task_rank: u24,
+    reserved: u24,
+};
+
+pub const Event = packed struct(u64) {
+    slot: u32,
+    phase: enum(u32) { enter, check_task, _ },
 };
 
 pub const Flow = struct {
     base: [*]const ast.Node,
     facts: []const Fact,
-    module_steps: usize,
+    unit_firsts: []const u32,
+    unit_counts: []const u32,
+    step_rows: []const u32,
+    events: []const Event,
     parallel_tasks: usize,
+    capacity: Capacity,
     pub const Operation = Action;
 
+    pub fn nodeAt(self: Flow, event: Event) *const ast.Node {
+        return &self.base[event.slot];
+    }
+    pub fn taskId(self: Flow, event: Event) ?usize {
+        const rank = @backingInt(event.phase);
+
+        return if (rank > @backingInt(@TypeOf(event.phase).check_task)) self.parallel_tasks - (rank - 1) else null;
+    }
     pub fn get(self: Flow, node: *const ast.Node) Fact {
-        const offset = @intFromPtr(node) - @intFromPtr(self.base);
-
-        return self.facts[offset / @sizeOf(ast.Node)];
+        return self.facts[self.row(node)];
     }
-    pub fn taskId(self: Flow, fact: Fact) ?usize {
-        if (fact.reverse_task_rank == 0) return null;
-
-        return self.parallel_tasks - fact.reverse_task_rank;
+    pub fn rootUnit(self: Flow) Unit {
+        return self.unit(&self.base[0]);
     }
+    pub fn unit(self: Flow, node: *const ast.Node) Unit {
+        const index = self.row(node);
+
+        return .{ .first = self.unit_firsts[index], .count = self.unit_counts[index] };
+    }
+    pub fn step(self: Flow, node: *const ast.Node) u32 {
+        return self.step_rows[self.row(node)];
+    }
+    fn row(self: Flow, node: *const ast.Node) usize {
+        return (@intFromPtr(node) - @intFromPtr(self.base)) / @sizeOf(ast.Node);
+    }
+    pub const Unit = struct { first: u32 = 0, count: u32 = 0 };
 };
 
 pub fn flowForNode(index: *const Index, node: *const ast.Node) ?Flow {
@@ -72,8 +110,12 @@ pub fn flowForNode(index: *const Index, node: *const ast.Node) ?Flow {
     return .{
         .base = @ptrCast(storage.root),
         .facts = storage.flow,
-        .module_steps = storage.module_steps,
+        .unit_firsts = storage.unit_firsts,
+        .unit_counts = storage.unit_counts,
+        .step_rows = storage.step_rows,
+        .events = storage.events,
         .parallel_tasks = storage.parallel_tasks,
+        .capacity = storage.capacity,
     };
 }
 
@@ -129,7 +171,20 @@ pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: st
     var storage: [xml_nesting_limit]u64 = undefined;
     const parents: []u64 = &storage;
     const project_flow = nodes[0].children.len != 0 and std.mem.eql(u8, nodes[0].name, "Module");
-    const facts = try allocator.alloc(u32, if (project_flow) nodes.len else 0);
+    const count = if (project_flow) nodes.len else 0;
+
+    if (count > std.math.maxInt(u32)) return error.OutOfMemory;
+
+    const column_words = std.math.mul(usize, count, 4 * @sizeOf(u32) / @sizeOf(u64)) catch return error.OutOfMemory;
+    const event_capacity = std.math.mul(usize, count, 2) catch return error.OutOfMemory;
+    const length = std.math.add(usize, column_words, event_capacity) catch return error.OutOfMemory;
+    const data = try allocator.alloc(u64, length);
+    const flow = std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(data[0..column_words]));
+    const facts = flow[0..count];
+    const unit_firsts = flow[count..][0..count];
+    const unit_counts = flow[2 * count ..][0..count];
+    const step_rows = flow[3 * count ..];
+    const events = data[column_words..];
 
     const scan_input: Input = .{
         .source = source,
@@ -139,6 +194,10 @@ pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: st
         .parents = @ptrCast(&parents),
         .slots = slots,
         .facts = @ptrCast(&facts),
+        .unit_firsts = @ptrCast(&unit_firsts),
+        .unit_counts = @ptrCast(&unit_counts),
+        .step_rows = @ptrCast(&step_rows),
+        .events = @ptrCast(&events),
         .project_flow = project_flow,
     };
 
@@ -146,6 +205,10 @@ pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: st
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    const event_count: usize = @intCast(result.events);
+
+    _ = allocator.resize(data, column_words + event_count);
 
     const rows = result.references;
     const entries = try allocator.alloc(Entry, rows.len);
@@ -166,8 +229,19 @@ pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: st
         .entries = entries,
         .attributes = attributes,
         .flow = @ptrCast(facts),
-        .module_steps = @intCast(result.module_steps),
+        .unit_firsts = unit_firsts,
+        .unit_counts = unit_counts,
+        .step_rows = step_rows,
+        .events = @ptrCast(events[0..event_count]),
         .parallel_tasks = @intCast(result.parallel_tasks),
+        .capacity = .{
+            .steps = std.math.cast(u32, result.steps) orelse return error.OutOfMemory,
+            .calls = std.math.cast(u32, result.calls) orelse return error.OutOfMemory,
+            .results = std.math.cast(u32, result.results) orelse return error.OutOfMemory,
+            .tasks = std.math.cast(u32, result.tasks) orelse return error.OutOfMemory,
+            .groups = std.math.cast(u32, result.groups) orelse return error.OutOfMemory,
+            .selections = std.math.cast(u32, result.selections) orelse return error.OutOfMemory,
+        },
         .source_extent = @max(value_extent, @as(usize, @intCast(result.source_extent))),
     };
 

@@ -48,6 +48,30 @@ pub fn function(self: *Self, value: ir.Function) Error!ir.Function {
     return (try self.functionEntry(value, null, .unchecked)).body;
 }
 
+pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.FunctionTable) Error!void {
+    const count = table.count();
+
+    if (count == 0) return;
+    if (comptime generated) try storage.reserve(self.allocator, count);
+    for (0..count) |index| try self.appendFunctionAssumeCapacity(storage, table.at(index));
+}
+
+pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: ir.Function) Error!void {
+    if (comptime generated) try storage.reserve(self.allocator, 1);
+    try self.appendFunctionAssumeCapacity(storage, value);
+}
+
+fn appendFunctionAssumeCapacity(self: *Self, storage: *ir.FunctionStorage, value: ir.Function) Error!void {
+    if (comptime generated) {
+        var descriptors: ir.FunctionStorage.Descriptors = undefined;
+        const linked = try self.linkedFunction(value, null, .unchecked, &descriptors);
+
+        storage.appendOwnedAssumeCapacity(linked.body, descriptors);
+    } else {
+        try storage.append(self.allocator, try self.function(value));
+    }
+}
+
 pub const Structure = enum { unchecked, validated };
 
 pub const FunctionEntry = struct {
@@ -56,7 +80,7 @@ pub const FunctionEntry = struct {
 };
 
 pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
-    if (comptime generated) return self.linkedFunction(value, candidate, structure);
+    if (comptime generated) return self.linkedFunction(value, candidate, structure, null);
 
     var result = value;
 
@@ -75,12 +99,20 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
     return .{ .body = result, .recursive = recursive };
 }
 
-fn linkedFunction(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
+fn linkedFunction(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure, descriptors: ?*ir.FunctionStorage.Descriptors) Error!FunctionEntry {
     const mapped = try @import("nodes/remap.zig").function(self, &value, candidate, structure);
     const store_table = try @import("materializing/stores/host.zig").own(self.allocator, &value.stores, mapped.stores);
     const control = try self.body(value.body, structure);
+    const body_value = try self.ownFunction(&value, mapped, if (store_table) |table| table.* else .{}, control);
 
-    return .{ .body = try self.ownFunction(&value, mapped, store_table, control), .recursive = if (mapped.recursive) |id| @fromBackingInt(id) else null };
+    if (descriptors) |owned| owned.* = .{
+        .symbols = zx.columns.pointer(*const ir.SymbolTable, mapped.symbols),
+        .expressions = zx.columns.pointer(*const ir.ExpressionTable, mapped.expressions),
+        .stores = store_table,
+        .contracts = zx.columns.pointer(*const ir.ContractTable, mapped.contracts),
+    };
+
+    return .{ .body = body_value, .recursive = if (mapped.recursive) |id| @fromBackingInt(id) else null };
 }
 
 pub fn ownFunction(self: *Self, value: *const ir.Function, mapped: anytype, store_table: ir.StoreTable, control: ir.ControlBody) Error!ir.Function {

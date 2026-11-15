@@ -1,12 +1,17 @@
+import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "std:memory"
 import type { Edges, Nodes, Payloads } from "../model"
+
+export type Storage = {
+    parents: U32Buffer,
+    ranks: U8Buffer,
+    representatives: OptionalU32Buffer
+}
 
 export type Input = {
     payloads: Payloads,
     nodes: Nodes,
-    edges: Edges
-}
-
-export type Output = {
+    edges: Edges,
+    storage: Storage,
     parents: u32[],
-    representatives: u32?[]
+    ranks: u8[]
 }

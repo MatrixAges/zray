@@ -13,134 +13,184 @@ const State = @import("state.zig");
 const history = @import("../history.zig");
 const columns = @import("../history/columns.zig");
 const project = @import("frontend").project;
+const alignment = @import("history/alignment.zig");
+const Graph = @FieldType(State, "graph");
+const generated = @import("rx_options").generated_graph;
+const batch_dependencies = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const Self = @This();
 
 record: ?*history.History,
+
 previous: ?*const history.Retained = null,
 derived: history.Frame,
 aligned: bool = false,
-initial: history.Checkpoint = undefined,
 /// Modules whose rows or link differ from the earlier ones, or that depend on such a module.
 redone: []bool = &.{},
 digests: []?[32]u8 = &.{},
-before: []history.Checkpoint = &.{},
-after: []history.Checkpoint = &.{},
+boundaries: []history.Checkpoint = &.{},
 pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*history.History, derived: history.Frame, sources: []const project.Source) std.mem.Allocator.Error!Self {
     const owner = record orelse return .{ .record = null, .derived = derived };
     const count = state.graph.modules.len;
-    const initial = checkpoint(state);
 
     var self = Self{
         .record = record,
         .derived = derived,
-        .initial = initial,
         .redone = try state.allocator.alloc(bool, count),
         .digests = try state.allocator.alloc(?[32]u8, count),
-        .before = try state.allocator.alloc(history.Checkpoint, count),
-        .after = try state.allocator.alloc(history.Checkpoint, count),
+        .boundaries = try state.allocator.alloc(history.Checkpoint, state.graph.order.len + 1),
     };
 
     @memset(self.redone, false);
-    @memset(self.before, initial);
-    @memset(self.after, initial);
 
+    self.boundaries[0] = checkpoint(state);
     const retained = if (owner.bodies_only) &owner.previous.? else null;
+    const paths = state.graph.modules.items(.path);
+    const ranges = state.graph.sources;
 
-    for (state.graph.modules, self.digests, 0..) |module, *digest, index| digest.* = switch (module.source) {
-        .zx => |source| current: {
-            // A failed request may have replaced a parse even though the last successful analysis is unchanged.
-            if (retained) |earlier| {
-                if (zx.bytes.equal(earlier.sources[source].source, sources[source].source)) break :current earlier.digests[index];
+    for (paths[0..ranges.zx_count], self.digests[0..ranges.zx_count], sources, 0..) |path, *digest, source, index| {
+        // A failed request can replace a parse while the last successful analysis still owns its digest.
+        if (retained) |earlier| {
+            if (zx.bytes.equal(earlier.sources[index].source, source.source)) {
+                digest.* = earlier.digests[index];
+
+                continue;
             }
+        }
 
-            break :current cache.sourceDigest(module.path);
-        },
-        .store => null,
-        .rx => owner.rxDigest(module.path),
-    };
+        digest.* = cache.sourceDigest(path);
+    }
+
+    for (paths[ranges.zx_count..ranges.rx_end], self.digests[ranges.zx_count..ranges.rx_end]) |path, *digest| {
+        digest.* = owner.rxDigest(path);
+    }
+
+    @memset(self.digests[ranges.rx_end..], null);
 
     const previous = if (owner.previous) |*value| value else return self;
 
     self.previous = previous;
-    self.aligned = matches(state, previous, owner.shape, initial);
+    self.aligned = matches(state, previous, &owner.shape, &self.boundaries[0]);
 
     return self;
 }
 
-/// Copies `index`'s rows from the earlier analysis when nothing they derive from changed; false when it must be
-/// analyzed.
-pub fn reuse(self: *Self, state: *State, index: usize) std.mem.Allocator.Error!bool {
-    const owner = self.record orelse return false;
+/// Restores the reusable prefix of the current window and returns the next position to analyze.
+pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.Allocator.Error!usize {
+    const previous = self.previous orelse return first;
 
-    self.before[index] = checkpoint(state);
+    if (!self.aligned) return first;
 
-    if (!self.reusable(state, index)) return false;
+    const order = state.graph.order;
+    var position = first;
 
-    const previous = self.previous.?;
-    const start = previous.before[index];
-    const end = previous.after[index];
+    scan: {
+        if (comptime batch_dependencies) {
+            const admission = @import("history/admit.zig");
+            const window_size = 8;
 
-    try columns.transplant(state.allocator, &state.types.items, previous.types, start.types, end.types);
-    try columns.transplant(state.allocator, &state.types.origins.items, previous.origins, start.origins, end.origins);
-    try columns.transplant(state.allocator, &state.functions, previous.functions, @splat(start.functions), @splat(end.functions));
+            while (limit - position >= window_size) {
+                const end = position + window_size;
+                const available = admission.dependencyPrefix(state, self.redone, position, end);
 
-    state.finished[index] = previous.finished[index];
-    state.verified = state.functions.count();
-    self.after[index] = checkpoint(state);
-    owner.reused += 1;
+                while (position < available) : (position += 1) {
+                    if (!admission.reusable(state, self.derived, previous, null, self.digests, order[position], position)) break :scan;
+                }
 
-    return true;
+                if (available != end) break :scan;
+            }
+        }
+
+        while (position < limit and self.reusable(state, order[position], position)) : (position += 1) {}
+    }
+
+    if (position == first) return first;
+
+    const start = &previous.boundaries[first];
+    const end = &previous.boundaries[position];
+
+    try columns.transplant(state.allocator, .{
+        .{ .storage = &state.types.items, .source = previous.types, .start = start.types, .end = end.types },
+        .{ .storage = &state.types.origins.items, .source = previous.origins, .start = start.origins, .end = end.origins },
+        .{
+            .storage = &state.functions,
+            .source = previous.functions,
+            .start = @as(columns.Lengths(ir.FunctionStorage), @splat(start.functions)),
+            .end = @as(columns.Lengths(ir.FunctionStorage), @splat(end.functions)),
+        },
+    });
+
+    for (order[first..position]) |index| state.finished[index] = previous.finished[index];
+
+    state.verified = end.functions;
+
+    @memcpy(self.boundaries[first + 1 .. position + 1], previous.boundaries[first + 1 .. position + 1]);
+
+    self.record.?.reused += position - first;
+
+    return position;
 }
 
-/// Whether `reuse` copies `index`'s rows while the tables stay aligned until its turn; they only ever fall out of line,
-/// so a module this rejects is analyzed whatever the modules before it do.
-pub fn reusable(self: *const Self, state: *const State, index: usize) bool {
+/// Whether `reuse` can copy `index`'s rows while the tables stay aligned until its turn.
+pub fn reusable(self: *const Self, state: *const State, index: usize, position: usize) bool {
     const previous = self.previous orelse return false;
 
-    if (!self.aligned or !self.unchanged(state, index)) return false;
+    if (!self.aligned or index == state.graph.entry) return false;
 
-    const start = previous.before[index];
-    const end = previous.after[index];
+    if (comptime generated) {
+        return @import("history/admit.zig").reusable(state, self.derived, previous, self.redone, self.digests, index, position);
+    }
+
+    if (!self.unchanged(state, index)) return false;
+
+    const start = &previous.boundaries[position];
+    const end = &previous.boundaries[position + 1];
 
     return start.native_modules == end.native_modules and start.initializers == end.initializers and start.libraries == end.libraries;
 }
 
 /// Records that `index` was analyzed, and whether the tables still match the earlier analysis after it.
-pub fn analyzed(self: *Self, state: *const State, index: usize) void {
+pub fn analyzed(self: *Self, state: *const State, index: usize, position: usize) void {
     const owner = self.record orelse return;
-    const end = checkpoint(state);
+    const start = &self.boundaries[position];
+    const end = &self.boundaries[position + 1];
 
     self.redone[index] = true;
-    self.after[index] = end;
+    end.* = checkpoint(state);
     owner.analyzed += 1;
 
     const previous = self.previous orelse return;
 
     if (!self.aligned) return;
 
-    const start = self.before[index];
-    const earlier = previous.after[index];
+    if (comptime generated) {
+        switch (alignment.assess(state, previous, self.redone, index, position, start, end)) {
+            .Misaligned => self.aligned = false,
+            .Changed => {},
+            .Unchanged => self.redone[index] = false,
+            .CompareFunctions => self.redone[index] = !repeated(state, previous, index, start.functions, end.functions),
+        }
 
-    self.aligned = @import("history/alignment.zig").matches(state, previous, start, earlier, end);
+        return;
+    }
 
-    if (self.aligned and !self.reaches(state, index) and repeated(state, previous, index, start.functions)) self.redone[index] = false;
+    const earlier = previous.boundaries[position..][0..2];
+
+    self.aligned = alignment.matches(state, previous, start, &earlier[1], end);
+
+    if (!self.aligned or self.reaches(state, index)) return;
+
+    if (state.graph.sources.at(index) == .store or
+        (earlier[0].functions == start.functions and repeated(state, previous, index, start.functions, end.functions)))
+    {
+        self.redone[index] = false;
+    }
 }
 
 /// Whether a dependency of `index` changed.
 fn reaches(self: *const Self, state: *const State, index: usize) bool {
-    if (state.graph.modules[index].compiled_dependency) return true;
+    if (state.graph.modules.items(.compiled_dependency)[index]) return true;
 
     const dependencies = state.graph.source_dependencies.?.at(index);
-
-    if (dependencies.len == 0) return false;
-
-    if (comptime @import("rx_options").generated_graph) {
-        const rule = @import("generated_rx_mixed_dependency_changed");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const input: std.meta.Child(rule.Input) = .{ .dependencies = dependencies, .redone = self.redone };
-
-        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    }
 
     for (dependencies) |dependency| if (self.redone[@intCast(dependency)]) return true;
 
@@ -149,19 +199,13 @@ fn reaches(self: *const Self, state: *const State, index: usize) bool {
 
 /// Whether `index`, analyzed again into tables still aligned, appended the very function rows and produced the very
 /// link it had before, down to the bodies they point to.
-fn repeated(state: *const State, previous: *const history.Retained, index: usize, start: usize) bool {
-    if (state.graph.modules[index].source == .store) return true;
-
+fn repeated(state: *const State, previous: *const history.Retained, index: usize, start: usize, end: usize) bool {
     const current = state.finished[index] orelse return false;
     const earlier = previous.finished[index] orelse return false;
-    const end = state.functions.count();
-
-    if (previous.before[index].functions != start or previous.after[index].functions != end) return false;
-
     const left = previous.functions;
     const right = state.functions.view();
 
-    if (comptime @import("rx_options").generated_graph) {
+    if (comptime generated) {
         return @import("history/linked.zig").equal(&current, &earlier) and
             comparisons.headers(&left, &right, start, end) and comparisons.bodies(&left, &right, start, end);
     }
@@ -190,10 +234,8 @@ pub fn finish(self: *const Self, state: *const State, selected: []const @import(
         .modules = selected,
         .sources = sources,
         .derived = self.derived,
-        .initial = self.initial,
         .digests = self.digests,
-        .before = self.before,
-        .after = self.after,
+        .boundaries = self.boundaries,
         .finished = state.finished,
         .types = state.types.items.view(),
         .origins = state.types.origins.items.view(),
@@ -202,18 +244,15 @@ pub fn finish(self: *const Self, state: *const State, selected: []const @import(
 }
 
 /// A module is unchanged when its source is and so are its dependencies; aligned tables imply an unchanged shape. An RX
-/// module's signature is resolved over every RX module at once, so it must also have resolved as before. The entry is
-/// always lowered again, since its contract is built while lowering it.
+/// module's signature is resolved over every RX module at once, so it must also have resolved as before.
 fn unchanged(self: *const Self, state: *const State, index: usize) bool {
-    const module = state.graph.modules[index];
+    const source = state.graph.sources.at(index);
     const previous = self.previous.?;
 
-    if (index == state.graph.entry) return false;
+    if (source == .store) {
+        const before = previous.derived.dependencies.sources.at(index);
 
-    if (module.source == .store) {
-        const before = previous.derived.dependencies.modules[index].source;
-
-        return before == .store and columns.same(previous.derived.stores[before.store].node, self.derived.stores[module.source.store].node) and !self.reaches(state, index);
+        return before == .store and columns.same(previous.derived.stores[before.store].node, self.derived.stores[source.store].node) and !self.reaches(state, index);
     }
 
     const earlier = previous.digests[index] orelse return false;
@@ -221,25 +260,21 @@ fn unchanged(self: *const Self, state: *const State, index: usize) bool {
 
     if (!std.mem.eql(u8, &earlier, &current)) return false;
 
-    if (module.source == .rx) {
-        const before = previous.derived.dependencies.modules[index].source;
+    if (source == .rx) {
+        const before = previous.derived.dependencies.sources.at(index);
 
-        if (before != .rx or !columns.same(previous.derived.resolved[before.rx], self.derived.resolved[module.source.rx])) return false;
+        if (before != .rx or !columns.same(previous.derived.resolved[before.rx], self.derived.resolved[source.rx])) return false;
     }
 
     return !self.reaches(state, index);
 }
 
 /// Whether this analysis starts from the tables the earlier one started from, over the same modules in the same order.
-fn matches(state: *const State, previous: *const history.Retained, shape: [32]u8, initial: history.Checkpoint) bool {
+fn matches(state: *const State, previous: *const history.Retained, shape: *const [32]u8, initial: *const history.Checkpoint) bool {
     const earlier = previous.derived.dependencies;
+    const current = state.graph;
 
-    if (!std.mem.eql(u8, &previous.shape, &shape) or !previous.initial.eql(initial) or earlier.modules.len != state.graph.modules.len) return false;
-    if (!std.mem.eql(usize, earlier.order, state.graph.order)) return false;
-
-    if (earlier.modules.ptr != state.graph.modules.ptr) {
-        for (earlier.modules, state.graph.modules) |before, after| if (!zx.bytes.equal(before.path, after.path)) return false;
-    }
+    if (!matchesGraph(earlier, current, &previous.shape, shape, &previous.boundaries[0], initial)) return false;
 
     const start: history.Checkpoint = .{
         .types = @splat(0),
@@ -250,14 +285,52 @@ fn matches(state: *const State, previous: *const history.Retained, shape: [32]u8
         .libraries = 0,
     };
 
-    if (!@import("history/alignment.zig").matches(state, previous, start, initial, initial)) return false;
+    if (!alignment.matches(state, previous, &start, initial, initial)) return false;
 
     return signatures(previous.functions, state.functions.view(), initial.functions);
 }
 
+fn matchesGraph(earlier: Graph, current: Graph, earlier_shape: *const [32]u8, current_shape: *const [32]u8, earlier_boundary: *const history.Checkpoint, current_boundary: *const history.Checkpoint) bool {
+    const earlier_paths = earlier.modules.items(.path);
+    const current_paths = current.modules.items(.path);
+
+    if (comptime generated) {
+        const rule = @import("generated_rx_mixed_history_start");
+
+        const input: std.meta.Child(rule.Input) = .{
+            .inputs = &.{
+                .earlier = earlier_shape,
+                .current = current_shape,
+                .earlier_count = earlier_paths.len,
+                .current_count = current_paths.len,
+            },
+            .boundary = earlier_boundary.eql(current_boundary.*),
+            .graph = &.{
+                .earlier_order = std.mem.sliceAsBytes(earlier.order),
+                .current_order = std.mem.sliceAsBytes(current.order),
+                .earlier_paths = earlier_paths,
+                .current_paths = current_paths,
+                .shared_paths = earlier_paths.ptr == current_paths.ptr,
+            },
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    }
+
+    if (!@import("../history/admission.zig").sameInputs(earlier_shape, current_shape, earlier_paths.len, current_paths.len)) return false;
+    if (!earlier_boundary.eql(current_boundary.*)) return false;
+    if (!std.mem.eql(usize, earlier.order, current.order)) return false;
+    if (earlier_paths.ptr == current_paths.ptr) return true;
+    for (earlier_paths, current_paths) |before, after| if (!zx.bytes.equal(before, after)) return false;
+
+    return true;
+}
+
 /// Compares the function rows' signature columns; the tables each row points to belong to one analysis.
 fn signatures(left: ir.FunctionTable, right: ir.FunctionTable, count: usize) bool {
-    if (comptime @import("rx_options").generated_graph) {
+    if (comptime generated) {
         return comparisons.headers(&left, &right, 0, count);
     }
 

@@ -1,0 +1,25 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { Storage } from "./model"
+
+export type Input = {
+    storage: Storage,
+    parents: u32[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, parents } = in
+
+    const initialized = loop(0, {
+        while: index => index < parents.length,
+        next: index => {
+            memory.writeU32(storage.parents, index, integers.narrow(index))
+            memory.writeU8(storage.ranks, index, 0)
+            memory.writeOptionalU32(storage.representatives, index, null)
+            index += 1
+        }
+    })
+}

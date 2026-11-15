@@ -1,0 +1,45 @@
+export enum Kind {
+    Call,
+    Result,
+    Task,
+    Parallel,
+    Selection,
+    ParallelTask
+}
+
+export type Input = {
+    kinds: Kind[],
+    first: u64,
+    end: u64
+}
+
+export type Output = {
+    kind: Kind,
+    end: u64
+}
+
+export default function (in: Input): Output {
+    const kind = in.kinds[in.first]
+
+    if (kind != Kind.Call) {
+        return {
+            kind,
+            end: in.first + 1
+        }
+    }
+
+    const end = loop({
+        row: in.first + 1
+    }, {
+        while: state => state.row < in.end && in.kinds[state.row] == Kind.Call,
+        next: state => {
+            state.row += 1
+        },
+        return: state => state.row
+    })
+
+    return {
+        kind,
+        end
+    }
+}

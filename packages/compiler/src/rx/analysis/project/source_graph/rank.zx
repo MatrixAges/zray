@@ -1,13 +1,16 @@
 import sort from "./sort"
 
+import type { U64Buffer } from "std:memory"
+
 export type Input = {
     order: u64[],
     depths: u64[],
     count: u64,
-    first_end: u64
+    first_end: u64,
+    target: U64Buffer
 }
 
-export type Output = u64[]
+export type Output = void
 
 export default function (in: Input): Output {
     const { order, depths, first_end, count } = in
@@ -36,14 +39,17 @@ export default function (in: Input): Output {
     })
 
     if (scan.sorted) {
-        return order
+        return
     }
 
-    return sort({
-        order,
+    const source = order.map(owner => owner)[0]
+
+    sort({
+        order: source,
         depths,
         first_end,
         count,
-        size: scan.max_depth + 1
+        size: scan.max_depth + 1,
+        target: in.target
     })
 }

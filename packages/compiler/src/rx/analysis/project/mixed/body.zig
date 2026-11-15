@@ -3,41 +3,26 @@ const State = @import("state.zig");
 const generated = @import("rx_options").generated_graph;
 const admission = if (generated) @import("generated_rx_mixed_body_admit") else void;
 const Source = if (generated) @FieldType(std.meta.Child(admission.Input), "source") else enum { ZX, RX, Store };
-const Action = if (generated) admission.Output else enum { Skip, MissingSignature, AnalyzeZX, LowerRX };
+pub const Action = if (generated) admission.Output else enum { Skip, MissingSignature, AnalyzeZX, LowerRX };
 
-pub fn admit(state: *const State, index: usize, preview: bool, reusable: bool) Action {
-    const module = &state.graph.modules[index];
-
-    const source: Source = switch (module.source) {
+pub fn admit(state: *const State, index: usize) Action {
+    const source: Source = switch (state.graph.sources.at(index)) {
         .zx => .ZX,
         .rx => .RX,
         .store => .Store,
     };
 
-    const signature = if (source == .ZX) state.signature_indices[index] else null;
-    const setter = if (signature) |row| state.signatures.modules[row].signature.has_store else false;
-    const entry = index == state.graph.entry;
+    const signature = if (source == .ZX) state.signature_indices[index] else 0;
 
     if (comptime generated) {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const input: std.meta.Child(admission.Input) = .{
-            .source = source,
-            .signature = signature != null,
-            .setter = setter,
-            .preview = preview,
-            .entry = entry,
-            .compiled_dependency = module.compiled_dependency,
-            .reusable = reusable,
-        };
+        const input: std.meta.Child(admission.Input) = .{ .source = source, .signature = signature };
 
         return @import("zx").columns.invoke(admission.executeValue, empty.allocator(), &input) catch unreachable;
     }
 
-    if (preview and (reusable or module.compiled_dependency or (entry and source == .RX))) return .Skip;
-
     return switch (source) {
-        .ZX => if (signature == null) .MissingSignature else if (setter) .Skip else .AnalyzeZX,
+        .ZX => if (signature == 0) .MissingSignature else if (signature < 0) .Skip else .AnalyzeZX,
         .RX => .LowerRX,
         .Store => .Skip,
     };

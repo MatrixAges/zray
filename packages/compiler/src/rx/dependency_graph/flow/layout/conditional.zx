@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import { alternate } from "../const"
+
+import type { Children } from "../model"
+
+export type Input = {
+    children: Children,
+    count: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { head, view } = in.children
+
+    if (head == 0) {
+        return 0
+    }
+
+    const flags = memory.readU32(view.facts, view.slots[head - 1])
+
+    const has_else =
+        integers.andBits(integers.widen(flags), integers.widen(alternate))
+
+    return has_else != 0 ? in.count - 1 : in.count
+}

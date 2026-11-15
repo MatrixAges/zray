@@ -1,0 +1,35 @@
+import type { U64Buffer } from "std:memory"
+import type { BlockTree } from "../../../parser/body/model"
+import type { ExprTree } from "../../../parser/expressions/state/model"
+
+export enum Chain {
+    Empty,
+    Arguments,
+    Fields,
+    Parameters,
+    Parts,
+    Arms,
+    Statements,
+    Names,
+    Cases
+}
+
+export type Trees = {
+    expressions: ExprTree,
+    blocks: BlockTree
+}
+
+export type Columns = {
+    expressions: U64Buffer,
+    blocks: U64Buffer,
+    statements: U64Buffer,
+    patterns: U64Buffer,
+    edges: U64Buffer
+}
+
+export type Input = {
+    trees: Trees,
+    columns: Columns
+}
+
+export type Output = u64

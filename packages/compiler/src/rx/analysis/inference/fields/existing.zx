@@ -1,0 +1,78 @@
+import member from "core/type_table/member"
+
+import find from "../known/find"
+import { Mode } from "./view"
+
+import type { State as Known } from "core/integer/map/model"
+import type { Mode as ObjectMode } from "./view"
+
+export enum Action {
+    Field,
+    Append,
+    Register,
+    Reuse
+}
+
+export type Object = {
+    mode: ObjectMode,
+    restricted: bool,
+    names: string[],
+    values: u32[]
+}
+
+export type Input = {
+    object: Object,
+    known: Known,
+    name: string
+}
+
+export type Output = {
+    action: Action,
+    value: u32
+}
+
+export default function (in: Input): Output {
+    const object = in.object
+    const safe = object.mode == Mode.Inferred && !object.restricted
+    const declared = object.mode == Mode.Declared
+
+    if (!safe && !declared) {
+        return {
+            action: Action.Field,
+            value: 0
+        }
+    }
+
+    const index = member({
+        names: object.names,
+        first: 0,
+        count: object.names.length,
+        name: in.name
+    })
+
+    if (index == null) {
+        return {
+            action: safe ? Action.Append : Action.Field,
+            value: 0
+        }
+    }
+
+    const value = object.values[index]
+
+    if (!declared) {
+        return {
+            action: Action.Reuse,
+            value
+        }
+    }
+
+    const registered = find({
+        known: in.known,
+        type_id: value
+    })
+
+    return {
+        action: registered == null ? Action.Register : Action.Reuse,
+        value: registered ?? value
+    }
+}

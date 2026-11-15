@@ -1,0 +1,21 @@
+export type Input = {
+    names: string[],
+    first: u64,
+    count: u64,
+    name: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const index = loop({
+        index: 0
+    }, {
+        while: state =>
+            state.index < in.count && in.names[in.first + state.index] != in.name,
+        next: state => { state.index += 1 },
+        return: state => state.index
+    })
+
+    return index == in.count ? null : index
+}

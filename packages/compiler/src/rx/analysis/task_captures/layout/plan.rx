@@ -3,25 +3,19 @@
 
     <Args in={Layout.Input} out={Layout.Output} />
 
-    <Call
-        fn="transport"
-        in={{
-            types: $in.types,
-            positions: $in.positions
-        }}
-    />
+    <Call fn="transport" in={$in} />
 
     <Call
         fn="rows"
         in={{
-            source_types: $ctx.transport,
-            parameters: $in.parameters
+            source_types: $ctx.transport.source_types,
+            parameters: $ctx.transport.parameter_types
         }}
     />
 
     <Return
         value={{
-            source_types: $ctx.transport,
+            ...$ctx.transport,
             rows: $ctx.rows
         }}
     />

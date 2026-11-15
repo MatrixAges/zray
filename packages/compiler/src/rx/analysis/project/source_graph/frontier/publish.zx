@@ -1,0 +1,18 @@
+import memory from "std:memory"
+
+import type { Publication } from "./model"
+
+export type Input = Publication
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (in.cursor == 0) {
+        return
+    }
+
+    const owner = memory.readU64(in.queue, in.cursor - 1)
+
+    memory.writeU64(in.starts, owner, in.edge_start)
+    memory.writeU64(in.ends, owner, in.edge_end)
+}

@@ -1,3 +1,5 @@
+import type { Kind as Shape } from "../unification/model"
+
 export enum Kind {
     Absent,
     Named,
@@ -6,38 +8,53 @@ export enum Kind {
     AmbiguousOpen
 }
 
-export enum Action {
+export enum Route {
     Skip,
+    Register,
     Bind,
-    Infer,
+    InferRequired,
+    InferConstrained,
     Ambiguous,
-    Missing
+    RegisterAmbiguous,
+    MissingRequired
 }
 
-export enum Gate {
-    Always,
-    Required,
-    Constrained
+export enum Receiver {
+    Node,
+    Type,
+    Target
 }
 
 export type Parts = {
     explicit: string?[],
+    explicit_values: u32[],
     fields: string[][],
+    values: u32[][],
     roots: u64[],
     open: bool[],
-    aliases: bool[]
+    aliases: bool[],
+    shapes: Shape[]
 }
 
 export type Candidate = {
     part: u64,
-    field: u64,
+    value: u32,
+    receiver: Receiver,
     kind: Kind
 }
 
 export type Candidates = {
     parts: u64[],
-    fields: u64[],
-    kinds: Kind[]
+    values: u32[],
+    receivers: Receiver[],
+    routes: Route[]
+}
+
+export type Policy = {
+    open: Route,
+    absent: Route,
+    ambiguous: Route,
+    ambiguous_named: Route
 }
 
 export type Input = {
@@ -46,11 +63,4 @@ export type Input = {
     final: bool
 }
 
-export type Output = Candidates & {
-    named: Action,
-    ambiguous: Action,
-    open: Action,
-    absent: Action,
-    open_gate: Gate,
-    absent_gate: Gate
-}
+export type Output = Candidates

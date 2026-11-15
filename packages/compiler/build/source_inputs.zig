@@ -18,15 +18,13 @@ pub fn reachable(allocator: std.mem.Allocator, backing: std.mem.Allocator, modul
         return error.InvalidSourceGraph;
     }
 
-    var selected: std.ArrayList(rx.ModuleSource) = .empty;
+    const rows = try analysis.project.source_graph.orderedRows(backing, &result.value.graph, .rx);
 
-    errdefer selected.deinit(allocator);
+    defer backing.free(rows);
 
-    for (result.value.graph.order) |index| {
-        const source = result.value.graph.modules[index].source;
+    const selected = try allocator.alloc(rx.ModuleSource, rows.len);
 
-        if (source == .rx) try selected.append(allocator, modules[source.rx]);
-    }
+    for (selected, rows) |*module, row| module.* = modules[@intCast(row)];
 
-    return selected.toOwnedSlice(allocator);
+    return selected;
 }

@@ -9,4 +9,7 @@ export type Input = {
     names: Names
 }
 
-export type Output = bool
+export type Output = {
+    valid: bool,
+    mismatch?: u64
+}

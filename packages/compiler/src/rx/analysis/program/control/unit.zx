@@ -15,6 +15,7 @@ import {
     tag_lane,
     unreachable
 } from "./const"
+import getterCount from "./getter_count"
 import { Kind, Publish } from "./model"
 import selectionExit from "./selection_exit"
 
@@ -57,11 +58,26 @@ export default function (in: Input): Output {
 
                 switch (steps.kinds[index]) {
                     case Kind.Call:
-                        state.constants += integers.widen(steps.getters[index])
+                        const call = integers.widen(steps.firsts[index])
+
+                        state.constants +=
+                            integers.widen(in.shape.calls.getters[call])
+
+                        if (in.shape.calls.publishes[call]) {
+                            state.constants += 1
+                        } else {
+                            state.evaluations += 1
+                        }
                     case Kind.Parallel:
-                        state.constants += integers.widen(steps.getters[index])
+                        const count = integers.widen(steps.counts[index])
+
+                        state.constants += getterCount({
+                            getters: in.shape.calls.getters,
+                            first: integers.widen(steps.firsts[index]),
+                            count
+                        })
                         state.parallels += 1
-                        state.invocations += integers.widen(steps.counts[index])
+                        state.invocations += count
                     case Kind.Return:
                         state.results += 1
                         state.exit = returns

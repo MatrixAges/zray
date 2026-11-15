@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 
 pub const borrow = @import("borrow.zig");
+pub const initializer = @import("initializer.zig");
 
 pub fn headers(left: *const ir.FunctionTable, right: *const ir.FunctionTable, start: usize, end: usize) bool {
     if (start == end) return true;

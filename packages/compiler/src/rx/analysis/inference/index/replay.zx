@@ -1,0 +1,93 @@
+import integers from "std:integer"
+import memory from "std:memory"
+import { scalar_u8 } from "core/type_table/const"
+
+import representative from "../forest/borrowed_root"
+import knownNode from "../known/find"
+import index from "../sequences/index_plan"
+import { IndexRoute } from "../sequences/model"
+import target from "../sequences/target"
+import { Kind } from "../unification/model"
+
+import type { IndexPlan } from "../sequences/model"
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const empty: IndexPlan = {
+        route: IndexRoute.Wait,
+        child: 0,
+        declared: false
+    }
+
+    const node: u32? = null
+
+    return loop({
+        row: in.start,
+        found: false,
+        plan: empty,
+        node
+    }, {
+        while: state => !state.found && state.row < in.targets.length,
+        next: state => {
+            const row = state.row
+
+            if (!in.resolved[row]) {
+                const parent = representative({
+                    parents: in.parents,
+                    value: in.targets[row]
+                })
+                const root = integers.widen(parent)
+                const kind = in.graph.kinds[root]
+
+                if (kind != Kind.Unknown && kind != Kind.Sequence) {
+                    const plan = index({
+                        graph: in.graph,
+                        root,
+                        position: in.positions[row],
+                        target: target({
+                            graph: in.graph,
+                            root
+                        })
+                    })
+
+                    const sequence =
+                        plan.route == IndexRoute.List || plan.route == IndexRoute.Tuple
+                    const type_id: u32? = match {
+                        plan.route == IndexRoute.String => scalar_u8,
+                        sequence && plan.declared => plan.child,
+                        _ => null
+                    }
+                    const node: u32? = match {
+                        type_id != null => knownNode({
+                            known: in.known,
+                            type_id
+                        }),
+                        sequence => plan.child,
+                        _ => null
+                    }
+
+                    const same = node != null && representative({
+                        parents: in.parents,
+                        value: node
+                    }) == representative({
+                        parents: in.parents,
+                        value: in.values[row]
+                    })
+
+                    if (same) {
+                        memory.writeU8(in.resolution, row, 1)
+                    } else if (plan.route != IndexRoute.Wait) {
+                        state.plan = plan
+                        state.node = node
+                        state.found = true
+                    }
+                }
+            }
+
+            if (!state.found) {
+                state.row += 1
+            }
+        },
+        return: state => state
+    })
+}

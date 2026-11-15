@@ -1,0 +1,49 @@
+<Module>
+    <Type from="function_columns" as="Columns" />
+
+    <Args in={Columns.Input} out={bool} />
+
+    <Task name="stores" out={$ctx.validate}>
+        <Call fn="../stores/validate" in={$in.stores} />
+    </Task>
+
+    <If on={!$ctx.task.stores}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="../body/symbols"
+        in={$in.pick([
+            "symbols",
+            "max_offset"
+        ])}
+    />
+
+    <If on={!$ctx.symbols}>
+        <Return value={false} />
+    </If>
+
+    <Task name="expressions" out={$ctx.validate}>
+        <Call
+            fn="../expressions/validation/validate"
+            in={{
+                table: $in.expressions,
+                max_offset: $in.max_offset
+            }}
+        />
+    </Task>
+
+    <If on={!$ctx.task.expressions}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="../contracts/tables"
+        in={$in.pick([
+            "contracts",
+            "max_offset"
+        ])}
+    />
+
+    <Return value={$ctx.tables} />
+</Module>

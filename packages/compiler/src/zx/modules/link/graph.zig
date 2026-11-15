@@ -19,6 +19,7 @@ pub fn prepare(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules
 
     const paths = try allocator.alloc([]const u8, modules.len);
     const offsets = try allocator.alloc(u64, modules.len + 1);
+    const order = try allocator.alloc(u64, modules.len);
     var buffer: [2048]u8 = undefined;
     var temporary = std.heap.BufferFirstAllocator.init(&buffer, backing);
     const workspace = temporary.allocator();
@@ -39,7 +40,15 @@ pub fn prepare(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules
 
     const generated = @import("generated_artifact_graph");
     const Input = std.meta.Child(generated.Input);
-    const input: Input = .{ .paths = paths, .targets = targets.items, .offsets = offsets, .entry = entry };
+
+    const input: Input = .{
+        .paths = paths,
+        .targets = targets.items,
+        .offsets = offsets,
+        .entry = entry,
+        .order = @ptrCast(&order),
+        .capacity = order.len,
+    };
 
     const plan = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
@@ -53,7 +62,7 @@ pub fn prepare(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules
         .Ready => {},
     }
 
-    const rows = plan.order[0..@intCast(plan.count)];
+    const rows = order[0..@intCast(plan.count)];
 
     return .{
         .order = try rowsAsIndices(allocator, rows),

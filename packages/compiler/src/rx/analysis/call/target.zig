@@ -56,21 +56,33 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
 
     const attributes = checked.value.data.attributes;
 
-    if ((attributes.setter != null) != (options.setter != null) or options.project.context.stores.len != 0) return failure(allocator, .{ .path = options.owner, .location = options.call.location, .code = "capability", .message = "Store calls require explicit per-call authorization from module declarations" });
+    const admission = @import("availability.zig").check(.{
+        .source = attributes.module == null,
+        .check_authority = true,
+        .declared_setter = attributes.setter != null,
+        .setter = options.setter != null,
+        .ambient_store = options.project.context.stores.len != 0,
+    });
 
-    const target = optionalAttribute(options.call, "module") orelse attribute(options.call, "fn");
+    if (!admission.authorized) return failure(allocator, .{ .path = options.owner, .location = options.call.location, .code = "capability", .message = "Store calls require explicit per-call authorization from module declarations" });
+
+    const fields = @import("attributes.zig").scan(options.call);
+    const target = fields.module orelse fields.function.?;
     var project = options.project;
 
     if (project.source_index == null) project.source_index = try frontend.project.source_index.buildIn(allocator, options.sources, project.root_dir);
 
     const candidate = if (attributes.module) |module| block: {
         const owner = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, options.owner });
+        const scope = frontend.project.ImportScope.init(project.package_scopes, owner);
+        const registered = frontend.project.matchPackage(scope.dependencies(project.packages), module, true);
 
-        if (!rx.module_reference.isPackage(module, rx.module_reference.dependencies(options.project, owner))) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "unsupported", .message = "local module calls require RX module linking" });
+        if (registered.first == null) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "unsupported", .message = "local module calls require RX module linking" });
 
         var reporter: zx.Reporter = .{};
+        const route = frontend.project.importRoute(module);
 
-        const resolved = frontend.project.resolveModuleTarget(allocator, owner, module, options.project, &reporter, .{ .start = target.value_location.offset, .end = target.value_location.offset }) catch |err| {
+        const resolved = frontend.project.resolveScopedTarget(.{ .source = allocator, .compiled = allocator }, owner, module, route, options.project, scope, registered, &reporter, .{ .start = target.value_location.offset, .end = target.value_location.offset }) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
 
             return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "module", .message = reporter.diagnostic.?.message });

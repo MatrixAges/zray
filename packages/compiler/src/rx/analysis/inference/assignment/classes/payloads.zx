@@ -1,10 +1,12 @@
 import integers from "std:integer"
+import memory from "std:memory"
 import { max_nesting_depth } from "core/const"
 
-import representative from "../../forest/representative"
+import representative from "../../forest/borrowed_root"
 import { Route as WalkRoute } from "../../optional/model"
 import walk from "../../optional/walk"
 
+import type { U32Buffer } from "std:memory"
 import type { Graph } from "../../optional/model"
 
 export enum Action {
@@ -15,18 +17,18 @@ export enum Action {
 
 export type Input = {
     graph: Graph,
-    parents: u32[],
-    payloads: u32[],
+    parents: U32Buffer,
+    payloads: U32Buffer,
     start: u64,
     limit: u64,
     next: u64,
     source: u32,
     origin: u32,
-    remaining: u64,
+    remaining?: u64,
     action: Action
 }
 
-export type Output = Input.Omit("graph", "start", "limit")
+export type Output = Input.Omit("graph", "payloads", "start", "limit", "parents")
 
 export default function (in: Input): Output {
     return loop(in, {
@@ -34,61 +36,45 @@ export default function (in: Input): Output {
             state.action == Action.Scan &&
             state.next < state.limit,
         next: state => {
-            if (state.payloads.length == 0) {
-                const length = state.limit - state.start
-                const rows = state.graph.kinds.splice(0, length, [])[1]
-                const start = state.start
+            const source = state.source
+            const result = walk({
+                graph: state.graph,
+                parents: state.parents,
+                value: source,
+                root: source,
+                remaining: state.remaining ?? max_nesting_depth,
+                route: WalkRoute.Boundary
+            })
 
-                state.payloads = rows.map(
-                    (kind, index) => integers.narrow(start + index)
-                )[0]
-            } else {
-                const source = state.source
-                const result = walk({
-                    graph: state.graph,
+            if (result.route == WalkRoute.Declared) {
+                state.source = result.value
+                state.origin = result.root
+                state.remaining = result.remaining
+                state.action = Action.Register
+            } else if (result.route == WalkRoute.Boundary) {
+                const boundary = representative({
                     parents: state.parents,
-                    value: source,
-                    root: source,
-                    remaining: state.remaining,
-                    route: WalkRoute.Boundary
+                    value: result.value
                 })
 
-                state.parents = result.parents
+                state.origin = boundary
+                state.action = Action.Depth
+            } else {
+                memory.writeU32(
+                    state.payloads,
+                    state.next - state.start,
+                    result.root
+                )
 
-                if (result.route == WalkRoute.Declared) {
-                    state.source = result.value
-                    state.origin = result.root
-                    state.remaining = result.remaining
-                    state.action = Action.Register
-                } else if (result.route == WalkRoute.Boundary) {
-                    const boundary = representative({
-                        parents: state.parents,
-                        value: result.value
-                    })
+                state.next += 1
+                state.remaining = null
 
-                    state.parents = boundary.parents
-                    state.origin = boundary.item
-                    state.action = Action.Depth
-                } else {
-                    const node = integers.narrow(state.next)
-                    const index = state.next - state.start
-
-                    if (node != result.root) {
-                        state.payloads[index] = result.root
-                    }
-
-                    state.next += 1
-                    state.remaining = max_nesting_depth
-
-                    if (state.next < state.limit) {
-                        state.source = integers.narrow(state.next)
-                    }
+                if (state.next < state.limit) {
+                    state.source = integers.narrow(state.next)
                 }
             }
         },
         return: state => ({
-            parents: state.parents,
-            payloads: state.payloads,
             next: state.next,
             source: state.source,
             origin: state.origin,

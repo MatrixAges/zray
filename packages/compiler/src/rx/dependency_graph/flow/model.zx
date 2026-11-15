@@ -17,5 +17,4 @@ export type Input = {
     view: View,
     row: u64,
     tag: Tag,
-    task_rank: u64
 }

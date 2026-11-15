@@ -1,0 +1,99 @@
+<Module>
+    <Type from="model" as="Schedule" />
+
+    <Args in={Schedule.Input} out={Schedule.Output} />
+
+    <Switch on={$in}>
+        <Case value={Schedule.Form.ModuleShortcut}>
+            <Return
+                value={[
+                    Schedule.Step.ForwardPorts,
+                    Schedule.Step.PublishShortcut
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.ModuleBody}>
+            <Return
+                value={[
+                    Schedule.Step.InferBody,
+                    Schedule.Step.DefaultModuleOutput,
+                    Schedule.Step.MarkInput
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.CallWithArgument}>
+            <Return
+                value={[
+                    Schedule.Step.CallInput,
+                    Schedule.Step.PublishGetters,
+                    Schedule.Step.InferArgument,
+                    Schedule.Step.RestoreBindings,
+                    Schedule.Step.CallOutput,
+                    Schedule.Step.PublishCall
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.CallWithoutArgument}>
+            <Return
+                value={[
+                    Schedule.Step.CallInput,
+                    Schedule.Step.VoidInput,
+                    Schedule.Step.CallOutput,
+                    Schedule.Step.PublishCall
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.Task}>
+            <Return
+                value={[
+                    Schedule.Step.InferBody,
+                    Schedule.Step.InferTaskOutput,
+                    Schedule.Step.RestoreBindings,
+                    Schedule.Step.PublishTask
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.ParallelTask}>
+            <Return
+                value={[
+                    Schedule.Step.EnterTask,
+                    Schedule.Step.InferBody,
+                    Schedule.Step.DefaultTaskOutput,
+                    Schedule.Step.RequestTaskOutput,
+                    Schedule.Step.RestoreReturn,
+                    Schedule.Step.RestoreBindings,
+                    Schedule.Step.PublishTask
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.Case}>
+            <Return
+                value={[
+                    Schedule.Step.InferCaseLabel,
+                    Schedule.Step.RefineSubject,
+                    Schedule.Step.InferBody,
+                    Schedule.Step.RestoreFacts,
+                    Schedule.Step.RestoreBindings
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.Default}>
+            <Return
+                value={[
+                    Schedule.Step.InferDefaultLabel,
+                    Schedule.Step.RefineSubject,
+                    Schedule.Step.InferBody,
+                    Schedule.Step.RestoreFacts,
+                    Schedule.Step.RestoreBindings
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

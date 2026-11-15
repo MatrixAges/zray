@@ -1,4 +1,4 @@
-import type { U32Buffer } from "std:memory"
+import type { U8Buffer, U32Buffer, U32ListBuffer } from "std:memory"
 import type { Constraints } from "../../scalar/model"
 import type { Graph, Output as Restriction } from "../../scalar/restriction"
 
@@ -7,8 +7,22 @@ export type Input = {
     graph: Graph,
     parent: u32,
     child: u32,
+    columns: Columns,
+    shape: Shape,
     left: Constraints,
     right: Constraints
+}
+
+export type Columns = {
+    kinds: U8Buffer,
+    arguments: U32Buffer,
+    members: U32ListBuffer
+}
+
+export type Shape = {
+    kind: u8,
+    argument: u32,
+    members: u32[]
 }
 
 export type Output = {

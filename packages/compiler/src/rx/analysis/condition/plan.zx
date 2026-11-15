@@ -1,6 +1,9 @@
+import memory from "std:memory"
+
 import { Operator } from "../../../zx/frontend/parser/expressions/prepare/model"
 import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
 
+import type { U64Buffer } from "std:memory"
 import type { ExprNode } from "../../../zx/frontend/parser/expressions/state/model"
 
 export type Facts = {
@@ -12,69 +15,83 @@ export type Input = {
     nodes: ExprNode[],
     condition: u64,
     truth: bool,
-    facts: Facts
+    pending: U64Buffer
 }
 
 export type Output = Facts
 
-export default function plan(in: Input): Output {
-    const node = in.nodes[in.condition]
+export default function (in: Input): Output {
+    const first: u64? = null
+    const rest: u64[] = []
 
-    if (node.kind == ExprKind.Unary && !node.flag) {
-        return plan({
-            ...in,
-            condition: node.first,
-            truth: !in.truth
+    return loop({
+        condition: in.condition,
+        truth: in.truth,
+        depth: 0,
+        active: true,
+        first,
+        rest
+    }, {
+        while: state => state.active,
+        next: state => {
+            const node = in.nodes[state.condition]
+            const negate = node.kind == ExprKind.Unary && !node.flag
+            const binary = node.kind == ExprKind.Binary
+            const conjunction = node.operator == Operator.And && state.truth
+            const disjunction = node.operator == Operator.Or && !state.truth
+            const split = binary && (conjunction || disjunction)
+
+            if (negate) {
+                state.condition = node.first
+                state.truth = !state.truth
+            } else if (split) {
+                memory.writeU64(in.pending, state.depth, state.condition)
+
+                state.depth += 1
+                state.condition = node.first
+            } else {
+                const equality = node.operator == Operator.Equal && !state.truth
+                const inequality = node.operator == Operator.NotEqual && state.truth
+                const confirms = binary && (equality || inequality)
+
+                if (confirms) {
+                    const fact: u64? = match {
+                        in.nodes[node.first].kind == ExprKind.Null => node.second,
+                        in.nodes[node.second].kind == ExprKind.Null => node.first,
+                        _ => null
+                    }
+
+                    if (fact != null) {
+                        const kind = in.nodes[fact].kind
+
+                        if (
+                            kind == ExprKind.Identifier || kind == ExprKind.Field
+                        ) {
+                            if (state.first == null) {
+                                state.first = fact
+                            } else {
+                                state.rest = state.rest.push(fact)[0]
+                            }
+                        }
+                    }
+                }
+
+                if (state.depth == 0) {
+                    state.active = false
+                } else {
+                    state.depth -= 1
+
+                    const parent = memory.readU64(in.pending, state.depth)
+                    const group = in.nodes[parent]
+
+                    state.condition = group.second
+                    state.truth = group.operator == Operator.And
+                }
+            }
+        },
+        return: state => ({
+            first: state.first,
+            rest: state.rest
         })
-    }
-
-    if (node.kind != ExprKind.Binary) {
-        return in.facts
-    }
-
-    const conjunction = node.operator == Operator.And && in.truth
-    const disjunction = node.operator == Operator.Or && !in.truth
-
-    if (conjunction || disjunction) {
-        const facts = plan({
-            ...in,
-            condition: node.first
-        })
-
-        return plan({
-            nodes: in.nodes,
-            condition: node.second,
-            truth: in.truth,
-            facts
-        })
-    }
-
-    const equality = node.operator == Operator.Equal && !in.truth
-    const inequality = node.operator == Operator.NotEqual && in.truth
-
-    if (!equality && !inequality) {
-        return in.facts
-    }
-
-    const fact: u64? = match {
-        in.nodes[node.first].kind == ExprKind.Null => node.second,
-        in.nodes[node.second].kind == ExprKind.Null => node.first,
-        _ => null
-    }
-
-    if (fact == null) {
-        return in.facts
-    }
-
-    if (in.facts.first == null) {
-        return {
-            first: fact,
-            rest: in.facts.rest
-        }
-    }
-
-    return {
-        first: in.facts.first,
-        rest: in.facts.rest.push(fact)[0]
-    }
+    })
 }

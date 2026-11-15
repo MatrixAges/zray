@@ -1,23 +1,16 @@
-import { Action, Gate } from "./model"
+import { Route } from "./model"
+
+import type { Policy } from "./model"
 
 export type Input = bool
 
-export type Output = {
-    named: Action,
-    ambiguous: Action,
-    open: Action,
-    absent: Action,
-    open_gate: Gate,
-    absent_gate: Gate
-}
+export type Output = Policy
 
 export default function (in: Input): Output {
     return {
-        named: Action.Bind,
-        ambiguous: in ? Action.Ambiguous : Action.Skip,
-        open: Action.Infer,
-        absent: in ? Action.Missing : Action.Skip,
-        open_gate: in ? Gate.Required : Gate.Constrained,
-        absent_gate: Gate.Required
+        ambiguous: in ? Route.Ambiguous : Route.Skip,
+        ambiguous_named: in ? Route.RegisterAmbiguous : Route.Register,
+        open: in ? Route.InferRequired : Route.InferConstrained,
+        absent: in ? Route.MissingRequired : Route.Skip
     }
 }

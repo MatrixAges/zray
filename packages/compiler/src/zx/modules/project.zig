@@ -7,6 +7,7 @@ pub const SemanticCache = @import("semantic_cache.zig");
 pub const artifact = @import("artifact.zig");
 const HostContext = @import("../analysis/analyzer/host/context.zig");
 pub const FunctionImport = @import("function_import.zig");
+pub const SourceStoreInitializer = @import("source_store_initializer.zig");
 const Signature = @import("source_signature.zig");
 pub const public_exports = @import("public_exports.zig");
 const Analysis = @import("../analysis/analyze.zig");
@@ -82,7 +83,6 @@ const LoadFrame = struct {
     index: usize,
     parsed: ParseCache.Version,
     next_import: usize = 0,
-    pending: ?usize = null,
     aliases: std.ArrayList(ir.Export) = .empty,
     imported_names: @import("project/load/imports/host.zig") = .{},
     imports: std.ArrayList(FunctionImport) = .empty,
@@ -92,6 +92,10 @@ const LoadFrame = struct {
     export_constants: std.ArrayList(ir.Constant) = .empty,
     export_functions: std.ArrayList(FunctionImport) = .empty,
     signature_members: std.ArrayList(Signature.Member) = .empty,
+    fn deinitScratch(self: *LoadFrame, allocator: std.mem.Allocator) void {
+        self.imported_names.deinit(allocator);
+        self.signature_members.deinit(allocator);
+    }
 };
 
 const Project = struct {
@@ -100,6 +104,7 @@ const Project = struct {
     binding_scratch: std.heap.ArenaAllocator,
     sources: []const Source,
     parse_cache: *ParseCache,
+    prefetched: ?ParseCache.Prefetched = null,
     semantic_cache: ?*SemanticCache = null,
     restored_payloads: ?*zx.Arena = null,
     load_frames: std.ArrayList(LoadFrame) = .empty,
@@ -131,26 +136,32 @@ const Project = struct {
     fn loadFrames(self: *Project, index: usize, comptime phase: Loading.Phase) zx.Error!void {
         const frames = &self.load_frames;
 
-        switch (Loading.admit(self.load_states[index], frames.items.len)) {
+        switch (Loading.admit(self.load_states, index, frames.items.len)) {
             .Skip => return,
             .Cycle => return self.dependencyCycle(),
             .Depth => return self.dependencyDepth(),
             .Push => try self.pushFrame(index),
         }
 
+        var completed: ?usize = null;
+
         while (frames.items.len != 0) {
             const frame = &frames.items[frames.items.len - 1];
             self.current_source = frame.index;
 
             const dependency = switch (frame.parsed.result.*) {
-                .native => |result| try self.loadInput(frame, Input.Native{ .value = result.value.parsed }, phase),
-                .indexed => |*result| if (ParseCache.indexed_enabled) try self.loadInput(frame, Input.Indexed{ .value = result }, phase) else unreachable,
+                .native => |result| try self.loadInput(frame, Input.Native{ .value = result.value.parsed }, phase, completed),
+                .indexed => |*result| if (ParseCache.indexed_enabled) try self.loadInput(frame, Input.Indexed{ .value = result }, phase, completed) else unreachable,
             };
 
             if (dependency) |child| {
+                completed = null;
+
                 try self.pushFrame(child);
             } else {
-                frame.imported_names.deinit(self.arena.child_allocator);
+                completed = Loading.complete(self.load_states, frame.index, frames.items.len);
+
+                frame.deinitScratch(self.arena.child_allocator);
 
                 _ = frames.pop();
             }
@@ -162,7 +173,7 @@ const Project = struct {
 
         self.unit_indices.deinit(allocator);
 
-        for (self.load_frames.items) |*frame| frame.imported_names.deinit(allocator);
+        for (self.load_frames.items) |*frame| frame.deinitScratch(allocator);
 
         self.load_frames.deinit(allocator);
         self.cache_records.deinit(allocator);
@@ -172,14 +183,17 @@ const Project = struct {
     fn pushFrame(self: *Project, index: usize) zx.Error!void {
         const unit = &self.units[index];
         const frames = &self.load_frames;
-
-        self.load_states[index] = .Visiting;
         self.current_source = index;
 
-        const parsed = try self.parse_cache.getModuleVersion(self.sources[index].source, unit.path);
+        const parsed = if (self.prefetched) |batch| borrowed: {
+            self.parse_cache.reused += 1;
+
+            break :borrowed batch.at(index);
+        } else try self.parse_cache.getModuleVersion(self.sources[index].source, unit.path);
 
         if (parsed.result.diagnostic()) |diagnostic| {
             var issue = diagnostic;
+
             issue.message = try self.allocator.dupe(u8, issue.message);
             issue.message_allocator = null;
             self.reporter.diagnostic = issue;
@@ -195,7 +209,7 @@ const Project = struct {
     fn dependencyDepth(self: *Project) zx.Error {
         return self.reporter.fail(.module, .{ .start = 0, .end = 0 }, "module dependency depth exceeds 256");
     }
-    fn loadInput(self: *Project, frame: *LoadFrame, input: anytype, comptime phase: Loading.Phase) zx.Error!?usize {
+    fn loadInput(self: *Project, frame: *LoadFrame, input: anytype, comptime phase: Loading.Phase, completed: ?usize) zx.Error!?usize {
         const index = frame.index;
         const unit = &self.units[index];
         const header = input.header();
@@ -203,6 +217,7 @@ const Project = struct {
         const aliases = &frame.aliases;
         const imports = &frame.imports;
         const constants = &frame.constant_imports;
+        var pending = completed;
         var paths = std.heap.ArenaAllocator.init(self.arena.child_allocator);
 
         defer paths.deinit();
@@ -212,11 +227,10 @@ const Project = struct {
             const selected_aliases = if (item.exported) &frame.export_aliases else aliases;
             const selected_imports = if (item.exported) &frame.export_functions else imports;
             const selected_constants = if (item.exported) &frame.export_constants else constants;
-            const pending = frame.pending;
             var path_buffer: [512]u8 = undefined;
             var path_memory = std.heap.BufferFirstAllocator.init(&path_buffer, paths.allocator());
 
-            const target: ImportTarget = if (pending) |resumed| .{ .source = self.units[resumed].path } else target_block: {
+            const resolved: Target.Resolved = if (pending) |resumed| .{ .target = .{ .source = self.units[resumed].path } } else target_block: {
                 if (try frame.imported_names.claim(self.arena.child_allocator, item)) |name| {
                     return self.reporter.fail(.name, name.span, "duplicate import binding");
                 }
@@ -260,12 +274,18 @@ const Project = struct {
 
                         continue;
                     },
-                    .File, .Package => break :target_block try Target.resolve(path_memory.allocator(), unit.path, item.path, route, self.options, self.reporter, item.span),
+                    .File, .Package => {
+                        const scratch = path_memory.allocator();
+                        const scope = Target.Scope.init(self.options.package_scopes, unit.path);
+
+                        break :target_block try Target.resolveIndexed(.{ .source = scratch, .compiled = scratch }, unit.path, item.path, route, self.options, scope, null, self.reporter, item.span);
+                    },
                 }
             };
 
             defer _ = paths.reset(.retain_capacity);
             var source_path: ?[]const u8 = null;
+            const target = resolved.target;
 
             const imported = switch (target) {
                 .source => |path| block: {
@@ -279,12 +299,13 @@ const Project = struct {
                         break :block importedSource(loaded, phase);
                     }
 
-                    const plan = Loading.source(&self.unit_indices, self.load_states, .{
+                    const plan = Loading.source(self.options.source_index.?, self.load_states, .{
                         .path = path,
                         .phase = phase,
                         .function_import = item.kind == .function,
                         .exported = item.exported,
                         .depth = self.load_frames.items.len,
+                        .row = resolved.source_row,
                     });
 
                     switch (plan.action) {
@@ -298,11 +319,7 @@ const Project = struct {
                         .Missing => return self.reporter.fail(.module, item.span, "import target is missing from the source set"),
                         .Cycle => return self.dependencyCycle(),
                         .Depth => return self.dependencyDepth(),
-                        .Descend => {
-                            frame.pending = plan.index.?;
-
-                            return plan.index;
-                        },
+                        .Descend => return plan.index,
                         .Bind => {
                             const loaded = &self.units[plan.index.?];
                             source_path = loaded.path;
@@ -314,7 +331,7 @@ const Project = struct {
                 .compiled => |value| try self.loadCompiled(value, item.span),
             };
 
-            frame.pending = null;
+            pending = null;
             self.current_source = index;
 
             if (phase == .signature) {
@@ -357,7 +374,6 @@ const Project = struct {
             unit.signature_imports = imports.items;
             unit.signature_reexports = frame.export_functions.items;
             unit.signature_constant_imports = constants.items;
-            self.load_states[index] = .Done;
         } else try self.finishInput(frame, input);
 
         return null;
@@ -401,7 +417,7 @@ const Project = struct {
             var member = if (imported.signatures.len == 0) self.memberSignature(members.at(row)) else imported.signatures[row];
             member.name = try self.allocator.dupe(u8, name);
 
-            try frame.signature_members.append(self.allocator, member);
+            try frame.signature_members.append(self.arena.child_allocator, member);
         };
     }
     fn memberSignature(self: *const Project, member: *const FunctionImport) Signature.Member {
@@ -553,8 +569,6 @@ const Project = struct {
             program.functions = .{};
             self.entry_program = program;
         }
-
-        self.load_states[frame.index] = .Done;
     }
     fn loadCompiled(self: *Project, target: compiled.Target, span: zx.Span) zx.Error!Imported {
         const exported = compiled.imports.load(self.allocator, &self.options, target, .{
@@ -577,7 +591,9 @@ const Project = struct {
         return .{ .exports = exported.types, .constant_exports = exported.constants, .members = exported.members, .default_member = default };
     }
     fn find(self: *Project, path: []const u8) ?usize {
-        return self.unit_indices.get(path);
+        const index = self.options.source_index.?.get(path) orelse return null;
+
+        return if (index < self.units.len) index else null;
     }
 
     /// Indexes the unit paths for `find`; reports whether they are unique.
@@ -587,7 +603,7 @@ const Project = struct {
         if (comptime @import("parser_options").generated_parser) {
             for (self.units, self.unit_indices.keys) |*unit, *key| key.* = unit.path;
 
-            return self.unit_indices.buildUnique();
+            return self.unit_indices.firstDuplicate(self.units.len) == null;
         }
 
         for (self.units, 0..) |unit, index| {
@@ -716,6 +732,30 @@ pub fn analyzeSignatures(allocator: std.mem.Allocator, sources: []const Source, 
 
 /// A shared cache must outlive the returned signatures, since they may borrow parsed syntax.
 pub fn analyzeSignaturesWithCache(allocator: std.mem.Allocator, sources: []const Source, entries: []const []const u8, options: Options, shared: ?*ParseCache) std.mem.Allocator.Error!signature_project.Result {
+    return analyzeSignatureEntries(allocator, sources, .{ .paths = entries }, options, shared, null, null);
+}
+
+/// The validated index begins with the ZX sources in source order. The canonical path text
+/// in the graph outlives these signatures. The lookup table is borrowed for this call.
+pub fn analyzeRegisteredSignatures(allocator: std.mem.Allocator, sources: []const Source, entries: []const []const u8, options: Options, shared: *ParseCache, registered: *const source_index.Map) std.mem.Allocator.Error!signature_project.Result {
+    return analyzeSignatureEntries(allocator, sources, .{ .paths = entries }, options, shared, registered, null);
+}
+
+/// The batch and registry come from the same graph scan. Their cache is unchanged until analysis finishes.
+pub fn analyzePrefetchedSignatures(allocator: std.mem.Allocator, prefetched: ParseCache.Prefetched, entries: []const u64, options: Options, registered: *const source_index.Map) std.mem.Allocator.Error!signature_project.Result {
+    if (comptime @hasField(source_index.Map, "keys")) {
+        std.debug.assert(prefetched.paths.len == 0 or prefetched.paths.ptr == registered.keys.ptr);
+    }
+
+    return analyzeSignatureEntries(allocator, prefetched.sources, .{ .rows = entries }, options, prefetched.cache.?, registered, prefetched);
+}
+
+const SignatureEntries = union(enum) {
+    paths: []const []const u8,
+    rows: []const u64,
+};
+
+fn analyzeSignatureEntries(allocator: std.mem.Allocator, sources: []const Source, entries: SignatureEntries, options: Options, shared: ?*ParseCache, registered: ?*const source_index.Map, prefetched: ?ParseCache.Prefetched) std.mem.Allocator.Error!signature_project.Result {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
@@ -733,23 +773,54 @@ pub fn analyzeSignaturesWithCache(allocator: std.mem.Allocator, sources: []const
         .diagnostic => |issue| return .{ .arena = arena, .value = .{ .diagnostic = issue } },
     };
 
-    const units = try owned.alloc(Unit, sources.len);
+    const units = try allocator.alloc(Unit, sources.len);
 
-    for (sources, 0..) |source, index| units[index] = .{ .path = try std.fs.path.resolve(owned, &.{ options.root_dir, source.path }) };
+    defer allocator.free(units);
 
-    var project = Project{ .binding_scratch = std.heap.ArenaAllocator.init(allocator), .arena = &arena, .allocator = owned, .sources = sources, .parse_cache = cache, .units = units, .load_states = try Loading.states(owned, units.len), .options = options, .reporter = &reporter, .types = state.types, .native_modules = state.native_modules, .nominal_origins = state.origins };
+    const load_states = try Loading.states(allocator, units.len);
+
+    defer allocator.free(load_states);
+
+    const indexed_paths = if (comptime @hasField(source_index.Map, "keys"))
+        if (registered) |index| index.keys[0..sources.len] else null
+
+    else
+        null;
+
+    const paths = if (prefetched) |batch| batch.paths else indexed_paths;
+
+    if (paths) |canonical| {
+        for (units, canonical) |*unit, path| unit.* = .{ .path = path };
+    } else {
+        for (units, sources) |*unit, source| unit.* = .{ .path = try std.fs.path.resolve(owned, &.{ options.root_dir, source.path }) };
+    }
+
+    var project = Project{ .binding_scratch = std.heap.ArenaAllocator.init(allocator), .arena = &arena, .allocator = owned, .sources = sources, .parse_cache = cache, .prefetched = prefetched, .units = units, .load_states = load_states, .options = options, .reporter = &reporter, .types = state.types, .native_modules = state.native_modules, .nominal_origins = state.origins };
 
     defer project.deinitScratch();
 
-    if (!try project.indexUnits()) return .{ .arena = arena, .value = .{ .diagnostic = .{ .code = .module, .span = .{ .start = 0, .end = 0 }, .message = "source paths must be unique after normalization" } } };
+    if (registered == null and !try project.indexUnits()) return .{ .arena = arena, .value = .{ .diagnostic = .{ .code = .module, .span = .{ .start = 0, .end = 0 }, .message = "source paths must be unique after normalization" } } };
 
-    project.options.source_index = &project.unit_indices;
+    project.options.source_index = registered orelse &project.unit_indices;
 
-    const modules = try owned.alloc(signature_project.Module, entries.len);
+    const count = switch (entries) {
+        inline else => |items| items.len,
+    };
 
-    for (entries, modules) |entry, *module| {
-        const path = try std.fs.path.resolve(owned, &.{ options.root_dir, entry });
-        const index = project.find(path) orelse return .{ .arena = arena, .value = .{ .diagnostic = .{ .code = .module, .span = .{ .start = 0, .end = 0 }, .message = "signature entry module is missing" } } };
+    const modules = try owned.alloc(signature_project.Module, count);
+
+    for (modules, 0..) |*module, position| {
+        const selected: ?usize = switch (entries) {
+            .rows => |rows| if (rows[position] < units.len) @intCast(rows[position]) else null,
+            .paths => |names| lookup: {
+                const entry = names[position];
+                const path = if (registered != null) entry else try std.fs.path.resolve(owned, &.{ options.root_dir, entry });
+
+                break :lookup project.find(path);
+            },
+        };
+
+        const index = selected orelse return .{ .arena = arena, .value = .{ .diagnostic = .{ .code = .module, .span = .{ .start = 0, .end = 0 }, .message = "signature entry module is missing" } } };
 
         project.loadFrames(index, .signature) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
@@ -762,6 +833,7 @@ pub fn analyzeSignaturesWithCache(allocator: std.mem.Allocator, sources: []const
 
         module.* = .{
             .path = units[index].path,
+            .source_row = index,
             .signature = units[index].signature.?,
             .type_imports = units[index].signature_aliases,
             .function_imports = units[index].signature_imports,
@@ -812,13 +884,19 @@ fn analyzeWithCaches(allocator: std.mem.Allocator, raw_sources: []const Source, 
         .diagnostic => |issue| return .{ .arena = arena, .value = .{ .diagnostic = issue } },
     };
 
-    const units = try temporary.alloc(Unit, sources.len);
+    const units = try allocator.alloc(Unit, sources.len);
+
+    defer allocator.free(units);
+
+    const load_states = try Loading.states(allocator, units.len);
+
+    defer allocator.free(load_states);
 
     for (sources, 0..) |source, index| units[index] = .{ .path = try std.fs.path.resolve(temporary, &.{ options.root_dir, source.path }) };
 
     var normalized = options;
     normalized.entry = try std.fs.path.resolve(temporary, &.{ options.root_dir, options.entry });
-    var project = Project{ .binding_scratch = std.heap.ArenaAllocator.init(allocator), .arena = &arena, .allocator = temporary, .sources = sources, .parse_cache = cache, .semantic_cache = if (restored_payloads != null) semantic_cache else null, .restored_payloads = if (restored_payloads) |*payloads| payloads else null, .units = units, .load_states = try Loading.states(temporary, units.len), .options = normalized, .reporter = &reporter, .types = state.types, .native_modules = state.native_modules, .nominal_origins = state.origins };
+    var project = Project{ .binding_scratch = std.heap.ArenaAllocator.init(allocator), .arena = &arena, .allocator = temporary, .sources = sources, .parse_cache = cache, .semantic_cache = if (restored_payloads != null) semantic_cache else null, .restored_payloads = if (restored_payloads) |*payloads| payloads else null, .units = units, .load_states = load_states, .options = normalized, .reporter = &reporter, .types = state.types, .native_modules = state.native_modules, .nominal_origins = state.origins };
 
     defer project.deinitScratch();
 
@@ -900,6 +978,15 @@ pub fn resolveModuleReference(allocator: std.mem.Allocator, from: []const u8, pa
 pub fn resolveModuleTarget(allocator: std.mem.Allocator, from: []const u8, path: []const u8, options: Options, reporter: *zx.Reporter, span: zx.Span) zx.Error!ImportTarget {
     return (try resolveModuleReference(allocator, from, path, options, reporter, span)).target;
 }
+
+pub const ImportScope = Target.Scope;
+pub const importRoute = Target.classify;
+pub const resolveScopedTarget = Target.resolveScoped;
+pub const resolveIndexedTarget = Target.resolveIndexed;
+pub const SourceSelection = Target.SourceSelection;
+pub const selectIndexedSource = Target.selectIndexed;
+pub const matchPackage = @import("project/target/registry.zig").package;
+pub const PackageMatch = @import("project/target/registry.zig").Match;
 
 pub fn selectSource(allocator: std.mem.Allocator, candidate: []const u8, options: Options) std.mem.Allocator.Error![]const u8 {
     return Target.select(allocator, candidate, options.source_index);

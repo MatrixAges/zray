@@ -3,6 +3,8 @@ const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const enabled = @import("parser_options").generated_parser;
 const seed = @import("binding_path/seed.zig");
+const layout_rule = if (enabled) @import("generated_binding_path_layout") else void;
+pub const IndexedNodes = if (enabled) @FieldType(std.meta.Child(layout_rule.Input), "nodes") else void;
 
 pub const Path = struct {
     text: []const u8,
@@ -80,21 +82,8 @@ pub fn path(allocator: std.mem.Allocator, expression: anytype) std.mem.Allocator
 pub fn view(allocator: std.mem.Allocator, expression: anytype) std.mem.Allocator.Error!?Path {
     if (comptime enabled and @TypeOf(expression) != *const zx.ast.Expression) {
         const context = expression.context;
-        const node = context.storage.expressions.nodes[expression.index];
 
-        if (node.kind == .Identifier) return .{ .text = context.text(node.name) };
-        if (node.kind != .Field) return null;
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const layout = (@import("generated_binding_path_layout").executeValue(empty.allocator(), &.{
-            .nodes = context.storage.expressions.nodes,
-            .node = expression.index,
-        }) catch unreachable) orelse return null;
-
-        if (layout.contiguous) return .{ .text = context.source[@intCast(layout.start)..][0..@intCast(layout.length)] };
-
-        return .{ .text = try copy(allocator, expression, @intCast(layout.length)), .allocated = true };
+        return indexedView(allocator, context.source, context.storage.expressions.nodes, expression.index);
     }
 
     const value = syntax.value(expression);
@@ -102,6 +91,30 @@ pub fn view(allocator: std.mem.Allocator, expression: anytype) std.mem.Allocator
     if (value == .identifier) return .{ .text = value.identifier.text };
 
     return .{ .text = try copy(allocator, expression, seed.pathLength(expression) orelse return null), .allocated = true };
+}
+
+pub fn indexedView(allocator: std.mem.Allocator, source: []const u8, nodes: IndexedNodes, index: u64) std.mem.Allocator.Error!?Path {
+    const node = nodes[@intCast(index)];
+
+    if (node.kind == .Identifier) return .{ .text = source[@intCast(node.name.start)..@intCast(node.name.end)] };
+    if (node.kind != .Field) return null;
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const layout = (layout_rule.executeValue(empty.allocator(), &.{ .nodes = nodes, .node = index }) catch unreachable) orelse return null;
+
+    if (layout.contiguous) return .{ .text = source[@intCast(layout.start)..][0..@intCast(layout.length)] };
+
+    const text = try allocator.alloc(u8, @intCast(layout.length));
+
+    @import("generated_binding_path_write").executeValue(empty.allocator(), &.{
+        .source = source,
+        .nodes = nodes,
+        .node = index,
+        .length = layout.length,
+        .target = @ptrCast(&text),
+    }) catch unreachable;
+
+    return .{ .text = text, .allocated = true };
 }
 
 fn copy(allocator: std.mem.Allocator, expression: anytype, length: usize) std.mem.Allocator.Error![]const u8 {

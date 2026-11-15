@@ -16,6 +16,7 @@
         in={{
             units: $in.shape.units,
             layout: $ctx.summarize,
+            blocks: $in.blocks,
             capture_count: $in.capture_count,
             void_output: $in.void_output
         }}

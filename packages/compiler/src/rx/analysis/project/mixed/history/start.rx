@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="History" />
+
+    <Args in={History.Start} out={bool} />
+
+    <Call fn="../../history/inputs" in={$in.inputs} />
+
+    <If on={!$ctx.inputs || !$in.boundary}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="graph_match" in={$in.graph} />
+
+    <Return value={$ctx.graph_match} />
+</Module>

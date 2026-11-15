@@ -11,7 +11,7 @@ pub fn item(comptime kind: Kind, sequence: anytype, index: usize) @TypeOf(sequen
         return .{ .kind = if (edge.ensures) .ensures else .requires, .predicate = context.expression(edge.predicate), .span = span(edge.span) };
     }
 
-    const id = context.order.edges[sequence.first + index];
+    const id: usize = @intCast(context.order.edges[sequence.first + index]);
 
     return switch (kind) {
         .arguments => context.expression(context.storage.expressions.items[id].value),

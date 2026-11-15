@@ -1,0 +1,35 @@
+import memory from "std:memory"
+
+import type { U32Buffer } from "std:memory"
+
+export type Input = {
+    symbols: u32?[],
+    bindings?: U32Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const bindings = in.bindings
+
+    if (bindings == null) {
+        return
+    }
+
+    const published = loop({
+        source: 0,
+        target: 0
+    }, {
+        while: state => state.source < in.symbols.length,
+        next: state => {
+            const id = in.symbols[state.source]
+
+            if (id != null) {
+                memory.writeU32(bindings, state.target, id)
+                state.target += 1
+            }
+
+            state.source += 1
+        }
+    })
+}

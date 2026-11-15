@@ -7,16 +7,16 @@ const expression = @import("expression.zig");
 const target = @import("call/target.zig");
 
 pub const Options = struct {
-    aliases: []const zx.ir.Export = &.{},
+    aliases: frontend.expressions.BindingColumns = .{},
     module: rx.ModuleSource,
     calls: []const Module.Loaded,
-    steps: []const @import("project/flow.zig").Step,
+    plan: @import("project/flow.zig").Plan,
     bindings: Module.Bindings,
     tasks: []const zx.ir.TypeId = &.{},
     types: zx.ir.TypeTable,
     nominal_types: @FieldType(frontend.AnalysisResult, "nominal_types"),
     native_modules: zx.ir.NativeModuleTable = .{},
-    shared_functions: ?zx.ir.FunctionTable = null,
+    shared_functions: zx.ir.FunctionTable,
     verified_functions: zx.ir.FunctionTable = .{},
     store_initializers: []const frontend.project.compiled.StoreInitializer = &.{},
     input_type: zx.ir.TypeId,
@@ -32,6 +32,7 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
         .allocator = allocator,
         .scratch = scratch,
         .binding_allocator = scope.allocator(),
+        .retain_metadata = true,
         .owner = options.module.path,
         .aliases = options.aliases,
         .types = options.types,
@@ -42,12 +43,13 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
         .loaded = options.calls,
         .results = options.bindings,
         .tasks = options.tasks,
+        .plan = &options.plan,
         .unit_input = options.input_type == @as(zx.ir.TypeId, @fromBackingInt(@intCast(@backingInt(zx.ir.Scalar.void)))),
     };
 
     if (options.input_type != @as(zx.ir.TypeId, @fromBackingInt(@intCast(@backingInt(zx.ir.Scalar.void))))) try flow.bindings.append(flow.binding_allocator, .{ .name = "$in", .type_id = options.input_type });
 
-    const steps = flow.steps(options.steps) catch |err| {
+    const root = flow.root(options.plan.root) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return diagnostic(allocator, options.module.path, flow.issue.?);
@@ -55,15 +57,8 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
 
     const types = flow.types;
     const calls = flow.calls;
-    var result: ?zx.ir.Program = if (steps.len != 0 and steps[steps.len - 1] == .result) steps[steps.len - 1].result else null;
-
-    const native_modules = if (options.shared_functions != null) options.native_modules else @import("module_native.zig").merge(allocator, calls.items, types, options.native_modules) catch |err| {
-        if (err == error.OutOfMemory) return error.OutOfMemory;
-
-        const failed = try target.failure(allocator, .{ .path = options.module.path, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "contract", .message = "RX calls contain conflicting native interfaces" });
-
-        return .{ .diagnostic = failed.diagnostic };
-    };
+    var result = flow.compiled.result(root);
+    const native_modules = options.native_modules;
 
     for (calls.items) |*call| {
         call.callee.types = types;
@@ -78,7 +73,7 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
         program.native_modules = native_modules;
     }
 
-    const lowered = @import("program.zig").lower(allocator, .{ .owner = options.module.path, .types = types, .input_type = options.input_type, .output_type = options.output_type, .calls = calls.items, .native_modules = native_modules, .shared_functions = options.shared_functions, .store_initializers = options.store_initializers, .steps = steps }) catch |err| {
+    const lowered = @import("program.zig").lower(allocator, .{ .owner = options.module.path, .types = types, .input_type = options.input_type, .output_type = options.output_type, .calls = calls.items, .native_modules = native_modules, .shared_functions = options.shared_functions, .store_initializers = options.store_initializers, .flow = &flow.compiled, .retain_metadata = flow.retain_metadata }) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
         if (err == error.UnreachableFlow or err == error.IncompleteFlow) return invalid(allocator, options, .{ .code = .return_path, .span = .{ .start = 0, .end = 0 }, .message = if (err == error.UnreachableFlow) "steps after a terminating Return or Switch are unreachable" else "every RX path must return Output" });
 

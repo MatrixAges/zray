@@ -1,0 +1,22 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { U32Buffer } from "std:memory"
+
+export type Range = {
+    firsts: U32Buffer,
+    counts: U32Buffer,
+    first: u32
+}
+
+export type Input = {
+    range: Range,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU32(in.range.firsts, 0, in.range.first)
+    memory.writeU32(in.range.counts, 0, integers.narrow(in.count))
+}

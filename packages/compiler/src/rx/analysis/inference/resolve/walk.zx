@@ -1,7 +1,8 @@
 import integers from "std:integer"
+import memory from "std:memory"
 import { max_nesting_depth } from "core/const"
 
-import representative from "../forest/representative"
+import representative from "../forest/borrowed_root"
 import numericDefault from "../scalar/default"
 import { Kind } from "../unification/model"
 import { Route } from "./model"
@@ -28,7 +29,7 @@ export default function (in: Input): Output {
                     state.route = Route.Complete
                 } else {
                     const frame = (state.depth - 1) * 2
-                    const node = integers.narrow(state.frames[frame])
+                    const node = integers.narrow(memory.readU64(state.frames, frame))
                     const index = integers.widen(node)
                     const kind = graph.kinds[index]
 
@@ -39,26 +40,28 @@ export default function (in: Input): Output {
                     } else {
                         const used = state.used
 
-                        if (used == state.values.length) {
-                            state.values = state.values.push(completed)[0]
+                        if (used == state.value_capacity) {
+                            state.route = Route.GrowValues
                         } else {
-                            state.values[used] = completed
-                        }
+                            memory.writeU32(state.values, used, completed)
 
-                        const start = state.frames[frame + 1]
-                        const members = graph.members[index]
-                        const count = used + 1 - start
+                            const start = memory.readU64(state.frames, frame + 1)
+                            const members = graph.members[index]
+                            const count = used + 1 - start
 
-                        if (count == members.length) {
-                            state.node = node
-                            state.depth -= 1
-                            state.used = start
-                            state.count = count
-                            state.route = kind == Kind.Object ? Route.Object : Route.Tuple
-                        } else {
-                            state.node = members[count]
-                            state.used = used + 1
-                            state.completed = null
+                            if (count == members.length) {
+                                state.node = node
+                                state.depth -= 1
+                                state.used = start
+                                state.count = count
+                                const object = kind == Kind.Object
+
+                                state.route = object ? Route.Object : Route.Tuple
+                            } else {
+                                state.node = members[count]
+                                state.used = used + 1
+                                state.completed = null
+                            }
                         }
                     }
                 }
@@ -67,10 +70,9 @@ export default function (in: Input): Output {
                     parents: state.parents,
                     value: state.node
                 })
-                const index = integers.widen(found.item)
+                const index = integers.widen(found)
 
-                state.parents = found.parents
-                state.node = found.item
+                state.node = found
 
                 if (state.depth >= max_nesting_depth) {
                     state.route = Route.Depth
@@ -120,16 +122,15 @@ export default function (in: Input): Output {
                             const frame = state.depth * 2
                             const start = state.used
 
-                            if (frame == state.frames.length) {
-                                state.frames = state.frames
-                                    .push(index)[0].push(start)[0]
+                            if (frame + 2 > state.frame_capacity) {
+                                state.route = Route.GrowFrames
                             } else {
-                                state.frames[frame] = index
-                                state.frames[frame + 1] = start
-                            }
+                                memory.writeU64(state.frames, frame, index)
+                                memory.writeU64(state.frames, frame + 1, start)
 
-                            state.depth += 1
-                            state.node = unary ? graph.arguments[index] : members[0]
+                                state.depth += 1
+                                state.node = unary ? graph.arguments[index] : members[0]
+                            }
                         }
                     }
                 }

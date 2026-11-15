@@ -1,23 +1,24 @@
 import integers from "std:integer"
+import memory from "std:memory"
 
-import representative from "../../forest/representative"
+import representative from "../../forest/borrowed_root"
 import { Kind } from "../../unification/model"
-import deferred from "./deferred"
+import { unsigned_word_bits } from "./const"
 
+import type { U32Buffer } from "std:memory"
 import type { ClassLookup, Nodes } from "../model"
-import type { Deferred } from "./deferred"
 
 export type Input = {
     nodes: Nodes,
-    indexes: Deferred,
+    deferred: u64[],
     classes: ClassLookup,
-    parents: u32[],
+    parents: U32Buffer,
     next: u64,
     limit: u64,
     other?: u32
 }
 
-export type Output = Input.Pick("parents", "next", "other")
+export type Output = Input.Pick("next", "other")
 
 export default function (in: Input): Output {
     return loop(in, {
@@ -25,31 +26,30 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.next
             const node = integers.narrow(index)
-            if (state.parents[index] != node) {
+            if (memory.readU32(state.parents, index) != node) {
                 const root = representative({
                     parents: state.parents,
                     value: node
                 })
 
-                state.parents = root.parents
             } else {
                 const kind = state.nodes.kinds[index]
 
                 if (kind == Kind.Unknown && state.nodes.allowed[index] == null) {
-                    const result = deferred({
-                        parents: state.parents,
-                        indexes: state.indexes,
-                        node,
-                        found: false,
-                        index: 0
-                    })
+                    const group = integers.widen(state.classes.groups[index])
+                    const other = state.classes.representatives[group]
 
-                    state.parents = result.parents
+                    if (other != null) {
+                        if (state.deferred.length == 0) {
+                            state.other = other
+                        } else {
+                            const word = state.deferred[index / unsigned_word_bits]
+                            const mask = integers.bitMask(index % unsigned_word_bits)
 
-                    if (!result.found) {
-                        const group = integers.widen(state.classes.groups[index])
-
-                        state.other = state.classes.representatives[group]
+                            if (integers.andBits(word, mask) == 0) {
+                                state.other = other
+                            }
+                        }
                     }
                 }
             }
@@ -57,7 +57,6 @@ export default function (in: Input): Output {
             state.next += 1
         },
         return: state => ({
-            parents: state.parents,
             next: state.next,
             other: state.other
         })

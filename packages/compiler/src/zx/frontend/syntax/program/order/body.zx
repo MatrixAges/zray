@@ -1,0 +1,102 @@
+import memory from "std:memory"
+
+import edges from "./edges"
+import { Chain } from "./model"
+import chain from "./statement_chain"
+
+import type { Input as Order, Output } from "./model"
+
+export type Input = Order & {
+    first: u64
+}
+
+export default function (in: Input): Output {
+    const trees = in.trees
+    const blocks = trees.blocks
+    const columns = in.columns
+    const target = columns.edges
+    const block_rows = blocks.blocks
+
+    const block_end = loop({
+        row: 0,
+        end: in.first
+    }, {
+        while: state => state.row < block_rows.length,
+        next: state => {
+            const block = block_rows[state.row]
+
+            memory.writeU64(columns.blocks, state.row, state.end)
+
+            if (block.count != 0) {
+                state.end = edges({
+                    trees,
+                    target,
+                    kind: Chain.Statements,
+                    first: state.end,
+                    head: block.head,
+                    count: block.count
+                })
+            }
+
+            state.row += 1
+        },
+        return: state => state.end
+    })
+
+    const statements = blocks.statements
+
+    const statement_end = loop({
+        row: 0,
+        end: block_end
+    }, {
+        while: state => state.row < statements.length,
+        next: state => {
+            const statement = statements[state.row]
+            const kind = chain(statement.kind)
+
+            memory.writeU64(columns.statements, state.row, state.end)
+
+            if (kind != Chain.Empty && statement.count != 0) {
+                state.end = edges({
+                    trees,
+                    target,
+                    kind,
+                    first: state.end,
+                    head: statement.head,
+                    count: statement.count
+                })
+            }
+
+            state.row += 1
+        },
+        return: state => state.end
+    })
+
+    const names = blocks.names
+
+    return loop({
+        row: 0,
+        end: statement_end
+    }, {
+        while: state => state.row < names.length,
+        next: state => {
+            const name = names[state.row]
+
+            memory.writeU64(columns.patterns, state.row, state.end)
+
+            if (name.count != 0) {
+                state.end = edges({
+                    trees,
+                    target,
+                    kind: Chain.Names,
+                    first: state.end,
+                    head: name.head,
+                    count: name.count
+                })
+            }
+
+            state.row += 1
+        },
+        return: state => state.end
+    })
+}

@@ -36,11 +36,15 @@ export enum Action {
     Unify
 }
 
-export type Input = {
+export type Scan = {
     topology: Topology,
-    collisions: Pairs,
     candidates: u32[][],
+    values: u32[],
     start: u64
+}
+
+export type Input = Scan & {
+    collisions: Pairs
 }
 
 export type Output = {

@@ -25,6 +25,10 @@ fn parseWithOwnership(allocator: std.mem.Allocator, attribute: rx.ast.Attribute,
 
     if (result.diagnostic() != null) return result;
 
+    if (comptime frontend.ExpressionInput.indexed_enabled and @import("rx_options").generated_graph) {
+        if (result == .indexed) try result.indexed.prepareOrder();
+    }
+
     if (try validate(allocator, &result)) |issue| {
         var arena = std.heap.ArenaAllocator.init(allocator);
 
@@ -66,6 +70,10 @@ fn validate(allocator: std.mem.Allocator, input: *const frontend.ExpressionInput
             defer scratch.deinit();
 
             const view = try result.view(scratch.allocator());
+
+            if (comptime @import("rx_options").generated_graph) {
+                break :block try @import("value_rules.zig").indexed(scratch.allocator(), &view, result.output.result);
+            }
 
             break :block check(view.expression(result.output.result));
         } else unreachable,

@@ -1,4 +1,5 @@
-import find from "../unification/find_field"
+import find from "core/type_table/member"
+
 import { Route } from "./model"
 
 import type { Lookup, Output as Access } from "./model"
@@ -9,7 +10,9 @@ export type Output = Access
 
 export default function (in: Input): Output {
     const index = find({
-        names: in.members.names,
+        names: in.names,
+        first: in.first,
+        count: in.count,
         name: in.name
     })
 
@@ -22,6 +25,6 @@ export default function (in: Input): Output {
 
     return {
         route: in.declared ? Route.KnownMember : Route.Member,
-        value: in.members.values[index]
+        value: in.values[in.first + index]
     }
 }

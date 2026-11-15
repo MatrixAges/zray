@@ -1,0 +1,221 @@
+const std = @import("std");
+const zx = @import("zx");
+const Graph = @import("types.zig");
+const bindings = @import("bindings.zig");
+const rules = @import("bindings/rules.zig");
+const paths = @import("frontend").binding_path;
+const generated = @import("rx_options").generated_graph;
+const candidate_capacity = 8;
+pub const Binding = struct { name: []const u8, value: Graph.Id, span: zx.Span = .{ .start = 0, .end = 0 } };
+pub const Storage = std.MultiArrayList(Binding);
+pub const appendFrom = zx.columns.appendRows;
+
+pub const Reference = struct {
+    value: ?Graph.Id = null,
+    implicit_input: bool = false,
+    refined: bool = false,
+};
+
+pub fn rooted(names: []const []const u8, path: paths.Path, implicit_input: bool) bool {
+    if (names.len == 0 and !implicit_input) return false;
+
+    if (comptime generated) {
+        const rule = @import("generated_rx_scope_rooted");
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return rule.executeValue(empty.allocator(), .{ .names = names, .path = path.text, .implicit_input = implicit_input }) catch unreachable;
+    }
+
+    if (implicit_input and path.rooted("$in")) return true;
+    for (names) |name| if (path.rooted(name)) return true;
+
+    return false;
+}
+
+pub fn read(graph: *Graph, rows: Storage.Slice, facts: []const []const u8, name: []const u8, identifier: bool, span: zx.Span) zx.Error!Reference {
+    if (comptime !generated) return .{
+        .value = try lookupSeed(graph, rows, name, span),
+        .implicit_input = identifier and std.mem.eql(u8, name, "$in"),
+        .refined = for (facts) |fact| {
+            if (std.mem.eql(u8, fact, name)) break true;
+        } else false,
+    };
+
+    const entry = @import("generated_rx_scope_lookup");
+    const Input = std.meta.Child(entry.Input);
+    const parents: []u32 = graph.parents();
+    const topology: std.meta.Child(@FieldType(Input, "topology")) = .{ .graph = &rules.view(entry, graph), .parents = @ptrCast(&parents) };
+    const active: std.meta.Child(@FieldType(Input, "active")) = .{ .names = rows.items(.name), .values = @ptrCast(rows.items(.value)) };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const query: Input = .{ .topology = &topology, .active = &active, .name = name, .start = 0, .facts = facts, .identifier = identifier };
+    const result = entry.executeValue(empty.allocator(), &query) catch unreachable;
+
+    var reference: Reference = .{
+        .implicit_input = result.implicit_input,
+        .refined = result.refined,
+    };
+
+    const first: Graph.Id = @fromBackingInt(result.first orelse return reference);
+    reference.value = first;
+
+    const second: Graph.Id = @fromBackingInt(result.second orelse return reference);
+    const allocator = graph.pending.allocator;
+    var candidates: std.ArrayList(Graph.Id) = .empty;
+
+    errdefer candidates.deinit(allocator);
+
+    try candidates.ensureTotalCapacityPrecise(allocator, @min(rows.len, candidate_capacity));
+
+    candidates.appendAssumeCapacity(first);
+    candidates.appendAssumeCapacity(second);
+
+    const gather = @import("generated_rx_scope_candidates");
+    const Gather = std.meta.Child(gather.Input);
+    var next = result.next;
+
+    while (next < rows.len) {
+        try candidates.ensureUnusedCapacity(allocator, 1);
+
+        const destination: []u32 = @ptrCast(candidates.unusedCapacitySlice());
+
+        const request: Gather = .{
+            .topology = zx.columns.pointer(@FieldType(Gather, "topology"), &topology),
+            .active = zx.columns.pointer(@FieldType(Gather, "active"), &active),
+            .name = name,
+            .start = next,
+            .target = @ptrCast(&destination),
+            .capacity = destination.len,
+        };
+
+        const appended = zx.columns.invoke(gather.executeValue, empty.allocator(), &request) catch unreachable;
+
+        candidates.items.len += @intCast(appended.count);
+        next = appended.next;
+    }
+
+    reference.value = try bindings.lookup(graph, candidates.items, span);
+
+    return reference;
+}
+
+pub fn check(graph: *Graph, rows: Storage.Slice, end: usize, binding: Binding, message: []const u8) zx.Error!void {
+    if (end == 0) return;
+
+    const names = rows.items(.name)[0..end];
+    const values = rows.items(.value)[0..end];
+
+    if (comptime generated) {
+        const entry = @import("generated_rx_scope_collision");
+        const Input = std.meta.Child(entry.Input);
+        const parents: []u32 = graph.parents();
+        const topology: std.meta.Child(@FieldType(Input, "topology")) = .{ .graph = &rules.view(entry, graph), .parents = @ptrCast(&parents) };
+        const active: std.meta.Child(@FieldType(Input, "active")) = .{ .names = names, .values = @ptrCast(values) };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var start: u64 = 0;
+
+        while (start < end) {
+            const input: Input = .{
+                .topology = &topology,
+                .active = &active,
+                .name = binding.name,
+                .start = start,
+                .value = @backingInt(binding.value),
+                .end = end,
+            };
+
+            const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+
+            if (result.action == .Ignore) return;
+            try bindings.distinct(graph, values[@intCast(result.next - 1)], binding.value, binding.span, message, @fromBackingInt(@backingInt(result.action)));
+
+            start = result.next;
+        }
+
+        return;
+    }
+
+    for (names, values) |name, value| {
+        if (!paths.overlaps(name, binding.name)) continue;
+        try bindings.distinct(graph, value, binding.value, binding.span, message, rules.pair(graph, value, binding.value, false));
+    }
+}
+
+pub fn publishParallel(graph: *Graph, active_scope: *Storage, allocator: std.mem.Allocator, saved: Storage.Slice) zx.Error!void {
+    const message = "Parallel result binding paths must not overlap";
+
+    if (!generated) {
+        for (0..saved.len) |index| {
+            const binding = saved.get(index);
+
+            try check(graph, saved, index, binding, message);
+            try active_scope.append(allocator, binding);
+        }
+
+        return;
+    }
+
+    if (saved.len < 2) return appendFrom(active_scope, allocator, saved, 0);
+
+    const entry = @import("generated_rx_parallel_collisions");
+    const Input = std.meta.Child(entry.Input);
+    const parents = graph.parents();
+    const topology: std.meta.Child(@FieldType(Input, "topology")) = .{ .graph = &rules.view(entry, graph), .parents = @ptrCast(&parents) };
+    const active: std.meta.Child(@FieldType(Input, "active")) = .{ .names = saved.items(.name), .values = @ptrCast(saved.items(.value)) };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var published: usize = 0;
+    var row: usize = 1;
+    var next: u64 = 0;
+
+    while (true) {
+        const input: Input = .{ .topology = &topology, .active = &active, .row = row, .next = next };
+        const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+
+        row = @intCast(result.row);
+        next = result.next;
+
+        if (row != published) {
+            var prefix = saved;
+
+            prefix.len = row;
+
+            try appendFrom(active_scope, allocator, prefix, published);
+
+            published = row;
+        }
+
+        if (result.action == .Ignore) return;
+
+        const binding = saved.get(row);
+        const earlier = saved.items(.value)[@intCast(next - 1)];
+
+        try bindings.distinct(graph, earlier, binding.value, binding.span, message, @fromBackingInt(@backingInt(result.action)));
+    }
+}
+
+fn lookupSeed(graph: *Graph, rows: Storage.Slice, name: []const u8, span: zx.Span) zx.Error!?Graph.Id {
+    const allocator = graph.pending.allocator;
+    var selected: ?Graph.Id = null;
+    var candidates: std.ArrayList(Graph.Id) = .empty;
+
+    errdefer candidates.deinit(allocator);
+
+    for (rows.items(.name), rows.items(.value)) |path, value| {
+        if (!std.mem.eql(u8, path, name) or bindings.isVoid(graph, value)) continue;
+
+        if (selected) |previous| {
+            if (candidates.items.len == 0) {
+                try candidates.ensureTotalCapacityPrecise(allocator, 2);
+
+                candidates.appendAssumeCapacity(previous);
+            }
+
+            try candidates.append(allocator, value);
+        }
+
+        selected = value;
+    }
+
+    if (candidates.items.len == 0) return selected;
+
+    return try bindings.lookup(graph, candidates.items, span);
+}

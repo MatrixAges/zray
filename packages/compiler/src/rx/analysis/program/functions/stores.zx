@@ -1,0 +1,44 @@
+import type { Stores } from "core/store_table/model"
+
+export type Input = {
+    actual: Stores,
+    expected: Stores
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { actual, expected } = in
+
+    const count = actual.paths.length
+
+    if (count != expected.paths.length) {
+        return false
+    }
+
+    return loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < count,
+        next: state => {
+            const index = state.index
+            const same_path = actual.paths[index] == expected.paths[index]
+            const same_type = actual.types[index] == expected.types[index]
+            const read = actual.readable[index]
+            const write = actual.writable[index]
+            const same_read = read == expected.readable[index]
+            const same_write = write == expected.writable[index]
+
+            state.equal = (
+                - same_path
+                - and same_type
+                - and same_read
+                - and same_write
+            )
+
+            state.index += 1
+        },
+        return: state => state.equal
+    })
+}

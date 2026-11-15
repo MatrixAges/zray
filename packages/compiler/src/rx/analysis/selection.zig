@@ -1,20 +1,19 @@
 const std = @import("std");
 const rx = @import("rx");
 const zx = @import("zx");
-const Flow = @import("program/flow.zig");
 const Prepared = @import("project/flow.zig");
 const Diagnostic = @import("expression.zig").Diagnostic;
 const Value = @FieldType(zx.ir.ExpressionRow, "value");
 const enabled = @import("rx_options").generated_graph;
 const Result = union(enum) { exhaustive: bool, diagnostic: Diagnostic };
 
-pub fn check(allocator: std.mem.Allocator, subject: zx.ir.Program, attribute: rx.ast.Attribute, cases: []const Flow.Case, sources: []const Prepared.Case) std.mem.Allocator.Error!Result {
+pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) std.mem.Allocator.Error!Result {
     if (comptime !enabled) return seed(subject, attribute, cases, sources);
 
     const rule = @import("generated_rx_selection_check");
     const Input = std.meta.Child(rule.Input);
     const Labels = std.meta.Child(@FieldType(Input, "labels"));
-    const Kind = std.meta.Child(@FieldType(Labels, "kinds"));
+    const Expressions = std.meta.Child(@FieldType(Labels, "expressions"));
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [std.heap.page_size_min / 8]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
@@ -22,41 +21,12 @@ pub fn check(allocator: std.mem.Allocator, subject: zx.ir.Program, attribute: rx
     defer arena.deinit();
 
     const temporary = scratch.allocator();
-    const kinds = try temporary.alloc(Kind, cases.len);
-    const numbers = try temporary.alloc(u64, cases.len);
-    const texts = try temporary.alloc([]const u8, cases.len);
-    var has_default = false;
+    const expressions = try temporary.alloc(Expressions, cases.len);
+    const roots = try temporary.alloc(?u32, cases.len);
 
-    for (cases, kinds, numbers, texts) |case, *kind, *number, *text| {
-        const program = case.value orelse {
-            has_default = true;
-            kind.* = .Default;
-            number.* = 0;
-            text.* = &.{};
-
-            continue;
-        };
-
-        const value = label(program);
-
-        kind.* = switch (value) {
-            .integer => .Integer,
-            .negative_integer => .Negative,
-            .string => .String,
-            .boolean => .Boolean,
-            .enum_value => .Enumeration,
-            else => .Invalid,
-        };
-
-        number.* = switch (value) {
-            .integer => value.integer,
-            .negative_integer => value.negative_integer,
-            .boolean => @intFromBool(value.boolean),
-            .enum_value => value.enum_value,
-            else => 0,
-        };
-
-        text.* = if (value == .string) value.string else &.{};
+    for (cases, expressions, roots) |case, *columns, *root| {
+        columns.* = zx.columns.pointer(Expressions, &((case orelse subject).expressions));
+        root.* = if (case) |program| @backingInt(resultExpression(&program.body)) else null;
     }
 
     const target = subject.typeOf(subject.output_type);
@@ -65,10 +35,9 @@ pub fn check(allocator: std.mem.Allocator, subject: zx.ir.Program, attribute: rx
         .subject = &.{
             .type_id = @backingInt(subject.output_type),
             .enum_members = if (target == .enumeration) target.enumeration.members.len else null,
-            .has_default = has_default,
             .case_count = cases.len,
         },
-        .labels = &.{ .kinds = kinds, .numbers = numbers, .texts = texts },
+        .labels = &.{ .expressions = expressions, .roots = roots },
     };
 
     const result = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
@@ -87,7 +56,7 @@ pub fn check(allocator: std.mem.Allocator, subject: zx.ir.Program, attribute: rx
     return .{ .exhaustive = result.coverage.exhaustive };
 }
 
-fn seed(subject: zx.ir.Program, attribute: rx.ast.Attribute, cases: []const Flow.Case, sources: []const Prepared.Case) Result {
+fn seed(subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) Result {
     const type_id = subject.output_type;
     const value_type = subject.typeOf(type_id);
     const integer = @backingInt(type_id) >= @backingInt(zx.ir.Scalar.u8) and @backingInt(type_id) <= @backingInt(zx.ir.Scalar.i64);
@@ -99,13 +68,13 @@ fn seed(subject: zx.ir.Program, attribute: rx.ast.Attribute, cases: []const Flow
     var has_default = false;
 
     for (cases, sources, 0..) |case, source, index| {
-        const program = case.value orelse {
+        const program = case orelse {
             has_default = true;
 
             continue;
         };
 
-        const value = label(program);
+        const value = label(program.*);
 
         switch (value) {
             .integer, .negative_integer, .string, .boolean, .enum_value => {},
@@ -113,7 +82,7 @@ fn seed(subject: zx.ir.Program, attribute: rx.ast.Attribute, cases: []const Flow
         }
 
         for (cases[0..index]) |previous| {
-            if (previous.value) |other| if (same(value, label(other))) return duplicate(source.value.?);
+            if (previous) |other| if (same(value, label(other.*))) return duplicate(source.value.?);
         }
     }
 
@@ -133,7 +102,13 @@ fn duplicate(attribute: rx.ast.Attribute) Result {
 }
 
 fn label(program: zx.ir.Program) Value {
-    return program.expression(program.body.block().at(program.body.block().len - 1).result.?).value;
+    return program.expression(resultExpression(&program.body)).value;
+}
+
+fn resultExpression(body: *const zx.ir.ControlBody) zx.ir.ExprId {
+    const block = body.block();
+
+    return block.at(block.len - 1).result.?;
 }
 
 fn same(left: Value, right: Value) bool {

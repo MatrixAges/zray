@@ -1,14 +1,19 @@
+import memory from "std:memory"
+
 import zeroes from "./zeroes"
+
+import type { U64Buffer } from "std:memory"
 
 export type Input = {
     order: u64[],
     depths: u64[],
     count: u64,
     first_end: u64,
-    size: u64
+    size: u64,
+    target: U64Buffer
 }
 
-export type Output = u64[]
+export type Output = void
 
 export default function (in: Input): Output {
     const has_rest = in.first_end < in.count
@@ -63,10 +68,9 @@ export default function (in: Input): Output {
         }
     })
 
-    return loop({
+    const written = loop({
         first: positions.first,
         rest: positions.rest,
-        order: in.order.map(owner => 0)[0],
         position: 0
     }, {
         while: state => state.position < in.count,
@@ -75,15 +79,14 @@ export default function (in: Input): Output {
             const depth = in.depths[owner]
 
             if (state.position < in.first_end) {
-                state.order[state.first[depth]] = owner
+                memory.writeU64(in.target, state.first[depth], owner)
                 state.first[depth] += 1
             } else {
-                state.order[state.rest[depth]] = owner
+                memory.writeU64(in.target, state.rest[depth], owner)
                 state.rest[depth] += 1
             }
 
             state.position += 1
-        },
-        return: state => state.order
+        }
     })
 }

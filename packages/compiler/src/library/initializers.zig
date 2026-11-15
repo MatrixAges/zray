@@ -5,8 +5,8 @@ const model = @import("root.zig");
 const artifact = frontend.project.artifact;
 const Types = artifact.type_link.Table;
 const Entry = frontend.project.compiled.StoreInitializer;
-const Index = @import("index.zig");
-const equality = @import("initializers/function_equal.zig");
+const Index = frontend.project.source_index.Owned;
+const equality = frontend.compare_ir.initializer;
 const generated = @import("parser_options").generated_parser;
 const Self = @This();
 pub const Error = Types.Error || artifact.Error || error{ InvalidInitializer, ConflictingInitializer };
@@ -19,6 +19,12 @@ items: std.ArrayList(Entry) = .empty,
 index: Index = .{},
 pub fn append(self: *Self, value: Entry) Error!void {
     if (try self.register(value.identity)) |previous| {
+        switch (equality.linkedAction(previous, value)) {
+            .Reuse => return,
+            .Conflict => return error.ConflictingInitializer,
+            .Compare => {},
+        }
+
         const left = self.functions.at(@backingInt(previous.function));
         const right = self.functions.at(@backingInt(value.function));
 
@@ -31,6 +37,8 @@ pub fn append(self: *Self, value: Entry) Error!void {
 }
 
 fn register(self: *Self, identity: []const u8) Error!?Entry {
+    try self.items.ensureUnusedCapacity(self.allocator, 1);
+
     const row = (try self.index.register(self.scratch, identity, self.items.items.len)) orelse return null;
 
     return self.items.items[row];
@@ -40,7 +48,7 @@ fn publish(self: *Self, value: Entry) Error!void {
     var copied = value;
     copied.identity = try self.allocator.dupe(u8, value.identity);
 
-    try self.items.append(self.allocator, copied);
+    self.items.appendAssumeCapacity(copied);
 }
 
 pub fn source(self: *Self, initial: model.Initializer, origins: @FieldType(frontend.AnalysisResult, "nominal_types")) Error!void {

@@ -5,6 +5,7 @@ pub const Ports = @import("source_signature.zig").Ports;
 
 pub const Module = struct {
     path: []const u8,
+    source_row: usize,
     signature: @import("source_signature.zig").Result,
     type_imports: []const zx.ir.Export,
     function_imports: []const @import("function_import.zig"),

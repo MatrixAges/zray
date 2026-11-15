@@ -1,0 +1,57 @@
+import memory from "std:memory"
+
+import type { U64Buffer } from "std:memory"
+
+export type Input = {
+    order: u64[],
+    start: u64,
+    end: u64,
+    entry: u64,
+    signatures: i64[],
+    local_calls: bool[],
+    compiled_dependencies: bool[],
+    positions: U64Buffer,
+    capacity: u64
+}
+
+export type Output = {
+    next: u64,
+    count: u64
+}
+
+export default function (in: Input): Output {
+    const { order, end, entry, signatures, local_calls } = in
+    const { compiled_dependencies, positions, capacity } = in
+
+    const zx_count = signatures.length
+    const rx_end = zx_count + local_calls.length
+
+    return loop({
+        next: in.start,
+        count: 0
+    }, {
+        while: state => state.next < end && state.count < capacity,
+        next: state => {
+            const index = order[state.next]
+
+            if (!compiled_dependencies[index]) {
+                const eligible = match {
+                    index < zx_count => signatures[index] > 0,
+                    index < rx_end => index != entry && local_calls[index - zx_count],
+                    _ => false
+                }
+
+                if (eligible) {
+                    memory.writeU64(positions, state.count, state.next)
+                    state.count += 1
+                }
+            }
+
+            state.next += 1
+        },
+        return: state => ({
+            next: state.next,
+            count: state.count
+        })
+    })
+}

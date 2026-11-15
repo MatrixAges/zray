@@ -19,13 +19,13 @@ functions: ir.FunctionStorage = .{},
 verified: usize = 0,
 native_modules: ir.NativeModuleStorage = .{},
 initializers: std.ArrayList(frontend.project.compiled.StoreInitializer) = .empty,
+retained_initializers: []const frontend.project.compiled.StoreInitializer = &.{},
 libraries: frontend.project.compiled.imports.Cache = .empty,
 finished: []?Source.Loaded,
-/// The signature of each graph module, by index into `signatures.modules`.
-signature_indices: []const ?usize,
+signature_indices: []const i64,
 owner: usize = 0,
 issue: ?target.Diagnostic = null,
-pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: SourceGraph, signatures: frontend.project.signature_project.Data, signature_indices: []const ?usize, types: ir.TypeTable, options: frontend.project.Options) Error!Self {
+pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: SourceGraph, signatures: frontend.project.signature_project.Data, signature_indices: []const i64, types: ir.TypeTable, options: frontend.project.Options) Error!Self {
     var self = Self{
         .allocator = allocator,
         .scratch = std.heap.ArenaAllocator.init(backing),
@@ -36,6 +36,7 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         .native_modules = try frontend.native_context.storage(allocator, options.context.native_modules),
         .finished = try allocator.alloc(?Source.Loaded, graph.modules.len),
         .signature_indices = signature_indices,
+        .retained_initializers = signatures.store_initializers,
     };
 
     @memset(self.finished, null);
@@ -46,7 +47,18 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         return error.InvalidSourceGraph;
     };
 
-    for (0..signatures.functions.count()) |index| try self.functions.append(allocator, signatures.functions.at(index));
+    // The signature table's descriptors live in this result arena or in the
+    // retained history that owns the reused signatures. This storage is arena-bound.
+    const columns = @import("../history/columns.zig");
+    const lengths = columns.Lengths(ir.FunctionStorage);
+
+    try columns.transplant(allocator, .{.{
+        .storage = &self.functions,
+        .source = signatures.functions,
+        .start = @as(lengths, @splat(0)),
+        .end = @as(lengths, @splat(signatures.functions.count())),
+    }});
+
     for (signatures.libraries) |library| try self.libraries.put(allocator, library.index, library.unit);
     try self.initializers.appendSlice(allocator, signatures.store_initializers);
 
@@ -61,6 +73,15 @@ pub fn verifiedFunctions(self: *const Self) ir.FunctionTable {
     return self.functions.view().prefix(self.verified);
 }
 
+/// A frozen view can be retained by linked modules after the import list grows.
+pub fn initializersView(self: *Self) std.mem.Allocator.Error![]const frontend.project.compiled.StoreInitializer {
+    if (self.retained_initializers.len != self.initializers.items.len) {
+        self.retained_initializers = try self.allocator.dupe(frontend.project.compiled.StoreInitializer, self.initializers.items);
+    }
+
+    return self.retained_initializers;
+}
+
 pub fn linked(self: *Self, loaded: Source.Loaded) Source.Loaded {
     self.verified = self.functions.count();
 
@@ -68,11 +89,13 @@ pub fn linked(self: *Self, loaded: Source.Loaded) Source.Loaded {
 }
 
 pub fn signature(self: *const Self, index: usize) ?frontend.project.signature_project.Module {
-    return self.signatures.modules[self.signature_indices[index] orelse return null];
+    const row = @import("../references/signatures.zig").indexAt(self.signature_indices, index) orelse return null;
+
+    return self.signatures.modules[row];
 }
 
 pub fn fail(self: *Self, location: rx.ast.Location, message: []const u8) Error {
-    self.issue = .{ .path = self.graph.modules[self.owner].path, .location = location, .code = "module", .message = try self.allocator.dupe(u8, message) };
+    self.issue = .{ .path = self.graph.modules.items(.path)[self.owner], .location = location, .code = "module", .message = try self.allocator.dupe(u8, message) };
 
     return error.InvalidSourceGraph;
 }

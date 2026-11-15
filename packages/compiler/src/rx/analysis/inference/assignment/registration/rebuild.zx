@@ -1,0 +1,32 @@
+import integers from "std:integer"
+import memory from "std:memory"
+import probe from "core/integer/wide_index/probe"
+
+import type { U32Buffer } from "std:memory"
+
+export type Input = {
+    keys: u64[],
+    buckets: u32[],
+    target: U32Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop({
+        position: 0
+    }, {
+        while: state => state.position < in.keys.length,
+        next: state => {
+            const slot = probe({
+                keys: in.keys,
+                buckets: in.buckets,
+                key: in.keys[state.position]
+            })
+
+            memory.writeU32(in.target, slot, integers.narrow(state.position))
+
+            state.position += 1
+        }
+    })
+}

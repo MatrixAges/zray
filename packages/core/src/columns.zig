@@ -1,6 +1,22 @@
 const std = @import("std");
 pub const storage = @import("columns/storage.zig");
 
+pub fn appendRows(target: anytype, allocator: std.mem.Allocator, source: @TypeOf(target.slice()), start: usize) std.mem.Allocator.Error!void {
+    const count = source.len - start;
+
+    if (count == 0) return;
+
+    const first = target.len;
+
+    try target.resize(allocator, first + count);
+
+    const destination = target.slice();
+
+    inline for (std.enums.values(@TypeOf(target.*).Field)) |field| {
+        @memcpy(destination.items(field)[first..], source.items(field)[start..]);
+    }
+}
+
 pub fn columns(comptime Target: type, value: anytype) Target {
     @setEvalBranchQuota(100_000);
 

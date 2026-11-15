@@ -1,0 +1,67 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import publish from "../unification/commit/publish_shape"
+
+import type { U32Buffer } from "std:memory"
+import type { Columns } from "../unification/commit/model"
+
+export type Input = {
+    parents: U32Buffer,
+    columns: Columns,
+    start: u64,
+    end: u64,
+    payload?: u32,
+    container: u8,
+    unknown: u8
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const start = in.start
+    const payload = in.payload ?? integers.narrow(start)
+    const parents = in.parents
+    const columns = in.columns
+
+    if (in.payload == null) {
+        memory.writeU32(parents, start, payload)
+
+        publish({
+            parent: payload,
+            columns,
+            shape: {
+                kind: in.unknown,
+                argument: 0,
+                members: []
+            }
+        })
+    }
+
+    const row = in.payload == null ? start + 1 : start
+
+    const written = loop({
+        row,
+        payload
+    }, {
+        while: state => state.row < in.end,
+        next: state => {
+            const row = state.row
+            const id = integers.narrow(row)
+
+            memory.writeU32(parents, row, id)
+            publish({
+                parent: id,
+                columns,
+                shape: {
+                    kind: in.container,
+                    argument: state.payload,
+                    members: []
+                }
+            })
+
+            state.payload = id
+            state.row += 1
+        }
+    })
+}

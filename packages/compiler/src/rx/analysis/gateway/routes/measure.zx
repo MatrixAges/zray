@@ -1,17 +1,22 @@
 import integers from "std:integer"
 
+import type { Output as Layout } from "./model"
+
 export type Input = {
     lengths: u64[],
+    groups: bool[],
     parents: u32?[]
 }
 
-export type Output = u64[]
+export type Output = Layout
 
 export default function (in: Input): Output {
     const lengths: u64[] = []
 
     return loop({
         lengths,
+        bytes: 0,
+        routes: 0,
         index: 0
     }, {
         while: state => state.index < in.lengths.length,
@@ -24,8 +29,18 @@ export default function (in: Input): Output {
             const length = prefix + in.lengths[state.index]
 
             state.lengths = state.lengths.push(length)[0]
+
+            if (!in.groups[state.index]) {
+                state.bytes += length
+                state.routes += 1
+            }
+
             state.index += 1
         },
-        return: state => state.lengths
+        return: state => ({
+            lengths: state.lengths,
+            bytes: state.bytes,
+            routes: state.routes
+        })
     })
 }

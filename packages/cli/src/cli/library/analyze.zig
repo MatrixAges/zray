@@ -1,6 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const zx = @import("zx");
+const store = @import("rx_analysis").store;
 const Loaded = @import("../project.zig").Loaded;
 const Inputs = @import("../watch/inputs.zig");
 
@@ -8,7 +9,7 @@ pub const Module = struct {
     name: []const u8,
     analysis: compiler.AnalysisResult,
     sources: []const compiler.project.Source,
-    store_definitions: []const @import("rx_analysis").store.Definition = &.{},
+    store_definitions: []const store.Definition = &.{},
 };
 
 pub const Result = struct {
@@ -45,39 +46,9 @@ pub const Result = struct {
         for (self.modules, inputs) |*module, *input| {
             if (module.analysis.value != .ir) return error.InvalidAnalysis;
 
-            var initializers: std.ArrayList(compiler.library.Initializer) = .empty;
+            const initializers = try store.collectInitializers(scratch, module.store_definitions, &module.analysis.value.ir, module.analysis.public_functions);
 
-            for (module.store_definitions) |definition| for (definition.objects) |object| {
-                const identity = try std.fmt.allocPrint(scratch, "store.{s}:{s}", .{ definition.source_path, object.name });
-
-                var needed = for (module.analysis.value.ir.stores.paths) |path| {
-                    if (std.mem.eql(u8, path, identity)) break true;
-                } else false;
-
-                if (!needed) for (module.analysis.public_functions) |member| {
-                    if (member.intrinsic != null) continue;
-
-                    const program = module.analysis.value.ir;
-
-                    if (@backingInt(member.id.?) >= program.functions.count()) return error.InvalidAnalysis;
-
-                    const function = program.functions.at(@backingInt(member.id.?));
-
-                    for (function.stores.paths) |path| {
-                        if (std.mem.eql(u8, path, identity)) {
-                            needed = true;
-
-                            break;
-                        }
-                    }
-
-                    if (needed) break;
-                };
-
-                if (needed) try initializers.append(scratch, .{ .identity = identity, .schema_version = definition.version, .program = object.initial });
-            };
-
-            input.* = .{ .name = module.name, .analysis = &module.analysis, .initializers = initializers.items };
+            input.* = .{ .name = module.name, .analysis = &module.analysis, .initializers = initializers };
         }
 
         return compiler.library.link(allocator, inputs);

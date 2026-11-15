@@ -75,6 +75,9 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
     var functions: std.ArrayList(rx.TextSource) = .empty;
     var gateway_source: ?GatewaySource = null;
     var physical: std.StringHashMapUnmanaged([]const u8) = .empty;
+    var reference_memory = std.heap.ArenaAllocator.init(backing);
+
+    defer reference_memory.deinit();
 
     try queue.append(allocator, first);
     try queued.put(allocator, try std.fs.path.resolve(allocator, &.{ root, first }), {});
@@ -82,6 +85,8 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
     var index: usize = 0;
 
     while (index < queue.items.len) : (index += 1) {
+        _ = reference_memory.reset(.retain_capacity);
+
         const requested = queue.items[index];
         const candidate = try std.fs.path.resolve(allocator, &.{ root, requested });
         const absolute = if (std.mem.endsWith(u8, candidate, ".zx")) try @import("../sources/module_path.zig").select(io, allocator, candidate, options.inputs) else candidate;
@@ -126,7 +131,7 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
 
         if (std.mem.endsWith(u8, path, ".zx")) {
             const parsed = try cache.getModule(source, absolute);
-            var collector = @import("references/collector.zig"){ .allocator = allocator, .options = project, .owner = absolute, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
+            var collector = @import("references/collector.zig"){ .allocator = allocator, .temporary = &reference_memory, .options = project, .owner = absolute, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
 
             if (parsed.diagnostic() == null) switch (parsed.*) {
                 .native => |value| try collector.header(@import("zx").syntax.header.Native{ .program = value.value.parsed.ast }),
@@ -147,7 +152,8 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
             return null;
         }
 
-        const packages = rx.module_reference.dependencies(options.project, absolute);
+        const package_scope = compiler.project.ImportScope.init(project.package_scopes, absolute);
+        const packages = package_scope.dependencies(project.packages);
         var module: rx.ModuleSource = .{ .path = path, .node = parsed.value.node, .packages = packages, .references = document.references };
         var checked = try rx.validateSource(backing, &module);
 
@@ -160,7 +166,7 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
         }
 
         const is_gateway = std.mem.endsWith(u8, path, ".gateway.rx");
-        var collector = @import("references/collector.zig"){ .allocator = allocator, .options = project, .owner = absolute, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
+        var collector = @import("references/collector.zig"){ .allocator = allocator, .temporary = &reference_memory, .options = project, .owner = absolute, .package_scope = package_scope, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
 
         if (is_gateway) gateway_source = .{ .path = path, .node = parsed.value.node };
 
@@ -176,7 +182,13 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
                 return null;
             }
 
-            for (analysis.value.definition.routes) |route| try collector.local(route.service, route.location, .dependency);
+            const definition = analysis.value.definition;
+
+            for (definition.service_routes) |route_index| {
+                const route = definition.routes[route_index];
+
+                try collector.local(route.service, route.location, .dependency);
+            }
 
             continue;
         }

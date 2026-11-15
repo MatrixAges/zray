@@ -1,85 +1,96 @@
+const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
+const Nodes = @import("nodes.zig");
 const Plan = @import("unification/plan.zig");
 const Commit = @import("unification/commit.zig");
 const Fields = @import("unification/fields.zig");
 const Occurs = @import("unification/occurs.zig");
+const Frame = @import("unify/frame.zig");
+const inline_frames = 8;
+const inline_field_bytes = std.heap.page_size_min / 16;
+const Stack = std.ArrayList(Frame);
 
-pub fn merge(self: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!void {
-    const work = try Plan.prepare(self, left, right, span, depth);
+pub fn merge(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!void {
+    if (comptime !Plan.enabled) return @import("unify/seed.zig").merge(graph, left, right, span, depth);
+
+    const frame = try prepare(graph, left, right, span, depth) orelse return;
+
+    return walk(graph, frame, span, depth);
+}
+
+fn prepare(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!?Frame {
+    const work = try Plan.prepare(graph, left, right, span, depth);
 
     switch (work.route) {
-        .Same => return,
-        .Depth => return Occurs.depthLimit(self, span),
-        .Recursive => return Occurs.recursive(self, span),
-        else => {},
+        .Same => return null,
+        .Depth => return Occurs.depthLimit(graph, span),
+        .Recursive => return Occurs.recursive(graph, span),
+        .Left, .Right, .Known, .Child, .Tuple, .Object => {},
+        else => |issue| return graph.reporter.fail(.type_mismatch, span, @import("unify/messages.zig").shape(issue)),
     }
 
-    const first = self.nodeAt(@backingInt(work.left));
-    const second = self.nodeAt(@backingInt(work.right));
-    const shape = try combine(self, first.shape, second.shape, work.route, span, depth);
+    const rows = graph.nodes.slice();
+    const first = Commit.snapshot(rows, work.left);
+    const second = Commit.snapshot(rows, work.right);
+    const shape = Nodes.encoded(rows, work.source);
 
-    try Commit.publish(self, work.left, work.right, first, second, shape, span);
-}
+    if (work.action == .Adopt) {
+        try Commit.publish(graph, work.left, work.right, first, second, shape, span);
 
-fn combine(self: *Graph, left: Graph.Shape, right: Graph.Shape, route: Plan.Route, span: zx.Span, depth: usize) zx.Error!Graph.Shape {
-    switch (route) {
-        .Left => return left,
-        .Right => return right,
-        .Known => {
-            const declared = if (left == .known) left else right;
-            const inferred = if (left == .known) right else left;
-
-            try applyKnown(self, inferred, Plan.concreteType(self, left, right), span, depth);
-
-            return declared;
-        },
-        .Child => {
-            const a = if (left == .list) left.list else left.optional;
-            const b = if (right == .list) right.list else right.optional;
-
-            try merge(self, a, b, span, depth + 1);
-        },
-        .Tuple => for (left.tuple, right.tuple) |a, b| {
-            try merge(self, a, b, span, depth + 1);
-        },
-        .Object => return .{ .object = try Fields.combine(self, left.object, right.object, span, depth + 1) },
-        else => |issue| return self.reporter.fail(.type_mismatch, span, message(issue)),
+        return null;
     }
 
-    return left;
+    return .{ .work = work, .first = first, .second = second, .shape = shape };
 }
 
-fn applyKnown(self: *Graph, shape: Graph.Shape, concrete: ?zx.ir.Type, span: zx.Span, depth: usize) zx.Error!void {
-    switch (shape) {
-        .known, .sequence => {},
-        .object => |fields| try Fields.applyKnown(self, fields, concrete.?.object, span, depth + 1),
-        .list, .optional => |child| {
-            const value = concrete.?;
-            const type_id = if (shape == .list) value.list else value.optional;
+noinline fn walk(graph: *Graph, root: Frame, span: zx.Span, depth: usize) zx.Error!void {
+    var frame_buffer: [inline_frames]Frame = undefined;
+    var field_buffer: [inline_field_bytes]u8 = undefined;
+    var frame_memory = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&frame_buffer), graph.scratch);
+    var field_memory = std.heap.BufferFirstAllocator.init(&field_buffer, graph.scratch);
+    const frames = frame_memory.allocator();
+    const fields = field_memory.allocator();
+    var stack: Stack = .empty;
 
-            try merge(self, child, try self.known(type_id, span), span, depth + 1);
-        },
-        .tuple => |children| {
-            const tuple = concrete.?.tuple;
+    defer stack.deinit(frames);
+    defer while (stack.pop()) |frame| frame.release(fields);
 
-            for (children, 0..) |child, index| {
-                try merge(self, child, try self.known(tuple.at(index), span), span, depth + 1);
-            }
-        },
-        .unknown => unreachable,
+    try push(graph, &stack, root, frames, fields);
+
+    while (stack.items.len != 0) {
+        const frame = &stack.items[stack.items.len - 1];
+        const next = frame.next(graph);
+
+        switch (next.step) {
+            .Publish => {
+                try frame.finish(graph, span);
+
+                frame.release(fields);
+
+                stack.items.len -= 1;
+            },
+            .Merge, .MergeKnown => {
+                const right = if (next.step == .MergeKnown)
+                    try graph.known(@fromBackingInt(next.right), span)
+                else
+                    @as(Graph.Id, @fromBackingInt(next.right));
+
+                const child = try prepare(graph, @fromBackingInt(next.left), right, span, depth + stack.items.len) orelse continue;
+
+                try push(graph, &stack, child, frames, fields);
+            },
+            .MissingField => return graph.reporter.fail(.type_mismatch, span, Fields.missing_message),
+        }
     }
 }
 
-fn message(route: Plan.Route) []const u8 {
-    return switch (route) {
-        .SequenceMismatch => "a sequence requires a list or tuple type",
-        .ShapeMismatch => "incompatible inferred input shapes",
-        .TupleMismatch => "incompatible inferred tuple lengths",
-        .ConcreteMismatch => "input uses require different concrete types",
-        .ConcreteObjectMismatch => "input object requirements conflict with its complete type",
-        .ConcreteContainerMismatch => "input container requirements conflict with its complete type",
-        .ConcreteTupleMismatch => "input tuple requirements conflict with its complete type",
-        else => unreachable,
-    };
+fn push(graph: *const Graph, stack: *Stack, initial: Frame, frames: std.mem.Allocator, fields: std.mem.Allocator) std.mem.Allocator.Error!void {
+    try stack.ensureUnusedCapacity(frames, 1);
+
+    var frame = initial;
+
+    try frame.admit(graph, fields);
+
+    stack.appendAssumeCapacity(frame);
 }

@@ -6,6 +6,7 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const rx = @import("rx");
+const zx = @import("zx");
 const State = @import("state.zig");
 const Reuse = @import("reuse.zig");
 const Zx = @import("zx.zig");
@@ -14,24 +15,23 @@ const Module = @import("../../module.zig");
 const Frame = @import("../history.zig").Frame;
 const Inputs = @import("../call_inputs.zig");
 const Body = @import("body.zig");
+const Schedule = @import("schedule.zig");
+const Candidates = @import("ahead/candidates.zig");
 const Self = @This();
 
-arenas: []std.heap.ArenaAllocator,
-/// Holds what preparing the RX modules of the current run binds.
-bindings: std.heap.ArenaAllocator,
-items: std.ArrayList(Item) = .empty,
-/// Where each module of the current run sits in `items`, by module; `none` for the others.
-positions: []u32,
-const none = std.math.maxInt(u32);
+arenas: []std.heap.ArenaAllocator = &.{},
+/// Holds the prepared bindings of the current run.
+bindings: std.heap.ArenaAllocator = .init(std.heap.smp_allocator),
+items: std.MultiArrayList(Item) = .empty,
+next_item: usize = 0,
+const Item = struct {
+    position: u64,
+    result: Result,
+};
 
-const Item = union(enum) {
+const Result = union(enum) {
     zx: struct { prepared: Zx.Prepared, outcome: ?Zx.Outcome = null },
     rx: struct { prepared: Rx.Prepared, value: ?Module.Value = null },
-    fn index(self: Item) usize {
-        return switch (self) {
-            inline else => |item| item.prepared.index,
-        };
-    }
 };
 
 /// Fewer modules than this are analyzed at their turn: waking the other cores costs more than a run of two or three
@@ -39,16 +39,12 @@ const Item = union(enum) {
 const minimum = 4;
 pub const Lowered = struct { prepared: Rx.Prepared, contract: Module.Contract };
 
-pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
-    const arenas = try allocator.alloc(std.heap.ArenaAllocator, @import("zx").parallel.width());
+fn initArenas(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
+    if (self.arenas.len != 0) return;
 
-    for (arenas) |*arena| arena.* = .init(std.heap.smp_allocator);
+    self.arenas = try allocator.alloc(std.heap.ArenaAllocator, zx.parallel.width());
 
-    const positions = try allocator.alloc(u32, count);
-
-    @memset(positions, none);
-
-    return .{ .arenas = arenas, .bindings = .init(std.heap.smp_allocator), .positions = positions };
+    for (self.arenas) |*arena| arena.* = .init(std.heap.smp_allocator);
 }
 
 pub fn deinit(self: *Self) void {
@@ -59,68 +55,67 @@ pub fn deinit(self: *Self) void {
 
 /// Analyzes a bounded prefix of the run and returns its module count. Runs below the parallel minimum are left to
 /// their turn; only successfully prepared modules consume the batch's parallel slots.
-pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, reuse: *const Reuse, modules: []const usize, arguments: *const Inputs) std.mem.Allocator.Error!usize {
-    for (self.items.items) |item| self.positions[item.index()] = none;
-    for (self.arenas) |*arena| _ = arena.reset(.retain_capacity);
+pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, reuse: *const Reuse, window: Schedule.Window, arguments: *const Inputs) std.mem.Allocator.Error!usize {
+    const used = @min(self.arenas.len, self.items.len);
+    const first = window.first;
+    const end = window.end;
+
+    for (self.arenas[0..used]) |*arena| _ = arena.reset(.retain_capacity);
 
     _ = self.bindings.reset(.retain_capacity);
 
     self.items.clearRetainingCapacity();
 
-    if (modules.len < minimum) return modules.len;
+    self.next_item = 0;
 
-    var eligible_count: usize = 0;
+    if (end - first < minimum) return end - first;
 
-    for (modules) |index| {
-        eligible_count += @intFromBool(eligible(state, reuse, index));
+    var candidates = Candidates{ .state = state, .reuse = reuse, .local_calls = derived.loaded.local_calls, .position = first, .end = end };
+    var initial: [minimum]Candidates.Item = undefined;
 
-        if (eligible_count == minimum) break;
-    }
-
-    if (eligible_count < minimum) return modules.len;
+    for (&initial) |*candidate| candidate.* = candidates.next() orelse return end - first;
+    try self.initArenas(state.allocator);
 
     const owner = state.owner;
-
     defer state.owner = owner;
+    const limit = @max(self.arenas.len, minimum);
+    var consumed = end - first;
+    var unprepared: []const Candidates.Item = &initial;
 
-    var consumed = modules.len;
+    while (self.items.len < limit) {
+        const candidate = if (unprepared.len != 0) ready: {
+            const value = unprepared[0];
+            unprepared = unprepared[1..];
 
-    for (modules, 0..) |index, position| {
-        if (!eligible(state, reuse, index)) continue;
+            break :ready value;
+        } else candidates.next() orelse break;
 
+        const index = state.graph.order[candidate.position];
         const issue = state.issue;
-
         state.owner = index;
 
-        const item = prepare(self, state, cache, sources, derived, index, arguments) catch |err| switch (err) {
+        const result = prepare(self, state, cache, sources, derived, index, arguments, candidate.action) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => {
                 state.issue = issue;
 
                 continue;
             },
-        } orelse continue;
+        };
 
-        self.positions[item.index()] = @intCast(self.items.items.len);
-
-        try self.items.append(state.allocator, item);
-
-        if (self.items.items.len == @max(self.arenas.len, minimum)) {
-            consumed = position + 1;
-
-            break;
-        }
+        try self.items.append(state.allocator, .{ .position = candidate.position, .result = result });
+        if (self.items.len == limit) consumed = candidate.position + 1 - first;
     }
 
-    if (self.items.items.len < minimum) {
-        for (self.items.items) |item| self.positions[item.index()] = none;
+    if (self.items.len < minimum) {
+        self.items.clearRetainingCapacity();
 
         return consumed;
     }
 
     const Work = struct {
         state: *const State,
-        items: []Item,
+        results: []Result,
         arenas: []std.heap.ArenaAllocator,
         next: std.atomic.Value(usize) = .init(0),
         fn run(work: *@This(), participant: usize) void {
@@ -129,9 +124,9 @@ pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, 
             while (true) {
                 const position = work.next.fetchAdd(1, .monotonic);
 
-                if (position >= work.items.len) return;
+                if (position >= work.results.len) return;
 
-                switch (work.items[position]) {
+                switch (work.results[position]) {
                     .zx => |*item| item.outcome = Zx.analyze(work.state, arena, item.prepared, &.{}) catch null,
                     .rx => |*item| item.value = Rx.lower(work.state, arena, item.prepared) catch null,
                 }
@@ -139,35 +134,35 @@ pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, 
         }
     };
 
-    var work = Work{ .state = state, .items = self.items.items, .arenas = self.arenas };
+    var work = Work{ .state = state, .results = self.items.items(.result), .arenas = self.arenas };
 
-    @import("zx").parallel.spread(Work, &work, Work.run, @min(self.arenas.len, self.items.items.len));
+    zx.parallel.spread(Work, &work, Work.run, @min(self.arenas.len, self.items.len));
 
     return consumed;
 }
 
-fn prepare(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, index: usize, arguments: *const Inputs) State.Error!?Item {
-    switch (state.graph.modules[index].source) {
-        .store => return null,
-        .zx => return .{ .zx = .{ .prepared = try Zx.prepare(state, cache, sources, index, null) } },
-        .rx => |source| {
+fn prepare(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, index: usize, arguments: *const Inputs, action: Body.Action) State.Error!Result {
+    const allocator = self.bindings.allocator();
+
+    switch (action) {
+        .AnalyzeZX => return .{ .zx = .{ .prepared = try Zx.prepare(state, allocator, cache, sources, index, false) } },
+        .LowerRX => {
+            const source = state.graph.sources.at(index).rx;
             const module = derived.loaded.modules[source];
             const callees = @import("callees.zig");
+            const ids = try callees.load(state, allocator, cache, sources, module);
 
-            if (!callees.local(module)) return null;
-
-            const ids = try callees.load(state, cache, sources, module);
-
-            return .{ .rx = .{ .prepared = try Rx.prepare(state, self.bindings.allocator(), index, module, derived.resolved[source], ids, arguments.module(source)) } };
+            return .{ .rx = .{ .prepared = try Rx.prepare(state, allocator, index, module, derived.resolved[source], ids, arguments.module(source), state.functions.view()) } };
         },
+        .Skip, .MissingSignature => unreachable,
     }
 }
 
 /// The analysis `analyze` made of the ZX body `index`, while the tables still allow linking it.
-pub fn take(self: *Self, state: *const State, index: usize) ?Zx.Analyzed {
-    const item = self.claim(index) orelse return null;
+pub fn take(self: *Self, state: *const State, position: usize) ?Zx.Analyzed {
+    const item = self.claim(position) orelse return null;
 
-    const outcome = switch (item) {
+    const outcome = switch (item.*) {
         .zx => |value| value.outcome orelse return null,
         .rx => return null,
     };
@@ -176,10 +171,10 @@ pub fn take(self: *Self, state: *const State, index: usize) ?Zx.Analyzed {
 }
 
 /// The lowering `analyze` made of the RX module `index`, while the tables still allow linking it.
-pub fn lowered(self: *Self, state: *const State, index: usize) ?Lowered {
-    const item = self.claim(index) orelse return null;
+pub fn lowered(self: *Self, state: *const State, position: usize) ?Lowered {
+    const item = self.claim(position) orelse return null;
 
-    const lowering = switch (item) {
+    const lowering = switch (item.*) {
         .rx => |value| value,
         .zx => return null,
     };
@@ -189,22 +184,8 @@ pub fn lowered(self: *Self, state: *const State, index: usize) ?Lowered {
     return if (value == .contract and Rx.current(state, lowering.prepared, value.contract)) .{ .prepared = lowering.prepared, .contract = value.contract } else null;
 }
 
-/// The item of module `index` in the current run, which only one turn reads.
-fn claim(self: *Self, index: usize) ?Item {
-    const position = self.positions[index];
+fn claim(self: *Self, position: usize) ?*const Result {
+    const row = Schedule.claim(self.items.items(.position), &self.next_item, position) orelse return null;
 
-    if (position == none) return null;
-
-    self.positions[index] = none;
-
-    return self.items.items[position];
-}
-
-/// A module analyzed at its turn without a Store, an earlier analysis to reuse, or a compiled library to load first;
-/// the RX entry stays at its turn, which keeps what it lowers for the project.
-fn eligible(state: *const State, reuse: *const Reuse, index: usize) bool {
-    return switch (Body.admit(state, index, true, reuse.reusable(state, index))) {
-        .AnalyzeZX, .LowerRX => true,
-        .Skip, .MissingSignature => false,
-    };
+    return &self.items.items(.result)[row];
 }

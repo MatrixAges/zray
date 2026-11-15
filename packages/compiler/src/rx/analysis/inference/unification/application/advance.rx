@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Application" />
+
+    <Args in={Application.Advance} out={Application.PairOutput} />
+
+    <Call fn="pair" in={$in.pair} />
+
+    <If on={$ctx.pair.step != Application.Step.MergeKnown}>
+        <Return value={$ctx.pair} />
+    </If>
+
+    <Call
+        fn="../../known/find"
+        in={{
+            known: $in.known,
+            type_id: $ctx.pair.right
+        }}
+    />
+
+    <If on={$ctx.find != null}>
+        <Return
+            value={{
+                ...$ctx.pair,
+                step: Application.Step.Merge,
+                right: $ctx.find
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.pair} />
+</Module>

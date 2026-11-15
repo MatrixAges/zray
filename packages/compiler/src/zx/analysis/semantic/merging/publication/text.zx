@@ -1,12 +1,8 @@
 import memory from "std:memory"
 
-import type { U64Buffer } from "std:memory"
-import type { Column } from "./model"
+import type { Text } from "./model"
 
-export type Input = {
-    columns: Column[],
-    progress: U64Buffer
-}
+export type Input = Text
 
 export type Output = void
 

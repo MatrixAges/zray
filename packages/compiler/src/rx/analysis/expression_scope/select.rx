@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Scope" />
+
+    <Args in={Scope.Input} out={Scope.Selection} />
+
+    <Call fn="plan" in={$in.omit(["types"])} />
+
+    <If on={$ctx.plan.length == $in.names.length}>
+        <Return
+            value={{
+                names: $in.names,
+                types: $in.types
+            }}
+        />
+    </If>
+
+    <Call
+        fn="project"
+        in={{
+            names: $in.names,
+            types: $in.types,
+            positions: $ctx.plan
+        }}
+    />
+
+    <Return value={$ctx.project} />
+</Module>

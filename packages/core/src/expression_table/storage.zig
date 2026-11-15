@@ -101,7 +101,10 @@ pub fn at(self: *const Self, index: usize) @import("row.zig").Expression {
 
 pub const append = @import("append.zig").expression;
 pub const appendHeader = @import("append.zig").header;
-pub const reserveRow = @import("reserve.zig").expression;
+pub const reserveHeaders = @import("reserve.zig").headers;
+pub const reservePayload = @import("reserve.zig").payload;
+pub const reserveColumns = @import("reserve.zig").prepare;
+pub const reserveObject = @import("reserve.zig").object;
 pub const aggregate_payload = @import("append/aggregates.zig");
 pub const collection_payload = @import("append/collections.zig");
 

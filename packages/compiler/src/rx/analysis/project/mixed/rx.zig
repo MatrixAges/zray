@@ -26,13 +26,16 @@ pub const Prepared = struct {
 pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, module: Loading.Module, signature: Signature, arguments: Inputs.Module) State.Error!Result {
     state.owner = index;
 
-    const ids = try @import("callees.zig").load(state, cache, sources, module);
+    const ids = try @import("callees.zig").load(state, state.allocator, cache, sources, module);
     const entry = index == state.graph.entry;
 
     if (!entry) _ = state.scratch.reset(.retain_capacity);
 
     const allocator = if (entry) state.allocator else state.scratch.allocator();
-    const prepared = try prepare(state, allocator, index, module, signature, ids, arguments);
+    const view = state.functions.view();
+    // Only the entry retains its call metadata after linking may move the shared columns.
+    const base = if (entry) try view.snapshot(allocator) else view;
+    const prepared = try prepare(state, allocator, index, module, signature, ids, arguments, base);
     const result = try lower(state, allocator, prepared);
 
     if (result == .diagnostic) {
@@ -47,14 +50,13 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
 }
 
 /// Binds the calls of `module` to the functions `ids` names, over the shared tables as they stand.
-pub fn prepare(state: *State, allocator: std.mem.Allocator, index: usize, module: Loading.Module, signature: Signature, ids: []const ir.FunctionId, arguments: Inputs.Module) State.Error!Prepared {
-    const base_view = state.functions.view();
-    const base = try base_view.snapshot(allocator);
+pub fn prepare(state: *State, allocator: std.mem.Allocator, index: usize, module: Loading.Module, signature: Signature, ids: []const ir.FunctionId, arguments: Inputs.Module, base: ir.FunctionTable) State.Error!Prepared {
     const calls = try allocator.alloc(Module.Loaded, module.calls.len);
 
     for (module.calls, ids, calls, 0..) |call, id, *loaded, position| {
         loaded.* = .{
             .node = call.node,
+            .input = call.input,
             .getters = call.getters,
             .argument = Inputs.input(arguments, position),
             .function = .{
@@ -66,7 +68,7 @@ pub fn prepare(state: *State, allocator: std.mem.Allocator, index: usize, module
         };
     }
 
-    return .{ .index = index, .module = module, .signature = signature, .base = base, .calls = calls, .functions = base_view.count(), .types = state.types.items.count(), .native_modules = state.native_modules.count(), .initializers = state.initializers.items.len };
+    return .{ .index = index, .module = module, .signature = signature, .base = base, .calls = calls, .functions = base.count(), .types = state.types.items.count(), .native_modules = state.native_modules.count(), .initializers = state.initializers.items.len };
 }
 
 /// Lowers a prepared module against the shared tables, which it only reads, so modules that depend on none of each
@@ -76,7 +78,7 @@ pub fn lower(state: *const State, allocator: std.mem.Allocator, prepared: Prepar
         .aliases = prepared.module.value_imports,
         .module = prepared.module.source,
         .calls = prepared.calls,
-        .steps = prepared.module.steps,
+        .plan = prepared.module.plan,
         .bindings = prepared.signature.bindings,
         .tasks = prepared.signature.tasks,
         .types = state.types.items.view(),
@@ -107,14 +109,19 @@ pub fn link(state: *State, allocator: std.mem.Allocator, prepared: Prepared, low
     var destination = state.destination();
 
     destination.temporary = allocator;
+    const base = state.functions.view().prefix(prepared.functions);
     const grown = state.functions.count() != prepared.functions or state.types.items.count() != prepared.types;
+
+    // Without new functions, lowering returns a borrowed view of the analyzed prefix.
+    if (contract.program.functions.count() == prepared.functions) contract.program.functions = base;
 
     const loaded = state.linked(Source.appendBody(.{
         .program = contract.program,
-        .base_functions = state.functions.view().prefix(prepared.functions),
+        .base_functions = base,
         .verified_functions = state.verifiedFunctions(),
         .nominal_types = contract.nominal_types,
         .store_initializers = contract.store_initializers,
+        .shared_initializers = try state.initializersView(),
         .base_types = if (grown) prepared.types else null,
     }, destination) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;

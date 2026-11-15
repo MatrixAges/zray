@@ -164,6 +164,8 @@ pub fn checkRxExpression(expression: anytype) ?zx.Diagnostic {
     return checkNestedExpression(expression, false, .{ .kind = .rx });
 }
 
+pub const nested_rx_conditional = "nested conditional values are not allowed in RX; use If or Switch, or move the decision to ZX and use Call.fn";
+
 fn checkNestedExpression(expression: anytype, nested: bool, context: ExpressionContext) ?zx.Diagnostic {
     if (context.kind == .zx_style or context.kind == .rx_style) {
         if (readability.condition(context.source, expression)) {
@@ -238,7 +240,7 @@ fn checkNestedExpression(expression: anytype, nested: bool, context: ExpressionC
                 if (readability.ternary(context.source, expression)) |issue| return issue;
             }
 
-            if (nested) return .{ .code = .style, .span = expression.span, .message = if (context.kind == .rx or context.kind == .rx_style) "nested conditional values are not allowed in RX; use If or Switch, or move the decision to ZX and use Call.fn" else "nested conditional expressions are not allowed; use match" };
+            if (nested) return .{ .code = .style, .span = expression.span, .message = if (context.kind == .rx or context.kind == .rx_style) nested_rx_conditional else "nested conditional expressions are not allowed; use match" };
 
             return checkNestedExpression(value.condition, true, context) orelse checkNestedExpression(value.yes, true, context) orelse checkNestedExpression(value.no, true, context);
         },

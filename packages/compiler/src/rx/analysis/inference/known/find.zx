@@ -1,0 +1,23 @@
+import lookup from "core/integer/map/lookup"
+
+import type { State as KnownTypes } from "core/integer/map/model"
+
+export type Input = {
+    known: KnownTypes,
+    type_id: u32
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const known = in.known
+
+    const slot = lookup({
+        count: known.count,
+        metadata: known.metadata,
+        keys: known.keys,
+        key: in.type_id
+    })
+
+    return slot == null ? null : known.values[slot]
+}

@@ -1,0 +1,32 @@
+export type Input = {
+    owners: u64[],
+    types: u32[],
+    start: u64
+}
+
+export type Output = {
+    owner: u64,
+    input: u32,
+    output: u32,
+    next: u64
+}
+
+export default function (in: Input): Output {
+    const { owners, types, start } = in
+
+    const owner = owners[start]
+
+    const end = loop(start + 2, {
+        while: next => next < owners.length && owners[next] == owner,
+        next: next => {
+            next += 2
+        }
+    })
+
+    return {
+        owner,
+        input: types[end - 2],
+        output: types[end - 1],
+        next: end
+    }
+}

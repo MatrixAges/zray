@@ -1,0 +1,65 @@
+import memory from "std:memory"
+
+import expressions from "./expressions"
+import writeRange from "./range"
+
+import type { U8Buffer, U32Buffer } from "std:memory"
+import type { Range } from "./range"
+
+export type Input = {
+    mapping: u32[],
+    fields: u32[],
+    indices: u8[],
+    evaluation: u32[],
+    target_fields: U32Buffer,
+    target_evaluation: U32Buffer,
+    target_indices: U8Buffer,
+    field_range: Range,
+    evaluation_range: Range
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const fields = expressions({
+        source: in.fields,
+        mapping: in.mapping,
+        target: in.target_fields
+    })
+
+    if (!fields) {
+        return false
+    }
+
+    const evaluation = expressions({
+        source: in.evaluation,
+        mapping: in.mapping,
+        target: in.target_evaluation
+    })
+
+    if (!evaluation) {
+        return false
+    }
+
+    if (in.indices.length != 0) {
+        const count = memory.copyBytes(
+            in.target_indices,
+            0,
+            in.indices,
+            0,
+            in.indices.length
+        )
+    }
+
+    writeRange({
+        range: in.field_range,
+        count: in.fields.length
+    })
+
+    writeRange({
+        range: in.evaluation_range,
+        count: in.evaluation.length
+    })
+
+    return true
+}

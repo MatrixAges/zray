@@ -1,0 +1,64 @@
+import contains from "../../../../zx/analysis/semantic/resolving/contains"
+import { Status } from "../bindings/model"
+import inspect from "../bindings/node"
+import { implicit_input_name } from "./const"
+
+import type { Query } from "./model"
+
+export type Input = Query & {
+    facts: string[],
+    identifier: bool
+}
+
+export type Output = {
+    next: u64,
+    first?: u32,
+    second?: u32,
+    implicit_input: bool,
+    refined: bool
+}
+
+export default function (in: Input): Output {
+    const missing: u32? = null
+    const active = in.active
+    const name = in.name
+    const topology = in.topology
+
+    const matches = loop({
+        next: in.start,
+        first: missing,
+        second: missing
+    }, {
+        while: state => state.second == null && state.next < active.names.length,
+        next: state => {
+            const row = state.next
+            state.next += 1
+
+            if (active.names[row] == name) {
+                const value = active.values[row]
+                const status = inspect({
+                    topology,
+                    value
+                })
+
+                if (status != Status.Void) {
+                    if (state.first == null) {
+                        state.first = value
+                    } else {
+                        state.second = value
+                    }
+                }
+            }
+        },
+        return: state => state
+    })
+
+    return {
+        ...matches,
+        implicit_input: in.identifier && name == implicit_input_name,
+        refined: contains({
+            names: in.facts,
+            name
+        })
+    }
+}

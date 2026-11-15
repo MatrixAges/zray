@@ -24,6 +24,13 @@ pub fn locateEnd(attribute: ast.Attribute, offset: usize) ?ast.Location {
     return locateWithBias(attribute, offset, true);
 }
 
+pub fn sourceLocation(source: []const u8, offset: usize) ast.Location {
+    var result = rawLocation(source, .{ .offset = 0, .line = 1, .column = 1 }, @min(offset, source.len), false);
+    result.offset = offset;
+
+    return result;
+}
+
 fn locateWithBias(attribute: ast.Attribute, offset: usize, end_bias: bool) ?ast.Location {
     const source = attribute.raw_value orelse return null;
     const relative = relativeOffset(attribute, source, offset, end_bias) orelse return null;

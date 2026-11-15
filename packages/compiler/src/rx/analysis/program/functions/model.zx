@@ -1,0 +1,15 @@
+import type { Stores } from "core/store_table/model"
+
+export type Header = {
+    file_name: string,
+    input_type: u32,
+    output_type: u32,
+    ownership: u8,
+    store_mode: u8,
+    stores: Stores
+}
+
+export type Shared = {
+    actual: Header,
+    expected: Header
+}

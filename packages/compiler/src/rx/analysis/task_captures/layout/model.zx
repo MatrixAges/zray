@@ -9,7 +9,11 @@ export type Rows = {
     narrows: bool
 }
 
-export type Output = {
+export type Types = {
     source_types: u32[],
+    parameter_types: u32[]
+}
+
+export type Output = Types & {
     rows: Rows
 }

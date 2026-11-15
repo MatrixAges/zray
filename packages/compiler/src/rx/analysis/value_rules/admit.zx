@@ -1,0 +1,35 @@
+import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
+import { Issue } from "./model"
+import selection from "./selection"
+
+import type { Input as Walk, Output } from "./model"
+
+export type Input = {
+    walk: Walk,
+    node: u64
+}
+
+export default function (in: Input): Output {
+    const node = in.node
+    const kind = in.walk.tree.nodes[node].kind
+
+    if (kind == ExprKind.Call) {
+        return selection(in)
+    }
+
+    const issue = match kind {
+        ExprKind.Pipeline => Issue.Unsupported,
+        ExprKind.Lambda => Issue.Unsupported,
+        ExprKind.StateBlock => Issue.Unsupported,
+        ExprKind.Capture => Issue.Unsupported,
+        ExprKind.Async => Issue.Unsupported,
+        ExprKind.Await => Issue.Unsupported,
+        ExprKind.Cancel => Issue.Unsupported,
+        _ => Issue.None
+    }
+
+    return {
+        issue,
+        node
+    }
+}

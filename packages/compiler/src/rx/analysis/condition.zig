@@ -3,24 +3,25 @@ const frontend = @import("frontend");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const generated = @import("rx_options").generated_graph;
+const inline_pending = 16;
 pub const Cases = @import("condition/cases.zig");
 
-pub fn publish(allocator: std.mem.Allocator, expression: anytype, bindings: anytype, implicit_input: bool, facts: *std.ArrayList([]const u8)) zx.Error!void {
-    const path = try frontend.binding_path.view(allocator, expression) orelse return;
-    var retained = false;
+pub const Scope = struct {
+    allocator: std.mem.Allocator,
+    bindings: []const []const u8,
+    implicit_input: bool = false,
+    facts: *std.ArrayList([]const u8),
+    fn publish(self: Scope, path: frontend.binding_path.Path) std.mem.Allocator.Error!void {
+        var retained = false;
 
-    defer if (!retained) path.release(allocator);
+        defer if (!retained) path.release(self.allocator);
 
-    const visible = (implicit_input and path.rooted("$in")) or for (bindings) |binding| {
-        if (path.rooted(binding.name)) break true;
-    } else false;
+        if (!@import("inference/scope.zig").rooted(self.bindings, path, self.implicit_input)) return;
+        try self.facts.append(self.allocator, path.text);
 
-    if (!visible) return;
-
-    try facts.append(allocator, path.text);
-
-    retained = true;
-}
+        retained = true;
+    }
+};
 
 pub fn boolean(parsed: *const frontend.ExpressionInput.Result) ?bool {
     if (parsed.diagnostic() != null) return null;
@@ -35,11 +36,11 @@ pub fn boolean(parsed: *const frontend.ExpressionInput.Result) ?bool {
     };
 }
 
-pub fn assumeParsed(allocator: std.mem.Allocator, parsed: *const frontend.ExpressionInput.Result, present: bool, context: anytype) zx.Error!void {
+pub fn assumeParsed(allocator: std.mem.Allocator, parsed: *const frontend.ExpressionInput.Result, present: bool, scope: Scope) zx.Error!void {
     switch (parsed.*) {
-        .native => |result| try assumeNative(result.value.parsed.expression, present, context),
+        .native => |result| try assumeNative(result.value.parsed.expression, present, scope),
         .indexed => |result| if (frontend.ExpressionInput.indexed_enabled) {
-            if (comptime generated) return assumeIndexed(allocator, result, result.output.result, present, context);
+            if (comptime generated) return assumeIndexed(allocator, result.source, result.output.expressions.nodes, result.output.result, present, scope);
 
             var scratch = std.heap.ArenaAllocator.init(allocator);
 
@@ -47,20 +48,20 @@ pub fn assumeParsed(allocator: std.mem.Allocator, parsed: *const frontend.Expres
 
             const view = try result.view(scratch.allocator());
 
-            try assumeValue(scratch.allocator(), view.expression(result.output.result), present, context);
+            try assumeValue(scratch.allocator(), view.expression(result.output.result), present, scope);
         } else unreachable,
     }
 }
 
-pub fn assumeValue(allocator: std.mem.Allocator, expression: anytype, present: bool, context: anytype) zx.Error!void {
-    if (comptime !generated or @TypeOf(expression) == *const zx.ast.Expression) return assumeNative(expression, present, context);
+pub fn assumeValue(allocator: std.mem.Allocator, expression: anytype, present: bool, scope: Scope) zx.Error!void {
+    if (comptime !generated or @TypeOf(expression) == *const zx.ast.Expression) return assumeNative(expression, present, scope);
 
-    return assumeIndexed(allocator, expression.context, expression.index, present, context);
+    const context = expression.context;
+
+    return assumeIndexed(allocator, context.source, context.storage.expressions.nodes, expression.index, present, scope);
 }
 
-fn assumeIndexed(allocator: std.mem.Allocator, source: anytype, index: u64, present: bool, context: anytype) zx.Error!void {
-    const parsed = @TypeOf(source) == frontend.ExpressionInput.Indexed;
-    const nodes = if (parsed) source.output.expressions.nodes else source.storage.expressions.nodes;
+fn assumeIndexed(allocator: std.mem.Allocator, source: []const u8, nodes: frontend.binding_path.IndexedNodes, index: u64, present: bool, scope: Scope) zx.Error!void {
     const node = nodes[@intCast(index)];
 
     if (node.kind != .Binary and node.kind != .Unary) return;
@@ -68,46 +69,43 @@ fn assumeIndexed(allocator: std.mem.Allocator, source: anytype, index: u64, pres
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [std.heap.page_size_min / 16]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    var pending_buffer: [inline_pending]u64 = undefined;
 
     defer arena.deinit();
 
-    const facts = @import("generated_rx_condition_plan").executeValue(scratch.allocator(), .{
+    const depth: usize = @intCast(node.depth);
+    const pending = if (depth <= pending_buffer.len) pending_buffer[0..depth] else try arena.allocator().alloc(u64, depth);
+
+    const facts = @import("generated_rx_condition_plan").executeValue(scratch.allocator(), &.{
         .nodes = nodes,
         .condition = index,
         .truth = present,
-        .facts = .{ .first = null, .rest = &.{} },
+        .pending = @ptrCast(&pending),
     }) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         error.IndexOutOfBounds => unreachable,
     };
 
-    if (facts.first == null) return;
-
-    if (comptime parsed) {
-        const view = try source.view(scratch.allocator());
-
-        return apply(&view, facts, context);
+    if (facts.first) |first| {
+        if (try frontend.binding_path.indexedView(scope.allocator, source, nodes, first)) |path| try scope.publish(path);
     }
 
-    return apply(source, facts, context);
+    for (facts.rest) |fact| {
+        if (try frontend.binding_path.indexedView(scope.allocator, source, nodes, fact)) |path| try scope.publish(path);
+    }
 }
 
-fn apply(view: anytype, facts: anytype, context: anytype) zx.Error!void {
-    if (facts.first) |first| try context.assumeNonNull(view.expression(first));
-    for (facts.rest) |index| try context.assumeNonNull(view.expression(index));
-}
-
-fn assumeNative(expression: anytype, present: bool, context: anytype) zx.Error!void {
+fn assumeNative(expression: anytype, present: bool, scope: Scope) zx.Error!void {
     const value = syntax.value(expression);
 
-    if (value == .unary and value.unary.operator == .not) return assumeNative(value.unary.operand, !present, context);
+    if (value == .unary and value.unary.operator == .not) return assumeNative(value.unary.operand, !present, scope);
     if (value != .binary) return;
 
     const binary = value.binary;
 
     if ((binary.operator == .logical_and and present) or (binary.operator == .logical_or and !present)) {
-        try assumeNative(binary.left, present, context);
-        try assumeNative(binary.right, present, context);
+        try assumeNative(binary.left, present, scope);
+        try assumeNative(binary.right, present, scope);
 
         return;
     }
@@ -115,9 +113,13 @@ fn assumeNative(expression: anytype, present: bool, context: anytype) zx.Error!v
     if (binary.operator != .equal and binary.operator != .not_equal) return;
     if ((binary.operator == .not_equal) != present) return;
 
-    if (syntax.value(binary.left) == .null_value) {
-        try context.assumeNonNull(binary.right);
-    } else if (syntax.value(binary.right) == .null_value) {
-        try context.assumeNonNull(binary.left);
-    }
+    const expression_value = if (syntax.value(binary.left) == .null_value)
+        binary.right
+
+    else if (syntax.value(binary.right) == .null_value)
+        binary.left
+    else
+        return;
+
+    if (try frontend.binding_path.view(scope.allocator, expression_value)) |path| try scope.publish(path);
 }

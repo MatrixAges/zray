@@ -20,11 +20,16 @@
     />
 
     <If on={$ctx.normalize == 0 && $ctx.edges.left.length == 0}>
-        <Call fn="lower" in={$in.graph} />
+        <Call
+            fn="lower"
+            in={{
+                graph: $in.graph,
+                lower: $in.lower
+            }}
+        />
 
         <Return
             value={{
-                depths: $ctx.lower,
                 issue: OptionalDepth.Issue.None,
                 position: 0,
                 node: null
@@ -37,7 +42,8 @@
         in={{
             graph: $in.graph,
             assignments: $in.assignments,
-            optionals: $ctx.edges
+            optionals: $ctx.edges,
+            lower: $in.lower
         }}
     />
 

@@ -1,0 +1,26 @@
+export enum Form {
+    Template,
+    Match,
+    Index,
+    Selection
+}
+
+export enum Step {
+    Done,
+    InferInterpolations,
+    StringResult,
+    MatchResult,
+    InferSubject,
+    InferArms,
+    InferFallback,
+    InferTarget,
+    InferPosition,
+    RegisterIndex,
+    ReadKeys,
+    InferReceiver,
+    RegisterSelection
+}
+
+export type Input = Form
+
+export type Output = Step[]

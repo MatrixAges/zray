@@ -3,17 +3,52 @@ const Graph = @import("types.zig");
 const Self = @This();
 pub const Field = struct { name: []const u8, value: Graph.Id };
 const Name = []const u8;
+const Header = extern struct { capacity: u32, published: u32 };
 const row_bytes = @sizeOf(Name) + @sizeOf(Graph.Id);
 
 bytes: [*]u8 = undefined,
 len: usize = 0,
 pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
-    if (count == 0) return .{};
+    return allocate(allocator, count, count);
+}
 
-    const size = std.math.mul(usize, count, row_bytes) catch return error.OutOfMemory;
+fn allocate(allocator: std.mem.Allocator, count: usize, capacity: usize) std.mem.Allocator.Error!Self {
+    if (capacity == 0) return .{};
+
+    const reserved = std.math.cast(u32, capacity) orelse return error.OutOfMemory;
+    const rows = std.math.mul(usize, capacity, row_bytes) catch return error.OutOfMemory;
+    const size = std.math.add(usize, rows, @sizeOf(Header)) catch return error.OutOfMemory;
     const storage = try allocator.alignedAlloc(u8, .of(Name), size);
+    const fields: Self = .{ .bytes = storage.ptr + capacity * @sizeOf(Name), .len = count };
 
-    return .{ .bytes = storage.ptr, .len = count };
+    fields.header().* = .{ .capacity = reserved, .published = @intCast(count) };
+
+    return fields;
+}
+
+/// Extending the most recently published prefix cannot modify any earlier view.
+pub fn extend(self: Self, allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
+    std.debug.assert(count >= self.len);
+
+    if (count == self.len) return self;
+
+    if (self.len != 0) {
+        const layout = self.header();
+
+        if (layout.published == self.len and count <= layout.capacity) {
+            layout.published = @intCast(count);
+
+            return .{ .bytes = self.bytes, .len = count };
+        }
+    }
+
+    const reserve = self.len + self.len / 2;
+    const capacity = @max(count, @min(reserve, std.math.maxInt(u32)));
+    const destination = try allocate(allocator, count, capacity);
+
+    self.copyTo(destination);
+
+    return destination;
 }
 
 /// Reconstruct the descriptor from the complete value column of this layout.
@@ -22,7 +57,7 @@ pub fn fromValues(column: []const Graph.Id) Self {
 
     const data: [*]const u8 = @ptrCast(column.ptr);
 
-    return .{ .bytes = @constCast(data - column.len * @sizeOf(Name)), .len = column.len };
+    return .{ .bytes = @constCast(data - @sizeOf(Header)), .len = column.len };
 }
 
 pub fn names(self: Self) []const []const u8 {
@@ -43,16 +78,20 @@ pub fn copyTo(self: Self, destination: Self) void {
     @memcpy(destination.valueColumn()[0..self.len], self.values());
 }
 
-fn nameColumn(self: Self) []Name {
+pub fn nameColumn(self: Self) []Name {
     if (self.len == 0) return &.{};
 
-    return @as([*]Name, @ptrCast(@alignCast(self.bytes)))[0..self.len];
+    const start = self.bytes - @as(usize, self.header().capacity) * @sizeOf(Name);
+
+    return @as([*]Name, @ptrCast(@alignCast(start)))[0..self.len];
 }
 
-fn valueColumn(self: Self) []Graph.Id {
+pub fn valueColumn(self: Self) []Graph.Id {
     if (self.len == 0) return &.{};
 
-    const start = self.bytes + self.len * @sizeOf(Name);
+    return @as([*]Graph.Id, @ptrCast(@alignCast(self.bytes + @sizeOf(Header))))[0..self.len];
+}
 
-    return @as([*]Graph.Id, @ptrCast(@alignCast(start)))[0..self.len];
+fn header(self: Self) *Header {
+    return @ptrCast(@alignCast(self.bytes));
 }

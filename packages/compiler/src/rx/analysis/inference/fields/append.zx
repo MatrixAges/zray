@@ -1,0 +1,27 @@
+import memory from "std:memory"
+
+import publish from "../unification/commit/publish_shape"
+
+import type { StringBuffer, U32Buffer } from "std:memory"
+import type { Input as ShapePublication } from "../unification/commit/publish_shape"
+
+export type Input = ShapePublication & {
+    names: StringBuffer,
+    values: U32Buffer,
+    position: u64,
+    name: string,
+    value: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeString(in.names, in.position, in.name)
+    memory.writeU32(in.values, in.position, in.value)
+
+    publish(in.pick([
+        "parent",
+        "columns",
+        "shape"
+    ]))
+}

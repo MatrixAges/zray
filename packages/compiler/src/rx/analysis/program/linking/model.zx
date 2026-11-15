@@ -35,5 +35,6 @@ export type Input = {
 export type Output = {
     returned?: u32,
     rows: u32[],
-    bindings: u32[]
+    bindings: u32[],
+    count: u64
 }

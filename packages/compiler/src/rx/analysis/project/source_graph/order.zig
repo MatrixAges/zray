@@ -1,8 +1,8 @@
 const std = @import("std");
 const model = @import("model.zig");
 
-pub fn build(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules: []const model.Module, adjacency: model.Adjacency, roots: []const u64) std.mem.Allocator.Error!model.Scheduled {
-    if (!@import("rx_options").generated_graph) return @import("seed.zig").build(allocator, backing, modules, roots);
+pub fn build(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules: model.Modules.Slice, ranges: model.Sources, adjacency: model.Adjacency, roots: []const u64, sources: []const @import("frontend").project.Source, reached: usize) std.mem.Allocator.Error!model.Scheduled {
+    if (!@import("rx_options").generated_graph) return @import("seed.zig").build(allocator, backing, modules, ranges, roots, sources);
 
     const generated = @import("generated_source_schedule");
     var scratch = std.heap.ArenaAllocator.init(backing);
@@ -10,19 +10,33 @@ pub fn build(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules: 
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
+    const native_width = @bitSizeOf(usize) == 64 and @alignOf(u64) >= @alignOf(usize);
+    const order_allocator = if (native_width) allocator else temporary;
+    const ranked = try order_allocator.alloc(u64, reached);
+    var retained = false;
 
-    const plan = generated.executeValue(temporary, &.{ .offsets = adjacency.starts, .ends = adjacency.ends, .targets = adjacency.targets, .roots = roots }) catch |err| switch (err) {
+    defer if (native_width and !retained) allocator.free(ranked);
+
+    const plan = generated.executeValue(temporary, &.{
+        .offsets = adjacency.starts,
+        .ends = adjacency.ends,
+        .targets = adjacency.targets,
+        .roots = roots,
+        .order = ranked,
+        .order_out = @ptrCast(&ranked),
+    }) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         error.IndexOutOfBounds => unreachable,
     };
 
     if (plan.cycle) |cycle| {
-        const module = modules[@intCast(cycle.owner)];
-        var source_index = adjacency.starts[@intCast(cycle.owner)];
+        const owner: usize = @intCast(cycle.owner);
+        const module = modules.get(owner);
+        var source_index = adjacency.starts[owner];
 
         for (module.dependencies) |edge| {
             if (edge.target != .source) continue;
-            if (source_index == cycle.edge) return model.cycle(module, edge);
+            if (source_index == cycle.edge) return model.cycle(module, ranges.at(owner), edge, sources);
 
             source_index += 1;
         }
@@ -30,11 +44,17 @@ pub fn build(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules: 
         unreachable;
     }
 
-    const order = try retain(allocator, plan.order[0..@intCast(plan.count)]);
+    std.debug.assert(plan.count == reached);
 
-    errdefer allocator.free(order);
+    const order: []const usize = if (native_width) @ptrCast(ranked) else try retain(allocator, ranked);
 
-    return .{ .schedule = .{ .order = order, .batch_ends = try retain(allocator, plan.batch_ends) } };
+    errdefer if (!native_width) allocator.free(order);
+
+    const batch_ends = try retain(allocator, plan.batch_ends);
+
+    retained = true;
+
+    return .{ .schedule = .{ .order = order, .batch_ends = batch_ends } };
 }
 
 fn retain(allocator: std.mem.Allocator, indices: []const u64) std.mem.Allocator.Error![]const usize {

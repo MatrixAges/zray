@@ -1,14 +1,14 @@
 const std = @import("std");
+const zx = @import("zx");
 const Graph = @import("types.zig");
 const project = @import("object_closure/project.zig");
 const Self = @This();
 pub const Query = enum { spread, selection };
 
+const Selection = struct { row: usize, root: Graph.Id, ready: bool };
+
 arena: std.heap.ArenaAllocator,
 snapshot: ?project.Snapshot = null,
-revision: u64 = 0,
-spread: ?[]const bool = null,
-selection: ?[]const bool = null,
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{ .arena = .init(allocator) };
 }
@@ -18,55 +18,152 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn prove(self: *Self, graph: *const Graph, value: Graph.Id, query: Query) std.mem.Allocator.Error!bool {
-    const root = graph.root(value);
+    return self.proveRoot(graph, graph.root(value), query);
+}
 
-    if (graph.nodes.items(.kind)[@backingInt(root)] == .Known) return true;
-    if (graph.pending.constructions.len == 0 and graph.pending.selections.len == 0) return false;
-    if (!@import("rx_options").generated_graph) return @import("object_closure/seed.zig").prove(graph, root, query, 0);
+pub fn proveRoot(self: *Self, graph: *const Graph, root: Graph.Id, query: Query) std.mem.Allocator.Error!bool {
+    const kind = graph.nodes.items(.kind)[@backingInt(root)];
+    const constructions = graph.pending.constructions.len;
+    const selections = graph.pending.selections.len;
 
-    const allocator = self.arena.allocator();
+    if (comptime !@import("rx_options").generated_graph) {
+        if (kind == .Known) return true;
+        if (constructions == 0 and selections == 0) return false;
 
-    if (self.snapshot == null or self.revision != graph.object_revision) {
-        _ = self.arena.reset(.retain_capacity);
-        self.snapshot = try project.build(graph, allocator);
-        self.revision = graph.object_revision;
-        self.spread = null;
-        self.selection = null;
+        return @import("object_closure/seed.zig").prove(graph, root, query, 0);
     }
 
-    const snapshot = &self.snapshot.?;
-    const index = snapshot.position(root) orelse return false;
+    const spread = query == .spread;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const cached = switch (query) {
-        .spread => &self.spread,
-        .selection => &self.selection,
-    };
-
-    const ready = cached.* orelse result: {
-        const generated = @import("generated_object_closure");
-
-        const ready = generated.executeValue(allocator, &.{
-            .known = snapshot.known,
-            .sizes = snapshot.sizes,
-            .results = snapshot.results,
-            .offsets = snapshot.offsets,
-            .dependents = snapshot.dependents,
-            .constructions = graph.pending.constructions.len,
-            .spread = query == .spread,
-        }) catch |err| switch (err) {
-            error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-            error.IndexOutOfBounds => unreachable,
+    while (true) {
+        const input: project.QueryInput = .{
+            .root = @backingInt(root),
+            .kind = kind,
+            .revision = graph.object_revision,
+            .constructions = constructions,
+            .selections = selections,
+            .snapshot = self.cached(),
+            .spread = spread,
         };
 
-        cached.* = ready;
+        const plan = zx.columns.invoke(project.query.executeValue, empty.allocator(), &input) catch unreachable;
 
-        if (graph.pending.selections.len == 0) {
-            self.spread = ready;
-            self.selection = ready;
+        switch (plan.action) {
+            .Accept => return true,
+            .Reject => return false,
+            .Rebuild => try self.rebuild(graph),
+            .Propagate => return self.propagate(constructions, plan.position, spread, plan.shared),
         }
+    }
+}
 
-        break :result ready;
+pub fn nextSelection(self: *Self, graph: *const Graph, sources: []const Graph.Id, first: usize, final: bool) std.mem.Allocator.Error!?Selection {
+    const rule = @import("generated_rx_selection_ready");
+    const Input = std.meta.Child(rule.Input);
+    const parents = graph.parents();
+    const constructions = graph.pending.constructions.len;
+    var start = first;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    while (start < sources.len) {
+        const snapshot = self.cached();
+
+        const input: Input = .{
+            .parents = @ptrCast(&parents),
+            .kinds = graph.nodes.items(.kind),
+            .sources = @ptrCast(sources),
+            .revision = graph.object_revision,
+            .constructions = constructions,
+            .snapshot = if (snapshot) |value| zx.columns.pointer(@typeInfo(@FieldType(Input, "snapshot")).optional.child, value) else null,
+            .start = start,
+            .final = final,
+        };
+
+        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+        const row: usize = @intCast(result.row);
+
+        if (row == sources.len) return null;
+
+        const plan = result.plan;
+        const root: Graph.Id = @fromBackingInt(result.root);
+
+        switch (plan.action) {
+            .Accept => return .{ .row = row, .root = root, .ready = true },
+            .Reject => return .{ .row = row, .root = root, .ready = false },
+            .Rebuild => {
+                try self.rebuild(graph);
+
+                start = row;
+            },
+            .Propagate => {
+                const ready = try self.propagate(constructions, plan.position, false, plan.shared);
+
+                if (ready or final) return .{ .row = row, .root = root, .ready = ready };
+
+                start = row + 1;
+            },
+        }
+    }
+
+    return null;
+}
+
+fn cached(self: *const Self) ?*const project.QuerySnapshot {
+    return if (self.snapshot) |*data| &data.query else null;
+}
+
+fn rebuild(self: *Self, graph: *const Graph) std.mem.Allocator.Error!void {
+    self.snapshot = null;
+    _ = self.arena.reset(.retain_capacity);
+    self.snapshot = try project.build(graph, self.arena.allocator());
+}
+
+fn propagate(self: *Self, constructions: usize, position: u64, spread: bool, shared: bool) std.mem.Allocator.Error!bool {
+    const data = &self.snapshot.?;
+    const rule = @import("generated_object_closure");
+    const allocator = self.arena.allocator();
+    const ready = try allocator.alloc(bool, data.known.len);
+
+    errdefer allocator.free(ready);
+
+    var buffer: [std.heap.page_size_min / 4]u8 = undefined;
+    var workspace = std.heap.BufferFirstAllocator.init(&buffer, self.arena.child_allocator);
+    const scratch = workspace.allocator();
+    const queue = try scratch.alloc(u64, data.known.len);
+
+    defer scratch.free(queue);
+
+    const pending = if (data.dependents.len == 0) &.{} else try scratch.dupe(u64, data.sizes);
+
+    defer scratch.free(pending);
+
+    const bytes = std.mem.sliceAsBytes(ready);
+
+    const input: std.meta.Child(rule.Input) = .{
+        .rules = &.{
+            .known = data.known,
+            .sizes = data.sizes,
+            .results = data.results,
+            .offsets = data.offsets,
+            .dependents = data.dependents,
+            .constructions = constructions,
+            .spread = spread,
+        },
+        .work = &.{
+            .ready = ready,
+            .ready_output = @ptrCast(&bytes),
+            .queue = @ptrCast(&queue),
+            .pending = @ptrCast(&pending),
+        },
     };
 
-    return ready[index];
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+    if (spread or shared) data.query.spread = ready;
+    if (!spread or shared) data.query.selection = ready;
+
+    return ready[@intCast(position)];
 }

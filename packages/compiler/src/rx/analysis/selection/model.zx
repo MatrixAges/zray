@@ -1,3 +1,5 @@
+import type { Expressions } from "core/expression_table/model"
+
 export enum Kind {
     Default,
     Invalid,
@@ -9,15 +11,19 @@ export enum Kind {
 }
 
 export type Labels = {
-    kinds: Kind[],
-    numbers: u64[],
-    texts: string[]
+    expressions: Expressions[],
+    roots: u32?[]
+}
+
+export type Label = {
+    kind: Kind,
+    number: u64,
+    text: string
 }
 
 export type Subject = {
     type_id: u32,
     enum_members?: u64,
-    has_default: bool,
     case_count: u64
 }
 
@@ -29,6 +35,11 @@ export type Coverage = {
 export type Failure = {
     index?: u64,
     duplicate: bool
+}
+
+export type Checked = {
+    failure: Failure,
+    has_default: bool
 }
 
 export type Input = {

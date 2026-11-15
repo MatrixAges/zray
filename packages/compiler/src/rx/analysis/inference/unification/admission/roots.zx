@@ -1,6 +1,7 @@
 import { max_nesting_depth } from "core/const"
 
 import representative from "../../forest/borrowed_root"
+import { Action } from "../application/model"
 import { Route } from "../model"
 
 import type { U32Buffer } from "std:memory"
@@ -20,7 +21,12 @@ export default function (in: Input): Output {
         return {
             left: in.left,
             right: in.right,
-            route: Route.Depth
+            route: Route.Depth,
+            action: Action.Adopt,
+            source: in.left,
+            left_operand: in.left,
+            right_operand: in.right,
+            right_size: 0
         }
     }
 
@@ -39,6 +45,11 @@ export default function (in: Input): Output {
     return {
         left,
         right,
-        route
+        route,
+        action: Action.Adopt,
+        source: left,
+        left_operand: left,
+        right_operand: right,
+        right_size: 0
     }
 }

@@ -1,0 +1,40 @@
+export enum Form {
+    ModuleShortcut,
+    ModuleBody,
+    CallWithArgument,
+    CallWithoutArgument,
+    Task,
+    ParallelTask,
+    Case,
+    Default
+}
+
+export enum Step {
+    Done,
+    ForwardPorts,
+    PublishShortcut,
+    DefaultModuleOutput,
+    MarkInput,
+    CallInput,
+    PublishGetters,
+    InferArgument,
+    VoidInput,
+    CallOutput,
+    PublishCall,
+    EnterTask,
+    InferBody,
+    InferTaskOutput,
+    DefaultTaskOutput,
+    RequestTaskOutput,
+    RestoreReturn,
+    RestoreBindings,
+    PublishTask,
+    InferCaseLabel,
+    InferDefaultLabel,
+    RefineSubject,
+    RestoreFacts
+}
+
+export type Input = Form
+
+export type Output = Step[]

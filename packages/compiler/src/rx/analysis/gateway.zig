@@ -5,7 +5,18 @@ const target = @import("call/target.zig");
 const routes = @import("gateway/routes.zig");
 pub const Route = routes.Route;
 pub const Options = struct { owner: []const u8, node: rx.ast.Node, validated_attributes: ?Attributes = null };
-pub const Definition = struct { source_path: []const u8, name: []const u8, protocol: ?rx.gateway.Protocol, listen: ?[]const u8, routes: []const Route, max_header_bytes: u32, max_body_bytes: u32 };
+
+pub const Definition = struct {
+    source_path: []const u8,
+    name: []const u8,
+    protocol: ?rx.gateway.Protocol,
+    listen: ?[]const u8,
+    routes: []const Route,
+    service_routes: []const u32,
+    max_header_bytes: u32,
+    max_body_bytes: u32,
+};
+
 pub const Value = union(enum) { definition: Definition, diagnostic: target.Diagnostic };
 const Attributes = @FieldType(rx.gateway.Gateway.Data, "attributes");
 
@@ -66,7 +77,8 @@ fn analyzeIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: 
         .name = try allocator.dupe(u8, attributes.name),
         .protocol = attributes.protocol,
         .listen = if (attributes.listen) |listen| try allocator.dupe(u8, listen) else null,
-        .routes = collected,
+        .routes = collected.routes,
+        .service_routes = collected.service_routes,
         .max_header_bytes = attributes.max_header_bytes,
         .max_body_bytes = attributes.max_body_bytes,
     } };

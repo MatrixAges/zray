@@ -18,7 +18,6 @@ export type Input = {
 }
 
 export type Normalized = {
-    parents: u32[],
     keys: u32[],
     buckets: u32[],
     sizes: u64[],

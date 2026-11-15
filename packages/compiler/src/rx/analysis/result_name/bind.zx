@@ -1,0 +1,44 @@
+import { call_prefix, task_name, task_prefix } from "./const"
+import identifier from "./identifier"
+
+export enum Issue {
+    Invalid,
+    Reserved
+}
+
+export type Input = {
+    name: string,
+    task: bool
+}
+
+export type Output = {
+    path: string,
+    issue?: Issue
+}
+
+export default function (in: Input): Output {
+    const name = in.name
+
+    if (!identifier({
+        name,
+        allow_dollar: true
+    })) {
+        return {
+            path: "",
+            issue: Issue.Invalid
+        }
+    }
+
+    if (!in.task && name == task_name) {
+        return {
+            path: "",
+            issue: Issue.Reserved
+        }
+    }
+
+    const prefix = in.task ? task_prefix : call_prefix
+
+    return {
+        path: `${prefix}.${name}`
+    }
+}

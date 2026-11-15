@@ -76,9 +76,8 @@ pub fn at(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, spa
     switch (plan.route) {
         .KnownMember => return graph.known(@fromBackingInt(plan.value), span),
         .Member => return @fromBackingInt(plan.value),
-        .MissingMember => return graph.reporter.fail(.type_mismatch, span, "the complete input type does not contain this field"),
         .AppendMember => return append(graph, index, inferred, name, span),
-        .ScalarConflict => return graph.reporter.fail(.type_mismatch, span, "object fields conflict with scalar requirements"),
+        .MissingMember, .ScalarConflict, .InvalidDeclared, .InvalidInferred => return fail(graph, plan.route, span),
         .Length => return graph.scalar(.u64, span),
         .RequireList => {
             _ = try graph.payload(target, .list, span);
@@ -92,10 +91,40 @@ pub fn at(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, spa
 
             return result;
         },
-        .InvalidDeclared => return graph.reporter.fail(.type_mismatch, span, "field access requires an object"),
-        .InvalidInferred => return graph.reporter.fail(.type_mismatch, span, "field requirements conflict with the inferred input type"),
         .Declared, .Open => unreachable,
     }
+}
+
+pub fn open(graph: *Graph, root: Graph.Id, name: []const u8, span: zx.Span) zx.Error!Graph.Id {
+    const index = @backingInt(root);
+    const fields = Graph.Fields.fromValues(@ptrCast(graph.nodes.items(.members)[index]));
+    const entry = @import("generated_rx_field_member");
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+    const result = entry.executeValue(scratch.allocator(), .{
+        .names = fields.names(),
+        .values = @ptrCast(fields.values()),
+        .first = 0,
+        .count = fields.len,
+        .name = name,
+        .declared = false,
+    }) catch unreachable;
+
+    return switch (result.route) {
+        .Member => @fromBackingInt(result.value),
+        .AppendMember => append(graph, index, fields, name, span),
+        else => unreachable,
+    };
+}
+
+pub fn fail(graph: *const Graph, route: anytype, span: zx.Span) zx.Error {
+    return graph.reporter.fail(.type_mismatch, span, switch (route) {
+        .MissingMember => "the complete input type does not contain this field",
+        .ScalarConflict => "object fields conflict with scalar requirements",
+        .InvalidDeclared => "field access requires an object",
+        .InvalidInferred => "field requirements conflict with the inferred input type",
+        else => unreachable,
+    });
 }
 
 fn decide(receiver: *const Receiver, members: *const Members) Plan {
@@ -106,13 +135,42 @@ fn decide(receiver: *const Receiver, members: *const Members) Plan {
     return generated.executeValue(scratch.allocator(), &.{ .receiver = receiver, .members = members }) catch unreachable;
 }
 
-fn append(graph: *Graph, index: usize, fields: Graph.Fields, name: []const u8, span: zx.Span) zx.Error!Graph.Id {
+pub fn append(graph: *Graph, index: usize, fields: Graph.Fields, name: []const u8, span: zx.Span) zx.Error!Graph.Id {
     const result = try graph.add(.unknown, span);
-    const extended = try Graph.Fields.init(graph.allocator, fields.len + 1);
+    const retained = try graph.types.allocator.dupe(u8, name);
 
-    fields.copyTo(extended);
-    extended.set(fields.len, try graph.types.allocator.dupe(u8, name), result);
-    graph.setShape(index, .{ .object = extended });
+    const extended = if (comptime enabled)
+        try fields.extend(graph.allocator, fields.len + 1)
+    else
+        try Graph.Fields.init(graph.allocator, fields.len + 1);
+
+    if (comptime enabled) {
+        const writer = @import("generated_rx_field_append");
+        const Write = std.meta.Child(writer.Input);
+        const Columns = std.meta.Child(@FieldType(Write, "columns"));
+        const rows = Nodes.writable(graph.nodes.slice());
+        const names = extended.nameColumn();
+        const values: []u32 = @ptrCast(extended.valueColumn());
+
+        const input: Write = .{
+            .parent = @intCast(index),
+            .columns = &rows.borrow(Columns),
+            .shape = &.{ .kind = @backingInt(Nodes.Kind.Object), .argument = 0, .members = values },
+            .names = @ptrCast(&names),
+            .values = @ptrCast(&values),
+            .position = fields.len,
+            .name = retained,
+            .value = @backingInt(result),
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        zx.columns.invoke(writer.executeValue, empty.allocator(), &input) catch unreachable;
+    } else {
+        fields.copyTo(extended);
+        extended.set(fields.len, retained, result);
+        graph.setShape(index, .{ .object = extended });
+    }
 
     graph.revision += 1;
 

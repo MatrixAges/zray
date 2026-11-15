@@ -1,0 +1,72 @@
+import integers from "std:integer"
+import memory from "std:memory"
+import { max_u32 } from "core/const"
+
+import writeRange from "./range"
+import symbols from "./symbols"
+
+import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "std:memory"
+import type { Symbols } from "./model"
+import type { Range } from "./range"
+
+export type Input = {
+    target: u32,
+    body: u32,
+    initial?: u32,
+    kind: u8,
+    mapping: u32[],
+    symbols: Symbols,
+    parameters: u32[],
+    target_parameters: U32Buffer,
+    kinds: U8Buffer,
+    targets: U32Buffer,
+    bodies: U32Buffer,
+    initials: OptionalU32Buffer,
+    range: Range
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const mapping = in.mapping
+    const target = mapping[integers.widen(in.target)]
+
+    if (target == max_u32) {
+        return false
+    }
+
+    const body = mapping[integers.widen(in.body)]
+
+    if (body == max_u32) {
+        return false
+    }
+
+    const source = in.initial
+    const initial: u32? = source == null ? null : mapping[integers.widen(source)]
+
+    if (initial == max_u32) {
+        return false
+    }
+
+    const valid = symbols({
+        source: in.parameters,
+        symbols: in.symbols,
+        target: in.target_parameters
+    })
+
+    if (!valid) {
+        return false
+    }
+
+    memory.writeU8(in.kinds, 0, in.kind)
+    memory.writeU32(in.targets, 0, target)
+    memory.writeU32(in.bodies, 0, body)
+    memory.writeOptionalU32(in.initials, 0, initial)
+
+    writeRange({
+        range: in.range,
+        count: in.parameters.length
+    })
+
+    return true
+}

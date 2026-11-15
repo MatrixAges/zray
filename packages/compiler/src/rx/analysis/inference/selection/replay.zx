@@ -1,0 +1,89 @@
+import integers from "std:integer"
+
+import equivalent from "../fields/equivalent"
+import { Action as FieldAction } from "../fields/existing"
+import field from "../fields/existing"
+import find from "../known/find"
+
+import type { U32Buffer } from "std:memory"
+import type { State as Known } from "core/integer/map/model"
+import type { Object, Output as Field } from "../fields/existing"
+
+export type Input = {
+    names: string[],
+    values: u32[],
+    declared: bool,
+    indices: u32[],
+    all: bool,
+    target: Object,
+    parents: U32Buffer,
+    known: Known,
+    first: u64
+}
+
+export type Output = {
+    position: u64,
+    index: u64,
+    target: Field,
+    source?: u32
+}
+
+export default function (in: Input): Output {
+    const missing: u32? = null
+
+    const fallback: Field = {
+        action: FieldAction.Field,
+        value: 0
+    }
+
+    const count = in.all ? in.names.length : in.indices.length
+
+    return loop({
+        position: in.first,
+        index: 0,
+        target: fallback,
+        source: missing,
+        found: false
+    }, {
+        while: state => !state.found && state.position < count,
+        next: state => {
+            const index = match {
+                in.all => state.position,
+                _ => integers.widen(in.indices[state.position])
+            }
+            const value = in.values[index]
+            const source: u32? = match {
+                in.declared => find({
+                    known: in.known,
+                    type_id: value
+                }),
+                _ => value
+            }
+            const target = field({
+                object: in.target,
+                known: in.known,
+                name: in.names[index]
+            })
+            const same = equivalent({
+                target,
+                source,
+                parents: in.parents
+            })
+
+            if (same) {
+                state.position += 1
+            } else {
+                state.index = index
+                state.target = target
+                state.source = source
+                state.found = true
+            }
+        },
+        return: state => ({
+            position: state.position,
+            index: state.index,
+            target: state.target,
+            source: state.source
+        })
+    })
+}

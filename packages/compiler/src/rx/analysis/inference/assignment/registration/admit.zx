@@ -1,0 +1,71 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import {
+    initial_capacity,
+    capacity_growth,
+    load_numerator,
+    load_denominator
+} from "core/integer/index/const"
+import probe from "core/integer/wide_index/probe"
+
+import { Action } from "./model"
+import publish from "./publish"
+
+import type { Admission as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const capacity = in.buckets.length
+
+    const slot: u64? = match {
+        capacity == 0 => null,
+        _ => probe({
+            keys: in.keys,
+            buckets: in.buckets,
+            key: in.pair.key
+        })
+    }
+
+    if (slot != null && in.buckets[slot] != max_u32) {
+        return {
+            action: Action.Skip,
+            capacity
+        }
+    }
+
+    const count = in.rows.position + 1
+
+    if (count > integers.widen(max_u32)) {
+        return {
+            action: Action.Overflow,
+            capacity
+        }
+    }
+
+    const limit = capacity * load_numerator / load_denominator
+
+    const next_capacity = match {
+        capacity == 0 => initial_capacity,
+        count > limit => capacity * capacity_growth,
+        _ => capacity
+    }
+
+    const reserve = next_capacity != capacity || count > in.rows.capacity
+
+    if (slot == null || reserve) {
+        return {
+            action: Action.Reserve,
+            capacity: next_capacity
+        }
+    }
+
+    publish({
+        pair: in.pair,
+        rows: in.rows,
+        slot
+    })
+
+    return {
+        action: Action.Added,
+        capacity
+    }
+}

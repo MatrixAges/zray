@@ -21,7 +21,7 @@ export default function (in: Input): Output {
         selected,
         multiple: false
     }, {
-        while: state => state.index < in.candidates.length,
+        while: state => !state.multiple && state.index < in.candidates.length,
         next: state => {
             const candidate = in.candidates[state.index]
             const item = inspect({

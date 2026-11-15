@@ -1,39 +1,54 @@
+import bytes from "std:bytes"
 import memory from "std:memory"
 
 import type { U32Buffer } from "std:memory"
+import type { Field } from "../../../../zx/frontend/parser/expressions/state/model"
 
 export type Input = {
-    names: string?[],
+    source: u8[],
+    fields: Field[],
+    order: u64[],
     target: U32Buffer
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const names = in.names
+    const fields = in.fields
+    const order = in.order
+    const source = in.source
 
     const scan = loop({
-        cursor: names.length,
+        cursor: order.length,
         stopped: false
     }, {
         while: state => state.cursor != 0 && !state.stopped,
         next: state => {
             state.cursor -= 1
 
-            const name = names[state.cursor]
+            const field = fields[order[state.cursor]]
 
-            if (name == null) {
+            if (field.spread) {
                 state.stopped = true
             } else {
+                const span = field.name
+                const length = span.end - span.start
+                const name = source.splice(span.start, length, [])[1]
+
                 const duplicate = loop({
-                    index: state.cursor + 1
+                    index: state.cursor + 1,
+                    found: false
                 }, {
-                    while: suffix =>
-                        suffix.index < names.length && names[suffix.index] != name,
+                    while: suffix => suffix.index < order.length && !suffix.found,
                     next: suffix => {
+                        const next = fields[order[suffix.index]].name
+
+                        suffix.found =
+                            next.end - next.start == length &&
+                            bytes.startsWith(source, next.start, name)
                         suffix.index += 1
                     },
-                    return: suffix => suffix.index != names.length
+                    return: suffix => suffix.found
                 })
 
                 if (!duplicate) {

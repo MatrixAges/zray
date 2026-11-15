@@ -1,19 +1,20 @@
 import bytes from "std:bytes"
 
+import { declaration } from "./const"
+
 import type { Declaration } from "../../../../zx/frontend/parser/declarations/model"
 
 export type Input = {
     text: u8[],
     expected: string[],
-    declarations: Declaration[]
+    declarations: Declaration[],
+    ends?: u64[]
 }
 
-export type Output = bool
+export type Output = u64?
 
 export default function (in: Input): Output {
-    if (in.declarations.length != in.expected.length) {
-        return false
-    }
+    const ends = in.ends
 
     return loop({
         index: 0,
@@ -21,14 +22,23 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.index < in.expected.length,
         next: state => {
-            const span = in.declarations[state.index].name
-            const name = in.expected[state.index]
+            const index = state.index
+            const span = in.declarations[index].name
+            const name = in.expected[index]
             const size = bytes.fromText(name).length
+            const same_width = span.end - span.start == size
+            state.valid = same_width && bytes.startsWithText(in.text, span.start, name)
 
-            state.valid = span.end - span.start == size &&
-                bytes.startsWithText(in.text, span.start, name)
-            state.index += 1
+            if (state.valid && ends != null) {
+                const previous = index == 0 ? 0 : ends[index - 1]
+
+                state.valid = span.start == previous + declaration.length
+            }
+
+            if (state.valid) {
+                state.index += 1
+            }
         },
-        return: state => state.valid
+        return: state => state.valid ? null : state.index
     })
 }

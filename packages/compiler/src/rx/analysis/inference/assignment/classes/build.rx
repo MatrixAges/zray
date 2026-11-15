@@ -1,25 +1,34 @@
 <Module>
     <Type from="model" as="AssignmentClasses" />
 
-    <Args in={AssignmentClasses.Input} out={AssignmentClasses.Output} />
+    <Args in={AssignmentClasses.Input} out={void} />
+
+    <Call
+        fn="initialize"
+        in={{
+            storage: $in.storage,
+            parents: $in.parents
+        }}
+    />
 
     <Call
         fn="join"
         in={{
             payloads: $in.payloads.initial,
-            kinds: $in.nodes.kinds,
-            edges: $in.edges
+            parents: $in.parents,
+            ranks: $in.ranks,
+            edges: $in.edges,
+            storage: $in.storage
         }}
     />
 
     <Call
         fn="representatives"
         in={{
-            parents: $ctx.join,
+            parents: $in.parents,
             payloads: $in.payloads,
-            nodes: $in.nodes
+            nodes: $in.nodes,
+            target: $in.storage.representatives
         }}
     />
-
-    <Return value={$ctx.representatives} />
 </Module>

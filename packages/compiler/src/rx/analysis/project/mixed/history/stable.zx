@@ -1,0 +1,19 @@
+import { Assessment } from "./model"
+
+import type { FunctionRange } from "./model"
+
+export type Input = FunctionRange
+
+export type Output = Assessment
+
+export default function (in: Input): Output {
+    if (in.store) {
+        return Assessment.Unchanged
+    }
+
+    if (in.linked && in.first == in.previous_first) {
+        return Assessment.CompareFunctions
+    }
+
+    return Assessment.Changed
+}

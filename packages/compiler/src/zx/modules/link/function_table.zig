@@ -1,5 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
+pub const range = @import("function_range.zig").plan;
 
 pub fn join(allocator: std.mem.Allocator, base: ir.FunctionTable, delta: ir.FunctionTable) std.mem.Allocator.Error!ir.FunctionTable {
     if (delta.count() == 0) return base;

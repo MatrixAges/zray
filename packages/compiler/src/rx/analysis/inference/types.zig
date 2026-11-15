@@ -5,6 +5,8 @@ const Scalar = @import("scalar.zig");
 const FieldAccess = @import("fields/access.zig");
 const Known = @import("known.zig");
 const Nodes = @import("nodes.zig");
+const Forest = @import("forest.zig");
+const Containers = @import("nodes/containers.zig");
 const Registration = @import("assignment/registration.zig");
 const Self = @This();
 pub const Id = enum(u32) { _ };
@@ -23,7 +25,6 @@ scratch: std.mem.Allocator,
 reporter: *zx.Reporter,
 types: Types,
 nodes: Nodes.Storage = .empty,
-forest: @import("forest.zig") = .{},
 pending: Constraints,
 revision: usize = 0,
 /// Changes that affect the roots or known types seen by object rules.
@@ -64,40 +65,19 @@ pub fn init(memory: Memory, reporter: *zx.Reporter, existing: zx.ir.TypeTable) z
     return .{ .allocator = memory.graph, .scratch = memory.backing, .pending = .{ .allocator = memory.pending }, .reporter = reporter, .types = types };
 }
 
-pub fn add(self: *Self, initial_shape: Shape, span: zx.Span) zx.Error!Id {
-    const id: Id = @fromBackingInt(@intCast(self.nodes.len));
-
-    try self.nodes.ensureUnusedCapacity(self.allocator, 1);
-    try self.forest.append(self.allocator, id);
-
-    self.nodes.appendAssumeCapacity(Nodes.record(initial_shape, span));
-
-    return id;
-}
-
-pub fn known(self: *Self, type_id: zx.ir.TypeId, span: zx.Span) zx.Error!Id {
-    if (@backingInt(type_id) >= self.types.items.view().count()) return self.reporter.fail(.contract, span, "inference type is outside the shared table");
-    if (self.pending.known_types.get(type_id)) |id| return id;
-
-    const id = try self.add(.{ .known = type_id }, span);
-
-    self.pending.known_types.put(self.pending.allocator, type_id, id) catch |err| {
-        self.nodes.len -= 1;
-
-        self.forest.rollback();
-
-        return err;
-    };
-
-    return id;
-}
+pub const add = Nodes.append;
+pub const known = Known.intern;
 
 pub fn scalar(self: *Self, value: zx.ir.Scalar, span: zx.Span) zx.Error!Id {
     return self.known(Types.scalarId(value), span);
 }
 
 pub fn root(self: *const Self, id: Id) Id {
-    return self.forest.root(id);
+    return Forest.root(self.parents(), id);
+}
+
+pub fn parents(self: *const Self) []u32 {
+    return self.nodes.items(.parent);
 }
 
 pub fn shape(self: *const Self, id: Id) Shape {
@@ -129,6 +109,8 @@ pub fn requireValue(self: *Self, value: Id, span: zx.Span) zx.Error!void {
 pub const restrict = @import("scalar/restriction.zig").restrict;
 
 pub fn number(self: *Self, text: []const u8, negative: bool, span: zx.Span) zx.Error!Id {
+    if (comptime @import("rx_options").generated_graph) return @import("nodes/number.zig").append(self, text, negative, span);
+
     const number_type = Scalar.literal(text, negative);
     const id = try self.add(.unknown, span);
     const rows = self.nodes.slice();
@@ -143,10 +125,11 @@ pub fn number(self: *Self, text: []const u8, negative: bool, span: zx.Span) zx.E
 }
 
 pub const field = FieldAccess.field;
+pub const addContainers = Containers.append;
 
-pub fn payload(self: *Self, id: Id, kind: enum { list, optional }, span: zx.Span) zx.Error!Id {
-    const child = try self.add(.unknown, span);
-    const container = try self.add(if (kind == .list) .{ .list = child } else .{ .optional = child }, span);
+pub fn payload(self: *Self, id: Id, kind: Containers.Kind, span: zx.Span) zx.Error!Id {
+    const child: Id = @fromBackingInt(@intCast(self.nodes.len));
+    const container = try self.addContainers(null, kind, 1, span);
 
     try self.unify(id, container, span);
 
@@ -154,7 +137,8 @@ pub fn payload(self: *Self, id: Id, kind: enum { list, optional }, span: zx.Span
 }
 
 pub const finish = @import("solve.zig").finish;
+pub const Resolver = @import("resolve.zig").Workspace;
 
-pub fn resolve(self: *Self, id: Id) zx.Error!zx.ir.TypeId {
-    return @import("resolve.zig").resolve(self, id);
+pub fn resolve(self: *Self, id: Id, workspace: *Resolver) zx.Error!zx.ir.TypeId {
+    return @import("resolve.zig").resolve(self, id, workspace);
 }

@@ -15,6 +15,7 @@
         fn="measure"
         in={{
             lengths: $ctx.validate,
+            groups: $in.groups,
             parents: $in.parents
         }}
     />

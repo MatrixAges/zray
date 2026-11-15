@@ -4,7 +4,11 @@ export type Input = {
     parents: u32?[]
 }
 
-export type Output = u64[]
+export type Output = {
+    lengths: u64[],
+    bytes: u64,
+    routes: u64
+}
 
 export enum Issue {
     None,
@@ -14,5 +18,7 @@ export enum Issue {
 
 export type Conflict = {
     issue: Issue,
-    row: u64
+    row: u64,
+    service_routes: u32[],
+    route_services: u32[]
 }

@@ -35,7 +35,9 @@
         <Call
             fn="admit"
             in={{
-                state: $in.states[$ctx.lookup],
+                states: $in.states,
+                marks: $in.marks,
+                row: $ctx.lookup,
                 depth: $in.depth
             }}
         />

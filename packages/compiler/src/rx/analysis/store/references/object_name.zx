@@ -1,0 +1,23 @@
+import identifier from "../../result_name/identifier"
+import qualify from "../slot_name"
+
+export type Input = {
+    scope: string,
+    object: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    if (!identifier({
+        name: in.object,
+        allow_dollar: false
+    })) {
+        return null
+    }
+
+    return qualify({
+        ...in,
+        identity: false
+    })
+}

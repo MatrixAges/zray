@@ -1,27 +1,13 @@
-import integers from "std:integer"
+import lookup from "./lookup"
 
-import { max_u32 } from "../../const"
-import probe from "./probe"
-
+import type { Output } from "./lookup"
 import type { Key as Input } from "./model"
 
-export type Output = u64?
+export type { Output } from "./lookup"
 
 export default function (in: Input): Output {
-    if (in.index.buckets.length == 0) {
-        return null
-    }
-
-    const slot = probe({
+    return lookup({
         ...in.index.omit(["count"]),
         key: in.key
     })
-
-    const entry = in.index.buckets[slot]
-
-    if (entry == max_u32) {
-        return null
-    }
-
-    return integers.widen(entry)
 }

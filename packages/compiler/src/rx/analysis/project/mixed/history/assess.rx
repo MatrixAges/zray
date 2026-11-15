@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="History" />
+
+    <Args in={History.Reanalysis} out={History.Assessment} />
+
+    <Call module="align" in={$in.alignment} />
+
+    <If on={!$ctx.align}>
+        <Return value={History.Assessment.Misaligned} />
+    </If>
+
+    <If on={$in.compiled_dependency}>
+        <Return value={History.Assessment.Changed} />
+    </If>
+
+    <Call fn="changed" in={$in.dependencies} />
+
+    <If on={$ctx.changed}>
+        <Return value={History.Assessment.Changed} />
+    </If>
+
+    <Call fn="stable" in={$in.functions} />
+
+    <Return value={$ctx.stable} />
+</Module>

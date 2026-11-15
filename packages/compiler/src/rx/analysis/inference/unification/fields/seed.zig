@@ -3,6 +3,7 @@ const zx = @import("zx");
 const Graph = @import("../../types.zig");
 const Plan = @import("../plan.zig");
 const merge = @import("../../unify.zig").merge;
+const missing_message = @import("../fields.zig").missing_message;
 
 pub fn combine(graph: *Graph, left: Graph.Fields, right: Graph.Fields, span: zx.Span, depth: usize) zx.Error!Graph.Fields {
     if (left.len == 0) return right;
@@ -42,7 +43,7 @@ pub fn applyKnown(graph: *Graph, inferred: Graph.Fields, known: zx.ir.TypeFields
     const names = known.names[0..known.len];
 
     for (inferred.names(), inferred.values()) |name, field| {
-        const index = Plan.position(names, name) orelse return graph.reporter.fail(.type_mismatch, span, "the complete input type does not contain a required field");
+        const index = Plan.position(names, name) orelse return graph.reporter.fail(.type_mismatch, span, missing_message);
         const value = try graph.known(known.at(index).type_id, span);
 
         try merge(graph, field, value, span, depth);

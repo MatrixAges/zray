@@ -6,60 +6,36 @@ import { Kind } from "../unification/model"
 import type { U32Buffer } from "std:memory"
 import type { Kind as ShapeKind } from "../unification/model"
 
-export enum Mode {
-    Length,
-    PendingLength,
-    Index,
-    DefaultIndex
-}
-
 export type Input = {
     targets: u32[],
-    resolved: bool[],
     kinds: ShapeKind[],
-    parents: U32Buffer,
-    mode: Mode,
-    start: u64
+    parents: U32Buffer
 }
 
-export type Output = {
-    row: u64,
-    root: u64,
-    found: bool
-}
+export type Output = u64?
 
 export default function (in: Input): Output {
+    const missing: u64? = null
+
     return loop({
-        row: in.start,
-        root: 0,
-        found: false
+        row: 0,
+        pending: missing
     }, {
-        while: state => !state.found && state.row < in.targets.length,
+        while: state => state.pending == null && state.row < in.targets.length,
         next: state => {
             const row = state.row
-            const mode = in.mode
+            const parent = representative({
+                parents: in.parents,
+                value: in.targets[row]
+            })
+            const root = integers.widen(parent)
 
-            if (mode != Mode.Index || !in.resolved[row]) {
-                const root = representative({
-                    parents: in.parents,
-                    value: in.targets[row]
-                })
-                const kind = in.kinds[integers.widen(root)]
-                const pending = kind == Kind.Unknown
-
-                state.root = integers.widen(root)
-                state.found = match mode {
-                    Mode.PendingLength => pending,
-                    Mode.DefaultIndex => pending,
-                    Mode.Index => !pending && kind != Kind.Sequence,
-                    _ => !pending
-                }
-            }
-
-            if (!state.found) {
+            if (in.kinds[root] == Kind.Unknown) {
+                state.pending = row
+            } else {
                 state.row += 1
             }
         },
-        return: state => state
+        return: state => state.pending
     })
 }

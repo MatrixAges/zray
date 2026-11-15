@@ -17,7 +17,7 @@ export default function (in: Input): Output {
         _ => Kind.Object
     }
 
-    const members = in.values.splice(in.start, in.count, [])[1]
+    const members = in.members
     const empty: u32[] = []
 
     return {

@@ -1,11 +1,9 @@
 import type { U32Buffer } from "std:memory"
-import type { Route } from "../model"
+import type { Application } from "../application/model"
+import type { Route, TypeColumns } from "../model"
 import type { Graph } from "../occurs/model"
 
-export type Columns = {
-    kinds: u8[],
-    sizes: u32[]
-}
+export type Columns = TypeColumns
 
 export type Input = {
     graph: Graph,
@@ -16,8 +14,10 @@ export type Input = {
     depth: u64
 }
 
-export type Output = {
+export type Roots = {
     left: u32,
     right: u32,
     route: Route
 }
+
+export type Output = Roots & Application

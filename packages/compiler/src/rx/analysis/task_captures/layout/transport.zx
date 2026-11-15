@@ -1,14 +1,19 @@
 import integers from "std:integer"
 
-export type Input = {
-    types: u32[],
-    positions: u32[]
-}
+import type { Input as Request, Types } from "./model"
 
-export type Output = u32[]
+export type Input = Request
+
+export type Output = Types
 
 export default function (in: Input): Output {
     const types = in.types
+    const parameters = in.parameters
 
-    return in.positions.map(position => types[integers.widen(position)])[0]
+    return {
+        source_types:
+            in.positions.map(position => types[integers.widen(position)])[0],
+        parameter_types:
+            in.positions.map(position => parameters[integers.widen(position)])[0]
+    }
 }

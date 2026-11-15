@@ -1,0 +1,33 @@
+export enum Form {
+    And,
+    Or,
+    Coalesce,
+    Compare,
+    Arithmetic,
+    Not,
+    NegativeLiteral,
+    Negative,
+    Conditional
+}
+
+export enum Step {
+    Done,
+    Boolean,
+    Unknown,
+    Expected,
+    NegativeLiteral,
+    Restrict,
+    DeclareLeft,
+    OptionalPayload,
+    ExpectResult,
+    InferLeft,
+    InferRight,
+    InferCondition,
+    InferRightIfTrue,
+    InferRightIfFalse,
+    InferThirdIfFalse
+}
+
+export type Input = Form
+
+export type Output = Step[]

@@ -1,0 +1,15 @@
+import { identity_separator, namespace, reference_separator } from "./const"
+
+export type Input = {
+    scope: string,
+    object: string,
+    identity: bool
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const separator = in.identity ? identity_separator : reference_separator
+
+    return `${namespace}${reference_separator}${in.scope}${separator}${in.object}`
+}

@@ -56,18 +56,18 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     defer temporary.deinit();
 
     const scratch = temporary.allocator();
-    var exports: std.ArrayList(Export) = .empty;
-    var seen: std.StringHashMapUnmanaged(void) = .empty;
+    const definition = analyzed.value.definition;
+    const exports = try scratch.alloc(Export, definition.service_routes.len);
 
-    for (analyzed.value.definition.routes) |route| {
-        if ((try seen.getOrPut(scratch, route.service)).found_existing) continue;
-        try exports.append(scratch, .{ .path = route.service, .source = route.service });
+    for (definition.service_routes, exports) |index, *exported| {
+        const service = definition.routes[index].service;
+        exported.* = .{ .path = service, .source = service };
     }
 
     var configured = options.loaded;
 
-    configured.config.exports = exports.items;
-    const prepared = if (exports.items.len == 0) null else (try services.run(allocator, .{ .io = options.io, .loaded = configured, .writer = options.writer, .inputs = options.inputs })) orelse return null;
+    configured.config.exports = exports;
+    const prepared = if (exports.len == 0) null else (try services.run(allocator, .{ .io = options.io, .loaded = configured, .writer = options.writer, .inputs = options.inputs })) orelse return null;
 
     transferred = true;
 

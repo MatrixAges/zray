@@ -4,13 +4,18 @@ const program_link = @import("program.zig");
 const Origins = @import("../nominal_origins.zig");
 const Nodes = @import("../artifact/nodes.zig");
 const Initializer = @import("../compiled.zig").StoreInitializer;
+const function_body = @import("../function_body.zig");
+const generated = @import("parser_options").generated_parser;
 
 pub const Input = struct {
     program: ir.Program,
     base_functions: ?ir.FunctionTable = null,
+    /// Newly analyzed functions with absolute IDs following the borrowed base.
+    function_suffix: ?ir.FunctionTable = null,
     verified_functions: ir.FunctionTable = .{},
     nominal_types: Origins.Table,
     store_initializers: []const Initializer = &.{},
+    shared_initializers: []const Initializer = &.{},
     members: []const @import("../function_import.zig") = &.{},
     /// The length of the shared type table the body was analyzed against, when the tables grew since; its base
     /// functions are then a prefix of the shared ones rather than all of them.
@@ -28,9 +33,13 @@ pub const Loaded = struct {
 };
 
 pub fn append(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
-    var nodes = try program_link.append(.{ .program = input.program, .nominal_types = input.nominal_types }, destination);
+    if (input.function_suffix != null) return error.InvalidModule;
 
-    return finish(input, destination, &nodes);
+    var nodes = try program_link.append(.{ .program = input.program, .nominal_types = input.nominal_types }, destination);
+    const extended = if (input.base_functions) |base| input.program.functions.count() > base.count() else true;
+    const own = if (extended) function_body.own(input.program) else null;
+
+    return finish(input, destination, &nodes, own);
 }
 
 pub fn appendBody(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
@@ -39,108 +48,81 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
     const shared = if (input.base_types == null) sameView(base, destination.functions.view()) else base.count() <= destination.functions.count();
 
     if (!shared or !sameView(program.native_modules, destination.native_modules.view())) return error.InvalidModule;
-    if (!@import("function_table.zig").hasPrefix(program.functions, base)) return error.InvalidModule;
-    if (@import("../../ir/validate.zig").internal and try @import("../../ir/validate.zig").validateExtending(destination.temporary, program, input.verified_functions) != null) return error.InvalidIr;
+
+    const table = @import("function_table.zig");
+
+    if (!table.hasPrefix(program.functions, base)) return error.InvalidModule;
+
+    const tail = if (input.function_suffix) |suffix| split: {
+        if (program.functions.count() != base.count() or !suffix.validStructure()) return error.InvalidModule;
+
+        break :split suffix;
+    } else program.functions.suffix(base.count());
+
+    const count = std.math.add(usize, base.count(), tail.count()) catch return error.OutOfMemory;
+    const checks = @import("../../ir/validate.zig");
+
+    if (comptime checks.internal) {
+        var checked = program;
+
+        if (input.function_suffix != null) checked.functions = try table.join(destination.temporary, base, tail);
+        if (try checks.validateExtending(destination.temporary, checked, input.verified_functions) != null) return error.InvalidIr;
+    }
 
     const mapping = try destination.types.appendAnalyzed(destination.temporary, program.types, input.nominal_types, input.base_types orelse destination.types.items.count());
-    const first = destination.functions.count();
-    const count = program.functions.count();
-    const prefix = base.count();
-    const limit = std.math.maxInt(u32);
-
-    if (first > limit or count > limit or count - prefix > limit - first) return error.OutOfMemory;
-    if (program.native_modules.count() > limit) return error.OutOfMemory;
+    const range = try table.range(destination.functions.count(), count, base.count(), program.types.count(), program.native_modules.count());
 
     var nodes = Nodes{
         .allocator = destination.allocator,
         .types = .{ .mapped = mapping },
-        .functions = .{ .range = .{ .first = @intCast(first), .count = @intCast(count), .prefix = @intCast(prefix) } },
-        .native_modules = .{ .range = .{ .first = 0, .count = @intCast(program.native_modules.count()) } },
+        .functions = .{ .range = .{ .first = range.first, .count = range.count, .prefix = range.prefix } },
+        .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
     };
 
-    for (base.count()..program.functions.count()) |index| {
-        try destination.functions.append(destination.allocator, try nodes.function(program.functions.at(index)));
-    }
+    try nodes.appendFunctions(destination.functions, tail);
 
-    return finish(input, destination, &nodes);
+    return finish(input, destination, &nodes, function_body.ownTail(program, tail, base.count()));
 }
 
-fn finish(input: Input, destination: program_link.Destination, nodes: *Nodes) program_link.Error!Loaded {
+fn finish(input: Input, destination: program_link.Destination, nodes: *Nodes, own: ?ir.FunctionId) program_link.Error!Loaded {
     const allocator = destination.allocator;
     const program = input.program;
     var function: ?ir.FunctionId = null;
-    const extended = if (input.base_functions) |base| program.functions.count() > base.count() else true;
 
-    if (if (extended) @import("../function_body.zig").own(program) else null) |id| {
+    if (own) |id| {
         function = try nodes.functionId(id);
     } else if (!program.type_only) {
-        const mapped = try nodes.function(.{
-            .file_name = program.file_name,
-            .input_type = program.input_type,
-            .output_type = program.output_type,
-            .output_ownership = program.output_ownership,
-            .symbols = program.symbols,
-            .expressions = program.expressions,
-            .body = program.body,
-            .contracts = program.contracts,
-            .stores = program.stores,
-            .store_mode = program.store_mode,
-        });
-
         function = @fromBackingInt(@intCast(destination.functions.count()));
 
-        try destination.functions.append(allocator, mapped);
+        try nodes.appendFunction(destination.functions, function_body.value(program));
     }
 
-    const exports = try allocator.alloc(ir.Export, program.exports.len);
+    const exports, const constants = if (comptime generated) source: {
+        const surface = @import("../artifact/surface.zig");
+        const types = @import("../artifact/nodes/remap.zig").typeMapping(surface.Mapping, nodes.types);
 
-    for (program.exports, exports) |source, *exported| {
-        exported.* = .{ .name = try allocator.dupe(u8, source.name), .type_id = try nodes.types.include(source.type_id) };
-    }
+        break :source .{ try surface.copyExports(allocator, program.exports, &types), try surface.copyConstants(allocator, program.constant_exports, &types) };
+    } else seed: {
+        const aliases = try allocator.alloc(ir.Export, program.exports.len);
 
-    const initializers = try allocator.alloc(Initializer, input.store_initializers.len);
-    const constants = try allocator.alloc(ir.Constant, program.constant_exports.len);
+        for (program.exports, aliases) |source, *exported| {
+            exported.* = .{ .name = try allocator.dupe(u8, source.name), .type_id = try nodes.types.include(source.type_id) };
+        }
 
-    for (program.constant_exports, constants) |source, *constant| {
-        constant.* = try @import("../../analysis/constants/copy.zig").copy(allocator, source);
-        constant.type_id = try nodes.types.include(source.type_id);
-    }
+        break :seed .{ @as([]const ir.Export, aliases), try nodes.constants(program.constant_exports) };
+    };
 
-    for (input.store_initializers, initializers) |source, *initializer| {
-        initializer.* = .{
-            .identity = try allocator.dupe(u8, source.identity),
-            .schema_version = source.schema_version,
-            .function = try nodes.functionId(source.function),
-        };
-    }
-
-    var members: std.ArrayList(@import("../function_import.zig")) = .empty;
-
-    for (input.members) |source| {
-        var member = source;
-
-        member.id = if (source.id) |id| try nodes.functionId(id) else null;
-        member.input_type = if (source.input_type) |id| try nodes.types.include(id) else null;
-        member.output_type = if (source.output_type) |id| try nodes.types.include(id) else null;
-        member.name = try allocator.dupe(u8, source.name);
-        member.namespace = null;
-
-        if (member.name.len == 0 and member.intrinsic == null) {
-            if (function != null) return error.InvalidModule;
-
-            function = member.id;
-        } else try members.append(allocator, member);
-    }
-
-    const entry = if (function) |id| destination.functions.at(@backingInt(id)) else null;
+    const initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);
+    const surface = try @import("source/members.zig").link(nodes, input.members, function);
+    const entry = if (surface.entry) |id| destination.functions.at(@backingInt(id)) else null;
 
     return .{
-        .function = function,
+        .function = surface.entry,
         .input_type = if (entry) |value| value.input_type else try nodes.types.include(program.input_type),
         .output_type = if (entry) |value| value.output_type else try nodes.types.include(program.output_type),
         .exports = exports,
         .constant_exports = constants,
-        .members = members.items,
+        .members = surface.members,
         .store_initializers = initializers,
     };
 }

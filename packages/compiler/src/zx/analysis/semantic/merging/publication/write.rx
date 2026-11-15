@@ -13,9 +13,25 @@
 
     <Call
         fn="../rebase"
-        in={$in.omit([
-            "columns",
-            "progress"
+        in={$in.pick([
+            "kinds",
+            "first",
+            "target",
+            "children",
+            "fields",
+            "names"
         ])}
     />
+
+    <Call
+        fn="../../../../modules/nominal_origins/bind_names"
+        in={$in.pick([
+            "origin_ids",
+            "base_labels",
+            "delta_labels",
+            "origin_names_out"
+        ])}
+    />
+
+    <Call fn="../../../../ir/columns/write" in={$in.pick(["writes"])} />
 </Module>

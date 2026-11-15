@@ -1,6 +1,7 @@
 import integers from "std:integer"
 import { ValueKind } from "core/expression_table/append/model"
 import append from "core/expression_table/append/value"
+import member from "core/type_table/member"
 
 import row from "../../../semantic/types/row"
 
@@ -32,20 +33,14 @@ export default function (in: Input): Output {
 
     const table = target.delta ? tables.delta : tables.base
 
-    const found = loop({
+    const found = member({
         names: table.names,
         first: integers.widen(target.first),
         count: integers.widen(target.second),
-        name: in.name.text,
-        index: 0
-    }, {
-        while: current =>
-            current.index < current.count &&
-            current.names[current.first + current.index] != current.name,
-        next: current => { current.index += 1 }
+        name: in.name.text
     })
 
-    if (found.index == found.count) {
+    if (found == null) {
         const message = match {
             in.error_member =>
                 "error is not a member of this expression's finite error set",
@@ -74,7 +69,7 @@ export default function (in: Input): Output {
             span_end: in.span.end
         },
         kind: in.error_member ? ValueKind.ErrorValue : ValueKind.EnumValue,
-        value: integers.narrow(found.index)
+        value: integers.narrow(found)
     })
 
     return {

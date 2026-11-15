@@ -1,10 +1,13 @@
 import integers from "std:integer"
 
-import representative from "../forest/representative"
+import representative from "../forest/borrowed_root"
+import find from "../known/find"
 import { Route as WalkRoute } from "../optional/model"
 import walk from "../optional/walk"
 import { Kind } from "../unification/model"
 
+import type { U32Buffer } from "std:memory"
+import type { State as Known } from "core/integer/map/model"
 import type { Graph } from "../optional/model"
 
 export enum Action {
@@ -16,16 +19,17 @@ export enum Action {
 
 export type Input = {
     graph: Graph,
-    parents: u32[],
+    parents: U32Buffer,
     sources: u32[],
     values: u32[],
+    known: Known,
     infer_source: bool,
     next: u64,
     value: u32,
     action: Action
 }
 
-export type Output = Input.Pick("parents", "next", "value", "action")
+export type Output = Input.Pick("next", "value", "action")
 
 export default function (in: Input): Output {
     return loop(in, {
@@ -43,13 +47,32 @@ export default function (in: Input): Output {
                 route: WalkRoute.Boundary
             })
 
-            state.parents = result.parents
-
             if (result.route != WalkRoute.Open) {
-                state.value = result.value
-                state.action = match result.route {
-                    WalkRoute.Declared => Action.Register,
-                    _ => Action.Unify
+                const operand = match result.route {
+                    WalkRoute.Declared => find({
+                        known: state.known,
+                        type_id: result.value
+                    }),
+                    _ => result.value
+                }
+
+                if (operand == null) {
+                    state.value = result.value
+                    state.action = Action.Register
+                } else {
+                    const left = representative({
+                        parents: state.parents,
+                        value: state.values[index]
+                    })
+                    const right = representative({
+                        parents: state.parents,
+                        value: operand
+                    })
+
+                    if (left != right) {
+                        state.value = operand
+                        state.action = Action.Unify
+                    }
                 }
             } else if (state.infer_source) {
                 const value = representative({
@@ -57,10 +80,8 @@ export default function (in: Input): Output {
                     value: state.values[index]
                 })
 
-                state.parents = value.parents
-
                 if (
-                    state.graph.kinds[integers.widen(value.item)] != Kind.Unknown
+                    state.graph.kinds[integers.widen(value)] != Kind.Unknown
                 ) {
                     state.action = Action.Infer
                 }
@@ -69,7 +90,6 @@ export default function (in: Input): Output {
             state.next += 1
         },
         return: state => ({
-            parents: state.parents,
             next: state.next,
             value: state.value,
             action: state.action

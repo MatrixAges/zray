@@ -8,9 +8,10 @@ const expression = @import("expression.zig");
 const initializer = @import("store/initializer.zig");
 const Layout = @import("store/layout.zig");
 pub const registry = @import("store/registry.zig");
+pub const collectInitializers = @import("store/selection.zig").collect;
 pub const Options = struct { aliases: []const zx.ir.Export = &.{}, owner: []const u8, node: rx.ast.Node, types: zx.ir.TypeTable = .{}, nominal_types: @FieldType(frontend.AnalysisResult, "nominal_types") = .{}, native_modules: zx.ir.NativeModuleTable = .{} };
 pub const Binding = struct { name: []const u8, slot: zx.ir.StoreSlot };
-pub const Object = struct { name: []const u8, initial: zx.ir.Program };
+pub const Object = struct { name: []const u8, identity: []const u8, initial: zx.ir.Program };
 pub const Definition = struct { source_path: []const u8, name: []const u8, version: u32, types: zx.ir.TypeTable, objects: []const Object };
 pub const Value = union(enum) { definition: Definition, diagnostic: target.Diagnostic };
 
@@ -35,6 +36,10 @@ pub fn analyze(allocator: std.mem.Allocator, options: Options) std.mem.Allocator
 }
 
 pub fn analyzeIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Options) std.mem.Allocator.Error!Value {
+    return analyzeWithValues(allocator, backing, options, null);
+}
+
+pub fn analyzeWithValues(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Options, value_imports: ?frontend.expressions.BindingColumns) std.mem.Allocator.Error!Value {
     var scratch = std.heap.ArenaAllocator.init(backing);
 
     defer scratch.deinit();
@@ -63,7 +68,7 @@ pub fn analyzeIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, optio
     if (resolved == .diagnostic) return diagnostic(allocator, path, resolved.diagnostic);
 
     var types = resolved.resolved.types;
-    const values = try @import("project/type_imports.zig").values(temporary, types.view(), options.aliases);
+    const values = value_imports orelse try @import("project/type_imports.zig").values(temporary, types.view(), options.aliases);
     const native_modules = try frontend.native_context.copy(allocator, options.native_modules);
     const objects = try allocator.alloc(Object, layout.starts.len);
 
@@ -82,7 +87,11 @@ pub fn analyzeIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, optio
 
         const name = target.attribute(layout.fragments[first], "name").value;
 
-        object.* = .{ .name = try allocator.dupe(u8, name), .initial = initialized.program };
+        object.* = .{
+            .name = try allocator.dupe(u8, name),
+            .identity = try @import("store/names.zig").qualify(allocator, path, name, .identity),
+            .initial = initialized.program,
+        };
     }
 
     const complete = types.view();

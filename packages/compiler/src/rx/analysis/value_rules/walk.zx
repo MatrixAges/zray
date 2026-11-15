@@ -1,0 +1,94 @@
+import memory from "std:memory"
+
+import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
+import admit from "./admit"
+import child from "./child"
+import { Issue } from "./model"
+import template from "./template"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const missing: u64? = null
+
+    const empty: Output = {
+        issue: Issue.None,
+        node: in.root
+    }
+
+    return loop({
+        node: in.root,
+        ordinal: 0,
+        depth: 0,
+        condition: missing,
+        policy: empty,
+        style: empty,
+        active: true
+    }, {
+        while: state => state.active && state.policy.issue == Issue.None,
+        next: state => {
+            const kind = in.tree.nodes[state.node].kind
+
+            if (state.ordinal == 0) {
+                state.policy = admit({
+                    walk: in,
+                    node: state.node
+                })
+
+                if (kind == ExprKind.Conditional) {
+                    if (state.condition == null) {
+                        state.condition = state.depth
+                    } else if (state.style.issue == Issue.None) {
+                        state.style = {
+                            issue: Issue.NestedConditional,
+                            node: state.node
+                        }
+                    }
+                }
+            }
+
+            if (state.policy.issue == Issue.None) {
+                const request = {
+                    walk: in,
+                    node: state.node,
+                    index: state.ordinal
+                }
+
+                const next = match kind {
+                    ExprKind.Template => template(request),
+                    _ => {
+                        node: child(request),
+                        next: state.ordinal + 1
+                    }
+                }
+
+                if (next.node != null) {
+                    memory.writeU64(in.ancestors, state.depth, state.node)
+                    memory.writeU64(in.positions, state.depth, next.next)
+                    state.node = next.node
+                    state.ordinal = 0
+                    state.depth += 1
+                } else {
+                    if (state.condition == state.depth) {
+                        state.condition = null
+                    }
+
+                    if (state.depth == 0) {
+                        state.active = false
+                    } else {
+                        state.depth -= 1
+                        state.node = memory.readU64(in.ancestors, state.depth)
+                        state.ordinal = memory.readU64(
+                            in.positions,
+                            state.depth
+                        )
+                    }
+                }
+            }
+        },
+        return: state => match state.policy.issue {
+            Issue.None => state.style,
+            _ => state.policy
+        }
+    })
+}

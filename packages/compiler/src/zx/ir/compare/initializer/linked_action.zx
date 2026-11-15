@@ -1,0 +1,20 @@
+export type Input = {
+    previous_version: u32,
+    version: u32,
+    previous_function: u32,
+    function: u32
+}
+
+export enum Output {
+    Conflict,
+    Reuse,
+    Compare
+}
+
+export default function (in: Input): Output {
+    if (in.previous_version != in.version) {
+        return Output.Conflict
+    }
+
+    return in.previous_function == in.function ? Output.Reuse : Output.Compare
+}

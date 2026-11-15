@@ -1,0 +1,14 @@
+import type { Input as Scope } from "./plan"
+
+export type Input = Scope & {
+    types: u32[]
+}
+
+export type Bindings = {
+    names: string[],
+    types: u32[]
+}
+
+export type Selection = Bindings & {
+    positions?: u32[]
+}

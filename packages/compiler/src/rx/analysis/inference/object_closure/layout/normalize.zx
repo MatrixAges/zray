@@ -1,10 +1,11 @@
 import intern from "./intern"
 
+import type { U32Buffer } from "std:memory"
 import type { Columns, Normalized as Output } from "./model"
 
 export type Input = {
     columns: Columns,
-    parents: u32[],
+    parents: U32Buffer,
     keys: u32[],
     buckets: u32[],
     sizes: u64[],
@@ -40,7 +41,6 @@ export default function (in: Input): Output {
                             node: columns.part_values[state.part]
                         })
 
-                        state.parents = source.parents
                         state.keys = source.keys
                         state.buckets = source.buckets
                         state.sources = state.sources.push(source.position)[0]
@@ -61,7 +61,6 @@ export default function (in: Input): Output {
                     node
                 })
 
-                state.parents = result.parents
                 state.keys = result.keys
                 state.buckets = result.buckets
                 state.results = state.results.push(result.position)[0]
@@ -79,7 +78,6 @@ export default function (in: Input): Output {
                         node: columns.selection_sources[state.rule - constructions]
                     })
 
-                    state.parents = source.parents
                     state.keys = source.keys
                     state.buckets = source.buckets
                     state.sources = state.sources.push(source.position)[0]
@@ -89,7 +87,6 @@ export default function (in: Input): Output {
             }
         },
         return: state => ({
-            parents: state.parents,
             keys: state.keys,
             buckets: state.buckets,
             sizes: state.sizes,

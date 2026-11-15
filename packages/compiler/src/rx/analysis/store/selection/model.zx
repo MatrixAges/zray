@@ -1,0 +1,18 @@
+import type { Stores } from "core/store_table/model"
+
+export type Members = {
+    ids: u32[],
+    stores: Stores[]
+}
+
+export type Input = {
+    entry: string[],
+    identity: string,
+    members: Members
+}
+
+export enum Output {
+    Unused,
+    Needed,
+    InvalidMember
+}

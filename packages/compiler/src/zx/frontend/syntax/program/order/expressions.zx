@@ -1,0 +1,39 @@
+import memory from "std:memory"
+
+import edges from "./edges"
+import chain from "./expression_chain"
+import { Chain } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const nodes = in.trees.expressions.nodes
+    const columns = in.columns
+
+    return loop({
+        row: 0,
+        end: 0
+    }, {
+        while: state => state.row < nodes.length,
+        next: state => {
+            const node = nodes[state.row]
+            const kind = chain(node.kind)
+
+            memory.writeU64(columns.expressions, state.row, state.end)
+
+            if (kind != Chain.Empty && node.count != 0) {
+                state.end = edges({
+                    trees: in.trees,
+                    target: columns.edges,
+                    kind,
+                    first: state.end,
+                    head: node.head,
+                    count: node.count
+                })
+            }
+
+            state.row += 1
+        },
+        return: state => state.end
+    })
+}

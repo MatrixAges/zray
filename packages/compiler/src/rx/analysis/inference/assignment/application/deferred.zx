@@ -1,43 +1,43 @@
-import representative from "../../forest/representative"
+import integers from "std:integer"
+import memory from "std:memory"
 
-export type Deferred = {
-    values: u32[],
-    resolved: bool[]
-}
+import representative from "../../forest/borrowed_root"
+import { unsigned_word_bits } from "./const"
+
+import type { U32Buffer, U64Buffer } from "std:memory"
 
 export type Input = {
-    parents: u32[],
-    indexes: Deferred,
-    node: u32,
-    found: bool,
-    index: u64
+    parents: U32Buffer,
+    values: u32[],
+    resolved: bool[],
+    words: U64Buffer
 }
 
-export type Output = {
-    parents: u32[],
-    found: bool
-}
+export type Output = void
 
 export default function (in: Input): Output {
-    return loop(in, {
-        while: state =>
-            !state.found && state.index < state.indexes.values.length,
+    const scanned = loop({
+        row: 0
+    }, {
+        while: state => state.row < in.values.length,
         next: state => {
-            if (!state.indexes.resolved[state.index]) {
-                const root = representative({
-                    parents: state.parents,
-                    value: state.indexes.values[state.index]
-                })
+            const row = state.row
 
-                state.parents = root.parents
-                state.found = root.item == state.node
+            if (!in.resolved[row]) {
+                const root = representative({
+                    parents: in.parents,
+                    value: in.values[row]
+                })
+                const index = integers.widen(root)
+                const word = index / unsigned_word_bits
+                const position = index % unsigned_word_bits
+                const mask = integers.bitMask(position)
+                const marked = integers.orBits(memory.readU64(in.words, word), mask)
+
+                memory.writeU64(in.words, word, marked)
             }
 
-            state.index += 1
-        },
-        return: state => ({
-            parents: state.parents,
-            found: state.found
-        })
+            state.row += 1
+        }
     })
 }

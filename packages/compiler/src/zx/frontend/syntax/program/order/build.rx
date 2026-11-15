@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Order" />
+
+    <Args in={Order.Input} out={Order.Output} />
+
+    <Call fn="expressions" in={$in} />
+
+    <Call
+        fn="body"
+        in={{
+            ...$in,
+            first: $ctx.expressions
+        }}
+    />
+
+    <Return value={$ctx.body} />
+</Module>

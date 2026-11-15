@@ -25,13 +25,18 @@ pub fn run(context: Compile.Context, loaded: Loaded) !Compile.Status {
 
     const definition = analyzed.gateway.value.definition;
     const routes = try allocator.alloc(compiler.zig.gateway.Route, definition.routes.len);
+    const service_exports = try allocator.alloc(usize, definition.service_routes.len);
+
+    for (definition.service_routes, service_exports) |route_index, *target| {
+        const service = definition.routes[route_index].service;
+
+        target.* = for (linked.?.exports, 0..) |exported, index| {
+            if (std.mem.eql(u8, exported.name, service)) break index;
+        } else return error.MissingGatewayService;
+    }
 
     for (definition.routes, routes) |route, *mapped| {
-        const index = for (linked.?.exports, 0..) |exported, index| {
-            if (std.mem.eql(u8, exported.name, route.service)) break index;
-        } else return error.MissingGatewayService;
-
-        mapped.* = .{ .path = route.path, .method = if (route.method) |method| @tagName(method) else null, .service = index };
+        mapped.* = .{ .path = route.path, .method = if (route.method) |method| @tagName(method) else null, .service = service_exports[route.service_index] };
     }
 
     const configuration = compiler.zig.gateway.Options{ .routes = routes, .listen = definition.listen orelse "127.0.0.1:8080", .max_header_bytes = definition.max_header_bytes, .max_body_bytes = definition.max_body_bytes };

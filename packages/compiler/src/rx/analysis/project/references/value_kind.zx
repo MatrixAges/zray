@@ -1,0 +1,9 @@
+import { kind_enumeration } from "core/type_table/const"
+
+export type Input = u8
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return in == kind_enumeration
+}

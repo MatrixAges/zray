@@ -1,20 +1,23 @@
 import bytes from "std:bytes"
 
 import { empty_slot, hash_capacity_factor, linear_case_limit } from "./const"
+import read from "./label"
 import { Kind } from "./model"
 import previous from "./previous"
 import probe from "./probe"
 
-import type { Failure, Labels } from "./model"
+import type { Checked, Labels } from "./model"
 
 export type Input = Labels
 
-export type Output = Failure
+export type Output = Checked
 
 export default function (in: Input): Output {
+    const count = in.roots.length
+
     const slots: u64[] = match {
-        in.kinds.length > linear_case_limit => bytes.repeat(
-            in.kinds.length * hash_capacity_factor,
+        count > linear_case_limit => bytes.repeat(
+            count * hash_capacity_factor,
             0
         ).map(byte => empty_slot)[0],
         _ => []
@@ -26,25 +29,32 @@ export default function (in: Input): Output {
         index: 0,
         slots,
         failure,
-        duplicate: false
+        duplicate: false,
+        has_default: false
     }, {
-        while: state => state.failure == null && state.index < in.kinds.length,
+        while: state => state.failure == null && state.index < count,
         next: state => {
-            const kind = in.kinds[state.index]
+            const value = read({
+                labels: in,
+                index: state.index
+            })
 
-            if (kind == Kind.Invalid) {
+            if (value.kind == Kind.Invalid) {
                 state.failure = state.index
-            } else if (kind != Kind.Default) {
+            } else if (value.kind == Kind.Default) {
+                state.has_default = true
+            } else {
                 if (state.slots.length == 0) {
                     state.duplicate = previous({
                         labels: in,
-                        index: state.index
+                        index: state.index,
+                        value
                     })
                 } else {
                     const found = probe({
                         labels: in,
                         slots: state.slots,
-                        index: state.index
+                        value
                     })
 
                     state.duplicate = found.duplicate
@@ -62,8 +72,11 @@ export default function (in: Input): Output {
             state.index += 1
         },
         return: state => ({
-            index: state.failure,
-            duplicate: state.duplicate
+            failure: {
+                index: state.failure,
+                duplicate: state.duplicate
+            },
+            has_default: state.has_default
         })
     })
 }

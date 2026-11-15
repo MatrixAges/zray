@@ -1,8 +1,12 @@
+import type { U64Buffer } from "std:memory"
+
 export type Input = {
     offsets: u64[],
     ends: u64[],
     targets: u64[],
-    roots: u64[]
+    roots: u64[],
+    order: u64[],
+    order_out: U64Buffer
 }
 
 export type Cycle = {
@@ -11,7 +15,6 @@ export type Cycle = {
 }
 
 export type Output = {
-    order: u64[],
     count: u64,
     batch_ends: u64[],
     cycle?: Cycle

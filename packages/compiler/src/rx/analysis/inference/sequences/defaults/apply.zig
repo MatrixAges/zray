@@ -10,7 +10,7 @@ pub fn apply(graph: *Graph, base: Base, scratch: std.mem.Allocator) zx.Error!boo
     const generated = @import("generated_rx_sequence_default");
     const sequences = graph.pending.sequences.slice();
     const rows = graph.nodes.slice();
-    const parents: []u32 = @constCast(graph.forest.state.items);
+    const parents: []u32 = graph.parents();
 
     const plan = generated.executeValue(scratch, &.{
         .graph = &.{

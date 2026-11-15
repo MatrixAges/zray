@@ -6,7 +6,9 @@ const inlineValue = @import("../program/expression.zig").inlineValue;
 const expression = @import("../expression.zig");
 const target = @import("../call/target.zig");
 const Layout = @import("layout.zig");
-const Field = struct { name: []const u8, type_id: zx.ir.TypeId, initial: zx.ir.Program };
+const object = @import("initializer/object.zig");
+const span = zx.Span{ .start = 0, .end = 0 };
+const input_type = frontend.types.scalarId(.void);
 const Value = union(enum) { program: zx.ir.Program, diagnostic: expression.Diagnostic };
 
 const Options = struct {
@@ -16,7 +18,7 @@ const Options = struct {
     field_types: []const zx.ir.TypeId,
     types: *zx.ir.TypeStorage,
     native_modules: zx.ir.NativeModuleTable,
-    aliases: []const zx.ir.Export,
+    aliases: frontend.expressions.BindingColumns,
 };
 
 pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Options) std.mem.Allocator.Error!Value {
@@ -33,29 +35,44 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
         count += layout.offsets[index + 1] - layout.offsets[index];
     }
 
-    const fields = try temporary.alloc(Field, count);
+    const fields = try frontend.types.Fields.init(allocator, count);
+    const names = try temporary.alloc([]const u8, count);
+    const evaluation = try temporary.alloc(u32, count);
+    var builder = Builder{ .allocator = allocator, .types = options.types.view(), .native_modules = options.native_modules };
+
+    defer builder.linking_scratch.deinit();
+
+    _ = try builder.symbol("in", input_type, span);
+
     var cursor: usize = 0;
+    var invalid_link = false;
+
     fragment = options.first;
 
     while (fragment) |index| : (fragment = layout.next[index]) {
-        for (layout.offsets[index]..layout.offsets[index + 1]) |row| {
+        const start = layout.offsets[index];
+        const end = layout.offsets[index + 1];
+
+        for (start..end, cursor..) |row, position| {
             const node = layout.fields[row].*;
             const attribute = target.attribute(node, "value");
             const id = options.field_types[row];
-            var parsed = try @import("../attribute.zig").parse(backing, attribute, options.owner);
+            var parsed = try @import("../attribute.zig").parseBorrowed(backing, attribute, options.owner);
 
             defer parsed.deinit();
 
-            const initial = try expression.compileParsed(temporary, &parsed, attribute, .{
+            var initial = try expression.compileParsed(backing, &parsed, attribute, .{
                 .types = options.types.view(),
                 .borrow_types = true,
                 .type_storage = options.types,
                 .type_allocator = allocator,
                 .native_modules = options.native_modules,
-                .aliases = options.aliases,
+                .alias_columns = options.aliases,
                 .expected = id,
                 .scratch_backing = backing,
             }, false);
+
+            defer initial.deinit();
 
             if (initial.value == .diagnostic) {
                 var issue = initial.value.diagnostic;
@@ -64,14 +81,32 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
                 return .{ .diagnostic = issue };
             }
 
-            fields[cursor] = .{ .name = target.attribute(node, "name").value, .type_id = id, .initial = initial.value.ir };
-            cursor += 1;
+            const name = try allocator.dupe(u8, target.attribute(node, "name").value);
+
+            names[position] = name;
+
+            fields.set(position, name, id);
+
+            if (!invalid_link) {
+                // Finish checking the field expressions before reporting a link failure.
+                const evaluated = inlineValue(&builder, initial.value.ir, false) catch |err| {
+                    if (err == error.OutOfMemory) return error.OutOfMemory;
+
+                    invalid_link = true;
+
+                    continue;
+                };
+
+                evaluation[position] = @backingInt(evaluated);
+            }
         }
+
+        cursor += end - start;
     }
 
     var reporter: zx.Reporter = .{};
 
-    const program = build(allocator, temporary, options, fields, &reporter) catch |err| {
+    const program = publish(&builder, options, fields, names, evaluation, invalid_link, &reporter) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         const location = layout.fragments[options.first].location;
@@ -82,38 +117,16 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
     return .{ .program = program };
 }
 
-fn build(allocator: std.mem.Allocator, temporary: std.mem.Allocator, options: Options, source: []const Field, reporter: *zx.Reporter) zx.Error!zx.ir.Program {
+fn publish(builder: *Builder, options: Options, fields: frontend.types.Fields, names: []const []const u8, evaluation: []const u32, invalid_link: bool, reporter: *zx.Reporter) zx.Error!zx.ir.Program {
+    const allocator = builder.allocator;
     var table = frontend.types{ .allocator = allocator, .reporter = reporter, .declarations = &.{}, .items = options.types.* };
     defer options.types.* = table.items;
-    const fields = try frontend.types.Fields.init(allocator, source.len);
-
-    for (source, 0..) |field, index| fields.set(index, try allocator.dupe(u8, field.name), field.type_id);
 
     const output = try table.object(fields);
-    const positions = try canonicalPositions(temporary, source, table.get(output).object.names);
-    var builder = Builder{ .allocator = allocator, .types = table.items.view(), .native_modules = options.native_modules };
 
-    defer builder.linking_scratch.deinit();
+    if (invalid_link) return reporter.fail(.contract, span, "Store initializer expression cannot be linked");
 
-    const span = zx.Span{ .start = 0, .end = 0 };
-    const input: zx.ir.TypeId = @fromBackingInt(@intCast(@backingInt(zx.ir.Scalar.void)));
-
-    _ = try builder.symbol("in", input, span);
-    const evaluation = try allocator.alloc(zx.ir.ExprId, source.len);
-    const values = try allocator.alloc(zx.ir.ObjectField, source.len);
-
-    for (source, positions, evaluation, values) |*field, position, *evaluated, *value| {
-        const id = inlineValue(&builder, field.initial) catch |err| {
-            if (err == error.OutOfMemory) return error.OutOfMemory;
-
-            return reporter.fail(.contract, span, "Store initializer expression cannot be linked");
-        };
-
-        value.* = .{ .index = position, .value = id };
-        evaluated.* = id;
-    }
-
-    const object = try builder.expression(.{ .type_id = output, .span = span, .value = .{ .object = .{ .fields = values, .evaluation = evaluation } } });
+    const root = try object.append(builder, output, names, table.get(output).object.names, evaluation, span);
 
     var program = zx.ir.Program{
         .file_name = options.owner,
@@ -121,9 +134,9 @@ fn build(allocator: std.mem.Allocator, temporary: std.mem.Allocator, options: Op
         .native_modules = options.native_modules,
         .symbols = builder.symbols.view(),
         .expressions = builder.expressions.view(),
-        .input_type = input,
+        .input_type = input_type,
         .output_type = output,
-        .body = try zx.ir.ControlBody.fromValues(allocator, &.{.{ .result = object }}),
+        .body = try zx.ir.ControlBody.fromValues(allocator, &.{.{ .result = root }}),
     };
 
     program.output_ownership = try frontend.analyzeOwnership(allocator, program, reporter);
@@ -131,36 +144,4 @@ fn build(allocator: std.mem.Allocator, temporary: std.mem.Allocator, options: Op
     if (try frontend.validateIr(allocator, program)) |issue| return reporter.fail(issue.code, issue.span, issue.message);
 
     return program;
-}
-
-fn canonicalPositions(allocator: std.mem.Allocator, source: []const Field, canonical: []const []const u8) std.mem.Allocator.Error![]const u32 {
-    if (source.len == 1) return &.{0};
-
-    if (comptime !@import("rx_options").generated_graph) {
-        const positions = try allocator.alloc(u32, source.len);
-
-        for (source, positions) |*field, *position| {
-            const index = std.sort.binarySearch([]const u8, canonical, field.name, compare).?;
-
-            position.* = @intCast(index);
-        }
-
-        return positions;
-    }
-
-    const names = try allocator.alloc([]const u8, source.len);
-
-    for (source, names) |*field, *name| name.* = field.name;
-
-    const rule = @import("generated_rx_store_field_positions");
-    const input: std.meta.Child(rule.Input) = .{ .source = names, .canonical = canonical };
-
-    return zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
-}
-
-fn compare(left: []const u8, right: []const u8) std.math.Order {
-    return std.mem.order(u8, left, right);
 }

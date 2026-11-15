@@ -22,7 +22,7 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn label(self: *Self, attribute: rx.ast.Attribute) std.mem.Allocator.Error!Result {
-    if (self.taken == self.pending.items.len) return @import("../attribute.zig").parse(self.allocator, attribute, self.owner);
+    if (self.taken == self.pending.items.len) return @import("../attribute.zig").parseBorrowed(self.allocator, attribute, self.owner);
 
     const parsed = self.pending.items[self.taken];
 
@@ -49,7 +49,7 @@ pub fn remaining(self: *Self, rest: []const Case) std.mem.Allocator.Error!?bool 
 
         if (retain) try self.pending.ensureTotalCapacityPrecise(self.allocator, boolean_domain_size);
 
-        var parsed = try @import("../attribute.zig").parse(self.allocator, attribute, self.owner);
+        var parsed = try @import("../attribute.zig").parseBorrowed(self.allocator, attribute, self.owner);
 
         self.observe(condition.boolean(&parsed));
 

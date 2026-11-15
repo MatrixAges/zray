@@ -20,17 +20,27 @@ fn build(graph: *Graph, allocator: std.mem.Allocator) zx.Error!Self {
     const payloads = try Payloads.collect(graph, allocator);
     const rows = graph.nodes.slice();
     const edges = graph.pending.assignments.slice();
+    const parents = try allocator.alloc(u32, rows.len);
+    const representatives = try allocator.alloc(?u32, rows.len);
+    const ranks = try allocator.alloc(u8, rows.len);
 
-    const classes = generated.executeValue(allocator, &.{
+    defer allocator.free(ranks);
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    generated.executeValue(empty.allocator(), &.{
         .payloads = &.{ .initial = payloads.initial, .registered = payloads.registered },
         .nodes = &.{ .kinds = rows.items(.kind), .allowed = rows.items(.allowed) },
         .edges = &.{ .left = @ptrCast(edges.items(.value)), .right = @ptrCast(edges.items(.expected)) },
-    }) catch |err| switch (err) {
+        .storage = &.{ .parents = @ptrCast(&parents), .ranks = @ptrCast(&ranks), .representatives = @ptrCast(&representatives) },
+        .parents = parents,
+        .ranks = ranks,
+    }) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        error.IndexOutOfBounds => unreachable,
+        else => unreachable,
     };
 
-    return .{ .parents = classes.parents, .representatives = classes.representatives, .payloads = payloads };
+    return .{ .parents = parents, .representatives = representatives, .payloads = payloads };
 }
 
 fn seed(graph: *Graph, allocator: std.mem.Allocator) zx.Error!Self {
@@ -104,18 +114,17 @@ pub fn propagate(self: Self, graph: *Graph) zx.Error!void {
 
     while (start < self.parents.len) {
         const nodes = graph.nodes.slice();
+        const parents = graph.parents();
 
         const result = generated.executeState(empty.allocator(), .{
             .nodes = &.{ .kinds = nodes.items(.kind), .allowed = nodes.items(.allowed) },
             .arguments = .{ .items = nodes.items(.argument), .storage = .plain },
             .type_kinds = .{ .items = graph.types.items.kinds.items, .storage = .plain },
             .classes = &.{ .groups = self.parents, .representatives = self.representatives },
-            .parents = graph.forest.state,
+            .parents = @ptrCast(&parents),
             .next = start,
             .other = null,
         }) catch unreachable;
-
-        std.debug.assert(result.parents.items.ptr == graph.forest.state.items.ptr);
 
         const other: Graph.Id = @fromBackingInt(result.other orelse break);
 

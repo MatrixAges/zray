@@ -1,0 +1,17 @@
+import type { Index } from "core/bytes/index/model"
+
+export enum Status {
+    Accepted,
+    Invalid,
+    Duplicate
+}
+
+export type Input = {
+    index: Index,
+    name: string
+}
+
+export type Output = {
+    index: Index,
+    status: Status
+}

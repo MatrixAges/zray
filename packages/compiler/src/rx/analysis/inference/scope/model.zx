@@ -1,0 +1,13 @@
+import type { Topology } from "../bindings/model"
+
+export type Active = {
+    names: string[],
+    values: u32[]
+}
+
+export type Query = {
+    topology: Topology,
+    active: Active,
+    name: string,
+    start: u64
+}

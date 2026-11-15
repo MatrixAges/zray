@@ -1,0 +1,48 @@
+import changed from "./changed"
+
+export type Input = {
+    order: u64[],
+    first: u64,
+    end: u64,
+    entry: u64,
+    compiled_dependencies: bool[],
+    starts: u64[],
+    ends: u64[],
+    targets: u64[],
+    redone: bool[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { order, end, entry, compiled_dependencies } = in
+    const { starts, ends, targets, redone } = in
+
+    return loop({
+        position: in.first,
+        reusable: true
+    }, {
+        while: state => state.position < end && state.reusable,
+        next: state => {
+            const index = order[state.position]
+
+            if (index == entry || compiled_dependencies[index]) {
+                state.reusable = false
+            } else {
+                const differs = changed({
+                    dependencies: targets,
+                    redone,
+                    first: starts[index],
+                    end: ends[index]
+                })
+
+                state.reusable = !differs
+
+                if (state.reusable) {
+                    state.position += 1
+                }
+            }
+        },
+        return: state => state.position
+    })
+}

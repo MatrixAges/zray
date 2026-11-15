@@ -3,42 +3,78 @@ const zx = @import("zx");
 const State = @import("../state.zig");
 const history = @import("../../history.zig");
 const columns = @import("../../history/columns.zig");
+const generated = @import("rx_options").generated_graph;
+const alignment_rule = if (generated) @import("generated_rx_mixed_history_alignment") else void;
+const reanalysis = if (generated) @import("generated_rx_mixed_history_assess") else void;
+pub const Assessment = if (generated) reanalysis.Output else void;
 
-pub fn matches(state: *const State, previous: *const history.Retained, start: history.Checkpoint, earlier: history.Checkpoint, current: history.Checkpoint) bool {
-    const left = .{ previous.types, previous.origins };
-    const right = .{ state.types.items.view(), state.types.origins.items.view() };
-
-    if (!@import("rx_options").generated_graph) {
+pub fn matches(state: *const State, previous: *const history.Retained, start: *const history.Checkpoint, earlier: *const history.Checkpoint, current: *const history.Checkpoint) bool {
+    if (comptime !generated) {
         return earlier.functions == current.functions and earlier.native_modules == current.native_modules and
             earlier.initializers == current.initializers and earlier.libraries == current.libraries and
 
-            columns.equal(left[0], start.types, earlier.types, right[0], start.types, current.types) and
-            columns.equal(left[1], start.origins, earlier.origins, right[1], start.origins, current.origins);
+            columns.equal(previous.types, start.types, earlier.types, state.types.items.view(), start.types, current.types) and
+            columns.equal(previous.origins, start.origins, earlier.origins, state.types.origins.items.view(), start.origins, current.origins);
     }
 
-    const rule = @import("generated_rx_mixed_history_alignment");
-    const Input = std.meta.Child(rule.Input);
-    const Pair = std.meta.Child(@FieldType(Input, "columns"));
-    const View = std.meta.Child(@FieldType(Pair, "left"));
-    const Extent = std.meta.Child(@FieldType(Input, "extent_left"));
-    const starts = .{ start.types, start.origins };
-    const a = borrow(left, starts, .{ earlier.types, earlier.origins });
-    const b = borrow(right, starts, .{ current.types, current.origins });
-    const a_view = a.view(View);
-    const b_view = b.view(View);
+    var comparison: Comparison = undefined;
+    const input = comparison.project(state, previous, start, earlier, current);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const input: Input = .{
-        .extent_left = &extent(Extent, earlier),
-        .extent_right = &extent(Extent, current),
-        .columns = &.{ .left = &a_view, .right = &b_view, .masks = &.{} },
+    return zx.columns.invoke(alignment_rule.executeValue, empty.allocator(), &input) catch unreachable;
+}
+
+pub fn assess(state: *const State, previous: *const history.Retained, redone: []const bool, index: usize, position: usize, before: *const history.Checkpoint, after: *const history.Checkpoint) Assessment {
+    const earlier = previous.boundaries[position..][0..2];
+    var comparison: Comparison = undefined;
+    const alignment = comparison.project(state, previous, before, &earlier[1], after);
+    const edges = state.graph.source_dependencies.?;
+
+    const input: std.meta.Child(reanalysis.Input) = .{
+        .alignment = &alignment,
+        .compiled_dependency = state.graph.modules.items(.compiled_dependency)[index],
+        .dependencies = &.{ .dependencies = edges.targets, .redone = redone, .first = edges.starts[index], .end = edges.ends[index] },
+        .functions = &.{
+            .first = before.functions,
+            .previous_first = earlier[0].functions,
+            .linked = state.finished[index] != null and previous.finished[index] != null,
+            .store = state.graph.sources.at(index) == .store,
+        },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    return zx.columns.invoke(reanalysis.executeValue, empty.allocator(), &input) catch unreachable;
 }
 
-fn extent(comptime Target: type, value: history.Checkpoint) Target {
+const Comparison = struct {
+    const Input = std.meta.Child(alignment_rule.Input);
+    const Pair = std.meta.Child(@FieldType(Input, "columns"));
+    const View = std.meta.Child(@FieldType(Pair, "left"));
+    const Extent = std.meta.Child(@FieldType(Input, "extent_left"));
+    left: ViewColumns,
+    right: ViewColumns,
+    left_view: View,
+    right_view: View,
+    left_extent: Extent,
+    right_extent: Extent,
+    pair: Pair,
+    fn project(self: *Comparison, state: *const State, previous: *const history.Retained, start: *const history.Checkpoint, earlier: *const history.Checkpoint, current: *const history.Checkpoint) Input {
+        const starts = .{ start.types, start.origins };
+
+        self.left = borrow(.{ previous.types, previous.origins }, starts, .{ earlier.types, earlier.origins });
+        self.right = borrow(.{ state.types.items.view(), state.types.origins.items.view() }, starts, .{ current.types, current.origins });
+        self.left_view = self.left.view(View);
+        self.right_view = self.right.view(View);
+        self.left_extent = extent(Extent, earlier);
+        self.right_extent = extent(Extent, current);
+        self.pair = .{ .left = &self.left_view, .right = &self.right_view, .masks = &.{} };
+
+        return .{ .extent_left = &self.left_extent, .extent_right = &self.right_extent, .columns = &self.pair };
+    }
+};
+
+fn extent(comptime Target: type, value: *const history.Checkpoint) Target {
     return .{
         .functions = value.functions,
         .native_modules = value.native_modules,

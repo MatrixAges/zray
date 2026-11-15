@@ -12,7 +12,7 @@ export type Input = {
     paths: string[],
     groups: bool[],
     methods: u32?[],
-    services: bool[]
+    services: string?[]
 }
 
 export type Output = Conflict
@@ -25,10 +25,15 @@ export default function (in: Input): Output {
     }
 
     const masks: u64[] = []
+    const service_routes: u32[] = []
+    const route_services: u32[] = []
 
     return loop({
         names,
+        catalog: names,
         masks,
+        service_routes,
+        route_services,
         issue: Issue.None,
         row: 0
     }, {
@@ -63,8 +68,33 @@ export default function (in: Input): Output {
                     state.masks = state.masks.push(mask)[0]
                 }
 
-                if (state.issue == Issue.None && !in.services[state.row]) {
-                    state.issue = Issue.Service
+                if (state.issue == Issue.None) {
+                    const service = in.services[state.row]
+
+                    if (service == null) {
+                        state.issue = Issue.Service
+                    } else {
+                        const proposed = integers.narrow(state.service_routes.length)
+                        const found = claim({
+                            index: state.catalog,
+                            key: bytes.fromText(service),
+                            value: proposed
+                        })
+
+                        state.catalog = found.index
+
+                        if (found.previous == null) {
+                            state.service_routes =
+                                state.service_routes.push(
+                                    integers.narrow(
+                                        state.route_services.length
+                                    )
+                                )[0]
+                        }
+
+                        state.route_services =
+                            state.route_services.push(found.previous ?? proposed)[0]
+                    }
                 }
             }
 
@@ -74,7 +104,9 @@ export default function (in: Input): Output {
         },
         return: state => ({
             issue: state.issue,
-            row: state.row
+            row: state.row,
+            service_routes: state.service_routes,
+            route_services: state.route_services
         })
     })
 }

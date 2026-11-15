@@ -5,7 +5,7 @@ pub const codec = @import("codec.zig");
 pub const PublicReference = @import("load.zig").Export;
 pub const load = @import("load.zig").load;
 pub const link = @import("link.zig").link;
-pub const Initializer = struct { identity: []const u8, schema_version: u32, program: ir.Program };
+pub const Initializer = frontend.project.SourceStoreInitializer;
 pub const Input = struct { name: []const u8, analysis: *const frontend.AnalysisResult, initializers: []const Initializer = &.{} };
 pub const Export = frontend.project.compiled.Export;
 

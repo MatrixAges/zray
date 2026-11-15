@@ -1,8 +1,45 @@
 import type { ColumnPair } from "../../../../../zx/ir/compare/model"
+import type { Inputs as SourceInputs } from "../../history/model"
+import type { Input as Dependencies } from "./changed"
 import type { Extent } from "./extent"
 
 export type Alignment = {
     extent_left: Extent,
     extent_right: Extent,
     columns: ColumnPair
+}
+
+export type FunctionRange = {
+    first: u64,
+    previous_first: u64,
+    linked: bool,
+    store: bool
+}
+
+export type Reanalysis = {
+    alignment: Alignment,
+    dependencies: Dependencies,
+    compiled_dependency: bool,
+    functions: FunctionRange
+}
+
+export enum Assessment {
+    Misaligned,
+    Changed,
+    Unchanged,
+    CompareFunctions
+}
+
+export type Graph = {
+    earlier_order: u8[],
+    current_order: u8[],
+    earlier_paths: string[],
+    current_paths: string[],
+    shared_paths: bool
+}
+
+export type Start = {
+    inputs: SourceInputs,
+    boundary: bool,
+    graph: Graph
 }

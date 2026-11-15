@@ -1,31 +1,39 @@
+import integers from "std:integer"
+import memory from "std:memory"
 import { kind_optional } from "core/type_table/const"
 
+import present from "../../../zx/analysis/semantic/resolving/contains"
+
+import type { U32Buffer } from "std:memory"
+
 export type Input = {
-    type_id: u32,
-    kind: u8,
-    first: u32,
-    name: string,
-    facts: string[]
+    names: string[],
+    types: u32[],
+    kinds: u8[],
+    children: u32[],
+    facts: string[],
+    narrowed: U32Buffer
 }
 
-export type Output = u32
+export type Output = void
 
 export default function (in: Input): Output {
-    if (in.kind != kind_optional) {
-        return in.type_id
-    }
+    const result = loop(0, {
+        while: index => index < in.names.length,
+        next: index => {
+            const type_id = in.types[index]
+            const row = integers.widen(type_id)
+            const narrowed = match {
+                in.kinds[row] == kind_optional &&
+                    present({
+                        name: in.names[index],
+                        names: in.facts
+                    }) => in.children[row],
+                _ => type_id
+            }
 
-    const present = loop({
-        position: 0,
-        found: false
-    }, {
-        while: state => !state.found && state.position < in.facts.length,
-        next: state => {
-            state.found = in.facts[state.position] == in.name
-            state.position += 1
-        },
-        return: state => state.found
+            memory.writeU32(in.narrowed, index, narrowed)
+            index += 1
+        }
     })
-
-    return present ? in.first : in.type_id
 }

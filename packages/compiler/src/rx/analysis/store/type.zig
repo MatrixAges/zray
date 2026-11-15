@@ -5,6 +5,7 @@ const zx = @import("zx");
 const target = @import("../call/target.zig");
 const Layout = @import("layout.zig");
 const Diagnostic = @import("../expression.zig").Diagnostic;
+const generated = @import("rx_options").generated_graph;
 
 pub const Value = union(enum) { resolved: struct { types: zx.ir.TypeStorage, fields: []const zx.ir.TypeId }, diagnostic: Diagnostic };
 
@@ -29,20 +30,32 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner
 
             if (program.imports.len != 0 or program.constants.len != 0 or program.body != null or program.contracts.len != 0 or program.has_store) break :native invalid(temporary, layout);
 
-            break :native resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Native{ .items = program.declarations });
+            break :native resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Native{ .items = program.declarations }, null);
         },
         .indexed => |indexed| if (comptime @TypeOf(indexed) != void) indexed: {
             const output = indexed.output;
 
-            if (output.imports.len != 0 or output.constants.len != 0 or output.body != null or output.contracts.len != 0 or output.has_store) break :indexed invalid(temporary, layout);
+            const mismatch = if (comptime generated) admit: {
+                const admission = @import("../project/contracts/validate.zig").indexed(indexed.source, output, layout.names, layout.ends);
 
-            break :indexed resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Indexed(@TypeOf(output)){ .source = indexed.source, .storage = output });
+                if (!admission.valid) break :indexed invalid(temporary, layout);
+
+                break :admit admission.mismatch;
+            } else seed: {
+                if (output.imports.len != 0 or output.constants.len != 0 or output.body != null or output.contracts.len != 0 or output.has_store) break :indexed invalid(temporary, layout);
+
+                break :seed null;
+            };
+
+            break :indexed resolveDeclarations(allocator, temporary, layout, context.types, aliases, frontend.type_views.Indexed(@TypeOf(output)){ .source = indexed.source, .storage = output }, mismatch);
         } else unreachable,
     };
 }
 
-fn resolveDeclarations(allocator: std.mem.Allocator, temporary: std.mem.Allocator, layout: Layout, base: zx.ir.TypeTable, aliases: []const zx.ir.Export, view: anytype) std.mem.Allocator.Error!Value {
-    if (view.declarations().count() != layout.fields.len) return invalid(temporary, layout);
+fn resolveDeclarations(allocator: std.mem.Allocator, temporary: std.mem.Allocator, layout: Layout, base: zx.ir.TypeTable, aliases: []const zx.ir.Export, view: anytype, mismatch: ?usize) std.mem.Allocator.Error!Value {
+    const checked = comptime generated and @hasField(@TypeOf(view), "storage");
+
+    if (!checked and view.declarations().count() != layout.fields.len) return invalid(temporary, layout);
 
     const storage = if (comptime @hasField(@TypeOf(view), "storage")) .{ .types = view.storage.types, .type_order = view.storage.type_order } else .{};
     const resolving = if (comptime @hasField(@TypeOf(view), "storage")) frontend.type_views.Indexed(@TypeOf(storage)){ .source = view.source, .storage = storage } else frontend.type_views.Native{ .items = &.{} };
@@ -61,7 +74,11 @@ fn resolveDeclarations(allocator: std.mem.Allocator, temporary: std.mem.Allocato
     for (fields, 0..) |*field, index| {
         const declaration = declarations.next().?;
 
-        if (declaration.name.span.start != layout.nameStart(index) or !std.mem.eql(u8, declaration.name.text, layout.names[index])) return invalid(temporary, layout);
+        if (comptime checked) {
+            if (mismatch == index) return invalid(temporary, layout);
+        } else {
+            if (declaration.name.span.start != layout.nameStart(index) or !std.mem.eql(u8, declaration.name.text, layout.names[index])) return invalid(temporary, layout);
+        }
 
         const id = types.resolveView(resolving, declaration.value) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;

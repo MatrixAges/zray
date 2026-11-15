@@ -1,22 +1,23 @@
 import integers from "std:integer"
 import { kind_optional } from "core/type_table/const"
 
-import representative from "../forest/representative"
+import representative from "../forest/borrowed_root"
 import { Kind } from "../unification/model"
 import { Route } from "./model"
 
+import type { U32Buffer } from "std:memory"
 import type { Graph, Route as WalkRoute } from "./model"
 
 export type Input = {
     graph: Graph,
-    parents: u32[],
+    parents: U32Buffer,
     value: u32,
     root: u32,
     remaining: u64,
     route: WalkRoute
 }
 
-export type Output = Input.Omit("graph")
+export type Output = Input.Omit("graph", "parents")
 
 export default function (in: Input): Output {
     return loop(in, {
@@ -27,11 +28,10 @@ export default function (in: Input): Output {
                 value: state.value
             })
 
-            state.parents = parent.parents
-            state.root = parent.item
+            state.root = parent
 
             const graph = state.graph
-            const index = integers.widen(parent.item)
+            const index = integers.widen(parent)
             const kind = graph.kinds[index]
 
             if (kind == Kind.Optional) {
@@ -52,7 +52,6 @@ export default function (in: Input): Output {
             }
         },
         return: state => ({
-            parents: state.parents,
             value: state.value,
             root: state.root,
             remaining: state.remaining,

@@ -35,6 +35,44 @@ pub fn append(self: *Self, allocator: std.mem.Allocator, value: ir.Symbol) std.m
     });
 }
 
+/// Adds the source suffix as fresh symbols. Borrowed names must outlive the destination.
+pub fn appendFresh(self: *Self, allocator: std.mem.Allocator, source: Table, first: usize, borrow_names: bool) std.mem.Allocator.Error!void {
+    const length = source.count() - first;
+    const base = self.count();
+
+    if (length == 0) return;
+    if (length > std.math.maxInt(u32) - base) return error.OutOfMemory;
+
+    inline for (@typeInfo(Self).@"struct".field_names) |name| {
+        try @field(self, name).ensureUnusedCapacity(allocator, length);
+    }
+
+    const names = self.names.unusedCapacitySlice()[0..length];
+
+    if (borrow_names) {
+        @memcpy(names, source.names[first..]);
+    } else {
+        var copied: usize = 0;
+
+        errdefer for (names[0..copied]) |name| allocator.free(name);
+
+        for (source.names[first..], names) |name, *target| {
+            target.* = try allocator.dupe(u8, name);
+            copied += 1;
+        }
+    }
+
+    inline for (.{ "types", "span_start", "span_end" }) |name| {
+        @memcpy(@field(self, name).unusedCapacitySlice()[0..length], @field(source, name)[first..]);
+    }
+
+    @memset(self.ownership.unusedCapacitySlice()[0..length], .Copy);
+
+    inline for (@typeInfo(Self).@"struct".field_names) |name| {
+        @field(self, name).items.len += length;
+    }
+}
+
 pub fn view(self: *const Self) Table {
     var result: Table = .{};
 

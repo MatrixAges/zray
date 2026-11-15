@@ -1,0 +1,58 @@
+import type { State as KnownTypes } from "core/integer/map/model"
+import type { Route, TypeColumns } from "../model"
+import type { Graph } from "../occurs/model"
+
+export enum Action {
+    Adopt,
+    Child,
+    Tuple,
+    Object,
+    KnownChild,
+    KnownTuple,
+    KnownObject
+}
+
+export type Application = {
+    action: Action,
+    source: u32,
+    left_operand: u32,
+    right_operand: u32,
+    right_size: u32
+}
+
+export type Request = {
+    graph: Graph,
+    types: TypeColumns,
+    route: Route,
+    left: u32,
+    right: u32
+}
+
+export enum Step {
+    Publish,
+    Merge,
+    MergeKnown,
+    MissingField
+}
+
+export type PairInput = {
+    action: Action,
+    position: u64,
+    left_operand: u32,
+    right_operand: u32,
+    left: u32[],
+    right: u32[],
+    positions: u64[]
+}
+
+export type PairOutput = {
+    step: Step,
+    position: u64,
+    left: u32,
+    right: u32
+}
+
+export type Advance = {
+    pair: PairInput,
+    known: KnownTypes
+}

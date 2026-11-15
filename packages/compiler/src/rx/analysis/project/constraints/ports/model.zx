@@ -1,0 +1,17 @@
+import type { U8Buffer, U32Buffer } from "std:memory"
+import type { Input as Nodes } from "../../../inference/nodes/initialize"
+
+export type Ports = {
+    inputs: U32Buffer,
+    outputs: U32Buffer,
+    fixed: U8Buffer,
+    first_node: u64,
+    count: u64
+}
+
+export type Input = {
+    nodes: Nodes,
+    ports: Ports
+}
+
+export type Output = void

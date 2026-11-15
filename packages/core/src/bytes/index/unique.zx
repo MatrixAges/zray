@@ -4,16 +4,16 @@ import probe from "./slot"
 
 import type { Input } from "./rebuild"
 
-export type Output = bool
+export type Output = u64?
 
 export default function (in: Input): Output {
     const { keys, buckets, capacity } = in
 
     return loop({
         row: 0,
-        unique: true
+        duplicate: false
     }, {
-        while: state => state.unique && state.row < keys.length,
+        while: state => !state.duplicate && state.row < keys.length,
         next: state => {
             const row = state.row
             const found = probe({
@@ -25,12 +25,11 @@ export default function (in: Input): Output {
 
             if (found.entry == 0) {
                 memory.writeU64(buckets, found.slot, row + 1)
+                state.row += 1
             } else {
-                state.unique = false
+                state.duplicate = true
             }
-
-            state.row += 1
         },
-        return: state => state.unique
+        return: state => state.duplicate ? state.row : null
     })
 }

@@ -1,17 +1,16 @@
-import type { StringBuffer, U32Buffer, U64Buffer } from "std:memory"
+import type { StringBuffer, U64Buffer } from "std:memory"
+import type { Input as Writes } from "../../../../ir/columns/write"
+import type { Input as BindNames } from "../../../../modules/nominal_origins/bind_names"
+import type { Input as Rebase } from "../rebase"
 
 export type Column = {
     source: string[],
     target: StringBuffer
 }
 
-export type Input = {
+export type Text = {
     columns: Column[],
-    progress: U64Buffer,
-    kinds: u8[],
-    first: u32[],
-    target: U32Buffer,
-    children: u32,
-    fields: u32,
-    names: u32
+    progress: U64Buffer
 }
+
+export type Input = Text & Rebase & BindNames & Writes

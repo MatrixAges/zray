@@ -1,7 +1,21 @@
 const std = @import("std");
 const generated_paths = @import("rx_options").generated_paths;
-
 pub const Error = error{ InvalidPath, OutOfMemory };
+pub const SourceKind = enum { module, store };
+
+pub fn validateSource(allocator: std.mem.Allocator, path: []const u8, kind: SourceKind) Error!void {
+    if (generated_paths) return switch (kind) {
+        .module => @import("path_segments/adapter.zig").validate(path, .ModuleFile, ""),
+        .store => @import("path_segments/adapter.zig").validate(path, .SpecialFile, ".store.rx"),
+    };
+
+    const normalized = try switch (kind) {
+        .module => normalize(allocator, path),
+        .store => normalizeStore(allocator, path),
+    };
+
+    allocator.free(normalized);
+}
 
 pub fn isModuleFile(path: []const u8) bool {
     if (generated_paths) return @import("path_kind/adapter.zig").check(path, &.{}, .ModuleFile);

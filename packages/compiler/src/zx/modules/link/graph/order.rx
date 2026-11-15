@@ -9,7 +9,6 @@
         <Return
             value={{
                 status: LinkGraph.Status.Invalid,
-                order: [],
                 count: 0,
                 buckets: [],
                 targets: []
@@ -29,7 +28,6 @@
         <Return
             value={{
                 status: LinkGraph.Status.Missing,
-                order: [],
                 count: 0,
                 buckets: [],
                 targets: []
@@ -47,13 +45,20 @@
         }}
     />
 
-    <Call fn="../../../../rx/dependency_graph/walk" in={$ctx.edges} />
+    <Call
+        fn="../../../../rx/dependency_graph/walk"
+        in={{
+            ...$ctx.edges,
+            order: $in.order,
+            capacity: $in.capacity
+        }}
+    />
+
     <Call fn="status" in={$ctx.walk} />
 
     <Return
         value={{
             status: $ctx.status,
-            order: $ctx.walk.order,
             count: $ctx.walk.count,
             buckets: $ctx.registry.index.buckets,
             targets: $ctx.edges.targets

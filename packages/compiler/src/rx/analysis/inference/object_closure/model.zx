@@ -1,3 +1,5 @@
+import type { U8Buffer, U64Buffer } from "std:memory"
+
 export type Input = {
     known: bool[],
     sizes: u64[],
@@ -8,8 +10,19 @@ export type Input = {
     spread: bool
 }
 
-export type Initial = {
+export type Work = {
     ready: bool[],
-    queue: u64[],
+    ready_output: U8Buffer,
+    queue: U64Buffer,
+    pending: U64Buffer
+}
+
+export type Request = {
+    rules: Input,
+    work: Work
+}
+
+export type Initial = {
+    count: u64,
     known: u64
 }

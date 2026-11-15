@@ -21,8 +21,6 @@ export default function (in: Input): Output {
         marks: in.offsets.map(offset => Mark.Unseen)[0].pop()[0],
         depths,
         cursors: in.offsets.map(offset => offset)[0].pop()[0],
-        frames: in.offsets.map(offset => 0)[0].pop()[0],
-        order: in.offsets.map(offset => 0)[0].pop()[0],
         root: root ?? 0,
         limit: roots == null ? limit : roots.length,
         depth: 0,

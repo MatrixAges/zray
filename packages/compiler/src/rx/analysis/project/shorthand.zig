@@ -2,18 +2,19 @@ const std = @import("std");
 const rx = @import("rx");
 const zx = @import("zx");
 const target = @import("../call/target.zig");
-const Step = @import("flow.zig").Step;
+const Flow = @import("flow.zig");
 
-pub fn lower(allocator: std.mem.Allocator, node: rx.ast.Node, index: usize, input_type: zx.ir.TypeId, output_type: zx.ir.TypeId) std.mem.Allocator.Error!struct { node: rx.ast.Node, steps: []const Step } {
+pub fn lower(allocator: std.mem.Allocator, node: rx.ast.Node, index: usize, input_type: zx.ir.TypeId, output_type: zx.ir.TypeId) std.mem.Allocator.Error!struct { node: rx.ast.Node, input: ?*const rx.ast.Attribute, flow: Flow.Plan } {
     const route = describe(input_type, output_type);
     const invocation = try call(allocator, node, route.takes_input);
-    const steps = try allocator.alloc(Step, if (route.returns_value) 2 else 1);
+    const count: u32 = if (route.returns_value) 2 else 1;
+    var flow: Flow.Builder = .{};
+    const first = try flow.reserve(allocator, count);
 
-    steps[0] = .{ .value = .{ .call = index } };
+    try flow.write(allocator, first, .{ .Call = index });
+    if (route.returns_value) try flow.write(allocator, first + 1, .{ .Result = try result(allocator, invocation) });
 
-    if (route.returns_value) steps[1] = .{ .value = .{ .result = try result(allocator, invocation) } };
-
-    return .{ .node = invocation, .steps = steps };
+    return .{ .node = invocation, .input = if (route.takes_input) &invocation.attributes[1] else null, .flow = flow.finish(.{ .first = first, .count = count }) };
 }
 
 const Route = struct { takes_input: bool, returns_value: bool };

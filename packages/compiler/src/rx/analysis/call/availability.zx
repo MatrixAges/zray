@@ -1,0 +1,22 @@
+export type Input = {
+    source: bool,
+    check_authority: bool,
+    declared_setter: bool,
+    setter: bool,
+    ambient_store: bool
+}
+
+export type Output = {
+    local: bool,
+    authorized: bool
+}
+
+export default function (in: Input): Output {
+    const explicit = in.declared_setter == in.setter
+    const permitted = explicit && !in.ambient_store
+
+    return {
+        local: in.source && !in.setter,
+        authorized: !in.check_authority || permitted
+    }
+}

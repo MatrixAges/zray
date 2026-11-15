@@ -1,0 +1,18 @@
+import { ExprKind } from "../../../parser/expressions/state/model"
+import { Chain } from "./model"
+
+export type Input = ExprKind
+
+export type Output = Chain
+
+export default function (in: Input): Output {
+    return match in {
+        ExprKind.List => Chain.Arguments,
+        ExprKind.Call => Chain.Arguments,
+        ExprKind.Object => Chain.Fields,
+        ExprKind.Lambda => Chain.Parameters,
+        ExprKind.Template => Chain.Parts,
+        ExprKind.Match => Chain.Arms,
+        _ => Chain.Empty
+    }
+}

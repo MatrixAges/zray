@@ -1,0 +1,11 @@
+<Module>
+    <Type from="number" as="Number" />
+    <Type from="../scalar/literal" as="Literal" />
+
+    <Args in={Number.Input} out={Literal.Output} />
+
+    <Call fn="../scalar/literal" in={$in.token} />
+    <Call fn="initialize" in={$in.rows} />
+
+    <Return value={$ctx.literal} />
+</Module>

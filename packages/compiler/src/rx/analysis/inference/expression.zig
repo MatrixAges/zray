@@ -2,36 +2,40 @@ const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const rx = @import("rx");
-const paths = @import("frontend").binding_path;
+const frontend = @import("frontend");
+const paths = frontend.binding_path;
 const Graph = @import("types.zig");
+const Scope = @import("scope.zig");
+const condition = @import("../condition.zig");
+const operators = @import("operators.zig");
+const composition = @import("expression/composition.zig");
 const Self = @This();
 const path_buffer_size = 128;
 
-pub const Binding = struct { name: []const u8, value: Graph.Id, span: zx.Span = .{ .start = 0, .end = 0 } };
-
 graph: *Graph,
 scope: std.mem.Allocator,
-aliases: []const zx.ir.Export = &.{},
+aliases: frontend.expressions.BindingColumns = .{},
 input: Graph.Id,
 input_used: bool = false,
-bindings: std.ArrayList(Binding) = .empty,
+bindings: Scope.Storage = .empty,
 nonnull: std.ArrayList([]const u8) = .empty,
 attribute: rx.ast.Attribute,
 span_offset: usize = 0,
 pub fn infer(self: *Self, expression: anytype, expected: ?Graph.Id) zx.Error!Graph.Id {
+    return self.inferValue(expression, expected, true);
+}
+
+pub fn declared(self: *Self, expression: anytype) zx.Error!Graph.Id {
+    return self.inferValue(expression, null, false);
+}
+
+fn inferValue(self: *Self, expression: anytype, expected: ?Graph.Id, comptime refine: bool) zx.Error!Graph.Id {
     const node = syntax.value(expression);
     const span = self.sourceSpan(expression.span);
-    var buffer: [path_buffer_size]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, self.graph.scratch);
-    const allocator = scratch.allocator();
-    const has_path = node == .identifier or node == .field;
-    const reads_path = self.bindings.items.len != 0 or self.nonnull.items.len != 0;
-    const path = if (has_path and reads_path) try paths.view(allocator, expression) else null;
+    const reference = try self.resolveReference(expression, node, span, refine);
 
-    defer if (path) |name| name.release(allocator);
-
-    if (try self.lookup(path, span)) |original| {
-        const binding = try self.refined(path, original, span);
+    if (reference.value) |original| {
+        const binding = try self.refined(reference.refined, original, span);
 
         try self.graph.requireValue(binding, span);
         if (expected) |hint| try self.graph.expect(binding, hint, span);
@@ -39,11 +43,32 @@ pub fn infer(self: *Self, expression: anytype, expected: ?Graph.Id) zx.Error!Gra
         return expected orelse binding;
     }
 
+    return self.inferUnbound(node, expression, span, expected, reference);
+}
+
+fn resolveReference(self: *Self, expression: anytype, node: anytype, span: zx.Span, comptime refine: bool) zx.Error!Scope.Reference {
+    const facts: []const []const u8 = if (refine) self.nonnull.items else &.{};
+    const rows = self.bindings.slice();
+
+    if (node == .identifier) return Scope.read(self.graph, rows, facts, node.identifier.text, true, span);
+    if (node != .field or (rows.len == 0 and facts.len == 0)) return .{};
+
+    var buffer: [path_buffer_size]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, self.graph.scratch);
+    const allocator = scratch.allocator();
+    const path = (try paths.view(allocator, expression)) orelse return .{};
+
+    defer path.release(allocator);
+
+    return Scope.read(self.graph, rows, facts, path.text, false, span);
+}
+
+fn inferUnbound(self: *Self, node: anytype, expression: anytype, span: zx.Span, expected: ?Graph.Id, resolved: Scope.Reference) zx.Error!Graph.Id {
     const hint = try self.payload(expected);
 
     const value = switch (node) {
-        .identifier => |name| block: {
-            if (std.mem.eql(u8, name.text, "$in")) {
+        .identifier => block: {
+            if (resolved.implicit_input) {
                 self.input_used = true;
 
                 break :block self.input;
@@ -54,107 +79,25 @@ pub fn infer(self: *Self, expression: anytype, expected: ?Graph.Id) zx.Error!Gra
         .field => |field| (try self.enumMember(field.target, field.name, span)) orelse try self.graph.field(try self.infer(field.target, null), field.name.text, span),
         .number => |text| try self.graph.number(text, false, span),
         .boolean => try self.graph.scalar(.bool, span),
-        .string, .template => block: {
-            if (node == .template) for (0..node.template.len) |index| {
-                const part = syntax.item(node.template, index);
-
-                if (part == .expression) _ = try self.infer(part.expression, null);
-            };
-
-            break :block try self.graph.scalar(.string, span);
-        },
-        .null_value => try self.graph.add(.{ .optional = try self.graph.add(.unknown, span) }, span),
+        .string => try self.graph.scalar(.string, span),
+        .template => |parts| try composition.template(self, parts, span),
+        .null_value => try self.graph.addContainers(null, .optional, 1, span),
         .object => try @import("objects.zig").infer(self, expression, hint),
         .list => try @import("sequences.zig").infer(self, expression, hint),
         .index => try @import("index.zig").infer(self, expression),
-        .unary => |unary| block: {
-            if (unary.operator == .not) break :block try self.infer(unary.operand, try self.graph.scalar(.bool, span));
-
-            const operand = syntax.value(unary.operand);
-
-            if (operand == .number) break :block try self.graph.number(operand.number, true, span);
-
-            const result = try self.graph.add(.unknown, span);
-
-            try self.graph.restrict(result, @import("scalar.zig").domain(.signed), span);
-
-            _ = try self.infer(unary.operand, result);
-
-            break :block result;
-        },
-        .binary => try @import("operators.zig").infer(self, expression, hint),
-        .conditional => |branch| block: {
-            const result = expected orelse try self.graph.add(.unknown, span);
-
-            _ = try self.infer(branch.condition, try self.graph.scalar(.bool, span));
-
-            const facts = self.nonnull.items.len;
-
-            defer self.nonnull.shrinkRetainingCapacity(facts);
-
-            try @import("../condition.zig").assumeValue(self.graph.scratch, branch.condition, true, self);
-
-            _ = try self.infer(branch.yes, result);
-
-            self.nonnull.shrinkRetainingCapacity(facts);
-
-            try @import("../condition.zig").assumeValue(self.graph.scratch, branch.condition, false, self);
-
-            _ = try self.infer(branch.no, result);
-
-            break :block result;
-        },
-        .match_expr => |selection| block: {
-            const result = expected orelse try self.graph.add(.unknown, span);
-            const subject = if (selection.subject) |item| try self.infer(item, null) else try self.graph.scalar(.bool, span);
-
-            for (0..selection.arms.len) |index| {
-                const arm = syntax.item(selection.arms, index);
-                _ = try self.infer(arm.condition, subject);
-                _ = try self.infer(arm.result, result);
-            }
-
-            _ = try self.infer(selection.fallback, result);
-
-            break :block result;
-        },
+        .unary => |unary| try operators.inferUnary(self, unary, span),
+        .binary => |binary| try operators.inferBinary(self, binary, hint, span),
+        .conditional => |branch| try operators.inferConditional(self, branch, expected, span),
+        .match_expr => |selection| try composition.matching(self, selection, expected, span),
         .call => try @import("selection.zig").infer(self, expression),
         .pipeline, .lambda, .state_block, .capture, .task, .await_task, .cancel_task => return self.graph.reporter.fail(.unsupported, span, @import("../value_rules.zig").message),
     };
 
-    const narrowed = try self.refined(path, value, span);
+    const narrowed = try self.refined(resolved.refined, value, span);
 
     if (expected) |target| try self.graph.expect(narrowed, target, span);
 
     return expected orelse narrowed;
-}
-
-pub fn declared(self: *Self, expression: anytype) zx.Error!Graph.Id {
-    const span = self.sourceSpan(expression.span);
-    var buffer: [path_buffer_size]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, self.graph.scratch);
-    const allocator = scratch.allocator();
-    const path = if (self.bindings.items.len != 0) try paths.view(allocator, expression) else null;
-
-    defer if (path) |name| name.release(allocator);
-
-    if (try self.lookup(path, span)) |binding| {
-        try self.graph.requireValue(binding, span);
-
-        return binding;
-    }
-
-    const node = syntax.value(expression);
-
-    if (node == .identifier and std.mem.eql(u8, node.identifier.text, "$in")) {
-        self.input_used = true;
-
-        return self.input;
-    }
-
-    if (node == .field) return (try self.enumMember(node.field.target, node.field.name, span)) orelse try self.graph.field(try self.infer(node.field.target, null), node.field.name.text, span);
-
-    return self.infer(expression, null);
 }
 
 pub fn payload(self: *Self, expected: ?Graph.Id) zx.Error!?Graph.Id {
@@ -169,52 +112,23 @@ pub fn sourceSpan(self: *const Self, value: zx.Span) zx.Span {
     return .{ .start = self.span_offset + start, .end = self.span_offset + end };
 }
 
-fn lookup(self: *Self, name: ?paths.Path, span: zx.Span) zx.Error!?Graph.Id {
-    const path = name orelse return null;
-    const allocator = self.graph.pending.allocator;
-    var selected: ?Graph.Id = null;
-    var candidates: std.ArrayList(Graph.Id) = .empty;
-
-    errdefer candidates.deinit(allocator);
-
-    for (self.bindings.items) |binding| {
-        if (!std.mem.eql(u8, path.text, binding.name) or @import("bindings.zig").isVoid(self.graph, binding.value)) continue;
-
-        if (selected) |previous| {
-            if (candidates.items.len == 0) {
-                try candidates.ensureTotalCapacityPrecise(allocator, 2);
-
-                candidates.appendAssumeCapacity(previous);
-                candidates.appendAssumeCapacity(binding.value);
-            } else {
-                try candidates.append(allocator, binding.value);
-            }
-        }
-
-        selected = binding.value;
-    }
-
-    if (candidates.items.len == 0) return selected;
-
-    return try @import("bindings.zig").lookup(self.graph, candidates.items, span);
+pub fn conditionScope(self: *Self) condition.Scope {
+    return .{
+        .allocator = self.scope,
+        .bindings = self.bindings.items(.name),
+        .implicit_input = true,
+        .facts = &self.nonnull,
+    };
 }
 
-pub fn assumeNonNull(self: *Self, expression: anytype) zx.Error!void {
-    try @import("../condition.zig").publish(self.scope, expression, self.bindings.items, true, &self.nonnull);
-}
-
-fn refined(self: *Self, name: ?paths.Path, value: Graph.Id, span: zx.Span) zx.Error!Graph.Id {
-    const path = name orelse return value;
-
-    for (self.nonnull.items) |fact| {
-        if (std.mem.eql(u8, path.text, fact)) return @import("non_null.zig").read(self.graph, value, span);
-    }
+fn refined(self: *Self, nonnull: bool, value: Graph.Id, span: zx.Span) zx.Error!Graph.Id {
+    if (nonnull) return @import("non_null.zig").read(self.graph, value, span);
 
     return value;
 }
 
 fn enumMember(self: *Self, owner: anytype, name: zx.ast.Name, span: zx.Span) zx.Error!?Graph.Id {
-    if (self.aliases.len == 0) return null;
+    if (self.aliases.names.len == 0) return null;
 
     const value = syntax.value(owner);
 
@@ -227,25 +141,51 @@ fn enumMember(self: *Self, owner: anytype, name: zx.ast.Name, span: zx.Span) zx.
 
     defer path.release(allocator);
 
-    if (path.rooted("$in")) return null;
+    const match = self.findEnumMember(path, name.text);
+    const type_id = match.type_id orelse return null;
 
-    for (self.bindings.items) |binding| {
-        if (path.rooted(binding.name)) return null;
-    }
+    if (!match.member) return self.graph.reporter.fail(.name, self.sourceSpan(name.span), "unknown enum member");
 
-    for (self.aliases) |alias| {
-        if (!std.mem.eql(u8, path.text, alias.name)) continue;
+    return try self.graph.known(type_id, span);
+}
 
-        const target = self.graph.types.get(alias.type_id);
+fn findEnumMember(self: *const Self, owner: paths.Path, name: []const u8) struct { type_id: ?zx.ir.TypeId = null, member: bool = false } {
+    const aliases = self.aliases;
+    const active = self.bindings.items(.name);
 
-        if (target != .enumeration) return null;
+    if (comptime !@import("rx_options").generated_graph) {
+        if (Scope.rooted(active, owner, true)) return .{};
 
-        for (target.enumeration.members) |member| {
-            if (std.mem.eql(u8, member, name.text)) return try self.graph.known(alias.type_id, span);
+        for (aliases.names, aliases.types) |alias, type_id| {
+            if (!std.mem.eql(u8, owner.text, alias)) continue;
+
+            const target = self.graph.types.get(type_id);
+
+            if (target != .enumeration) return .{};
+
+            for (target.enumeration.members) |candidate| {
+                if (std.mem.eql(u8, candidate, name)) return .{ .type_id = type_id, .member = true };
+            }
+
+            return .{ .type_id = type_id };
         }
 
-        return self.graph.reporter.fail(.name, self.sourceSpan(name.span), "unknown enum member");
+        return .{};
     }
 
-    return null;
+    const types = &self.graph.types.items;
+    const generated = @import("generated_rx_enum_member");
+
+    const input: std.meta.Child(generated.Input) = .{
+        .aliases = &.{ .names = aliases.names, .ids = @ptrCast(aliases.types) },
+        .types = &.{ .kinds = types.kinds.items, .first = types.first.items, .second = types.second.items, .names = types.names.items },
+        .bindings = active,
+        .owner = owner.text,
+        .name = name,
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
+
+    return .{ .type_id = if (result.type_id) |id| @fromBackingInt(id) else null, .member = result.member };
 }

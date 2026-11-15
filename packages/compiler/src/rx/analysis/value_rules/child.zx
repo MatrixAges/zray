@@ -1,0 +1,62 @@
+import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
+import matching from "./matching"
+
+import type { Cursor } from "./model"
+
+export type Input = Cursor
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const tree = in.walk.tree
+    const node = tree.nodes[in.node]
+    const index = in.index
+
+    switch (node.kind) {
+        case ExprKind.Call:
+            return index == 0 ? tree.nodes[node.first].first : null
+        case ExprKind.Field:
+            return index == 0 ? node.first : null
+        case ExprKind.Unary:
+            return index == 0 ? node.first : null
+        case ExprKind.Index:
+            return match index {
+                0 => node.first,
+                1 => node.second,
+                _ => null
+            }
+        case ExprKind.Binary:
+            return match index {
+                0 => node.first,
+                1 => node.second,
+                _ => null
+            }
+        case ExprKind.Conditional:
+            return match index {
+                0 => node.first,
+                1 => node.second,
+                2 => node.third,
+                _ => null
+            }
+        case ExprKind.Match:
+            return matching(in)
+        case ExprKind.List:
+            if (index >= node.count) {
+                return null
+            }
+
+            const first = in.walk.order.offsets[in.node]
+
+            return tree.items[in.walk.order.edges[first + index]].value
+        case ExprKind.Object:
+            if (index >= node.count) {
+                return null
+            }
+
+            const first = in.walk.order.offsets[in.node]
+
+            return tree.fields[in.walk.order.edges[first + index]].value
+        default:
+            return null
+    }
+}

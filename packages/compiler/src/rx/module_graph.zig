@@ -10,11 +10,25 @@ pub fn validate(allocator: std.mem.Allocator, backing: std.mem.Allocator, regist
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    const prepared = try @import("dependency_graph/prepare.zig").build(temporary, registry, sources, entries);
+    const prepare = @import("dependency_graph/prepare.zig");
+    const prepared = try prepare.build(temporary, registry, sources, entries);
     const execute = @import("generated_graph").executeValue;
     const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
+    const native_width = @sizeOf(usize) == @sizeOf(u64) and @alignOf(u64) >= @alignOf(usize);
+    const owner = if (native_width) allocator else temporary;
+    const rows = try owner.alloc(u64, sources.len);
 
-    const result = execute(temporary, if (@typeInfo(Parameter) == .pointer) &prepared.input else prepared.input) catch |err| switch (err) {
+    errdefer owner.free(rows);
+
+    const input: prepare.Input = .{
+        .offsets = prepared.offsets,
+        .targets = prepared.targets,
+        .issues = prepared.issues,
+        .order = @ptrCast(&rows),
+        .capacity = rows.len,
+    };
+
+    const result = execute(temporary, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         error.IndexOutOfBounds => unreachable,
     };
@@ -35,13 +49,11 @@ pub fn validate(allocator: std.mem.Allocator, backing: std.mem.Allocator, regist
 
     std.debug.assert(result.count == sources.len);
 
-    if (comptime @sizeOf(usize) == @sizeOf(u64) and @alignOf(u64) >= @alignOf(usize)) {
-        return allocator.dupe(usize, @ptrCast(result.order[0..sources.len]));
-    }
+    if (comptime native_width) return @ptrCast(rows);
 
-    const order = try allocator.alloc(usize, @intCast(result.count));
+    const order = try allocator.alloc(usize, rows.len);
 
-    for (order, result.order[0..order.len]) |*target, value| target.* = @intCast(value);
+    for (order, rows) |*target, value| target.* = @intCast(value);
 
     return order;
 }

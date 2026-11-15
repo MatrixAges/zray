@@ -1,0 +1,29 @@
+import { kind_object } from "core/type_table/const"
+
+import { Kind } from "../unification/model"
+
+import type { Kind as Shape } from "../unification/model"
+
+export enum Mode {
+    Unknown,
+    Inferred,
+    Declared,
+    InvalidDeclared,
+    Invalid
+}
+
+export type Input = {
+    kind: Shape,
+    type_kind: u8
+}
+
+export type Output = Mode
+
+export default function (in: Input): Output {
+    return match in.kind {
+        Kind.Unknown => Mode.Unknown,
+        Kind.Object => Mode.Inferred,
+        Kind.Known => in.type_kind == kind_object ? Mode.Declared : Mode.InvalidDeclared,
+        _ => Mode.Invalid
+    }
+}

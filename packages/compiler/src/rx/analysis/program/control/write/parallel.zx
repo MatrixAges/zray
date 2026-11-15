@@ -1,0 +1,35 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import { invocations_lane, parallels_lane } from "../const"
+import header from "./header"
+
+import type { U32Buffer } from "std:memory"
+import type { Header } from "./header"
+
+export type Input = {
+    header: Header,
+    firsts: U32Buffer,
+    counts: U32Buffer,
+    count: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const cursor = in.header.cursor
+    const row = memory.readU32(cursor, parallels_lane)
+    const index = integers.widen(row)
+    const first = memory.readU32(cursor, invocations_lane)
+
+    memory.writeU32(in.firsts, index, first)
+    memory.writeU32(in.counts, index, in.count)
+
+    header({
+        header: in.header,
+        row,
+        lane: parallels_lane
+    })
+
+    memory.writeU32(cursor, invocations_lane, first + in.count)
+}

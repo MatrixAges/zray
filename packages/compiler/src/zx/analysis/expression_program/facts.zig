@@ -8,7 +8,8 @@ pub fn add(analyzer: *Analyzer, options: Options, name: []const u8, span: zx.Spa
     var selected: ?zx.ir.SymbolId = null;
     var prefix: usize = 0;
 
-    for (options.bindings, analyzer.expression_bindings.items) |binding, symbol| {
+    for (analyzer.expression_bindings.items, 0..) |symbol, index| {
+        const binding = options.bindingAt(index);
         const length = binding.name.len;
 
         if (length < prefix or length > name.len or !std.mem.startsWith(u8, name, binding.name)) continue;

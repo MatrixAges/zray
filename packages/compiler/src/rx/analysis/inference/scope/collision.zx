@@ -1,0 +1,47 @@
+import overlaps from "../../../../zx/analysis/expression_program/bindings/path/overlaps"
+import { Collision } from "../bindings/model"
+import pair from "../bindings/pair"
+
+import type { Query } from "./model"
+
+export type Input = Query & {
+    value: u32,
+    end: u64
+}
+
+export type Output = {
+    next: u64,
+    action: Collision
+}
+
+export default function (in: Input): Output {
+    const active = in.active
+    const name = in.name
+    const value = in.value
+    const topology = in.topology
+
+    return loop({
+        next: in.start,
+        action: Collision.Ignore
+    }, {
+        while: state =>
+            state.action == Collision.Ignore && state.next < in.end,
+        next: state => {
+            const row = state.next
+            state.next += 1
+
+            if (overlaps({
+                left: active.names[row],
+                right: name
+            })) {
+                state.action = pair({
+                    topology,
+                    left: active.values[row],
+                    right: value,
+                    final: false
+                })
+            }
+        },
+        return: state => state
+    })
+}

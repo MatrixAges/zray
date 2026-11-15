@@ -1,1 +1,5 @@
 export const max_dependency_depth: u64 = 256
+
+export const visiting: u8 = 1
+
+export const done: u8 = 2

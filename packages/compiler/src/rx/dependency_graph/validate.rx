@@ -1,16 +1,24 @@
 <Module>
     <Type from="model" as="Graph" />
 
-    <Args in={Graph.Graph} out={Graph.Validation} />
+    <Args in={Graph.ValidationInput} out={Graph.Validation} />
 
-    <Call fn="walk" in={$in} />
+    <Call
+        fn="walk"
+        in={{
+            ...$in,
+            ends: null,
+            root: null,
+            roots: null,
+            ranked: false
+        }}
+    />
 
     <If on={$ctx.walk.issue != Graph.Issue.None}>
         <Call fn="diagnostic" in={$ctx.walk.issue} />
 
         <Return
             value={{
-                order: [],
                 count: 0,
                 owner: $ctx.walk.owner,
                 edge: $ctx.walk.edge,
@@ -21,7 +29,6 @@
 
     <Return
         value={{
-            order: $ctx.walk.order,
             count: $ctx.walk.count,
             owner: 0,
             edge: 0,

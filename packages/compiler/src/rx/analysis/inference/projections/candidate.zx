@@ -1,0 +1,55 @@
+import integers from "std:integer"
+import { scalar_u64 } from "core/type_table/const"
+
+import access from "../fields/access"
+import { length_name } from "../fields/const"
+import member from "../fields/member"
+import { Route } from "../fields/model"
+import { Kind } from "../unification/model"
+
+import type { Table } from "core/type_table/model"
+import type { Output as Field } from "../fields/model"
+import type { Kind as NodeKind } from "../unification/model"
+
+export type Types = Table.Pick("kinds", "first", "second", "field_names", "field_types")
+
+export type Input = {
+    types: Types,
+    kind: NodeKind,
+    argument: u32,
+    restricted: bool
+}
+
+export type Output = Field
+
+export default function (in: Input): Output {
+    const { types, kind, restricted } = in
+
+    const id = integers.widen(in.argument)
+    const declared = kind == Kind.Known
+    const argument: u32 = declared ? types.first[id] : 0
+
+    const route = access({
+        kind,
+        type_kind: declared ? types.kinds[id] : 0,
+        type_argument: argument,
+        restricted,
+        name: length_name
+    })
+
+    if (route == Route.Declared) {
+        return member({
+            names: types.field_names,
+            values: types.field_types,
+            first: integers.widen(argument),
+            count: integers.widen(types.second[id]),
+            name: length_name,
+            declared: true
+        })
+    }
+
+    return {
+        route,
+        value: route == Route.Length ? scalar_u64 : 0
+    }
+}

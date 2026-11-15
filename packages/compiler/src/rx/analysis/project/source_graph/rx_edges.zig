@@ -1,13 +1,16 @@
 const rx = @import("rx");
+const project = @import("frontend").project;
 const Reference = @import("model.zig").Reference;
 const dependency = rx.dependency_reference;
 
 pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*).Error!void {
     var references: dependency.Iterator = .{};
+    const temporary = collector.temporary.allocator();
 
-    defer references.deinit(collector.allocator);
+    defer references.deinit(temporary);
     references.reset(&source.node, source.references);
-    while (try references.next(collector.allocator, false)) |selection| try reference(collector, source.path, selection);
+
+    while (try references.next(temporary, false)) |selection| try reference(collector, source.path, selection);
 }
 
 fn reference(collector: anytype, owner: []const u8, selection: dependency.Entry) @TypeOf(collector.*).Error!void {
@@ -20,15 +23,18 @@ fn reference(collector: anytype, owner: []const u8, selection: dependency.Entry)
     };
 
     if (selection.package_allowed) {
-        const packages = rx.module_reference.dependencies(collector.options, collector.ownerPath());
+        const packages = collector.dependencies();
+        const selected = project.matchPackage(packages, value.value, true);
 
-        if (rx.module_reference.isPackage(value.value, packages)) return collector.import(value.value, value.value_location, role);
+        if (selected.first != null) return collector.import(value.value, value.value_location, role, selected);
     }
 
+    const temporary = collector.temporary.allocator();
+
     const path = switch (selection.target) {
-        .Module => rx.resolveModulePath(collector.allocator, owner, value.value),
-        .Function => rx.resolveFunctionPath(collector.allocator, owner, value.value),
-        .Store => rx.resolveStorePath(collector.allocator, owner, value.value),
+        .Module => rx.resolveModulePath(temporary, owner, value.value),
+        .Function => rx.resolveFunctionPath(temporary, owner, value.value),
+        .Store => rx.resolveStorePath(temporary, owner, value.value),
     };
 
     const resolved = path catch |err| {
@@ -36,6 +42,8 @@ fn reference(collector: anytype, owner: []const u8, selection: dependency.Entry)
 
         return collector.fail(value.value_location, "source dependency escapes the project root or is not a valid module path");
     };
+
+    defer temporary.free(resolved);
 
     if (selection.target == .Store) return collector.store(resolved, value.value_location, owner);
     try collector.local(resolved, value.value_location, role);

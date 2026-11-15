@@ -9,7 +9,9 @@
         <Call
             fn="member"
             in={{
-                members: $in.members,
+                ...$in.members,
+                first: 0,
+                count: $in.members.names.length,
                 name: $in.receiver.name,
                 declared: $ctx.access == Fields.Route.Declared
             }}

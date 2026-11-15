@@ -1,0 +1,33 @@
+export type Input = {
+    positions: u64[],
+    cursor: u64,
+    position: u64
+}
+
+export type Output = {
+    cursor: u64,
+    row?: u64
+}
+
+export default function (in: Input): Output {
+    const cursor = loop(in.cursor, {
+        while: row => row < in.positions.length && in.positions[row] < in.position,
+        next: row => {
+            row += 1
+        }
+    })
+
+    const found = cursor < in.positions.length && in.positions[cursor] == in.position
+
+    if (found) {
+        return {
+            cursor: cursor + 1,
+            row: cursor
+        }
+    }
+
+    return {
+        cursor,
+        row: null
+    }
+}

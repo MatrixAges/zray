@@ -49,11 +49,15 @@ fn build(allocator: std.mem.Allocator, parsed: anytype, options: Options, report
 
     if (!trusted and options.types.count() != 0 and !@import("../ir/type_rules.zig").validate(options.types)) return reporter.fail(.contract, span, "invalid shared type table");
 
+    const aliases = try options.aliasRows(allocator);
+
+    defer if (options.alias_columns != null) allocator.free(aliases);
+
     var analyzer = Analyzer{
         .allocator = allocator,
         .reporter = reporter,
         .constants = options.constants,
-        .types = .{ .allocator = options.type_allocator orelse allocator, .reporter = reporter, .declarations = &.{}, .aliases = options.aliases },
+        .types = .{ .allocator = options.type_allocator orelse allocator, .reporter = reporter, .declarations = &.{}, .aliases = aliases },
     };
 
     if (options.type_storage) |storage| {
@@ -66,11 +70,13 @@ fn build(allocator: std.mem.Allocator, parsed: anytype, options: Options, report
 
     try analyzer.types.initialize();
     if (!@import("constants/input.zig").nativeValid(analyzer.types.items.view(), options.constants)) return reporter.fail(.contract, parsed.expression.span, "invalid typed constant bindings");
-    try @import("expression.zig").checkAliases(options.aliases, analyzer.types.items.count(), reporter, span);
+    try @import("expression.zig").checkAliases(aliases, analyzer.types.items.count(), reporter, span);
 
-    const children = try allocator.alloc(ir.TypeId, options.bindings.len);
+    const children = try allocator.alloc(ir.TypeId, options.bindingCount());
 
-    for (options.bindings, children) |binding, *child| {
+    for (children, 0..) |*child, index| {
+        const binding = options.bindingAt(index);
+
         if (@backingInt(binding.type_id) >= analyzer.types.items.view().count()) return reporter.fail(.contract, span, "expression binding type is missing from the shared type table");
 
         child.* = binding.type_id;
@@ -87,7 +93,9 @@ fn build(allocator: std.mem.Allocator, parsed: anytype, options: Options, report
 
     for (options.unit_bindings) |name| try @import("expression_binding.zig").bindUnit(&analyzer, .{ .text = name, .span = span });
 
-    for (options.bindings, 0..) |binding, index| {
+    for (0..options.bindingCount()) |index| {
+        const binding = options.bindingAt(index);
+
         try @import("expression_binding.zig").bind(&analyzer, .{ .text = binding.name, .span = span }, binding.type_id);
 
         const symbol = analyzer.expression_bindings.items[index];
@@ -112,7 +120,7 @@ fn build(allocator: std.mem.Allocator, parsed: anytype, options: Options, report
     var program = ir.Program{
         .file_name = try allocator.dupe(u8, parsed.file_name),
         .types = if (options.type_storage != null) analyzer.types.items.view() else try analyzer.types.items.finish(allocator),
-        .native_modules = try @import("../modules/native_context.zig").copy(allocator, options.native_modules),
+        .native_modules = if (options.borrow_native_modules) options.native_modules else try @import("../modules/native_context.zig").copy(allocator, options.native_modules),
         .symbols = try analyzer.symbols.finish(allocator),
         .expressions = try analyzer.nodes.finish(allocator),
         .input_type = input_type,

@@ -4,16 +4,38 @@ const project = @import("frontend").project;
 const Diagnostic = @import("../../call/target.zig").Diagnostic;
 
 pub const Source = union(enum) { zx: usize, rx: usize, store: usize };
+
+pub const Sources = struct {
+    zx_count: usize,
+    rx_end: usize,
+    pub fn at(self: Sources, row: usize) Source {
+        if (row < self.zx_count) return .{ .zx = row };
+        if (row < self.rx_end) return .{ .rx = row - self.zx_count };
+
+        return .{ .store = row - self.rx_end };
+    }
+};
+
 pub const Target = union(enum) { source: usize, compiled: project.compiled.Target, native: []const u8 };
 pub const Reference = enum(u8) { dependency, call, type_import, store };
-pub const Edge = struct { target: Target, location: rx.ast.Location, reference: Reference = .dependency };
+
+pub const Edge = struct {
+    target: Target,
+    /// Byte offset only for ZX edges, fully resolved for XML edges.
+    location: rx.ast.Location,
+    reference: Reference = .dependency,
+    pub fn locate(self: Edge, source: []const u8) rx.ast.Location {
+        return @import("position.zig").locate(self.location, source);
+    }
+};
 
 pub const Module = struct {
     path: []const u8,
-    source: Source,
     dependencies: []const Edge = &.{},
     compiled_dependency: bool = false,
 };
+
+pub const Modules = std.MultiArrayList(Module);
 
 pub const References = struct {
     remaining: []const Edge,
@@ -54,7 +76,8 @@ pub const SourceDependencies = struct {
 };
 
 pub const Graph = struct {
-    modules: []const Module,
+    modules: Modules.Slice,
+    sources: Sources,
     order: []const usize,
     batch_ends: []const usize,
     entry: usize,
@@ -74,10 +97,10 @@ pub const Result = struct {
     }
 };
 
-pub fn cycle(module: Module, edge: Edge) Scheduled {
+pub fn cycle(module: Module, source: Source, edge: Edge, sources: []const project.Source) Scheduled {
     return .{ .diagnostic = .{
         .path = module.path,
-        .location = edge.location,
+        .location = edge.locate(if (source == .zx) sources[source.zx].source else ""),
         .code = "module",
         .message = "source module dependencies must be acyclic across RX and ZX, including unused imports",
     } };

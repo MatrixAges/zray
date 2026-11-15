@@ -68,6 +68,14 @@ pub fn prefix(self: Self, len: usize) Self {
     return result;
 }
 
+pub fn suffix(self: Self, first: usize) Self {
+    var result: Self = .{};
+
+    inline for (@typeInfo(Self).@"struct".field_names) |name| @field(result, name) = @field(self, name)[first..];
+
+    return result;
+}
+
 pub fn validStructure(self: Self) bool {
     if (self.count() > std.math.maxInt(u32)) return false;
 

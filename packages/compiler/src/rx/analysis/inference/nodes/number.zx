@@ -1,0 +1,7 @@
+import type { Input as Token } from "../scalar/literal"
+import type { Input as Rows } from "./initialize"
+
+export type Input = {
+    rows: Rows,
+    token: Token
+}

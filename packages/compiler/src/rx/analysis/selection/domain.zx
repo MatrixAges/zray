@@ -19,6 +19,6 @@ export default function (in: Input): Output {
 
     return {
         valid: scalar || in.enum_members != null,
-        exhaustive: in.has_default || complete
+        exhaustive: complete
     }
 }

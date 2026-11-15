@@ -1,30 +1,42 @@
 import integers from "std:integer"
+import memory from "std:memory"
 import { kind_optional } from "core/type_table/const"
 
 import known from "../../optional/known"
 import { Kind } from "../../unification/model"
 
-import type { Graph } from "./model"
+import type { Bounds, Graph } from "./model"
 
-export type Input = Graph
+export type Input = {
+    graph: Graph,
+    lower: Bounds
+}
 
-export type Output = u64[]
+export type Output = void
 
 export default function (in: Input): Output {
-    return in.nodes.kinds.map((kind, index) => {
-        const expected = in.arguments[index]
+    const graph = in.graph
 
-        return match kind {
-            Kind.Optional => 1,
-            Kind.Known => match {
-                in.types.kinds[integers.widen(expected)] == kind_optional => known({
-                    types: in.types,
-                    expected,
-                    actual: null
-                }).depth,
+    const initialized = loop(0, {
+        while: index => index < graph.nodes.kinds.length,
+        next: index => {
+            const expected = graph.arguments[index]
+            const depth = match graph.nodes.kinds[index] {
+                Kind.Optional => 1,
+                Kind.Known => match {
+                    graph.types.kinds[integers.widen(expected)] == kind_optional =>
+                        known({
+                            types: graph.types,
+                            expected,
+                            actual: null
+                        }).depth,
+                    _ => 0
+                },
                 _ => 0
-            },
-            _ => 0
+            }
+
+            memory.writeU64(in.lower.output, index, depth)
+            index += 1
         }
-    })[0]
+    })
 }

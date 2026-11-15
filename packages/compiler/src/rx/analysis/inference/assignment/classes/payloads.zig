@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../../types.zig");
-const nesting_limit = 256;
 
 pub const Columns = struct {
     initial: []const u32 = &.{},
@@ -24,10 +23,11 @@ fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize)
     const generated = @import("generated_assignment_payloads");
     const Request = @typeInfo(@TypeOf(generated.executeState)).@"fn".param_types[1].?;
     const View = std.meta.Child(@FieldType(Request, "graph"));
-    var payloads: @FieldType(Request, "payloads") = .{ .items = &.{}, .storage = .plain };
+    const payloads = try allocator.alloc(u32, limit - start);
     var next = start;
     var source: u32 = if (start < limit) @intCast(start) else 0;
-    var remaining: u64 = nesting_limit;
+    var remaining: ?u64 = null;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     while (next < limit) {
         const rows = graph.nodes.slice();
@@ -38,10 +38,12 @@ fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize)
             .types = &.{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items },
         };
 
-        const result = generated.executeState(allocator, .{
+        const parents = graph.parents();
+
+        const result = generated.executeState(empty.allocator(), .{
             .graph = &view,
-            .parents = graph.forest.state,
-            .payloads = payloads,
+            .parents = @ptrCast(&parents),
+            .payloads = @ptrCast(&payloads),
             .start = start,
             .limit = limit,
             .next = next,
@@ -49,18 +51,15 @@ fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize)
             .origin = source,
             .remaining = remaining,
             .action = .Scan,
-        }) catch |err| switch (err) {
+        }) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
             else => unreachable,
         };
 
-        std.debug.assert(result.parents.items.ptr == graph.forest.state.items.ptr);
-
-        payloads = result.payloads;
         next = @intCast(result.next);
 
         switch (result.action) {
-            .Scan => return payloads.items,
+            .Scan => return payloads,
             .Register => {
                 const span = rows.items(.span)[result.origin];
 
@@ -71,5 +70,5 @@ fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize)
         }
     }
 
-    return payloads.items;
+    return payloads;
 }

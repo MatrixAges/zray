@@ -5,16 +5,52 @@ const Graph = @import("../inference/types.zig");
 const Prepared = @import("prepare.zig");
 const SourceMap = @import("../source_map.zig");
 const Source = @import("contracts/source.zig");
-pub const Port = struct { module: usize, kind: Source.Kind, type_id: zx.ir.TypeId };
 
-pub fn resolve(temporary: std.mem.Allocator, graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap) zx.Error![]const Port {
+pub const Ports = struct {
+    owners: []const u64 = &.{},
+    types: []const zx.ir.TypeId = &.{},
+    pub const Pair = struct {
+        owner: usize,
+        input: zx.ir.TypeId,
+        output: zx.ir.TypeId,
+        next: usize,
+    };
+
+    pub fn at(self: Ports, start: usize) ?Pair {
+        if (start == self.owners.len) return null;
+
+        if (comptime !@import("rx_options").generated_graph) {
+            const owner = self.owners[start];
+            var end = start + 2;
+
+            while (end < self.owners.len and self.owners[end] == owner) : (end += 2) {}
+
+            return .{ .owner = @intCast(owner), .input = self.types[end - 2], .output = self.types[end - 1], .next = end };
+        }
+
+        const rule = @import("generated_rx_args_ports");
+        const Input = std.meta.Child(rule.Input);
+        const input: Input = .{ .owners = self.owners, .types = @ptrCast(self.types), .start = start };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const selected = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        return .{
+            .owner = @intCast(selected.owner),
+            .input = @fromBackingInt(selected.input),
+            .output = @fromBackingInt(selected.output),
+            .next = @intCast(selected.next),
+        };
+    }
+};
+
+pub fn resolve(temporary: std.mem.Allocator, graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap) zx.Error!Ports {
     var source = Source{ .allocator = temporary };
 
     try source.collect(modules);
 
     const owners = source.entries.items(.module);
 
-    if (owners.len == 0) return &.{};
+    if (owners.len == 0) return .{};
 
     var parsed = try frontend.parseModule(temporary, source.text, modules[@intCast(owners[0])].source.path);
 
@@ -48,26 +84,9 @@ pub fn resolve(temporary: std.mem.Allocator, graph: *Graph, modules: []const Pre
 }
 
 fn validIndexed(source: Source, text: []const u8, output: anytype) bool {
-    const rule = @import("generated_rx_args_validate");
-    const Input = std.meta.Child(rule.Input);
-    const Names = std.meta.Child(@FieldType(Input, "names"));
+    const admission = @import("contracts/validate.zig").indexed(text, output, source.names, null);
 
-    const names: Names = .{
-        .text = text,
-        .expected = source.names,
-        .declarations = zx.columns.slice(@FieldType(Names, "declarations"), output.declarations),
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    return rule.executeValue(empty.allocator(), &.{
-        .has_imports = output.imports.len != 0,
-        .has_constants = output.constants.len != 0,
-        .has_contracts = output.contracts.len != 0,
-        .has_body = output.body != null,
-        .has_store = output.has_store,
-        .names = &names,
-    }) catch unreachable;
+    return admission.valid and admission.mismatch == null;
 }
 
 fn validSeed(source: Source, view: anytype, imports: usize, constants: usize, contracts: usize, body: bool, store: bool) bool {
@@ -86,7 +105,7 @@ fn validSeed(source: Source, view: anytype, imports: usize, constants: usize, co
     return true;
 }
 
-fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: Source, source_map: SourceMap, view: anytype) zx.Error![]const Port {
+fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: Source, source_map: SourceMap, view: anytype) zx.Error!Ports {
     const storage = if (comptime @hasField(@TypeOf(view), "storage")) .{ .types = view.storage.types, .type_order = view.storage.type_order } else .{};
 
     const resolving = if (comptime @hasField(@TypeOf(view), "storage"))
@@ -106,7 +125,7 @@ fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: 
     }
 
     const owners = source.entries.items(.module);
-    const ports = try source.allocator.alloc(Port, owners.len);
+    const types = try source.allocator.alloc(zx.ir.TypeId, owners.len);
     var declarations = view.declarations().iterator();
     var start: usize = 0;
 
@@ -118,22 +137,20 @@ fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: 
 
         graph.types.aliases = modules[owner].type_imports;
 
-        for (ports[start..end], start..) |*port, index| {
+        for (types[start..end]) |*type_id| {
             const declaration = declarations.next().?;
 
-            const type_id = graph.types.resolveView(resolving, declaration.value) catch |err| {
+            type_id.* = graph.types.resolveView(resolving, declaration.value) catch |err| {
                 if (err == error.OutOfMemory) return error.OutOfMemory;
 
                 return fail(graph, source, source_map, reporter.diagnostic.?);
             };
-
-            port.* = .{ .module = owner, .kind = if (index % 2 == 0) .input else .output, .type_id = type_id };
         }
 
         start = end;
     }
 
-    return ports;
+    return .{ .owners = owners, .types = types };
 }
 
 fn invalid(graph: *Graph, source: Source, source_map: SourceMap) zx.Error {

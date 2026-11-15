@@ -13,10 +13,5 @@ export enum Action {
 
 export type Admission = {
     source: Source,
-    signature: bool,
-    setter: bool,
-    preview: bool,
-    entry: bool,
-    compiled_dependency: bool,
-    reusable: bool
+    signature: i64
 }

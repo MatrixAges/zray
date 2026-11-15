@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import { constants_lane, evaluations_lane } from "../const"
+import header from "./header"
+
+import type { U32Buffer } from "std:memory"
+import type { Header } from "./header"
+
+export type Input = {
+    header: Header,
+    values: U32Buffer,
+    symbols?: U32Buffer,
+    symbol: u32,
+    value: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const symbols = in.symbols
+    const lane = symbols == null ? evaluations_lane : constants_lane
+    const row = memory.readU32(in.header.cursor, lane)
+    const index = integers.widen(row)
+
+    memory.writeU32(in.values, index, in.value)
+
+    if (symbols != null) {
+        memory.writeU32(symbols, index, in.symbol)
+    }
+
+    header({
+        header: in.header,
+        row,
+        lane
+    })
+}

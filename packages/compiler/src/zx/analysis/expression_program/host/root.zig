@@ -48,21 +48,9 @@ fn run(comptime mode: Mode, allocator: std.mem.Allocator, parsed: anytype, optio
 }
 
 fn execute(comptime mode: Mode, scratch: *std.heap.ArenaAllocator, allocator: std.mem.Allocator, parsed: anytype, options: Options, reporter: *zx.Reporter) zx.Error!generated.Output {
-    const names = try scratch.allocator().alloc([]const u8, options.bindings.len);
-    const ids = try scratch.allocator().alloc(u32, options.bindings.len);
-    const alias_names = try scratch.allocator().alloc([]const u8, options.aliases.len);
-    const alias_ids = try scratch.allocator().alloc(u32, options.aliases.len);
-
-    for (options.bindings, names, ids) |binding, *name, *id| {
-        name.* = binding.name;
-        id.* = @backingInt(binding.type_id);
-    }
-
-    for (options.aliases, alias_names, alias_ids) |alias, *name, *id| {
-        name.* = alias.name;
-        id.* = @backingInt(alias.type_id);
-    }
-
+    const temporary = scratch.allocator();
+    const bindings = options.binding_columns orelse try marshal(temporary, options.bindings);
+    const aliases = options.alias_columns orelse try marshal(temporary, options.aliases);
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "type_base")), options.types);
 
     const source = if (@TypeOf(parsed) == NativeParsed)
@@ -80,10 +68,10 @@ fn execute(comptime mode: Mode, scratch: *std.heap.ArenaAllocator, allocator: st
         .native = source.native,
         .type_base = &types,
         .constant_values = constants,
-        .binding_names = names,
-        .binding_types = ids,
-        .alias_names = alias_names,
-        .alias_types = alias_ids,
+        .binding_names = bindings.names,
+        .binding_types = @ptrCast(bindings.types),
+        .alias_names = aliases.names,
+        .alias_types = @ptrCast(aliases.types),
         .unit_bindings = options.unit_bindings,
         .nonnull_bindings = options.nonnull_bindings,
         .expected = if (options.expected) |expected| @backingInt(expected) else null,
@@ -104,4 +92,16 @@ fn execute(comptime mode: Mode, scratch: *std.heap.ArenaAllocator, allocator: st
     );
 
     return output;
+}
+
+fn marshal(allocator: std.mem.Allocator, bindings: anytype) std.mem.Allocator.Error!Expression.BindingColumns {
+    const names = try allocator.alloc([]const u8, bindings.len);
+    const types = try allocator.alloc(zx.ir.TypeId, bindings.len);
+
+    for (bindings, names, types) |binding, *name, *type_id| {
+        name.* = binding.name;
+        type_id.* = binding.type_id;
+    }
+
+    return .{ .names = names, .types = types };
 }

@@ -1,0 +1,73 @@
+import integers from "std:integer"
+
+import representative from "../forest/borrowed_root"
+import query from "./query"
+import { Action } from "./query"
+
+import type { U32Buffer } from "std:memory"
+import type { Kind } from "../unification/model"
+import type { Output as Plan, Snapshot } from "./query"
+
+export type Input = {
+    parents: U32Buffer,
+    kinds: Kind[],
+    sources: u32[],
+    revision: u64,
+    constructions: u64,
+    snapshot?: Snapshot,
+    start: u64,
+    final: bool
+}
+
+export type Output = {
+    row: u64,
+    root: u32,
+    plan: Plan
+}
+
+export default function (in: Input): Output {
+    const missing: u32 = 0
+
+    const rejected: Plan = {
+        action: Action.Reject,
+        position: 0,
+        shared: false
+    }
+
+    return loop({
+        row: in.start,
+        root: missing,
+        plan: rejected,
+        found: false
+    }, {
+        while: state => !state.found && state.row < in.sources.length,
+        next: state => {
+            const root = representative({
+                parents: in.parents,
+                value: in.sources[state.row]
+            })
+            const plan = query({
+                root,
+                kind: in.kinds[integers.widen(root)],
+                revision: in.revision,
+                constructions: in.constructions,
+                selections: in.sources.length,
+                snapshot: in.snapshot,
+                spread: false
+            })
+
+            if (plan.action == Action.Reject && !in.final) {
+                state.row += 1
+            } else {
+                state.root = root
+                state.plan = plan
+                state.found = true
+            }
+        },
+        return: state => ({
+            row: state.row,
+            root: state.root,
+            plan: state.plan
+        })
+    })
+}

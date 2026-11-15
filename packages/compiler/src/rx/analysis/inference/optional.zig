@@ -70,17 +70,16 @@ fn walk(graph: *const Graph, source: Graph.Id, remaining: u64) Step {
     const types: Types = .{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items };
     const view: View = .{ .kinds = rows.items(.kind), .arguments = rows.items(.argument), .types = &types };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const parents = graph.parents();
 
     const result = walk_rule.executeState(empty.allocator(), .{
         .graph = &view,
-        .parents = graph.forest.state,
+        .parents = @ptrCast(&parents),
         .value = @backingInt(source),
         .root = @backingInt(source),
         .remaining = remaining,
         .route = .Boundary,
     }) catch unreachable;
-
-    std.debug.assert(result.parents.items.ptr == graph.forest.state.items.ptr);
 
     return .{ .value = result.value, .root = @fromBackingInt(result.root), .remaining = result.remaining, .route = result.route };
 }

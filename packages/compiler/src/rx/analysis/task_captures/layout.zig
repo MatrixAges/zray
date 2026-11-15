@@ -1,11 +1,12 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const Binding = @import("frontend").expressions.Binding;
+const Expressions = @import("frontend").expressions;
 const enabled = @import("rx_options").generated_graph;
 const Self = @This();
 
 source_types: []const ir.TypeId = &.{},
+parameter_types: []const ir.TypeId = &.{},
 elements: []const ir.ExprId = &.{},
 narrows: bool = false,
 pub fn admits(types: ir.TypeTable, children: []const ir.TypeId) bool {
@@ -51,29 +52,49 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, positions: [
 
     return .{
         .source_types = @ptrCast(result.source_types),
+        .parameter_types = @ptrCast(result.parameter_types),
         .elements = @ptrCast(result.rows.elements),
         .narrows = result.rows.narrows,
     };
 }
 
-pub fn narrow(types: ir.TypeTable, bindings: []Binding, facts: []const []const u8) void {
-    if (facts.len == 0) return;
-    if (comptime !enabled) return @import("layout/seed.zig").narrow(types, bindings, facts);
+pub fn scope(allocator: std.mem.Allocator, types: ir.TypeTable, bindings: Expressions.BindingColumns, facts: []const []const u8) std.mem.Allocator.Error!Expressions.BindingStorage {
+    var selected: Expressions.BindingStorage = .empty;
+
+    try selected.resize(allocator, bindings.names.len);
+
+    @memcpy(selected.items(.name), bindings.names);
+
+    const selected_types = selected.items(.type_id);
+
+    if (facts.len == 0 or bindings.names.len == 0) {
+        @memcpy(selected_types, bindings.types);
+
+        return selected;
+    }
+
+    if (comptime !enabled) {
+        @import("layout/seed.zig").narrow(types, bindings, facts, selected_types);
+
+        return selected;
+    }
 
     const rule = @import("generated_rx_task_capture_narrow");
+    const Input = std.meta.Child(rule.Input);
+    const output: []u32 = @ptrCast(selected_types);
+
+    const input: Input = .{
+        .names = bindings.names,
+        .types = @ptrCast(bindings.types),
+        .kinds = types.kinds,
+        .children = types.first,
+        .facts = facts,
+        .narrowed = @ptrCast(&output),
+    };
+
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    for (bindings) |*binding| {
-        const index = @backingInt(binding.type_id);
+    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-        const input: std.meta.Child(rule.Input) = .{
-            .type_id = index,
-            .kind = types.kinds[index],
-            .first = types.first[index],
-            .name = binding.name,
-            .facts = facts,
-        };
-
-        binding.type_id = @fromBackingInt(zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable);
-    }
+    return selected;
 }

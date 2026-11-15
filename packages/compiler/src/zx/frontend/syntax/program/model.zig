@@ -73,7 +73,7 @@ pub fn Model(comptime Context: type) type {
             fn childIndex(self: @This(), position: usize) usize {
                 std.debug.assert(position < self.count());
 
-                return self.context.order.edges[self.context.order.patterns[self.index] + position];
+                return @intCast(self.context.order.edges[@as(usize, @intCast(self.context.order.patterns[self.index])) + position]);
             }
         };
 

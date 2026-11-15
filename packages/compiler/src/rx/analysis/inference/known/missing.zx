@@ -1,0 +1,35 @@
+import find from "./find"
+
+import type { State as Table } from "core/integer/map/model"
+
+export type Input = {
+    known: Table,
+    types: u32[],
+    first: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const missing: u64? = null
+
+    return loop({
+        next: in.first,
+        missing
+    }, {
+        while: state => state.missing == null && state.next < in.types.length,
+        next: state => {
+            const known = find({
+                known: in.known,
+                type_id: in.types[state.next]
+            })
+
+            if (known == null) {
+                state.missing = state.next
+            }
+
+            state.next += 1
+        },
+        return: state => state.missing
+    })
+}

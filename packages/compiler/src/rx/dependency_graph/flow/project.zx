@@ -1,4 +1,3 @@
-import integers from "std:integer"
 import memory from "std:memory"
 
 import { Tag } from "../../schema/execution/model"
@@ -14,7 +13,6 @@ import {
     returns,
     switch_action,
     task_action,
-    task_rank_stride,
     terminates
 } from "./const"
 import selection from "./selection"
@@ -50,9 +48,7 @@ export default function (in: Input): Output {
         _ => 0
     }
 
-    const rank = integers.narrow(in.task_rank * task_rank_stride)
-
-    memory.writeU32(view.facts, view.slots[in.row], flags + rank)
+    memory.writeU32(view.facts, view.slots[in.row], flags)
 
     return flags
 }

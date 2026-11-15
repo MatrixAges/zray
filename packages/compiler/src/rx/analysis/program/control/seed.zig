@@ -1,11 +1,11 @@
 const std = @import("std");
-const Shape = @import("shape.zig");
+const Shape = @import("../flow.zig");
 const Plan = @import("plan.zig");
 const Counts = Plan.Counts;
 const Error = @import("../builder.zig").Error;
 const Exit = enum(u32) { Continue, Return, Unreachable };
 
-pub fn plan(shape: *const Shape, rows: []Plan.Row, capture_count: usize, void_output: bool) Error!Plan {
+pub fn plan(shape: *const Shape, rows: []Plan.Row, blocks: Plan.Blocks, capture_count: usize, void_output: bool) Error!Plan {
     for (rows, shape.units.items(.first), shape.units.items(.count)) |*row, first, count| {
         row.* = try summarize(shape, rows, first, count);
     }
@@ -16,16 +16,25 @@ pub fn plan(shape: *const Shape, rows: []Plan.Row, capture_count: usize, void_ou
     if (exit == .Continue and !void_output) return error.IncompleteFlow;
 
     var size: Counts = .{};
-    var blocks: u32 = 0;
+    var block_index: u32 = 0;
+    var inline_start: ?usize = null;
+    const kinds = shape.units.items(.block);
 
-    for (rows, shape.units.items(.block)) |*row, block| {
+    for (rows, kinds, 0..) |*row, block, unit| {
         if (block) {
             const next = try size.plus(row.first);
 
-            row.* = .{ .first = size, .tag = blocks };
+            if (inline_start) |start| {
+                rows[start].tag = @intCast(unit);
+                inline_start = null;
+            }
+
+            blocks.firsts[block_index] = std.math.cast(u32, size.statements()) orelse return error.OutOfMemory;
+            blocks.counts[block_index] = std.math.cast(u32, row.first.statements()) orelse return error.OutOfMemory;
+            row.* = .{ .first = size, .tag = block_index };
             size = next;
-            blocks += 1;
-        } else row.tag = std.math.maxInt(u32);
+            block_index += 1;
+        } else if (inline_start == null) inline_start = unit;
     }
 
     size = try size.plus(.{
@@ -35,7 +44,11 @@ pub fn plan(shape: *const Shape, rows: []Plan.Row, capture_count: usize, void_ou
 
     if (size.statements() > std.math.maxInt(u32)) return error.OutOfMemory;
 
-    return .{ .rows = rows, .size = size, .blocks = blocks, .implicit_return = exit == .Continue };
+    const last = block_index - 1;
+
+    blocks.counts[last] = @intCast(size.statements() - blocks.firsts[last]);
+
+    return .{ .rows = rows, .blocks = kinds, .size = size, .implicit_return = exit == .Continue };
 }
 
 fn summarize(shape: *const Shape, rows: []const Plan.Row, first: u32, count: u32) Error!Plan.Row {
@@ -50,10 +63,22 @@ fn summarize(shape: *const Shape, rows: []const Plan.Row, first: u32, count: u32
         }
 
         const step = shape.steps.get(index);
+        var publication = step.output;
 
         switch (step.kind) {
-            .Call => size = try size.plus(.{ .constants = step.getters }),
-            .Parallel => size = try size.plus(.{ .constants = step.getters, .parallels = 1, .invocations = step.count }),
+            .Call => {
+                const call = shape.calls.get(step.first);
+
+                size = try size.plus(.{ .constants = call.getters });
+                publication = if (call.publishes) .Constant else .Evaluate;
+            },
+            .Parallel => {
+                size = try size.plus(.{ .parallels = 1, .invocations = step.count });
+
+                for (shape.calls.items(.getters)[step.first..][0..step.count]) |getters| {
+                    size = try size.plus(.{ .constants = getters });
+                }
+            },
             .Return => {
                 size = try size.plus(.{ .results = 1 });
                 exit = .Return;
@@ -70,7 +95,7 @@ fn summarize(shape: *const Shape, rows: []const Plan.Row, first: u32, count: u32
                 size = try size.plus(.{ .selections = 1, .cases = step.count });
                 exit = if (step.exhaustive) .Return else .Continue;
 
-                for (shape.cases.items[step.first..][0..step.count]) |id| {
+                for (shape.cases.items(.body)[step.first..][0..step.count]) |id| {
                     const end: Exit = @fromBackingInt(@intCast(rows[id].tag));
 
                     if (end == .Unreachable) {
@@ -85,8 +110,8 @@ fn summarize(shape: *const Shape, rows: []const Plan.Row, first: u32, count: u32
         }
 
         size = try size.plus(.{
-            .evaluations = @intFromBool(step.output == .Evaluate),
-            .constants = @intFromBool(step.output == .Constant),
+            .evaluations = @intFromBool(publication == .Evaluate),
+            .constants = @intFromBool(publication == .Constant),
         });
     }
 

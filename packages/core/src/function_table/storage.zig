@@ -61,7 +61,7 @@ pub fn append(self: *Self, allocator: std.mem.Allocator, value: ir.Function) std
 pub const Descriptors = struct {
     symbols: *const ir.SymbolTable,
     expressions: *const ir.ExpressionTable,
-    stores: *const ir.StoreTable,
+    stores: ?*const ir.StoreTable,
     contracts: *const ir.ContractTable,
 };
 
@@ -81,7 +81,7 @@ pub fn appendOwnedAssumeCapacity(self: *Self, value: ir.Function, owned: Descrip
     self.expressions.appendAssumeCapacity(owned.expressions);
     self.control.appendAssumeCapacity(value.body.control);
     self.roots.appendAssumeCapacity(if (value.body.root) |id| @backingInt(id) else null);
-    self.stores.appendAssumeCapacity(owned.stores);
+    self.stores.appendAssumeCapacity(owned.stores orelse &empty_stores);
 }
 
 pub fn reserve(self: *Self, allocator: std.mem.Allocator, additional: usize) std.mem.Allocator.Error!void {

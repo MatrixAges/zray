@@ -1,1 +1,5 @@
 export const namespace: string = "store"
+
+export const identity_separator: string = ":"
+
+export const reference_separator: string = "."

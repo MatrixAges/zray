@@ -1,0 +1,94 @@
+import encoding from "std:encoding"
+
+import {
+    method_omit,
+    method_pick
+} from "../../../zx/analysis/analyzer/expressions/selection/const"
+import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
+import { Issue } from "./model"
+
+import type { Output, Input as Walk } from "./model"
+
+export type Input = {
+    walk: Walk,
+    node: u64
+}
+
+export default function (in: Input): Output {
+    const tree = in.walk.tree
+    const call = tree.nodes[in.node]
+    const callee = tree.nodes[call.first]
+
+    if (callee.kind != ExprKind.Field) {
+        return {
+            issue: Issue.Unsupported,
+            node: in.node
+        }
+    }
+
+    const name = encoding.sliceBytes(in.walk.source, callee.name.start, callee.name.end)
+
+    if (name != method_pick && name != method_omit) {
+        return {
+            issue: Issue.Unsupported,
+            node: in.node
+        }
+    }
+
+    if (call.type_argument != 0 || call.count != 1) {
+        return {
+            issue: Issue.SelectionArity,
+            node: in.node
+        }
+    }
+
+    const argument = tree.items[call.head - 1].value
+    const list = tree.nodes[argument]
+
+    if (list.kind != ExprKind.List) {
+        return {
+            issue: Issue.SelectionArray,
+            node: argument
+        }
+    }
+
+    if (list.count == 0) {
+        return {
+            issue: Issue.None,
+            node: in.node
+        }
+    }
+
+    const order = in.walk.order
+    const first = order.offsets[argument]
+
+    const missing: u64? = null
+
+    const invalid = loop({
+        index: 0,
+        node: missing
+    }, {
+        while: state => state.index < list.count && state.node == null,
+        next: state => {
+            const key = tree.items[order.edges[first + state.index]].value
+
+            if (tree.nodes[key].kind != ExprKind.String) {
+                state.node = key
+            }
+
+            state.index += 1
+        },
+        return: state => state.node
+    })
+
+    return match {
+        invalid != null => {
+            issue: Issue.SelectionLiteral,
+            node: invalid ?? in.node
+        },
+        _ => {
+            issue: Issue.None,
+            node: in.node
+        }
+    }
+}

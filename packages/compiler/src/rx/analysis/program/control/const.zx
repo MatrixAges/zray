@@ -14,6 +14,8 @@ export const results_lane: u64 = 6
 
 export const tag_lane: u64 = 7
 
+export const statement_lane: u64 = 7
+
 export const lane_count: u64 = 8
 
 export const continues: u32 = 0

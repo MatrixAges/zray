@@ -1,0 +1,45 @@
+<Module>
+    <Type from="model" as="Frontier" />
+
+    <Args in={Frontier.Input} out={Frontier.Output} />
+
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "queue",
+            "cursor",
+            "starts",
+            "ends",
+            "edge_start",
+            "edge_end"
+        ])}
+    />
+
+    <Call
+        fn="../enqueue"
+        in={$in.pick([
+            "seen",
+            "queue",
+            "end",
+            "targets"
+        ])}
+    />
+
+    <Call
+        fn="select"
+        in={{
+            queue: $in.queue,
+            cursor: $in.cursor,
+            end: $ctx.enqueue,
+            sources: $in.sources
+        }}
+    />
+
+    <Return
+        value={{
+            end: $ctx.enqueue,
+            cursor: $ctx.select.cursor,
+            request: $ctx.select.request
+        }}
+    />
+</Module>

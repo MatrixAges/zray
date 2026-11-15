@@ -1,0 +1,49 @@
+import memory from "std:memory"
+
+import matches from "../reference/name"
+import { check_task_event, task_tag } from "./const"
+import taskOutput from "./layout/task"
+
+import type { U32Buffer, U64Buffer } from "std:memory"
+import type { Attribute, Node } from "../../syntax/document/model"
+
+export type Input = {
+    source: u8[],
+    node: Node,
+    attributes: Attribute[],
+    slot: u64,
+    facts: U32Buffer,
+    events: U64Buffer,
+    cursor: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const task = matches({
+        source: in.source,
+        start: in.node.name.start,
+        end: in.node.name.end,
+        name: task_tag
+    })
+
+    if (!task) {
+        return in.cursor
+    }
+
+    const output = taskOutput({
+        source: in.source,
+        attributes: in.attributes,
+        node: in.node
+    })
+
+    memory.writeU32(in.facts, in.slot, output ? 1 : 0)
+
+    if (!output) {
+        return in.cursor
+    }
+
+    memory.writeU64(in.events, in.cursor, check_task_event + in.slot)
+
+    return in.cursor + 1
+}

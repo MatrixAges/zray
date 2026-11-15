@@ -1,4 +1,5 @@
-import { Kind } from "./model"
+import { Kind as Shape } from "../unification/model"
+import { Kind, Receiver } from "./model"
 
 import type { Candidate, Parts } from "./model"
 
@@ -10,10 +11,13 @@ export type Input = {
 export type Output = Candidate
 
 export default function (in: Input): Output {
+    const missing: u32 = 0
+
     return loop({
         cursor: in.parts.explicit.length,
         part: 0,
-        field: 0,
+        value: missing,
+        receiver: Receiver.Node,
         kind: Kind.Absent,
         done: false
     }, {
@@ -47,8 +51,20 @@ export default function (in: Input): Output {
                 const clear = state.kind == Kind.Absent
 
                 state.part = part
-                state.field = field
                 state.kind = clear ? Kind.Named : Kind.AmbiguousNamed
+
+                if (explicit != null) {
+                    state.receiver = Receiver.Node
+                    state.value = in.parts.explicit_values[part]
+                } else if (aliases) {
+                    state.receiver = Receiver.Target
+                } else {
+                    const shape = in.parts.shapes[in.parts.roots[part]]
+
+                    state.receiver = shape == Shape.Known ? Receiver.Type : Receiver.Node
+                    state.value = in.parts.values[part][field]
+                }
+
                 state.done = true
             } else if (explicit == null && in.parts.open[part]) {
                 const previous = state.kind != Kind.Absent
@@ -66,7 +82,8 @@ export default function (in: Input): Output {
         },
         return: state => ({
             part: state.part,
-            field: state.field,
+            value: state.value,
+            receiver: state.receiver,
             kind: state.kind
         })
     })

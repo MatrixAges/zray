@@ -4,6 +4,7 @@ const ir = zx.ir;
 const Artifact = @import("../../../artifact/model.zig");
 const Origins = @import("../../../nominal_origins.zig");
 const Current = @import("../../restore.zig").Current;
+const type_table = @import("../../../../analysis/type_table.zig");
 const generated = @import("generated_semantic_restore_types");
 const marshal = @import("../../../../analysis/constants/input.zig").marshal;
 const Input = std.meta.Child(generated.Input);
@@ -12,22 +13,7 @@ const Table = std.meta.Child(@FieldType(Merge, "source"));
 const Nominal = std.meta.Child(@FieldType(Merge, "origins"));
 const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "current_constants")).optional.child);
 const Plan = std.meta.Child(@typeInfo(@TypeOf(generated.executeValue(undefined, undefined))).error_union.payload);
-const scalars = std.enums.values(ir.Scalar);
-
-const scalar_ids = blk: {
-    var ids: [scalars.len]u32 = undefined;
-
-    for (scalars, &ids) |scalar, *id| id.* = @backingInt(scalar);
-
-    break :blk ids;
-};
-
-const scalar_rows: ir.TypeTable = .{
-    .kinds = &@as([scalars.len]u8, @splat(@backingInt(std.meta.Tag(ir.Type).scalar))),
-    .first = &scalar_ids,
-    .second = &@as([scalars.len]u32, @splat(0)),
-    .labels = &@as([scalars.len][]const u8, @splat("")),
-};
+const scalar_rows = type_table.scalar_rows;
 
 pub fn prepare(scratch: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, mapping: []u32, decoded: bool) Artifact.Error!Plan {
     const current_types = current.types.view();
@@ -55,7 +41,7 @@ pub fn prepare(scratch: std.mem.Allocator, module: *const Artifact.Module, curre
         .cached_constants = try marshal(Constants, scratch, module.constant_imports),
         .cached_exports = if (decoded) null else try marshal(Constants, scratch, module.constant_exports),
         .type_ids = mapping,
-        .scalar_count = scalars.len,
+        .scalar_count = scalar_rows.count(),
         .maximum_count = std.math.maxInt(u32),
         .decoded = decoded,
     };
@@ -69,7 +55,7 @@ pub fn prepare(scratch: std.mem.Allocator, module: *const Artifact.Module, curre
 }
 
 pub fn commit(current: *const Current, payload: std.mem.Allocator, plan: Plan) std.mem.Allocator.Error!void {
-    if (current.types.count() == 0) try current.types.appendDelta(current.allocator, scalar_rows);
+    if (current.types.count() == 0) try type_table.initializeScalars(current.allocator, current.types);
 
     try @import("../../../../analysis/semantic/merging/commit.zig").appendWithPayload(
         current.allocator,

@@ -29,10 +29,10 @@ pub fn create(types: *Types, value: zx.ir.TypeValue) zx.Error!zx.ir.TypeId {
         else => unreachable,
     };
 
-    return commit(types, arena.allocator(), result, .{ .start = 0, .end = 0 }, value == .error_set);
+    return commit(types, result, .{ .start = 0, .end = 0 }, value == .error_set);
 }
 
-pub fn commit(types: *Types, scratch: std.mem.Allocator, result: anytype, span: zx.Span, owns_names: bool) zx.Error!zx.ir.TypeId {
+pub fn commit(types: *Types, result: anytype, span: zx.Span, owns_names: bool) zx.Error!zx.ir.TypeId {
     if (result.diagnostic.message.len != 0) return types.reporter.fail(
         std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), result.diagnostic.code) orelse unreachable,
         span,
@@ -41,7 +41,7 @@ pub fn commit(types: *Types, scratch: std.mem.Allocator, result: anytype, span: 
 
     const row = result.row orelse return @fromBackingInt(result.id);
 
-    var delta: zx.ir.TypeTable = .{
+    const delta: zx.ir.TypeTable = .{
         .kinds = &.{row.layout.kind},
         .first = &.{row.layout.first},
         .second = &.{row.layout.second},
@@ -52,29 +52,19 @@ pub fn commit(types: *Types, scratch: std.mem.Allocator, result: anytype, span: 
         .names = row.names,
     };
 
-    if (owns_names) {
-        const names = try scratch.alloc([]const u8, delta.names.len);
-        var copied: usize = 0;
+    const first = try types.items.reserveDelta(types.allocator, delta);
 
-        errdefer for (names[0..copied]) |name| types.allocator.free(name);
+    first[0] = row.layout.first;
 
-        for (delta.names, names) |name, *owned| {
-            owned.* = try types.allocator.dupe(u8, name);
-            copied += 1;
-        }
+    if (owns_names and delta.names.len != 0) {
+        const tail = types.items.names.unusedCapacitySlice()[0..delta.names.len];
 
-        delta.names = names;
+        try @import("merging/commit.zig").copyNames(types.allocator, delta.names, tail);
 
-        try publish(types, delta);
-    } else try publish(types, delta);
+        types.items.publishOwnedNames(delta);
+    } else {
+        types.items.publishDelta(delta);
+    }
 
     return @fromBackingInt(result.id);
-}
-
-fn publish(types: *Types, row: zx.ir.TypeTable) zx.Error!void {
-    const first = try types.items.reserveDelta(types.allocator, row);
-
-    first[0] = row.first[0];
-
-    types.items.publishDelta(row);
 }

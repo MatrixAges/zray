@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Functions" />
+
+    <Args in={Functions.Shared} out={bool} />
+
+    <Call fn="header" in={$in} />
+
+    <If on={!$ctx.header}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="stores"
+        in={{
+            actual: $in.actual.stores,
+            expected: $in.expected.stores
+        }}
+    />
+
+    <Return value={$ctx.stores} />
+</Module>

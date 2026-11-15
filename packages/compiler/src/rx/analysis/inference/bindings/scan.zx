@@ -1,13 +1,10 @@
+import representative from "../forest/borrowed_root"
 import lookup from "./lookup"
 import { Action } from "./model"
 
-import type { Output as Result, Topology } from "./model"
+import type { Output as Result, Scan } from "./model"
 
-export type Input = {
-    topology: Topology,
-    candidates: u32[][],
-    start: u64
-}
+export type Input = Scan
 
 export type Output = Result
 
@@ -33,8 +30,22 @@ export default function (in: Input): Output {
             } else if (selected == null) {
                 state.action = Action.Missing
             } else {
-                state.action = Action.Unify
-                state.value = selected ?? value
+                const parents = in.topology.parents
+                const target = representative({
+                    parents,
+                    value: in.values[state.row]
+                })
+                const source = representative({
+                    parents,
+                    value: selected
+                })
+
+                if (target == source) {
+                    state.row += 1
+                } else {
+                    state.action = Action.Unify
+                    state.value = source
+                }
             }
         },
         return: state => state

@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const frontend = @import("frontend");
 const modules = @import("modules.zig");
 const names = @import("names.zig");
-pub const Initializer = struct { identity: []const u8, schema_version: u32, program: ir.Program };
+pub const Initializer = @import("frontend").project.SourceStoreInitializer;
 pub const Options = struct { analysis: *const frontend.AnalysisResult, initializers: []const Initializer, cache: ?*@import("cache.zig") = null };
 pub const Error = modules.Error || error{ InvalidInitializer, DuplicateInitializer, MissingInitializer };
 

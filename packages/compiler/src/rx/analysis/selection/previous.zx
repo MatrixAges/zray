@@ -1,10 +1,12 @@
 import equal from "./equal"
+import read from "./label"
 
-import type { Labels } from "./model"
+import type { Label, Labels } from "./model"
 
 export type Input = {
     labels: Labels,
-    index: u64
+    index: u64,
+    value: Label
 }
 
 export type Output = bool
@@ -16,10 +18,14 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.found && state.cursor < in.index,
         next: state => {
-            state.found = equal({
+            const previous = read({
                 labels: in.labels,
-                left: state.cursor,
-                right: in.index
+                index: state.cursor
+            })
+
+            state.found = equal({
+                left: previous,
+                right: in.value
             })
 
             state.cursor += 1

@@ -34,23 +34,21 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection
 
     var options = project;
     options.compiled_libraries = libraries.libraries.items;
-
-    const roots = try allocator.alloc([]const u8, collection.modules.len);
-
-    for (collection.modules, roots) |module, *root| root.* = module.path;
-
     var paths = compiler.project.source_index.Map.empty;
+    var prefetched: compiler.project.ParseCache.Prefetched = .{};
 
     defer paths.deinit(allocator);
+    defer prefetched.deinit(allocator);
 
     var graph = try analysis.project.source_graph.build(allocator, .{
         .entry = collection.stores[0].path,
-        .additional_roots = roots,
+        .include_rx_modules = true,
         .modules = collection.modules,
         .stores = collection.stores,
         .sources = sources.items,
         .project = options,
         .parse_cache = &cache,
+        .prefetched = &prefetched,
         .registered_paths = &paths,
     });
 
@@ -58,17 +56,14 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection
 
     if (graph.value == .diagnostic) return report(writer, graph.value.diagnostic);
 
-    var entries: std.ArrayList([]const u8) = .empty;
+    const entries = try analysis.project.source_graph.orderedRows(allocator, &graph.value.graph, .zx);
 
-    for (graph.value.graph.order) |index| {
-        const source = graph.value.graph.modules[index].source;
+    defer allocator.free(entries);
 
-        if (source == .zx) try entries.append(allocator, sources.items[source.zx].path);
-    }
-
-    var signatures = try compiler.project.analyzeSignaturesWithCache(allocator, sources.items, entries.items, options, &cache);
+    var signatures = try compiler.project.analyzePrefetchedSignatures(allocator, prefetched, entries, options, &paths);
 
     defer signatures.deinit();
+    prefetched.deinit(allocator);
 
     if (signatures.value == .diagnostic) {
         const issue = signatures.value.diagnostic;
@@ -84,7 +79,7 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection
     options.context.nominal_types = signatures.value.data.nominal_types;
     options.context.native_modules = signatures.value.data.native_modules;
     const indexed = try analysis.project.source_graph.Signatures.init(allocator, graph.value.graph, signatures.value.data.modules, &paths);
-    const stores = graph.value.graph.modules[sources.items.len + collection.modules.len ..];
+    const stores = graph.value.graph.modules.items(.dependencies)[graph.value.graph.sources.rx_end..];
     const registry = try analysis.store.registry.loadSignatures(allocator, collection.stores, options.context, stores, indexed);
 
     return if (registry == .diagnostic) report(writer, registry.diagnostic) else true;

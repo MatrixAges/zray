@@ -14,7 +14,7 @@ pub const Signature = struct {
     tasks: []const zx.ir.TypeId,
 };
 
-pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, ports: Ports, requests: Requests) zx.Error![]const Signature {
+pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, resolver: *Graph.Resolver, ports: Ports, requests: Requests) zx.Error![]const Signature {
     if (ports.len == 0) return &.{};
 
     const signatures = try allocator.alloc(Signature, ports.len);
@@ -31,7 +31,7 @@ pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, ports: Ports, reques
     if (comptime generated and @bitSizeOf(usize) == 64) {
         const Input = std.meta.Child(rule.Input);
         const rows = graph.nodes.slice();
-        const parents = graph.forest.state.items;
+        const parents = graph.parents();
 
         const nodes: std.meta.Child(@FieldType(Input, "nodes")) = .{
             .parents = @ptrCast(&parents),
@@ -65,7 +65,7 @@ pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, ports: Ports, reques
             const input: Input = .{ .nodes = &nodes, .ports = &ranges, .tasks = &task_requests, .target = &target, .cursor = &cursor };
             const progress = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
             const unresolved = progress.unresolved orelse break;
-            _ = try graph.resolve(@fromBackingInt(unresolved));
+            _ = try graph.resolve(@fromBackingInt(unresolved), resolver);
             cursor = zx.columns.view(@TypeOf(cursor), progress.cursor);
         }
     } else {
@@ -73,11 +73,11 @@ pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, ports: Ports, reques
         var task_start: usize = 0;
 
         for (inputs, outputs, binding_ends, task_ends) |*input, *output, binding_end, task_end| {
-            for (binding_types[binding_start..binding_end]) |*binding| binding.* = @backingInt(try graph.resolve(@fromBackingInt(binding.*)));
-            for (tasks.items(.id)[task_start..task_end], tasks.items(.value)[task_start..task_end]) |id, value| task_types[task_start + id] = @backingInt(try graph.resolve(value));
+            for (binding_types[binding_start..binding_end]) |*binding| binding.* = @backingInt(try graph.resolve(@fromBackingInt(binding.*), resolver));
+            for (tasks.items(.id)[task_start..task_end], tasks.items(.value)[task_start..task_end]) |id, value| task_types[task_start + id] = @backingInt(try graph.resolve(value, resolver));
 
-            input.* = @backingInt(try graph.resolve(@fromBackingInt(input.*)));
-            output.* = @backingInt(try graph.resolve(@fromBackingInt(output.*)));
+            input.* = @backingInt(try graph.resolve(@fromBackingInt(input.*), resolver));
+            output.* = @backingInt(try graph.resolve(@fromBackingInt(output.*), resolver));
             binding_start = binding_end;
             task_start = task_end;
         }

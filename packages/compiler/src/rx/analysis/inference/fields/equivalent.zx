@@ -1,0 +1,33 @@
+import representative from "../forest/borrowed_root"
+import { Action } from "./existing"
+
+import type { U32Buffer } from "std:memory"
+import type { Output as Field } from "./existing"
+
+export type Input = {
+    target: Field,
+    source?: u32,
+    parents: U32Buffer
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const source = in.source
+
+    if (in.target.action != Action.Reuse || source == null) {
+        return false
+    }
+
+    const left = representative({
+        parents: in.parents,
+        value: in.target.value
+    })
+
+    const right = representative({
+        parents: in.parents,
+        value: source
+    })
+
+    return left == right
+}

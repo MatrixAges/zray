@@ -80,13 +80,20 @@ pub fn FunctionView(comptime T: type) type {
 }
 
 pub fn validFunctionColumns(value: *const ir.Function) bool {
-    if (!value.symbols.validStructure() or !value.expressions.validStructure() or !value.stores.validStructure() or !value.contracts.validStructure()) return false;
+    const rule = @import("generated_ir_function_columns");
+    const Columns = std.meta.Child(rule.Input);
 
-    for (value.contracts.symbols, value.contracts.expressions) |symbols, expressions| {
-        if (!symbols.validStructure() or !expressions.validStructure()) return false;
-    }
+    const input: Columns = .{
+        .stores = zx.columns.pointer(@FieldType(Columns, "stores"), &value.stores),
+        .symbols = zx.columns.pointer(@FieldType(Columns, "symbols"), &value.symbols),
+        .expressions = zx.columns.pointer(@FieldType(Columns, "expressions"), &value.expressions),
+        .contracts = zx.columns.pointer(@FieldType(Columns, "contracts"), &value.contracts),
+        .max_offset = std.math.maxInt(usize),
+    };
 
-    return true;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch false;
 }
 
 pub fn typeMapping(comptime Target: type, mapping: Nodes.TypeMap) Target {

@@ -1,47 +1,46 @@
+import memory from "std:memory"
 import { max_nesting_depth } from "core/const"
 
-import type { Initial, Input as Rules } from "./model"
+import type { Initial, Request } from "./model"
 
-export type Input = {
-    rules: Rules,
+export type Input = Request & {
     initial: Initial
 }
 
-export type Output = bool[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const queue: u64[] = []
-    const initial_count = in.initial.queue.length
+    const { rules, work, initial } = in
 
-    return loop({
-        ready: in.initial.ready.map(value => value)[0],
-        pending: in.rules.sizes.map(size => size)[0],
-        queue,
+    const propagated = loop({
+        count: initial.count,
         position: 0,
         depth: 0,
-        level_end: in.initial.known,
+        level_end: initial.known,
         edge: 0,
         edge_end: 0
     }, {
         while: state => {
             const has_edge = state.edge < state.edge_end
-            const has_node = state.position < initial_count + state.queue.length
+            const has_node = state.position < state.count
 
             return state.depth < max_nesting_depth && (has_edge || has_node)
         },
         next: state => {
             if (state.edge < state.edge_end) {
-                const rule = in.rules.dependents[state.edge]
-                const result = in.rules.results[rule]
+                const rule = rules.dependents[state.edge]
+                const result = rules.results[rule]
 
-                if (!state.ready[result]) {
-                    const pending = state.pending[rule] - 1
+                if (!work.ready[result]) {
+                    const pending = memory.readU64(work.pending, rule) - 1
 
-                    state.pending[rule] = pending
+                    memory.writeU64(work.pending, rule, pending)
 
                     if (pending == 0) {
-                        state.ready[result] = true
-                        state.queue = state.queue.push(result)[0]
+                        memory.writeU8(work.ready_output, result, 1)
+                        memory.writeU64(work.queue, state.count, result)
+
+                        state.count += 1
                     }
                 }
 
@@ -49,23 +48,17 @@ export default function (in: Input): Output {
             } else {
                 if (state.position == state.level_end) {
                     state.depth += 1
-                    state.level_end = initial_count + state.queue.length
+                    state.level_end = state.count
                 }
 
                 if (state.depth < max_nesting_depth) {
-                    const position = state.position
+                    const node = memory.readU64(work.queue, state.position)
 
-                    const node = match {
-                        position < initial_count => in.initial.queue[position],
-                        _ => state.queue[position - initial_count]
-                    }
-
-                    state.edge = in.rules.offsets[node]
-                    state.edge_end = in.rules.offsets[node + 1]
+                    state.edge = rules.offsets[node]
+                    state.edge_end = rules.offsets[node + 1]
                     state.position += 1
                 }
             }
-        },
-        return: state => state.ready
+        }
     })
 }

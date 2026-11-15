@@ -10,6 +10,10 @@ const batch_size = @import("../../package_scope.zig").lookup_batch_size;
 
 pub const Match = struct { first: ?usize = null, duplicate: bool = false };
 
+pub fn package(rows: []const @import("../../package_scope.zig").Package, name: []const u8, check_duplicates: bool) Match {
+    return select(rows, "specifier", name, check_duplicates);
+}
+
 pub fn select(rows: anytype, comptime field: []const u8, name: []const u8, check_duplicates: bool) Match {
     var result: Match = .{};
 

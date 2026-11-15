@@ -1,17 +1,17 @@
-import representative from "../../inference/forest/representative"
+import representative from "../../inference/forest/borrowed_root"
 
+import type { U32Buffer } from "std:memory"
 import type { Edges } from "../../inference/assignment/model"
 
 export type Input = {
     edges: Edges,
-    parents: u32[],
+    parents: U32Buffer,
     root: u32,
     index: u64,
     found: bool
 }
 
 export type Output = {
-    parents: u32[],
     found: bool
 }
 
@@ -24,9 +24,7 @@ export default function (in: Input): Output {
                 value: state.edges.left[state.index]
             })
 
-            state.parents = source.parents
-
-            if (source.item == state.root) {
+            if (source == state.root) {
                 state.found = true
             } else {
                 const target = representative({
@@ -34,14 +32,12 @@ export default function (in: Input): Output {
                     value: state.edges.right[state.index]
                 })
 
-                state.parents = target.parents
-                state.found = target.item == state.root
+                state.found = target == state.root
             }
 
             state.index += 1
         },
         return: state => ({
-            parents: state.parents,
             found: state.found
         })
     })

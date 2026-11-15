@@ -20,6 +20,7 @@ const Round = struct {
     graph: *Graph,
     workspace: *std.heap.ArenaAllocator,
     closure: *ObjectClosure,
+    resolver: *Graph.Resolver,
     revision: usize,
     classes: Assignment.Base = undefined,
     inline fn run(self: *Round, comptime stage: Stage) zx.Error!bool {
@@ -29,21 +30,13 @@ const Round = struct {
             .ValidateUses => try Bindings.validateUses(graph),
             .Bindings, .FinalBindings => try Bindings.propagate(graph, stage == .FinalBindings),
             .NonNull, .FinalNonNull => try NonNull.propagate(graph, stage == .FinalNonNull),
-            .Sequences => {
-                const sequences = graph.pending.sequences.slice();
-
-                for (0..sequences.len) |index| try Sequences.propagate(graph, sequences.get(index));
-            },
+            .Sequences => try Sequences.replay(graph),
             .Constructions, .FinalConstructions => {
                 for (0..graph.pending.constructions.len) |index| {
                     try Construction.propagate(graph, self.closure, graph.pending.constructions.get(index), stage == .FinalConstructions);
                 }
             },
-            .Selections, .FinalSelections => {
-                for (0..graph.pending.selections.len) |index| {
-                    try Selection.propagate(graph, self.closure, graph.pending.selections.get(index), stage == .FinalSelections);
-                }
-            },
+            .Selections, .FinalSelections => try Selection.replay(graph, self.closure, stage == .FinalSelections),
             .Lengths => try Projections.applyLengths(graph),
             .Indexes => try Index.replay(graph),
             .AssignmentClasses => {
@@ -56,7 +49,7 @@ const Round = struct {
             .Materialize => try Assignment.materialize(graph, self.classes, self.workspace.allocator()),
             .IndexDefault => return Index.defaultLists(graph),
             .ValidateLengths => try Projections.validateLengths(graph),
-            .ValidateAssignments => try Assignment.validate(graph),
+            .ValidateAssignments => try Assignment.validate(graph, self.resolver),
             .Restart, .Done => unreachable,
         }
 
@@ -64,7 +57,7 @@ const Round = struct {
     }
 };
 
-pub fn finish(graph: *Graph) zx.Error!void {
+pub fn finish(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
     var workspace = std.heap.ArenaAllocator.init(graph.scratch);
     var closure = ObjectClosure.init(graph.scratch);
 
@@ -72,7 +65,7 @@ pub fn finish(graph: *Graph) zx.Error!void {
     defer closure.deinit();
 
     while (true) {
-        var round: Round = .{ .graph = graph, .workspace = &workspace, .closure = &closure, .revision = graph.revision };
+        var round: Round = .{ .graph = graph, .workspace = &workspace, .closure = &closure, .resolver = resolver, .revision = graph.revision };
 
         if (try execute(&round, .ValidateUses)) return;
     }

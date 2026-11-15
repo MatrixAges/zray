@@ -39,7 +39,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
     state.owner = index;
     _ = state.scratch.reset(.retain_capacity);
     const temporary = state.scratch.allocator();
-    const prepared = try prepare(state, cache, sources, index, temporary);
+    const prepared = try prepare(state, temporary, cache, sources, index, true);
 
     const stores: @FieldType(frontend.Context, "stores") = if (setter) |grant|
         try temporary.dupe(std.meta.Child(@FieldType(frontend.Context, "stores")), &.{.{ .handle = "$store", .path = grant.name, .type_id = grant.type_id, .readable = false }})
@@ -66,22 +66,21 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
     return link(state, temporary, analyzed);
 }
 
-/// Reads the parse of `index` and binds its imports; the shared tables must hold every module it depends on. With a
-/// `checking` allocator the parse is checked first, otherwise `analyze` checks it.
-pub fn prepare(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, checking: ?std.mem.Allocator) State.Error!Prepared {
-    const module = state.graph.modules[index];
-    const source = sources[module.source.zx];
+/// Reads the parse of `index` and binds its imports; the shared tables must hold every module it depends on.
+pub fn prepare(state: *State, bindings: std.mem.Allocator, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, checking: bool) State.Error!Prepared {
+    const path = state.graph.modules.items(.path)[index];
+    const source = sources[state.graph.sources.at(index).zx];
     const signature = state.signature(index) orelse return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source module signature is missing");
-    const parsed = try cache.getModule(source.source, module.path);
+    const parsed = try cache.getModule(source.source, path);
 
-    if (checking) |allocator| if (try parsed.check(allocator)) |issue| return diagnostic(state, source.source, issue);
+    if (checking) if (try parsed.check(bindings)) |issue| return diagnostic(state, source.source, issue);
 
     const imports = switch (parsed.*) {
-        .native => |result| try @import("imports.zig").collect(state, zx.syntax.header.Native{ .program = result.value.parsed.ast }, index, signature),
-        .indexed => |*result| if (frontend.project.ParseCache.indexed_enabled) try @import("imports.zig").collect(state, result.header(), index, signature) else unreachable,
+        .native => |result| try @import("imports.zig").collect(state, bindings, zx.syntax.header.Native{ .program = result.value.parsed.ast }, index, signature, source.source),
+        .indexed => |*result| if (frontend.project.ParseCache.indexed_enabled) try @import("imports.zig").collect(state, bindings, result.header(), index, signature, source.source) else unreachable,
     };
 
-    return .{ .index = index, .source = source.source, .parsed = parsed, .type_imports = signature.type_imports, .constant_imports = signature.constant_imports, .imports = imports.functions, .exports = signature.signature.exports, .constant_exports = signature.signature.constant_exports, .members = imports.published, .checked = checking != null };
+    return .{ .index = index, .source = source.source, .parsed = parsed, .type_imports = signature.type_imports, .constant_imports = signature.constant_imports, .imports = imports.functions, .exports = signature.signature.exports, .constant_exports = signature.signature.constant_exports, .members = imports.published, .checked = checking };
 }
 
 /// Analyzes a prepared body against the shared tables, which it only reads, so bodies that depend on none of each
@@ -136,24 +135,22 @@ pub fn link(state: *State, temporary: std.mem.Allocator, analyzed: Analyzed) Sta
     const functions = program.functions;
     program.functions = base;
 
-    if (functions.count() > analyzed.functions) {
-        var delta: @import("zx").ir.FunctionTable = .{};
-
-        inline for (@typeInfo(@TypeOf(delta)).@"struct".field_names) |name| @field(delta, name) = @field(functions, name)[analyzed.functions..];
-
-        program.functions = try frontend.project.artifact.function_table.join(temporary, base, delta);
-    }
+    const suffix = if (functions.count() > analyzed.functions) functions.suffix(analyzed.functions) else null;
 
     program.native_modules = state.native_modules.view();
     program.exports = analyzed.exports;
     program.constant_exports = analyzed.constant_exports;
 
+    const initializers = try state.initializersView();
+
     return state.linked(Source.appendBody(.{
         .program = program,
         .base_functions = base,
+        .function_suffix = suffix,
         .verified_functions = state.verifiedFunctions(),
         .nominal_types = analyzed.result.nominal_types,
-        .store_initializers = analyzed.result.store_initializers,
+        .store_initializers = initializers,
+        .shared_initializers = initializers,
         .members = analyzed.members,
         .base_types = if (analyzed.types == state.types.items.count() and analyzed.functions == state.functions.count()) null else analyzed.types,
     }, destination) catch |err| {
@@ -167,7 +164,7 @@ pub fn diagnostic(state: *State, source: []const u8, issue: zx.Diagnostic) State
     const location = zx.source.locate(source, issue.span.start);
 
     state.issue = .{
-        .path = state.graph.modules[state.owner].path,
+        .path = state.graph.modules.items(.path)[state.owner],
         .location = .{ .offset = issue.span.start, .line = location.line, .column = location.column },
         .code = @tagName(issue.code),
         .message = try state.allocator.dupe(u8, issue.message),

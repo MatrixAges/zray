@@ -3,3 +3,9 @@ export const native_suffix: string = ".zig"
 export const short_suffix_length: u64 = 3
 
 export const native_suffix_length: u64 = 4
+
+export const task_name: string = "task"
+
+export const call_prefix: string = "$ctx"
+
+export const task_prefix: string = "$ctx.task"

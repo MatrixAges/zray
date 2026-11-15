@@ -13,6 +13,12 @@ export type Inputs = {
 
 export type Signatures = {
     inputs: Inputs,
-    earlier_entries: string[],
-    current_entries: string[]
+    entries: Entries
+}
+
+export type Entries = {
+    earlier_order: u64[],
+    earlier_paths: string[],
+    current_paths: string[],
+    current_rows: u64[]
 }

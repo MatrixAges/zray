@@ -3,7 +3,7 @@ const zx = @import("zx");
 const Graph = @import("../types.zig");
 const Edges = std.MultiArrayList(@import("../assignment.zig").Edge).Slice;
 
-pub fn validate(graph: *Graph) zx.Error!void {
+pub fn validate(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
     const edges = graph.pending.assignments.slice();
 
     if (!@import("rx_options").generated_graph) return seed(graph, edges);
@@ -26,10 +26,12 @@ pub fn validate(graph: *Graph) zx.Error!void {
             .types = &.{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items },
         };
 
+        const parents = graph.parents();
+
         const result = generated.executeState(empty.allocator(), .{
             .graph = &view,
             .edges = .{ .left = .{ .items = @ptrCast(edges.items(.value)), .storage = .plain }, .right = .{ .items = @ptrCast(edges.items(.expected)), .storage = .plain } },
-            .parents = graph.forest.state,
+            .parents = @ptrCast(&parents),
             .index = index,
             .source_type = source,
             .target_type = target,
@@ -37,19 +39,17 @@ pub fn validate(graph: *Graph) zx.Error!void {
             .action = .Scan,
         }) catch unreachable;
 
-        std.debug.assert(result.parents.items.ptr == graph.forest.state.items.ptr);
-
         index = @intCast(result.index);
 
         switch (result.action) {
             .Scan => return,
             .ResolveSource => {
-                source = @backingInt(try graph.resolve(@fromBackingInt(result.node)));
+                source = @backingInt(try graph.resolve(@fromBackingInt(result.node), resolver));
                 target = null;
             },
             .ResolveTarget => {
                 source = result.source_type;
-                target = @backingInt(try graph.resolve(@fromBackingInt(result.node)));
+                target = @backingInt(try graph.resolve(@fromBackingInt(result.node), resolver));
             },
             .Mismatch => return mismatch(graph, edges.items(.span)[index]),
         }
@@ -57,9 +57,11 @@ pub fn validate(graph: *Graph) zx.Error!void {
 }
 
 fn seed(graph: *Graph, edges: Edges) zx.Error!void {
+    const resolve = @import("../resolve/seed.zig").resolve;
+
     for (edges.items(.value), edges.items(.expected), edges.items(.span)) |source, target, span| {
-        const actual = try graph.resolve(source);
-        const expected = try graph.resolve(target);
+        const actual = try resolve(graph, source, 0);
+        const expected = try resolve(graph, target, 0);
 
         if (!seedAccepts(graph.types.items.view(), actual, expected)) return mismatch(graph, span);
     }

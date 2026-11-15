@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Selection" />
+
+    <Args in={Selection.Input} out={Selection.Output} />
+
+    <Call
+        module="core/store_table/find"
+        in={{
+            paths: $in.entry,
+            identity: $in.identity
+        }}
+    />
+
+    <If on={$ctx.find != null}>
+        <Return value={Selection.Output.Needed} />
+    </If>
+
+    <Call
+        fn="public_members"
+        in={$in.pick([
+            "members",
+            "identity"
+        ])}
+    />
+
+    <Return value={$ctx.public_members} />
+</Module>

@@ -1,0 +1,104 @@
+import integers from "std:integer"
+import { scalar_u64 } from "core/type_table/const"
+
+import { Route } from "../fields/model"
+import representative from "../forest/borrowed_root"
+import find from "../known/find"
+import { Kind } from "../unification/model"
+import candidate from "./candidate"
+
+import type { U32Buffer } from "std:memory"
+import type { State as Known } from "core/integer/map/model"
+import type { Output as Field } from "../fields/model"
+import type { Kind as NodeKind } from "../unification/model"
+import type { Types } from "./candidate"
+
+export type Input = {
+    kinds: NodeKind[],
+    arguments: u32[],
+    types: Types,
+    allowed: u16?[],
+    parents: U32Buffer,
+    known: Known,
+    targets: u32[],
+    values: u32[],
+    start: u64
+}
+
+export type Output = {
+    row: u64,
+    root: u32,
+    plan: Field,
+    node?: u32
+}
+
+export default function (in: Input): Output {
+    const initial: Field = {
+        route: Route.DeferLength,
+        value: 0
+    }
+
+    const zero: u32 = 0
+    const missing: u32? = null
+
+    const scalar = find({
+        known: in.known,
+        type_id: scalar_u64
+    })
+
+    return loop({
+        row: in.start,
+        root: zero,
+        plan: initial,
+        node: missing
+    }, {
+        while: state =>
+            state.plan.route == Route.DeferLength && state.row < in.targets.length,
+        next: state => {
+            const row = state.row
+            const root = representative({
+                parents: in.parents,
+                value: in.targets[row]
+            })
+            const index = integers.widen(root)
+            const kind = in.kinds[index]
+
+            if (kind != Kind.Unknown) {
+                const plan = candidate({
+                    types: in.types,
+                    kind,
+                    argument: in.arguments[index],
+                    restricted: in.allowed[index] != null
+                })
+
+                const node: u32? = match plan.route {
+                    Route.Length => scalar,
+                    Route.KnownMember => find({
+                        known: in.known,
+                        type_id: plan.value
+                    }),
+                    _ => null
+                }
+
+                const done = node != null && representative({
+                    parents: in.parents,
+                    value: node
+                }) == representative({
+                    parents: in.parents,
+                    value: in.values[row]
+                })
+
+                if (!done) {
+                    state.root = root
+                    state.plan = plan
+                    state.node = node
+                }
+            }
+
+            if (state.plan.route == Route.DeferLength) {
+                state.row += 1
+            }
+        },
+        return: state => state
+    })
+}

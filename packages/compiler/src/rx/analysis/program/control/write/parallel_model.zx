@@ -1,0 +1,4 @@
+import type { Input as Bindings } from "./bindings"
+import type { Input as Statement } from "./parallel"
+
+export type Input = Statement & Bindings

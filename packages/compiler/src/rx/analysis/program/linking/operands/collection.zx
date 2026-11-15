@@ -1,0 +1,50 @@
+import integers from "std:integer"
+import memory from "std:memory"
+import { max_u32 } from "core/const"
+
+import expressions from "./expressions"
+import writeRange from "./range"
+
+import type { U8Buffer, U32Buffer } from "std:memory"
+import type { Range } from "./range"
+
+export type Input = {
+    target: u32,
+    kind: u8,
+    mapping: u32[],
+    arguments: u32[],
+    target_arguments: U32Buffer,
+    kinds: U8Buffer,
+    targets: U32Buffer,
+    range: Range
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const target = in.mapping[integers.widen(in.target)]
+
+    if (target == max_u32) {
+        return false
+    }
+
+    const valid = expressions({
+        source: in.arguments,
+        mapping: in.mapping,
+        target: in.target_arguments
+    })
+
+    if (!valid) {
+        return false
+    }
+
+    memory.writeU8(in.kinds, 0, in.kind)
+    memory.writeU32(in.targets, 0, target)
+
+    writeRange({
+        range: in.range,
+        count: in.arguments.length
+    })
+
+    return true
+}

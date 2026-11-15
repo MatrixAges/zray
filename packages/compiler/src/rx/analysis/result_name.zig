@@ -1,8 +1,32 @@
 const std = @import("std");
 const rx = @import("rx");
+const zx = @import("zx");
 const target = @import("call/target.zig");
-
 pub const Result = struct { name: []const u8, attribute: rx.ast.Attribute };
+pub const Binding = union(enum) { name: []const u8, invalid, reserved };
+
+pub fn bind(allocator: std.mem.Allocator, name: []const u8, task: bool) std.mem.Allocator.Error!Binding {
+    if (comptime @import("rx_options").generated_graph) {
+        const rule = @import("generated_rx_result_binding");
+        const input: std.meta.Child(rule.Input) = .{ .name = name, .task = task };
+
+        const output = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+            error.InvalidUtf8 => return .invalid,
+            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        return if (output.issue) |issue| switch (issue) {
+            .Invalid => .invalid,
+            .Reserved => .reserved,
+        } else .{ .name = output.path };
+    }
+
+    if (!@import("frontend").binding_path.valid(name) or std.mem.indexOfScalar(u8, name, '.') != null) return .invalid;
+    if (!task and std.mem.eql(u8, name, "task")) return .reserved;
+
+    return .{ .name = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ if (task) "$ctx.task" else "$ctx", name }) };
+}
 
 pub fn resolve(node: rx.ast.Node) Result {
     if (std.mem.eql(u8, node.name, "Task")) {
@@ -11,7 +35,10 @@ pub fn resolve(node: rx.ast.Node) Result {
         return .{ .name = attribute.value, .attribute = attribute };
     }
 
-    const attribute = target.optionalAttribute(node, "fn") orelse target.attribute(node, "module");
+    return resolveCall(target.optionalAttribute(node, "fn") orelse target.attribute(node, "module"));
+}
+
+pub fn resolveCall(attribute: rx.ast.Attribute) Result {
     const name = if (comptime @import("rx_options").generated_graph) generated(attribute.value) else seed(attribute.value);
 
     return .{ .name = name, .attribute = attribute };

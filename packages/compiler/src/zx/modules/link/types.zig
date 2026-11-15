@@ -2,6 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Origins = @import("../nominal_origins.zig");
 const Module = @import("../artifact/model.zig").Module;
+const table = @import("../../analysis/type_table.zig");
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, MissingNominalOrigin, ConflictingNominalType };
 
@@ -11,7 +12,7 @@ origins: Origins,
 pub fn init(allocator: std.mem.Allocator) Error!Self {
     var self = Self{ .allocator = allocator, .origins = .{ .allocator = allocator } };
 
-    for (std.enums.values(ir.Scalar)) |scalar| try self.items.append(allocator, .{ .scalar = scalar });
+    try table.initializeScalars(allocator, &self.items);
 
     return self;
 }
@@ -28,12 +29,13 @@ pub fn appendTemporary(self: *Self, mapping_allocator: std.mem.Allocator, tempor
 pub fn compact(self: *Self, temporary: std.mem.Allocator, first: usize, origin_count: usize) Error![]const ir.TypeId {
     const source = self.items.view();
     const origins = self.origins.items.view();
+    const prefix = source.prefix(first);
 
-    self.items.retainPrefix(first);
+    self.items.retainColumns(prefix);
     self.origins.items.retainPrefix(origin_count);
 
     errdefer {
-        self.items.retainPrefix(first);
+        self.items.retainColumns(prefix);
         self.origins.items.retainPrefix(origin_count);
     }
 

@@ -1,0 +1,71 @@
+import integers from "std:integer"
+import { kind_enumeration } from "core/type_table/const"
+import member from "core/type_table/member"
+
+import rooted from "../scope/rooted"
+
+import type { Table } from "core/type_table/model"
+import type { Cache } from "../../../../zx/analysis/semantic/resolving/model"
+
+export type Input = {
+    aliases: Cache,
+    types: Table.Pick("kinds", "first", "second", "names"),
+    bindings: string[],
+    owner: string,
+    name: string
+}
+
+export type Output = {
+    type_id?: u32,
+    member: bool
+}
+
+export default function (in: Input): Output {
+    if (rooted({
+        names: in.bindings,
+        path: in.owner,
+        implicit_input: true
+    })) {
+        return {
+            type_id: null,
+            member: false
+        }
+    }
+
+    const alias = member({
+        names: in.aliases.names,
+        first: 0,
+        count: in.aliases.names.length,
+        name: in.owner
+    })
+
+    if (alias == null) {
+        return {
+            type_id: null,
+            member: false
+        }
+    }
+
+    const type_id = in.aliases.ids[alias]
+    const index = integers.widen(type_id)
+    const types = in.types
+
+    if (types.kinds[index] != kind_enumeration) {
+        return {
+            type_id: null,
+            member: false
+        }
+    }
+
+    const selected = member({
+        names: types.names,
+        first: integers.widen(types.first[index]),
+        count: integers.widen(types.second[index]),
+        name: in.name
+    })
+
+    return {
+        type_id,
+        member: selected != null
+    }
+}

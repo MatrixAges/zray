@@ -1,0 +1,23 @@
+<Module>
+    <Type from="parallel_model" as="Parallel" />
+
+    <Args in={Parallel.Input} out={void} />
+
+    <Call
+        fn="parallel"
+        in={$in.pick([
+            "header",
+            "firsts",
+            "counts",
+            "count"
+        ])}
+    />
+
+    <Call
+        fn="bindings"
+        in={$in.pick([
+            "symbols",
+            "bindings"
+        ])}
+    />
+</Module>

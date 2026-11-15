@@ -8,6 +8,8 @@ pub const empty: Self = .{ .keys = &.{}, .buckets = &.{} };
 
 keys: [][]const u8,
 buckets: []u64,
+
+owns_keys: bool = true,
 pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
     if (count == 0) return empty;
 
@@ -30,9 +32,14 @@ pub fn bucketsFor(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.
     return buckets;
 }
 
+pub fn borrowKeys(allocator: std.mem.Allocator, keys: [][]const u8) std.mem.Allocator.Error!Self {
+    return .{ .keys = keys, .buckets = try bucketsFor(allocator, keys.len), .owns_keys = false };
+}
+
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.buckets);
-    allocator.free(self.keys);
+
+    if (self.owns_keys) allocator.free(self.keys);
 }
 
 pub fn claim(self: *Self, row: usize, key: []const u8) bool {
@@ -43,18 +50,20 @@ pub fn claim(self: *Self, row: usize, key: []const u8) bool {
     return true;
 }
 
-/// Builds an empty index from its prefilled key column, stopping at the first duplicate.
-pub fn buildUnique(self: *Self) bool {
+/// Builds an empty index from the initialized prefix of its key column.
+pub fn firstDuplicate(self: *Self, count: usize) ?usize {
     const generated = @import("generated_byte_index_unique");
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: std.meta.Child(generated.Input) = .{
-        .keys = self.keys,
+        .keys = self.keys[0..count],
         .buckets = @ptrCast(&self.buckets),
         .capacity = self.buckets.len,
     };
 
-    return @import("zx").columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
+    const duplicate = @import("zx").columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
+
+    return if (duplicate) |row| @intCast(row) else null;
 }
 
 pub fn get(self: *const Self, key: []const u8) ?usize {

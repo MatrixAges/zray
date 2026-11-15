@@ -95,16 +95,21 @@ const Derived = union(enum) { frame: @import("project/history.zig").Frame, diagn
 /// signatures and the RX constraints. It lives as long as `allocator`, since a later analysis may reuse it.
 fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options: Options, cache: *frontend.project.ParseCache, inputs: *Inputs) std.mem.Allocator.Error!Derived {
     var options = raw_options;
-    options.project.source_index = try frontend.project.source_index.buildIn(allocator, options.sources, options.project.root_dir);
+    options.project.source_index = null;
+    const modules = try allocator.dupe(rx.ModuleSource, options.modules);
+    var owner_buffer: [512]u8 = undefined;
+    var scope_paths = std.heap.BufferFirstAllocator.init(&owner_buffer, backing);
+    const temporary = scope_paths.allocator();
 
-    const registered = try allocator.dupe(rx.ModuleSource, options.modules);
+    for (modules) |*source| {
+        const owner = try std.fs.path.resolve(temporary, &.{ options.project.root_dir, source.path });
 
-    for (registered) |*source| {
-        const owner = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, source.path });
+        defer temporary.free(owner);
+
         source.packages = rx.module_reference.dependencies(options.project, owner);
     }
 
-    const checked = try rx.validateModulePaths(allocator, registered);
+    const checked = try rx.validateModulePaths(allocator, modules);
 
     if (checked.value == .diagnostic) {
         const issue = checked.value.diagnostic;
@@ -116,7 +121,6 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
 
     const entry = if (is_zx)
         try std.fs.path.resolve(allocator, &.{ options.project.root_dir, options.entry })
-
     else
         rx.normalizeModulePath(allocator, options.entry) catch |err| {
             if (err == error.OutOfMemory) return error.OutOfMemory;
@@ -124,31 +128,31 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
             return failed(allocator, .{ .path = options.entry, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "entry must name a registered source module inside the project root" });
         };
 
-    const modules = try allocator.alloc(rx.ModuleSource, options.modules.len);
-
-    for (registered, checked.value.data, modules) |source, path, *item| {
-        item.* = source;
-        item.path = path;
-    }
+    for (modules, checked.value.data) |*module, path| module.path = path;
 
     const entry_index = if (is_zx) null else prepare.find(modules, entry) orelse return failed(allocator, .{ .path = entry, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "RX entry is not registered in the module collection" });
-    const roots = try allocator.alloc([]const u8, modules.len + options.exports.len);
+    const roots = try backing.alloc([]const u8, options.exports.len);
 
-    for (modules, roots[0..modules.len]) |module, *path| path.* = module.path;
-    for (options.exports, roots[modules.len..]) |exported, *path| path.* = exported.path;
+    defer backing.free(roots);
+
+    for (options.exports, roots) |exported, *path| path.* = exported.path;
 
     var paths = frontend.project.source_index.Map.empty;
+    var prefetched: frontend.project.ParseCache.Prefetched = .{};
 
     defer paths.deinit(backing);
+    defer prefetched.deinit(backing);
 
     const dependencies = try source_graph.build(allocator, .{
-        .entry = entry,
+        .entry = if (is_zx) options.entry else entry,
         .additional_roots = roots,
+        .include_rx_modules = true,
         .sources = options.sources,
         .modules = modules,
         .stores = options.stores,
         .project = options.project,
         .parse_cache = cache,
+        .prefetched = &prefetched,
         .scratch_allocator = backing,
         .registered_paths = &paths,
         .retain_source_dependencies = options.history != null,
@@ -157,18 +161,23 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
     if (dependencies.value == .diagnostic) return failed(allocator, dependencies.value.diagnostic);
 
     var project = options.project;
-    var signature_entries: std.ArrayList([]const u8) = .empty;
 
-    for (dependencies.value.graph.order) |index| {
-        const source = dependencies.value.graph.modules[index].source;
+    const signatures = analyzed: {
+        const signature_entries = try source_graph.orderedRows(backing, &dependencies.value.graph, .zx);
 
-        if (source == .zx) try signature_entries.append(allocator, options.sources[source.zx].path);
-    }
+        defer backing.free(signature_entries);
 
-    const earlier = if (options.history) |record| if (options.stores.len == 0) record.signatures(options.sources, signature_entries.items) else null else null;
+        if (options.history) |record| {
+            if (options.stores.len == 0) {
+                if (record.signatures(options.sources, &dependencies.value.graph, signature_entries)) |earlier| {
+                    record.signatures_reused = true;
 
-    const signatures = earlier orelse analyzed: {
-        const result = try frontend.project.analyzeSignaturesWithCache(allocator, options.sources, signature_entries.items, project, cache);
+                    break :analyzed earlier;
+                }
+            }
+        }
+
+        const result = try frontend.project.analyzePrefetchedSignatures(allocator, prefetched, signature_entries, project, &paths);
 
         if (result.value == .diagnostic) {
             const issue = result.value.diagnostic;
@@ -186,27 +195,29 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
         break :analyzed result.value.data;
     };
 
-    if (earlier != null) options.history.?.signatures_reused = true;
+    prefetched.deinit(backing);
 
     project.context.types = signatures.types;
     project.context.nominal_types = signatures.nominal_types;
     project.context.native_modules = signatures.native_modules;
-    const graph_modules = dependencies.value.graph.modules;
-    const rx_modules = graph_modules[options.sources.len..][0..modules.len];
-    const store_modules = graph_modules[options.sources.len + modules.len ..];
-    const indexed = try source_graph.Signatures.init(allocator, dependencies.value.graph, signatures.modules, &paths);
+
+    const dependency_graph = dependencies.value.graph;
+    const graph_edges = dependency_graph.modules.items(.dependencies);
+    const rx_edges = graph_edges[dependency_graph.sources.zx_count..dependency_graph.sources.rx_end];
+    const store_edges = graph_edges[dependency_graph.sources.rx_end..];
+    const indexed = try source_graph.Signatures.init(allocator, dependency_graph, signatures.modules, &paths);
 
     paths.deinit(backing);
 
     paths = .empty;
 
-    const registry = try @import("store/registry.zig").loadSignaturesIn(allocator, backing, options.stores, project.context, store_modules, indexed);
+    const registry = try @import("store/registry.zig").loadSignaturesIn(allocator, backing, options.stores, project.context, store_edges, indexed);
 
     if (registry == .diagnostic) return .{ .diagnostic = registry.diagnostic };
 
     project.context = registry.data.context;
 
-    const prepared = try prepare.loadSignatures(allocator, backing, modules, rx_modules, project, registry.data.definitions, indexed, inputs);
+    const prepared = try prepare.loadSignatures(allocator, backing, modules, rx_edges, project, registry.data.definitions, indexed, inputs);
 
     if (prepared == .diagnostic) return .{ .diagnostic = prepared.diagnostic };
 
@@ -225,8 +236,10 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
 
         var reporter: zx.Reporter = .{};
         var graph: Graph = undefined;
+        var resolver: Graph.Resolver = .{};
         var requests: @import("project/signatures/requests.zig") = .{};
 
+        defer resolver.deinit(backing);
         defer requests.deinit(backing);
 
         const ports = solve: {
@@ -243,17 +256,19 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
 
             const ports = @import("project/constraints.zig").collect(&graph, prepared.loaded.modules, source_map, inputs, &requests) catch |err| return reported(allocator, source_map, reporter, err);
 
-            graph.finish() catch |err| return reported(allocator, source_map, reporter, err);
+            graph.finish(&resolver) catch |err| return reported(allocator, source_map, reporter, err);
 
             graph.pending = undefined;
 
             break :solve ports;
         };
 
-        const resolved = @import("project/signatures.zig").resolve(allocator, &graph, ports, requests) catch |err| return reported(allocator, source_map, reporter, err);
+        const resolved = @import("project/signatures.zig").resolve(allocator, &graph, &resolver, ports, requests) catch |err| return reported(allocator, source_map, reporter, err);
 
         break :inference .{ .signatures = resolved, .types = graph.types.items.view() };
     };
+
+    try prepare.completeShortcuts(allocator, prepared.loaded.modules, inferred.signatures);
 
     return .{ .frame = .{
         .modules = modules,
@@ -261,9 +276,8 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
         .dependencies = dependencies.value.graph,
         .export_roots = dependencies.value.graph.additional_roots[modules.len..],
         .definitions = registry.data.definitions,
-        .loaded = try prepare.completeShortcuts(allocator, prepared.loaded, inferred.signatures),
+        .loaded = prepared.loaded,
         .signatures = signatures,
-        .signature_entries = signature_entries.items,
         .signature_indices = indexed.indices,
         .resolved = inferred.signatures,
         .types = inferred.types,

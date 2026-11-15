@@ -1,16 +1,17 @@
 import insert from "core/integer/index/insert"
 
-import representative from "../../forest/representative"
+import representative from "../../forest/borrowed_root"
+
+import type { U32Buffer } from "std:memory"
 
 export type Input = {
-    parents: u32[],
+    parents: U32Buffer,
     keys: u32[],
     buckets: u32[],
     node: u32
 }
 
 export type Output = {
-    parents: u32[],
     keys: u32[],
     buckets: u32[],
     position: u64
@@ -28,11 +29,10 @@ export default function (in: Input): Output {
             keys: in.keys,
             buckets: in.buckets
         },
-        key: root.item
+        key: root
     })
 
     return {
-        parents: root.parents,
         keys: entry.index.keys,
         buckets: entry.index.buckets,
         position: entry.position

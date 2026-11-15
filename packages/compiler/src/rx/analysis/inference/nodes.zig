@@ -16,6 +16,7 @@ pub const Kind = if (enabled) std.meta.Elem(@FieldType(View, "kinds")) else enum
 };
 
 const Row = struct {
+    parent: u32,
     kind: Kind,
     argument: u32,
     members: []const u32,
@@ -29,8 +30,111 @@ comptime {
 }
 
 pub const Storage = std.MultiArrayList(Row);
+pub const Encoded = struct { kind: Kind, argument: u32, members: []const u32 };
 
-pub fn record(value: Graph.Shape, span: zx.Span) Row {
+pub const Reservation = struct {
+    rows: Storage.Slice,
+    first: usize,
+    pub fn initialize(self: Reservation, shape_value: Encoded) void {
+        const rule = @import("generated_rx_inference_nodes");
+        const Input = std.meta.Child(rule.Input);
+        const view = writable(self.rows);
+        const parents = self.rows.items(.parent);
+
+        const input: Input = .{
+            .parents = @ptrCast(&parents),
+            .columns = &view.borrow(std.meta.Child(@FieldType(Input, "columns"))),
+            .shape = &.{ .kind = @backingInt(shape_value.kind), .argument = shape_value.argument, .members = shape_value.members },
+            .first = self.first,
+            .end = self.rows.len,
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    }
+    pub fn publish(self: Reservation, graph: *Graph, span: zx.Span) void {
+        @memset(self.rows.items(.span)[self.first..], span);
+        self.finish(graph);
+    }
+
+    pub fn finish(self: Reservation, graph: *Graph) void {
+        @memset(self.rows.items(.allowed)[self.first..], null);
+        @memset(self.rows.items(.fallback)[self.first..], null);
+
+        graph.nodes.len = self.rows.len;
+    }
+};
+
+pub fn reserve(graph: *Graph, count: usize) std.mem.Allocator.Error!Reservation {
+    std.debug.assert(count != 0);
+
+    const first = graph.nodes.len;
+    const end = std.math.add(usize, first, count) catch return error.OutOfMemory;
+
+    _ = std.math.cast(u32, end - 1) orelse return error.OutOfMemory;
+
+    try graph.nodes.ensureTotalCapacity(graph.allocator, end);
+
+    var rows = graph.nodes.slice();
+
+    rows.len = end;
+
+    return .{ .rows = rows, .first = first };
+}
+
+pub fn append(graph: *Graph, value: Graph.Shape, span: zx.Span) zx.Error!Graph.Id {
+    if (comptime enabled) {
+        const reservation = try reserve(graph, 1);
+        const topology = encode(value);
+
+        reservation.initialize(topology);
+        reservation.publish(graph, span);
+
+        return @fromBackingInt(@intCast(reservation.first));
+    }
+
+    const parent = std.math.cast(u32, graph.nodes.len) orelse return error.OutOfMemory;
+
+    try graph.nodes.append(graph.allocator, record(parent, value, span));
+
+    return @fromBackingInt(parent);
+}
+
+pub const Writable = struct {
+    kinds: []u8,
+    arguments: []u32,
+    members: [][]const u32,
+    pub fn borrow(self: *const Writable, comptime Columns: type) Columns {
+        return .{
+            .kinds = @ptrCast(&self.kinds),
+            .arguments = @ptrCast(&self.arguments),
+            .members = @ptrCast(&self.members),
+        };
+    }
+};
+
+pub fn writable(rows: Storage.Slice) Writable {
+    comptime {
+        if (@sizeOf(Kind) != @sizeOf(u8)) @compileError("inference kind column must store one byte per row");
+    }
+
+    return .{
+        .kinds = std.mem.sliceAsBytes(rows.items(.kind)),
+        .arguments = rows.items(.argument),
+        .members = rows.items(.members),
+    };
+}
+
+pub fn encoded(rows: Storage.Slice, index: usize) Encoded {
+    return .{
+        .kind = rows.items(.kind)[index],
+        .argument = rows.items(.argument)[index],
+        .members = rows.items(.members)[index],
+    };
+}
+
+fn encode(value: Graph.Shape) Encoded {
     return .{
         .kind = switch (value) {
             .unknown => .Unknown,
@@ -51,6 +155,17 @@ pub fn record(value: Graph.Shape, span: zx.Span) Row {
             .tuple => |members| @ptrCast(members),
             else => &.{},
         },
+    };
+}
+
+fn record(parent: u32, value: Graph.Shape, span: zx.Span) Row {
+    const topology = encode(value);
+
+    return .{
+        .parent = parent,
+        .kind = topology.kind,
+        .argument = topology.argument,
+        .members = topology.members,
         .span = span,
     };
 }
@@ -85,9 +200,9 @@ pub fn get(rows: Storage.Slice, index: usize) Graph.Node {
 }
 
 pub fn setShape(rows: Storage.Slice, index: usize, value: Graph.Shape) void {
-    const encoded = record(value, undefined);
+    const row = encode(value);
 
-    rows.items(.kind)[index] = encoded.kind;
-    rows.items(.argument)[index] = encoded.argument;
-    rows.items(.members)[index] = encoded.members;
+    rows.items(.kind)[index] = row.kind;
+    rows.items(.argument)[index] = row.argument;
+    rows.items(.members)[index] = row.members;
 }

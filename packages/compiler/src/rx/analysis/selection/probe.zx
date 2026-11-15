@@ -3,14 +3,15 @@ import integers from "std:integer"
 
 import { empty_slot } from "./const"
 import equal from "./equal"
+import read from "./label"
 import { Kind } from "./model"
 
-import type { Labels } from "./model"
+import type { Label, Labels } from "./model"
 
 export type Input = {
     labels: Labels,
     slots: u64[],
-    index: u64
+    value: Label
 }
 
 export type Output = {
@@ -19,9 +20,9 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const hash = match in.labels.kinds[in.index] {
-        Kind.String => bytes.hash(bytes.fromText(in.labels.texts[in.index])),
-        _ => integers.hash(in.labels.numbers[in.index])
+    const hash = match in.value.kind {
+        Kind.String => bytes.hash(bytes.fromText(in.value.text)),
+        _ => integers.hash(in.value.number)
     }
 
     return loop({
@@ -36,10 +37,13 @@ export default function (in: Input): Output {
             if (entry == empty_slot) {
                 state.done = true
             } else {
-                const same = equal({
+                const previous = read({
                     labels: in.labels,
-                    left: entry - 1,
-                    right: in.index
+                    index: entry - 1
+                })
+                const same = equal({
+                    left: previous,
+                    right: in.value
                 })
 
                 if (same) {

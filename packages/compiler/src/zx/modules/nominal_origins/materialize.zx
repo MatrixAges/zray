@@ -1,5 +1,6 @@
-import integers from "std:integer"
 import memory from "std:memory"
+
+import bindNames from "./bind_names"
 
 import type { StringBuffer, U64Buffer } from "std:memory"
 import type { Bindings } from "core/type_table/nominal"
@@ -33,13 +34,10 @@ export default function (in: Input): Output {
         return
     }
 
-    const result = loop(0, {
-        while: index => index < source.ids.length,
-        next: index => {
-            const id = integers.widen(source.ids[index])
-
-            memory.writeString(in.names_out, index, labels[id])
-            index += 1
-        }
+    bindNames({
+        origin_ids: source.ids,
+        base_labels: labels,
+        delta_labels: [],
+        origin_names_out: in.names_out
     })
 }

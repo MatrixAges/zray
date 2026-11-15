@@ -1,0 +1,99 @@
+<Module>
+    <Type from="model" as="Operator" />
+
+    <Args in={Operator.Input} out={Operator.Output} />
+
+    <Switch on={$in}>
+        <Case value={Operator.Form.And}>
+            <Return
+                value={[
+                    Operator.Step.Boolean,
+                    Operator.Step.InferLeft,
+                    Operator.Step.InferRightIfTrue
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.Or}>
+            <Return
+                value={[
+                    Operator.Step.Boolean,
+                    Operator.Step.InferLeft,
+                    Operator.Step.InferRightIfFalse
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.Coalesce}>
+            <Return
+                value={[
+                    Operator.Step.DeclareLeft,
+                    Operator.Step.OptionalPayload,
+                    Operator.Step.ExpectResult,
+                    Operator.Step.InferRight
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.Compare}>
+            <Return
+                value={[
+                    Operator.Step.Unknown,
+                    Operator.Step.Restrict,
+                    Operator.Step.InferLeft,
+                    Operator.Step.InferRight,
+                    Operator.Step.Boolean
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.Arithmetic}>
+            <Return
+                value={[
+                    Operator.Step.Expected,
+                    Operator.Step.Restrict,
+                    Operator.Step.InferLeft,
+                    Operator.Step.InferRight
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.Not}>
+            <Return
+                value={[
+                    Operator.Step.Boolean,
+                    Operator.Step.InferLeft
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.NegativeLiteral}>
+            <Return
+                value={[
+                    Operator.Step.NegativeLiteral
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.Negative}>
+            <Return
+                value={[
+                    Operator.Step.Unknown,
+                    Operator.Step.Restrict,
+                    Operator.Step.InferLeft
+                ]}
+            />
+        </Case>
+
+        <Case value={Operator.Form.Conditional}>
+            <Return
+                value={[
+                    Operator.Step.Expected,
+                    Operator.Step.InferCondition,
+                    Operator.Step.InferRightIfTrue,
+                    Operator.Step.InferThirdIfFalse
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

@@ -1,4 +1,5 @@
 import type { Index } from "core/bytes/index/model"
+import type { OrderTarget } from "../../../../rx/dependency_graph/model"
 
 export enum Status {
     Ready,
@@ -7,7 +8,7 @@ export enum Status {
     Cycle
 }
 
-export type Input = {
+export type Input = OrderTarget & {
     paths: u8[][],
     targets: u8[][],
     offsets: u64[],
@@ -20,7 +21,6 @@ export type Registry = {
 }
 
 export type Output = {
-    order: u64[],
     count: u64,
     status: Status,
     buckets: u32?[],

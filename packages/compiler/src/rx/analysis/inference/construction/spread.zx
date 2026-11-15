@@ -1,0 +1,36 @@
+import { Mode } from "../fields/view"
+
+import type { Mode as Shape } from "../fields/view"
+
+export enum Action {
+    Closed,
+    Open,
+    Prove,
+    ProveRequired,
+    Unknown,
+    InvalidDeclared,
+    Invalid
+}
+
+export type Input = {
+    mode: Shape,
+    final: bool,
+    aliases: bool,
+    empty: bool
+}
+
+export type Output = Action
+
+export default function (in: Input): Output {
+    const required = in.final && in.empty
+
+    return match {
+        in.mode == Mode.InvalidDeclared => Action.InvalidDeclared,
+        in.mode == Mode.Invalid => Action.Invalid,
+        in.mode == Mode.Declared => Action.Closed,
+        in.final && in.mode == Mode.Unknown => Action.Unknown,
+        required => Action.ProveRequired,
+        in.aliases => Action.Open,
+        _ => Action.Prove
+    }
+}

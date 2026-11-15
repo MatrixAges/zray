@@ -21,18 +21,18 @@ pub fn apply(graph: *Graph, inputs: []const Graph.Id, fixed: []const bool, unuse
     const next = @import("generated_rx_next_input_default");
 
     while (start < inputs.len) {
+        const parents = graph.parents();
+
         const result = next.executeState(empty.allocator(), .{
             .inputs = .{ .items = @ptrCast(inputs), .storage = .plain },
             .fixed = .{ .items = fixed, .storage = .plain },
             .edges = .{ .left = .{ .items = @ptrCast(edges.items(.value)), .storage = .plain }, .right = .{ .items = @ptrCast(edges.items(.expected)), .storage = .plain } },
-            .parents = graph.forest.state,
+            .parents = @ptrCast(&parents),
             .marked = .{ .items = references.marked, .storage = .plain },
             .protected = references.protected,
             .next = start,
             .found = false,
         }) catch unreachable;
-
-        std.debug.assert(result.parents.items.ptr == graph.forest.state.items.ptr);
 
         if (!result.found) break;
 
@@ -46,10 +46,11 @@ const References = struct { marked: []const bool = &.{}, protected: ?u32 = null 
 
 fn mark(graph: *const Graph, edges: Edges, scratch: std.mem.Allocator) zx.Error!References {
     const void_type = @import("frontend").types.scalarId(.void);
+    const parents = graph.parents();
 
     const result = @import("generated_rx_input_default_marks").executeState(scratch, .{
         .edges = .{ .left = .{ .items = @ptrCast(edges.items(.value)), .storage = .plain }, .right = .{ .items = @ptrCast(edges.items(.expected)), .storage = .plain } },
-        .parents = graph.forest.state,
+        .parents = @ptrCast(&parents),
         .kinds = .{ .items = graph.nodes.items(.kind), .storage = .plain },
         .marked = .{ .items = &.{}, .storage = .plain },
         .index = 0,
@@ -58,8 +59,6 @@ fn mark(graph: *const Graph, edges: Edges, scratch: std.mem.Allocator) zx.Error!
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
-
-    std.debug.assert(result.parents.items.ptr == graph.forest.state.items.ptr);
 
     const marked = result.marked.items;
 

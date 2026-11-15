@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Registration" />
+
+    <Args in={Registration.Input} out={Registration.Output} />
+
+    <Call fn="endpoints" in={$in.endpoints} />
+
+    <If on={$ctx.endpoints.left == $ctx.endpoints.right}>
+        <Return
+            value={{
+                action: Registration.Action.Skip,
+                capacity: $in.buckets.length
+            }}
+        />
+    </If>
+
+    <Call
+        fn="admit"
+        in={{
+            keys: $in.keys,
+            buckets: $in.buckets,
+            pair: $ctx.endpoints,
+            rows: $in.rows
+        }}
+    />
+
+    <Return value={$ctx.admit} />
+</Module>

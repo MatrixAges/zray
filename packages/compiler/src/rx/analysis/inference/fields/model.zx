@@ -33,8 +33,9 @@ export type Input = {
     members: Members
 }
 
-export type Lookup = {
-    members: Members,
+export type Lookup = Members & {
+    first: u64,
+    count: u64,
     name: string,
     declared: bool
 }

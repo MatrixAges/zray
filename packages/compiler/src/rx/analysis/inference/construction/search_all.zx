@@ -1,22 +1,25 @@
-import { Kind } from "./model"
+import { Kind, Receiver, Route } from "./model"
 import search from "./search"
 
-import type { Candidates, Parts } from "./model"
+import type { Candidates, Parts, Policy } from "./model"
 
 export type Input = {
     parts: Parts,
-    names: string[]
+    names: string[],
+    policy: Policy
 }
 
 export type Output = Candidates
 
 export default function (in: Input): Output {
     const zero: u64 = 0
+    const missing: u32 = 0
 
     return loop({
         parts: in.names.map(name => zero)[0],
-        fields: in.names.map(name => zero)[0],
-        kinds: in.names.map(name => Kind.Absent)[0],
+        values: in.names.map(name => missing)[0],
+        receivers: in.names.map(name => Receiver.Node)[0],
+        routes: in.names.map(name => Route.Skip)[0],
         index: 0
     }, {
         while: state => state.index < in.names.length,
@@ -27,14 +30,22 @@ export default function (in: Input): Output {
             })
 
             state.parts[state.index] = candidate.part
-            state.fields[state.index] = candidate.field
-            state.kinds[state.index] = candidate.kind
+            state.values[state.index] = candidate.value
+            state.receivers[state.index] = candidate.receiver
+            state.routes[state.index] = match candidate.kind {
+                Kind.Named => Route.Bind,
+                Kind.AmbiguousNamed => in.policy.ambiguous_named,
+                Kind.AmbiguousOpen => in.policy.ambiguous,
+                Kind.Open => in.policy.open,
+                _ => in.policy.absent
+            }
             state.index += 1
         },
         return: state => ({
             parts: state.parts,
-            fields: state.fields,
-            kinds: state.kinds
+            values: state.values,
+            receivers: state.receivers,
+            routes: state.routes
         })
     })
 }

@@ -1,6 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
+const function_link = @import("functions.zig");
 const Self = @This();
 const StoreInitializer = @import("frontend").project.compiled.StoreInitializer;
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, UnreachableFlow, IncompleteFlow };
@@ -12,8 +13,7 @@ symbols: ir.SymbolStorage = .{},
 expressions: ir.ExpressionStorage = .{},
 functions: ir.FunctionStorage = .{},
 base_functions: ir.FunctionTable = .{},
-shared: bool = false,
-store_initializers: std.ArrayList(StoreInitializer) = .empty,
+store_initializers: @import("initializers.zig") = .{},
 stores: ir.StoreStorage = .{},
 bindings: std.ArrayList(ir.SymbolId) = .empty,
 linking_scratch: std.heap.ArenaAllocator = .init(std.heap.page_allocator),
@@ -44,54 +44,39 @@ pub fn expressionType(self: *const Self, id: ir.ExprId) ir.TypeId {
 
 pub fn importFunction(self: *Self, program: ir.Program, initializers: []const StoreInitializer, existing: ?ir.FunctionId) Error!ir.FunctionId {
     if (existing) |id| {
-        if (!self.shared or @backingInt(id) >= self.base_functions.count()) return error.InvalidModule;
+        const row = @backingInt(id);
 
-        const function = self.base_functions.at(@backingInt(id));
+        if (row >= self.base_functions.count()) return error.InvalidModule;
+        if (!function_link.shared(&self.base_functions, row, &program)) return error.InvalidModule;
 
-        if (function.input_type != program.input_type or function.output_type != program.output_type or function.output_ownership != program.output_ownership or function.store_mode != program.store_mode or function.stores.count() != program.stores.count()) return error.InvalidModule;
-        if (!std.mem.eql(u8, function.file_name, program.file_name)) return error.InvalidModule;
-
-        for (0..function.stores.count()) |index| {
-            const actual = function.stores.at(index);
-            const expected = program.stores.at(index);
-
-            if (!std.mem.eql(u8, actual.path, expected.path) or actual.type_id != expected.type_id or actual.readable != expected.readable or actual.writable != expected.writable) return error.InvalidModule;
+        if (!self.store_initializers.alreadyChecked(initializers)) {
+            for (initializers) |initial| try self.initializer(initial);
         }
-
-        for (initializers) |initial| try self.initializer(initial);
 
         return id;
     }
 
-    const base_count = self.base_functions.count();
+    const prefix = self.base_functions;
+    const base_count = prefix.count();
 
-    if (base_count > program.functions.count()) return error.InvalidModule;
-    if (self.shared and !@import("frontend").project.artifact.function_table.hasPrefix(program.functions, self.base_functions)) return error.InvalidModule;
+    if (!@import("frontend").project.artifact.function_table.hasPrefix(program.functions, prefix)) return error.InvalidModule;
 
     const Nodes = @import("frontend").ArtifactNodes;
-    const type_count = std.math.cast(u32, self.types.count()) orelse return error.OutOfMemory;
-    const function_count = std.math.cast(u32, program.functions.count()) orelse return error.OutOfMemory;
-    const native_count = std.math.cast(u32, self.native_modules.count()) orelse return error.OutOfMemory;
-    const local_count = std.math.cast(u32, self.functions.count()) orelse return error.OutOfMemory;
-    const root = std.math.add(u32, local_count, function_count) catch return error.OutOfMemory;
+    const first = std.math.add(usize, base_count, self.functions.count()) catch return error.OutOfMemory;
+    const range = try @import("frontend").project.artifact.function_table.range(first, program.functions.count(), base_count, self.types.count(), self.native_modules.count());
 
     var nodes = Nodes{
         .allocator = self.allocator,
-        .types = .{ .identity = type_count },
+        .types = .{ .identity = range.types },
         .functions = .{ .range = .{
-            .first = @intCast(base_count + local_count),
-            .count = function_count,
-            .prefix = @intCast(base_count),
+            .first = range.first,
+            .count = range.count,
+            .prefix = range.prefix,
         } },
-        .native_modules = .{ .range = .{ .first = 0, .count = native_count } },
+        .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
     };
 
-    for (base_count..program.functions.count()) |function_row| {
-        const function = program.functions.at(function_row);
-        const copied = nodes.function(function) catch |err| return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
-
-        try self.functions.append(self.allocator, copied);
-    }
+    nodes.appendFunctions(&self.functions, program.functions.suffix(base_count)) catch |err| return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
 
     for (initializers) |initial| {
         var mapped = initial;
@@ -101,9 +86,9 @@ pub fn importFunction(self: *Self, program: ir.Program, initializers: []const St
         try self.initializer(mapped);
     }
 
-    const id: ir.FunctionId = @fromBackingInt(root);
+    const id: ir.FunctionId = @fromBackingInt(range.root);
 
-    const main = nodes.function(.{
+    nodes.appendFunction(&self.functions, .{
         .file_name = program.file_name,
         .stores = program.stores,
         .store_mode = program.store_mode,
@@ -116,12 +101,51 @@ pub fn importFunction(self: *Self, program: ir.Program, initializers: []const St
         .contracts = program.contracts,
     }) catch |err| return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
 
-    try self.functions.append(self.allocator, main);
-
     return id;
 }
 
 pub fn store(self: *Self, value: ir.StoreSlot) Error!u32 {
+    if (self.stores.count() != 0) {
+        if (comptime @import("rx_options").generated_graph) {
+            if (try self.mergeStore(value)) |row| return row;
+        } else if (try self.mergeStoreSeed(value)) |row| return row;
+    }
+
+    const id: u32 = @intCast(self.stores.count());
+
+    try self.stores.append(self.allocator, .{ .path = try self.allocator.dupe(u8, value.path), .type_id = value.type_id, .readable = value.readable, .writable = value.writable });
+
+    return id;
+}
+
+fn mergeStore(self: *Self, value: ir.StoreSlot) Error!?u32 {
+    const rule = @import("generated_rx_program_store_merge");
+    const Input = std.meta.Child(rule.Input);
+
+    const input: Input = .{
+        .paths = self.stores.paths.items,
+        .types = self.stores.types.items,
+        .read = self.stores.readable.items,
+        .write = self.stores.writable.items,
+        .identity = value.path,
+        .type_id = @backingInt(value.type_id),
+        .readable = value.readable,
+        .writable = value.writable,
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    const index = result.row orelse return null;
+
+    if (!result.compatible) return error.InvalidModule;
+
+    self.stores.readable.items[@intCast(index)] = result.readable;
+    self.stores.writable.items[@intCast(index)] = result.writable;
+
+    return @intCast(index);
+}
+
+fn mergeStoreSeed(self: *Self, value: ir.StoreSlot) Error!?u32 {
     for (0..self.stores.count()) |index| {
         const slot = self.stores.at(index);
 
@@ -134,11 +158,7 @@ pub fn store(self: *Self, value: ir.StoreSlot) Error!u32 {
         return @intCast(index);
     }
 
-    const id: u32 = @intCast(self.stores.count());
-
-    try self.stores.append(self.allocator, .{ .path = try self.allocator.dupe(u8, value.path), .type_id = value.type_id, .readable = value.readable, .writable = value.writable });
-
-    return id;
+    return null;
 }
 
 fn lookupFunction(self: *const Self, id: ir.FunctionId) ir.Function {
@@ -150,23 +170,17 @@ fn lookupFunction(self: *const Self, id: ir.FunctionId) ir.Function {
 pub fn initializer(self: *Self, value: StoreInitializer) Error!void {
     if (@backingInt(value.function) >= self.base_functions.count() + self.functions.count()) return error.InvalidModule;
 
-    for (self.store_initializers.items) |previous| {
-        if (!std.mem.eql(u8, previous.identity, value.identity)) continue;
-        if (previous.schema_version != value.schema_version) return error.InvalidModule;
-        if (previous.function == value.function) return;
+    const previous = (try self.store_initializers.add(self.allocator, value)) orelse return;
+    const compare = @import("frontend").compare_ir.initializer;
 
-        const before = try std.json.Stringify.valueAlloc(self.allocator, self.lookupFunction(previous.function), .{});
-
-        defer self.allocator.free(before);
-
-        const after = try std.json.Stringify.valueAlloc(self.allocator, self.lookupFunction(value.function), .{});
-
-        defer self.allocator.free(after);
-
-        if (!std.mem.eql(u8, before, after)) return error.InvalidModule;
-
-        return;
+    switch (compare.linkedAction(previous, value)) {
+        .Reuse => return,
+        .Conflict => return error.InvalidModule,
+        .Compare => {},
     }
 
-    try self.store_initializers.append(self.allocator, value);
+    const before = self.lookupFunction(previous.function);
+    const after = self.lookupFunction(value.function);
+
+    if (!compare.matches(&before, &after, previous.schema_version, value.schema_version, null)) return error.InvalidModule;
 }

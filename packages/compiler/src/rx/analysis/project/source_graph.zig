@@ -1,5 +1,6 @@
 const std = @import("std");
 const rx = @import("rx");
+const zx = @import("zx");
 const frontend = @import("frontend");
 const model = @import("source_graph/model.zig");
 const Collector = @import("source_graph/collect.zig");
@@ -12,13 +13,17 @@ pub const references = @import("source_graph/rx_edges.zig");
 pub const Options = struct {
     entry: []const u8,
     additional_roots: []const []const u8 = &.{},
+    /// Add the registered RX modules before the explicit roots.
+    include_rx_modules: bool = false,
     sources: []const frontend.project.Source,
     modules: []const rx.ModuleSource,
     stores: []const rx.ModuleSource = &.{},
     project: frontend.project.Options,
     parse_cache: ?*frontend.project.ParseCache = null,
+    /// Optional output for the immediately following signature analysis. Requires a shared cache.
+    prefetched: ?*frontend.project.ParseCache.Prefetched = null,
     scratch_allocator: ?std.mem.Allocator = null,
-    /// Optional caller-owned index, using the scratch allocator.
+    /// Optional caller-owned index. Its buckets use the scratch allocator and its keys may borrow the result.
     registered_paths: ?*frontend.project.source_index.Map = null,
     retain_source_dependencies: bool = false,
 };
@@ -34,57 +39,59 @@ pub fn build(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.E
 }
 
 fn buildIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Options) std.mem.Allocator.Error!model.Value {
-    const modules = try allocator.alloc(model.Module, options.sources.len + options.modules.len + options.stores.len);
+    std.debug.assert(options.prefetched == null or options.parse_cache != null);
+
+    var storage: model.Modules = .empty;
+    const sources: model.Sources = .{ .zx_count = options.sources.len, .rx_end = options.sources.len + options.modules.len };
+    const count = sources.rx_end + options.stores.len;
+
+    try storage.setCapacity(allocator, count);
+
+    storage.len = count;
+
+    var modules = storage.slice();
     var temporary = frontend.project.source_index.Map.empty;
     const paths = options.registered_paths orelse &temporary;
-    paths.* = try frontend.project.source_index.Map.init(backing, modules.len);
+    const Index = frontend.project.source_index.Map;
+
+    paths.* = if (comptime @hasDecl(Index, "borrowKeys"))
+        try Index.borrowKeys(backing, modules.items(.path))
+
+    else
+        try Index.init(backing, modules.len);
 
     defer temporary.deinit(backing);
 
-    for (modules, 0..) |*module, index| {
-        const is_zx = index < options.sources.len;
-        const is_store = index >= options.sources.len + options.modules.len;
-        const source_index = if (is_zx) index else if (is_store) index - options.sources.len - options.modules.len else index - options.sources.len;
-        const source: ?rx.ModuleSource = if (is_zx) null else if (is_store) options.stores[source_index] else options.modules[source_index];
-        const source_path = if (source) |item| item.path else options.sources[source_index].path;
-        const location: rx.ast.Location = if (source) |item| item.node.location else .{ .offset = 0, .line = 1, .column = 1 };
+    if (try register(allocator, options, paths, &modules, sources)) |issue| return issue;
 
-        if (!is_zx) {
-            const normalized = (if (is_store) rx.normalizeStorePath(allocator, source_path) else rx.normalizeModulePath(allocator, source_path)) catch |err| {
-                if (err == error.OutOfMemory) return error.OutOfMemory;
+    const root_location: rx.ast.Location = .{ .offset = 0, .line = 1, .column = 1 };
+    const path = try std.fs.path.resolve(backing, &.{ options.project.root_dir, options.entry });
 
-                return failure(allocator, source_path, location, "RX source registration requires a project relative path of the expected module kind");
-            };
+    defer backing.free(path);
 
-            allocator.free(normalized);
-        }
-
-        const path = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, source_path });
-
-        if (!paths.claim(index, path)) return failure(allocator, if (is_store) source_path else path, location, if (is_store) "Store definition path is already registered" else "source paths must be unique after normalization across RX, ZX and Store definitions");
-
-        module.* = .{ .path = path, .source = if (is_zx) .{ .zx = source_index } else if (is_store) .{ .store = source_index } else .{ .rx = source_index } };
-    }
-
-    const path = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, options.entry });
-    const entry = paths.get(path) orelse return failure(allocator, path, .{ .offset = 0, .line = 1, .column = 1 }, "entry module is missing from the registered source set");
-    const roots = try backing.alloc(u64, options.additional_roots.len + options.stores.len + 1);
-
-    defer backing.free(roots);
-
+    const entry = paths.get(path) orelse return failure(allocator, path, root_location, "entry module is missing from the registered source set");
+    const rx_roots = if (options.include_rx_modules) options.modules.len else 0;
+    const explicit_count = options.additional_roots.len;
+    const additional_count = rx_roots + explicit_count;
+    const roots = try allocator.alloc(u64, additional_count + options.stores.len + 1);
     roots[0] = entry;
 
-    const additional_roots = try allocator.alloc(usize, options.additional_roots.len);
+    writeRootRows(roots[1..][0..rx_roots], sources.zx_count);
+    writeRootRows(roots[1 + additional_count ..], sources.rx_end);
 
-    for (options.additional_roots, additional_roots, roots[1..][0..additional_roots.len]) |source_path, *root, *row| {
-        const resolved = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, source_path });
+    var path_buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&path_buffer, backing);
+    const temporary_paths = scratch.allocator();
 
-        root.* = paths.get(resolved) orelse return failure(allocator, resolved, .{ .offset = 0, .line = 1, .column = 1 }, "source graph root is missing from the registered input set");
-        row.* = root.*;
+    for (options.additional_roots, roots[1 + rx_roots ..][0..explicit_count]) |source_path, *root| {
+        const resolved = try std.fs.path.resolve(temporary_paths, &.{ options.project.root_dir, source_path });
+
+        defer temporary_paths.free(resolved);
+
+        root.* = paths.get(resolved) orelse return failure(allocator, resolved, root_location, "source graph root is missing from the registered input set");
     }
 
-    for (roots[1 + options.additional_roots.len ..], 0..) |*root, index| root.* = options.sources.len + options.modules.len + index;
-
+    const additional_roots = try nativeRows(allocator, roots[1..][0..additional_count]);
     const target_allocator = if (options.retain_source_dependencies) allocator else backing;
     const starts = try target_allocator.alloc(u64, modules.len + 1);
 
@@ -97,32 +104,170 @@ fn buildIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Op
     @memset(ends, 0);
 
     var adjacency: model.Adjacency = .{ .starts = starts, .ends = ends };
-    var collector = Collector{ .allocator = allocator, .backing = backing, .target_allocator = target_allocator, .options = options.project, .modules = modules, .paths = paths };
 
+    var collector = Collector{
+        .allocator = allocator,
+        .backing = backing,
+        .target_allocator = target_allocator,
+        .temporary = .init(backing),
+        .options = options.project,
+        .modules = modules,
+        .sources = sources,
+        .paths = paths,
+    };
+
+    defer collector.temporary.deinit();
     defer if (!options.retain_source_dependencies) collector.targets.deinit(backing);
 
     if (collector.options.source_index == null) collector.options.source_index = paths;
 
-    @import("source_graph/scan.zig").run(&collector, &adjacency, roots, options.sources, options.modules, options.stores, options.parse_cache) catch |err| {
+    var prefetched: frontend.project.ParseCache.Prefetched = .{};
+
+    defer prefetched.deinit(backing);
+
+    const reached = @import("source_graph/scan.zig").run(&collector, &adjacency, roots, options.sources, options.modules, options.stores, options.parse_cache, if (options.prefetched != null) &prefetched else null) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return .{ .diagnostic = collector.issue.? };
     };
 
-    return switch (try @import("source_graph/order.zig").build(allocator, backing, modules, adjacency, roots)) {
-        .schedule => |schedule| .{ .graph = .{
-            .modules = modules,
-            .order = schedule.order,
-            .batch_ends = schedule.batch_ends,
-            .entry = entry,
-            .additional_roots = additional_roots,
-            .source_dependencies = if (options.retain_source_dependencies) .{
-                .starts = starts,
-                .ends = ends,
-                .targets = adjacency.targets,
-            } else null,
-        } },
+    return switch (try @import("source_graph/order.zig").build(allocator, backing, modules, sources, adjacency, roots, options.sources, reached)) {
+        .schedule => |schedule| done: {
+            if (options.prefetched) |output| {
+                output.* = prefetched;
+                prefetched = .{};
+            }
+
+            break :done .{ .graph = .{
+                .modules = modules,
+                .sources = sources,
+                .order = schedule.order,
+                .batch_ends = schedule.batch_ends,
+                .entry = entry,
+                .additional_roots = additional_roots,
+                .source_dependencies = if (options.retain_source_dependencies) .{
+                    .starts = starts,
+                    .ends = ends,
+                    .targets = adjacency.targets,
+                } else null,
+            } };
+        },
         .diagnostic => |issue| .{ .diagnostic = issue },
+    };
+}
+
+fn writeRootRows(target: []u64, first: usize) void {
+    if (target.len == 0) return;
+
+    if (comptime @import("rx_options").generated_graph) {
+        const rule = @import("generated_source_graph_root_rows");
+        const input: std.meta.Child(rule.Input) = .{ .roots = @ptrCast(&target), .first = first, .count = target.len };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        return;
+    }
+
+    for (target, first..) |*row, index| row.* = index;
+}
+
+fn nativeRows(allocator: std.mem.Allocator, roots: []const u64) std.mem.Allocator.Error![]const usize {
+    if (comptime @bitSizeOf(usize) == 64 and @alignOf(u64) >= @alignOf(usize)) return @ptrCast(roots);
+
+    const result = try allocator.alloc(usize, roots.len);
+
+    for (result, roots) |*row, root| row.* = @intCast(root);
+
+    return result;
+}
+
+pub fn orderedRows(allocator: std.mem.Allocator, graph: *const Graph, kind: enum { zx, rx }) std.mem.Allocator.Error![]const u64 {
+    const first = if (kind == .zx) 0 else graph.sources.zx_count;
+    const end = if (kind == .zx) graph.sources.zx_count else graph.sources.rx_end;
+    const entries = try allocator.alloc(u64, @min(end - first, graph.order.len));
+
+    if (entries.len == 0) return entries;
+
+    errdefer allocator.free(entries);
+
+    if (comptime @import("rx_options").generated_graph and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64)) {
+        const rule = @import("generated_source_graph_ordered_rows");
+
+        const input: std.meta.Child(rule.Input) = .{
+            .order = @ptrCast(graph.order),
+            .first = first,
+            .end = end,
+            .entries = @ptrCast(&entries),
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const count = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        return allocator.realloc(entries, @intCast(count));
+    }
+
+    var count: usize = 0;
+
+    for (graph.order) |row| {
+        if (row < first or row >= end) continue;
+
+        entries[count] = row - first;
+        count += 1;
+    }
+
+    return allocator.realloc(entries, count);
+}
+
+fn register(allocator: std.mem.Allocator, options: Options, paths: *frontend.project.source_index.Map, modules: *model.Modules.Slice, sources: model.Sources) std.mem.Allocator.Error!?model.Value {
+    const staged = @hasDecl(frontend.project.source_index.Map, "firstDuplicate");
+
+    for (0..modules.len) |index| {
+        const source = sources.at(index);
+
+        const rx_source = switch (source) {
+            .zx => null,
+            .rx => |row| options.modules[row],
+            .store => |row| options.stores[row],
+        };
+
+        const source_path = if (rx_source) |item| item.path else options.sources[source.zx].path;
+
+        if (rx_source) |item| {
+            rx.validateSourcePath(allocator, source_path, if (source == .store) .store else .module) catch |err| {
+                if (err == error.OutOfMemory) return error.OutOfMemory;
+
+                if (comptime staged) {
+                    if (paths.firstDuplicate(index)) |row| return try duplicate(allocator, options, modules.items(.path)[row], sources.at(row));
+                }
+
+                return try failure(allocator, source_path, item.node.location, "RX source registration requires a project relative path of the expected module kind");
+            };
+        }
+
+        const path = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, source_path });
+
+        modules.set(index, .{ .path = path });
+
+        if (comptime !staged) {
+            if (!paths.claim(index, path)) return try duplicate(allocator, options, path, source);
+        }
+    }
+
+    if (comptime staged) {
+        if (paths.firstDuplicate(modules.len)) |row| return try duplicate(allocator, options, modules.items(.path)[row], sources.at(row));
+    }
+
+    return null;
+}
+
+fn duplicate(allocator: std.mem.Allocator, options: Options, path: []const u8, source: model.Source) std.mem.Allocator.Error!model.Value {
+    const message = "source paths must be unique after normalization across RX, ZX and Store definitions";
+
+    return switch (source) {
+        .zx => failure(allocator, path, .{ .offset = 0, .line = 1, .column = 1 }, message),
+        .rx => |index| failure(allocator, path, options.modules[index].node.location, message),
+        .store => |index| failure(allocator, options.stores[index].path, options.stores[index].node.location, "Store definition path is already registered"),
     };
 }
 

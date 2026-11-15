@@ -1,22 +1,23 @@
 import integers from "std:integer"
 
-import representative from "../../inference/forest/representative"
+import representative from "../../inference/forest/borrowed_root"
 import referenced from "./referenced"
 
+import type { U32Buffer } from "std:memory"
 import type { Edges } from "../../inference/assignment/model"
 
 export type Input = {
     inputs: u32[],
     fixed: bool[],
     edges: Edges,
-    parents: u32[],
+    parents: U32Buffer,
     marked: bool[],
     protected?: u32,
     next: u64,
     found: bool
 }
 
-export type Output = Input.Pick("parents", "next", "found")
+export type Output = Input.Pick("next", "found")
 
 export default function (in: Input): Output {
     return loop(in, {
@@ -30,20 +31,17 @@ export default function (in: Input): Output {
                     value: state.inputs[index]
                 })
 
-                state.parents = input.parents
-
                 if (state.marked.length == 0) {
                     const result = referenced({
                         edges: state.edges,
                         parents: state.parents,
-                        root: input.item,
+                        root: input,
                         index: 0,
                         found: false
                     })
 
-                    state.parents = result.parents
                     state.found = !result.found
-                } else if (!state.marked[integers.widen(input.item)]) {
+                } else if (!state.marked[integers.widen(input)]) {
                     const protected = state.protected
 
                     if (protected == null) {
@@ -54,8 +52,7 @@ export default function (in: Input): Output {
                             value: protected
                         })
 
-                        state.parents = active.parents
-                        state.found = active.item != input.item
+                        state.found = active != input
                     }
                 }
             }
@@ -63,7 +60,6 @@ export default function (in: Input): Output {
             state.next += 1
         },
         return: state => ({
-            parents: state.parents,
             next: state.next,
             found: state.found
         })

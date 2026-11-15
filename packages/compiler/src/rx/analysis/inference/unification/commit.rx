@@ -4,6 +4,15 @@
     <Args in={Commit.Input} out={Commit.Output} />
 
     <Call
+        fn="commit/publish_shape"
+        in={$in.pick([
+            "parent",
+            "columns",
+            "shape"
+        ])}
+    />
+
+    <Call
         fn="../scalar/combine"
         in={$in.pick([
             "left",
@@ -13,10 +22,10 @@
 
     <Call
         fn="../forest/link"
-        in={$in.omit([
-            "graph",
-            "left",
-            "right"
+        in={$in.pick([
+            "parents",
+            "parent",
+            "child"
         ])}
     />
 

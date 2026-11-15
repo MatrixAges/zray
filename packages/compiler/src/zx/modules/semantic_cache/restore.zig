@@ -62,10 +62,7 @@ fn restoreChecked(module: *const model.Module, current: Current, decoded: bool) 
     const first_origin = current.origins.items.view().count();
 
     errdefer {
-        inline for (@typeInfo(ir.TypeStorage).@"struct".field_names) |name| {
-            @field(current.types, name).items.len = @field(before_types, name).len;
-        }
-
+        current.types.retainColumns(before_types);
         current.origins.items.retainPrefix(first_origin);
 
         if (generated) current.payloads.rewind(checkpoint);

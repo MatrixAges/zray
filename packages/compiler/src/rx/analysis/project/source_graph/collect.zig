@@ -3,6 +3,7 @@ const rx = @import("rx");
 const zx = @import("zx");
 const project = @import("frontend").project;
 const model = @import("model.zig");
+const position = @import("position.zig");
 const Diagnostic = @import("../../call/target.zig").Diagnostic;
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidGraph};
@@ -10,25 +11,50 @@ pub const Error = std.mem.Allocator.Error || error{InvalidGraph};
 allocator: std.mem.Allocator,
 backing: std.mem.Allocator,
 target_allocator: std.mem.Allocator,
+temporary: std.heap.ArenaAllocator,
 options: project.Options,
-modules: []model.Module,
+modules: model.Modules.Slice,
+sources: model.Sources,
 paths: *const project.source_index.Map,
 edges: std.ArrayList(model.Edge) = .empty,
 targets: std.ArrayList(u64) = .empty,
 owner: usize = 0,
+source_text: []const u8 = "",
+package_scope: ?project.ImportScope = null,
 issue: ?Diagnostic = null,
-pub fn ownerPath(self: *const Self) []const u8 {
-    return self.modules[self.owner].path;
+fn ownerPath(self: *const Self) []const u8 {
+    return self.modules.items(.path)[self.owner];
+}
+
+pub fn begin(self: *Self, owner: usize, source_text: []const u8) void {
+    self.owner = owner;
+    self.source_text = source_text;
+    self.package_scope = null;
+}
+
+fn scope(self: *Self) project.ImportScope {
+    if (self.package_scope) |previous| return previous;
+
+    const current = project.ImportScope.init(self.options.package_scopes, self.ownerPath());
+
+    self.package_scope = current;
+
+    return current;
+}
+
+pub fn dependencies(self: *Self) []const project.Package {
+    return self.scope().dependencies(self.options.packages);
 }
 
 pub fn store(self: *Self, path: []const u8, location: rx.ast.Location, owner: []const u8) Error!void {
-    const absolute = try std.fs.path.resolve(self.allocator, &.{ self.options.root_dir, path });
+    const temporary = self.temporary.allocator();
+    const absolute = try std.fs.path.resolve(temporary, &.{ self.options.root_dir, path });
 
-    defer self.allocator.free(absolute);
+    defer temporary.free(absolute);
 
     const index = self.paths.get(absolute);
 
-    if (index == null or self.modules[index.?].source != .store) {
+    if (index == null or self.sources.at(index.?) != .store) {
         self.issue = .{ .path = try self.allocator.dupe(u8, owner), .location = location, .code = "capability", .message = "Store definition is not registered" };
 
         return error.InvalidGraph;
@@ -40,8 +66,8 @@ pub fn store(self: *Self, path: []const u8, location: rx.ast.Location, owner: []
 
 pub fn fail(self: *Self, location: rx.ast.Location, message: []const u8) Error {
     self.issue = .{
-        .path = self.modules[self.owner].path,
-        .location = location,
+        .path = self.ownerPath(),
+        .location = position.locate(location, self.source_text),
         .code = "module",
         .message = try self.allocator.dupe(u8, message),
     };
@@ -49,8 +75,9 @@ pub fn fail(self: *Self, location: rx.ast.Location, message: []const u8) Error {
     return error.InvalidGraph;
 }
 
-fn source(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference) Error!void {
-    const index = self.paths.get(path) orelse return self.fail(location, "source module dependency is missing from the registered input set");
+fn source(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference, selected_row: ?usize) Error!void {
+    const row = if (self.options.source_index == self.paths) selected_row else null;
+    const index = row orelse self.paths.get(path) orelse return self.fail(location, "source module dependency is missing from the registered input set");
 
     try self.sourceEdge(index, location, reference);
 }
@@ -61,45 +88,59 @@ fn sourceEdge(self: *Self, index: usize, location: rx.ast.Location, reference: m
 }
 
 pub fn local(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference) Error!void {
-    const absolute = try std.fs.path.resolve(self.allocator, &.{ self.options.root_dir, path });
-    const resolved = if (std.mem.endsWith(u8, absolute, ".zx")) try project.selectSource(self.allocator, absolute, self.options) else absolute;
+    const temporary = self.temporary.allocator();
+    const absolute = try std.fs.path.resolve(temporary, &.{ self.options.root_dir, path });
 
-    try self.checkBoundary(resolved, location);
-    try self.source(resolved, location, reference);
+    defer temporary.free(absolute);
+
+    const resolved: project.SourceSelection = if (std.mem.endsWith(u8, absolute, ".zx"))
+        try project.selectIndexedSource(temporary, absolute, self.options.source_index)
+    else
+        .{ .path = absolute };
+
+    defer if (resolved.path.ptr != absolute.ptr) temporary.free(resolved.path);
+
+    try self.checkBoundary(resolved.path, location);
+    try self.source(resolved.path, location, reference, resolved.row);
 }
 
 fn checkBoundary(self: *Self, path: []const u8, location: rx.ast.Location) Error!void {
-    const scopes = self.options.package_scopes;
+    var reporter: zx.Reporter = .{};
 
-    if (scopes.len != 0) {
-        const owner = project.package_scope.owner(scopes, self.modules[self.owner].path);
-
-        if (owner == null) return self.fail(location, "source file does not belong to a declared package");
-        if (project.package_scope.owner(scopes, path) != owner) return self.fail(location, "file import crosses a package boundary; declare and import the package dependency");
-    }
+    self.scope().checkFile(path, &reporter, .{ .start = location.offset, .end = location.offset }) catch
+        return self.fail(location, reporter.diagnostic.?.message);
 }
 
-pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, role: model.Reference) Error!void {
-    const kind = project.specifier.classify(reference) catch return self.fail(location, "invalid or unknown import specifier");
+pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, role: model.Reference, known: ?project.PackageMatch) Error!void {
+    const route = project.importRoute(reference);
 
-    if (kind != .file and kind != .package) {
-        try self.edges.append(self.allocator, .{ .target = .{ .native = try self.allocator.dupe(u8, reference) }, .location = location, .reference = role });
+    switch (route) {
+        .Invalid => return self.fail(location, "invalid or unknown import specifier"),
+        .Intrinsic, .Interface => {
+            try self.edges.append(self.allocator, .{ .target = .{ .native = try self.allocator.dupe(u8, reference) }, .location = location, .reference = role });
 
-        return;
+            return;
+        },
+        .File, .Package => {},
     }
 
     var reporter: zx.Reporter = .{};
+    const temporary = self.temporary.allocator();
 
-    const target = project.resolveModuleTarget(self.allocator, self.modules[self.owner].path, reference, self.options, &reporter, .{ .start = location.offset, .end = location.offset }) catch |err| {
+    const resolved = project.resolveIndexedTarget(.{ .source = temporary, .compiled = self.allocator }, self.ownerPath(), reference, route, self.options, self.scope(), known, &reporter, .{ .start = location.offset, .end = location.offset }) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return self.fail(location, reporter.diagnostic.?.message);
     };
 
-    switch (target) {
-        .source => |path| try self.source(path, location, role),
+    switch (resolved.target) {
+        .source => |path| {
+            defer temporary.free(path);
+
+            try self.source(path, location, role, resolved.source_row);
+        },
         .compiled => |compiled| {
-            self.modules[self.owner].compiled_dependency = true;
+            self.modules.items(.compiled_dependency)[self.owner] = true;
 
             try self.edges.append(self.allocator, .{ .target = .{ .compiled = compiled }, .location = location, .reference = role });
         },

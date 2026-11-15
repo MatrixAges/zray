@@ -6,8 +6,6 @@ const SourceMap = @import("../../source_map.zig");
 const target = @import("../../call/target.zig");
 const enabled = @import("rx_options").generated_graph;
 const Self = @This();
-pub const Kind = enum { input, output };
-
 const Entry = struct { module: u64, location: @FieldType(rx.ast.Node, "location"), attribute: rx.ast.Attribute, expression: []const u8 };
 
 allocator: std.mem.Allocator,

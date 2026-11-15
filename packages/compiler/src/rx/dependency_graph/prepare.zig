@@ -6,10 +6,10 @@ const module_reference = @import("../module_reference.zig");
 const modules = @import("../modules.zig");
 const paths = @import("../paths.zig");
 const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
-const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+pub const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
 const Issue = @typeInfo(@FieldType(Input, "issues")).pointer.child;
 const Link = struct { node: *const dsl.ast.Node, attribute: *const dsl.ast.Attribute };
-const Result = struct { input: Input, links: []const Link };
+const Result = struct { offsets: []const u64, targets: []const u64, issues: []const Issue, links: []const Link };
 
 pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, sources: []const modules.Source, entries: []const []const u8) std.mem.Allocator.Error!Result {
     const offsets = try allocator.alloc(u64, sources.len + 1);
@@ -41,7 +41,7 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
 
     offsets[sources.len] = targets.items.len;
 
-    return .{ .input = .{ .offsets = offsets, .ends = null, .targets = targets.items, .issues = issues.items, .root = null, .roots = null, .ranked = false }, .links = links.items };
+    return .{ .offsets = offsets, .targets = targets.items, .issues = issues.items, .links = links.items };
 }
 
 fn resolve(allocator: std.mem.Allocator, registered: *const modules.Registry, owner: []const u8, reference: []const u8) std.mem.Allocator.Error!struct { index: u64 = 0, issue: Issue = .None } {

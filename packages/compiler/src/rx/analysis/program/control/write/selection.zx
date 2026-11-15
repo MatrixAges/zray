@@ -1,0 +1,41 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import { cases_lane, selections_lane } from "../const"
+import header from "./header"
+
+import type { U8Buffer, U32Buffer } from "std:memory"
+import type { Header } from "./header"
+
+export type Input = {
+    header: Header,
+    subjects: U32Buffer,
+    firsts: U32Buffer,
+    counts: U32Buffer,
+    flags: U8Buffer,
+    subject: u32,
+    count: u32,
+    exhaustive: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const cursor = in.header.cursor
+    const row = memory.readU32(cursor, selections_lane)
+    const index = integers.widen(row)
+    const first = memory.readU32(cursor, cases_lane)
+
+    memory.writeU32(in.subjects, index, in.subject)
+    memory.writeU32(in.firsts, index, first)
+    memory.writeU32(in.counts, index, in.count)
+    memory.writeU8(in.flags, index, in.exhaustive ? 1 : 0)
+
+    header({
+        header: in.header,
+        row,
+        lane: selections_lane
+    })
+
+    memory.writeU32(cursor, cases_lane, first + in.count)
+}
