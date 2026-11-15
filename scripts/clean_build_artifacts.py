@@ -13,7 +13,14 @@ ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / ".zig-cache"
 HISTORY = CACHE / "cold-build-analysis"
 DOC_SUFFIXES = {".gz", ".json", ".jsonl", ".log", ".txt"}
-FRONTEND_KEY = re.compile(r"[0-9a-f]{32}")
+CACHE_KEYS = {
+    "bootstrap-functions": re.compile(r"[0-9a-f]{64}\.cache"),
+    "c": re.compile(r"[0-9a-f]{32}"),
+    "h": re.compile(r"[0-9a-f]{32}"),
+    "o": re.compile(r"[0-9a-f]{32}"),
+    "tmp": re.compile(r"[0-9a-f]{16}"),
+    "z": re.compile(r"[0-9a-f]{32}"),
+}
 
 
 def git_paths(*args):
@@ -76,19 +83,27 @@ def unused_docs(cutoff):
             yield path
 
 
-def expired_frontend_files(cutoff):
-    directory = CACHE / "z"
-    if not directory.is_dir() or directory.resolve() != directory:
-        return
+def old_root_cache(cutoff):
+    for name, key in CACHE_KEYS.items():
+        directory = CACHE / name
+        if not directory.is_dir() or directory.resolve() != directory:
+            continue
 
-    with os.scandir(directory) as entries:
-        for entry in entries:
-            if (
-                FRONTEND_KEY.fullmatch(entry.name)
-                and entry.is_file(follow_symlinks=False)
-                and entry.stat(follow_symlinks=False).st_mtime < cutoff
-            ):
-                yield Path(entry.path)
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                if not key.fullmatch(entry.name) or entry.is_symlink():
+                    continue
+
+                if entry.stat(follow_symlinks=False).st_mtime >= cutoff:
+                    continue
+
+                path = Path(entry.path)
+                if entry.is_dir(follow_symlinks=False) and any(
+                    child.lstat().st_mtime >= cutoff for child in path.iterdir()
+                ):
+                    continue
+
+                yield path
 
 
 def main():
@@ -115,7 +130,10 @@ def main():
 
     cutoff = time.time() - options.min_age_hours * 3_600
     history = [path for path in (*old_history(cutoff), *old_package_caches(cutoff)) if not keep(path)]
-    files = [path for path in (*unused_docs(cutoff), *expired_frontend_files(cutoff)) if not keep(path)]
+    files = [path for path in unused_docs(cutoff) if not keep(path)]
+    for path in old_root_cache(cutoff):
+        if not keep(path):
+            (history if path.is_dir() else files).append(path)
     print(f"Selected {len(history):,} historical outputs and {len(files):,} individual files.", flush=True)
     if not options.apply:
         for path in history[:12]:
