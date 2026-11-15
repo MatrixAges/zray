@@ -47,12 +47,15 @@ def old_history(cutoff):
             yield path
 
 
-def old_package_caches(cutoff):
+def package_caches():
     for package in (ROOT / "packages").iterdir():
         cache = package / ".zig-cache"
-        if not cache.is_dir() or cache.resolve() != cache:
-            continue
+        if cache.is_dir() and cache.resolve() == cache:
+            yield cache
 
+
+def old_package_caches(caches, cutoff):
+    for cache in caches:
         children = list(cache.iterdir())
         expired = [
             child for child in children
@@ -83,27 +86,39 @@ def unused_docs(cutoff):
             yield path
 
 
-def old_root_cache(cutoff):
-    for name, key in CACHE_KEYS.items():
-        directory = CACHE / name
-        if not directory.is_dir() or directory.resolve() != directory:
-            continue
+def expired_cache_entries(directory, cutoff):
+    key = CACHE_KEYS[directory.name]
+    with os.scandir(directory) as entries:
+        for entry in entries:
+            if not key.fullmatch(entry.name) or entry.is_symlink():
+                continue
 
-        with os.scandir(directory) as entries:
-            for entry in entries:
-                if not key.fullmatch(entry.name) or entry.is_symlink():
-                    continue
+            try:
+                modified = entry.stat(follow_symlinks=False).st_mtime
+            except FileNotFoundError:
+                continue
+            if modified >= cutoff:
+                continue
 
-                if entry.stat(follow_symlinks=False).st_mtime >= cutoff:
-                    continue
+            path = Path(entry.path)
+            if entry.is_dir(follow_symlinks=False) and any(
+                child.lstat().st_mtime >= cutoff for child in path.iterdir()
+            ):
+                continue
 
-                path = Path(entry.path)
-                if entry.is_dir(follow_symlinks=False) and any(
-                    child.lstat().st_mtime >= cutoff for child in path.iterdir()
-                ):
-                    continue
+            yield path
 
-                yield path
+
+def remove(path):
+    try:
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink(missing_ok=True)
+    except OSError as error:
+        print(error, flush=True)
+        return False
+    return True
 
 
 def main():
@@ -129,12 +144,25 @@ def main():
         return any(path.is_relative_to(saved) or saved.is_relative_to(path) for saved in protected)
 
     cutoff = time.time() - options.min_age_hours * 3_600
-    history = [path for path in (*old_history(cutoff), *old_package_caches(cutoff)) if not keep(path)]
+    packages = list(package_caches())
+    history = [path for path in (*old_history(cutoff), *old_package_caches(packages, cutoff)) if not keep(path)]
+    retired = set(history)
+    buckets = [
+        cache / name
+        for cache in (CACHE, *packages)
+        if cache not in retired
+        for name in CACHE_KEYS
+        if (cache / name).is_dir()
+        and (cache / name).resolve() == cache / name
+        and cache / name not in retired
+        and not keep(cache / name)
+    ]
     files = [path for path in unused_docs(cutoff) if not keep(path)]
-    for path in old_root_cache(cutoff):
-        if not keep(path):
-            (history if path.is_dir() else files).append(path)
-    print(f"Selected {len(history):,} historical outputs and {len(files):,} individual files.", flush=True)
+    print(
+        f"Selected {len(history):,} historical outputs and {len(files):,} documents' intermediate files. "
+        f"Scan {len(buckets):,} Zig cache directories for expired entries.",
+        flush=True,
+    )
     if not options.apply:
         for path in history[:12]:
             print(path.relative_to(ROOT))
@@ -144,19 +172,20 @@ def main():
     before = shutil.disk_usage(ROOT).free
     errors = 0
     for index, path in enumerate(history, 1):
-        try:
-            if path.is_dir():
-                shutil.rmtree(path)
-            else:
-                path.unlink(missing_ok=True)
-        except OSError as error:
-            print(error, flush=True)
-            errors += 1
+        errors += not remove(path)
         if index % 10 == 0:
             print(f"Processed {index:,}/{len(history):,} historical outputs.", flush=True)
 
     for path in files:
-        path.unlink(missing_ok=True)
+        errors += not remove(path)
+    for directory in buckets:
+        removed = 0
+        for path in expired_cache_entries(directory, cutoff):
+            success = remove(path)
+            errors += not success
+            removed += success
+        if removed:
+            print(f"Removed {removed:,} entries from {directory.relative_to(ROOT)}.", flush=True)
     free = shutil.disk_usage(ROOT).free
     print(
         f"Free space: {free / 2**30:.2f} GiB "
