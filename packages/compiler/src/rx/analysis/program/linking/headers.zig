@@ -5,6 +5,38 @@ const operands = @import("operands.zig");
 const missing = @import("../linking.zig").missing;
 const generated = @import("rx_options").generated_graph;
 
+pub const Tail = struct {
+    kinds: []u8,
+    types: []u32,
+    starts: []u64,
+    ends: []u64,
+    payloads: []u32,
+    pub fn init(storage: *ir.ExpressionStorage) Tail {
+        return .{
+            .kinds = std.mem.sliceAsBytes(storage.kinds.unusedCapacitySlice()[0..1]),
+            .types = storage.types.unusedCapacitySlice()[0..1],
+            .starts = storage.span_start.unusedCapacitySlice()[0..1],
+            .ends = storage.span_end.unusedCapacitySlice()[0..1],
+            .payloads = storage.payloads.unusedCapacitySlice()[0..1],
+        };
+    }
+    pub fn view(self: *const Tail, comptime Target: type) Target {
+        return .{
+            .kinds = @ptrCast(&self.kinds),
+            .types = @ptrCast(&self.types),
+            .starts = @ptrCast(&self.starts),
+            .ends = @ptrCast(&self.ends),
+            .payloads = @ptrCast(&self.payloads),
+        };
+    }
+};
+
+pub fn commit(storage: *ir.ExpressionStorage, count: usize) void {
+    inline for (.{ "kinds", "payloads", "types", "span_start", "span_end" }) |name| {
+        @field(storage, name).items.len += count;
+    }
+}
+
 pub fn publish(storage: *ir.ExpressionStorage, source: *const ir.ExpressionTable, rows: []const u32, count: usize) Builder.Error!void {
     const kinds = storage.kinds.unusedCapacitySlice()[0..count];
     const types = storage.types.unusedCapacitySlice()[0..count];
@@ -45,7 +77,5 @@ pub fn publish(storage: *ir.ExpressionStorage, source: *const ir.ExpressionTable
         }
     }
 
-    inline for (.{ "kinds", "payloads", "types", "span_start", "span_end" }) |name| {
-        @field(storage, name).items.len += count;
-    }
+    commit(storage, count);
 }

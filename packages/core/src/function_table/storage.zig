@@ -67,20 +67,23 @@ pub const Descriptors = struct {
 
 /// Takes ownership of the function's table descriptors after capacity is reserved.
 pub fn appendOwnedAssumeCapacity(self: *Self, value: ir.Function, owned: Descriptors) void {
-    self.appendPorts(.{
+    self.appendBodyAssumeCapacity(.{
         .file_name = value.file_name,
         .input_type = value.input_type,
         .output_type = value.output_type,
         .output_ownership = value.output_ownership,
         .external = value.external,
-    });
+    }, value.store_mode, value.body, owned);
+}
 
-    self.store_modes.appendAssumeCapacity(value.store_mode);
+pub fn appendBodyAssumeCapacity(self: *Self, signature: ir.Signature, store_mode: ir.StoreMode, body: ir.ControlBody, owned: Descriptors) void {
+    self.appendPorts(signature);
+    self.store_modes.appendAssumeCapacity(store_mode);
     self.contracts.appendAssumeCapacity(owned.contracts);
     self.symbols.appendAssumeCapacity(owned.symbols);
     self.expressions.appendAssumeCapacity(owned.expressions);
-    self.control.appendAssumeCapacity(value.body.control);
-    self.roots.appendAssumeCapacity(if (value.body.root) |id| @backingInt(id) else null);
+    self.control.appendAssumeCapacity(body.control);
+    self.roots.appendAssumeCapacity(if (body.root) |id| @backingInt(id) else null);
     self.stores.appendAssumeCapacity(owned.stores orelse &empty_stores);
 }
 

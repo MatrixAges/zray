@@ -1,0 +1,28 @@
+<Module>
+    <Type from="core/native_module_table/model" as="Native" />
+    <Type from="core/signature_table/model" as="Signatures" />
+
+    <Args
+        in={{
+            native_modules: Native.Modules,
+            signatures: Signatures.Table
+        }}
+        out={bool}
+    />
+
+    <Call fn="../../../ir/canonical/native/structure" in={$in.native_modules} />
+
+    <If on={!$ctx.structure}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="widths" in={$in.signatures} />
+
+    <If on={!$ctx.widths}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="metadata" in={$in.signatures} />
+
+    <Return value={$ctx.metadata} />
+</Module>

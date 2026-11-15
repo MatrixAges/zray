@@ -1,0 +1,27 @@
+import memory from "std:memory"
+
+import type { Column } from "./model"
+
+export type Input = Column[]
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const count = loop(first, {
+        while: row => row < in.length,
+        next: row => {
+            const column = in[row]
+            const written = memory.copyBytes(
+                column.target,
+                0,
+                column.source,
+                0,
+                column.source.length
+            )
+
+            row += 1
+        }
+    })
+}

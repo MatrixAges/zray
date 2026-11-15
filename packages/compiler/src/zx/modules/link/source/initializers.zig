@@ -14,22 +14,17 @@ pub fn link(nodes: *Nodes, values: []const Initializer, shared: []const Initiali
 
     @memcpy(initializers[0..borrowed], shared[0..borrowed]);
 
-    for (values[borrowed..], initializers[borrowed..]) |source, *initializer| {
-        initializer.* = .{
-            .identity = try nodes.allocator.dupe(u8, source.identity),
-            .schema_version = source.schema_version,
-            .function = try nodes.functionId(source.function),
-        };
-    }
+    for (values[borrowed..], initializers[borrowed..]) |source, *initializer| initializer.* = try nodes.remapInitializer(source, true);
 
     return initializers;
 }
 
 fn reuse(values: []const Initializer, shared: []const Initializer, prefix: u32) usize {
     const count = @min(values.len, shared.len);
+    const same_rows = values.ptr == shared.ptr;
 
     for (values[0..count], shared[0..count], 0..) |source, owned, index| {
-        if (@backingInt(source.function) >= prefix or !std.meta.eql(source, owned)) return index;
+        if (@backingInt(source.function) >= prefix or (!same_rows and !std.meta.eql(source, owned))) return index;
     }
 
     return count;

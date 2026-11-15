@@ -5,7 +5,9 @@ export enum Form {
     TaskWithEvaluation,
     TaskWithBinding,
     Case,
-    Default
+    Default,
+    ImportFunctions,
+    ImportFunctionsAndInitializers
 }
 
 export enum Step {
@@ -16,6 +18,9 @@ export enum Step {
     RestoreBindings,
     ResolveStores,
     ImportCallee,
+    AppendFunctionTail,
+    LinkInitializers,
+    AppendFunctionEntry,
     WriteCall,
     LowerTask,
     EvaluateTaskOutput,

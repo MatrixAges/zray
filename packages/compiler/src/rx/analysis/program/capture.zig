@@ -55,16 +55,16 @@ pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeT
     }
 
     for (captures.types, layout.source_types, layout.elements, 1..) |parameter_type, type_id, element, symbol| {
-        const reference = try builder.expression(.{ .type_id = type_id, .span = span, .value = .{ .reference = @fromBackingInt(@intCast(symbol)) } });
+        const reference = try builder.seedExpression(.{ .type_id = type_id, .span = span, .value = .{ .reference = @fromBackingInt(@intCast(symbol)) } });
 
         if (reference != element) {
-            const payload = try builder.expression(.{ .type_id = parameter_type, .span = span, .value = .{ .optional_value = reference } });
+            const payload = try builder.seedExpression(.{ .type_id = parameter_type, .span = span, .value = .{ .optional_value = reference } });
 
             std.debug.assert(payload == element);
         }
     }
 
-    const result = try builder.expression(.{ .type_id = input_type, .span = span, .value = .{ .tuple = layout.elements } });
+    const result = try builder.seedExpression(.{ .type_id = input_type, .span = span, .value = .{ .tuple = layout.elements } });
 
     writer.result(&cursor, result);
 
@@ -76,12 +76,12 @@ pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeT
 fn input(builder: *Builder, type_id: ir.TypeId, span: zx.Span) std.mem.Allocator.Error!ir.ExprId {
     const symbol = try builder.symbol("@environment", type_id, span);
 
-    return builder.expression(.{ .type_id = type_id, .span = span, .value = .{ .reference = symbol } });
+    return builder.seedExpression(.{ .type_id = type_id, .span = span, .value = .{ .reference = symbol } });
 }
 
 fn bindOne(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, reference: ir.ExprId, capture: Binding, index: u32, span: zx.Span) std.mem.Allocator.Error!ir.SymbolId {
     const symbol = try builder.symbol(capture.name, capture.type_id, span);
-    const value = try builder.expression(.{ .type_id = capture.type_id, .span = span, .value = .{ .tuple_field = .{ .target = reference, .index = index } } });
+    const value = try builder.seedExpression(.{ .type_id = capture.type_id, .span = span, .value = .{ .tuple_field = .{ .target = reference, .index = index } } });
 
     writer.constant(cursor, symbol, value);
 

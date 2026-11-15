@@ -1,0 +1,73 @@
+import changed from "../changed"
+import sameBoundaries from "./boundaries"
+import sameDigest from "./digest"
+
+import type { Ranges } from "../../../source_graph/source"
+import type { History } from "./model"
+
+export type Input = {
+    history?: History,
+    sources: Ranges,
+    index: u64,
+    position: u64,
+    entry: u64
+}
+
+export enum Decision {
+    Analyze,
+    Reuse,
+    CompareSignature,
+    CompareStore
+}
+
+export type Output = Decision
+
+export default function (in: Input): Output {
+    const { history, index, position, entry, sources } = in
+
+    if (history == null || index == entry) {
+        return Decision.Analyze
+    }
+
+    const { compiled, starts, ends, targets, redone } = history.dependencies
+
+    if (compiled[index]) {
+        return Decision.Analyze
+    }
+
+    const dependency_changed = changed({
+        dependencies: targets,
+        redone,
+        first: starts[index],
+        end: ends[index]
+    })
+
+    if (dependency_changed) {
+        return Decision.Analyze
+    }
+
+    const stable_links = sameBoundaries({
+        boundaries: history.boundaries,
+        position
+    })
+
+    if (!stable_links) {
+        return Decision.Analyze
+    }
+
+    if (index >= sources.rx_end) {
+        return Decision.CompareStore
+    }
+
+    const same = sameDigest({
+        earlier: history.earlier,
+        current: history.current,
+        index
+    })
+
+    if (!same) {
+        return Decision.Analyze
+    }
+
+    return index < sources.zx_count ? Decision.Reuse : Decision.CompareSignature
+}

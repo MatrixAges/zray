@@ -1,3 +1,5 @@
+import integers from "std:integer"
+
 import operands from "./expressions"
 import writeRange from "./range"
 
@@ -13,6 +15,7 @@ export type Output = bool
 export default function (in: Input): Output {
     const valid = operands(in.pick([
         "source",
+        "source_range",
         "mapping",
         "target"
     ]))
@@ -23,7 +26,7 @@ export default function (in: Input): Output {
 
     writeRange({
         range: in.range,
-        count: in.source.length
+        count: integers.widen(in.source_range.count)
     })
 
     return true

@@ -5,9 +5,6 @@ const Signature = @import("../../signatures.zig").Signature;
 const State = @import("../state.zig");
 const rule = @import("generated_rx_mixed_history_reuse");
 const Input = std.meta.Child(rule.Input);
-const Pair = std.meta.Child(@typeInfo(@FieldType(Input, "signature")).optional.child);
-const Columns = std.meta.Child(@FieldType(Pair, "left"));
-const Source = std.meta.Child(@FieldType(Input, "source"));
 const Extent = std.meta.Child(@FieldType(Input, "before"));
 const prefix = @import("generated_rx_mixed_history_prefix");
 const Prefix = std.meta.Child(prefix.Input);
@@ -73,7 +70,7 @@ pub fn scan(state: *const State, history: *const ScanHistory, first: usize, end:
         .first = first,
         .end = end,
         .entry = graph.entry,
-        .zx_count = graph.sources.zx_count,
+        .sources = &.{ .zx_count = graph.sources.zx_count, .rx_end = graph.sources.rx_end },
         .history = history,
     };
 
@@ -82,81 +79,60 @@ pub fn scan(state: *const State, history: *const ScanHistory, first: usize, end:
     return zx.columns.invoke(prefix.executeValue, empty.allocator(), &input) catch unreachable;
 }
 
-pub fn reusable(state: *const State, current: History.Frame, previous: *const History.Retained, redone: ?[]const bool, digests: History.SourceDigests, index: usize, position: usize) bool {
-    const current_source = state.graph.sources.at(index);
-    const earlier = previous.derived.dependencies.sources.at(index);
+pub fn reusable(state: *const State, current: *const History.Frame, previous: *const History.Retained, redone: []const bool, digests: History.SourceDigests, index: usize, position: usize) bool {
     const before = extent(&previous.boundaries[position]);
     const after = extent(&previous.boundaries[position + 1]);
-    var source: Source = .{ .store_equal = null, .previous_digest = null, .current_digest = null };
-    var comparison: Pair = undefined;
-    var left: Projected = undefined;
-    var right: Projected = undefined;
-    var a: Columns = undefined;
-    var b: Columns = undefined;
-    var signature: ?*const Pair = null;
-
-    switch (current_source) {
-        .store => |row| {
-            source.store_equal = earlier == .store and @import("../../history/columns.zig").same(previous.derived.stores[earlier.store].node, current.stores[row].node);
-        },
-        else => {
-            if (previous.digests.at(index)) |digest| source.previous_digest = digest;
-            if (digests.at(index)) |digest| source.current_digest = digest;
-
-            if (current_source == .rx) {
-                if (earlier != .rx) return false;
-
-                left = .init(&previous.derived.resolved[earlier.rx]);
-                right = .init(&current.resolved[current_source.rx]);
-                a = left.view();
-                b = right.view();
-                comparison = .{ .left = &a, .right = &b, .masks = &.{} };
-                signature = &comparison;
-            }
-        },
-    }
-
     const edges = state.graph.source_dependencies.?;
-    const Dependencies = std.meta.Child(@typeInfo(@FieldType(Input, "dependencies")).optional.child);
-
-    const dependencies: Dependencies = if (redone) |marks| .{
-        .dependencies = edges.targets,
-        .redone = marks,
-        .first = edges.starts[index],
-        .end = edges.ends[index],
-    } else undefined;
 
     const input: Input = .{
-        .source = &source,
-        .signature = signature,
-        .compiled_dependency = redone != null and state.graph.modules.items(.compiled_dependency)[index],
-        .dependencies = if (redone != null) &dependencies else null,
+        .source = &.{
+            .store = state.graph.sources.at(index) == .store,
+            .previous_digest = if (previous.digests.at(index)) |value| value else null,
+            .current_digest = if (digests.at(index)) |value| value else null,
+        },
+        .compiled_dependency = state.graph.modules.items(.compiled_dependency)[index],
+        .dependencies = &.{ .dependencies = edges.targets, .redone = redone, .first = edges.starts[index], .end = edges.ends[index] },
         .before = &before,
         .after = &after,
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const eligible = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    return eligible and confirm(state, current, previous, index);
 }
 
-const Projected = struct {
-    ports: [2]u32,
-    words: [3][]const u8,
-    names: [1][]const []const u8,
-    fn init(signature: *const Signature) Projected {
-        return .{
-            .ports = .{ @backingInt(signature.input_type), @backingInt(signature.output_type) },
-            .words = .{ undefined, std.mem.sliceAsBytes(signature.bindings.types), std.mem.sliceAsBytes(signature.tasks) },
-            .names = .{signature.bindings.names},
-        };
-    }
-    fn view(self: *Projected) Columns {
-        self.words[0] = std.mem.asBytes(&self.ports);
+pub fn confirm(state: *const State, current: *const History.Frame, previous: *const History.Retained, index: usize) bool {
+    const earlier = previous.derived.dependencies.sources.at(index);
 
-        return .{ .words = &self.words, .tags = &.{}, .options = &.{}, .text = &self.names };
-    }
-};
+    return switch (state.graph.sources.at(index)) {
+        .zx => true,
+        .rx => |row| earlier == .rx and sameSignature(&previous.derived.resolved[earlier.rx], &current.resolved[row]),
+        .store => |row| earlier == .store and @import("../../history/columns.zig").same(previous.derived.stores[earlier.store].node, current.stores[row].node),
+    };
+}
+
+fn sameSignature(previous: *const Signature, current: *const Signature) bool {
+    const compare = @import("generated_rx_mixed_history_signature");
+    const Pair = std.meta.Child(compare.Input);
+    const Columns = std.meta.Child(@FieldType(Pair, "previous"));
+    const left = signature(Columns, previous);
+    const right = signature(Columns, current);
+    const input: Pair = .{ .previous = &left, .current = &right };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return zx.columns.invoke(compare.executeValue, empty.allocator(), &input) catch unreachable;
+}
+
+fn signature(comptime Columns: type, source: *const Signature) Columns {
+    return .{
+        .input_type = @backingInt(source.input_type),
+        .output_type = @backingInt(source.output_type),
+        .binding_types = std.mem.sliceAsBytes(source.bindings.types),
+        .task_types = std.mem.sliceAsBytes(source.tasks),
+        .bindings = source.bindings.names,
+    };
+}
 
 fn extent(checkpoint: *const History.Checkpoint) Extent {
     return .{

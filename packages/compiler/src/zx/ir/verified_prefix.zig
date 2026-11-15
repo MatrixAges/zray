@@ -1,9 +1,10 @@
 const std = @import("std");
 const ir = @import("zx").ir;
+const structure = @import("function_structure.zig");
 const field_names = @typeInfo(ir.FunctionTable).@"struct".field_names;
 
 pub fn count(table: ir.FunctionTable, verified: ir.FunctionTable) usize {
-    if (!table.validStructure() or !verified.validStructure()) return 0;
+    if (!structure.valid(&table) or !structure.valid(&verified)) return 0;
 
     const limit = @min(table.count(), verified.count());
 

@@ -21,9 +21,14 @@ pub const Options = struct {
     store_initializers: []const @import("frontend").project.compiled.StoreInitializer = &.{},
     flow: *const Flow,
     retain_metadata: bool = false,
+    split_functions: bool = false,
 };
 
-pub const Result = struct { program: ir.Program, store_initializers: []const @import("frontend").project.compiled.StoreInitializer };
+pub const Result = struct {
+    program: ir.Program,
+    function_suffix: ir.FunctionTable,
+    store_initializers: []const @import("frontend").project.compiled.StoreInitializer,
+};
 
 pub fn lower(allocator: std.mem.Allocator, contract: Options) Builder.Error!Result {
     var builder = Builder{ .allocator = allocator, .types = contract.types, .native_modules = contract.native_modules, .base_functions = contract.shared_functions };
@@ -36,8 +41,14 @@ pub fn lower(allocator: std.mem.Allocator, contract: Options) Builder.Error!Resu
     builder.store_initializers.checked_prefix = contract.store_initializers;
 
     const body = try lowerBody(&builder, contract);
+    const suffix = builder.functions.view();
 
-    return .{ .store_initializers = builder.store_initializers.rows.items, .program = .{
+    const functions = if (contract.split_functions)
+        builder.base_functions
+    else
+        try @import("frontend").project.artifact.function_table.join(allocator, builder.base_functions, suffix);
+
+    return .{ .store_initializers = builder.store_initializers.rows.items, .function_suffix = if (contract.split_functions) suffix else .{}, .program = .{
         .file_name = try allocator.dupe(u8, contract.owner),
         .types = contract.types,
         .symbols = builder.symbols.view(),
@@ -45,7 +56,7 @@ pub fn lower(allocator: std.mem.Allocator, contract: Options) Builder.Error!Resu
         .input_type = contract.input_type,
         .output_type = contract.output_type,
         .body = body,
-        .functions = try @import("frontend").project.artifact.function_table.join(allocator, builder.base_functions, builder.functions.view()),
+        .functions = functions,
         .stores = builder.stores.view(),
         .store_mode = .orchestration,
         .native_modules = contract.native_modules,

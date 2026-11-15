@@ -80,5 +80,24 @@
                 ]}
             />
         </Case>
+
+        <Case value={Steps.Form.ImportFunctions}>
+            <Return
+                value={[
+                    Steps.Step.AppendFunctionTail,
+                    Steps.Step.AppendFunctionEntry
+                ]}
+            />
+        </Case>
+
+        <Case value={Steps.Form.ImportFunctionsAndInitializers}>
+            <Return
+                value={[
+                    Steps.Step.AppendFunctionTail,
+                    Steps.Step.LinkInitializers,
+                    Steps.Step.AppendFunctionEntry
+                ]}
+            />
+        </Case>
     </Switch>
 </Module>

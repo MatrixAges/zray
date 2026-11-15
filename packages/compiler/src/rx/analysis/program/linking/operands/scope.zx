@@ -7,7 +7,7 @@ import optionalSymbols from "./optional_symbols"
 import writeRange from "./range"
 
 import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "std:memory"
-import type { Symbols } from "./model"
+import type { SourceRange, Symbols } from "./model"
 import type { Range } from "./range"
 
 export type Input = {
@@ -17,6 +17,7 @@ export type Input = {
     binding_symbols: u32?[],
     binding_values: u32[],
     borrows: u8[],
+    source_range: SourceRange,
     target_symbols: OptionalU32Buffer,
     target_values: U32Buffer,
     target_borrows: U8Buffer,
@@ -35,6 +36,7 @@ export default function (in: Input): Output {
 
     const symbols = optionalSymbols({
         source: in.binding_symbols,
+        source_range: in.source_range,
         symbols: in.symbols,
         target: in.target_symbols
     })
@@ -45,6 +47,7 @@ export default function (in: Input): Output {
 
     const values = expressions({
         source: in.binding_values,
+        source_range: in.source_range,
         mapping: in.mapping,
         target: in.target_values
     })
@@ -53,13 +56,17 @@ export default function (in: Input): Output {
         return false
     }
 
-    if (in.borrows.length != 0) {
-        const count = memory.copyBytes(
+    const length = integers.widen(in.source_range.count)
+
+    if (length != 0) {
+        const first = integers.widen(in.source_range.first)
+
+        const copied = memory.copyBytes(
             in.target_borrows,
             0,
             in.borrows,
-            0,
-            in.borrows.length
+            first,
+            first + length
         )
     }
 
@@ -67,7 +74,7 @@ export default function (in: Input): Output {
 
     writeRange({
         range: in.range,
-        count: in.binding_values.length
+        count: length
     })
 
     return true

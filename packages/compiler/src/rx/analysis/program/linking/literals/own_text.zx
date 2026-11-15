@@ -1,0 +1,11 @@
+import memory from "std:memory"
+
+import type { Text } from "./model"
+
+export type Input = Text
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.copyStrings(in.target, in.source)
+}

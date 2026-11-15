@@ -1,5 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
+pub const valid = @import("../../ir/function_structure.zig").valid;
 pub const range = @import("function_range.zig").plan;
 
 pub fn join(allocator: std.mem.Allocator, base: ir.FunctionTable, delta: ir.FunctionTable) std.mem.Allocator.Error!ir.FunctionTable {
@@ -22,13 +23,25 @@ pub fn join(allocator: std.mem.Allocator, base: ir.FunctionTable, delta: ir.Func
 }
 
 pub fn hasPrefix(table: ir.FunctionTable, prefix: ir.FunctionTable) bool {
-    if (!table.validStructure() or !prefix.validStructure() or table.count() < prefix.count()) return false;
+    if (!valid(&table) or !valid(&prefix) or table.count() < prefix.count()) return false;
 
     inline for (@typeInfo(ir.FunctionTable).@"struct".field_names) |name| {
         if (!sameColumn(@field(table, name), @field(prefix, name))) return false;
     }
 
     return true;
+}
+
+pub fn appendTail(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?*const ir.FunctionTable) ?ir.FunctionTable {
+    if (!hasPrefix(table, prefix)) return null;
+
+    if (separate) |suffix| {
+        if (table.count() != prefix.count() or !valid(suffix)) return null;
+
+        return suffix.*;
+    }
+
+    return table.suffix(prefix.count());
 }
 
 /// A table that extends another in place shares its columns, which settles the prefix without comparing rows.

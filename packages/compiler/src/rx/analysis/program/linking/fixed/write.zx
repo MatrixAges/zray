@@ -1,26 +1,17 @@
 import integers from "std:integer"
 import memory from "std:memory"
 import { max_u32 } from "core/const"
+import { ExpressionKind } from "core/expression_table/kinds"
 
 import symbol from "../operands/symbol"
 
 import type { OptionalU32Buffer, U32Buffer } from "std:memory"
 import type { Symbols } from "../operands/model"
 
-export enum Mode {
-    Expression,
-    Symbol,
-    Raw
-}
-
-export type Column = {
-    value: u32,
-    mode: Mode,
-    target: U32Buffer
-}
-
 export type Input = {
-    columns: Column[],
+    kind: ExpressionKind,
+    values: u32[],
+    target: U32Buffer,
     mapping: u32[],
     symbols: Symbols,
     optional_symbol?: u32,
@@ -30,26 +21,43 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
+    const width = in.values.length
+
+    const expressions = match in.kind {
+        ExpressionKind.Reference => 0,
+        ExpressionKind.Field => 1,
+        ExpressionKind.TupleField => 1,
+        ExpressionKind.Iteration => 3,
+        _ => width
+    }
+
+    const mapped = match in.kind {
+        ExpressionKind.Field => expressions,
+        ExpressionKind.TupleField => expressions,
+        _ => width
+    }
+
     const written = loop({
         position: 0,
         valid: true
     }, {
-        while: state => state.valid && state.position < in.columns.length,
+        while: state => state.valid && state.position < width,
         next: state => {
-            const column = in.columns[state.position]
-            const value = match column.mode {
-                Mode.Expression => in.mapping[integers.widen(column.value)],
-                Mode.Symbol => symbol({
+            const position = state.position
+            const source = in.values[position]
+            const value = match {
+                position < expressions => in.mapping[integers.widen(source)],
+                position < mapped => symbol({
                     symbols: in.symbols,
-                    source: column.value
+                    source
                 }),
-                _ => column.value
+                _ => source
             }
 
-            state.valid = column.mode == Mode.Raw || value != max_u32
+            state.valid = position >= mapped || value != max_u32
 
             if (state.valid) {
-                memory.writeU32(column.target, 0, value)
+                memory.writeU32(in.target, position, value)
             }
 
             state.position += 1

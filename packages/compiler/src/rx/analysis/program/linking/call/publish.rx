@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Call" />
+
+    <Args in={Call.Input} out={void} />
+
+    <Call fn="operands" in={$in.operands} />
+    <Call fn="../operands/range" in={$in.stores} />
+    <Call fn="../write_header" in={$in.row} />
+</Module>

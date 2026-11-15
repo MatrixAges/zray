@@ -4,9 +4,14 @@ import type { Stores } from "core/store_table/model"
 import type { Symbols, Ownership } from "core/symbol_table/model"
 import type { Tables } from "core/type_table/model"
 
-export type Functions = {
+export type FunctionColumns = {
     ownership: Ownership[],
     stores: Stores[]
+}
+
+export type Functions = {
+    base: FunctionColumns,
+    suffix?: FunctionColumns
 }
 
 export type Program = {

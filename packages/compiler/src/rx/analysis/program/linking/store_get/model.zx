@@ -1,0 +1,7 @@
+import type { Input as Row } from "../write_header"
+import type { Input as Slot } from "./slot"
+
+export type Input = {
+    row: Row,
+    store: Slot
+}

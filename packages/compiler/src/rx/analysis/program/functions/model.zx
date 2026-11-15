@@ -1,3 +1,4 @@
+import type { Complete } from "core/function_table/complete"
 import type { Stores } from "core/store_table/model"
 
 export type Header = {
@@ -10,6 +11,17 @@ export type Header = {
 }
 
 export type Shared = {
-    actual: Header,
-    expected: Header
+    actual: Complete.Pick("files", "input_types", "output_types", "stores") & {
+        ownership: u8[],
+        store_modes: u8[]
+    },
+    expected: Header,
+    index: u64,
+    initializers_shared: bool
+}
+
+export enum Reuse {
+    Invalid,
+    Checked,
+    CheckInitializers
 }

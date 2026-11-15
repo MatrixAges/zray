@@ -1,0 +1,9 @@
+import type { Input as Stores } from "../operands/range"
+import type { Input as Header } from "../write_header"
+import type { Input as Operands } from "./operands"
+
+export type Input = {
+    row: Header,
+    operands: Operands,
+    stores: Stores
+}

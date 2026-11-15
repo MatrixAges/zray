@@ -50,15 +50,7 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
     if (!shared or !sameView(program.native_modules, destination.native_modules.view())) return error.InvalidModule;
 
     const table = @import("function_table.zig");
-
-    if (!table.hasPrefix(program.functions, base)) return error.InvalidModule;
-
-    const tail = if (input.function_suffix) |suffix| split: {
-        if (program.functions.count() != base.count() or !suffix.validStructure()) return error.InvalidModule;
-
-        break :split suffix;
-    } else program.functions.suffix(base.count());
-
+    const tail = table.appendTail(program.functions, base, if (input.function_suffix) |*suffix| suffix else null) orelse return error.InvalidModule;
     const count = std.math.add(usize, base.count(), tail.count()) catch return error.OutOfMemory;
     const checks = @import("../../ir/validate.zig");
 

@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const function_link = @import("functions.zig");
+const Schedule = @import("statements/schedule.zig");
 const Self = @This();
 const StoreInitializer = @import("frontend").project.compiled.StoreInitializer;
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, UnreachableFlow, IncompleteFlow };
@@ -25,7 +26,7 @@ pub fn symbol(self: *Self, name: []const u8, type_id: ir.TypeId, span: zx.Span) 
     return id;
 }
 
-pub fn expression(self: *Self, value: ir.Expression) std.mem.Allocator.Error!ir.ExprId {
+pub fn seedExpression(self: *Self, value: ir.Expression) std.mem.Allocator.Error!ir.ExprId {
     const id: ir.ExprId = @fromBackingInt(@intCast(self.expressions.count()));
     _ = try self.expressions.append(self.allocator, value);
 
@@ -42,28 +43,35 @@ pub fn expressionType(self: *const Self, id: ir.ExprId) ir.TypeId {
     return @fromBackingInt(self.expressions.types.items[@backingInt(id)]);
 }
 
-pub fn importFunction(self: *Self, program: ir.Program, initializers: []const StoreInitializer, existing: ?ir.FunctionId) Error!ir.FunctionId {
+pub fn importFunction(self: *Self, program: ir.Program, suffix: ?*const ir.FunctionTable, initializers: []const StoreInitializer, existing: ?ir.FunctionId) Error!ir.FunctionId {
     if (existing) |id| {
-        const row = @backingInt(id);
+        if (suffix != null) return error.InvalidModule;
 
-        if (row >= self.base_functions.count()) return error.InvalidModule;
-        if (!function_link.shared(&self.base_functions, row, &program)) return error.InvalidModule;
+        const checked = self.store_initializers.alreadyChecked(initializers);
 
-        if (!self.store_initializers.alreadyChecked(initializers)) {
-            for (initializers) |initial| try self.initializer(initial);
+        switch (function_link.shared(&self.base_functions, @backingInt(id), &program, checked)) {
+            .Invalid => return error.InvalidModule,
+            .Checked => {},
+            .CheckInitializers => for (initializers) |initial| try self.initializer(initial),
         }
 
         return id;
     }
 
+    if (initializers.len == 0) return self.appendFunction(.ImportFunctions, program, suffix, initializers);
+
+    return self.appendFunction(.ImportFunctionsAndInitializers, program, suffix, initializers);
+}
+
+fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program, suffix: ?*const ir.FunctionTable, initializers: []const StoreInitializer) Error!ir.FunctionId {
     const prefix = self.base_functions;
     const base_count = prefix.count();
-
-    if (!@import("frontend").project.artifact.function_table.hasPrefix(program.functions, prefix)) return error.InvalidModule;
-
+    const table = @import("frontend").project.artifact.function_table;
+    const tail = table.appendTail(program.functions, prefix, suffix) orelse return error.InvalidModule;
     const Nodes = @import("frontend").ArtifactNodes;
     const first = std.math.add(usize, base_count, self.functions.count()) catch return error.OutOfMemory;
-    const range = try @import("frontend").project.artifact.function_table.range(first, program.functions.count(), base_count, self.types.count(), self.native_modules.count());
+    const count = std.math.add(usize, base_count, tail.count()) catch return error.OutOfMemory;
+    const range = try table.range(first, count, base_count, self.types.count(), self.native_modules.count());
 
     var nodes = Nodes{
         .allocator = self.allocator,
@@ -76,32 +84,36 @@ pub fn importFunction(self: *Self, program: ir.Program, initializers: []const St
         .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
     };
 
-    nodes.appendFunctions(&self.functions, program.functions.suffix(base_count)) catch |err| return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
+    inline for (comptime Schedule.steps(form)) |step| {
+        switch (step) {
+            .Done => {},
+            .AppendFunctionTail => nodes.appendFunctions(&self.functions, tail) catch |err| return linkFailure(err),
+            .LinkInitializers => for (initializers) |initial| {
+                const mapped = nodes.remapInitializer(initial, false) catch |err| return linkFailure(err);
 
-    for (initializers) |initial| {
-        var mapped = initial;
-
-        mapped.function = nodes.functionId(initial.function) catch return error.InvalidModule;
-
-        try self.initializer(mapped);
+                try self.initializer(mapped);
+            },
+            .AppendFunctionEntry => nodes.appendFunction(&self.functions, .{
+                .file_name = program.file_name,
+                .stores = program.stores,
+                .store_mode = program.store_mode,
+                .input_type = program.input_type,
+                .output_type = program.output_type,
+                .output_ownership = program.output_ownership,
+                .symbols = program.symbols,
+                .expressions = program.expressions,
+                .body = program.body,
+                .contracts = program.contracts,
+            }) catch |err| return linkFailure(err),
+            else => unreachable,
+        }
     }
 
-    const id: ir.FunctionId = @fromBackingInt(range.root);
+    return @fromBackingInt(range.root);
+}
 
-    nodes.appendFunction(&self.functions, .{
-        .file_name = program.file_name,
-        .stores = program.stores,
-        .store_mode = program.store_mode,
-        .input_type = program.input_type,
-        .output_type = program.output_type,
-        .output_ownership = program.output_ownership,
-        .symbols = program.symbols,
-        .expressions = program.expressions,
-        .body = program.body,
-        .contracts = program.contracts,
-    }) catch |err| return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
-
-    return id;
+fn linkFailure(err: anyerror) Error {
+    return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
 }
 
 pub fn store(self: *Self, value: ir.StoreSlot) Error!u32 {

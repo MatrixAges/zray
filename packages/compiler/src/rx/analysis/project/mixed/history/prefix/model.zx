@@ -1,3 +1,5 @@
+import type { Ranges } from "../../../source_graph/source"
+
 export type Dependencies = {
     compiled: bool[],
     starts: u64[],
@@ -29,11 +31,11 @@ export type Input = {
     first: u64,
     end: u64,
     entry: u64,
-    zx_count: u64,
+    sources: Ranges,
     history: History
 }
 
 export type Output = {
     position: u64,
-    inspect_signature: bool
+    inspect_source: bool
 }

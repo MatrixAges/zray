@@ -3,12 +3,12 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Facts = @import("check.zig").Facts;
 
-pub fn facts(allocator: std.mem.Allocator, program: ir.Program, reporter: *zx.Reporter) zx.Error!Facts {
+pub fn facts(allocator: std.mem.Allocator, program: ir.Program, suffix: zx.ir.FunctionTable, reporter: *zx.Reporter) zx.Error!Facts {
     var arena = zx.Arena.init(allocator);
 
     defer arena.deinit();
 
-    const outcome = @import("input.zig").execute(arena.allocator(), program) catch |err| switch (err) {
+    const outcome = @import("input.zig").execute(arena.allocator(), program, suffix) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => return reporter.fail(.contract, .{ .start = 0, .end = 0 }, try std.fmt.allocPrint(allocator, "internal compiler error: generated ownership check failed with {s}", .{@errorName(err)})),
     };

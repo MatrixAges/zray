@@ -8,6 +8,9 @@ const Plan = @import("control/plan.zig");
 const Writer = @import("control/writer.zig");
 const Schedule = @import("statements/schedule.zig");
 const inlineValue = @import("expression.zig").inlineValue;
+const write_call = @import("linking/call/host.zig");
+const direct = @import("linking/direct.zig");
+const generated = @import("rx_options").generated_graph;
 const Self = @This();
 
 builder: *Builder,
@@ -169,21 +172,28 @@ fn lowerCall(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cu
             .Done => {},
             .BindGetters => try self.bindGetters(cursor, invocation.getters, location),
             .EvaluateArgument => argument = try inlineValue(builder, invocation.argument, self.retain_metadata),
-            .UnitArgument => argument = try builder.expression(.{ .type_id = @fromBackingInt(@intCast(@backingInt(ir.Scalar.void))), .span = location, .value = .unit }),
+            .UnitArgument => argument = try direct.unit(builder, location),
             .RestoreBindings => builder.bindings.shrinkRetainingCapacity(count),
             .ResolveStores => {
                 const slots = invocation.callee.stores;
 
-                stores = try builder.allocator.alloc(u32, slots.count());
+                stores = if (comptime generated)
+                    try write_call.prepare(builder, slots.count())
+
+                else
+                    try builder.allocator.alloc(u32, slots.count());
 
                 for (stores, 0..) |*mapped, index| mapped.* = try builder.store(slots.at(index));
             },
-            .ImportCallee => function = try builder.importFunction(invocation.callee, invocation.store_initializers, invocation.function_id),
-            .WriteCall => call_id = try builder.expression(.{
-                .type_id = invocation.callee.output_type,
-                .span = builder.expressionSpan(argument),
-                .value = .{ .call = .{ .function = function, .argument = argument, .stores = stores } },
-            }),
+            .ImportCallee => function = try builder.importFunction(invocation.callee, invocation.callee_suffix, invocation.store_initializers, invocation.function_id),
+            .WriteCall => call_id = if (comptime generated)
+                try write_call.publish(builder, function, argument, invocation.callee.output_type, stores.len)
+            else
+                try builder.seedExpression(.{
+                    .type_id = invocation.callee.output_type,
+                    .span = builder.expressionSpan(argument),
+                    .value = .{ .call = .{ .function = function, .argument = argument, .stores = stores } },
+                }),
             else => unreachable,
         }
     }
@@ -196,7 +206,7 @@ fn bindGetters(self: *const Self, cursor: *Writer.Cursor, getters: @FieldType(Mo
 
     for (getters) |getter| {
         const slot = try builder.store(getter.slot);
-        const snapshot = try builder.expression(.{ .type_id = getter.slot.type_id, .span = location, .value = .{ .store_get = slot } });
+        const snapshot = try direct.storeGet(builder, slot, getter.slot.type_id, location);
         const symbol = try builder.symbol(getter.name, getter.slot.type_id, location);
 
         self.writer.constant(cursor, symbol, snapshot);

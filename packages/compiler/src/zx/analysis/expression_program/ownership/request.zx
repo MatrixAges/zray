@@ -16,8 +16,10 @@ export default function (in: Input): Output {
         control: in.state.local.control,
         body: in.root,
         functions: {
-            ownership: [],
-            stores: []
+            base: {
+                ownership: [],
+                stores: []
+            }
         },
         type_only: false
     }

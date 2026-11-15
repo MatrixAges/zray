@@ -1,0 +1,16 @@
+import type { StringBuffer, U8Buffer } from "std:memory"
+
+export type Column = {
+    source: u8[],
+    target: U8Buffer
+}
+
+export type Text = {
+    source: string[],
+    target: StringBuffer
+}
+
+export type Input = {
+    columns: Column[],
+    owned_text?: Text
+}

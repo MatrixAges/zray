@@ -25,19 +25,7 @@
         <Return value={false} />
     </If>
 
-    <If on={$in.signature != null}>
-        <Call fn="../../../../../zx/ir/compare/columns" in={$in.signature} />
+    <Call fn="changed" in={$in.dependencies} />
 
-        <If on={!$ctx.columns}>
-            <Return value={false} />
-        </If>
-    </If>
-
-    <If on={$in.dependencies != null}>
-        <Call fn="changed" in={$in.dependencies} />
-
-        <Return value={!$ctx.changed} />
-    </If>
-
-    <Return value={true} />
+    <Return value={!$ctx.changed} />
 </Module>

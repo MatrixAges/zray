@@ -16,6 +16,7 @@ end: usize,
 positions: [chunk_size]u64 = undefined,
 first: usize = 0,
 count: usize = 0,
+signature_checks: u64 = 0,
 pub fn next(self: *Self) ?Item {
     const graph = &self.state.graph;
 
@@ -26,13 +27,18 @@ pub fn next(self: *Self) ?Item {
             if (self.count == 0) return null;
         }
 
-        const position: usize = @intCast(self.positions[self.first]);
+        const row = self.first;
+        const position: usize = @intCast(self.positions[row]);
         const index = graph.order[position];
         self.first += 1;
 
-        const check_history = if (comptime enabled) index >= graph.sources.zx_count else true;
+        const reused = if (comptime enabled) reuse: {
+            if ((self.signature_checks & (@as(u64, 1) << @as(u6, @intCast(row)))) == 0) break :reuse false;
 
-        if (!check_history or !self.reuse.reusable(self.state, index, position)) {
+            break :reuse @import("../history/admit.zig").confirm(self.state, &self.reuse.derived, self.reuse.previous.?, index);
+        } else self.reuse.reusable(self.state, index, position);
+
+        if (!reused) {
             return .{ .position = position, .action = if (index < graph.sources.zx_count) .AnalyzeZX else .LowerRX };
         }
     }
@@ -67,6 +73,7 @@ fn fill(self: *Self) void {
     self.position = @intCast(result.next);
     self.first = 0;
     self.count = @intCast(result.count);
+    self.signature_checks = result.signature_checks;
 }
 
 fn fillSeed(self: *Self) void {

@@ -3,9 +3,11 @@ import memory from "std:memory"
 import { max_u32 } from "core/const"
 
 import type { U32Buffer } from "std:memory"
+import type { SourceRange } from "./model"
 
 export type Input = {
     source: u32[],
+    source_range: SourceRange,
     mapping: u32[],
     target: U32Buffer
 }
@@ -13,7 +15,9 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
-    const count = in.source.length
+    const count = integers.widen(in.source_range.count)
+    const first = integers.widen(in.source_range.first)
+    const source = memory.borrowU32Range(in.source, first, count)
 
     return loop({
         position: 0,
@@ -21,7 +25,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.position < count,
         next: state => {
-            const id = in.mapping[integers.widen(in.source[state.position])]
+            const id = in.mapping[integers.widen(source[state.position])]
 
             if (id == max_u32) {
                 state.valid = false

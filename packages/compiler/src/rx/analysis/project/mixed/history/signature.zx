@@ -1,0 +1,54 @@
+import bytes from "std:bytes"
+
+export type Signature = {
+    input_type: u32,
+    output_type: u32,
+    binding_types: u8[],
+    task_types: u8[],
+    bindings: string[]
+}
+
+export type Input = {
+    previous: Signature,
+    current: Signature
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { previous, current } = in
+
+    const input_matches = previous.input_type == current.input_type
+    const output_matches = previous.output_type == current.output_type
+
+    if (!input_matches || !output_matches) {
+        return false
+    }
+
+    if (!bytes.equals(previous.binding_types, current.binding_types)) {
+        return false
+    }
+
+    if (!bytes.equals(previous.task_types, current.task_types)) {
+        return false
+    }
+
+    const count = previous.bindings.length
+
+    if (count != current.bindings.length) {
+        return false
+    }
+
+    return loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < count,
+        next: state => {
+            const index = state.index
+            state.equal = previous.bindings[index] == current.bindings[index]
+            state.index += 1
+        },
+        return: state => state.equal
+    })
+}

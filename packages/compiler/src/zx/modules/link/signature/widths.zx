@@ -1,0 +1,46 @@
+import integer from "std:integer"
+import { max_u32 } from "core/const"
+
+import type { Table } from "core/signature_table/model"
+
+export type Input = Table
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const count = in.files.length
+    const index_limit = integer.widen(max_u32)
+
+    const input_types_match = in.input_types.length == count
+    const output_types_match = in.output_types.length == count
+    const native_inputs_match = in.native_inputs.length == count
+    const native_modules_match = in.native_modules.length == count
+    const native_members_match = in.native_members.length == count
+    const native_exports_match = in.native_exports.length == count
+    const allocators_match = in.native_allocators.length == count
+    const process_match = in.native_process.length == count
+    const tuples_match = in.native_tuples.length == count
+    const fallible_match = in.native_fallible.length == count
+    const errors_match = in.native_errors.length == count
+    const concurrent_match = in.native_concurrent.length == count
+
+    const matching = (
+        - count <= index_limit
+        - and input_types_match
+        - and output_types_match
+        - and in.ownership.length == count
+        - and native_inputs_match
+        - and native_modules_match
+        - and native_members_match
+        - and native_exports_match
+        - and allocators_match
+        - and in.native_io.length == count
+        - and process_match
+        - and tuples_match
+        - and fallible_match
+        - and errors_match
+        - and concurrent_match
+    )
+
+    return matching
+}

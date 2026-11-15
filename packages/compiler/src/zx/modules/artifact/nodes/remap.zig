@@ -8,8 +8,42 @@ const Error = @import("../model.zig").Error;
 const Input = std.meta.Child(generated.Input);
 const Mapping = std.meta.Child(@FieldType(Input, "type_mapping"));
 const Output = @typeInfo(@TypeOf(generated.executeValue(undefined, undefined))).error_union.payload;
-const FunctionInput = std.meta.Child(functions.Input);
-const FunctionOutput = @typeInfo(@TypeOf(functions.executeValue(undefined, undefined))).error_union.payload;
+const Admission = std.meta.Child(functions.Input);
+const FunctionInput = std.meta.Child(@FieldType(Admission, "source"));
+pub const FunctionOutput = @typeInfo(@typeInfo(@TypeOf(functions.executeValue(undefined, undefined))).error_union.payload).optional.child;
+
+pub const BodyColumns = struct {
+    input_type: ir.TypeId,
+    output_type: ir.TypeId,
+    native_module: ?ir.NativeModuleId,
+    symbols: *const ir.SymbolTable,
+    expressions: *const ir.ExpressionTable,
+    contracts: *const ir.ContractTable,
+    stores: *const ir.StoreTable,
+    pub fn borrow(value: *const ir.Function) BodyColumns {
+        return .{
+            .input_type = value.input_type,
+            .output_type = value.output_type,
+            .native_module = if (value.external) |external| external.module else null,
+            .symbols = &value.symbols,
+            .expressions = &value.expressions,
+            .contracts = &value.contracts,
+            .stores = &value.stores,
+        };
+    }
+
+    pub fn at(table: *const ir.FunctionTable, row: usize) BodyColumns {
+        return .{
+            .input_type = @fromBackingInt(table.input_types[row]),
+            .output_type = @fromBackingInt(table.output_types[row]),
+            .native_module = if (table.native_modules[row]) |id| @fromBackingInt(id) else null,
+            .symbols = table.symbols[row],
+            .expressions = table.expressions[row],
+            .contracts = table.contracts[row],
+            .stores = table.stores[row],
+        };
+    }
+};
 
 pub fn columns(allocator: std.mem.Allocator, nodes: *const Nodes, types: []const u32, calls: []const u32) Error!Output {
     if (types.len == 0 and calls.len == 0) return .{ .types = &.{}, .functions = &.{} };
@@ -27,14 +61,21 @@ pub fn columns(allocator: std.mem.Allocator, nodes: *const Nodes, types: []const
     return zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| return failure(err);
 }
 
-pub fn function(nodes: *const Nodes, value: *const ir.Function, candidate: ?ir.FunctionId, structure: Nodes.Structure) Error!FunctionOutput {
-    if (structure == .unchecked and !validFunctionColumns(value)) return error.InvalidModule;
-
+pub fn function(nodes: *const Nodes, body: BodyColumns, candidate: ?ir.FunctionId, structure: Nodes.Structure) Error!FunctionOutput {
     var view: FunctionView(FunctionInput) = undefined;
 
-    view.init(nodes, value, candidate);
+    view.initColumns(nodes, body, candidate);
 
-    return zx.columns.invoke(functions.executeValue, nodes.allocator, @as(*const FunctionInput, &view.input)) catch |err| return failure(err);
+    const input: Admission = .{
+        .source = &view.input,
+        .stores = zx.columns.pointer(@FieldType(Admission, "stores"), body.stores),
+        .checked = structure == .validated,
+        .max_offset = std.math.maxInt(usize),
+    };
+
+    const mapped = zx.columns.invoke(functions.executeValue, nodes.allocator, &input) catch |err| return failure(err);
+
+    return mapped orelse error.InvalidModule;
 }
 
 pub fn FunctionView(comptime T: type) type {
@@ -53,15 +94,18 @@ pub fn FunctionView(comptime T: type) type {
         contracts: Contracts,
         input: T,
         pub fn init(self: *Self, nodes: *const Nodes, value: *const ir.Function, candidate: ?ir.FunctionId) void {
+            self.initColumns(nodes, BodyColumns.borrow(value), candidate);
+        }
+        fn initColumns(self: *Self, nodes: *const Nodes, value: BodyColumns, candidate: ?ir.FunctionId) void {
             self.types = typeMapping(FunctionMapping, nodes.types);
             self.functions = idMapping(FunctionMapping, nodes.functions);
             self.natives = idMapping(FunctionMapping, nodes.native_modules);
-            self.contracts = zx.columns.columns(Contracts, value.contracts);
+            self.contracts = zx.columns.columns(Contracts, value.contracts.*);
 
             self.ports = .{
                 .input = @backingInt(value.input_type),
                 .output = @backingInt(value.output_type),
-                .native_module = if (value.external) |external| @backingInt(external.module) else null,
+                .native_module = if (value.native_module) |id| @backingInt(id) else null,
             };
 
             self.input = .{
@@ -70,8 +114,8 @@ pub fn FunctionView(comptime T: type) type {
                 .natives = &self.natives,
                 .ports = &self.ports,
                 .contracts = &self.contracts,
-                .symbols = zx.columns.pointer(Symbols, &value.symbols),
-                .expressions = zx.columns.pointer(Expressions, &value.expressions),
+                .symbols = zx.columns.pointer(Symbols, value.symbols),
+                .expressions = zx.columns.pointer(Expressions, value.expressions),
                 .stores = value.stores.types,
                 .candidate = if (candidate) |id| @backingInt(id) else null,
             };

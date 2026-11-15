@@ -6,6 +6,7 @@ import type { Expressions } from "core/expression_table/model"
 export type Input = {
     expressions: Expressions,
     allowed: bool[],
+    suffix?: bool[],
     self_function?: u64,
     limit: u64,
     concurrent: bool
@@ -17,6 +18,7 @@ export default function (in: Input): Output {
     return loop({
         expressions: in.expressions,
         allowed: in.allowed,
+        suffix: in.suffix,
         self_function: in.self_function,
         limit: in.limit,
         concurrent: in.concurrent,
@@ -65,10 +67,15 @@ export default function (in: Input): Output {
                         _ => target == current.self_function
                     }
 
+                    const prefix_count = current.allowed.length
+                    const suffix = current.suffix
+
                     current.valid = match {
                         !no_stores => false,
                         self_call => true,
-                        target < current.limit => current.allowed[target],
+                        target >= current.limit => false,
+                        target < prefix_count => current.allowed[target],
+                        suffix != null => suffix[target - prefix_count],
                         _ => false
                     }
                 }

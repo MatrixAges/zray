@@ -95,13 +95,8 @@ fn parallel(self: *Self, branches: Prepared.Unit) Error!Flow.Step {
                     else => unreachable,
                 };
 
-                if (!try frontend.isParallelSafe(self.allocator, self.calls.items[id].callee)) {
-                    const location = switch (kind) {
-                        .Call => self.loaded[index].node.location,
-                        .ParallelTask => plan.tasks[index].node.location,
-                        else => unreachable,
-                    };
-
+                if (kind == .Call and !try frontend.isParallelSafe(self.allocator, self.calls.items[id].callee)) {
+                    const location = self.loaded[index].node.location;
                     self.issue = .{ .location = location, .issue = .{ .code = .unsupported, .span = .{ .start = location.offset, .end = location.offset }, .message = "Parallel branches require pure functions without Store capabilities or native external calls" } };
 
                     return error.InvalidFlow;

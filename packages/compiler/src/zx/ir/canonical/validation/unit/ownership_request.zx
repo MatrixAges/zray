@@ -28,8 +28,10 @@ export default function (in: Input): Output {
         control: in.unit.body.control,
         body: in.unit.body.root,
         functions: {
-            ownership: in.context.functions.ownership,
-            stores: in.context.functions.stores
+            base: {
+                ownership: in.context.functions.ownership,
+                stores: in.context.functions.stores
+            }
         },
         type_only: in.unit.type_only
     }

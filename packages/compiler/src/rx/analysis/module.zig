@@ -13,7 +13,16 @@ pub const Options = struct {
     project: frontend.project.Options = .{ .entry = "" },
 };
 
-pub const Call = struct { function_id: ?zx.ir.FunctionId = null, store_initializers: @FieldType(frontend.AnalysisResult, "store_initializers") = &.{}, getters: []const @import("store.zig").Binding = &.{}, callee: zx.ir.Program, argument: zx.ir.Program, input_omitted: bool = false, out: ?[]const u8 };
+pub const Call = struct {
+    function_id: ?zx.ir.FunctionId = null,
+    store_initializers: @FieldType(frontend.AnalysisResult, "store_initializers") = &.{},
+    getters: []const @import("store.zig").Binding = &.{},
+    callee: zx.ir.Program,
+    callee_suffix: ?*const zx.ir.FunctionTable = null,
+    argument: zx.ir.Program,
+    input_omitted: bool = false,
+    out: ?[]const u8,
+};
 
 pub const Contract = struct {
     entry_function: ?zx.ir.FunctionId = null,
@@ -22,6 +31,7 @@ pub const Contract = struct {
     store_initializers: @FieldType(frontend.AnalysisResult, "store_initializers") = &.{},
     store_definitions: []const @import("store.zig").Definition = &.{},
     program: zx.ir.Program,
+    function_suffix: zx.ir.FunctionTable = .{},
     types: zx.ir.TypeTable,
     nominal_types: @FieldType(frontend.AnalysisResult, "nominal_types"),
     input_type: zx.ir.TypeId,

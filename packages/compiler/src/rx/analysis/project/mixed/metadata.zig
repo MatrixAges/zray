@@ -8,6 +8,11 @@ pub fn retain(allocator: std.mem.Allocator, contract: *Module.Contract) std.mem.
     const calls = try allocator.dupe(Module.Call, contract.calls);
 
     for (calls) |*call| {
+        if (call.callee_suffix) |tail| {
+            call.callee.functions = try frontend.project.artifact.function_table.join(allocator, call.callee.functions, tail.*);
+            call.callee_suffix = null;
+        }
+
         call.callee.types = types;
         call.callee.native_modules = native_modules;
         call.argument.types = types;

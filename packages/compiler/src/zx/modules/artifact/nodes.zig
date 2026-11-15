@@ -6,6 +6,7 @@ const Error = @import("model.zig").Error;
 const Self = @This();
 const IdMap = @import("nodes/id_map.zig").Map;
 const own = @import("nodes/columns.zig").own;
+const remap = @import("nodes/remap.zig");
 const generated = @import("parser_options").generated_parser;
 
 pub const TypeMap = union(enum) {
@@ -52,27 +53,62 @@ pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.Func
     const count = table.count();
 
     if (count == 0) return;
-    if (comptime generated) try storage.reserve(self.allocator, count);
-    for (0..count) |index| try self.appendFunctionAssumeCapacity(storage, table.at(index));
+
+    if (comptime generated) {
+        try storage.reserve(self.allocator, count);
+
+        for (0..count) |row| {
+            const signature = ir.SignatureTable.read(&table, row);
+            const control = table.controlAt(row);
+            const columns = remap.BodyColumns.at(&table, row);
+
+            try self.appendLinked(storage, signature, table.store_modes[row], control, columns);
+        }
+    } else {
+        for (0..count) |row| try storage.append(self.allocator, try self.function(table.at(row)));
+    }
 }
 
 pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: ir.Function) Error!void {
-    if (comptime generated) try storage.reserve(self.allocator, 1);
-    try self.appendFunctionAssumeCapacity(storage, value);
-}
-
-fn appendFunctionAssumeCapacity(self: *Self, storage: *ir.FunctionStorage, value: ir.Function) Error!void {
     if (comptime generated) {
-        var descriptors: ir.FunctionStorage.Descriptors = undefined;
-        const linked = try self.linkedFunction(value, null, .unchecked, &descriptors);
+        try storage.reserve(self.allocator, 1);
 
-        storage.appendOwnedAssumeCapacity(linked.body, descriptors);
+        const signature: ir.Signature = .{
+            .file_name = value.file_name,
+            .input_type = value.input_type,
+            .output_type = value.output_type,
+            .output_ownership = value.output_ownership,
+            .external = value.external,
+        };
+
+        try self.appendLinked(storage, signature, value.store_mode, value.body, remap.BodyColumns.borrow(&value));
     } else {
         try storage.append(self.allocator, try self.function(value));
     }
 }
 
+fn appendLinked(self: *Self, storage: *ir.FunctionStorage, source: ir.Signature, store_mode: ir.StoreMode, body_value: ir.ControlBody, columns: remap.BodyColumns) Error!void {
+    const linked = try self.linkBody(columns, body_value, null, .unchecked);
+    const mapped = linked.mapped;
+
+    const signature: ir.Signature = .{
+        .file_name = try self.allocator.dupe(u8, source.file_name),
+        .input_type = @fromBackingInt(mapped.ports.input),
+        .output_type = @fromBackingInt(mapped.ports.output),
+        .output_ownership = source.output_ownership,
+        .external = if (source.external) |entry| try self.externalMapped(entry, @fromBackingInt(mapped.ports.native_module.?)) else null,
+    };
+
+    storage.appendBodyAssumeCapacity(signature, store_mode, linked.control, .{
+        .symbols = zx.columns.pointer(*const ir.SymbolTable, mapped.symbols),
+        .expressions = zx.columns.pointer(*const ir.ExpressionTable, mapped.expressions),
+        .stores = linked.stores,
+        .contracts = zx.columns.pointer(*const ir.ContractTable, mapped.contracts),
+    });
+}
+
 pub const Structure = enum { unchecked, validated };
+pub const remapInitializer = @import("nodes/initializer.zig").remap;
 
 pub const FunctionEntry = struct {
     body: ir.Function,
@@ -80,7 +116,15 @@ pub const FunctionEntry = struct {
 };
 
 pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
-    if (comptime generated) return self.linkedFunction(value, candidate, structure, null);
+    if (comptime generated) {
+        const linked = try self.linkBody(remap.BodyColumns.borrow(&value), value.body, candidate, structure);
+        const stores_view: ir.StoreTable = if (linked.stores) |table| table.* else .{};
+
+        return .{
+            .body = try self.ownFunction(&value, linked.mapped, stores_view, linked.control),
+            .recursive = if (linked.mapped.recursive) |id| @fromBackingInt(id) else null,
+        };
+    }
 
     var result = value;
 
@@ -99,20 +143,17 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
     return .{ .body = result, .recursive = recursive };
 }
 
-fn linkedFunction(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure, descriptors: ?*ir.FunctionStorage.Descriptors) Error!FunctionEntry {
-    const mapped = try @import("nodes/remap.zig").function(self, &value, candidate, structure);
-    const store_table = try @import("materializing/stores/host.zig").own(self.allocator, &value.stores, mapped.stores);
-    const control = try self.body(value.body, structure);
-    const body_value = try self.ownFunction(&value, mapped, if (store_table) |table| table.* else .{}, control);
+const LinkedBody = struct {
+    mapped: remap.FunctionOutput,
+    stores: ?*const ir.StoreTable,
+    control: ir.ControlBody,
+};
 
-    if (descriptors) |owned| owned.* = .{
-        .symbols = zx.columns.pointer(*const ir.SymbolTable, mapped.symbols),
-        .expressions = zx.columns.pointer(*const ir.ExpressionTable, mapped.expressions),
-        .stores = store_table,
-        .contracts = zx.columns.pointer(*const ir.ContractTable, mapped.contracts),
-    };
+fn linkBody(self: *Self, columns: remap.BodyColumns, control: ir.ControlBody, candidate: ?ir.FunctionId, structure: Structure) Error!LinkedBody {
+    const mapped = try remap.function(self, columns, candidate, structure);
+    const store_table = try @import("materializing/stores/host.zig").own(self.allocator, columns.stores, mapped.stores);
 
-    return .{ .body = body_value, .recursive = if (mapped.recursive) |id| @fromBackingInt(id) else null };
+    return .{ .mapped = mapped, .stores = store_table, .control = try self.body(control, structure) };
 }
 
 pub fn ownFunction(self: *Self, value: *const ir.Function, mapped: anytype, store_table: ir.StoreTable, control: ir.ControlBody) Error!ir.Function {

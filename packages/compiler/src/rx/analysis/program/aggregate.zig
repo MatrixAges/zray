@@ -1,22 +1,23 @@
 const ir = @import("zx").ir;
 const Builder = @import("builder.zig");
 const Mapping = @import("mapping.zig");
-const operands = @import("linking/operands.zig");
+const operands = @import("linking/operands/host.zig");
+const enabled = @import("rx_options").generated_graph;
 
 pub fn append(builder: *Builder, mapping: *const Mapping, table: *const ir.ExpressionTable, index: usize) Builder.Error!usize {
+    if (comptime !enabled) return @import("linking/operands/seed.zig").append(builder, mapping, table, index);
+
     const storage = &builder.expressions;
-    const row = table.at(index);
+    const allocator = builder.allocator;
     const payload = table.payloads[index];
 
-    try storage.reservePayload(builder.allocator, row);
-
-    return switch (row.value) {
-        .list, .tuple, .template => |items| operands.sequence(storage, mapping, @ptrCast(items)),
-        .list_operation => |operation| operands.collection(storage, mapping, operation, @backingInt(table.collection_kinds[payload])),
-        .transform => |operation| operands.transform(storage, mapping, operation, @backingInt(table.transform_kinds[payload])),
-        .scope => |value| operands.scope(storage, mapping, value),
-        .match_expr => |value| operands.match(storage, mapping, value),
-        .object => |value| operands.object(storage, mapping, value),
+    return switch (table.kinds[index]) {
+        .List, .Tuple, .Template => operands.sequence(storage, allocator, mapping, table, payload),
+        .ListOperation => operands.collection(storage, allocator, mapping, table, payload),
+        .Transform => operands.transform(storage, allocator, mapping, table, payload),
+        .Scope => operands.scope(storage, allocator, mapping, table, payload),
+        .Match => operands.match(storage, allocator, mapping, table, payload),
+        .Object => operands.object(storage, allocator, mapping, table, payload),
         else => unreachable,
     };
 }

@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Remap" />
+
+    <Args in={Remap.Admission} out={Remap.FunctionOutput?} />
+
+    <If on={!$in.checked}>
+        <Call
+            module="../../../ir/canonical/validation/function_columns"
+            in={{
+                stores: $in.stores,
+                symbols: $in.source.symbols,
+                expressions: $in.source.expressions,
+                contracts: $in.source.contracts,
+                max_offset: $in.max_offset
+            }}
+        />
+
+        <If on={!$ctx.function_columns}>
+            <Return value={null} />
+        </If>
+    </If>
+
+    <Call module="body_columns" in={$in.source} />
+
+    <Return value={$ctx.body_columns} />
+</Module>

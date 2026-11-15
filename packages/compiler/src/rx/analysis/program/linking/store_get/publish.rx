@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="StoreGet" />
+
+    <Args in={StoreGet.Input} out={void} />
+
+    <Call fn="slot" in={$in.store} />
+    <Call fn="../write_header" in={$in.row} />
+</Module>

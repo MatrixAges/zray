@@ -2,24 +2,30 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const generated = @import("rx_options").generated_graph;
+const rule = if (generated) @import("generated_rx_program_check_function") else void;
+pub const Reuse = if (generated) rule.Output else enum { Invalid, Checked, CheckInitializers };
 
-pub fn shared(actual: *const ir.FunctionTable, row: usize, expected: *const ir.Program) bool {
-    if (comptime !generated) return seedShared(&actual.at(row), expected);
+pub fn shared(actual: *const ir.FunctionTable, row: usize, expected: *const ir.Program, initializers_shared: bool) Reuse {
+    if (comptime !generated) {
+        if (row >= actual.count() or !seedShared(&actual.at(row), expected)) return .Invalid;
 
-    const rule = @import("generated_rx_program_check_function");
+        return if (initializers_shared) .Checked else .CheckInitializers;
+    }
+
     const Input = std.meta.Child(rule.Input);
-    const Header = std.meta.Child(@FieldType(Input, "actual"));
+    const Headers = std.meta.Child(@FieldType(Input, "actual"));
+    const Header = std.meta.Child(@FieldType(Input, "expected"));
     const Stores = @FieldType(Header, "stores");
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{
         .actual = &.{
-            .file_name = actual.files[row],
-            .input_type = actual.input_types[row],
-            .output_type = actual.output_types[row],
-            .ownership = @backingInt(actual.ownership[row]),
-            .store_mode = @backingInt(actual.store_modes[row]),
-            .stores = zx.columns.pointer(Stores, actual.stores[row]),
+            .files = actual.files,
+            .input_types = actual.input_types,
+            .output_types = actual.output_types,
+            .ownership = std.mem.sliceAsBytes(actual.ownership),
+            .store_modes = std.mem.sliceAsBytes(actual.store_modes),
+            .stores = zx.columns.slice(@FieldType(Headers, "stores"), actual.stores),
         },
         .expected = &.{
             .file_name = expected.file_name,
@@ -29,9 +35,11 @@ pub fn shared(actual: *const ir.FunctionTable, row: usize, expected: *const ir.P
             .store_mode = @backingInt(expected.store_mode),
             .stores = zx.columns.pointer(Stores, &expected.stores),
         },
+        .index = row,
+        .initializers_shared = initializers_shared,
     };
 
-    return zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+    return zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch .Invalid;
 }
 
 fn seedShared(actual: *const ir.Function, expected: *const ir.Program) bool {

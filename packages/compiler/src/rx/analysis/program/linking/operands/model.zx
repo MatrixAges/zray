@@ -3,3 +3,8 @@ export type Symbols = {
     locals_base: u64,
     count: u64
 }
+
+export type SourceRange = {
+    first: u32,
+    count: u32
+}

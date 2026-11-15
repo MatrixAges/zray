@@ -5,18 +5,22 @@ export type Input = Shared
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { actual, expected } = in
+    const { actual, expected, index } = in
 
-    const same_input = actual.input_type == expected.input_type
-    const same_output = actual.output_type == expected.output_type
+    if (index >= actual.files.length) {
+        return false
+    }
+
+    const same_input = actual.input_types[index] == expected.input_type
+    const same_output = actual.output_types[index] == expected.output_type
 
     const same_types = (
         - same_input
         - and same_output
     )
 
-    const same_ownership = actual.ownership == expected.ownership
-    const same_mode = actual.store_mode == expected.store_mode
+    const same_ownership = actual.ownership[index] == expected.ownership
+    const same_mode = actual.store_modes[index] == expected.store_mode
 
     const same_header = (
         - same_types
@@ -24,5 +28,5 @@ export default function (in: Input): Output {
         - and same_mode
     )
 
-    return same_header && actual.file_name == expected.file_name
+    return same_header && actual.files[index] == expected.file_name
 }

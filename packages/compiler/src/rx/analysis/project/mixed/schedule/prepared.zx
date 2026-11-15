@@ -1,0 +1,33 @@
+export type Input = {
+    positions: u64[],
+    first: u64,
+    end: u64,
+    workers: u64,
+    limit: u64,
+    minimum: u64
+}
+
+export type Output = {
+    consumed: u64,
+    participants: u64
+}
+
+export default function (in: Input): Output {
+    const count = in.positions.length
+
+    const next = match {
+        count == in.limit => in.positions[count - 1] + 1,
+        _ => in.end
+    }
+
+    const participants = match {
+        count < in.minimum => 0,
+        count < in.workers => count,
+        _ => in.workers
+    }
+
+    return {
+        consumed: next - in.first,
+        participants
+    }
+}

@@ -32,6 +32,7 @@ pub const compare_ir = @import("ir/compare/function.zig");
 pub const validateIrExtending = @import("ir/validate.zig").validateExtending;
 pub const checks_internal_ir = @import("ir/validate.zig").internal;
 pub const isParallelSafe = @import("ir/parallel.zig").programPure;
+pub const isParallelSafeWithSuffix = @import("ir/parallel.zig").programPureWithSuffix;
 pub const analyzeWithContext = @import("analysis/analyze.zig").analyzeWithContext;
 pub const Context = @import("analysis/analyze.zig").Context;
 pub const project = @import("modules/project.zig");
@@ -57,6 +58,7 @@ pub const artifact_json = struct {
 };
 
 pub const analyzeOwnership = @import("ownership/check.zig").analyze;
+pub const analyzeOwnershipWithSuffix = @import("ownership/check.zig").analyzeWithSuffix;
 pub const storesOwnValues = @import("ownership/stores.zig").check;
 pub const constants = @import("analysis/constants/host.zig");
 pub const copyConstant = @import("analysis/constants/copy.zig").copy;

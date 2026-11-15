@@ -6,6 +6,8 @@ const Mapping = @import("mapping.zig");
 const aggregate = @import("aggregate.zig");
 const fixed = @import("linking/fixed.zig");
 const headers = @import("linking/headers.zig");
+const literals = @import("linking/literals/host.zig");
+const generated = @import("rx_options").generated_graph;
 
 /// Borrowed symbol names and string literals must live as long as the destination program.
 pub fn inlineValue(builder: *Builder, program: ir.Program, borrow_text: bool) Builder.Error!ir.ExprId {
@@ -29,6 +31,7 @@ pub fn inlineValue(builder: *Builder, program: ir.Program, borrow_text: bool) Bu
 
     try builder.symbols.appendFresh(builder.allocator, program.symbols, local_first, borrow_text);
 
+    const literal_bases = if (comptime generated) try literals.publish(builder, &program.expressions, borrow_text) else undefined;
     const payloads = storage.payloads.unusedCapacitySlice()[0..plan.count];
 
     for (plan.rows, 0..) |row, index| {
@@ -38,7 +41,7 @@ pub fn inlineValue(builder: *Builder, program: ir.Program, borrow_text: bool) Bu
 
         const payload = switch (program.expressions.kinds[index]) {
             .List, .Tuple, .Template, .ListOperation, .Transform, .Scope, .Match, .Object => try aggregate.append(builder, &mapping, &program.expressions, index),
-            else => try fixed.append(builder, &mapping, &program.expressions, index, borrow_text),
+            else => try fixed.append(builder, &mapping, &program.expressions, index, borrow_text, &literal_bases),
         };
 
         payloads[row - base] = @intCast(payload);

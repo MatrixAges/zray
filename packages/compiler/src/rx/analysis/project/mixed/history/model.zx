@@ -1,6 +1,7 @@
 import type { ColumnPair } from "../../../../../zx/ir/compare/model"
 import type { Inputs as SourceInputs } from "../../history/model"
 import type { Input as Dependencies } from "./changed"
+import type { Input as Checkpoints } from "./checkpoint"
 import type { Extent } from "./extent"
 
 export type Alignment = {
@@ -40,6 +41,6 @@ export type Graph = {
 
 export type Start = {
     inputs: SourceInputs,
-    boundary: bool,
+    boundary: Checkpoints,
     graph: Graph
 }

@@ -98,7 +98,9 @@ pub fn lower(state: *const State, allocator: std.mem.Allocator, prepared: Prepar
 /// Whether a module lowered earlier can still be linked as it is: the tables it read may only have gained types, and
 /// functions when it adds none of its own.
 pub fn current(state: *const State, prepared: Prepared, contract: Module.Contract) bool {
-    return @import("body.zig").accept(state, prepared.native_modules, prepared.initializers, prepared.functions, contract.program.functions.count());
+    const count = contract.program.functions.count() + contract.function_suffix.count();
+
+    return @import("body.zig").accept(state, prepared.native_modules, prepared.initializers, prepared.functions, count);
 }
 
 /// Links a lowered module. The tables may have grown, and moved, since it was lowered, but the rows it read are
@@ -121,6 +123,7 @@ pub fn link(state: *State, allocator: std.mem.Allocator, prepared: Prepared, low
     const loaded = state.linked(Source.appendBody(.{
         .program = contract.program,
         .base_functions = base,
+        .function_suffix = if (contract.function_suffix.count() != 0) contract.function_suffix else null,
         .verified_functions = state.verifiedFunctions(),
         .nominal_types = contract.nominal_types,
         .store_initializers = contract.store_initializers,
@@ -135,6 +138,7 @@ pub fn link(state: *State, allocator: std.mem.Allocator, prepared: Prepared, low
     if (!entry) return .{ .loaded = loaded, .contract = null };
 
     contract.program = try @import("function.zig").view(state, loaded.function.?, state.functions.view());
+    contract.function_suffix = .{};
     contract.types = state.types.items.view();
     contract.nominal_types = state.types.origins.items.view();
     contract.native_modules = state.native_modules.view();

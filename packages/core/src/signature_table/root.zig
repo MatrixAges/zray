@@ -22,6 +22,10 @@ pub fn count(self: Self) usize {
 }
 
 pub fn at(self: Self, index: usize) ir.Signature {
+    return read(&self, index);
+}
+
+pub fn read(self: anytype, index: usize) ir.Signature {
     return .{
         .file_name = self.files[index],
         .input_type = @fromBackingInt(self.input_types[index]),

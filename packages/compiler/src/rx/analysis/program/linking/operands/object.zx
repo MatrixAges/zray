@@ -1,16 +1,21 @@
+import integers from "std:integer"
 import memory from "std:memory"
 
 import expressions from "./expressions"
 import writeRange from "./range"
 
 import type { U8Buffer, U32Buffer } from "std:memory"
+import type { SourceRange } from "./model"
 import type { Range } from "./range"
 
 export type Input = {
     mapping: u32[],
     fields: u32[],
     indices: u8[],
+    index_width: u64,
     evaluation: u32[],
+    source_fields: SourceRange,
+    source_evaluation: SourceRange,
     target_fields: U32Buffer,
     target_evaluation: U32Buffer,
     target_indices: U8Buffer,
@@ -23,6 +28,7 @@ export type Output = bool
 export default function (in: Input): Output {
     const fields = expressions({
         source: in.fields,
+        source_range: in.source_fields,
         mapping: in.mapping,
         target: in.target_fields
     })
@@ -33,6 +39,7 @@ export default function (in: Input): Output {
 
     const evaluation = expressions({
         source: in.evaluation,
+        source_range: in.source_evaluation,
         mapping: in.mapping,
         target: in.target_evaluation
     })
@@ -41,24 +48,29 @@ export default function (in: Input): Output {
         return false
     }
 
-    if (in.indices.length != 0) {
-        const count = memory.copyBytes(
+    const field_count = integers.widen(in.source_fields.count)
+
+    if (field_count != 0) {
+        const start = integers.widen(in.source_fields.first) * in.index_width
+        const end = start + field_count * in.index_width
+
+        const copied = memory.copyBytes(
             in.target_indices,
             0,
             in.indices,
-            0,
-            in.indices.length
+            start,
+            end
         )
     }
 
     writeRange({
         range: in.field_range,
-        count: in.fields.length
+        count: field_count
     })
 
     writeRange({
         range: in.evaluation_range,
-        count: in.evaluation.length
+        count: integers.widen(in.source_evaluation.count)
     })
 
     return true

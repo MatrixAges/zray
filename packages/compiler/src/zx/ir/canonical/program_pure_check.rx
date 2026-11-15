@@ -7,6 +7,7 @@
         in={{
             expressions: Payloads.Input,
             functions: Model.Functions,
+            suffix?: Model.Functions,
             stores: Absent.Input
         }}
         out={bool}
@@ -15,20 +16,46 @@
     <Call fn="./stores/absent" in={$in.stores} />
 
     <If on={$ctx.absent}>
-        <Call
-            fn="./functions/analyze"
-            in={{
-                functions: $in.functions,
-                concurrent: false
-            }}
-        />
+        <Task name="prefix" out={$ctx.analyze}>
+            <Call
+                fn="functions/analyze"
+                in={{
+                    functions: $in.functions,
+                    concurrent: false
+                }}
+            />
+        </Task>
+
+        <If on={$in.suffix != null}>
+            <Call
+                fn="functions/analyze"
+                in={{
+                    functions: $in.suffix,
+                    prefix: $ctx.task.prefix,
+                    concurrent: false
+                }}
+            />
+
+            <Call
+                fn="functions/calls"
+                in={{
+                    expressions: $in.expressions,
+                    allowed: $ctx.task.prefix,
+                    suffix: $ctx.analyze,
+                    limit: $ctx.task.prefix.length + $ctx.analyze.length,
+                    concurrent: false
+                }}
+            />
+
+            <Return value={$ctx.calls} />
+        </If>
 
         <Call
-            fn="./functions/calls"
+            fn="functions/calls"
             in={{
                 expressions: $in.expressions,
-                allowed: $ctx.analyze,
-                limit: $ctx.analyze.length,
+                allowed: $ctx.task.prefix,
+                limit: $ctx.task.prefix.length,
                 concurrent: false
             }}
         />

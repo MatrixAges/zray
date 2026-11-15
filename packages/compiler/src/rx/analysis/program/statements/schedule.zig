@@ -10,6 +10,8 @@ pub const Form = if (generated) rule.Input else enum {
     TaskWithBinding,
     Case,
     Default,
+    ImportFunctions,
+    ImportFunctionsAndInitializers,
 };
 
 const Step = if (generated) std.meta.Child(rule.Output) else enum {
@@ -20,6 +22,9 @@ const Step = if (generated) std.meta.Child(rule.Output) else enum {
     RestoreBindings,
     ResolveStores,
     ImportCallee,
+    AppendFunctionTail,
+    LinkInitializers,
+    AppendFunctionEntry,
     WriteCall,
     LowerTask,
     EvaluateTaskOutput,
@@ -53,5 +58,7 @@ fn seed(form: Form) []const Step {
         .TaskWithBinding => &.{ .LowerTask, .EvaluateTaskOutput, .DefineTaskBinding, .RestoreBindings, .PublishTaskBinding },
         .Case => &.{ .EvaluateLabel, .LowerBranch, .WriteCase },
         .Default => &.{ .LowerBranch, .WriteCase },
+        .ImportFunctions => &.{ .AppendFunctionTail, .AppendFunctionEntry },
+        .ImportFunctionsAndInitializers => &.{ .AppendFunctionTail, .LinkInitializers, .AppendFunctionEntry },
     };
 }

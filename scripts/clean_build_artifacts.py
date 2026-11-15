@@ -13,6 +13,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / ".zig-cache"
+KEEP_FILE = CACHE / ".cleanup-keep"
 HISTORY = CACHE / "cold-build-analysis"
 VERIFICATION_GLOBAL = CACHE / "verification-global"
 VERIFICATION_TEMP = CACHE / "verification-tmp"
@@ -272,18 +273,29 @@ def main():
     if not 0 <= options.min_age_hours < float("inf"):
         parser.error("--min-age-hours must be finite and nonnegative")
 
-    protected = [(ROOT / path).resolve() for path in options.keep]
-    if any(not path.is_relative_to(ROOT) for path in protected):
-        parser.error("--keep paths must be inside the repository")
-
     if CACHE.resolve() != CACHE:
         parser.error(".zig-cache must be inside the repository")
 
-    protected.extend(git_paths(
+    if KEEP_FILE.is_symlink():
+        parser.error(f"{KEEP_FILE.relative_to(ROOT)} must be a local file")
+
+    pinned = []
+    if KEEP_FILE.is_file():
+        pinned = [line for line in KEEP_FILE.read_text(encoding="utf-8").splitlines() if line]
+
+    protected = {(ROOT / path).resolve() for path in (*pinned, *options.keep)}
+    if any(path == ROOT or not path.is_relative_to(ROOT) for path in protected):
+        parser.error("retained paths must be specific paths inside the repository")
+
+    for path in sorted(protected):
+        if not path.exists():
+            print(f"Retained path is missing: {path.relative_to(ROOT)}", flush=True)
+
+    protected.update(git_paths(
         "--cached", "--", ".zig-cache", "zig-out",
         ":(glob)packages/*/.zig-cache/**", ":(glob)packages/*/zig-out/**",
     ))
-    protected.append(ROOT / "docs/user_request.jsonl")
+    protected.add(ROOT / "docs/user_request.jsonl")
 
     if not options.apply:
         return clean(options, protected)

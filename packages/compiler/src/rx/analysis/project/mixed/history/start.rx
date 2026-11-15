@@ -5,7 +5,13 @@
 
     <Call fn="../../history/inputs" in={$in.inputs} />
 
-    <If on={!$ctx.inputs || !$in.boundary}>
+    <If on={!$ctx.inputs}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="checkpoint" in={$in.boundary} />
+
+    <If on={!$ctx.checkpoint}>
         <Return value={false} />
     </If>
 

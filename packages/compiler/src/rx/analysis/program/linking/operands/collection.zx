@@ -6,6 +6,7 @@ import expressions from "./expressions"
 import writeRange from "./range"
 
 import type { U8Buffer, U32Buffer } from "std:memory"
+import type { SourceRange } from "./model"
 import type { Range } from "./range"
 
 export type Input = {
@@ -13,6 +14,7 @@ export type Input = {
     kind: u8,
     mapping: u32[],
     arguments: u32[],
+    source_range: SourceRange,
     target_arguments: U32Buffer,
     kinds: U8Buffer,
     targets: U32Buffer,
@@ -30,6 +32,7 @@ export default function (in: Input): Output {
 
     const valid = expressions({
         source: in.arguments,
+        source_range: in.source_range,
         mapping: in.mapping,
         target: in.target_arguments
     })
@@ -43,7 +46,7 @@ export default function (in: Input): Output {
 
     writeRange({
         range: in.range,
-        count: in.arguments.length
+        count: integers.widen(in.source_range.count)
     })
 
     return true

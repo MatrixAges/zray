@@ -4,12 +4,15 @@ import type { Functions } from "./model"
 
 export type Input = {
     functions: Functions,
+    prefix?: bool[],
     concurrent: bool
 }
 
 export type Output = bool[]
 
 export default function (in: Input): Output {
+    const prefix = in.prefix
+    const first = prefix == null ? 0 : prefix.length
     const values: bool[] = in.functions.native_modules.map(value => false)[0]
 
     return loop({
@@ -28,9 +31,10 @@ export default function (in: Input): Output {
                         current.functions.native_concurrent[current.index],
                     _ => calls({
                         expressions: current.functions.expressions[current.index],
-                        allowed: current.values,
-                        self_function: current.index,
-                        limit: current.index,
+                        allowed: prefix ?? current.values,
+                        suffix: prefix == null ? null : current.values,
+                        self_function: first + current.index,
+                        limit: first + current.index,
                         concurrent: current.concurrent
                     })
                 })

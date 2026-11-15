@@ -1,5 +1,5 @@
-import changed from "../changed"
-import sameZx from "./same_zx"
+import probe from "./probe"
+import { Decision } from "./probe"
 
 import type { Input as PrefixInput, Output as PrefixOutput } from "./model"
 
@@ -8,51 +8,34 @@ export type Input = PrefixInput
 export type Output = PrefixOutput
 
 export default function (in: Input): Output {
-    const { order, entry, end, zx_count, history } = in
-    const { compiled, starts, ends, targets, redone } = history.dependencies
+    const { order, entry, end, sources, history } = in
 
     return loop({
         position: in.first,
         stopped: false,
-        inspect_signature: false
+        inspect_source: false
     }, {
         while: state => state.position < end && !state.stopped,
         next: state => {
             const index = order[state.position]
+            const decision = probe({
+                history,
+                sources,
+                index,
+                position: state.position,
+                entry
+            })
 
-            if (index == entry || compiled[index]) {
-                state.stopped = true
+            if (decision == Decision.Reuse) {
+                state.position += 1
             } else {
-                const dependency_changed = changed({
-                    dependencies: targets,
-                    redone,
-                    first: starts[index],
-                    end: ends[index]
-                })
-
-                if (dependency_changed) {
-                    state.stopped = true
-                } else if (index >= zx_count) {
-                    state.inspect_signature = true
-                    state.stopped = true
-                } else {
-                    const reusable = sameZx({
-                        history,
-                        index,
-                        position: state.position
-                    })
-
-                    if (reusable) {
-                        state.position += 1
-                    } else {
-                        state.stopped = true
-                    }
-                }
+                state.inspect_source = decision != Decision.Analyze
+                state.stopped = true
             }
         },
         return: state => ({
             position: state.position,
-            inspect_signature: state.inspect_signature
+            inspect_source: state.inspect_source
         })
     })
 }

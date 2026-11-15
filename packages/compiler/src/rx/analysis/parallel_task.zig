@@ -73,6 +73,7 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
     var input_type: zx.ir.TypeId = undefined;
     var environment_type: zx.ir.TypeId = undefined;
     var program: zx.ir.Program = undefined;
+    var suffix: ?*const zx.ir.FunctionTable = null;
     var argument: zx.ir.Program = undefined;
     var call_id: u32 = undefined;
 
@@ -89,7 +90,7 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
                 parent.next_binding = nested.next_binding;
             },
             .CheckTaskCalls => for (nested.calls.items) |*call| {
-                if (call.getters.len != 0 or !try frontend.isParallelSafe(allocator, call.callee)) return failure(parent, node, effect_issue);
+                if (call.getters.len != 0 or !try frontend.isParallelSafeWithSuffix(allocator, call.callee, call.callee_suffix)) return failure(parent, node, effect_issue);
 
                 call.callee.types = nested.types;
                 call.argument.types = nested.types;
@@ -129,6 +130,7 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
                     .native_modules = parent.native_modules,
                     .shared_functions = parent.shared_functions,
                     .flow = &nested.compiled,
+                    .split_functions = @import("rx_options").generated_graph and !frontend.checks_internal_ir,
                 }) catch |err| {
                     if (err == error.OutOfMemory) return error.OutOfMemory;
 
@@ -140,9 +142,15 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
                 };
 
                 program = lowered.program;
+
+                if (lowered.function_suffix.count() != 0) {
+                    const tail = try allocator.create(zx.ir.FunctionTable);
+                    tail.* = lowered.function_suffix;
+                    suffix = tail;
+                }
             },
-            .CheckTaskProgram => if (!try frontend.isParallelSafe(allocator, program)) return failure(parent, node, effect_issue),
-            .AnalyzeTaskOwnership => program.output_ownership = frontend.analyzeOwnership(allocator, program, &reporter) catch |err| {
+            .CheckTaskProgram => if (!try frontend.isParallelSafeWithSuffix(allocator, program, suffix)) return failure(parent, node, effect_issue),
+            .AnalyzeTaskOwnership => program.output_ownership = frontend.analyzeOwnershipWithSuffix(allocator, program, if (suffix) |tail| tail.* else .{}, &reporter) catch |err| {
                 if (err == error.OutOfMemory) return error.OutOfMemory;
 
                 return failure(parent, node, reporter.diagnostic.?);
@@ -157,7 +165,7 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
             },
             .PublishParallelTask => {
                 const out = try parent.publishResult(outputs);
-                call_id = try parent.appendCall(.{ .callee = program, .argument = argument, .out = out });
+                call_id = try parent.appendCall(.{ .callee = program, .callee_suffix = suffix, .argument = argument, .out = out });
             },
             else => unreachable,
         }

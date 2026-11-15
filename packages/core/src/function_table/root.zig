@@ -29,34 +29,27 @@ pub fn count(self: Self) usize {
 }
 
 pub fn at(self: Self, index: usize) ir.Function {
+    const signature = ir.SignatureTable.read(&self, index);
+
     return .{
-        .file_name = self.files[index],
-        .input_type = @fromBackingInt(self.input_types[index]),
-        .output_type = @fromBackingInt(self.output_types[index]),
-        .output_ownership = switch (self.ownership[index]) {
-            .Copy => .copy,
-            .Borrowed => .borrowed,
-            .Owned => .owned,
-        },
+        .file_name = signature.file_name,
+        .input_type = signature.input_type,
+        .output_type = signature.output_type,
+        .output_ownership = signature.output_ownership,
         .store_mode = self.store_modes[index],
         .contracts = self.contracts[index].*,
-        .external = if (self.native_modules[index]) |module| .{
-            .module = @fromBackingInt(module),
-            .input = if (self.native_inputs[index]) |names| .{ .names = names } else null,
-            .member = self.native_members[index],
-            .export_name = self.native_exports[index],
-            .allocator_argument = self.native_allocators[index],
-            .io_argument = self.native_io[index],
-            .process_argument = self.native_process[index],
-            .expand_tuple = self.native_tuples[index],
-            .fallible = self.native_fallible[index],
-            .errors = self.native_errors[index],
-            .concurrent = self.native_concurrent[index],
-        } else null,
+        .external = signature.external,
         .symbols = self.symbols[index].*,
         .expressions = self.expressions[index].*,
-        .body = .{ .control = self.control[index], .root = if (self.roots[index]) |id| @fromBackingInt(id) else null },
+        .body = self.controlAt(index),
         .stores = self.stores[index].*,
+    };
+}
+
+pub fn controlAt(self: *const Self, index: usize) ir.ControlBody {
+    return .{
+        .control = self.control[index],
+        .root = if (self.roots[index]) |id| @fromBackingInt(id) else null,
     };
 }
 

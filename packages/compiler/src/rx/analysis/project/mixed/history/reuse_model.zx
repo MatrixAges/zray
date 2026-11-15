@@ -1,18 +1,16 @@
-import type { ColumnPair } from "../../../../../zx/ir/compare/model"
 import type { Input as Dependencies } from "./changed"
 import type { Links } from "./links"
 
 export type Source = {
-    store_equal?: bool,
+    store: bool,
     previous_digest?: u8[],
     current_digest?: u8[]
 }
 
 export type Input = {
     source: Source,
-    signature?: ColumnPair,
     compiled_dependency: bool,
-    dependencies?: Dependencies,
+    dependencies: Dependencies,
     before: Links,
     after: Links
 }

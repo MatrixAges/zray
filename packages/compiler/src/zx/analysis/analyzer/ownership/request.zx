@@ -1,6 +1,6 @@
 import { Ownership } from "core/symbol_table/model"
 
-import type { Program } from "../../../ownership/ir/input_model"
+import type { FunctionColumns, Program } from "../../../ownership/ir/input_model"
 import type { Functions } from "../functions"
 import type { Prepared } from "../model"
 
@@ -14,6 +14,14 @@ export type Input = {
 export type Output = Program
 
 export default function (in: Input): Output {
+    const suffix: FunctionColumns? = match {
+        in.state.local.self_function == null => null,
+        _ => {
+            ownership: [Ownership.Borrowed],
+            stores: [in.state.local.stores]
+        }
+    }
+
     return {
         types: {
             base: in.state.types.context.base,
@@ -24,14 +32,11 @@ export default function (in: Input): Output {
         control: in.state.local.control,
         body: in.root,
         functions: {
-            ownership: match {
-                in.state.local.self_function == null => in.functions.ownership,
-                _ => in.functions.ownership.push(Ownership.Borrowed)[0]
+            base: {
+                ownership: in.functions.ownership,
+                stores: in.functions.stores
             },
-            stores: match {
-                in.state.local.self_function == null => in.functions.stores,
-                _ => in.functions.stores.push(in.state.local.stores)[0]
-            }
+            suffix
         },
         type_only: in.type_only
     }

@@ -17,7 +17,11 @@ module_functions: []?ir.FunctionId,
 pub fn module(self: *Self, index: usize, detect_recursion: bool) Error!?Nodes.FunctionEntry {
     const value = &self.modules[index];
 
-    if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
+    if (comptime @import("parser_options").generated_parser) {
+        if (!@import("signature/structure.zig").valid(value)) return error.InvalidModule;
+    } else {
+        if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
+    }
 
     const function_mapping = try self.temporary.alloc(?ir.FunctionId, value.functions.count() + @intFromBool(value.function != null));
     const native_mapping = try self.temporary.alloc(?ir.NativeModuleId, value.native_modules.count());

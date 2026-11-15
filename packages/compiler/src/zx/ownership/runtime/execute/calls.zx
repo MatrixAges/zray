@@ -140,18 +140,25 @@ export default function (in: Input): Output {
                     integers.widen(
                         current.program.expressions.call_functions[call]
                     )
+                const base = current.program.functions.base
+                const suffix = current.program.functions.suffix
+                const prefix_count = base.ownership.length
+                const in_suffix = suffix != null && function_index >= prefix_count
+                const functions = in_suffix ? (suffix ?? base) : base
+                const row = in_suffix ? function_index - prefix_count : function_index
+                const ownership = functions.ownership[row]
+
                 const container =
                     current
                     .references[integers.widen(
                         current.program.expressions.types[frame.subject]
                     )]
                 const escapes = loop({
-                    slots: current.program.functions.stores[function_index],
+                    slots: functions.stores[row],
                     index: 0,
                     found:
                         container &&
-                        current.program.functions.ownership[function_index] ==
-                        Ownership.Borrowed
+                        ownership == Ownership.Borrowed
                 }, {
                     while: slot =>
                         slot.index < slot.slots.writable.length && !slot.found,
@@ -190,7 +197,7 @@ export default function (in: Input): Output {
                     frame: frame.index
                 })
                 const state =
-                    match current.program.functions.ownership[function_index] {
+                    match ownership {
                         Ownership.Copy => State.Copy,
                         Ownership.Owned => State.Owned,
                         _ => State.Borrowed

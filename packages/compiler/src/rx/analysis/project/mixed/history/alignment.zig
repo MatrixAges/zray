@@ -74,7 +74,7 @@ const Comparison = struct {
     }
 };
 
-fn extent(comptime Target: type, value: *const history.Checkpoint) Target {
+pub fn extent(comptime Target: type, value: *const history.Checkpoint) Target {
     return .{
         .functions = value.functions,
         .native_modules = value.native_modules,

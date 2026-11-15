@@ -1,0 +1,37 @@
+import type { Table } from "core/signature_table/model"
+
+export type Input = Table
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    return loop({
+        row: first,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < in.native_modules.length,
+        next: state => {
+            const row = state.row
+
+            if (in.native_modules[row] == null) {
+                state.valid = match {
+                    in.native_inputs[row] != null => false,
+                    in.native_members[row].length != 0 => false,
+                    in.native_exports[row] != null => false,
+                    in.native_allocators[row] => false,
+                    in.native_io[row] => false,
+                    in.native_process[row] => false,
+                    in.native_tuples[row] => false,
+                    in.native_fallible[row] => false,
+                    in.native_errors[row] != null => false,
+                    _ => !in.native_concurrent[row]
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

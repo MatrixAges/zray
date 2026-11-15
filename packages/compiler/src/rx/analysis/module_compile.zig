@@ -73,7 +73,19 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
         program.native_modules = native_modules;
     }
 
-    const lowered = @import("program.zig").lower(allocator, .{ .owner = options.module.path, .types = types, .input_type = options.input_type, .output_type = options.output_type, .calls = calls.items, .native_modules = native_modules, .shared_functions = options.shared_functions, .store_initializers = options.store_initializers, .flow = &flow.compiled, .retain_metadata = flow.retain_metadata }) catch |err| {
+    const lowered = @import("program.zig").lower(allocator, .{
+        .owner = options.module.path,
+        .types = types,
+        .input_type = options.input_type,
+        .output_type = options.output_type,
+        .calls = calls.items,
+        .native_modules = native_modules,
+        .shared_functions = options.shared_functions,
+        .store_initializers = options.store_initializers,
+        .flow = &flow.compiled,
+        .retain_metadata = flow.retain_metadata,
+        .split_functions = @import("rx_options").generated_graph and !frontend.checks_internal_ir,
+    }) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
         if (err == error.UnreachableFlow or err == error.IncompleteFlow) return invalid(allocator, options, .{ .code = .return_path, .span = .{ .start = 0, .end = 0 }, .message = if (err == error.UnreachableFlow) "steps after a terminating Return or Switch are unreachable" else "every RX path must return Output" });
 
@@ -83,7 +95,7 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
     var program = lowered.program;
     var reporter: zx.Reporter = .{};
 
-    program.output_ownership = frontend.analyzeOwnership(allocator, program, &reporter) catch |err| {
+    program.output_ownership = frontend.analyzeOwnershipWithSuffix(allocator, program, lowered.function_suffix, &reporter) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return invalid(allocator, options, reporter.diagnostic.?);
@@ -91,7 +103,7 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
 
     if (frontend.checks_internal_ir) if (try frontend.validateIrExtending(allocator, program, options.verified_functions)) |issue| return invalid(allocator, options, issue);
 
-    return .{ .contract = .{ .program = program, .store_initializers = lowered.store_initializers, .types = types, .nominal_types = options.nominal_types, .input_type = options.input_type, .output_type = options.output_type, .calls = calls.items, .result = result, .native_modules = native_modules } };
+    return .{ .contract = .{ .program = program, .function_suffix = lowered.function_suffix, .store_initializers = lowered.store_initializers, .types = types, .nominal_types = options.nominal_types, .input_type = options.input_type, .output_type = options.output_type, .calls = calls.items, .result = result, .native_modules = native_modules } };
 }
 
 fn diagnostic(allocator: std.mem.Allocator, owner: []const u8, issue: expression.Diagnostic) std.mem.Allocator.Error!Module.Value {

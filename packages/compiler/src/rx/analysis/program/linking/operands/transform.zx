@@ -6,7 +6,7 @@ import writeRange from "./range"
 import symbols from "./symbols"
 
 import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "std:memory"
-import type { Symbols } from "./model"
+import type { SourceRange, Symbols } from "./model"
 import type { Range } from "./range"
 
 export type Input = {
@@ -17,6 +17,7 @@ export type Input = {
     mapping: u32[],
     symbols: Symbols,
     parameters: u32[],
+    source_range: SourceRange,
     target_parameters: U32Buffer,
     kinds: U8Buffer,
     targets: U32Buffer,
@@ -50,6 +51,7 @@ export default function (in: Input): Output {
 
     const valid = symbols({
         source: in.parameters,
+        source_range: in.source_range,
         symbols: in.symbols,
         target: in.target_parameters
     })
@@ -65,7 +67,7 @@ export default function (in: Input): Output {
 
     writeRange({
         range: in.range,
-        count: in.parameters.length
+        count: integers.widen(in.source_range.count)
     })
 
     return true

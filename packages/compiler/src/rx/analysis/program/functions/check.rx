@@ -1,21 +1,29 @@
 <Module>
     <Type from="model" as="Functions" />
 
-    <Args in={Functions.Shared} out={bool} />
+    <Args in={Functions.Shared} out={Functions.Reuse} />
 
     <Call fn="header" in={$in} />
 
     <If on={!$ctx.header}>
-        <Return value={false} />
+        <Return value={Functions.Reuse.Invalid} />
     </If>
 
     <Call
         fn="stores"
         in={{
-            actual: $in.actual.stores,
+            actual: $in.actual.stores[$in.index],
             expected: $in.expected.stores
         }}
     />
 
-    <Return value={$ctx.stores} />
+    <If on={!$ctx.stores}>
+        <Return value={Functions.Reuse.Invalid} />
+    </If>
+
+    <If on={$in.initializers_shared}>
+        <Return value={Functions.Reuse.Checked} />
+    </If>
+
+    <Return value={Functions.Reuse.CheckInitializers} />
 </Module>

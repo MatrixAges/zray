@@ -79,7 +79,6 @@ pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, 
     const owner = state.owner;
     defer state.owner = owner;
     const limit = @max(self.arenas.len, minimum);
-    var consumed = end - first;
     var unprepared: []const Candidates.Item = &initial;
 
     while (self.items.len < limit) {
@@ -104,13 +103,14 @@ pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, 
         };
 
         try self.items.append(state.allocator, .{ .position = candidate.position, .result = result });
-        if (self.items.len == limit) consumed = candidate.position + 1 - first;
     }
 
-    if (self.items.len < minimum) {
+    const batch = Schedule.preparedBatch(window, self.items.items(.position), self.arenas.len, limit, minimum);
+
+    if (batch.participants == 0) {
         self.items.clearRetainingCapacity();
 
-        return consumed;
+        return batch.consumed;
     }
 
     const Work = struct {
@@ -136,9 +136,9 @@ pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, 
 
     var work = Work{ .state = state, .results = self.items.items(.result), .arenas = self.arenas };
 
-    zx.parallel.spread(Work, &work, Work.run, @min(self.arenas.len, self.items.len));
+    zx.parallel.spread(Work, &work, Work.run, batch.participants);
 
-    return consumed;
+    return batch.consumed;
 }
 
 fn prepare(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, index: usize, arguments: *const Inputs, action: Body.Action) State.Error!Result {

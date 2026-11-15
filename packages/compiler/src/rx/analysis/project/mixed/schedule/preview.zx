@@ -1,6 +1,8 @@
+import integers from "std:integer"
 import memory from "std:memory"
 
-import needsAnalysis from "./preview_zx"
+import probe from "../history/prefix/probe"
+import { Decision } from "../history/prefix/probe"
 
 import type { U64Buffer } from "std:memory"
 import type { History } from "../history/prefix/model"
@@ -20,7 +22,8 @@ export type Input = {
 
 export type Output = {
     next: u64,
-    count: u64
+    count: u64,
+    signature_checks: u64
 }
 
 export default function (in: Input): Output {
@@ -30,9 +33,15 @@ export default function (in: Input): Output {
     const zx_count = signatures.length
     const rx_end = zx_count + local_calls.length
 
+    const sources = {
+        zx_count,
+        rx_end
+    }
+
     return loop({
         next: in.start,
-        count: 0
+        count: 0,
+        signature_checks: 0
     }, {
         while: state => state.next < end && state.count < capacity,
         next: state => {
@@ -40,19 +49,31 @@ export default function (in: Input): Output {
 
             if (!compiled_dependencies[index]) {
                 const eligible = match {
-                    index < zx_count => signatures[index] > 0 && needsAnalysis({
-                        history: in.history,
-                        index,
-                        position: state.next,
-                        entry
-                    }),
+                    index < zx_count => signatures[index] > 0,
                     index < rx_end => index != entry && local_calls[index - zx_count],
                     _ => false
                 }
 
                 if (eligible) {
-                    memory.writeU64(positions, state.count, state.next)
-                    state.count += 1
+                    const decision = probe({
+                        history: in.history,
+                        sources,
+                        index,
+                        position: state.next,
+                        entry
+                    })
+
+                    if (decision != Decision.Reuse) {
+                        memory.writeU64(positions, state.count, state.next)
+
+                        if (decision == Decision.CompareSignature) {
+                            const bit = integers.bitMask(state.count)
+                            state.signature_checks =
+                                integers.orBits(state.signature_checks, bit)
+                        }
+
+                        state.count += 1
+                    }
                 }
             }
 
@@ -60,7 +81,8 @@ export default function (in: Input): Output {
         },
         return: state => ({
             next: state.next,
-            count: state.count
+            count: state.count,
+            signature_checks: state.signature_checks
         })
     })
 }

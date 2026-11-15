@@ -1,13 +1,15 @@
+import integers from "std:integer"
 import memory from "std:memory"
 import { max_u32 } from "core/const"
 
 import symbol from "./symbol"
 
 import type { OptionalU32Buffer } from "std:memory"
-import type { Symbols } from "./model"
+import type { SourceRange, Symbols } from "./model"
 
 export type Input = {
     source: u32?[],
+    source_range: SourceRange,
     symbols: Symbols,
     target: OptionalU32Buffer
 }
@@ -17,7 +19,8 @@ export type Output = bool
 export default function (in: Input): Output {
     const empty: u32? = null
 
-    const count = in.source.length
+    const first = integers.widen(in.source_range.first)
+    const count = integers.widen(in.source_range.count)
 
     return loop({
         position: 0,
@@ -25,7 +28,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.position < count,
         next: state => {
-            const value = in.source[state.position]
+            const value = in.source[first + state.position]
 
             if (value == null) {
                 memory.writeOptionalU32(in.target, state.position, empty)

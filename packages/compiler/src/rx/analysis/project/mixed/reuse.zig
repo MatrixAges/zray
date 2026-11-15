@@ -97,8 +97,8 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
 
             position = @intCast(prefix.position);
 
-            if (!prefix.inspect_signature) break;
-            if (!admission.reusable(state, self.derived, previous, null, self.digests, order[position], position)) break;
+            if (!prefix.inspect_source) break;
+            if (!admission.confirm(state, &self.derived, previous, order[position])) break;
         }
     } else {
         while (position < limit and self.reusable(state, order[position], position)) : (position += 1) {}
@@ -141,7 +141,7 @@ pub fn reusable(self: *const Self, state: *const State, index: usize, position: 
     if (!self.aligned or index == state.graph.entry) return false;
 
     if (comptime generated) {
-        return @import("history/admit.zig").reusable(state, self.derived, previous, self.redone, self.digests, index, position);
+        return @import("history/admit.zig").reusable(state, &self.derived, previous, self.redone, self.digests, index, position);
     }
 
     if (!self.unchanged(state, index)) return false;
@@ -300,15 +300,23 @@ fn matchesGraph(earlier: Graph, current: Graph, earlier_shape: *const [32]u8, cu
 
     if (comptime generated) {
         const rule = @import("generated_rx_mixed_history_start");
+        const Input = std.meta.Child(rule.Input);
+        const Boundaries = std.meta.Child(@FieldType(Input, "boundary"));
+        const Checkpoint = std.meta.Child(@FieldType(Boundaries, "before"));
+        const Extent = std.meta.Child(@FieldType(Checkpoint, "extent"));
+        const earlier_extent = alignment.extent(Extent, earlier_boundary);
+        const current_extent = alignment.extent(Extent, current_boundary);
+        const earlier_view = checkpointView(Checkpoint, earlier_boundary, &earlier_extent);
+        const current_view = checkpointView(Checkpoint, current_boundary, &current_extent);
 
-        const input: std.meta.Child(rule.Input) = .{
+        const input: Input = .{
             .inputs = &.{
                 .earlier = earlier_shape,
                 .current = current_shape,
                 .earlier_count = earlier_paths.len,
                 .current_count = current_paths.len,
             },
-            .boundary = earlier_boundary.eql(current_boundary.*),
+            .boundary = &.{ .before = &earlier_view, .after = &current_view },
             .graph = &.{
                 .earlier_order = std.mem.sliceAsBytes(earlier.order),
                 .current_order = std.mem.sliceAsBytes(current.order),
@@ -330,6 +338,14 @@ fn matchesGraph(earlier: Graph, current: Graph, earlier_shape: *const [32]u8, cu
     for (earlier_paths, current_paths) |before, after| if (!zx.bytes.equal(before, after)) return false;
 
     return true;
+}
+
+fn checkpointView(comptime Target: type, value: *const history.Checkpoint, counts: @FieldType(Target, "extent")) Target {
+    return .{
+        .types = std.mem.asBytes(&value.types),
+        .origins = std.mem.asBytes(&value.origins),
+        .extent = counts,
+    };
 }
 
 /// Compares the function rows' signature columns; the tables each row points to belong to one analysis.
