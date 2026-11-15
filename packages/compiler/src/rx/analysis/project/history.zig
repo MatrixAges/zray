@@ -13,7 +13,6 @@ const columns = @import("history/columns.zig");
 const admission = @import("history/admission.zig");
 const Graph = @import("source_graph/model.zig").Graph;
 const Types = frontend.project.artifact.type_link.Table;
-const Source = frontend.project.artifact.source_link;
 pub const OriginStorage = @FieldType(@FieldType(Types, "origins"), "items");
 pub const OriginTable = @typeInfo(@TypeOf(OriginStorage.view)).@"fn".return_type.?;
 
@@ -32,7 +31,7 @@ pub const Frame = struct {
 };
 
 /// The shared tables' extent at one point of an analysis.
-pub const Checkpoint = struct {
+pub const Checkpoint = extern struct {
     types: columns.Lengths(ir.TypeStorage),
     origins: columns.Lengths(OriginStorage),
     functions: usize,
@@ -41,6 +40,31 @@ pub const Checkpoint = struct {
     libraries: usize,
     pub fn eql(self: Checkpoint, other: Checkpoint) bool {
         return std.meta.eql(self, other);
+    }
+};
+
+/// Digest words and presence flags occupy one allocation and are borrowed by the reuse scan.
+pub const SourceDigests = struct {
+    const Words = [32 / @sizeOf(u64)]u64;
+
+    words: []Words = &.{},
+    present: []bool = &.{},
+    pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!SourceDigests {
+        const size = std.math.mul(usize, count, @sizeOf(Words) + @sizeOf(bool)) catch return error.OutOfMemory;
+        const data = try allocator.alignedAlloc(u8, .of(Words), size);
+        const end = count * @sizeOf(Words);
+
+        return .{ .words = std.mem.bytesAsSlice(Words, data[0..end]), .present = @ptrCast(data[end..]) };
+    }
+
+    pub fn set(self: SourceDigests, index: usize, digest: ?*const [32]u8) void {
+        self.present[index] = digest != null;
+
+        if (digest) |value| self.words[index] = @bitCast(value.*);
+    }
+
+    pub fn at(self: SourceDigests, index: usize) ?*const [32]u8 {
+        return if (self.present[index]) @ptrCast(&self.words[index]) else null;
     }
 };
 
@@ -53,10 +77,10 @@ pub const Retained = struct {
     sources: []const frontend.project.Source,
     derived: Frame,
     /// Each module's source digest.
-    digests: []const ?[32]u8,
+    digests: SourceDigests,
     /// The initial extent, followed by each scheduled module's ending extent in dependency order.
     boundaries: []const Checkpoint,
-    finished: []const ?Source.Loaded,
+    finished: @import("mixed/finished.zig"),
     types: ir.TypeTable,
     origins: OriginTable,
     functions: ir.FunctionTable,

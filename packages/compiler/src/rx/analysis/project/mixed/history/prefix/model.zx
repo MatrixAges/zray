@@ -1,0 +1,39 @@
+export type Dependencies = {
+    compiled: bool[],
+    starts: u64[],
+    ends: u64[],
+    targets: u64[],
+    redone: bool[]
+}
+
+export type Digests = {
+    words: u64[],
+    present: bool[]
+}
+
+export type Boundaries = {
+    words: u64[],
+    stride: u64,
+    links_offset: u64
+}
+
+export type History = {
+    dependencies: Dependencies,
+    earlier: Digests,
+    current: Digests,
+    boundaries: Boundaries
+}
+
+export type Input = {
+    order: u64[],
+    first: u64,
+    end: u64,
+    entry: u64,
+    zx_count: u64,
+    history: History
+}
+
+export type Output = {
+    position: u64,
+    inspect_signature: bool
+}

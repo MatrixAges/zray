@@ -1,0 +1,5 @@
+export const digest_width: u64 = 4
+
+export const initializer_column: u64 = 1
+
+export const library_column: u64 = 2

@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Link" />
+
+    <Args in={Link.Body} out={Link.Plan} />
+
+    <Call
+        fn="functions"
+        in={$in.pick([
+            "prepared",
+            "body_functions",
+            "lowered"
+        ])}
+    />
+
+    <Call
+        fn="types"
+        in={$in.pick([
+            "prepared",
+            "current"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$ctx.functions,
+            type_prefix: $ctx.types
+        }}
+    />
+</Module>

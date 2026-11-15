@@ -1,8 +1,6 @@
-export enum Source {
-    ZX,
-    RX,
-    Store
-}
+export { Kind as Source } from "../../source_graph/source"
+
+import type { Kind } from "../../source_graph/source"
 
 export enum Action {
     Skip,
@@ -12,6 +10,6 @@ export enum Action {
 }
 
 export type Admission = {
-    source: Source,
+    source: Kind,
     signature: i64
 }

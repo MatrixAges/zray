@@ -1,0 +1,14 @@
+import type { Body } from "./model"
+
+export type Input = Body.Pick("prepared", "current")
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { prepared, current } = in
+
+    const same_functions = prepared.functions == current.functions
+    const same_types = prepared.types == current.types
+
+    return same_functions && same_types ? null : prepared.types
+}

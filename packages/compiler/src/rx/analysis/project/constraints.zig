@@ -47,7 +47,9 @@ pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: Sour
         var walker = Walker{ .expression = &expression, .module = module, .states = states, .output = output, .arguments = arguments.module(index), .requests = requests };
 
         if (module.shortcut) |call_index| {
-            try walker.inferModule(.ModuleShortcut, &fixed[index], &module.calls[call_index]);
+            const call = module.calls.get(call_index);
+
+            try walker.inferModule(.ModuleShortcut, &fixed[index], &call);
         } else {
             try walker.inferModule(.ModuleBody, &fixed[index], null);
         }
@@ -241,11 +243,11 @@ const Walker = struct {
         }
     }
     fn call(self: *Walker, index: usize, outputs: *Scope.Storage) zx.Error!void {
-        const invocation = &self.module.calls[index];
+        const invocation = self.module.calls.get(index);
 
-        if (invocation.input != null) return self.inferCall(.CallWithArgument, index, invocation, outputs);
+        if (invocation.input != null) return self.inferCall(.CallWithArgument, index, &invocation, outputs);
 
-        return self.inferCall(.CallWithoutArgument, index, invocation, outputs);
+        return self.inferCall(.CallWithoutArgument, index, &invocation, outputs);
     }
     fn inferCall(self: *Walker, comptime form: Schedule.Form, index: usize, invocation: *const Prepared.Call, outputs: *Scope.Storage) zx.Error!void {
         const expression = self.expression;

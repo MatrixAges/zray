@@ -2,6 +2,7 @@ const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
 const State = @import("state.zig");
+const Rows = @import("imports/rows.zig");
 const Binding = std.meta.Child(@FieldType(frontend.ResolvedImports, "imports"));
 pub const Result = struct { functions: []const Binding, published: []const Binding };
 
@@ -16,14 +17,17 @@ pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, ind
 
     if (edges.len != header.importCount()) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source import declarations do not match the dependency graph");
 
-    for (edges, 0..) |edge, import_index| {
+    var rows: Rows = .{};
+
+    while (rows.next(header)) |import_index| {
+        const edge = edges[import_index];
         const item = header.importAt(import_index);
 
-        if (item.kind == .type_only or edge.target == .native) continue;
+        if (edge.target == .native) continue;
 
         const dependency = switch (edge.target) {
             .source => |source| source_block: {
-                const loaded = state.finished[source] orelse return state.fail(edge.locate(source_text), "source function dependency has not been analyzed in its required context");
+                const loaded = state.finished.get(source) orelse return state.fail(edge.locate(source_text), "source function dependency has not been analyzed in its required context");
 
                 break :source_block frontend.project.compiled.Export{ .name = "", .path = "", .function = loaded.function, .types = loaded.exports, .constants = loaded.constant_exports, .members = loaded.members };
             },

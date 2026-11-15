@@ -1,6 +1,9 @@
 import memory from "std:memory"
 
+import needsAnalysis from "./preview_zx"
+
 import type { U64Buffer } from "std:memory"
+import type { History } from "../history/prefix/model"
 
 export type Input = {
     order: u64[],
@@ -10,6 +13,7 @@ export type Input = {
     signatures: i64[],
     local_calls: bool[],
     compiled_dependencies: bool[],
+    history?: History,
     positions: U64Buffer,
     capacity: u64
 }
@@ -36,7 +40,12 @@ export default function (in: Input): Output {
 
             if (!compiled_dependencies[index]) {
                 const eligible = match {
-                    index < zx_count => signatures[index] > 0,
+                    index < zx_count => signatures[index] > 0 && needsAnalysis({
+                        history: in.history,
+                        index,
+                        position: state.next,
+                        entry
+                    }),
                     index < rx_end => index != entry && local_calls[index - zx_count],
                     _ => false
                 }

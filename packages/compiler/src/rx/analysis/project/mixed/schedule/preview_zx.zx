@@ -1,0 +1,40 @@
+import changed from "../history/changed"
+import sameZx from "../history/prefix/same_zx"
+
+import type { History } from "../history/prefix/model"
+
+export type Input = {
+    history?: History,
+    index: u64,
+    position: u64,
+    entry: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { history, index, position, entry } = in
+
+    if (history == null || index == entry) {
+        return true
+    }
+
+    const { starts, ends, targets, redone } = history.dependencies
+
+    const modified = changed({
+        dependencies: targets,
+        redone,
+        first: starts[index],
+        end: ends[index]
+    })
+
+    if (modified) {
+        return true
+    }
+
+    return !sameZx({
+        history,
+        index,
+        position
+    })
+}

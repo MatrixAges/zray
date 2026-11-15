@@ -6,6 +6,7 @@ const target = @import("../../call/target.zig");
 const SourceGraph = @import("../source_graph.zig").Graph;
 const Types = frontend.project.artifact.type_link.Table;
 const Source = frontend.project.artifact.source_link;
+const Finished = @import("finished.zig");
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidSourceGraph};
 
@@ -21,7 +22,7 @@ native_modules: ir.NativeModuleStorage = .{},
 initializers: std.ArrayList(frontend.project.compiled.StoreInitializer) = .empty,
 retained_initializers: []const frontend.project.compiled.StoreInitializer = &.{},
 libraries: frontend.project.compiled.imports.Cache = .empty,
-finished: []?Source.Loaded,
+finished: Finished,
 signature_indices: []const i64,
 owner: usize = 0,
 issue: ?target.Diagnostic = null,
@@ -34,12 +35,10 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
         .signatures = signatures,
         .types = .{ .allocator = allocator, .items = try frontend.type_table.storage(allocator, types), .origins = .{ .allocator = allocator } },
         .native_modules = try frontend.native_context.storage(allocator, options.context.native_modules),
-        .finished = try allocator.alloc(?Source.Loaded, graph.modules.len),
+        .finished = try Finished.init(allocator, graph.modules.len),
         .signature_indices = signature_indices,
         .retained_initializers = signatures.store_initializers,
     };
-
-    @memset(self.finished, null);
 
     self.types.origins.seed(self.types.items.view(), options.context.nominal_types) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;

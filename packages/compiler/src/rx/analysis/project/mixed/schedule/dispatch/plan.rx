@@ -1,0 +1,55 @@
+<Module>
+    <Type from="model" as="Dispatch" />
+    <Type from="../../body/model" as="Body" />
+
+    <Args in={Dispatch.Input} out={Dispatch.Output} />
+
+    <Call
+        fn="scan"
+        in={$in.pick([
+            "rows",
+            "first",
+            "end",
+            "keep_skipped"
+        ])}
+    />
+
+    <Call
+        module="../../body/admit"
+        in={$ctx.scan.pick([
+            "source",
+            "signature"
+        ])}
+    />
+
+    <If on={$ctx.admit == Body.Action.AnalyzeZX || $ctx.admit == Body.Action.LowerRX}>
+        <Call
+            fn="../claim"
+            in={{
+                positions: $in.prepared_positions,
+                cursor: $in.prepared_cursor,
+                position: $ctx.scan.position
+            }}
+        />
+
+        <Return
+            value={{
+                position: $ctx.scan.position,
+                index: $ctx.scan.index,
+                action: $ctx.admit,
+                prepared_next: $ctx.claim.cursor,
+                prepared_row: $ctx.claim.row
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            position: $ctx.scan.position,
+            index: $ctx.scan.index,
+            action: $ctx.admit,
+            prepared_next: $in.prepared_cursor,
+            prepared_row: null
+        }}
+    />
+</Module>

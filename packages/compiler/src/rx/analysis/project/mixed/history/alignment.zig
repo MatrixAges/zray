@@ -37,7 +37,7 @@ pub fn assess(state: *const State, previous: *const history.Retained, redone: []
         .functions = &.{
             .first = before.functions,
             .previous_first = earlier[0].functions,
-            .linked = state.finished[index] != null and previous.finished[index] != null,
+            .linked = state.finished.present[index] and previous.finished.present[index],
             .store = state.graph.sources.at(index) == .store,
         },
     };

@@ -133,9 +133,9 @@ pub fn link(state: *State, temporary: std.mem.Allocator, analyzed: Analyzed) Sta
 
     destination.temporary = temporary;
     const functions = program.functions;
-    program.functions = base;
+    const plan = @import("body/link.zig").prepare(state, .{ .functions = analyzed.functions, .types = analyzed.types }, functions.count(), false);
 
-    const suffix = if (functions.count() > analyzed.functions) functions.suffix(analyzed.functions) else null;
+    if (plan.replace_prefix) program.functions = base;
 
     program.native_modules = state.native_modules.view();
     program.exports = analyzed.exports;
@@ -146,13 +146,13 @@ pub fn link(state: *State, temporary: std.mem.Allocator, analyzed: Analyzed) Sta
     return state.linked(Source.appendBody(.{
         .program = program,
         .base_functions = base,
-        .function_suffix = suffix,
+        .function_suffix = if (plan.suffix) |start| functions.suffix(start) else null,
         .verified_functions = state.verifiedFunctions(),
         .nominal_types = analyzed.result.nominal_types,
         .store_initializers = initializers,
         .shared_initializers = initializers,
         .members = analyzed.members,
-        .base_types = if (analyzed.types == state.types.items.count() and analyzed.functions == state.functions.count()) null else analyzed.types,
+        .base_types = plan.type_prefix,
     }, destination) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 

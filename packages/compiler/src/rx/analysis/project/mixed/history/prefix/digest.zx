@@ -1,0 +1,36 @@
+import { digest_width } from "./const"
+
+import type { Digests } from "./model"
+
+export type Input = {
+    earlier: Digests,
+    current: Digests,
+    index: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { earlier, current, index } = in
+
+    if (!earlier.present[index] || !current.present[index]) {
+        return false
+    }
+
+    const first = index * digest_width
+    const end = first + digest_width
+
+    return loop({
+        row: first,
+        same: true
+    }, {
+        while: state => state.row < end && state.same,
+        next: state => {
+            const { row } = state
+
+            state.same = earlier.words[row] == current.words[row]
+            state.row += 1
+        },
+        return: state => state.same
+    })
+}

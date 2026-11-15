@@ -1,0 +1,35 @@
+import type { Kind, Ranges } from "../../../source_graph/source"
+import type { Action } from "../../body/model"
+
+export type Rows = {
+    order: u64[],
+    sources: Ranges,
+    signatures: i64[]
+}
+
+export type Scan = {
+    rows: Rows,
+    first: u64,
+    end: u64,
+    keep_skipped: bool
+}
+
+export type Selected = {
+    position: u64,
+    index: u64,
+    source: Kind,
+    signature: i64
+}
+
+export type Input = Scan & {
+    prepared_positions: u64[],
+    prepared_cursor: u64
+}
+
+export type Output = {
+    position: u64,
+    index: u64,
+    action: Action,
+    prepared_next: u64,
+    prepared_row?: u64
+}

@@ -1,0 +1,63 @@
+import { Action, TargetKind } from "./model"
+
+import type { Pending, Published } from "./model"
+
+export type Input = {
+    kind: TargetKind,
+    target: u64,
+    zx_count: u64,
+    rx_end: u64,
+    published: Published
+}
+
+export type Output = Pending
+
+export default function (in: Input): Output {
+    const { kind, target, zx_count, rx_end, published } = in
+
+    if (kind == TargetKind.Compiled) {
+        return {
+            action: Action.LoadLibrary,
+            target,
+            function_id: null
+        }
+    }
+
+    const is_rx = target >= zx_count && target < rx_end
+
+    if (kind == TargetKind.AuthorizedSource && !is_rx) {
+        return {
+            action: Action.CompileSetter,
+            target,
+            function_id: null
+        }
+    }
+
+    if (!published.present[target]) {
+        const action = is_rx ? Action.MissingRX : Action.MissingZX
+
+        return {
+            action,
+            target,
+            function_id: null
+        }
+    }
+
+    const function_id = published.functions[target]
+
+    if (function_id == null) {
+        const action = is_rx ? Action.NotExecutableRX : Action.NotExecutableZX
+
+        return {
+            action,
+            target,
+            function_id: null
+        }
+    }
+
+    return {
+        action: Action.Bind,
+        target,
+        function_id
+    }
+}

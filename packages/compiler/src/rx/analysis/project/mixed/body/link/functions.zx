@@ -1,0 +1,23 @@
+import type { Body, Functions } from "./model"
+
+export type Input = Body.Pick("prepared", "body_functions", "lowered")
+
+export type Output = Functions
+
+export default function (in: Input): Output {
+    const { body_functions, lowered } = in
+
+    const base = in.prepared.functions
+
+    if (lowered) {
+        return {
+            replace_prefix: base == body_functions,
+            suffix: null
+        }
+    }
+
+    return {
+        replace_prefix: true,
+        suffix: body_functions > base ? base : null
+    }
+}

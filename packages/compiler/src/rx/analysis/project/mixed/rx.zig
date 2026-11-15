@@ -52,12 +52,15 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
 /// Binds the calls of `module` to the functions `ids` names, over the shared tables as they stand.
 pub fn prepare(state: *State, allocator: std.mem.Allocator, index: usize, module: Loading.Module, signature: Signature, ids: []const ir.FunctionId, arguments: Inputs.Module, base: ir.FunctionTable) State.Error!Prepared {
     const calls = try allocator.alloc(Module.Loaded, module.calls.len);
+    const nodes = module.calls.items(.node);
+    const inputs = module.calls.items(.input);
+    const getters = module.calls.items(.getters);
 
-    for (module.calls, ids, calls, 0..) |call, id, *loaded, position| {
+    for (nodes, inputs, getters, ids, calls, 0..) |node, input, grants, id, *loaded, position| {
         loaded.* = .{
-            .node = call.node,
-            .input = call.input,
-            .getters = call.getters,
+            .node = node,
+            .input = input,
+            .getters = grants,
             .argument = Inputs.input(arguments, position),
             .function = .{
                 .id = id,
@@ -110,10 +113,10 @@ pub fn link(state: *State, allocator: std.mem.Allocator, prepared: Prepared, low
 
     destination.temporary = allocator;
     const base = state.functions.view().prefix(prepared.functions);
-    const grown = state.functions.count() != prepared.functions or state.types.items.count() != prepared.types;
+    const plan = @import("body/link.zig").prepare(state, .{ .functions = prepared.functions, .types = prepared.types }, contract.program.functions.count(), true);
 
     // Without new functions, lowering returns a borrowed view of the analyzed prefix.
-    if (contract.program.functions.count() == prepared.functions) contract.program.functions = base;
+    if (plan.replace_prefix) contract.program.functions = base;
 
     const loaded = state.linked(Source.appendBody(.{
         .program = contract.program,
@@ -122,7 +125,7 @@ pub fn link(state: *State, allocator: std.mem.Allocator, prepared: Prepared, low
         .nominal_types = contract.nominal_types,
         .store_initializers = contract.store_initializers,
         .shared_initializers = try state.initializersView(),
-        .base_types = if (grown) prepared.types else null,
+        .base_types = plan.type_prefix,
     }, destination) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 

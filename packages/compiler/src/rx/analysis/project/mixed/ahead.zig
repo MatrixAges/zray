@@ -159,8 +159,9 @@ fn prepare(self: *Self, state: *State, cache: *frontend.project.ParseCache, sour
 }
 
 /// The analysis `analyze` made of the ZX body `index`, while the tables still allow linking it.
-pub fn take(self: *Self, state: *const State, position: usize) ?Zx.Analyzed {
-    const item = self.claim(position) orelse return null;
+pub fn take(self: *const Self, state: *const State, selected: ?usize) ?Zx.Analyzed {
+    const row = selected orelse return null;
+    const item = &self.items.items(.result)[row];
 
     const outcome = switch (item.*) {
         .zx => |value| value.outcome orelse return null,
@@ -171,8 +172,9 @@ pub fn take(self: *Self, state: *const State, position: usize) ?Zx.Analyzed {
 }
 
 /// The lowering `analyze` made of the RX module `index`, while the tables still allow linking it.
-pub fn lowered(self: *Self, state: *const State, position: usize) ?Lowered {
-    const item = self.claim(position) orelse return null;
+pub fn lowered(self: *const Self, state: *const State, selected: ?usize) ?Lowered {
+    const row = selected orelse return null;
+    const item = &self.items.items(.result)[row];
 
     const lowering = switch (item.*) {
         .rx => |value| value,
@@ -184,8 +186,6 @@ pub fn lowered(self: *Self, state: *const State, position: usize) ?Lowered {
     return if (value == .contract and Rx.current(state, lowering.prepared, value.contract)) .{ .prepared = lowering.prepared, .contract = value.contract } else null;
 }
 
-fn claim(self: *Self, position: usize) ?*const Result {
-    const row = Schedule.claim(self.items.items(.position), &self.next_item, position) orelse return null;
-
-    return &self.items.items(.result)[row];
+pub fn next(self: *Self, state: *const State, first: usize, end: usize, keep_skipped: bool) @import("schedule/dispatch.zig").Result {
+    return @import("schedule/dispatch.zig").next(state, first, end, keep_skipped, self.items.items(.position), &self.next_item);
 }

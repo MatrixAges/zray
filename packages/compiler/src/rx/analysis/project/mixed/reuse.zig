@@ -16,7 +16,7 @@ const project = @import("frontend").project;
 const alignment = @import("history/alignment.zig");
 const Graph = @FieldType(State, "graph");
 const generated = @import("rx_options").generated_graph;
-const batch_dependencies = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
+const batch_reuse = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const Self = @This();
 
 record: ?*history.History,
@@ -26,7 +26,7 @@ derived: history.Frame,
 aligned: bool = false,
 /// Modules whose rows or link differ from the earlier ones, or that depend on such a module.
 redone: []bool = &.{},
-digests: []?[32]u8 = &.{},
+digests: history.SourceDigests = .{},
 boundaries: []history.Checkpoint = &.{},
 pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*history.History, derived: history.Frame, sources: []const project.Source) std.mem.Allocator.Error!Self {
     const owner = record orelse return .{ .record = null, .derived = derived };
@@ -36,7 +36,7 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
         .record = record,
         .derived = derived,
         .redone = try state.allocator.alloc(bool, count),
-        .digests = try state.allocator.alloc(?[32]u8, count),
+        .digests = try .init(state.allocator, count),
         .boundaries = try state.allocator.alloc(history.Checkpoint, state.graph.order.len + 1),
     };
 
@@ -47,24 +47,28 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
     const paths = state.graph.modules.items(.path);
     const ranges = state.graph.sources;
 
-    for (paths[0..ranges.zx_count], self.digests[0..ranges.zx_count], sources, 0..) |path, *digest, source, index| {
+    for (paths[0..ranges.zx_count], sources, 0..) |path, source, index| {
         // A failed request can replace a parse while the last successful analysis still owns its digest.
         if (retained) |earlier| {
             if (zx.bytes.equal(earlier.sources[index].source, source.source)) {
-                digest.* = earlier.digests[index];
+                self.digests.set(index, earlier.digests.at(index));
 
                 continue;
             }
         }
 
-        digest.* = cache.sourceDigest(path);
+        const digest = cache.sourceDigest(path);
+
+        self.digests.set(index, if (digest != null) &digest.? else null);
     }
 
-    for (paths[ranges.zx_count..ranges.rx_end], self.digests[ranges.zx_count..ranges.rx_end]) |path, *digest| {
-        digest.* = owner.rxDigest(path);
+    for (paths[ranges.zx_count..ranges.rx_end], ranges.zx_count..) |path, index| {
+        const digest = owner.rxDigest(path);
+
+        self.digests.set(index, if (digest != null) &digest.? else null);
     }
 
-    @memset(self.digests[ranges.rx_end..], null);
+    @memset(self.digests.present[ranges.rx_end..], false);
 
     const previous = if (owner.previous) |*value| value else return self;
 
@@ -83,23 +87,20 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
     const order = state.graph.order;
     var position = first;
 
-    scan: {
-        if (comptime batch_dependencies) {
-            const admission = @import("history/admit.zig");
-            const window_size = 8;
+    if (comptime batch_reuse) {
+        const admission = @import("history/admit.zig");
+        const inputs = admission.Borrowed.init(state, previous, self.digests, self.redone);
+        const retained = inputs.view();
 
-            while (limit - position >= window_size) {
-                const end = position + window_size;
-                const available = admission.dependencyPrefix(state, self.redone, position, end);
+        while (position < limit) : (position += 1) {
+            const prefix = admission.scan(state, &retained, position, limit);
 
-                while (position < available) : (position += 1) {
-                    if (!admission.reusable(state, self.derived, previous, null, self.digests, order[position], position)) break :scan;
-                }
+            position = @intCast(prefix.position);
 
-                if (available != end) break :scan;
-            }
+            if (!prefix.inspect_signature) break;
+            if (!admission.reusable(state, self.derived, previous, null, self.digests, order[position], position)) break;
         }
-
+    } else {
         while (position < limit and self.reusable(state, order[position], position)) : (position += 1) {}
     }
 
@@ -119,12 +120,15 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
         },
     });
 
-    for (order[first..position]) |index| state.finished[index] = previous.finished[index];
+    if (comptime batch_reuse) {
+        @import("history/publish.zig").copy(state, self.boundaries, previous, first, position);
+    } else {
+        for (order[first..position]) |index| state.finished.retain(previous.finished, index);
+
+        @memcpy(self.boundaries[first + 1 .. position + 1], previous.boundaries[first + 1 .. position + 1]);
+    }
 
     state.verified = end.functions;
-
-    @memcpy(self.boundaries[first + 1 .. position + 1], previous.boundaries[first + 1 .. position + 1]);
-
     self.record.?.reused += position - first;
 
     return position;
@@ -200,8 +204,8 @@ fn reaches(self: *const Self, state: *const State, index: usize) bool {
 /// Whether `index`, analyzed again into tables still aligned, appended the very function rows and produced the very
 /// link it had before, down to the bodies they point to.
 fn repeated(state: *const State, previous: *const history.Retained, index: usize, start: usize, end: usize) bool {
-    const current = state.finished[index] orelse return false;
-    const earlier = previous.finished[index] orelse return false;
+    const current = state.finished.get(index) orelse return false;
+    const earlier = previous.finished.get(index) orelse return false;
     const left = previous.functions;
     const right = state.functions.view();
 
@@ -255,10 +259,10 @@ fn unchanged(self: *const Self, state: *const State, index: usize) bool {
         return before == .store and columns.same(previous.derived.stores[before.store].node, self.derived.stores[source.store].node) and !self.reaches(state, index);
     }
 
-    const earlier = previous.digests[index] orelse return false;
-    const current = self.digests[index] orelse return false;
+    const earlier = previous.digests.at(index) orelse return false;
+    const current = self.digests.at(index) orelse return false;
 
-    if (!std.mem.eql(u8, &earlier, &current)) return false;
+    if (!std.mem.eql(u8, earlier, current)) return false;
 
     if (source == .rx) {
         const before = previous.derived.dependencies.sources.at(index);

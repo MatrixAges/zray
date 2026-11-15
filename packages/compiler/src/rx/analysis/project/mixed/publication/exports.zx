@@ -1,0 +1,42 @@
+export enum Issue {
+    None,
+    InvalidName,
+    UncompiledRoot
+}
+
+export type Input = {
+    roots: u64[],
+    compiled: bool[],
+    invalid_name?: u64
+}
+
+export type Output = {
+    count: u64,
+    issue: Issue
+}
+
+export default function (in: Input): Output {
+    const { roots, compiled, invalid_name } = in
+
+    return loop({
+        count: 0,
+        issue: Issue.None
+    }, {
+        while: state => state.count < roots.length && state.issue == Issue.None,
+        next: state => {
+            const index = state.count
+
+            if (invalid_name != null && invalid_name == index) {
+                state.issue = Issue.InvalidName
+            } else if (!compiled[roots[index]]) {
+                state.issue = Issue.UncompiledRoot
+            } else {
+                state.count += 1
+            }
+        },
+        return: state => ({
+            count: state.count,
+            issue: state.issue
+        })
+    })
+}

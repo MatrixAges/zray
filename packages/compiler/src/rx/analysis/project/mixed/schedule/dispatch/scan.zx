@@ -1,0 +1,49 @@
+import source from "../../../source_graph/source"
+import { Kind } from "../../../source_graph/source"
+
+import type { Scan, Selected } from "./model"
+
+export type Input = Scan
+
+export type Output = Selected
+
+export default function (in: Input): Output {
+    const { order, sources, signatures } = in.rows
+    const { end, keep_skipped } = in
+
+    const initial_signature: i64 = 0
+
+    return loop({
+        position: in.first,
+        index: 0,
+        source: Kind.Store,
+        signature: initial_signature,
+        selected: false
+    }, {
+        while: state => state.position < end && !state.selected,
+        next: state => {
+            const index = order[state.position]
+            const row = source({
+                sources,
+                owner: index
+            })
+            const signature = row.kind == Kind.ZX ? signatures[index] : 0
+            const skip = row.kind == Kind.Store || signature < 0
+
+            if (skip && !keep_skipped) {
+                state.position += 1
+            } else {
+                state.index = index
+                state.source = row.kind
+                state.signature = signature
+                state.selected = true
+            }
+        },
+        return: state => ({
+            position: state.position,
+            index: state.index,
+            source: state.source,
+            signature: state.signature
+        })
+    })
+}

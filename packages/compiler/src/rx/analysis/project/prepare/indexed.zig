@@ -7,7 +7,7 @@ pub fn bind(loader: anytype, indexed: rx.IndexedFlow) @TypeOf(loader.*).Error!Fl
     const allocator = loader.allocator;
     var plan = try Flow.Builder.init(allocator, indexed.capacity);
 
-    try loader.calls.ensureTotalCapacityPrecise(allocator, indexed.capacity.calls);
+    try loader.calls.setCapacity(allocator, indexed.capacity.calls);
 
     // The XML walk records the closing Task event first.
     var events = std.mem.reverseIterator(indexed.events);

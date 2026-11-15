@@ -6,7 +6,6 @@ const Module = @import("../module.zig");
 const Frame = @import("history.zig").Frame;
 const State = @import("mixed/state.zig");
 const Inputs = @import("call_inputs.zig");
-const Body = @import("mixed/body.zig");
 const Schedule = @import("mixed/schedule.zig");
 
 /// Analyzes and links every module in dependency order over the shared tables `derived` starts them from.
@@ -41,33 +40,41 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, derived
 
         if (position == schedule.first) continue;
 
-        const index = dependencies.order[position];
+        const next = ahead.next(&state, position, schedule.first, record != null);
+
+        position = next.position;
+
+        if (position == schedule.first) continue;
+
+        const index = next.index;
 
         state.owner = index;
 
-        switch (Body.admit(&state, index)) {
+        switch (next.action) {
             .Skip => {},
             .MissingSignature => return .{ .diagnostic = .{ .path = dependencies.modules.items(.path)[index], .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "source module signature is missing" } },
             .AnalyzeZX => {
                 const zx_module = @import("mixed/zx.zig");
 
-                const body = if (ahead.take(&state, position)) |analyzed| linked: {
+                const body = if (ahead.take(&state, next.prepared_row)) |analyzed| linked: {
                     _ = state.scratch.reset(.retain_capacity);
 
                     break :linked zx_module.link(&state, state.scratch.allocator(), analyzed);
                 } else zx_module.compile(&state, cache, sources, index, null);
 
-                state.finished[index] = body catch |err| {
+                const linked = body catch |err| {
                     if (err == error.OutOfMemory) return error.OutOfMemory;
 
                     return .{ .diagnostic = state.issue.? };
                 };
+
+                state.finished.set(index, linked);
             },
             .LowerRX => {
                 const source = dependencies.sources.at(index).rx;
                 const rx_module = @import("mixed/rx.zig");
 
-                const linked = if (ahead.lowered(&state, position)) |lowered| ready: {
+                const linked = if (ahead.lowered(&state, next.prepared_row)) |lowered| ready: {
                     _ = state.scratch.reset(.retain_capacity);
 
                     break :ready rx_module.link(&state, state.scratch.allocator(), lowered.prepared, lowered.contract);
@@ -79,7 +86,7 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, derived
                     return .{ .diagnostic = state.issue.? };
                 };
 
-                state.finished[index] = result.loaded;
+                state.finished.set(index, result.loaded);
 
                 if (index == dependencies.entry) entry = result.contract;
             },
@@ -93,7 +100,7 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, derived
     state.owner = dependencies.entry;
 
     const root_path = dependencies.modules.items(.path)[dependencies.entry];
-    const finished = state.finished[dependencies.entry] orelse return .{ .diagnostic = .{ .path = root_path, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "entry source module was not compiled" } };
+    const finished = state.finished.get(dependencies.entry) orelse return .{ .diagnostic = .{ .path = root_path, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "entry source module was not compiled" } };
     const table = state.functions.view();
     const publication = @import("mixed/publication.zig").entry(&table, &finished, dependencies.sources.at(dependencies.entry) == .rx, exports.len != 0);
     const functions = table.prefix(publication.visible);

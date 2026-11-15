@@ -1,0 +1,22 @@
+import type { U8Buffer } from "std:memory"
+
+export type Column = {
+    earlier: u8[],
+    current: U8Buffer,
+    width: u64
+}
+
+export type Modules = {
+    surfaces: Column,
+    functions: Column,
+    present: Column,
+    available: bool[]
+}
+
+export type Input = {
+    rows: u64[],
+    first: u64,
+    end: u64,
+    modules: Modules,
+    checkpoints: Column
+}

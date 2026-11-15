@@ -28,10 +28,11 @@ pub fn next(self: *Self) ?Item {
 
         const position: usize = @intCast(self.positions[self.first]);
         const index = graph.order[position];
-
         self.first += 1;
 
-        if (!self.reuse.reusable(self.state, index, position)) {
+        const check_history = if (comptime enabled) index >= graph.sources.zx_count else true;
+
+        if (!check_history or !self.reuse.reusable(self.state, index, position)) {
             return .{ .position = position, .action = if (index < graph.sources.zx_count) .AnalyzeZX else .LowerRX };
         }
     }
@@ -39,10 +40,15 @@ pub fn next(self: *Self) ?Item {
 
 fn fill(self: *Self) void {
     const rule = @import("generated_rx_mixed_preview");
+    const Input = std.meta.Child(rule.Input);
+    const admission = @import("../history/admit.zig");
     const graph = &self.state.graph;
     const output: []u64 = &self.positions;
+    const previous = if (self.reuse.aligned) self.reuse.previous else null;
+    const inputs = if (previous) |retained| admission.Borrowed.init(self.state, retained, self.reuse.digests, self.reuse.redone) else undefined;
+    const history = if (previous != null) inputs.view() else undefined;
 
-    const input: std.meta.Child(rule.Input) = .{
+    const input: Input = .{
         .order = @ptrCast(graph.order),
         .start = self.position,
         .end = self.end,
@@ -50,6 +56,7 @@ fn fill(self: *Self) void {
         .signatures = self.state.signature_indices,
         .local_calls = self.local_calls,
         .compiled_dependencies = graph.modules.items(.compiled_dependency),
+        .history = if (previous != null) zx.columns.pointer(@typeInfo(@FieldType(Input, "history")).optional.child, &history) else null,
         .positions = @ptrCast(&output),
         .capacity = output.len,
     };

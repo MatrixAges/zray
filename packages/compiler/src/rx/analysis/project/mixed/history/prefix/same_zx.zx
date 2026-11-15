@@ -1,0 +1,31 @@
+import sameBoundaries from "./boundaries"
+import sameDigest from "./digest"
+
+import type { History } from "./model"
+
+export type Input = {
+    history: History,
+    index: u64,
+    position: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { history, position, index } = in
+
+    const stable_links = sameBoundaries({
+        boundaries: history.boundaries,
+        position
+    })
+
+    if (!stable_links) {
+        return false
+    }
+
+    return sameDigest({
+        earlier: history.earlier,
+        current: history.current,
+        index
+    })
+}

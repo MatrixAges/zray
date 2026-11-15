@@ -9,31 +9,80 @@ const Pair = std.meta.Child(@typeInfo(@FieldType(Input, "signature")).optional.c
 const Columns = std.meta.Child(@FieldType(Pair, "left"));
 const Source = std.meta.Child(@FieldType(Input, "source"));
 const Extent = std.meta.Child(@FieldType(Input, "before"));
+const prefix = @import("generated_rx_mixed_history_prefix");
+const Prefix = std.meta.Child(prefix.Input);
+const PrefixResult = @typeInfo(@TypeOf(prefix.executeValue(undefined, undefined))).error_union.payload;
+pub const ScanHistory = std.meta.Child(@FieldType(Prefix, "history"));
 
-pub fn dependencyPrefix(state: *const State, redone: []const bool, first: usize, end: usize) usize {
-    const prefix = @import("generated_rx_mixed_history_dependency_prefix");
+pub const Borrowed = struct {
+    dependencies: std.meta.Child(@FieldType(ScanHistory, "dependencies")),
+    earlier: std.meta.Child(@FieldType(ScanHistory, "earlier")),
+    current: std.meta.Child(@FieldType(ScanHistory, "current")),
+    boundaries: std.meta.Child(@FieldType(ScanHistory, "boundaries")),
+    pub fn init(state: *const State, previous: *const History.Retained, digests: History.SourceDigests, redone: []const bool) Borrowed {
+        const graph = &state.graph;
+        const edges = graph.source_dependencies.?;
+        const word = @sizeOf(u64);
+
+        comptime {
+            const Checkpoint = History.Checkpoint;
+            const offset = @offsetOf(Checkpoint, "native_modules");
+
+            if (@offsetOf(Checkpoint, "initializers") != offset + word or @offsetOf(Checkpoint, "libraries") != offset + 2 * word) @compileError("mixed history link counters must be adjacent native words");
+        }
+
+        return .{
+            .dependencies = .{
+                .compiled = graph.modules.items(.compiled_dependency),
+                .starts = edges.starts,
+                .ends = edges.ends,
+                .targets = edges.targets,
+                .redone = redone,
+            },
+            .earlier = .{
+                .words = std.mem.bytesAsSlice(u64, std.mem.sliceAsBytes(previous.digests.words)),
+                .present = previous.digests.present,
+            },
+            .current = .{
+                .words = std.mem.bytesAsSlice(u64, std.mem.sliceAsBytes(digests.words)),
+                .present = digests.present,
+            },
+            .boundaries = .{
+                .words = std.mem.bytesAsSlice(u64, std.mem.sliceAsBytes(previous.boundaries)),
+                .stride = @sizeOf(History.Checkpoint) / word,
+                .links_offset = @offsetOf(History.Checkpoint, "native_modules") / word,
+            },
+        };
+    }
+
+    pub fn view(self: *const Borrowed) ScanHistory {
+        return .{
+            .dependencies = &self.dependencies,
+            .earlier = &self.earlier,
+            .current = &self.current,
+            .boundaries = &self.boundaries,
+        };
+    }
+};
+
+pub fn scan(state: *const State, history: *const ScanHistory, first: usize, end: usize) PrefixResult {
     const graph = &state.graph;
-    const edges = graph.source_dependencies.?;
 
-    const input: std.meta.Child(prefix.Input) = .{
+    const input: Prefix = .{
         .order = @ptrCast(graph.order),
         .first = first,
         .end = end,
         .entry = graph.entry,
-        .compiled_dependencies = graph.modules.items(.compiled_dependency),
-        .starts = edges.starts,
-        .ends = edges.ends,
-        .targets = edges.targets,
-        .redone = redone,
+        .zx_count = graph.sources.zx_count,
+        .history = history,
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const position = zx.columns.invoke(prefix.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return @intCast(position);
+    return zx.columns.invoke(prefix.executeValue, empty.allocator(), &input) catch unreachable;
 }
 
-pub fn reusable(state: *const State, current: History.Frame, previous: *const History.Retained, redone: ?[]const bool, digests: []const ?[32]u8, index: usize, position: usize) bool {
+pub fn reusable(state: *const State, current: History.Frame, previous: *const History.Retained, redone: ?[]const bool, digests: History.SourceDigests, index: usize, position: usize) bool {
     const current_source = state.graph.sources.at(index);
     const earlier = previous.derived.dependencies.sources.at(index);
     const before = extent(&previous.boundaries[position]);
@@ -51,8 +100,8 @@ pub fn reusable(state: *const State, current: History.Frame, previous: *const Hi
             source.store_equal = earlier == .store and @import("../../history/columns.zig").same(previous.derived.stores[earlier.store].node, current.stores[row].node);
         },
         else => {
-            source.previous_digest = if (previous.digests[index] != null) &previous.digests[index].? else null;
-            source.current_digest = if (digests[index] != null) &digests[index].? else null;
+            if (previous.digests.at(index)) |digest| source.previous_digest = digest;
+            if (digests.at(index)) |digest| source.current_digest = digest;
 
             if (current_source == .rx) {
                 if (earlier != .rx) return false;

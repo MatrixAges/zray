@@ -15,6 +15,10 @@ const Attributes = @import("../call/attributes.zig");
 const availability = @import("../call/availability.zig");
 const generated = @import("rx_options").generated_graph;
 const Callee = union(enum) { module: usize, signature: frontend.project.signature_project.Ports };
+pub const batch_callees = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
+const CalleeInput = if (batch_callees) std.meta.Child(@import("generated_rx_mixed_callees").Input) else void;
+const CalleeTargets = if (batch_callees) std.meta.Child(@FieldType(CalleeInput, "calls")) else void;
+pub const CalleeKind = if (batch_callees) std.meta.Child(@FieldType(CalleeTargets, "kinds")) else enum(u8) { Source, AuthorizedSource, Compiled };
 
 pub const Call = struct {
     setter: ?target.Setter = null,
@@ -22,14 +26,17 @@ pub const Call = struct {
     node: rx.ast.Node,
     input: ?*const rx.ast.Attribute,
     name_source: *const rx.ast.Attribute,
-    edge: *const Graph.Edge,
+    target_kind: CalleeKind,
+    target: usize,
     callee: Callee,
 };
+
+pub const Calls = std.MultiArrayList(Call);
 
 pub const Module = struct {
     source: rx.ModuleSource,
     shortcut: ?usize = null,
-    calls: []Call,
+    calls: Calls.Slice,
     plan: Flow.Plan,
     type_imports: []const zx.ir.Export = &.{},
     value_imports: frontend.expressions.BindingColumns = .{},
@@ -62,6 +69,7 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
 
         loader.owner = source.path;
         loader.references = .{ .remaining = edges };
+        loader.edge_count = edges.len;
         loader.calls = .empty;
         loader.local_calls = true;
         loader.arguments = .empty;
@@ -89,7 +97,7 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
         plan.* = .{
             .source = source,
             .shortcut = loader.deferred_shortcut,
-            .calls = loader.calls.items,
+            .calls = loader.calls.slice(),
             .plan = flow,
             .type_imports = imported.imports.types,
             .value_imports = imported.imports.values,
@@ -107,8 +115,9 @@ pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signat
     for (modules, signatures) |*module, signature| {
         const index = module.shortcut orelse continue;
         const plan = try shorthand.lower(allocator, module.source.node, index, signature.input_type, signature.output_type);
-        module.calls[index].node = plan.node;
-        module.calls[index].input = plan.input;
+
+        module.calls.items(.node)[index] = plan.node;
+        module.calls.items(.input)[index] = plan.input;
         module.plan = plan.flow;
     }
 }
@@ -124,7 +133,8 @@ const Loader = struct {
     references: Graph.References = .{ .remaining = &.{} },
     owner: []const u8 = "",
     stores: StoreReferences.Scope = .{},
-    calls: std.ArrayList(Call) = .empty,
+    calls: Calls = .empty,
+    edge_count: usize = 0,
     local_calls: bool = true,
     plan: Flow.Builder = .{},
     task_count: usize = 0,
@@ -135,7 +145,7 @@ const Loader = struct {
     fn shortcut(self: *Loader, node: rx.ast.Node) Error!Flow.Plan {
         const shorthand = @import("shorthand.zig");
         const index = try self.call(try shorthand.call(self.allocator, node, false));
-        const callee = self.calls.items[index].callee;
+        const callee = self.calls.items(.callee)[index];
 
         const ports = switch (callee) {
             .signature => |signature| signature,
@@ -148,8 +158,8 @@ const Loader = struct {
 
         const plan = try shorthand.lower(self.allocator, node, index, ports.input_type, ports.output_type);
 
-        self.calls.items[index].node = plan.node;
-        self.calls.items[index].input = plan.input;
+        self.calls.items(.node)[index] = plan.node;
+        self.calls.items(.input)[index] = plan.input;
 
         return plan.flow;
     }
@@ -299,7 +309,7 @@ const Loader = struct {
         return body;
     }
     pub fn call(self: *Loader, node: rx.ast.Node) Error!usize {
-        const index = self.calls.items.len;
+        const index = self.calls.len;
         const attributes = Attributes.scan(node);
         const input = if (attributes.argument) |attribute| try self.inputs.parse(attribute.*, self.owner) else null;
         const authorized = try @import("../store/call.zig").analyze(self.allocator, self.backing, self.owner, attributes, self.stores, input);
@@ -335,7 +345,8 @@ const Loader = struct {
             .getters = capability.getters,
             .input = attributes.argument,
             .name_source = attributes.function orelse attributes.module.?,
-            .edge = edge,
+            .target_kind = if (edge.target == .compiled) .Compiled else if (capability.setter != null) .AuthorizedSource else .Source,
+            .target = if (edge.target == .source) edge.target.source else self.edge_count - self.references.remaining.len - 1,
             .callee = callee,
         });
 

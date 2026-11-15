@@ -1,0 +1,19 @@
+import memory from "std:memory"
+
+import type { Column } from "./model"
+
+export type Input = {
+    column: Column,
+    first: u64,
+    end: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { earlier, current, width } = in.column
+
+    const first = in.first * width
+    const end = in.end * width
+    const copied = memory.copyBytes(current, first, earlier, first, end)
+}

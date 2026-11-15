@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <Call
+        fn="modules"
+        in={$in.pick([
+            "rows",
+            "modules"
+        ])}
+    />
+
+    <Call
+        fn="checkpoints"
+        in={$in.pick([
+            "first",
+            "end",
+            "checkpoints"
+        ])}
+    />
+</Module>

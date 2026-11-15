@@ -1,0 +1,58 @@
+import copySpan from "./span"
+
+import type { Modules } from "./model"
+
+export type Input = {
+    rows: u64[],
+    modules: Modules
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows, modules } = in
+    const { surfaces, functions, present, available } = modules
+
+    const copied = loop(0, {
+        while: position => position < rows.length,
+        next: position => {
+            const first = rows[position]
+            const loaded = available[first]
+            const end = loop({
+                next: position + 1,
+                row: first + 1
+            }, {
+                while: state =>
+                    state.next < rows.length && rows[state.next] == state.row &&
+                    available[state.row] == loaded,
+                next: state => {
+                    state.next += 1
+                    state.row += 1
+                },
+                return: state => state.next
+            })
+            const limit = first + (end - position)
+
+            copySpan({
+                column: present,
+                first,
+                end: limit
+            })
+
+            if (loaded) {
+                copySpan({
+                    column: surfaces,
+                    first,
+                    end: limit
+                })
+                copySpan({
+                    column: functions,
+                    first,
+                    end: limit
+                })
+            }
+
+            position = end
+        }
+    })
+}
