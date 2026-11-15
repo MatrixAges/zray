@@ -6,6 +6,7 @@ const Builder = @import("builder.zig");
 const Writer = @import("control/writer.zig");
 const Counts = @import("control/plan.zig").Counts;
 const Layout = @import("../task_captures/layout.zig");
+const generated = @import("rx_options").generated_graph;
 
 pub const Parameters = struct {
     names: []const []const u8,
@@ -14,6 +15,8 @@ pub const Parameters = struct {
 };
 
 pub fn bind(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, input_type: ir.TypeId, captures: Parameters, span: zx.Span) std.mem.Allocator.Error!void {
+    if (comptime generated) return @import("capture/source.zig").bind(builder, writer, cursor, input_type, captures, span);
+
     const reference = try input(builder, input_type, span);
 
     for (captures.positions, captures.types, 0..) |position, type_id, index| {
@@ -25,6 +28,8 @@ pub fn bind(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, input_ty
 }
 
 pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeTable, environment_type: ir.TypeId, input_type: ir.TypeId, captures: Parameters, layout: Layout, span: zx.Span) std.mem.Allocator.Error!ir.Program {
+    if (comptime generated) return @import("capture/source.zig").argument(allocator, owner, types, environment_type, input_type, captures, layout, span);
+
     var builder = Builder{ .allocator = allocator, .types = types, .native_modules = .{} };
     const count = std.math.cast(u32, captures.types.len) orelse return error.OutOfMemory;
     const size = Counts{ .constants = count, .results = 1 };

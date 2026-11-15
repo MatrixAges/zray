@@ -121,6 +121,8 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/task_captures/positions.zx", .name = "rx_task_capture_positions", .owner = .rx_analysis },
     .{ .path = "rx/analysis/task_captures/layout/plan.rx", .name = "rx_task_capture_layout", .owner = .rx_analysis },
     .{ .path = "rx/analysis/task_captures/narrow.zx", .name = "rx_task_capture_narrow", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/capture/prefix.zx", .name = "rx_capture_prefix", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/capture/argument.rx", .name = "rx_capture_argument", .owner = .rx_analysis },
     .{ .path = "zx/analysis/semantic/types/container.zx", .name = "rx_task_capture_admission", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/plan.rx", .name = "rx_expression_link_plan", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/headers.zx", .name = "rx_link_headers", .owner = .rx_analysis },

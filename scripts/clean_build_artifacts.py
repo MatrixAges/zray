@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import time
 
@@ -28,22 +29,36 @@ def git_paths(*args):
     return (ROOT / os.fsdecode(path) for path in output.split(b"\0") if path)
 
 
-def old_history(cutoff):
-    for root in (HISTORY, HISTORY / "ownership-research"):
-        if not root.is_dir() or root.resolve() != root:
-            continue
+def expired_output(path, cutoff):
+    metadata = path.lstat()
+    if metadata.st_mtime >= cutoff:
+        return False
 
-        for path in root.iterdir():
-            if path == HISTORY / "ownership-research" or path.is_symlink():
-                continue
+    return not stat.S_ISDIR(metadata.st_mode) or all(
+        expired_output(child, cutoff) for child in path.iterdir()
+    )
 
-            if path.stat().st_mtime >= cutoff:
-                continue
 
-            # A later report written into an older verification directory keeps that run.
-            if path.is_dir() and any(child.lstat().st_mtime >= cutoff for child in path.iterdir()):
-                continue
+def history_outputs():
+    if not HISTORY.is_dir() or HISTORY.resolve() != HISTORY:
+        return
 
+    research = HISTORY / "ownership-research"
+    yield from (path for path in HISTORY.iterdir() if path != research)
+
+    if not research.is_dir() or research.is_symlink():
+        return
+
+    for workspace in research.iterdir():
+        if workspace.is_dir() and not workspace.is_symlink():
+            yield from workspace.iterdir()
+        else:
+            yield workspace
+
+
+def old_history(cutoff, keep):
+    for path in history_outputs():
+        if not path.is_symlink() and not keep(path) and expired_output(path, cutoff):
             yield path
 
 
@@ -145,7 +160,8 @@ def main():
 
     cutoff = time.time() - options.min_age_hours * 3_600
     packages = list(package_caches())
-    history = [path for path in (*old_history(cutoff), *old_package_caches(packages, cutoff)) if not keep(path)]
+    history = list(old_history(cutoff, keep))
+    history.extend(path for path in old_package_caches(packages, cutoff) if not keep(path))
     retired = set(history)
     buckets = [
         cache / name

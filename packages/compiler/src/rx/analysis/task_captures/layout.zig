@@ -8,7 +8,7 @@ const Self = @This();
 source_types: []const ir.TypeId = &.{},
 parameter_types: []const ir.TypeId = &.{},
 elements: []const ir.ExprId = &.{},
-narrows: bool = false,
+optional_count: usize = 0,
 pub fn admits(types: ir.TypeTable, children: []const ir.TypeId) bool {
     if (children.len == 0) return true;
 
@@ -53,8 +53,7 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, positions: [
     return .{
         .source_types = @ptrCast(result.source_types),
         .parameter_types = @ptrCast(result.parameter_types),
-        .elements = @ptrCast(result.rows.elements),
-        .narrows = result.rows.narrows,
+        .optional_count = @intCast(result.rows.optional_count),
     };
 }
 

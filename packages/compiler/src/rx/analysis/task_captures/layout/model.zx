@@ -5,8 +5,7 @@ export type Input = {
 }
 
 export type Rows = {
-    elements: u32[],
-    narrows: bool
+    optional_count: u64
 }
 
 export type Types = {

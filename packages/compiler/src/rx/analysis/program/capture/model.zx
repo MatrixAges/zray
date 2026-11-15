@@ -1,0 +1,84 @@
+import type { OptionalU32Buffer, StringBuffer } from "std:memory"
+import type { U8Buffer, U32Buffer, U64Buffer } from "std:memory"
+
+export type Symbols = {
+    names: StringBuffer,
+    types: U32Buffer,
+    starts: U64Buffer,
+    ends: U64Buffer
+}
+
+export type Expressions = {
+    kinds: U8Buffer,
+    payloads: U32Buffer,
+    types: U32Buffer,
+    starts: U64Buffer,
+    ends: U64Buffer
+}
+
+export type Statements = {
+    kinds: U8Buffer,
+    payloads: U32Buffer,
+    symbols: U32Buffer,
+    values: U32Buffer
+}
+
+export type Span = {
+    start: u64,
+    end: u64
+}
+
+export type Captures = {
+    names: string[],
+    positions: u32[],
+    types: u32[]
+}
+
+export type Prefix = {
+    symbols: Symbols,
+    expressions: Expressions,
+    statements: Statements,
+    captures: Captures,
+    references: U32Buffer,
+    targets: U32Buffer,
+    indices: U32Buffer,
+    bindings?: U32Buffer,
+    span: Span,
+    input_type: u32,
+    statement: u64,
+    constant: u64,
+    reference_kind: u8,
+    field_kind: u8,
+    constant_kind: u8
+}
+
+export type Tuple = {
+    expressions: Expressions,
+    source_types: u32[],
+    parameter_types: u32[],
+    references: U32Buffer,
+    optionals: U32Buffer,
+    firsts: U32Buffer,
+    counts: U32Buffer,
+    items: U32Buffer,
+    span: Span,
+    result_type: u32,
+    reference_kind: u8,
+    optional_kind: u8,
+    tuple_kind: u8
+}
+
+export type Result = {
+    statements: Statements,
+    results: OptionalU32Buffer,
+    block_first: U32Buffer,
+    block_count: U32Buffer,
+    count: u64,
+    result_kind: u8
+}
+
+export type Argument = {
+    prefix: Prefix,
+    tuple: Tuple,
+    result: Result
+}

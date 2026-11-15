@@ -107,7 +107,7 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
                     return failure(parent, node, reporter.diagnostic.?);
                 };
 
-                environment_type = if (layout.narrows) types.tuple(layout.source_types) catch |err| {
+                environment_type = if (layout.optional_count != 0) types.tuple(layout.source_types) catch |err| {
                     if (err == error.OutOfMemory) return error.OutOfMemory;
 
                     return failure(parent, node, reporter.diagnostic.?);

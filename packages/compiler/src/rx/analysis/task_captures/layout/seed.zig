@@ -8,7 +8,7 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, positions: [
     const parameter_types = try allocator.alloc(ir.TypeId, positions.len);
     const elements = try allocator.alloc(ir.ExprId, positions.len);
     var cursor = 1 + positions.len;
-    var narrows = false;
+    var optional_count: usize = 0;
 
     for (positions, source_types, parameter_types, elements) |position, *source, *parameter, *element| {
         source.* = types[position];
@@ -17,10 +17,10 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, positions: [
 
         cursor += if (narrowed) @as(usize, 2) else 1;
         element.* = @fromBackingInt(@intCast(cursor - 1));
-        narrows = narrows or narrowed;
+        optional_count += @intFromBool(narrowed);
     }
 
-    return .{ .source_types = source_types, .parameter_types = parameter_types, .elements = elements, .narrows = narrows };
+    return .{ .source_types = source_types, .parameter_types = parameter_types, .elements = elements, .optional_count = optional_count };
 }
 
 pub fn narrow(types: ir.TypeTable, bindings: Bindings, facts: []const []const u8, output: []ir.TypeId) void {

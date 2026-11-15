@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Capture" />
+
+    <Args in={Capture.Argument} out={void} />
+
+    <Call fn="prefix" in={$in.prefix} />
+    <Call fn="tuple" in={$in.tuple} />
+
+    <Call
+        fn="result"
+        in={{
+            ...$in.result,
+            expression: $ctx.tuple
+        }}
+    />
+</Module>

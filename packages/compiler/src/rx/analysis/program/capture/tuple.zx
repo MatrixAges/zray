@@ -1,0 +1,74 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import expression from "./expression"
+
+import type { Tuple } from "./model"
+
+export type Input = Tuple
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { expressions, source_types, parameter_types, span } = in
+
+    const count = source_types.length
+
+    const end = loop({
+        position: 0,
+        row: count + 1,
+        optional_row: 0
+    }, {
+        while: state => state.position < count,
+        next: state => {
+            const position = state.position
+            const symbol = integers.narrow(position + 1)
+            const reference = integers.narrow(state.row)
+            const source = source_types[position]
+            const target = parameter_types[position]
+
+            memory.writeU32(in.references, position + 1, symbol)
+            expression({
+                columns: expressions,
+                span,
+                row: state.row,
+                kind: in.reference_kind,
+                type_id: source,
+                payload: symbol
+            })
+
+            if (source != target) {
+                state.row += 1
+                memory.writeU32(in.optionals, state.optional_row, reference)
+                expression({
+                    columns: expressions,
+                    span,
+                    row: state.row,
+                    kind: in.optional_kind,
+                    type_id: target,
+                    payload: integers.narrow(state.optional_row)
+                })
+                state.optional_row += 1
+            }
+
+            memory.writeU32(in.items, position, integers.narrow(state.row))
+            state.position += 1
+            state.row += 1
+        },
+        return: state => state.row
+    })
+
+    memory.writeU32(in.firsts, 0, 0)
+    memory.writeU32(in.counts, 0, integers.narrow(count))
+
+    expression({
+        columns: expressions,
+        span,
+        row: end,
+        kind: in.tuple_kind,
+        type_id: in.result_type,
+        payload: 0
+    })
+
+    return integers.narrow(end)
+}
