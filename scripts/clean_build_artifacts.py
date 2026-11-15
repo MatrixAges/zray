@@ -118,18 +118,29 @@ def history_cache_buckets(outputs, retained):
                 names[:] = [name for name in names if path / name not in buckets]
 
 
-def unused_docs(cutoff):
+def documentation_references():
     markdown = git_paths("-co", "--exclude-standard", "--", "*.md")
-    references = "\n".join(
+    return "\n".join(
         path.read_text(encoding="utf-8", errors="replace")
         for path in set(markdown)
         if path.is_file() and not path.is_symlink()
     )
-    for path in git_paths("--others", "--ignored", "--exclude-standard", "--", "docs"):
+
+
+def unused_intermediate_files(cutoff, references):
+    candidates = git_paths(
+        "--others", "--ignored", "--exclude-standard", "--",
+        "docs", ":(glob).zig-cache/*.log",
+    )
+    for path in candidates:
         if path.suffix not in DOC_SUFFIXES or path.resolve() != path or not path.is_file():
             continue
 
         if path.stat().st_mtime >= cutoff or path.name in references:
+            continue
+
+        if path.parent == CACHE:
+            yield path
             continue
 
         parents = path.relative_to(ROOT / "docs").parts[1:-1]
@@ -178,11 +189,14 @@ def clean(options, protected):
         return retained(path) or any(saved.is_relative_to(path) for saved in protected)
 
     cutoff = time.time() - options.min_age_hours * 3_600
+    references = documentation_references()
     packages = list(package_caches())
     outputs = list(history_outputs())
     history = [
         path for path in (*outputs, *install_outputs())
-        if not path.is_symlink() and not keep(path) and expired_output(path, cutoff)
+        if not path.is_symlink() and not keep(path)
+        and (not path.is_file() or path.name not in references)
+        and expired_output(path, cutoff)
     ]
     history.extend(path for path in old_package_caches(packages, cutoff) if not keep(path))
     retired = set(history)
@@ -194,9 +208,9 @@ def clean(options, protected):
     ]
     buckets.extend(history_cache_buckets((path for path in outputs if path not in retired), retained))
     buckets = [bucket for bucket in buckets if bucket not in retired and not retained(bucket)]
-    files = [path for path in unused_docs(cutoff) if not keep(path)]
+    files = [path for path in unused_intermediate_files(cutoff, references) if not keep(path)]
     print(
-        f"Selected {len(history):,} historical outputs and {len(files):,} documents' intermediate files. "
+        f"Selected {len(history):,} historical outputs and {len(files):,} intermediate files. "
         f"Scanning {len(buckets):,} Zig cache directories for expired entries.",
         flush=True,
     )
