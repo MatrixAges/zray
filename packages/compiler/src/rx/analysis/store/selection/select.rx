@@ -3,25 +3,16 @@
 
     <Args in={Selection.Input} out={Selection.Output} />
 
-    <Call
-        module="core/store_table/find"
-        in={{
-            paths: $in.entry,
-            identity: $in.identity
-        }}
-    />
-
-    <If on={$ctx.find != null}>
-        <Return value={Selection.Output.Needed} />
+    <If on={$in.entry.length == 0 && $in.members.ids.length == 0}>
+        <Return
+            value={{
+                next: $in.count,
+                choice: Selection.Choice.Unused
+            }}
+        />
     </If>
 
-    <Call
-        fn="public_members"
-        in={$in.pick([
-            "members",
-            "identity"
-        ])}
-    />
+    <Call fn="next" in={$in} />
 
-    <Return value={$ctx.public_members} />
+    <Return value={$ctx.next} />
 </Module>

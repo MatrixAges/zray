@@ -1,0 +1,27 @@
+import integers from "std:integer"
+
+import type { Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const layout = in.layout
+
+    return loop({
+        next: in.first,
+        count: 0
+    }, {
+        while: state => state.next != null,
+        next: state => {
+            const fragment = state.next
+
+            if (fragment != null) {
+                const row = integers.widen(fragment)
+
+                state.count += layout.offsets[row + 1] - layout.offsets[row]
+                state.next = layout.next[row]
+            }
+        },
+        return: state => state.count
+    })
+}

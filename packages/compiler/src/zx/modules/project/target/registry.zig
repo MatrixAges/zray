@@ -4,9 +4,7 @@ const interface = @import("../../interface.zig");
 const Native = interface.Native;
 const NativeSelection = union(enum) { missing, duplicate, found: *const Native };
 pub const Registration = struct { valid: bool, existing: bool = false, id: ?zx.ir.NativeModuleId = null };
-
 const enabled = @import("parser_options").generated_parser;
-const batch_size = @import("../../package_scope.zig").lookup_batch_size;
 
 pub const Match = struct { first: ?usize = null, duplicate: bool = false };
 
@@ -30,92 +28,48 @@ pub fn select(rows: anytype, comptime field: []const u8, name: []const u8, check
         return result;
     }
 
-    var names: [batch_size][]const u8 = undefined;
-    var offset: usize = 0;
-
-    while (offset < rows.len) {
-        const batch = rows[offset..][0..@min(names.len, rows.len - offset)];
-
-        for (batch, names[0..batch.len]) |*row, *key| key.* = @field(row, field);
-
-        result = scan(names[0..batch.len], name, check_duplicates, offset, result.first);
-
-        if (result.duplicate or (!check_duplicates and result.first != null)) break;
-
-        offset += batch.len;
-    }
-
-    return result;
-}
-
-fn scan(names: []const []const u8, name: []const u8, check_duplicates: bool, offset: usize, first: ?usize) Match {
+    const names = @import("zxc_standard").memory.borrowTextColumn(field, rows);
     const rule = @import("generated_project_package_select");
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: std.meta.Child(rule.Input) = .{
-        .specifiers = names,
+        .specifiers = &.{ .items = @ptrCast(&names), .length = names.count },
         .name = name,
-        .offset = offset,
-        .first = first,
         .check_duplicates = check_duplicates,
     };
 
-    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+    const selection = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
 
-    return .{ .first = result.first, .duplicate = result.duplicate };
+    return .{ .first = if (selection.first) |index| @intCast(index) else null, .duplicate = selection.duplicate };
 }
-
-const standard_names = blk: {
-    var names: [interface.standard.len][]const u8 = undefined;
-
-    for (interface.standard, &names) |entry, *name| name.* = entry.specifier;
-
-    break :blk names;
-};
 
 pub fn native(scoped: []const Native, name: []const u8, check_duplicates: bool) NativeSelection {
     if (comptime !enabled) return seedNative(scoped, name, check_duplicates);
 
     const generated = @import("generated_project_interface_lookup");
     const Input = std.meta.Child(generated.Input);
-    const Selected = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
-    var selected: ?Selected = null;
-    var names: [batch_size][]const u8 = undefined;
-    var offset: usize = 0;
+    const memory = @import("zxc_standard").memory;
+    const standard = memory.borrowTextColumn("specifier", @as([]const Native, &interface.standard));
+    const local = memory.borrowTextColumn("specifier", scoped);
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-    while (true) {
-        const size = @min(names.len, scoped.len - offset);
-        const batch = names[0..size];
+    const input: Input = .{
+        .standard = &.{ .items = @ptrCast(&standard), .length = standard.count },
+        .scoped = &.{ .items = @ptrCast(&local), .length = local.count },
+        .name = name,
+        .check_duplicates = check_duplicates,
+    };
 
-        for (scoped[offset..][0..size], batch) |*row, *key| key.* = row.specifier;
+    const result = zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
 
-        const input: Input = .{
-            .standard = &standard_names,
-            .scoped = batch,
-            .name = name,
-            .check_duplicates = check_duplicates,
-            .offset = offset,
-            .previous = if (selected) |*value| value else null,
-        };
+    if (result.duplicate) return .duplicate;
 
-        const result = zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
+    const matched = result.selected orelse return .missing;
 
-        if (result.duplicate) return .duplicate;
-
-        offset += size;
-
-        if (offset == scoped.len or (!check_duplicates and result.selected != null)) {
-            const matched = result.selected orelse return .missing;
-
-            return .{ .found = switch (matched.source) {
-                .Standard => &interface.standard[@intCast(matched.index)],
-                .Scoped => &scoped[@intCast(matched.index)],
-            } };
-        }
-
-        selected = if (result.selected) |value| .{ .source = value.source, .index = value.index } else null;
-    }
+    return .{ .found = switch (matched.source) {
+        .Standard => &interface.standard[@intCast(matched.index)],
+        .Scoped => &scoped[@intCast(matched.index)],
+    } };
 }
 
 fn seedNative(scoped: []const Native, name: []const u8, check_duplicates: bool) NativeSelection {

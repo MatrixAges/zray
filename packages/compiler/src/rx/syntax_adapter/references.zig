@@ -74,14 +74,6 @@ pub const Flow = struct {
     capacity: Capacity,
     pub const Operation = Action;
 
-    pub fn nodeAt(self: Flow, event: Event) *const ast.Node {
-        return &self.base[event.slot];
-    }
-    pub fn taskId(self: Flow, event: Event) ?usize {
-        const rank = @backingInt(event.phase);
-
-        return if (rank > @backingInt(@TypeOf(event.phase).check_task)) self.parallel_tasks - (rank - 1) else null;
-    }
     pub fn get(self: Flow, node: *const ast.Node) Fact {
         return self.facts[self.row(node)];
     }
@@ -92,9 +84,6 @@ pub const Flow = struct {
         const index = self.row(node);
 
         return .{ .first = self.unit_firsts[index], .count = self.unit_counts[index] };
-    }
-    pub fn step(self: Flow, node: *const ast.Node) u32 {
-        return self.step_rows[self.row(node)];
     }
     fn row(self: Flow, node: *const ast.Node) usize {
         return (@intFromPtr(node) - @intFromPtr(self.base)) / @sizeOf(ast.Node);

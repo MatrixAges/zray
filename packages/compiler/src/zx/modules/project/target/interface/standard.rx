@@ -15,8 +15,6 @@
             in={{
                 specifiers: $in.lookup.scoped,
                 name: $in.lookup.name,
-                offset: $in.lookup.offset,
-                first: null,
                 check_duplicates: false
             }}
         />

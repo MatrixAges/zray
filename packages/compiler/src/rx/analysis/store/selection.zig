@@ -5,7 +5,6 @@ const Store = @import("../store.zig");
 const Initializer = frontend.project.SourceStoreInitializer;
 const generated = @import("rx_options").generated_graph;
 const rule = if (generated) @import("generated_rx_store_initializer_selection") else void;
-const Choice = if (generated) rule.Output else enum { Unused, Needed, InvalidMember };
 pub const Error = std.mem.Allocator.Error || error{InvalidAnalysis};
 
 pub fn collect(allocator: std.mem.Allocator, definitions: []const Store.Definition, program: *const zx.ir.Program, exported: []const frontend.project.FunctionImport) Error![]const Initializer {
@@ -33,42 +32,71 @@ pub fn collect(allocator: std.mem.Allocator, definitions: []const Store.Definiti
 
     errdefer initializers.deinit(allocator);
 
-    for (definitions) |definition| for (definition.objects) |object| {
-        switch (choose(program, members[0..length], object.identity)) {
-            .Unused => {},
-            .Needed => try initializers.append(allocator, .{ .identity = object.identity, .schema_version = definition.version, .program = object.initial }),
-            .InvalidMember => return error.InvalidAnalysis,
-        }
-    };
+    if (comptime generated) {
+        try select(allocator, definitions, program, members[0..length], &initializers);
+    } else {
+        try seed(allocator, definitions, program, members[0..length], &initializers);
+    }
 
     return initializers.items;
 }
 
-fn choose(program: *const zx.ir.Program, ids: []const u32, identity: []const u8) Choice {
-    if (comptime generated) {
-        const Input = std.meta.Child(rule.Input);
-        const Members = std.meta.Child(@FieldType(Input, "members"));
+fn select(allocator: std.mem.Allocator, definitions: []const Store.Definition, program: *const zx.ir.Program, ids: []const u32, output: *std.ArrayList(Initializer)) Error!void {
+    const Input = std.meta.Child(rule.Input);
+    const Members = std.meta.Child(@FieldType(Input, "members"));
+    const memory = @import("zxc_standard").memory;
 
-        const input: Input = .{
-            .entry = program.stores.paths,
-            .identity = identity,
-            .members = &.{
-                .ids = ids,
-                .stores = zx.columns.slice(@FieldType(Members, "stores"), program.functions.stores),
-            },
-        };
+    const members: Members = .{
+        .ids = ids,
+        .stores = zx.columns.slice(@FieldType(Members, "stores"), program.functions.stores),
+    };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    for (definitions) |*definition| {
+        const objects = definition.objects;
+        const identities = memory.borrowTextColumn("identity", objects);
+        var first: u64 = 0;
+
+        while (first < objects.len) {
+            const input: Input = .{
+                .entry = program.stores.paths,
+                .members = &members,
+                .identities = @ptrCast(&identities),
+                .count = objects.len,
+                .first = first,
+            };
+
+            const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+            first = result.next;
+
+            switch (result.choice) {
+                .Unused => break,
+                .Needed => try append(allocator, output, definition, &objects[@intCast(first - 1)]),
+                .InvalidMember => return error.InvalidAnalysis,
+            }
+        }
     }
+}
 
-    for (program.stores.paths) |path| if (std.mem.eql(u8, path, identity)) return .Needed;
+fn append(allocator: std.mem.Allocator, output: *std.ArrayList(Initializer), definition: *const Store.Definition, object: *const Store.Object) std.mem.Allocator.Error!void {
+    try output.append(allocator, .{ .identity = object.identity, .schema_version = definition.version, .program = object.initial });
+}
+
+fn seed(allocator: std.mem.Allocator, definitions: []const Store.Definition, program: *const zx.ir.Program, ids: []const u32, output: *std.ArrayList(Initializer)) Error!void {
+    for (definitions) |*definition| for (definition.objects) |*object| {
+        if (try seedNeeded(program, ids, object.identity)) try append(allocator, output, definition, object);
+    };
+}
+
+fn seedNeeded(program: *const zx.ir.Program, ids: []const u32, identity: []const u8) error{InvalidAnalysis}!bool {
+    for (program.stores.paths) |path| if (std.mem.eql(u8, path, identity)) return true;
 
     for (ids) |id| {
-        if (id >= program.functions.count()) return .InvalidMember;
-        for (program.functions.stores[id].paths) |path| if (std.mem.eql(u8, path, identity)) return .Needed;
+        if (id >= program.functions.count()) return error.InvalidAnalysis;
+        for (program.functions.stores[id].paths) |path| if (std.mem.eql(u8, path, identity)) return true;
     }
 
-    return .Unused;
+    return false;
 }

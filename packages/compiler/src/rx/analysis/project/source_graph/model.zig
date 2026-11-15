@@ -36,21 +36,7 @@ pub const Module = struct {
 };
 
 pub const Modules = std.MultiArrayList(Module);
-
-pub const References = struct {
-    remaining: []const Edge,
-    pub fn next(self: *References, reference: Reference) *const Edge {
-        while (self.remaining.len != 0) {
-            const edge = &self.remaining[0];
-
-            self.remaining = self.remaining[1..];
-
-            if (edge.reference == reference) return edge;
-        }
-
-        unreachable;
-    }
-};
+pub const References = @import("references.zig");
 
 pub const Schedule = struct {
     order: []const usize,

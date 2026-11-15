@@ -1,0 +1,33 @@
+import memory from "std:memory"
+import find from "core/store_table/find"
+
+import { Choice } from "./model"
+import publicMembers from "./public_members"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    return loop({
+        next: in.first,
+        choice: Choice.Unused
+    }, {
+        while: state => state.next < in.count && state.choice == Choice.Unused,
+        next: state => {
+            const identity = memory.readTextColumn(in.identities, state.next)
+            const entry = find({
+                paths: in.entry,
+                identity
+            })
+
+            state.choice = match {
+                entry != null => Choice.Needed,
+                _ => publicMembers({
+                    members: in.members,
+                    identity
+                })
+            }
+            state.next += 1
+        },
+        return: state => state
+    })
+}

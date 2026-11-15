@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Lookup" />
+    <Type from="../../source_graph/source" as="Source" />
+
+    <Args in={Lookup.Input} out={Lookup.Output} />
+
+    <Call
+        fn="../../source_graph/source"
+        in={$in.pick([
+            "owner",
+            "sources"
+        ])}
+    />
+
+    <If on={$ctx.source.kind != Source.Kind.ZX}>
+        <Return
+            value={{
+                ...$ctx.source,
+                signature: null
+            }}
+        />
+    </If>
+
+    <Call
+        fn="index"
+        in={$in.pick([
+            "owner",
+            "indices"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$ctx.source,
+            signature: $ctx.index
+        }}
+    />
+</Module>

@@ -1,4 +1,5 @@
-import type { Cache, Diagnostic } from "../../analysis/semantic/resolving/model"
+import type { NamedRows } from "std:memory"
+import type { Diagnostic } from "../../analysis/semantic/resolving/model"
 import type { Span } from "../../frontend/lexer/token_model"
 import type { ImportKind } from "../../frontend/parser/imports/model"
 
@@ -23,6 +24,11 @@ export type Name = {
     end: u64
 }
 
+export type Exports = {
+    rows: NamedRows,
+    length: u64
+}
+
 export type Request = {
     target: Target,
     kind: ImportKind,
@@ -32,7 +38,7 @@ export type Request = {
     end: u64,
     names: Names,
     type_kinds: u8[],
-    exports: Cache,
+    exports: Exports,
     constants: string[],
     members: string[]
 }

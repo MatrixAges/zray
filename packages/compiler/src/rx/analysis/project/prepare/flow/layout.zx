@@ -1,0 +1,74 @@
+import integers from "std:integer"
+
+import {
+    action_mask,
+    call_action,
+    check_task_phase,
+    if_action,
+    parallel_action,
+    return_action,
+    switch_action,
+    task_action,
+    unreachable
+} from "../../../../dependency_graph/flow/const"
+import { Route } from "./model"
+
+import type { Event, Index, Output } from "./model"
+
+export type Input = {
+    index: Index,
+    event: Event
+}
+
+export default function (in: Input): Output {
+    const event = in.event
+    const slot = event.slot
+    const phase = event.phase
+    const flags = event.flags
+
+    const action =
+        integers.narrow(integers.andBits(flags, integers.widen(action_mask)))
+
+    const route = match {
+        phase == check_task_phase => Route.TaskReturns,
+        integers.andBits(flags, integers.widen(unreachable)) != 0 => Route.Unreachable,
+        _ => match action {
+            call_action => Route.Call,
+            return_action => Route.Result,
+            task_action => phase > check_task_phase ? Route.ParallelTask : Route.Task,
+            parallel_action => Route.Parallel,
+            switch_action => Route.Switch,
+            if_action => Route.If,
+            _ => Route.Unsupported
+        }
+    }
+
+    const published = match route {
+        Route.TaskReturns => false,
+        Route.Unreachable => false,
+        Route.Unsupported => false,
+        _ => true
+    }
+
+    const has_body = match route {
+        Route.Task => true,
+        Route.ParallelTask => true,
+        Route.Parallel => true,
+        _ => false
+    }
+
+    const task_id: u64? = match route {
+        Route.ParallelTask => in.index.parallel_tasks - (phase - check_task_phase),
+        _ => null
+    }
+
+    return {
+        remaining: event.remaining,
+        slot,
+        route,
+        row: published ? in.index.step_rows[slot] : 0,
+        first: has_body ? in.index.unit_firsts[slot] : 0,
+        count: has_body ? in.index.unit_counts[slot] : 0,
+        task_id
+    }
+}

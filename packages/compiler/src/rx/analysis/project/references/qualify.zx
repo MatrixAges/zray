@@ -1,22 +1,12 @@
 import { qualifier_separator } from "./const"
-import valueKind from "./value_kind"
 
 export type Input = {
     alias: string,
-    member: string,
-    kind?: u8
+    member: string
 }
 
-export type Output = {
-    name: string,
-    value_visible: bool
-}
+export type Output = string
 
 export default function (in: Input): Output {
-    const kind = in.kind
-
-    return {
-        name: `${in.alias}${qualifier_separator}${in.member}`,
-        value_visible: kind != null && valueKind(kind)
-    }
+    return `${in.alias}${qualifier_separator}${in.member}`
 }

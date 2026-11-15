@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Fields" />
+
+    <Args in={Fields.Input} out={Fields.Plan} />
+
+    <Call fn="count" in={$in} />
+
+    <If on={$ctx.count == 0}>
+        <Return
+            value={{
+                count: 0,
+                range: {
+                    first: 0,
+                    end: 0,
+                    next: null
+                }
+            }}
+        />
+    </If>
+
+    <Call fn="run" in={$in} />
+
+    <Return
+        value={{
+            count: $ctx.count,
+            range: $ctx.run
+        }}
+    />
+</Module>

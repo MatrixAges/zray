@@ -1,0 +1,43 @@
+export type Input = {
+    ends: u64[],
+    expressions: string[],
+    offset: u64
+}
+
+export type Output = {
+    field: u64,
+    relative: u64
+}
+
+export default function (in: Input): Output {
+    const { ends, expressions, offset } = in
+
+    const upper = loop({
+        first: 0,
+        end: ends.length
+    }, {
+        while: state => state.first < state.end,
+        next: state => {
+            const middle = state.first + (state.end - state.first) / 2
+            const start = ends[middle] - 1 - expressions[middle].length
+
+            if (start <= offset) {
+                state.first = middle + 1
+            } else {
+                state.end = middle
+            }
+        },
+        return: state => state.first
+    })
+
+    const field = upper == 0 ? 0 : upper - 1
+    const width = expressions[field].length
+    const start = ends[field] - 1 - width
+    const inside = offset < start ? 0 : offset - start
+    const relative = inside < width ? inside : width
+
+    return {
+        field,
+        relative
+    }
+}

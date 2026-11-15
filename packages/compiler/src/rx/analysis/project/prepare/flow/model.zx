@@ -1,0 +1,43 @@
+export type Index = {
+    facts: u32[],
+    events: u64[],
+    unit_firsts: u32[],
+    unit_counts: u32[],
+    step_rows: u32[],
+    parallel_tasks: u64
+}
+
+export enum Route {
+    Done,
+    TaskReturns,
+    Unreachable,
+    Unsupported,
+    Call,
+    Result,
+    Task,
+    ParallelTask,
+    Parallel,
+    Switch,
+    If
+}
+
+export type Input = {
+    index: Index,
+    remaining: u64
+}
+
+export type Event = {
+    ready: bool,
+    remaining: u64,
+    slot: u64,
+    flags: u64,
+    phase: u64
+}
+
+export type Output = Event.Pick("remaining", "slot") & {
+    route: Route,
+    row: u32,
+    first: u32,
+    count: u32,
+    task_id?: u64
+}

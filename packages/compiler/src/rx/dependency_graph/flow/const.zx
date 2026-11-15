@@ -8,6 +8,8 @@ export const declaration: u32 = 8
 
 export const alternate: u32 = 16
 
+export const action_mask: u32 = 224
+
 export const call_action: u32 = 32
 
 export const task_action: u32 = 64
@@ -30,4 +32,6 @@ export const task_output_attribute: string = "out"
 
 export const event_stride: u64 = 4294967296
 
-export const check_task_event: u64 = event_stride
+export const check_task_phase: u64 = 1
+
+export const check_task_event: u64 = check_task_phase * event_stride

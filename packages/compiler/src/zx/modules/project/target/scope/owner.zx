@@ -1,6 +1,9 @@
 import bytes from "std:bytes"
+import memory from "std:memory"
 
 import contains from "./contains"
+
+import type { Rows } from "../select"
 
 export type Owner = {
     index?: u64,
@@ -8,28 +11,27 @@ export type Owner = {
 }
 
 export type Input = {
-    roots: string[],
+    roots: Rows,
     path: string,
-    windows: bool,
-    offset: u64,
-    selected: Owner
+    windows: bool
 }
 
 export type Output = Owner
 
 export default function (in: Input): Output {
-    const { roots, windows, offset } = in
+    const { roots, windows } = in
 
     const path = bytes.fromText(in.path)
+    const index: u64? = null
 
     return loop({
         row: 0,
-        index: in.selected.index,
-        width: in.selected.width
+        index,
+        width: 0
     }, {
         while: state => state.row < roots.length,
         next: state => {
-            const root = roots[state.row]
+            const root = memory.readTextColumn(roots.items, state.row)
             const preferred = state.index == null || root.length > state.width
 
             if (preferred && contains({
@@ -37,7 +39,7 @@ export default function (in: Input): Output {
                 root,
                 windows
             })) {
-                state.index = offset + state.row
+                state.index = state.row
                 state.width = root.length
             }
 

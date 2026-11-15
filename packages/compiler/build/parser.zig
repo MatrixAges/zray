@@ -473,6 +473,7 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
         .type_views = type_views,
         .nominal_data = nominal_data,
         .bindings = bindings,
+        .standard = natives.generated.import_table.get("zxc_standard").?,
         .host_metadata = @import("host_metadata.zig").create(b, source.host),
     };
 }

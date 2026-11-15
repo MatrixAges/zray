@@ -9,7 +9,8 @@ pub const Selection = @import("binding/symbols.zig").Selection;
 pub fn select(allocator: std.mem.Allocator, diagnostics: std.mem.Allocator, item: anytype, symbols: *const Symbols, reporter: *zx.Reporter) zx.Error!Selection {
     if (!@import("parser_options").generated_parser) return @import("binding/seed.zig").select(allocator, item, symbols, reporter);
 
-    const input = try @import("binding/input.zig").init(allocator, item, symbols);
+    const rows = @import("zxc_standard").memory.borrowNamedRows("type_id", symbols.exports);
+    const input = try @import("binding/input.zig").init(allocator, item, symbols, &rows);
 
     const output = @import("generated_project_binding").executeValue(allocator, input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,

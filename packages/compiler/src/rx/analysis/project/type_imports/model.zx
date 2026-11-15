@@ -1,0 +1,26 @@
+import type { NamedRowBuffer, NamedRows, StringBuffer, U32Buffer } from "std:memory"
+
+export type Qualified = {
+    alias: string,
+    rows: NamedRowBuffer
+}
+
+export type Values = {
+    names: StringBuffer,
+    ids: U32Buffer,
+    capacity: u64
+}
+
+export type Output = {
+    next: u64,
+    visible: u64
+}
+
+export type Input = {
+    rows: NamedRows,
+    length: u64,
+    kinds: u8[],
+    qualified?: Qualified,
+    values: Values,
+    next: u64
+}

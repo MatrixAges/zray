@@ -1,4 +1,5 @@
 import encoding from "std:encoding"
+import memory from "std:memory"
 
 import type { Name, Request } from "./model"
 
@@ -14,12 +15,12 @@ export default function (in: Input): Output {
     const { request, index } = in
 
     if (in.namespace || request.wildcard) {
-        const types = request.exports.names.length
+        const types = request.exports.length
         const constants_end = types + request.constants.length
 
         const name = match {
             in.namespace => request.members[index],
-            index < types => request.exports.names[index],
+            index < types => memory.readRowName(request.exports.rows, index),
             index < constants_end => request.constants[index - types],
             _ => request.members[index - constants_end]
         }

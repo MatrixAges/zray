@@ -26,6 +26,8 @@ const Row = struct {
     type_id: ir.TypeId,
 };
 
+pub const Storage = std.MultiArrayList(Row);
+
 /// The bindings and name descriptors are local to preparation. The strings themselves
 /// are owned by the result so published getters and setters can keep using them.
 pub const Scope = struct {
@@ -49,9 +51,9 @@ pub const Value = union(enum) { scope: Scope, diagnostic: target.Diagnostic };
 pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: rx.ModuleSource, edges: []const Graph.Edge, sources: Graph.Sources, definitions: []const Store.Definition) std.mem.Allocator.Error!Value {
     if (definitions.len == 0 or edges.len == 0) return .{ .scope = .{} };
 
-    var bindings: std.MultiArrayList(Row) = .empty;
+    var bindings: Storage = .empty;
     var namespaces = empty;
-    var references: Graph.References = .{ .remaining = edges };
+    var references: Graph.References = .{ .edges = edges };
 
     defer if (!generated) namespaces.deinit(temporary);
 
@@ -59,7 +61,7 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, sourc
         if (!std.mem.eql(u8, node.name, "Store")) continue;
 
         const from = target.attribute(node, "from");
-        const edge = references.next(.store);
+        const edge = references.next(.store).edge;
         const definition = &definitions[sources.at(edge.target.source).store];
         var alias = definition.name;
         var location = from.value_location;
@@ -75,15 +77,12 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, sourc
             .Duplicate => return failure(allocator, source.path, location, "Store namespace is already registered in this module"),
         }
 
-        for (definition.objects) |object| {
-            const name = (try objectName(allocator, alias, object.name)) orelse return failure(allocator, source.path, from.value_location, "Store Object names must be identifiers");
+        const published = if (comptime generated)
+            try @import("references/publish.zig").append(allocator, temporary, alias, definition.objects, &bindings)
+        else
+            try publishSeed(allocator, temporary, alias, definition.objects, &bindings);
 
-            try bindings.append(temporary, .{
-                .name = name,
-                .path = object.identity,
-                .type_id = object.initial.output_type,
-            });
-        }
+        if (!published) return failure(allocator, source.path, from.value_location, "Store Object names must be identifiers");
     }
 
     const rows = bindings.slice();
@@ -111,21 +110,18 @@ fn claim(allocator: std.mem.Allocator, state: *Namespaces, name: []const u8) std
     return result.status;
 }
 
-fn objectName(allocator: std.mem.Allocator, scope: []const u8, name: []const u8) std.mem.Allocator.Error!?[]const u8 {
-    if (comptime !generated) {
-        if (!seedIdentifier(name)) return null;
+fn publishSeed(allocator: std.mem.Allocator, storage: std.mem.Allocator, scope: []const u8, objects: []const Store.Object, bindings: *Storage) std.mem.Allocator.Error!bool {
+    for (objects) |*object| {
+        if (!seedIdentifier(object.name)) return false;
 
-        return try @import("names.zig").qualify(allocator, scope, name, .reference);
+        try bindings.append(storage, .{
+            .name = try @import("names.zig").qualify(allocator, scope, object.name, .reference),
+            .path = object.identity,
+            .type_id = object.initial.output_type,
+        });
     }
 
-    const rule = @import("generated_rx_store_reference_name");
-    const input: std.meta.Child(rule.Input) = .{ .scope = scope, .object = name };
-
-    return zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.InvalidUtf8 => null,
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-        else => unreachable,
-    };
+    return true;
 }
 
 fn seedIdentifier(name: []const u8) bool {

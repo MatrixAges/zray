@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import find from "core/store_table/find"
 
-import { Output } from "./model"
+import { Choice } from "./model"
 
 import type { Members } from "./model"
 
@@ -10,21 +10,23 @@ export type Input = {
     identity: string
 }
 
+export type Output = Choice
+
 export default function (in: Input): Output {
     const members = in.members
     const identity = in.identity
 
     return loop({
         position: 0,
-        result: Output.Unused
+        result: Choice.Unused
     }, {
         while: state =>
-            state.position < members.ids.length && state.result == Output.Unused,
+            state.position < members.ids.length && state.result == Choice.Unused,
         next: state => {
             const row = integers.widen(members.ids[state.position])
 
             if (row >= members.stores.length) {
-                state.result = Output.InvalidMember
+                state.result = Choice.InvalidMember
             } else {
                 const paths = members.stores[row].paths
 
@@ -32,7 +34,7 @@ export default function (in: Input): Output {
                     paths,
                     identity
                 }) != null) {
-                    state.result = Output.Needed
+                    state.result = Choice.Needed
                 }
             }
 

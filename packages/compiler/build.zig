@@ -83,6 +83,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "zx", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("core") },
             .{ .name = "frontend", .module = frontend },
             .{ .name = "lint", .module = lint },
+            .{ .name = "zxc_standard", .module = parser_modules.standard },
         },
     });
 

@@ -1,0 +1,22 @@
+import type { Index as Input } from "./model"
+
+export type Output = i64?
+
+export default function (in: Input): Output {
+    if (in.owner >= in.indices.length) {
+        return null
+    }
+
+    const stored = in.indices[in.owner]
+
+    if (stored == 0) {
+        return null
+    }
+
+    const ordinal = match {
+        stored < 0 => 0 - stored,
+        _ => stored
+    }
+
+    return ordinal - 1
+}

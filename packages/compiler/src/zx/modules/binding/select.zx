@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "std:memory"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
@@ -11,6 +12,7 @@ import {
     missing_native,
     native_enum_required
 } from "./const"
+import exportPosition from "./export_position"
 import { Target } from "./model"
 import readName from "./name"
 import position from "./position"
@@ -33,8 +35,8 @@ export default function (in: Input): Output {
     const count = match {
         namespace => request.members.length,
         !request.wildcard => request.names.originals.length,
-        request.kind == ImportKind.TypeOnly => request.exports.names.length,
-        _ => request.exports.names.length + request.constants.length +
+        request.kind == ImportKind.TypeOnly => request.exports.length,
+        _ => request.exports.length + request.constants.length +
             request.members.length
     }
 
@@ -82,8 +84,8 @@ export default function (in: Input): Output {
                         _ => null
                     }
                 const alias_index: u64? = match {
-                    callable == null && constant == null => position({
-                        names: request.exports.names,
+                    callable == null && constant == null => exportPosition({
+                        exports: request.exports,
                         name: original
                     }),
                     _ => null
@@ -112,14 +114,12 @@ export default function (in: Input): Output {
                         }
                     }
                 } else if (alias_index != null) {
+                    const type_id = memory.readRowId(request.exports.rows, alias_index)
                     const allowed =
                         request.reexport || request.kind == ImportKind.TypeOnly ||
-                        kind(
-                            request
-                                .type_kinds[integers.widen(
-                                    request.exports.ids[alias_index]
-                                )]
-                        ) == Kind.Enumeration
+                        kind(request.type_kinds[integers.widen(
+                            type_id
+                        )]) == Kind.Enumeration
 
                     if (allowed) {
                         current.result = {

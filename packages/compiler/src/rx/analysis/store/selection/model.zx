@@ -1,3 +1,4 @@
+import type { TextColumn } from "std:memory"
 import type { Stores } from "core/store_table/model"
 
 export type Members = {
@@ -7,12 +8,19 @@ export type Members = {
 
 export type Input = {
     entry: string[],
-    identity: string,
-    members: Members
+    members: Members,
+    identities: TextColumn,
+    count: u64,
+    first: u64
 }
 
-export enum Output {
+export enum Choice {
     Unused,
     Needed,
     InvalidMember
+}
+
+export type Output = {
+    next: u64,
+    choice: Choice
 }

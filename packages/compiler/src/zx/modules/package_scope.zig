@@ -32,31 +32,18 @@ fn generatedOwner(scopes: []const Scope, path: []const u8) ?usize {
 
     const generated = @import("generated_project_package_owner");
     const Input = std.meta.Child(generated.Input);
-    const Owner = std.meta.Child(@FieldType(Input, "selected"));
+    const roots = @import("zxc_standard").memory.borrowTextColumn("root", scopes);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    var roots: [lookup_batch_size][]const u8 = undefined;
-    var selected: Owner = .{ .index = null, .width = 0 };
-    var offset: usize = 0;
 
-    while (offset < scopes.len) {
-        const batch = scopes[offset..][0..@min(roots.len, scopes.len - offset)];
-        for (batch, roots[0..batch.len]) |*scope, *root| root.* = scope.root;
+    const input: Input = .{
+        .roots = &.{ .items = @ptrCast(&roots), .length = roots.count },
+        .path = path,
+        .windows = builtin.os.tag == .windows,
+    };
 
-        const input: Input = .{
-            .roots = roots[0..batch.len],
-            .path = path,
-            .windows = builtin.os.tag == .windows,
-            .offset = offset,
-            .selected = &selected,
-        };
+    const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
 
-        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-
-        selected = .{ .index = result.index, .width = result.width };
-        offset += batch.len;
-    }
-
-    return if (selected.index) |id| @intCast(id) else null;
+    return if (result.index) |id| @intCast(id) else null;
 }
 
 fn contains(root: []const u8, path: []const u8) bool {

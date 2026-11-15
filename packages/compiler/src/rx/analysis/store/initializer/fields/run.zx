@@ -1,0 +1,48 @@
+import integers from "std:integer"
+
+import type { Input, Range as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { layout } = in
+
+    return loop({
+        first: 0,
+        end: 0,
+        next: in.first,
+        complete: false
+    }, {
+        while: state => state.next != null && !state.complete,
+        next: state => {
+            const next = state.next
+
+            if (next != null) {
+                const row = integers.widen(next)
+                const first = layout.offsets[row]
+                const end = layout.offsets[row + 1]
+                const has_fields = state.end != state.first
+                const empty = first == end
+                const boundary = (
+                    - has_fields
+                    - and state.end != first
+                    - and !empty
+                )
+
+                if (boundary) {
+                    state.complete = true
+                } else {
+                    if (!empty) {
+                        state.first = has_fields ? state.first : first
+                        state.end = end
+                    }
+
+                    state.next = layout.next[row]
+                }
+            }
+        },
+        return: state => ({
+            first: state.first,
+            end: state.end,
+            next: state.next
+        })
+    })
+}

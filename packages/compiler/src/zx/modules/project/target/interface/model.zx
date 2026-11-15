@@ -1,3 +1,5 @@
+import type { Rows } from "../select"
+
 export enum Source {
     Standard,
     Scoped
@@ -9,12 +11,10 @@ export type Match = {
 }
 
 export type Lookup = {
-    standard: string[],
-    scoped: string[],
+    standard: Rows,
+    scoped: Rows,
     name: string,
-    check_duplicates: bool,
-    offset: u64,
-    previous?: Match
+    check_duplicates: bool
 }
 
 export type Result = {

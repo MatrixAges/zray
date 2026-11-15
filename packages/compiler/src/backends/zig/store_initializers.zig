@@ -1,5 +1,6 @@
 const std = @import("std");
 const frontend = @import("frontend");
+const zx = @import("zx");
 const modules = @import("modules.zig");
 const names = @import("names.zig");
 pub const Initializer = @import("store_initializers_seed.zig").Initializer;
@@ -13,22 +14,12 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     const allocator = bundle.arena.allocator();
     const application = options.analysis.value.ir;
     const shared = try names.create(allocator, bundle.arena.child_allocator, application, options.analysis.nominal_types);
-    var files: std.ArrayList(modules.File) = .empty;
-    var metadata: std.ArrayList(modules.StoreInitializer) = .empty;
-
-    try files.appendSlice(allocator, bundle.modules);
-
-    var initializers: std.ArrayList(Initializer) = .empty;
-
-    try initializers.appendSlice(allocator, options.initializers);
-
     var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
 
     defer scratch.deinit();
 
     var identities = try @import("store_initializers/registry.zig").create(scratch.allocator());
     const entry = @import("generated_store_initializer_selection");
-    const zx = @import("zx");
     const Input = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
 
     const input: Input = .{
@@ -46,32 +37,23 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
 
     if (!selection.valid) return error.InvalidInitializer;
 
-    for (selection.indices) |index| {
-        const initial = options.analysis.store_initializers[index];
-        const function = application.functions.at(@backingInt(initial.function));
+    const count = std.math.add(usize, options.initializers.len, selection.indices.len) catch return error.OutOfMemory;
+    const file_count = std.math.add(usize, bundle.modules.len, count) catch return error.OutOfMemory;
+    var files = try std.ArrayList(modules.File).initCapacity(allocator, file_count);
+    var metadata = try std.ArrayList(modules.StoreInitializer).initCapacity(allocator, count);
 
-        try initializers.append(allocator, .{
-            .identity = initial.identity,
-            .schema_version = initial.schema_version,
-            .program = .{
-                .file_name = function.file_name,
-                .types = application.types,
-                .input_type = function.input_type,
-                .output_type = function.output_type,
-                .output_ownership = function.output_ownership,
-                .symbols = function.symbols,
-                .expressions = function.expressions,
-                .body = function.body,
-                .contracts = function.contracts,
-                .stores = function.stores,
-                .store_mode = function.store_mode,
-            },
-        });
-    }
+    files.appendSliceAssumeCapacity(bundle.modules);
 
-    for (initializers.items) |initial| {
+    const validation = @import("store_initializers/validation.zig");
+
+    for (0..count) |row| {
+        const initial = if (row < options.initializers.len)
+            options.initializers[row]
+
+        else
+            linked(&application, options.analysis.store_initializers[selection.indices[row - options.initializers.len]]);
+
         var program = initial.program;
-        const validation = @import("store_initializers/validation.zig");
 
         if (!try validation.validate(bundle.arena.child_allocator, program, .allowed)) return error.InvalidInitializer;
 
@@ -85,20 +67,40 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
 
         var digest: [32]u8 = undefined;
 
-        @import("zx").Sha256.hash(identity, &digest, .{});
+        zx.Sha256.hash(identity, &digest, .{});
+
         const module_name = try std.fmt.allocPrint(allocator, "zxc_store_initial_{s}", .{std.fmt.bytesToHex(digest, .lower)});
         program.file_name = module_name;
         const source = try modules.emit(allocator, program, .{ .types = shared.types, .functions = &.{} }, .entry, options.cache);
 
-        try files.append(allocator, .{ .name = module_name, .source = source, .imports = &.{} });
-        try metadata.append(allocator, .{ .identity = identity, .schema_version = initial.schema_version, .module_name = module_name, .type_name = shared.types[@backingInt(program.output_type)] });
+        files.appendAssumeCapacity(.{ .name = module_name, .source = source, .imports = &.{} });
+        metadata.appendAssumeCapacity(.{ .identity = identity, .schema_version = initial.schema_version, .module_name = module_name, .type_name = shared.types[@backingInt(program.output_type)] });
     }
 
     try identities.validate(&application.stores);
 
-    const expanded = try files.toOwnedSlice(allocator);
-    const stores = try metadata.toOwnedSlice(allocator);
+    bundle.modules = files.items;
+    bundle.store_initializers = metadata.items;
+}
 
-    bundle.modules = expanded;
-    bundle.store_initializers = stores;
+fn linked(application: *const zx.ir.Program, initial: frontend.project.compiled.StoreInitializer) Initializer {
+    const function = application.functions.at(@backingInt(initial.function));
+
+    return .{
+        .identity = initial.identity,
+        .schema_version = initial.schema_version,
+        .program = .{
+            .file_name = function.file_name,
+            .types = application.types,
+            .input_type = function.input_type,
+            .output_type = function.output_type,
+            .output_ownership = function.output_ownership,
+            .symbols = function.symbols,
+            .expressions = function.expressions,
+            .body = function.body,
+            .contracts = function.contracts,
+            .stores = function.stores,
+            .store_mode = function.store_mode,
+        },
+    };
 }

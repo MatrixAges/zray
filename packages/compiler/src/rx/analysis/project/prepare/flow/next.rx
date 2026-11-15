@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Input} out={Flow.Output} />
+
+    <Call fn="read" in={$in} />
+
+    <If on={!$ctx.read.ready}>
+        <Return
+            value={{
+                remaining: 0,
+                slot: 0,
+                route: Flow.Route.Done,
+                row: 0,
+                first: 0,
+                count: 0,
+                task_id: null
+            }}
+        />
+    </If>
+
+    <Call
+        fn="layout"
+        in={{
+            index: $in.index,
+            event: $ctx.read
+        }}
+    />
+
+    <Return value={$ctx.layout} />
+</Module>

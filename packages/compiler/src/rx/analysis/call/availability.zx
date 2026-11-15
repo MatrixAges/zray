@@ -1,22 +1,33 @@
+export enum Target {
+    Source,
+    Compiled,
+    Native
+}
+
+export enum Route {
+    Source,
+    AuthorizedSource,
+    Compiled,
+    Native,
+    Denied
+}
+
 export type Input = {
-    source: bool,
-    check_authority: bool,
+    target: Target,
     declared_setter: bool,
     setter: bool,
     ambient_store: bool
 }
 
-export type Output = {
-    local: bool,
-    authorized: bool
-}
+export type Output = Route
 
 export default function (in: Input): Output {
     const explicit = in.declared_setter == in.setter
     const permitted = explicit && !in.ambient_store
 
-    return {
-        local: in.source && !in.setter,
-        authorized: !in.check_authority || permitted
+    return match in.target {
+        Target.Source => in.setter ? Route.AuthorizedSource : Route.Source,
+        Target.Compiled => permitted ? Route.Compiled : Route.Denied,
+        _ => Route.Native
     }
 }

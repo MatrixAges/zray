@@ -1,0 +1,14 @@
+import type { Output as Source, Ranges } from "../../source_graph/source"
+
+export type Index = {
+    indices: i64[],
+    owner: u64
+}
+
+export type Input = Index & {
+    sources: Ranges
+}
+
+export type Output = Source & {
+    signature?: i64
+}

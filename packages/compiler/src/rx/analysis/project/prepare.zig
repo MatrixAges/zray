@@ -68,8 +68,7 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
         if (definitions.len != 0 and !store_memory.reset(.retain_capacity)) return error.OutOfMemory;
 
         loader.owner = source.path;
-        loader.references = .{ .remaining = edges };
-        loader.edge_count = edges.len;
+        loader.references = .{ .edges = edges };
         loader.calls = .empty;
         loader.local_calls = true;
         loader.arguments = .empty;
@@ -130,11 +129,10 @@ const Loader = struct {
     libraries: Libraries,
     inputs: *Inputs,
     arguments: std.ArrayList(?*const frontend.ExpressionInput.Result) = .empty,
-    references: Graph.References = .{ .remaining = &.{} },
+    references: Graph.References = .{},
     owner: []const u8 = "",
     stores: StoreReferences.Scope = .{},
     calls: Calls = .empty,
-    edge_count: usize = 0,
     local_calls: bool = true,
     plan: Flow.Builder = .{},
     task_count: usize = 0,
@@ -167,7 +165,10 @@ const Loader = struct {
         const node = source.node;
 
         if (target.optionalAttribute(node, "fn") != null) return self.shortcut(node);
-        if (source.indexedFlow()) |flow| return @import("prepare/indexed.zig").bind(self, flow);
+
+        if (comptime generated) {
+            if (source.indexedFlow()) |flow| return @import("prepare/indexed.zig").bind(self, flow);
+        }
 
         const root = Flow.Unit{ .first = try self.plan.reserve(self.allocator, node.children.len) };
         const sequence = try self.steps(node.children, root);
@@ -321,22 +322,25 @@ const Loader = struct {
         }
 
         const capability = authorized.authorized;
-        const edge = self.references.next(.call);
+        const selected = self.references.next(.call);
+        const edge = selected.edge;
 
         const admission = availability.check(.{
-            .source = edge.target == .source,
-            .check_authority = edge.target == .compiled,
+            .target = switch (edge.target) {
+                .source => .Source,
+                .compiled => .Compiled,
+                .native => .Native,
+            },
             .declared_setter = attributes.setter != null,
             .setter = capability.setter != null,
             .ambient_store = self.project.context.stores.len != 0,
         });
 
-        if (!admission.authorized) return self.fail(node.location, "capability", "Store calls require explicit per-call authorization from module declarations");
-
-        const callee = switch (edge.target) {
-            .source => |source| try self.sourceCallee(source, edge.location, capability.setter != null),
-            .compiled => |selected| try self.compiledCallee(attributes.module.?.value_location, selected, capability.setter != null),
-            .native => return self.fail(edge.location, "module", "native and standard imports must use the interface registry"),
+        const callee = switch (admission) {
+            .Source, .AuthorizedSource => try self.sourceCallee(edge.target.source, edge.location, admission == .AuthorizedSource),
+            .Compiled => try self.compiledCallee(attributes.module.?.value_location, edge.target.compiled, capability.setter != null),
+            .Native => return self.fail(edge.location, "module", "native and standard imports must use the interface registry"),
+            .Denied => return self.fail(node.location, "capability", "Store calls require explicit per-call authorization from module declarations"),
         };
 
         try self.calls.append(self.allocator, .{
@@ -345,12 +349,17 @@ const Loader = struct {
             .getters = capability.getters,
             .input = attributes.argument,
             .name_source = attributes.function orelse attributes.module.?,
-            .target_kind = if (edge.target == .compiled) .Compiled else if (capability.setter != null) .AuthorizedSource else .Source,
-            .target = if (edge.target == .source) edge.target.source else self.edge_count - self.references.remaining.len - 1,
+            .target_kind = switch (admission) {
+                .Source => .Source,
+                .AuthorizedSource => .AuthorizedSource,
+                .Compiled => .Compiled,
+                .Native, .Denied => unreachable,
+            },
+            .target = if (edge.target == .source) edge.target.source else selected.row,
             .callee = callee,
         });
 
-        self.local_calls = self.local_calls and admission.local;
+        self.local_calls = self.local_calls and admission == .Source;
 
         if (input) |parsed| {
             const first = self.arguments.items.len;
@@ -365,15 +374,14 @@ const Loader = struct {
         return index;
     }
     fn sourceCallee(self: *Loader, source: usize, location: rx.ast.Location, setter: bool) Error!Callee {
-        switch (self.signatures.graph.sources.at(source)) {
+        const resolved = switch (self.signatures.lookup(source)) {
             .rx => |index| return .{ .module = index },
             .store => return self.fail(location, "module", "Call.module target is not registered"),
-            .zx => {},
-        }
+            .zx => |signature| signature orelse return self.fail(location, "module", "source function signature is missing from the analyzed input set"),
+        };
 
-        const module = self.signatures.get(source) orelse return self.fail(location, "module", "source function signature is missing from the analyzed input set");
-        const signature = module.signature;
-        const forwarded = self.signatures.forwarded(source);
+        const signature = resolved.module.signature;
+        const forwarded = resolved.forward;
 
         return switch (routeSignature(forwarded != .none, signature.type_only, setter, signature.has_store)) {
             .Function => .{ .signature = signature.ports },

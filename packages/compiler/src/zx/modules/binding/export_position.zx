@@ -1,0 +1,29 @@
+import memory from "std:memory"
+
+import type { Exports } from "./model"
+
+export type Input = {
+    exports: Exports,
+    name: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const found: u64? = null
+
+    return loop({
+        row: 0,
+        found
+    }, {
+        while: state => state.found == null && state.row < in.exports.length,
+        next: state => {
+            if (memory.readRowName(in.exports.rows, state.row) == in.name) {
+                state.found = state.row
+            }
+
+            state.row += 1
+        },
+        return: state => state.found
+    })
+}

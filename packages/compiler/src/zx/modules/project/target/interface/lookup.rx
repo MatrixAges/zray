@@ -3,14 +3,12 @@
 
     <Args in={Interface.Lookup} out={Interface.Result} />
 
-    <If on={$in.previous == null && $in.offset == 0}>
+    <If on={$in.standard.length != 0}>
         <Call
             fn="../select"
             in={{
                 specifiers: $in.standard,
                 name: $in.name,
-                offset: 0,
-                first: null,
                 check_duplicates: $in.check_duplicates
             }}
         />
@@ -37,27 +35,11 @@
         </If>
     </If>
 
-    <If on={$in.previous != null}>
-        <If on={$in.previous.source == Interface.Source.Standard}>
-            <Call
-                module="standard"
-                in={{
-                    lookup: $in,
-                    index: $in.previous.index
-                }}
-            />
-
-            <Return value={$ctx.standard} />
-        </If>
-    </If>
-
     <Call
         fn="../select"
         in={{
             specifiers: $in.scoped,
             name: $in.name,
-            offset: $in.offset,
-            first: $in.previous != null ? $in.previous.index : null,
             check_duplicates: $in.check_duplicates
         }}
     />

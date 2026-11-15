@@ -1,0 +1,47 @@
+import integers from "std:integer"
+
+import {
+    check_task_phase,
+    event_stride,
+    returns
+} from "../../../../dependency_graph/flow/const"
+
+import type { Event as Output, Input } from "./model"
+
+export default function (in: Input): Output {
+    const index = in.index
+
+    return loop({
+        remaining: in.remaining,
+        slot: 0,
+        flags: 0,
+        phase: 0,
+        ready: false
+    }, {
+        while: state => state.remaining > 0 && !state.ready,
+        next: state => {
+            state.remaining -= 1
+
+            const word = index.events[state.remaining]
+            const slot = word % event_stride
+            const phase = word / event_stride
+            const flags = integers.widen(index.facts[slot])
+
+            const did_return = integers.andBits(flags, integers.widen(returns)) != 0
+
+            if (phase != check_task_phase || did_return) {
+                state.slot = slot
+                state.flags = flags
+                state.phase = phase
+                state.ready = true
+            }
+        },
+        return: state => ({
+            ready: state.ready,
+            remaining: state.remaining,
+            slot: state.slot,
+            flags: state.flags,
+            phase: state.phase
+        })
+    })
+}

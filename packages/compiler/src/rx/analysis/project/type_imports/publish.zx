@@ -1,0 +1,57 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import qualify from "../references/qualify"
+import valueKind from "../references/value_kind"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const values = in.values
+    const qualified = in.qualified
+
+    return loop({
+        next: in.next,
+        visible: 0,
+        full: false
+    }, {
+        while: state => state.next < in.length && !state.full,
+        next: state => {
+            const row = state.next
+            const id = memory.readRowId(in.rows, row)
+            const index = integers.widen(id)
+            const visible = index < in.kinds.length && valueKind(in.kinds[index])
+
+            if (visible && state.visible == values.capacity) {
+                state.full = true
+            } else {
+                if (qualified != null || visible) {
+                    const original = memory.readRowName(in.rows, row)
+                    const name = match {
+                        qualified != null => qualify({
+                            alias: qualified.alias,
+                            member: original
+                        }),
+                        _ => original
+                    }
+
+                    if (qualified != null) {
+                        memory.writeNamedRow(qualified.rows, row, name, id)
+                    }
+
+                    if (visible) {
+                        memory.writeString(values.names, state.visible, name)
+                        memory.writeU32(values.ids, state.visible, id)
+                        state.visible += 1
+                    }
+                }
+
+                state.next += 1
+            }
+        },
+        return: state => ({
+            next: state.next,
+            visible: state.visible
+        })
+    })
+}

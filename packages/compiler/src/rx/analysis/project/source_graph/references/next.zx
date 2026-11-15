@@ -1,0 +1,26 @@
+export type Input = {
+    roles: u8[],
+    stride: u64,
+    role: u8
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const found: u64? = null
+
+    return loop({
+        offset: 0,
+        found
+    }, {
+        while: state => state.offset < in.roles.length && state.found == null,
+        next: state => {
+            if (in.roles[state.offset] == in.role) {
+                state.found = state.offset / in.stride
+            }
+
+            state.offset += in.stride
+        },
+        return: state => state.found
+    })
+}

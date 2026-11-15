@@ -1,0 +1,20 @@
+export type Layout = {
+    offsets: u64[],
+    next: u32?[]
+}
+
+export type Input = {
+    layout: Layout,
+    first?: u32
+}
+
+export type Range = {
+    first: u64,
+    end: u64,
+    next?: u32
+}
+
+export type Plan = {
+    count: u64,
+    range: Range
+}

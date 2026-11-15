@@ -7,6 +7,7 @@ const expression = @import("../expression.zig");
 const target = @import("../call/target.zig");
 const Layout = @import("layout.zig");
 const object = @import("initializer/object.zig");
+const Fields = @import("initializer/fields.zig");
 const span = zx.Span{ .start = 0, .end = 0 };
 const input_type = frontend.types.scalarId(.void);
 const Value = union(enum) { program: zx.ir.Program, diagnostic: expression.Diagnostic };
@@ -28,13 +29,8 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
 
     const temporary = scratch.allocator();
     const layout = options.layout;
-    var fragment: ?u32 = options.first;
-    var count: usize = 0;
-
-    while (fragment) |index| : (fragment = layout.next[index]) {
-        count += layout.offsets[index + 1] - layout.offsets[index];
-    }
-
+    var ranges = Fields.init(&layout, options.first);
+    const count = ranges.count;
     const fields = try frontend.types.Fields.init(allocator, count);
     const names = try temporary.alloc([]const u8, count);
     const evaluation = try temporary.alloc(u32, count);
@@ -47,13 +43,8 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
     var cursor: usize = 0;
     var invalid_link = false;
 
-    fragment = options.first;
-
-    while (fragment) |index| : (fragment = layout.next[index]) {
-        const start = layout.offsets[index];
-        const end = layout.offsets[index + 1];
-
-        for (start..end, cursor..) |row, position| {
+    while (ranges.next()) |range| {
+        for (range.first..range.end, cursor..) |row, position| {
             const node = layout.fields[row].*;
             const attribute = target.attribute(node, "value");
             const id = options.field_types[row];
@@ -101,7 +92,7 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
             }
         }
 
-        cursor += end - start;
+        cursor += range.end - range.first;
     }
 
     var reporter: zx.Reporter = .{};

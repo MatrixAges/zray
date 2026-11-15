@@ -13,10 +13,7 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner
     if (context.types.count() != 0 and !frontend.validateTypes(context.types)) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid shared Store type table" }) };
     if (!frontend.native_context.valid(context.types, context.native_modules)) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid shared native module table" }) };
     if (!try frontend.validateNominalTypes(context.types, context.nominal_types)) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid shared nominal type table" }) };
-
-    for (aliases) |alias| {
-        if (@backingInt(alias.type_id) >= context.types.count()) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "Store type alias is missing from the shared type table" }) };
-    }
+    if (!validAliases(aliases, context.types.count())) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "Store type alias is missing from the shared type table" }) };
 
     var parsed = try frontend.parseModule(temporary, layout.text, owner);
 
@@ -105,19 +102,52 @@ fn invalid(allocator: std.mem.Allocator, layout: Layout) std.mem.Allocator.Error
 }
 
 fn mapped(allocator: std.mem.Allocator, layout: Layout, issue: zx.Diagnostic) std.mem.Allocator.Error!Diagnostic {
+    const position = if (comptime generated) locate(layout, issue.span.start) else seedLocation(layout, issue.span.start);
+    const attribute = target.attribute(layout.fields[position.field].*, "type");
+    const location = rx.attributeLocation(attribute, position.relative) orelse attribute.value_location;
+
+    return .{ .location = location, .issue = .{ .code = issue.code, .span = .{ .start = location.offset, .end = location.offset }, .message = try allocator.dupe(u8, issue.message) } };
+}
+
+const Location = struct { field: usize, relative: usize };
+
+fn locate(layout: Layout, offset: usize) Location {
+    const rule = @import("generated_rx_store_type_diagnostic");
+    const input: std.meta.Child(rule.Input) = .{ .ends = layout.ends, .expressions = layout.expressions, .offset = offset };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const position = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+    return .{ .field = @intCast(position.field), .relative = @intCast(position.relative) };
+}
+
+fn seedLocation(layout: Layout, offset: usize) Location {
     var low: usize = 0;
     var high = layout.fields.len;
 
     while (low < high) {
         const middle = low + (high - low) / 2;
 
-        if (layout.typeStart(middle) <= issue.span.start) low = middle + 1 else high = middle;
+        if (layout.typeStart(middle) <= offset) low = middle + 1 else high = middle;
     }
 
-    const index = low -| 1;
-    const attribute = target.attribute(layout.fields[index].*, "type");
-    const offset = @min(issue.span.start -| layout.typeStart(index), layout.expressions[index].len);
-    const location = rx.attributeLocation(attribute, offset) orelse attribute.value_location;
+    const field = low -| 1;
 
-    return .{ .location = location, .issue = .{ .code = issue.code, .span = .{ .start = location.offset, .end = location.offset }, .message = try allocator.dupe(u8, issue.message) } };
+    return .{ .field = field, .relative = @min(offset -| layout.typeStart(field), layout.expressions[field].len) };
+}
+
+fn validAliases(aliases: []const zx.ir.Export, count: usize) bool {
+    if (aliases.len == 0) return true;
+
+    if (comptime generated) {
+        const rule = @import("generated_rx_store_type_aliases");
+        const rows = @import("zxc_standard").memory.borrowNamedRows("type_id", aliases);
+        const input: std.meta.Child(rule.Input) = .{ .aliases = @ptrCast(&rows), .length = rows.len, .type_count = count };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    }
+
+    for (aliases) |alias| if (@backingInt(alias.type_id) >= count) return false;
+
+    return true;
 }

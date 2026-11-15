@@ -6,7 +6,7 @@ const generated = @import("rx_options").generated_graph;
 const Self = @This();
 
 fragments: []const rx.ast.Node,
-offsets: []const usize,
+offsets: []const u64,
 fields: []const *const rx.ast.Node,
 expressions: []const []const u8,
 starts: []const u32,
@@ -17,7 +17,7 @@ text: []const u8,
 pub fn build(allocator: std.mem.Allocator, store: rx.ast.Node, groups: ?rx.store.Groups) std.mem.Allocator.Error!Self {
     const grouping = groups orelse try @import("layout/seed.zig").group(allocator, store.children);
     const fragments = store.children[grouping.first..];
-    const offsets = try allocator.alloc(usize, fragments.len + 1);
+    const offsets = try allocator.alloc(u64, fragments.len + 1);
     var count: usize = 0;
 
     for (fragments, offsets[0..fragments.len]) |fragment, *offset| {
@@ -31,7 +31,7 @@ pub fn build(allocator: std.mem.Allocator, store: rx.ast.Node, groups: ?rx.store
     const expressions = try allocator.alloc([]const u8, count);
 
     for (fragments, offsets[0..fragments.len]) |fragment, offset| {
-        for (fragment.children, offset..) |*field, index| {
+        for (fragment.children, @as(usize, @intCast(offset))..) |*field, index| {
             fields[index] = field;
             expressions[index] = target.attribute(field.*, "type").value;
         }

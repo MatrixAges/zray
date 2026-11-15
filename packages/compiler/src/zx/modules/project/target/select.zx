@@ -1,8 +1,15 @@
+import memory from "std:memory"
+
+import type { TextColumn } from "std:memory"
+
+export type Rows = {
+    items: TextColumn,
+    length: u64
+}
+
 export type Input = {
-    specifiers: string[],
+    specifiers: Rows,
     name: string,
-    offset: u64,
-    first?: u64,
     check_duplicates: bool
 }
 
@@ -12,11 +19,13 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { specifiers, name, offset } = in
+    const { specifiers, name } = in
+
+    const first: u64? = null
 
     return loop({
         row: 0,
-        first: in.first,
+        first,
         duplicate: false
     }, {
         while: state => {
@@ -26,9 +35,9 @@ export default function (in: Input): Output {
             return !state.duplicate && rows_left && search
         },
         next: state => {
-            if (specifiers[state.row] == name) {
+            if (memory.readTextColumn(specifiers.items, state.row) == name) {
                 if (state.first == null) {
-                    state.first = offset + state.row
+                    state.first = state.row
                 } else {
                     state.duplicate = true
                 }

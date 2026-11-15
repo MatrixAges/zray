@@ -2,21 +2,20 @@ const std = @import("std");
 const zx = @import("zx");
 const Symbols = @import("symbols.zig").Symbols;
 const generated = @import("generated_project_binding");
+const memory = @import("zxc_standard").memory;
 pub const Input = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
 const Record = if (@typeInfo(Input) == .pointer) std.meta.Child(Input) else Input;
 const Names = @FieldType(Record, "names");
 
-pub fn init(allocator: std.mem.Allocator, item: anytype, symbols: *const Symbols) std.mem.Allocator.Error!Input {
+pub fn init(allocator: std.mem.Allocator, item: anytype, symbols: *const Symbols, rows: *const []const memory.NamedId) std.mem.Allocator.Error!Input {
     const names = try importNames(allocator, item);
-    const export_names = try allocator.alloc([]const u8, symbols.exports.len);
-    const export_ids = try allocator.alloc(u32, symbols.exports.len);
+    const Exports = @FieldType(Record, "exports");
 
-    for (symbols.exports, export_names, export_ids) |value, *name, *id| {
-        name.* = value.name;
-        id.* = @backingInt(value.type_id);
-    }
+    const exports = try record(Exports, allocator, .{
+        .rows = @as(field(Exports, "rows"), @ptrCast(rows)),
+        .length = @as(u64, rows.len),
+    });
 
-    const exports = try record(@FieldType(Record, "exports"), allocator, .{ .names = export_names, .ids = export_ids });
     const constants = try allocator.alloc([]const u8, if (item.kind == .type_only) 0 else symbols.constants.len);
 
     for (symbols.constants[0..constants.len], constants) |*value, *name| name.* = value.name;

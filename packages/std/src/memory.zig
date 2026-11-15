@@ -1,4 +1,13 @@
 const std = @import("std");
+const rows = @import("memory/rows.zig");
+pub const NamedId = rows.NamedId;
+pub const borrowNamedRows = rows.borrow;
+pub const TextColumn = rows.TextColumn;
+pub const borrowTextColumn = rows.borrowText;
+pub const readTextColumn = rows.readText;
+pub const readRowName = rows.readName;
+pub const readRowId = rows.readId;
+pub const writeNamedRow = rows.write;
 
 pub inline fn copyBytes(target: *const anyopaque, offset: u64, source: []const u8, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
     const output: *const []u8 = @ptrCast(@alignCast(target));
