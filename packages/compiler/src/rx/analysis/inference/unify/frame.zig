@@ -58,9 +58,10 @@ pub fn release(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.fields.positions);
 }
 
-pub fn next(self: *Self, graph: *const Graph) Transition {
+pub fn next(self: *Self, graph: *const Graph, depth: usize) Transition {
     const KnownTypes = std.meta.Child(@FieldType(Input, "known"));
     const known = graph.pending.known_types.borrow(KnownTypes);
+    const parents = graph.parents();
 
     const input: Input = .{
         .pair = &.{
@@ -73,6 +74,8 @@ pub fn next(self: *Self, graph: *const Graph) Transition {
             .positions = self.fields.positions[0..self.fields.scanned],
         },
         .known = &known,
+        .parents = @ptrCast(&parents),
+        .depth = depth,
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});

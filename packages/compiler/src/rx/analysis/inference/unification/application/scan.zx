@@ -1,0 +1,36 @@
+import { Step } from "./model"
+import pair from "./pair"
+import resolve from "./resolve"
+
+import type { Advance as Input, PairOutput as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { parents, known, depth } = in
+
+    return loop({
+        step: Step.Skip,
+        position: in.pair.position,
+        left: in.pair.left_operand,
+        right: in.pair.right_operand
+    }, {
+        while: state => state.step == Step.Skip,
+        next: state => {
+            const candidate = pair({
+                ...in.pair,
+                position: state.position
+            })
+
+            const resolved = resolve({
+                parents,
+                known,
+                depth,
+                pair: candidate
+            })
+            state.position = resolved.position
+            state.step = resolved.step
+            state.left = resolved.left
+            state.right = resolved.right
+        },
+        return: state => state
+    })
+}

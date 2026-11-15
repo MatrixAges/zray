@@ -197,6 +197,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/inference/object_closure/query.zx", .name = "object_closure_query", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/object_closure/selection.zx", .name = "rx_selection_ready", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/unification/prepare.rx", .name = "rx_unification_prepare", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/inference/unification/rooted.rx", .name = "rx_unification_rooted", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/unification/commit.rx", .name = "rx_unification_commit", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/unification/application/advance.rx", .name = "rx_unification_advance", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/unification/find_field.zx", .name = "rx_unification_field", .owner = .rx_analysis },

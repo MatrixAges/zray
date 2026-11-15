@@ -14,14 +14,13 @@ const Stack = std.ArrayList(Frame);
 pub fn merge(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!void {
     if (comptime !Plan.enabled) return @import("unify/seed.zig").merge(graph, left, right, span, depth);
 
-    const frame = try prepare(graph, left, right, span, depth) orelse return;
+    const work = try Plan.prepare(graph, left, right, span, depth);
+    const frame = try prepare(graph, work, span) orelse return;
 
     return walk(graph, frame, span, depth);
 }
 
-fn prepare(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!?Frame {
-    const work = try Plan.prepare(graph, left, right, span, depth);
-
+fn prepare(graph: *Graph, work: Plan.Work, span: zx.Span) zx.Error!?Frame {
     switch (work.route) {
         .Same => return null,
         .Depth => return Occurs.depthLimit(graph, span),
@@ -60,7 +59,8 @@ noinline fn walk(graph: *Graph, root: Frame, span: zx.Span, depth: usize) zx.Err
 
     while (stack.items.len != 0) {
         const frame = &stack.items[stack.items.len - 1];
-        const next = frame.next(graph);
+        const child_depth = depth + stack.items.len;
+        const next = frame.next(graph, child_depth);
 
         switch (next.step) {
             .Publish => {
@@ -71,16 +71,20 @@ noinline fn walk(graph: *Graph, root: Frame, span: zx.Span, depth: usize) zx.Err
                 stack.items.len -= 1;
             },
             .Merge, .MergeKnown => {
-                const right = if (next.step == .MergeKnown)
-                    try graph.known(@fromBackingInt(next.right), span)
-                else
-                    @as(Graph.Id, @fromBackingInt(next.right));
+                const left: Graph.Id = @fromBackingInt(next.left);
 
-                const child = try prepare(graph, @fromBackingInt(next.left), right, span, depth + stack.items.len) orelse continue;
+                const work = if (next.step == .MergeKnown)
+                    try Plan.prepare(graph, left, try graph.known(@fromBackingInt(next.right), span), span, child_depth)
+                else
+                    try Plan.rooted(graph, left, @fromBackingInt(next.right));
+
+                const child = try prepare(graph, work, span) orelse continue;
 
                 try push(graph, &stack, child, frames, fields);
             },
             .MissingField => return graph.reporter.fail(.type_mismatch, span, Fields.missing_message),
+            .Depth => return Occurs.depthLimit(graph, span),
+            .Skip => unreachable,
         }
     }
 }

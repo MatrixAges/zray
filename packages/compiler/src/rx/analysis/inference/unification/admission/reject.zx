@@ -1,0 +1,29 @@
+import { Action } from "../application/model"
+import { Route } from "../model"
+import { Reach } from "../occurs/model"
+
+import type { Output } from "./model"
+
+export type Input = {
+    left: u32,
+    right: u32,
+    reach: Reach
+}
+
+export default function (in: Input): Output {
+    const route = match in.reach {
+        Reach.Present => Route.Recursive,
+        _ => Route.Depth
+    }
+
+    return {
+        left: in.left,
+        right: in.right,
+        action: Action.Adopt,
+        source: in.left,
+        left_operand: in.left,
+        right_operand: in.right,
+        right_size: 0,
+        route
+    }
+}

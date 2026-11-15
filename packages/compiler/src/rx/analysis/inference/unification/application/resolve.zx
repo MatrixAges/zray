@@ -1,0 +1,53 @@
+import knownNode from "../../known/find"
+import roots from "../admission/roots"
+import { Route } from "../model"
+import { Step } from "./model"
+
+import type { Advance, PairOutput } from "./model"
+
+export type Input = Advance.Omit("pair") & {
+    pair: PairOutput
+}
+
+export type Output = PairOutput
+
+export default function (in: Input): Output {
+    const pair = in.pair
+    const step = pair.step
+
+    if (step != Step.Merge && step != Step.MergeKnown) {
+        return pair
+    }
+
+    const right = match step {
+        Step.MergeKnown => knownNode({
+            known: in.known,
+            type_id: pair.right
+        }),
+        _ => pair.right
+    }
+
+    if (right == null) {
+        return pair
+    }
+
+    const admitted = roots({
+        parents: in.parents,
+        left: pair.left,
+        right,
+        depth: in.depth
+    })
+
+    const next = match admitted.route {
+        Route.Same => Step.Skip,
+        Route.Depth => Step.Depth,
+        _ => Step.Merge
+    }
+
+    return {
+        position: pair.position,
+        step: next,
+        left: admitted.left,
+        right: admitted.right
+    }
+}

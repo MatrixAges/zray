@@ -74,6 +74,13 @@ def package_caches():
             yield cache
 
 
+def install_outputs():
+    for project in (ROOT, *(ROOT / "packages").iterdir()):
+        output = project / "zig-out"
+        if output.is_dir() and output.resolve() == output:
+            yield output
+
+
 def old_package_caches(caches, cutoff):
     for cache in caches:
         children = list(cache.iterdir())
@@ -174,7 +181,7 @@ def clean(options, protected):
     packages = list(package_caches())
     outputs = list(history_outputs())
     history = [
-        path for path in outputs
+        path for path in (*outputs, *install_outputs())
         if not path.is_symlink() and not keep(path) and expired_output(path, cutoff)
     ]
     history.extend(path for path in old_package_caches(packages, cutoff) if not keep(path))
@@ -194,7 +201,7 @@ def clean(options, protected):
         flush=True,
     )
     if not options.apply:
-        for path in history[:12]:
+        for path in (*history, *files):
             print(path.relative_to(ROOT))
 
     before = shutil.disk_usage(ROOT).free
@@ -251,12 +258,18 @@ def main():
     if not 0 <= options.min_age_hours < float("inf"):
         parser.error("--min-age-hours must be finite and nonnegative")
 
-    protected = [ROOT / "docs/user_request.jsonl", *((ROOT / path).resolve() for path in options.keep)]
+    protected = [(ROOT / path).resolve() for path in options.keep]
     if any(not path.is_relative_to(ROOT) for path in protected):
         parser.error("--keep paths must be inside the repository")
 
     if CACHE.resolve() != CACHE:
         parser.error(".zig-cache must be inside the repository")
+
+    protected.extend(git_paths(
+        "--cached", "--", ".zig-cache", "zig-out",
+        ":(glob)packages/*/.zig-cache/**", ":(glob)packages/*/zig-out/**",
+    ))
+    protected.append(ROOT / "docs/user_request.jsonl")
 
     if not options.apply:
         return clean(options, protected)

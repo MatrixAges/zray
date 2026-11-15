@@ -1,3 +1,4 @@
+import type { U32Buffer } from "std:memory"
 import type { State as KnownTypes } from "core/integer/map/model"
 import type { Route, TypeColumns } from "../model"
 import type { Graph } from "../occurs/model"
@@ -32,7 +33,9 @@ export enum Step {
     Publish,
     Merge,
     MergeKnown,
-    MissingField
+    MissingField,
+    Depth,
+    Skip
 }
 
 export type PairInput = {
@@ -54,5 +57,7 @@ export type PairOutput = {
 
 export type Advance = {
     pair: PairInput,
-    known: KnownTypes
+    known: KnownTypes,
+    parents: U32Buffer,
+    depth: u64
 }

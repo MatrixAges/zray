@@ -40,23 +40,46 @@ pub const Work = struct {
 pub fn prepare(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!Work {
     if (!enabled) return prepareSeed(graph, left, right, span, depth);
 
+    return prepareGenerated(generated, graph, left, right, depth);
+}
+
+pub fn rooted(graph: *const Graph, left: Graph.Id, right: Graph.Id) zx.Error!Work {
+    return prepareGenerated(@import("generated_rx_unification_rooted"), graph, left, right, 0);
+}
+
+fn prepareGenerated(comptime rule: type, graph: *const Graph, left: Graph.Id, right: Graph.Id, depth: usize) zx.Error!Work {
     const rows = graph.nodes.slice();
     const types = &graph.types.items;
     const parents: []u32 = graph.parents();
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const Input = std.meta.Child(rule.Input);
 
-    const result = generated.executeValue(scratch.allocator(), &.{
-        .graph = &.{
-            .kinds = rows.items(.kind),
-            .members = rows.items(.members),
-            .arguments = rows.items(.argument),
-        },
-        .types = &.{ .kinds = types.kinds.items, .arguments = types.first.items, .sizes = types.second.items },
-        .parents = @ptrCast(&parents),
-        .left = @backingInt(left),
-        .right = @backingInt(right),
-        .depth = depth,
-    }) catch |err| switch (err) {
+    const graph_view: std.meta.Child(@FieldType(Input, "graph")) = .{
+        .kinds = rows.items(.kind),
+        .members = rows.items(.members),
+        .arguments = rows.items(.argument),
+    };
+
+    const type_view: std.meta.Child(@FieldType(Input, "types")) = .{
+        .kinds = types.kinds.items,
+        .arguments = types.first.items,
+        .sizes = types.second.items,
+    };
+
+    var input: Input = undefined;
+
+    input.graph = &graph_view;
+    input.types = &type_view;
+    input.parents = @ptrCast(&parents);
+    input.left = @backingInt(left);
+    input.right = @backingInt(right);
+
+    if (comptime @hasField(Input, "depth")) input.depth = depth;
+    if (comptime @hasField(Input, "zx_origin")) input.zx_origin = null;
+
+    const request: *const Input = &input;
+
+    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), request) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
