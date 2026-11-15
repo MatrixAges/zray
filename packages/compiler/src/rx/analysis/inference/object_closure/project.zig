@@ -15,7 +15,6 @@ pub const Snapshot = struct {
 };
 
 pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocator.Error!Snapshot {
-    const roots = @import("generated_object_closure_roots");
     const layout = @import("generated_object_closure_layout");
     const rows = graph.nodes.slice();
     const constructions = graph.pending.constructions.slice();
@@ -23,7 +22,8 @@ pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocato
     const selections = graph.pending.selections.slice();
     const parents = graph.parents();
 
-    const normalized = roots.executeState(allocator, .{
+    const input: std.meta.Child(layout.Input) = .{
+        .kinds = rows.items(.kind),
         .columns = &.{
             .construction_results = @ptrCast(constructions.items(.result)),
             .part_first = constructions.items(.first),
@@ -34,36 +34,21 @@ pub fn build(graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocato
             .selection_sources = @ptrCast(selections.items(.source)),
         },
         .parents = @ptrCast(&parents),
-        .keys = .{ .items = &.{}, .storage = .plain },
-        .buckets = .{ .items = &.{}, .storage = .plain },
-        .sizes = .{ .items = &.{}, .storage = .plain },
-        .results = .{ .items = &.{}, .storage = .plain },
-        .sources = .{ .items = &.{}, .storage = .plain },
-        .rule = 0,
-        .part = 0,
-        .end = 0,
-        .first = 0,
-        .open = false,
-    }) catch |err| return failure(err);
+    };
 
-    const result = layout.executeValue(allocator, &.{
-        .kinds = rows.items(.kind),
-        .keys = normalized.keys.items,
-        .sizes = normalized.sizes.items,
-        .sources = normalized.sources.items,
-    }) catch |err| return failure(err);
+    const result = layout.executeValue(allocator, &input) catch |err| return failure(err);
 
     return .{
         .query = .{
             .revision = graph.object_revision,
-            .keys = normalized.keys.items,
-            .buckets = normalized.buckets.items,
+            .keys = result.keys,
+            .buckets = result.buckets,
             .spread = null,
             .selection = null,
         },
         .known = result.known,
-        .sizes = normalized.sizes.items,
-        .results = normalized.results.items,
+        .sizes = result.sizes,
+        .results = result.results,
         .offsets = result.offsets,
         .dependents = result.dependents,
     };

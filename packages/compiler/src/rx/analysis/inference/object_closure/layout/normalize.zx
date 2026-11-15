@@ -1,29 +1,35 @@
 import intern from "./intern"
 
-import type { U32Buffer } from "std:memory"
-import type { Columns, Normalized as Output } from "./model"
+import type { Normalize, Normalized } from "./model"
 
-export type Input = {
-    columns: Columns,
-    parents: U32Buffer,
-    keys: u32[],
-    buckets: u32[],
-    sizes: u64[],
-    results: u64[],
-    sources: u64[],
-    rule: u64,
-    part: u64,
-    end: u64,
-    first: u64,
-    open: bool
-}
+export type Input = Normalize
+
+export type Output = Normalized
 
 export default function (in: Input): Output {
-    const columns = in.columns
+    const { columns, parents } = in
+
     const constructions = columns.construction_results.length
     const rules = constructions + columns.selection_results.length
 
-    return loop(in, {
+    const keys: u32[] = []
+    const buckets: u32[] = []
+    const sizes: u64[] = []
+    const results: u64[] = []
+    const sources: u64[] = []
+
+    return loop({
+        keys,
+        buckets,
+        sizes,
+        results,
+        sources,
+        rule: 0,
+        part: 0,
+        end: 0,
+        first: 0,
+        open: false
+    }, {
         while: state => state.rule < rules,
         next: state => {
             if (state.open) {
@@ -35,7 +41,7 @@ export default function (in: Input): Output {
                 } else {
                     if (columns.part_names[state.part] == null) {
                         const source = intern({
-                            parents: state.parents,
+                            parents,
                             keys: state.keys,
                             buckets: state.buckets,
                             node: columns.part_values[state.part]
@@ -55,7 +61,7 @@ export default function (in: Input): Output {
                     _ => columns.selection_results[state.rule - constructions]
                 }
                 const result = intern({
-                    parents: state.parents,
+                    parents,
                     keys: state.keys,
                     buckets: state.buckets,
                     node
@@ -72,7 +78,7 @@ export default function (in: Input): Output {
                     state.open = true
                 } else {
                     const source = intern({
-                        parents: state.parents,
+                        parents,
                         keys: state.keys,
                         buckets: state.buckets,
                         node: columns.selection_sources[state.rule - constructions]

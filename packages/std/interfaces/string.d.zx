@@ -1,3 +1,5 @@
+export type StringSet = opaque
+
 export declare function join(allocator, separator: string, values: string[]): string throws { OutOfMemory } concurrent
 
 export declare function copy(allocator, value: string): string throws { OutOfMemory } concurrent
@@ -6,3 +8,9 @@ export declare function copyList(
     allocator,
     values: string[]
 ): string[] throws { OutOfMemory } concurrent
+
+export declare function setAdd(allocator, set: StringSet, value: string): void throws { OutOfMemory }
+
+export declare function setAddAll(allocator, set: StringSet, values: string[]): void throws { OutOfMemory }
+
+export declare function setKeys(allocator, set: StringSet): string[] throws { OutOfMemory }

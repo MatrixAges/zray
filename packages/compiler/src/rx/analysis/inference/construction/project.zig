@@ -3,18 +3,20 @@ const zx = @import("zx");
 const Graph = @import("../types.zig");
 const View = @import("../fields/view.zig");
 const Fields = @import("../fields/replay.zig");
+const GraphColumns = @import("../fields/columns.zig");
 const ObjectClosure = @import("../object_closure.zig");
 const Object = @import("../construction.zig").Object;
 const generated = @import("generated_object_construction_resolve");
 const Input = std.meta.Child(generated.Input);
 const Parts = std.meta.Child(@FieldType(Input, "parts"));
 const sources = @import("generated_object_construction_sources");
-const Source = @typeInfo(@typeInfo(@TypeOf(sources.executeValue)).@"fn".return_type.?).error_union.payload;
+const SourceInput = std.meta.Child(sources.Input);
+const Source = @typeInfo(@TypeOf(sources.executeValue(undefined, undefined))).error_union.payload;
 const NameSet = std.StringHashMapUnmanaged(void);
 const Spread = struct { fields: []const []const u8, values: []const u32, root: u64, open: bool, aliases: bool };
 const unknown_spread = "object spread source cannot be inferred from the available constraints";
 
-pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, final: bool) zx.Error!void {
+pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, root: Graph.Id, mode: View.Mode, final: bool) zx.Error!void {
     var arena = std.heap.ArenaAllocator.init(graph.scratch);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
@@ -23,21 +25,13 @@ pub fn propagate(graph: *Graph, closure: *ObjectClosure, object: Object, final: 
 
     const allocator = scratch.allocator();
     var names: NameSet = .empty;
-    const parts = try project(graph, closure, allocator, object, final, &names);
+    const parts = try project(graph, closure, allocator, object, root, mode, final, &names);
 
     if (names.count() == 0) return;
 
-    const keys = try allocator.alloc([]const u8, names.count());
-    var iterator = names.keyIterator();
+    const plan = generated.executeValue(allocator, &.{ .parts = &parts, .keys = @ptrCast(&names), .final = final }) catch |err| return failure(err);
 
-    for (keys) |*key| key.* = iterator.next().?.*;
-
-    const plan = generated.executeValue(allocator, &.{ .parts = &parts, .names = keys, .final = final }) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    try apply(graph, object, keys, plan);
+    try apply(graph, object, plan.names, plan);
 }
 
 fn apply(graph: *Graph, object: Object, keys: []const []const u8, plan: anytype) zx.Error!void {
@@ -78,32 +72,27 @@ fn apply(graph: *Graph, object: Object, keys: []const []const u8, plan: anytype)
         const name = keys[row];
         const part_index: usize = @intCast(plan.parts[row]);
         const target = try Fields.field(graph, object.result, root, name, next.target, object.span);
-        const route = plan.routes[row];
 
         start = row + 1;
 
-        switch (route) {
-            .Skip => {},
-            .Bind, .Register, .RegisterAmbiguous => {
-                const direct: Graph.Id = switch (plan.receivers[row]) {
-                    .Node => @fromBackingInt(plan.values[row]),
-                    .Target => target,
-                    .Type => if (next.source) |id|
-                        @fromBackingInt(id)
-                    else
-                        try graph.known(@fromBackingInt(plan.values[row]), object.part(graph, part_index).span),
-                };
+        const source: Graph.Id = if (next.register_type) |type_id|
+            try graph.known(@fromBackingInt(type_id), object.part(graph, part_index).span)
 
-                if (route == .Bind) try graph.expect(direct, target, object.span);
-                if (route == .RegisterAmbiguous) return ambiguous(graph, object.span);
-            },
+        else if (next.source) |id|
+            @fromBackingInt(id)
+        else
+            target;
+
+        switch (next.effect) {
+            .Ensure => {},
+            .Bind => try graph.expect(source, target, object.span),
             .Ambiguous => return ambiguous(graph, object.span),
-            .InferRequired, .InferConstrained, .MissingRequired => {
+            .Require => {
                 const entry = @import("generated_object_construction_activate");
                 const shape = View.describe(graph, graph.root(target));
 
                 const request: std.meta.Child(entry.Input) = .{
-                    .route = route,
+                    .route = plan.routes[row],
                     .kind = shape.kind,
                     .type_kind = shape.type_kind,
                     .restricted = shape.restricted,
@@ -124,24 +113,35 @@ fn apply(graph: *Graph, object: Object, keys: []const []const u8, plan: anytype)
     }
 }
 
-fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator, object: Object, final: bool, names: *NameSet) zx.Error!Parts {
-    const result = graph.root(object.result);
-    const result_fields = View.read(graph, result);
-
-    switch (result_fields.mode) {
+fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator, object: Object, result: Graph.Id, mode: View.Mode, final: bool, names: *NameSet) zx.Error!Parts {
+    switch (mode) {
         .Invalid => return invalidObject(graph, object.span, false),
         .InvalidDeclared => return invalidObject(graph, object.span, true),
         else => {},
     }
 
-    for (result_fields.names) |name| try names.put(allocator, name, {});
-
+    const result_fields = View.readMode(graph, result, mode);
     const count: usize = @intCast(object.count);
     const first: usize = @intCast(object.first);
     const part_columns = graph.pending.construction_parts.slice();
     const part_names = part_columns.items(.name)[first..][0..count];
     const part_values: []const u32 = @ptrCast(part_columns.items(.value)[first..][0..count]);
-    var next = nextSpread(graph, part_names, part_values, result, 0, final);
+    const columns_view = GraphColumns.borrow(std.meta.Child(@FieldType(SourceInput, "columns")), graph);
+    const parents = graph.parents();
+
+    var scan: SourceInput = .{
+        .names = part_names,
+        .values = part_values,
+        .parents = @ptrCast(&parents),
+        .columns = &columns_view,
+        .result = @backingInt(result),
+        .first = 0,
+        .keys = @ptrCast(names),
+        .initial = result_fields.names,
+        .final = final,
+    };
+
+    var next = try nextSpread(allocator, &scan);
     var spread: std.MultiArrayList(Spread) = .empty;
 
     try spread.resize(allocator, if (next.row < count) count else 0);
@@ -152,22 +152,19 @@ fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator,
     const roots = columns.items(.root);
     const open = columns.items(.open);
     const aliases = columns.items(.aliases);
+    const writer = @import("generated_object_construction_publish");
+    const Publish = std.meta.Child(writer.Input);
 
-    @memset(fields, &.{});
-    @memset(values, &.{});
-    @memset(roots, 0);
-    @memset(open, false);
-    @memset(aliases, false);
+    const output: std.meta.Child(@FieldType(Publish, "columns")) = .{
+        .fields = @ptrCast(&fields),
+        .values = @ptrCast(&values),
+        .roots = @ptrCast(&roots),
+        .open = @ptrCast(&open),
+        .aliases = @ptrCast(&aliases),
+    };
 
-    var start: usize = 0;
-
-    while (start < count) {
+    while (next.row < count) {
         const index: usize = @intCast(next.row);
-
-        for (part_names[start..index]) |name| try names.put(allocator, name.?, {});
-
-        if (index == count) break;
-
         const root: Graph.Id = @fromBackingInt(next.root);
         const part = object.part(graph, index);
         const source = View.readMode(graph, root, @fromBackingInt(@backingInt(next.mode)));
@@ -183,20 +180,25 @@ fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator,
             .InvalidDeclared => return invalidObject(graph, part.span, true),
         };
 
-        for (source.names) |field| try names.put(allocator, field, {});
+        const input: Publish = .{
+            .keys = @ptrCast(names),
+            .names = source.names,
+            .values = source.values,
+            .columns = &output,
+            .row = index,
+            .root = @backingInt(root),
+            .open = !closed,
+            .aliases = alias,
+        };
 
-        roots[index] = @backingInt(root);
-        aliases[index] = alias;
-        open[index] = !closed;
+        zx.columns.invoke(writer.executeValue, allocator, &input) catch |err| return failure(err);
 
-        if (!alias) {
-            fields[index] = source.names;
-            values[index] = source.values;
-        }
+        const start = index + 1;
 
-        start = index + 1;
+        if (start == count) break;
 
-        if (start < count) next = nextSpread(graph, part_names, part_values, result, start, final);
+        scan.first = start;
+        next = try nextSpread(allocator, &scan);
     }
 
     return .{
@@ -211,28 +213,15 @@ fn project(graph: *Graph, closure: *ObjectClosure, allocator: std.mem.Allocator,
     };
 }
 
-fn nextSpread(graph: *const Graph, names: []const ?[]const u8, values: []const u32, result: Graph.Id, start: usize, final: bool) Source {
-    const rows = graph.nodes.slice();
-    const types = &graph.types.items;
-    const parents = graph.parents();
+fn nextSpread(allocator: std.mem.Allocator, input: *const SourceInput) std.mem.Allocator.Error!Source {
+    return zx.columns.invoke(sources.executeValue, allocator, input) catch |err| return failure(err);
+}
 
-    const input: std.meta.Child(sources.Input) = .{
-        .names = names,
-        .values = values,
-        .parents = @ptrCast(&parents),
-        .kinds = rows.items(.kind),
-        .arguments = rows.items(.argument),
-        .members = rows.items(.members),
-        .type_kinds = types.kinds.items,
-        .type_sizes = types.second.items,
-        .result = @backingInt(result),
-        .start = start,
-        .final = final,
+fn failure(err: anyerror) std.mem.Allocator.Error {
+    return switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        else => unreachable,
     };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(sources.executeValue, empty.allocator(), &input) catch unreachable;
 }
 
 fn invalidObject(graph: *Graph, span: zx.Span, declared: bool) zx.Error {

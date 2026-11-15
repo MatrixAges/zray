@@ -1,4 +1,6 @@
+import type { Input as Coverage } from "../../../../zx/analysis/selection/covers"
 import type { Input as Fields } from "../../../../zx/analysis/selection/model"
+import type { Mode } from "../fields/view"
 
 export enum Status {
     Ready,
@@ -8,7 +10,18 @@ export enum Status {
 
 export type Input = {
     fields: Fields,
-    required: bool
+    mode: Mode,
+    final: bool
+}
+
+export enum CoverageResult {
+    Valid,
+    InvalidType,
+    UnexpectedField
+}
+
+export type ResultInput = Coverage & {
+    mode: Mode
 }
 
 export type Output = {

@@ -1,16 +1,19 @@
 import integers from "std:integer"
 
+import shape from "../fields/shape"
+import { Mode } from "../fields/view"
 import representative from "../forest/borrowed_root"
 import query from "./query"
 import { Action } from "./query"
 
 import type { U32Buffer } from "std:memory"
-import type { Kind } from "../unification/model"
+import type { Columns } from "../fields/shape"
+import type { Mode as ObjectMode } from "../fields/view"
 import type { Output as Plan, Snapshot } from "./query"
 
 export type Input = {
     parents: U32Buffer,
-    kinds: Kind[],
+    columns: Columns,
     sources: u32[],
     revision: u64,
     constructions: u64,
@@ -22,6 +25,7 @@ export type Input = {
 export type Output = {
     row: u64,
     root: u32,
+    mode: ObjectMode,
     plan: Plan
 }
 
@@ -34,7 +38,7 @@ export default function (in: Input): Output {
         shared: false
     }
 
-    return loop({
+    const selected = loop({
         row: in.start,
         root: missing,
         plan: rejected,
@@ -48,7 +52,7 @@ export default function (in: Input): Output {
             })
             const plan = query({
                 root,
-                kind: in.kinds[integers.widen(root)],
+                kind: in.columns.kinds[integers.widen(root)],
                 revision: in.revision,
                 constructions: in.constructions,
                 selections: in.sources.length,
@@ -70,4 +74,24 @@ export default function (in: Input): Output {
             plan: state.plan
         })
     })
+
+    const { row, root, plan } = selected
+
+    const selected_source =
+        plan.action == Action.Accept || plan.action == Action.Propagate
+
+    const mode = match {
+        selected_source => shape({
+            columns: in.columns,
+            root
+        }).mode,
+        _ => Mode.Unknown
+    }
+
+    return {
+        row,
+        root,
+        mode,
+        plan
+    }
 }

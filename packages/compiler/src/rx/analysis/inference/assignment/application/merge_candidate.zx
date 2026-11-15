@@ -1,0 +1,63 @@
+import integers from "std:integer"
+import memory from "std:memory"
+import { kind_optional } from "core/type_table/const"
+
+import representative from "../../forest/borrowed_root"
+import { Kind } from "../../unification/model"
+
+import type { U32Buffer } from "std:memory"
+import type { Graph } from "../../optional/model"
+import type { ClassLookup } from "../model"
+
+export type Input = {
+    graph: Graph,
+    allowed: u16?[],
+    classes: ClassLookup,
+    parents: U32Buffer,
+    index: u64
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { graph, parents, classes, index } = in
+
+    const node = integers.narrow(index)
+
+    if (memory.readU32(parents, index) != node) {
+        const root = representative({
+            parents,
+            value: node
+        })
+
+        return null
+    }
+
+    const kind = graph.kinds[index]
+    const argument = integers.widen(graph.arguments[index])
+
+    const eligible = match kind {
+        Kind.Unknown => in.allowed[index] != null,
+        Kind.Known => graph.types.kinds[argument] != kind_optional,
+        Kind.Optional => false,
+        _ => true
+    }
+
+    if (!eligible) {
+        return null
+    }
+
+    const group = integers.widen(classes.groups[index])
+    const other = classes.representatives[group]
+
+    if (other == null || other == node) {
+        return null
+    }
+
+    const target = representative({
+        parents,
+        value: other
+    })
+
+    return target == node ? null : other
+}

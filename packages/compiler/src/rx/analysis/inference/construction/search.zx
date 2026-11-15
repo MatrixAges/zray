@@ -69,8 +69,7 @@ export default function (in: Input): Output {
             } else if (explicit == null && in.parts.open[part]) {
                 const previous = state.kind != Kind.Absent
                 const root = in.parts.roots[part]
-                const earlier = in.parts.roots[state.part]
-                const repeated = previous && root == earlier
+                const repeated = previous && root == in.parts.roots[state.part]
 
                 if (!repeated) {
                     state.kind = previous ? Kind.AmbiguousOpen : Kind.Open

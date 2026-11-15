@@ -1,0 +1,11 @@
+import memory from "std:memory"
+
+import type { Counters } from "./model"
+
+export type Input = Counters
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const copied = memory.copyBytes(in.pending, 0, in.sizes, 0, in.sizes.length)
+}

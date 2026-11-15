@@ -1,71 +1,107 @@
-import integers from "std:integer"
-import memory from "std:memory"
-import { kind_optional } from "core/type_table/const"
+import { max_nesting_depth } from "core/const"
 
 import representative from "../../forest/borrowed_root"
-import { Kind } from "../../unification/model"
+import payload from "../../optional/payload"
+import { Action as PayloadAction } from "../../optional/payload"
+import candidate from "./merge_candidate"
 
 import type { U32Buffer } from "std:memory"
-import type { ClassLookup, Nodes } from "../model"
+import type { State as Known } from "core/integer/map/model"
+import type { Graph } from "../../optional/model"
+import type { ClassLookup } from "../model"
 
-export type Input = {
-    nodes: Nodes,
-    arguments: u32[],
-    type_kinds: u8[],
-    classes: ClassLookup,
-    parents: U32Buffer,
-    next: u64,
-    other?: u32
+export enum Action {
+    Scan,
+    Merge,
+    Register,
+    Depth
 }
 
-export type Output = Input.Pick("next", "other")
+export type Input = {
+    graph: Graph,
+    allowed: u16?[],
+    classes: ClassLookup,
+    parents: U32Buffer,
+    known: Known,
+    next: u64,
+    other?: u32,
+    value: u32,
+    root: u32,
+    remaining: u64,
+    action: Action
+}
+
+export type Output = Input.Pick(
+    "action",
+    "next",
+    "other",
+    "value",
+    "root",
+    "remaining"
+)
 
 export default function (in: Input): Output {
-    return loop(in, {
-        while: state =>
-            state.other == null && state.next < state.classes.groups.length,
-        next: state => {
-            const index = state.next
-            const node = integers.narrow(index)
+    const { graph, allowed, classes, parents, known } = in
 
-            if (memory.readU32(state.parents, index) != node) {
-                const root = representative({
-                    parents: state.parents,
-                    value: node
+    return loop({
+        action: Action.Scan,
+        next: in.next,
+        other: in.other,
+        value: in.value,
+        root: in.root,
+        remaining: in.remaining
+    }, {
+        while: state => state.action == Action.Scan && state.next < classes.groups.length,
+        next: state => {
+            const continuing = state.other != null
+            const other: u32? = match {
+                continuing => state.other,
+                _ => candidate({
+                    graph,
+                    allowed,
+                    classes,
+                    parents,
+                    index: state.next
+                })
+            }
+
+            if (other == null) {
+                state.next += 1
+            } else {
+                const result = payload({
+                    graph,
+                    parents,
+                    known,
+                    value: continuing ? state.value : other,
+                    remaining: continuing ? state.remaining : max_nesting_depth
                 })
 
-            } else {
-                const kind = state.nodes.kinds[index]
-                const argument = integers.widen(state.arguments[index])
-                const eligible = match kind {
-                    Kind.Unknown => state.nodes.allowed[index] != null,
-                    Kind.Known => state.type_kinds[argument] != kind_optional,
-                    Kind.Optional => false,
-                    _ => true
-                }
+                if (result.action == PayloadAction.Ready) {
+                    const root = representative({
+                        parents,
+                        value: other
+                    })
 
-                if (eligible) {
-                    const group = integers.widen(state.classes.groups[index])
-                    const other = state.classes.representatives[group]
+                    if (result.root == root) {
+                        state.other = other
+                        state.action = Action.Merge
+                    } else {
+                        state.other = null
+                    }
 
-                    if (other != null && other != node) {
-                        const target = representative({
-                            parents: state.parents,
-                            value: other
-                        })
-
-                        if (target != node) {
-                            state.other = other
-                        }
+                    state.next += 1
+                } else {
+                    state.other = other
+                    state.value = result.value
+                    state.root = result.root
+                    state.remaining = result.remaining
+                    state.action = match result.action {
+                        PayloadAction.Depth => Action.Depth,
+                        _ => Action.Register
                     }
                 }
             }
-
-            state.next += 1
         },
-        return: state => ({
-            next: state.next,
-            other: state.other
-        })
+        return: state => state
     })
 }

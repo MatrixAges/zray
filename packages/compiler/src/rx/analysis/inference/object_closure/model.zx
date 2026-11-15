@@ -26,3 +26,24 @@ export type Initial = {
     count: u64,
     known: u64
 }
+
+export type Counters = {
+    sizes: u8[],
+    pending: U8Buffer
+}
+
+export type Publication = {
+    position: u64,
+    shared: bool
+}
+
+export type Proof = Request & {
+    counters: Counters,
+    publication: Publication
+}
+
+export type Result = {
+    ready: bool,
+    spread: bool,
+    selection: bool
+}

@@ -1,0 +1,18 @@
+import type { Publication, Result } from "./model"
+
+export type Input = Publication & {
+    ready: bool[],
+    spread: bool
+}
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    const { ready, position, spread, shared } = in
+
+    return {
+        ready: ready[position],
+        spread: spread || shared,
+        selection: !spread || shared
+    }
+}

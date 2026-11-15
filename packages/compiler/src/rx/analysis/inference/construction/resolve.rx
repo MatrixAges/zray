@@ -3,15 +3,22 @@
 
     <Args in={Construction.Input} out={Construction.Output} />
 
+    <Call fn="keys" in={$in.keys} />
     <Call fn="admit" in={$in.final} />
 
     <Call
         fn="search_all"
         in={{
-            ...$in.omit(["final"]),
+            parts: $in.parts,
+            names: $ctx.keys,
             policy: $ctx.admit
         }}
     />
 
-    <Return value={$ctx.search_all} />
+    <Return
+        value={{
+            ...$ctx.search_all,
+            names: $ctx.keys
+        }}
+    />
 </Module>

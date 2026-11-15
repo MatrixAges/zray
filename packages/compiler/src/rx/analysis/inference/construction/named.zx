@@ -1,0 +1,39 @@
+import strings from "zig:string"
+
+import type { StringSet } from "zig:string"
+
+export type Input = {
+    names: string?[],
+    keys: StringSet,
+    initial: string[],
+    first: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { names, keys } = in
+
+    if (in.first == 0) {
+        strings.setAddAll(keys, in.initial)
+    }
+
+    return loop({
+        row: in.first,
+        stopped: false
+    }, {
+        while: state => state.row < names.length && !state.stopped,
+        next: state => {
+            const name = names[state.row]
+
+            if (name == null) {
+                state.stopped = true
+            } else {
+                strings.setAdd(keys, name)
+
+                state.row += 1
+            }
+        },
+        return: state => state.row
+    })
+}

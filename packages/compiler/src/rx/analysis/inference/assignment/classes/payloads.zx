@@ -2,11 +2,11 @@ import integers from "std:integer"
 import memory from "std:memory"
 import { max_nesting_depth } from "core/const"
 
-import representative from "../../forest/borrowed_root"
-import { Route as WalkRoute } from "../../optional/model"
-import walk from "../../optional/walk"
+import payload from "../../optional/payload"
+import { Action as PayloadAction } from "../../optional/payload"
 
 import type { U32Buffer } from "std:memory"
+import type { State as Known } from "core/integer/map/model"
 import type { Graph } from "../../optional/model"
 
 export enum Action {
@@ -17,6 +17,7 @@ export enum Action {
 
 export type Input = {
     graph: Graph,
+    known: Known,
     parents: U32Buffer,
     payloads: U32Buffer,
     start: u64,
@@ -28,7 +29,8 @@ export type Input = {
     action: Action
 }
 
-export type Output = Input.Omit("graph", "payloads", "start", "limit", "parents")
+export type Output =
+    Input.Omit("graph", "known", "payloads", "start", "limit", "parents")
 
 export default function (in: Input): Output {
     return loop(in, {
@@ -37,27 +39,21 @@ export default function (in: Input): Output {
             state.next < state.limit,
         next: state => {
             const source = state.source
-            const result = walk({
+            const result = payload({
                 graph: state.graph,
+                known: state.known,
                 parents: state.parents,
                 value: source,
-                root: source,
-                remaining: state.remaining ?? max_nesting_depth,
-                route: WalkRoute.Boundary
+                remaining: state.remaining ?? max_nesting_depth
             })
 
-            if (result.route == WalkRoute.Declared) {
+            if (result.action == PayloadAction.Register) {
                 state.source = result.value
                 state.origin = result.root
                 state.remaining = result.remaining
                 state.action = Action.Register
-            } else if (result.route == WalkRoute.Boundary) {
-                const boundary = representative({
-                    parents: state.parents,
-                    value: result.value
-                })
-
-                state.origin = boundary
+            } else if (result.action == PayloadAction.Depth) {
+                state.origin = result.root
                 state.action = Action.Depth
             } else {
                 memory.writeU32(

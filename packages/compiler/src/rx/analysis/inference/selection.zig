@@ -83,7 +83,7 @@ pub fn replay(graph: *Graph, closure: *ObjectClosure, final: bool) zx.Error!void
         const value = pending.get(next.row);
 
         if (!next.ready) return graph.reporter.fail(.type_mismatch, value.span, incomplete_source);
-        try @import("selection/project.zig").apply(graph, value, next.root, final);
+        try @import("selection/project.zig").apply(graph, value, next.root, next.mode, final);
 
         start = next.row + 1;
     }

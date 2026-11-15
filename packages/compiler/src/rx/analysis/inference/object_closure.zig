@@ -1,11 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
+const Fields = @import("fields/view.zig");
+const Columns = @import("fields/columns.zig");
 const project = @import("object_closure/project.zig");
 const Self = @This();
 pub const Query = enum { spread, selection };
 
-const Selection = struct { row: usize, root: Graph.Id, ready: bool };
+const Selection = struct { row: usize, root: Graph.Id, mode: Fields.Mode, ready: bool };
 
 arena: std.heap.ArenaAllocator,
 snapshot: ?project.Snapshot = null,
@@ -61,6 +63,7 @@ pub fn proveRoot(self: *Self, graph: *const Graph, root: Graph.Id, query: Query)
 pub fn nextSelection(self: *Self, graph: *const Graph, sources: []const Graph.Id, first: usize, final: bool) std.mem.Allocator.Error!?Selection {
     const rule = @import("generated_rx_selection_ready");
     const Input = std.meta.Child(rule.Input);
+    const columns = Columns.borrow(std.meta.Child(@FieldType(Input, "columns")), graph);
     const parents = graph.parents();
     const constructions = graph.pending.constructions.len;
     var start = first;
@@ -71,7 +74,7 @@ pub fn nextSelection(self: *Self, graph: *const Graph, sources: []const Graph.Id
 
         const input: Input = .{
             .parents = @ptrCast(&parents),
-            .kinds = graph.nodes.items(.kind),
+            .columns = &columns,
             .sources = @ptrCast(sources),
             .revision = graph.object_revision,
             .constructions = constructions,
@@ -87,10 +90,11 @@ pub fn nextSelection(self: *Self, graph: *const Graph, sources: []const Graph.Id
 
         const plan = result.plan;
         const root: Graph.Id = @fromBackingInt(result.root);
+        const mode: Fields.Mode = @fromBackingInt(@backingInt(result.mode));
 
         switch (plan.action) {
-            .Accept => return .{ .row = row, .root = root, .ready = true },
-            .Reject => return .{ .row = row, .root = root, .ready = false },
+            .Accept => return .{ .row = row, .root = root, .mode = mode, .ready = true },
+            .Reject => return .{ .row = row, .root = root, .mode = mode, .ready = false },
             .Rebuild => {
                 try self.rebuild(graph);
 
@@ -99,7 +103,7 @@ pub fn nextSelection(self: *Self, graph: *const Graph, sources: []const Graph.Id
             .Propagate => {
                 const ready = try self.propagate(constructions, plan.position, false, plan.shared);
 
-                if (ready or final) return .{ .row = row, .root = root, .ready = ready };
+                if (ready or final) return .{ .row = row, .root = root, .mode = mode, .ready = ready };
 
                 start = row + 1;
             },
@@ -134,11 +138,12 @@ fn propagate(self: *Self, constructions: usize, position: u64, spread: bool, sha
 
     defer scratch.free(queue);
 
-    const pending = if (data.dependents.len == 0) &.{} else try scratch.dupe(u64, data.sizes);
+    const pending = if (data.dependents.len == 0) &.{} else try scratch.alloc(u64, data.sizes.len);
 
     defer scratch.free(pending);
 
     const bytes = std.mem.sliceAsBytes(ready);
+    const pending_bytes = std.mem.sliceAsBytes(pending);
 
     const input: std.meta.Child(rule.Input) = .{
         .rules = &.{
@@ -156,14 +161,15 @@ fn propagate(self: *Self, constructions: usize, position: u64, spread: bool, sha
             .queue = @ptrCast(&queue),
             .pending = @ptrCast(&pending),
         },
+        .counters = &.{ .sizes = std.mem.sliceAsBytes(data.sizes), .pending = @ptrCast(&pending_bytes) },
+        .publication = &.{ .position = position, .shared = shared },
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    if (result.spread) data.query.spread = ready;
+    if (result.selection) data.query.selection = ready;
 
-    if (spread or shared) data.query.spread = ready;
-    if (!spread or shared) data.query.selection = ready;
-
-    return ready[@intCast(position)];
+    return result.ready;
 }

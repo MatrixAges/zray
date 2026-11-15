@@ -1,0 +1,44 @@
+import memory from "std:memory"
+import strings from "zig:string"
+
+import type { StringListBuffer, U8Buffer, U32ListBuffer, U64Buffer } from "std:memory"
+import type { StringSet } from "zig:string"
+
+export type Columns = {
+    fields: StringListBuffer,
+    values: U32ListBuffer,
+    roots: U64Buffer,
+    open: U8Buffer,
+    aliases: U8Buffer
+}
+
+export type Input = {
+    keys: StringSet,
+    names: string[],
+    values: u32[],
+    columns: Columns,
+    row: u64,
+    root: u64,
+    open: bool,
+    aliases: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { keys, names, columns, row, root, open, aliases } = in
+
+    strings.setAddAll(keys, names)
+
+    memory.writeU64(columns.roots, row, root)
+    memory.writeU8(columns.open, row, open ? 1 : 0)
+    memory.writeU8(columns.aliases, row, aliases ? 1 : 0)
+
+    if (aliases) {
+        memory.writeStringList(columns.fields, row, [])
+        memory.writeU32List(columns.values, row, [])
+    } else {
+        memory.writeStringList(columns.fields, row, names)
+        memory.writeU32List(columns.values, row, in.values)
+    }
+}

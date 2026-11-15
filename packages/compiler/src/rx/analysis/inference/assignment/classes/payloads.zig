@@ -21,7 +21,7 @@ pub fn collect(graph: *Graph, allocator: std.mem.Allocator) zx.Error!Columns {
 
 fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize) zx.Error![]const u32 {
     const generated = @import("generated_assignment_payloads");
-    const Request = @typeInfo(@TypeOf(generated.executeState)).@"fn".param_types[1].?;
+    const Request = std.meta.Child(generated.Input);
     const View = std.meta.Child(@FieldType(Request, "graph"));
     const payloads = try allocator.alloc(u32, limit - start);
     var next = start;
@@ -40,8 +40,9 @@ fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize)
 
         const parents = graph.parents();
 
-        const result = generated.executeState(empty.allocator(), .{
+        const input: Request = .{
             .graph = &view,
+            .known = &graph.pending.known_types.borrow(std.meta.Child(@FieldType(Request, "known"))),
             .parents = @ptrCast(&parents),
             .payloads = @ptrCast(&payloads),
             .start = start,
@@ -51,7 +52,9 @@ fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize)
             .origin = source,
             .remaining = remaining,
             .action = .Scan,
-        }) catch |err| switch (@as(anyerror, err)) {
+        };
+
+        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
             else => unreachable,
         };

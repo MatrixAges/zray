@@ -31,11 +31,7 @@ const Round = struct {
             .Bindings, .FinalBindings => try Bindings.propagate(graph, stage == .FinalBindings),
             .NonNull, .FinalNonNull => try NonNull.propagate(graph, stage == .FinalNonNull),
             .Sequences => try Sequences.replay(graph),
-            .Constructions, .FinalConstructions => {
-                for (0..graph.pending.constructions.len) |index| {
-                    try Construction.propagate(graph, self.closure, graph.pending.constructions.get(index), stage == .FinalConstructions);
-                }
-            },
+            .Constructions, .FinalConstructions => try Construction.replay(graph, self.closure, stage == .FinalConstructions),
             .Selections, .FinalSelections => try Selection.replay(graph, self.closure, stage == .FinalSelections),
             .Lengths => try Projections.applyLengths(graph),
             .Indexes => try Index.replay(graph),

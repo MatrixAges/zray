@@ -109,32 +109,53 @@ pub fn propagate(self: Self, graph: *Graph) zx.Error!void {
     if (!@import("rx_options").generated_graph) return self.seedPropagate(graph);
 
     const generated = @import("generated_assignment_next_merge");
+    const Input = std.meta.Child(generated.Input);
+    const Known = std.meta.Child(@FieldType(Input, "known"));
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     var start: usize = 0;
+    var other: ?u32 = null;
+    var value: u32 = 0;
+    var remaining: u64 = 0;
 
     while (start < self.parents.len) {
         const nodes = graph.nodes.slice();
         const parents = graph.parents();
+        const types = &graph.types.items;
 
-        const result = generated.executeState(empty.allocator(), .{
-            .nodes = &.{ .kinds = nodes.items(.kind), .allowed = nodes.items(.allowed) },
-            .arguments = .{ .items = nodes.items(.argument), .storage = .plain },
-            .type_kinds = .{ .items = graph.types.items.kinds.items, .storage = .plain },
+        const input: Input = .{
+            .graph = &.{ .kinds = nodes.items(.kind), .arguments = nodes.items(.argument), .types = &.{ .kinds = types.kinds.items, .children = types.first.items } },
+            .allowed = nodes.items(.allowed),
             .classes = &.{ .groups = self.parents, .representatives = self.representatives },
             .parents = @ptrCast(&parents),
+            .known = &graph.pending.known_types.borrow(Known),
             .next = start,
-            .other = null,
-        }) catch unreachable;
+            .other = other,
+            .value = value,
+            .remaining = remaining,
+            .root = 0,
+            .action = .Scan,
+        };
 
-        const other: Graph.Id = @fromBackingInt(result.other orelse break);
+        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
 
         start = @intCast(result.next);
 
-        if (try payload(graph, other) != graph.root(other)) continue;
+        switch (result.action) {
+            .Scan => return,
+            .Register => {
+                value = @backingInt(try graph.known(@fromBackingInt(result.value), nodes.items(.span)[result.root]));
+                other = result.other;
+                remaining = result.remaining;
+            },
+            .Depth => return graph.reporter.fail(.unsupported, nodes.items(.span)[result.root], "type inference nesting exceeds 256 levels"),
+            .Merge => {
+                const index = start - 1;
 
-        const index = start - 1;
+                try graph.unify(@fromBackingInt(@intCast(index)), @fromBackingInt(result.other.?), nodes.items(.span)[index]);
 
-        try graph.unify(@fromBackingInt(@intCast(index)), other, graph.nodes.items(.span)[index]);
+                other = null;
+            },
+        }
     }
 }
 

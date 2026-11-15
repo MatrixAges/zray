@@ -1,0 +1,66 @@
+import shape from "../fields/shape"
+import { Mode } from "../fields/view"
+import representative from "../forest/borrowed_root"
+
+import type { U32Buffer } from "std:memory"
+import type { Columns } from "../fields/shape"
+import type { Mode as ObjectMode } from "../fields/view"
+
+export type Input = {
+    columns: Columns,
+    parents: U32Buffer,
+    results: u32[],
+    parts: u64[],
+    first: u64
+}
+
+export type Output = {
+    position: u64,
+    root: u32,
+    mode: ObjectMode
+}
+
+export default function (in: Input): Output {
+    const initial_root: u32 = 0
+
+    const { columns, parents, results, parts } = in
+
+    return loop({
+        position: in.first,
+        root: initial_root,
+        mode: Mode.Unknown,
+        found: false
+    }, {
+        while: state => state.position < results.length && !state.found,
+        next: state => {
+            const row = state.position
+            const root = representative({
+                parents,
+                value: results[row]
+            })
+            const view = shape({
+                columns,
+                root
+            })
+            const invalid = view.mode == Mode.Invalid || view.mode == Mode.InvalidDeclared
+            const needs_replay = (
+                - invalid
+                - or parts[row] != 0
+                - or !view.empty
+            )
+
+            if (needs_replay) {
+                state.root = root
+                state.mode = view.mode
+                state.found = true
+            } else {
+                state.position += 1
+            }
+        },
+        return: state => ({
+            position: state.position,
+            root: state.root,
+            mode: state.mode
+        })
+    })
+}

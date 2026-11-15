@@ -27,6 +27,8 @@ pub fn guarded(graph: *Graph, source: Graph.Id, span: zx.Span) zx.Error!?Graph.I
 }
 
 pub fn hint(graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
+    if (comptime enabled) return sourceHint(graph, source);
+
     var value = source;
 
     while (true) {
@@ -37,6 +39,37 @@ pub fn hint(graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
             .Open => return if (graph.nodes.items(.allowed)[@backingInt(step.root)] != null) @fromBackingInt(step.value) else null,
             .Declared => value = try register(graph, step),
             .Boundary => unreachable,
+        }
+    }
+}
+
+fn sourceHint(graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
+    const rule = @import("generated_rx_optional_hint");
+    const Input = std.meta.Child(rule.Input);
+    const Known = std.meta.Child(@FieldType(Input, "known"));
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var value = source;
+
+    while (true) {
+        const rows = graph.nodes.slice();
+        const parents = graph.parents();
+        const types = &graph.types.items;
+
+        const input: Input = .{
+            .graph = &.{ .kinds = rows.items(.kind), .arguments = rows.items(.argument), .types = &.{ .kinds = types.kinds.items, .children = types.first.items } },
+            .known = &graph.pending.known_types.borrow(Known),
+            .allowed = rows.items(.allowed),
+            .parents = @ptrCast(&parents),
+            .value = @backingInt(value),
+            .remaining = std.math.maxInt(u64),
+        };
+
+        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        switch (result.action) {
+            .Ready => return if (result.hint) |id| @fromBackingInt(id) else null,
+            .Register => value = try graph.known(@fromBackingInt(result.value), rows.items(.span)[result.root]),
+            .Continue, .Depth => unreachable,
         }
     }
 }

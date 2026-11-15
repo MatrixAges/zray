@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Layout" />
+
+    <Args in={Layout.SnapshotInput} out={Layout.Snapshot} />
+
+    <Call fn="normalize" in={$in.omit(["kinds"])} />
+
+    <Call
+        module="build"
+        in={{
+            ...$ctx.normalize.pick([
+                "keys",
+                "sizes",
+                "sources"
+            ]),
+            kinds: $in.kinds
+        }}
+    />
+
+    <Return
+        value={{
+            ...$ctx.normalize.omit(["sources"]),
+            ...$ctx.build
+        }}
+    />
+</Module>

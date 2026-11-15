@@ -1,4 +1,5 @@
 const std = @import("std");
+pub const StringSet = std.StringHashMapUnmanaged(void);
 
 pub fn join(allocator: std.mem.Allocator, separator: []const u8, values: []const []const u8) std.mem.Allocator.Error![]const u8 {
     return std.mem.join(allocator, separator, values);
@@ -19,6 +20,28 @@ pub fn copyList(allocator: std.mem.Allocator, values: []const []const u8) std.me
         item.* = try copy(allocator, value);
         copied += 1;
     }
+
+    return output;
+}
+
+pub fn setAdd(allocator: std.mem.Allocator, set: *const anyopaque, value: []const u8) std.mem.Allocator.Error!void {
+    const keys: *StringSet = @ptrCast(@alignCast(@constCast(set)));
+
+    try keys.put(allocator, value, {});
+}
+
+pub fn setAddAll(allocator: std.mem.Allocator, set: *const anyopaque, values: []const []const u8) std.mem.Allocator.Error!void {
+    const keys: *StringSet = @ptrCast(@alignCast(@constCast(set)));
+
+    for (values) |value| try keys.put(allocator, value, {});
+}
+
+pub fn setKeys(allocator: std.mem.Allocator, set: *const anyopaque) std.mem.Allocator.Error![]const []const u8 {
+    const keys: *const StringSet = @ptrCast(@alignCast(set));
+    const output = try allocator.alloc([]const u8, keys.count());
+    var iterator = keys.keyIterator();
+
+    for (output) |*name| name.* = iterator.next().?.*;
 
     return output;
 }

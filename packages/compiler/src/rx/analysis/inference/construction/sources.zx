@@ -1,29 +1,29 @@
-import integers from "std:integer"
-
-import classify from "../fields/view"
+import shape from "../fields/shape"
 import { Mode } from "../fields/view"
 import representative from "../forest/borrowed_root"
-import { Kind } from "../unification/model"
 import spread from "./spread"
 import { Action } from "./spread"
 
 import type { U32Buffer } from "std:memory"
+import type { StringSet } from "zig:string"
+import type { Columns } from "../fields/shape"
 import type { Mode as ObjectMode } from "../fields/view"
-import type { Kind as Shape } from "../unification/model"
 import type { Action as SpreadAction } from "./spread"
 
 export type Input = {
     names: string?[],
     values: u32[],
     parents: U32Buffer,
-    kinds: Shape[],
-    arguments: u32[],
-    members: u32[][],
-    type_kinds: u8[],
-    type_sizes: u32[],
+    columns: Columns,
     result: u32,
-    start: u64,
+    row: u64,
     final: bool
+}
+
+export type Request = Input.Omit("row") & {
+    keys: StringSet,
+    initial: string[],
+    first: u64
 }
 
 export type Output = {
@@ -34,13 +34,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const row = loop(in.start, {
-        while: position =>
-            position < in.names.length && in.names[position] != null,
-        next: position => {
-            position += 1
-        }
-    })
+    const { row } = in
 
     if (row == in.names.length) {
         return {
@@ -56,20 +50,10 @@ export default function (in: Input): Output {
         value: in.values[row]
     })
 
-    const index = integers.widen(root)
-    const argument = integers.widen(in.arguments[index])
-    const kind = in.kinds[index]
-
-    const mode = classify({
-        kind,
-        type_kind: kind == Kind.Known ? in.type_kinds[argument] : 0
+    const { mode, empty } = shape({
+        columns: in.columns,
+        root
     })
-
-    const empty = match mode {
-        Mode.Inferred => in.members[index].length == 0,
-        Mode.Declared => in.type_sizes[argument] == 0,
-        _ => true
-    }
 
     const action = spread({
         mode,

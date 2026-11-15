@@ -2,11 +2,14 @@ import equivalent from "../fields/equivalent"
 import { Action as FieldAction } from "../fields/existing"
 import field from "../fields/existing"
 import find from "../known/find"
+import application from "./application"
+import { Effect } from "./application"
 import { Receiver, Route } from "./model"
 
 import type { U32Buffer } from "std:memory"
 import type { State as Known } from "core/integer/map/model"
 import type { Object, Output as Field } from "../fields/existing"
+import type { Output as Application } from "./application"
 import type { Candidates } from "./model"
 
 export type Input = {
@@ -18,10 +21,9 @@ export type Input = {
     start: u64
 }
 
-export type Output = {
+export type Output = Application & {
     row: u64,
-    target: Field,
-    source?: u32
+    target: Field
 }
 
 export default function (in: Input): Output {
@@ -32,7 +34,7 @@ export default function (in: Input): Output {
 
     const missing: u32? = null
 
-    return loop({
+    const next = loop({
         row: in.start,
         target: fallback,
         source: missing,
@@ -81,4 +83,29 @@ export default function (in: Input): Output {
             source: state.source
         })
     })
+
+    const { row, target, source } = next
+
+    if (row == in.names.length) {
+        return {
+            row,
+            target,
+            effect: Effect.Ensure,
+            source: null,
+            register_type: null
+        }
+    }
+
+    const effect = application({
+        route: in.plan.routes[row],
+        receiver: in.plan.receivers[row],
+        value: in.plan.values[row],
+        source
+    })
+
+    return {
+        ...effect,
+        row,
+        target
+    }
 }

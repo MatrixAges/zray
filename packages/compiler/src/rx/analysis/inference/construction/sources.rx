@@ -1,0 +1,29 @@
+<Module>
+    <Type from="sources" as="Sources" />
+
+    <Args in={Sources.Request} out={Sources.Output} />
+
+    <Call
+        fn="named"
+        in={$in.pick([
+            "names",
+            "keys",
+            "initial",
+            "first"
+        ])}
+    />
+
+    <Call
+        fn="sources"
+        in={{
+            ...$in.omit([
+                "keys",
+                "initial",
+                "first"
+            ]),
+            row: $ctx.named
+        }}
+    />
+
+    <Return value={$ctx.sources} />
+</Module>

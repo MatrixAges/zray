@@ -5,10 +5,10 @@ const View = @import("../fields/view.zig");
 const Fields = @import("../fields/replay.zig");
 const Selection = @import("../selection.zig").Selection;
 const generated = @import("generated_object_selection_project");
-const covers = @import("generated_object_selection_covers");
+const result_rule = @import("generated_object_selection_result");
 
-pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, final: bool) zx.Error!void {
-    const source = View.read(graph, root);
+pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, mode: View.Mode, final: bool) zx.Error!void {
+    const source = View.readMode(graph, root, mode);
     const declared = source.mode == .Declared;
 
     if (!declared and source.mode != .Inferred) return graph.reporter.fail(.type_mismatch, value.span, "object selection requires an object source");
@@ -26,7 +26,8 @@ pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, final: bool) zx.Er
 
     const plan = generated.executeValue(allocator, &.{
         .fields = &.{ .names = names, .first = 0, .count = names.len, .keys = value.keys, .omit = value.omit },
-        .required = final or declared,
+        .mode = @fromBackingInt(@backingInt(mode)),
+        .final = final,
     }) catch |err| return failure(err);
 
     switch (plan.status) {
@@ -41,20 +42,21 @@ pub fn apply(graph: *Graph, value: Selection, root: Graph.Id, final: bool) zx.Er
 
     const result = View.read(graph, graph.root(value.result));
 
-    switch (result.mode) {
-        .Inferred, .Declared => {},
-        .InvalidDeclared => return graph.reporter.fail(.type_mismatch, value.span, "object selection requires an object result"),
-        else => return,
-    }
-
-    const valid = covers.executeValue(allocator, &.{
+    const input: std.meta.Child(result_rule.Input) = .{
         .source = names,
         .result = result.names,
         .indices = plan.indices,
         .all = plan.all,
-    }) catch |err| return failure(err);
+        .mode = @fromBackingInt(@backingInt(result.mode)),
+    };
 
-    if (!valid) return graph.reporter.fail(.name, value.span, "field is outside the object selection result");
+    const checked = zx.columns.invoke(result_rule.executeValue, allocator, &input) catch |err| return failure(err);
+
+    return switch (checked) {
+        .Valid => {},
+        .InvalidType => graph.reporter.fail(.type_mismatch, value.span, "object selection requires an object result"),
+        .UnexpectedField => graph.reporter.fail(.name, value.span, "field is outside the object selection result"),
+    };
 }
 
 fn unifyFields(graph: *Graph, value: Selection, source: View, indices: []const u32, all: bool) zx.Error!void {

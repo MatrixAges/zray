@@ -1,3 +1,4 @@
+import type { U32Buffer } from "std:memory"
 import type { Kind } from "../../unification/model"
 
 export type Columns = {
@@ -17,6 +18,15 @@ export type Input = {
     sources: u64[]
 }
 
+export type Normalize = {
+    columns: Columns,
+    parents: U32Buffer
+}
+
+export type SnapshotInput = Normalize & {
+    kinds: Kind[]
+}
+
 export type Normalized = {
     keys: u32[],
     buckets: u32[],
@@ -30,3 +40,5 @@ export type Output = {
     offsets: u64[],
     dependents: u64[]
 }
+
+export type Snapshot = Normalized.Omit("sources") & Output

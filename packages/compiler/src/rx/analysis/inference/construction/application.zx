@@ -1,0 +1,48 @@
+import { Receiver, Route } from "./model"
+
+import type { Receiver as Kind, Route as Resolution } from "./model"
+
+export enum Effect {
+    Ensure,
+    Bind,
+    Ambiguous,
+    Require
+}
+
+export type Input = {
+    route: Resolution,
+    receiver: Kind,
+    value: u32,
+    source?: u32
+}
+
+export type Output = {
+    effect: Effect,
+    source?: u32,
+    register_type?: u32
+}
+
+export default function (in: Input): Output {
+    const { route, receiver, value, source } = in
+
+    const read_source = route == Route.Bind || route == Route.Register ||
+        route == Route.RegisterAmbiguous
+
+    const register_type = read_source && receiver == Receiver.Type && source == null
+
+    const effect = match route {
+        Route.Bind => Effect.Bind,
+        Route.Ambiguous => Effect.Ambiguous,
+        Route.RegisterAmbiguous => Effect.Ambiguous,
+        Route.InferRequired => Effect.Require,
+        Route.InferConstrained => Effect.Require,
+        Route.MissingRequired => Effect.Require,
+        _ => Effect.Ensure
+    }
+
+    return {
+        effect,
+        source: receiver == Receiver.Target ? null : source,
+        register_type: register_type ? value : null
+    }
+}

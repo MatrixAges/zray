@@ -1,0 +1,50 @@
+import integers from "std:integer"
+
+import { Kind } from "../unification/model"
+import classify from "./view"
+import { Mode } from "./view"
+
+import type { Kind as NodeKind } from "../unification/model"
+import type { Mode as ObjectMode } from "./view"
+
+export type Columns = {
+    kinds: NodeKind[],
+    arguments: u32[],
+    members: u32[][],
+    type_kinds: u8[],
+    type_sizes: u32[]
+}
+
+export type Input = {
+    columns: Columns,
+    root: u32
+}
+
+export type Output = {
+    mode: ObjectMode,
+    empty: bool
+}
+
+export default function (in: Input): Output {
+    const { columns, root } = in
+
+    const index = integers.widen(root)
+    const argument = integers.widen(columns.arguments[index])
+    const kind = columns.kinds[index]
+
+    const mode = classify({
+        kind,
+        type_kind: kind == Kind.Known ? columns.type_kinds[argument] : 0
+    })
+
+    const empty = match mode {
+        Mode.Inferred => columns.members[index].length == 0,
+        Mode.Declared => columns.type_sizes[argument] == 0,
+        _ => true
+    }
+
+    return {
+        mode,
+        empty
+    }
+}

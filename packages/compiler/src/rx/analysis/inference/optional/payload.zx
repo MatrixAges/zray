@@ -1,0 +1,78 @@
+import representative from "../forest/borrowed_root"
+import find from "../known/find"
+import { Route } from "./model"
+import walk from "./walk"
+
+import type { State as Known } from "core/integer/map/model"
+import type { Input as Walk } from "./walk"
+
+export enum Action {
+    Continue,
+    Ready,
+    Register,
+    Depth
+}
+
+export type Input = Walk.Omit("route", "root") & {
+    known: Known
+}
+
+export type Output = {
+    action: Action,
+    value: u32,
+    root: u32,
+    remaining: u64,
+    open: bool
+}
+
+export default function (in: Input): Output {
+    const { graph, parents, known } = in
+
+    return loop({
+        action: Action.Continue,
+        value: in.value,
+        root: in.value,
+        remaining: in.remaining,
+        open: false
+    }, {
+        while: state => state.action == Action.Continue,
+        next: state => {
+            const result = walk({
+                graph,
+                parents,
+                value: state.value,
+                root: state.value,
+                remaining: state.remaining,
+                route: Route.Boundary
+            })
+
+            state.remaining = result.remaining
+            state.root = result.root
+
+            if (result.route == Route.Declared) {
+                const registered = find({
+                    known,
+                    type_id: result.value
+                })
+
+                if (registered == null) {
+                    state.value = result.value
+                    state.action = Action.Register
+                } else {
+                    state.value = registered
+                }
+            } else if (result.route == Route.Boundary) {
+                state.root = representative({
+                    parents,
+                    value: result.value
+                })
+                state.action = Action.Depth
+            } else {
+                state.value = result.value
+                state.open = result.route == Route.Open
+                state.action = Action.Ready
+            }
+        },
+        return: state => state
+    })
+}
