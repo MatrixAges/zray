@@ -40,6 +40,23 @@ def old_history(cutoff):
             yield path
 
 
+def old_package_caches(cutoff):
+    for package in (ROOT / "packages").iterdir():
+        cache = package / ".zig-cache"
+        if not cache.is_dir() or cache.resolve() != cache:
+            continue
+
+        children = list(cache.iterdir())
+        expired = [
+            child for child in children
+            if not child.is_symlink() and child.lstat().st_mtime < cutoff
+        ]
+        if cache.stat().st_mtime < cutoff and len(expired) == len(children):
+            yield cache
+        else:
+            yield from expired
+
+
 def unused_docs(cutoff):
     markdown = git_paths("-co", "--exclude-standard", "--", "*.md")
     references = "\n".join(
@@ -97,7 +114,7 @@ def main():
         return any(path.is_relative_to(saved) or saved.is_relative_to(path) for saved in protected)
 
     cutoff = time.time() - options.min_age_hours * 3_600
-    history = [path for path in old_history(cutoff) if not keep(path)]
+    history = [path for path in (*old_history(cutoff), *old_package_caches(cutoff)) if not keep(path)]
     files = [path for path in (*unused_docs(cutoff), *expired_frontend_files(cutoff)) if not keep(path)]
     print(f"Selected {len(history):,} historical outputs and {len(files):,} individual files.", flush=True)
     if not options.apply:
