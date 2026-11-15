@@ -5,49 +5,46 @@ import representative from "../../forest/borrowed_root"
 import { Kind } from "../../unification/model"
 import { unsigned_word_bits } from "./const"
 
-import type { U32Buffer } from "std:memory"
-import type { ClassLookup, Nodes } from "../model"
+import type { Candidate, Materialization } from "./model"
 
-export type Input = {
-    nodes: Nodes,
-    deferred: u64[],
-    classes: ClassLookup,
-    parents: U32Buffer,
-    next: u64,
-    limit: u64,
-    other?: u32
-}
+export type Input = Materialization
 
-export type Output = Input.Pick("next", "other")
+export type Output = Candidate
 
 export default function (in: Input): Output {
-    return loop(in, {
-        while: state => state.other == null && state.next < state.limit,
+    const { nodes, parents, classes, deferred, depths } = in
+
+    const pending: u32? = null
+
+    return loop({
+        next: in.next,
+        payload: pending
+    }, {
+        while: state => state.payload == null && state.next < depths.length,
         next: state => {
             const index = state.next
             const node = integers.narrow(index)
-            if (memory.readU32(state.parents, index) != node) {
+            if (memory.readU32(parents, index) != node) {
                 const root = representative({
-                    parents: state.parents,
+                    parents,
                     value: node
                 })
-
             } else {
-                const kind = state.nodes.kinds[index]
+                const kind = nodes.kinds[index]
 
-                if (kind == Kind.Unknown && state.nodes.allowed[index] == null) {
-                    const group = integers.widen(state.classes.groups[index])
-                    const other = state.classes.representatives[group]
+                if (kind == Kind.Unknown && nodes.allowed[index] == null) {
+                    const group = integers.widen(classes.groups[index])
+                    const other = classes.representatives[group]
 
                     if (other != null) {
-                        if (state.deferred.length == 0) {
-                            state.other = other
+                        if (deferred.length == 0) {
+                            state.payload = other
                         } else {
-                            const word = state.deferred[index / unsigned_word_bits]
+                            const word = deferred[index / unsigned_word_bits]
                             const mask = integers.bitMask(index % unsigned_word_bits)
 
                             if (integers.andBits(word, mask) == 0) {
-                                state.other = other
+                                state.payload = other
                             }
                         }
                     }
@@ -56,9 +53,17 @@ export default function (in: Input): Output {
 
             state.next += 1
         },
-        return: state => ({
-            next: state.next,
-            other: state.other
-        })
+        return: state => {
+            const next = state.next
+            const payload = state.payload
+            const index = payload == null ? 0 : next - 1
+
+            return {
+                next,
+                payload,
+                node: integers.narrow(index),
+                layers: payload == null ? 0 : depths[index]
+            }
+        }
     })
 }

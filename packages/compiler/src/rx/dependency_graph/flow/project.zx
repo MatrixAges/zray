@@ -1,5 +1,3 @@
-import memory from "std:memory"
-
 import { Tag } from "../../schema/execution/model"
 import conditional from "./conditional"
 import {
@@ -30,7 +28,7 @@ export default function (in: Input): Output {
         head: view.nodes[in.row].children
     }
 
-    const flags = match in.tag {
+    return match in.tag {
         Tag.Module => sequence(children),
         Tag.Type => declaration + declaration_action,
         Tag.Args => declaration + declaration_action,
@@ -47,8 +45,4 @@ export default function (in: Input): Output {
         Tag.Return => returns + terminates + return_action,
         _ => 0
     }
-
-    memory.writeU32(view.facts, view.slots[in.row], flags)
-
-    return flags
 }

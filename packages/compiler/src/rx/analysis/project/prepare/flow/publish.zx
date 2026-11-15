@@ -1,0 +1,84 @@
+import { calls, groups, results, selections, tasks } from "./const"
+import { Route } from "./model"
+import write from "./write"
+
+import type { Layout, Output, Rows } from "./model"
+
+export type Input = {
+    rows: Rows,
+    layout: Layout
+}
+
+export type Slot = {
+    lane: u64,
+    code: u8
+}
+
+export default function (in: Input): Output {
+    const { rows, layout } = in
+
+    const codes = rows.codes
+
+    const slot: Slot? = match layout.route {
+        Route.Call => {
+            lane: calls,
+            code: codes.call
+        },
+        Route.Result => {
+            lane: results,
+            code: codes.result
+        },
+        Route.Task => {
+            lane: tasks,
+            code: codes.task
+        },
+        Route.ParallelTask => {
+            lane: tasks,
+            code: codes.parallel_task
+        },
+        Route.Parallel => {
+            lane: groups,
+            code: codes.parallel
+        },
+        Route.Switch => {
+            lane: selections,
+            code: codes.selection
+        },
+        Route.If => {
+            lane: selections,
+            code: codes.selection
+        },
+        _ => null
+    }
+
+    if (slot == null) {
+        return {
+            ...layout,
+            item: 0,
+            implicit_item: null
+        }
+    }
+
+    const item = write({
+        rows,
+        lane: slot.lane,
+        row: layout.row,
+        code: slot.code
+    })
+
+    const implicit_item: u32? = match {
+        layout.route == Route.ParallelTask && layout.task_output => write({
+            rows,
+            lane: results,
+            row: layout.first + layout.count - 1,
+            code: codes.result
+        }),
+        _ => null
+    }
+
+    return {
+        ...layout,
+        item,
+        implicit_item
+    }
+}

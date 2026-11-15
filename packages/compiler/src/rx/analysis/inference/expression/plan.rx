@@ -4,6 +4,28 @@
     <Args in={Constraints.Input} out={Constraints.Output} />
 
     <Switch on={$in}>
+        <Case value={Constraints.Form.BoundValue}>
+            <Return
+                value={[
+                    Constraints.Step.BoundValue,
+                    Constraints.Step.RefineValue,
+                    Constraints.Step.RequireValue,
+                    Constraints.Step.ExpectResult
+                ]}
+            />
+        </Case>
+
+        <Case value={Constraints.Form.UnboundValue}>
+            <Return
+                value={[
+                    Constraints.Step.TypeHint,
+                    Constraints.Step.InferValue,
+                    Constraints.Step.RefineValue,
+                    Constraints.Step.ExpectResult
+                ]}
+            />
+        </Case>
+
         <Case value={Constraints.Form.Template}>
             <Return
                 value={[
@@ -40,6 +62,30 @@
                     Constraints.Step.ReadKeys,
                     Constraints.Step.InferReceiver,
                     Constraints.Step.RegisterSelection
+                ]}
+            />
+        </Case>
+
+        <Case value={Constraints.Form.Object}>
+            <Return
+                value={[
+                    Constraints.Step.ReserveParts,
+                    Constraints.Step.PlanFieldHints,
+                    Constraints.Step.InferFields,
+                    Constraints.Step.ObjectResult,
+                    Constraints.Step.ExpectResult,
+                    Constraints.Step.RegisterObject
+                ]}
+            />
+        </Case>
+
+        <Case value={Constraints.Form.Sequence}>
+            <Return
+                value={[
+                    Constraints.Step.SequenceResult,
+                    Constraints.Step.ExpectResult,
+                    Constraints.Step.InferElements,
+                    Constraints.Step.RegisterSequence
                 ]}
             />
         </Case>

@@ -8,20 +8,19 @@ const condition = @import("../condition.zig");
 const enabled = @import("rx_options").generated_graph;
 const generated = if (enabled) @import("generated_rx_operator_constraints") else void;
 const seed = @import("operators/seed.zig");
-const Form = if (enabled) generated.Input else seed.Form;
+const Form = Scalar.Form;
 const Step = if (enabled) std.meta.Child(generated.Output) else seed.Step;
 const plan_capacity = 5;
 
 pub fn inferBinary(self: *Expression, binary: anytype, expected: ?Graph.Id, span: zx.Span) zx.Error!Graph.Id {
-    const operator = Scalar.operator(binary.operator);
     const operands = .{ binary.left, binary.right };
 
-    return switch (operator.route) {
-        .and_value => apply(.And, self, operands, span, null, null),
-        .or_value => apply(.Or, self, operands, span, null, null),
-        .coalesce => apply(.Coalesce, self, operands, span, expected, null),
-        .compare => apply(.Compare, self, operands, span, null, operator.allowed),
-        .arithmetic => apply(.Arithmetic, self, operands, span, expected, operator.allowed),
+    return switch (binary.operator) {
+        inline else => |tag| block: {
+            const operator = comptime Scalar.operator(tag);
+
+            break :block apply(operator.form, self, operands, span, if (operator.use_hint) expected else null, operator.allowed);
+        },
     };
 }
 

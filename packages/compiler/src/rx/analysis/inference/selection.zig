@@ -11,7 +11,7 @@ pub const Selection = struct { source: Graph.Id, result: Graph.Id, keys: []const
 
 const incomplete_source = "object selection requires a complete source type; declare Args or Input";
 
-pub fn infer(self: *Expression, expression: anytype) zx.Error!Graph.Id {
+pub fn infer(self: *Expression, expression: anytype, call: anytype, span: zx.Span) zx.Error!Graph.Id {
     var keys: []const []const u8 = undefined;
     var source: Graph.Id = undefined;
     var result: Graph.Id = undefined;
@@ -20,16 +20,13 @@ pub fn infer(self: *Expression, expression: anytype) zx.Error!Graph.Id {
     inline for (comptime Schedule.steps(.Selection)) |step| {
         switch (step) {
             .Done => {},
-            .ReadKeys => keys = try readKeys(self, expression),
+            .ReadKeys => keys = try readKeys(self, expression, span),
             .InferReceiver => {
-                const field = syntax.value(syntax.value(expression).call.callee).field;
-
+                const field = syntax.value(call.callee).field;
                 source = try self.infer(field.target, null);
                 omit = std.mem.eql(u8, field.name.text, "omit");
             },
             .RegisterSelection => {
-                const span = self.sourceSpan(expression.span);
-
                 result = try self.graph.add(.{ .object = .{} }, span);
 
                 try self.graph.pending.selections.append(self.graph.pending.allocator, .{
@@ -47,8 +44,8 @@ pub fn infer(self: *Expression, expression: anytype) zx.Error!Graph.Id {
     return result;
 }
 
-fn readKeys(self: *Expression, expression: anytype) zx.Error![]const []const u8 {
-    if (!selection.matches(expression)) return self.graph.reporter.fail(.unsupported, self.sourceSpan(expression.span), @import("../value_rules.zig").message);
+fn readKeys(self: *Expression, expression: anytype, span: zx.Span) zx.Error![]const []const u8 {
+    if (!selection.matches(expression)) return self.graph.reporter.fail(.unsupported, span, @import("../value_rules.zig").message);
 
     var reporter: zx.Reporter = .{};
 

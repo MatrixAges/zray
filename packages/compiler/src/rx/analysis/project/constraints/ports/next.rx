@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Ports" />
+
+    <Args in={Ports.Cursor} out={Ports.Range} />
+
+    <If on={$in.start == $in.owners.length}>
+        <Return
+            value={{
+                inferred_until: $in.modules,
+                declared: false,
+                input: 0,
+                output: 0,
+                next: $in.start
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../contracts/ports"
+        in={$in.omit(["modules"])}
+    />
+
+    <Return
+        value={{
+            inferred_until: $ctx.ports.owner,
+            declared: true,
+            input: $ctx.ports.input,
+            output: $ctx.ports.output,
+            next: $ctx.ports.next
+        }}
+    />
+</Module>

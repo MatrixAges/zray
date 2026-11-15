@@ -4,6 +4,7 @@ import knownNode from "../../known/find"
 import admit from "./admit"
 import endpoints from "./endpoints"
 import { Action } from "./model"
+import publish from "./publish"
 
 import type { Progress as Output, Series as Input } from "./model"
 
@@ -43,17 +44,25 @@ export default function (in: Input): Output {
                 if (pair.left == pair.right) {
                     state.next += 1
                 } else {
+                    const destination = {
+                        ...rows,
+                        position: state.position
+                    }
                     const result = admit({
                         keys: in.keys,
                         buckets: in.buckets,
                         pair,
-                        rows: {
-                            ...rows,
-                            position: state.position
-                        }
+                        rows: destination
                     })
+                    const slot = result.slot
 
-                    if (result.action == Action.Added) {
+                    if (slot != null) {
+                        publish({
+                            pair,
+                            rows: destination,
+                            slot
+                        })
+
                         const start = index * spans.width
                         const offset = state.position * spans.width
                         const copied = memory.copyBytes(

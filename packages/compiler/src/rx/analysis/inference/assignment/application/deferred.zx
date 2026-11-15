@@ -10,14 +10,15 @@ export type Input = {
     parents: U32Buffer,
     values: u32[],
     resolved: bool[],
-    words: U64Buffer
+    words: U64Buffer,
+    first: u64
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
     const scanned = loop({
-        row: 0
+        row: in.first
     }, {
         while: state => state.row < in.values.length,
         next: state => {

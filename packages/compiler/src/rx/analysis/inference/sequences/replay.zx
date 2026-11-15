@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "std:memory"
 
 import representative from "../forest/borrowed_root"
 import { Kind } from "../unification/model"
@@ -60,6 +61,24 @@ export default function (in: Input): Output {
                 state.row += 1
             }
         },
-        return: state => state
+        return: state => {
+            const plan = state.plan
+            const row = state.row
+            const targets: u32[] = match {
+                plan.route != SequenceRoute.Tuple => [],
+                plan.declared => memory.borrowU32Range(
+                    in.graph.type_children,
+                    integers.widen(plan.argument),
+                    in.elements[row].length
+                ),
+                _ => in.graph.members[state.root]
+            }
+
+            return {
+                row,
+                plan,
+                targets
+            }
+        }
     })
 }

@@ -9,9 +9,7 @@ const Schedule = @import("expression/schedule.zig");
 
 pub const Projection = struct { target: Graph.Id, value: Graph.Id, position: ?u64, span: zx.Span, index_span: zx.Span, resolved: bool = false };
 
-pub fn infer(self: *Expression, source: anytype) zx.Error!Graph.Id {
-    const item = syntax.value(source).index;
-    const span = self.sourceSpan(source.span);
+pub fn infer(self: *Expression, item: anytype, span: zx.Span) zx.Error!Graph.Id {
     var target: Graph.Id = undefined;
     var value: Graph.Id = undefined;
 

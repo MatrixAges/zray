@@ -10,45 +10,31 @@ const advance = @import("generated_rx_unification_advance");
 const Input = std.meta.Child(advance.Input);
 const Transition = @typeInfo(@typeInfo(@TypeOf(advance.executeValue)).@"fn".return_type.?).error_union.payload;
 
-work: Plan.Work,
+parent: Graph.Id,
+child: Graph.Id,
+action: Plan.Action,
+left_operand: u32,
+right_operand: u32,
 first: Commit.Constraints,
 second: Commit.Constraints,
 shape: Nodes.Encoded,
-left: []const u32 = &.{},
-right: []const u32 = &.{},
+left_members: []const u32,
+right_members: []const u32,
 fields: Fields.Alignment = .{},
 position: u64 = 0,
-pub fn admit(self: *Self, graph: *const Graph, allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
-    const work = self.work;
-    const members = graph.nodes.items(.members);
-    const declared = &graph.types.items;
-
-    switch (work.action) {
-        .Child, .KnownChild => {},
-        .Tuple => {
-            self.left = members[work.left_operand];
-            self.right = members[work.right_operand];
-        },
-        .KnownTuple => {
-            self.left = members[work.left_operand];
-            self.right = declared.children.items[work.right_operand..][0..work.right_size];
-        },
+pub fn alignFields(self: *Self, declared_names: []const []const u8, allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
+    switch (self.action) {
+        .Child, .KnownChild, .Tuple, .KnownTuple => {},
         .Object => {
-            self.left = members[work.left_operand];
-            self.right = members[work.right_operand];
-
-            const left = Graph.Fields.fromValues(@ptrCast(self.left));
-            const right = Graph.Fields.fromValues(@ptrCast(self.right));
+            const left = Graph.Fields.fromValues(@ptrCast(self.left_members));
+            const right = Graph.Fields.fromValues(@ptrCast(self.right_members));
 
             self.fields = try Fields.alignFields(allocator, left.names(), right.names(), false);
         },
         .KnownObject => {
-            self.left = members[work.left_operand];
+            const inferred = Graph.Fields.fromValues(@ptrCast(self.left_members));
 
-            const inferred = Graph.Fields.fromValues(@ptrCast(self.left));
-            const names = declared.field_names.items[work.right_operand..][0..work.right_size];
-            self.right = declared.field_types.items[work.right_operand..][0..work.right_size];
-            self.fields = try Fields.alignFields(allocator, names, inferred.names(), true);
+            self.fields = try Fields.alignFields(allocator, declared_names, inferred.names(), true);
         },
         .Adopt => unreachable,
     }
@@ -65,12 +51,12 @@ pub fn next(self: *Self, graph: *const Graph, depth: usize) Transition {
 
     const input: Input = .{
         .pair = &.{
-            .action = self.work.action,
+            .action = self.action,
             .position = self.position,
-            .left_operand = self.work.left_operand,
-            .right_operand = self.work.right_operand,
-            .left = self.left,
-            .right = self.right,
+            .left_operand = self.left_operand,
+            .right_operand = self.right_operand,
+            .left_members = self.left_members,
+            .right_members = self.right_members,
             .positions = self.fields.positions[0..self.fields.scanned],
         },
         .known = &known,
@@ -87,13 +73,13 @@ pub fn next(self: *Self, graph: *const Graph, depth: usize) Transition {
 }
 
 pub fn finish(self: *Self, graph: *Graph, span: zx.Span) zx.Error!void {
-    if (self.work.action == .Object) {
-        const left = Graph.Fields.fromValues(@ptrCast(self.left));
-        const right = Graph.Fields.fromValues(@ptrCast(self.right));
+    if (self.action == .Object) {
+        const left = Graph.Fields.fromValues(@ptrCast(self.left_members));
+        const right = Graph.Fields.fromValues(@ptrCast(self.right_members));
         const published = try Fields.publish(graph.allocator, left, right, self.fields);
 
         self.shape.members = @ptrCast(published.values());
     }
 
-    try Commit.publish(graph, self.work.left, self.work.right, self.first, self.second, self.shape, span);
+    try Commit.publish(graph, self.parent, self.child, self.first, self.second, self.shape, span);
 }

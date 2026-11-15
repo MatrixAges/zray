@@ -126,7 +126,7 @@ pub fn check(graph: *Graph, rows: Storage.Slice, end: usize, binding: Binding, m
             const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
 
             if (result.action == .Ignore) return;
-            try bindings.distinct(graph, values[@intCast(result.next - 1)], binding.value, binding.span, message, @fromBackingInt(@backingInt(result.action)));
+            try bindings.distinct(graph, @fromBackingInt(result.left), binding.value, binding.span, message, @fromBackingInt(@backingInt(result.action)));
 
             start = result.next;
         }
@@ -184,11 +184,7 @@ pub fn publishParallel(graph: *Graph, active_scope: *Storage, allocator: std.mem
         }
 
         if (result.action == .Ignore) return;
-
-        const binding = saved.get(row);
-        const earlier = saved.items(.value)[@intCast(next - 1)];
-
-        try bindings.distinct(graph, earlier, binding.value, binding.span, message, @fromBackingInt(@backingInt(result.action)));
+        try bindings.distinct(graph, @fromBackingInt(result.left), @fromBackingInt(result.right), saved.items(.span)[row], message, @fromBackingInt(@backingInt(result.action)));
     }
 }
 

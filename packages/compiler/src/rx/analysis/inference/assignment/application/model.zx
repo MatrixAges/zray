@@ -1,0 +1,34 @@
+import type { U32Buffer } from "std:memory"
+import type { Input as DepthInput, Output as DepthResult } from "../depth/model"
+import type { ClassLookup, Nodes } from "../model"
+
+export type Preparation = {
+    depth: DepthInput,
+    resolved_indexes: bool[]
+}
+
+export type Deferred = {
+    first: u64,
+    words: u64
+}
+
+export type Prepared = {
+    depth: DepthResult,
+    deferred: Deferred
+}
+
+export type Materialization = {
+    nodes: Nodes,
+    depths: u64[],
+    deferred: u64[],
+    classes: ClassLookup,
+    parents: U32Buffer,
+    next: u64
+}
+
+export type Candidate = {
+    next: u64,
+    node: u32,
+    payload?: u32,
+    layers: u64
+}

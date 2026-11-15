@@ -1,0 +1,9 @@
+export const calls: u64 = 0
+
+export const results: u64 = 1
+
+export const tasks: u64 = 2
+
+export const groups: u64 = 3
+
+export const selections: u64 = 4

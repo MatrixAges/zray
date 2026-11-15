@@ -2,7 +2,11 @@ export enum Form {
     Template,
     Match,
     Index,
-    Selection
+    Selection,
+    Object,
+    Sequence,
+    BoundValue,
+    UnboundValue
 }
 
 export enum Step {
@@ -18,7 +22,21 @@ export enum Step {
     RegisterIndex,
     ReadKeys,
     InferReceiver,
-    RegisterSelection
+    RegisterSelection,
+    ReserveParts,
+    PlanFieldHints,
+    InferFields,
+    ObjectResult,
+    SequenceResult,
+    ExpectResult,
+    InferElements,
+    RegisterObject,
+    RegisterSequence,
+    BoundValue,
+    TypeHint,
+    InferValue,
+    RefineValue,
+    RequireValue
 }
 
 export type Input = Form

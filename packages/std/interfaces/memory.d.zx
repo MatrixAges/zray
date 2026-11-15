@@ -10,6 +10,18 @@ export type NamedRows = opaque
 export type NamedRowBuffer = opaque
 export type TextColumn = opaque
 
+export declare function borrowU32Range(
+    source: u32[],
+    first: u64,
+    count: u64
+): u32[] throws { IndexOutOfBounds } concurrent
+
+export declare function borrowStringRange(
+    source: string[],
+    first: u64,
+    count: u64
+): string[] throws { IndexOutOfBounds } concurrent
+
 export declare function readTextColumn(
     source: TextColumn,
     index: u64

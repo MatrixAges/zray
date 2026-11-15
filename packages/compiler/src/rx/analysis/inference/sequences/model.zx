@@ -60,8 +60,8 @@ export type ReplayInput = {
 
 export type ReplayOutput = {
     row: u64,
-    root: u64,
-    plan: SequencePlan
+    plan: SequencePlan,
+    targets: u32[]
 }
 
 export type SequenceCheck = {

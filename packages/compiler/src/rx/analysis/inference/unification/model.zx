@@ -45,5 +45,8 @@ export type Output = Route
 export type TypeColumns = {
     kinds: u8[],
     arguments: u32[],
-    sizes: u32[]
+    sizes: u32[],
+    children: u32[],
+    field_values: u32[],
+    field_names: string[]
 }

@@ -1,3 +1,5 @@
+import memory from "std:memory"
+
 export enum Kind {
     Call,
     Result,
@@ -9,37 +11,34 @@ export enum Kind {
 
 export type Input = {
     kinds: Kind[],
+    items: u32[],
     first: u64,
     end: u64
 }
 
 export type Output = {
     kind: Kind,
-    end: u64
+    items: u32[]
 }
 
 export default function (in: Input): Output {
     const kind = in.kinds[in.first]
 
-    if (kind != Kind.Call) {
-        return {
-            kind,
-            end: in.first + 1
-        }
-    }
+    const next = in.first + 1
 
-    const end = loop({
-        row: in.first + 1
-    }, {
-        while: state => state.row < in.end && in.kinds[state.row] == Kind.Call,
-        next: state => {
-            state.row += 1
-        },
-        return: state => state.row
-    })
+    const end = match kind {
+        Kind.Call => loop(next, {
+            while: row => row < in.end && in.kinds[row] == Kind.Call,
+            next: row => {
+                row += 1
+            },
+            return: row => row
+        }),
+        _ => next
+    }
 
     return {
         kind,
-        end
+        items: memory.borrowU32Range(in.items, in.first, end - in.first)
     }
 }

@@ -7,12 +7,16 @@ export type Input = {
 
 export type Output = {
     takes_input: bool,
-    returns_value: bool
+    steps: u32,
+    result_row?: u32
 }
 
 export default function (in: Input): Output {
+    const returns_value = in.output_type != type_id_void
+
     return {
         takes_input: in.input_type != type_id_void,
-        returns_value: in.output_type != type_id_void
+        steps: returns_value ? 2 : 1,
+        result_row: returns_value ? 1 : null
     }
 }

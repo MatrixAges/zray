@@ -24,6 +24,10 @@ export const return_action: u32 = 192
 
 export const declaration_action: u32 = 224
 
+export const task_has_output: u32 = 256
+
+export const if_has_else: u32 = 512
+
 export const parallel_tag: string = "Parallel"
 
 export const task_tag: string = "Task"

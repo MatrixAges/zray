@@ -3,6 +3,7 @@ const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 const Graph = @import("types.zig");
 const Expression = @import("expression.zig");
+const Schedule = @import("expression/schedule.zig");
 const Target = @import("sequences/target.zig");
 const Registration = @import("assignment/registration.zig");
 const generated = @import("rx_options").generated_graph;
@@ -11,13 +12,30 @@ pub const Sequence = struct { value: Graph.Id, elements: []const Graph.Id, spans
 
 const Elements = std.MultiArrayList(struct { element: Graph.Id, span: zx.Span });
 
-pub fn infer(self: *Expression, expression: anytype, expected: ?Graph.Id) zx.Error!Graph.Id {
-    const span = self.sourceSpan(expression.span);
-    const value = try self.graph.add(.sequence, span);
+pub fn infer(self: *Expression, items: anytype, expected: ?Graph.Id, span: zx.Span) zx.Error!Graph.Id {
+    var value: Graph.Id = undefined;
+    var rows: Elements.Slice = undefined;
 
-    if (expected) |target| try self.graph.expect(value, target, span);
+    inline for (comptime Schedule.steps(.Sequence)) |step| {
+        switch (step) {
+            .Done => {},
+            .SequenceResult => value = try self.graph.add(.sequence, span),
+            .ExpectResult => if (expected) |target| try self.graph.expect(value, target, span),
+            .InferElements => rows = try inferElements(self, items),
+            .RegisterSequence => try self.graph.pending.sequences.append(self.graph.pending.allocator, .{
+                .value = value,
+                .elements = rows.items(.element),
+                .spans = rows.items(.span),
+                .span = span,
+            }),
+            else => unreachable,
+        }
+    }
 
-    const items = syntax.value(expression).list;
+    return value;
+}
+
+fn inferElements(self: *Expression, items: anytype) zx.Error!Elements.Slice {
     var storage: Elements = .empty;
 
     try storage.setCapacity(self.graph.pending.allocator, items.len);
@@ -35,9 +53,7 @@ pub fn infer(self: *Expression, expression: anytype, expected: ?Graph.Id) zx.Err
         element.* = try self.infer(item, null);
     }
 
-    try self.graph.pending.sequences.append(self.graph.pending.allocator, .{ .value = value, .elements = elements, .spans = spans, .span = span });
-
-    return value;
+    return rows;
 }
 
 pub fn replay(graph: *Graph) zx.Error!void {
@@ -82,9 +98,11 @@ pub fn replay(graph: *Graph) zx.Error!void {
             .Invalid => return invalidSequence(graph, sequence.span),
             .List => try expectList(graph, sequence, plan.argument, plan.declared),
             .Tuple => {
-                const targets: Registration.Targets = if (plan.declared) .{
-                    .declared = view.type_children[plan.argument..][0..sequence.elements.len],
-                } else .{ .inferred = view.members[@intCast(result.root)] };
+                const targets: Registration.Targets = if (plan.declared)
+                    .{ .declared = result.targets }
+
+                else
+                    .{ .inferred = result.targets };
 
                 try Registration.expectMany(graph, sequence.elements, sequence.spans, targets);
             },

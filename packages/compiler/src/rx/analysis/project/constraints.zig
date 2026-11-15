@@ -110,32 +110,46 @@ const Walker = struct {
         var cursor = sequence;
 
         while (plan.next(&cursor)) |run| switch (run.kind) {
-            .Call => for (plan.items[run.first..run.end]) |index| try self.call(index, &expression.bindings),
-            .Parallel => {
-                const branches = plan.groups[plan.items[run.first]];
-                var outputs: Scope.Storage = .empty;
+            .Call => for (run.items) |index| try self.call(index, &expression.bindings),
+            .Parallel => try self.parallel(plan.groups[run.items[0]]),
+            .Result => try self.inferReturn(plan.results[run.items[0]]),
+            .Task => try self.task(.Task, &plan.tasks[run.items[0]], &expression.bindings),
+            .Selection => try self.selection(run.items[0]),
+            .ParallelTask => unreachable,
+        };
+    }
+    fn parallel(self: *Walker, branches: Flow.Unit) zx.Error!void {
+        const expression = self.expression;
+        const plan = &self.module.plan;
+        var outputs: Scope.Storage = .empty;
 
-                defer outputs.deinit(expression.scope);
+        defer outputs.deinit(expression.scope);
 
-                for (plan.indices(branches), plan.kinds[branches.first..][0..branches.count]) |index, kind| {
+        inline for (comptime Schedule.steps(.Parallel)) |step| {
+            switch (step) {
+                .Done => {},
+                .InferBranches => for (plan.indices(branches), plan.kinds[branches.first..][0..branches.count]) |index, kind| {
                     switch (kind) {
                         .Call => try self.call(index, &outputs),
                         .ParallelTask => try self.task(.ParallelTask, &plan.tasks[index], &outputs),
                         else => unreachable,
                     }
-                }
+                },
+                .PublishParallel => try Scope.publishParallel(expression.graph, &expression.bindings, expression.scope, outputs.slice()),
+                else => unreachable,
+            }
+        }
+    }
 
-                try Scope.publishParallel(expression.graph, &expression.bindings, expression.scope, outputs.slice());
-            },
-            .Result => {
-                const attribute = plan.results[plan.items[run.first]];
-                _ = try inferAttribute(expression, self.module.source.path, attribute, self.output);
-                self.returned = true;
-            },
-            .Task => try self.task(.Task, &plan.tasks[plan.items[run.first]], &expression.bindings),
-            .Selection => try self.selection(plan.items[run.first]),
-            .ParallelTask => unreachable,
-        };
+    fn inferReturn(self: *Walker, attribute: rx.ast.Attribute) zx.Error!void {
+        inline for (comptime Schedule.steps(.Return)) |step| {
+            switch (step) {
+                .Done => {},
+                .InferReturn => _ = try inferAttribute(self.expression, self.module.source.path, attribute, self.output),
+                .MarkReturned => self.returned = true,
+                else => unreachable,
+            }
+        }
     }
 
     const Cases = struct {
@@ -150,27 +164,29 @@ const Walker = struct {
         const expression = self.expression;
         const owner = self.module.source.path;
         const allocator = expression.scope;
-        var parsed = try @import("../attribute.zig").parseBorrowed(allocator, entry.subject, owner);
-
-        defer parsed.deinit();
-
-        const subject = try inferParsedAttribute(expression, &parsed, entry.subject, null);
+        var parsed: ?frontend.ExpressionInput.Result = null;
+        var subject: Graph.Id = undefined;
         var labels: condition.Cases = .{ .allocator = allocator, .owner = owner };
 
+        defer if (parsed) |*result| result.deinit();
         defer labels.deinit();
 
-        const context: Cases = .{
-            .parsed = &parsed,
-            .subject = subject,
-            .labels = &labels,
-            .cases = entry.cases,
-            .bindings = expression.bindings.len,
-        };
+        inline for (comptime Schedule.steps(.Selection)) |step| {
+            switch (step) {
+                .Done => {},
+                .ParseSubject => parsed = try @import("../attribute.zig").parseBorrowed(allocator, entry.subject, owner),
+                .InferSubject => subject = try inferParsedAttribute(expression, &parsed.?, entry.subject, null),
+                .InferCases => {
+                    const context: Cases = .{ .parsed = &parsed.?, .subject = subject, .labels = &labels, .cases = entry.cases, .bindings = expression.bindings.len };
 
-        for (entry.cases, 0..) |case, row| {
-            if (case.value != null) {
-                try self.inferCase(.Case, &context, row);
-            } else try self.inferCase(.Default, &context, row);
+                    for (entry.cases, 0..) |case, row| {
+                        if (case.value != null) {
+                            try self.inferCase(.Case, &context, row);
+                        } else try self.inferCase(.Default, &context, row);
+                    }
+                },
+                else => unreachable,
+            }
         }
     }
     fn inferCase(self: *Walker, comptime form: Schedule.Form, context: *const Cases, index: usize) zx.Error!void {
@@ -294,19 +310,27 @@ const Walker = struct {
         const graph = expression.graph;
         expression.attribute = result.attribute;
         const span = expression.sourceSpan(.{ .start = 0, .end = result.attribute.value.len });
+        var binding: Scope.Binding = undefined;
 
-        const name = switch (try names.bind(graph.types.allocator, result.name, kind == .task)) {
-            .name => |name| name,
-            .invalid => return graph.reporter.fail(.name, span, "result name must be one identifier; Call targets must have a valid filename"),
-            .reserved => return graph.reporter.fail(.name, span, "Call target name task is reserved for Task results"),
-        };
+        inline for (comptime Schedule.steps(.ResultBinding)) |step| {
+            switch (step) {
+                .Done => {},
+                .BindResultName => {
+                    const name = switch (try names.bind(graph.types.allocator, result.name, kind == .task)) {
+                        .name => |name| name,
+                        .invalid => return graph.reporter.fail(.name, span, "result name must be one identifier; Call targets must have a valid filename"),
+                        .reserved => return graph.reporter.fail(.name, span, "Call target name task is reserved for Task results"),
+                    };
 
-        const binding = Scope.Binding{ .name = name, .value = output, .span = span };
-
-        try self.requests.bindings.append(graph.types.allocator, .{ .name = name, .value = output });
-        if (@import("../inference/bindings.zig").isVoid(graph, output)) return;
-        try Scope.check(graph, expression.bindings.slice(), expression.bindings.len, binding, "flow result paths must not overlap; each visible Call target name must be unique");
-        try outputs.append(expression.scope, binding);
+                    binding = .{ .name = name, .value = output, .span = span };
+                },
+                .RequestBindingType => try self.requests.bindings.append(graph.types.allocator, .{ .name = binding.name, .value = output }),
+                .CheckBindingValue => if (@import("../inference/bindings.zig").isVoid(graph, output)) return,
+                .ValidateBindingPath => try Scope.check(graph, expression.bindings.slice(), expression.bindings.len, binding, "flow result paths must not overlap; each visible Call target name must be unique"),
+                .PublishBinding => try outputs.append(expression.scope, binding),
+                else => unreachable,
+            }
+        }
     }
 };
 

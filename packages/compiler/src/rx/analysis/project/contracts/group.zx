@@ -1,0 +1,29 @@
+import { ports_per_declaration } from "./const"
+
+export type Input = {
+    owners: u64[],
+    start: u64
+}
+
+export type Output = {
+    owner: u64,
+    end: u64
+}
+
+export default function (in: Input): Output {
+    const { owners, start } = in
+
+    const owner = owners[start]
+
+    const end = loop(start + ports_per_declaration, {
+        while: next => next < owners.length && owners[next] == owner,
+        next: next => {
+            next += ports_per_declaration
+        }
+    })
+
+    return {
+        owner,
+        end
+    }
+}

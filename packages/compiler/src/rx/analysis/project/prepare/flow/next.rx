@@ -3,7 +3,13 @@
 
     <Args in={Flow.Input} out={Flow.Output} />
 
-    <Call fn="read" in={$in} />
+    <Call
+        fn="read"
+        in={$in.pick([
+            "index",
+            "remaining"
+        ])}
+    />
 
     <If on={!$ctx.read.ready}>
         <Return
@@ -14,7 +20,11 @@
                 row: 0,
                 first: 0,
                 count: 0,
-                task_id: null
+                task_id: null,
+                task_output: false,
+                else_branch: false,
+                item: 0,
+                implicit_item: null
             }}
         />
     </If>
@@ -27,5 +37,13 @@
         }}
     />
 
-    <Return value={$ctx.layout} />
+    <Call
+        fn="publish"
+        in={{
+            rows: $in.rows,
+            layout: $ctx.layout
+        }}
+    />
+
+    <Return value={$ctx.publish} />
 </Module>

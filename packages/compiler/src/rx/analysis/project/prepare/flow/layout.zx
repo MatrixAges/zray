@@ -5,15 +5,17 @@ import {
     call_action,
     check_task_phase,
     if_action,
+    if_has_else,
     parallel_action,
     return_action,
     switch_action,
     task_action,
+    task_has_output,
     unreachable
 } from "../../../../dependency_graph/flow/const"
 import { Route } from "./model"
 
-import type { Event, Index, Output } from "./model"
+import type { Event, Index, Layout as Output } from "./model"
 
 export type Input = {
     index: Index,
@@ -54,6 +56,7 @@ export default function (in: Input): Output {
         Route.Task => true,
         Route.ParallelTask => true,
         Route.Parallel => true,
+        Route.If => true,
         _ => false
     }
 
@@ -62,6 +65,9 @@ export default function (in: Input): Output {
         _ => null
     }
 
+    const task_output = integers.andBits(flags, integers.widen(task_has_output)) != 0
+    const else_branch = integers.andBits(flags, integers.widen(if_has_else)) != 0
+
     return {
         remaining: event.remaining,
         slot,
@@ -69,6 +75,8 @@ export default function (in: Input): Output {
         row: published ? in.index.step_rows[slot] : 0,
         first: has_body ? in.index.unit_firsts[slot] : 0,
         count: has_body ? in.index.unit_counts[slot] : 0,
-        task_id
+        task_id,
+        task_output,
+        else_branch
     }
 }

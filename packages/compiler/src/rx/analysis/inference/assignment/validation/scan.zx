@@ -1,8 +1,5 @@
-import integers from "std:integer"
-
-import representative from "../../forest/borrowed_root"
 import accepts from "../../optional/known"
-import { Kind } from "../../unification/model"
+import endpoint from "./endpoint"
 
 import type { U32Buffer } from "std:memory"
 import type { Graph } from "../../optional/model"
@@ -10,8 +7,7 @@ import type { Edges } from "../model"
 
 export enum Action {
     Scan,
-    ResolveSource,
-    ResolveTarget,
+    Resolve,
     Mismatch
 }
 
@@ -21,45 +17,57 @@ export type Input = {
     parents: U32Buffer,
     index: u64,
     source_type?: u32,
-    target_type?: u32,
+    resolved?: u32
+}
+
+export type Output = Input.Pick("index", "source_type") & {
     node: u32,
     action: Action
 }
 
-export type Output = Input.Omit("graph", "edges", "target_type", "parents")
-
 export default function (in: Input): Output {
-    return loop(in, {
-        while: state =>
-            state.action == Action.Scan && state.index < state.edges.left.length,
+    const { graph, edges, parents } = in
+
+    const source: u32? = in.source_type == null ? in.resolved : in.source_type
+    const target: u32? = in.source_type == null ? null : in.resolved
+    const no_node: u32 = 0
+
+    return loop({
+        index: in.index,
+        source_type: source,
+        target_type: target,
+        node: no_node,
+        action: Action.Scan
+    }, {
+        while: state => state.action == Action.Scan && state.index < edges.left.length,
         next: state => {
             if (state.source_type == null) {
-                const source = representative({
-                    parents: state.parents,
-                    value: state.edges.left[state.index]
+                const source = endpoint({
+                    graph,
+                    parents,
+                    value: edges.left[state.index]
                 })
-                const node = integers.widen(source)
 
-                if (state.graph.kinds[node] == Kind.Known) {
-                    state.source_type = state.graph.arguments[node]
-                } else {
-                    state.node = source
-                    state.action = Action.ResolveSource
+                state.source_type = source.known
+
+                if (source.known == null) {
+                    state.node = source.node
+                    state.action = Action.Resolve
                 }
             }
 
             if (state.action == Action.Scan && state.target_type == null) {
-                const target = representative({
-                    parents: state.parents,
-                    value: state.edges.right[state.index]
+                const expected = endpoint({
+                    graph,
+                    parents,
+                    value: edges.right[state.index]
                 })
-                const node = integers.widen(target)
 
-                if (state.graph.kinds[node] == Kind.Known) {
-                    state.target_type = state.graph.arguments[node]
-                } else {
-                    state.node = target
-                    state.action = Action.ResolveTarget
+                state.target_type = expected.known
+
+                if (expected.known == null) {
+                    state.node = expected.node
+                    state.action = Action.Resolve
                 }
             }
 
@@ -67,7 +75,7 @@ export default function (in: Input): Output {
 
             if (state.action == Action.Scan && expected != null) {
                 const result = accepts({
-                    types: state.graph.types,
+                    types: graph.types,
                     expected,
                     actual: state.source_type
                 })

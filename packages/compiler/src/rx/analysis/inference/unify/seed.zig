@@ -16,11 +16,11 @@ pub fn merge(self: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth
         else => {},
     }
 
-    const first = self.nodeAt(@backingInt(work.left));
-    const second = self.nodeAt(@backingInt(work.right));
+    const first = self.nodeAt(work.left);
+    const second = self.nodeAt(work.right);
     const shape = try combine(self, first.shape, second.shape, work.route, span, depth);
 
-    try Commit.publishSeed(self, work.left, work.right, first, second, shape, span);
+    try Commit.publishSeed(self, @fromBackingInt(work.left), @fromBackingInt(work.right), first, second, shape, span);
 }
 
 fn combine(self: *Graph, left: Graph.Shape, right: Graph.Shape, route: Plan.Route, span: zx.Span, depth: usize) zx.Error!Graph.Shape {

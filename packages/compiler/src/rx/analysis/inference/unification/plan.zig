@@ -26,15 +26,12 @@ pub const Route = if (enabled) @FieldType(Output, "route") else enum {
     ConcreteTupleMismatch,
 };
 
-pub const Work = struct {
-    left: Graph.Id,
-    right: Graph.Id,
+pub const Action = if (enabled) @FieldType(Output, "action") else void;
+
+pub const Work = if (enabled) Output else struct {
+    left: u32,
+    right: u32,
     route: Route,
-    action: if (enabled) @FieldType(Output, "action") else void = if (enabled) .Adopt else {},
-    source: u32 = 0,
-    left_operand: u32 = 0,
-    right_operand: u32 = 0,
-    right_size: u32 = 0,
 };
 
 pub fn prepare(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!Work {
@@ -64,6 +61,9 @@ fn prepareGenerated(comptime rule: type, graph: *const Graph, left: Graph.Id, ri
         .kinds = types.kinds.items,
         .arguments = types.first.items,
         .sizes = types.second.items,
+        .children = types.children.items,
+        .field_values = types.field_types.items,
+        .field_names = types.field_names.items,
     };
 
     var input: Input = undefined;
@@ -79,39 +79,27 @@ fn prepareGenerated(comptime rule: type, graph: *const Graph, left: Graph.Id, ri
 
     const request: *const Input = &input;
 
-    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), request) catch |err| switch (@as(anyerror, err)) {
+    return zx.columns.invoke(rule.executeValue, scratch.allocator(), request) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
-    };
-
-    return .{
-        .left = @fromBackingInt(result.left),
-        .right = @fromBackingInt(result.right),
-        .route = result.route,
-        .action = result.action,
-        .source = result.source,
-        .left_operand = result.left_operand,
-        .right_operand = result.right_operand,
-        .right_size = result.right_size,
     };
 }
 
 fn prepareSeed(graph: *const Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!Work {
-    if (depth >= 256) return .{ .left = left, .right = right, .route = .Depth };
+    if (depth >= 256) return .{ .left = @backingInt(left), .right = @backingInt(right), .route = .Depth };
 
     const a = graph.root(left);
     const b = graph.root(right);
 
-    if (a == b) return .{ .left = a, .right = b, .route = .Same };
-
+    if (a == b) return .{ .left = @backingInt(a), .right = @backingInt(b), .route = .Same };
     try Occurs.check(graph, a, b, span);
 
     const first = graph.shapeAt(@backingInt(a));
     const second = graph.shapeAt(@backingInt(b));
 
     return .{
-        .left = a,
-        .right = b,
+        .left = @backingInt(a),
+        .right = @backingInt(b),
         .route = seed(first, second, concreteType(graph, first, second)),
     };
 }

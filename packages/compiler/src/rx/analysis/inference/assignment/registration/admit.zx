@@ -9,9 +9,8 @@ import {
 import probe from "core/integer/wide_index/probe"
 
 import { Action } from "./model"
-import publish from "./publish"
 
-import type { Admission as Input, Output } from "./model"
+import type { Admission as Input, Decision as Output } from "./model"
 
 export default function (in: Input): Output {
     const capacity = in.buckets.length
@@ -28,7 +27,8 @@ export default function (in: Input): Output {
     if (slot != null && in.buckets[slot] != max_u32) {
         return {
             action: Action.Skip,
-            capacity
+            capacity,
+            slot: null
         }
     }
 
@@ -37,7 +37,8 @@ export default function (in: Input): Output {
     if (count > integers.widen(max_u32)) {
         return {
             action: Action.Overflow,
-            capacity
+            capacity,
+            slot: null
         }
     }
 
@@ -54,18 +55,14 @@ export default function (in: Input): Output {
     if (slot == null || reserve) {
         return {
             action: Action.Reserve,
-            capacity: next_capacity
+            capacity: next_capacity,
+            slot: null
         }
     }
 
-    publish({
-        pair: in.pair,
-        rows: in.rows,
-        slot
-    })
-
     return {
         action: Action.Added,
-        capacity
+        capacity,
+        slot
     }
 }

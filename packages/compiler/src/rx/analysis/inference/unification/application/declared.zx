@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "std:memory"
 
 import { Kind } from "../model"
 import { Action } from "./model"
@@ -10,8 +11,8 @@ export type Input = Request
 export type Output = Application
 
 export default function (in: Input): Output {
-    const first = integers.widen(in.left)
-    const left_known = in.graph.kinds[first] == Kind.Known
+    const left_index = integers.widen(in.left)
+    const left_known = in.graph.kinds[left_index] == Kind.Known
     const source = left_known ? in.left : in.right
     const inferred = left_known ? in.right : in.left
     const index = integers.widen(inferred)
@@ -25,18 +26,20 @@ export default function (in: Input): Output {
         _ => Action.Adopt
     }
 
-    const no_members = action == Action.KnownTuple || action == Action.KnownObject
+    const left_members = in.graph.members[index]
 
-    const no_operands =
-        action == Action.Adopt || (no_members && in.graph.members[index].length == 0)
+    const no_operands = action == Action.Adopt ||
+        (action != Action.KnownChild && left_members.length == 0)
 
     if (no_operands) {
         return {
-            action: Action.Adopt,
-            source,
             left_operand: 0,
             right_operand: 0,
-            right_size: 0
+            left_members: [],
+            right_members: [],
+            action: Action.Adopt,
+            source,
+            right_names: []
         }
     }
 
@@ -44,20 +47,36 @@ export default function (in: Input): Output {
     const type_index = integers.widen(declared)
     const argument = in.types.arguments[type_index]
 
-    return match action {
-        Action.KnownChild => {
+    if (action == Action.KnownChild) {
+        return {
             action,
             source,
             left_operand: in.graph.arguments[index],
             right_operand: argument,
-            right_size: 0
-        },
-        _ => {
-            action,
-            source,
-            left_operand: inferred,
-            right_operand: argument,
-            right_size: in.types.sizes[type_index]
+            left_members: [],
+            right_members: [],
+            right_names: []
         }
+    }
+
+    const first = integers.widen(argument)
+    const count = integers.widen(in.types.sizes[type_index])
+    const values = action == Action.KnownTuple ? in.types.children : in.types.field_values
+    const right_members = memory.borrowU32Range(values, first, count)
+
+    const right_names = match action {
+        Action.KnownObject =>
+            memory.borrowStringRange(in.types.field_names, first, count),
+        _ => []
+    }
+
+    return {
+        action,
+        source,
+        left_operand: 0,
+        right_operand: 0,
+        left_members,
+        right_members,
+        right_names
     }
 }

@@ -9,6 +9,20 @@ pub const readRowName = rows.readName;
 pub const readRowId = rows.readId;
 pub const writeNamedRow = rows.write;
 
+pub inline fn borrowU32Range(source: []const u32, first: u64, count: u64) error{IndexOutOfBounds}![]const u32 {
+    return borrowRange(u32, source, first, count);
+}
+
+pub inline fn borrowStringRange(source: []const []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const []const u8 {
+    return borrowRange([]const u8, source, first, count);
+}
+
+inline fn borrowRange(comptime T: type, source: []const T, first: u64, count: u64) error{IndexOutOfBounds}![]const T {
+    if (first > source.len or count > source.len - first) return error.IndexOutOfBounds;
+
+    return source[@intCast(first)..][0..@intCast(count)];
+}
+
 pub inline fn copyBytes(target: *const anyopaque, offset: u64, source: []const u8, start: u64, end: u64) error{IndexOutOfBounds}!u64 {
     const output: *const []u8 = @ptrCast(@alignCast(target));
 

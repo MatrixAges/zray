@@ -60,11 +60,11 @@ pub const Plan = struct {
         const limit = first + unit.count;
 
         const selected: Run = if (comptime generated) block: {
-            const input: std.meta.Child(rule.Input) = .{ .kinds = self.kinds, .first = first, .end = limit };
+            const input: std.meta.Child(rule.Input) = .{ .kinds = self.kinds, .items = self.items, .first = first, .end = limit };
             var empty = std.heap.FixedBufferAllocator.init(&.{});
             const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-            break :block .{ .kind = result.kind, .first = first, .end = @intCast(result.end) };
+            break :block .{ .kind = result.kind, .first = first, .items = result.items };
         } else block: {
             const kind = self.kinds[first];
             var end = first + 1;
@@ -73,17 +73,18 @@ pub const Plan = struct {
                 while (end < limit and self.kinds[end] == .Call) : (end += 1) {}
             }
 
-            break :block .{ .kind = kind, .first = first, .end = end };
+            break :block .{ .kind = kind, .first = first, .items = self.items[first..end] };
         };
 
-        unit.first = selected.end;
-        unit.count = limit - selected.end;
+        const count: u32 = @intCast(selected.items.len);
+        unit.first += count;
+        unit.count -= count;
 
         return selected;
     }
 };
 
-pub const Run = struct { kind: Kind, first: u32, end: u32 };
+pub const Run = struct { kind: Kind, first: u32, items: []const u32 };
 
 pub const Builder = struct {
     rows: Rows = .empty,
@@ -113,6 +114,10 @@ pub const Builder = struct {
         try builder.selections.ensureTotalCapacityPrecise(allocator, capacity.selections);
 
         builder.rows.len = capacity.steps;
+        builder.results.items.len = capacity.results;
+        builder.tasks.items.len = capacity.tasks;
+        builder.groups.items.len = capacity.groups;
+        builder.selections.items.len = capacity.selections;
 
         return builder;
     }

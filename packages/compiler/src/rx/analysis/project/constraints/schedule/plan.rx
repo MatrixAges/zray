@@ -95,5 +95,45 @@
                 ]}
             />
         </Case>
+
+        <Case value={Schedule.Form.Parallel}>
+            <Return
+                value={[
+                    Schedule.Step.InferBranches,
+                    Schedule.Step.PublishParallel
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.Selection}>
+            <Return
+                value={[
+                    Schedule.Step.ParseSubject,
+                    Schedule.Step.InferSubject,
+                    Schedule.Step.InferCases
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.Return}>
+            <Return
+                value={[
+                    Schedule.Step.InferReturn,
+                    Schedule.Step.MarkReturned
+                ]}
+            />
+        </Case>
+
+        <Case value={Schedule.Form.ResultBinding}>
+            <Return
+                value={[
+                    Schedule.Step.BindResultName,
+                    Schedule.Step.RequestBindingType,
+                    Schedule.Step.CheckBindingValue,
+                    Schedule.Step.ValidateBindingPath,
+                    Schedule.Step.PublishBinding
+                ]}
+            />
+        </Case>
     </Switch>
 </Module>

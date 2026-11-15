@@ -1,3 +1,6 @@
+import { ports_per_declaration } from "./const"
+import grouping from "./group"
+
 export type Input = {
     owners: u64[],
     types: u32[],
@@ -12,20 +15,16 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { owners, types, start } = in
+    const types = in.types
 
-    const owner = owners[start]
-
-    const end = loop(start + 2, {
-        while: next => next < owners.length && owners[next] == owner,
-        next: next => {
-            next += 2
-        }
+    const { owner, end } = grouping({
+        owners: in.owners,
+        start: in.start
     })
 
     return {
         owner,
-        input: types[end - 2],
+        input: types[end - ports_per_declaration],
         output: types[end - 1],
         next: end
     }

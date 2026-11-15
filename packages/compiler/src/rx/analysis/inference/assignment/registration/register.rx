@@ -24,5 +24,21 @@
         }}
     />
 
-    <Return value={$ctx.admit} />
+    <If on={$ctx.admit.slot != null}>
+        <Call
+            fn="publish"
+            in={{
+                pair: $ctx.endpoints,
+                rows: $in.rows,
+                slot: $ctx.admit.slot ?? 0
+            }}
+        />
+    </If>
+
+    <Return
+        value={$ctx.admit.pick([
+            "action",
+            "capacity"
+        ])}
+    />
 </Module>

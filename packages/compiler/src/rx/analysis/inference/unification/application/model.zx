@@ -13,12 +13,17 @@ export enum Action {
     KnownObject
 }
 
-export type Application = {
-    action: Action,
-    source: u32,
+export type Operands = {
     left_operand: u32,
     right_operand: u32,
-    right_size: u32
+    left_members: u32[],
+    right_members: u32[]
+}
+
+export type Application = Operands & {
+    action: Action,
+    source: u32,
+    right_names: string[]
 }
 
 export type Request = {
@@ -38,13 +43,9 @@ export enum Step {
     Skip
 }
 
-export type PairInput = {
+export type PairInput = Operands & {
     action: Action,
     position: u64,
-    left_operand: u32,
-    right_operand: u32,
-    left: u32[],
-    right: u32[],
     positions: u64[]
 }
 

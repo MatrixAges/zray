@@ -1,3 +1,5 @@
+import type { U8Buffer, U32Buffer } from "std:memory"
+
 export type Index = {
     facts: u32[],
     events: u64[],
@@ -23,7 +25,24 @@ export enum Route {
 
 export type Input = {
     index: Index,
-    remaining: u64
+    remaining: u64,
+    rows: Rows
+}
+
+export type Codes = {
+    call: u8,
+    result: u8,
+    task: u8,
+    parallel_task: u8,
+    parallel: u8,
+    selection: u8
+}
+
+export type Rows = {
+    kinds: U8Buffer,
+    items: U32Buffer,
+    cursors: U32Buffer,
+    codes: Codes
 }
 
 export type Event = {
@@ -34,10 +53,17 @@ export type Event = {
     phase: u64
 }
 
-export type Output = Event.Pick("remaining", "slot") & {
+export type Layout = Event.Pick("remaining", "slot") & {
     route: Route,
     row: u32,
     first: u32,
     count: u32,
-    task_id?: u64
+    task_id?: u64,
+    task_output: bool,
+    else_branch: bool
+}
+
+export type Output = Layout & {
+    item: u32,
+    implicit_item?: u32
 }

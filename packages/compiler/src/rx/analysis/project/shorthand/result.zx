@@ -1,0 +1,15 @@
+import encoding from "std:encoding"
+
+import { call_prefix } from "../../result_name/const"
+import nameRange from "../../result_name/range"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const range = nameRange(in)
+    const name = encoding.sliceBytes(in, range.start, range.end)
+
+    return `${call_prefix}.${name}`
+}

@@ -52,6 +52,10 @@ export type Output = {
     capacity: u64
 }
 
+export type Decision = Output & {
+    slot?: u64
+}
+
 export type Spans = {
     source: u8[],
     target: U8Buffer,

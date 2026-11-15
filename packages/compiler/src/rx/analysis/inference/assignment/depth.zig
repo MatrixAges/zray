@@ -2,32 +2,48 @@ const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("../types.zig");
 
-pub fn solve(graph: *Graph, scratch: std.mem.Allocator) zx.Error![]const u64 {
-    if (!@import("rx_options").generated_graph) return @import("depth/seed.zig").solve(graph, scratch);
+pub const Prepared = struct {
+    depths: []const u64,
+    first_deferred: usize,
+    deferred_words: usize,
+};
 
+pub fn prepare(graph: *Graph, scratch: std.mem.Allocator) zx.Error!Prepared {
     const rows = graph.nodes.slice();
     const assignments = graph.pending.assignments.slice();
     const left: []u32 = @ptrCast(assignments.items(.value));
     const right: []u32 = @ptrCast(assignments.items(.expected));
     const parents: []u32 = graph.parents();
     const depths = try scratch.alloc(u64, rows.len);
+    const entry = @import("generated_assignment_materialization_plan");
 
-    const solution = @import("generated_assignment_depth").executeValue(scratch, &.{
-        .graph = &.{
-            .nodes = &.{ .kinds = rows.items(.kind), .allowed = rows.items(.allowed) },
-            .arguments = rows.items(.argument),
-            .types = &.{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items },
+    const input: std.meta.Child(entry.Input) = .{
+        .depth = &.{
+            .graph = &.{
+                .nodes = &.{ .kinds = rows.items(.kind), .allowed = rows.items(.allowed) },
+                .arguments = rows.items(.argument),
+                .types = &.{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items },
+            },
+            .assignments = &.{ .left = left, .right = right },
+            .write = &.{ .left = @ptrCast(&left), .right = @ptrCast(&right), .count = left.len },
+            .parents = @ptrCast(&parents),
+            .lower = &.{ .values = depths, .output = @ptrCast(&depths) },
         },
-        .assignments = &.{ .left = left, .right = right },
-        .write = &.{ .left = @ptrCast(&left), .right = @ptrCast(&right), .count = left.len },
-        .parents = @ptrCast(&parents),
-        .lower = &.{ .values = depths, .output = @ptrCast(&depths) },
-    }) catch |err| switch (@as(anyerror, err)) {
+        .resolved_indexes = graph.pending.indexes.items(.resolved),
+    };
+
+    const prepared = zx.columns.invoke(entry.executeValue, scratch, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    if (solution.issue == .None) return depths;
+    const solution = prepared.depth;
+
+    if (solution.issue == .None) return .{
+        .depths = depths,
+        .first_deferred = @intCast(prepared.deferred.first),
+        .deferred_words = @intCast(prepared.deferred.words),
+    };
 
     const spans = assignments.items(.span);
 

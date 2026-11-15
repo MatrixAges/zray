@@ -7,11 +7,10 @@ import { Tag } from "../../schema/execution/model"
 import classify from "../../schema/execution/tag"
 import bodyEvent from "../flow/body_event"
 import { declaration } from "../flow/const"
-import layout from "../flow/layout"
 import parallelParent from "../flow/parallel_parent"
-import place from "../flow/place"
 import project from "../flow/project"
 import taskExit from "../flow/task_exit"
+import unit from "../flow/unit"
 import select from "./select"
 
 import type { U32Buffer, U64Buffer } from "std:memory"
@@ -54,6 +53,12 @@ export default function (in: Input): Output {
         nodes: in.nodes,
         slots: in.slots,
         facts: in.facts
+    }
+
+    const columns = {
+        step_rows: in.step_rows,
+        unit_firsts: in.unit_firsts,
+        unit_counts: in.unit_counts
     }
 
     const references: Reference[] = []
@@ -119,7 +124,9 @@ export default function (in: Input): Output {
                         state.parallel_tasks += 1
                     }
 
-                    const implicit = parallel && memory.readU32(in.facts, slot) != 0
+                    const has_output =
+                        tag == Tag.Task && memory.readU32(in.facts, slot) != 0
+                    const implicit = parallel && has_output
 
                     const flags = project({
                         view,
@@ -141,29 +148,23 @@ export default function (in: Input): Output {
                         _ => node.child_count
                     }
 
-                    const count = layout({
-                        children: {
-                            view,
-                            head: node.children
-                        },
-                        node,
-                        tag,
-                        root_steps,
-                        implicit_result: implicit
-                    })
-
-                    const first = match {
-                        count == 0 => state.steps,
-                        _ => place({
-                            view,
-                            step_rows: in.step_rows,
+                    state.steps = unit({
+                        geometry: {
+                            children: {
+                                view,
+                                head: node.children
+                            },
                             node,
                             tag,
-                            first: state.steps,
-                            count
-                        })
-                    }
-                    state.steps += count
+                            root_steps,
+                            implicit_result: implicit
+                        },
+                        columns,
+                        slot,
+                        start: state.steps,
+                        flags,
+                        task_output: has_output
+                    })
 
                     if (state.depth != 0) {
                         const event = bodyEvent({
@@ -178,20 +179,13 @@ export default function (in: Input): Output {
                         }
                     }
 
-                    memory.writeU32(in.unit_firsts, slot, integers.narrow(first))
-                    memory.writeU32(
-                        in.unit_counts,
-                        slot,
-                        integers.narrow(state.steps - first)
-                    )
-
                     if (tag == Tag.Call) {
                         state.calls += 1
                     } else if (tag == Tag.Return) {
                         state.results += 1
                     } else if (tag == Tag.Task) {
                         state.tasks += 1
-                        state.results += count - node.child_count
+                        state.results += implicit ? 1 : 0
                     } else if (tag == Tag.Parallel) {
                         state.groups += 1
                     } else if (tag == Tag.Switch || tag == Tag.If) {

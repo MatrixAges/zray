@@ -4,24 +4,41 @@ const syntax = zx.syntax.borrow;
 const Graph = @import("types.zig");
 const Expression = @import("expression.zig");
 const Construction = @import("construction.zig");
+const Schedule = @import("expression/schedule.zig");
 
-pub fn infer(self: *Expression, expression: anytype, expected: ?Graph.Id) zx.Error!Graph.Id {
-    const span = self.sourceSpan(expression.span);
-    const fields = syntax.value(expression).object;
+pub fn infer(self: *Expression, fields: anytype, expected: ?Graph.Id, span: zx.Span) zx.Error!Graph.Id {
     const first = self.graph.pending.construction_parts.len;
-    const indexed = @import("rx_options").generated_graph and @TypeOf(expression) != *const zx.ast.Expression;
-
-    try self.graph.pending.construction_parts.resize(self.graph.pending.allocator, first + fields.len);
-
+    const indexed = @import("rx_options").generated_graph and @typeInfo(@TypeOf(fields)) == .@"struct";
     var buffer: [32]u32 = undefined;
-
-    const hints = if (indexed and expected != null and fields.len > 1)
-        try markHints(self.graph.scratch, fields, &buffer)
-    else
-        &.{};
+    var hints: []const u32 = &.{};
+    var result: Graph.Id = undefined;
 
     defer if (hints.len > buffer.len) self.graph.scratch.free(hints);
 
+    inline for (comptime Schedule.steps(.Object)) |step| {
+        switch (step) {
+            .Done => {},
+            .ReserveParts => try self.graph.pending.construction_parts.resize(self.graph.pending.allocator, first + fields.len),
+            .PlanFieldHints => if (indexed and expected != null and fields.len > 1) {
+                hints = try markHints(self.graph.scratch, fields, &buffer);
+            },
+            .InferFields => try inferFields(self, fields, expected, first, hints, indexed),
+            .ObjectResult => result = try self.graph.add(.{ .object = .{} }, span),
+            .ExpectResult => if (expected) |target| try self.graph.expect(result, target, span),
+            .RegisterObject => try self.graph.pending.constructions.append(self.graph.pending.allocator, .{
+                .result = result,
+                .first = first,
+                .count = fields.len,
+                .span = span,
+            }),
+            else => unreachable,
+        }
+    }
+
+    return result;
+}
+
+fn inferFields(self: *Expression, fields: anytype, expected: ?Graph.Id, first: usize, hints: []const u32, comptime indexed: bool) zx.Error!void {
     for (0..fields.len) |index| {
         const field = syntax.item(fields, index);
         var hint: ?Graph.Id = null;
@@ -44,14 +61,6 @@ pub fn infer(self: *Expression, expression: anytype, expected: ?Graph.Id) zx.Err
             try self.graph.unify(part.value, try self.graph.add(.{ .object = .{} }, part.span), part.span);
         }
     }
-
-    const result = try self.graph.add(.{ .object = .{} }, span);
-
-    if (expected) |target| try self.graph.expect(result, target, span);
-
-    try self.graph.pending.constructions.append(self.graph.pending.allocator, .{ .result = result, .first = first, .count = fields.len, .span = span });
-
-    return result;
 }
 
 fn markHints(allocator: std.mem.Allocator, fields: anytype, buffer: []u32) std.mem.Allocator.Error![]u32 {

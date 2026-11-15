@@ -1,40 +1,36 @@
 import { BinaryOperator } from "core/expression_table/kinds"
 
 import classify from "../../../../zx/analysis/analyzer/expressions/operators/classify"
+import { Form } from "../operators/model"
 import domain from "./domain"
 import { Domain } from "./model"
-
-export enum Route {
-    And,
-    Or,
-    Coalesce,
-    Compare,
-    Arithmetic
-}
 
 export type Input = BinaryOperator
 
 export type Output = {
-    route: Route,
-    allowed?: u64
+    form: Form,
+    allowed?: u64,
+    use_hint: bool
 }
 
 export default function (in: Input): Output {
     const facts = classify(in)
 
-    const route = match {
-        in == BinaryOperator.Coalesce => Route.Coalesce,
-        in == BinaryOperator.LogicalAnd => Route.And,
-        facts.logical => Route.Or,
-        facts.comparison => Route.Compare,
-        _ => Route.Arithmetic
+    const form = match {
+        in == BinaryOperator.Coalesce => Form.Coalesce,
+        in == BinaryOperator.LogicalAnd => Form.And,
+        facts.logical => Form.Or,
+        facts.comparison => Form.Compare,
+        _ => Form.Arithmetic
     }
 
-    const numeric = route == Route.Arithmetic || route == Route.Compare
+    const numeric = form == Form.Arithmetic || form == Form.Compare
     const allowed: u64? = numeric && !facts.equality ? domain(Domain.Numeric) : null
+    const use_hint = form == Form.Arithmetic || form == Form.Coalesce
 
     return {
-        route,
-        allowed
+        form,
+        allowed,
+        use_hint
     }
 }

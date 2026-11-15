@@ -50,7 +50,7 @@ fn steps(self: *Self, sequence: Prepared.Unit, block: bool, retain_return: bool)
         const start = first + (run.first - sequence.first);
 
         if (run.kind == .Call) {
-            for (plan.items[run.first..run.end], @as(usize, start)..) |index, row| {
+            for (run.items, @as(usize, start)..) |index, row| {
                 const id = try self.call(self.loaded[index], &self.bindings);
 
                 self.compiled.steps.set(row, .{ .kind = .Call, .first = id });
@@ -59,7 +59,7 @@ fn steps(self: *Self, sequence: Prepared.Unit, block: bool, retain_return: bool)
             continue;
         }
 
-        const payload = plan.items[run.first];
+        const payload = run.items[0];
 
         const compiled: Flow.Step = switch (run.kind) {
             .Parallel => try self.parallel(plan.groups[payload]),

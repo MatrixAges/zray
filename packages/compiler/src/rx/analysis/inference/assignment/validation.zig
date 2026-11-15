@@ -10,12 +10,12 @@ pub fn validate(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
     if (edges.len == 0) return;
 
     const generated = @import("generated_assignment_validation");
-    const Request = @typeInfo(@TypeOf(generated.executeState)).@"fn".param_types[1].?;
+    const Request = std.meta.Child(generated.Input);
     const View = std.meta.Child(@FieldType(Request, "graph"));
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     var index: usize = 0;
     var source: ?u32 = null;
-    var target: ?u32 = null;
+    var resolved: ?u32 = null;
 
     while (index < edges.len) {
         const rows = graph.nodes.slice();
@@ -28,28 +28,24 @@ pub fn validate(graph: *Graph, resolver: *Graph.Resolver) zx.Error!void {
 
         const parents = graph.parents();
 
-        const result = generated.executeState(empty.allocator(), .{
+        const input: Request = .{
             .graph = &view,
-            .edges = .{ .left = .{ .items = @ptrCast(edges.items(.value)), .storage = .plain }, .right = .{ .items = @ptrCast(edges.items(.expected)), .storage = .plain } },
+            .edges = &.{ .left = @ptrCast(edges.items(.value)), .right = @ptrCast(edges.items(.expected)) },
             .parents = @ptrCast(&parents),
             .index = index,
             .source_type = source,
-            .target_type = target,
-            .node = 0,
-            .action = .Scan,
-        }) catch unreachable;
+            .resolved = resolved,
+        };
+
+        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
 
         index = @intCast(result.index);
 
         switch (result.action) {
             .Scan => return,
-            .ResolveSource => {
-                source = @backingInt(try graph.resolve(@fromBackingInt(result.node), resolver));
-                target = null;
-            },
-            .ResolveTarget => {
+            .Resolve => {
                 source = result.source_type;
-                target = @backingInt(try graph.resolve(@fromBackingInt(result.node), resolver));
+                resolved = @backingInt(try graph.resolve(@fromBackingInt(result.node), resolver));
             },
             .Mismatch => return mismatch(graph, edges.items(.span)[index]),
         }

@@ -5,6 +5,7 @@ const Graph = @import("../inference/types.zig");
 const Prepared = @import("prepare.zig");
 const SourceMap = @import("../source_map.zig");
 const Source = @import("contracts/source.zig");
+const generated = @import("rx_options").generated_graph;
 
 pub const Ports = struct {
     owners: []const u64 = &.{},
@@ -16,30 +17,15 @@ pub const Ports = struct {
         next: usize,
     };
 
-    pub fn at(self: Ports, start: usize) ?Pair {
+    pub fn seedAt(self: Ports, start: usize) ?Pair {
         if (start == self.owners.len) return null;
 
-        if (comptime !@import("rx_options").generated_graph) {
-            const owner = self.owners[start];
-            var end = start + 2;
+        const owner = self.owners[start];
+        var end = start + 2;
 
-            while (end < self.owners.len and self.owners[end] == owner) : (end += 2) {}
+        while (end < self.owners.len and self.owners[end] == owner) : (end += 2) {}
 
-            return .{ .owner = @intCast(owner), .input = self.types[end - 2], .output = self.types[end - 1], .next = end };
-        }
-
-        const rule = @import("generated_rx_args_ports");
-        const Input = std.meta.Child(rule.Input);
-        const input: Input = .{ .owners = self.owners, .types = @ptrCast(self.types), .start = start };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const selected = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-
-        return .{
-            .owner = @intCast(selected.owner),
-            .input = @fromBackingInt(selected.input),
-            .output = @fromBackingInt(selected.output),
-            .next = @intCast(selected.next),
-        };
+        return .{ .owner = @intCast(owner), .input = self.types[end - 2], .output = self.types[end - 1], .next = end };
     }
 };
 
@@ -130,14 +116,11 @@ fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: 
     var start: usize = 0;
 
     while (start < owners.len) {
-        const owner: usize = @intCast(owners[start]);
-        var end = start + 1;
+        const group = ownerGroup(owners, start);
 
-        while (end < owners.len and owners[end] == owner) : (end += 1) {}
+        graph.types.aliases = modules[group.owner].type_imports;
 
-        graph.types.aliases = modules[owner].type_imports;
-
-        for (types[start..end]) |*type_id| {
+        for (types[start..group.end]) |*type_id| {
             const declaration = declarations.next().?;
 
             type_id.* = graph.types.resolveView(resolving, declaration.value) catch |err| {
@@ -147,10 +130,28 @@ fn resolveDeclarations(graph: *Graph, modules: []const Prepared.Module, source: 
             };
         }
 
-        start = end;
+        start = group.end;
     }
 
     return .{ .owners = owners, .types = types };
+}
+
+fn ownerGroup(owners: []const u64, start: usize) struct { owner: usize, end: usize } {
+    if (comptime generated) {
+        const rule = @import("generated_rx_args_owner_group");
+        const input: std.meta.Child(rule.Input) = .{ .owners = owners, .start = start };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const group = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        return .{ .owner = @intCast(group.owner), .end = @intCast(group.end) };
+    }
+
+    const owner: usize = @intCast(owners[start]);
+    var end = start + 1;
+
+    while (end < owners.len and owners[end] == owner) : (end += 1) {}
+
+    return .{ .owner = owner, .end = end };
 }
 
 fn invalid(graph: *Graph, source: Source, source_map: SourceMap) zx.Error {

@@ -14,26 +14,32 @@ export type Input = {
 export type Output = {
     row: u64,
     next: u64,
-    action: Collision
+    action: Collision,
+    left: u32,
+    right: u32
 }
 
 export default function (in: Input): Output {
     const active = in.active
+    const no_binding: u32 = 0
 
     return loop({
         row: in.row,
         next: in.next,
-        action: Collision.Ignore
+        action: Collision.Ignore,
+        left: no_binding,
+        right: no_binding
     }, {
         while: state =>
             state.action == Collision.Ignore && state.row < active.names.length,
         next: state => {
             const row = state.row
+            const right = active.values[row]
             const result = collision({
                 topology: in.topology,
                 active,
                 name: active.names[row],
-                value: active.values[row],
+                value: right,
                 start: state.next,
                 end: row
             })
@@ -44,6 +50,8 @@ export default function (in: Input): Output {
             } else {
                 state.action = result.action
                 state.next = result.next
+                state.left = result.left
+                state.right = right
             }
         },
         return: state => state

@@ -10,7 +10,13 @@ const Tuple = grammar.sequence(.{ grammar.token("["), grammar.separated(Type, ",
 const Argument = grammar.sequence(.{ grammar.token("<"), Type, grammar.required(grammar.token(">"), "expected >") });
 const Named = grammar.sequence(.{ grammar.reference(ast.Name, qualifiedName), grammar.optional(Argument) });
 const Group = grammar.sequence(.{ grammar.token("("), Type, grammar.required(grammar.token(")"), "expected )") });
-const Primary = grammar.choice(.{ grammar.map(Object, ast.Type, object), grammar.map(Tuple, ast.Type, tuple), grammar.map(Named, ast.Type, named), grammar.map(Group, ast.Type, group) });
+
+const Primary = grammar.choice(.{
+    grammar.map(Object, ast.Type, object),
+    grammar.map(Tuple, ast.Type, tuple),
+    grammar.map(Group, ast.Type, group),
+    grammar.map(Named, ast.Type, named),
+});
 
 const Suffix = grammar.choice(.{
     grammar.map(grammar.token("?"), SuffixKind, optional),

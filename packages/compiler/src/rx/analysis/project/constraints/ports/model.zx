@@ -1,5 +1,6 @@
 import type { U8Buffer, U32Buffer } from "std:memory"
 import type { Input as Nodes } from "../../../inference/nodes/initialize"
+import type { Input as Declarations } from "../../contracts/ports"
 
 export type Ports = {
     inputs: U32Buffer,
@@ -15,3 +16,15 @@ export type Input = {
 }
 
 export type Output = void
+
+export type Cursor = Declarations & {
+    modules: u64
+}
+
+export type Range = {
+    inferred_until: u64,
+    declared: bool,
+    input: u32,
+    output: u32,
+    next: u64
+}

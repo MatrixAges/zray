@@ -22,12 +22,12 @@ pub fn literal(text: []const u8, negative: bool) rules.Number {
 
 pub fn operator(value: zx.syntax.Operator) rules.Operator {
     return switch (value) {
-        .logical_and => .{ .route = .and_value },
-        .logical_or => .{ .route = .or_value },
-        .coalesce => .{ .route = .coalesce },
-        .equal, .not_equal => .{ .route = .compare },
-        .less, .less_equal, .greater, .greater_equal => .{ .route = .compare, .allowed = domain(.numeric) },
-        else => .{ .route = .arithmetic, .allowed = domain(.numeric) },
+        .logical_and => .{ .form = .And },
+        .logical_or => .{ .form = .Or },
+        .coalesce => .{ .form = .Coalesce, .use_hint = true },
+        .equal, .not_equal => .{ .form = .Compare },
+        .less, .less_equal, .greater, .greater_equal => .{ .form = .Compare, .allowed = domain(.numeric) },
+        else => .{ .form = .Arithmetic, .allowed = domain(.numeric), .use_hint = true },
     };
 }
 

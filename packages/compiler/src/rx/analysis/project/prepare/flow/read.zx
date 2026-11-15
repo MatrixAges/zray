@@ -6,7 +6,9 @@ import {
     returns
 } from "../../../../dependency_graph/flow/const"
 
-import type { Event as Output, Input } from "./model"
+import type { Event as Output, Input as Request } from "./model"
+
+export type Input = Request.Pick("index", "remaining")
 
 export default function (in: Input): Output {
     const index = in.index

@@ -11,9 +11,7 @@ export type Input = Request
 export type Output = Application
 
 export default function (in: Input): Output {
-    const route = in.route
-    const left = in.left
-    const right = in.right
+    const { route, left, right } = in
 
     if (route == Route.Known) {
         return declared(in)
@@ -27,37 +25,50 @@ export default function (in: Input): Output {
             source: left,
             left_operand: arguments[integers.widen(left)],
             right_operand: arguments[integers.widen(right)],
-            right_size: 0
+            left_members: [],
+            right_members: [],
+            right_names: []
         }
     }
 
-    if (route == Route.Object) {
+    if (route == Route.Object || route == Route.Tuple) {
         const members = in.graph.members
         const first = members[integers.widen(left)]
         const second = members[integers.widen(right)]
 
-        if (first.length == 0 || second.length == 0) {
+        const empty_object = route == Route.Object &&
+            (first.length == 0 || second.length == 0)
+
+        if (empty_object) {
             return {
+                left_operand: 0,
+                right_operand: 0,
+                left_members: [],
+                right_members: [],
                 action: Action.Adopt,
                 source: first.length == 0 ? right : left,
-                left_operand: left,
-                right_operand: right,
-                right_size: 0
+                right_names: []
             }
+        }
+
+        return {
+            action: route == Route.Object ? Action.Object : Action.Tuple,
+            source: left,
+            left_operand: 0,
+            right_operand: 0,
+            left_members: first,
+            right_members: second,
+            right_names: []
         }
     }
 
-    const action = match route {
-        Route.Tuple => Action.Tuple,
-        Route.Object => Action.Object,
-        _ => Action.Adopt
-    }
-
     return {
-        action,
+        left_operand: 0,
+        right_operand: 0,
+        left_members: [],
+        right_members: [],
+        action: Action.Adopt,
         source: route == Route.Right ? right : left,
-        left_operand: left,
-        right_operand: right,
-        right_size: 0
+        right_names: []
     }
 }

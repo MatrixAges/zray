@@ -1,0 +1,34 @@
+import memory from "std:memory"
+
+import { declaration_tag } from "./const"
+
+import type { TextColumn } from "std:memory"
+
+export type Input = {
+    names: TextColumn,
+    count: u64,
+    start: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const absent: u64? = null
+
+    return loop({
+        row: in.start,
+        found: absent
+    }, {
+        while: state => state.found == null && state.row < in.count,
+        next: state => {
+            const row = state.row
+
+            if (memory.readTextColumn(in.names, row) == declaration_tag) {
+                state.found = row
+            }
+
+            state.row += 1
+        },
+        return: state => state.found
+    })
+}

@@ -15,10 +15,14 @@ names: []const []const u8 = &.{},
 ends: []const u64 = &.{},
 pub fn collect(self: *Self, modules: []const Prepared.Module) std.mem.Allocator.Error!void {
     for (modules, 0..) |module, index| {
-        for (module.source.node.children) |node| {
-            if (!std.mem.eql(u8, node.name, "Args")) continue;
-            try self.append(index, node, "in");
-            try self.append(index, node, "out");
+        const children = module.source.node.children;
+
+        if (comptime enabled) {
+            try self.collectModule(index, children);
+        } else {
+            for (children) |node| {
+                if (std.mem.eql(u8, node.name, "Args")) try self.appendPorts(index, node);
+            }
         }
     }
 
@@ -57,10 +61,31 @@ pub fn collect(self: *Self, modules: []const Prepared.Module) std.mem.Allocator.
     self.ends = result.ends;
 }
 
-fn append(self: *Self, module: usize, node: rx.ast.Node, key: []const u8) std.mem.Allocator.Error!void {
-    const attribute = target.attribute(node, key);
+fn collectModule(self: *Self, index: usize, children: []const rx.ast.Node) std.mem.Allocator.Error!void {
+    if (children.len == 0) return;
 
-    try self.entries.append(self.allocator, .{ .module = module, .location = node.location, .attribute = attribute, .expression = attribute.value });
+    const rule = @import("generated_rx_args_declaration");
+    const names = @import("zxc_standard").memory.borrowTextColumn("name", children);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var start: usize = 0;
+
+    while (start < children.len) {
+        const input: std.meta.Child(rule.Input) = .{ .names = @ptrCast(&names), .count = children.len, .start = start };
+        const next = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+        const row: usize = @intCast(next orelse return);
+
+        try self.appendPorts(index, children[row]);
+
+        start = row + 1;
+    }
+}
+
+fn appendPorts(self: *Self, module: usize, node: rx.ast.Node) std.mem.Allocator.Error!void {
+    for ([_][]const u8{ "in", "out" }) |key| {
+        const attribute = target.attribute(node, key);
+
+        try self.entries.append(self.allocator, .{ .module = module, .location = node.location, .attribute = attribute, .expression = attribute.value });
+    }
 }
 
 fn seed(self: *Self) std.mem.Allocator.Error!void {

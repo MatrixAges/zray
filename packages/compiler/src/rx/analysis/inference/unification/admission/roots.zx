@@ -19,14 +19,16 @@ export type Output = Admission
 export default function (in: Input): Output {
     if (in.depth >= max_nesting_depth) {
         return {
+            left_operand: 0,
+            right_operand: 0,
+            left_members: [],
+            right_members: [],
             left: in.left,
             right: in.right,
             route: Route.Depth,
             action: Action.Adopt,
             source: in.left,
-            left_operand: in.left,
-            right_operand: in.right,
-            right_size: 0
+            right_names: []
         }
     }
 
@@ -43,13 +45,15 @@ export default function (in: Input): Output {
     const route = left == right ? Route.Same : Route.Ready
 
     return {
+        left_operand: 0,
+        right_operand: 0,
+        left_members: [],
+        right_members: [],
         left,
         right,
         route,
         action: Action.Adopt,
         source: left,
-        left_operand: left,
-        right_operand: right,
-        right_size: 0
+        right_names: []
     }
 }

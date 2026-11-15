@@ -9,6 +9,7 @@ const Scope = @import("scope.zig");
 const condition = @import("../condition.zig");
 const operators = @import("operators.zig");
 const composition = @import("expression/composition.zig");
+const Schedule = @import("expression/schedule.zig");
 const Self = @This();
 const path_buffer_size = 128;
 
@@ -34,16 +35,33 @@ fn inferValue(self: *Self, expression: anytype, expected: ?Graph.Id, comptime re
     const span = self.sourceSpan(expression.span);
     const reference = try self.resolveReference(expression, node, span, refine);
 
-    if (reference.value) |original| {
-        const binding = try self.refined(reference.refined, original, span);
+    if (reference.value != null) return self.evaluate(.BoundValue, expression, node, span, expected, reference);
 
-        try self.graph.requireValue(binding, span);
-        if (expected) |hint| try self.graph.expect(binding, hint, span);
+    return self.evaluate(.UnboundValue, expression, node, span, expected, reference);
+}
 
-        return expected orelse binding;
+inline fn evaluate(self: *Self, comptime form: Schedule.Form, expression: anytype, node: anytype, span: zx.Span, expected: ?Graph.Id, reference: Scope.Reference) zx.Error!Graph.Id {
+    var value: Graph.Id = undefined;
+    var hint: ?Graph.Id = null;
+
+    inline for (comptime Schedule.steps(form)) |step| {
+        switch (step) {
+            .Done => {},
+            .BoundValue => value = reference.value.?,
+            .TypeHint => hint = try self.payload(expected),
+            .InferValue => value = try self.inferNode(node, expression, span, expected, hint, reference.implicit_input),
+            .RefineValue => value = try self.refined(reference.refined, value, span),
+            .RequireValue => try self.graph.requireValue(value, span),
+            .ExpectResult => if (expected) |target| {
+                try self.graph.expect(value, target, span);
+
+                value = target;
+            },
+            else => unreachable,
+        }
     }
 
-    return self.inferUnbound(node, expression, span, expected, reference);
+    return value;
 }
 
 fn resolveReference(self: *Self, expression: anytype, node: anytype, span: zx.Span, comptime refine: bool) zx.Error!Scope.Reference {
@@ -63,18 +81,14 @@ fn resolveReference(self: *Self, expression: anytype, node: anytype, span: zx.Sp
     return Scope.read(self.graph, rows, facts, path.text, false, span);
 }
 
-fn inferUnbound(self: *Self, node: anytype, expression: anytype, span: zx.Span, expected: ?Graph.Id, resolved: Scope.Reference) zx.Error!Graph.Id {
-    const hint = try self.payload(expected);
-
-    const value = switch (node) {
+fn inferNode(self: *Self, node: anytype, expression: anytype, span: zx.Span, expected: ?Graph.Id, hint: ?Graph.Id, implicit_input: bool) zx.Error!Graph.Id {
+    return switch (node) {
         .identifier => block: {
-            if (resolved.implicit_input) {
-                self.input_used = true;
+            if (!implicit_input) return self.graph.reporter.fail(.name, span, "flow value is not defined in this scope");
 
-                break :block self.input;
-            }
+            self.input_used = true;
 
-            return self.graph.reporter.fail(.name, span, "flow value is not defined in this scope");
+            break :block self.input;
         },
         .field => |field| (try self.enumMember(field.target, field.name, span)) orelse try self.graph.field(try self.infer(field.target, null), field.name.text, span),
         .number => |text| try self.graph.number(text, false, span),
@@ -82,22 +96,16 @@ fn inferUnbound(self: *Self, node: anytype, expression: anytype, span: zx.Span, 
         .string => try self.graph.scalar(.string, span),
         .template => |parts| try composition.template(self, parts, span),
         .null_value => try self.graph.addContainers(null, .optional, 1, span),
-        .object => try @import("objects.zig").infer(self, expression, hint),
-        .list => try @import("sequences.zig").infer(self, expression, hint),
-        .index => try @import("index.zig").infer(self, expression),
+        .object => |fields| try @import("objects.zig").infer(self, fields, hint, span),
+        .list => |items| try @import("sequences.zig").infer(self, items, hint, span),
+        .index => |item| try @import("index.zig").infer(self, item, span),
         .unary => |unary| try operators.inferUnary(self, unary, span),
         .binary => |binary| try operators.inferBinary(self, binary, hint, span),
         .conditional => |branch| try operators.inferConditional(self, branch, expected, span),
         .match_expr => |selection| try composition.matching(self, selection, expected, span),
-        .call => try @import("selection.zig").infer(self, expression),
+        .call => |call| try @import("selection.zig").infer(self, expression, call, span),
         .pipeline, .lambda, .state_block, .capture, .task, .await_task, .cancel_task => return self.graph.reporter.fail(.unsupported, span, @import("../value_rules.zig").message),
     };
-
-    const narrowed = try self.refined(resolved.refined, value, span);
-
-    if (expected) |target| try self.graph.expect(narrowed, target, span);
-
-    return expected orelse narrowed;
 }
 
 pub fn payload(self: *Self, expected: ?Graph.Id) zx.Error!?Graph.Id {

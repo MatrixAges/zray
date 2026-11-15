@@ -6,7 +6,11 @@ export enum Form {
     Task,
     ParallelTask,
     Case,
-    Default
+    Default,
+    Parallel,
+    Selection,
+    Return,
+    ResultBinding
 }
 
 export enum Step {
@@ -32,7 +36,19 @@ export enum Step {
     InferCaseLabel,
     InferDefaultLabel,
     RefineSubject,
-    RestoreFacts
+    RestoreFacts,
+    InferBranches,
+    PublishParallel,
+    ParseSubject,
+    InferSubject,
+    InferCases,
+    InferReturn,
+    MarkReturned,
+    BindResultName,
+    RequestBindingType,
+    CheckBindingValue,
+    ValidateBindingPath,
+    PublishBinding
 }
 
 export type Input = Form

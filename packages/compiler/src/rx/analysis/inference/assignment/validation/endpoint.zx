@@ -1,0 +1,37 @@
+import integers from "std:integer"
+
+import representative from "../../forest/borrowed_root"
+import { Kind } from "../../unification/model"
+
+import type { U32Buffer } from "std:memory"
+import type { Graph } from "../../optional/model"
+
+export type Input = {
+    graph: Graph,
+    parents: U32Buffer,
+    value: u32
+}
+
+export type Output = {
+    node: u32,
+    known?: u32
+}
+
+export default function (in: Input): Output {
+    const node = representative({
+        parents: in.parents,
+        value: in.value
+    })
+
+    const index = integers.widen(node)
+
+    const known: u32? = match in.graph.kinds[index] {
+        Kind.Known => in.graph.arguments[index],
+        _ => null
+    }
+
+    return {
+        node,
+        known
+    }
+}

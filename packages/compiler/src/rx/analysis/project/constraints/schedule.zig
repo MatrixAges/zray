@@ -11,6 +11,10 @@ pub const Form = if (generated) entry.Input else enum {
     ParallelTask,
     Case,
     Default,
+    Parallel,
+    Selection,
+    Return,
+    ResultBinding,
 };
 
 const Step = if (generated) std.meta.Child(entry.Output) else enum {
@@ -37,6 +41,18 @@ const Step = if (generated) std.meta.Child(entry.Output) else enum {
     InferDefaultLabel,
     RefineSubject,
     RestoreFacts,
+    InferBranches,
+    PublishParallel,
+    ParseSubject,
+    InferSubject,
+    InferCases,
+    InferReturn,
+    MarkReturned,
+    BindResultName,
+    RequestBindingType,
+    CheckBindingValue,
+    ValidateBindingPath,
+    PublishBinding,
 };
 
 const capacity = 7;
@@ -62,5 +78,9 @@ fn seed(form: Form) []const Step {
         .ParallelTask => &.{ .EnterTask, .InferBody, .DefaultTaskOutput, .RequestTaskOutput, .RestoreReturn, .RestoreBindings, .PublishTask },
         .Case => &.{ .InferCaseLabel, .RefineSubject, .InferBody, .RestoreFacts, .RestoreBindings },
         .Default => &.{ .InferDefaultLabel, .RefineSubject, .InferBody, .RestoreFacts, .RestoreBindings },
+        .Parallel => &.{ .InferBranches, .PublishParallel },
+        .Selection => &.{ .ParseSubject, .InferSubject, .InferCases },
+        .Return => &.{ .InferReturn, .MarkReturned },
+        .ResultBinding => &.{ .BindResultName, .RequestBindingType, .CheckBindingValue, .ValidateBindingPath, .PublishBinding },
     };
 }

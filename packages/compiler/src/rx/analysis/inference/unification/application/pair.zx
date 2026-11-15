@@ -9,8 +9,8 @@ export type Output = PairOutput
 export default function (in: Input): Output {
     const position = in.position
     const action = in.action
-    const left = in.left
-    const right = in.right
+    const left = in.left_members
+    const right = in.right_members
     const positions = in.positions
 
     if (action == Action.Child || action == Action.KnownChild) {

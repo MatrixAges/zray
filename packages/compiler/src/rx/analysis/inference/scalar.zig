@@ -6,9 +6,9 @@ pub const Mask = std.enums.EnumSet(zx.ir.Scalar);
 pub const Domain = enum { numeric, signed, floating };
 pub const Shape = enum { open, scalar, concrete, structure };
 pub const Issue = enum { none, empty, operator, structure };
-pub const Route = enum { and_value, or_value, coalesce, compare, arithmetic };
+pub const Form = if (enabled) @import("generated_rx_operator_constraints").Input else @import("operators/seed.zig").Form;
 pub const Number = struct { allowed: Mask, fallback: zx.ir.Scalar };
-pub const Operator = struct { route: Route, allowed: ?Mask = null };
+pub const Operator = struct { form: Form, allowed: ?Mask = null, use_hint: bool = false };
 pub const Restriction = struct { allowed: Mask, issue: Issue };
 pub const Constraints = struct { allowed: ?Mask, fallback: ?zx.ir.Scalar };
 
@@ -38,10 +38,13 @@ pub fn literal(text: []const u8, negative: bool) Number {
     return .{ .allowed = fromBits(result.allowed), .fallback = @fromBackingInt(@intCast(result.fallback)) };
 }
 
-pub fn operator(value: zx.syntax.Operator) Operator {
+pub fn operator(comptime value: zx.syntax.Operator) Operator {
     if (!enabled) return seed.operator(value);
 
-    const result = call(@import("generated_rx_scalar_operator"), switch (value) {
+    const rule = @import("generated_rx_scalar_operator");
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    const result = rule.executeValue(empty.allocator(), switch (value) {
         .coalesce => .Coalesce,
         .add => .Add,
         .subtract => .Subtract,
@@ -56,17 +59,12 @@ pub fn operator(value: zx.syntax.Operator) Operator {
         .greater_equal => .GreaterEqual,
         .logical_and => .LogicalAnd,
         .logical_or => .LogicalOr,
-    });
+    }) catch unreachable;
 
     return .{
-        .route = switch (result.route) {
-            .And => .and_value,
-            .Or => .or_value,
-            .Coalesce => .coalesce,
-            .Compare => .compare,
-            .Arithmetic => .arithmetic,
-        },
+        .form = result.form,
         .allowed = if (result.allowed) |value_bits| fromBits(value_bits) else null,
+        .use_hint = result.use_hint,
     };
 }
 
