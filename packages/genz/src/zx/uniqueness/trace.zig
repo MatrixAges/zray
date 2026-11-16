@@ -29,9 +29,7 @@ pub fn deinit(self: *Self) void {
 fn Visits(comptime Result: type) type {
     return struct {
         starts: []const u32,
-        values: []Result,
-        states: []const []const u8,
-        const Value = Result;
+        entries: []Log(Result).Entry,
     };
 }
 
@@ -51,12 +49,12 @@ fn Log(comptime Value: type) type {
 }
 
 /// The results and states of body `index` for `kind`.
-pub fn of(self: *const Self, comptime kind: Kind, index: usize) struct { values: []Memo.Result(kind), states: []const []const u8 } {
+pub fn of(self: *const Self, comptime kind: Kind, index: usize) []Log(Memo.Result(kind)).Entry {
     const visits = @field(self, @tagName(kind));
     const start = visits.starts[index];
     const end = visits.starts[index + 1];
 
-    return .{ .values = visits.values[start..end], .states = visits.states[start..end] };
+    return visits.entries[start..end];
 }
 
 /// One analysis following the trace an earlier one left, and recording its own.
@@ -95,10 +93,10 @@ pub const Replay = struct {
         if (!self.control.following()) self.trace = null;
 
         const cursor = selected orelse return null;
+        const visit = visits.entries[cursor];
+        self.recalled = visit.state;
 
-        self.recalled = visits.states[cursor];
-
-        return visits.values[cursor];
+        return visit.value;
     }
     /// Records the result body `index` met, in the state `recall` or the last lookup in `memo` encoded; a changed
     /// body that met another result than recorded ends the replay.
@@ -117,7 +115,7 @@ pub const Replay = struct {
         if (!self.control.following()) self.trace = null;
 
         const cursor = selected orelse return;
-        const matched = try agree(kind, self.allocator, visits.values[cursor], value);
+        const matched = try agree(kind, self.allocator, visits.entries[cursor].value, value);
 
         try self.control.confirm(kind, index, matched);
 
@@ -126,10 +124,6 @@ pub const Replay = struct {
     /// The trace of this analysis, for the next one.
     pub fn finish(self: *Replay) std.mem.Allocator.Error!Self {
         const arena = &self.recording.?;
-        var scratch = std.heap.ArenaAllocator.init(arena.child_allocator);
-
-        defer scratch.deinit();
-
         const allocator = arena.allocator();
         const callees = try allocator.alloc([]const u32, self.callees.len);
 
@@ -140,9 +134,9 @@ pub const Replay = struct {
             .key = self.key,
             .identities = try allocator.dupe(Digest, self.identities),
             .callees = callees,
-            .settled = try group(Memo.Settled, allocator, &scratch, self.identities.len, self.settled),
-            .demanded = try group(Memo.Demanded, allocator, &scratch, self.identities.len, self.demanded),
-            .planned = try group(Memo.Planned, allocator, &scratch, self.identities.len, self.planned),
+            .settled = try group(Memo.Settled, allocator, self.identities.len, self.settled),
+            .demanded = try group(Memo.Demanded, allocator, self.identities.len, self.demanded),
+            .planned = try group(Memo.Planned, allocator, self.identities.len, self.planned),
         };
 
         result.arena = arena.*;
@@ -153,21 +147,14 @@ pub const Replay = struct {
 };
 
 /// Visits sorted by body, keeping their order within each body.
-fn group(comptime Value: type, allocator: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, bodies: usize, log: Log(Value)) std.mem.Allocator.Error!Visits(Value) {
-    _ = scratch.reset(.retain_capacity);
-
+fn group(comptime Value: type, allocator: std.mem.Allocator, bodies: usize, log: Log(Value)) std.mem.Allocator.Error!Visits(Value) {
+    const Entry = Log(Value).Entry;
     const starts = try allocator.alloc(u32, bodies + 1);
-    const index = try Group.build(scratch.allocator(), starts, log.owners.items);
-    const values = try allocator.alloc(Value, index.len);
-    const states = try allocator.alloc([]const u8, index.len);
+    const entries = try allocator.alloc(Entry, log.entries.items.len);
 
-    for (index, values, states) |row, *value, *state| {
-        const entry = log.entries.items[row];
-        value.* = entry.value;
-        state.* = entry.state;
-    }
+    try Group.build(Entry, starts, log.owners.items, log.entries.items, entries);
 
-    return .{ .starts = starts, .values = values, .states = states };
+    return .{ .starts = starts, .entries = entries };
 }
 
 /// Whether two results of `kind` have the same effect: growth copies are sets, whatever order they were listed in.

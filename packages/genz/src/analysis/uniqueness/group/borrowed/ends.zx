@@ -1,10 +1,9 @@
 import integers from "std:integer"
 import memory from "std:memory"
 
-import type { U32Buffer } from "std:memory"
-import type { Input } from "./model"
+import type { Count as Input } from "./model"
 
-export type Output = U32Buffer
+export type Output = void
 
 export default function (in: Input): Output {
     const { owners, first, count } = in
@@ -24,7 +23,7 @@ export default function (in: Input): Output {
 
     memory.writeU32(first, count, integers.narrow(visits))
 
-    return loop(first_end, {
+    const accumulated = loop(first_end, {
         while: index => index < count,
         next: index => {
             const total = memory.readU32(first, index - 1) +
@@ -32,7 +31,6 @@ export default function (in: Input): Output {
 
             memory.writeU32(first, index, total)
             index += 1
-        },
-        return: index => first
+        }
     })
 }

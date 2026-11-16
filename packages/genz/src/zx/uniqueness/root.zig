@@ -414,18 +414,16 @@ fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporar
         first = index + 1;
 
         inline for (.{ Memo.Kind.settled, Memo.Kind.demanded }) |kind| {
-            const visits = trace.of(kind, index);
-
-            for (visits.values, visits.states) |recorded, state| {
+            for (trace.of(kind, index)) |visit| {
                 _ = scratch.reset(.retain_capacity);
-                const value = try revisit(kind, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, state) orelse return undo(summaries, units, replay.changed);
+                const value = try revisit(kind, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, visit.state) orelse return undo(summaries, units, replay.changed);
 
-                if (!try Trace.agree(kind, scratch.allocator(), recorded, value)) return undo(summaries, units, replay.changed);
+                if (!try Trace.agree(kind, scratch.allocator(), visit.value, value)) return undo(summaries, units, replay.changed);
             }
         }
 
         _ = scratch.reset(.retain_capacity);
-        const value = try revisit(.planned, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, trace.of(.planned, index).states[0]) orelse return undo(summaries, units, replay.changed);
+        const value = try revisit(.planned, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, trace.of(.planned, index)[0].state) orelse return undo(summaries, units, replay.changed);
 
         try replacements.append(temporary, .{ .body = index, .value = value });
     }
@@ -443,7 +441,7 @@ fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporar
                 next += 1;
 
                 break :changed replacement;
-            } else trace.of(.planned, index).values[0];
+            } else trace.of(.planned, index)[0].value;
 
             break :plan try value.plan().copy(allocator);
         };
@@ -451,7 +449,7 @@ fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporar
         if (index < count) plans[index] = plan else entry_plan = plan;
     }
 
-    for (replacements.items) |replacement| trace.of(.planned, replacement.body).values[0] = replacement.value;
+    for (replacements.items) |replacement| trace.of(.planned, replacement.body)[0].value = replacement.value;
 
     @memcpy(trace.identities, replay.identities);
 

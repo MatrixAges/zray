@@ -1,29 +1,32 @@
 import integers from "std:integer"
 import memory from "std:memory"
 
-import type { Input } from "./model"
+import type { Arrange as Input } from "./model"
 
-export type Output = u32[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const { owners, first } = in
+    const { owners, first, width, source, target } = in
 
-    const items: u32[] = owners.map(owner => 0)[0]
+    const grouped = loop(owners.length, {
+        while: index => index != 0,
+        next: index => {
+            index -= 1
 
-    return loop({
-        items,
-        index: owners.length
-    }, {
-        while: state => state.index != 0,
-        next: state => {
-            state.index -= 1
-
-            const owner = integers.widen(owners[state.index])
+            const owner = integers.widen(owners[index])
             const position = memory.readU32(first, owner) - 1
+            const offset = index * width
+            const destination = integers.widen(position) * width
 
             memory.writeU32(first, owner, position)
-            state.items[integers.widen(position)] = integers.narrow(state.index)
-        },
-        return: state => state.items
+
+            const copied = memory.copyBytes(
+                target,
+                destination,
+                source,
+                offset,
+                offset + width
+            )
+        }
     })
 }

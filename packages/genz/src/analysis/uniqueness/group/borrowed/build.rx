@@ -1,17 +1,19 @@
 <Module>
     <Type from="model" as="Group" />
 
-    <Args in={Group.Input} out={u32[]} />
+    <Args in={Group.Input} out={void} />
 
-    <Call fn="ends" in={$in} />
+    <Call
+        fn="ends"
+        in={$in.pick([
+            "count",
+            "owners",
+            "first"
+        ])}
+    />
 
     <Call
         fn="arrange"
-        in={{
-            ...$in,
-            first: $ctx.ends
-        }}
+        in={$in.omit(["count"])}
     />
-
-    <Return value={$ctx.arrange} />
 </Module>
