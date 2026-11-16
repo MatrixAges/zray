@@ -404,6 +404,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/ir/compare/columns.zx", .name = "ir_compare_columns" },
     .{ .path = "zx/ir/compare/header.rx", .name = "ir_compare_header" },
     input_snapshot,
+    .{ .path = "inputs/snapshot/observed/reuse.rx", .name = "input_snapshot_observed", .owner = .compiler },
     .{ .path = "inputs/snapshot/resident.zx", .name = "input_resident_reuse", .owner = .compiler },
     .{ .path = "inputs/parsed/same.zx", .name = "input_parsed_same", .owner = .compiler },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .compiler },

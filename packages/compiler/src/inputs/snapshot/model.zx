@@ -16,14 +16,17 @@ export type Snapshot = {
     files: Files
 }
 
-export type Input = {
+export type Context = {
     context: string,
-    current: Files,
     previous: Snapshot,
-    now_high: i32,
-    now_low: u64,
     stored_checksum: string,
     actual_checksum: string
+}
+
+export type Input = Context & {
+    current: Files,
+    now_high: i32,
+    now_low: u64
 }
 
 export type Cursor = {

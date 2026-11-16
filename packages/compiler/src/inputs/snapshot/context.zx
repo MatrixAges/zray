@@ -1,6 +1,6 @@
 import { fingerprint_width } from "./const"
 
-import type { Input } from "./model"
+import type { Context as Input } from "./model"
 
 export type Output = bool
 

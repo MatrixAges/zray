@@ -3,7 +3,15 @@
 
     <Args in={Snapshot.Input} out={bool} />
 
-    <Call fn="context" in={$in} />
+    <Call
+        fn="context"
+        in={$in.pick([
+            "context",
+            "previous",
+            "stored_checksum",
+            "actual_checksum"
+        ])}
+    />
 
     <If on={!$ctx.context}>
         <Return value={false} />

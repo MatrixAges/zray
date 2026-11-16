@@ -9,6 +9,7 @@ export type StringListBuffer = opaque
 export type NamedRows = opaque
 export type NamedRowBuffer = opaque
 export type TextColumn = opaque
+export type ReadColumn = opaque
 export type WriteColumn = opaque
 
 export declare function borrowU8Range(
@@ -57,6 +58,16 @@ export declare function readTextColumn(
     source: TextColumn,
     index: u64
 ): string throws { IndexOutOfBounds }
+
+export declare function readColumnI32(
+    source: ReadColumn,
+    index: u64
+): i32 throws { IndexOutOfBounds }
+
+export declare function readColumnU64(
+    source: ReadColumn,
+    index: u64
+): u64 throws { IndexOutOfBounds }
 
 export declare function readRowName(
     source: NamedRows,

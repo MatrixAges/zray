@@ -1,10 +1,13 @@
 import bytes from "std:bytes"
+import memory from "std:memory"
+
+import type { TextColumn } from "std:memory"
 
 export type Input = {
     paths: string[],
     texts: string[],
-    incoming_paths: string[],
-    incoming_texts: string[]
+    incoming_paths: TextColumn,
+    incoming_texts: TextColumn
 }
 
 export type Output = bool
@@ -21,8 +24,10 @@ export default function (in: Input): Output {
             const at = state.position
             const path = bytes.fromText(paths[at])
             const text = bytes.fromText(texts[at])
-            const next_path = bytes.fromText(incoming_paths[at])
-            const next_text = bytes.fromText(incoming_texts[at])
+            const next_path =
+                bytes.fromText(memory.readTextColumn(incoming_paths, at))
+            const next_text =
+                bytes.fromText(memory.readTextColumn(incoming_texts, at))
 
             state.same =
                 bytes.equals(path, next_path) && bytes.equals(text, next_text)

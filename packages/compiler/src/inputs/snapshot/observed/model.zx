@@ -1,0 +1,29 @@
+import type { ReadColumn, TextColumn } from "std:memory"
+import type { Time } from "../age"
+import type { Context, Files } from "../model"
+
+export type Observations = {
+    paths: TextColumn,
+    inodes: ReadColumn,
+    sizes: ReadColumn,
+    mtime_high: ReadColumn,
+    mtime_low: ReadColumn,
+    ctime_high: ReadColumn,
+    ctime_low: ReadColumn,
+    count: u64
+}
+
+export type Input = Context & {
+    observed: Observations,
+    now: Time
+}
+
+export type Scan = {
+    observed: Observations,
+    previous: Files,
+    now: Time
+}
+
+export type Cursor = Scan & {
+    index: u64
+}

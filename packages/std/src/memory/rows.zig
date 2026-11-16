@@ -1,12 +1,14 @@
 const std = @import("std");
 pub const NamedId = struct { name: []const u8, id: u32 };
 
-pub const TextColumn = struct {
+pub const ReadColumn = struct {
     bytes: []const u8,
     count: usize,
     stride: usize,
     offset: usize,
 };
+
+pub const TextColumn = ReadColumn;
 
 pub inline fn borrow(comptime id: []const u8, items: anytype) if (@typeInfo(@TypeOf(items)).pointer.attrs.@"const") []const NamedId else []NamedId {
     const Item = std.meta.Child(@TypeOf(items));
@@ -35,21 +37,37 @@ pub inline fn readId(source: *const anyopaque, index: u64) error{IndexOutOfBound
 }
 
 pub inline fn borrowText(comptime field: []const u8, items: anytype) TextColumn {
+    return borrowColumn([]const u8, field, items);
+}
+
+pub inline fn borrowColumn(comptime T: type, comptime field: []const u8, items: anytype) ReadColumn {
     const Item = std.meta.Child(@TypeOf(items));
 
-    comptime if (@FieldType(Item, field) != []const u8) @compileError("A text column must borrow string descriptors");
+    comptime if (@FieldType(Item, field) != T) @compileError("Incompatible borrowed column field");
 
     return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf(Item), .offset = @offsetOf(Item, field) };
 }
 
 pub inline fn readText(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u8 {
-    const column: *const TextColumn = @ptrCast(@alignCast(source));
+    return readColumn([]const u8, source, index);
+}
+
+pub inline fn readColumnI32(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!i32 {
+    return readColumn(i32, source, index);
+}
+
+pub inline fn readColumnU64(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
+    return readColumn(u64, source, index);
+}
+
+inline fn readColumn(comptime T: type, source: *const anyopaque, index: u64) error{IndexOutOfBounds}!T {
+    const column: *const ReadColumn = @ptrCast(@alignCast(source));
 
     if (index >= column.count) return error.IndexOutOfBounds;
 
     const item = column.bytes.ptr + @as(usize, @intCast(index)) * column.stride + column.offset;
 
-    return @as(*align(1) const []const u8, @ptrCast(item)).*;
+    return @as(*align(1) const T, @ptrCast(item)).*;
 }
 
 pub inline fn write(target: *const anyopaque, index: u64, name: []const u8, id: u32) error{IndexOutOfBounds}!void {

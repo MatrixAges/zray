@@ -9,7 +9,7 @@ const name = "input-snapshots";
 const checksum_length = std.crypto.hash.Blake3.digest_length * 2;
 const maximum_snapshot_bytes = 8 << 20;
 const Root = struct { path: []const u8, entries: []const collection.Entry };
-const Fact = struct { path: []const u8, key: []const u8, metadata: Files.Metadata };
+const Fact = source.Observation;
 
 roots: []const Root,
 facts: []const Fact,
@@ -28,19 +28,27 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
 
         target.* = .{ .path = root.path, .entries = entries };
 
-        for (entries) |entry| try facts.append(allocator, .{ .path = try std.fs.path.resolve(allocator, &.{ root.path, entry.relative }), .key = entry.path, .metadata = entry.metadata.? });
+        for (entries) |entry| {
+            const path = try std.fs.path.resolve(allocator, &.{ root.path, entry.relative });
+
+            try facts.append(allocator, Fact.init(path, entry.path, entry.metadata.?));
+        }
     }
 
     for (project.interfaces) |interface| {
         const fact: Fact = found: {
             for (roots) |root| for (root.entries) |entry| {
-                if (entry.zx and std.mem.eql(u8, interface.path, entry.path)) break :found .{ .path = try std.fs.path.resolve(allocator, &.{ root.path, entry.relative }), .key = entry.path, .metadata = entry.metadata.? };
+                if (entry.zx and std.mem.eql(u8, interface.path, entry.path)) {
+                    const path = try std.fs.path.resolve(allocator, &.{ root.path, entry.relative });
+
+                    break :found Fact.init(path, entry.path, entry.metadata.?);
+                }
             };
 
             const path = try std.fs.path.resolve(allocator, &.{interface.path});
             const stat = std.Io.Dir.cwd().statFile(io, interface.path, .{}) catch return .{ .roots = roots, .facts = &.{}, .context = "", .path = "", .previous = null };
 
-            break :found .{ .path = path, .key = path, .metadata = Files.metadata(stat) };
+            break :found Fact.init(path, path, Files.metadata(stat));
         };
 
         try facts.append(allocator, fact);
@@ -87,10 +95,29 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
 
 pub fn current(self: Self, io: std.Io, allocator: std.mem.Allocator) !?[32]u8 {
     const previous = self.previous orelse return null;
-    const current_files = try columns(allocator, self.facts, null);
     const now = source.timestamp(std.Io.Timestamp.now(io, .real).nanoseconds);
 
-    if (!try source.reuse(allocator, .{ .context = self.context, .current = &current_files, .previous = previous, .now_high = now.high, .now_low = now.low, .stored_checksum = self.stored_checksum, .actual_checksum = self.actual_checksum })) return null;
+    if (comptime source.observed_reuse) {
+        if (!source.reuseObserved(self.facts, .{
+            .context = self.context,
+            .previous = previous,
+            .now = now,
+            .stored_checksum = self.stored_checksum,
+            .actual_checksum = self.actual_checksum,
+        })) return null;
+    } else {
+        const observed = try columns(allocator, self.facts, null);
+
+        if (!try source.reuse(allocator, .{
+            .context = self.context,
+            .current = &observed,
+            .previous = previous,
+            .now_high = now.high,
+            .now_low = now.low,
+            .stored_checksum = self.stored_checksum,
+            .actual_checksum = self.actual_checksum,
+        })) return null;
+    }
 
     var digest: [32]u8 = undefined;
 
@@ -137,13 +164,16 @@ fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Fil
 
     for (facts, 0..) |fact, index| {
         const version = if (files) |cache| cache.version(fact.key) else null;
-        const metadata = if (version) |value| value.metadata else fact.metadata;
+        const selected = if (version) |value| Fact.init(fact.path, fact.key, value.metadata) else fact;
 
-        @constCast(result.paths)[index] = fact.path;
-        @constCast(result.inodes)[index] = metadata.inode;
-        @constCast(result.sizes)[index] = metadata.size;
-        timestamp(&result, "mtime", index, metadata.mtime);
-        timestamp(&result, "ctime", index, metadata.ctime);
+        @constCast(result.paths)[index] = selected.path;
+        @constCast(result.inodes)[index] = selected.inode;
+        @constCast(result.sizes)[index] = selected.size;
+        @constCast(result.mtime_high)[index] = selected.mtime_high;
+        @constCast(result.mtime_low)[index] = selected.mtime_low;
+        @constCast(result.ctime_high)[index] = selected.ctime_high;
+        @constCast(result.ctime_low)[index] = selected.ctime_low;
+
         if (version) |value| timestamp(&result, "read", index, value.read);
     }
 

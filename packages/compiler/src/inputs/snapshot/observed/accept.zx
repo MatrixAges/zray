@@ -1,0 +1,55 @@
+import memory from "std:memory"
+
+import temporal from "../temporal"
+
+import type { Cursor as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { observed, previous, index, now } = in
+
+    const path = memory.readTextColumn(observed.paths, index)
+
+    if (path != previous.paths[index]) {
+        return false
+    }
+
+    const inode = memory.readColumnU64(observed.inodes, index)
+    const size = memory.readColumnU64(observed.sizes, index)
+    const modified_high = memory.readColumnI32(observed.mtime_high, index)
+    const modified_low = memory.readColumnU64(observed.mtime_low, index)
+    const changed_high = memory.readColumnI32(observed.ctime_high, index)
+    const changed_low = memory.readColumnU64(observed.ctime_low, index)
+    const previous_inode = previous.inodes[index]
+    const previous_size = previous.sizes[index]
+    const previous_mhi = previous.mtime_high[index]
+    const previous_mlo = previous.mtime_low[index]
+    const previous_chi = previous.ctime_high[index]
+    const previous_clo = previous.ctime_low[index]
+
+    const consistent = (
+        - inode == previous_inode
+        - and size == previous_size
+        - and modified_high == previous_mhi
+        - and modified_low == previous_mlo
+        - and changed_high == previous_chi
+        - and changed_low == previous_clo
+    )
+
+    if (!consistent) {
+        return false
+    }
+
+    return temporal({
+        changed: {
+            high: changed_high,
+            low: changed_low
+        },
+        read: {
+            high: previous.read_high[index],
+            low: previous.read_low[index]
+        },
+        now
+    })
+}
