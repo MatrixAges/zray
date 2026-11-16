@@ -2,6 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Function = @import("function.zig");
 const Level = @import("level.zig").Level;
+const Growth = @import("growth.zig");
 const Memo = @import("memo.zig");
 const Pool = @import("pool.zig");
 const Slots = @import("slots.zig");
@@ -28,8 +29,7 @@ settled: []Settled,
 demanded: []Demanded,
 planned: []Function.Plan,
 pub const Settled = struct { passed: []const Function.Contribution, output: []const Level, reads: []const Function.Read };
-
-pub const Demanded = struct { marks: []const Function.Mark, grew: bool, normalized: []const Memo.Normalized, renewed: []const Memo.Renewed, reads: []const Function.Read };
+pub const Demanded = struct { marks: []const Function.Mark, grew: bool, growth: Growth.Rows, reads: []const Function.Read };
 
 const State = enum(u32) {
     idle,
@@ -199,15 +199,15 @@ fn Task(comptime kind: Memo.Kind) type {
                 },
                 .demanded => {
                     // The growth copies a demand pass leaves are its own; the body's stay as they were until its visit.
-                    var normalized = try unit.normalized.cloneWithAllocator(scratch);
-                    var renewed = try unit.renewed.cloneWithAllocator(scratch);
-                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, .{ .normalized = &normalized, .renewed = &renewed }, &reads);
+                    const generated = @import("genz_options").generated_analysis;
+                    var growth = if (generated) unit.growth else try unit.growth.clone(scratch);
+                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, &growth, &reads);
                     var marked: std.ArrayList(Function.Mark) = .empty;
                     analysis.deferred = true;
 
-                    try analysis.demand(&changed, &marked);
+                    try analysis.demand(keep, &changed, &marked);
 
-                    return .{ .marks = try keep.dupe(Function.Mark, marked.items), .grew = analysis.grew, .normalized = try entries(Memo.Normalized, keep, &normalized), .renewed = try entries(Memo.Renewed, keep, &renewed), .reads = try keep.dupe(Function.Read, reads.items) };
+                    return .{ .marks = try keep.dupe(Function.Mark, marked.items), .grew = analysis.grew, .growth = if (generated) growth else try growth.capture(keep), .reads = try keep.dupe(Function.Read, reads.items) };
                 },
                 .planned => {
                     var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, null, null);
@@ -217,17 +217,4 @@ fn Task(comptime kind: Memo.Kind) type {
             }
         }
     };
-}
-
-fn entries(comptime Item: type, allocator: std.mem.Allocator, map: anytype) std.mem.Allocator.Error![]const Item {
-    const result = try allocator.alloc(Item, map.count());
-    var values = map.iterator();
-
-    for (result) |*target| {
-        const entry = values.next().?;
-
-        target.* = if (Item == Memo.Normalized) .{ .id = entry.key_ptr.*, .want = entry.value_ptr.* } else .{ .key = entry.key_ptr.*, .want = entry.value_ptr.* };
-    }
-
-    return result;
 }

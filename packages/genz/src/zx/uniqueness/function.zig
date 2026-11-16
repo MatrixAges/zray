@@ -1,6 +1,7 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const Level = @import("level.zig").Level;
+const Growth = @import("growth.zig");
 const Order = @import("order.zig");
 const Sites = @import("sites.zig");
 const Slots = @import("slots.zig");
@@ -20,8 +21,7 @@ pub const Unit = struct {
     output_type: ir.TypeId,
     input: []const Level,
     function: ?usize,
-    normalized: *std.AutoHashMap(ir.ExprId, Level),
-    renewed: *std.AutoHashMap(u64, Level),
+    growth: *Growth.Store,
     /// The reached calls and list updates in expression order, the only nodes the passes over a body act on.
     operations: []const ir.ExprId = &.{},
     /// Every expression row read once up front: the passes revisit each node once per list slot.
@@ -69,8 +69,7 @@ slots: Slots,
 summaries: *Summaries,
 input: []const Level,
 function: ?usize,
-normalized: *std.AutoHashMap(ir.ExprId, Level),
-renewed: *std.AutoHashMap(u64, Level),
+growth: *Growth.Store,
 operations: []const ir.ExprId,
 rows: []const ir.ExpressionRow,
 carried: std.AutoHashMapUnmanaged(ir.ExprId, []Level) = .empty,
@@ -94,7 +93,7 @@ evaluation: if (generated_analysis) ?Evaluator.State else void = if (generated_a
 pub fn initialize(allocator: std.mem.Allocator, functions: ir.FunctionTable, unit: Unit, order: *const Order, sites: *Sites, slots: Slots, summaries: *Summaries, reads: ?*std.ArrayList(Read)) std.mem.Allocator.Error!Self {
     const levels: []Known = if (generated_analysis) &.{} else try allocator.alloc(Known, sites.slot_first[sites.slot_first.len - 1] - sites.slot_first[unit.symbols.count()]);
 
-    return .{ .allocator = allocator, .functions = functions, .expressions = unit.expressions, .order = order, .sites = sites, .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .normalized = unit.normalized, .renewed = unit.renewed, .operations = unit.operations, .rows = unit.rows, .levels = levels, .reads = reads };
+    return .{ .allocator = allocator, .functions = functions, .expressions = unit.expressions, .order = order, .sites = sites, .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .growth = unit.growth, .operations = unit.operations, .rows = unit.rows, .levels = levels, .reads = reads };
 }
 
 pub fn close(self: *Self) std.mem.Allocator.Error!void {
@@ -246,7 +245,7 @@ fn meet(allocator: std.mem.Allocator, summaries: *Summaries, callee: u32, slot: 
 /// The level a loop slot starts with: its initial value's, or a fresh growth buffer where the loop renews the slot.
 fn entering(self: *Self, owner: ir.ExprId, initial: ir.ExprId, slot: u32) Level {
     const result = self.level(initial, slot);
-    const want = self.renewed.get(renewal(owner, slot)) orelse return result;
+    const want = self.growth.renewed.get(renewal(owner, slot)) orelse return result;
 
     return if (Level.lacks(result, want)) Level.materialized(result, want, true) else result;
 }
@@ -264,7 +263,7 @@ pub const Renewals = @import("renewals.zig").Records;
 /// The slots that start from a growth copy, by member path from the loop state or the renewed value.
 fn renewals(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error![]const Renewal {
     var result: std.ArrayList(Renewal) = .empty;
-    var entries = self.renewed.iterator();
+    var entries = self.growth.renewed.iterator();
 
     while (entries.next()) |entry| {
         if (!entry.value_ptr.unique) continue;
@@ -361,7 +360,7 @@ pub fn plan(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!P
 fn flags(self: *Self, values: []Flags) std.mem.Allocator.Error!void {
     @memset(values, .{});
 
-    var wanted = self.normalized.iterator();
+    var wanted = self.growth.normalized.iterator();
 
     while (wanted.next()) |entry| {
         const id = entry.key_ptr.*;
@@ -374,7 +373,7 @@ fn flags(self: *Self, values: []Flags) std.mem.Allocator.Error!void {
         values[@backingInt(id)].normalize = want.unique and Level.lacks(raw_level, want);
     }
 
-    var renewed = self.renewed.iterator();
+    var renewed = self.growth.renewed.iterator();
 
     while (renewed.next()) |entry| {
         if (entry.key_ptr.* & value_renewal == 0) continue;
@@ -458,7 +457,7 @@ fn level(self: *Self, id: ir.ExprId, slot: u32) Level {
 
 fn compute(self: *Self, id: ir.ExprId, slot: u32) Level {
     const result = self.raw(id, slot);
-    const want = (if (slot == 0) self.normalized.get(id) else null) orelse self.renewed.get(renewal(id, slot) | value_renewal) orelse return result;
+    const want = (if (slot == 0) self.growth.normalized.get(id) else null) orelse self.growth.renewed.get(renewal(id, slot) | value_renewal) orelse return result;
 
     if (!Level.lacks(result, want)) return result;
 
@@ -594,8 +593,8 @@ fn prefix(self: Self, operation: anytype) bool {
 /// where a plain or shared list enters, through inputs to the callers and through outputs to the callees. A loop's
 /// initial state, a plain input or an opaque producer then gets one growth copy there, so the updates that follow work
 /// in place instead of copying on every step. Lists the functions whose demand grew.
-pub fn demand(self: *Self, changed: *std.ArrayList(u64), marked: *std.ArrayList(Mark)) std.mem.Allocator.Error!void {
-    if (generated_analysis) return @import("function/demand.zig").analyze(self, changed, marked);
+pub fn demand(self: *Self, owner: std.mem.Allocator, changed: *std.ArrayList(u64), marked: *std.ArrayList(Mark)) std.mem.Allocator.Error!void {
+    if (generated_analysis) return @import("function/demand.zig").analyze(self, owner, changed, marked);
 
     self.changed = changed;
     self.marked = marked;
@@ -849,7 +848,7 @@ fn provide(self: *Self, id: ir.ExprId, slot: u32, leaf: ?ir.ExprId, wanted: Leve
     if (want.unique) want.unique = self.copyLinear(id, slot);
     if (want == Level.none) return;
 
-    const entry = try self.renewed.getOrPut(renewal(id, slot) | value_renewal);
+    const entry = try self.growth.renewed.getOrPut(renewal(id, slot) | value_renewal);
     const next = if (entry.found_existing) entry.value_ptr.join(want) else want;
 
     if (entry.found_existing and next == entry.value_ptr.*) return;
@@ -916,7 +915,7 @@ fn applyMark(allocator: std.mem.Allocator, summaries: *Summaries, value: Mark, c
 }
 
 fn renew(self: *Self, owner: ir.ExprId, slot: u32, want: Level) std.mem.Allocator.Error!void {
-    const entry = try self.renewed.getOrPut(renewal(owner, slot));
+    const entry = try self.growth.renewed.getOrPut(renewal(owner, slot));
     const next = if (entry.found_existing) entry.value_ptr.join(want) else want;
 
     if (entry.found_existing and next == entry.value_ptr.*) return;
@@ -932,7 +931,7 @@ fn normalize(self: *Self, leaf: ?ir.ExprId, wanted: Level) std.mem.Allocator.Err
     if (want.unique) want.unique = self.sites.linear(self.sites.nodeRoot(id), 0);
     if (want == Level.none) return;
 
-    const entry = try self.normalized.getOrPut(id);
+    const entry = try self.growth.normalized.getOrPut(id);
     const next = if (entry.found_existing) entry.value_ptr.join(want) else want;
 
     if (entry.found_existing and next == entry.value_ptr.*) return;

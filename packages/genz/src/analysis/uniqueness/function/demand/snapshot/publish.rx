@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Growth" />
+
+    <Args in={Growth.Input} out={void} />
+
+    <Call
+        fn="write"
+        in={{
+            rows: $in.normalized,
+            target: $in.normalized_target,
+            wide: false
+        }}
+    />
+
+    <Call
+        fn="write"
+        in={{
+            rows: $in.renewed,
+            target: $in.renewed_target,
+            wide: true
+        }}
+    />
+</Module>

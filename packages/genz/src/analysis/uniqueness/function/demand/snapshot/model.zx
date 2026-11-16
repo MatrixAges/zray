@@ -1,0 +1,20 @@
+import type { WriteColumn } from "std:memory"
+import type { Growth } from "../../levels/model"
+
+export type Columns = {
+    keys: WriteColumn,
+    wants: WriteColumn
+}
+
+export type Input = {
+    normalized: Growth[],
+    renewed: Growth[],
+    normalized_target: Columns,
+    renewed_target: Columns
+}
+
+export type Write = {
+    rows: Growth[],
+    target: Columns,
+    wide: bool
+}

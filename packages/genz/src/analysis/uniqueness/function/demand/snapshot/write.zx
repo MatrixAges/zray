@@ -1,0 +1,34 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import encode from "../../levels/encode"
+
+import type { Write as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows, target, wide } = in
+
+    const first: u64 = 0
+
+    const written = loop(first, {
+        while: index => index < rows.length,
+        next: index => {
+            const row = rows[index]
+
+            if (wide) {
+                memory.writeColumnU64(target.keys, index, row.key)
+            } else {
+                memory.writeColumnU32(
+                    target.keys,
+                    index,
+                    integers.narrow(row.key)
+                )
+            }
+
+            memory.writeColumnU8(target.wants, index, encode(row.value))
+            index += 1
+        }
+    })
+}

@@ -84,8 +84,8 @@ pub const Borrowed = struct {
 
         self.descriptor = .{
             .metadata = &self.metadata,
-            .normalized = try growth(function.allocator, function.normalized.*),
-            .renewed = try growth(function.allocator, function.renewed.*),
+            .normalized = try growth(function.allocator, function.growth.normalized),
+            .renewed = try growth(function.allocator, function.growth.renewed),
         };
 
         const descriptor: *const Descriptor = &self.descriptor;
@@ -94,20 +94,15 @@ pub const Borrowed = struct {
     }
 };
 
-fn growth(allocator: std.mem.Allocator, map: anytype) std.mem.Allocator.Error![]const *const Growth {
-    const rows = try allocator.alloc(Growth, map.count());
+fn growth(allocator: std.mem.Allocator, entries: anytype) std.mem.Allocator.Error![]const *const Growth {
+    const Item = std.meta.Elem(@TypeOf(entries));
+    const rows = try allocator.alloc(Growth, entries.len);
     const pointers = try allocator.alloc(*const Growth, rows.len);
-    var entries = map.iterator();
-    var index: usize = 0;
 
-    while (entries.next()) |entry| : (index += 1) {
-        const key = switch (@typeInfo(@TypeOf(entry.key_ptr.*))) {
-            .@"enum" => @backingInt(entry.key_ptr.*),
-            else => entry.key_ptr.*,
-        };
-
-        rows[index] = .{ .key = key, .value = @fromBackingInt(@as(u3, @bitCast(entry.value_ptr.*))) };
-        pointers[index] = &rows[index];
+    for (entries, rows, pointers) |entry, *row, *pointer| {
+        const key = if (comptime @hasField(Item, "id")) @backingInt(entry.id) else entry.key;
+        row.* = .{ .key = key, .value = @fromBackingInt(@as(u3, @bitCast(entry.want))) };
+        pointer.* = row;
     }
 
     return pointers;

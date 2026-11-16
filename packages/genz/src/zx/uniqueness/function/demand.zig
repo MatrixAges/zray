@@ -2,11 +2,12 @@ const std = @import("std");
 const zx = @import("zx");
 const Function = @import("../function.zig");
 const levels = @import("levels.zig");
+const snapshot = @import("growth_snapshot.zig");
 const generated = @import("generated_uniqueness_function_demand");
 const AbiInput = std.meta.Child(generated.Input);
 const Source = std.meta.Child(@FieldType(AbiInput, "source"));
 
-pub fn analyze(function: *Function, changed: *std.ArrayList(u64), marked: *std.ArrayList(Function.Mark)) std.mem.Allocator.Error!void {
+pub fn analyze(function: *Function, owner: std.mem.Allocator, changed: *std.ArrayList(u64), marked: *std.ArrayList(Function.Mark)) std.mem.Allocator.Error!void {
     const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
@@ -44,11 +45,10 @@ pub fn analyze(function: *Function, changed: *std.ArrayList(u64), marked: *std.A
 
     try levels.publish(function);
 
-    function.normalized.clearRetainingCapacity();
-    function.renewed.clearRetainingCapacity();
+    if (result.grew) {
+        function.growth.* = try snapshot.publish(owner, result.context.normalized, result.context.renewed);
+    }
 
-    for (result.context.normalized) |entry| try function.normalized.put(@fromBackingInt(@intCast(entry.key)), levels.level(entry.value));
-    for (result.context.renewed) |entry| try function.renewed.put(entry.key, levels.level(entry.value));
     for (result.marks) |entry| try marked.append(function.allocator, .{ .output = entry.output, .function = entry.function_index, .slot = entry.slot, .want = levels.level(entry.want) });
     for (result.changed) |index| try changed.append(function.allocator, index);
 }

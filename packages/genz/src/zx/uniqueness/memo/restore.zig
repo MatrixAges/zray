@@ -1,13 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
-const Level = @import("../level.zig").Level;
+const Growth = @import("../growth.zig");
 const Summaries = @import("../summaries.zig");
 const inspecting = @import("generated_uniqueness_memo_restore_inspect");
 const publishing = @import("generated_uniqueness_memo_restore_publish");
 const Input = std.meta.Child(inspecting.Input);
 const Publication = std.meta.Child(publishing.Input);
 
-pub fn apply(backing: std.mem.Allocator, source: []const u8, summaries: *Summaries, body: usize, callees: []const u32, demanded: bool, normalized: *std.AutoHashMap(zx.ir.ExprId, Level), renewed: *std.AutoHashMap(u64, Level)) std.mem.Allocator.Error!bool {
+pub fn apply(backing: std.mem.Allocator, owner: std.mem.Allocator, source: []const u8, summaries: *Summaries, body: usize, callees: []const u32, demanded: bool, growth: *Growth.Rows) std.mem.Allocator.Error!bool {
     var scratch = std.heap.ArenaAllocator.init(backing);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -31,8 +31,19 @@ pub fn apply(backing: std.mem.Allocator, source: []const u8, summaries: *Summari
         else => std.debug.panic("memo state inspection failed: {s}", .{@errorName(err)}),
     }) orelse return false;
 
-    try normalized.ensureTotalCapacity(@intCast(decoded.normalized.keys.len));
-    try renewed.ensureTotalCapacity(@intCast(decoded.renewed.keys.len));
+    const normalized = try owner.alloc(Growth.Normalized, decoded.normalized.keys.len);
+
+    errdefer owner.free(normalized);
+
+    const renewed = try owner.alloc(Growth.Renewed, decoded.renewed.keys.len);
+
+    for (normalized, decoded.normalized.keys, decoded.normalized.levels) |*entry, key, level| {
+        entry.* = .{ .id = @fromBackingInt(@intCast(key)), .want = @bitCast(@as(u3, @intCast(level))) };
+    }
+
+    for (renewed, decoded.renewed.keys, decoded.renewed.levels) |*entry, key, level| {
+        entry.* = .{ .key = key, .want = @bitCast(@as(u3, @intCast(level))) };
+    }
 
     const publication: Publication = .{
         .input = zx.columns.pointer(@FieldType(Publication, "input"), &input),
@@ -46,16 +57,7 @@ pub fn apply(backing: std.mem.Allocator, source: []const u8, summaries: *Summari
         std.debug.panic("validated memo state could not be published: {s}", .{@errorName(err)});
     };
 
-    replace(zx.ir.ExprId, normalized, decoded.normalized);
-    replace(u64, renewed, decoded.renewed);
+    growth.* = .{ .normalized = normalized, .renewed = renewed };
 
     return true;
-}
-
-fn replace(comptime Key: type, map: *std.AutoHashMap(Key, Level), entries: anytype) void {
-    map.clearRetainingCapacity();
-
-    for (entries.keys, entries.levels) |key, level| {
-        map.putAssumeCapacity(if (Key == u64) key else @fromBackingInt(@intCast(key)), @bitCast(@as(u3, @intCast(level))));
-    }
 }

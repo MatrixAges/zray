@@ -2,6 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Function = @import("function.zig");
 const Level = @import("level.zig").Level;
+const Growth = @import("growth.zig");
 const Summaries = @import("summaries.zig");
 const Hash = @import("zx").Sha256;
 const Self = @This();
@@ -15,8 +16,8 @@ const Encoding = @import("memo/encoding.zig");
 pub const Settled = struct { passed: []const Function.Contribution, output: []const Level, used: bool = true };
 /// A demand pass also reads the demands on its callees' inputs and its own output, and leaves its growth copies.
 pub const Demanded = struct { marks: []const Function.Mark, normalized: []const Normalized, renewed: []const Renewed, grew: bool, used: bool = true };
-pub const Normalized = struct { id: ir.ExprId, want: Level };
-pub const Renewed = struct { key: u64, want: Level };
+pub const Normalized = Growth.Normalized;
+pub const Renewed = Growth.Renewed;
 
 /// The plan of a body once every fact settled.
 pub const Planned = struct {
@@ -39,8 +40,7 @@ pub const State = struct {
     index: usize,
     input: []const Level,
     callees: []const u32,
-    normalized: *const std.AutoHashMap(ir.ExprId, Level),
-    renewed: *const std.AutoHashMap(u64, Level),
+    growth: *const Growth.Store,
 };
 
 pub const Digest = [32]u8;
@@ -157,26 +157,16 @@ pub fn getDemanded(self: *Self, summaries: *const Summaries, state: State) std.m
 }
 
 /// Records the demand pass of the state `getDemanded` digested into `key`, with the growth copies it left.
-pub fn putDemanded(self: *Self, key: Digest, marks: []const Function.Mark, state: State, grew: bool) std.mem.Allocator.Error!Demanded {
+pub fn putDemanded(self: *Self, key: Digest, marks: []const Function.Mark, records: *const Growth.Store, grew: bool) std.mem.Allocator.Error!Demanded {
     const allocator = self.arena.allocator();
-    const normalized = try allocator.alloc(Normalized, state.normalized.count());
-    const renewed = try allocator.alloc(Renewed, state.renewed.count());
-    var copies = state.normalized.iterator();
-    var renewals = state.renewed.iterator();
+    const growth = if (generated_encoding) records.* else try records.capture(allocator);
 
-    for (normalized) |*target| {
-        const entry = copies.next().?;
-
-        target.* = .{ .id = entry.key_ptr.*, .want = entry.value_ptr.* };
-    }
-
-    for (renewed) |*target| {
-        const entry = renewals.next().?;
-
-        target.* = .{ .key = entry.key_ptr.*, .want = entry.value_ptr.* };
-    }
-
-    const value = Demanded{ .marks = try allocator.dupe(Function.Mark, marks), .normalized = normalized, .renewed = renewed, .grew = grew };
+    const value = Demanded{
+        .marks = try allocator.dupe(Function.Mark, marks),
+        .normalized = growth.normalized,
+        .renewed = growth.renewed,
+        .grew = grew,
+    };
 
     self.changed = true;
 
@@ -230,17 +220,16 @@ fn use(comptime Value: type, map: *std.AutoHashMapUnmanaged(Digest, Value), key:
 
 fn encodeKey(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
     const allocator = self.arena.allocator();
-    const normalized = state.normalized.count();
-    const renewed = state.renewed.count();
+    const normalized = state.growth.normalized;
+    const renewed = state.growth.renewed;
 
-    try self.order.resize(allocator, @as(usize, normalized) + renewed);
+    try self.order.resize(allocator, normalized.len + renewed.len);
 
-    const split = self.order.items[0..normalized];
-    const tail = self.order.items[normalized..];
+    const split = self.order.items[0..normalized.len];
+    const tail = self.order.items[normalized.len..];
 
-    collect(ir.ExprId, state.normalized, split);
-    collect(u64, state.renewed, tail);
-
+    for (normalized, split) |entry, *row| row.* = .{ .key = @backingInt(entry.id), .level = entry.want };
+    for (renewed, tail) |entry, *row| row.* = .{ .key = entry.key, .level = entry.want };
     try self.encoding.key(allocator, kind, summaries, &state, split, tail);
 }
 
@@ -252,8 +241,8 @@ fn encodeSeed(self: *Self, comptime kind: Kind, summaries: *const Summaries, sta
     try self.levels(state.input);
     // The identity covers which functions the body calls and their signatures, so only their summaries follow.
     for (state.callees) |callee| try self.levels(summaries.output[callee]);
-    try self.entries(ir.ExprId, state.normalized);
-    try self.entries(u64, state.renewed);
+    try self.entries(ir.ExprId, &state.growth.normalized);
+    try self.entries(u64, &state.growth.renewed);
 
     if (kind == .demanded) {
         for (state.callees) |callee| try self.levels(summaries.inputs[callee]);
@@ -329,12 +318,12 @@ fn encodedBytes(self: *const Self) []const u8 {
 
 /// Writes a state `lastState` returned for a lookup of `kind` back into the summaries and growth copies of body `index`,
 /// so the body can be analyzed in it again; false when the bytes do not describe a state of this body.
-pub fn restore(comptime kind: Kind, backing: std.mem.Allocator, state: []const u8, summaries: *Summaries, index: usize, callees: []const u32, normalized: *std.AutoHashMap(ir.ExprId, Level), renewed: *std.AutoHashMap(u64, Level)) std.mem.Allocator.Error!bool {
-    if (generated_encoding) return @import("memo/restore.zig").apply(backing, state, summaries, index, callees, kind == .demanded, normalized, renewed);
+pub fn restore(comptime kind: Kind, backing: std.mem.Allocator, owner: std.mem.Allocator, state: []const u8, summaries: *Summaries, index: usize, callees: []const u32, growth: *Growth.Store) std.mem.Allocator.Error!bool {
+    if (generated_encoding) return @import("memo/restore.zig").apply(backing, owner, state, summaries, index, callees, kind == .demanded, growth);
 
     var reader: std.Io.Reader = .fixed(state);
 
-    return restoreFrom(kind, &reader, summaries, index, callees, normalized, renewed) catch |err| switch (err) {
+    return restoreFrom(kind, &reader, summaries, index, callees, &growth.normalized, &growth.renewed) catch |err| switch (err) {
         error.OutOfMemory => error.OutOfMemory,
         else => false,
     };
