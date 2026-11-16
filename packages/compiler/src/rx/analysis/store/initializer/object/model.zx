@@ -1,4 +1,4 @@
-import type { U8Buffer } from "zig:compiler_memory"
+import type { U8Buffer } from "memory"
 import type { Range } from "../../../program/linking/operands/range"
 import type { Input as Indices } from "../../layout/field_positions"
 

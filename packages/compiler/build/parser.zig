@@ -91,9 +91,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 .path = b.dependency("zxc_std", .{}).builder.root.joinString(b.allocator, "interfaces/string.d.zx") catch @panic("out of memory"),
                 .module = "zxc_string",
             }, .{
-                .specifier = "zig:compiler_memory",
-                .path = b.root.joinString(b.allocator, "build/interfaces/memory.d.zx") catch @panic("out of memory"),
-                .module = "zxc_compiler_memory",
+                .path = b.fmt("{s}/memory/index.d.zx", .{directories[2]}),
+                .module = "memory",
             } },
         };
 
@@ -107,7 +106,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
 
         run.addFileArg(manifest_path);
         run.addFileInput(b.dependency("zxc_std", .{}).path("interfaces/string.d.zx"));
-        run.addFileInput(b.path("build/interfaces/memory.d.zx"));
+        run.addFileInput(roots[2].path(b, "memory/index.d.zx"));
 
         switch (set) {
             .ordered => inline for (ordered_roots) |path| addSubtree(run, tracked[3], path),
@@ -235,7 +234,7 @@ pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Mod
 
 pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, source: Sources, strip: ?bool, partitions: u32) Shared {
     const abi = b.createModule(.{ .root_source_file = source.main.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
-    const memory = b.dependency("core", .{ .target = target, .optimize = optimize }).module("compiler_memory");
+    const memory = b.dependency("core", .{ .target = target, .optimize = optimize }).module("memory");
 
     const standard = b.createModule(.{
         .root_source_file = b.dependency("zxc_std", .{}).path("src/root.zig"),
@@ -258,7 +257,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
-            .{ .name = "zxc_compiler_memory", .module = memory },
+            .{ .name = "memory", .module = memory },
         },
     });
 
@@ -280,7 +279,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
-            .{ .name = "zxc_compiler_memory", .module = memory },
+            .{ .name = "memory", .module = memory },
             .{ .name = "zxc_bridge", .module = bridge },
             .{ .name = "zxc_signatures", .module = signatures },
         };
@@ -297,7 +296,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
                 .{ .name = "zxc_abi", .module = abi },
                 .{ .name = "zxc_standard", .module = standard },
                 .{ .name = "zxc_string", .module = string },
-                .{ .name = "zxc_compiler_memory", .module = memory },
+                .{ .name = "memory", .module = memory },
             },
         }));
 
@@ -314,7 +313,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = source.checks.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip }) },
             .{ .name = "zxc_standard", .module = standard },
-            .{ .name = "zxc_compiler_memory", .module = memory },
+            .{ .name = "memory", .module = memory },
         },
     });
 
@@ -328,7 +327,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .imports = &.{
             .{ .name = "zxc_abi", .module = ordered_abi },
             .{ .name = "zxc_string", .module = string },
-            .{ .name = "zxc_compiler_memory", .module = memory },
+            .{ .name = "memory", .module = memory },
         },
     });
 
@@ -343,7 +342,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_abi", .module = collections_abi },
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
-            .{ .name = "zxc_compiler_memory", .module = memory },
+            .{ .name = "memory", .module = memory },
         },
     });
 
@@ -358,7 +357,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_abi", .module = growth_abi },
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
-            .{ .name = "zxc_compiler_memory", .module = memory },
+            .{ .name = "memory", .module = memory },
         },
     });
 
@@ -441,12 +440,12 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     run.addArgs(&.{ level, b.fmt("-Mzxc_string={s}", .{b.dependency("zxc_std", .{}).builder.root.joinString(b.allocator, "src/string.zig") catch @panic("out of memory")}) });
     run.addArgs(stripped);
     run.addArg(level);
-    run.addPrefixedFileArg("-Mzxc_compiler_memory=", memory.path(b, "root.zig"));
+    run.addPrefixedFileArg("-Mmemory=", memory.path(b, "root.zig"));
     run.addArgs(stripped);
     run.addArgs(&.{ level, "--dep", "zxc_abi", "-Mzxc_signatures=%generated%/signatures.zig", level });
     run.addPrefixedFileArg("-Mzxc_bridge=", b.path("build/partition/bridge.zig"));
     run.addArgs(stripped);
-    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "zxc_compiler_memory", "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
+    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "memory", "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
     run.addArgs(&.{ "--name", if (llvm) "zxc_partition_%index%" else "zxc_partition_%index%_self_hosted", "-femit-bin=%objects%/zxc_partition_%index%.o" });
 
     // The object directory persists across runs, so unchanged partitions keep their objects.

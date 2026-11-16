@@ -41,6 +41,7 @@ pub const specifier = @import("specifier.zig");
 pub const Options = struct {
     source_index: ?*const source_index.Map = null,
     native_interfaces: []const NativeInterface = &.{},
+    internal_modules: []const NativeInterface = &.{},
     externals: []const External = &.{},
     packages: []const Package = &.{},
     package_scopes: []const PackageScope = &.{},
@@ -48,11 +49,19 @@ pub const Options = struct {
     entry: []const u8,
     root_dir: []const u8 = ".",
     context: Analysis.Context = .{},
+    pub fn internalModule(self: *const Options, name: []const u8) ?*const NativeInterface {
+        for (self.internal_modules) |*entry| {
+            if (zx.bytes.equal(entry.module, name)) return entry;
+        }
+
+        return null;
+    }
+
     pub fn jsonStringify(self: Options, writer: anytype) !void {
         try writer.beginObject();
 
         inline for (@typeInfo(Options).@"struct".field_names) |name| {
-            if (comptime !std.mem.eql(u8, name, "source_index")) {
+            if (comptime !std.mem.eql(u8, name, "source_index") and !std.mem.eql(u8, name, "internal_modules")) {
                 try writer.objectField(name);
                 try writer.write(@field(self, name));
             }
@@ -275,6 +284,15 @@ const Project = struct {
                         continue;
                     },
                     .File, .Package => {
+                        if (route == .Package) {
+                            if (self.options.internalModule(item.path)) |entry| {
+                                try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
+                                if (phase == .body) try self.rememberImport(frame, item, .native, entry.key());
+
+                                continue;
+                            }
+                        }
+
                         const scratch = path_memory.allocator();
                         const scope = Target.Scope.init(self.options.package_scopes, unit.path);
 

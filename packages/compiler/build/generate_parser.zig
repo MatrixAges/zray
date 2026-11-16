@@ -89,9 +89,17 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     for (modules.items) |*module| module.packages = packages;
 
     const interfaces = try owned.alloc(compiler.project.NativeInterface, project.interfaces.len);
+    var external_count: usize = 0;
+
+    for (project.interfaces) |interface| {
+        if (interface.specifier != null) external_count += 1;
+    }
+
+    var external_index: usize = 0;
+    var internal_index = external_count;
     var interface_error: ?anyerror = null;
 
-    for (project.interfaces, interfaces) |interface, *target| {
+    for (project.interfaces) |interface| {
         const source = if (compiler.source_inputs.interfaceRow("path", sources.items, interface.path, true)) |row|
             sources.items[row].source
 
@@ -102,12 +110,25 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
                 break :unread "";
             };
 
-        target.* = .{
-            .specifier = try resident.retainText(owned, interface.specifier),
+        const specifier = if (interface.specifier) |name|
+            name
+        else
+            try std.fmt.allocPrint(allocator, "zig:{s}", .{interface.module});
+
+        const binding: compiler.project.NativeInterface = .{
+            .specifier = try resident.retainText(owned, specifier),
             .path = try resident.retainText(owned, interface.path),
             .source = source,
             .module = try resident.retainText(owned, interface.module),
         };
+
+        if (interface.specifier != null) {
+            interfaces[external_index] = binding;
+            external_index += 1;
+        } else {
+            interfaces[internal_index] = binding;
+            internal_index += 1;
+        }
     }
 
     const rx_digests = try allocator.alloc(analysis.project.ModuleDigest, modules.items.len);
@@ -164,7 +185,8 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     const summary = try @import("shared_generation.zig").run(io, allocator, owned, resident, project.entries, .{
         .modules = inputs,
         .sources = prepared_sources,
-        .interfaces = interfaces,
+        .interfaces = interfaces[0..external_count],
+        .internal_modules = interfaces[external_count..],
         .packages = packages,
         .frame = frame,
         .shape = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces, false),

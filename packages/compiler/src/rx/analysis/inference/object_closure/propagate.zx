@@ -1,5 +1,5 @@
-import memory from "zig:compiler_memory"
 import { max_nesting_depth } from "core/const"
+import memory from "memory"
 
 import type { Initial, Request } from "./model"
 

@@ -1,6 +1,6 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
-import type { StringBuffer, TextColumn } from "zig:compiler_memory"
+import type { StringBuffer, TextColumn } from "memory"
 
 export type Input = {
     modules: TextColumn,

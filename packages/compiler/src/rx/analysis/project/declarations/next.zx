@@ -1,4 +1,4 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { arguments_tag, field_tag, store_tag, type_tag } from "./const"
 import { Kind } from "./model"

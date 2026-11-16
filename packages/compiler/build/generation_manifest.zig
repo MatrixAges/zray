@@ -1,6 +1,7 @@
 pub const Root = struct { path: []const u8, prefix: []const u8 = "" };
 pub const Package = struct { specifier: []const u8, entry: []const u8 };
-pub const Interface = struct { specifier: []const u8, path: []const u8, module: []const u8 };
+// An interface without a specifier is visible only by its module name inside the bootstrap project.
+pub const Interface = struct { specifier: ?[]const u8 = null, path: []const u8, module: []const u8 };
 
 pub const Project = struct {
     roots: []const Root,

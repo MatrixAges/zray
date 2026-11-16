@@ -1,6 +1,6 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
-import type { U64Buffer } from "zig:compiler_memory"
+import type { U64Buffer } from "memory"
 import type { ExprTree } from "../../../../zx/frontend/parser/expressions/state/model"
 
 export enum Kind {

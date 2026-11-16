@@ -1,12 +1,12 @@
 import integers from "std:integer"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { Tag } from "../../schema/execution/model"
 import { if_has_else, task_has_output } from "./const"
 import layout from "./layout"
 import place from "./place"
 
-import type { U32Buffer } from "zig:compiler_memory"
+import type { U32Buffer } from "memory"
 import type { Input as Geometry } from "./layout"
 
 export type Columns = {

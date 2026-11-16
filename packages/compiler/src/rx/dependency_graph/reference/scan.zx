@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
 import integers from "std:integer"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { Tag } from "../../schema/execution/model"
 import classify from "../../schema/execution/tag"
@@ -13,7 +13,7 @@ import taskExit from "../flow/task_exit"
 import unit from "../flow/unit"
 import select from "./select"
 
-import type { U32Buffer, U64Buffer } from "zig:compiler_memory"
+import type { U32Buffer, U64Buffer } from "memory"
 import type { Attribute, Node } from "../../syntax/document/model"
 import type { Reference } from "./model"
 

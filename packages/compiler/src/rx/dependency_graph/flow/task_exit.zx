@@ -1,10 +1,10 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import matches from "../reference/name"
 import { check_task_event, task_tag } from "./const"
 import taskOutput from "./layout/task"
 
-import type { U32Buffer, U64Buffer } from "zig:compiler_memory"
+import type { U32Buffer, U64Buffer } from "memory"
 import type { Attribute, Node } from "../../syntax/document/model"
 
 export type Input = {

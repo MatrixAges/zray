@@ -1,9 +1,9 @@
 import integers from "std:integer"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import publish from "../unification/commit/publish_shape"
 
-import type { U32Buffer } from "zig:compiler_memory"
+import type { U32Buffer } from "memory"
 import type { Columns } from "../unification/commit/model"
 
 export type Input = {

@@ -1,9 +1,9 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import bindNames from "./bind_names"
 
-import type { StringBuffer, U64Buffer } from "zig:compiler_memory"
 import type { Bindings } from "core/type_table/nominal"
+import type { StringBuffer, U64Buffer } from "memory"
 
 export type Input = {
     source: Bindings,

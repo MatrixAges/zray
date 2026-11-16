@@ -1,4 +1,4 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import {
     argument_attribute,
@@ -7,7 +7,7 @@ import {
     setter_attribute
 } from "./const"
 
-import type { TextColumn } from "zig:compiler_memory"
+import type { TextColumn } from "memory"
 
 export type Slots = {
     argument?: u64,

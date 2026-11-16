@@ -1,4 +1,4 @@
-import type { ReadColumn, TextColumn } from "zig:compiler_memory"
+import type { ReadColumn, TextColumn } from "memory"
 import type { Time } from "../age"
 import type { Context, Files } from "../model"
 

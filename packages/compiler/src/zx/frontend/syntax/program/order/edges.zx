@@ -1,8 +1,8 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { Chain } from "./model"
 
-import type { U64Buffer } from "zig:compiler_memory"
+import type { U64Buffer } from "memory"
 import type { Trees } from "./model"
 
 export type Input = {

@@ -1,4 +1,4 @@
-import type { WriteColumn } from "zig:compiler_memory"
+import type { WriteColumn } from "memory"
 import type { Planned } from "../../../replay/ordered/model"
 import type { Demanded, Settled } from "../model"
 import type { Input as Cursor } from "../rows/model"

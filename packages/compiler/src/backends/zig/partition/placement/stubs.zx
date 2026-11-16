@@ -1,6 +1,6 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import type { Scope } from "../demand/model"
 import type { State } from "./model"

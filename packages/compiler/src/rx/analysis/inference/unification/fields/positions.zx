@@ -1,6 +1,6 @@
 import bytes from "std:bytes"
-import memory from "zig:compiler_memory"
 import fixed from "core/bytes/index/fixed"
+import memory from "memory"
 
 import find from "../find_field"
 

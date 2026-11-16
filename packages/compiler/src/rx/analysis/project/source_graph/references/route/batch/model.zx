@@ -3,7 +3,7 @@ import type {
     ReadColumn,
     U64Buffer,
     U8Buffer
-} from "zig:compiler_memory"
+} from "memory"
 import type { Input as Route } from "../model"
 
 export type References = {

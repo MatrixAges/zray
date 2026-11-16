@@ -1,9 +1,9 @@
 import strings from "std:string"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import remap from "../remapping/id"
 
-import type { NamedRowBuffer, U64Buffer } from "zig:compiler_memory"
+import type { NamedRowBuffer, U64Buffer } from "memory"
 import type { Rows } from "../../../ir/canonical/validation/names/model"
 import type { Mapping } from "../remapping/model"
 

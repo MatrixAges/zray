@@ -1,5 +1,5 @@
 import encoding from "std:encoding"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import classify from "../../../../../zx/modules/project/target/classify.rx"
 import { Route } from "../../../../../zx/modules/project/target/model"
@@ -12,7 +12,7 @@ import {
     route_package
 } from "./const"
 
-import type { U8Buffer, U64Buffer } from "zig:compiler_memory"
+import type { U8Buffer, U64Buffer } from "memory"
 import type { Import } from "../../../../../zx/frontend/parser/imports/model"
 import type { Rows } from "../../../../../zx/modules/project/target/select"
 

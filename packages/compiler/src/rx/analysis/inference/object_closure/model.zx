@@ -1,4 +1,4 @@
-import type { U8Buffer, U64Buffer } from "zig:compiler_memory"
+import type { U8Buffer, U64Buffer } from "memory"
 
 export type Input = {
     known: bool[],

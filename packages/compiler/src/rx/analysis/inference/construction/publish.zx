@@ -1,13 +1,13 @@
-import memory from "zig:compiler_memory"
 import strings from "zig:string"
+import memory from "memory"
 
+import type { StringSet } from "zig:string"
 import type {
     StringListBuffer,
     U8Buffer,
     U32ListBuffer,
     U64Buffer
-} from "zig:compiler_memory"
-import type { StringSet } from "zig:string"
+} from "memory"
 
 export type Columns = {
     fields: StringListBuffer,

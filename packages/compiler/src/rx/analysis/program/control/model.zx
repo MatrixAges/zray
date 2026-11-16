@@ -1,4 +1,4 @@
-import type { U32Buffer } from "zig:compiler_memory"
+import type { U32Buffer } from "memory"
 
 export enum Kind {
     Call,

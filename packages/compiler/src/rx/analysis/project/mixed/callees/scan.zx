@@ -1,4 +1,4 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import lookup from "./lookup"
 import { Action } from "./model"

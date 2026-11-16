@@ -1,4 +1,4 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import type { Modules } from "core/native_module_table/model"
 import type { Rows } from "../../../../ir/canonical/validation/names/model"

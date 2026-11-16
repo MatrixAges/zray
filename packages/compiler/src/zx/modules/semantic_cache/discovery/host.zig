@@ -36,6 +36,12 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
             }
         }
 
+        if (project.internal_modules.len != 0) {
+            for (batch) |name| {
+                if (project.internalModule(name)) |entry| try callback.loadNative(entry.key());
+            }
+        }
+
         offset += size;
     }
 }

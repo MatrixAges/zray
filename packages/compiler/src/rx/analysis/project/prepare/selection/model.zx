@@ -1,4 +1,4 @@
-import type { U8Buffer, U32Buffer } from "zig:compiler_memory"
+import type { U8Buffer, U32Buffer } from "memory"
 
 export type Units = {
     firsts: u32[],

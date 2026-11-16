@@ -60,7 +60,7 @@ pub fn generated(b: *std.Build, source: std.Build.LazyPath, target: std.Build.Re
             .{ .name = "zxc_abi", .module = abi },
             .{ .name = "zxc_standard", .module = natives.standard },
             .{ .name = "zxc_string", .module = natives.string },
-            .{ .name = "zxc_compiler_memory", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("compiler_memory") },
+            .{ .name = "memory", .module = b.dependency("core", .{ .target = target, .optimize = optimize }).module("memory") },
         },
     });
 }

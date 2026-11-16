@@ -5,7 +5,7 @@ import type {
     U32Buffer,
     U64Buffer,
     U8Buffer
-} from "zig:compiler_memory"
+} from "memory"
 
 export type Exports = {
     count: u64,

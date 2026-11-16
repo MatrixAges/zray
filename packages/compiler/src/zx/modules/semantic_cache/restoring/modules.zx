@@ -1,11 +1,11 @@
 import integers from "std:integer"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import lookup from "../../link/native/lookup"
 import { Status } from "../../link/native/model"
 
-import type { OptionalU32Buffer } from "zig:compiler_memory"
 import type { Modules } from "core/native_module_table/model"
+import type { OptionalU32Buffer } from "memory"
 
 export type Input = {
     previous: Modules,

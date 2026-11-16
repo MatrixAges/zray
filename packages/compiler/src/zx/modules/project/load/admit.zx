@@ -1,4 +1,4 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { done, max_dependency_depth, visiting } from "./const"
 import { Admission } from "./model"

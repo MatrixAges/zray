@@ -1,4 +1,4 @@
-import type { U8Buffer } from "zig:compiler_memory"
+import type { U8Buffer } from "memory"
 import type { Input as Columns } from "../literals/model"
 
 export type Ownership = {

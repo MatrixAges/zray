@@ -1,8 +1,8 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import objectName from "./object_name"
 
-import type { StringBuffer, TextColumn, U32Buffer } from "zig:compiler_memory"
+import type { StringBuffer, TextColumn, U32Buffer } from "memory"
 
 export type Objects = {
     names: TextColumn,

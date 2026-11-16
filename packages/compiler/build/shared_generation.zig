@@ -8,6 +8,7 @@ const Inputs = struct {
     modules: []const @import("rx").ModuleSource,
     sources: []const compiler.project.Source,
     interfaces: []const compiler.project.NativeInterface,
+    internal_modules: []const compiler.project.NativeInterface,
     packages: []const compiler.project.Package,
     /// Identifies every input besides the ZX sources.
     frame: [32]u8,
@@ -28,7 +29,13 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, r
         exported.* = .{ .name = entry.name, .path = entry.path };
     }
 
-    const project = compiler.project.Options{ .entry = "", .native_interfaces = inputs.interfaces, .packages = inputs.packages };
+    const project = compiler.project.Options{
+        .entry = "",
+        .native_interfaces = inputs.interfaces,
+        .internal_modules = inputs.internal_modules,
+        .packages = inputs.packages,
+    };
+
     const parse_cache = &resident.parse_cache;
     const history = resident.startAnalysis(inputs.frame, inputs.shape, inputs.rx_digests);
 

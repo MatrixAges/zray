@@ -1,4 +1,4 @@
-import type { TextColumn, U64Buffer } from "zig:compiler_memory"
+import type { TextColumn, U64Buffer } from "memory"
 import type { Input as Forward } from "../forward"
 
 export type Signatures = {

@@ -1,4 +1,4 @@
-import type { ReadColumn, U64Buffer } from "zig:compiler_memory"
+import type { ReadColumn, U64Buffer } from "memory"
 
 export type Input = {
     count: u64,

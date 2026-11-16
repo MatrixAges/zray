@@ -1,9 +1,9 @@
-import memory from "zig:compiler_memory"
 import { Kind } from "core/type_table/model"
+import memory from "memory"
 
 import kind from "../types/kind"
 
-import type { U32Buffer } from "zig:compiler_memory"
+import type { U32Buffer } from "memory"
 
 export type Input = {
     kinds: u8[],

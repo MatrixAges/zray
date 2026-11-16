@@ -1,6 +1,6 @@
 import sort from "./sort"
 
-import type { U64Buffer } from "zig:compiler_memory"
+import type { U64Buffer } from "memory"
 
 export type Input = {
     order: u64[],

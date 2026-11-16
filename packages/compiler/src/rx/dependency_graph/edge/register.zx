@@ -1,4 +1,4 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { issue_invalid_path, issue_missing, issue_none } from "../const"
 import { Issue } from "../model"
@@ -9,7 +9,7 @@ import type {
     ReadColumn,
     U64Buffer,
     U8Buffer
-} from "zig:compiler_memory"
+} from "memory"
 import type { Input as Edge } from "./model"
 
 export type Indexed = {

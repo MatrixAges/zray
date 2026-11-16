@@ -171,12 +171,13 @@ pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, rol
 pub fn importPlanned(self: *Self, reference: []const u8, location: rx.ast.Location, role: model.Reference, route: project.ImportRoute, known: ?project.PackageMatch) Error!void {
     switch (route) {
         .Invalid => return self.fail(location, "invalid or unknown import specifier"),
-        .Intrinsic, .Interface => {
-            try self.edges.append(self.allocator, .{ .target = .{ .native = try self.allocator.dupe(u8, reference) }, .location = location, .reference = role });
-
-            return;
+        .Intrinsic, .Interface => return self.nativeImport(reference, location, role),
+        .Package => {
+            if (self.options.internalModule(reference)) |entry| {
+                return self.nativeImport(entry.key(), location, role);
+            }
         },
-        .File, .Package => {},
+        .File => {},
     }
 
     var reporter: zx.Reporter = .{};
@@ -200,4 +201,8 @@ pub fn importPlanned(self: *Self, reference: []const u8, location: rx.ast.Locati
             try self.edges.append(self.allocator, .{ .target = .{ .compiled = compiled }, .location = location, .reference = role });
         },
     }
+}
+
+fn nativeImport(self: *Self, name: []const u8, location: rx.ast.Location, role: model.Reference) Error!void {
+    try self.edges.append(self.allocator, .{ .target = .{ .native = try self.allocator.dupe(u8, name) }, .location = location, .reference = role });
 }

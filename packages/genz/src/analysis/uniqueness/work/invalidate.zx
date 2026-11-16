@@ -1,9 +1,9 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { dirty_flag } from "./const"
 import push from "./push"
 
-import type { U8Buffer } from "zig:compiler_memory"
+import type { U8Buffer } from "memory"
 import type { Push, State } from "./model"
 
 export type Input = Push & {

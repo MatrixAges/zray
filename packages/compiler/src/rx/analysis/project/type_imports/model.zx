@@ -3,7 +3,7 @@ import type {
     NamedRows,
     StringBuffer,
     U32Buffer
-} from "zig:compiler_memory"
+} from "memory"
 
 export type Qualified = {
     alias: string,

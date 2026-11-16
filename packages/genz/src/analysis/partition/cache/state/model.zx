@@ -1,5 +1,5 @@
 import type { Writer } from "std:bytes"
-import type { U8Buffer } from "zig:compiler_memory"
+import type { U8Buffer } from "memory"
 
 export type Lookup = {
     previous: u8[],

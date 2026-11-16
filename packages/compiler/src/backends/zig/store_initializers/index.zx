@@ -1,5 +1,5 @@
-import memory from "zig:compiler_memory"
 import exchange from "core/bytes/index/column"
+import memory from "memory"
 
 import type { Initializers as Input } from "./model"
 

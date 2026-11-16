@@ -1,5 +1,5 @@
-import type { U8Buffer, U32Buffer } from "zig:compiler_memory"
 import type { ExpressionKind } from "core/expression_table/kinds"
+import type { U8Buffer, U32Buffer } from "memory"
 
 export type LiteralBases = {
     integers: u64,

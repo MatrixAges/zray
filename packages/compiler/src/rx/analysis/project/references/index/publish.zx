@@ -1,5 +1,5 @@
-import memory from "zig:compiler_memory"
 import { max_u64 } from "core/const"
+import memory from "memory"
 
 import forward from "../forward"
 

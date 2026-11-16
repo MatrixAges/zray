@@ -1,4 +1,4 @@
-import type { NamedRows } from "zig:compiler_memory"
+import type { NamedRows } from "memory"
 
 export type Rows = {
     rows: NamedRows,

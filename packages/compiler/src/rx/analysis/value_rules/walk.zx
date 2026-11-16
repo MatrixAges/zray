@@ -1,4 +1,4 @@
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
 import admit from "./admit"

@@ -1,16 +1,16 @@
 import strings from "std:string"
-import memory from "zig:compiler_memory"
+import memory from "memory"
 
 import copyNames from "../copy_names"
 import copyOptionalName from "../copy_optional_name"
 
+import type { Modules } from "core/native_module_table/model"
 import type {
     OptionalStringBuffer,
     StringBuffer,
     StringListBuffer,
     U32ListBuffer
-} from "zig:compiler_memory"
-import type { Modules } from "core/native_module_table/model"
+} from "memory"
 
 export type Destination = {
     identities: OptionalStringBuffer,

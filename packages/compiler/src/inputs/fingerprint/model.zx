@@ -1,5 +1,5 @@
 import type { Writer } from "std:bytes"
-import type { TextColumn } from "zig:compiler_memory"
+import type { TextColumn } from "memory"
 
 export type Records = {
     paths: TextColumn,

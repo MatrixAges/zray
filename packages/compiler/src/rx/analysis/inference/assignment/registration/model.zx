@@ -1,5 +1,5 @@
-import type { U8Buffer, U32Buffer, U64Buffer } from "zig:compiler_memory"
 import type { State as KnownTypes } from "core/integer/map/model"
+import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
 
 export type Endpoints = {
     parents: U32Buffer,

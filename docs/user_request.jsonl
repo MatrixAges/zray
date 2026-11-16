@@ -489,3 +489,5 @@
 {"time": "2026-11-15", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "20000那个规则移除掉"}
 {"time": "2026-11-16", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "我希望的是 用户不需要关注如何借用 只需要用就行了 编译器自行处理借用"}
 {"time": "2026-11-16", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "从std memory中移除它，不要放入标准库，按我说的方式实现编译器处理借用"}
+{"time": "2026-11-16", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "compiler memory不应该是一个内部模块吗 有必要注册成zig：吗，直接作为内部memory代码用不行吗"}
+{"time": "2026-11-16", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "就叫memory 无需compiler_开头"}

@@ -1,5 +1,5 @@
-import type { U8Buffer, U32Buffer } from "zig:compiler_memory"
 import type { Stores } from "core/store_table/model"
+import type { U8Buffer, U32Buffer } from "memory"
 
 export type Slots = Stores.Omit("handles")
 

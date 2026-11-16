@@ -1,5 +1,5 @@
-import memory from "zig:compiler_memory"
 import key from "core/native_module_table/key"
+import memory from "memory"
 
 import locate from "../../loading/selection/locate"
 import standard from "../standard"

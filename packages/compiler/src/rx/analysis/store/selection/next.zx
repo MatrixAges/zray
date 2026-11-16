@@ -1,6 +1,6 @@
 import integers from "std:integer"
-import memory from "zig:compiler_memory"
 import find from "core/store_table/find"
+import memory from "memory"
 
 import { Choice } from "./model"
 import publicMembers from "./public_members"

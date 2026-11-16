@@ -1,5 +1,5 @@
-import type { U8Buffer, U32Buffer, U64Buffer } from "zig:compiler_memory"
 import type { Tables } from "core/type_table/model"
+import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
 import type {
     Publication as TypePublication
 } from "../../../../zx/analysis/semantic/constructing/model"
