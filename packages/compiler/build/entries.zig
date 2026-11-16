@@ -154,6 +154,8 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/program/linking/operands/sequence.zx", .name = "rx_link_sequence_operands", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/fixed/write.zx", .name = "rx_link_fixed_operands", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/literals/write.rx", .name = "rx_link_literals", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/linking/payload/publish.zx", .name = "rx_link_payload_batch", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/linking/symbols/publish.rx", .name = "rx_link_fresh_symbols", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/call/publish.rx", .name = "rx_link_call", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/store_get/publish.rx", .name = "rx_link_store_get", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/linking/write_header.zx", .name = "rx_link_expression_row", .owner = .rx_analysis },

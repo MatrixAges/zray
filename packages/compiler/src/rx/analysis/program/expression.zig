@@ -3,7 +3,6 @@ const ir = @import("zx").ir;
 const Builder = @import("builder.zig");
 const linking = @import("linking.zig");
 const Mapping = @import("mapping.zig");
-const aggregate = @import("aggregate.zig");
 const fixed = @import("linking/fixed.zig");
 const headers = @import("linking/headers.zig");
 const literals = @import("linking/literals/host.zig");
@@ -29,22 +28,29 @@ pub fn inlineValue(builder: *Builder, program: ir.Program, borrow_text: bool) Bu
         .expressions = plan.rows,
     };
 
-    try builder.symbols.appendFresh(builder.allocator, program.symbols, local_first, borrow_text);
-
-    const literal_bases: literals.Bases = if (comptime generated) try literals.publish(builder, &program.expressions, borrow_text) else undefined;
     const payloads = storage.payloads.unusedCapacitySlice()[0..plan.count];
 
-    for (plan.rows, 0..) |row, index| {
-        if (row == linking.missing) continue;
+    if (comptime generated) {
+        try @import("linking/symbols.zig").publish(builder, program.symbols, local_first, borrow_text);
 
-        mapping.available = index;
+        const literal_bases = try literals.publish(builder, &program.expressions, borrow_text);
 
-        const payload = switch (program.expressions.kinds[index]) {
-            .List, .Tuple, .Template, .ListOperation, .Transform, .Scope, .Match, .Object => try aggregate.append(builder, &mapping, &program.expressions, index),
-            else => try fixed.append(builder, &mapping, &program.expressions, index, borrow_text, &literal_bases),
-        };
+        try @import("linking/payload.zig").publish(builder, &mapping, &program.expressions, literal_bases, base, payloads);
+    } else {
+        try builder.symbols.appendFresh(builder.allocator, program.symbols, local_first, borrow_text);
 
-        payloads[row - base] = @intCast(payload);
+        for (plan.rows, 0..) |row, index| {
+            if (row == linking.missing) continue;
+
+            mapping.available = index;
+
+            const payload = switch (program.expressions.kinds[index]) {
+                .List, .Tuple, .Template, .ListOperation, .Transform, .Scope, .Match, .Object => try @import("linking/operands/seed.zig").append(builder, &mapping, &program.expressions, index),
+                else => try fixed.append(builder, &mapping, &program.expressions, index, borrow_text),
+            };
+
+            payloads[row - base] = @intCast(payload);
+        }
     }
 
     try headers.publish(storage, &program.expressions, plan.rows, plan.count);

@@ -1,0 +1,74 @@
+import integers from "std:integer"
+import memory from "std:memory"
+import { max_u32 } from "core/const"
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import {
+    collection,
+    fixed,
+    object,
+    scope,
+    selection,
+    sequence,
+    transform
+} from "./const"
+import literal from "./literal"
+
+import type { Input as Request, Output as Progress } from "./model"
+
+export type Input = Request
+
+export type Output = Progress
+
+export default function (in: Input): Output {
+    return loop({
+        next: in.first,
+        pending: 0
+    }, {
+        while: state => state.next < in.rows.length && state.pending < in.limit,
+        next: state => {
+            const row = state.next
+            const target = in.rows[row]
+
+            if (target != max_u32) {
+                const kind = in.kinds[row]
+                const ready = literal({
+                    bases: in.literals,
+                    kind,
+                    payload: in.payloads[row]
+                })
+
+                if (ready == null) {
+                    const route = match kind {
+                        ExpressionKind.List => sequence,
+                        ExpressionKind.Tuple => sequence,
+                        ExpressionKind.Template => sequence,
+                        ExpressionKind.ListOperation => collection,
+                        ExpressionKind.Transform => transform,
+                        ExpressionKind.Scope => scope,
+                        ExpressionKind.Match => selection,
+                        ExpressionKind.Object => object,
+                        _ => fixed
+                    }
+
+                    memory.writeU8(in.pending_kinds, state.pending, route)
+                    memory.writeU32(
+                        in.pending_rows,
+                        state.pending,
+                        integers.narrow(row)
+                    )
+                    state.pending += 1
+                } else {
+                    memory.writeU32(
+                        in.target,
+                        integers.widen(target) - in.base,
+                        integers.narrow(ready)
+                    )
+                }
+            }
+
+            state.next += 1
+        },
+        return: state => state
+    })
+}

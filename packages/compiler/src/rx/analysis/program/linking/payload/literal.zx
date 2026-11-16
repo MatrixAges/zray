@@ -1,0 +1,31 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import type { LiteralBases } from "./model"
+
+export type Input = {
+    bases: LiteralBases,
+    kind: ExpressionKind,
+    payload: u32
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { bases } = in
+
+    const offset = integers.widen(in.payload)
+
+    return match in.kind {
+        ExpressionKind.None => 0,
+        ExpressionKind.Unit => 0,
+        ExpressionKind.Integer => bases.integers + offset,
+        ExpressionKind.NegativeInteger => bases.negative_integers + offset,
+        ExpressionKind.Float => bases.floats + offset,
+        ExpressionKind.String => bases.strings + offset,
+        ExpressionKind.Boolean => bases.booleans + offset,
+        ExpressionKind.EnumValue => bases.enumerations + offset,
+        ExpressionKind.ErrorValue => bases.errors + offset,
+        _ => null
+    }
+}

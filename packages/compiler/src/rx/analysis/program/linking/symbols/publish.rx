@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Symbols" />
+
+    <Args in={Symbols.Input} out={void} />
+
+    <Call fn="../literals/write_columns" in={$in.columns} />
+    <Call fn="fresh" in={$in.ownership} />
+
+    <If on={$in.owned_text != null}>
+        <Call fn="../literals/own_text" in={$in.owned_text} />
+    </If>
+</Module>

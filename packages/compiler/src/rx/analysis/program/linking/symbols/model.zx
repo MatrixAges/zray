@@ -1,0 +1,12 @@
+import type { U8Buffer } from "std:memory"
+import type { Input as Columns } from "../literals/model"
+
+export type Ownership = {
+    rows: U8Buffer,
+    count: u64,
+    copy_tag: u8
+}
+
+export type Input = Columns & {
+    ownership: Ownership
+}

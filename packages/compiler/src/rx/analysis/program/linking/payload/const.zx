@@ -1,0 +1,13 @@
+export const fixed: u8 = 0
+
+export const sequence: u8 = 1
+
+export const collection: u8 = 2
+
+export const transform: u8 = 3
+
+export const scope: u8 = 4
+
+export const selection: u8 = 5
+
+export const object: u8 = 6

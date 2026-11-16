@@ -1,0 +1,30 @@
+import type { U8Buffer, U32Buffer } from "std:memory"
+import type { ExpressionKind } from "core/expression_table/kinds"
+
+export type LiteralBases = {
+    integers: u64,
+    negative_integers: u64,
+    floats: u64,
+    strings: u64,
+    booleans: u64,
+    enumerations: u64,
+    errors: u64
+}
+
+export type Input = {
+    kinds: ExpressionKind[],
+    payloads: u32[],
+    rows: u32[],
+    literals: LiteralBases,
+    base: u64,
+    first: u64,
+    limit: u64,
+    target: U32Buffer,
+    pending_rows: U32Buffer,
+    pending_kinds: U8Buffer
+}
+
+export type Output = {
+    next: u64,
+    pending: u64
+}

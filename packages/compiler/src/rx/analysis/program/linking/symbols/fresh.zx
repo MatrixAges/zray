@@ -1,0 +1,17 @@
+import memory from "std:memory"
+
+import type { Ownership } from "./model"
+
+export type Input = Ownership
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            memory.writeU8(in.rows, row, in.copy_tag)
+            row += 1
+        }
+    })
+}

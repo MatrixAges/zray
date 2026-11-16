@@ -3,23 +3,22 @@ const ir = @import("zx").ir;
 const Builder = @import("../builder.zig");
 const Mapping = @import("../mapping.zig");
 const operands = @import("operands.zig");
-const literals = @import("literals/host.zig");
 const generated = @import("rx_options").generated_graph;
 const ExpressionKind = std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds"));
 
-pub fn append(builder: *Builder, mapping: *const Mapping, table: *const ir.ExpressionTable, index: usize, borrow_text: bool, bases: *const literals.Bases) Builder.Error!usize {
+pub fn append(builder: *Builder, mapping: *const Mapping, table: *const ir.ExpressionTable, index: usize, borrow_text: bool) Builder.Error!usize {
     const kind = table.kinds[index];
     const row = table.payloads[index];
 
     return switch (kind) {
         .None, .Unit => 0,
-        .Integer => if (comptime generated) bases.integers + row else try put(builder, &.{"integers"}, .{table.integers[row]}),
-        .NegativeInteger => if (comptime generated) bases.negative_integers + row else try put(builder, &.{"negative_integers"}, .{table.negative_integers[row]}),
-        .Float => if (comptime generated) bases.floats + row else try put(builder, &.{"floats"}, .{table.floats[row]}),
-        .String => if (comptime generated) bases.strings + row else try put(builder, &.{"strings"}, .{if (borrow_text) table.strings[row] else try builder.allocator.dupe(u8, table.strings[row])}),
-        .Boolean => if (comptime generated) bases.booleans + row else try put(builder, &.{"booleans"}, .{table.booleans[row]}),
-        .EnumValue => if (comptime generated) bases.enumerations + row else try put(builder, &.{"enumerations"}, .{table.enumerations[row]}),
-        .ErrorValue => if (comptime generated) bases.errors + row else try put(builder, &.{"errors"}, .{table.errors[row]}),
+        .Integer => if (comptime generated) unreachable else try put(builder, &.{"integers"}, .{table.integers[row]}),
+        .NegativeInteger => if (comptime generated) unreachable else try put(builder, &.{"negative_integers"}, .{table.negative_integers[row]}),
+        .Float => if (comptime generated) unreachable else try put(builder, &.{"floats"}, .{table.floats[row]}),
+        .String => if (comptime generated) unreachable else try put(builder, &.{"strings"}, .{if (borrow_text) table.strings[row] else try builder.allocator.dupe(u8, table.strings[row])}),
+        .Boolean => if (comptime generated) unreachable else try put(builder, &.{"booleans"}, .{table.booleans[row]}),
+        .EnumValue => if (comptime generated) unreachable else try put(builder, &.{"enumerations"}, .{table.enumerations[row]}),
+        .ErrorValue => if (comptime generated) unreachable else try put(builder, &.{"errors"}, .{table.errors[row]}),
         .Reference => try mapped(builder, mapping, table, kind, row, .{ .symbols = &.{"references"} }),
         .Some => try mapped(builder, mapping, table, kind, row, .{ .expressions = &.{"some"} }),
         .Capture => try mapped(builder, mapping, table, kind, row, .{ .expressions = &.{"captures"} }),
