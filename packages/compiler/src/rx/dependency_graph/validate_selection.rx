@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Graph" />
+    <Type from="reachable" as="Reachability" />
+
+    <Args
+        in={{
+            graph: Graph.ValidationInput,
+            selection: Reachability.Selection
+        }}
+        out={Graph.Validation}
+    />
+
+    <Call module="validate" in={$in.graph} />
+
+    <If on={$ctx.validate.message == null}>
+        <Call
+            fn="reachable"
+            in={{
+                ...$in.graph.pick([
+                    "offsets",
+                    "targets",
+                    "order"
+                ]),
+                ...$in.selection,
+                count: $ctx.validate.count
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.validate} />
+</Module>

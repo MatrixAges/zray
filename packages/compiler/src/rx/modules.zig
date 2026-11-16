@@ -6,6 +6,7 @@ const graph = @import("module_graph.zig");
 const references = @import("frontend").xml_references;
 const generated_graph = @import("rx_options").generated_graph;
 pub const Registry = if (generated_graph) @import("frontend").project.source_index.Map else void;
+pub const Selection = graph.Selection;
 pub const IndexedFlow = references.Flow;
 pub const ValidatedSchema = opaque {};
 
@@ -85,14 +86,18 @@ fn Outcome(comptime Item: type) type {
 }
 
 pub fn validate(allocator: std.mem.Allocator, sources: []const Source) std.mem.Allocator.Error!Result {
-    return validateAs(Module, allocator, sources);
+    return validateSelection(allocator, sources, null);
+}
+
+pub fn validateSelection(allocator: std.mem.Allocator, sources: []const Source, selection: ?*Selection) std.mem.Allocator.Error!Result {
+    return validateAs(Module, allocator, sources, selection);
 }
 
 pub fn validatePaths(allocator: std.mem.Allocator, sources: []const Source) std.mem.Allocator.Error!PathsResult {
-    return validateAs([]const u8, allocator, sources);
+    return validateAs([]const u8, allocator, sources, null);
 }
 
-fn validateAs(comptime Item: type, allocator: std.mem.Allocator, sources: []const Source) std.mem.Allocator.Error!Outcome(Item) {
+fn validateAs(comptime Item: type, allocator: std.mem.Allocator, sources: []const Source, selection: ?*Selection) std.mem.Allocator.Error!Outcome(Item) {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
@@ -112,7 +117,7 @@ fn validateAs(comptime Item: type, allocator: std.mem.Allocator, sources: []cons
 
     defer schemas.deinit();
 
-    const order = decode(Item, data, normalized, owned, allocator, schemas.allocator(), &registry, sources, &source_index, &reporter) catch |err| {
+    const order = decode(Item, data, normalized, owned, allocator, schemas.allocator(), &registry, sources, selection, &source_index, &reporter) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return .{ .arena = arena, .value = .{ .diagnostic = .{ .source_index = source_index, .issue = reporter.diagnostic.? } } };
@@ -121,7 +126,7 @@ fn validateAs(comptime Item: type, allocator: std.mem.Allocator, sources: []cons
     return .{ .arena = arena, .dependency_order = order, .value = .{ .data = data } };
 }
 
-fn decode(comptime Item: type, data: []Item, normalized: [][]const u8, allocator: std.mem.Allocator, temporary: std.mem.Allocator, schemas: std.mem.Allocator, registry: *Registry, sources: []const Source, source_index: *usize, reporter: *dsl.Reporter) dsl.Error![]const usize {
+fn decode(comptime Item: type, data: []Item, normalized: [][]const u8, allocator: std.mem.Allocator, temporary: std.mem.Allocator, schemas: std.mem.Allocator, registry: *Registry, sources: []const Source, selection: ?*Selection, source_index: *usize, reporter: *dsl.Reporter) dsl.Error![]const usize {
     for (sources, 0..) |source, index| {
         source_index.* = index;
 
@@ -148,7 +153,7 @@ fn decode(comptime Item: type, data: []Item, normalized: [][]const u8, allocator
         }
     }
 
-    return graph.validate(allocator, temporary, registry, sources, normalized, source_index, reporter);
+    return graph.validate(allocator, temporary, registry, sources, normalized, selection, source_index, reporter);
 }
 
 fn fail(node: dsl.ast.Node, message: []const u8, reporter: *dsl.Reporter) dsl.Error {

@@ -13,6 +13,7 @@ pub fn main(init: std.process.Init) !void {
 }
 
 pub fn generate(init: std.process.Init, source_root: []const u8, core_root: []const u8, output_path: []const u8) !void {
+    const entry = "scan.rx";
     const allocator = init.arena.allocator();
     var sources: std.ArrayList(compiler.project.Source) = .empty;
     var modules: std.ArrayList(rx.TextSource) = .empty;
@@ -36,7 +37,7 @@ pub fn generate(init: std.process.Init, source_root: []const u8, core_root: []co
     collection.sortPaths(compiler.project.Source, sources.items);
     collection.sortPaths(rx.TextSource, modules.items);
 
-    var parsed = try rx.parseModules(allocator, modules.items);
+    var parsed = try rx.parseReachableModules(allocator, modules.items, entry);
 
     defer parsed.deinit();
 
@@ -48,11 +49,9 @@ pub fn generate(init: std.process.Init, source_root: []const u8, core_root: []co
         return error.InvalidLexerModule;
     }
 
-    const selected = try @import("parser_inputs.zig").reachable(allocator, parsed.inputs, "scan.rx");
-
     var analyzed = try analysis.project.infer(allocator, .{
-        .entry = "scan.rx",
-        .modules = selected,
+        .entry = entry,
+        .modules = parsed.selected,
         .sources = sources.items,
         .project = .{ .entry = "", .packages = &packages },
     });

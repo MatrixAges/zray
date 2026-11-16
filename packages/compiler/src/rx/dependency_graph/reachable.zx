@@ -1,0 +1,42 @@
+import memory from "std:memory"
+
+import type { U32Buffer } from "std:memory"
+import type { ValidationInput } from "./model"
+
+export type Selection = {
+    root: u64,
+    marks: U32Buffer
+}
+
+export type Input = ValidationInput.Pick("offsets", "targets", "order") &
+    Selection & {
+        count: u64
+    }
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { offsets, targets, order, marks } = in
+
+    memory.writeU32(marks, in.root, 1)
+
+    const visited = loop(in.count, {
+        while: position => position != 0,
+        next: position => {
+            position -= 1
+            const owner = memory.readU64(order, position)
+
+            // In reverse dependency order, every owner precedes its dependencies.
+            if (memory.readU32(marks, owner) != 0) {
+                const end = offsets[owner + 1]
+                const marked = loop(offsets[owner], {
+                    while: edge => edge < end,
+                    next: edge => {
+                        memory.writeU32(marks, targets[edge], 1)
+                        edge += 1
+                    }
+                })
+            }
+        }
+    })
+}
