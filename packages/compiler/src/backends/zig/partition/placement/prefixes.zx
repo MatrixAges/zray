@@ -1,0 +1,9 @@
+import { part_prefix, path_separator } from "./const"
+
+export type Input = u32[][]
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    return in.map((members, index) => `${part_prefix}${index}${path_separator}`)[0]
+}

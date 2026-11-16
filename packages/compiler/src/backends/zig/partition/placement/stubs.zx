@@ -1,0 +1,50 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { Scope } from "../demand/model"
+import type { State } from "./model"
+
+export type Input = {
+    files: State,
+    prefixes: string[],
+    scopes: Scope[],
+    first: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const placed = loop({
+        scope: 0,
+        position: in.first
+    }, {
+        while: state => state.scope < in.scopes.length,
+        next: state => {
+            const callees = in.scopes[state.scope].stubs.callees
+            const use_prefix = state.scope < in.prefixes.length
+            const prefix = use_prefix ? in.prefixes[state.scope] : ""
+
+            const written = loop(0, {
+                while: index => index < callees.length,
+                next: index => {
+                    const name = in.files.paths[integers.widen(callees[index])]
+                    const path = match use_prefix {
+                        true => `${prefix}${name}`,
+                        _ => name
+                    }
+
+                    memory.writeColumnBytes(
+                        in.files.target_paths,
+                        state.position + index,
+                        bytes.fromText(path)
+                    )
+                    index += 1
+                }
+            })
+
+            state.position += written
+            state.scope += 1
+        }
+    })
+}

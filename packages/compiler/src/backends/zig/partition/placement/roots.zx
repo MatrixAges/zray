@@ -1,0 +1,36 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+
+import { root_file, functions_file } from "./const"
+
+import type { WriteColumn } from "std:memory"
+
+export type Input = {
+    paths: WriteColumn,
+    prefixes: string[],
+    first: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const placed = loop(0, {
+        while: scope => scope < in.prefixes.length,
+        next: scope => {
+            const prefix = in.prefixes[scope]
+            const row = in.first + scope * 2
+
+            memory.writeColumnBytes(
+                in.paths,
+                row,
+                bytes.fromText(`${prefix}${root_file}`)
+            )
+            memory.writeColumnBytes(
+                in.paths,
+                row + 1,
+                bytes.fromText(`${prefix}${functions_file}`)
+            )
+            scope += 1
+        }
+    })
+}

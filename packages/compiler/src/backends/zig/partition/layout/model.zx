@@ -32,5 +32,12 @@ export type Roots = {
 export type Output = {
     members: u32[][],
     scopes: Scope[],
-    roots: Root[]
+    roots: Root[],
+    placement: Placement
+}
+
+export type Placement = {
+    first_stub: u64,
+    first_root: u64,
+    length: u64
 }

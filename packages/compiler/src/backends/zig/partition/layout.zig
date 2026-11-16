@@ -1,7 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
-const demand = @import("demand.zig");
 pub const available = @import("parser_options").generated_parser;
+const entry = if (available) @import("generated_partition_layout") else void;
 
 pub const Input = struct {
     paths: []const []const u8,
@@ -14,8 +14,11 @@ pub const Input = struct {
     count: u32,
 };
 
-pub const Root = struct { callees: []const u32, entries: []const u32, variants: []const []const u8 };
-pub const Plan = struct { members: []const []const u32, scopes: []const demand.Scope, roots: []const Root };
+pub const Plan = if (available)
+    @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload
+
+else
+    void;
 
 pub const Owned = struct {
     arena: std.heap.ArenaAllocator,
@@ -35,7 +38,6 @@ pub fn create(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Erro
     errdefer arena.deinit();
 
     const allocator = arena.allocator();
-    const entry = @import("generated_partition_layout");
     const Fields = std.meta.Child(entry.Input);
 
     const fields: Fields = .{
@@ -50,17 +52,8 @@ pub fn create(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Erro
     };
 
     const output = zx.columns.invoke(entry.executeValue, allocator, &fields) catch |err| return failure(err);
-    const scopes = try allocator.alloc(demand.Scope, output.scopes.len);
-    const roots = try allocator.alloc(Root, output.roots.len);
 
-    for (output.scopes, scopes) |source, *scope| scope.* = .{
-        .copies = source.copies,
-        .stubs = .{ .callees = source.stubs.callees, .variants = source.stubs.variants },
-    };
-
-    for (output.roots, roots) |source, *root| root.* = .{ .callees = source.callees, .entries = source.entries, .variants = source.variants };
-
-    return .{ .arena = arena, .value = .{ .members = output.members, .scopes = scopes, .roots = roots } };
+    return .{ .arena = arena, .value = output };
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

@@ -1,0 +1,36 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { BodyGroup as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop(0, {
+        while: index => index < in.rows.length,
+        next: index => {
+            const callee = integers.widen(in.rows[index])
+            const name = in.files.paths[callee]
+            const path = match in.prefix.length {
+                0 => name,
+                _ => `${in.prefix}${name}`
+            }
+            const source = memory.readTextColumn(in.files.bodies, callee)
+            const position = in.first + index
+
+            memory.writeColumnBytes(
+                in.files.target_paths,
+                position,
+                bytes.fromText(path)
+            )
+            memory.writeColumnBytes(
+                in.files.target_sources,
+                position,
+                bytes.fromText(source)
+            )
+            index += 1
+        },
+        return: index => in.first + index
+    })
+}

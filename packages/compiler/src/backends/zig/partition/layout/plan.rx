@@ -55,11 +55,20 @@
         }}
     />
 
+    <Call
+        fn="placement"
+        in={{
+            members: $ctx.partition_groups.members,
+            scopes: $ctx.plan.scopes
+        }}
+    />
+
     <Return
         value={{
             members: $ctx.partition_groups.members,
             scopes: $ctx.plan.scopes,
-            roots: $ctx.roots
+            roots: $ctx.roots,
+            placement: $ctx.placement
         }}
     />
 </Module>

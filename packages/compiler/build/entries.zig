@@ -426,6 +426,7 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/output/index.zx", .name = "output_wanted", .owner = .compiler },
     .{ .path = "backends/zig/output/stale.zx", .name = "output_stale", .owner = .compiler },
     .{ .path = "backends/zig/partition/layout/plan.rx", .name = "partition_layout", .owner = .compiler },
+    .{ .path = "backends/zig/partition/placement/publish.rx", .name = "partition_placement", .owner = .compiler },
     .{ .path = "backends/zig/partition/scanning/index.zx", .name = "partition_scan_index", .owner = .compiler },
     .{ .path = "backends/zig/partition/scanning/references.zx", .name = "partition_references", .owner = .compiler },
     .{ .path = "backends/zig/partition/scanning/scan.rx", .name = "partition_scan", .owner = .compiler },

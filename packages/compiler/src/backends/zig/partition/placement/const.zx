@@ -1,0 +1,7 @@
+export const part_prefix: string = "part_"
+
+export const path_separator: string = "/"
+
+export const root_file: string = "root.zig"
+
+export const functions_file: string = "functions.zig"

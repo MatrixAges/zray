@@ -1,0 +1,24 @@
+import type { TextColumn, WriteColumn } from "std:memory"
+import type { Scope } from "../demand/model"
+import type { Placement } from "../layout/model"
+
+export type State = {
+    paths: string[],
+    bodies: TextColumn,
+    target_paths: WriteColumn,
+    target_sources: WriteColumn
+}
+
+export type Input = {
+    files: State,
+    members: u32[][],
+    scopes: Scope[],
+    placement: Placement
+}
+
+export type BodyGroup = {
+    files: State,
+    rows: u32[],
+    prefix: string,
+    first: u64
+}

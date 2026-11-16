@@ -1,0 +1,34 @@
+import bodyGroup from "./body_group"
+
+import type { Scope } from "../demand/model"
+import type { State } from "./model"
+
+export type Input = {
+    files: State,
+    prefixes: string[],
+    scopes: Scope[],
+    first: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const copied = loop({
+        scope: 0,
+        position: in.first
+    }, {
+        while: state => state.scope < in.scopes.length,
+        next: state => {
+            const present = state.scope < in.prefixes.length
+            const prefix = present ? in.prefixes[state.scope] : ""
+
+            state.position = bodyGroup({
+                files: in.files,
+                rows: in.scopes[state.scope].copies,
+                prefix,
+                first: state.position
+            })
+            state.scope += 1
+        }
+    })
+}

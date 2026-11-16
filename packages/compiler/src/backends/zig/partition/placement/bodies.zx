@@ -1,0 +1,30 @@
+import bodyGroup from "./body_group"
+
+import type { State } from "./model"
+
+export type Input = {
+    files: State,
+    prefixes: string[],
+    members: u32[][]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop({
+        scope: 0,
+        position: 0
+    }, {
+        while: state => state.scope < in.members.length,
+        next: state => {
+            state.position = bodyGroup({
+                files: in.files,
+                rows: in.members[state.scope],
+                prefix: in.prefixes[state.scope],
+                first: state.position
+            })
+            state.scope += 1
+        },
+        return: state => state.position
+    })
+}

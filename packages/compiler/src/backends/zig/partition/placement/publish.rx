@@ -1,0 +1,45 @@
+<Module>
+    <Type from="model" as="Placement" />
+
+    <Args in={Placement.Input} out={void} />
+
+    <Call fn="prefixes" in={$in.members} />
+
+    <Call
+        fn="bodies"
+        in={{
+            files: $in.files,
+            prefixes: $ctx.prefixes,
+            members: $in.members
+        }}
+    />
+
+    <Call
+        fn="copies"
+        in={{
+            files: $in.files,
+            prefixes: $ctx.prefixes,
+            scopes: $in.scopes,
+            first: $ctx.bodies
+        }}
+    />
+
+    <Call
+        fn="stubs"
+        in={{
+            files: $in.files,
+            prefixes: $ctx.prefixes,
+            scopes: $in.scopes,
+            first: $in.placement.first_stub
+        }}
+    />
+
+    <Call
+        fn="roots"
+        in={{
+            paths: $in.files.target_paths,
+            prefixes: $ctx.prefixes,
+            first: $in.placement.first_root
+        }}
+    />
+</Module>

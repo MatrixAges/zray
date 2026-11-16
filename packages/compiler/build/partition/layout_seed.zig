@@ -23,14 +23,6 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
     defer arenas.deinit();
 
     const scanning = try Scanning.run(allocator, arenas, functions, &scanner);
-    const callees = try allocator.alloc([]const u32, functions.len);
-    const variants = try allocator.alloc([]const []const u8, functions.len);
-
-    for (scanning.references, callees, variants) |reference, *ids, *names| {
-        ids.* = reference.callees;
-        names.* = reference.variants;
-    }
-
     const top_callees = try allocator.alloc([]const u32, top.len);
     const top_variants = try allocator.alloc([]const []const u8, top.len);
 
@@ -42,8 +34,8 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     var planned = try generation.demand.createSeed(workspace, .{
         .owners = partitions,
-        .callees = callees,
-        .variants = variants,
+        .callees = scanning.callees,
+        .variants = scanning.variants,
         .inline_names = scanning.inline_names,
         .top_callees = top_callees,
         .top_variants = top_variants,
@@ -71,7 +63,7 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
         for (functions, sizes) |function, *size| size.* = @intCast(function.source.len);
 
-        const grouped = try generation.groups.plan(allocator, .{ .callees = callees, .sizes = sizes, .roots = exported_ids, .partitions = count });
+        const grouped = try generation.groups.plan(allocator, .{ .callees = scanning.callees, .sizes = sizes, .roots = exported_ids, .partitions = count });
 
         for (exported_ids, grouped.owners) |root, owner| partitions[root] = @intCast(owner);
 

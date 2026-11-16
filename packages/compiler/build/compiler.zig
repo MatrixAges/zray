@@ -118,6 +118,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
 
     if (parser) |generated| {
         genz.addImport("zxc_standard", generated.standard);
+        module.addImport("zxc_standard", generated.standard);
 
         for (generated.bindings) |binding| {
             if (binding.metadata.entry.owner == .compiler) module.addImport(binding.metadata.import_name, binding.module);
