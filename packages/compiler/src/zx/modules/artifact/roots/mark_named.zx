@@ -1,0 +1,35 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { U8Buffer } from "std:memory"
+import type { Rows } from "../../../ir/canonical/validation/names/model"
+
+export type Input = {
+    buffer: U8Buffer,
+    count: u64,
+    declarations: Rows
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < in.declarations.length,
+        next: state => {
+            const id = memory.readRowId(in.declarations.rows, state.row)
+            const index = integers.widen(id)
+
+            state.valid = index < in.count
+
+            if (state.valid) {
+                memory.writeU8(in.buffer, index, 1)
+            }
+
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

@@ -1,4 +1,5 @@
 <Module>
+    <Type from="../../../ir/canonical/validation/names/model" as="Names" />
     <Type from="model" as="Model" />
     <Type from="../../../ir/canonical/native/structure" as="Structure" />
 
@@ -17,7 +18,7 @@
             natives: Model.NativePlan,
             request: PlanningModel.Request,
             state: TypeImports.Output,
-            type_imports: u32[]
+            type_imports: Names.Rows
         }}
         out={NativeDependencies.Output}
     />
@@ -30,7 +31,7 @@
             in={{
                 request: $in.request,
                 state: $in.state,
-                ids: $in.type_imports
+                aliases: $in.type_imports
             }}
         />
 

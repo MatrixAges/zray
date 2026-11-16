@@ -21,7 +21,6 @@ export type Input = {
     bindings: Bindings,
     signatures: Signatures,
     entry: Entry,
-    bind_modules: bool,
-    aliases_complete: bool,
+    first: bool,
     finish: bool
 }

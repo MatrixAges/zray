@@ -1,6 +1,7 @@
 import memory from "std:memory"
 
-import mark from "./mark"
+import markConstants from "./mark_constants"
+import markNamed from "./mark_named"
 
 import type { Request } from "./model"
 
@@ -21,15 +22,35 @@ export default function (in: Input): Output {
         }
     })
 
-    const declarations = mark({
-        buffer,
-        count: roots.length,
-        values: record.declaration_types
-    })
+    const count = roots.length
 
-    return declarations && mark({
+    if (!markNamed({
         buffer,
-        count: roots.length,
-        values: record.type_imports
+        count,
+        declarations: record.exports
+    })) {
+        return false
+    }
+
+    if (!markConstants({
+        buffer,
+        count,
+        constants: record.constant_exports
+    })) {
+        return false
+    }
+
+    if (!markConstants({
+        buffer,
+        count,
+        constants: record.constant_imports
+    })) {
+        return false
+    }
+
+    return markNamed({
+        buffer,
+        count,
+        declarations: record.type_imports
     })
 }

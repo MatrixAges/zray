@@ -1,0 +1,15 @@
+<Module>
+    <Type from="transaction_model" as="Restore" />
+
+    <Args in={void} out={Restore.Step[]} />
+
+    <Return
+        value={[
+            Restore.Step.Admit,
+            Restore.Step.Rebind,
+            Restore.Step.Materialize,
+            Restore.Step.StageEntry,
+            Restore.Step.Verify
+        ]}
+    />
+</Module>

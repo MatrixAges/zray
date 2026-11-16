@@ -1,0 +1,7 @@
+export enum Step {
+    Admit,
+    Rebind,
+    Materialize,
+    StageEntry,
+    Verify
+}

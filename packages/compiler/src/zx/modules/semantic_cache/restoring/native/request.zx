@@ -1,6 +1,7 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/signature_table/model"
 import type { Bindings } from "core/type_table/nominal"
+import type { Rows } from "../../../../ir/canonical/validation/names/model"
 import type { Declaration } from "./model"
 
 export type Request = {
@@ -13,8 +14,7 @@ export type Request = {
     store_count: u64
     signatures: Table
     modules: Modules
-    export_names: string[]
-    export_types: u32[]
+    exports: Rows
     origins: Bindings
     import_count: u64
     declaration: Declaration

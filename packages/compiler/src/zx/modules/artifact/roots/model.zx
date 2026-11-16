@@ -1,11 +1,13 @@
-import type { U8Buffer } from "std:memory"
+import type { TextColumn, U8Buffer } from "std:memory"
 import type { Contracts } from "core/contract_table/model"
 import type { Expressions } from "core/expression_table/model"
 import type { Modules } from "core/native_module_table/model"
 import type { Stores } from "core/store_table/model"
 import type { Symbols } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
+import type { Rows } from "../../../ir/canonical/validation/names/model"
 import type { TargetKind } from "../dependencies/model"
+import type { Ids } from "./mark_constants"
 
 export type Functions = {
     count: u64
@@ -32,13 +34,16 @@ export type Record = {
     path: string
     start: u64
     end: u64
-    declaration_types: u32[]
-    type_imports: u32[]
+    exports: Rows
+    constant_exports: Ids
+    constant_imports: Ids
+    type_imports: Rows
     function_ids: u32[]
     function_inputs: u32[]
     function_outputs: u32[]
     import_kinds: TargetKind[]
-    import_specifiers: string[]
+    import_specifiers: TextColumn
+    import_count: u64
     dependency_keys: string[]
     has_body: bool
     body_function?: u32

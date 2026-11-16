@@ -7,11 +7,10 @@ const Input = @import("native_input.zig");
 const Members = @import("../../native/members.zig");
 
 pub fn apply(allocator: std.mem.Allocator, output: anytype, mapped: *const Input, signatures: ir.SignatureTable, current: Current) std.mem.Allocator.Error!Loaded.Result {
-    const names = mapped.request.export_names;
-    const exports = try allocator.alloc(ir.Export, names.len);
+    const exports = try allocator.alloc(ir.Export, mapped.export_rows.len);
 
-    for (exports, names, mapped.export_ids) |*item, name, id| {
-        item.* = .{ .name = try allocator.dupe(u8, name), .type_id = @fromBackingInt(id) };
+    for (exports, mapped.export_rows, mapped.export_ids) |*item, row, id| {
+        item.* = .{ .name = try allocator.dupe(u8, row.name), .type_id = @fromBackingInt(id) };
     }
 
     const members = try allocator.alloc(Loaded.Member, signatures.count());

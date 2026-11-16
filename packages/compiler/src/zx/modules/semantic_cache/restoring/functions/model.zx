@@ -1,5 +1,6 @@
 import type { OptionalU32Buffer } from "std:memory"
 import type { Table } from "core/signature_table/model"
+import type { Rows } from "../../../../ir/canonical/validation/names/model"
 import type { FunctionBinding } from "../../../binding/model"
 
 export type Binding = {
@@ -11,14 +12,9 @@ export type Binding = {
     current_count: u64
 }
 
-export type Alias = {
-    name: string,
-    type_id: u32
-}
-
 export type Aliases = {
-    previous: Alias[],
-    current: Alias[],
+    previous: Rows,
+    current: Rows,
     types: u32[]
 }
 

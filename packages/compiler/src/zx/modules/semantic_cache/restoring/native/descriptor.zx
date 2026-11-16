@@ -1,11 +1,13 @@
+import memory from "std:memory"
+
 import type { Modules } from "core/native_module_table/model"
+import type { Rows } from "../../../../ir/canonical/validation/names/model"
 import type { Declaration } from "./model"
 
 export type Input = {
     path: string,
     modules: Modules,
-    export_names: string[],
-    export_types: u32[],
+    exports: Rows,
     declaration: Declaration
 }
 
@@ -48,15 +50,13 @@ export default function (in: Input): Output {
     const types = modules.type_ids[0]
     const namespace = modules.type_namespaces[0]
 
-    const not_length = names.length != in.export_names.length
-    const not_length_2 = types.length != in.export_types.length
+    const not_length = names.length != in.exports.length
 
     const not_length_3 = namespace.length != in.declaration.namespace.length
 
     const condition_3 = (
         - names.length != types.length
         - or not_length
-        - or not_length_2
         - or not_length_3
     )
 
@@ -82,17 +82,16 @@ export default function (in: Input): Output {
     return loop({
         names,
         types,
-        export_names: in.export_names,
-        export_types: in.export_types,
         index: 0,
         valid: same_namespace
     }, {
         while: current => current.valid && current.index < current.names.length,
         next: current => {
-            current.valid =
-                current.names[current.index] ==
-                current.export_names[current.index] &&
-                current.types[current.index] == current.export_types[current.index]
+            const row = current.index
+            const id = memory.readRowId(in.exports.rows, row)
+            const name = memory.readRowName(in.exports.rows, row)
+
+            current.valid = current.names[row] == name && current.types[row] == id
             current.index += 1
         },
         return: state => state.valid

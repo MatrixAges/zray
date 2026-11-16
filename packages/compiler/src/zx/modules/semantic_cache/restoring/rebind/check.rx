@@ -3,23 +3,19 @@
 
     <Args in={Rebind.Input} out={Rebind.Status} />
 
-    <If on={$in.aliases.previous.length != 0}>
+    <If on={$in.first}>
         <Call fn="../functions/alias" in={$in.aliases} />
 
         <If on={!$ctx.alias}>
             <Return value={Rebind.Status.Invalid} />
         </If>
-    </If>
 
-    <If on={!$in.aliases_complete}>
-        <Return value={Rebind.Status.Ready} />
-    </If>
+        <If on={$in.modules.previous.specifiers.length != 0}>
+            <Call fn="../modules" in={$in.modules} />
 
-    <If on={$in.bind_modules}>
-        <Call fn="../modules" in={$in.modules} />
-
-        <If on={!$ctx.modules}>
-            <Return value={Rebind.Status.Invalid} />
+            <If on={!$ctx.modules}>
+                <Return value={Rebind.Status.Invalid} />
+            </If>
         </If>
     </If>
 

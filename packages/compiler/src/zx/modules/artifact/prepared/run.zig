@@ -23,7 +23,10 @@ pub const Prepared = struct {
 pub fn execute(temporary: std.mem.Allocator, analysis: *const Analysis.Result, record: Record) Error!Prepared {
     const program = &analysis.value.ir;
     const Projected = std.meta.Child(@FieldType(Source, "record"));
-    const view = try projection.project(Projected, temporary, record);
+    var view: projection.View(Projected) = undefined;
+
+    try view.init(temporary, record);
+
     const table = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "table")), program.types);
     const origins = Origins.Table.borrow(std.meta.Child(@FieldType(Input, "origins")), analysis.nominal_types);
     const functions = source_view.functions(std.meta.Child(@FieldType(Source, "functions")), program);
@@ -43,7 +46,7 @@ pub fn execute(temporary: std.mem.Allocator, analysis: *const Analysis.Result, r
         .functions = &functions,
         .modules = borrow.pointer(@FieldType(Source, "modules"), &program.native_modules),
         .entry = &entry,
-        .record = &view,
+        .record = &view.plan,
     };
 
     const body: std.meta.Child(@FieldType(Input, "body")) = .{

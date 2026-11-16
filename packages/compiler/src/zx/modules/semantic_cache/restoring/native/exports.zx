@@ -2,9 +2,10 @@ import integers from "std:integer"
 import memory from "std:memory"
 
 import type { U32Buffer } from "std:memory"
+import type { Rows } from "../../../../ir/canonical/validation/names/model"
 
 export type Input = {
-    source: u32[],
+    source: Rows,
     target: U32Buffer,
     mapping: u32[]
 }
@@ -19,7 +20,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < source.length,
         next: state => {
-            const id = source[state.index]
+            const id = memory.readRowId(source.rows, state.index)
 
             memory.writeU32(target, state.index, mapping[integers.widen(id)])
 

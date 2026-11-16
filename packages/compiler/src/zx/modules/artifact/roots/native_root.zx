@@ -1,3 +1,5 @@
+import memory from "std:memory"
+
 import { TargetKind } from "../dependencies/model"
 import mark from "./mark"
 
@@ -21,7 +23,8 @@ export default function (in: Input): Output {
         while: state => state.valid && state.index < record.import_kinds.length,
         next: state => {
             if (record.import_kinds[state.index] == TargetKind.Native) {
-                const specifier = record.import_specifiers[state.index]
+                const specifier =
+                    memory.readTextColumn(record.import_specifiers, state.index)
 
                 const matched = loop({
                     index: 0,

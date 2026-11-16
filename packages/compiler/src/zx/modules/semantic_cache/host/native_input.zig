@@ -6,6 +6,7 @@ const Native = @import("../../interface.zig").Native;
 const Current = @import("../native_restore.zig").Current;
 const Origins = @import("../../nominal_origins.zig");
 const borrow = @import("../../../ir/canonical/borrow.zig");
+const names = @import("../../../ir/canonical/validation/names/view.zig");
 const Input = std.meta.Child(@import("generated_native_restore").Input);
 const Validation = std.meta.Child(@FieldType(Input, "validation"));
 pub const Request = std.meta.Child(@FieldType(Validation, "request"));
@@ -19,6 +20,8 @@ declaration: std.meta.Child(@FieldType(Request, "declaration")),
 types: std.meta.Child(@FieldType(Validation, "types")),
 base: std.meta.Child(@FieldType(Input, "base")),
 base_origins: std.meta.Child(@FieldType(Input, "base_origins")),
+export_rows: names.Rows,
+exports: std.meta.Child(@FieldType(Request, "exports")),
 request: Request,
 validation: Validation,
 type_ids: []u32,
@@ -39,31 +42,16 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact
     const export_count = artifact.exports.len;
     const member_count = artifact.functions.count();
     const ports = std.math.mul(usize, member_count, 2) catch return error.OutOfMemory;
-    const original = if (admitted) 0 else export_count;
-    const exports = std.math.add(usize, export_count, original) catch return error.OutOfMemory;
     const mapped = std.math.add(usize, type_count, ports) catch return error.OutOfMemory;
-    const count = std.math.add(usize, mapped, exports) catch return error.OutOfMemory;
+    const count = std.math.add(usize, mapped, export_count) catch return error.OutOfMemory;
     const ids = try allocator.alloc(u32, count);
 
     self.type_ids = ids[0..type_count];
     self.input_ids = ids[type_count..][0..member_count];
     self.output_ids = ids[type_count + member_count ..][0..member_count];
     self.export_ids = ids[mapped..][0..export_count];
-
-    const names, const source_ids = if (admitted) .{
-        artifact.native_modules.type_names[0],
-        artifact.native_modules.type_ids[0],
-    } else columns: {
-        const names = try allocator.alloc([]const u8, export_count);
-        const source = ids[mapped + export_count ..];
-
-        for (artifact.exports, names, source) |exported, *name, *id| {
-            name.* = exported.name;
-            id.* = @backingInt(exported.type_id);
-        }
-
-        break :columns .{ @as([]const []const u8, names), @as([]const u32, source) };
-    };
+    self.export_rows = names.borrow(artifact.exports);
+    self.exports = names.view(@TypeOf(self.exports), &self.export_rows);
 
     self.request = .{
         .path = artifact.path,
@@ -75,8 +63,7 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact
         .store_count = artifact.stores.count(),
         .signatures = &self.signatures,
         .modules = &self.modules,
-        .export_names = names,
-        .export_types = source_ids,
+        .exports = &self.exports,
         .origins = &self.origins,
         .import_count = artifact.function_imports.len,
         .declaration = &self.declaration,

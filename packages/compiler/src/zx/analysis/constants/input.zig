@@ -7,11 +7,19 @@ pub fn marshal(comptime Table: type, allocator: std.mem.Allocator, constants: []
 
     const Literal = std.meta.Child(std.meta.Child(@FieldType(Table, "values")));
     const names = try allocator.alloc([]const u8, constants.len);
+
+    errdefer allocator.free(names);
+
     const values = try allocator.alloc(*const Literal, constants.len);
 
-    for (constants, names, values) |constant, *name, *slot| {
+    errdefer allocator.free(values);
+
+    const literals = try allocator.alloc(Literal, constants.len);
+
+    errdefer allocator.free(literals);
+
+    for (constants, names, values, literals) |constant, *name, *slot, *literal| {
         name.* = constant.name;
-        const literal = try allocator.create(Literal);
         literal.* = borrow(Literal, constant);
         slot.* = literal;
     }

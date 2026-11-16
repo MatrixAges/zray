@@ -1,4 +1,5 @@
 <Module>
+    <Type from="../../../ir/canonical/validation/names/model" as="Names" />
     <Type from="model" as="PlanningModel" />
     <Type from="functions/model" as="FunctionsModel" />
     <Type from="../../../ir/canonical/native/structure" as="Structure" />
@@ -16,7 +17,7 @@
             own_function?: u32,
             request: ExtractingPlanningModel.Request,
             signatures: FunctionsModel.Signatures,
-            type_imports: u32[]
+            type_imports: Names.Rows
         }}
         out={FunctionsModel.Plan}
     />

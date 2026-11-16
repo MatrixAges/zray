@@ -5,11 +5,11 @@ const Artifact = @import("../../../artifact/model.zig");
 const FunctionImport = @import("../../../function_import.zig");
 const Current = @import("../../restore.zig").Current;
 const imports = @import("../imports.zig");
+const names = @import("../../../../ir/canonical/validation/names/view.zig");
 const generated = @import("generated_semantic_restore_rebind");
 const Input = std.meta.Child(generated.Input);
 const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
 const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
-const Alias = std.meta.Child(std.meta.Elem(@FieldType(Aliases, "previous")));
 const Binding = std.meta.Child(std.meta.Elem(@FieldType(Bindings, "previous")));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
@@ -56,36 +56,28 @@ pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, curre
         .target = @ptrCast(&maps.functions),
     };
 
-    var aliases: imports.Batch(Alias) = undefined;
+    const AliasRows = std.meta.Child(@FieldType(Aliases, "previous"));
+    const previous_aliases = names.borrow(module.type_imports);
+    const current_aliases = names.borrow(current.aliases);
+    const previous_names = names.view(AliasRows, &previous_aliases);
+    const current_names = names.view(AliasRows, &current_aliases);
+    const alias_view: Aliases = .{ .previous = &previous_names, .current = &current_names, .types = types };
     var bindings: imports.Batch(Binding) = undefined;
-    var alias_offset: usize = 0;
     var binding_offset: usize = 0;
     var member_offset: usize = 0;
-    var bind_modules = maps.natives.len != 0;
+    var first = true;
 
     while (true) {
-        const alias_end = alias_offset + @min(imports.batch_size, current.aliases.len - alias_offset);
-        const aliases_complete = alias_end == current.aliases.len;
-        const alias_rows = aliases.project(module.type_imports[alias_offset..alias_end], current.aliases[alias_offset..alias_end], alias);
-        var count: usize = 0;
+        const imported = @min(imports.batch_size, current.imports.len - binding_offset);
+        const forwarded = @min(imports.batch_size - imported, current.members.len - member_offset);
+        const import_end = binding_offset + imported;
+        const member_end = member_offset + forwarded;
 
-        if (aliases_complete) {
-            const imported = @min(imports.batch_size, current.imports.len - binding_offset);
-            const forwarded = @min(imports.batch_size - imported, current.members.len - member_offset);
-            const import_end = binding_offset + imported;
-            const member_end = member_offset + forwarded;
+        bindings.write(0, module.function_imports[binding_offset..import_end], current.imports[binding_offset..import_end], binding);
+        bindings.write(imported, module.members[member_offset..member_end], current.members[member_offset..member_end], binding);
 
-            bindings.write(0, module.function_imports[binding_offset..import_end], current.imports[binding_offset..import_end], binding);
-            bindings.write(imported, module.members[member_offset..member_end], current.members[member_offset..member_end], binding);
-
-            binding_offset = import_end;
-            member_offset = member_end;
-            count = imported + forwarded;
-        }
-
-        const binding_rows = bindings.rows(count);
-        const finish = aliases_complete and binding_offset == current.imports.len and member_offset == current.members.len;
-        const alias_view: Aliases = .{ .previous = alias_rows.previous, .current = alias_rows.current, .types = types };
+        const binding_rows = bindings.rows(imported + forwarded);
+        const finish = import_end == current.imports.len and member_end == current.members.len;
 
         const binding_view: Bindings = .{
             .previous = binding_rows.previous,
@@ -102,8 +94,7 @@ pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, curre
             .bindings = &binding_view,
             .signatures = &signatures,
             .entry = &entry,
-            .bind_modules = bind_modules,
-            .aliases_complete = aliases_complete,
+            .first = first,
             .finish = finish,
         };
 
@@ -120,14 +111,10 @@ pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, curre
 
         if (finish) return if (entry.has_body) maps.functions[function_count] else null;
 
-        alias_offset = alias_end;
-
-        if (aliases_complete) bind_modules = false;
+        first = false;
+        binding_offset = import_end;
+        member_offset = member_end;
     }
-}
-
-fn alias(comptime Row: type, value: *const ir.Export) Row {
-    return .{ .name = value.name, .type_id = @backingInt(value.type_id) };
 }
 
 fn binding(comptime Row: type, value: *const FunctionImport) Row {

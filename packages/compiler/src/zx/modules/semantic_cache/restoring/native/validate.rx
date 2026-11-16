@@ -47,10 +47,7 @@
         in={{
             table: $in.types,
             fields: {
-                columns: {
-                    names: $in.request.export_names,
-                    types: $in.request.export_types
-                }
+                borrowed: $in.request.exports
             }
         }}
     />

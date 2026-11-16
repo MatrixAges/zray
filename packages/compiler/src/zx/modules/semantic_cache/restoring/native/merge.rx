@@ -52,7 +52,7 @@
         <Call
             fn="exports"
             in={{
-                source: $in.validation.request.export_types,
+                source: $in.validation.request.exports,
                 target: $in.published.exports,
                 mapping: $in.type_ids
             }}

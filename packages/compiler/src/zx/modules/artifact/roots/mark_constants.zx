@@ -1,0 +1,46 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { U8Buffer } from "std:memory"
+
+export type Ids = {
+    data: u8[],
+    rows: u64,
+    stride: u64,
+    field: u64,
+    little_endian: bool
+}
+
+export type Input = {
+    buffer: U8Buffer,
+    count: u64,
+    constants: Ids
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { buffer, count, constants } = in
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < constants.rows,
+        next: state => {
+            const position = state.row * constants.stride + constants.field
+            const id = bytes.readU32(constants.data, position, constants.little_endian)
+            const index = integers.widen(id)
+
+            state.valid = index < count
+
+            if (state.valid) {
+                memory.writeU8(buffer, index, 1)
+            }
+
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

@@ -369,6 +369,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/semantic_cache/restoring/native/bindings.zx", .name = "native_cache_bindings" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/restore.rx", .name = "native_restore" },
     .{ .path = "zx/modules/semantic_cache/restoring/rebind/check.rx", .name = "semantic_restore_rebind" },
+    .{ .path = "zx/modules/semantic_cache/restoring/transaction.rx", .name = "semantic_restore_transaction" },
     .{ .path = "zx/modules/semantic_cache/restoring/preflight/check.rx", .name = "semantic_restore_preflight" },
     .{ .path = "zx/modules/semantic_cache/restoring/publication/plan.rx", .name = "semantic_restore_publication" },
     .{ .path = "zx/modules/semantic_cache/restoring/types/plan.rx", .name = "semantic_restore_types" },

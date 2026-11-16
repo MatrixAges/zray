@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "std:memory"
 
 import { Status } from "../../../analysis/semantic/extracting/planning/model"
 import visit from "../../../analysis/semantic/extracting/planning/visit"
@@ -7,11 +8,12 @@ import type {
     Request,
     State
 } from "../../../analysis/semantic/extracting/planning/model"
+import type { Rows } from "../../../ir/canonical/validation/names/model"
 
 export type Input = {
     request: Request,
     state: State,
-    ids: u32[]
+    aliases: Rows
 }
 
 export type Output = State
@@ -20,16 +22,17 @@ export default function (in: Input): Output {
     return loop({
         request: in.request,
         plan: in.state,
-        ids: in.ids,
         index: 0
     }, {
         while: current =>
-            current.plan.status == Status.Ready && current.index < current.ids.length,
+            current.plan.status == Status.Ready && current.index < in.aliases.length,
         next: current => {
+            const id = memory.readRowId(in.aliases.rows, current.index)
+
             current.plan = visit({
                 request: current.request,
                 state: current.plan,
-                index: integers.widen(current.ids[current.index])
+                index: integers.widen(id)
             })
             current.index += 1
         },
