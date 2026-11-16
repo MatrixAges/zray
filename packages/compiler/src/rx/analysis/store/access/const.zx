@@ -1,3 +1,12 @@
 export const unvisited: u8 = 0
 
 export const visited: u8 = 1
+
+// A Store Object path consists of the namespace identifier and two field selections.
+export const first_object_path_row: u64 = 2
+
+export const invalid_setter_list: string =
+    "Call.setter must list exactly one complete Store Object"
+
+export const missing_setter: string =
+    "Call.setter must reference a complete Object declared by this module"

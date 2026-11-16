@@ -1,21 +1,19 @@
 import bytes from "std:bytes"
 
 import { ExprKind } from "../../../../zx/frontend/parser/expressions/state/model"
-import { unvisited, visited } from "./const"
+import { first_object_path_row, unvisited, visited } from "./const"
 import pathRoot from "./path_root"
 import visitSequence from "./visit_sequence"
 
-import type { ExprTree } from "../../../../zx/frontend/parser/expressions/state/model"
-
-export type Input = {
-    source: u8[],
-    tree: ExprTree,
-    root: u64
-}
+import type { Expression as Input } from "./model"
 
 export type Output = u64[]
 
 export default function (in: Input): Output {
+    if (in.root < first_object_path_row) {
+        return []
+    }
+
     const paths: u64[] = []
     const reachable = bytes.repeat(in.root + 1, unvisited)
 

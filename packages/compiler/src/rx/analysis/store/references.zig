@@ -1,8 +1,6 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const rx = @import("rx");
-const zx = @import("zx");
-const ir = zx.ir;
 const Store = @import("../store.zig");
 const target = @import("../call/target.zig");
 const Graph = @import("../project/source_graph/model.zig");
@@ -25,7 +23,7 @@ const empty: Namespaces = if (generated) .{
 const Row = struct {
     name: []const u8,
     path: []const u8,
-    type_id: ir.TypeId,
+    type_id: u32,
 };
 
 pub const Storage = std.MultiArrayList(Row);
@@ -35,15 +33,12 @@ pub const Storage = std.MultiArrayList(Row);
 pub const Scope = struct {
     names: []const []const u8 = &.{},
     paths: []const []const u8 = &.{},
-    types: []const ir.TypeId = &.{},
+    types: []const u32 = &.{},
     pub fn at(self: Scope, index: usize) Store.Binding {
         return .{
             .name = self.names[index],
-            .slot = .{
-                .path = self.paths[index],
-                .type_id = self.types[index],
-                .writable = false,
-            },
+            .path = self.paths[index],
+            .type_id = @fromBackingInt(self.types[index]),
         };
     }
 };
@@ -119,7 +114,7 @@ fn publishSeed(allocator: std.mem.Allocator, storage: std.mem.Allocator, scope: 
         try bindings.append(storage, .{
             .name = try @import("names.zig").qualify(allocator, scope, object.name, .reference),
             .path = object.identity,
-            .type_id = object.initial.output_type,
+            .type_id = @backingInt(object.initial.output_type),
         });
     }
 

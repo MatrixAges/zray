@@ -46,7 +46,7 @@ pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
 
     if (attributes.setter) |item| {
         const attribute = item.*;
-        var writes = try @import("../attribute.zig").parse(backing, attribute, owner);
+        var writes = try @import("../attribute.zig").parseBorrowed(backing, attribute, owner);
 
         defer writes.deinit();
 
@@ -58,12 +58,7 @@ pub fn analyze(allocator: std.mem.Allocator, backing: std.mem.Allocator, owner: 
             .native => |result| selectSetter(result.value.parsed.expression, scope),
             .indexed => |result| if (frontend.ExpressionInput.indexed_enabled) block: {
                 if (comptime generated) {
-                    const placement = try access.setter(backing, result, scope.names);
-
-                    if (!placement.list) break :block invalidSetterList();
-                    if (placement.position) |index| break :block selectedSetter(scope.at(index));
-
-                    break :block missingSetter(placement.offset);
+                    break :block try access.setter(backing, result, scope);
                 }
 
                 var scratch = std.heap.ArenaAllocator.init(backing);
@@ -91,7 +86,7 @@ fn collectReads(allocator: std.mem.Allocator, reads: *std.ArrayList(Store.Bindin
     };
 }
 
-const SetterResult = union(enum) { setter: target.Setter, invalid: struct { offset: usize, message: []const u8 } };
+const SetterResult = access.Setter;
 
 fn selectSetter(expression: anytype, scope: Scope) SetterResult {
     const value = syntax.value(expression);
@@ -108,7 +103,7 @@ fn selectSetter(expression: anytype, scope: Scope) SetterResult {
 }
 
 fn selectedSetter(binding: Store.Binding) SetterResult {
-    return .{ .setter = .{ .name = binding.name, .path = binding.slot.path, .type_id = binding.slot.type_id } };
+    return .{ .setter = .{ .name = binding.name, .path = binding.path, .type_id = binding.type_id } };
 }
 
 fn invalidSetterList() SetterResult {

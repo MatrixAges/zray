@@ -12,7 +12,16 @@ const Schedule = @import("store/prepare/schedule.zig");
 pub const registry = @import("store/registry.zig");
 pub const collectInitializers = @import("store/selection.zig").collect;
 pub const Options = struct { aliases: []const zx.ir.Export = &.{}, owner: []const u8, node: rx.ast.Node, types: zx.ir.TypeTable = .{}, nominal_types: @FieldType(frontend.AnalysisResult, "nominal_types") = .{}, native_modules: zx.ir.NativeModuleTable = .{} };
-pub const Binding = struct { name: []const u8, slot: zx.ir.StoreSlot };
+
+pub const Binding = struct {
+    name: []const u8,
+    path: []const u8,
+    type_id: zx.ir.TypeId,
+    pub fn readSlot(self: Binding) zx.ir.StoreSlot {
+        return .{ .path = self.path, .type_id = self.type_id, .writable = false };
+    }
+};
+
 pub const Object = struct { name: []const u8, identity: []const u8, initial: zx.ir.Program };
 pub const Definition = struct { source_path: []const u8, name: []const u8, version: u32, types: zx.ir.TypeTable, objects: []const Object };
 pub const Value = union(enum) { definition: Definition, diagnostic: target.Diagnostic };

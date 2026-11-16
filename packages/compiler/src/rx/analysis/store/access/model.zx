@@ -1,8 +1,23 @@
 import type { ExprTree } from "../../../../zx/frontend/parser/expressions/state/model"
 
-export type Input = {
+export type Expression = {
     source: u8[],
     tree: ExprTree,
-    root: u64,
+    root: u64
+}
+
+export type Input = Expression & {
     names: string[]
+}
+
+export type Scope = {
+    names: string[],
+    paths: string[],
+    types: u32[]
+}
+
+export type Binding = {
+    name: string,
+    path: string,
+    type_id: u32
 }

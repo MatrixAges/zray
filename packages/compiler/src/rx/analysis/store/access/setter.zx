@@ -1,12 +1,17 @@
 import matches from "../../../../zx/analysis/binding_path/match"
 import { ExprKind } from "../../../../zx/frontend/parser/expressions/state/model"
+import { invalid_setter_list, missing_setter } from "./const"
 
-import type { Input } from "./model"
+import type { Binding, Expression, Scope } from "./model"
+
+export type Input = Expression & {
+    scope: Scope
+}
 
 export type Output = {
-    list: bool,
-    position?: u64,
-    offset: u64
+    binding?: Binding,
+    offset: u64,
+    message?: string
 }
 
 export default function (in: Input): Output {
@@ -14,27 +19,29 @@ export default function (in: Input): Output {
 
     if (root.kind != ExprKind.List || root.count != 1) {
         return {
-            list: false,
-            position: null,
-            offset: 0
+            offset: 0,
+            message: invalid_setter_list
         }
     }
 
     const path = in.tree.items[root.head - 1].value
+
+    const { names, paths, types } = in.scope
+
     const position: u64? = null
 
-    return loop({
+    const selected = loop({
         position,
         index: 0
     }, {
-        while: state => state.position == null && state.index < in.names.length,
+        while: state => state.position == null && state.index < names.length,
         next: state => {
             if (matches({
                 source: in.source,
                 nodes: in.tree.nodes,
                 native_names: null,
                 node: path,
-                path: in.names[state.index],
+                path: names[state.index],
                 rooted: false
             })) {
                 state.position = state.index
@@ -42,10 +49,22 @@ export default function (in: Input): Output {
 
             state.index += 1
         },
-        return: state => ({
-            list: true,
-            position: state.position,
-            offset: in.tree.nodes[path].span.start
-        })
+        return: state => state.position
     })
+
+    if (selected == null) {
+        return {
+            offset: in.tree.nodes[path].span.start,
+            message: missing_setter
+        }
+    }
+
+    return {
+        binding: {
+            name: names[selected],
+            path: paths[selected],
+            type_id: types[selected]
+        },
+        offset: 0
+    }
 }

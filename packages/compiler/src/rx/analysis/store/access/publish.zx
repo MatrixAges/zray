@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+
+import type { WriteColumn } from "std:memory"
+import type { Scope } from "./model"
+
+export type Input = {
+    scope: Scope,
+    positions: u64[],
+    names: WriteColumn,
+    paths: WriteColumn,
+    types: WriteColumn
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { scope, positions, names, paths, types } = in
+
+    const count = loop(0, {
+        while: row => row < positions.length,
+        next: row => {
+            const index = positions[row]
+
+            memory.writeColumnBytes(
+                names,
+                row,
+                bytes.fromText(scope.names[index])
+            )
+            memory.writeColumnBytes(
+                paths,
+                row,
+                bytes.fromText(scope.paths[index])
+            )
+            memory.writeColumnU32(types, row, scope.types[index])
+
+            row += 1
+        }
+    })
+}

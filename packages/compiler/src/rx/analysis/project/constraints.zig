@@ -230,7 +230,7 @@ const Walker = struct {
                     expression.attribute = attribute.?.*;
 
                     for (invocation.getters) |getter| {
-                        try expression.bindings.append(expression.scope, .{ .name = getter.name, .value = try graph.known(getter.slot.type_id, span) });
+                        try expression.bindings.append(expression.scope, .{ .name = getter.name, .value = try graph.known(getter.type_id, span) });
                     }
                 },
                 .InferArgument => _ = if (Inputs.input(self.arguments, index)) |parsed|

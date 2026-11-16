@@ -161,9 +161,9 @@ fn bindGetters(self: *const Self, cursor: *Writer.Cursor, getters: @FieldType(Mo
     const builder = self.builder;
 
     for (getters) |getter| {
-        const slot = try builder.store(getter.slot);
-        const snapshot = try direct.storeGet(builder, slot, getter.slot.type_id, location);
-        const symbol = try builder.symbol(getter.name, getter.slot.type_id, location);
+        const slot = try builder.store(getter.readSlot());
+        const snapshot = try direct.storeGet(builder, slot, getter.type_id, location);
+        const symbol = try builder.symbol(getter.name, getter.type_id, location);
 
         self.writer.constant(cursor, symbol, snapshot);
 

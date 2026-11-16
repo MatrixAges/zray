@@ -78,6 +78,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/store/type/aliases.zx", .name = "rx_store_type_aliases", .owner = .rx_analysis },
     .{ .path = "rx/analysis/store/type/diagnostic.zx", .name = "rx_store_type_diagnostic", .owner = .rx_analysis },
     .{ .path = "rx/analysis/store/access/read.rx", .name = "rx_store_reads", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/store/access/publish.zx", .name = "rx_store_read_bindings", .owner = .rx_analysis },
     .{ .path = "rx/analysis/store/access/setter.zx", .name = "rx_store_setter", .owner = .rx_analysis },
     .{ .path = "rx/analysis/store/layout/plan.rx", .name = "rx_store_layout", .owner = .rx_analysis },
     .{ .path = "rx/features/store/schema/check.rx", .name = "rx_store_schema", .owner = .rx },
