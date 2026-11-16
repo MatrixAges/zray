@@ -67,22 +67,50 @@ pub fn reference(out: *Writer, state: anytype, id: zx.ir.FunctionId) void {
     });
 }
 
-pub fn native(out: *Writer, module: zx.ir.NativeModule) void {
-    const rule = @import("generated_generation_key_native");
+pub fn types(out: *Writer, program: *const zx.ir.Program, names: []const []const u8, keys: []const [32]u8) void {
+    const rule = @import("generated_generation_key_types");
+    const Input = std.meta.Child(rule.Input);
+    const Prefix = std.meta.Child(@FieldType(Input, "prefix"));
+    const Table = std.meta.Child(@FieldType(Input, "table"));
+    const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
+    const prefix: Prefix = .{ .out = @ptrCast(out), .key_count = keys.len, .keys = std.mem.sliceAsBytes(keys), .names = names };
+    const table = zx.ir.TypeTable.borrow(Table, program.types);
+    var signatures: Signatures = undefined;
+
+    inline for (@typeInfo(Signatures).@"struct".field_names) |name| @field(signatures, name) = @field(program.functions, name);
 
     execute(rule, .{
-        .out = @ptrCast(out),
-        .specifier = module.specifier,
-        .identity = module.identity,
-        .import_name = module.import_name,
-        .namespace = module.type_namespace,
+        .prefix = &prefix,
+        .table = &table,
+        .modules = zx.columns.pointer(@FieldType(Input, "modules"), &program.native_modules),
+        .signatures = &signatures,
     });
 }
 
-pub fn types(out: *Writer, names: []const []const u8, keys: []const [32]u8) void {
-    const rule = @import("generated_generation_key_types");
+pub fn external(out: *Writer, modules: *const zx.ir.NativeModuleTable, value: zx.ir.External) void {
+    const rule = @import("generated_generation_key_external");
+    const Input = std.meta.Child(rule.Input);
+    const Declaration = std.meta.Child(@FieldType(Input, "declaration"));
 
-    execute(rule, .{ .out = @ptrCast(out), .key_count = keys.len, .keys = std.mem.sliceAsBytes(keys), .names = names });
+    const declaration: Declaration = .{
+        .input = if (value.input) |input| input.names else null,
+        .module = @backingInt(value.module),
+        .member = value.member,
+        .export_name = value.export_name,
+        .allocator_argument = value.allocator_argument,
+        .io_argument = value.io_argument,
+        .process_argument = value.process_argument,
+        .expand_tuple = value.expand_tuple,
+        .fallible = value.fallible,
+        .errors = value.errors,
+        .concurrent = value.concurrent,
+    };
+
+    execute(rule, .{
+        .out = @ptrCast(out),
+        .modules = zx.columns.pointer(@FieldType(Input, "modules"), modules),
+        .declaration = &declaration,
+    });
 }
 
 pub fn members(out: *Writer, digest: *const [32]u8, rows: []const generating.PublicMember, names: []const []const u8) void {

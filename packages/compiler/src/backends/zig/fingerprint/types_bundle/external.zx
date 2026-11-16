@@ -1,0 +1,68 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import native from "../native"
+import optionalText from "../optional_text"
+import strings from "../strings"
+
+import type { External as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, declaration, modules } = in
+    const { input, errors } = declaration
+
+    const module = integers.widen(declaration.module)
+
+    bytes.writeByte(out, input == null ? 0 : 1)
+
+    if (input != null) {
+        bytes.writeU64Le(out, input.length)
+
+        const names = loop(0, {
+            while: index => index < input.length,
+            next: index => {
+                optionalText({
+                    out,
+                    value: input[index]
+                })
+                index += 1
+            }
+        })
+    }
+
+    native({
+        out,
+        specifier: modules.specifiers[module],
+        identity: modules.identities[module],
+        import_name: modules.import_names[module],
+        namespace: modules.type_namespaces[module]
+    })
+
+    strings({
+        out,
+        values: declaration.member
+    })
+
+    optionalText({
+        out,
+        value: declaration.export_name
+    })
+
+    bytes.writeByte(out, declaration.allocator_argument ? 1 : 0)
+    bytes.writeByte(out, declaration.io_argument ? 1 : 0)
+    bytes.writeByte(out, declaration.process_argument ? 1 : 0)
+    bytes.writeByte(out, declaration.expand_tuple ? 1 : 0)
+    bytes.writeByte(out, declaration.fallible ? 1 : 0)
+    bytes.writeByte(out, errors == null ? 0 : 1)
+
+    if (errors != null) {
+        strings({
+            out,
+            values: errors
+        })
+    }
+
+    bytes.writeByte(out, declaration.concurrent ? 1 : 0)
+}

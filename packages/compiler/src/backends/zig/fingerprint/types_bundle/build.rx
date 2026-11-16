@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Bundle" />
+
+    <Args in={Bundle.Input} out={void} />
+
+    <Call fn="../types" in={$in.prefix} />
+
+    <Call
+        fn="columns"
+        in={{
+            out: $in.prefix.out,
+            table: $in.table
+        }}
+    />
+
+    <Call
+        fn="modules"
+        in={$in.pick([
+            "prefix",
+            "modules"
+        ])}
+    />
+
+    <Call
+        fn="signatures"
+        in={$in.pick([
+            "prefix",
+            "modules",
+            "signatures"
+        ])}
+    />
+</Module>

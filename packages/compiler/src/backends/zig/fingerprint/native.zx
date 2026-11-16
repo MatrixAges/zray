@@ -1,6 +1,5 @@
-import bytes from "std:bytes"
-
 import text from "../../../inputs/fingerprint/field"
+import optionalText from "./optional_text"
 import strings from "./strings"
 
 import type { Native as Input } from "./model"
@@ -15,14 +14,10 @@ export default function (in: Input): Output {
         text: in.specifier
     })
 
-    bytes.writeByte(out, identity == null ? 0 : 1)
-
-    if (identity != null) {
-        text({
-            out,
-            text: identity
-        })
-    }
+    optionalText({
+        out,
+        value: identity
+    })
 
     text({
         out,

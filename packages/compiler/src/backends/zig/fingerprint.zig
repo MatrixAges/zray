@@ -53,9 +53,7 @@ pub fn createAnalyzed(program: ir.Program, names: Names, unit: Unit, facts: @imp
 
 fn finish(self: *Self, unit: Unit) [32]u8 {
     const program = self.program;
-    const names = self.names;
     const value_functions = self.value_functions;
-    const state_plan = self.state_plan;
 
     if (comptime generated) {
         Source.header(&self.hash.writer, unit, program.version, self.entry_flags);
@@ -96,35 +94,9 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
         },
         .types => {
             if (comptime generated) {
-                Source.types(&self.hash.writer, names.types, state_plan.keys);
+                Source.types(&self.hash.writer, &self.program, self.names.types, self.state_plan.keys);
             } else {
-                self.write(state_plan.keys.len);
-                for (state_plan.keys) |key| self.update(&key);
-
-                self.write(names.types);
-            }
-
-            self.write(program.types);
-            self.write(program.native_modules);
-
-            var count: usize = 0;
-
-            for (0..program.functions.count()) |function_row| {
-                const function = program.functions.at(function_row);
-
-                if (function.external != null) {
-                    count += 1;
-                }
-            }
-
-            self.write(count);
-
-            for (0..program.functions.count()) |function_row| {
-                const function = program.functions.at(function_row);
-
-                if (function.external) |external| {
-                    self.write(.{ .input_type = function.input_type, .output_type = function.output_type, .external = external });
-                }
+                self.typesSeed();
             }
         },
     }
@@ -135,6 +107,35 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
     self.hash.hasher.final(&result);
 
     return result;
+}
+
+fn typesSeed(self: *Self) void {
+    const program = &self.program;
+    const keys = self.state_plan.keys;
+
+    self.write(keys.len);
+
+    for (keys) |key| self.update(&key);
+
+    self.write(self.names.types);
+    self.write(program.types);
+    self.write(program.native_modules);
+
+    var count: usize = 0;
+
+    for (0..program.functions.count()) |function_row| {
+        if (program.functions.at(function_row).external != null) count += 1;
+    }
+
+    self.write(count);
+
+    for (0..program.functions.count()) |function_row| {
+        const function = program.functions.at(function_row);
+
+        if (function.external) |external| {
+            self.write(.{ .input_type = function.input_type, .output_type = function.output_type, .external = external });
+        }
+    }
 }
 
 fn plan(self: *Self, value: @import("genz").zx.function_analysis.Uniqueness.Plan) void {
@@ -162,6 +163,7 @@ fn write(self: *Self, value: anytype) void {
 
     if (T == @FieldType(ir.ExpressionRow, "span")) return;
     if (T == ir.ControlBody) return self.write(value.block());
+    if (T == ir.External and generated) return Source.external(&self.hash.writer, &self.program.native_modules, value);
 
     if (T == ir.Block or T == @FieldType(ir.StatementRow, "parallel") or T == @FieldType(@FieldType(ir.StatementRow, "destructure"), "symbols") or T == @FieldType(@FieldType(ir.StatementRow, "switch_stmt"), "cases")) {
         self.write(value.len);
@@ -213,8 +215,6 @@ fn write(self: *Self, value: anytype) void {
 
     if (T == ir.NativeModuleId) {
         const module = self.program.native_modules.at(@backingInt(value));
-
-        if (comptime generated) return Source.native(&self.hash.writer, module);
 
         return self.write(.{ .specifier = module.specifier, .identity = module.identity, .import_name = module.import_name, .type_namespace = module.type_namespace });
     }
