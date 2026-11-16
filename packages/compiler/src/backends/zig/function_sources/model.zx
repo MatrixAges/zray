@@ -1,4 +1,4 @@
-import type { ReadColumn, U64Buffer } from "memory"
+import type { ReadColumn, StringBuffer, U8Buffer, U64Buffer } from "memory"
 
 export type Input = {
     count: u64,
@@ -12,4 +12,22 @@ export type Output = {
     reused: u64,
     pending: u64,
     size: u64
+}
+
+export type Layout = {
+    count: u64,
+    items: ReadColumn,
+    offsets: U64Buffer
+}
+
+export type Copy = {
+    items: ReadColumn,
+    contiguous: bool,
+    positions: u64[],
+    offsets: u64[],
+    data: string,
+    buffer: U8Buffer,
+    target: StringBuffer,
+    first: u64,
+    end: u64
 }

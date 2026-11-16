@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import type { Layout as Input } from "./model"
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        size: 0,
+        valid: true
+    }, {
+        while: current => current.valid && current.index < in.count,
+        next: current => {
+            const source = memory.readOptionalTextColumn(in.items, current.index)
+
+            if (source == null) {
+                current.valid = false
+            } else {
+                memory.writeU64(in.offsets, current.index, current.size)
+                current.size += source.length
+            }
+
+            current.index += 1
+        },
+        return: current => current.valid ? current.size : null
+    })
+}

@@ -1,0 +1,42 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import memory from "memory"
+
+import type { Copy as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop({
+        index: in.first,
+        valid: true
+    }, {
+        while: current => current.valid && current.index < in.end,
+        next: current => {
+            const { index } = current
+            const position = in.positions[index]
+            const row = in.contiguous ? index : position
+            const source = memory.readOptionalTextColumn(in.items, row)
+
+            if (source == null) {
+                current.valid = false
+            } else {
+                const offset = in.offsets[index]
+                const length =
+                    memory.copyBytes(
+                        in.buffer,
+                        offset,
+                        bytes.fromText(source),
+                        0,
+                        source.length
+                    )
+                const text = encoding.sliceBytes(in.data, offset, offset + length)
+
+                memory.writeString(in.target, position, text)
+            }
+
+            current.index += 1
+        },
+        return: current => current.valid
+    })
+}
