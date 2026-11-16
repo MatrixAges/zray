@@ -135,7 +135,11 @@ fn lowerCall(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cu
                 else
                     try builder.allocator.alloc(u32, slots.count());
 
-                for (stores, 0..) |*mapped, index| mapped.* = try builder.store(slots.at(index));
+                if (comptime generated) {
+                    try @import("store/bind.zig").write(builder, slots, stores);
+                } else {
+                    for (stores, 0..) |*mapped, index| mapped.* = try builder.store(slots.at(index));
+                }
             },
             .ImportCallee => function = try builder.importFunction(invocation.callee, invocation.callee_suffix, invocation.store_initializers, invocation.function_id),
             .WriteCall => call_id = if (comptime generated)

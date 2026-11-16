@@ -1,14 +1,10 @@
 import find from "core/store_table/find"
 
+import type { Slot, Slots } from "./model"
+
 export type Input = {
-    paths: string[],
-    types: u32[],
-    read: bool[],
-    write: bool[],
-    identity: string,
-    type_id: u32,
-    readable: bool,
-    writable: bool
+    registered: Slots,
+    slot: Slot
 }
 
 export type Output = {
@@ -19,23 +15,25 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
+    const { registered, slot } = in
+
     const row = find({
-        paths: in.paths,
-        identity: in.identity
+        paths: registered.paths,
+        identity: slot.path
     })
 
     if (row == null) {
         return {
             compatible: true,
-            readable: in.readable,
-            writable: in.writable
+            readable: slot.readable,
+            writable: slot.writable
         }
     }
 
     return {
         row,
-        compatible: in.types[row] == in.type_id,
-        readable: in.read[row] || in.readable,
-        writable: in.write[row] || in.writable
+        compatible: registered.types[row] == slot.type_id,
+        readable: registered.readable[row] || slot.readable,
+        writable: registered.writable[row] || slot.writable
     }
 }

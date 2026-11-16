@@ -24,5 +24,5 @@ pub fn add(self: *Self, allocator: std.mem.Allocator, value: Entry) std.mem.Allo
 }
 
 pub fn alreadyChecked(self: *const Self, values: []const Entry) bool {
-    return values.len == 0 or (values.len == self.checked_prefix.len and values.ptr == self.checked_prefix.ptr);
+    return values.len == 0 or (values.len <= self.checked_prefix.len and values.ptr == self.checked_prefix.ptr);
 }

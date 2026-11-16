@@ -1,0 +1,55 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import merge from "./merge"
+import { Status } from "./model"
+
+import type { Input as Request, Output as Progress } from "./model"
+
+export type Input = Request
+
+export type Output = Progress
+
+export default function (in: Input): Output {
+    const { source, registered, permissions, mapping } = in
+
+    return loop({
+        next: in.first,
+        status: Status.Ready
+    }, {
+        while: state => state.status == Status.Ready && state.next < source.paths.length,
+        next: state => {
+            const index = state.next
+            const resolved = merge({
+                registered,
+                slot: {
+                    path: source.paths[index],
+                    type_id: source.types[index],
+                    readable: source.readable[index],
+                    writable: source.writable[index]
+                }
+            })
+            const row = resolved.row
+
+            if (row == null) {
+                state.status = Status.Append
+            } else if (!resolved.compatible) {
+                state.status = Status.Conflict
+            } else {
+                memory.writeU8(
+                    permissions.readable,
+                    row,
+                    resolved.readable ? 1 : 0
+                )
+                memory.writeU8(
+                    permissions.writable,
+                    row,
+                    resolved.writable ? 1 : 0
+                )
+                memory.writeU32(mapping, index, integers.narrow(row))
+                state.next += 1
+            }
+        },
+        return: state => state
+    })
+}

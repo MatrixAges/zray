@@ -1,6 +1,7 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-pub const valid = @import("../../ir/function_structure.zig").valid;
+const structure = @import("../../ir/function_structure.zig");
+pub const valid = structure.valid;
 pub const range = @import("function_range.zig").plan;
 
 pub fn join(allocator: std.mem.Allocator, base: ir.FunctionTable, delta: ir.FunctionTable) std.mem.Allocator.Error!ir.FunctionTable {
@@ -23,13 +24,13 @@ pub fn join(allocator: std.mem.Allocator, base: ir.FunctionTable, delta: ir.Func
 }
 
 pub fn hasPrefix(table: ir.FunctionTable, prefix: ir.FunctionTable) bool {
-    if (!valid(&table) or !valid(&prefix) or table.count() < prefix.count()) return false;
+    if (table.count() < prefix.count() or !valid(&prefix)) return false;
 
     inline for (@typeInfo(ir.FunctionTable).@"struct".field_names) |name| {
         if (!sameColumn(@field(table, name), @field(prefix, name))) return false;
     }
 
-    return true;
+    return structure.validSuffix(&table, prefix.count());
 }
 
 pub fn appendTail(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?*const ir.FunctionTable) ?ir.FunctionTable {
@@ -46,6 +47,7 @@ pub fn appendTail(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?
 
 /// A table that extends another in place shares its columns, which settles the prefix without comparing rows.
 fn sameColumn(values: anytype, expected: @TypeOf(values)) bool {
+    if (values.len < expected.len) return false;
     if (values.ptr == expected.ptr) return true;
 
     for (values[0..expected.len], expected) |actual, previous| {

@@ -119,42 +119,31 @@ fn linkFailure(err: anyerror) Error {
 pub fn store(self: *Self, value: ir.StoreSlot) Error!u32 {
     if (self.stores.count() != 0) {
         if (comptime @import("rx_options").generated_graph) {
-            if (try self.mergeStore(value)) |row| return row;
+            const incoming: ir.StoreTable = .{
+                .paths = &.{value.path},
+                .types = &.{@backingInt(value.type_id)},
+                .handles = &.{value.handle},
+                .readable = &.{value.readable},
+                .writable = &.{value.writable},
+            };
+
+            var row: [1]u32 = undefined;
+
+            try @import("store/bind.zig").write(self, incoming, &row);
+
+            return row[0];
         } else if (try self.mergeStoreSeed(value)) |row| return row;
     }
 
+    return self.appendStore(value);
+}
+
+pub fn appendStore(self: *Self, value: ir.StoreSlot) std.mem.Allocator.Error!u32 {
     const id: u32 = @intCast(self.stores.count());
 
     try self.stores.append(self.allocator, .{ .path = try self.allocator.dupe(u8, value.path), .type_id = value.type_id, .readable = value.readable, .writable = value.writable });
 
     return id;
-}
-
-fn mergeStore(self: *Self, value: ir.StoreSlot) Error!?u32 {
-    const rule = @import("generated_rx_program_store_merge");
-    const Input = std.meta.Child(rule.Input);
-
-    const input: Input = .{
-        .paths = self.stores.paths.items,
-        .types = self.stores.types.items,
-        .read = self.stores.readable.items,
-        .write = self.stores.writable.items,
-        .identity = value.path,
-        .type_id = @backingInt(value.type_id),
-        .readable = value.readable,
-        .writable = value.writable,
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    const index = result.row orelse return null;
-
-    if (!result.compatible) return error.InvalidModule;
-
-    self.stores.readable.items[@intCast(index)] = result.readable;
-    self.stores.writable.items[@intCast(index)] = result.writable;
-
-    return @intCast(index);
 }
 
 fn mergeStoreSeed(self: *Self, value: ir.StoreSlot) Error!?u32 {

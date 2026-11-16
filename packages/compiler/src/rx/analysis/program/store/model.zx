@@ -1,0 +1,35 @@
+import type { U8Buffer, U32Buffer } from "std:memory"
+import type { Stores } from "core/store_table/model"
+
+export type Slots = Stores.Omit("handles")
+
+export type Slot = {
+    path: string,
+    type_id: u32,
+    readable: bool,
+    writable: bool
+}
+
+export type Permissions = {
+    readable: U8Buffer,
+    writable: U8Buffer
+}
+
+export enum Status {
+    Ready,
+    Append,
+    Conflict
+}
+
+export type Input = {
+    source: Slots,
+    registered: Slots,
+    permissions: Permissions,
+    mapping: U32Buffer,
+    first: u64
+}
+
+export type Output = {
+    next: u64,
+    status: Status
+}
