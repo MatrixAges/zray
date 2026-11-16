@@ -59,10 +59,10 @@ pub fn createCached(allocator: std.mem.Allocator, analysis: *const Analysis, cac
     defer batch.deinit();
 
     const entry = File{ .name = "application", .source = try batch.emit(owned, .entry), .imports = try references.imports(owned, allocator, program.expressions, program.contracts, identities.functions, &.{}) };
-    const modules = try functionFilesAnalyzed(owned, &batch, needed, &.{entry.source});
+    const native_modules = try nativeModules(owned, program);
+    const modules = try functionFilesAnalyzed(owned, &batch, needed, &.{entry.source}, native_modules.import_names);
     const type_source = try batch.emit(owned, .types);
     const type_names = try typeNamesAnalyzed(owned, batch.backing, program, identities, batch.analysis.value.value.state);
-    const native_modules = try nativeModules(owned, program);
 
     const signature = Signature{
         .types = try @import("frontend").type_table.copy(owned, program.types),
@@ -92,11 +92,11 @@ pub fn emitPrepared(allocator: std.mem.Allocator, program: @import("zx").ir.Prog
 }
 
 /// The files of the `needed` functions; `roots` are the other generated sources that call into them.
-pub fn functionFilesAnalyzed(owned: std.mem.Allocator, batch: *const Batch, needed: []const bool, roots: []const []const u8) Error![]const File {
+pub fn functionFilesAnalyzed(owned: std.mem.Allocator, batch: *const Batch, needed: []const bool, roots: []const []const u8, native_names: []const []const u8) Error![]const File {
     const units = try functionUnits(owned, needed);
     const sources = try @import("function_sources.zig").create(owned, batch, units);
 
-    return functionFilesFrom(owned, batch, units, sources, roots);
+    return functionFilesFrom(owned, batch, units, sources, roots, native_names);
 }
 
 /// The units of the `needed` functions.
@@ -125,40 +125,31 @@ pub fn functionUnitsWith(owned: std.mem.Allocator, needed: []const bool, regular
 }
 
 /// The files of function `units` from their generated `sources`, once the `roots` that call them are known.
-pub fn functionFilesFrom(owned: std.mem.Allocator, batch: *const Batch, units: []generating.Unit, sources: [][]const u8, roots: []const []const u8) Error![]const File {
+pub fn functionFilesFrom(owned: std.mem.Allocator, batch: *const Batch, units: []generating.Unit, sources: [][]const u8, roots: []const []const u8, native_names: []const []const u8) Error![]const File {
     if (comptime !@import("parser_options").generated_parser) return @import("function_files_seed.zig").create(owned, batch, units, sources, roots);
-
-    const program = batch.program;
-    const identities = batch.names;
-    var files: std.ArrayList(File) = .empty;
-
     try @import("regular_calls.zig").complete(owned, batch, roots, units, sources);
 
     var scratch = std.heap.ArenaAllocator.init(batch.backing);
 
     defer scratch.deinit();
 
-    var registry = try @import("function_files.zig").create(scratch.allocator());
+    const registry = @import("function_files.zig");
+    const names_for_files = batch.names.functions;
+    const selected = try registry.select(scratch.allocator(), names_for_files, units, sources);
+    const files = try owned.alloc(File, selected.len);
 
-    for (units, sources) |unit, source| {
-        const index = @backingInt(switch (unit) {
-            .function, .regular => |id| id,
-            else => unreachable,
-        });
+    for (selected, files) |position, *file| {
+        const row: usize = @intCast(position);
+        const index = registry.id(units[row]);
 
-        const function = program.functions.at(index);
-
-        const file = File{
-            .name = identities.functions[index],
-            .source = source,
-            .imports = if (function.external) |external| try owned.dupe([]const u8, &.{try owned.dupe(u8, program.native_modules.at(@backingInt(external.module)).import_name)}) else try references.imports(owned, batch.backing, function.expressions, function.contracts, identities.functions, &.{}),
+        file.* = .{
+            .name = names_for_files[index],
+            .source = sources[row],
+            .imports = try references.fileImports(owned, batch.backing, &batch.program.functions, index, names_for_files, native_names),
         };
-
-        if (!try registry.register(files.items, &file)) continue;
-        try files.append(owned, file);
     }
 
-    return files.toOwnedSlice(owned);
+    return files;
 }
 
 pub fn typeNames(owned: std.mem.Allocator, program: @import("zx").ir.Program, identities: generating.Names) std.mem.Allocator.Error![]const []const u8 {

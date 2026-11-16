@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+import memory from "zig:compiler_memory"
+import get from "core/bytes/index/fixed"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    return loop({
+        valid: true,
+        count: 0,
+        index: 0
+    }, {
+        while: current => current.valid && current.index < in.keys.length,
+        next: current => {
+            const { index } = current
+            const found = get({
+                ...in.pick([
+                    "keys",
+                    "buckets",
+                    "capacity"
+                ]),
+                key: in.keys[index],
+                insert: index
+            })
+
+            if (found == null) {
+                memory.writeU64(in.selected, current.count, index)
+                current.count += 1
+            } else {
+                current.valid = bytes.equals(in.sources[found], in.sources[index])
+            }
+
+            current.index += 1
+        },
+        return: current => {
+            valid: current.valid,
+            count: current.count
+        }
+    })
+}

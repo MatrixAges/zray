@@ -460,7 +460,6 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/regular_calls/scan.zx", .name = "regular_calls_scan", .owner = .compiler },
     .{ .path = "backends/zig/regular_calls/select.zx", .name = "regular_calls_select", .owner = .compiler },
     .{ .path = "backends/zig/function_sources/plan.rx", .name = "function_sources_plan", .owner = .compiler },
-    .{ .path = "backends/zig/function_files/initialize.zx", .name = "function_files_initialize", .owner = .compiler },
     .{ .path = "backends/zig/function_files/register.rx", .name = "function_files_register", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/validation/eligible.zx", .name = "store_initializer_eligible", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/validation/validate.rx", .name = "store_initializer_validation", .owner = .compiler },

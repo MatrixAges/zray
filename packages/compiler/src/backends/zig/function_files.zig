@@ -1,44 +1,46 @@
 const std = @import("std");
 const zx = @import("zx");
-const File = @import("modules.zig").File;
-const initialize = @import("generated_function_files_initialize");
+const Unit = @import("genz").zx.modules.Unit;
 const registration = @import("generated_function_files_register");
-const State = @typeInfo(@typeInfo(@TypeOf(initialize.executeState)).@"fn".return_type.?).error_union.payload;
-const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{ConflictingFunction};
 
-state: State,
-allocator: std.mem.Allocator,
-pub fn create(allocator: std.mem.Allocator) Error!Self {
-    return .{ .state = initialize.executeState(allocator, .{}) catch |err| return failure(err), .allocator = allocator };
-}
+pub fn select(allocator: std.mem.Allocator, names: []const []const u8, units: []const Unit, sources: []const []const u8) Error![]const u64 {
+    if (units.len == 0) return &.{};
 
-pub fn register(self: *Self, files: []const File, candidate: *const File) Error!bool {
-    const Input = @typeInfo(@TypeOf(registration.executeState)).@"fn".param_types[1].?;
-    const Files = @FieldType(Input, "files");
+    const keys = try allocator.alloc([]const u8, units.len);
 
-    const input: Input = .{
-        .registry = self.state,
-        .files = .{ .items = zx.columns.slice(@FieldType(Files, "items"), files), .storage = .plain },
-        .candidate = .{
-            .imports = .{ .items = candidate.imports, .storage = .plain },
-            .name = .{ .items = candidate.name, .storage = .plain },
-            .source = .{ .items = candidate.source, .storage = .plain },
-        },
+    for (units, keys) |unit, *key| key.* = names[id(unit)];
+
+    const minimum = std.math.mul(usize, units.len, 2) catch return error.OutOfMemory;
+    const capacity = std.math.ceilPowerOfTwo(usize, minimum) catch return error.OutOfMemory;
+    const buckets = try allocator.alloc(u64, capacity);
+    const selected = try allocator.alloc(u64, units.len);
+
+    @memset(buckets, 0);
+
+    const input: std.meta.Child(registration.Input) = .{
+        .keys = keys,
+        .sources = sources,
+        .capacity = capacity,
+        .buckets = @ptrCast(&buckets),
+        .selected = @ptrCast(&selected),
     };
 
-    self.state = registration.executeState(self.allocator, input) catch |err| return failure(err);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return switch (self.state.status) {
-        .Append => true,
-        .Reuse => false,
-        .Conflict => error.ConflictingFunction,
-    };
-}
-
-fn failure(err: anyerror) std.mem.Allocator.Error {
-    return switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+    const result = zx.columns.invoke(registration.executeValue, empty.allocator(), &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
+
+    if (!result.valid) return error.ConflictingFunction;
+
+    return selected[0..@intCast(result.count)];
+}
+
+pub fn id(unit: Unit) usize {
+    return @backingInt(switch (unit) {
+        .function, .regular => |function| function,
+        else => unreachable,
+    });
 }

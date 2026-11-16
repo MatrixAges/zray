@@ -64,6 +64,25 @@ pub fn discover(allocator: std.mem.Allocator, workspace: std.mem.Allocator, func
 pub fn imports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, expressions: ir.ExpressionTable, contracts: ir.ContractTable, names: []const []const u8, members: []const ir.FunctionId) std.mem.Allocator.Error![]const []const u8 {
     if (!@import("genz_options").generated_analysis) return seed.importsWithMembers(allocator, expressions, contracts, names, members);
 
+    return importsBorrowed(allocator, workspace, &expressions, &contracts, names, members, null);
+}
+
+/// The import names are owned by the same bundle as the returned slice.
+pub fn fileImports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: *const ir.FunctionTable, index: usize, names: []const []const u8, native_names: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
+    const native = if (functions.native_modules[index]) |id| native_names[id] else null;
+    const expressions = functions.expressions[index];
+    const contracts = functions.contracts[index];
+
+    if (comptime !@import("genz_options").generated_analysis) {
+        if (native) |name| return allocator.dupe([]const u8, &.{name});
+
+        return seed.importsWithMembers(allocator, expressions.*, contracts.*, names, &.{});
+    }
+
+    return importsBorrowed(allocator, workspace, expressions, contracts, names, &.{}, native);
+}
+
+fn importsBorrowed(allocator: std.mem.Allocator, workspace: std.mem.Allocator, expressions: *const ir.ExpressionTable, contracts: *const ir.ContractTable, names: []const []const u8, members: []const ir.FunctionId, native: ?[]const u8) std.mem.Allocator.Error![]const []const u8 {
     const generated = @import("generated_reference_imports");
     const Input = std.meta.Child(generated.Input);
     const Body = std.meta.Child(@FieldType(Input, "body"));
@@ -74,14 +93,15 @@ pub fn imports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, expre
     const temporary = scratch.allocator();
 
     const body = Body{
-        .expressions = zx.columns.pointer(@FieldType(Body, "expressions"), &expressions),
-        .contracts = zx.columns.pointer(@FieldType(Body, "contracts"), &contracts),
+        .expressions = zx.columns.pointer(@FieldType(Body, "expressions"), expressions),
+        .contracts = zx.columns.pointer(@FieldType(Body, "contracts"), contracts),
     };
 
     const input = Input{
         .body = &body,
         .names = names,
         .members = @as([*]const u32, @ptrCast(members.ptr))[0..members.len],
+        .native = native,
     };
 
     const output = generated.executeIn(temporary, &input) catch |err| switch (err) {

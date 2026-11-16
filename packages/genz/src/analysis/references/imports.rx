@@ -3,6 +3,10 @@
 
     <Args in={Graph.Imports} out={string[]} />
 
+    <If on={$in.native != null}>
+        <Return value={[$in.native]} />
+    </If>
+
     <Call fn="collect" in={$in} />
     <Call fn="order" in={$ctx.collect} />
 

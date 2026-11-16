@@ -1,27 +1,12 @@
-import type { Index } from "core/bytes/index/model"
-import type { Module } from "../state/model"
+import type { U64Buffer } from "zig:compiler_memory"
+import type { Table } from "core/bytes/index/fixed"
 
-export enum Status {
-    Append,
-    Reuse,
-    Conflict
+export type Input = Table & {
+    sources: u8[][],
+    selected: U64Buffer
 }
 
-export type Registry = {
-    index: Index,
-    status: Status
-}
-
-export type Empty = {}
-
-export type Input = {
-    registry: Registry,
-    files: Module[],
-    candidate: Module
-}
-
-export type Comparison = {
-    files: Module[],
-    candidate: Module,
-    position: u32
+export type Output = {
+    valid: bool,
+    count: u64
 }

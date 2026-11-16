@@ -20,5 +20,6 @@ export type Input = {
 export type Imports = {
     body: Body,
     names: string[],
-    members: u32[]
+    members: u32[],
+    native?: string
 }
