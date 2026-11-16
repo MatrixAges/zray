@@ -1,0 +1,44 @@
+import bytes from "std:bytes"
+
+import { module_extension, rx_extension } from "../../zx/modules/path/const"
+import { template_extension } from "./const"
+
+export enum Kind {
+    Ignored,
+    ZX,
+    RX,
+    Template
+}
+
+export type Input = string
+
+export type Output = Kind
+
+export default function (in: Input): Output {
+    const name = bytes.fromText(in)
+    const length = name.length
+
+    if (length >= module_extension.length) {
+        const start = length - module_extension.length
+
+        if (bytes.startsWithText(name, start, module_extension)) {
+            return Kind.ZX
+        }
+
+        if (bytes.startsWithText(name, start, rx_extension)) {
+            return Kind.RX
+        }
+    }
+
+    if (
+        length >= template_extension.length && bytes.startsWithText(
+            name,
+            length - template_extension.length,
+            template_extension
+        )
+    ) {
+        return Kind.Template
+    }
+
+    return Kind.Ignored
+}

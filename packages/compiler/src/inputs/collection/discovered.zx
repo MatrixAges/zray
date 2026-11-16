@@ -1,0 +1,32 @@
+import memory from "std:memory"
+
+import type { TextColumn } from "std:memory"
+
+export type Input = {
+    path: string,
+    paths: TextColumn,
+    count: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { path, paths, count } = in
+
+    const absent: u64? = null
+
+    return loop({
+        next: 0,
+        found: absent
+    }, {
+        while: state => state.next < count && state.found == null,
+        next: state => {
+            if (memory.readTextColumn(paths, state.next) == path) {
+                state.found = state.next
+            }
+
+            state.next += 1
+        },
+        return: state => state.found
+    })
+}

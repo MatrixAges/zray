@@ -74,9 +74,9 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         try prepared.load(io, owned, &resident.files, &sources, &modules, &templates);
     } else for (project.roots) |root| try collection.collect(io, allocator, owned, &resident.files, root.path, root.prefix, &sources, &modules, &templates);
 
-    std.mem.sort(compiler.project.Source, sources.items, {}, collection.lessSource);
-    std.mem.sort(rx.TextSource, modules.items, {}, collection.lessModule);
-    std.mem.sort(compiler.project.Resource, templates.items, {}, collection.lessResource);
+    collection.sortPaths(compiler.project.Source, sources.items);
+    collection.sortPaths(rx.TextSource, modules.items);
+    collection.sortPaths(compiler.project.Resource, templates.items);
 
     for (sources.items) |*source| source.templates = templates.items;
 
@@ -92,13 +92,15 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     var interface_error: ?anyerror = null;
 
     for (project.interfaces, interfaces) |interface, *target| {
-        const source = for (sources.items) |candidate| {
-            if (std.mem.eql(u8, candidate.path, interface.path)) break candidate.source;
-        } else resident.files.read(io, std.Io.Dir.cwd(), interface.path, try std.fs.path.resolve(allocator, &.{interface.path})) catch |err| unread: {
-            if (interface_error == null) interface_error = err;
+        const source = if (compiler.source_inputs.interfaceRow("path", sources.items, interface.path, true)) |row|
+            sources.items[row].source
 
-            break :unread "";
-        };
+        else
+            resident.files.read(io, std.Io.Dir.cwd(), interface.path, try std.fs.path.resolve(allocator, &.{interface.path})) catch |err| unread: {
+                if (interface_error == null) interface_error = err;
+
+                break :unread "";
+            };
 
         target.* = .{
             .specifier = try resident.retainText(owned, interface.specifier),

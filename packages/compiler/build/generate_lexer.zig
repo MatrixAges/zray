@@ -33,8 +33,8 @@ pub fn generate(init: std.process.Init, source_root: []const u8, core_root: []co
         try sources.append(allocator, .{ .path = package.entry, .source = source });
     }
 
-    std.mem.sort(compiler.project.Source, sources.items, {}, collection.lessSource);
-    std.mem.sort(rx.TextSource, modules.items, {}, collection.lessModule);
+    collection.sortPaths(compiler.project.Source, sources.items);
+    collection.sortPaths(rx.TextSource, modules.items);
 
     var parsed = try rx.parseModules(allocator, modules.items);
 

@@ -1,0 +1,17 @@
+import { directory_separator } from "../../zx/modules/path/const"
+
+export type Input = {
+    prefix: string,
+    parent: string,
+    name: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { prefix, parent, name } = in
+
+    const separator = parent.length == 0 ? "" : directory_separator
+
+    return `${prefix}${parent}${separator}${name}`
+}

@@ -1,0 +1,30 @@
+<Module>
+    <Type from="kind" as="File" />
+    <Type from="discovered" as="Rows" />
+
+    <Args
+        in={Rows.Input & {
+            sorted: bool
+        }}
+        out={Rows.Output}
+    />
+
+    <If on={$in.sorted}>
+        <Call
+            fn="../../core/bytes/index/sorted_text"
+            in={$in.omit(["sorted"])}
+        />
+
+        <Return value={$ctx.sorted_text} />
+    </If>
+
+    <Call fn="kind" in={$in.path} />
+
+    <If on={$ctx.kind != File.Kind.ZX}>
+        <Return value={null} />
+    </If>
+
+    <Call fn="discovered" in={$in.omit(["sorted"])} />
+
+    <Return value={$ctx.discovered} />
+</Module>

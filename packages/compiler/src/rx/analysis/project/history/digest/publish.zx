@@ -1,6 +1,5 @@
 import memory from "std:memory"
-
-import find from "./find"
+import find from "core/bytes/index/sorted_text"
 
 import type { TextColumn, U8Buffer } from "std:memory"
 

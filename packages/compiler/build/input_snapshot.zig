@@ -35,16 +35,13 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
         }
     }
 
+    const discovered = facts.items.len;
+
     for (project.interfaces) |interface| {
-        const fact: Fact = found: {
-            for (roots) |root| for (root.entries) |entry| {
-                if (entry.zx and std.mem.eql(u8, interface.path, entry.path)) {
-                    const path = try std.fs.path.resolve(allocator, &.{ root.path, entry.relative });
+        const fact: Fact = if (compiler.source_inputs.interfaceRow("key", facts.items[0..discovered], interface.path, false)) |row|
+            facts.items[row]
 
-                    break :found Fact.init(path, entry.path, entry.metadata.?);
-                }
-            };
-
+        else found: {
             const path = try std.fs.path.resolve(allocator, &.{interface.path});
             const stat = std.Io.Dir.cwd().statFile(io, interface.path, .{}) catch return .{ .roots = roots, .facts = &.{}, .context = "", .path = "", .previous = null };
 
@@ -54,11 +51,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
         try facts.append(allocator, fact);
     }
 
-    std.mem.sort(Fact, facts.items, {}, struct {
-        fn less(_: void, left: Fact, right: Fact) bool {
-            return std.mem.lessThan(u8, left.path, right.path);
-        }
-    }.less);
+    collection.sortPaths(Fact, facts.items);
 
     const here = try std.process.currentPathAlloc(io, allocator);
     const identity = compiler.input_fingerprint.snapshot(&digest, partitions, here, text);

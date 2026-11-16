@@ -4,27 +4,24 @@ const rx = @import("rx");
 const Files = @import("resident/files.zig");
 const listing = @import("directory_listing.zig");
 const Reader = listing.Reader;
+const inputs = compiler.source_inputs;
 
-pub fn lessSource(_: void, left: compiler.project.Source, right: compiler.project.Source) bool {
-    return std.mem.lessThan(u8, left.path, right.path);
+pub fn sortPaths(comptime Row: type, rows: []Row) void {
+    std.mem.sort(Row, rows, {}, struct {
+        fn less(_: void, left: Row, right: Row) bool {
+            return std.mem.lessThan(u8, left.path, right.path);
+        }
+    }.less);
 }
 
-pub fn lessModule(_: void, left: rx.TextSource, right: rx.TextSource) bool {
-    return std.mem.lessThan(u8, left.path, right.path);
-}
-
-pub fn lessResource(_: void, left: compiler.project.Resource, right: compiler.project.Resource) bool {
-    return std.mem.lessThan(u8, left.path, right.path);
-}
-
-/// Appends the ZX and RX sources under `root`, named with `prefix`; `files`, when given, owns their texts. The tree is
+/// Appends the sources and resources under `root`, named with `prefix`; `files`, when given, owns their texts. The tree is
 /// listed one depth at a time, every directory of a depth on its own core, and a listed file whose metadata vouches for
 /// the text `files` kept takes that text there; the calling thread reads the others afterwards.
 pub fn collect(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, sources: *std.ArrayList(compiler.project.Source), modules: *std.ArrayList(rx.TextSource), templates: *std.ArrayList(compiler.project.Resource)) !void {
     try load(io, allocator, files, root, try scan(io, scratch, allocator, files, root, prefix, false), sources, modules, templates);
 }
 
-pub const Entry = struct { relative: []const u8, path: []const u8, metadata: ?Files.Metadata, text: ?[]const u8, zx: bool, tpl: bool };
+pub const Entry = struct { relative: []const u8, path: []const u8, metadata: ?Files.Metadata, text: ?[]const u8, kind: inputs.Kind };
 
 /// Lists the input files without reading their contents; `stat` also fills metadata on platforms without bulk stat.
 pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, stat: bool) ![]const Entry {
@@ -54,13 +51,12 @@ pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, 
         for (level.items, work.listings) |parent, result| {
             const found = try result;
 
-            for (found.directories) |name| try next.append(allocator, try join(allocator, parent, name));
+            for (found.directories) |name| try next.append(allocator, try inputs.qualify(allocator, "", parent, name));
 
             for (found.files) |file| {
-                const relative = try join(allocator, parent, file.name);
-                const path = try std.mem.concat(paths, u8, &.{ prefix, relative });
+                const path = try inputs.qualify(paths, prefix, parent, file.name);
 
-                try entries.append(allocator, .{ .relative = relative, .path = path, .text = file.text, .metadata = file.metadata, .zx = file.zx, .tpl = file.tpl });
+                try entries.append(allocator, .{ .relative = path[prefix.len..], .path = path, .text = file.text, .metadata = file.metadata, .kind = file.kind });
             }
         }
 
@@ -78,13 +74,18 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, files: ?*Files, root: []co
     for (entries) |file| {
         const source = file.text orelse if (files) |kept| try kept.read(io, directory, file.relative, file.path) else try directory.readFileAlloc(io, file.relative, allocator, .unlimited);
 
-        if (file.zx) try sources.append(allocator, .{ .path = file.path, .source = source }) else if (file.tpl) try templates.append(allocator, .{ .path = file.path, .source = source }) else try modules.append(allocator, .{ .path = file.path, .source = source });
+        switch (file.kind) {
+            .ZX => try sources.append(allocator, .{ .path = file.path, .source = source }),
+            .RX => try modules.append(allocator, .{ .path = file.path, .source = source }),
+            .Template => try templates.append(allocator, .{ .path = file.path, .source = source }),
+            .Ignored => unreachable,
+        }
     }
 }
 
 /// Threads listing at once; the file system serves more of them no faster, as they wait on its locks.
 const listers = 8;
-const File = struct { name: []const u8, zx: bool, tpl: bool, text: ?[]const u8, metadata: ?Files.Metadata };
+const File = struct { name: []const u8, kind: inputs.Kind, text: ?[]const u8, metadata: ?Files.Metadata };
 const Listing = struct { files: []const File, directories: []const []const u8 };
 
 /// The directories of one depth, listed by every participant taking the next one left.
@@ -121,11 +122,10 @@ const List = struct {
         while (try entries.next(work.io)) |entry| switch (entry.kind) {
             .directory => try directories.append(arena, try arena.dupe(u8, entry.name)),
             .file => {
-                const zx = std.mem.endsWith(u8, entry.name, ".zx");
-                const tpl = std.mem.endsWith(u8, entry.name, ".tpl");
+                const kind = inputs.kind(entry.name);
 
-                if (!zx and !tpl and !std.mem.endsWith(u8, entry.name, ".rx")) continue;
-                try files.append(arena, .{ .name = try arena.dupe(u8, entry.name), .zx = zx, .tpl = tpl, .text = try work.kept(directory, parent, entry), .metadata = entry.metadata orelse if (work.stat) Files.metadata(try directory.statFile(work.io, entry.name, .{})) else null });
+                if (kind == .Ignored) continue;
+                try files.append(arena, .{ .name = try arena.dupe(u8, entry.name), .kind = kind, .text = try work.kept(directory, parent, entry), .metadata = entry.metadata orelse if (work.stat) Files.metadata(try directory.statFile(work.io, entry.name, .{})) else null });
             },
             else => {},
         };
@@ -137,12 +137,9 @@ const List = struct {
     fn kept(work: *const List, directory: std.Io.Dir, parent: []const u8, entry: listing.Entry) !?[]const u8 {
         const files = work.files orelse return null;
         var buffer: [std.fs.max_path_bytes]u8 = undefined;
-        const key = std.fmt.bufPrint(&buffer, "{s}{s}{s}{s}", .{ work.prefix, parent, if (parent.len == 0) "" else "/", entry.name }) catch return null;
+        var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+        const key = inputs.qualify(scratch.allocator(), work.prefix, parent, entry.name) catch return null;
 
         return files.unchanged(work.io, directory, entry.name, key, entry.metadata);
     }
 };
-
-fn join(allocator: std.mem.Allocator, parent: []const u8, name: []const u8) ![]const u8 {
-    return if (parent.len == 0) allocator.dupe(u8, name) else std.mem.concat(allocator, u8, &.{ parent, "/", name });
-}
