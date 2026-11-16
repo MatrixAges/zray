@@ -4,7 +4,8 @@ const generating = @import("genz");
 const Library = @import("../../../library/root.zig").Result;
 const Bundle = @import("../library.zig").Bundle;
 const names = @import("../names.zig");
-pub const Result = struct { objects: []const generating.zx.state.Object, services: []const generating.gateway.Service };
+const Result = @import("state.zig").Result;
+
 pub const Error = names.Error || error{ UnsupportedHostReference, InvalidModule, ConflictingStore, MissingInitializer, InvalidInitializer };
 
 pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bundle) Error!Result {

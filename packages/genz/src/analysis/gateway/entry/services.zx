@@ -1,20 +1,44 @@
 import service from "./service.rx"
+import slots from "./service_slots"
 
-import type { Services as Input, Output } from "./model"
+import type { Output, Services as Input } from "./model"
 
 export default function (in: Input): Output {
+    const bound = in.bound
+    const count = bound == null ? in.services.length : bound.ends.length
+
     return loop({
         state: in.state,
         index: 0
     }, {
-        while: current => current.state.valid && current.index < in.services.length,
+        while: current => current.state.valid && current.index < count,
         next: current => {
-            current.state = service({
-                state: current.state,
-                bases: in.bases,
-                service: in.services[current.index],
-                index: current.index
-            })
+            const index = current.index
+
+            if (bound != null) {
+                current.state = service({
+                    state: current.state,
+                    bases: in.bases,
+                    index,
+                    slots: slots({
+                        slots: bound.slots,
+                        ends: bound.ends,
+                        index
+                    }),
+                    requires_io: bound.requires_io[index],
+                    requires_process: bound.requires_process[index],
+                    types: bound.types,
+                    output_type: bound.output_types[index]
+                })
+            } else {
+                current.state = service({
+                    ...in.services[index],
+                    state: current.state,
+                    bases: in.bases,
+                    index
+                })
+            }
+
             current.index += 1
         },
         return: current => current.state

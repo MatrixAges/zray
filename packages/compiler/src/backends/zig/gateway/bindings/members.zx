@@ -14,7 +14,8 @@ export default function (in: Input): Output {
         next: current => {
             current.state = service({
                 state: current.state,
-                member: in.source.members[current.position]
+                member: in.source.members[current.position],
+                position: current.position
             })
             current.position += 1
         },

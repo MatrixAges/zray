@@ -8,7 +8,7 @@
         in={{
             bases: $in.bases,
             declaration_base: 0,
-            slots: $in.service.slots,
+            slots: $in.slots,
             service_index: $in.index
         }}
     />

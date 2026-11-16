@@ -12,8 +12,18 @@ export type Service = {
     output_type: u32
 }
 
+export type ServiceColumns = {
+    slots: Slot[],
+    ends: u64[],
+    requires_io: bool[],
+    requires_process: bool[],
+    types: Table,
+    output_types: u32[]
+}
+
 export type Input = {
     services: Service[],
+    bound?: ServiceColumns,
     service_modules: string[],
     routes: Route[],
     listen: string,
@@ -32,16 +42,14 @@ export type Dispatch = {
     config: DispatchInput
 }
 
-export type Services = {
+export type Services = Input.Pick("services", "bound") & {
     state: Output,
-    bases: Bases,
-    services: Service[]
+    bases: Bases
 }
 
-export type Visit = {
+export type Visit = Service & {
     state: Output,
     bases: Bases,
-    service: Service,
     index: u64
 }
 

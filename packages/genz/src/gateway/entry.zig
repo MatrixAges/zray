@@ -1,12 +1,28 @@
 const std = @import("std");
 const zx = @import("zx");
 const model = @import("root.zig");
-
 pub const Options = struct { services: []const model.Service, service_modules: []const []const u8, routes: []const model.Route, listen: []const u8, max_header_bytes: u32, max_body_bytes: u32 };
+
+pub const ServiceColumns = struct {
+    slots: []const model.Slot,
+    ends: []const u64,
+    requires_io: []const bool,
+    requires_process: []const bool,
+    types: zx.ir.TypeTable,
+    output_types: []const u32,
+};
 
 pub fn render(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Error![]u8 {
     if (comptime !@import("genz_options").generated_analysis) return @import("entry_seed.zig").render(allocator, options);
 
+    return renderGenerated(allocator, options, null);
+}
+
+pub fn renderBound(allocator: std.mem.Allocator, options: Options, bound: ServiceColumns) std.mem.Allocator.Error![]u8 {
+    return renderGenerated(allocator, options, bound);
+}
+
+fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?ServiceColumns) std.mem.Allocator.Error![]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -16,9 +32,27 @@ pub fn render(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.
     const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
+    const Bound = std.meta.Child(@typeInfo(@FieldType(Input, "bound")).optional.child);
+    const Types = std.meta.Child(@FieldType(Bound, "types"));
+    var table: Types = undefined;
+    var source: Bound = undefined;
+
+    if (bound) |value| {
+        table = zx.ir.TypeTable.borrow(Types, value.types);
+
+        source = .{
+            .slots = try @import("slots.zig").borrow(@FieldType(Bound, "slots"), workspace, value.slots),
+            .ends = value.ends,
+            .requires_io = value.requires_io,
+            .requires_process = value.requires_process,
+            .types = &table,
+            .output_types = value.output_types,
+        };
+    }
 
     const input: Input = .{
-        .services = try services(@FieldType(Input, "services"), workspace, options.services),
+        .services = if (bound == null) try services(@FieldType(Input, "services"), workspace, options.services) else &.{},
+        .bound = if (bound != null) &source else null,
         .routes = try routes(@FieldType(Input, "routes"), workspace, options.routes),
         .service_modules = options.service_modules,
         .listen = options.listen,

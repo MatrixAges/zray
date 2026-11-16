@@ -42,7 +42,8 @@
         in={{
             state: $ctx.dispatch,
             bases: $ctx.bases,
-            services: $in.services
+            services: $in.services,
+            bound: $in.bound
         }}
     />
 

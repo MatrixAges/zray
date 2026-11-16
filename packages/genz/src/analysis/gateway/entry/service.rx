@@ -17,11 +17,11 @@
                 bases: $in.bases,
                 declaration_base: 0,
                 index: $in.index,
-                slot_count: $in.service.slots.length,
-                requires_io: $in.service.requires_io,
-                requires_process: $in.service.requires_process,
-                types: $in.service.types,
-                output_type: $in.service.output_type
+                slot_count: $in.slots.length,
+                requires_io: $in.requires_io,
+                requires_process: $in.requires_process,
+                types: $in.types,
+                output_type: $in.output_type
             }
         }}
     />

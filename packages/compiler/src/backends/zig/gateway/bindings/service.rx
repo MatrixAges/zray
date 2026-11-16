@@ -55,7 +55,18 @@
             <Return value={$ctx.stores} />
         </If>
 
-        <If on={$in.member.requires_io == null}>
+        <Call
+            fn="descriptor"
+            in={{
+                target: $in.state.source.descriptors,
+                position: $in.position,
+                output_type: $ctx.signature.output_type,
+                requires_io: $in.member.requires_io,
+                requires_process: $in.member.requires_process
+            }}
+        />
+
+        <If on={!$ctx.descriptor}>
             <Return
                 value={{
                     ...$ctx.stores,

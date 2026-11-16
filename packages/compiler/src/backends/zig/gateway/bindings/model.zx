@@ -1,3 +1,4 @@
+import type { U8Buffer, U32Buffer } from "std:memory"
 import type { Index } from "core/bytes/index/model"
 import type { Stores } from "core/store_table/model"
 import type { Table } from "core/type_table/model"
@@ -16,7 +17,14 @@ export type Member = {
     export_name: string,
     name: string,
     function_id?: u32,
-    requires_io?: bool
+    requires_io?: bool,
+    requires_process: bool
+}
+
+export type Descriptors = {
+    output_types: U32Buffer,
+    requires_io: U8Buffer,
+    requires_process: U8Buffer
 }
 
 export type Functions = {
@@ -31,7 +39,8 @@ export type Input = {
     functions: Functions,
     members: Member[],
     initializers: Initializers,
-    independent: bool
+    independent: bool,
+    descriptors: Descriptors
 }
 
 export type State = {
@@ -48,7 +57,8 @@ export type State = {
 
 export type Service = {
     state: State,
-    member: Member
+    member: Member,
+    position: u64
 }
 
 export type Binding = {

@@ -5,8 +5,16 @@ const Library = @import("../../../library/root.zig").Result;
 const Bundle = @import("../library.zig").Bundle;
 const names = @import("../names.zig");
 const InitializerView = @import("../store_initializers/view.zig");
-pub const Result = @import("state_seed.zig").Result;
+
+pub const Result = struct {
+    objects: []const generating.zx.state.Object,
+    services: []const generating.gateway.Service = &.{},
+    bound: ?generating.gateway.entry.ServiceColumns = null,
+};
+
 pub const Error = @import("state_seed.zig").Error;
+
+const Descriptor = struct { output_type: u32, requires_io: bool, requires_process: bool };
 
 pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bundle) Error!Result {
     if (comptime !@import("parser_options").generated_parser) return @import("state_seed.zig").create(allocator, library, bundle);
@@ -21,30 +29,40 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Functions = std.meta.Child(@FieldType(Input, "functions"));
     const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
+    const Descriptors = std.meta.Child(@FieldType(Input, "descriptors"));
     var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
 
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
-    const members = try temporary.alloc(MemberRef, library.exports.len);
+    const rows = try temporary.alloc(Member, library.exports.len);
 
-    for (library.exports, bundle.public_modules, members) |exported, facade, *member| {
-        const value: Member = .{
+    const members = if (comptime @typeInfo(MemberRef) == .pointer)
+        try temporary.alloc(MemberRef, rows.len)
+    else
+        rows;
+
+    for (library.exports, bundle.public_modules, rows, members) |*exported, *facade, *row, *member| {
+        row.* = .{
             .export_name = exported.name,
             .name = facade.name,
             .function_id = if (exported.function) |id| @backingInt(id) else null,
             .requires_io = if (facade.requirements) |requirements| requirements.io else null,
+            .requires_process = if (facade.requirements) |requirements| requirements.process else false,
         };
 
-        if (comptime @typeInfo(MemberRef) == .pointer) {
-            const borrowed = try temporary.create(Member);
-            borrowed.* = value;
-            member.* = borrowed;
-        } else {
-            member.* = value;
-        }
+        if (comptime @typeInfo(MemberRef) == .pointer) member.* = row;
     }
 
+    var descriptors: std.MultiArrayList(Descriptor) = .empty;
+
+    try descriptors.resize(allocator, library.exports.len);
+
+    const output_types = descriptors.items(.output_type);
+    const requires_io = descriptors.items(.requires_io);
+    const requires_process = descriptors.items(.requires_process);
+    const io_bytes = std.mem.sliceAsBytes(requires_io);
+    const process_bytes = std.mem.sliceAsBytes(requires_process);
     const initializers = try InitializerView.init(temporary, bundle.store_initializers);
     const types = zx.ir.TypeTable.borrow(Types, library.program.types);
     const functions = zx.columns.borrow(Functions, &library.program.functions);
@@ -56,6 +74,11 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
         .members = members,
         .initializers = &initializers.input(Initializers),
         .independent = independent,
+        .descriptors = &Descriptors{
+            .output_types = @ptrCast(&output_types),
+            .requires_io = @ptrCast(&io_bytes),
+            .requires_process = @ptrCast(&process_bytes),
+        },
     };
 
     const output = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -74,23 +97,16 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
 
     const objects = try @import("../state/objects.zig").create(allocator, output.modules, output.writable, independent);
     const slots = try @import("slots.zig").create(allocator, output.indices, output.access);
-    const services = try allocator.alloc(generating.gateway.Service, library.exports.len);
-    var start: usize = 0;
 
-    for (library.exports, bundle.public_modules, output.ends, services) |exported, facade, end, *service| {
-        const id = @backingInt(exported.function.?);
-
-        service.* = .{
-            .name = facade.name,
-            .module_name = facade.file.name,
-            .slots = slots[start..end],
-            .output = .{ .types = library.program.types, .id = @fromBackingInt(library.program.functions.output_types[id]) },
-            .requires_io = facade.requirements.?.io,
-            .requires_process = facade.requirements.?.process,
-        };
-
-        start = end;
-    }
-
-    return .{ .objects = objects, .services = services };
+    return .{
+        .objects = objects,
+        .bound = .{
+            .slots = slots,
+            .ends = output.ends,
+            .requires_io = requires_io,
+            .requires_process = requires_process,
+            .types = library.program.types,
+            .output_types = output_types,
+        },
+    };
 }
