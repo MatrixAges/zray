@@ -48,7 +48,7 @@ pub const Result = struct {
 
             const initializers = try store.collectInitializers(scratch, module.store_definitions, &module.analysis.value.ir, module.analysis.public_functions);
 
-            input.* = .{ .name = module.name, .analysis = &module.analysis, .initializers = initializers };
+            input.* = .{ .name = module.name, .analysis = &module.analysis, .borrowed_initializers = initializers };
         }
 
         return compiler.library.link(allocator, inputs);

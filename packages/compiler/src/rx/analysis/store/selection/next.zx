@@ -1,3 +1,4 @@
+import integers from "std:integer"
 import memory from "std:memory"
 import find from "core/store_table/find"
 
@@ -9,9 +10,11 @@ import type { Input, Output } from "./model"
 export default function (in: Input): Output {
     return loop({
         next: in.first,
-        choice: Choice.Unused
+        written: 0,
+        valid: true
     }, {
-        while: state => state.next < in.count && state.choice == Choice.Unused,
+        while: state =>
+            state.valid && state.next < in.count && state.written < in.capacity,
         next: state => {
             const identity = memory.readTextColumn(in.identities, state.next)
             const entry = find({
@@ -19,13 +22,24 @@ export default function (in: Input): Output {
                 identity
             })
 
-            state.choice = match {
+            const choice = match {
                 entry != null => Choice.Needed,
                 _ => publicMembers({
                     members: in.members,
                     identity
                 })
             }
+
+            if (choice == Choice.Needed) {
+                memory.writeU32(
+                    in.selected,
+                    state.written,
+                    integers.narrow(state.next)
+                )
+                state.written += 1
+            }
+
+            state.valid = choice != Choice.InvalidMember
             state.next += 1
         },
         return: state => state

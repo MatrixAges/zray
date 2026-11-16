@@ -51,7 +51,7 @@ fn publish(self: *Self, value: Entry) Error!void {
     self.items.appendAssumeCapacity(copied);
 }
 
-pub fn source(self: *Self, initial: model.Initializer, origins: @FieldType(frontend.AnalysisResult, "nominal_types")) Error!void {
+pub fn source(self: *Self, initial: model.Initializer.Borrowed, origins: @FieldType(frontend.AnalysisResult, "nominal_types")) Error!void {
     const program = initial.program;
 
     if (!try valid(self.scratch, program)) return error.InvalidInitializer;
@@ -83,10 +83,10 @@ pub fn source(self: *Self, initial: model.Initializer, origins: @FieldType(front
     try self.publish(.{ .identity = initial.identity, .schema_version = initial.schema_version, .function = id });
 }
 
-fn valid(scratch: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!bool {
+fn valid(scratch: std.mem.Allocator, program: *const ir.Program) std.mem.Allocator.Error!bool {
     if (generated) return @import("../backends/zig/store_initializers/validation.zig").validate(scratch, program, .forbidden);
     if (program.type_only or program.functions.count() != 0 or program.native_modules.count() != 0 or program.stores.count() != 0 or program.contracts.count() != 0) return false;
-    if (try frontend.validateIr(scratch, program) != null) return false;
+    if (try frontend.validateIr(scratch, program.*) != null) return false;
 
     return program.typeOf(program.input_type) == .scalar and
         program.typeOf(program.input_type).scalar == .void and

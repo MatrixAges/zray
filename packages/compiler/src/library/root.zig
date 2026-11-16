@@ -6,7 +6,14 @@ pub const PublicReference = @import("load.zig").Export;
 pub const load = @import("load.zig").load;
 pub const link = @import("link.zig").link;
 pub const Initializer = frontend.project.SourceStoreInitializer;
-pub const Input = struct { name: []const u8, analysis: *const frontend.AnalysisResult, initializers: []const Initializer = &.{} };
+
+pub const Input = struct {
+    name: []const u8,
+    analysis: *const frontend.AnalysisResult,
+    initializers: []const Initializer = &.{},
+    borrowed_initializers: []const Initializer.Borrowed = &.{},
+};
+
 pub const Export = frontend.project.compiled.Export;
 
 pub const Result = struct {

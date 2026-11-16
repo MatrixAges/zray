@@ -3,7 +3,7 @@ const zx = @import("zx");
 const entry = @import("generated_store_initializer_validation");
 const Storage = @import("frontend").ir_validation_input.Storage(std.meta.Child(entry.Input));
 
-pub fn validate(workspace: std.mem.Allocator, program: zx.ir.Program, native_modules: enum { allowed, forbidden }) std.mem.Allocator.Error!bool {
+pub fn validate(workspace: std.mem.Allocator, program: *const zx.ir.Program, native_modules: enum { allowed, forbidden }) std.mem.Allocator.Error!bool {
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const eligible = @import("generated_store_initializer_eligible");
 
@@ -26,7 +26,7 @@ pub fn validate(workspace: std.mem.Allocator, program: zx.ir.Program, native_mod
 
     var storage: Storage = undefined;
 
-    try storage.init(arena.allocator(), &program, .{});
+    try storage.init(arena.allocator(), program, .{});
 
     return entry.execute(&arena, &storage.input) catch |err| switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,

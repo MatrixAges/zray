@@ -4,7 +4,8 @@ const frontend = @import("frontend");
 const modules = @import("modules.zig");
 const names = @import("names.zig");
 pub const Initializer = @import("frontend").project.SourceStoreInitializer;
-pub const Options = struct { analysis: *const frontend.AnalysisResult, initializers: []const Initializer, cache: ?*@import("cache.zig") = null };
+const Options = @import("store_initializers.zig").Options;
+
 pub const Error = modules.Error || error{ InvalidInitializer, DuplicateInitializer, MissingInitializer };
 
 pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
@@ -22,6 +23,14 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     var initializers: std.ArrayList(Initializer) = .empty;
 
     try initializers.appendSlice(allocator, options.initializers);
+
+    for (options.borrowed_initializers) |initial| {
+        try initializers.append(allocator, .{
+            .identity = initial.identity,
+            .schema_version = initial.schema_version,
+            .program = initial.program.*,
+        });
+    }
 
     for (options.analysis.store_initializers) |initial| {
         const needed = for (0..application.stores.count()) |store_index| {

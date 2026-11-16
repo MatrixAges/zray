@@ -1,4 +1,4 @@
-import type { TextColumn } from "std:memory"
+import type { TextColumn, U32Buffer } from "std:memory"
 import type { Stores } from "core/store_table/model"
 
 export type Members = {
@@ -11,7 +11,9 @@ export type Input = {
     members: Members,
     identities: TextColumn,
     count: u64,
-    first: u64
+    first: u64,
+    selected: U32Buffer,
+    capacity: u64
 }
 
 export enum Choice {
@@ -22,5 +24,6 @@ export enum Choice {
 
 export type Output = {
     next: u64,
-    choice: Choice
+    written: u64,
+    valid: bool
 }

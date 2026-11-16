@@ -3,17 +3,24 @@ const frontend = @import("frontend");
 const zx = @import("zx");
 const modules = @import("modules.zig");
 const names = @import("names.zig");
-pub const Initializer = @import("store_initializers_seed.zig").Initializer;
-pub const Options = struct { analysis: *const frontend.AnalysisResult, initializers: []const Initializer, cache: ?*@import("cache.zig") = null };
+pub const Initializer = frontend.project.SourceStoreInitializer;
+
+pub const Options = struct {
+    analysis: *const frontend.AnalysisResult,
+    initializers: []const Initializer = &.{},
+    borrowed_initializers: []const Initializer.Borrowed = &.{},
+    cache: ?*@import("cache.zig") = null,
+};
+
 pub const Error = modules.Error || error{ InvalidInitializer, DuplicateInitializer, MissingInitializer };
 
 pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
-    if (comptime !@import("parser_options").generated_parser) return @import("store_initializers_seed.zig").append(bundle, .{ .analysis = options.analysis, .initializers = options.initializers, .cache = options.cache });
+    if (comptime !@import("parser_options").generated_parser) return @import("store_initializers_seed.zig").append(bundle, options);
     if (options.analysis.value != .ir or bundle.store_initializers.len != 0) return error.InvalidInitializer;
 
     const allocator = bundle.arena.allocator();
-    const application = options.analysis.value.ir;
-    const shared = try names.create(allocator, bundle.arena.child_allocator, application, options.analysis.nominal_types);
+    const application = &options.analysis.value.ir;
+    const shared = try names.create(allocator, bundle.arena.child_allocator, application.*, options.analysis.nominal_types);
     var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
 
     defer scratch.deinit();
@@ -37,7 +44,8 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
 
     if (!selection.valid) return error.InvalidInitializer;
 
-    const count = std.math.add(usize, options.initializers.len, selection.indices.len) catch return error.OutOfMemory;
+    const source_count = std.math.add(usize, options.initializers.len, options.borrowed_initializers.len) catch return error.OutOfMemory;
+    const count = std.math.add(usize, source_count, selection.indices.len) catch return error.OutOfMemory;
     const file_count = std.math.add(usize, bundle.modules.len, count) catch return error.OutOfMemory;
     var files = try std.ArrayList(modules.File).initCapacity(allocator, file_count);
     var metadata = try std.ArrayList(modules.StoreInitializer).initCapacity(allocator, count);
@@ -47,29 +55,35 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     const validation = @import("store_initializers/validation.zig");
 
     for (0..count) |row| {
+        var linked_source: Initializer = undefined;
+
         const initial = if (row < options.initializers.len)
-            options.initializers[row]
+            options.initializers[row].borrow()
 
-        else
-            linked(&application, options.analysis.store_initializers[selection.indices[row - options.initializers.len]]);
+        else if (row < source_count)
+            options.borrowed_initializers[row - options.initializers.len]
+        else linked_row: {
+            linked_source = linked(application, options.analysis.store_initializers[selection.indices[row - source_count]]);
 
-        var program = initial.program;
+            break :linked_row linked_source.borrow();
+        };
 
-        if (!try validation.validate(bundle.arena.child_allocator, program, .allowed)) return error.InvalidInitializer;
+        if (!try validation.validate(bundle.arena.child_allocator, initial.program, .allowed)) return error.InvalidInitializer;
 
-        const own = try names.create(allocator, bundle.arena.child_allocator, program, options.analysis.nominal_types);
+        const own = try names.create(allocator, bundle.arena.child_allocator, initial.program.*, options.analysis.nominal_types);
 
         if (!validation.compatible(own.types, shared.types)) return error.InvalidInitializer;
 
         const identity = try allocator.dupe(u8, initial.identity);
 
-        try identities.register(identity, program.output_type);
+        try identities.register(identity, initial.program.output_type);
 
         var digest: [32]u8 = undefined;
 
         zx.Sha256.hash(identity, &digest, .{});
 
         const module_name = try std.fmt.allocPrint(allocator, "zxc_store_initial_{s}", .{std.fmt.bytesToHex(digest, .lower)});
+        var program = initial.program.*;
         program.file_name = module_name;
         const source = try modules.emit(allocator, program, .{ .types = shared.types, .functions = &.{} }, .entry, options.cache);
 
