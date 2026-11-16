@@ -1,0 +1,27 @@
+import { Target } from "../../../../../dependency_graph/reference/model"
+import { Kind as Path } from "../../../../../path_kind/model"
+import { Kind as Route } from "./model"
+
+export type Input = Target
+
+export type Output = {
+    path: Path,
+    destination: Route
+}
+
+export default function (in: Input): Output {
+    return match in {
+        Target.Module => {
+            path: Path.ModuleReference,
+            destination: Route.Source
+        },
+        Target.Function => {
+            path: Path.FunctionReference,
+            destination: Route.Source
+        },
+        _ => {
+            path: Path.StoreReference,
+            destination: Route.Store
+        }
+    }
+}

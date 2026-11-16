@@ -1,0 +1,46 @@
+<Module>
+    <Type from="model" as="Reference" />
+
+    <Args in={Reference.Input} out={Reference.Output} />
+
+    <Call fn="request" in={$in.omit(["workspace"])} />
+
+    <Call module="../normalize" in={$ctx.request} />
+
+    <If on={!$ctx.normalize.valid}>
+        <Return
+            value={{
+                state: Reference.State.Invalid,
+                length: 0
+            }}
+        />
+    </If>
+
+    <If on={$ctx.normalize.length > $in.workspace.bytes.length}>
+        <Return
+            value={{
+                state: Reference.State.NeedSpace,
+                length: $ctx.normalize.length
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../walk"
+        in={{
+            directory: $in.directory,
+            path: $ctx.request.path,
+            suffix: $ctx.normalize.suffix,
+            attached: $ctx.normalize.attached,
+            capacity: $ctx.normalize.length,
+            target: $in.workspace.target
+        }}
+    />
+
+    <Return
+        value={{
+            state: Reference.State.Ready,
+            length: $ctx.walk.length
+        }}
+    />
+</Module>

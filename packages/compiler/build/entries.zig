@@ -59,6 +59,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/type_imports/publish.zx", .name = "rx_publish_type_imports", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/type_imports/admit.rx", .name = "rx_type_import_admit", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/source_graph/references/next.zx", .name = "rx_next_reference", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/source_graph/references/route/resolve.rx", .name = "rx_reference_route", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/references/lookup/resolve.rx", .name = "rx_lookup_signature", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/references/index/publish.zx", .name = "rx_publish_signature_index", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/entry/kind.zx", .name = "rx_project_entry_kind", .owner = .rx_analysis },

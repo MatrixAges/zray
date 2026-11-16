@@ -2,6 +2,7 @@
     <Type from="model" as="Edge" />
     <Type from="../model" as="Graph" />
     <Type from="../../path_kind/model" as="Path" />
+    <Type from="../../path_segments/reference/model" as="Reference" />
 
     <Args in={Edge.Input} out={Edge.Output} />
 
@@ -28,17 +29,16 @@
     </If>
 
     <Call
-        fn="path_request"
+        module="../../path_segments/reference/resolve"
         in={{
             directory: $in.directory,
             reference: $in.reference,
-            kind: Path.Kind.ModuleReference
+            kind: Path.Kind.ModuleReference,
+            workspace: $in.workspace
         }}
     />
 
-    <Call module="../../path_segments/normalize" in={$ctx.path_request} />
-
-    <If on={!$ctx.normalize.valid}>
+    <If on={$ctx.resolve.state == Reference.State.Invalid}>
         <Return
             value={{
                 included: true,
@@ -49,35 +49,23 @@
         />
     </If>
 
-    <If on={$ctx.normalize.length > $in.workspace.bytes.length}>
+    <If on={$ctx.resolve.state == Reference.State.NeedSpace}>
         <Return
             value={{
                 included: true,
                 target: 0,
                 issue: Graph.Issue.None,
-                required: $ctx.normalize.length
+                required: $ctx.resolve.length
             }}
         />
     </If>
-
-    <Call
-        fn="../../path_segments/walk"
-        in={{
-            directory: $in.directory,
-            path: $ctx.path_request.path,
-            suffix: $ctx.normalize.suffix,
-            attached: $ctx.normalize.attached,
-            capacity: $ctx.normalize.length,
-            target: $in.workspace.target
-        }}
-    />
 
     <Call
         fn="lookup"
         in={{
             registry: $in.registry,
             bytes: $in.workspace.bytes,
-            length: $ctx.walk.length
+            length: $ctx.resolve.length
         }}
     />
 

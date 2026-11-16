@@ -1,16 +1,12 @@
-import type { U64Buffer, U8Buffer } from "std:memory"
+import type { U64Buffer } from "std:memory"
 import type { Rows as Packages } from "../../../zx/modules/project/target/select"
+import type { Workspace } from "../../path_segments/reference/model"
 import type { Issue } from "../model"
 
 export type Registry = {
     keys: u8[][],
     buckets: U64Buffer,
     capacity: u64
-}
-
-export type Workspace = {
-    bytes: u8[],
-    target: U8Buffer
 }
 
 export type Input = {

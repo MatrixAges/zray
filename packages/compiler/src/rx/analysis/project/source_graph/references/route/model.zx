@@ -1,0 +1,26 @@
+import type {
+    Rows as Packages
+} from "../../../../../../zx/modules/project/target/select"
+import type { Target } from "../../../../../dependency_graph/reference/model"
+import type { Input as Reference } from "../../../../../path_segments/reference/model"
+
+export type Input = Reference.Omit("kind") & {
+    target: Target,
+    package_allowed: bool,
+    packages: Packages
+}
+
+export enum Kind {
+    Package,
+    Source,
+    Store,
+    Invalid,
+    NeedSpace
+}
+
+export type Output = {
+    kind: Kind,
+    first?: u64,
+    duplicate: bool,
+    length: u64
+}
