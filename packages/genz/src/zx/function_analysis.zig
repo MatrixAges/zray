@@ -100,41 +100,10 @@ fn createWithConcurrency(backing: std.mem.Allocator, program: ir.Program, export
 
     const owned = arena.allocator();
     const basis = try owned.create(Uniqueness.Basis);
-    var scratch = std.heap.ArenaAllocator.init(backing);
-
-    defer scratch.deinit();
-
-    const facts = try analyzeFrom(scratch.allocator(), backing, program, exported, .{ .build = .{ .allocator = owned, .basis = basis } }, memo, concurrent);
-
-    const value: Self = .{
-        .value = .{
-            .pure = try owned.dupe(bool, facts.value.pure),
-            .local = try owned.dupe(bool, facts.value.local),
-            .values = try owned.dupe(bool, facts.value.values),
-            .state = .{
-                .element_storage = try owned.dupe(bool, facts.value.state.element_storage),
-                .selected = try owned.dupe(bool, facts.value.state.selected),
-                .borrowed = try owned.dupe(bool, facts.value.state.borrowed),
-                .queries = try owned.dupe(@import("state_value/queries.zig").Kind, facts.value.state.queries),
-                .keys = try owned.dupe([32]u8, facts.value.state.keys),
-            },
-        },
-        .entry_flags = facts.entry_flags,
-        .io = try owned.dupe(bool, facts.io),
-        .process = try owned.dupe(bool, facts.process),
-        .tasks = try owned.dupe(bool, facts.tasks),
-        .grows = try owned.dupe(bool, facts.grows),
-        .errors = try copyErrors(owned, facts.errors),
-        .layout_types = try owned.dupe(@import("iteration_layout/generated.zig").Type, facts.layout_types),
-        .identity_free = try owned.dupe(bool, facts.identity_free),
-        .fresh_outputs = try owned.dupe(bool, facts.fresh_outputs),
-        .constructed_outputs = try owned.dupe(bool, facts.constructed_outputs),
-        .uniqueness = facts.uniqueness,
-        .basis = basis,
-        .entry_summaries = try owned.create(Uniqueness.Summaries),
-    };
-
-    value.entry_summaries.?.* = try .create(owned, program, basis);
+    var value = try analyzeFrom(owned, backing, program, exported, .{ .build = basis }, memo, concurrent);
+    const summaries = try owned.create(Uniqueness.Summaries);
+    summaries.* = try .create(owned, program, basis);
+    value.entry_summaries = summaries;
 
     return .{ .arena = arena, .value = value };
 }
@@ -152,20 +121,17 @@ pub fn analyzeConcurrent(allocator: std.mem.Allocator, workspace: std.mem.Alloca
 /// other passes, which read no basis.
 const Source = union(enum) {
     ready: *const Uniqueness.Basis,
-    build: struct { allocator: std.mem.Allocator, basis: *Uniqueness.Basis },
+    build: *Uniqueness.Basis,
     fn basis(self: Source) *const Uniqueness.Basis {
         return switch (self) {
             .ready => |value| value,
-            .build => |value| value.basis,
+            .build => |value| value,
         };
     }
 };
 
 fn analyzeFrom(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, source: Source, memo: ?*Uniqueness.Memo, comptime concurrent: bool) std.mem.Allocator.Error!Self {
-    var uniqueness = Concurrent{ .arena = .init(workspace), .workspace = workspace, .program = program, .exported = exported, .source = source, .memo = memo };
-
-    defer uniqueness.arena.deinit();
-
+    var uniqueness = Concurrent{ .allocator = allocator, .workspace = workspace, .program = program, .exported = exported, .source = source, .memo = memo };
     const thread: ?std.Thread = if (concurrent) std.Thread.spawn(.{}, Concurrent.run, .{&uniqueness}) catch null else null;
 
     if (thread == null) {
@@ -177,9 +143,8 @@ fn analyzeFrom(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
     if (thread) |running| running.join();
 
     var value = try others;
-    const plans = try uniqueness.result;
 
-    value.uniqueness = if (thread != null and source == .ready) try copyPlans(allocator, plans) else plans;
+    value.uniqueness = try uniqueness.result;
     value.basis = source.basis();
     value.entry_flags = try Entry.analyze(workspace, program, .{ .local = value.value.local, .pure = value.value.pure, .io = value.io, .process = value.process, .tasks = value.tasks });
 
@@ -266,7 +231,7 @@ fn remaining(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program
 }
 
 const Concurrent = struct {
-    arena: std.heap.ArenaAllocator,
+    allocator: std.mem.Allocator,
     workspace: std.mem.Allocator,
     program: ir.Program,
     exported: []const ir.FunctionId,
@@ -274,34 +239,17 @@ const Concurrent = struct {
     memo: ?*Uniqueness.Memo,
     result: std.mem.Allocator.Error!Uniqueness.Result = error.OutOfMemory,
     fn run(self: *Concurrent) void {
-        self.result = analyzeUniqueness(self.arena.allocator(), self.workspace, self.program, self.exported, self.source, self.memo, true);
+        self.result = analyzeUniqueness(self.allocator, self.workspace, self.program, self.exported, self.source, self.memo, true);
     }
 };
 
 fn analyzeUniqueness(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, source: Source, memo: ?*Uniqueness.Memo, comptime concurrent: bool) std.mem.Allocator.Error!Uniqueness.Result {
-    const plans = if (source == .build) source.build.allocator else allocator;
-
     if (source == .build) {
-        const build = source.build;
-        build.basis.* = try Uniqueness.Basis.create(build.allocator, workspace, program, memo);
+        source.build.* = try Uniqueness.Basis.create(allocator, workspace, program, memo);
     }
 
-    return if (concurrent) Uniqueness.analyzeConcurrent(plans, workspace, program, exported, source.basis(), memo) else Uniqueness.analyze(plans, workspace, program, exported, source.basis(), memo);
-}
-
-/// The names live in the program, which outlives its facts.
-fn copyErrors(allocator: std.mem.Allocator, source: []const ?[]const []const u8) std.mem.Allocator.Error![]const ?[]const []const u8 {
-    const errors = try allocator.alloc(?[]const []const u8, source.len);
-
-    for (source, errors) |names, *target| target.* = if (names) |value| try allocator.dupe([]const u8, value) else null;
-
-    return errors;
-}
-
-fn copyPlans(allocator: std.mem.Allocator, source: Uniqueness.Result) std.mem.Allocator.Error!Uniqueness.Result {
-    const functions = try allocator.alloc(Uniqueness.Plan, source.functions.len);
-
-    for (source.functions, functions) |plan, *target| target.* = try plan.copy(allocator);
-
-    return .{ .functions = functions, .entry = try source.entry.copy(allocator) };
+    return if (concurrent)
+        Uniqueness.analyzeConcurrent(allocator, workspace, program, exported, source.basis(), memo)
+    else
+        Uniqueness.analyze(allocator, workspace, program, exported, source.basis(), memo);
 }

@@ -1,0 +1,48 @@
+import integers from "std:integer"
+
+import walk from "../types/closure/walk"
+import unmarked from "../types/unmarked"
+
+import type { Table } from "core/type_table/model"
+
+export type Input = {
+    types: Table,
+    exported: u32[],
+    ports: u32[],
+    entry: u32
+}
+
+export type Output = bool[]
+
+export default function (in: Input): Output {
+    const queue: u32[] = []
+
+    const seeded = loop({
+        boxed: unmarked(in.types),
+        queue,
+        index: 0
+    }, {
+        while: state => state.index <= in.exported.length,
+        next: state => {
+            const port = match state.index {
+                0 => in.entry,
+                _ => in.ports[integers.widen(in.exported[state.index - 1])]
+            }
+
+            const type_id = integers.widen(port)
+
+            if (!state.boxed[type_id]) {
+                state.boxed[type_id] = true
+                state.queue = state.queue.push(port)[0]
+            }
+
+            state.index += 1
+        }
+    })
+
+    return walk({
+        types: in.types,
+        boxed: seeded.boxed,
+        queue: seeded.queue
+    })
+}

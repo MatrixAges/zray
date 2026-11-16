@@ -32,6 +32,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/error_effects", .entry = "core/error_effects/analyze.rx" },
     .{ .specifier = "core/error_effects/const", .entry = "core/error_effects/const.zx" },
     .{ .specifier = "core/error_effects/functions", .entry = "core/error_effects/functions/analyze.rx" },
+    .{ .specifier = "core/error_effects/functions/model", .entry = "core/error_effects/functions/model.zx" },
     .{ .specifier = "compiler/contract", .entry = "zx/analysis/analyzer/contracts/predicate/analyze.rx" },
     .{ .specifier = "compiler/constant_syntax", .entry = "zx/frontend/parser/constants/parse.rx" },
     .{ .specifier = "compiler/constant_declaration", .entry = "zx/analysis/constants/declarations/item/analyze.rx" },

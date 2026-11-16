@@ -3,10 +3,12 @@ const zx = @import("zx");
 const ir = zx.ir;
 const columns = zx.columns;
 const generated = @import("generated_function_facts");
+const error_publication = @import("generated_function_facts_errors");
 const Input = std.meta.Child(generated.Input);
 const Program = std.meta.Child(@FieldType(Input, "program"));
 const Functions = std.meta.Child(@FieldType(Program, "functions"));
 const Errors = std.meta.Child(@FieldType(Input, "errors"));
+const Boundaries = std.meta.Child(@FieldType(Input, "boundaries"));
 
 pub const Facts = struct {
     value: @import("../value_call/analysis.zig").Summary,
@@ -28,21 +30,9 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
-    var bodies = try @import("error_sources.zig").collect(temporary, program.types, program.functions);
+    const sources = try @import("error_sources.zig").collect(temporary, program.types, program.functions);
 
-    defer bodies.deinit();
-
-    const names = try temporary.alloc([]const []const u8, bodies.own.len);
-    const unknown = try temporary.alloc(bool, bodies.own.len);
-    const callees = try temporary.alloc([]const u32, bodies.own.len);
-
-    comptime std.debug.assert(@typeInfo(ir.FunctionId).@"enum".tag_type == u32);
-
-    for (bodies.own, names, unknown, callees) |body, *target_names, *target_unknown, *target_callees| {
-        target_names.* = body.names;
-        target_unknown.* = body.unknown;
-        target_callees.* = @as([*]const u32, @ptrCast(body.callees.ptr))[0..body.callees.len];
-    }
+    defer sources.deinit();
 
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Program, "types")), program.types);
     var functions: Functions = undefined;
@@ -63,19 +53,20 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .output_type = @backingInt(program.output_type),
     };
 
-    const error_sources = Errors{ .names = names, .unknown = unknown, .callees = callees };
-    const inputs = try temporary.alloc(u32, 1 + exported.len);
-    const outputs = try temporary.alloc(u32, 1 + exported.len);
-    inputs[0] = @backingInt(program.input_type);
-    outputs[0] = @backingInt(program.output_type);
+    const error_sources: Errors = .{
+        .names = sources.columns.names,
+        .unknown = sources.columns.unknown,
+        .callees = sources.columns.callees,
+    };
 
-    for (exported, 0..) |id, index| {
-        const function = program.functions.at(@backingInt(id));
-        inputs[index + 1] = @backingInt(function.input_type);
-        outputs[index + 1] = @backingInt(function.output_type);
-    }
+    comptime std.debug.assert(@typeInfo(ir.FunctionId).@"enum".tag_type == u32);
 
-    const boundaries: std.meta.Child(@FieldType(Input, "boundaries")) = .{ .inputs = inputs, .outputs = outputs };
+    const boundaries: Boundaries = .{
+        .input_type = @backingInt(program.input_type),
+        .output_type = @backingInt(program.output_type),
+        .exported = @ptrCast(exported),
+    };
+
     const input = Input{ .program = &view, .errors = &error_sources, .boundaries = &boundaries };
 
     const output = generated.execute(&scratch, &input) catch |err| switch (err) {
@@ -87,9 +78,14 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
 
     for (grouped, output.errors.names) |*target, source| target.* = try allocator.dupe([]const u8, source);
 
-    const errors = try allocator.alloc(?[]const []const u8, bodies.own.len);
-
-    for (errors, output.errors.components) |*target, component| target.* = if (output.errors.unknown[component]) null else grouped[component];
+    const errors = columns.invoke(error_publication.executeValue, allocator, &.{
+        .components = output.errors.components,
+        .names = @as([]const []const []const u8, grouped),
+        .unknown = output.errors.unknown,
+    }) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     return .{
         .value = .{

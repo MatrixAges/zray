@@ -7,11 +7,39 @@ const Context = std.meta.Child(@FieldType(Input, "context"));
 const Tables = std.meta.Child(@FieldType(Context, "types"));
 const Functions = std.meta.Child(@FieldType(Context, "functions"));
 
-pub fn collect(allocator: std.mem.Allocator, types: ir.TypeTable, functions: ir.FunctionTable) std.mem.Allocator.Error!@import("zx").error_effects.Bodies {
-    const count = functions.count();
-    const own = try allocator.alloc(zx.error_effects.Own, count);
+const Columns = struct {
+    names: [][]const []const u8,
+    unknown: []bool,
+    callees: [][]const u32,
+};
 
-    errdefer allocator.free(own);
+const Sources = struct {
+    allocator: std.mem.Allocator,
+    columns: Columns,
+    arenas: []std.heap.ArenaAllocator,
+    pub fn deinit(self: Sources) void {
+        for (self.arenas) |*arena| arena.deinit();
+
+        self.allocator.free(self.arenas);
+        self.allocator.free(self.columns.callees);
+        self.allocator.free(self.columns.unknown);
+        self.allocator.free(self.columns.names);
+    }
+};
+
+pub fn collect(allocator: std.mem.Allocator, types: ir.TypeTable, functions: ir.FunctionTable) std.mem.Allocator.Error!Sources {
+    const count = functions.count();
+    const names = try allocator.alloc([]const []const u8, count);
+
+    errdefer allocator.free(names);
+
+    const unknown = try allocator.alloc(bool, count);
+
+    errdefer allocator.free(unknown);
+
+    const callees = try allocator.alloc([]const u32, count);
+
+    errdefer allocator.free(callees);
 
     const arenas = try allocator.alloc(std.heap.ArenaAllocator, @max(@min(zx.parallel.width(), count), 1));
 
@@ -26,18 +54,19 @@ pub fn collect(allocator: std.mem.Allocator, types: ir.TypeTable, functions: ir.
     const tables: Tables = .{ .base = &base, .delta = &delta };
     const borrowed_functions = zx.columns.borrow(Functions, &functions);
     const context: Context = .{ .types = &tables, .functions = &borrowed_functions };
-    var work = Visits{ .context = &context, .own = own, .arenas = arenas };
+    const columns: Columns = .{ .names = names, .unknown = unknown, .callees = callees };
+    var work = Visits{ .context = &context, .columns = columns, .arenas = arenas };
 
     zx.parallel.spread(Visits, &work, Visits.run, arenas.len);
 
     if (work.failed.load(.monotonic)) return error.OutOfMemory;
 
-    return .{ .allocator = allocator, .own = own, .arenas = arenas };
+    return .{ .allocator = allocator, .columns = columns, .arenas = arenas };
 }
 
 const Visits = struct {
     context: *const Context,
-    own: []zx.error_effects.Own,
+    columns: Columns,
     arenas: []std.heap.ArenaAllocator,
     next: std.atomic.Value(usize) = .init(0),
     failed: std.atomic.Value(bool) = .init(false),
@@ -51,7 +80,7 @@ const Visits = struct {
         while (!self.failed.load(.monotonic)) {
             const index = self.next.fetchAdd(1, .monotonic);
 
-            if (index >= self.own.len) return;
+            if (index >= self.columns.names.len) return;
 
             _ = scratch.reset(.retain_capacity);
 
@@ -63,19 +92,19 @@ const Visits = struct {
                 return;
             };
 
-            self.own[index] = .{
-                .unknown = output.unknown,
-                .names = lasting.dupe([]const u8, output.names) catch {
-                    self.failed.store(true, .monotonic);
+            self.columns.names[index] = lasting.dupe([]const u8, output.names) catch {
+                self.failed.store(true, .monotonic);
 
-                    return;
-                },
-                .callees = @ptrCast(lasting.dupe(u32, output.callees) catch {
-                    self.failed.store(true, .monotonic);
-
-                    return;
-                }),
+                return;
             };
+
+            self.columns.callees[index] = lasting.dupe(u32, output.callees) catch {
+                self.failed.store(true, .monotonic);
+
+                return;
+            };
+
+            self.columns.unknown[index] = output.unknown;
         }
     }
 };

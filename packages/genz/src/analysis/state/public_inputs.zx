@@ -2,32 +2,32 @@ import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import closure from "../types/closure"
-import unmarked from "../types/unmarked"
+import publicRoots from "./public_roots"
 
 import type { Table } from "core/type_table/model"
-import type { Boundaries } from "../model"
+import type { Boundaries, Functions } from "../model"
 
 export type Input = {
     types: Table,
+    functions: Functions,
     source: Boundaries
 }
 
 export type Output = u32[]
 
 export default function (in: Input): Output {
-    const empty = unmarked(in.types)
-
-    const inputs = closure({
+    const inputs = publicRoots({
         types: in.types,
-        boxed: empty,
-        roots: in.source.inputs
+        exported: in.source.exported,
+        ports: in.functions.input_types,
+        entry: in.source.input_type
     })
 
-    const outputs = closure({
+    const outputs = publicRoots({
         types: in.types,
-        boxed: empty,
-        roots: in.source.outputs
+        exported: in.source.exported,
+        ports: in.functions.output_types,
+        entry: in.source.output_type
     })
 
     const roots: u32[] = []

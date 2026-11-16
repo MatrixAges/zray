@@ -2,23 +2,16 @@
     <Type from="../model" as="Model" />
     <Type from="../types/layout" as="Layout" />
     <Type from="../state/queries/build" as="StateQueries" />
+    <Type from="core/error_effects/functions/model" as="Effects" />
 
     <Args
         in={{
             boundaries: Model.Boundaries,
-            errors: {
-                callees: u32[][],
-                names: string[][],
-                unknown: bool[]
-            },
+            errors: Effects.Sources,
             program: Model.Program
         }}
         out={{
-            errors: {
-                components: u32[],
-                names: string[][],
-                unknown: bool[]
-            },
+            errors: Effects.Result,
             fresh_outputs: bool[],
             constructed_outputs: bool[],
             grows: bool[],

@@ -34,8 +34,9 @@ export type Program = {
 }
 
 export type Boundaries = {
-    inputs: u32[],
-    outputs: u32[]
+    input_type: u32,
+    output_type: u32,
+    exported: u32[]
 }
 
 export type State = {

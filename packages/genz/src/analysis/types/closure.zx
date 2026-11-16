@@ -1,6 +1,6 @@
 import integers from "std:integer"
 
-import children from "./children"
+import walk from "./closure/walk"
 
 import type { Table } from "core/type_table/model"
 
@@ -35,47 +35,9 @@ export default function (in: Input): Output {
         }
     })
 
-    return loop({
+    return walk({
         types: in.types,
         boxed: seeded.boxed,
-        queue: seeded.queue,
-        index: 0
-    }, {
-        while: current => current.index < current.queue.length,
-        next: current => {
-
-            const id = current.queue[current.index]
-
-            const reached = children({
-                types: current.types,
-                id: id,
-                deep: true
-            })
-
-            const discovered = loop({
-                boxed: current.boxed,
-                queue: current.queue,
-                children: reached,
-                index: 0
-            }, {
-                while: pending => pending.index < pending.children.length,
-                next: pending => {
-                    const child = pending.children[pending.index]
-                    const index = integers.widen(child)
-
-                    if (!pending.boxed[index]) {
-                        pending.boxed[index] = true
-                        pending.queue = pending.queue.push(child)[0]
-                    }
-
-                    pending.index += 1
-                }
-            })
-
-            current.boxed = discovered.boxed
-            current.queue = discovered.queue
-            current.index += 1
-        },
-        return: state => state.boxed
+        queue: seeded.queue
     })
 }
