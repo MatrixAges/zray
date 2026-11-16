@@ -3,7 +3,8 @@ import type { Request } from "../model"
 
 export type Workspace = {
     bytes: u8[],
-    target: U8Buffer
+    target: U8Buffer,
+    start: u64
 }
 
 export type Input = Request.Pick("directory", "kind") & {

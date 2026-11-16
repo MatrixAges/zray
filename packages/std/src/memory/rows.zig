@@ -74,8 +74,12 @@ pub inline fn readText(source: *const anyopaque, index: u64) error{IndexOutOfBou
 }
 
 pub inline fn readIndirectText(source: *const anyopaque, index: u64) error{ IndexOutOfBounds, MissingField }![]const u8 {
+    return (try readOptionalIndirectText(source, index)) orelse error.MissingField;
+}
+
+pub inline fn readOptionalIndirectText(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?[]const u8 {
     const column: *const IndirectTextColumn = @ptrCast(@alignCast(source));
-    const item = try readColumn(?[*]const u8, &column.pointers, index) orelse return error.MissingField;
+    const item = try readColumn(?[*]const u8, &column.pointers, index) orelse return null;
 
     return @as(*align(1) const []const u8, @ptrCast(item + column.text_offset)).*;
 }

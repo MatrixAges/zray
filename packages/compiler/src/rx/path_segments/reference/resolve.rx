@@ -16,7 +16,7 @@
         />
     </If>
 
-    <If on={$ctx.normalize.length > $in.workspace.bytes.length}>
+    <If on={$ctx.normalize.length > $in.workspace.bytes.length - $in.workspace.start}>
         <Return
             value={{
                 state: Reference.State.NeedSpace,
@@ -32,7 +32,7 @@
             path: $ctx.request.path,
             suffix: $ctx.normalize.suffix,
             attached: $ctx.normalize.attached,
-            capacity: $ctx.normalize.length,
+            capacity: $in.workspace.start + $ctx.normalize.length,
             target: $in.workspace.target
         }}
     />

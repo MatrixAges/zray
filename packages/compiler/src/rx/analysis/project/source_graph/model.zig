@@ -17,7 +17,20 @@ pub const Sources = struct {
 };
 
 pub const Target = union(enum) { source: usize, compiled: project.compiled.Target, native: []const u8 };
-pub const Reference = enum(u8) { dependency, call, type_import, store };
+
+pub const Reference = enum(u8) {
+    dependency,
+    call,
+    type_import,
+    store,
+    pub fn fromXml(role: @FieldType(rx.dependency_reference.Entry, "role")) Reference {
+        return switch (role) {
+            .Dependency => .dependency,
+            .Call => .call,
+            .TypeImport => .type_import,
+        };
+    }
+};
 
 pub const Edge = struct {
     target: Target,

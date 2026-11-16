@@ -1,0 +1,101 @@
+import memory from "std:memory"
+
+import { Target } from "../../../../../../dependency_graph/reference/model"
+import { Kind } from "../model"
+import resolve from "../resolve.rx"
+import {
+    route_invalid,
+    route_missing,
+    route_package,
+    route_source,
+    route_store,
+    target_function,
+    target_module
+} from "./const"
+
+import type { Input as Batch, Output as Progress } from "./model"
+
+export type Input = Batch
+
+export type Output = Progress
+
+export default function (in: Input): Output {
+    const { directory, packages, workspace, references, output } = in
+
+    return loop({
+        processed: 0,
+        used: 0,
+        required: 0,
+        failed: false
+    }, {
+        while: state => {
+            const remaining = state.processed < in.count
+
+            return remaining && state.required == 0 && !state.failed
+        },
+        next: state => {
+            const position = in.first + state.processed
+            const row = references.count - position - 1
+            const value = memory.readOptionalIndirectTextColumn(references.values, row)
+            const index = state.processed
+
+            if (value == null) {
+                memory.writeU8(output.kinds, index, route_missing)
+                state.processed += 1
+                state.failed = true
+            } else {
+                const code = references.target_codes[row * references.stride]
+
+                const target = match code {
+                    target_module => Target.Module,
+                    target_function => Target.Function,
+                    _ => Target.Store
+                }
+
+                const package_allowed =
+                    memory.readColumnBool(references.package_allowed, row)
+
+                const route = resolve({
+                    directory,
+                    reference: value,
+                    target,
+                    package_allowed,
+                    packages,
+                    workspace: {
+                        ...workspace,
+                        start: state.used
+                    }
+                })
+
+                if (route.kind == Kind.NeedSpace) {
+                    state.required = route.length
+                } else {
+                    const selected = match route.kind {
+                        Kind.Package => route_package,
+                        Kind.Source => route_source,
+                        Kind.Store => route_store,
+                        _ => route_invalid
+                    }
+
+                    memory.writeU8(output.kinds, index, selected)
+                    memory.writeU64(output.starts, index, state.used)
+                    memory.writeU64(output.lengths, index, route.length)
+                    memory.writeU64(output.packages, index, route.first ?? 0)
+                    memory.writeU8(
+                        output.duplicates,
+                        index,
+                        route.duplicate ? 1 : 0
+                    )
+
+                    state.used += route.length
+                    state.processed += 1
+                    state.failed = route.kind == Kind.Invalid
+                }
+            }
+        },
+        return: state => state.pick([
+            "processed",
+            "required"
+        ])
+    })
+}

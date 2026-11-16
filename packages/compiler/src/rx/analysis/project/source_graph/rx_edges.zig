@@ -11,6 +11,12 @@ const Route = if (@typeInfo(Resolution) == .pointer) std.meta.Child(Resolution) 
 const inline_path_bytes = 512;
 
 pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*).Error!void {
+    if (comptime generated) {
+        if (source.indexedReferences()) |entries| {
+            return @import("references/indexed.zig").collect(collector, source.path, entries);
+        }
+    }
+
     var references: dependency.Iterator = .{};
     const temporary = collector.temporary.allocator();
     var inline_path: [inline_path_bytes]u8 = undefined;
@@ -27,12 +33,7 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
 
 fn reference(collector: anytype, owner: []const u8, directory: []const u8, path: *[]u8, selection: dependency.Entry) @TypeOf(collector.*).Error!void {
     const value = selection.attribute orelse return collector.fail(selection.node.location, "source dependency requires an explicit target");
-
-    const role: Reference = switch (selection.role) {
-        .Dependency => .dependency,
-        .Call => .call,
-        .TypeImport => .type_import,
-    };
+    const role = Reference.fromXml(selection.role);
 
     if (comptime !generated) return referenceSeed(collector, owner, selection, value, role);
 
@@ -77,9 +78,9 @@ fn resolve(request: RouteInput, path: *const []u8) Route {
     var bytes: [@sizeOf(Route)]u8 align(@alignOf(Route)) = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&bytes);
 
-    input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path) };
+    input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };
 
-    const result = route.executeValue(scratch.allocator(), &input) catch unreachable;
+    const result = @import("zx").columns.invoke(route.executeValue, scratch.allocator(), @as(*const RouteInput, &input)) catch unreachable;
 
     return if (comptime @typeInfo(Resolution) == .pointer) result.* else result;
 }

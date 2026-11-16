@@ -10,6 +10,7 @@ pub const borrowIndirectTextColumn = rows.borrowIndirectText;
 pub const borrowReadColumn = rows.borrowColumn;
 pub const readTextColumn = rows.readText;
 pub const readIndirectTextColumn = rows.readIndirectText;
+pub const readOptionalIndirectTextColumn = rows.readOptionalIndirectText;
 pub const readColumnBool = rows.readColumnBool;
 pub const readColumnI32 = rows.readColumnI32;
 pub const readColumnU64 = rows.readColumnU64;

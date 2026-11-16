@@ -1,0 +1,30 @@
+import type { IndirectTextColumn, ReadColumn, U64Buffer, U8Buffer } from "std:memory"
+import type { Input as Route } from "../model"
+
+export type References = {
+    values: IndirectTextColumn,
+    package_allowed: ReadColumn,
+    target_codes: u8[],
+    stride: u64,
+    count: u64
+}
+
+export type Columns = {
+    kinds: U8Buffer,
+    starts: U64Buffer,
+    lengths: U64Buffer,
+    packages: U64Buffer,
+    duplicates: U8Buffer
+}
+
+export type Input = Route.Omit("reference", "target", "package_allowed") & {
+    references: References,
+    first: u64,
+    count: u64,
+    output: Columns
+}
+
+export type Output = {
+    processed: u64,
+    required: u64
+}

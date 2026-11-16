@@ -169,7 +169,7 @@ const Graph = struct {
             var storage: [@sizeOf(Progress)]u8 align(@alignOf(Progress)) = undefined;
             var scratch = std.heap.FixedBufferAllocator.init(&storage);
 
-            input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path) };
+            input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path), .start = 0 };
             input.output = &.{ .targets = @ptrCast(&targets), .issues = @ptrCast(&issues), .references = @ptrCast(&references) };
             input.candidates = &candidates;
 
