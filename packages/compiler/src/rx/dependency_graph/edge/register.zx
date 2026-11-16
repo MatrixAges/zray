@@ -4,13 +4,21 @@ import { issue_invalid_path, issue_missing, issue_none } from "../const"
 import { Issue } from "../model"
 import resolve from "./resolve.rx"
 
-import type { U64Buffer, U8Buffer } from "std:memory"
+import type { IndirectTextColumn, ReadColumn, U64Buffer, U8Buffer } from "std:memory"
 import type { Input as Edge } from "./model"
+
+export type Indexed = {
+    values: IndirectTextColumn,
+    graph: ReadColumn,
+    packages: ReadColumn,
+    count: u64
+}
 
 export type Candidates = {
     references: string[],
     package_allowed: u8[],
-    first: u64
+    first: u64,
+    indexed?: Indexed
 }
 
 export type Columns = {
@@ -38,47 +46,65 @@ export default function (in: Input): Output {
 
     const { candidates, output } = in
 
+    const indexed = candidates.indexed
+
+    const count = match {
+        indexed == null => candidates.references.length,
+        _ => indexed.count - candidates.first
+    }
+
     return loop({
         processed: 0,
         written: 0,
         required: 0
     }, {
         while: state => {
-            const pending = state.processed < candidates.references.length
+            const pending = state.processed < count
 
             return pending && state.required == 0
         },
         next: state => {
-            const row = state.processed
-            const reference = candidates.references[row]
-            const package_allowed = candidates.package_allowed[row] != 0
-            const edge = resolve({
-                ...context,
-                reference,
-                package_allowed
-            })
+            const position = candidates.first + state.processed
+            const row = indexed == null ? state.processed : indexed.count - position - 1
+            const graph = indexed == null || memory.readColumnBool(indexed.graph, row)
 
-            state.required = edge.required
+            if (graph) {
+                const reference = match {
+                    indexed == null => candidates.references[row],
+                    _ => memory.readIndirectTextColumn(indexed.values, row)
+                }
 
-            if (edge.required == 0) {
-                if (edge.included) {
+                const package_allowed = match {
+                    indexed == null => candidates.package_allowed[row] != 0,
+                    _ => memory.readColumnBool(indexed.packages, row)
+                }
+
+                const edge = resolve({
+                    ...context,
+                    reference,
+                    package_allowed
+                })
+
+                state.required = edge.required
+
+                if (edge.required == 0 && edge.included) {
                     const issue = match edge.issue {
                         Issue.InvalidPath => issue_invalid_path,
                         Issue.Missing => issue_missing,
                         _ => issue_none
                     }
 
+                    const original = indexed == null ? position : row
+
                     memory.writeU64(output.targets, state.written, edge.target)
                     memory.writeU8(output.issues, state.written, issue)
-                    memory.writeU64(
-                        output.references,
-                        state.written,
-                        candidates.first + row
-                    )
+                    memory.writeU64(output.references, state.written, original)
 
                     state.written += 1
                 }
+            }
 
+            if (state.required == 0) {
                 state.processed += 1
             }
         }

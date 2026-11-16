@@ -34,6 +34,7 @@ export type Input = {
 
 export type Output = {
     references: Reference[],
+    graph_references: u64,
     parallel_tasks: u64,
     steps: u64,
     calls: u64,
@@ -77,6 +78,7 @@ export default function (in: Input): Output {
         selections: 0,
         events: 0,
         source_extent: 0,
+        graph_references: 0,
         references
     }, {
         while: state => state.next != 0,
@@ -203,6 +205,7 @@ export default function (in: Input): Output {
 
                 if (reference != null) {
                     state.references = state.references.push(reference)[0]
+                    state.graph_references += reference.graph ? 1 : 0
                 }
 
                 if (node.previous_sibling != 0) {
@@ -219,6 +222,7 @@ export default function (in: Input): Output {
         },
         return: state => ({
             references: state.references,
+            graph_references: state.graph_references,
             parallel_tasks: state.parallel_tasks,
             steps: state.steps,
             calls: state.calls,

@@ -17,6 +17,7 @@ pub const Index = opaque {};
 const Storage = struct {
     root: *const ast.Node,
     entries: []const Entry,
+    graph_references: usize,
     attributes: []const ast.Attribute,
     flow: []const Fact,
     unit_firsts: []const u32,
@@ -113,6 +114,16 @@ pub fn forNode(index: *const Index, node: *const ast.Node) ?[]const Entry {
     const storage: *const Storage = @ptrCast(@alignCast(index));
 
     return if (ast.sameStorage(node, storage.root)) storage.entries else null;
+}
+
+pub const GraphReferences = struct { entries: []const Entry, count: usize };
+
+pub fn graphForNode(index: *const Index, node: *const ast.Node) ?GraphReferences {
+    const storage: *const Storage = @ptrCast(@alignCast(index));
+
+    if (!ast.sameStorage(node, storage.root)) return null;
+
+    return .{ .entries = storage.entries, .count = storage.graph_references };
 }
 
 pub fn root(index: *const Index) *const ast.Node {
@@ -217,6 +228,7 @@ pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: st
     index.* = .{
         .root = &nodes[0],
         .entries = entries,
+        .graph_references = @intCast(result.graph_references),
         .attributes = attributes,
         .flow = @ptrCast(facts),
         .unit_firsts = unit_firsts,

@@ -41,6 +41,36 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
     defer iterator.deinit(allocator);
 
     for (sources, 0..) |*source, owner| {
+        if (source.indexedGraphReferences()) |indexed| {
+            if (indexed.count == 0) continue;
+
+            const values = memory.borrowIndirectTextColumn("attribute", "value", indexed.entries);
+            const graph_column = memory.borrowReadColumn(bool, "graph", indexed.entries);
+            const package_column = memory.borrowReadColumn(bool, "package_allowed", indexed.entries);
+            const packages = memory.borrowTextColumn("specifier", source.packages);
+
+            try graph.append(allocator, owner, &path, indexed.count, .{
+                .directory = std.fs.path.dirname(entries[owner]) orelse ".",
+                .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
+                .registry = &registry,
+                .candidates = &.{
+                    .references = &.{},
+                    .package_allowed = &.{},
+                    .first = 0,
+                    .indexed = &.{
+                        .values = @ptrCast(&values),
+                        .graph = @ptrCast(&graph_column),
+                        .packages = @ptrCast(&package_column),
+                        .count = indexed.entries.len,
+                    },
+                },
+                .workspace = undefined,
+                .output = undefined,
+            });
+
+            continue;
+        }
+
         iterator.reset(&source.node, source.references);
 
         var next = try iterator.next(allocator, true);
@@ -63,11 +93,11 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
                 if (count == batch_size) break;
             }
 
-            try graph.append(allocator, owner, &path, .{
+            try graph.append(allocator, owner, &path, count, .{
                 .directory = directory,
                 .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
                 .registry = &registry,
-                .candidates = &.{ .references = references[0..count], .package_allowed = package_allowed[0..count], .first = first },
+                .candidates = &.{ .references = references[0..count], .package_allowed = package_allowed[0..count], .first = first, .indexed = null },
                 .workspace = undefined,
                 .output = undefined,
             });
@@ -78,11 +108,11 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
 
     const empty = memory.borrowTextColumn("specifier", @as([]const @import("frontend").project.Package, &.{}));
 
-    try graph.append(allocator, sources.len, &path, .{
+    try graph.append(allocator, sources.len, &path, 0, .{
         .directory = "",
         .packages = &.{ .items = @ptrCast(&empty), .length = 0 },
         .registry = &registry,
-        .candidates = &.{ .references = &.{}, .package_allowed = &.{}, .first = 0 },
+        .candidates = &.{ .references = &.{}, .package_allowed = &.{}, .first = 0, .indexed = null },
         .workspace = undefined,
         .output = undefined,
     });
@@ -96,6 +126,12 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
 }
 
 pub fn link(allocator: std.mem.Allocator, source: *const modules.Source, row: u64) std.mem.Allocator.Error!Link {
+    if (source.indexedGraphReferences()) |indexed| {
+        const selection = indexed.entries[@intCast(row)];
+
+        return .{ .node = selection.node, .attribute = selection.attribute.? };
+    }
+
     var iterator: dependency.Iterator = .{};
     var remaining = row;
 
@@ -117,17 +153,16 @@ const Graph = struct {
     issues: std.ArrayList(u8) = .empty,
     references: std.ArrayList(u64) = .empty,
     next_owner: usize = 0,
-    fn append(self: *Graph, allocator: std.mem.Allocator, owner: usize, path: *[]u8, request: Edges) std.mem.Allocator.Error!void {
+    fn append(self: *Graph, allocator: std.mem.Allocator, owner: usize, path: *[]u8, capacity: usize, request: Edges) std.mem.Allocator.Error!void {
         var input = request;
         var candidates: Candidates = input.candidates.*;
-        const count = candidates.references.len;
+        var remaining = capacity;
 
-        try self.targets.ensureUnusedCapacity(allocator, count);
-        try self.issues.ensureUnusedCapacity(allocator, count);
-        try self.references.ensureUnusedCapacity(allocator, count);
+        try self.targets.ensureUnusedCapacity(allocator, capacity);
+        try self.issues.ensureUnusedCapacity(allocator, capacity);
+        try self.references.ensureUnusedCapacity(allocator, capacity);
 
         while (true) {
-            const remaining = candidates.references.len;
             const targets: []u64 = self.targets.unusedCapacitySlice()[0..remaining];
             const issues: []u8 = self.issues.unusedCapacitySlice()[0..remaining];
             const references: []u64 = self.references.unusedCapacitySlice()[0..remaining];
@@ -153,12 +188,16 @@ const Graph = struct {
             if (result.required == 0) return;
 
             const processed: usize = @intCast(result.processed);
-            const capacity = std.math.cast(usize, result.required) orelse return error.OutOfMemory;
+            const required = std.math.cast(usize, result.required) orelse return error.OutOfMemory;
 
-            candidates.references = candidates.references[processed..];
-            candidates.package_allowed = candidates.package_allowed[processed..];
+            if (candidates.indexed == null) {
+                candidates.references = candidates.references[processed..];
+                candidates.package_allowed = candidates.package_allowed[processed..];
+            }
+
             candidates.first += processed;
-            path.* = try allocator.alloc(u8, capacity);
+            remaining -= written;
+            path.* = try allocator.alloc(u8, required);
         }
     }
 };

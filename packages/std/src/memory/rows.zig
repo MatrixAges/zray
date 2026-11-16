@@ -10,6 +10,11 @@ pub const ReadColumn = struct {
 
 pub const TextColumn = ReadColumn;
 
+pub const IndirectTextColumn = struct {
+    pointers: ReadColumn,
+    text_offset: usize,
+};
+
 pub inline fn borrow(comptime id: []const u8, items: anytype) if (@typeInfo(@TypeOf(items)).pointer.attrs.@"const") []const NamedId else []NamedId {
     const Item = std.meta.Child(@TypeOf(items));
     const Field = @FieldType(Item, id);
@@ -40,6 +45,22 @@ pub inline fn borrowText(comptime field: []const u8, items: anytype) TextColumn 
     return borrowColumn([]const u8, field, items);
 }
 
+/// Non-null pointers must keep their text fields alive for the life of this view.
+pub inline fn borrowIndirectText(comptime field: []const u8, comptime text: []const u8, items: anytype) IndirectTextColumn {
+    const Item = std.meta.Child(@TypeOf(items));
+    const Optional = @FieldType(Item, field);
+    const Pointer = @typeInfo(Optional).optional.child;
+    const target = @typeInfo(Pointer).pointer;
+
+    comptime {
+        if (target.size != .one or target.attrs.@"allowzero" or @FieldType(target.child, text) != []const u8) {
+            @compileError("Incompatible indirect text field");
+        }
+    }
+
+    return .{ .pointers = borrowColumn(Optional, field, items), .text_offset = @offsetOf(target.child, text) };
+}
+
 pub inline fn borrowColumn(comptime T: type, comptime field: []const u8, items: anytype) ReadColumn {
     const Item = std.meta.Child(@TypeOf(items));
 
@@ -50,6 +71,17 @@ pub inline fn borrowColumn(comptime T: type, comptime field: []const u8, items: 
 
 pub inline fn readText(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u8 {
     return readColumn([]const u8, source, index);
+}
+
+pub inline fn readIndirectText(source: *const anyopaque, index: u64) error{ IndexOutOfBounds, MissingField }![]const u8 {
+    const column: *const IndirectTextColumn = @ptrCast(@alignCast(source));
+    const item = try readColumn(?[*]const u8, &column.pointers, index) orelse return error.MissingField;
+
+    return @as(*align(1) const []const u8, @ptrCast(item + column.text_offset)).*;
+}
+
+pub inline fn readColumnBool(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!bool {
+    return readColumn(bool, source, index);
 }
 
 pub inline fn readColumnI32(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!i32 {

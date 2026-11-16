@@ -21,6 +21,11 @@ pub const Source = struct {
 
         return references.forNode(index, &self.node);
     }
+    pub fn indexedGraphReferences(self: *const Source) ?references.GraphReferences {
+        const index = self.references orelse return null;
+
+        return references.graphForNode(index, &self.node);
+    }
     pub fn indexedFlow(self: *const Source) ?IndexedFlow {
         const index = self.references orelse return null;
 
