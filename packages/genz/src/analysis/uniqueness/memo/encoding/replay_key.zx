@@ -1,0 +1,24 @@
+import crypto from "std:crypto"
+
+import tag from "./tag"
+
+import type { Sha256State } from "std:crypto"
+import type { Kind } from "./model"
+
+export type Input = {
+    hash: Sha256State,
+    identity: u8[],
+    state: u8[],
+    kind: Kind
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { hash, identity, state, kind } = in
+
+    crypto.resetSha256(hash)
+    crypto.updateSha256(hash, identity)
+    crypto.updateSha256(hash, state)
+    crypto.updateSha256(hash, tag(kind))
+}

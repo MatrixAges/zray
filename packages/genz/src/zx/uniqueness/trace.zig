@@ -156,17 +156,18 @@ pub const Replay = struct {
 fn group(comptime Value: type, allocator: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, bodies: usize, log: Log(Value)) std.mem.Allocator.Error!Visits(Value) {
     _ = scratch.reset(.retain_capacity);
 
-    const index = try Group.build(scratch.allocator(), bodies, log.owners.items);
-    const values = try allocator.alloc(Value, index.items.len);
-    const states = try allocator.alloc([]const u8, index.items.len);
+    const starts = try allocator.alloc(u32, bodies + 1);
+    const index = try Group.build(scratch.allocator(), starts, log.owners.items);
+    const values = try allocator.alloc(Value, index.len);
+    const states = try allocator.alloc([]const u8, index.len);
 
-    for (index.items, values, states) |row, *value, *state| {
+    for (index, values, states) |row, *value, *state| {
         const entry = log.entries.items[row];
         value.* = entry.value;
         state.* = entry.state;
     }
 
-    return .{ .starts = try allocator.dupe(u32, index.first), .values = values, .states = states };
+    return .{ .starts = starts, .values = values, .states = states };
 }
 
 /// Whether two results of `kind` have the same effect: growth copies are sets, whatever order they were listed in.

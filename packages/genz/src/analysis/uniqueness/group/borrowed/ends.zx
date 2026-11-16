@@ -1,0 +1,38 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import type { U32Buffer } from "std:memory"
+import type { Input } from "./model"
+
+export type Output = U32Buffer
+
+export default function (in: Input): Output {
+    const { owners, first, count } = in
+
+    const start: u64 = 0
+    const first_end: u64 = 1
+
+    const visits = loop(start, {
+        while: index => index < owners.length,
+        next: index => {
+            const owner = integers.widen(owners[index])
+
+            memory.writeU32(first, owner, memory.readU32(first, owner) + 1)
+            index += 1
+        }
+    })
+
+    memory.writeU32(first, count, integers.narrow(visits))
+
+    return loop(first_end, {
+        while: index => index < count,
+        next: index => {
+            const total = memory.readU32(first, index - 1) +
+                memory.readU32(first, index)
+
+            memory.writeU32(first, index, total)
+            index += 1
+        },
+        return: index => first
+    })
+}

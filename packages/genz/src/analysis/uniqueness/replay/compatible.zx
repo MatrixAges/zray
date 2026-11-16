@@ -1,4 +1,4 @@
-import type { Compatibility as Input } from "./model"
+import type { Build as Input } from "./model"
 
 export type Output = bool
 
@@ -17,7 +17,7 @@ export default function (in: Input): Output {
         next: state => {
             const previous = in.source.previous
 
-            if (previous != null && in.state.changed[state.index]) {
+            if (previous != null && in.changed[state.index]) {
                 const left = previous.callees[state.index]
                 const right = in.source.callees[state.index]
 

@@ -86,24 +86,25 @@ pub fn Result(comptime kind: Kind) type {
     };
 }
 
-/// The record of `kind` for the body `identity` in the state `state`, which `lastState` returned for an earlier
-/// lookup of the same kind; the next put records under the same key.
-pub fn find(self: *Self, comptime kind: Kind, identity: [32]u8, state: []const u8) std.mem.Allocator.Error!?Result(kind) {
-    if (generated_encoding) {
-        try self.encoding.replay(self.arena.allocator(), &identity, state);
-    } else {
-        self.encoded.clearRetainingCapacity();
+/// Looks up a trace state and sets the key for publishing a replacement.
+pub fn findReplay(self: *Self, comptime kind: Kind, identity: *const Digest, state: []const u8) ?Result(kind) {
+    self.key = if (generated_encoding)
+        @import("memo/replay_key.zig").build(@backingInt(kind), identity, state)
 
-        try self.appendBytes(&identity);
-        try self.appendBytes(state);
-    }
+    else seeded: {
+        var hash = Hash.init(.{});
 
-    try self.digest(kind);
+        hash.update(identity);
+        hash.update(state);
+        hash.update(@tagName(kind));
+
+        break :seeded hash.finalResult();
+    };
 
     return use(Result(kind), &@field(self, @tagName(kind)), self.key);
 }
 
-/// The state the last lookup encoded, without the body identity; valid until the next lookup.
+/// The state from the last ordinary lookup, without the body identity.
 pub fn lastState(self: *const Self) []const u8 {
     const end = if (generated_encoding) self.encoding.stateEnd() else self.state_end;
 

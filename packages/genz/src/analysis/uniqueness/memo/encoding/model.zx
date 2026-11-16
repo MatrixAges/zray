@@ -37,12 +37,6 @@ export type Begin = {
     index: u64
 }
 
-export type Replay = {
-    state: State,
-    identity: u8[],
-    bytes: u8[]
-}
-
 export type Finish = {
     state: State,
     kind: Kind

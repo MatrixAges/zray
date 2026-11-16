@@ -1,0 +1,55 @@
+import integers from "std:integer"
+
+export enum Action {
+    Done,
+    Revisit,
+    Reject
+}
+
+export type Input = {
+    native_modules: u32?[],
+    type_only: bool,
+    planned: u32[],
+    changed: bool[],
+    first: u64
+}
+
+export type Output = {
+    body: u64,
+    action: Action
+}
+
+export default function (in: Input): Output {
+    const { native_modules, type_only, planned, changed, first } = in
+
+    const count = native_modules.length + 1
+
+    return loop({
+        body: first,
+        action: Action.Done
+    }, {
+        while: state => state.action == Action.Done && state.body < count,
+        next: state => {
+            const body = state.body
+            const active = match {
+                body < native_modules.length => native_modules[body] == null,
+                _ => !type_only
+            }
+
+            if (active) {
+                const start = integers.widen(planned[body])
+                const end = integers.widen(planned[body + 1])
+
+                if (end != start + 1) {
+                    state.action = Action.Reject
+                } else if (changed[body]) {
+                    state.action = Action.Revisit
+                }
+            }
+
+            if (state.action == Action.Done) {
+                state.body += 1
+            }
+        }
+    })
+}

@@ -30,12 +30,7 @@ export type State = {
 
 export type Build = {
     source: Input,
-    matched: bool
-}
-
-export type Compatibility = {
-    source: Input,
-    state: State
+    changed: bool[]
 }
 
 export type Step = {

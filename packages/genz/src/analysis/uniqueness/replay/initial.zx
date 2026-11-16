@@ -1,47 +1,40 @@
-import equal from "./digest"
-
 import type { Build as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const changed: bool[] = []
+    const { source, changed } = in
+
+    const previous = source.previous
     const settled: u32[] = []
     const demanded: u32[] = []
     const planned: u32[] = []
 
+    if (previous == null) {
+        return {
+            following: false,
+            changed: [],
+            settled,
+            demanded,
+            planned
+        }
+    }
+
     return loop({
-        changed,
         settled,
         demanded,
         planned,
         index: 0
     }, {
-        while: state => state.index < in.source.callees.length,
+        while: state => state.index < changed.length,
         next: state => {
-            const previous = in.source.previous
-            const available = in.matched && previous != null
-            const unchanged = available && equal({
-                previous: previous.identities,
-                current: in.source.identities,
-                start: state.index * in.source.key.length,
-                width: in.source.key.length
-            })
-
-            state.changed = state.changed.push(!unchanged)[0]
-            state.settled = state.settled.push(
-                available ? previous.settled[state.index] : 0
-            )[0]
-            state.demanded = state.demanded.push(
-                available ? previous.demanded[state.index] : 0
-            )[0]
-            state.planned = state.planned.push(
-                available ? previous.planned[state.index] : 0
-            )[0]
+            state.settled = state.settled.push(previous.settled[state.index])[0]
+            state.demanded = state.demanded.push(previous.demanded[state.index])[0]
+            state.planned = state.planned.push(previous.planned[state.index])[0]
             state.index += 1
         },
         return: state => ({
-            following: false,
+            following: true,
+            changed,
             ...state.pick([
-                "changed",
                 "settled",
                 "demanded",
                 "planned"

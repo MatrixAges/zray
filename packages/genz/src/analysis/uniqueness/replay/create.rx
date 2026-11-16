@@ -5,30 +5,37 @@
 
     <Call fn="matched" in={$in} />
 
-    <Call
-        fn="initial"
-        in={{
-            source: $in,
-            matched: $ctx.matched
-        }}
-    />
-
     <If on={$ctx.matched}>
+        <Call fn="changes" in={$in} />
+
         <Call
             fn="compatible"
             in={{
                 source: $in,
-                state: $ctx.initial
+                changed: $ctx.changes
             }}
         />
 
-        <Return
-            value={{
-                ...$ctx.initial,
-                following: $ctx.compatible
-            }}
-        />
+        <If on={$ctx.compatible}>
+            <Call
+                fn="initial"
+                in={{
+                    source: $in,
+                    changed: $ctx.changes
+                }}
+            />
+
+            <Return value={$ctx.initial} />
+        </If>
     </If>
 
-    <Return value={$ctx.initial} />
+    <Return
+        value={{
+            following: false,
+            changed: [],
+            settled: [],
+            demanded: [],
+            planned: []
+        }}
+    />
 </Module>

@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Group" />
+
+    <Args in={Group.Input} out={u32[]} />
+
+    <Call fn="ends" in={$in} />
+
+    <Call
+        fn="arrange"
+        in={{
+            ...$in,
+            first: $ctx.ends
+        }}
+    />
+
+    <Return value={$ctx.arrange} />
+</Module>

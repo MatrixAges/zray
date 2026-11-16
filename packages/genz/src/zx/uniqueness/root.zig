@@ -122,7 +122,7 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer replay.deinit();
 
-    if (try shortcut(allocator, temporary, program, slots, &summaries, units, memo, &replay)) |result| return result;
+    if (try shortcut(allocator, workspace, temporary, program, slots, &summaries, units, memo, &replay)) |result| return result;
 
     var pool = try Pool.init(temporary, concurrent);
 
@@ -408,30 +408,45 @@ fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
 /// analyzed again in each state the trace met it in, settles and demands as recorded, so every other body meets what
 /// it met before. Only the plans of the changed bodies are new. Null, with the summaries and growth copies as they
 /// were, when a changed body differs.
-fn shortcut(allocator: std.mem.Allocator, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, memo: *Memo, replay: *const Trace.Replay) std.mem.Allocator.Error!?Result {
+fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, memo: *Memo, replay: *const Trace.Replay) std.mem.Allocator.Error!?Result {
     if (replay.trace == null) return null;
 
     const trace = &memo.trace.?;
+    var scratch = std.heap.ArenaAllocator.init(workspace);
+
+    defer scratch.deinit();
+
     const Replacement = struct { body: usize, value: Memo.Planned };
     var replacements: std.ArrayList(Replacement) = .empty;
+    var first: usize = 0;
 
-    for (units, replay.changed, 0..) |entry, changed, index| {
-        const unit = entry orelse continue;
+    while (true) {
+        const selected = @import("replay/shortcut.zig").next(&program, trace.planned.starts, replay.changed, first);
 
-        if (trace.of(.planned, index).values.len != 1) return undo(summaries, units, replay.changed);
-        if (!changed) continue;
+        switch (selected.action) {
+            .done => break,
+            .reject => return undo(summaries, units, replay.changed),
+            .revisit => {},
+        }
+
+        const index = selected.body;
+        const unit = units[index].?;
+
+        first = index + 1;
 
         inline for (.{ Memo.Kind.settled, Memo.Kind.demanded }) |kind| {
             const visits = trace.of(kind, index);
 
             for (visits.values, visits.states) |recorded, state| {
-                const value = try revisit(kind, temporary, program, slots, summaries, unit, index, memo, state) orelse return undo(summaries, units, replay.changed);
+                _ = scratch.reset(.retain_capacity);
+                const value = try revisit(kind, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, state) orelse return undo(summaries, units, replay.changed);
 
-                if (!try Trace.agree(kind, temporary, recorded, value)) return undo(summaries, units, replay.changed);
+                if (!try Trace.agree(kind, scratch.allocator(), recorded, value)) return undo(summaries, units, replay.changed);
             }
         }
 
-        const value = try revisit(.planned, temporary, program, slots, summaries, unit, index, memo, trace.of(.planned, index).states[0]) orelse return undo(summaries, units, replay.changed);
+        _ = scratch.reset(.retain_capacity);
+        const value = try revisit(.planned, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, trace.of(.planned, index).states[0]) orelse return undo(summaries, units, replay.changed);
 
         try replacements.append(temporary, .{ .body = index, .value = value });
     }
@@ -465,12 +480,12 @@ fn shortcut(allocator: std.mem.Allocator, temporary: std.mem.Allocator, program:
 }
 
 /// The result body `index` reaches in a recorded state: the memo's when it has one, or a new analysis in that state.
-fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, unit: *Unit, index: usize, memo: *Memo, state: []const u8) std.mem.Allocator.Error!?Memo.Result(kind) {
-    if (try memo.find(kind, unit.identity, state)) |value| return value;
+fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, lasting: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, unit: *Unit, index: usize, memo: *Memo, state: []const u8) std.mem.Allocator.Error!?Memo.Result(kind) {
+    if (memo.findReplay(kind, &unit.identity, state)) |value| return value;
     if (!try Memo.restore(kind, memo.arena.child_allocator, state, summaries, index, unit.callees, &unit.normalized, &unit.renewed)) return null;
 
     var changed: std.ArrayList(u64) = .empty;
-    var analysis = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, null);
+    var analysis = try unit.initialize(temporary, lasting, program.functions, slots, summaries, null, null);
 
     switch (kind) {
         .settled => {
