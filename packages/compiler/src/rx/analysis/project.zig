@@ -71,20 +71,13 @@ fn inferIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options
 
     if (result == .diagnostic) return remap(allocator, options, result.diagnostic);
 
-    for (derived.definitions) |*definition| {
-        definition.types = result.contract.types;
+    const registry = @import("store/registry.zig");
 
-        const objects = try allocator.dupe(@import("store.zig").Object, definition.objects);
+    result.contract.store_definitions = if (earlier == null)
+        try registry.publish(allocator, derived.definitions, &result.contract, .Owned)
 
-        for (objects) |*object| {
-            object.initial.types = result.contract.types;
-            object.initial.native_modules = result.contract.native_modules;
-        }
-
-        definition.objects = objects;
-    }
-
-    result.contract.store_definitions = derived.definitions;
+    else
+        try registry.publish(allocator, derived.definitions, &result.contract, .Retained);
 
     return result;
 }
@@ -117,7 +110,8 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
         return failed(allocator, .{ .path = options.modules[issue.source_index].path, .location = issue.issue.location, .code = @tagName(issue.issue.code), .message = issue.issue.message });
     }
 
-    const is_zx = std.mem.endsWith(u8, options.entry, ".zx");
+    const entry_source = @import("project/entry.zig");
+    const is_zx = entry_source.isZX(options.entry);
 
     const entry = if (is_zx)
         try std.fs.path.resolve(allocator, &.{ options.project.root_dir, options.entry })
@@ -130,7 +124,7 @@ fn derive(allocator: std.mem.Allocator, backing: std.mem.Allocator, raw_options:
 
     for (modules, checked.value.data) |*module, path| module.path = path;
 
-    const entry_index = if (is_zx) null else prepare.find(modules, entry) orelse return failed(allocator, .{ .path = entry, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "RX entry is not registered in the module collection" });
+    const entry_index = if (is_zx) null else entry_source.lookup(entry, checked.value.data) orelse return failed(allocator, .{ .path = entry, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "RX entry is not registered in the module collection" });
     const roots = try backing.alloc([]const u8, options.exports.len);
 
     defer backing.free(roots);

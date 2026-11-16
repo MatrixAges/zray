@@ -9,10 +9,6 @@ pub const Result = struct { functions: []const Binding, published: []const Bindi
 pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, index: usize, signature: frontend.project.signature_project.Module, source_text: []const u8) State.Error!Result {
     var bindings: std.ArrayList(Binding) = .empty;
     var published: std.ArrayList(Binding) = .empty;
-
-    try bindings.appendSlice(allocator, signature.function_imports);
-    try published.appendSlice(allocator, signature.reexport_functions);
-
     const edges = state.graph.modules.items(.dependencies)[index];
 
     if (edges.len != header.importCount()) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source import declarations do not match the dependency graph");
@@ -45,8 +41,7 @@ pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, ind
         } else null;
 
         const members: binding.Members = .{ .default = if (own) |*value| value else null, .named = dependency.members };
-        const names = try members.names(temporary);
-        const symbols = binding.Symbols{ .target = if (edge.target == .source) .source else .compiled, .types = state.types.items.view(), .exports = dependency.types, .constants = dependency.constants, .functions = names };
+        const symbols = binding.Symbols{ .target = if (edge.target == .source) .source else .compiled, .types = state.types.items.view(), .exports = dependency.types, .constants = dependency.constants, .functions = members.names() };
         var reporter: zx.Reporter = .{};
         const view = frontend.project.import_view.get(header, import_index);
 
@@ -56,15 +51,28 @@ pub fn collect(state: *State, allocator: std.mem.Allocator, header: anytype, ind
             return state.fail(edge.locate(source_text), reporter.diagnostic.?.message);
         };
 
+        if (selected.functions.names.len == 0) continue;
+
         const destination = if (item.exported) &published else &bindings;
+        const prefix = if (item.exported) signature.reexport_functions else signature.function_imports;
+        const first = if (destination.items.len == 0) prefix.len else 0;
+        const count = std.math.add(usize, first, selected.functions.names.len) catch return error.OutOfMemory;
+
+        try destination.ensureUnusedCapacity(allocator, count);
+
+        destination.appendSliceAssumeCapacity(prefix[0..first]);
 
         for (selected.functions.names, selected.functions.indices) |name, selected_index| {
             var member = members.at(@intCast(selected_index)).*;
+
             member.name = try allocator.dupe(u8, name);
 
-            try destination.append(allocator, member);
+            destination.appendAssumeCapacity(member);
         }
     }
 
-    return .{ .functions = bindings.items, .published = published.items };
+    return .{
+        .functions = if (bindings.items.len == 0) signature.function_imports else bindings.items,
+        .published = if (published.items.len == 0) signature.reexport_functions else published.items,
+    };
 }

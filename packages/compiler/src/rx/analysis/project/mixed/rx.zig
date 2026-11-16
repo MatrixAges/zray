@@ -46,7 +46,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
         return error.InvalidSourceGraph;
     }
 
-    return link(state, allocator, prepared, result.contract);
+    return link(state, prepared, result.contract);
 }
 
 /// Binds the calls of `module` to the functions `ids` names, over the shared tables as they stand.
@@ -105,15 +105,13 @@ pub fn current(state: *const State, prepared: Prepared, contract: Module.Contrac
 
 /// Links a lowered module. The tables may have grown, and moved, since it was lowered, but the rows it read are
 /// unchanged, so the module refers to them where they are now.
-pub fn link(state: *State, allocator: std.mem.Allocator, prepared: Prepared, lowered: Module.Contract) State.Error!Result {
+pub fn link(state: *State, prepared: Prepared, lowered: Module.Contract) State.Error!Result {
     const entry = prepared.index == state.graph.entry;
     var contract = lowered;
 
     if (entry) try @import("metadata.zig").retain(state.allocator, &contract);
 
-    var destination = state.destination();
-
-    destination.temporary = allocator;
+    const destination = state.destination();
     const base = state.functions.view().prefix(prepared.functions);
     const plan = @import("body/link.zig").prepare(state, .{ .functions = prepared.functions, .types = prepared.types }, contract.program.functions.count(), true);
 

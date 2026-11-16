@@ -10,7 +10,8 @@ pub fn select(allocator: std.mem.Allocator, diagnostics: std.mem.Allocator, item
     if (!@import("parser_options").generated_parser) return @import("binding/seed.zig").select(allocator, item, symbols, reporter);
 
     const rows = @import("zxc_standard").memory.borrowNamedRows("type_id", symbols.exports);
-    const input = try @import("binding/input.zig").init(allocator, item, symbols, &rows);
+    var storage: @import("binding/input.zig").Storage = undefined;
+    const input = try storage.init(allocator, item, symbols, &rows);
 
     const output = @import("generated_project_binding").executeValue(allocator, input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
@@ -33,7 +34,7 @@ pub fn select(allocator: std.mem.Allocator, diagnostics: std.mem.Allocator, item
 
 pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item: anytype, context: Context, reporter: *zx.Reporter, aliases: *std.ArrayList(zx.ir.Export), imports: *std.ArrayList(FunctionImport), constants: *std.ArrayList(zx.ir.Constant)) zx.Error!void {
     const members: Members = .{ .default = if (context.default_member) |*member| member else null, .named = context.members };
-    const functions = if (item.kind == .type_only) &.{} else try members.names(temporary);
+    const functions = if (item.kind == .type_only) Members.Names{} else members.names();
     const symbols = Symbols{ .target = context.target, .types = context.types, .exports = context.exports, .constants = context.constant_exports, .functions = functions };
     const selected = try select(temporary, allocator, item, &symbols, reporter);
 

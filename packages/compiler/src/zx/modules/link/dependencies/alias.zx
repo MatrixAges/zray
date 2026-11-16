@@ -2,6 +2,7 @@ import integers from "std:integer"
 import { kind_enumeration } from "core/type_table/const"
 
 import { Kind, Status } from "./model"
+import typeId from "./type_id"
 
 import type { Item } from "./model"
 
@@ -16,36 +17,9 @@ export default function (in: Input): Output {
         return Status.Invalid
     }
 
-    const missing: u32? = null
-
-    const exported = loop({
-        row: 0,
-        id: missing
-    }, {
-        while: state => state.row < provider.aliases.names.length,
-        next: state => {
-            if (provider.aliases.names[state.row] == in.original) {
-                state.id = provider.aliases.types[state.row]
-            }
-
-            state.row += 1
-        },
-        return: state => state.id
-    })
-
-    const imported = loop({
-        row: 0,
-        id: missing
-    }, {
-        while: state => state.row < consumer.aliases.names.length,
-        next: state => {
-            if (consumer.aliases.names[state.row] == in.local) {
-                state.id = consumer.aliases.types[state.row]
-            }
-
-            state.row += 1
-        },
-        return: state => state.id
+    const exported = typeId({
+        aliases: provider.aliases,
+        name: in.original
     })
 
     if (exported == null) {
@@ -63,6 +37,11 @@ export default function (in: Input): Output {
     if (enumeration && provider.kinds[export_id] != kind_enumeration) {
         return Status.Conflict
     }
+
+    const imported = typeId({
+        aliases: consumer.aliases,
+        name: in.local
+    })
 
     if (imported == null) {
         return Status.Conflict

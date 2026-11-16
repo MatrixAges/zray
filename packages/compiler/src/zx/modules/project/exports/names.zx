@@ -1,4 +1,5 @@
-import claim from "core/bytes/index/fixed"
+import claim from "core/bytes/index/segments/claim"
+import readKey from "core/bytes/index/segments/key"
 
 import type { Input, Names as Output } from "./model"
 
@@ -6,17 +7,20 @@ export default function (in: Input): Output {
     const invalid_name: u64? = null
     const default_member: u64? = null
 
-    const { keys, first_function, roots, buckets, capacity } = in
+    const { keys, roots, buckets, capacity } = in
 
     return loop({
         invalid_name,
         default_member,
         cursor: 0
     }, {
-        while: state => state.invalid_name == null && state.cursor < keys.length,
+        while: state => state.invalid_name == null && state.cursor < keys.count,
         next: state => {
             const row = state.cursor
-            const key = keys[row]
+            const key = readKey({
+                keys,
+                row
+            })
 
             if (roots && key.length == 0) {
                 state.invalid_name = row
@@ -26,13 +30,13 @@ export default function (in: Input): Output {
                     buckets,
                     capacity,
                     key,
-                    insert: row
+                    row
                 })
 
-                if (entered != null) {
+                if (entered) {
                     state.invalid_name = row
-                } else if (row >= first_function && key.length == 0) {
-                    state.default_member = row - first_function
+                } else if (row >= keys.third_start && key.length == 0) {
+                    state.default_member = row - keys.third_start
                 }
             }
 

@@ -1,0 +1,15 @@
+import memory from "std:memory"
+
+import type { Input } from "./name"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { borrowed, columns } = in.fields
+
+    return match {
+        borrowed != null => memory.readRowId(borrowed.rows, in.row),
+        columns != null => columns.types[in.row],
+        _ => 0
+    }
+}

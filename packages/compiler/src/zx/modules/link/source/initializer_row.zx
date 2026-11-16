@@ -1,0 +1,48 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+import strings from "zig:string"
+
+import type { Prefix } from "./initializer_rows"
+
+export type Input = {
+    pair: Prefix,
+    row: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { pair, row } = in
+
+    const start = row * pair.stride
+    const fn_offset = start + pair.function_id
+    const left_fn = bytes.readU32(pair.left.data, fn_offset, pair.little_endian)
+    const prefix = pair.function_prefix
+
+    if (prefix != null && left_fn >= prefix) {
+        return false
+    }
+
+    if (pair.shared) {
+        return true
+    }
+
+    const right_fn = bytes.readU32(pair.right.data, fn_offset, pair.little_endian)
+
+    if (left_fn != right_fn) {
+        return false
+    }
+
+    const version = start + pair.schema_version
+    const left_ver = bytes.readU32(pair.left.data, version, pair.little_endian)
+    const right_ver = bytes.readU32(pair.right.data, version, pair.little_endian)
+
+    if (left_ver != right_ver) {
+        return false
+    }
+
+    const left = memory.readTextColumn(pair.left.names, row)
+    const right = memory.readTextColumn(pair.right.names, row)
+
+    return pair.identity ? strings.sameStorage(left, right) : left == right
+}

@@ -4,6 +4,8 @@ export declare function join(allocator, separator: string, values: string[]): st
 
 export declare function copy(allocator, value: string): string throws { OutOfMemory } concurrent
 
+export declare function sameStorage(left: string, right: string): bool concurrent
+
 export declare function copyList(
     allocator,
     values: string[]

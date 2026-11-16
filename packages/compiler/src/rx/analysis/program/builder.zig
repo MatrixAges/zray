@@ -93,7 +93,7 @@ fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program
 
                 try self.initializer(mapped);
             },
-            .AppendFunctionEntry => nodes.appendFunction(&self.functions, .{
+            .AppendFunctionEntry => nodes.appendFunction(&self.functions, &.{
                 .file_name = program.file_name,
                 .stores = program.stores,
                 .store_mode = program.store_mode,

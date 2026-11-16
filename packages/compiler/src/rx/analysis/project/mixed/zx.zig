@@ -63,7 +63,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
         program.stores.paths = paths;
     }
 
-    return link(state, temporary, analyzed);
+    return link(state, analyzed);
 }
 
 /// Reads the parse of `index` and binds its imports; the shared tables must hold every module it depends on.
@@ -126,12 +126,10 @@ pub fn current(state: *const State, analyzed: Analyzed) bool {
 
 /// Links an analyzed body. The tables may have grown, and moved, since the analysis read them, but the rows it read are
 /// unchanged, so the body refers to them where they are now.
-pub fn link(state: *State, temporary: std.mem.Allocator, analyzed: Analyzed) State.Error!Source.Loaded {
-    var destination = state.destination();
+pub fn link(state: *State, analyzed: Analyzed) State.Error!Source.Loaded {
+    const destination = state.destination();
     var program = analyzed.result.value.ir;
     const base = state.functions.view().prefix(analyzed.functions);
-
-    destination.temporary = temporary;
     const functions = program.functions;
     const plan = @import("body/link.zig").prepare(state, .{ .functions = analyzed.functions, .types = analyzed.types }, functions.count(), false);
 
@@ -152,6 +150,7 @@ pub fn link(state: *State, temporary: std.mem.Allocator, analyzed: Analyzed) Sta
         .store_initializers = initializers,
         .shared_initializers = initializers,
         .members = analyzed.members,
+        .owned_declarations = true,
         .base_types = plan.type_prefix,
     }, destination) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;

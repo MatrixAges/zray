@@ -1,0 +1,20 @@
+export enum Phase {
+    Graph,
+    Module
+}
+
+export enum Step {
+    PrepareGraph,
+    MergeTypes,
+    LinkDependencies,
+    LinkEntry,
+    PublishProgram,
+    VerifyLayout,
+    ReserveMappings,
+    CheckNames,
+    CheckConstants,
+    LinkNativeModules,
+    BindSignatures,
+    CheckImports,
+    ResolveBody
+}

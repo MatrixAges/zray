@@ -38,7 +38,7 @@ pub const Calls = std.MultiArrayList(Call);
 
 pub const Module = struct {
     source: rx.ModuleSource,
-    shortcut: ?usize = null,
+    deferred_shortcut: bool = false,
     calls: Calls.Slice,
     plan: Flow.Plan,
     type_imports: []const zx.ir.Export = &.{},
@@ -84,7 +84,7 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
                     loader.arguments = .empty;
                     loader.plan = .{};
                     loader.task_count = 0;
-                    loader.deferred_shortcut = null;
+                    loader.deferred_shortcut = false;
                 },
                 .ResolveStores => {
                     const result = try StoreReferences.resolve(allocator, store_memory.allocator(), source, edges, signatures.graph.sources, definitions);
@@ -110,7 +110,7 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
 
                     plan.* = .{
                         .source = source,
-                        .shortcut = loader.deferred_shortcut,
+                        .deferred_shortcut = loader.deferred_shortcut,
                         .calls = loader.calls.slice(),
                         .plan = flow,
                         .type_imports = imports.types,
@@ -129,14 +129,20 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
 
 pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signatures: []const @import("signatures.zig").Signature) std.mem.Allocator.Error!void {
     const shorthand = @import("shorthand.zig");
+    var first: usize = 0;
 
-    for (modules, signatures) |*module, signature| {
-        const index = module.shortcut orelse continue;
+    while (first < modules.len) {
+        const row = shorthand.nextDeferred(modules, first) orelse break;
+        const module = &modules[row];
+        const signature = &signatures[row];
+        const index = shorthand.call_index;
         const plan = try shorthand.lower(allocator, module.calls.items(.node)[index], index, signature.input_type, signature.output_type);
 
         module.calls.items(.node)[index] = plan.node;
         module.calls.items(.input)[index] = plan.input;
+
         module.plan = plan.flow;
+        first = row + 1;
     }
 }
 
@@ -155,7 +161,7 @@ const Loader = struct {
     local_calls: bool = true,
     plan: Flow.Builder = .{},
     task_count: usize = 0,
-    deferred_shortcut: ?usize = null,
+    deferred_shortcut: bool = false,
     issue: ?target.Diagnostic = null,
     pub const Error = std.mem.Allocator.Error || error{InvalidFlow};
 
@@ -163,12 +169,15 @@ const Loader = struct {
         const shorthand = @import("shorthand.zig");
         const invocation = shorthand.call(node);
         const index = try self.call(invocation);
+
+        std.debug.assert(index == shorthand.call_index);
+
         const callee = self.calls.items(.callee)[index];
 
         const ports = switch (callee) {
             .signature => |signature| signature,
             .module => {
-                self.deferred_shortcut = index;
+                self.deferred_shortcut = true;
 
                 return .{};
             },
@@ -494,12 +503,4 @@ fn routeSignature(forwards_rx: bool, type_only: bool, setter: bool, has_store: b
     if (setter and !has_store) return .MissingStore;
 
     return .Function;
-}
-
-pub fn find(modules: []const rx.ModuleSource, path: []const u8) ?usize {
-    for (modules, 0..) |source, index| {
-        if (std.mem.eql(u8, source.path, path)) return index;
-    }
-
-    return null;
 }

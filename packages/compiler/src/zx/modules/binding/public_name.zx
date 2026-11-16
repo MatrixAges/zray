@@ -1,0 +1,24 @@
+import memory from "std:memory"
+
+import type { PublicNames } from "./model"
+
+export type Input = {
+    names: PublicNames,
+    index: u64
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { names, index } = in
+
+    if (names.default_name == null) {
+        return memory.readTextColumn(names.rows, index)
+    }
+
+    if (index == 0) {
+        return names.default_name
+    }
+
+    return memory.readTextColumn(names.rows, index - 1)
+}

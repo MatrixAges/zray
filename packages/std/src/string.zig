@@ -9,6 +9,10 @@ pub fn copy(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.E
     return allocator.dupe(u8, value);
 }
 
+pub inline fn sameStorage(left: []const u8, right: []const u8) bool {
+    return left.ptr == right.ptr and left.len == right.len;
+}
+
 pub fn copyList(allocator: std.mem.Allocator, values: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
     const output = try allocator.alloc([]const u8, values.len);
     var copied: usize = 0;

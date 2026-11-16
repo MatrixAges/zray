@@ -1,0 +1,54 @@
+import memory from "std:memory"
+import { max_u64 } from "core/const"
+
+import forward from "../forward"
+
+import type { Input as Request } from "./model"
+
+export type Input = Request
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { modules, indices, forwards, forwarding } = in
+
+    return loop({
+        row: in.start,
+        needs_forwards: false
+    }, {
+        while: state => state.row < modules.count && !state.needs_forwards,
+        next: state => {
+            const row = state.row
+            const owner = modules.sources[row * modules.word_stride]
+
+            if (memory.readU64(indices, owner) == 0) {
+                const offset = row * modules.byte_stride
+                const deferred = modules.deferred[offset] != 0
+
+                if (deferred && forwards == null) {
+                    state.needs_forwards = true
+                } else {
+                    const has_store = modules.store[offset] != 0
+                    const ordinal = has_store ? max_u64 - row : row + 1
+
+                    memory.writeU64(indices, owner, ordinal)
+
+                    if (deferred && forwards != null) {
+                        const target = forward({
+                            ...forwarding,
+                            path: memory.readTextColumn(modules.paths, row)
+                        })
+                        const encoded = target == null ? max_u64 : target + 1
+
+                        memory.writeU64(forwards, row, encoded)
+                    }
+                }
+            }
+
+            if (!state.needs_forwards) {
+                state.row += 1
+            }
+        },
+        return: state => state.row
+    })
+}

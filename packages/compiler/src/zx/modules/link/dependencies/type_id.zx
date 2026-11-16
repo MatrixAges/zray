@@ -1,0 +1,31 @@
+import memory from "std:memory"
+
+import type { Rows } from "../../../ir/canonical/validation/names/model"
+
+export type Input = {
+    aliases: Rows,
+    name: string
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { aliases, name } = in
+
+    const id: u32? = null
+
+    return loop({
+        end: aliases.length,
+        id
+    }, {
+        while: state => state.id == null && state.end != 0,
+        next: state => {
+            state.end -= 1
+
+            if (memory.readRowName(aliases.rows, state.end) == name) {
+                state.id = memory.readRowId(aliases.rows, state.end)
+            }
+        },
+        return: state => state.id
+    })
+}

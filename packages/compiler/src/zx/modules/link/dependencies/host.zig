@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Builder = @import("../build.zig");
+const name_rows = @import("../../../ir/canonical/validation/names/view.zig");
 const Record = @import("../../module_record.zig");
 const Binding = @import("../../function_import.zig");
 const generated = @import("generated_artifact_dependencies");
@@ -32,11 +33,12 @@ pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) B
     defer arena.deinit();
 
     const memory = scratch.allocator();
+    const consumer_aliases = name_rows.borrow(consumer.type_imports);
 
     const context: Context = .{
         .imports = try bindings(memory, consumer.function_imports),
         .members = try bindings(memory, consumer.members),
-        .aliases = try aliases(memory, consumer.type_imports),
+        .aliases = name_rows.view(Aliases, &consumer_aliases),
         .types = @ptrCast(self.type_mappings[index]),
         .functions = @ptrCast(functions),
         .linked = signatures(ir.SignatureTable.fromFunctions(self.functions.view())),
@@ -99,7 +101,8 @@ fn check(self: *Builder, index: usize, target_index: usize, dependency: *const R
     const has_members = dependency.kind != .type_only and provider.members.len != 0;
     const has_aliases = dependency.kind != .function and dependency.names.len != 0;
     const provider_members = try bindings(memory, if (has_members) provider.members else &.{});
-    const provider_aliases = try aliases(memory, if (has_aliases) provider.exports else &.{});
+    const rows = name_rows.borrow(if (has_aliases) provider.exports else &.{});
+    const provider_aliases = name_rows.view(Aliases, &rows);
     const provider_signatures = signatures(provider.functions);
 
     const source: Provider = .{
@@ -173,20 +176,8 @@ pub fn bindings(allocator: std.mem.Allocator, source: []const Binding) std.mem.A
         id.* = if (binding.id) |value| @backingInt(value) else null;
         input.* = if (binding.input_type) |value| @backingInt(value) else null;
         output.* = if (binding.output_type) |value| @backingInt(value) else null;
-        intrinsic.* = if (binding.intrinsic) |value| @intFromEnum(value) else null;
+        intrinsic.* = if (binding.intrinsic) |value| @backingInt(value) else null;
     }
 
     return .{ .names = names, .namespaces = namespaces, .ids = ids, .inputs = inputs, .outputs = outputs, .intrinsics = intrinsics };
-}
-
-pub fn aliases(allocator: std.mem.Allocator, source: []const ir.Export) std.mem.Allocator.Error!Aliases {
-    const names = try allocator.alloc([]const u8, source.len);
-    const types = try allocator.alloc(u32, source.len);
-
-    for (source, names, types) |item, *name, *type_id| {
-        name.* = item.name;
-        type_id.* = @backingInt(item.type_id);
-    }
-
-    return .{ .names = names, .types = types };
 }

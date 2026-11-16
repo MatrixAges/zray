@@ -1,0 +1,35 @@
+import equal from "./initializer_row"
+
+import type { Prefix } from "./initializer_rows"
+
+export type Input = Prefix
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { left, right, shared, function_prefix } = in
+
+    const end = left.count < right.count ? left.count : right.count
+
+    if (shared && function_prefix == null) {
+        return end
+    }
+
+    return loop({
+        row: 0,
+        shared: true
+    }, {
+        while: state => state.shared && state.row < end,
+        next: state => {
+            if (equal({
+                pair: in,
+                row: state.row
+            })) {
+                state.row += 1
+            } else {
+                state.shared = false
+            }
+        },
+        return: state => state.row
+    })
+}

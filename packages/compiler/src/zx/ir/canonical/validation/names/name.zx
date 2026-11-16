@@ -1,0 +1,20 @@
+import memory from "std:memory"
+
+import type { Fields } from "./model"
+
+export type Input = {
+    fields: Fields,
+    row: u64
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { borrowed, columns } = in.fields
+
+    return match {
+        borrowed != null => memory.readRowName(borrowed.rows, in.row),
+        columns != null => columns.names[in.row],
+        _ => ""
+    }
+}

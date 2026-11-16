@@ -15,7 +15,7 @@ import {
 import exportPosition from "./export_position"
 import { Target } from "./model"
 import readName from "./name"
-import position from "./position"
+import position from "./public_position"
 
 import type { Request, Result } from "./model"
 

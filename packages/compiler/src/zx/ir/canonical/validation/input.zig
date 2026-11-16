@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const borrow = @import("../borrow.zig");
 const Verified = @import("../../validate.zig").Verified;
+const names = @import("names/view.zig");
 
 pub fn Storage(comptime Input: type) type {
     const Context = std.meta.Child(@FieldType(Input, "context"));
@@ -19,6 +20,8 @@ pub fn Storage(comptime Input: type) type {
         body: Body,
         context: Context,
         unit: Unit,
+        export_rows: names.Rows,
+        exports: std.meta.Child(@FieldType(Input, "exports")),
         input: Input,
         pub fn init(self: *Self, allocator: std.mem.Allocator, program: *const ir.Program, verified: Verified) std.mem.Allocator.Error!void {
             self.table = ir.TypeTable.borrow(@TypeOf(self.table), program.types);
@@ -65,21 +68,15 @@ pub fn Storage(comptime Input: type) type {
                 .type_only = program.type_only,
             };
 
-            const names = try allocator.alloc([]const u8, program.exports.len);
-            const ids = try allocator.alloc(u32, program.exports.len);
-
-            for (program.exports, names, ids) |exported, *name, *id| {
-                name.* = exported.name;
-                id.* = @backingInt(exported.type_id);
-            }
+            self.export_rows = names.borrow(program.exports);
+            self.exports = names.view(@TypeOf(self.exports), &self.export_rows);
 
             self.input = .{
                 .version = program.version,
                 .expected_version = zx.ir_version,
                 .context = &self.context,
                 .unit = &self.unit,
-                .export_names = names,
-                .export_types = ids,
+                .exports = &self.exports,
                 .constant_exports = try @import("../../../analysis/constants/input.zig").marshal(std.meta.Child(@typeInfo(@FieldType(Input, "constant_exports")).optional.child), allocator, program.constant_exports),
             };
         }

@@ -47,20 +47,8 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
     const paths = state.graph.modules.items(.path);
     const ranges = state.graph.sources;
 
-    for (paths[0..ranges.zx_count], sources, 0..) |path, source, index| {
-        // A failed request can replace a parse while the last successful analysis still owns its digest.
-        if (retained) |earlier| {
-            if (zx.bytes.equal(earlier.sources[index].source, source.source)) {
-                self.digests.set(index, earlier.digests.at(index));
-
-                continue;
-            }
-        }
-
-        const digest = cache.sourceDigest(path);
-
-        self.digests.set(index, if (digest != null) &digest.? else null);
-    }
+    // A failed request can replace a parse while the last successful analysis still owns its digest.
+    @import("../history/digest.zig").publishSource(cache, paths[0..ranges.zx_count], sources, retained, self.digests);
 
     if (comptime generated) {
         @import("../history/digest.zig").publish(owner.rx_digests, paths[ranges.zx_count..ranges.rx_end], .{

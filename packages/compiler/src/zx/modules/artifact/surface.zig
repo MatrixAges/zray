@@ -5,7 +5,9 @@ const Binding = @import("../function_import.zig");
 const Nodes = @import("nodes.zig");
 const remap = @import("nodes/remap.zig");
 const Error = @import("model.zig").Error;
+const names = @import("../../ir/canonical/validation/names/view.zig");
 const declarations = @import("generated_artifact_surface_declaration");
+const exports = @import("generated_artifact_surface_exports");
 const bindings = @import("generated_artifact_surface_binding");
 const Declaration = std.meta.Child(declarations.Input);
 const OwnedDeclaration = @typeInfo(@TypeOf(declarations.executeValue(undefined, undefined))).error_union.payload;
@@ -40,13 +42,31 @@ pub fn copy(nodes: *const Nodes, source: Surface) Error!Surface {
 }
 
 pub fn copyExports(allocator: std.mem.Allocator, source: []const ir.Export, types: *const Mapping) Error![]const ir.Export {
+    if (source.len == 0) return &.{};
+
     const result = try allocator.alloc(ir.Export, source.len);
+    const rows = names.borrow(source);
+    const target = @import("zxc_standard").memory.borrowNamedRows("type_id", result);
+    var written: [1]u64 = .{0};
 
-    for (source, result) |*item, *target| {
-        const mapped = try ownDeclaration(allocator, .{ .name = item.name, .type_id = @backingInt(item.type_id), .text = null, .types = types });
+    errdefer {
+        for (result[0..@intCast(written[0])]) |item| allocator.free(item.name);
 
-        target.* = .{ .name = mapped.name, .type_id = @fromBackingInt(mapped.type_id) };
+        allocator.free(result);
     }
+
+    const Input = std.meta.Child(exports.Input);
+    const view = names.view(std.meta.Child(@FieldType(Input, "source")), &rows);
+    const progress: []u64 = &written;
+
+    const input: Input = .{
+        .source = &view,
+        .types = zx.columns.pointer(@FieldType(Input, "types"), types),
+        .target = @ptrCast(&target),
+        .progress = @ptrCast(&progress),
+    };
+
+    _ = zx.columns.invoke(exports.executeValue, allocator, &input) catch |err| return failure(err);
 
     return result;
 }

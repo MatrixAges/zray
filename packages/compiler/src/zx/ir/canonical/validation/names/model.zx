@@ -1,0 +1,22 @@
+import type { NamedRows } from "std:memory"
+
+export type Rows = {
+    rows: NamedRows,
+    length: u64
+}
+
+export type Columns = {
+    names: string[],
+    types: u32[]
+}
+
+export type Fields = {
+    borrowed?: Rows,
+    columns?: Columns
+}
+
+export type Check = {
+    fields: Fields,
+    type_count: u64,
+    kinds?: u8[]
+}

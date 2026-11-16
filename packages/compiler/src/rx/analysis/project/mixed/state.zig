@@ -65,7 +65,7 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
 }
 
 pub fn destination(self: *Self) frontend.project.artifact.program_link.Destination {
-    return .{ .allocator = self.allocator, .temporary = self.allocator, .types = &self.types, .functions = &self.functions, .native_modules = &self.native_modules };
+    return .{ .allocator = self.allocator, .temporary = self.scratch.allocator(), .types = &self.types, .functions = &self.functions, .native_modules = &self.native_modules };
 }
 
 pub fn verifiedFunctions(self: *const Self) ir.FunctionTable {

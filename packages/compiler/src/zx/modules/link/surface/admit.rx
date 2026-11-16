@@ -1,10 +1,10 @@
 <Module>
-    <Type from="core/type_table/model" as="Types" />
+    <Type from="../../../ir/canonical/validation/names/model" as="Names" />
 
     <Args
         in={{
-            exports: Types.Fields,
-            imports: Types.Fields,
+            exports: Names.Rows,
+            imports: Names.Rows,
             type_count: u64
         }}
         out={bool}
@@ -12,9 +12,11 @@
 
     <Task name="exports" out={$ctx.valid}>
         <Call
-            fn="valid"
+            fn="../../../ir/canonical/validation/names/valid"
             in={{
-                fields: $in.exports,
+                fields: {
+                    borrowed: $in.exports
+                },
                 type_count: $in.type_count
             }}
         />
@@ -26,9 +28,11 @@
 
     <Task name="imports" out={$ctx.valid}>
         <Call
-            fn="valid"
+            fn="../../../ir/canonical/validation/names/valid"
             in={{
-                fields: $in.imports,
+                fields: {
+                    borrowed: $in.imports
+                },
                 type_count: $in.type_count
             }}
         />

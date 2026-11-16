@@ -1,0 +1,39 @@
+import memory from "std:memory"
+
+import type { PublicNames } from "./model"
+
+export type Input = {
+    names: PublicNames,
+    name: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { names, name } = in
+
+    const default_name = names.default_name
+
+    if (default_name != null && default_name == name) {
+        return 0
+    }
+
+    const first: u64 = default_name == null ? 0 : 1
+    const count = names.length - first
+    const found: u64? = null
+
+    return loop({
+        index: 0,
+        found
+    }, {
+        while: current => current.found == null && current.index < count,
+        next: current => {
+            if (memory.readTextColumn(names.rows, current.index) == name) {
+                current.found = first + current.index
+            }
+
+            current.index += 1
+        },
+        return: state => state.found
+    })
+}

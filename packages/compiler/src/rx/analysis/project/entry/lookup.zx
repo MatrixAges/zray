@@ -1,0 +1,32 @@
+import bytes from "std:bytes"
+
+export type Input = {
+    path: string,
+    modules: string[]
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { modules } = in
+
+    const path = bytes.fromText(in.path)
+    const absent: u64? = null
+
+    return loop({
+        row: 0,
+        found: absent
+    }, {
+        while: state => state.found == null && state.row < modules.length,
+        next: state => {
+            const row = state.row
+
+            if (bytes.equals(path, bytes.fromText(modules[row]))) {
+                state.found = row
+            }
+
+            state.row += 1
+        },
+        return: state => state.found
+    })
+}

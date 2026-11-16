@@ -22,7 +22,7 @@ export default function (in: Input): Output {
 
     const public_interface = publication({
         type_only: in.program.unit.type_only,
-        export_count: in.program.export_names.length,
+        export_count: in.program.exports.length,
         constant_exports: in.program.constant_exports != null,
         store_count: in.program.unit.body.stores.paths.length,
         public_count: count

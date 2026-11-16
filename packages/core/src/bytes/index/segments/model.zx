@@ -1,0 +1,10 @@
+import type { TextColumn } from "std:memory"
+
+export type Segments = {
+    first: TextColumn,
+    second: TextColumn,
+    third: TextColumn,
+    second_start: u64,
+    third_start: u64,
+    count: u64
+}

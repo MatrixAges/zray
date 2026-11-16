@@ -1,6 +1,8 @@
 import encoding from "std:encoding"
 import memory from "std:memory"
 
+import publicName from "./public_name"
+
 import type { Name, Request } from "./model"
 
 export type Input = {
@@ -19,10 +21,19 @@ export default function (in: Input): Output {
         const constants_end = types + request.constants.length
 
         const name = match {
-            in.namespace => request.members[index],
+            in.namespace => publicName({
+                names: request.members,
+                index
+            }),
             index < types => memory.readRowName(request.exports.rows, index),
-            index < constants_end => request.constants[index - types],
-            _ => request.members[index - constants_end]
+            index < constants_end => publicName({
+                names: request.constants,
+                index: index - types
+            }),
+            _ => publicName({
+                names: request.members,
+                index: index - constants_end
+            })
         }
 
         return {

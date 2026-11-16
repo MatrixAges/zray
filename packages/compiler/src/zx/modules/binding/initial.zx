@@ -3,7 +3,7 @@ import encoding from "std:encoding"
 import { ImportKind } from "../../frontend/parser/imports/model"
 import { executable_required, namespace_required, module_code } from "./const"
 import { Target } from "./model"
-import position from "./position"
+import position from "./public_position"
 
 import type { Request, Result } from "./model"
 

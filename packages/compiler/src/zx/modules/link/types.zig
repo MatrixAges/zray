@@ -39,7 +39,7 @@ pub fn compact(self: *Self, temporary: std.mem.Allocator, first: usize, origin_c
         self.origins.items.retainPrefix(origin_count);
     }
 
-    const mapping = try self.appendAnalyzed(temporary, source, origins, first);
+    const mapping = try self.appendAnalyzed(self.allocator, temporary, source, origins, first);
 
     inline for (@typeInfo(ir.TypeStorage).@"struct".field_names) |name| {
         std.debug.assert(@field(self.items, name).items.ptr == @field(source, name).ptr);
@@ -57,8 +57,8 @@ pub fn appendFrom(self: *Self, temporary: std.mem.Allocator, values: ir.TypeTabl
 }
 
 /// Extends the shared table with a result analyzed against its existing prefix.
-pub fn appendAnalyzed(self: *Self, temporary: std.mem.Allocator, values: ir.TypeTable, nominal_types: Origins.Table, first: usize) Error![]const ir.TypeId {
-    return self.appendValues(self.allocator, temporary, values, nominal_types, first, true);
+pub fn appendAnalyzed(self: *Self, mapping_allocator: std.mem.Allocator, temporary: std.mem.Allocator, values: ir.TypeTable, nominal_types: Origins.Table, first: usize) Error![]const ir.TypeId {
+    return self.appendValues(mapping_allocator, temporary, values, nominal_types, first, true);
 }
 
 fn appendValues(self: *Self, mapping_allocator: std.mem.Allocator, temporary: std.mem.Allocator, values: ir.TypeTable, nominal_types: Origins.Table, first: usize, comptime analyzed: bool) Error![]const ir.TypeId {

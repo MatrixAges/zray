@@ -6,6 +6,7 @@ import type { Modules } from "core/native_module_table/model"
 import type { Ownership } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
 import type { Prefix } from "../../../analysis/semantic/types/validation/shape"
+import type { Rows } from "./names/model"
 
 export type Context = {
     table: Table,
@@ -34,7 +35,6 @@ export type Program = {
     expected_version: u64,
     context: Context,
     unit: Unit,
-    export_names: string[],
-    export_types: u32[],
+    exports: Rows,
     constant_exports?: Values
 }

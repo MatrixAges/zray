@@ -1,6 +1,7 @@
 import type { TextColumn } from "std:memory"
 import type { Literal } from "core/constant/model"
 import type { FunctionBinding } from "../../../../../zx/modules/binding/model"
+import type { Prefix } from "../../../../../zx/modules/link/source/initializer_rows"
 
 export type Port = {
     function?: u32,
@@ -36,10 +37,7 @@ export type ExportPair = RowPair & {
     type_id: u64
 }
 
-export type InitializerPair = RowPair & {
-    function_id: u64,
-    schema_version: u64
-}
+export type InitializerPair = Prefix.Omit("identity", "function_prefix")
 
 export type Link = {
     ports: PortPair,

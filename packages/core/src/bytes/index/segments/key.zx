@@ -1,0 +1,24 @@
+import memory from "std:memory"
+
+import type { Segments } from "./model"
+
+export type Input = {
+    keys: Segments,
+    row: u64
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { keys, row } = in
+
+    if (row < keys.second_start) {
+        return memory.readTextColumn(keys.first, row)
+    }
+
+    if (row < keys.third_start) {
+        return memory.readTextColumn(keys.second, row - keys.second_start)
+    }
+
+    return memory.readTextColumn(keys.third, row - keys.third_start)
+}

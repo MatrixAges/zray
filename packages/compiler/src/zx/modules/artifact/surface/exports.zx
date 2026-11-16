@@ -1,0 +1,38 @@
+import memory from "std:memory"
+import strings from "std:string"
+
+import remap from "../remapping/id"
+
+import type { NamedRowBuffer, U64Buffer } from "std:memory"
+import type { Rows } from "../../../ir/canonical/validation/names/model"
+import type { Mapping } from "../remapping/model"
+
+export type Input = {
+    source: Rows,
+    types: Mapping,
+    target: NamedRowBuffer,
+    progress: U64Buffer
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { source, types, target, progress } = in
+    const { rows, length } = source
+
+    return loop(0, {
+        while: row => row < length,
+        next: row => {
+            const id = remap({
+                id: memory.readRowId(rows, row),
+                mapping: types
+            })
+            const name = strings.copy(memory.readRowName(rows, row))
+
+            memory.writeNamedRow(target, row, name, id)
+            memory.writeU64(progress, 0, row + 1)
+
+            row += 1
+        }
+    })
+}

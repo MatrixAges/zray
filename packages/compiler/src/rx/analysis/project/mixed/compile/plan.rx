@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Compile" />
+
+    <Args in={Compile.Form} out={Compile.Step[]} />
+
+    <If on={$in == Compile.Form.Window}>
+        <Return
+            value={[
+                Compile.Step.PrepareWindow,
+                Compile.Step.RestorePrefix,
+                Compile.Step.NextBody,
+                Compile.Step.LinkBody,
+                Compile.Step.RecordBoundary
+            ]}
+        />
+    </If>
+
+    <Return
+        value={[
+            Compile.Step.ResolveEntry,
+            Compile.Step.BuildEntryProgram,
+            Compile.Step.PublishContract,
+            Compile.Step.PublishExports,
+            Compile.Step.RetainHistory
+        ]}
+    />
+</Module>

@@ -1,4 +1,4 @@
-import type { NamedRows } from "std:memory"
+import type { NamedRows, TextColumn } from "std:memory"
 import type { Diagnostic } from "../../analysis/semantic/resolving/model"
 import type { Span } from "../../frontend/lexer/token_model"
 import type { ImportKind } from "../../frontend/parser/imports/model"
@@ -29,6 +29,12 @@ export type Exports = {
     length: u64
 }
 
+export type PublicNames = {
+    rows: TextColumn,
+    length: u64,
+    default_name?: string
+}
+
 export type Request = {
     target: Target,
     kind: ImportKind,
@@ -39,8 +45,8 @@ export type Request = {
     names: Names,
     type_kinds: u8[],
     exports: Exports,
-    constants: string[],
-    members: string[]
+    constants: PublicNames,
+    members: PublicNames
 }
 
 export type Bindings = {

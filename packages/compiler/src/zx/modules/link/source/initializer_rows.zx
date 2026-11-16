@@ -1,0 +1,19 @@
+import type { TextColumn } from "std:memory"
+
+export type Rows = {
+    names: TextColumn,
+    data: u8[],
+    count: u64
+}
+
+export type Prefix = {
+    left: Rows,
+    right: Rows,
+    stride: u64,
+    function_id: u64,
+    schema_version: u64,
+    little_endian: bool,
+    shared: bool,
+    identity: bool,
+    function_prefix?: u32
+}

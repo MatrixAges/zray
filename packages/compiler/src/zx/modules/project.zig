@@ -397,13 +397,13 @@ const Project = struct {
         const temporary = self.bindingAllocator();
         const members: import_binding.Members = .{ .default = if (imported.default_member) |*member| member else null, .named = imported.members };
 
-        const names = if (item.kind == .type_only) &.{} else if (imported.signatures.len == 0) try members.names(temporary) else projected: {
-            const result = try temporary.alloc([]const u8, imported.signatures.len);
+        const names: import_binding.Members.Names = if (item.kind == .type_only)
+            .{}
 
-            for (imported.signatures, result) |*member, *name| name.* = member.name;
-
-            break :projected result;
-        };
+        else if (imported.signatures.len == 0)
+            members.names()
+        else
+            .{ .named = .{ .signatures = imported.signatures } };
 
         const symbols = import_binding.Symbols{ .target = .source, .types = self.types.view(), .exports = imported.exports, .constants = imported.constant_exports, .functions = names };
         const selected = try import_binding.select(temporary, self.allocator, item, &symbols, self.reporter);

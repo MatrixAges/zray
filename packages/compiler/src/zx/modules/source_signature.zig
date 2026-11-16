@@ -16,7 +16,8 @@ pub const Result = struct {
     members: []const Member = &.{},
     type_only: bool,
     has_store: bool,
-    deferred_source: ?[]const u8 = null,
+    has_deferred_source: bool = false,
+    deferred_source: []const u8 = &.{},
 };
 
 pub fn ports(types: *Types, program: anytype) zx.Error!Ports {

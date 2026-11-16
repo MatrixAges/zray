@@ -1,0 +1,20 @@
+import type { TextColumn, U64Buffer } from "std:memory"
+import type { Input as Forward } from "../forward"
+
+export type Signatures = {
+    count: u64,
+    sources: u64[],
+    word_stride: u64,
+    byte_stride: u64,
+    store: u8[],
+    deferred: u8[],
+    paths: TextColumn
+}
+
+export type Input = {
+    modules: Signatures,
+    start: u64,
+    indices: U64Buffer,
+    forwards?: U64Buffer,
+    forwarding: Forward.Omit("path")
+}

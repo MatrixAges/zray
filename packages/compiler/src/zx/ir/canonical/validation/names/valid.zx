@@ -1,0 +1,59 @@
+import integers from "std:integer"
+import { Kind } from "core/type_table/model"
+
+import kind from "../../../../analysis/semantic/types/kind"
+import duplicate from "./duplicate"
+import readName from "./name"
+import readType from "./type_id"
+
+import type { Check } from "./model"
+
+export type Input = Check
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { fields, type_count, kinds } = in
+    const { borrowed, columns } = fields
+
+    if (columns != null && columns.names.length != columns.types.length) {
+        return false
+    }
+
+    const length = match {
+        borrowed != null => borrowed.length,
+        columns != null => columns.names.length,
+        _ => 0
+    }
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < length,
+        next: state => {
+            const row = state.row
+            const name = readName({
+                fields,
+                row
+            })
+            const id = integers.widen(readType({
+                fields,
+                row
+            }))
+            const valid = id < type_count && name.length != 0
+
+            state.valid = match {
+                !valid => false,
+                kinds != null && kind(kinds[id]) == Kind.Task => false,
+                _ => !duplicate({
+                    fields,
+                    name,
+                    end: row
+                })
+            }
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

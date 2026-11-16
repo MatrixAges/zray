@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Link" />
+
+    <Args in={Link.Phase} out={Link.Step[]} />
+
+    <If on={$in == Link.Phase.Graph}>
+        <Return
+            value={[
+                Link.Step.PrepareGraph,
+                Link.Step.MergeTypes,
+                Link.Step.LinkDependencies,
+                Link.Step.LinkEntry,
+                Link.Step.PublishProgram
+            ]}
+        />
+    </If>
+
+    <Return
+        value={[
+            Link.Step.VerifyLayout,
+            Link.Step.ReserveMappings,
+            Link.Step.CheckNames,
+            Link.Step.CheckConstants,
+            Link.Step.LinkNativeModules,
+            Link.Step.BindSignatures,
+            Link.Step.CheckImports,
+            Link.Step.ResolveBody
+        ]}
+    />
+</Module>

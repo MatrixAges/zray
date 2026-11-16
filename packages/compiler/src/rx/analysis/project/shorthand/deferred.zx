@@ -1,0 +1,29 @@
+export type Input = {
+    marks: u8[],
+    stride: u64,
+    start: u64,
+    count: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const absent: u64? = null
+
+    return loop({
+        row: in.start,
+        pending: absent
+    }, {
+        while: state => state.row < in.count && state.pending == null,
+        next: state => {
+            const row = state.row
+
+            if (in.marks[row * in.stride] != 0) {
+                state.pending = row
+            }
+
+            state.row += 1
+        },
+        return: state => state.pending
+    })
+}

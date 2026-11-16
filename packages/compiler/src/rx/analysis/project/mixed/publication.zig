@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Source = @import("frontend").project.artifact.source_link;
-const Plan = struct { visible: usize, entry: ?ir.FunctionId };
+pub const Plan = struct { visible: usize, entry: ?ir.FunctionId };
 
 pub fn entry(table: *const ir.FunctionTable, loaded: *const Source.Loaded, orchestration: bool, exports: bool) Plan {
     if (comptime @import("rx_options").generated_graph) {

@@ -46,8 +46,8 @@ pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: Sour
 
         var walker = Walker{ .expression = &expression, .module = module, .states = states, .output = output, .arguments = arguments.module(index), .requests = requests };
 
-        if (module.shortcut) |call_index| {
-            const call = module.calls.get(call_index);
+        if (module.deferred_shortcut) {
+            const call = module.calls.get(@import("shorthand.zig").call_index);
 
             try walker.inferModule(.ModuleShortcut, &fixed[index], &call);
         } else {

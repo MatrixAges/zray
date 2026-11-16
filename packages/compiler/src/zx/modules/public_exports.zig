@@ -57,7 +57,10 @@ pub fn signatureEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
     switch (selected.action) {
         .None, .Intrinsic => {},
         .Invalid => return reporter.fail(.module, .{ .start = 0, .end = 0 }, "a default re-export requires a callable source"),
-        .Deferred => signature.deferred_source = members[selected.default_member.?].source,
+        .Deferred => {
+            signature.has_deferred_source = true;
+            signature.deferred_source = members[selected.default_member.?].source.?;
+        },
         .Callable => {
             const member = members[selected.default_member.?];
 
@@ -74,28 +77,17 @@ fn plan(allocator: std.mem.Allocator, backing: std.mem.Allocator, types: []const
 
     defer arena.deinit();
 
-    const temporary = arena.allocator();
     const first_function = types.len + constants.len;
-    const count = first_function + functions.len;
-    const names = try temporary.alloc([]const u8, count);
-    var index: usize = 0;
-    var signature: ?*const Signature.Member = null;
-
-    inline for (.{ types, constants, functions }) |items| {
-        for (items) |*item| {
-            names[index] = item.name;
-            index += 1;
-
-            if (comptime @TypeOf(item.*) == Signature.Member) {
-                if (item.name.len == 0) signature = item;
-            }
-        }
-    }
-
-    const selected = try select(temporary, names, first_function, false, has_function, signature);
+    const selected = try select(arena.allocator(), types, constants, functions, false, has_function);
 
     if (selected.invalid_name) |duplicate| {
-        const name = names[duplicate];
+        const name = if (duplicate < types.len)
+            types[duplicate].name
+
+        else if (duplicate < first_function)
+            constants[duplicate - types.len].name
+        else
+            functions[duplicate - first_function].name;
 
         return reporter.fail(.name, .{ .start = 0, .end = 0 }, try std.fmt.allocPrint(allocator, "duplicate public export: {s}", .{if (name.len == 0) "default" else name}));
     }
@@ -104,74 +96,101 @@ fn plan(allocator: std.mem.Allocator, backing: std.mem.Allocator, types: []const
 }
 
 pub fn invalidRootName(allocator: std.mem.Allocator, roots: anytype) std.mem.Allocator.Error!?usize {
-    if (roots.len == 0) return null;
-
-    const names = try allocator.alloc([]const u8, roots.len);
-
-    for (roots, names) |root, *name| name.* = root.name;
-
-    return (try select(allocator, names, names.len, true, false, null)).invalid_name;
+    return (try select(allocator, roots, @as([]const ir.Constant, &.{}), @as([]const FunctionImport, &.{}), true, false)).invalid_name;
 }
 
-fn select(allocator: std.mem.Allocator, names: []const []const u8, first_function: usize, roots: bool, has_function: bool, signature: ?*const Signature.Member) std.mem.Allocator.Error!Plan {
-    if (comptime generated_mode) {
-        const generated = @import("generated_project_public_exports");
-        const Input = std.meta.Child(generated.Input);
-        const Facts = std.meta.Child(@typeInfo(@FieldType(Input, "signature")).optional.child);
+fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, has_function: bool) std.mem.Allocator.Error!Plan {
+    const first_function = first.len + second.len;
+    const count = first_function + functions.len;
 
-        const facts: ?Facts = if (signature) |member| .{
+    if (count == 0) return .{};
+    if (comptime !generated_mode) return seedSelect(allocator, first, second, functions, roots, has_function);
+
+    const memory = @import("zxc_standard").memory;
+    const generated = @import("generated_project_public_exports");
+    const Input = std.meta.Child(generated.Input);
+    const Facts = std.meta.Child(@typeInfo(@FieldType(Input, "signature")).optional.child);
+    const names = memory.borrowTextColumn("name", first);
+    const constants = memory.borrowTextColumn("name", second);
+    const members = memory.borrowTextColumn("name", functions);
+    const buckets = try @import("source_index/fixed.zig").bucketsFor(allocator, count);
+
+    defer allocator.free(buckets);
+
+    const facts: ?Facts = if (comptime std.meta.Elem(@TypeOf(functions)) == Signature.Member) signatureFacts(Facts, functions) else null;
+
+    const input: Input = .{
+        .keys = &.{
+            .first = @ptrCast(&names),
+            .second = @ptrCast(&constants),
+            .third = @ptrCast(&members),
+            .second_start = first.len,
+            .third_start = first_function,
+            .count = count,
+        },
+        .buckets = @ptrCast(&buckets),
+        .capacity = buckets.len,
+        .roots = roots,
+        .has_function = has_function,
+        .signature = if (facts) |*value| value else null,
+    };
+
+    const output = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.IndexOutOfBounds => unreachable,
+    };
+
+    return .{
+        .invalid_name = if (output.names.invalid_name) |index| @intCast(index) else null,
+        .default_member = if (output.names.default_member) |index| @intCast(index) else null,
+        .action = output.action,
+    };
+}
+
+fn signatureFacts(comptime Facts: type, functions: []const Signature.Member) ?Facts {
+    for (functions) |*member| {
+        if (member.name.len == 0) return .{
             .callable = member.ports != null,
             .deferred = member.source != null,
             .intrinsic = member.intrinsic != null,
-        } else null;
-
-        const buckets = try @import("source_index/fixed.zig").bucketsFor(allocator, names.len);
-
-        defer allocator.free(buckets);
-
-        const input: Input = .{
-            .keys = names,
-            .buckets = @ptrCast(&buckets),
-            .capacity = buckets.len,
-            .first_function = first_function,
-            .roots = roots,
-            .has_function = has_function,
-            .signature = if (facts) |*value| value else null,
-        };
-
-        const output = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.IndexOutOfBounds => unreachable,
-        };
-
-        return .{
-            .invalid_name = if (output.names.invalid_name) |index| @intCast(index) else null,
-            .default_member = if (output.names.default_member) |index| @intCast(index) else null,
-            .action = output.action,
         };
     }
 
+    return null;
+}
+
+fn seedSelect(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, has_function: bool) std.mem.Allocator.Error!Plan {
     var seen: std.StringHashMapUnmanaged(void) = .empty;
+
+    defer seen.deinit(allocator);
+
     var result: Plan = .{};
+    var index: usize = 0;
 
-    for (names, 0..) |name, index| {
-        if ((roots and name.len == 0) or (try seen.getOrPut(allocator, name)).found_existing) {
-            return .{ .invalid_name = index };
+    inline for (.{ first, second, functions }, 0..) |items, section| {
+        for (items, 0..) |*item, row| {
+            const name = item.name;
+
+            if ((roots and name.len == 0) or (try seen.getOrPut(allocator, name)).found_existing) return .{ .invalid_name = index };
+
+            if (section == 2 and name.len == 0) {
+                result.default_member = row;
+
+                if (comptime @TypeOf(item.*) == Signature.Member) {
+                    result.action = if (item.ports != null) .Callable else if (item.source != null)
+                        .Deferred
+
+                    else if (item.intrinsic != null)
+                        .Intrinsic
+                    else
+                        .Invalid;
+                } else if (!has_function) {
+                    result.action = .Forward;
+                }
+            }
+
+            index += 1;
         }
-
-        if (index >= first_function and name.len == 0) result.default_member = index - first_function;
-    }
-
-    if (signature) |member| {
-        result.action = if (member.ports != null) .Callable else if (member.source != null)
-            .Deferred
-
-        else if (member.intrinsic != null)
-            .Intrinsic
-        else
-            .Invalid;
-    } else if (result.default_member != null and !has_function) {
-        result.action = .Forward;
     }
 
     return result;

@@ -4,53 +4,77 @@ const Symbols = @import("symbols.zig").Symbols;
 const generated = @import("generated_project_binding");
 const memory = @import("zxc_standard").memory;
 pub const Input = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
-const Record = if (@typeInfo(Input) == .pointer) std.meta.Child(Input) else Input;
+const Record = valueType(Input);
 const Names = @FieldType(Record, "names");
+const Exports = @FieldType(Record, "exports");
+const Constants = @FieldType(Record, "constants");
+const Members = @FieldType(Record, "members");
 
-pub fn init(allocator: std.mem.Allocator, item: anytype, symbols: *const Symbols, rows: *const []const memory.NamedId) std.mem.Allocator.Error!Input {
-    const names = try importNames(allocator, item);
-    const Exports = @FieldType(Record, "exports");
+pub const Storage = struct {
+    input: Record,
+    names: valueType(Names),
+    exports: valueType(Exports),
+    constants: valueType(Constants),
+    members: valueType(Members),
+    constant_names: memory.TextColumn,
+    member_names: memory.TextColumn,
+    pub fn init(self: *Storage, allocator: std.mem.Allocator, item: anytype, symbols: *const Symbols, rows: *const []const memory.NamedId) std.mem.Allocator.Error!Input {
+        self.names = try importNames(allocator, item);
 
-    const exports = try record(Exports, allocator, .{
-        .rows = @as(field(Exports, "rows"), @ptrCast(rows)),
-        .length = @as(u64, rows.len),
-    });
+        self.exports = record(Exports, .{
+            .rows = @as(field(Exports, "rows"), @ptrCast(rows)),
+            .length = @as(u64, rows.len),
+        });
 
-    const constants = try allocator.alloc([]const u8, if (item.kind == .type_only) 0 else symbols.constants.len);
+        self.constant_names = memory.borrowTextColumn("name", symbols.constants);
+        self.member_names = symbols.functions.column();
 
-    for (symbols.constants[0..constants.len], constants) |*value, *name| name.* = value.name;
+        self.constants = record(Constants, .{
+            .rows = @as(field(Constants, "rows"), @ptrCast(&self.constant_names)),
+            .length = @as(u64, if (item.kind == .type_only) 0 else self.constant_names.count),
+            .default_name = @as(?[]const u8, null),
+        });
 
-    return record(Input, allocator, .{
-        .target = @as(@FieldType(Record, "target"), switch (symbols.target) {
-            .source => .Source,
-            .compiled => .Compiled,
-            .native => .Native,
-        }),
-        .kind = @as(@FieldType(Record, "kind"), switch (item.kind) {
-            .function => .Function,
-            .enumeration => .Enumeration,
-            .type_only => .TypeOnly,
-        }),
-        .reexport = item.exported,
-        .wildcard = item.wildcard,
-        .start = @as(u64, item.span.start),
-        .end = @as(u64, item.span.end),
-        .names = names,
-        .type_kinds = symbols.types.kinds,
-        .exports = exports,
-        .constants = constants,
-        .members = symbols.functions,
-    });
-}
+        self.members = record(Members, .{
+            .rows = @as(field(Members, "rows"), @ptrCast(&self.member_names)),
+            .length = @as(u64, symbols.functions.count()),
+            .default_name = symbols.functions.default,
+        });
 
-fn importNames(allocator: std.mem.Allocator, item: anytype) std.mem.Allocator.Error!Names {
+        self.input = record(Input, .{
+            .target = @as(@FieldType(Record, "target"), switch (symbols.target) {
+                .source => .Source,
+                .compiled => .Compiled,
+                .native => .Native,
+            }),
+            .kind = @as(@FieldType(Record, "kind"), switch (item.kind) {
+                .function => .Function,
+                .enumeration => .Enumeration,
+                .type_only => .TypeOnly,
+            }),
+            .reexport = item.exported,
+            .wildcard = item.wildcard,
+            .start = @as(u64, item.span.start),
+            .end = @as(u64, item.span.end),
+            .names = reference(Names, &self.names),
+            .type_kinds = symbols.types.kinds,
+            .exports = reference(Exports, &self.exports),
+            .constants = reference(Constants, &self.constants),
+            .members = reference(Members, &self.members),
+        });
+
+        return reference(Input, &self.input);
+    }
+};
+
+fn importNames(allocator: std.mem.Allocator, item: anytype) std.mem.Allocator.Error!valueType(Names) {
     if (comptime @hasField(@TypeOf(item.header), "storage")) {
         const storage = item.header.storage;
         const row = storage.imports[item.index];
         const first: usize = @intCast(row.first);
         const count: usize = @intCast(row.count);
 
-        return record(Names, allocator, .{
+        return record(Names, .{
             .source = @as(?[]const u8, item.header.source),
             .locals = zx.columns.slice(field(Names, "locals"), storage.import_names[first..][0..count]),
             .originals = zx.columns.slice(field(Names, "originals"), storage.import_sources[first..][0..count]),
@@ -78,7 +102,7 @@ fn importNames(allocator: std.mem.Allocator, item: anytype) std.mem.Allocator.Er
         if (indirect) spans[index] = span;
     }
 
-    return record(Names, allocator, .{
+    return record(Names, .{
         .source = @as(?[]const u8, null),
         .locals = @as(field(Names, "locals"), &.{}),
         .originals = @as(field(Names, "originals"), spans),
@@ -87,23 +111,25 @@ fn importNames(allocator: std.mem.Allocator, item: anytype) std.mem.Allocator.Er
     });
 }
 
-fn field(comptime Target: type, comptime name: []const u8) type {
-    return @FieldType(if (@typeInfo(Target) == .pointer) std.meta.Child(Target) else Target, name);
+fn valueType(comptime Target: type) type {
+    return if (@typeInfo(Target) == .pointer) std.meta.Child(Target) else Target;
 }
 
-inline fn record(comptime Target: type, allocator: std.mem.Allocator, fields: anytype) std.mem.Allocator.Error!Target {
-    const Value = if (@typeInfo(Target) == .pointer) std.meta.Child(Target) else Target;
+fn field(comptime Target: type, comptime name: []const u8) type {
+    return @FieldType(valueType(Target), name);
+}
+
+fn reference(comptime Target: type, source: *const valueType(Target)) Target {
+    return if (@typeInfo(Target) == .pointer) source else source.*;
+}
+
+fn record(comptime Target: type, fields: anytype) valueType(Target) {
+    const Value = valueType(Target);
     var value: Value = undefined;
 
     inline for (@typeInfo(Value).@"struct".field_names) |name| {
         @field(value, name) = if (comptime std.mem.eql(u8, name, "zx_origin")) null else @field(fields, name);
     }
 
-    if (@typeInfo(Target) != .pointer) return value;
-
-    const owned = try allocator.create(Value);
-
-    owned.* = value;
-
-    return owned;
+    return value;
 }

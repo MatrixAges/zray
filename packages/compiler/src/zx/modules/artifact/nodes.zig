@@ -69,7 +69,7 @@ pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.Func
     }
 }
 
-pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: ir.Function) Error!void {
+pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: *const ir.Function) Error!void {
     if (comptime generated) {
         try storage.reserve(self.allocator, 1);
 
@@ -81,9 +81,9 @@ pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: ir.Funct
             .external = value.external,
         };
 
-        try self.appendLinked(storage, signature, value.store_mode, value.body, remap.BodyColumns.borrow(&value));
+        try self.appendLinked(storage, signature, value.store_mode, value.body, remap.BodyColumns.borrow(value));
     } else {
-        try storage.append(self.allocator, try self.function(value));
+        try storage.append(self.allocator, try self.function(value.*));
     }
 }
 

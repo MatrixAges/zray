@@ -1,10 +1,10 @@
 import type { U64Buffer } from "std:memory"
+import type { Segments } from "core/bytes/index/segments/model"
 
 export type Input = {
-    keys: u8[][],
+    keys: Segments,
     buckets: U64Buffer,
     capacity: u64,
-    first_function: u64,
     roots: bool,
     has_function: bool,
     signature?: Signature

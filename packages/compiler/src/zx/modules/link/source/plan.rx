@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Link" />
+
+    <Args in={Link.Phase} out={Link.Step[]} />
+
+    <If on={$in == Link.Phase.Body}>
+        <Return
+            value={[
+                Link.Step.CheckViews,
+                Link.Step.SelectSuffix,
+                Link.Step.VerifyIr,
+                Link.Step.MergeTypes,
+                Link.Step.AppendFunctions,
+                Link.Step.FinishBody
+            ]}
+        />
+    </If>
+
+    <Return
+        value={[
+            Link.Step.PublishEntry,
+            Link.Step.PublishDeclarations,
+            Link.Step.PublishInitializers,
+            Link.Step.PublishMembers,
+            Link.Step.ResolvePorts
+        ]}
+    />
+</Module>

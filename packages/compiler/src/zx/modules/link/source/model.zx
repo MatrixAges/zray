@@ -1,0 +1,18 @@
+export enum Phase {
+    Body,
+    Surface
+}
+
+export enum Step {
+    CheckViews,
+    SelectSuffix,
+    VerifyIr,
+    MergeTypes,
+    AppendFunctions,
+    FinishBody,
+    PublishEntry,
+    PublishDeclarations,
+    PublishInitializers,
+    PublishMembers,
+    ResolvePorts
+}

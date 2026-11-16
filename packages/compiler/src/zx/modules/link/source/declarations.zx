@@ -1,0 +1,32 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+export type Input = {
+    rows: u8[],
+    count: u64,
+    stride: u64,
+    offset: u64,
+    prefix: u64,
+    little_endian: bool
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { rows, count, stride, offset, prefix, little_endian } = in
+
+    return loop({
+        index: 0,
+        shared: true
+    }, {
+        while: state => state.shared && state.index < count,
+        next: state => {
+            const position = state.index * stride + offset
+            const type_id = bytes.readU32(rows, position, little_endian)
+
+            state.shared = integers.widen(type_id) < prefix
+            state.index += 1
+        },
+        return: state => state.shared
+    })
+}

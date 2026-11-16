@@ -1,0 +1,17 @@
+export enum Form {
+    Window,
+    Output
+}
+
+export enum Step {
+    PrepareWindow,
+    RestorePrefix,
+    NextBody,
+    LinkBody,
+    RecordBoundary,
+    ResolveEntry,
+    BuildEntryProgram,
+    PublishContract,
+    PublishExports,
+    RetainHistory
+}

@@ -6,7 +6,7 @@ pub const Symbols = struct {
     types: zx.ir.TypeTable,
     exports: []const zx.ir.Export,
     constants: []const zx.ir.Constant,
-    functions: []const []const u8,
+    functions: @import("members.zig").Names = .{},
 };
 
 pub const Bindings = struct {

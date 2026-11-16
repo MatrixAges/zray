@@ -46,8 +46,12 @@
         fn="../../../../ir/canonical/validation/exports"
         in={{
             table: $in.types,
-            export_names: $in.request.export_names,
-            export_types: $in.request.export_types
+            fields: {
+                columns: {
+                    names: $in.request.export_names,
+                    types: $in.request.export_types
+                }
+            }
         }}
     />
 

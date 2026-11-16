@@ -5,6 +5,7 @@ const Store = @import("../store.zig");
 const target = @import("../call/target.zig");
 const Graph = @import("../project/source_graph/model.zig");
 const Signatures = @import("../project/references/signatures.zig");
+const Contract = @import("../module.zig").Contract;
 const Index = frontend.project.source_index.Map;
 pub const Data = struct { definitions: []Store.Definition, context: frontend.Context };
 pub const Value = union(enum) { data: Data, diagnostic: target.Diagnostic };
@@ -19,6 +20,25 @@ pub fn loadSignatures(allocator: std.mem.Allocator, sources: []const rx.ModuleSo
 
 pub fn loadSignaturesIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, sources: []const rx.ModuleSource, context: frontend.Context, edges: []const []const Graph.Edge, signatures: Signatures) std.mem.Allocator.Error!Value {
     return loadIn(allocator, backing, sources, context, edges, signatures);
+}
+
+pub fn publish(allocator: std.mem.Allocator, definitions: []Store.Definition, contract: *const Contract, comptime ownership: enum { Owned, Retained }) std.mem.Allocator.Error![]Store.Definition {
+    const retained = ownership == .Retained;
+    const result = if (retained) try allocator.dupe(Store.Definition, definitions) else definitions;
+
+    for (result) |*definition| {
+        const objects = if (retained) try allocator.dupe(Store.Object, definition.objects) else @constCast(definition.objects);
+
+        for (objects) |*object| {
+            object.initial.types = contract.types;
+            object.initial.native_modules = contract.native_modules;
+        }
+
+        definition.types = contract.types;
+        definition.objects = objects;
+    }
+
+    return result;
 }
 
 fn loadIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, sources: []const rx.ModuleSource, context: frontend.Context, edges: []const []const Graph.Edge, signatures: ?Signatures) std.mem.Allocator.Error!Value {

@@ -1,6 +1,6 @@
 import type { Values } from "core/constant/model"
 import type { Ownership } from "core/symbol_table/model"
-import type { Fields } from "core/type_table/model"
+import type { Rows } from "../../../ir/canonical/validation/names/model"
 
 export enum Status {
     Ready,
@@ -41,7 +41,7 @@ export type Provider = {
     executable: bool,
     members: Bindings,
     signatures: Signatures,
-    aliases: Fields,
+    aliases: Rows,
     kinds: u8[],
     constants?: Values,
     types: u32[]
@@ -49,7 +49,7 @@ export type Provider = {
 
 export type Consumer = {
     members: Bindings,
-    aliases: Fields,
+    aliases: Rows,
     constants?: Values,
     types: u32[],
     functions: u32?[]
