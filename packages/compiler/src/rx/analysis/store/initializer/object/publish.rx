@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Object" />
+
+    <Args in={Object.Input} out={void} />
+
+    <Call fn="../../layout/field_positions" in={$in.indices} />
+    <Call fn="write_values" in={$in.values} />
+
+    <Call
+        fn="../../../program/linking/operands/range"
+        in={{
+            range: $in.fields,
+            count: $in.indices.source.length
+        }}
+    />
+
+    <Call
+        fn="../../../program/linking/operands/range"
+        in={{
+            range: $in.evaluation,
+            count: $in.indices.source.length
+        }}
+    />
+</Module>

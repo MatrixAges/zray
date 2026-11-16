@@ -34,6 +34,20 @@ pub fn group(allocator: std.mem.Allocator, children: []const rx.ast.Node) std.me
     return .{ .first = first, .starts = starts.items, .next = next };
 }
 
+pub fn offsets(allocator: std.mem.Allocator, fragments: []const rx.ast.Node) std.mem.Allocator.Error![]const u64 {
+    const result = try allocator.alloc(u64, fragments.len + 1);
+    var count: usize = 0;
+
+    for (fragments, result[0..fragments.len]) |fragment, *offset| {
+        offset.* = count;
+        count = std.math.add(usize, count, fragment.children.len) catch return error.OutOfMemory;
+    }
+
+    result[fragments.len] = count;
+
+    return result;
+}
+
 pub fn plan(allocator: std.mem.Allocator, expressions: []const []const u8) std.mem.Allocator.Error!Columns {
     const names = try allocator.alloc([]const u8, expressions.len);
     const ends = try allocator.alloc(u64, expressions.len);

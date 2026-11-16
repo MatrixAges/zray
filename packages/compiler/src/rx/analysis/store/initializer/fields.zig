@@ -30,6 +30,12 @@ pub fn next(self: *Self) ?Range {
         const fragment = self.range.next orelse return null;
 
         self.range = run(self.layout, fragment);
+
+        if (comptime generated) {
+            if (self.range.first == self.range.end) return null;
+
+            break;
+        }
     }
 
     const range = self.range;

@@ -1,0 +1,16 @@
+import type { U8Buffer } from "std:memory"
+import type { Range } from "../../../program/linking/operands/range"
+import type { Input as Indices } from "../../layout/field_positions"
+
+export type Values = {
+    source: u8[],
+    fields: U8Buffer,
+    evaluation: U8Buffer
+}
+
+export type Input = {
+    indices: Indices,
+    values: Values,
+    fields: Range,
+    evaluation: Range
+}

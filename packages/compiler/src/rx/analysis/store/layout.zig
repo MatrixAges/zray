@@ -17,16 +17,13 @@ text: []const u8,
 pub fn build(allocator: std.mem.Allocator, store: rx.ast.Node, groups: ?rx.store.Groups) std.mem.Allocator.Error!Self {
     const grouping = groups orelse try @import("layout/seed.zig").group(allocator, store.children);
     const fragments = store.children[grouping.first..];
-    const offsets = try allocator.alloc(u64, fragments.len + 1);
-    var count: usize = 0;
 
-    for (fragments, offsets[0..fragments.len]) |fragment, *offset| {
-        offset.* = count;
-        count = std.math.add(usize, count, fragment.children.len) catch return error.OutOfMemory;
-    }
+    const offsets = grouping.offsets orelse if (comptime generated)
+        try allocator.dupe(u64, &.{ 0, fragments[0].children.len })
+    else
+        try @import("layout/seed.zig").offsets(allocator, fragments);
 
-    offsets[fragments.len] = count;
-
+    const count: usize = @intCast(offsets[fragments.len]);
     const fields = try allocator.alloc(*const rx.ast.Node, count);
     const expressions = try allocator.alloc([]const u8, count);
 

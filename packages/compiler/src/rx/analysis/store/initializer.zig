@@ -12,6 +12,7 @@ const object = @import("initializer/object.zig");
 const Fields = @import("initializer/fields.zig");
 const span = zx.Span{ .start = 0, .end = 0 };
 const input_type = frontend.types.scalarId(.void);
+const generated = @import("rx_options").generated_graph;
 const Value = union(enum) { program: zx.ir.Program, diagnostic: expression.Diagnostic };
 
 const Options = struct {
@@ -34,7 +35,8 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
     var ranges = Fields.init(&layout, options.first);
     const count = ranges.count;
     const fields = try frontend.types.Fields.init(allocator, count);
-    const names = try temporary.alloc([]const u8, count);
+    // The Source constructor leaves inputs in declaration order. The seed sorts its fields in place.
+    const names = if (comptime generated) fields.names else try temporary.alloc([]const u8, count);
     const evaluation = try temporary.alloc(u32, count);
     var builder = Builder{ .allocator = allocator, .types = options.types.view(), .native_modules = options.native_modules };
 
@@ -89,7 +91,7 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
                     .RecordField => {
                         const name = try allocator.dupe(u8, field_name.value);
 
-                        names[position] = name;
+                        if (comptime !generated) names[position] = name;
 
                         fields.set(position, name, id);
                     },

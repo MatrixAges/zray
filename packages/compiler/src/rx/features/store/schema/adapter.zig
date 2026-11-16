@@ -6,6 +6,7 @@ pub const Groups = struct {
     first: usize,
     starts: []const u32,
     next: []const ?u32,
+    offsets: ?[]const u64 = null,
 };
 
 pub fn validate(allocator: std.mem.Allocator, children: anytype, input: anytype, reporter: *dsl.Reporter) dsl.Error!Groups {
@@ -69,7 +70,12 @@ pub fn validate(allocator: std.mem.Allocator, children: anytype, input: anytype,
     const index: usize = @intCast(result.index);
 
     switch (result.issue) {
-        .None => return .{ .first = alias_count, .starts = result.groups.starts, .next = result.groups.next },
+        .None => return .{
+            .first = alias_count,
+            .starts = result.groups.starts,
+            .next = result.groups.next,
+            .offsets = if (offsets.len == 0) null else offsets,
+        },
         .DuplicateType => {
             var current: usize = 0;
             var sources = node.children();

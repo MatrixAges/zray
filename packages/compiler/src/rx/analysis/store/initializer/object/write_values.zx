@@ -1,0 +1,12 @@
+import memory from "std:memory"
+
+import type { Values as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, fields, evaluation } = in
+
+    const field_bytes = memory.copyBytes(fields, 0, source, 0, source.length)
+    const evaluation_bytes = memory.copyBytes(evaluation, 0, source, 0, source.length)
+}

@@ -3,26 +3,28 @@
 
     <Args in={Fields.Input} out={Fields.Plan} />
 
-    <Call fn="count" in={$in} />
+    <Call fn="run" in={$in} />
 
-    <If on={$ctx.count == 0}>
+    <If on={$ctx.run.next == null}>
         <Return
             value={{
-                count: 0,
-                range: {
-                    first: 0,
-                    end: 0,
-                    next: null
-                }
+                count: $ctx.run.end - $ctx.run.first,
+                range: $ctx.run
             }}
         />
     </If>
 
-    <Call fn="run" in={$in} />
+    <Call
+        fn="count"
+        in={{
+            layout: $in.layout,
+            first: $ctx.run.next
+        }}
+    />
 
     <Return
         value={{
-            count: $ctx.count,
+            count: $ctx.run.end - $ctx.run.first + $ctx.count,
             range: $ctx.run
         }}
     />

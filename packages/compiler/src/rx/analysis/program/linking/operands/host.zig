@@ -210,21 +210,7 @@ pub fn object(storage: *Storage, allocator: std.mem.Allocator, mapping: *const M
     return publish(storage, header);
 }
 
-const Range = struct {
-    firsts: []u32,
-    counts: []u32,
-    first: u32,
-    fn init(storage: *Storage, comptime name: []const u8, first: usize) Range {
-        return .{
-            .firsts = tail(&@field(storage, name ++ "_first"), 1),
-            .counts = tail(&@field(storage, name ++ "_count"), 1),
-            .first = @intCast(first),
-        };
-    }
-    fn view(self: *const Range, comptime Target: type) Target {
-        return .{ .firsts = @ptrCast(&self.firsts), .counts = @ptrCast(&self.counts), .first = self.first };
-    }
-};
+const Range = @import("range.zig");
 
 fn sourceRange(comptime Target: type, source: *const ir.ExpressionTable, comptime name: []const u8, row: u32) Target {
     return .{ .first = @field(source, name ++ "_first")[row], .count = @field(source, name ++ "_count")[row] };
