@@ -1,6 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
+const memory = if (generated) @import("zxc_standard").memory else void;
 pub const Digest = [zx.Sha256.digest_length]u8;
 pub const batch_size = 64;
 
@@ -27,43 +28,27 @@ pub const Hash = struct {
 pub fn frame(hash: *Hash, generator: *const Digest, manifest: []const u8, texts: bool, modules: anytype, interfaces: anytype) void {
     if (comptime generated) {
         const rule = @import("generated_input_frame_fingerprint");
-        var buffer: [batch_size][]const u8 = undefined;
-        var digests: [batch_size][]const u8 = undefined;
+        const Module = std.meta.Child(@TypeOf(modules));
+        const paths = memory.borrowTextColumn("path", modules);
+        const sources = memory.borrowTextColumn("source", interfaces);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const first = @min(batch_size, modules.len);
-        const selected = columns(&buffer, &digests, modules[0..first], texts);
+
+        comptime std.debug.assert(@FieldType(Module, "digest") == Digest);
 
         rule.executeValue(empty.allocator(), &.{
             .out = @ptrCast(hash.out()),
             .generator = generator,
             .manifest = manifest,
             .texts = texts,
-            .paths = selected.paths,
-            .digests = selected.digests,
+            .modules = &.{
+                .paths = @ptrCast(&paths),
+                .count = modules.len,
+                .digests = if (texts) std.mem.sliceAsBytes(modules) else &.{},
+                .offset = @offsetOf(Module, "digest"),
+                .stride = @sizeOf(Module),
+            },
+            .interfaces = &.{ .first = @ptrCast(&sources), .second = null, .count = interfaces.len },
         }) catch unreachable;
-
-        var remaining = modules[first..];
-
-        while (remaining.len != 0) {
-            const count = @min(batch_size, remaining.len);
-            const batch = columns(&buffer, &digests, remaining[0..count], texts);
-
-            files(hash, batch.paths, batch.digests);
-
-            remaining = remaining[count..];
-        }
-
-        var rest = interfaces;
-
-        while (rest.len != 0) {
-            const count = @min(batch_size, rest.len);
-
-            for (rest[0..count], buffer[0..count]) |interface, *text| text.* = interface.source;
-
-            files(hash, buffer[0..count], &.{});
-
-            rest = rest[count..];
-        }
 
         return;
     }
@@ -80,33 +65,56 @@ pub fn frame(hash: *Hash, generator: *const Digest, manifest: []const u8, texts:
     for (interfaces) |interface| field(&hash.state.hasher, interface.source);
 }
 
-const Columns = struct { paths: []const []const u8, digests: []const []const u8 };
+pub fn files(hash: *Hash, records: anytype, digests: []const Digest) void {
+    std.debug.assert(records.len == digests.len);
 
-fn columns(paths: *[batch_size][]const u8, digests: *[batch_size][]const u8, modules: anytype, texts: bool) Columns {
-    for (modules, paths[0..modules.len], digests[0..modules.len]) |*module, *path, *digest| {
-        path.* = module.path;
-
-        if (texts) digest.* = &module.digest;
-    }
-
-    return .{ .paths = paths[0..modules.len], .digests = if (texts) digests[0..modules.len] else &.{} };
-}
-
-pub fn files(hash: *Hash, paths: []const []const u8, digests: []const []const u8) void {
     if (comptime generated) {
         const rule = @import("generated_input_file_fingerprint");
+        const paths = memory.borrowTextColumn("path", records);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        rule.executeValue(empty.allocator(), .{ .out = @ptrCast(hash.out()), .paths = paths, .digests = digests }) catch unreachable;
+        rule.executeValue(empty.allocator(), .{
+            .out = @ptrCast(hash.out()),
+            .rows = &.{
+                .paths = @ptrCast(&paths),
+                .count = records.len,
+                .digests = std.mem.sliceAsBytes(digests),
+                .offset = 0,
+                .stride = @sizeOf(Digest),
+            },
+        }) catch unreachable;
 
         return;
     }
 
-    for (paths, 0..) |path, index| {
-        field(&hash.state.hasher, path);
-
-        if (digests.len != 0) hash.state.hasher.update(digests[index]);
+    for (records, digests) |record, *digest| {
+        field(&hash.state.hasher, record.path);
+        hash.state.hasher.update(digest);
     }
+}
+
+pub fn packages(records: anytype) Digest {
+    var buffer: [1024]u8 = undefined;
+    var hash = Hash.init(&buffer);
+
+    if (comptime generated) {
+        const rule = @import("generated_input_text_fingerprint");
+        const specifiers = memory.borrowTextColumn("specifier", records);
+        const entries = memory.borrowTextColumn("entry", records);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        rule.executeValue(empty.allocator(), .{
+            .out = @ptrCast(hash.out()),
+            .rows = &.{ .first = @ptrCast(&specifiers), .second = @ptrCast(&entries), .count = records.len },
+        }) catch unreachable;
+    } else {
+        for (records) |record| {
+            field(&hash.state.hasher, record.specifier);
+            field(&hash.state.hasher, record.entry);
+        }
+    }
+
+    return hash.finish();
 }
 
 pub fn output(hash: *Hash, digest: *const Digest, partitions: u32) void {

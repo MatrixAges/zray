@@ -1,10 +1,25 @@
 import type { Writer } from "std:bytes"
+import type { TextColumn } from "std:memory"
+
+export type Records = {
+    paths: TextColumn,
+    count: u64,
+    digests: u8[],
+    offset: u64,
+    stride: u64
+}
+
+export type Text = {
+    first: TextColumn,
+    second?: TextColumn,
+    count: u64
+}
 
 export type Frame = {
     out: Writer,
     generator: u8[],
     manifest: string,
     texts: bool,
-    paths: string[],
-    digests: u8[][]
+    modules: Records,
+    interfaces: Text
 }

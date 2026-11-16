@@ -141,7 +141,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         },
     };
 
-    const parsed = try resident.modules.parse(modules.items, packageDigest(packages));
+    const parsed = try resident.modules.parse(modules.items, fingerprint.packages(packages));
 
     if (parsed.value == .diagnostic) {
         std.debug.print("{s}: {s}\n", .{ modules.items[parsed.value.diagnostic.source_index].path, parsed.value.diagnostic.issue.message });
@@ -208,46 +208,19 @@ fn outputDigest(frame: *const fingerprint.Digest, partitions: u32, sources: []co
 
 fn writeDigests(hash: *fingerprint.Hash, files: *Files, inputs: anytype) void {
     const batch_size = fingerprint.batch_size;
-    var paths: [batch_size][]const u8 = undefined;
     var digests: [batch_size]fingerprint.Digest = undefined;
-    var views: [batch_size][]const u8 = undefined;
     var remaining = inputs;
 
     while (remaining.len != 0) {
         const count = @min(batch_size, remaining.len);
 
-        for (remaining[0..count], paths[0..count], digests[0..count], views[0..count]) |*input, *path, *digest, *view| {
-            path.* = input.path;
+        for (remaining[0..count], digests[0..count]) |*input, *digest|
             digest.* = files.digest(input.path, input.source);
-            view.* = digest;
-        }
 
-        fingerprint.files(hash, paths[0..count], views[0..count]);
+        fingerprint.files(hash, remaining[0..count], digests[0..count]);
 
         remaining = remaining[count..];
     }
-}
-
-fn packageDigest(packages: []const compiler.project.Package) fingerprint.Digest {
-    var buffer: [1024]u8 = undefined;
-    var hash = fingerprint.Hash.init(&buffer);
-    var fields: [fingerprint.batch_size][]const u8 = undefined;
-    var remaining = packages;
-
-    while (remaining.len != 0) {
-        const count = @min(fields.len / 2, remaining.len);
-
-        for (remaining[0..count], 0..) |package, index| {
-            fields[2 * index] = package.specifier;
-            fields[2 * index + 1] = package.entry;
-        }
-
-        fingerprint.files(&hash, fields[0 .. 2 * count], &.{});
-
-        remaining = remaining[count..];
-    }
-
-    return hash.finish();
 }
 
 fn current(io: std.Io, allocator: std.mem.Allocator, output: []const u8, digest: [32]u8) !bool {

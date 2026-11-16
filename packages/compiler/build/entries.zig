@@ -408,6 +408,7 @@ pub const main = [_]Entry{
     .{ .path = "inputs/parsed/same.zx", .name = "input_parsed_same", .owner = .compiler },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/files.zx", .name = "input_file_fingerprint", .owner = .compiler },
+    .{ .path = "inputs/fingerprint/text.zx", .name = "input_text_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/output_header.zx", .name = "input_output_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/snapshot.zx", .name = "input_snapshot_fingerprint", .owner = .compiler },
     .{ .path = "backends/zig/cache/envelope/frame.rx", .name = "generation_cache_envelope", .owner = .compiler },

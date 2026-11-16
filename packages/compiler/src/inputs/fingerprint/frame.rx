@@ -17,8 +17,15 @@
         fn="files"
         in={{
             out: $in.out,
-            paths: $in.paths,
-            digests: $in.digests
+            rows: $in.modules
+        }}
+    />
+
+    <Call
+        fn="text"
+        in={{
+            out: $in.out,
+            rows: $in.interfaces
         }}
     />
 </Module>

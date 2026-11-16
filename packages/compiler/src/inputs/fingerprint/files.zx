@@ -1,36 +1,40 @@
 import bytes from "std:bytes"
+import memory from "std:memory"
+
+import { digest_width } from "./const"
+import field from "./field"
 
 import type { Writer } from "std:bytes"
+import type { Records } from "./model"
 
 export type Input = {
     out: Writer,
-    paths: string[],
-    digests: u8[][]
+    rows: Records
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { out, paths, digests } = in
+    const { out, rows } = in
 
-    const include_digest = digests.length != 0
+    const include_digest = rows.digests.length != 0
 
-    const written = loop({
-        position: 0
-    }, {
-        while: state => state.position < paths.length,
-        next: state => {
-            const position = state.position
-            const path = bytes.fromText(paths[position])
-
-            bytes.writeU64Le(out, path.length)
-            bytes.write(out, path)
+    const written = loop(0, {
+        while: position => position < rows.count,
+        next: position => {
+            field({
+                out,
+                text: memory.readTextColumn(rows.paths, position)
+            })
 
             if (include_digest) {
-                bytes.write(out, digests[position])
+                const start = rows.offset + position * rows.stride
+                const digest = memory.borrowU8Range(rows.digests, start, digest_width)
+
+                bytes.write(out, digest)
             }
 
-            state.position += 1
+            position += 1
         }
     })
 }
