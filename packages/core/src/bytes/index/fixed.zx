@@ -5,10 +5,13 @@ import probe from "./slot"
 import type { U64Buffer } from "std:memory"
 
 // The caller lends a power-of-two table with at least one vacant bucket.
-export type Input = {
+export type Table = {
     keys: u8[][],
     buckets: U64Buffer,
-    capacity: u64,
+    capacity: u64
+}
+
+export type Input = Table & {
     key: u8[],
     insert?: u64
 }

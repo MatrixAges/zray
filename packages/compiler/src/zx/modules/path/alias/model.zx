@@ -1,0 +1,8 @@
+import type { Input as Lookup } from "./find"
+
+export type Input = Lookup
+
+export type Output = {
+    row?: u64,
+    fallback?: string
+}

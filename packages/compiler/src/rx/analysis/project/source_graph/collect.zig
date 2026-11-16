@@ -1,10 +1,12 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const rx = @import("rx");
 const zx = @import("zx");
 const project = @import("frontend").project;
 const model = @import("model.zig");
 const position = @import("position.zig");
 const Diagnostic = @import("../../call/target.zig").Diagnostic;
+const generated = @import("rx_options").generated_graph;
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidGraph};
 
@@ -52,12 +54,14 @@ pub fn store(self: *Self, path: []const u8, location: rx.ast.Location, owner: []
 
     defer temporary.free(absolute);
 
+    if (comptime generated) {
+        return self.admit(absolute, location, .store, null, owner);
+    }
+
     const index = self.paths.get(absolute);
 
     if (index == null or self.sources.at(index.?) != .store) {
-        self.issue = .{ .path = try self.allocator.dupe(u8, owner), .location = location, .code = "capability", .message = "Store definition is not registered" };
-
-        return error.InvalidGraph;
+        return self.missingStore(owner, location);
     }
 
     try self.checkBoundary(absolute, location);
@@ -100,8 +104,57 @@ pub fn local(self: *Self, path: []const u8, location: rx.ast.Location, reference
 
     defer if (resolved.path.ptr != absolute.ptr) temporary.free(resolved.path);
 
+    if (comptime generated) {
+        return self.admit(resolved.path, location, reference, resolved.row, null);
+    }
+
     try self.checkBoundary(resolved.path, location);
     try self.source(resolved.path, location, reference, resolved.row);
+}
+
+fn missingStore(self: *Self, owner: []const u8, location: rx.ast.Location) Error {
+    self.issue = .{ .path = self.allocator.dupe(u8, owner) catch return error.OutOfMemory, .location = location, .code = "capability", .message = "Store definition is not registered" };
+
+    return error.InvalidGraph;
+}
+
+fn admit(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference, prior_row: ?usize, store_owner: ?[]const u8) Error!void {
+    const rule = @import("generated_rx_registered_target");
+    const import_scope = self.scope();
+    const roots = @import("zxc_standard").memory.borrowTextColumn("root", import_scope.scopes);
+
+    const input: std.meta.Child(rule.Input) = .{
+        .path = path,
+        .index = &.{
+            .keys = self.paths.keys,
+            .buckets = @ptrCast(&self.paths.buckets),
+            .capacity = self.paths.buckets.len,
+        },
+        .matched = if (self.options.source_index == self.paths) prior_row else null,
+        .scope = &.{
+            .roots = &.{ .items = @ptrCast(&roots), .length = roots.count },
+            .owner = import_scope.owner,
+            .windows = builtin.os.tag == .windows,
+        },
+        .store_start = if (store_owner != null) self.sources.rx_end else null,
+    };
+
+    const Result = @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload;
+    const Value = if (@typeInfo(Result) == .pointer) std.meta.Child(Result) else Result;
+    var bytes: [@sizeOf(Value)]u8 align(@alignOf(Value)) = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&bytes);
+    const decision = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+
+    if (decision.store_missing) return self.missingStore(store_owner.?, location);
+
+    var reporter: zx.Reporter = .{};
+
+    project.ImportScope.report(decision.boundary, &reporter, .{ .start = location.offset, .end = location.offset }) catch
+        return self.fail(location, reporter.diagnostic.?.message);
+
+    const row = decision.row orelse return self.fail(location, "source module dependency is missing from the registered input set");
+
+    try self.sourceEdge(@intCast(row), location, reference);
 }
 
 fn checkBoundary(self: *Self, path: []const u8, location: rx.ast.Location) Error!void {

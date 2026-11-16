@@ -1,0 +1,23 @@
+import bytes from "std:bytes"
+import fixed from "core/bytes/index/fixed"
+
+import type { Table } from "core/bytes/index/fixed"
+
+export type Input = {
+    path: string,
+    index: Table
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    if (in.index.capacity == 0) {
+        return null
+    }
+
+    return fixed({
+        ...in.index,
+        key: bytes.fromText(in.path),
+        insert: null
+    })
+}

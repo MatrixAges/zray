@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Alias" />
+
+    <Args in={Alias.Input} out={Alias.Output} />
+
+    <Call fn="find" in={$in} />
+
+    <If on={$ctx.find != null}>
+        <Return
+            value={{
+                row: $ctx.find,
+                fallback: null
+            }}
+        />
+    </If>
+
+    <Call fn="fallback" in={$in} />
+
+    <Return value={$ctx.fallback} />
+</Module>

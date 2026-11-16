@@ -1,0 +1,33 @@
+import owner from "./owner"
+
+import type { Input as Path } from "./owner"
+
+export enum Boundary {
+    Allowed,
+    MissingOwner,
+    Crossed
+}
+
+export type Input = Path & {
+    owner?: u64
+}
+
+export type Output = Boundary
+
+export default function (in: Input): Output {
+    if (in.roots.length == 0) {
+        return Boundary.Allowed
+    }
+
+    if (in.owner == null) {
+        return Boundary.MissingOwner
+    }
+
+    const selected = owner(in.pick([
+        "roots",
+        "path",
+        "windows"
+    ]))
+
+    return selected.index == in.owner ? Boundary.Allowed : Boundary.Crossed
+}

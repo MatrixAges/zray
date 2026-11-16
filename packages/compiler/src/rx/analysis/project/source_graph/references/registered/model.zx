@@ -1,0 +1,22 @@
+import type { Table } from "core/bytes/index/fixed"
+import type {
+    Boundary,
+    Input as Scope
+} from "../../../../../../zx/modules/project/target/scope/check"
+
+export type Lookup = {
+    path: string,
+    index: Table,
+    matched?: u64
+}
+
+export type Input = Lookup & {
+    scope: Scope.Omit("path"),
+    store_start?: u64
+}
+
+export type Output = {
+    row?: u64,
+    store_missing: bool,
+    boundary: Boundary
+}

@@ -237,13 +237,14 @@ fn packageShape(package: *const scopes.Package) Shape {
 }
 
 pub fn select(allocator: std.mem.Allocator, candidate: []const u8, index: ?*const source_index.Map) std.mem.Allocator.Error![]const u8 {
-    const known = index orelse return candidate;
-
-    return paths.select(allocator, candidate, source_index.Known{ .paths = known });
+    return (try selectIndexed(allocator, candidate, index)).path;
 }
 
 pub fn selectIndexed(allocator: std.mem.Allocator, candidate: []const u8, index: ?*const source_index.Map) std.mem.Allocator.Error!SourceSelection {
     const known = index orelse return .{ .path = candidate };
+
+    if (comptime enabled) return @import("alias.zig").select(allocator, candidate, known);
+
     var row: ?usize = null;
     const selected = try paths.select(allocator, candidate, source_index.Known{ .paths = known, .matched_row = &row });
 

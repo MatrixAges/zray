@@ -1,0 +1,45 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+
+import { module_extension } from "../const"
+import index from "../index"
+import find from "./find"
+
+import type { Input as Lookup, Output as Selection } from "./model"
+
+export type Input = Lookup
+
+export type Output = Selection
+
+export default function (in: Input): Output {
+    const path = bytes.fromText(in.path)
+    const width = module_extension.length
+
+    const missing: Output = {
+        row: null,
+        fallback: null
+    }
+
+    if (path.length < width) {
+        return missing
+    }
+
+    const end = path.length - width
+
+    if (!bytes.startsWithText(path, end, module_extension)) {
+        return missing
+    }
+
+    const fallback = index({
+        directory: encoding.sliceBytes(in.path, 0, end),
+        rx: false
+    })
+
+    return {
+        row: find({
+            path: fallback,
+            index: in.index
+        }),
+        fallback
+    }
+}

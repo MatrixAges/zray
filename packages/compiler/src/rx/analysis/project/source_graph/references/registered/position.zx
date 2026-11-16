@@ -1,0 +1,15 @@
+import find from "../../../../../../zx/modules/path/alias/find"
+
+import type { Lookup } from "./model"
+
+export type Input = Lookup
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    if (in.matched != null) {
+        return in.matched
+    }
+
+    return find(in.omit(["matched"]))
+}
