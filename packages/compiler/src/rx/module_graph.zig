@@ -47,9 +47,11 @@ pub fn validate(allocator: std.mem.Allocator, backing: std.mem.Allocator, regist
     };
 
     if (result.message) |message| {
-        const link = prepared.links[@intCast(result.edge)];
+        const owner_index: usize = @intCast(result.owner);
+        const row = prepared.references[@intCast(result.edge)];
+        const link = try prepare.link(temporary, &sources[owner_index], row);
 
-        source_index.* = @intCast(result.owner);
+        source_index.* = owner_index;
 
         return reporter.fail(.{
             .code = .context,

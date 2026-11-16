@@ -1,0 +1,86 @@
+import memory from "std:memory"
+
+import { issue_invalid_path, issue_missing, issue_none } from "../const"
+import { Issue } from "../model"
+import resolve from "./resolve.rx"
+
+import type { U64Buffer, U8Buffer } from "std:memory"
+import type { Input as Edge } from "./model"
+
+export type Candidates = {
+    references: string[],
+    package_allowed: u8[],
+    first: u64
+}
+
+export type Columns = {
+    targets: U64Buffer,
+    issues: U8Buffer,
+    references: U64Buffer
+}
+
+export type Input = Edge.Omit("reference", "package_allowed") & {
+    candidates: Candidates,
+    output: Columns
+}
+
+export type Output = {
+    processed: u64,
+    written: u64,
+    required: u64
+}
+
+export default function (in: Input): Output {
+    const context = in.omit([
+        "candidates",
+        "output"
+    ])
+
+    const { candidates, output } = in
+
+    return loop({
+        processed: 0,
+        written: 0,
+        required: 0
+    }, {
+        while: state => {
+            const pending = state.processed < candidates.references.length
+
+            return pending && state.required == 0
+        },
+        next: state => {
+            const row = state.processed
+            const reference = candidates.references[row]
+            const package_allowed = candidates.package_allowed[row] != 0
+            const edge = resolve({
+                ...context,
+                reference,
+                package_allowed
+            })
+
+            state.required = edge.required
+
+            if (edge.required == 0) {
+                if (edge.included) {
+                    const issue = match edge.issue {
+                        Issue.InvalidPath => issue_invalid_path,
+                        Issue.Missing => issue_missing,
+                        _ => issue_none
+                    }
+
+                    memory.writeU64(output.targets, state.written, edge.target)
+                    memory.writeU8(output.issues, state.written, issue)
+                    memory.writeU64(
+                        output.references,
+                        state.written,
+                        candidates.first + row
+                    )
+
+                    state.written += 1
+                }
+
+                state.processed += 1
+            }
+        }
+    })
+}

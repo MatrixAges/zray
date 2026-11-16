@@ -1,0 +1,17 @@
+<Module>
+    <Type from="offsets" as="Offsets" />
+    <Type from="register" as="Edges" />
+
+    <Args
+        in={{
+            offsets: Offsets.Input,
+            edges: Edges.Input
+        }}
+        out={Edges.Output}
+    />
+
+    <Call fn="offsets" in={$in.offsets} />
+    <Call fn="register" in={$in.edges} />
+
+    <Return value={$ctx.register} />
+</Module>

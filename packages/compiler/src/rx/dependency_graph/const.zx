@@ -5,3 +5,9 @@ export const missing_module: string = "Referenced module file is not registered"
 
 export const circular_dependency: string =
     "Reference creates a circular module dependency"
+
+export const issue_none: u8 = 0
+
+export const issue_invalid_path: u8 = 1
+
+export const issue_missing: u8 = 2
