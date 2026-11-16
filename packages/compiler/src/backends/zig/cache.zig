@@ -1,7 +1,7 @@
 const std = @import("std");
 const Storage = @import("cache/storage.zig");
 const Self = @This();
-const Entry = struct { key: [32]u8, source: []u8 };
+const Entry = struct { key: [32]u8, source: []u8, pending: ?usize = null };
 const Memo = @import("genz").zx.function_analysis.Uniqueness.Memo;
 
 allocator: std.mem.Allocator,
@@ -22,14 +22,17 @@ memo: ?Memo = null,
 /// Sources put since storage was last written. `put` only collects them, and `startWriting` stores them on another
 /// thread while the build goes on; every later change to the cache waits for that thread first.
 unwritten: std.ArrayList(Unwritten) = .empty,
-/// Sources replaced while their write was pending, freed once it finished.
-retired: std.ArrayList([]u8) = .empty,
 writer: ?std.Thread = null,
 writing: Writing = .{},
-const Unwritten = struct { key: [32]u8, source: []const u8 };
+const Unwritten = struct { key: [32]u8, source: []u8, retired: bool = false };
 
 /// What the writer thread did, read once it was joined.
-const Writing = struct { items: []const Unwritten = &.{}, written: usize = 0, io_errors: usize = 0, last_io_error: ?anyerror = null };
+const Writing = struct {
+    queue: std.ArrayList(Unwritten) = .empty,
+    written: usize = 0,
+    io_errors: usize = 0,
+    last_io_error: ?anyerror = null,
+};
 
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{ .allocator = allocator };
@@ -42,7 +45,6 @@ pub fn initPersistent(allocator: std.mem.Allocator, io: std.Io, directory: []con
 pub fn deinit(self: *Self) void {
     self.flush();
     self.unwritten.deinit(self.allocator);
-    self.retired.deinit(self.allocator);
 
     var iterator = self.entries.iterator();
 
@@ -106,7 +108,7 @@ pub fn record(self: *Self, name: []const u8, key: [32]u8, fetched: Fetched) std.
 
             errdefer self.allocator.free(owned);
 
-            try self.store(name, key, owned);
+            try self.store(name, .{ .key = key, .source = owned });
 
             self.loaded += 1;
             self.reused += 1;
@@ -130,13 +132,14 @@ pub fn record(self: *Self, name: []const u8, key: [32]u8, fetched: Fetched) std.
 pub fn put(self: *Self, name: []const u8, key: [32]u8, source: []const u8) std.mem.Allocator.Error!void {
     const owned = try self.allocator.dupe(u8, source);
 
-    self.store(name, key, owned) catch |err| {
-        self.allocator.free(owned);
+    errdefer self.allocator.free(owned);
 
-        return err;
-    };
+    if (self.storage != null) try self.unwritten.ensureUnusedCapacity(self.allocator, 1);
 
-    if (self.storage != null) try self.unwritten.append(self.allocator, .{ .key = key, .source = owned });
+    const pending = if (self.storage != null) self.unwritten.items.len else null;
+
+    try self.store(name, .{ .key = key, .source = owned, .pending = pending });
+    if (pending != null) self.unwritten.appendAssumeCapacity(.{ .key = key, .source = owned });
 }
 
 /// Writes the sources put so far to storage on another thread, or here when no thread starts.
@@ -145,7 +148,7 @@ pub fn startWriting(self: *Self) void {
 
     if (self.unwritten.items.len == 0) return;
 
-    self.writing = .{ .items = self.unwritten.toOwnedSlice(self.allocator) catch return };
+    self.takeWrites();
 
     self.writer = std.Thread.spawn(.{}, writeAllInto, .{ self.storage.?, &self.writing }) catch {
         self.finishWriting();
@@ -157,7 +160,11 @@ pub fn startWriting(self: *Self) void {
 /// Writes every source put so far before returning, as counting what was written expects.
 pub fn flush(self: *Self) void {
     self.finishWriting();
-    self.writeAll(self.unwritten.items);
+
+    if (self.unwritten.items.len == 0) return;
+
+    self.takeWrites();
+    self.finishWriting();
 }
 
 /// Waits for the writes `startWriting` began and accounts for them.
@@ -166,31 +173,24 @@ pub fn finishWriting(self: *Self) void {
         thread.join();
 
         self.writer = null;
-    } else if (self.writing.items.len != 0) writeAllInto(self.storage.?, &self.writing);
+    } else if (self.writing.queue.items.len != 0) writeAllInto(self.storage.?, &self.writing);
 
-    if (self.writing.items.len == 0) return;
+    if (self.writing.queue.items.len == 0) return;
 
     self.written += self.writing.written;
     self.io_errors += self.writing.io_errors;
 
     if (self.writing.last_io_error) |err| self.last_io_error = err;
+    for (self.writing.queue.items) |item| if (item.retired) self.allocator.free(item.source);
 
-    self.allocator.free(self.writing.items);
+    self.writing.queue.deinit(self.allocator);
 
     self.writing = .{};
-
-    for (self.retired.items) |source| self.allocator.free(source);
-
-    self.retired.clearRetainingCapacity();
 }
 
-fn writeAll(self: *Self, items: []const Unwritten) void {
-    if (items.len == 0) return;
-
-    self.writing = .{ .items = self.allocator.dupe(Unwritten, items) catch return };
-
-    self.unwritten.clearRetainingCapacity();
-    self.finishWriting();
+fn takeWrites(self: *Self) void {
+    self.writing = .{ .queue = self.unwritten };
+    self.unwritten = .empty;
 }
 
 /// Writes every record on a few of the shared workers; records are separate files, which the file system creates
@@ -224,9 +224,10 @@ fn writeAllInto(storage: Storage, writing: *Writing) void {
         }
     };
 
-    var records = Records{ .storage = storage, .items = writing.items };
+    const items = writing.queue.items;
+    var records = Records{ .storage = storage, .items = items };
 
-    @import("zx").parallel.spread(Records, &records, Records.run, @min(writers, writing.items.len));
+    @import("zx").parallel.spread(Records, &records, Records.run, @min(writers, items.len));
     writing.written += records.written.load(.monotonic);
     writing.io_errors += records.io_errors.load(.monotonic);
 
@@ -240,13 +241,17 @@ pub fn flushMemo(self: *Self) std.mem.Allocator.Error!void {
     if (self.memo) |*memo| try @import("uniqueness_memo.zig").save(self.allocator, self, memo);
 }
 
-fn store(self: *Self, name: []const u8, key: [32]u8, source: []u8) std.mem.Allocator.Error!void {
+fn store(self: *Self, name: []const u8, value: Entry) std.mem.Allocator.Error!void {
     self.finishWriting();
 
     if (self.entries.getPtr(name)) |entry| {
-        if (self.pending(entry.source)) try self.retired.append(self.allocator, entry.source) else self.allocator.free(entry.source);
+        if (self.pendingWrite(entry.*)) |item| {
+            item.retired = true;
+        } else {
+            self.allocator.free(entry.source);
+        }
 
-        entry.* = .{ .key = key, .source = source };
+        entry.* = value;
 
         return;
     }
@@ -255,14 +260,17 @@ fn store(self: *Self, name: []const u8, key: [32]u8, source: []u8) std.mem.Alloc
 
     errdefer self.allocator.free(owned_name);
 
-    try self.entries.put(self.allocator, owned_name, .{ .key = key, .source = source });
+    try self.entries.put(self.allocator, owned_name, value);
 }
 
-/// Whether `source` waits to be written.
-fn pending(self: *const Self, source: []const u8) bool {
-    for (self.unwritten.items) |item| if (item.source.ptr == source.ptr) return true;
+fn pendingWrite(self: *Self, entry: Entry) ?*Unwritten {
+    const index = entry.pending orelse return null;
 
-    return false;
+    if (index >= self.unwritten.items.len) return null;
+
+    const item = &self.unwritten.items[index];
+
+    return if (item.source.ptr == entry.source.ptr) item else null;
 }
 
 fn recordError(self: *Self, err: anyerror) void {

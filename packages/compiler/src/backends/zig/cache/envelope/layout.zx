@@ -1,25 +1,16 @@
-import {
-    digest_text_width,
-    length_width,
-    marker,
-    maximum_payload,
-    separator_count
-} from "./const"
+import { header_width, maximum_payload } from "./const"
 
 import type { Layout as Output, Request as Input } from "./model"
 
 export default function (in: Input): Output {
-    const header_size =
-        marker.length + digest_text_width * 2 + length_width + separator_count
-
-    if (in.reading && in.size < header_size) {
+    if (in.reading && in.size < header_width) {
         return {
             accepted: false,
             payload_size: 0
         }
     }
 
-    const payload_size = in.reading ? in.size - header_size : in.size
+    const payload_size = in.reading ? in.size - header_width : in.size
 
     return {
         accepted: payload_size <= maximum_payload,

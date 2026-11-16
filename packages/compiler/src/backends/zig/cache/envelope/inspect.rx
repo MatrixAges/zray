@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Envelope" />
+
+    <Args in={Envelope.Recorded} out={bool} />
+
+    <Call fn="identity" in={$in.omit(["payload_size"])} />
+
+    <If on={!$ctx.identity}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="matches_length"
+        in={$in.pick([
+            "header",
+            "payload_size"
+        ])}
+    />
+
+    <Return value={$ctx.matches_length} />
+</Module>

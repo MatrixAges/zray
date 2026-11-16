@@ -19,19 +19,35 @@ pub fn read(self: Self, allocator: std.mem.Allocator, key: [32]u8) !?[]u8 {
 
     defer file.close(self.io);
 
+    const total = try file.length(self.io);
+
+    if (comptime @import("parser_options").generated_parser) {
+        const size = envelope.payloadSize(total) orelse return error.InvalidCache;
+        var recorded: [envelope.header_width]u8 = undefined;
+
+        if (try file.readPositionalAll(self.io, &recorded, 0) != recorded.len) return error.InvalidCache;
+        if (!envelope.matches(&recorded, &self.compiler_hex, &key_hex, size)) return error.InvalidCache;
+
+        return try self.readPayload(allocator, file, size, recorded.len);
+    }
+
     var buffer: [stack_capacity]u8 = undefined;
-    const expected = self.header(&buffer, &key_hex, try file.length(self.io), true) orelse return error.InvalidCache;
+    const expected = self.seedHeader(&buffer, &key_hex, total, true) orelse return error.InvalidCache;
     var received: [stack_capacity]u8 = undefined;
     const recorded = received[0..expected.bytes.len];
 
     if (try file.readPositionalAll(self.io, recorded, 0) != recorded.len) return error.InvalidCache;
     if (!std.mem.eql(u8, recorded, expected.bytes)) return error.InvalidCache;
 
-    const source = try allocator.alloc(u8, expected.payload_size);
+    return try self.readPayload(allocator, file, expected.payload_size, recorded.len);
+}
+
+fn readPayload(self: Self, allocator: std.mem.Allocator, file: std.Io.File, size: usize, offset: usize) ![]u8 {
+    const source = try allocator.alloc(u8, size);
 
     errdefer allocator.free(source);
 
-    if (try file.readPositionalAll(self.io, source, recorded.len) != source.len) return error.InvalidCache;
+    if (try file.readPositionalAll(self.io, source, offset) != source.len) return error.InvalidCache;
 
     return source;
 }
@@ -39,7 +55,14 @@ pub fn read(self: Self, allocator: std.mem.Allocator, key: [32]u8) !?[]u8 {
 pub fn write(self: Self, allocator: std.mem.Allocator, key: [32]u8, source: []const u8) !bool {
     const key_hex = std.fmt.bytesToHex(key, .lower);
     var buffer: [stack_capacity]u8 = undefined;
-    const header_bytes = (self.header(&buffer, &key_hex, source.len, false) orelse return false).bytes;
+
+    const header = if (comptime @import("parser_options").generated_parser)
+        envelope.prepare(&buffer, &self.compiler_hex, &key_hex, source.len)
+
+    else
+        self.seedHeader(&buffer, &key_hex, source.len, false);
+
+    const header_bytes = (header orelse return false).bytes;
     const path = try self.filePath(allocator, &key_hex);
 
     defer allocator.free(path);
@@ -66,9 +89,7 @@ pub fn write(self: Self, allocator: std.mem.Allocator, key: [32]u8, source: []co
 /// A record is written in place rather than through a temporary file and a rename, which cost more than the write
 /// itself. Every record of a key holds the same bytes, and the header holds the source length, so a record cut short
 /// or caught mid-write reads as invalid and is generated again.
-fn header(self: *const Self, buffer: []u8, key: []const u8, size: u64, reading: bool) ?envelope.Header {
-    if (@import("parser_options").generated_parser) return envelope.prepare(buffer, &self.compiler_hex, key, size, reading);
-
+fn seedHeader(self: *const Self, buffer: []u8, key: []const u8, size: u64, reading: bool) ?envelope.Header {
     const marker = "zxc.zig.source.v2\n";
     const header_size = marker.len + 2 * 65 + 17;
     const maximum_source = 64 * 1024 * 1024;

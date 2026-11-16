@@ -24,3 +24,8 @@ export type Length = {
     writer: Writer,
     payload_size: u64
 }
+
+export type Recorded = Frame.Pick("compiler", "key") & {
+    header: u8[],
+    payload_size: u64
+}

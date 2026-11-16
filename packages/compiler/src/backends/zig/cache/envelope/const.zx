@@ -1,5 +1,7 @@
 export const marker: string = "zxc.zig.source.v2\n"
 
+export const marker_width: u64 = 18
+
 export const digest_text_width: u64 = 64
 
 export const length_width: u64 = 16
@@ -15,3 +17,6 @@ export const byte_radix: u64 = 256
 export const word_width: u64 = 8
 
 export const word_radix: u64 = 4294967296
+
+export const header_width: u64 =
+    marker_width + digest_text_width * 2 + length_width + separator_count
