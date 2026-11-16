@@ -55,5 +55,27 @@ export type Record = {
 export type Entries = {
     state: State,
     records: Record[],
-    width: u64
+    wide: bool
+}
+
+export type Key = {
+    state: State,
+    identity: u8[],
+    index: u64,
+    kind: Kind,
+    callees: u32[],
+    own_input: u8[],
+    called_outputs: u8[][],
+    own_output_wants: u8[],
+    called_input_wants: u8[][],
+    normalized: Record[],
+    renewed: Record[]
+}
+
+export type Facts = {
+    state: State,
+    callees: u32[],
+    rows: u8[][],
+    own: u8[],
+    trailing: bool
 }

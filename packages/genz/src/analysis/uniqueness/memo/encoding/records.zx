@@ -1,12 +1,14 @@
 import integers from "std:integer"
 
 import { level_modulus } from "../../replay/ordered/const"
-import { level_width } from "./const"
+import { level_width, renewal_key_width, word_width } from "./const"
 import integer from "./integer"
 
 import type { Entries as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
+    const width = in.wide ? renewal_key_width : word_width
+
     return loop({
         state: in.state,
         index: 0
@@ -17,7 +19,7 @@ export default function (in: Input): Output {
             const state = integer({
                 state: current.state,
                 value: record.key,
-                width: in.width
+                width
             })
 
             current.state = integer({

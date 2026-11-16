@@ -1,0 +1,43 @@
+import integers from "std:integer"
+
+import levels from "./levels"
+
+import type { Facts as Input, State as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { state, own, trailing, callees, rows } = in
+
+    const first = match {
+        trailing => state,
+        _ => levels({
+            state,
+            values: own
+        })
+    }
+
+    const encoded = loop({
+        state: first,
+        index: 0
+    }, {
+        while: current => current.index < callees.length,
+        next: current => {
+            const callee = integers.widen(callees[current.index])
+
+            current.state = levels({
+                state: current.state,
+                values: rows[callee]
+            })
+            current.index += 1
+        },
+        return: current => current.state
+    })
+
+    if (!trailing) {
+        return encoded
+    }
+
+    return levels({
+        state: encoded,
+        values: own
+    })
+}

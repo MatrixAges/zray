@@ -126,14 +126,12 @@ pub fn holds(self: *Self, comptime kind: Kind, summaries: *const Summaries, stat
 
 /// Sets `key` to the digest of what a body of `kind` reads in `state`.
 fn keyed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
-    try self.encode(summaries, state);
+    if (generated_encoding)
+        try self.encodeKey(kind, summaries, state)
+    else
+        try self.encodeSeed(kind, summaries, state);
 
-    if (kind == .demanded) {
-        for (state.callees) |callee| try self.levels(summaries.inputs[callee]);
-        try self.levels(if (state.index < summaries.outputs.len) summaries.outputs[state.index] else &.{});
-    }
-
-    try self.digest(kind);
+    Hash.hash(self.encodedBytes(), &self.key, .{});
 }
 
 /// Records the analysis of the state `getSettled` digested into `key`.
@@ -230,46 +228,60 @@ fn use(comptime Value: type, map: *std.AutoHashMapUnmanaged(Digest, Value), key:
     return entry.*;
 }
 
-fn encode(self: *Self, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
-    if (generated_encoding) {
-        try self.encoding.begin(self.arena.allocator(), &state.identity, state.index);
-    } else {
-        self.encoded.clearRetainingCapacity();
+fn encodeKey(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
+    const allocator = self.arena.allocator();
+    const normalized = state.normalized.count();
+    const renewed = state.renewed.count();
 
-        try self.appendBytes(&state.identity);
-        try self.int(u32, @intCast(state.index));
-    }
+    try self.order.resize(allocator, @as(usize, normalized) + renewed);
 
+    const split = self.order.items[0..normalized];
+    const tail = self.order.items[normalized..];
+
+    collect(ir.ExprId, state.normalized, split);
+    collect(u64, state.renewed, tail);
+
+    try self.encoding.key(allocator, kind, summaries, &state, split, tail);
+}
+
+fn encodeSeed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
+    self.encoded.clearRetainingCapacity();
+
+    try self.encoded.appendSlice(self.arena.allocator(), &state.identity);
+    try self.int(u32, @intCast(state.index));
     try self.levels(state.input);
     // The identity covers which functions the body calls and their signatures, so only their summaries follow.
     for (state.callees) |callee| try self.levels(summaries.output[callee]);
     try self.entries(ir.ExprId, state.normalized);
     try self.entries(u64, state.renewed);
-}
 
-/// Sets `key` to the digest of the encoded state followed by `kind`.
-fn digest(self: *Self, kind: Kind) std.mem.Allocator.Error!void {
-    if (generated_encoding) {
-        try self.encoding.finish(self.arena.allocator(), @fromBackingInt(@intCast(@backingInt(kind))));
-    } else {
-        self.state_end = self.encoded.items.len;
-
-        try self.appendBytes(@tagName(kind));
+    if (kind == .demanded) {
+        for (state.callees) |callee| try self.levels(summaries.inputs[callee]);
+        try self.levels(if (state.index < summaries.outputs.len) summaries.outputs[state.index] else &.{});
     }
 
-    Hash.hash(self.encodedBytes(), &self.key, .{});
+    self.state_end = self.encoded.items.len;
+
+    try self.encoded.appendSlice(self.arena.allocator(), @tagName(kind));
 }
 
 const Record = struct { key: u64, level: Level };
 
-/// Map entries in key order, so equal contents encode equally whatever order they were added in.
-fn entries(self: *Self, comptime Key: type, map: *const std.AutoHashMap(Key, Level)) std.mem.Allocator.Error!void {
-    self.order.clearRetainingCapacity();
-
+fn collect(comptime Key: type, map: *const std.AutoHashMap(Key, Level), rows: []Record) void {
     var values = map.iterator();
 
-    while (values.next()) |entry| try self.order.append(self.arena.allocator(), .{ .key = entryKey(Key, entry.key_ptr.*), .level = entry.value_ptr.* });
-    if (generated_encoding) return self.encoding.entries(self.arena.allocator(), self.order.items, @sizeOf(if (Key == u64) u64 else u32));
+    for (rows) |*row| {
+        const entry = values.next().?;
+
+        row.* = .{ .key = entryKey(Key, entry.key_ptr.*), .level = entry.value_ptr.* };
+    }
+}
+
+/// Map entries in key order, so equal contents encode equally whatever order they were added in.
+fn entries(self: *Self, comptime Key: type, map: *const std.AutoHashMap(Key, Level)) std.mem.Allocator.Error!void {
+    try self.order.resize(self.arena.allocator(), map.count());
+
+    collect(Key, map, self.order.items);
 
     std.mem.sortUnstable(Record, self.order.items, {}, struct {
         fn less(_: void, left: Record, right: Record) bool {
@@ -284,7 +296,7 @@ fn entries(self: *Self, comptime Key: type, map: *const std.AutoHashMap(Key, Lev
 
         const byte: u8 = @as(u3, @bitCast(record.level));
 
-        try self.appendBytes(&.{byte});
+        try self.encoded.append(self.arena.allocator(), byte);
     }
 }
 
@@ -294,12 +306,6 @@ fn entryKey(comptime Key: type, key: Key) u64 {
 
 /// Two three-bit levels per byte; the count makes the final padding unambiguous.
 fn levels(self: *Self, values: []const Level) std.mem.Allocator.Error!void {
-    if (generated_encoding) {
-        comptime std.debug.assert(@sizeOf(Level) == @sizeOf(u8));
-
-        return self.encoding.levels(self.arena.allocator(), @as([*]const u8, @ptrCast(values.ptr))[0..values.len]);
-    }
-
     try self.int(u32, @intCast(values.len));
 
     const bytes = try self.encoded.addManyAsSlice(self.arena.allocator(), (values.len + 1) / 2);
@@ -310,8 +316,6 @@ fn levels(self: *Self, values: []const Level) std.mem.Allocator.Error!void {
 }
 
 fn int(self: *Self, comptime T: type, value: T) std.mem.Allocator.Error!void {
-    if (generated_encoding) return self.encoding.integer(self.arena.allocator(), @intCast(value), @sizeOf(T));
-
     var bytes: [@sizeOf(T)]u8 = undefined;
 
     std.mem.writeInt(T, &bytes, value, .little);
@@ -321,11 +325,6 @@ fn int(self: *Self, comptime T: type, value: T) std.mem.Allocator.Error!void {
 
 fn encodedBytes(self: *const Self) []const u8 {
     return if (generated_encoding) self.encoding.bytes() else self.encoded.items;
-}
-
-fn appendBytes(self: *Self, values: []const u8) std.mem.Allocator.Error!void {
-    if (generated_encoding) return self.encoding.append(self.arena.allocator(), values);
-    try self.encoded.appendSlice(self.arena.allocator(), values);
 }
 
 /// Writes a state `lastState` returned for a lookup of `kind` back into the summaries and growth copies of body `index`,

@@ -1,13 +1,13 @@
 const std = @import("std");
-const beginning = @import("generated_uniqueness_memo_begin");
-const finishing = @import("generated_uniqueness_memo_finish");
+const Memo = @import("../memo.zig");
+const Summaries = @import("../summaries.zig");
+const Level = @import("../level.zig").Level;
+const columns = @import("zx").columns;
+const encoding = @import("generated_uniqueness_memo_key");
 const creating = @import("generated_uniqueness_memo_create");
-const resetting = @import("generated_uniqueness_memo_reset");
-const appending = @import("generated_uniqueness_memo_append");
-const writing = @import("generated_uniqueness_memo_integer");
-const packing = @import("generated_uniqueness_memo_levels");
-const ordering = @import("generated_uniqueness_memo_entries");
 const State = @typeInfo(@typeInfo(@TypeOf(creating.executeState)).@"fn".return_type.?).error_union.payload;
+const Parameter = @typeInfo(@TypeOf(encoding.executeState)).@"fn".param_types[1].?;
+const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
 const Self = @This();
 
 state: State,
@@ -18,57 +18,41 @@ pub fn init() Self {
     return .{ .state = state };
 }
 
-pub fn begin(self: *Self, allocator: std.mem.Allocator, identity: []const u8, index: usize) std.mem.Allocator.Error!void {
-    try self.call(allocator, beginning.executeState, .{ .state = self.state, .identity = .{ .items = identity, .storage = .plain }, .index = @intCast(index) });
-}
+pub fn key(self: *Self, allocator: std.mem.Allocator, comptime kind: Memo.Kind, summaries: *const Summaries, body: *const Memo.State, normalized: anytype, renewed: @TypeOf(normalized)) std.mem.Allocator.Error!void {
+    comptime std.debug.assert(@sizeOf(Level) == @sizeOf(u8) and @alignOf(Level) == @alignOf(u8));
 
-pub fn finish(self: *Self, allocator: std.mem.Allocator, kind: @FieldType(Input(finishing.executeState), "kind")) std.mem.Allocator.Error!void {
-    try self.call(allocator, finishing.executeState, .{ .state = self.state, .kind = kind });
+    const output_wants: []const Level = if (kind == .demanded and body.index < summaries.outputs.len) summaries.outputs[body.index] else &.{};
+    const Growth = @FieldType(Input, "normalized");
+
+    const input: Input = .{
+        .state = self.state,
+        .identity = .{ .items = &body.identity, .storage = .plain },
+        .index = body.index,
+        .kind = @fromBackingInt(@backingInt(kind)),
+        .callees = .{ .items = body.callees, .storage = .plain },
+        .own_input = .{ .items = std.mem.sliceAsBytes(body.input), .storage = .plain },
+        .called_outputs = .{ .items = @ptrCast(summaries.output), .storage = .plain },
+        .own_output_wants = .{ .items = std.mem.sliceAsBytes(output_wants), .storage = .plain },
+        .called_input_wants = .{ .items = if (kind == .demanded) @ptrCast(summaries.inputs) else &.{}, .storage = .plain },
+        .normalized = growth(Growth, normalized),
+        .renewed = growth(Growth, renewed),
+    };
+
+    self.state = encoding.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
 }
 
 pub fn stateEnd(self: *const Self) usize {
     return @intCast(self.state.state_end);
 }
 
-pub fn reset(self: *Self) void {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    self.call(empty.allocator(), resetting.executeState, self.state) catch unreachable;
-}
-
 pub fn bytes(self: *const Self) []const u8 {
     return self.state.buffer.items[0..@intCast(self.state.end)];
 }
 
-pub fn append(self: *Self, allocator: std.mem.Allocator, values: []const u8) std.mem.Allocator.Error!void {
-    try self.call(allocator, appending.executeState, .{ .state = self.state, .bytes = .{ .items = values, .storage = .plain } });
-}
+fn growth(comptime Target: type, rows: anytype) Target {
+    const values = columns.storage.view(@FieldType(Target, "items"), @as([]const std.meta.Child(@TypeOf(rows)), rows));
 
-pub fn integer(self: *Self, allocator: std.mem.Allocator, value: u64, width: usize) std.mem.Allocator.Error!void {
-    try self.call(allocator, writing.executeState, .{ .state = self.state, .value = value, .width = @as(u64, @intCast(width)) });
-}
-
-pub fn levels(self: *Self, allocator: std.mem.Allocator, values: []const u8) std.mem.Allocator.Error!void {
-    try self.call(allocator, packing.executeState, .{ .state = self.state, .values = .{ .items = values, .storage = .plain } });
-}
-
-pub fn entries(self: *Self, allocator: std.mem.Allocator, records: anytype, width: usize) std.mem.Allocator.Error!void {
-    const Rows = @FieldType(Input(ordering.executeState), "records");
-    const values = @import("zx").columns.storage.view(@FieldType(Rows, "items"), @as([]const std.meta.Child(@TypeOf(records)), records));
-
-    try self.call(allocator, ordering.executeState, .{ .state = self.state, .records = .{ .items = values, .storage = .owned }, .width = @as(u64, @intCast(width)) });
-}
-
-fn Input(comptime function: anytype) type {
-    const parameter = @typeInfo(@TypeOf(function)).@"fn".param_types[1].?;
-
-    return if (@typeInfo(parameter) == .pointer) std.meta.Child(parameter) else parameter;
-}
-
-fn call(self: *Self, allocator: std.mem.Allocator, comptime function: anytype, input: Input(function)) std.mem.Allocator.Error!void {
-    const parameter = @typeInfo(@TypeOf(function)).@"fn".param_types[1].?;
-
-    self.state = function(allocator, if (@typeInfo(parameter) == .pointer) &input else input) catch |err| return failure(err);
+    return .{ .items = values, .storage = .owned };
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {
