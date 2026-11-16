@@ -29,13 +29,14 @@ const Search = struct {
         const job = self.jobs[position];
         const found = try job.batch.identify(allocator, job.unit);
         self.lookups[position] = found;
-        self.fetched[position] = if (job.batch.cache) |cache| try cache.fetch(allocator, found.name, found.key) else .absent;
+        self.fetched[position] = if (job.batch.cache) |cache| try cache.fetch(allocator, found.name, found.key) else .{};
     }
 };
 
 /// Generates every unit no cached source covers.
 const Work = struct {
-    pending: []const Job,
+    jobs: []const Job,
+    pending: []const u64,
     results: [][]const u8,
     next: std.atomic.Value(usize) = .init(0),
     failure: std.atomic.Value(u16) = .init(0),
@@ -52,7 +53,7 @@ const Work = struct {
             if (position >= self.pending.len) return;
 
             defer _ = scratch.reset(.{ .retain_with_limit = 32 << 20 });
-            const job = self.pending[position];
+            const job = self.jobs[@intCast(self.pending[position])];
 
             self.results[position] = job.batch.generate(arena.allocator(), scratch.allocator(), job.unit) catch |err| {
                 _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
@@ -65,17 +66,26 @@ const Work = struct {
 
 /// Copies cached sources into the result, which owns its sources.
 const Copying = struct {
-    from: []const []const u8,
-    to: []const []u8,
+    reused: []const u64,
+    offsets: []const u64,
+    fetched: []const Cache.Fetched,
+    buffer: []u8,
+    sources: [][]const u8,
     next: std.atomic.Value(usize) = .init(0),
     failure: std.atomic.Value(u16) = .init(0),
     fn run(self: *Copying, _: *std.heap.ArenaAllocator) void {
         while (true) {
             const position = self.next.fetchAdd(1, .monotonic);
 
-            if (position >= self.from.len) return;
+            if (position >= self.reused.len) return;
 
-            @memcpy(self.to[position], self.from[position]);
+            const index: usize = @intCast(self.reused[position]);
+            const source = self.fetched[index].source.?;
+            const output = self.buffer[@intCast(self.offsets[position])..][0..source.len];
+
+            @memcpy(output, source);
+
+            self.sources[index] = output;
         }
     }
 };
@@ -111,37 +121,26 @@ pub fn createJobs(owned: std.mem.Allocator, backing: std.mem.Allocator, jobs: []
     try spread(Search, &search, arenas[0..@min(arenas.len, jobs.len)]);
 
     const plan = try @import("function_sources_plan.zig").create(temporary, search.fetched);
-    const buffer = try owned.alloc(u8, @intCast(plan.size));
-    const reused = try temporary.alloc([]const u8, plan.reused.len);
-    const copies = try temporary.alloc([]u8, plan.reused.len);
+    const buffer = try owned.alloc(u8, plan.size);
+
+    var copying = Copying{
+        .reused = plan.reused,
+        .offsets = plan.offsets,
+        .fetched = search.fetched,
+        .buffer = buffer,
+        .sources = sources,
+    };
 
     // Copy borrowed cache bytes before record can replace and release cache entries.
-    for (plan.reused, plan.offsets, reused, copies) |position, offset, *source, *copy| {
-        source.* = switch (search.fetched[@intCast(position)]) {
-            .held, .stored => |value| value,
-            else => unreachable,
-        };
-
-        copy.* = buffer[@intCast(offset)..][0..source.len];
-    }
-
-    var copying = Copying{ .from = reused, .to = copies };
-
-    try spread(Copying, &copying, arenas[0..@min(arenas.len, reused.len)]);
+    try spread(Copying, &copying, arenas[0..@min(arenas.len, plan.reused.len)]);
 
     for (jobs, search.lookups, search.fetched) |job, found, fetched| {
         if (job.batch.cache) |cache| _ = try cache.record(found.name, found.key, fetched);
     }
 
-    for (plan.reused, copies) |position, copy| sources[@intCast(position)] = copy;
+    var work = Work{ .jobs = jobs, .pending = plan.pending, .results = try temporary.alloc([]const u8, plan.pending.len) };
 
-    const pending = try temporary.alloc(Job, plan.pending.len);
-
-    for (plan.pending, pending) |position, *job| job.* = jobs[@intCast(position)];
-
-    var work = Work{ .pending = pending, .results = try temporary.alloc([]const u8, pending.len) };
-
-    try spread(Work, &work, arenas[0..@min(arenas.len, pending.len)]);
+    try spread(Work, &work, arenas[0..@min(arenas.len, plan.pending.len)]);
 
     for (plan.pending, work.results) |position, generated| {
         sources[position] = try owned.dupe(u8, generated);

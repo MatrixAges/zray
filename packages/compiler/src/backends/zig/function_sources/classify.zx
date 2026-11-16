@@ -1,32 +1,35 @@
-import { Kind } from "./model"
+import memory from "zig:compiler_memory"
 
-import type { Input, Selection as Output } from "./model"
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const reused: u64[] = []
-    const pending: u64[] = []
-
     return loop({
         index: 0,
-        reused,
-        pending
+        reused: 0,
+        pending: 0,
+        size: 0
     }, {
-        while: state => state.index < in.length,
-        next: state => {
-            const kind = in[state.index].kind
+        while: current => current.index < in.count,
+        next: current => {
+            const { index } = current
+            const source = memory.readOptionalTextColumn(in.sources, index)
 
-            if (kind == Kind.held || kind == Kind.stored) {
-                state.reused = state.reused.push(state.index)[0]
+            if (source == null) {
+                memory.writeU64(in.pending, current.pending, index)
+                current.pending += 1
             } else {
-                state.pending = state.pending.push(state.index)[0]
+                memory.writeU64(in.reused, current.reused, index)
+                memory.writeU64(in.offsets, current.reused, current.size)
+                current.reused += 1
+                current.size += source.length
             }
 
-            state.index += 1
+            current.index += 1
         },
-        return: state => {
-            source: in,
-            reused: state.reused,
-            pending: state.pending
+        return: current => {
+            reused: current.reused,
+            pending: current.pending,
+            size: current.size
         }
     })
 }

@@ -11,6 +11,7 @@ pub const borrowReadColumn = rows.borrowColumn;
 pub const borrowOptionalU32Column = rows.borrowOptionalU32;
 pub const borrowListColumn = rows.borrowList;
 pub const readTextColumn = rows.readText;
+pub const readOptionalTextColumn = rows.readOptionalText;
 pub const readIndirectTextColumn = rows.readIndirectText;
 pub const readOptionalIndirectTextColumn = rows.readOptionalIndirectText;
 pub const readColumnBool = rows.readColumnBool;

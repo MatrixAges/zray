@@ -6,17 +6,16 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched) std.
     var reused: std.ArrayList(u64) = .empty;
     var pending: std.ArrayList(u64) = .empty;
     var offsets: std.ArrayList(u64) = .empty;
-    var size: u64 = 0;
+    var size: usize = 0;
 
     for (fetched, 0..) |value, position| {
-        switch (value) {
-            .held, .stored => |source| {
-                try reused.append(allocator, position);
-                try offsets.append(allocator, size);
+        if (value.source) |source| {
+            try reused.append(allocator, position);
+            try offsets.append(allocator, size);
 
-                size += source.len;
-            },
-            else => try pending.append(allocator, position),
+            size = std.math.add(usize, size, source.len) catch return error.OutOfMemory;
+        } else {
+            try pending.append(allocator, position);
         }
     }
 

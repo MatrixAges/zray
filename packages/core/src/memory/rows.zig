@@ -114,6 +114,10 @@ pub inline fn readText(source: *const anyopaque, index: u64) error{IndexOutOfBou
     return readColumn([]const u8, source, index);
 }
 
+pub inline fn readOptionalText(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?[]const u8 {
+    return readColumn(?[]const u8, source, index);
+}
+
 pub inline fn readIndirectText(source: *const anyopaque, index: u64) error{ IndexOutOfBounds, MissingField }![]const u8 {
     return (try readOptionalIndirectText(source, index)) orelse error.MissingField;
 }
