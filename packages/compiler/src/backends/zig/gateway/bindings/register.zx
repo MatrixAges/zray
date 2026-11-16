@@ -3,6 +3,7 @@ import integers from "std:integer"
 import insert from "core/bytes/index/insert"
 
 import find from "../../store_initializers/find"
+import { Status as Initializer } from "../../store_initializers/model"
 import { Status } from "./model"
 
 import type { Binding as Input, State as Output } from "./model"
@@ -13,27 +14,20 @@ export default function (in: Input): Output {
 
     const initial = find({
         initializers: in.state.source.initializers,
-        path
+        path,
+        type_id,
+        type_names: in.state.source.type_names
     })
 
-    if (initial == null) {
+    const module_name = initial.module_name
+
+    if (module_name == null) {
         return {
             ...in.state,
-            status: Status.MissingInitializer
-        }
-    }
-
-    const type_name = in.state.source.type_names[integers.widen(type_id)]
-
-    if (
-        !bytes.equals(
-            bytes.fromText(initial.type_name),
-            bytes.fromText(type_name)
-        )
-    ) {
-        return {
-            ...in.state,
-            status: Status.InvalidInitializer
+            status: match initial.status {
+                Initializer.Missing => Status.MissingInitializer,
+                _ => Status.InvalidInitializer
+            }
         }
     }
 
@@ -45,7 +39,7 @@ export default function (in: Input): Output {
             value: integers.narrow(in.state.modules.length)
         }),
         types: in.state.types.push(type_id)[0],
-        modules: in.state.modules.push(initial.module_name)[0],
+        modules: in.state.modules.push(module_name)[0],
         writable: in.state.writable.push(false)[0]
     }
 }

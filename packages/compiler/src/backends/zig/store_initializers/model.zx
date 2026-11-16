@@ -1,6 +1,14 @@
-export type Initializer = {
-    identity: string,
-    schema_version: u32,
-    module_name: string,
-    type_name: string
+import type { TextColumn } from "std:memory"
+import type { Table } from "core/bytes/index/column"
+
+export type Initializers = Table & {
+    modules: TextColumn,
+    types: TextColumn,
+    count: u64
+}
+
+export enum Status {
+    Found,
+    Missing,
+    InvalidType
 }

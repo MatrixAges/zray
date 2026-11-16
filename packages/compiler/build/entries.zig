@@ -464,6 +464,7 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/store_initializers/selection/build.rx", .name = "store_initializer_selection", .owner = .compiler },
     .{ .path = "backends/zig/state/available.rx", .name = "state_available", .owner = .compiler },
     .{ .path = "backends/zig/state/build.rx", .name = "state_bindings", .owner = .compiler },
+    .{ .path = "backends/zig/state/objects.zx", .name = "state_objects", .owner = .compiler },
     .{ .path = "lint/naming/check.rx", .name = "naming", .owner = .lint },
     .{ .path = "lint/length/check.rx", .name = "length", .owner = .lint },
     .{ .path = "lint/indentation/line/line.rx", .name = "indentation_line", .owner = .lint },

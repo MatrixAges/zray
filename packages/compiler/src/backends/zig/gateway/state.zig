@@ -4,6 +4,7 @@ const generating = @import("genz");
 const Library = @import("../../../library/root.zig").Result;
 const Bundle = @import("../library.zig").Bundle;
 const names = @import("../names.zig");
+const InitializerView = @import("../store_initializers/view.zig");
 pub const Result = @import("state_seed.zig").Result;
 pub const Error = @import("state_seed.zig").Error;
 
@@ -19,6 +20,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     const Member = if (@typeInfo(MemberRef) == .pointer) std.meta.Child(MemberRef) else MemberRef;
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Functions = std.meta.Child(@FieldType(Input, "functions"));
+    const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
     var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
 
     defer scratch.deinit();
@@ -43,7 +45,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
         }
     }
 
-    const initializers = try zx.columns.pointers(@FieldType(Input, "initializers"), temporary, bundle.store_initializers);
+    const initializers = try InitializerView.init(temporary, bundle.store_initializers);
     const types = zx.ir.TypeTable.borrow(Types, library.program.types);
     const functions = zx.columns.borrow(Functions, &library.program.functions);
 
@@ -52,7 +54,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
         .type_names = identities.types,
         .functions = &functions,
         .members = members,
-        .initializers = initializers,
+        .initializers = &initializers.input(Initializers),
         .independent = independent,
     };
 
@@ -70,12 +72,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
         .InvalidInitializer => return error.InvalidInitializer,
     }
 
-    const objects = try allocator.alloc(generating.zx.state.Object, output.modules.len);
-
-    for (output.modules, output.writable, objects) |module_name, writable, *object| {
-        object.* = .{ .independent = independent, .module_name = module_name, .writable = writable };
-    }
-
+    const objects = try @import("../state/objects.zig").create(allocator, output.modules, output.writable, independent);
     const slots = try allocator.alloc(generating.gateway.Slot, output.indices.len);
 
     for (output.indices, output.access, slots) |index, writable, *slot| {

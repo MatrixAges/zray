@@ -1,0 +1,34 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+
+import type { WriteColumn } from "std:memory"
+
+export type Input = {
+    modules: string[],
+    writable: bool[],
+    independent: bool,
+    names: WriteColumn,
+    access: WriteColumn,
+    ownership: WriteColumn
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const independent: u8 = in.independent ? 1 : 0
+
+    const count = loop(0, {
+        while: row => row < in.modules.length,
+        next: row => {
+            memory.writeColumnBytes(
+                in.names,
+                row,
+                bytes.fromText(in.modules[row])
+            )
+            memory.writeColumnU8(in.access, row, in.writable[row] ? 1 : 0)
+            memory.writeColumnU8(in.ownership, row, independent)
+
+            row += 1
+        }
+    })
+}

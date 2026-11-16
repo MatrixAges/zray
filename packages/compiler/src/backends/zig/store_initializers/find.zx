@@ -1,36 +1,54 @@
-import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "std:memory"
+import exchange from "core/bytes/index/column"
 
-import type { Initializer } from "./model"
+import { Status } from "./model"
+
+import type { Initializers } from "./model"
 
 export type Input = {
-    initializers: Initializer[],
-    path: string
+    initializers: Initializers,
+    path: string,
+    type_names: string[],
+    type_id: u32
 }
 
-export type Output = Initializer?
+export type Output = {
+    status: Status,
+    module_name?: string
+}
 
 export default function (in: Input): Output {
-    const absent: Output = null
+    const { initializers, path } = in
 
-    return loop({
-        index: 0,
-        found: absent
-    }, {
-        while: current => current.found == null && current.index < in.initializers.length,
-        next: current => {
-            const candidate = in.initializers[current.index]
+    const row = match {
+        initializers.capacity != 0 => exchange({
+            keys: initializers.keys,
+            buckets: initializers.buckets,
+            capacity: initializers.capacity,
+            key: path
+        }),
+        initializers.count == 0 => null,
+        memory.readTextColumn(initializers.keys, 0) == path => 0,
+        _ => null
+    }
 
-            if (
-                bytes.equals(
-                    bytes.fromText(candidate.identity),
-                    bytes.fromText(in.path)
-                )
-            ) {
-                current.found = candidate
-            }
+    if (row == null) {
+        return {
+            status: Status.Missing
+        }
+    }
 
-            current.index += 1
-        },
-        return: current => current.found
-    })
+    const requested = in.type_names[integers.widen(in.type_id)]
+
+    if (memory.readTextColumn(initializers.types, row) != requested) {
+        return {
+            status: Status.InvalidType
+        }
+    }
+
+    return {
+        status: Status.Found,
+        module_name: memory.readTextColumn(initializers.modules, row)
+    }
 }

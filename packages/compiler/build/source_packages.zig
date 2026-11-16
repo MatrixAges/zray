@@ -12,6 +12,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/gateway_state_service", .entry = "backends/zig/gateway/bindings/service.rx" },
     .{ .specifier = "core/bytes/index/const", .entry = "core/bytes/index/const.zx" },
     .{ .specifier = "core/bytes/index/fixed", .entry = "core/bytes/index/fixed.zx" },
+    .{ .specifier = "core/bytes/index/column", .entry = "core/bytes/index/column.zx" },
     .{ .specifier = "core/bytes/index/sorted_text", .entry = "core/bytes/index/sorted_text.zx" },
     .{ .specifier = "core/bytes/index/segments/model", .entry = "core/bytes/index/segments/model.zx" },
     .{ .specifier = "core/bytes/index/segments/key", .entry = "core/bytes/index/segments/key.zx" },

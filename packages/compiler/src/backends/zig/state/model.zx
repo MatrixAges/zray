@@ -1,5 +1,5 @@
 import type { Stores } from "core/store_table/model"
-import type { Initializer } from "../store_initializers/model"
+import type { Initializers } from "../store_initializers/model"
 
 export enum Status {
     Ready,
@@ -25,7 +25,7 @@ export type Availability = {
 export type Input = {
     stores: Stores,
     type_names: string[],
-    initializers: Initializer[],
+    initializers: Initializers,
     has_requirements: bool
 }
 

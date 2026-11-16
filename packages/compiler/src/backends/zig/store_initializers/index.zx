@@ -1,0 +1,27 @@
+import memory from "std:memory"
+import exchange from "core/bytes/index/column"
+
+import type { Initializers as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (in.capacity == 0) {
+        return
+    }
+
+    const position = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const previous = exchange({
+                keys: in.keys,
+                buckets: in.buckets,
+                capacity: in.capacity,
+                key: memory.readTextColumn(in.keys, row),
+                insert: row
+            })
+
+            row += 1
+        }
+    })
+}

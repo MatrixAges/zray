@@ -5,7 +5,7 @@ const generating = @import("genz").zx.state;
 const modules = @import("modules.zig");
 const names = @import("names.zig");
 const Cache = @import("cache.zig");
-
+const InitializerView = @import("store_initializers/view.zig");
 pub const Options = struct { analysis: *const frontend.AnalysisResult, cache: ?*Cache = null };
 pub const Error = names.Error || error{ InvalidAnalysis, MissingInitializer, InvalidInitializer, DuplicateState };
 
@@ -27,13 +27,14 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     const entry = @import("generated_state_bindings");
     const Input = std.meta.Child(entry.Input);
     const Stores = std.meta.Child(@FieldType(Input, "stores"));
+    const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
     const stores = zx.columns.borrow(Stores, &program.stores);
-    const initializers = try zx.columns.pointers(@FieldType(Input, "initializers"), temporary, bundle.store_initializers);
+    const initializers = try InitializerView.init(temporary, bundle.store_initializers);
 
     const input: Input = .{
         .stores = &stores,
         .type_names = shared.types,
-        .initializers = initializers,
+        .initializers = &initializers.input(Initializers),
         .has_requirements = bundle.requirements != null,
     };
 
@@ -47,13 +48,8 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
         else => unreachable,
     }
 
-    const objects = try allocator.alloc(generating.Object, program.stores.count());
-
-    for (plan.imports[1..], program.stores.writable, objects) |module_name, writable, *object| {
-        object.* = .{ .module_name = module_name, .writable = writable, .independent = independent };
-    }
-
     const imports = plan.imports;
+    const objects = try @import("state/objects.zig").create(allocator, imports[1..], program.stores.writable, independent);
     const requirements = bundle.requirements.?;
     const source = try emit(allocator, objects, requirements, options.cache);
     const files = try allocator.alloc(modules.File, bundle.modules.len + 1);
@@ -98,13 +94,19 @@ fn failure(err: anyerror) std.mem.Allocator.Error {
 
 fn emit(allocator: std.mem.Allocator, objects: []const generating.Object, requirements: generating.Requirements, cache: ?*Cache) std.mem.Allocator.Error![]const u8 {
     const store = cache orelse return generating.renderWithCapabilities(allocator, objects, requirements);
-    const metadata = try std.json.Stringify.valueAlloc(allocator, .{ .objects = objects, .requirements = requirements }, .{});
-    var hash = @import("zx").Sha256.init(.{});
 
-    hash.update("zxc.zig.state.memory.v5");
-    hash.update(metadata);
+    const key = fingerprint: {
+        const metadata = try std.json.Stringify.valueAlloc(allocator, .{ .objects = objects, .requirements = requirements }, .{});
 
-    const key = hash.finalResult();
+        defer allocator.free(metadata);
+
+        var hash = zx.Sha256.init(.{});
+
+        hash.update("zxc.zig.state.memory.v5");
+        hash.update(metadata);
+
+        break :fingerprint hash.finalResult();
+    };
 
     if (try store.get("zxc_state", key)) |source| return allocator.dupe(u8, source);
 
