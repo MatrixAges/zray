@@ -22,6 +22,7 @@ pub fn analyze(function: *Function, changed: *std.ArrayList(u64), marked: *std.A
         .outputs = @ptrCast(&function.summaries.outputs),
         .function_index = if (function.function) |index| @intCast(index) else null,
         .deferred = function.deferred,
+        .record_marks = true,
         .operations = @ptrCast(function.operations),
         .results = @ptrCast(function.order.results),
     };

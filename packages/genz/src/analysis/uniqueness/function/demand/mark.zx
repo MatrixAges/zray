@@ -17,9 +17,14 @@ export type Input = {
 export type Output = Working
 
 export default function (in: Input): Output {
-    const working = {
-        ...in.stage.working,
-        marks: in.stage.working.marks.push(in.mark)[0]
+    const record = in.stage.source.record_marks
+
+    const working = match {
+        record => {
+            ...in.stage.working,
+            marks: in.stage.working.marks.push(in.mark)[0]
+        },
+        _ => in.stage.working
     }
 
     if (in.stage.source.deferred) {
@@ -41,6 +46,10 @@ export default function (in: Input): Output {
     }
 
     bytes.storeAtomicCell(rows, row, slot, encode(next))
+
+    if (!record) {
+        return working
+    }
 
     return {
         ...working,

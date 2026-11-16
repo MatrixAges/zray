@@ -1,0 +1,28 @@
+import type { AtomicRows } from "std:bytes"
+import type { Source } from "../demand/model"
+import type { Context } from "../levels/model"
+import type { Input as Plan, Output as Facts, Snapshot } from "../plan/model"
+
+export type Input = Plan.Omit("state") & {
+    inputs: AtomicRows,
+    outputs: AtomicRows,
+    input_facts: AtomicRows,
+    output_facts: AtomicRows,
+    native_modules: u32?[]
+}
+
+export type Demand =
+    Source.Omit("carried", "function_index", "deferred", "record_marks")
+
+export type Solve = {
+    context: Context,
+    repeated: u32[],
+    source: Demand
+}
+
+export type Solved = {
+    context: Context,
+    state: Snapshot
+}
+
+export type Output = Facts.Pick("flags", "keys", "needed")

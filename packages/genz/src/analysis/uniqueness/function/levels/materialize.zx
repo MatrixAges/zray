@@ -61,7 +61,7 @@ export default function (in: Input): Output {
     const linear =
         in.context.metadata.expressions.kinds[node] != ExpressionKind.Reference &&
         usage({
-            context: in.context,
+            metadata: in.context.metadata,
             root: integers.narrow(in.context.metadata.usage.symbols + node),
             slot: in.slot,
             observe: false

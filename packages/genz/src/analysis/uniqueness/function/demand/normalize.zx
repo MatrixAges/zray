@@ -27,7 +27,7 @@ export default function (in: Input): Output {
     const want = knowledge({
         ...desired,
         unique: desired.unique && usage({
-            context,
+            metadata: context.metadata,
             root: integers.narrow(
                 context.metadata.usage.symbols +
                     integers.widen(in.leaf)

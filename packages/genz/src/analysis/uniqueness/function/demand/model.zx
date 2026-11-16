@@ -17,6 +17,7 @@ export type Source = {
     outputs: AtomicRows,
     function_index?: u32,
     deferred: bool,
+    record_marks: bool,
     operations: u32[],
     results: u32[]
 }

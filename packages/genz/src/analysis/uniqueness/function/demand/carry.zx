@@ -41,7 +41,7 @@ export default function (in: Input): Output {
     const desired = value(in.trace.request.wanted)
 
     const consumed = desired.unique && usage({
-        context,
+        metadata: context.metadata,
         root: parameter,
         slot: in.trace.request.slot,
         observe: false
@@ -51,7 +51,7 @@ export default function (in: Input): Output {
         !consumed => false,
         condition == null => true,
         _ => usage({
-            context,
+            metadata: context.metadata,
             root: condition,
             slot: in.trace.request.slot,
             observe: true

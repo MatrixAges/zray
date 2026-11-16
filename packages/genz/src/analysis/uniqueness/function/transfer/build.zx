@@ -4,19 +4,19 @@ import { bits_per_word } from "../../flow/body/const"
 import empty from "../../flow/body/visited"
 import qualify from "./qualify"
 
-import type { Input as Source } from "../plan/model"
+import type { Finish } from "../plan/model"
 
-export type Input = {
-    source: Source,
-    needed: bool[]
-}
+export type Input = Finish.Pick("metadata", "needed")
 
 export type Output = u64[]
 
 export default function (in: Input): Output {
-    const transfers = empty(in.source.state.known.length)
-    const first = in.source.context.metadata.usage.plan.slot_first
-    const symbols = in.source.context.metadata.usage.symbols
+    const { metadata, needed } = in
+
+    const first = metadata.usage.plan.slot_first
+    const symbols = metadata.usage.symbols
+    const slots = first[first.length - 1] - first[symbols]
+    const transfers = empty(integers.widen(slots))
 
     const loop_initial = {
         transfers,
@@ -25,8 +25,8 @@ export default function (in: Input): Output {
     }
 
     const loop_scope = {
-        input: in.source,
-        needed: in.needed,
+        metadata,
+        needed,
         first,
         symbols
     }
@@ -45,7 +45,7 @@ export default function (in: Input): Output {
                 state.slot = 0
             } else {
                 if (qualify({
-                    context: loop_scope.input.context,
+                    metadata: loop_scope.metadata,
                     node: integers.narrow(state.node),
                     slot: integers.narrow(state.slot)
                 })) {

@@ -27,19 +27,25 @@ pub fn build(function: *Function, allocator: std.mem.Allocator) std.mem.Allocato
     };
 
     const facts = zx.columns.invoke(analysis.executeValue, function.allocator, &input) catch |err| return failure(err);
+    const result = try publish(function, allocator, &borrowed, facts);
+    function.evaluation.?.known = facts.known;
+    function.evaluation.?.reads = facts.reads;
 
+    try levels.publish(function);
+
+    return result;
+}
+
+pub fn publish(function: *const Function, allocator: std.mem.Allocator, borrowed: *const levels.Borrowed, facts: anytype) std.mem.Allocator.Error!Function.Plan {
     const finish: Finish = .{
-        .source = zx.columns.pointer(@FieldType(Finish, "source"), &input),
+        .metadata = zx.columns.pointer(@FieldType(Finish, "metadata"), &borrowed.metadata),
+        .type_kinds = function.slots.types.kinds,
         .flags = facts.flags,
         .keys = try allocator.dupe(u64, facts.keys),
         .needed = facts.needed,
     };
 
     const result = zx.columns.invoke(publication.executeValue, allocator, &finish) catch |err| return failure(err);
-    function.evaluation.?.known = facts.known;
-    function.evaluation.?.reads = facts.reads;
-
-    try levels.publish(function);
 
     return .{
         .flags = @ptrCast(result.flags),

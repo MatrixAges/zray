@@ -6,7 +6,8 @@
     <Call
         fn="renewal_paths"
         in={$in.pick([
-            "source",
+            "metadata",
+            "type_kinds",
             "keys"
         ])}
     />
@@ -14,7 +15,7 @@
     <Call
         fn="../transfer/build"
         in={$in.pick([
-            "source",
+            "metadata",
             "needed"
         ])}
     />

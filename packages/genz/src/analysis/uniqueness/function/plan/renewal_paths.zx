@@ -3,12 +3,9 @@ import integers from "std:integer"
 import { slot_stride, sort_owner_stride } from "../../renewals/const"
 import path from "../../slots/path"
 
-import type { Input as Source } from "./model"
+import type { Finish } from "./model"
 
-export type Input = {
-    source: Source,
-    keys: u64[]
-}
+export type Input = Finish.Pick("metadata", "type_kinds", "keys")
 
 export type Output = u32[][]
 
@@ -23,12 +20,12 @@ export default function (in: Input): Output {
         next: state => {
             const key = in.keys[state.index]
             const owner = key / sort_owner_stride
-            const source = in.source
+            const metadata = in.metadata
 
             state.paths = state.paths.push(path({
-                layout: source.context.metadata.layout,
-                kinds: source.types.kinds,
-                type_id: source.context.metadata.expressions.types[owner],
+                layout: metadata.layout,
+                kinds: in.type_kinds,
+                type_id: metadata.expressions.types[owner],
                 slot: integers.narrow(key % slot_stride)
             }))[0]
             state.index += 1

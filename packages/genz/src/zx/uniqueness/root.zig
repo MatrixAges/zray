@@ -231,11 +231,20 @@ pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     const temporary = scratch.allocator();
     const slots = basis.slots;
+    const generated = @import("genz_options").generated_analysis;
 
-    summaries.clear();
-    summaries.clearWants();
+    if (!generated) {
+        summaries.clear();
+        summaries.clearWants();
+    }
 
-    const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .normalized = undefined, .renewed = undefined }, program.body.block(), try Topology.callees(temporary, program.expressions), false);
+    const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .normalized = undefined, .renewed = undefined }, program.body.block(), &.{}, false);
+
+    if (generated) {
+        var function = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, null);
+
+        return @import("function/entry.zig").analyze(&function, allocator);
+    }
 
     while (true) {
         var changed: std.ArrayList(u64) = .empty;

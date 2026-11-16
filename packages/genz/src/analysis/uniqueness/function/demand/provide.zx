@@ -32,7 +32,7 @@ export default function (in: Input): Output {
         unique: desired.unique &&
             context.metadata.expressions.kinds[node] != ExpressionKind.Reference &&
             usage({
-                context,
+                metadata: context.metadata,
                 root: integers.narrow(context.metadata.usage.symbols + node),
                 slot: request.slot,
                 observe: false

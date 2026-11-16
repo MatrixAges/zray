@@ -30,7 +30,7 @@ export default function (in: Input): Output {
         )
 
         const retained = unrestricted || usage({
-            context: in.context,
+            metadata: in.context.metadata,
             root: in.linear_root,
             slot: in.slot,
             observe: false
@@ -77,7 +77,7 @@ export default function (in: Input): Output {
     )
 
     const linear = unrestricted || usage({
-        context: in.context,
+        metadata: in.context.metadata,
         root: in.linear_root,
         slot: in.slot,
         observe: false

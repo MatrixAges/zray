@@ -38,7 +38,7 @@ export default function (in: Input): Output {
     }
 
     return usage({
-        context: in.context,
+        metadata: in.context.metadata,
         root: root,
         slot: in.slot,
         observe: false

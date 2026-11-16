@@ -1,0 +1,59 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Input} out={Entry.Output} />
+
+    <Call
+        fn="../../summaries/clear"
+        in={{
+            left: $in.input_facts,
+            right: $in.output_facts
+        }}
+    />
+
+    <Call
+        fn="../../summaries/clear"
+        in={{
+            left: $in.inputs,
+            right: $in.outputs
+        }}
+    />
+
+    <Call
+        fn="converge"
+        in={{
+            context: $in.context,
+            repeated: $in.repeated,
+            source: {
+                kinds: $in.types.kinds,
+                native_modules: $in.native_modules,
+                inputs: $in.inputs,
+                outputs: $in.outputs,
+                operations: $in.operations,
+                results: $in.results
+            }
+        }}
+    />
+
+    <Call
+        module="../plan/plan"
+        in={{
+            ...$in.pick([
+                "types",
+                "time",
+                "operations",
+                "repeated",
+                "results"
+            ]),
+            ...$ctx.converge
+        }}
+    />
+
+    <Return
+        value={$ctx.plan.pick([
+            "flags",
+            "keys",
+            "needed"
+        ])}
+    />
+</Module>

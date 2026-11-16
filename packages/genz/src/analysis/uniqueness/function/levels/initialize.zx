@@ -56,12 +56,12 @@ export default function (in: Input): Output {
                     const slot = integers.narrow(current.slot)
                     const condition = row_scope.repetition.condition
                     const linear = usage({
-                        context: row_scope.context,
+                        metadata: row_scope.context.metadata,
                         root: row_scope.repetition.parameter,
                         slot,
                         observe: false
                     }) && (condition == null || usage({
-                        context: row_scope.context,
+                        metadata: row_scope.context.metadata,
                         root: condition,
                         slot,
                         observe: true

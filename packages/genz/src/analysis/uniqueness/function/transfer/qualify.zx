@@ -7,10 +7,10 @@ import aggregate from "../levels/aggregate"
 import projection from "../levels/projection"
 import usage from "../levels/usage"
 
-import type { Context } from "../levels/model"
+import type { Metadata } from "../levels/model"
 
 export type Input = {
-    context: Context,
+    metadata: Metadata,
     node: u32,
     slot: u32
 }
@@ -18,8 +18,7 @@ export type Input = {
 export type Output = bool
 
 export default function qualify(in: Input): Output {
-    const context = in.context
-    const metadata = context.metadata
+    const metadata = in.metadata
     const expressions = metadata.expressions
     const node = integers.widen(in.node)
     const payload = integers.widen(expressions.payloads[node])
@@ -27,14 +26,14 @@ export default function qualify(in: Input): Output {
 
     if (kind == ExpressionKind.Field || kind == ExpressionKind.TupleField) {
         const selected = projection({
-            metadata: context.metadata,
+            metadata,
             slot: in.slot,
             target: expressions.projection_targets[payload],
             index: expressions.projection_indices[payload]
         })
 
         return qualify({
-            context,
+            metadata,
             node: selected.node,
             slot: selected.slot
         })
@@ -65,7 +64,7 @@ export default function qualify(in: Input): Output {
         }
 
         if (!usage({
-            context,
+            metadata,
             root: symbol,
             slot: in.slot,
             observe: false
@@ -77,14 +76,14 @@ export default function qualify(in: Input): Output {
 
         if (definition == Definition.Part) {
             const selected = projection({
-                metadata: context.metadata,
+                metadata,
                 slot: in.slot,
                 target,
                 index: metadata.definitions.index[index]
             })
 
             return qualify({
-                context,
+                metadata,
                 node: selected.node,
                 slot: selected.slot
             })
@@ -97,7 +96,7 @@ export default function qualify(in: Input): Output {
     }
 
     if (!usage({
-        context,
+        metadata,
         root: integers.narrow(metadata.usage.symbols + node),
         slot: in.slot,
         observe: false
@@ -113,7 +112,7 @@ export default function qualify(in: Input): Output {
         })
 
         return selected != null && qualify({
-            context,
+            metadata,
             node: selected.node,
             slot: selected.slot
         })

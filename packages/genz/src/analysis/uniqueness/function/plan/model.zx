@@ -1,6 +1,6 @@
 import type { Table } from "core/type_table/model"
 import type { Renewals } from "../../renewals/model"
-import type { Context, Knowledge, Read } from "../levels/model"
+import type { Context, Knowledge, Metadata, Read } from "../levels/model"
 
 export type Snapshot = {
     known: Knowledge[],
@@ -38,7 +38,8 @@ export type Output = {
 }
 
 export type Finish = {
-    source: Input,
+    metadata: Metadata,
+    type_kinds: u8[],
     flags: u64[],
     keys: u64[],
     needed: bool[]
