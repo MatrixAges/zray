@@ -56,7 +56,12 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
     const value_functions = self.value_functions;
 
     if (comptime generated) {
-        Source.header(&self.hash.writer, unit, program.version, self.entry_flags);
+        const value_function: ?bool = switch (unit) {
+            .function, .regular => |id| value_functions[@backingInt(id)],
+            else => null,
+        };
+
+        Source.header(&self.hash.writer, unit, program.version, self.entry_flags, value_function);
     } else {
         self.bytes("zxc.zig.input.v88");
         self.bytes(@tagName(unit));
@@ -69,11 +74,12 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
         .function, .regular => |id| {
             self.current_function = id;
 
-            self.write(value_functions[@backingInt(id)]);
+            if (comptime !generated) self.write(value_functions[@backingInt(id)]);
+
             self.plan(self.uniqueness.functions[@backingInt(id)]);
 
             if (comptime generated) {
-                self.functionSource(@backingInt(id));
+                Source.function(&self.hash.writer, self, @backingInt(id));
             } else {
                 self.write(program.functions.at(@backingInt(id)));
             }
@@ -82,7 +88,7 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
             self.plan(self.uniqueness.entry);
 
             if (comptime generated) {
-                self.entrySource();
+                Source.entry(&self.hash.writer, self);
             } else {
                 self.write(.{
                     .file_name = program.file_name,
@@ -97,9 +103,9 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
                     .store_mode = program.store_mode,
                     .type_only = program.type_only,
                 });
-            }
 
-            if (program.constant_exports.len != 0) self.write(program.constant_exports);
+                if (program.constant_exports.len != 0) self.write(program.constant_exports);
+            }
         },
         .types => {
             if (comptime generated) {
@@ -116,37 +122,6 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
     self.hash.hasher.final(&result);
 
     return result;
-}
-
-fn functionSource(self: *Self, index: usize) void {
-    const functions = &self.program.functions;
-    const signature = ir.SignatureTable.read(functions, index);
-    const out = &self.hash.writer;
-
-    self.write(functions.stores[index].*);
-    self.write(functions.store_modes[index]);
-    self.write(signature.output_ownership);
-    Source.contracts(out, self, functions.contracts[index]);
-    self.write(signature.external);
-    self.bytes(signature.file_name);
-    self.write(signature.input_type);
-    self.write(signature.output_type);
-    Source.body(out, self, functions.symbols[index], functions.expressions[index], functions.controlAt(index));
-}
-
-fn entrySource(self: *Self) void {
-    const program = &self.program;
-    const out = &self.hash.writer;
-
-    self.bytes(program.file_name);
-    self.write(program.input_type);
-    self.write(program.output_type);
-    Source.body(out, self, &program.symbols, &program.expressions, program.body);
-    self.write(program.exports);
-    Source.contracts(out, self, &program.contracts);
-    self.write(program.stores);
-    self.write(program.store_mode);
-    self.write(program.type_only);
 }
 
 fn typesSeed(self: *Self) void {
@@ -203,7 +178,6 @@ fn write(self: *Self, value: anytype) void {
 
     if (T == @FieldType(ir.ExpressionRow, "span")) return;
     if (T == ir.ControlBody) return self.write(value.block());
-    if (T == ir.External and generated) return Source.external(&self.hash.writer, &self.program.native_modules, value);
 
     if (T == ir.Block or T == @FieldType(ir.StatementRow, "parallel") or T == @FieldType(@FieldType(ir.StatementRow, "destructure"), "symbols") or T == @FieldType(@FieldType(ir.StatementRow, "switch_stmt"), "cases")) {
         self.write(value.len);

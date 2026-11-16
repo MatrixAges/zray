@@ -12,7 +12,8 @@ export type Header = {
     out: Writer,
     unit: Unit,
     version: u32,
-    entry_flags: u8[]
+    entry_flags: u8[],
+    value_function?: bool
 }
 
 export type Plan = {

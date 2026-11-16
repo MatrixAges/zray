@@ -1,7 +1,8 @@
 const std = @import("std");
 const Storage = @import("cache/storage.zig");
 const Self = @This();
-const Entry = struct { key: [32]u8, source: []u8, pending: ?usize = null };
+const Owner = enum { cache, shared };
+const Entry = struct { key: [32]u8, source: []u8, pending: ?usize = null, owner: Owner = .cache };
 const Memo = @import("genz").zx.function_analysis.Uniqueness.Memo;
 
 allocator: std.mem.Allocator,
@@ -50,7 +51,7 @@ pub fn deinit(self: *Self) void {
 
     while (iterator.next()) |entry| {
         self.allocator.free(entry.key_ptr.*);
-        self.allocator.free(entry.value_ptr.source);
+        self.sourceAllocator(entry.value_ptr.owner).free(entry.value_ptr.source);
     }
 
     self.entries.deinit(self.allocator);
@@ -62,11 +63,11 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn get(self: *Self, name: []const u8, key: [32]u8) std.mem.Allocator.Error!?[]const u8 {
-    const fetched = try self.fetch(self.allocator, name, key);
+    var fetched = try self.fetch(name, key, .cache);
 
-    defer if (fetched.kind == .stored) self.allocator.free(fetched.source.?);
+    defer self.releaseFetched(fetched);
 
-    return self.record(name, key, fetched);
+    return self.record(name, key, &fetched);
 }
 
 /// What `fetch` found for one unit, before `record` accounts for it.
@@ -74,29 +75,40 @@ pub const Fetched = struct {
     source: ?[]const u8 = null,
     failure: ?anyerror = null,
     kind: Kind = .absent,
+    owner: Owner = .cache,
     const Kind = enum { held, stored, absent, invalid, failed };
 };
 
-/// Finds a unit's source without changing the cache, so several threads may fetch while none records; a stored
-/// source is read into `allocator`.
-pub fn fetch(self: *const Self, allocator: std.mem.Allocator, name: []const u8, key: [32]u8) std.mem.Allocator.Error!Fetched {
+/// A parallel search uses the shared allocator for disk buffers. Cache metadata stays on the caller's allocator.
+pub fn fetch(self: *const Self, name: []const u8, key: [32]u8, owner: Owner) std.mem.Allocator.Error!Fetched {
     if (self.entries.get(name)) |entry| {
         if (std.mem.eql(u8, &entry.key, &key)) return .{ .source = entry.source, .kind = .held };
     }
 
     const storage = self.storage orelse return .{};
 
-    const source = storage.read(allocator, key) catch |err| switch (err) {
+    const source = storage.read(self.sourceAllocator(owner), key) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidCache => return .{ .kind = .invalid },
         else => return .{ .failure = err, .kind = .failed },
     } orelse return .{};
 
-    return .{ .source = source, .kind = .stored };
+    return .{ .source = source, .kind = .stored, .owner = owner };
 }
 
-/// Accounts for a fetch and keeps a stored source; returns the source the unit reuses, if any.
-pub fn record(self: *Self, name: []const u8, key: [32]u8, fetched: Fetched) std.mem.Allocator.Error!?[]const u8 {
+pub fn releaseFetched(self: *const Self, fetched: Fetched) void {
+    if (fetched.kind == .stored) self.sourceAllocator(fetched.owner).free(fetched.source.?);
+}
+
+fn sourceAllocator(self: *const Self, owner: Owner) std.mem.Allocator {
+    return switch (owner) {
+        .cache => self.allocator,
+        .shared => std.heap.smp_allocator,
+    };
+}
+
+/// Takes ownership of a validated disk buffer after successful publication. The caller releases unconsumed results.
+pub fn record(self: *Self, name: []const u8, key: [32]u8, fetched: *Fetched) std.mem.Allocator.Error!?[]const u8 {
     switch (fetched.kind) {
         .held => {
             self.reused += 1;
@@ -104,16 +116,15 @@ pub fn record(self: *Self, name: []const u8, key: [32]u8, fetched: Fetched) std.
             return fetched.source.?;
         },
         .stored => {
-            const owned = try self.allocator.dupe(u8, fetched.source.?);
+            const source = @constCast(fetched.source.?);
 
-            errdefer self.allocator.free(owned);
+            try self.store(name, .{ .key = key, .source = source, .owner = fetched.owner });
 
-            try self.store(name, .{ .key = key, .source = owned });
-
+            fetched.* = .{};
             self.loaded += 1;
             self.reused += 1;
 
-            return owned;
+            return source;
         },
         .absent => return null,
         .invalid => {
@@ -248,7 +259,7 @@ fn store(self: *Self, name: []const u8, value: Entry) std.mem.Allocator.Error!vo
         if (self.pendingWrite(entry.*)) |item| {
             item.retired = true;
         } else {
-            self.allocator.free(entry.source);
+            self.sourceAllocator(entry.owner).free(entry.source);
         }
 
         entry.* = value;

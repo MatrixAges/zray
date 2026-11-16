@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Unit" />
+
+    <Args in={Unit.Entry} out={void} />
+
+    <Call fn="ports" in={$in.ports} />
+
+    <Call
+        module="../body/build"
+        in={$in.pick([
+            "context",
+            "symbols",
+            "expressions",
+            "control",
+            "root"
+        ])}
+    />
+
+    <Call fn="exports" in={$in.exported} />
+
+    <Call
+        fn="../body/contracts"
+        in={$in.pick([
+            "context",
+            "contracts"
+        ])}
+    />
+
+    <Call
+        fn="entry_state"
+        in={{
+            out: $in.context.prefix.out,
+            stores: $in.stores,
+            mode: $in.mode,
+            type_only: $in.type_only
+        }}
+    />
+</Module>

@@ -3,7 +3,7 @@ const zx = @import("zx");
 const generating = @import("genz").zx.modules;
 const Writer = std.Io.Writer;
 
-pub fn header(out: *Writer, unit: generating.Unit, version: u32, flags: generating.Analysis.Entry.Flags) void {
+pub fn header(out: *Writer, unit: generating.Unit, version: u32, flags: generating.Analysis.Entry.Flags, value_function: ?bool) void {
     const rule = @import("generated_generation_key_header");
     const fields = @typeInfo(@TypeOf(flags)).@"struct".field_names;
     var entry_flags: [fields.len]u8 = undefined;
@@ -20,6 +20,7 @@ pub fn header(out: *Writer, unit: generating.Unit, version: u32, flags: generati
         .unit = @fromBackingInt(@intFromEnum(std.meta.activeTag(unit))),
         .version = version,
         .entry_flags = encoded,
+        .value_function = value_function,
     });
 }
 
@@ -36,39 +37,90 @@ pub fn plan(out: *Writer, value: generating.Analysis.Uniqueness.Plan) void {
     });
 }
 
-pub fn body(out: *Writer, state: anytype, symbols: *const zx.ir.SymbolTable, expressions: *const zx.ir.ExpressionTable, control: zx.ir.ControlBody) void {
-    const rule = @import("generated_generation_key_body");
+pub fn function(out: *Writer, state: anytype, index: usize) void {
+    const rule = @import("generated_generation_key_function");
     const Input = std.meta.Child(rule.Input);
     const Context = std.meta.Child(@FieldType(Input, "context"));
-    var facts: Facts(Context) = .init(out, state);
+    const facts: Facts(Context) = .init(out, state);
     const context = facts.borrow();
+    const program: *const zx.ir.Program = &state.program;
+    const functions = zx.columns.columns(std.meta.Child(@FieldType(Input, "functions")), program.functions);
 
     execute(rule, .{
         .context = &context,
-        .symbols = zx.columns.pointer(@FieldType(Input, "symbols"), symbols),
-        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), expressions),
-        .control = zx.columns.pointer(@FieldType(Input, "control"), control.control),
-        .root = if (control.root) |id| @backingInt(id) else null,
+        .functions = &functions,
+        .modules = zx.columns.pointer(@FieldType(Input, "modules"), &program.native_modules),
+        .index = index,
     });
 }
 
-pub fn contracts(out: *Writer, state: anytype, table: *const zx.ir.ContractTable) void {
-    if (table.count() == 0) {
-        out.writeInt(u64, 0, .little) catch unreachable;
-
-        return;
-    }
-
-    const rule = @import("generated_generation_key_contracts");
+pub fn entry(out: *Writer, state: anytype) void {
+    const rule = @import("generated_generation_key_entry");
     const Input = std.meta.Child(rule.Input);
     const Context = std.meta.Child(@FieldType(Input, "context"));
-    var facts: Facts(Context) = .init(out, state);
+    const Ports = std.meta.Child(@FieldType(Input, "ports"));
+    const Exported = std.meta.Child(@FieldType(Input, "exported"));
+    const facts: Facts(Context) = .init(out, state);
     const context = facts.borrow();
+    const program: *const zx.ir.Program = &state.program;
+    const view = zx.memory.borrowNamedRows("type_id", program.exports);
+
+    const ports: Ports = .{
+        .prefix = context.prefix,
+        .file = program.file_name,
+        .input_type = @backingInt(program.input_type),
+        .output_type = @backingInt(program.output_type),
+    };
+
+    const exported: Exported = .{ .prefix = context.prefix, .rows = @ptrCast(&view), .count = view.len };
 
     execute(rule, .{
         .context = &context,
-        .contracts = zx.columns.pointer(@FieldType(Input, "contracts"), table),
+        .ports = &ports,
+        .exported = &exported,
+        .contracts = zx.columns.pointer(@FieldType(Input, "contracts"), &program.contracts),
+        .stores = zx.columns.pointer(@FieldType(Input, "stores"), &program.stores),
+        .symbols = zx.columns.pointer(@FieldType(Input, "symbols"), &program.symbols),
+        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), &program.expressions),
+        .control = zx.columns.pointer(@FieldType(Input, "control"), program.body.control),
+        .root = if (program.body.root) |id| @backingInt(id) else null,
+        .mode = @fromBackingInt(@backingInt(program.store_mode)),
+        .type_only = program.type_only,
     });
+
+    constants(context.prefix, program.constant_exports);
+}
+
+fn constants(prefix: anytype, source: []const zx.ir.Constant) void {
+    if (source.len == 0) return;
+
+    const rule = @import("generated_generation_key_constants");
+    const Input = std.meta.Child(rule.Input);
+    const Values = std.meta.Child(@FieldType(Input, "values"));
+    const Literal = std.meta.Child(std.meta.Child(@FieldType(Values, "values")));
+    const chunk_size = 32;
+    var names: [chunk_size][]const u8 = undefined;
+    var literals: [chunk_size]Literal = undefined;
+    var pointers: [chunk_size]*const Literal = undefined;
+    var remaining = source;
+    var total: ?u64 = source.len;
+
+    while (remaining.len > 0) {
+        const count = @min(remaining.len, chunk_size);
+
+        for (remaining[0..count], names[0..count], literals[0..count], pointers[0..count]) |row, *name, *literal, *pointer| {
+            name.* = row.name;
+            literal.* = zx.ir.Constant.borrow(Literal, row);
+            pointer.* = literal;
+        }
+
+        const values: Values = .{ .names = names[0..count], .values = pointers[0..count] };
+
+        execute(rule, .{ .prefix = zx.columns.pointer(@FieldType(Input, "prefix"), prefix), .values = &values, .total = total });
+
+        total = null;
+        remaining = remaining[count..];
+    }
 }
 
 fn Facts(comptime Context: type) type {
@@ -118,44 +170,15 @@ pub fn types(out: *Writer, program: *const zx.ir.Program, names: []const []const
     const Input = std.meta.Child(rule.Input);
     const Prefix = std.meta.Child(@FieldType(Input, "prefix"));
     const Table = std.meta.Child(@FieldType(Input, "table"));
-    const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
     const prefix: Prefix = .{ .out = @ptrCast(out), .key_count = keys.len, .keys = std.mem.sliceAsBytes(keys), .names = names };
     const table = zx.ir.TypeTable.borrow(Table, program.types);
-    var signatures: Signatures = undefined;
-
-    inline for (@typeInfo(Signatures).@"struct".field_names) |name| @field(signatures, name) = @field(program.functions, name);
+    const functions = zx.columns.columns(std.meta.Child(@FieldType(Input, "functions")), program.functions);
 
     execute(rule, .{
         .prefix = &prefix,
         .table = &table,
         .modules = zx.columns.pointer(@FieldType(Input, "modules"), &program.native_modules),
-        .signatures = &signatures,
-    });
-}
-
-pub fn external(out: *Writer, modules: *const zx.ir.NativeModuleTable, value: zx.ir.External) void {
-    const rule = @import("generated_generation_key_external");
-    const Input = std.meta.Child(rule.Input);
-    const Declaration = std.meta.Child(@FieldType(Input, "declaration"));
-
-    const declaration: Declaration = .{
-        .input = if (value.input) |input| input.names else null,
-        .module = @backingInt(value.module),
-        .member = value.member,
-        .export_name = value.export_name,
-        .allocator_argument = value.allocator_argument,
-        .io_argument = value.io_argument,
-        .process_argument = value.process_argument,
-        .expand_tuple = value.expand_tuple,
-        .fallible = value.fallible,
-        .errors = value.errors,
-        .concurrent = value.concurrent,
-    };
-
-    execute(rule, .{
-        .out = @ptrCast(out),
-        .modules = zx.columns.pointer(@FieldType(Input, "modules"), modules),
-        .declaration = &declaration,
+        .functions = &functions,
     });
 }
 

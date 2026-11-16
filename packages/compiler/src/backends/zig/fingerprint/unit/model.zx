@@ -1,0 +1,55 @@
+import type { Writer } from "std:bytes"
+import type { Values } from "core/constant/model"
+import type { Contracts } from "core/contract_table/model"
+import type { Complete, StoreMode } from "core/function_table/complete"
+import type { Modules } from "core/native_module_table/model"
+import type { Stores } from "core/store_table/model"
+import type { Ownership } from "core/symbol_table/model"
+import type { NamedRows } from "memory"
+import type { Body, Context } from "../body/model"
+import type { TypePrefix } from "../model"
+
+export type Ports = {
+    prefix: TypePrefix,
+    file: string,
+    input_type: u32,
+    output_type: u32
+}
+
+export type Exported = {
+    prefix: TypePrefix,
+    rows: NamedRows,
+    count: u64
+}
+
+export type Constants = {
+    prefix: TypePrefix,
+    values: Values,
+    total?: u64
+}
+
+export type State = {
+    out: Writer,
+    stores: Stores,
+    mode: StoreMode
+}
+
+export type FunctionState = State & {
+    ownership: Ownership
+}
+
+export type Function = {
+    context: Context,
+    modules: Modules,
+    functions: Complete,
+    index: u64
+}
+
+export type Entry = Body & {
+    ports: Ports,
+    exported: Exported,
+    contracts: Contracts,
+    stores: Stores,
+    mode: StoreMode,
+    type_only: bool
+}

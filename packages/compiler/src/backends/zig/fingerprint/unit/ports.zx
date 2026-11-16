@@ -1,0 +1,26 @@
+import text from "core/ir/fingerprint/text"
+
+import typeKey from "../types_bundle/type_key"
+
+import type { Ports as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { prefix } = in
+
+    text({
+        out: prefix.out,
+        text: in.file
+    })
+
+    typeKey({
+        prefix,
+        id: in.input_type
+    })
+
+    typeKey({
+        prefix,
+        id: in.output_type
+    })
+}

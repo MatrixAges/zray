@@ -31,7 +31,7 @@ const Search = struct {
         const job = self.jobs[position];
         const found = try job.batch.identify(allocator, job.unit);
         self.lookups[position] = found;
-        self.fetched[position] = if (job.batch.cache) |cache| try cache.fetch(allocator, found.name, found.key) else .{};
+        self.fetched[position] = if (job.batch.cache) |cache| try cache.fetch(found.name, found.key, .shared) else .{};
     }
 };
 
@@ -94,6 +94,12 @@ pub fn createJobs(owned: std.mem.Allocator, backing: std.mem.Allocator, jobs: []
 
     var search = Search{ .jobs = jobs, .lookups = try temporary.alloc(Batch.Lookup, jobs.len), .fetched = try temporary.alloc(Cache.Fetched, jobs.len) };
 
+    @memset(search.fetched, .{});
+
+    defer for (jobs, search.fetched) |job, fetched| {
+        if (job.batch.cache) |cache| cache.releaseFetched(fetched);
+    };
+
     try spread(Search, &search, arenas[0..@min(arenas.len, jobs.len)]);
 
     const plan = try @import("function_sources_plan.zig").create(temporary, search.fetched);
@@ -105,7 +111,7 @@ pub fn createJobs(owned: std.mem.Allocator, backing: std.mem.Allocator, jobs: []
         try @import("function_sources_seed.zig").restore(owned, search.fetched, plan, sources, arenas);
     }
 
-    for (jobs, search.lookups, search.fetched) |job, found, fetched| {
+    for (jobs, search.lookups, search.fetched) |job, found, *fetched| {
         if (job.batch.cache) |cache| _ = try cache.record(found.name, found.key, fetched);
     }
 

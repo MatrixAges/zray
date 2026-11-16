@@ -1,0 +1,1 @@
+export const constant_enumeration: u64 = 5

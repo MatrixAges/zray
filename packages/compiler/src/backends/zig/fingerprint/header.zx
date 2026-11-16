@@ -10,7 +10,7 @@ import type { Header as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { out } = in
+    const { out, value_function } = in
 
     const label = match in.unit {
         Unit.Entry => entry,
@@ -33,5 +33,9 @@ export default function (in: Input): Output {
 
     if (in.unit == Unit.Entry) {
         bytes.write(out, in.entry_flags)
+    }
+
+    if (value_function != null) {
+        bytes.writeByte(out, value_function ? 1 : 0)
     }
 }

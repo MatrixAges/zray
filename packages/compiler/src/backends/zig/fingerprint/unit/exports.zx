@@ -1,0 +1,31 @@
+import bytes from "std:bytes"
+import text from "core/ir/fingerprint/text"
+import memory from "memory"
+
+import typeKey from "../types_bundle/type_key"
+
+import type { Exported as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { prefix, rows, count } = in
+    const { out } = prefix
+
+    bytes.writeU64Le(out, count)
+
+    const result = loop(0, {
+        while: index => index < count,
+        next: index => {
+            text({
+                out,
+                text: memory.readRowName(rows, index)
+            })
+            typeKey({
+                prefix,
+                id: memory.readRowId(rows, index)
+            })
+            index += 1
+        }
+    })
+}

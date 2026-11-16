@@ -1,0 +1,19 @@
+import bytes from "std:bytes"
+import { StoreMode } from "core/function_table/complete"
+
+import stores from "../stores"
+
+import type { State as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out } = in
+
+    stores({
+        out,
+        value: in.stores
+    })
+
+    bytes.writeU64Le(out, in.mode == StoreMode.transaction ? 0 : 1)
+}

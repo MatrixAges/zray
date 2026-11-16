@@ -1,0 +1,21 @@
+import bytes from "std:bytes"
+
+import state from "./state"
+
+import type { State } from "./model"
+
+export type Input = State & {
+    type_only: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    state({
+        out: in.out,
+        stores: in.stores,
+        mode: in.mode
+    })
+
+    bytes.writeByte(in.out, in.type_only ? 1 : 0)
+}

@@ -9,41 +9,31 @@ import type { NativeFunctions as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { signatures, modules, prefix } = in
+    const { functions, modules, prefix } = in
     const { out } = prefix
 
-    bytes.writeU64Le(out, count(signatures.native_modules))
+    bytes.writeU64Le(out, count(functions.native_modules))
 
     const result = loop(0, {
-        while: index => index < signatures.native_modules.length,
+        while: index => index < functions.native_modules.length,
         next: index => {
-            const module = signatures.native_modules[index]
+            const module = functions.native_modules[index]
 
             if (module != null) {
                 typeKey({
                     prefix,
-                    id: signatures.input_types[index]
+                    id: functions.input_types[index]
                 })
                 typeKey({
                     prefix,
-                    id: signatures.output_types[index]
+                    id: functions.output_types[index]
                 })
                 external({
                     out,
                     modules,
-                    declaration: {
-                        input: signatures.native_inputs[index],
-                        module,
-                        member: signatures.native_members[index],
-                        export_name: signatures.native_exports[index],
-                        allocator_argument: signatures.native_allocators[index],
-                        io_argument: signatures.native_io[index],
-                        process_argument: signatures.native_process[index],
-                        expand_tuple: signatures.native_tuples[index],
-                        fallible: signatures.native_fallible[index],
-                        errors: signatures.native_errors[index],
-                        concurrent: signatures.native_concurrent[index]
-                    }
+                    functions,
+                    index,
+                    optional: false
                 })
             }
 

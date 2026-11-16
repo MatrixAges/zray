@@ -31,27 +31,7 @@ pub fn marshal(comptime Table: type, allocator: std.mem.Allocator, constants: []
     return table;
 }
 
-pub fn borrow(comptime Literal: type, constant: ir.Constant) Literal {
-    return .{
-        .type_id = @backingInt(constant.type_id),
-        .kind = switch (constant.value) {
-            .integer, .negative_integer => .Integer,
-            .float => .Float,
-            .string => .String,
-            .boolean => .Boolean,
-            .enumeration => .EnumValue,
-        },
-        .integer = switch (constant.value) {
-            .integer, .negative_integer => |magnitude| magnitude,
-            else => 0,
-        },
-        .negative = constant.value == .negative_integer,
-        .floating = if (constant.value == .float) constant.value.float else 0,
-        .text = if (constant.value == .string) constant.value.string else "",
-        .boolean = constant.value == .boolean and constant.value.boolean,
-        .enumeration = if (constant.value == .enumeration) constant.value.enumeration else 0,
-    };
-}
+pub const borrow = ir.Constant.borrow;
 
 pub fn nativeValid(types: ir.TypeTable, constants: []const ir.Constant) bool {
     const program = ir.Program{ .file_name = "", .types = types, .symbols = .{}, .expressions = .{}, .input_type = @fromBackingInt(0), .output_type = @fromBackingInt(0), .body = .{} };

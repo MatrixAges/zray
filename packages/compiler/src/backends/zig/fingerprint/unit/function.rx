@@ -1,0 +1,55 @@
+<Module>
+    <Type from="model" as="Unit" />
+
+    <Args in={Unit.Function} out={void} />
+
+    <Call
+        fn="function_state"
+        in={{
+            out: $in.context.prefix.out,
+            stores: $in.functions.stores[$in.index],
+            mode: $in.functions.store_modes[$in.index],
+            ownership: $in.functions.ownership[$in.index]
+        }}
+    />
+
+    <Call
+        fn="../body/contracts"
+        in={{
+            context: $in.context,
+            contracts: $in.functions.contracts[$in.index]
+        }}
+    />
+
+    <Call
+        fn="../types_bundle/external"
+        in={{
+            out: $in.context.prefix.out,
+            functions: $in.functions,
+            modules: $in.modules,
+            index: $in.index,
+            optional: true
+        }}
+    />
+
+    <Call
+        fn="ports"
+        in={{
+            prefix: $in.context.prefix,
+            file: $in.functions.files[$in.index],
+            input_type: $in.functions.input_types[$in.index],
+            output_type: $in.functions.output_types[$in.index]
+        }}
+    />
+
+    <Call
+        module="../body/build"
+        in={{
+            context: $in.context,
+            symbols: $in.functions.symbols[$in.index],
+            expressions: $in.functions.expressions[$in.index],
+            control: $in.functions.control[$in.index],
+            root: $in.functions.roots[$in.index]
+        }}
+    />
+</Module>

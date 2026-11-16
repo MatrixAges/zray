@@ -10,10 +10,21 @@ import type { External as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { out, declaration, modules } = in
-    const { input, errors } = declaration
+    const { out, functions, modules, index } = in
 
-    const module = integers.widen(declaration.module)
+    const id = functions.native_modules[index]
+
+    if (in.optional) {
+        bytes.writeByte(out, id == null ? 0 : 1)
+    }
+
+    if (id == null) {
+        return
+    }
+
+    const module = integers.widen(id)
+    const input = functions.native_inputs[index]
+    const errors = functions.native_errors[index]
 
     bytes.writeByte(out, input == null ? 0 : 1)
 
@@ -42,19 +53,19 @@ export default function (in: Input): Output {
 
     strings({
         out,
-        values: declaration.member
+        values: functions.native_members[index]
     })
 
     optionalText({
         out,
-        value: declaration.export_name
+        value: functions.native_exports[index]
     })
 
-    bytes.writeByte(out, declaration.allocator_argument ? 1 : 0)
-    bytes.writeByte(out, declaration.io_argument ? 1 : 0)
-    bytes.writeByte(out, declaration.process_argument ? 1 : 0)
-    bytes.writeByte(out, declaration.expand_tuple ? 1 : 0)
-    bytes.writeByte(out, declaration.fallible ? 1 : 0)
+    bytes.writeByte(out, functions.native_allocators[index] ? 1 : 0)
+    bytes.writeByte(out, functions.native_io[index] ? 1 : 0)
+    bytes.writeByte(out, functions.native_process[index] ? 1 : 0)
+    bytes.writeByte(out, functions.native_tuples[index] ? 1 : 0)
+    bytes.writeByte(out, functions.native_fallible[index] ? 1 : 0)
     bytes.writeByte(out, errors == null ? 0 : 1)
 
     if (errors != null) {
@@ -64,5 +75,5 @@ export default function (in: Input): Output {
         })
     }
 
-    bytes.writeByte(out, declaration.concurrent ? 1 : 0)
+    bytes.writeByte(out, functions.native_concurrent[index] ? 1 : 0)
 }
