@@ -1,0 +1,28 @@
+<Module>
+    <Type from="../model" as="Target" />
+
+    <Args
+        in={{
+            shape: Target.Package,
+            duplicate: bool
+        }}
+        out={Target.PackageShape}
+    />
+
+    <Call fn="../package" in={$in.shape} />
+
+    <If
+        on={
+        $ctx.package == Target.PackageShape.InvalidSource ||
+            $ctx.package == Target.PackageShape.InvalidCompiled
+        }
+    >
+        <Return value={$ctx.package} />
+    </If>
+
+    <If on={$in.duplicate}>
+        <Return value={Target.PackageShape.Duplicate} />
+    </If>
+
+    <Return value={$ctx.package} />
+</Module>

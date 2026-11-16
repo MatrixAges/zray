@@ -221,8 +221,16 @@ pub fn orderedRows(allocator: std.mem.Allocator, graph: *const Graph, kind: enum
 
 fn register(allocator: std.mem.Allocator, options: Options, paths: *frontend.project.source_index.Map, modules: *model.Modules.Slice, sources: model.Sources) std.mem.Allocator.Error!?model.Value {
     const staged = @hasDecl(frontend.project.source_index.Map, "firstDuplicate");
+    const generated = @import("rx_options").generated_graph;
 
-    for (0..modules.len) |index| {
+    const invalid = if (comptime staged and generated)
+        try invalidRegistration(options, sources)
+    else
+        null;
+
+    const end = invalid orelse modules.len;
+
+    for (0..end) |index| {
         const source = sources.at(index);
 
         const rx_source = switch (source) {
@@ -233,7 +241,7 @@ fn register(allocator: std.mem.Allocator, options: Options, paths: *frontend.pro
 
         const source_path = if (rx_source) |item| item.path else options.sources[source.zx].path;
 
-        if (rx_source) |item| {
+        if (comptime !(staged and generated)) if (rx_source) |item| {
             rx.validateSourcePath(allocator, source_path, if (source == .store) .store else .module) catch |err| {
                 if (err == error.OutOfMemory) return error.OutOfMemory;
 
@@ -243,7 +251,7 @@ fn register(allocator: std.mem.Allocator, options: Options, paths: *frontend.pro
 
                 return try failure(allocator, source_path, item.node.location, "RX source registration requires a project relative path of the expected module kind");
             };
-        }
+        };
 
         const path = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, source_path });
 
@@ -255,10 +263,43 @@ fn register(allocator: std.mem.Allocator, options: Options, paths: *frontend.pro
     }
 
     if (comptime staged) {
-        if (paths.firstDuplicate(modules.len)) |row| return try duplicate(allocator, options, modules.items(.path)[row], sources.at(row));
+        if (paths.firstDuplicate(end)) |row| return try duplicate(allocator, options, modules.items(.path)[row], sources.at(row));
+    }
+
+    if (invalid) |row| {
+        const item = switch (sources.at(row)) {
+            .zx => unreachable,
+            .rx => |index| options.modules[index],
+            .store => |index| options.stores[index],
+        };
+
+        return try failure(allocator, item.path, item.node.location, "RX source registration requires a project relative path of the expected module kind");
     }
 
     return null;
+}
+
+fn invalidRegistration(options: Options, sources: model.Sources) std.mem.Allocator.Error!?usize {
+    if (options.modules.len == 0 and options.stores.len == 0) return null;
+
+    const rule = @import("generated_source_graph_registration");
+    const memory = @import("zxc_standard").memory;
+    const modules = memory.borrowTextColumn("path", options.modules);
+    const stores = memory.borrowTextColumn("path", options.stores);
+
+    const input: std.meta.Child(rule.Input) = .{
+        .modules = &.{ .items = @ptrCast(&modules), .length = modules.count },
+        .stores = &.{ .items = @ptrCast(&stores), .length = stores.count },
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    const invalid = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.Overflow, error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    return if (invalid) |row| sources.zx_count + @as(usize, @intCast(row)) else null;
 }
 
 fn duplicate(allocator: std.mem.Allocator, options: Options, path: []const u8, source: model.Source) std.mem.Allocator.Error!model.Value {

@@ -1,0 +1,9 @@
+export const route_file: u8 = 0
+
+export const route_package: u8 = 1
+
+export const route_intrinsic: u8 = 2
+
+export const route_interface: u8 = 3
+
+export const route_invalid: u8 = 4

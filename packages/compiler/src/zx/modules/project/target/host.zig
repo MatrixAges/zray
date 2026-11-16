@@ -29,7 +29,7 @@ const FilePlan = if (enabled) Output(@import("generated_project_file_target")) e
 };
 
 const ResolvedFile = struct { path: []const u8, fallback: bool };
-const Shape = if (enabled) Output(@import("generated_project_package_shape")) else enum { Source, Compiled, InvalidSource, InvalidCompiled };
+const Shape = if (enabled) Output(@import("generated_project_package_admission")) else enum { Source, Compiled, InvalidSource, InvalidCompiled, Duplicate };
 
 fn Output(comptime module: type) type {
     return @typeInfo(@TypeOf(module.executeValue(undefined, undefined))).error_union.payload;
@@ -184,13 +184,12 @@ fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package
     const index = selected.first orelse return reporter.fail(.module, span, "ZX package is not declared in the project dependencies");
     const package = &packages[index];
 
-    switch (packageShape(package)) {
+    switch (admitPackage(package, selected.duplicate)) {
         .InvalidSource => return reporter.fail(.module, span, "package entry must be a .zx or .rx source file"),
         .InvalidCompiled => return reporter.fail(.module, span, "compiled package target must identify one instance, artifact and public module"),
+        .Duplicate => return reporter.fail(.module, span, "duplicate ZX package specifier"),
         .Source, .Compiled => {},
     }
-
-    if (selected.duplicate) return reporter.fail(.module, span, "duplicate ZX package specifier");
 
     if (package.compiled) |value| {
         const allocator = memory.compiled;
@@ -212,28 +211,35 @@ fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package
     return .{ .source = try std.fs.path.resolve(memory.source, &.{ root, package.entry }) };
 }
 
-fn packageShape(package: *const scopes.Package) Shape {
+fn admitPackage(package: *const scopes.Package, duplicate: bool) Shape {
     if (comptime enabled) {
-        const generated = @import("generated_project_package_shape");
+        const generated = @import("generated_project_package_admission");
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const value = if (package.compiled) |*target| target else null;
 
         const input: std.meta.Child(generated.Input) = .{
-            .entry = package.entry,
-            .compiled = value != null,
-            .instance = if (value) |target| target.instance.len != 0 else false,
-            .artifact = if (value) |target| target.artifact.len != 0 else false,
-            .name = if (value) |target| target.name.len != 0 else false,
+            .shape = &.{
+                .entry = package.entry,
+                .compiled = value != null,
+                .instance = if (value) |target| target.instance.len != 0 else false,
+                .artifact = if (value) |target| target.artifact.len != 0 else false,
+                .name = if (value) |target| target.name.len != 0 else false,
+            },
+            .duplicate = duplicate,
         };
 
         return zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
     }
 
     if (package.compiled) |value| {
-        return if (package.entry.len == 0 and value.instance.len != 0 and value.artifact.len != 0 and value.name.len != 0) .Compiled else .InvalidCompiled;
+        if (package.entry.len != 0 or value.instance.len == 0 or value.artifact.len == 0 or value.name.len == 0) return .InvalidCompiled;
+
+        return if (duplicate) .Duplicate else .Compiled;
     }
 
-    return if (std.mem.endsWith(u8, package.entry, ".zx") or std.mem.endsWith(u8, package.entry, ".rx")) .Source else .InvalidSource;
+    if (!std.mem.endsWith(u8, package.entry, ".zx") and !std.mem.endsWith(u8, package.entry, ".rx")) return .InvalidSource;
+
+    return if (duplicate) .Duplicate else .Source;
 }
 
 pub fn select(allocator: std.mem.Allocator, candidate: []const u8, index: ?*const source_index.Map) std.mem.Allocator.Error![]const u8 {

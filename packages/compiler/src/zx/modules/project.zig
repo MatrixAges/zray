@@ -980,6 +980,8 @@ pub fn resolveModuleTarget(allocator: std.mem.Allocator, from: []const u8, path:
 }
 
 pub const ImportScope = Target.Scope;
+pub const ImportRoute = Target.Route;
+pub const intrinsic_import = @import("intrinsic.zig").specifier;
 pub const importRoute = Target.classify;
 pub const resolveScopedTarget = Target.resolveScoped;
 pub const resolveIndexedTarget = Target.resolveIndexed;

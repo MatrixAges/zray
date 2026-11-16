@@ -1,0 +1,83 @@
+import encoding from "std:encoding"
+import memory from "std:memory"
+
+import classify from "../../../../../zx/modules/project/target/classify.rx"
+import { Route } from "../../../../../zx/modules/project/target/model"
+import select from "../../../../../zx/modules/project/target/select"
+import {
+    route_file,
+    route_interface,
+    route_intrinsic,
+    route_invalid,
+    route_package
+} from "./const"
+
+import type { U8Buffer, U64Buffer } from "std:memory"
+import type { Import } from "../../../../../zx/frontend/parser/imports/model"
+import type { Rows } from "../../../../../zx/modules/project/target/select"
+
+export type Input = {
+    source: string,
+    intrinsic: string,
+    packages: Rows,
+    imports: Import[],
+    first: u64,
+    count: u64,
+    routes: U8Buffer,
+    matches: U64Buffer,
+    duplicates: U8Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, packages, intrinsic, imports } = in
+
+    const planned = loop(0, {
+        while: index => index < in.count,
+        next: index => {
+            const row = in.first + index
+            const span = imports[row].path
+            const path = encoding.sliceBytes(source, span.start + 1, span.end - 1)
+
+            const route = classify({
+                path,
+                intrinsic
+            })
+
+            const code = match route {
+                Route.File => route_file,
+                Route.Package => route_package,
+                Route.Intrinsic => route_intrinsic,
+                Route.Interface => route_interface,
+                _ => route_invalid
+            }
+
+            memory.writeU8(in.routes, index, code)
+
+            if (route == Route.Package) {
+                const match_result = select({
+                    specifiers: packages,
+                    name: path,
+                    check_duplicates: true
+                })
+
+                const first = match_result.first
+
+                const position: u64 = match {
+                    first == null => 0,
+                    _ => first + 1
+                }
+
+                memory.writeU64(in.matches, index, position)
+                memory.writeU8(
+                    in.duplicates,
+                    index,
+                    match_result.duplicate ? 1 : 0
+                )
+            }
+
+            index += 1
+        }
+    })
+}

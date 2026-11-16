@@ -165,8 +165,10 @@ fn checkBoundary(self: *Self, path: []const u8, location: rx.ast.Location) Error
 }
 
 pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, role: model.Reference, known: ?project.PackageMatch) Error!void {
-    const route = project.importRoute(reference);
+    return self.importPlanned(reference, location, role, project.importRoute(reference), known);
+}
 
+pub fn importPlanned(self: *Self, reference: []const u8, location: rx.ast.Location, role: model.Reference, route: project.ImportRoute, known: ?project.PackageMatch) Error!void {
     switch (route) {
         .Invalid => return self.fail(location, "invalid or unknown import specifier"),
         .Intrinsic, .Interface => {

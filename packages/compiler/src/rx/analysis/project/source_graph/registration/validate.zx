@@ -1,0 +1,56 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+
+import { store_suffix } from "../../../../../const"
+import { Kind } from "../../../../path_kind/model"
+import normalize from "../../../../path_segments/normalize.rx"
+
+import type { TextColumn } from "std:memory"
+
+export type Paths = {
+    items: TextColumn,
+    length: u64
+}
+
+export type Input = {
+    modules: Paths,
+    stores: Paths
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { modules, stores } = in
+
+    const count = modules.length + stores.length
+    const invalid: u64? = null
+
+    return loop({
+        row: 0,
+        invalid
+    }, {
+        while: state => state.row < count && state.invalid == null,
+        next: state => {
+            const is_store = state.row >= modules.length
+            const path = match {
+                is_store =>
+                    memory.readTextColumn(stores.items, state.row - modules.length),
+                _ => memory.readTextColumn(modules.items, state.row)
+            }
+
+            const plan = normalize({
+                directory: [],
+                path: bytes.fromText(path),
+                kind: is_store ? Kind.SpecialFile : Kind.ModuleFile,
+                suffix: is_store ? store_suffix : ""
+            })
+
+            if (!plan.valid) {
+                state.invalid = state.row
+            }
+
+            state.row += 1
+        },
+        return: state => state.invalid
+    })
+}

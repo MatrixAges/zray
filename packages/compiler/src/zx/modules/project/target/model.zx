@@ -44,7 +44,8 @@ export enum PackageShape {
     Source,
     Compiled,
     InvalidSource,
-    InvalidCompiled
+    InvalidCompiled,
+    Duplicate
 }
 
 export type Package = {

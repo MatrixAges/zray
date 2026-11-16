@@ -55,7 +55,15 @@ pub fn run(collector: *Collector, adjacency: *model.Adjacency, roots: []const u6
 
                 switch (parsed.*) {
                     .native => |result| try @import("zx_edges.zig").collect(collector, zx.syntax.header.Native{ .program = result.value.parsed.ast }),
-                    .indexed => |*result| if (project.ParseCache.indexed_enabled) try @import("zx_edges.zig").collect(collector, result.header()) else unreachable,
+                    .indexed => |*result| if (project.ParseCache.indexed_enabled) {
+                        const header = result.header();
+
+                        if (comptime @import("rx_options").generated_graph) {
+                            try @import("imports/indexed.zig").collect(collector, header);
+                        } else {
+                            try @import("zx_edges.zig").collect(collector, header);
+                        }
+                    } else unreachable,
                 }
             },
         }
