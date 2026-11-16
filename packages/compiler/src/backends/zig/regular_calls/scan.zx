@@ -1,7 +1,6 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
-import integers from "std:integer"
-import get from "core/bytes/index/get"
+import get from "core/bytes/index/fixed"
 
 import { call_marker, quote, marked } from "./const"
 
@@ -10,17 +9,17 @@ import type { Scan as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
+    const { keys, buckets, capacity } = in.table
+
+    const source = bytes.fromText(in.source)
+
     const result = loop({
         cursor: 0,
         done: false
     }, {
         while: current => !current.done,
         next: current => {
-            const at = bytes.indexOfText(
-                bytes.fromText(in.source),
-                current.cursor,
-                call_marker
-            )
+            const at = bytes.indexOfText(source, current.cursor, call_marker)
 
             if (at == null) {
                 current.done = true
@@ -38,7 +37,9 @@ export default function (in: Input): Output {
                             at
                         ))
                     const id = get({
-                        index: in.index,
+                        keys,
+                        buckets,
+                        capacity,
                         key
                     })
 
@@ -46,7 +47,7 @@ export default function (in: Input): Output {
                         bytes.storeAtomicCell(
                             in.wanted,
                             0,
-                            integers.widen(id),
+                            id,
                             marked
                         )
                     }

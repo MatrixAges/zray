@@ -1,28 +1,41 @@
 import integers from "std:integer"
-import insert from "core/bytes/index/insert"
+import find from "core/bytes/index/fixed"
+import memory from "memory"
 
-import type { Index as Output } from "core/bytes/index/model"
 import type { Indexed as Input } from "./model"
 
-export default function (in: Input): Output {
-    return loop({
-        index: in.index,
-        position: 0
-    }, {
-        while: current => current.position < in.source.ids.length,
-        next: current => {
-            const id = in.source.ids[current.position]
+export type Output = u64
 
-            if (id != null && in.source.values[integers.widen(id)]) {
-                current.index = insert({
-                    index: current.index,
-                    key: in.source.names[integers.widen(id)],
-                    value: id
+export default function (in: Input): Output {
+    const { keys, buckets, capacity } = in.table
+    const { pending, groups } = in.candidates
+    const { units, values } = in
+
+    return loop({
+        position: 0,
+        count: 0
+    }, {
+        while: current => current.position < units.length,
+        next: current => {
+            const id = units[current.position]
+
+            if (id != null && values[integers.widen(id)]) {
+                const index = integers.widen(id)
+                const group = find({
+                    keys,
+                    buckets,
+                    capacity,
+                    key: keys[index],
+                    insert: index
                 })
+
+                memory.writeU64(groups, current.position, group ?? index)
+                memory.writeU64(pending, current.count, current.position)
+                current.count += 1
             }
 
             current.position += 1
         },
-        return: current => current.index
+        return: current => current.count
     })
 }
