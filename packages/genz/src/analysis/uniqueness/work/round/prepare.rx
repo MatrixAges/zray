@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Round" />
+
+    <Args in={Round.Input} out={Round.Output} />
+
+    <Call fn="phase" in={$in.event} />
+
+    <If on={$ctx.phase == Round.Phase.Settled}>
+        <Call fn="../../summaries/reset" in={$in.facts} />
+    </If>
+
+    <If on={$in.event == Round.Event.Exhausted}>
+        <Call
+            fn="../../summaries/clear"
+            in={{
+                left: $in.facts.input,
+                right: $in.facts.output
+            }}
+        />
+    </If>
+
+    <Call module="../fill" in={$in.queue} />
+
+    <Call fn="budget" in={$ctx.fill.queued.length} />
+
+    <Return
+        value={{
+            state: $ctx.fill,
+            phase: $ctx.phase,
+            budget: $ctx.budget
+        }}
+    />
+</Module>

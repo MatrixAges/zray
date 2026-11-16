@@ -1,0 +1,9 @@
+import { visits_per_body } from "./const"
+
+export type Input = u64
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return in * visits_per_body
+}

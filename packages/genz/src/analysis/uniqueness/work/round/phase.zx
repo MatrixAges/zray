@@ -1,0 +1,14 @@
+import { Event, Phase } from "./model"
+
+export type Input = Event
+
+export type Output = Phase
+
+export default function (in: Input): Output {
+    return match in {
+        Event.Start => Phase.Settled,
+        Event.DemandGrew => Phase.Settled,
+        Event.DemandStable => Phase.Planned,
+        _ => Phase.Demanded
+    }
+}

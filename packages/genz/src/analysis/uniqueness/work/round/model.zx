@@ -1,0 +1,45 @@
+import type { AtomicRows } from "std:bytes"
+import type { Lifecycle } from "../../summaries/model"
+import type { Fill, Notify, State } from "../model"
+
+export enum Event {
+    Start,
+    Settled,
+    Exhausted,
+    DemandGrew,
+    DemandStable
+}
+
+export enum Phase {
+    Settled,
+    Demanded,
+    Planned
+}
+
+export type Input = {
+    queue: Fill,
+    facts: Lifecycle,
+    event: Event
+}
+
+export type Output = {
+    state: State,
+    phase: Phase,
+    budget: u64
+}
+
+export type Take = {
+    state: State,
+    budget: u64
+}
+
+export type Visit = Take & {
+    body?: u64,
+    exhausted: bool
+}
+
+export type Settlement = Notify.Omit("demand_body") & {
+    body: u64,
+    levels: u8[],
+    outputs: AtomicRows
+}

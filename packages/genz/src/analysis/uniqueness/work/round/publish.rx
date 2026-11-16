@@ -1,0 +1,37 @@
+<Module>
+    <Type from="model" as="Round" />
+    <Type from="../model" as="Work" />
+
+    <Args in={Round.Settlement} out={Work.State} />
+
+    <Call
+        fn="../notify"
+        in={{
+            ...$in.omit([
+                "body",
+                "levels",
+                "outputs"
+            ]),
+            demand_body: null
+        }}
+    />
+
+    <If on={$in.body < $in.native_modules.length}>
+        <Call
+            fn="publish_output"
+            in={{
+                ...$in.omit([
+                    "changed",
+                    "type_only",
+                    "native_modules",
+                    "state"
+                ]),
+                state: $ctx.notify
+            }}
+        />
+
+        <Return value={$ctx.publish_output} />
+    </If>
+
+    <Return value={$ctx.notify} />
+</Module>

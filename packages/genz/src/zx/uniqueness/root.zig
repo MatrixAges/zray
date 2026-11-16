@@ -9,6 +9,7 @@ pub const Memo = @import("memo.zig");
 const Sites = @import("sites.zig");
 const Pool = @import("pool.zig");
 const Ahead = @import("ahead.zig");
+const Round = @import("work/round.zig");
 const Topology = @import("topology.zig");
 pub const Basis = @import("basis.zig");
 pub const Slots = @import("slots.zig");
@@ -70,9 +71,6 @@ pub const Unit = struct {
         return Function.initialize(allocator, functions, unit, &passes.order, &passes.sites, slots, summaries, reads);
     }
 };
-
-/// Analyses per body before giving up on a fixpoint and keeping no facts.
-const budget = 64;
 
 /// `exported` functions are also called from outside the program, so nothing is known about their input. A persistent
 /// `memo` carries body analyses over from earlier programs; without one, repeated states only replay within this call.
@@ -136,14 +134,17 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer work.deinit();
 
-    while (true) {
-        summaries.reset(program, known);
+    var round = try work.advance(&program, &summaries, known, .start);
 
-        try settle(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead);
-        if (!try demand(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead)) break;
+    while (round.phase != .planned) {
+        const event: Round.Event = switch (round.phase) {
+            .settled => try settle(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead, round.budget),
+            .demanded => try demand(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead),
+            .planned => unreachable,
+        };
+
+        round = try work.advance(&program, &summaries, known, event);
     }
-
-    try work.fill(program);
 
     ahead.begin(.planned);
     defer ahead.finish();
@@ -269,15 +270,13 @@ fn restoreGrowth(unit: *Unit, normalized: []const Memo.Normalized, renewed: []co
 
 /// The greatest fixpoint of the summaries for the current growth copies, or no facts if it does not settle in time. A
 /// body is analyzed again only when a callee output it reads or its own input weakened.
-fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!void {
+fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead, budget: u64) std.mem.Allocator.Error!Round.Event {
     const count = program.functions.count();
     var round = std.heap.ArenaAllocator.init(workspace);
 
     defer round.deinit();
 
-    try work.fill(program);
-
-    var remaining = budget * units.len;
+    var remaining = budget;
 
     ahead.begin(.settled);
     defer ahead.finish();
@@ -285,16 +284,14 @@ fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
     while (true) {
         try lookAhead(.settled, work, memo, replay, ahead);
 
-        const index = try work.pop() orelse break;
+        const index = switch (try work.takeSettlement(&remaining)) {
+            .done => return .settled,
+            .exhausted => return .exhausted,
+            .body => |index| index,
+        };
 
-        if (remaining == 0) {
-            ahead.finish();
-
-            return summaries.clear();
-        }
-
-        remaining -= 1;
         _ = round.reset(.retain_capacity);
+
         const unit = units[index].?;
         const recalled = (try replay.recall(.settled, index)) orelse try memo.getSettled(summaries, unit.state(index));
         const early = try ahead.take(.settled, index);
@@ -319,42 +316,24 @@ fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         };
 
         try replay.met(.settled, index, settled, memo);
-        try work.notify(ahead.dirty, program, changed, &.{}, null);
 
-        if (index == count) continue;
-
-        const weakened = if (@import("genz_options").generated_analysis)
-            @import("function/updates.zig").merge(summaries.output, @intCast(index), 0, settled.output, false) != 0
-
-        else weakened: {
-            var changed_output = false;
-
-            for (settled.output, summaries.output[index]) |next, *current| {
-                const met = current.meet(next);
-
-                if (met == current.*) continue;
-
-                Level.store(current, met);
-
-                changed_output = true;
-            }
-
-            break :weakened changed_output;
-        };
-
-        if (!weakened) continue;
-
-        try work.enqueue(ahead.dirty, callers[index]);
+        try work.publish(.{
+            .program = &program,
+            .outputs = summaries.output,
+            .dirty = ahead.dirty,
+            .changed = changed,
+            .callers = callers[index],
+            .body = index,
+            .levels = settled.output,
+        });
     }
 }
 
 /// Spreads the growth-copy demand until no input, output or copy is newly demanded; reports whether copies were added.
-fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!bool {
+fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!Round.Event {
     var round = std.heap.ArenaAllocator.init(workspace);
 
     defer round.deinit();
-
-    try work.fill(program);
 
     var added = false;
 
@@ -401,7 +380,7 @@ fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         try work.notify(ahead.dirty, program, changed, callers[index], index);
     }
 
-    return added;
+    return if (added) .demand_grew else .demand_stable;
 }
 
 /// The plans of an analysis that takes the path of the trace it follows, known without walking it: every changed body,

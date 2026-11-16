@@ -1,5 +1,8 @@
 const std = @import("std");
 const ir = @import("zx").ir;
+const Round = @import("round.zig");
+const Summaries = @import("../summaries.zig");
+const Level = @import("../level.zig").Level;
 const Self = @This();
 
 allocator: std.mem.Allocator,
@@ -15,7 +18,28 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.queued);
 }
 
-pub fn fill(self: *Self, program: ir.Program) std.mem.Allocator.Error!void {
+pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, event: Round.Event) std.mem.Allocator.Error!Round.Step {
+    const phase: Round.Phase = switch (event) {
+        .start, .demand_grew => reset: {
+            summaries.reset(program.*, known);
+
+            break :reset .settled;
+        },
+        .settled => .demanded,
+        .exhausted => cleared: {
+            summaries.clear();
+
+            break :cleared .demanded;
+        },
+        .demand_stable => .planned,
+    };
+
+    try self.fill(program);
+
+    return .{ .phase = phase, .budget = 64 * @as(u64, self.queued.len) };
+}
+
+fn fill(self: *Self, program: *const ir.Program) std.mem.Allocator.Error!void {
     self.queue.clearRetainingCapacity();
 
     self.head = 0;
@@ -61,6 +85,25 @@ pub fn notify(self: *Self, dirty: []bool, program: ir.Program, changed: []const 
     }
 }
 
+pub fn publish(self: *Self, settlement: Round.Settlement) std.mem.Allocator.Error!void {
+    try self.notify(settlement.dirty, settlement.program.*, settlement.changed, &.{}, null);
+    if (settlement.body >= settlement.outputs.len) return;
+
+    var weakened = false;
+
+    for (settlement.levels, settlement.outputs[settlement.body]) |next, *current| {
+        const met = current.meet(next);
+
+        if (met == current.*) continue;
+
+        Level.store(current, met);
+
+        weakened = true;
+    }
+
+    if (weakened) try self.enqueue(settlement.dirty, settlement.callers);
+}
+
 pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
     if (self.head == self.queue.items.len) return null;
 
@@ -70,6 +113,16 @@ pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
     self.queued[index] = false;
 
     return index;
+}
+
+pub fn takeSettlement(self: *Self, budget: *u64) std.mem.Allocator.Error!Round.Visit {
+    const index = try self.pop() orelse return .done;
+
+    if (budget.* == 0) return .exhausted;
+
+    budget.* -= 1;
+
+    return .{ .body = index };
 }
 
 pub fn window(self: *const Self, size: usize) []const u64 {

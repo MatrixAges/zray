@@ -1,0 +1,27 @@
+import pop from "../pop"
+
+import type { Take, Visit } from "./model"
+
+export type Input = Take
+
+export type Output = Visit
+
+export default function (in: Input): Output {
+    const popped = pop(in.state)
+
+    if (popped.index == null || in.budget == 0) {
+        return {
+            state: popped.state,
+            budget: in.budget,
+            body: null,
+            exhausted: popped.index != null
+        }
+    }
+
+    return {
+        state: popped.state,
+        budget: in.budget - 1,
+        body: popped.index,
+        exhausted: false
+    }
+}

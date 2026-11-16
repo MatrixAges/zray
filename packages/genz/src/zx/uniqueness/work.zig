@@ -1,14 +1,14 @@
 const std = @import("std");
 const ir = @import("zx").ir;
+const Round = @import("work/round.zig");
+const Summaries = @import("summaries.zig");
 const creating = @import("generated_uniqueness_work_create");
-const filling = @import("generated_uniqueness_work_fill");
+const preparing = @import("generated_uniqueness_prepare_round");
+const taking = @import("generated_uniqueness_take_settlement");
+const publishing = @import("generated_uniqueness_publish_settlement");
 const popping = @import("generated_uniqueness_work_pop");
-const broadcasting = @import("generated_uniqueness_work_enqueue");
 const notifying = @import("generated_uniqueness_work_notify");
 const State = @typeInfo(@typeInfo(@TypeOf(creating.executeState)).@"fn".return_type.?).error_union.payload;
-const FillParameter = @typeInfo(@TypeOf(filling.executeState)).@"fn".param_types[1].?;
-const indirect_fill = @typeInfo(FillParameter) == .pointer;
-const Fill = if (indirect_fill) std.meta.Child(FillParameter) else FillParameter;
 const Self = @This();
 
 arena: std.heap.ArenaAllocator,
@@ -27,31 +27,57 @@ pub fn deinit(self: *Self) void {
     self.arena.deinit();
 }
 
-pub fn fill(self: *Self, program: ir.Program) std.mem.Allocator.Error!void {
-    const input: Fill = .{
+pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, event: Round.Event) std.mem.Allocator.Error!Round.Step {
+    const Parameter = @typeInfo(@TypeOf(preparing.executeState)).@"fn".param_types[1].?;
+    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    const Queue = std.meta.Child(@FieldType(Input, "queue"));
+    const Facts = std.meta.Child(@FieldType(Input, "facts"));
+
+    const queue: Queue = .{
         .state = self.state,
         .native_modules = .{ .items = program.functions.native_modules, .storage = .plain },
         .type_only = program.type_only,
     };
 
-    self.state = filling.executeState(self.arena.allocator(), if (indirect_fill) &input else input) catch |err| return failure(err);
+    const facts: Facts = .{
+        .mode = .Reset,
+        .input = @ptrCast(&summaries.input),
+        .output = @ptrCast(&summaries.output),
+        .inputs = @ptrCast(&summaries.inputs),
+        .outputs = @ptrCast(&summaries.outputs),
+        .native_modules = program.functions.native_modules,
+        .known = known,
+    };
+
+    const input: Input = .{ .queue = &queue, .facts = &facts, .event = @fromBackingInt(@intCast(@backingInt(event))) };
+    const output = preparing.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+
+    self.state = output.state;
+
+    return .{ .phase = @fromBackingInt(@intCast(@backingInt(output.phase))), .budget = output.budget };
 }
 
-pub fn enqueue(self: *Self, dirty: []bool, indices: []const u64) std.mem.Allocator.Error!void {
-    if (indices.len == 0) return;
+pub fn publish(self: *Self, settlement: Round.Settlement) std.mem.Allocator.Error!void {
+    comptime std.debug.assert(@sizeOf(std.meta.Elem(@TypeOf(settlement.levels))) == @sizeOf(u8));
 
-    const Rule = @TypeOf(broadcasting.executeState);
-    const Parameter = @typeInfo(Rule).@"fn".param_types[1].?;
+    const Parameter = @typeInfo(@TypeOf(publishing.executeState)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const target = dirtyBytes(dirty);
+    const target = dirtyBytes(settlement.dirty);
+    const program = settlement.program;
 
     const input: Input = .{
         .state = self.state,
         .dirty = @ptrCast(&target),
-        .indices = .{ .items = indices, .storage = .plain },
+        .changed = .{ .items = settlement.changed, .storage = .plain },
+        .native_modules = .{ .items = program.functions.native_modules, .storage = .plain },
+        .callers = .{ .items = settlement.callers, .storage = .plain },
+        .type_only = program.type_only,
+        .body = settlement.body,
+        .outputs = @ptrCast(&settlement.outputs),
+        .levels = .{ .items = std.mem.sliceAsBytes(settlement.levels), .storage = .plain },
     };
 
-    self.state = broadcasting.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+    self.state = publishing.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
 }
 
 pub fn notify(self: *Self, dirty: []bool, program: ir.Program, changed: []const u64, callers: []const u64, demand_body: ?usize) std.mem.Allocator.Error!void {
@@ -87,6 +113,17 @@ pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
     self.state = output.state;
 
     return if (output.index) |index| @intCast(index) else null;
+}
+
+pub fn takeSettlement(self: *Self, budget: *u64) std.mem.Allocator.Error!Round.Visit {
+    const output = taking.executeState(self.arena.allocator(), .{ .state = self.state, .budget = budget.* }) catch |err| return failure(err);
+
+    self.state = output.state;
+    budget.* = output.budget;
+
+    if (output.body) |body| return .{ .body = @intCast(body) };
+
+    return if (output.exhausted) .exhausted else .done;
 }
 
 pub fn window(self: *const Self, size: usize) []const u64 {
