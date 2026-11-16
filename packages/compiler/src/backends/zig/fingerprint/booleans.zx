@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+
+import type { Writer } from "std:bytes"
+
+export type Input = {
+    out: Writer,
+    values: bool[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, values } = in
+
+    bytes.writeU64Le(out, values.length)
+
+    const result = loop(0, {
+        while: index => index < values.length,
+        next: index => {
+            bytes.writeByte(out, values[index] ? 1 : 0)
+            index += 1
+        }
+    })
+}

@@ -79,7 +79,20 @@ pub fn identify(self: *const Self, scratch: std.mem.Allocator, unit: generating.
     var key = fingerprint.createAnalyzed(self.program, self.names, unit, self.analysis.value);
 
     if (unit == .entry and self.public_members.len != 0) {
-        var hash = @import("zx").Sha256.init(.{});
+        const Hash = @import("zx").Sha256;
+
+        if (comptime @import("parser_options").generated_parser) {
+            var buffer: [512]u8 = undefined;
+            var hash: std.Io.Writer.Hashing(Hash) = .init(&buffer);
+
+            @import("fingerprint/source.zig").members(&hash.writer, &key, self.public_members, self.names.functions);
+            hash.writer.flush() catch unreachable;
+            hash.hasher.final(&key);
+
+            return .{ .name = name, .key = key, .source = null };
+        }
+
+        var hash = Hash.init(.{});
 
         hash.update(&key);
 

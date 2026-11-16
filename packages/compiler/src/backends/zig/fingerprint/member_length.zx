@@ -1,0 +1,39 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import { byte_bits, byte_radix, narrow_word } from "./const"
+
+import type { Writer } from "std:bytes"
+
+export type Input = {
+    out: Writer,
+    size: u64,
+    width: u64,
+    little_endian: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, size, width } = in
+
+    if (in.little_endian) {
+        if (width == narrow_word) {
+            bytes.writeU32Le(out, integers.narrow(size))
+        } else {
+            bytes.writeU64Le(out, size)
+        }
+    } else {
+        const result = loop(width, {
+            while: remaining => remaining > 0,
+            next: remaining => {
+                remaining -= 1
+
+                const divisor = integers.bitMask(remaining * byte_bits)
+                const byte = integers.narrowByte(size / divisor % byte_radix)
+
+                bytes.writeByte(out, byte)
+            }
+        })
+    }
+}

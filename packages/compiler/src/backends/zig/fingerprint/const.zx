@@ -1,0 +1,17 @@
+export const domain: string = "zxc.zig.input.v88"
+
+export const entry: string = "entry"
+
+export const function_unit: string = "function"
+
+export const types: string = "types"
+
+export const regular: string = "regular"
+
+export const slot_stride: u64 = 4294967296
+
+export const byte_radix: u64 = 256
+
+export const byte_bits: u64 = 8
+
+export const narrow_word: u64 = 4

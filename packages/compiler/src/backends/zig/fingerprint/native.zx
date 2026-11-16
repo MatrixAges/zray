@@ -1,0 +1,36 @@
+import bytes from "std:bytes"
+
+import text from "../../../inputs/fingerprint/field"
+import strings from "./strings"
+
+import type { Native as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, identity } = in
+
+    text({
+        out,
+        text: in.specifier
+    })
+
+    bytes.writeByte(out, identity == null ? 0 : 1)
+
+    if (identity != null) {
+        text({
+            out,
+            text: identity
+        })
+    }
+
+    text({
+        out,
+        text: in.import_name
+    })
+
+    strings({
+        out,
+        values: in.namespace
+    })
+}

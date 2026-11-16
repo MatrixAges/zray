@@ -1,0 +1,34 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import { slot_stride } from "./const"
+
+import type { Plan as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out } = in
+
+    const result = loop(0, {
+        while: index => index < in.keys.length,
+        next: index => {
+            const group = in.keys[index] / slot_stride
+            const path = in.paths[index]
+
+            bytes.writeU64Le(out, group / 2)
+            bytes.writeU64Le(out, path.length)
+
+            const written = loop(0, {
+                while: slot => slot < path.length,
+                next: slot => {
+                    bytes.writeU64Le(out, integers.widen(path[slot]))
+                    slot += 1
+                }
+            })
+
+            bytes.writeByte(out, group % 2 == 0 ? 0 : 1)
+            index += 1
+        }
+    })
+}

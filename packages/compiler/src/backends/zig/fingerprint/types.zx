@@ -1,0 +1,19 @@
+import bytes from "std:bytes"
+
+import strings from "./strings"
+
+import type { TypePrefix as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out } = in
+
+    bytes.writeU64Le(out, in.key_count)
+    bytes.write(out, in.keys)
+
+    strings({
+        out,
+        values: in.names
+    })
+}

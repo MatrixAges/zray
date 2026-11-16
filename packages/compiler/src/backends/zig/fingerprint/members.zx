@@ -1,0 +1,41 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import length from "./member_length"
+
+import type { PublicMembers as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, word_width, little_endian } = in
+
+    bytes.write(out, in.digest)
+
+    const result = loop(0, {
+        while: index => index < in.count,
+        next: index => {
+            const name = memory.readRowName(in.members, index)
+            const id = memory.readRowId(in.members, index)
+            const target = in.names[integers.widen(id)]
+
+            length({
+                out,
+                size: name.length,
+                width: word_width,
+                little_endian
+            })
+            bytes.write(out, bytes.fromText(name))
+            length({
+                out,
+                size: target.length,
+                width: word_width,
+                little_endian
+            })
+            bytes.write(out, bytes.fromText(target))
+
+            index += 1
+        }
+    })
+}

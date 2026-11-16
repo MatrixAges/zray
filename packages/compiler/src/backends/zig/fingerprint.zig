@@ -2,13 +2,12 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Names = @import("genz").zx.modules.Names;
 const Hash = @import("zx").Sha256;
+const Source = @import("fingerprint/source.zig");
+const generated = @import("parser_options").generated_parser;
 const Self = @This();
 pub const Unit = @import("genz").zx.modules.Unit;
 
-hash: Hash = .init(.{}),
-/// Bytes not yet hashed; fields are small, so they are gathered and hashed in large pieces.
-pending: [4096]u8 = undefined,
-used: usize = 0,
+hash: std.Io.Writer.Hashing(Hash),
 program: ir.Program,
 current_function: ?ir.FunctionId = null,
 names: Names,
@@ -28,7 +27,10 @@ fresh_outputs: []const bool,
 constructed_outputs: []const bool,
 state_plan: @import("genz").zx.state_value.Analysis,
 pub fn createAnalyzed(program: ir.Program, names: Names, unit: Unit, facts: @import("genz").zx.modules.Analysis) [32]u8 {
+    var pending: [4096]u8 = undefined;
+
     var self = Self{
+        .hash = .init(&pending),
         .program = program,
         .names = names,
         .value_functions = facts.value.values,
@@ -55,11 +57,15 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
     const value_functions = self.value_functions;
     const state_plan = self.state_plan;
 
-    self.bytes("zxc.zig.input.v88");
-    self.bytes(@tagName(unit));
-    self.write(program.version);
+    if (comptime generated) {
+        Source.header(&self.hash.writer, unit, program.version, self.entry_flags);
+    } else {
+        self.bytes("zxc.zig.input.v88");
+        self.bytes(@tagName(unit));
+        self.write(program.version);
 
-    if (unit == .entry) self.write(self.entry_flags);
+        if (unit == .entry) self.write(self.entry_flags);
+    }
 
     switch (unit) {
         .function, .regular => |id| {
@@ -89,11 +95,15 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
             if (program.constant_exports.len != 0) self.write(program.constant_exports);
         },
         .types => {
-            self.write(state_plan.keys.len);
+            if (comptime generated) {
+                Source.types(&self.hash.writer, names.types, state_plan.keys);
+            } else {
+                self.write(state_plan.keys.len);
+                for (state_plan.keys) |key| self.update(&key);
 
-            for (state_plan.keys) |key| self.update(&key);
+                self.write(names.types);
+            }
 
-            self.write(names.types);
             self.write(program.types);
             self.write(program.native_modules);
 
@@ -121,13 +131,15 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
 
     var result: [32]u8 = undefined;
 
-    self.hash.update(self.pending[0..self.used]);
-    self.hash.final(&result);
+    self.hash.writer.flush() catch unreachable;
+    self.hash.hasher.final(&result);
 
     return result;
 }
 
 fn plan(self: *Self, value: @import("genz").zx.function_analysis.Uniqueness.Plan) void {
+    if (comptime generated and @typeInfo(@TypeOf(value.renewals)) == .@"struct") return Source.plan(&self.hash.writer, value);
+
     self.update(std.mem.sliceAsBytes(value.flags));
     self.bytes(std.mem.sliceAsBytes(value.transfers));
     self.bytes(std.mem.sliceAsBytes(value.slot_first));
@@ -175,6 +187,7 @@ fn write(self: *Self, value: anytype) void {
     }
 
     if (T == ir.FunctionId) {
+        if (comptime generated) return Source.reference(&self.hash.writer, self, value);
         if (self.current_function) |owner| self.write(@backingInt(value) < @backingInt(owner));
 
         self.bytes(self.names.functions[@backingInt(value)]);
@@ -200,6 +213,8 @@ fn write(self: *Self, value: anytype) void {
 
     if (T == ir.NativeModuleId) {
         const module = self.program.native_modules.at(@backingInt(value));
+
+        if (comptime generated) return Source.native(&self.hash.writer, module);
 
         return self.write(.{ .specifier = module.specifier, .identity = module.identity, .import_name = module.import_name, .type_namespace = module.type_namespace });
     }
@@ -248,15 +263,5 @@ fn bytes(self: *Self, value: []const u8) void {
 }
 
 fn update(self: *Self, value: []const u8) void {
-    if (self.used + value.len > self.pending.len) {
-        self.hash.update(self.pending[0..self.used]);
-
-        self.used = 0;
-
-        if (value.len > self.pending.len) return self.hash.update(value);
-    }
-
-    @memcpy(self.pending[self.used..][0..value.len], value);
-
-    self.used += value.len;
+    self.hash.writer.writeAll(value) catch unreachable;
 }

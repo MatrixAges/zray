@@ -1,0 +1,60 @@
+import bytes from "std:bytes"
+
+import text from "../../../inputs/fingerprint/field"
+import stores from "./stores"
+import strings from "./strings"
+
+import type { Reference as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, earlier, name, errors, input, output } = in
+
+    if (earlier != null) {
+        bytes.writeByte(out, earlier ? 1 : 0)
+    }
+
+    text({
+        out,
+        text: name
+    })
+
+    stores({
+        out,
+        value: in.stores
+    })
+
+    bytes.writeByte(out, in.value ? 1 : 0)
+    bytes.writeByte(out, in.pure ? 1 : 0)
+    bytes.writeByte(out, in.local ? 1 : 0)
+    bytes.writeByte(out, in.io ? 1 : 0)
+    bytes.writeByte(out, in.process ? 1 : 0)
+    bytes.writeByte(out, in.tasks ? 1 : 0)
+    bytes.writeByte(out, errors == null ? 0 : 1)
+
+    if (errors != null) {
+        strings({
+            out,
+            values: errors
+        })
+    }
+
+    bytes.writeByte(out, in.identity_free ? 1 : 0)
+
+    text({
+        out,
+        text: input.name
+    })
+
+    bytes.write(out, input.digest)
+
+    text({
+        out,
+        text: output.name
+    })
+
+    bytes.write(out, output.digest)
+    bytes.writeByte(out, in.fresh ? 1 : 0)
+    bytes.writeByte(out, in.constructed ? 1 : 0)
+}

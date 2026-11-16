@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Fingerprint" />
+
+    <Args in={Fingerprint.Plan} out={void} />
+
+    <Call fn="plan_prefix" in={$in} />
+    <Call fn="renewals" in={$in} />
+</Module>
