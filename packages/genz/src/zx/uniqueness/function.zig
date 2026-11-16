@@ -77,7 +77,7 @@ carried: std.AutoHashMapUnmanaged(ir.ExprId, []Level) = .empty,
 /// The level of each expression slot once computed, indexed through the sites' slot layout.
 levels: []Known,
 traced: std.AutoHashMapUnmanaged(u64, void) = .empty,
-changed: ?*std.ArrayList(usize) = null,
+changed: ?*std.ArrayList(u64) = null,
 marked: ?*std.ArrayList(Mark) = null,
 grew: bool = false,
 /// Records contributions and demands without meeting them into the summaries, which other bodies of the same round
@@ -142,7 +142,7 @@ fn settled(self: Self) std.mem.Allocator.Error!void {
     if (self.failed) return error.OutOfMemory;
 }
 
-pub fn settle(self: *Self, changed: *std.ArrayList(usize), passed: *std.ArrayList(Contribution), values: []Level) std.mem.Allocator.Error!void {
+pub fn settle(self: *Self, changed: *std.ArrayList(u64), passed: *std.ArrayList(Contribution), values: []Level) std.mem.Allocator.Error!void {
     if (generated_analysis) return Summary.settle(self, changed, passed, values);
     try self.close();
     try self.arguments(changed, passed);
@@ -162,7 +162,7 @@ fn output(self: *Self, values: []Level) std.mem.Allocator.Error!void {
 
 /// Meets what each call in this body passes into every callee input summary; lists the callees that weakened.
 /// Lists every contribution in `passed`, in the order it was met, so a later analysis of the same state can replay it.
-fn arguments(self: *Self, changed: *std.ArrayList(usize), passed: *std.ArrayList(Contribution)) std.mem.Allocator.Error!void {
+fn arguments(self: *Self, changed: *std.ArrayList(u64), passed: *std.ArrayList(Contribution)) std.mem.Allocator.Error!void {
     for (self.operations) |id| {
         const invocation = switch (self.row(id).value) {
             .call => |invocation| invocation,
@@ -220,17 +220,19 @@ fn read(self: *Self, table: Table, function: usize, values: []const Level, slot:
 /// What one call passes into each input slot of its callee, met in slot order.
 pub const Contribution = struct { callee: u32, levels: []const Level };
 
-pub fn replay(allocator: std.mem.Allocator, summaries: *Summaries, contribution: Contribution, changed: *std.ArrayList(usize)) std.mem.Allocator.Error!void {
-    if (generated_analysis) {
-        const count = @import("function/updates.zig").merge(summaries.input, contribution.callee, 0, contribution.levels, false);
+pub fn replay(allocator: std.mem.Allocator, summaries: *Summaries, contributions: []const Contribution) std.mem.Allocator.Error![]const u64 {
+    if (generated_analysis) return @import("function/updates.zig").contributions(allocator, summaries, contributions);
 
-        return changed.appendNTimes(allocator, contribution.callee, count);
+    var changed: std.ArrayList(u64) = .empty;
+
+    for (contributions) |contribution| {
+        for (contribution.levels, 0..) |value, slot| try meet(allocator, summaries, contribution.callee, @intCast(slot), value, &changed);
     }
 
-    for (contribution.levels, 0..) |value, slot| try meet(allocator, summaries, contribution.callee, @intCast(slot), value, changed);
+    return changed.items;
 }
 
-fn meet(allocator: std.mem.Allocator, summaries: *Summaries, callee: u32, slot: u32, level_value: Level, changed: *std.ArrayList(usize)) std.mem.Allocator.Error!void {
+fn meet(allocator: std.mem.Allocator, summaries: *Summaries, callee: u32, slot: u32, level_value: Level, changed: *std.ArrayList(u64)) std.mem.Allocator.Error!void {
     const value = &summaries.input[callee][slot];
     const met = value.meet(level_value);
 
@@ -592,7 +594,7 @@ fn prefix(self: Self, operation: anytype) bool {
 /// where a plain or shared list enters, through inputs to the callers and through outputs to the callees. A loop's
 /// initial state, a plain input or an opaque producer then gets one growth copy there, so the updates that follow work
 /// in place instead of copying on every step. Lists the functions whose demand grew.
-pub fn demand(self: *Self, changed: *std.ArrayList(usize), marked: *std.ArrayList(Mark)) std.mem.Allocator.Error!void {
+pub fn demand(self: *Self, changed: *std.ArrayList(u64), marked: *std.ArrayList(Mark)) std.mem.Allocator.Error!void {
     if (generated_analysis) return @import("function/demand.zig").analyze(self, changed, marked);
 
     self.changed = changed;
@@ -892,14 +894,17 @@ fn mark(self: *Self, value: Mark) std.mem.Allocator.Error!void {
     if (!self.deferred) try applyMark(self.allocator, self.summaries, value, self.changed.?);
 }
 
-pub fn applyMark(allocator: std.mem.Allocator, summaries: *Summaries, value: Mark, changed: *std.ArrayList(usize)) std.mem.Allocator.Error!void {
-    if (generated_analysis) {
-        const rows = if (value.output) summaries.outputs else summaries.inputs;
-        const count = @import("function/updates.zig").merge(rows, value.function, value.slot, &.{value.want}, true);
+pub fn replayMarks(allocator: std.mem.Allocator, summaries: *Summaries, marks: []const Mark) std.mem.Allocator.Error![]const u64 {
+    if (generated_analysis) return @import("function/updates.zig").marks(allocator, summaries, marks);
 
-        return changed.appendNTimes(allocator, value.function, count);
-    }
+    var changed: std.ArrayList(u64) = .empty;
 
+    for (marks) |value| try applyMark(allocator, summaries, value, &changed);
+
+    return changed.items;
+}
+
+fn applyMark(allocator: std.mem.Allocator, summaries: *Summaries, value: Mark, changed: *std.ArrayList(u64)) std.mem.Allocator.Error!void {
     const values = if (value.output) summaries.outputs[value.function] else summaries.inputs[value.function];
     const next = values[value.slot].join(value.want);
 

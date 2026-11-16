@@ -85,11 +85,6 @@ pub fn finish(self: *Self) void {
     @memset(self.dirty, false);
 }
 
-/// Notes that a summary body `index` reads changed, so that its analysis ahead runs again before its visit.
-pub fn invalidate(self: *Self, index: usize) void {
-    self.dirty[index] = true;
-}
-
 /// How many queued bodies are looked at ahead.
 pub fn width(self: *const Self) usize {
     return self.pool.count() * per_thread;
@@ -184,7 +179,7 @@ fn Task(comptime kind: Memo.Kind) type {
             const scratch = worker.scratch.allocator();
             const keep = worker.kept.allocator();
             const lasting = worker.lasting.allocator();
-            var changed: std.ArrayList(usize) = .empty;
+            var changed: std.ArrayList(u64) = .empty;
             var reads: std.ArrayList(Function.Read) = .empty;
 
             switch (kind) {

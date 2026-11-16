@@ -1,0 +1,46 @@
+import enqueue from "./enqueue"
+import invalidate from "./invalidate"
+
+import type { Notify, State } from "./model"
+
+export type Input = Notify
+
+export type Output = State
+
+export default function (in: Input): Output {
+    const { changed, native_modules, type_only, demand_body, callers, dirty } = in
+
+    return loop({
+        state: in.state,
+        index: 0
+    }, {
+        while: current => current.index < changed.length,
+        next: current => {
+            const body = changed[current.index]
+
+            if (demand_body != null && body == demand_body) {
+                current.state = enqueue({
+                    state: current.state,
+                    dirty,
+                    indices: callers
+                })
+            } else {
+                const active = match {
+                    body < native_modules.length => native_modules[body] == null,
+                    _ => !type_only
+                }
+
+                if (active) {
+                    current.state = invalidate({
+                        state: current.state,
+                        dirty,
+                        index: body
+                    })
+                }
+            }
+
+            current.index += 1
+        },
+        return: current => current.state
+    })
+}

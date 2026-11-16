@@ -1,3 +1,5 @@
+import type { U8Buffer } from "std:memory"
+
 export type State = {
     buffer: u64[],
     queued: bool[],
@@ -19,4 +21,18 @@ export type Push = {
 export type Popped = {
     state: State,
     index?: u64
+}
+
+export type Enqueue = {
+    state: State,
+    dirty: U8Buffer,
+    indices: u64[]
+}
+
+export type Notify = Enqueue.Omit("indices") & {
+    changed: u64[],
+    native_modules: u32?[],
+    type_only: bool,
+    callers: u64[],
+    demand_body?: u64
 }

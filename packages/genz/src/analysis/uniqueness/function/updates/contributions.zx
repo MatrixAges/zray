@@ -1,0 +1,43 @@
+import integers from "std:integer"
+
+import merge from "./merge"
+
+import type { AtomicRows } from "std:bytes"
+import type { Contribution } from "../../replay/ordered/model"
+
+export type Input = {
+    inputs: AtomicRows,
+    contributions: Contribution[]
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const { inputs, contributions } = in
+
+    const changed: u64[] = []
+
+    return loop({
+        changed,
+        index: 0
+    }, {
+        while: state => state.index < contributions.length,
+        next: state => {
+            const record = contributions[state.index]
+            const changes = merge({
+                rows: inputs,
+                row: record.callee,
+                first: 0,
+                levels: record.levels,
+                joining: false
+            })
+
+            if (changes != 0) {
+                state.changed = state.changed.push(integers.widen(record.callee))[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.changed
+    })
+}

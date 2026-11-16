@@ -37,6 +37,30 @@ pub fn push(self: *Self, index: usize) std.mem.Allocator.Error!void {
     try self.queue.append(self.allocator, index);
 }
 
+pub fn enqueue(self: *Self, dirty: []bool, indices: []const u64) std.mem.Allocator.Error!void {
+    for (indices) |value| {
+        const index: usize = @intCast(value);
+
+        dirty[index] = true;
+
+        try self.push(index);
+    }
+}
+
+pub fn notify(self: *Self, dirty: []bool, program: ir.Program, changed: []const u64, callers: []const u64, demand_body: ?usize) std.mem.Allocator.Error!void {
+    const natives = program.functions.native_modules;
+
+    for (changed) |value| {
+        const index: usize = @intCast(value);
+
+        if (demand_body == index) {
+            try self.enqueue(dirty, callers);
+        } else if (if (index < natives.len) natives[index] == null else !program.type_only) {
+            try self.enqueue(dirty, &.{value});
+        }
+    }
+}
+
 pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
     if (self.head == self.queue.items.len) return null;
 

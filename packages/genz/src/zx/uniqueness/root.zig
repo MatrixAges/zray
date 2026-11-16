@@ -237,7 +237,7 @@ pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocat
     const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .normalized = undefined, .renewed = undefined }, program.body.block(), try Topology.callees(temporary, program.expressions), false);
 
     while (true) {
-        var changed: std.ArrayList(usize) = .empty;
+        var changed: std.ArrayList(u64) = .empty;
         var analysis = try unit.analyze(temporary, temporary, program.functions, slots, summaries, null, null);
         var marked: std.ArrayList(Function.Mark) = .empty;
 
@@ -251,13 +251,6 @@ pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocat
 }
 
 const Work = if (@import("genz_options").generated_analysis) @import("work.zig") else @import("work/seed.zig");
-
-/// Queues body `index` again after a summary it reads changed.
-fn requeue(work: *Work, ahead: *Ahead, index: usize) std.mem.Allocator.Error!void {
-    ahead.invalidate(index);
-
-    try work.push(index);
-}
 
 /// Queues for analysis ahead the bodies at the front of the queue, unless the worklist follows a trace, whose visits
 /// are recalled instead of analyzed.
@@ -303,39 +296,40 @@ fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         remaining -= 1;
         _ = round.reset(.retain_capacity);
         const unit = units[index].?;
-        var changed: std.ArrayList(usize) = .empty;
-        const output = try round.allocator().alloc(Level, if (index == count) 0 else summaries.output[index].len);
         const recalled = (try replay.recall(.settled, index)) orelse try memo.getSettled(summaries, unit.state(index));
         const early = try ahead.take(.settled, index);
         const known = recalled orelse if (early) |found| try memo.putSettled(memo.key, found.passed, found.output) else null;
+        var changed: []const u64 = undefined;
 
         const settled = if (known) |settled| replayed: {
-            for (settled.passed) |contribution| try Function.replay(round.allocator(), summaries, contribution, &changed);
+            changed = try Function.replay(round.allocator(), summaries, settled.passed);
 
             break :replayed settled;
         } else analyzed: {
+            const output = try round.allocator().alloc(Level, if (index == count) 0 else summaries.output[index].len);
             var passed: std.ArrayList(Function.Contribution) = .empty;
+            var modified: std.ArrayList(u64) = .empty;
             var analysis = try unit.initialize(round.allocator(), ahead.kept(), program.functions, slots, summaries, null, null);
 
-            try analysis.settle(&changed, &passed, output);
+            try analysis.settle(&modified, &passed, output);
+
+            changed = modified.items;
 
             break :analyzed try memo.putSettled(memo.key, passed.items, output);
         };
 
         try replay.met(.settled, index, settled, memo);
+        try work.notify(ahead.dirty, program, changed, &.{}, null);
 
-        @memcpy(output, settled.output);
-
-        for (changed.items) |callee| if (units[callee] != null) try requeue(work, ahead, callee);
         if (index == count) continue;
 
         const weakened = if (@import("genz_options").generated_analysis)
-            @import("function/updates.zig").merge(summaries.output, @intCast(index), 0, output, false) != 0
+            @import("function/updates.zig").merge(summaries.output, @intCast(index), 0, settled.output, false) != 0
 
         else weakened: {
             var changed_output = false;
 
-            for (output, summaries.output[index]) |next, *current| {
+            for (settled.output, summaries.output[index]) |next, *current| {
                 const met = current.meet(next);
 
                 if (met == current.*) continue;
@@ -350,7 +344,7 @@ fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
 
         if (!weakened) continue;
 
-        for (callers[index]) |caller| try requeue(work, ahead, @intCast(caller));
+        try work.enqueue(ahead.dirty, callers[index]);
     }
 }
 
@@ -374,38 +368,37 @@ fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         _ = round.reset(.retain_capacity);
         const unit = units[index].?;
         const state = unit.state(index);
-        var changed: std.ArrayList(usize) = .empty;
         const recalled = (try replay.recall(.demanded, index)) orelse try memo.getDemanded(summaries, state);
         const early = try ahead.take(.demanded, index);
+        var changed: []const u64 = undefined;
 
         const demanded = if (recalled) |demanded| replayed: {
-            for (demanded.marks) |value| try Function.applyMark(round.allocator(), summaries, value, &changed);
+            changed = try Function.replayMarks(round.allocator(), summaries, demanded.marks);
 
             try restoreGrowth(unit, demanded.normalized, demanded.renewed);
 
             break :replayed demanded;
         } else if (early) |found| ahead: {
             try restoreGrowth(unit, found.normalized, found.renewed);
-            for (found.marks) |value| try Function.applyMark(round.allocator(), summaries, value, &changed);
+
+            changed = try Function.replayMarks(round.allocator(), summaries, found.marks);
 
             break :ahead try memo.putDemanded(memo.key, found.marks, state, found.grew);
         } else analyzed: {
             var marked: std.ArrayList(Function.Mark) = .empty;
+            var modified: std.ArrayList(u64) = .empty;
             var analysis = try unit.analyze(round.allocator(), ahead.kept(), program.functions, slots, summaries, null, null);
 
-            try analysis.demand(&changed, &marked);
+            try analysis.demand(&modified, &marked);
+
+            changed = modified.items;
 
             break :analyzed try memo.putDemanded(memo.key, marked.items, state, analysis.grew);
         };
 
         try replay.met(.demanded, index, demanded, memo);
         if (demanded.grew) added = true;
-
-        for (changed.items) |function| {
-            if (function == index) {
-                for (callers[function]) |caller| try requeue(work, ahead, @intCast(caller));
-            } else if (units[function] != null) try requeue(work, ahead, function);
-        }
+        try work.notify(ahead.dirty, program, changed, callers[index], index);
     }
 
     return added;
@@ -476,7 +469,7 @@ fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, program: ir.P
     if (try memo.find(kind, unit.identity, state)) |value| return value;
     if (!try Memo.restore(kind, memo.arena.child_allocator, state, summaries, index, unit.callees, &unit.normalized, &unit.renewed)) return null;
 
-    var changed: std.ArrayList(usize) = .empty;
+    var changed: std.ArrayList(u64) = .empty;
     var analysis = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, null);
 
     switch (kind) {

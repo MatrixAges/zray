@@ -5,7 +5,7 @@ const Level = @import("../level.zig").Level;
 const levels = @import("levels.zig");
 const settlement = @import("generated_uniqueness_function_settlement");
 
-pub fn settle(function: *Function, changed: *std.ArrayList(usize), passed: *std.ArrayList(Function.Contribution), values: []Level) std.mem.Allocator.Error!void {
+pub fn settle(function: *Function, changed: *std.ArrayList(u64), passed: *std.ArrayList(Function.Contribution), values: []Level) std.mem.Allocator.Error!void {
     const Parameter = @typeInfo(@TypeOf(settlement.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
@@ -35,7 +35,7 @@ pub fn settle(function: *Function, changed: *std.ArrayList(usize), passed: *std.
     for (result.levels, values) |value, *target| target.* = levels.level(value);
 }
 
-fn append(function: *Function, changed: *std.ArrayList(usize), passed: *std.ArrayList(Function.Contribution), result: anytype) std.mem.Allocator.Error!void {
+fn append(function: *Function, changed: *std.ArrayList(u64), passed: *std.ArrayList(Function.Contribution), result: anytype) std.mem.Allocator.Error!void {
     comptime {
         std.debug.assert(@sizeOf(Level) == @sizeOf(u8));
         std.debug.assert(@alignOf(Level) == @alignOf(u8));

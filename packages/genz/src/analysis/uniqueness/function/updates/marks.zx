@@ -1,0 +1,46 @@
+import integers from "std:integer"
+
+import cell from "./cell"
+
+import type { AtomicRows } from "std:bytes"
+import type { Mark } from "../../replay/ordered/model"
+
+export type Input = {
+    inputs: AtomicRows,
+    outputs: AtomicRows,
+    marks: Mark[]
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const { inputs, outputs, marks } = in
+
+    const changed: u64[] = []
+
+    return loop({
+        changed,
+        index: 0
+    }, {
+        while: state => state.index < marks.length,
+        next: state => {
+            const mark = marks[state.index]
+            const rows = mark.output ? outputs : inputs
+            const row = integers.widen(mark.function)
+            const updated = cell({
+                rows,
+                row,
+                slot: integers.widen(mark.slot),
+                level: mark.want,
+                joining: true
+            })
+
+            if (updated) {
+                state.changed = state.changed.push(row)[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.changed
+    })
+}

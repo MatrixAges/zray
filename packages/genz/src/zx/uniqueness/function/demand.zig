@@ -6,7 +6,7 @@ const generated = @import("generated_uniqueness_function_demand");
 const AbiInput = std.meta.Child(generated.Input);
 const Source = std.meta.Child(@FieldType(AbiInput, "source"));
 
-pub fn analyze(function: *Function, changed: *std.ArrayList(usize), marked: *std.ArrayList(Function.Mark)) std.mem.Allocator.Error!void {
+pub fn analyze(function: *Function, changed: *std.ArrayList(u64), marked: *std.ArrayList(Function.Mark)) std.mem.Allocator.Error!void {
     const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;

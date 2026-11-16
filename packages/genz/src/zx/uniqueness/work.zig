@@ -2,8 +2,9 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const creating = @import("generated_uniqueness_work_create");
 const filling = @import("generated_uniqueness_work_fill");
-const pushing = @import("generated_uniqueness_work_push");
 const popping = @import("generated_uniqueness_work_pop");
+const broadcasting = @import("generated_uniqueness_work_enqueue");
+const notifying = @import("generated_uniqueness_work_notify");
 const State = @typeInfo(@typeInfo(@TypeOf(creating.executeState)).@"fn".return_type.?).error_union.payload;
 const FillParameter = @typeInfo(@TypeOf(filling.executeState)).@"fn".param_types[1].?;
 const indirect_fill = @typeInfo(FillParameter) == .pointer;
@@ -36,8 +37,48 @@ pub fn fill(self: *Self, program: ir.Program) std.mem.Allocator.Error!void {
     self.state = filling.executeState(self.arena.allocator(), if (indirect_fill) &input else input) catch |err| return failure(err);
 }
 
-pub fn push(self: *Self, index: usize) std.mem.Allocator.Error!void {
-    self.state = pushing.executeState(self.arena.allocator(), .{ .state = self.state, .index = index }) catch |err| return failure(err);
+pub fn enqueue(self: *Self, dirty: []bool, indices: []const u64) std.mem.Allocator.Error!void {
+    if (indices.len == 0) return;
+
+    const Rule = @TypeOf(broadcasting.executeState);
+    const Parameter = @typeInfo(Rule).@"fn".param_types[1].?;
+    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    const target = dirtyBytes(dirty);
+
+    const input: Input = .{
+        .state = self.state,
+        .dirty = @ptrCast(&target),
+        .indices = .{ .items = indices, .storage = .plain },
+    };
+
+    self.state = broadcasting.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+}
+
+pub fn notify(self: *Self, dirty: []bool, program: ir.Program, changed: []const u64, callers: []const u64, demand_body: ?usize) std.mem.Allocator.Error!void {
+    if (changed.len == 0) return;
+
+    const Rule = @TypeOf(notifying.executeState);
+    const Parameter = @typeInfo(Rule).@"fn".param_types[1].?;
+    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    const target = dirtyBytes(dirty);
+
+    const input: Input = .{
+        .state = self.state,
+        .dirty = @ptrCast(&target),
+        .changed = .{ .items = changed, .storage = .plain },
+        .native_modules = .{ .items = program.functions.native_modules, .storage = .plain },
+        .type_only = program.type_only,
+        .callers = .{ .items = callers, .storage = .plain },
+        .demand_body = demand_body,
+    };
+
+    self.state = notifying.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+}
+
+fn dirtyBytes(dirty: []bool) []u8 {
+    comptime std.debug.assert(@sizeOf(bool) == @sizeOf(u8));
+
+    return std.mem.sliceAsBytes(dirty);
 }
 
 pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
