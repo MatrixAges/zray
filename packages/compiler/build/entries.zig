@@ -41,6 +41,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/path_segments/walk.zx", .name = "path_write", .owner = .rx },
     .{ .path = "rx/dependency_graph/validate.rx", .name = "graph", .owner = .rx },
     .{ .path = "rx/dependency_graph/validate_selection.rx", .name = "graph_selection", .owner = .rx },
+    .{ .path = "rx/dependency_graph/edge/resolve.rx", .name = "graph_edge", .owner = .rx },
     .{ .path = "core/bytes/index/fixed.zx", .name = "fixed_byte_index" },
     .{ .path = "core/bytes/index/slot.zx", .name = "byte_index_slot" },
     .{ .path = "core/bytes/index/rebuild.zx", .name = "byte_index_rebuild" },

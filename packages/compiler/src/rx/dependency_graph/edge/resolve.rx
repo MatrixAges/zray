@@ -1,0 +1,85 @@
+<Module>
+    <Type from="model" as="Edge" />
+    <Type from="../model" as="Graph" />
+    <Type from="../../path_kind/model" as="Path" />
+
+    <Args in={Edge.Input} out={Edge.Output} />
+
+    <If on={$in.package_allowed && $in.packages.length != 0}>
+        <Call
+            fn="../../../zx/modules/project/target/select"
+            in={{
+                specifiers: $in.packages,
+                name: $in.reference,
+                check_duplicates: false
+            }}
+        />
+
+        <If on={$ctx.select.first != null}>
+            <Return
+                value={{
+                    included: false,
+                    target: 0,
+                    issue: Graph.Issue.None,
+                    required: 0
+                }}
+            />
+        </If>
+    </If>
+
+    <Call
+        fn="path_request"
+        in={{
+            directory: $in.directory,
+            reference: $in.reference,
+            kind: Path.Kind.ModuleReference
+        }}
+    />
+
+    <Call module="../../path_segments/normalize" in={$ctx.path_request} />
+
+    <If on={!$ctx.normalize.valid}>
+        <Return
+            value={{
+                included: true,
+                target: 0,
+                issue: Graph.Issue.InvalidPath,
+                required: 0
+            }}
+        />
+    </If>
+
+    <If on={$ctx.normalize.length > $in.workspace.bytes.length}>
+        <Return
+            value={{
+                included: true,
+                target: 0,
+                issue: Graph.Issue.None,
+                required: $ctx.normalize.length
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../path_segments/walk"
+        in={{
+            directory: $in.directory,
+            path: $ctx.path_request.path,
+            suffix: $ctx.normalize.suffix,
+            attached: $ctx.normalize.attached,
+            capacity: $ctx.normalize.length,
+            target: $in.workspace.target
+        }}
+    />
+
+    <Call
+        fn="lookup"
+        in={{
+            registry: $in.registry,
+            bytes: $in.workspace.bytes,
+            length: $ctx.walk.length
+        }}
+    />
+
+    <Return value={$ctx.lookup} />
+</Module>

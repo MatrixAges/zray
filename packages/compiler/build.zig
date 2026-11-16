@@ -72,6 +72,7 @@ pub fn build(b: *std.Build) void {
     const rx_options_module = rx_options.createModule();
 
     rx.addImport("rx_options", rx_options_module);
+    rx.addImport("zxc_standard", parser_modules.standard);
 
     const rx_analysis = b.addModule("rx_analysis", .{
         .root_source_file = b.path("src/rx/analysis/root.zig"),

@@ -1,0 +1,18 @@
+import bytes from "std:bytes"
+
+import type { Request } from "../../path_segments/model"
+
+export type Input = Request.Pick("directory", "kind") & {
+    reference: string
+}
+
+export type Output = Request
+
+export default function (in: Input): Output {
+    return {
+        directory: in.directory,
+        path: bytes.fromText(in.reference),
+        kind: in.kind,
+        suffix: ""
+    }
+}

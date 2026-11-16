@@ -1,13 +1,16 @@
 const std = @import("std");
 const dsl = @import("dsl");
 const generated = @import("generated_graph");
+const edge = @import("generated_graph_edge");
 const dependency = @import("reference.zig");
-const module_reference = @import("../module_reference.zig");
 const modules = @import("../modules.zig");
-const paths = @import("../paths.zig");
+const memory = @import("zxc_standard").memory;
 const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
 pub const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
 const Issue = @typeInfo(@FieldType(Input, "issues")).pointer.child;
+const Resolved = @typeInfo(@TypeOf(edge.executeValue(undefined, undefined))).error_union.payload;
+const Edge = if (@typeInfo(Resolved) == .pointer) std.meta.Child(Resolved) else Resolved;
+const inline_path_bytes = 512;
 const Link = struct { node: *const dsl.ast.Node, attribute: *const dsl.ast.Attribute };
 const Result = struct { offsets: []const u64, targets: []const u64, issues: []const Issue, links: []const Link };
 
@@ -17,6 +20,14 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
     var issues: std.ArrayList(Issue) = .empty;
     var links: std.ArrayList(Link) = .empty;
     var references: dependency.Iterator = .{};
+    var inline_path: [inline_path_bytes]u8 = undefined;
+    var path: []u8 = &inline_path;
+
+    const registry: std.meta.Child(@FieldType(std.meta.Child(edge.Input), "registry")) = .{
+        .keys = registered.keys,
+        .buckets = @ptrCast(&registered.buckets),
+        .capacity = registered.buckets.len,
+    };
 
     defer references.deinit(allocator);
 
@@ -25,15 +36,34 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
 
         references.reset(&source.node, source.references);
 
-        while (try references.next(allocator, true)) |selection| {
+        var next = try references.next(allocator, true);
+
+        if (next == null) continue;
+
+        const directory = std.fs.path.dirname(entries[owner]) orelse ".";
+        const packages = memory.borrowTextColumn("specifier", source.packages);
+
+        while (next) |selection| : (next = try references.next(allocator, true)) {
             const attribute = selection.attribute orelse unreachable;
-            const value = attribute.value;
 
-            if (selection.package_allowed and module_reference.isPackage(value, source.packages)) continue;
+            const input: std.meta.Child(edge.Input) = .{
+                .directory = directory,
+                .reference = attribute.value,
+                .package_allowed = selection.package_allowed,
+                .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
+                .registry = &registry,
+                .workspace = undefined,
+            };
 
-            const target = try resolve(allocator, registered, entries[owner], value);
+            var target = resolve(input, &path);
 
-            try targets.append(allocator, target.index);
+            if (target.required > path.len) {
+                path = try allocator.alloc(u8, std.math.cast(usize, target.required) orelse return error.OutOfMemory);
+                target = resolve(input, &path);
+            }
+
+            if (!target.included) continue;
+            try targets.append(allocator, target.target);
             try issues.append(allocator, target.issue);
             try links.append(allocator, .{ .node = selection.node, .attribute = attribute });
         }
@@ -44,13 +74,14 @@ pub fn build(allocator: std.mem.Allocator, registered: *const modules.Registry, 
     return .{ .offsets = offsets, .targets = targets.items, .issues = issues.items, .links = links.items };
 }
 
-fn resolve(allocator: std.mem.Allocator, registered: *const modules.Registry, owner: []const u8, reference: []const u8) std.mem.Allocator.Error!struct { index: u64 = 0, issue: Issue = .None } {
-    const path = paths.resolve(allocator, owner, reference) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidPath => return .{ .issue = .InvalidPath },
-    };
+fn resolve(request: std.meta.Child(edge.Input), path: *const []u8) Edge {
+    var input = request;
+    var storage: [@sizeOf(Edge)]u8 align(@alignOf(Edge)) = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&storage);
 
-    defer allocator.free(path);
+    input.workspace = &.{ .bytes = path.*, .target = @ptrCast(path) };
 
-    return if (registered.get(path)) |index| .{ .index = index } else .{ .issue = .Missing };
+    const resolved = edge.executeValue(scratch.allocator(), &input) catch unreachable;
+
+    return if (comptime @typeInfo(Resolved) == .pointer) resolved.* else resolved;
 }
