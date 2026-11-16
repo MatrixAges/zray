@@ -1,0 +1,40 @@
+import integers from "std:integer"
+
+import type { Member } from "./model"
+
+export type Input = {
+    members: Member[],
+    count: u32
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const offsets: u64[] = [0]
+    const count = integers.widen(in.count)
+
+    return loop({
+        offsets,
+        partition: 0,
+        end: 0
+    }, {
+        while: state => state.partition < count,
+        next: state => {
+            const partition = integers.narrow(state.partition)
+
+            const end = loop(state.end, {
+                while: position =>
+                    position < in.members.length &&
+                    in.members[position].partition == partition,
+                next: position => {
+                    position += 1
+                }
+            })
+
+            state.offsets = state.offsets.push(end)[0]
+            state.end = end
+            state.partition += 1
+        },
+        return: state => state.offsets
+    })
+}

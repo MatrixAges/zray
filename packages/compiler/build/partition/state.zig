@@ -1,7 +1,6 @@
 const std = @import("std");
 const cache_key = @import("cache_key.zig");
 const rules = @import("partition_rules");
-const partition_width = std.fmt.count("{d}", .{std.math.maxInt(u32)});
 const Encoded = @TypeOf(std.fmt.bytesToHex(@as(cache_key.Digest, @splat(0)), .lower));
 
 pub const Keys = struct {
@@ -17,26 +16,25 @@ pub const Keys = struct {
 
         return .{ .hex = hex };
     }
-    pub fn pending(self: Keys, allocator: std.mem.Allocator, previous: []const u8, present: []const bool) ![]const u32 {
+    /// Replaces presence with the entries safe to record before spawning any worker.
+    pub fn pending(self: Keys, allocator: std.mem.Allocator, previous: []const u8, present: []bool) ![]const u32 {
+        const bytes = std.mem.sliceAsBytes(present);
+
         return rules.partition_cache_check.executeValue(allocator, &.{
             .previous = previous,
             .digests = self.hex,
             .present = present,
+            .target = @ptrCast(&bytes),
         });
     }
     pub fn write(self: Keys, io: std.Io, allocator: std.mem.Allocator, path: []const u8, valid: []const bool) !void {
-        const numbers = try allocator.alloc([partition_width]u8, self.hex.len);
-        const prefixes = try allocator.alloc([]const u8, self.hex.len);
-
-        for (numbers, prefixes, 0..) |*number, *prefix, index| {
-            prefix.* = std.fmt.bufPrint(number, "{d}", .{@as(u32, @intCast(index))}) catch unreachable;
-        }
-
         var text = std.Io.Writer.Allocating.init(allocator);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        try rules.partition_cache_publish.executeValue(allocator, &.{
+        defer text.deinit();
+
+        try rules.partition_cache_publish.executeValue(empty.allocator(), &.{
             .out = @ptrCast(&text.writer),
-            .prefixes = prefixes,
             .digests = self.hex,
             .valid = valid,
         });
@@ -49,3 +47,14 @@ pub const Keys = struct {
         try file.replace(io);
     }
 };
+
+pub fn complete(pending: []const u32, failures: []const ?[]const u8, valid: []bool) !bool {
+    const bytes = std.mem.sliceAsBytes(valid);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return rules.partition_cache_complete.executeValue(empty.allocator(), &.{
+        .pending = pending,
+        .failures = failures,
+        .target = @ptrCast(&bytes),
+    });
+}

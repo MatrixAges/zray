@@ -41,16 +41,26 @@ pub fn create(b: *std.Build, source: std.Build.LazyPath) *std.Build.Step.Compile
     });
 }
 
-pub fn generated(b: *std.Build, source: std.Build.LazyPath, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, strip: ?bool, shared_standard: ?*std.Build.Module) *std.Build.Module {
+const NativeImports = struct { standard: *std.Build.Module, string: *std.Build.Module };
+
+pub fn generated(b: *std.Build, source: std.Build.LazyPath, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, strip: ?bool, shared: ?NativeImports) *std.Build.Module {
     const abi = b.createModule(.{ .root_source_file = source.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
-    const standard = shared_standard orelse standardModule(b, target, optimize, abi);
+
+    const natives = shared orelse NativeImports{
+        .standard = standardModule(b, target, optimize, abi),
+        .string = b.createModule(.{ .root_source_file = b.dependency("zxc_std", .{}).path("src/string.zig"), .target = target, .optimize = optimize, .strip = strip }),
+    };
 
     return b.createModule(.{
         .root_source_file = source.path(b, "root.zig"),
         .target = target,
         .optimize = optimize,
         .strip = strip,
-        .imports = &.{ .{ .name = "zxc_abi", .module = abi }, .{ .name = "zxc_standard", .module = standard } },
+        .imports = &.{
+            .{ .name = "zxc_abi", .module = abi },
+            .{ .name = "zxc_standard", .module = natives.standard },
+            .{ .name = "zxc_string", .module = natives.string },
+        },
     });
 }
 

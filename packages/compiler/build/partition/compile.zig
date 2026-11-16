@@ -49,7 +49,7 @@ pub fn main(init: std.process.Init) !void {
 
     for (args[5..separator]) |path| try shared.input(init.io, allocator, path);
 
-    const digests = try cache_key.partitions(allocator, plan.count, shared.state(), listed, selected.members);
+    const digests = try cache_key.partitions(allocator, shared.state(), listed, selected.members, selected.offsets);
     const keys = try state.Keys.init(allocator, digests);
     const state_path = try std.fs.path.join(allocator, &.{ plan.objects, "state" });
 
@@ -71,16 +71,27 @@ pub fn main(init: std.process.Init) !void {
     const pending = try keys.pending(allocator, previous, present);
 
     if (pending.len == 0) return;
-
     // Drop old records before any worker can replace an object. An interrupted build can leave an object without a
     // record, which will be rebuilt even when the inputs return to their previous contents.
-    @memset(present, true);
-
-    for (pending) |index| present[index] = false;
     if (previous.len != 0) try keys.write(init.io, allocator, state_path, present);
 
+    const arguments = try rules.partition_arguments_prepare.executeValue(allocator, &.{
+        .arguments = plan.template,
+        .generated = plan.generated,
+        .objects = plan.objects,
+    });
+
     const results = try allocator.alloc(?[]const u8, pending.len);
-    var work = Work{ .io = init.io, .plan = plan, .pending = pending, .results = results };
+
+    var work = Work{
+        .io = init.io,
+        .owner = allocator,
+        .zig = plan.zig,
+        .arguments = arguments,
+        .pending = pending,
+        .results = results,
+    };
+
     const threads = try allocator.alloc(std.Thread, @min(std.Thread.getCpuCount() catch 1, pending.len) -| 1);
     var started: usize = 0;
 
@@ -93,15 +104,11 @@ pub fn main(init: std.process.Init) !void {
 
     for (threads[0..started]) |thread| thread.join();
 
-    var failed = false;
+    const failed = try state.complete(pending, results, present);
 
-    for (pending, results) |index, result| {
+    for (results) |result| {
         if (result) |stderr| {
-            failed = true;
-
             try std.Io.File.stderr().writeStreamingAll(init.io, stderr);
-        } else {
-            present[index] = true;
         }
     }
 
@@ -121,7 +128,9 @@ const Plan = struct {
 /// Compiles the pending partitions; a result holds the compiler's output when it failed.
 const Work = struct {
     io: std.Io,
-    plan: Plan,
+    owner: std.mem.Allocator,
+    zig: []const u8,
+    arguments: []const []const u8,
     pending: []const u32,
     results: []?[]const u8,
     next: std.atomic.Value(usize) = .init(0),
@@ -140,26 +149,23 @@ const Work = struct {
         defer arena.deinit();
 
         const allocator = arena.allocator();
-        const argv = try allocator.alloc([]const u8, self.plan.template.len + 1);
+        const argv = try allocator.alloc([]const u8, self.arguments.len + 1);
+        const target = argv[1..];
+        argv[0] = self.zig;
 
-        argv[0] = self.plan.zig;
-
-        for (self.plan.template, argv[1..]) |arg, *target| target.* = try substitute(allocator, arg, self.plan, index);
+        try rules.partition_arguments_render.executeValue(allocator, &.{
+            .arguments = self.arguments,
+            .index = index,
+            .target = @ptrCast(&target),
+        });
 
         const result = try std.process.run(allocator, self.io, .{ .argv = argv });
 
         if (result.term == .exited and result.term.exited == 0) return null;
 
-        return try std.fmt.allocPrint(std.heap.smp_allocator, "partition {d}: Zig terminated with {any}\n{s}", .{ index, result.term, result.stderr });
+        return try std.fmt.allocPrint(self.owner, "partition {d}: Zig terminated with {any}\n{s}", .{ index, result.term, result.stderr });
     }
 };
-
-fn substitute(allocator: std.mem.Allocator, arg: []const u8, plan: Plan, index: u32) ![]const u8 {
-    const generated = try std.mem.replaceOwned(u8, allocator, arg, "%generated%", plan.generated);
-    const objects = try std.mem.replaceOwned(u8, allocator, generated, "%objects%", plan.objects);
-
-    return std.mem.replaceOwned(u8, allocator, objects, "%index%", try std.fmt.allocPrint(allocator, "{d}", .{index}));
-}
 
 fn objectPath(allocator: std.mem.Allocator, objects: []const u8, index: u32) ![]const u8 {
     return std.fmt.allocPrint(allocator, "{s}/zxc_partition_{d}.o", .{ objects, index });

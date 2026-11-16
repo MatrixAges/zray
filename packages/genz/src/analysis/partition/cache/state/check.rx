@@ -19,5 +19,16 @@
         }}
     />
 
+    <If on={$ctx.pending.length != 0}>
+        <Call
+            fn="retain"
+            in={{
+                pending: $ctx.pending,
+                length: $in.present.length,
+                target: $in.target
+            }}
+        />
+    </If>
+
     <Return value={$ctx.pending} />
 </Module>

@@ -1,0 +1,5 @@
+export const generated_marker: string = "%generated%"
+
+export const objects_marker: string = "%objects%"
+
+export const index_marker: string = "%index%"

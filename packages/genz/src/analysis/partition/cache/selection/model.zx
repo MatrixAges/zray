@@ -9,8 +9,12 @@ export type Manifest = {
     count: u32
 }
 
-export type Selection = {
+export type Selected = {
     types?: u64,
     signatures?: u64,
     members: Member[]
+}
+
+export type Selection = Selected & {
+    offsets: u64[]
 }

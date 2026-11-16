@@ -13,11 +13,20 @@
         }}
     />
 
+    <Call
+        fn="offsets"
+        in={{
+            members: $ctx.order,
+            count: $in.count
+        }}
+    />
+
     <Return
         value={{
             types: $ctx.select.types,
             signatures: $ctx.select.signatures,
-            members: $ctx.order
+            members: $ctx.order,
+            offsets: $ctx.offsets
         }}
     />
 </Module>

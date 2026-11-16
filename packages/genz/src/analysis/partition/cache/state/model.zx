@@ -1,4 +1,5 @@
 import type { Writer } from "std:bytes"
+import type { U8Buffer } from "std:memory"
 
 export type Lookup = {
     previous: u8[],
@@ -6,12 +7,12 @@ export type Lookup = {
 }
 
 export type Build = Lookup & {
-    present: bool[]
+    present: bool[],
+    target: U8Buffer
 }
 
 export type Publish = {
     out: Writer,
-    prefixes: string[],
     digests: u8[][],
     valid: bool[]
 }

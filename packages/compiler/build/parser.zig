@@ -436,7 +436,11 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     const type_views = @import("compiler.zig").typeViews(b, target, optimize);
     const nominal_data = @import("compiler.zig").nominalData(b, target, optimize);
     const bindings = b.allocator.alloc(@import("compiler.zig").ModuleBinding, entries.module_entries.len) catch @panic("out of memory");
-    const host = @import("host_metadata.zig").generated(b, source.host, target, optimize, strip, natives.generated.import_table.get("zxc_standard").?);
+
+    const host = @import("host_metadata.zig").generated(b, source.host, target, optimize, strip, .{
+        .standard = natives.generated.import_table.get("zxc_standard").?,
+        .string = natives.generated.import_table.get("zxc_string").?,
+    });
 
     for (entries.module_entries, bindings) |metadata, *binding| {
         const directory = switch (metadata.set) {

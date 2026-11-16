@@ -3,7 +3,7 @@ import integers from "std:integer"
 import { signatures_file, types_file } from "../const"
 import partition from "./partition"
 
-import type { Manifest as Input, Member, Selection as Output } from "./model"
+import type { Manifest as Input, Member, Selected as Output } from "./model"
 
 export default function (in: Input): Output {
     const members: Member[] = []

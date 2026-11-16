@@ -6,6 +6,13 @@ export declare function copy(allocator, value: string): string throws { OutOfMem
 
 export declare function sameStorage(left: string, right: string): bool concurrent
 
+export declare function replaceAll(
+    allocator,
+    value: string,
+    pattern: string,
+    replacement: string
+): string throws { OutOfMemory, EmptyPattern } concurrent
+
 export declare function copyList(
     allocator,
     values: string[]

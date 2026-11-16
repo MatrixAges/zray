@@ -1,0 +1,22 @@
+import strings from "std:string"
+
+import { generated_marker, objects_marker } from "./const"
+
+export type Input = {
+    arguments: string[],
+    generated: string,
+    objects: string
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    return in.arguments.map(
+        argument => {
+            const generated =
+                strings.replaceAll(argument, generated_marker, in.generated)
+
+            return strings.replaceAll(generated, objects_marker, in.objects)
+        }
+    )[0]
+}

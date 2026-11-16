@@ -1,0 +1,29 @@
+import memory from "std:memory"
+import strings from "std:string"
+
+import { index_marker } from "./const"
+
+import type { StringBuffer } from "std:memory"
+
+export type Input = {
+    arguments: string[],
+    index: u32,
+    target: StringBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const number = `${in.index}`
+
+    const rendered = loop(0, {
+        while: position => position < in.arguments.length,
+        next: position => {
+            const argument =
+                strings.replaceAll(in.arguments[position], index_marker, number)
+
+            memory.writeString(in.target, position, argument)
+            position += 1
+        }
+    })
+}

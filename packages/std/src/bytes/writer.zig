@@ -33,6 +33,10 @@ pub fn writeHexU64(out: *const anyopaque, value: u64) Error!void {
     writer(out).print("{x:0>16}", .{value}) catch return error.OutOfMemory;
 }
 
+pub fn writeDecimalU64(out: *const anyopaque, value: u64) Error!void {
+    writer(out).print("{d}", .{value}) catch return error.OutOfMemory;
+}
+
 pub fn writeU32sLe(out: *const anyopaque, values: []const u32) Error!void {
     writer(out).writeSliceEndian(u32, values, .little) catch return error.OutOfMemory;
 }

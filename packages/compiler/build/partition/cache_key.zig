@@ -95,17 +95,11 @@ fn external(hash: *HashWriter, path: []const u8, size: ?u64) void {
     rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(&hash.writer), .path = path, .size = size }) catch unreachable;
 }
 
-pub fn partitions(allocator: std.mem.Allocator, count: u32, shared: Blake3, manifest: Listed, ordered: Members) ![]Digest {
-    const digests = try allocator.alloc(Digest, count);
-    var end: usize = 0;
+pub fn partitions(allocator: std.mem.Allocator, shared: Blake3, manifest: Listed, ordered: Members, offsets: []const u64) ![]Digest {
+    const digests = try allocator.alloc(Digest, offsets.len - 1);
 
-    for (digests, 0..) |*digest, partition| {
-        const start = end;
-
-        while (end < ordered.len and ordered[end].partition == partition) : (end += 1) {}
-
-        members(shared, manifest, ordered[start..end], digest);
-    }
+    for (digests, offsets[0..digests.len], offsets[1..]) |*digest, start, end|
+        members(shared, manifest, ordered[@intCast(start)..@intCast(end)], digest);
 
     return digests;
 }
