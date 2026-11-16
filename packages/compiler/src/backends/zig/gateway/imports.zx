@@ -1,0 +1,25 @@
+import memory from "std:memory"
+
+import type { StringBuffer, TextColumn } from "std:memory"
+
+export type Input = {
+    modules: TextColumn,
+    count: u64,
+    imports: StringBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            memory.writeString(
+                in.imports,
+                row,
+                memory.readTextColumn(in.modules, row)
+            )
+            row += 1
+        }
+    })
+}

@@ -73,12 +73,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     }
 
     const objects = try @import("../state/objects.zig").create(allocator, output.modules, output.writable, independent);
-    const slots = try allocator.alloc(generating.gateway.Slot, output.indices.len);
-
-    for (output.indices, output.access, slots) |index, writable, *slot| {
-        slot.* = .{ .index = index, .writable = writable };
-    }
-
+    const slots = try @import("slots.zig").create(allocator, output.indices, output.access);
     const services = try allocator.alloc(generating.gateway.Service, library.exports.len);
     var start: usize = 0;
 
