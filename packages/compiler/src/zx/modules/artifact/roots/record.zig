@@ -1,6 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const names = @import("../../../ir/canonical/validation/names/view.zig");
 const Record = @import("../../module_record.zig");
 const Binding = @import("../../function_import.zig");

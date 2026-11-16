@@ -1,0 +1,76 @@
+import integers from "std:integer"
+import memory from "zig:compiler_memory"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { source, target } = in
+
+    return loop({
+        module: 0,
+        roots: 0,
+        members: 0
+    }, {
+        while: current => current.module < source.count,
+        next: current => {
+            const module = current.module
+            const entry = memory.readColumnOptionalU32(source.defaults, module)
+
+            if (entry != null) {
+                memory.writeU32(target.roots, current.roots, entry)
+                current.roots += 1
+            }
+
+            const count = memory.listLength(source.member_ids, module)
+            const selected = loop({
+                row: 0,
+                roots: current.roots,
+                members: current.members
+            }, {
+                while: member => member.row < count,
+                next: member => {
+                    const id = memory.readListOptionalU32(
+                        source.member_ids,
+                        module,
+                        member.row
+                    )
+
+                    if (id != null) {
+                        const name = memory.readListText(
+                            source.member_names,
+                            module,
+                            member.row
+                        )
+
+                        memory.writeU32(target.roots, member.roots, id)
+                        memory.writeU32(target.member_ids, member.members, id)
+                        memory.writeNamedRow(
+                            target.members,
+                            member.members,
+                            name,
+                            id
+                        )
+                        memory.writeU8(target.regular, integers.widen(id), 1)
+                        member.roots += 1
+                        member.members += 1
+                    }
+
+                    member.row += 1
+                },
+                return: member => {
+                    roots: member.roots,
+                    members: member.members
+                }
+            })
+
+            current.roots = selected.roots
+            current.members = selected.members
+            memory.writeU64(target.ends, module, current.members)
+            current.module += 1
+        },
+        return: current => {
+            roots: current.roots,
+            members: current.members
+        }
+    })
+}

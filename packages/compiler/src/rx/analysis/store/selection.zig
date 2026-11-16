@@ -44,7 +44,7 @@ pub fn collect(allocator: std.mem.Allocator, definitions: []const Store.Definiti
 fn select(allocator: std.mem.Allocator, definitions: []const Store.Definition, program: *const zx.ir.Program, ids: []const u32, output: *std.ArrayList(Initializer)) Error!void {
     const Input = std.meta.Child(rule.Input);
     const Members = std.meta.Child(@FieldType(Input, "members"));
-    const memory = @import("zxc_standard").memory;
+    const memory = @import("zx").memory;
 
     const members: Members = .{
         .ids = ids,

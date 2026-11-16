@@ -3,7 +3,7 @@ const bytes = @import("zx").bytes;
 const Source = @import("frontend").project.Source;
 const Graph = @import("../source_graph/model.zig").Graph;
 const generated = @import("rx_options").generated_graph;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 
 pub const SourceScan = struct {
     earlier_paths: memory.TextColumn,

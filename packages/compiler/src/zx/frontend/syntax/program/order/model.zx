@@ -1,4 +1,4 @@
-import type { U64Buffer } from "std:memory"
+import type { U64Buffer } from "zig:compiler_memory"
 import type { BlockTree } from "../../../parser/body/model"
 import type { ExprTree } from "../../../parser/expressions/state/model"
 

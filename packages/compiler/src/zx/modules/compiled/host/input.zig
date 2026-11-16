@@ -1,6 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const model = @import("../../compiled.zig");
 const load = @import("../load.zig");
 const Origins = @import("../../nominal_origins.zig");

@@ -1,4 +1,4 @@
-import memory from "std:memory"
+import memory from "zig:compiler_memory"
 import exchange from "core/bytes/index/column"
 
 import type { Initializers as Input } from "./model"

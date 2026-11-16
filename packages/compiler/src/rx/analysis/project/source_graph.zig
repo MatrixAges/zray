@@ -283,7 +283,7 @@ fn invalidRegistration(options: Options, sources: model.Sources) std.mem.Allocat
     if (options.modules.len == 0 and options.stores.len == 0) return null;
 
     const rule = @import("generated_source_graph_registration");
-    const memory = @import("zxc_standard").memory;
+    const memory = @import("zx").memory;
     const modules = memory.borrowTextColumn("path", options.modules);
     const stores = memory.borrowTextColumn("path", options.stores);
 

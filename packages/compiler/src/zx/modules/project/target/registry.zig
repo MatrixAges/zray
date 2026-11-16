@@ -28,7 +28,7 @@ pub fn select(rows: anytype, comptime field: []const u8, name: []const u8, check
         return result;
     }
 
-    const names = @import("zxc_standard").memory.borrowTextColumn(field, rows);
+    const names = @import("zx").memory.borrowTextColumn(field, rows);
     const rule = @import("generated_project_package_select");
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
@@ -48,7 +48,7 @@ pub fn native(scoped: []const Native, name: []const u8, check_duplicates: bool) 
 
     const generated = @import("generated_project_interface_lookup");
     const Input = std.meta.Child(generated.Input);
-    const memory = @import("zxc_standard").memory;
+    const memory = @import("zx").memory;
     const standard = memory.borrowTextColumn("specifier", @as([]const Native, &interface.standard));
     const local = memory.borrowTextColumn("specifier", scoped);
     var scratch = std.heap.FixedBufferAllocator.init(&.{});

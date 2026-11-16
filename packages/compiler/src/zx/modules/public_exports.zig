@@ -106,7 +106,7 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
     if (count == 0) return .{};
     if (comptime !generated_mode) return seedSelect(allocator, first, second, functions, roots, has_function);
 
-    const memory = @import("zxc_standard").memory;
+    const memory = @import("zx").memory;
     const generated = @import("generated_project_public_exports");
     const Input = std.meta.Child(generated.Input);
     const Facts = std.meta.Child(@typeInfo(@FieldType(Input, "signature")).optional.child);

@@ -1,5 +1,5 @@
 const std = @import("std");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const Map = @import("frontend").project.source_index.Map;
 const Initializer = @import("../modules.zig").StoreInitializer;
 const Self = @This();

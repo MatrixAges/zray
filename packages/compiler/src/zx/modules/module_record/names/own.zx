@@ -1,8 +1,8 @@
 import encoding from "std:encoding"
-import memory from "std:memory"
 import strings from "std:string"
+import memory from "zig:compiler_memory"
 
-import type { StringBuffer } from "std:memory"
+import type { StringBuffer } from "zig:compiler_memory"
 import type { Names } from "./model"
 
 export type Input = {

@@ -1,6 +1,6 @@
-import memory from "std:memory"
+import memory from "zig:compiler_memory"
 
-import type { TextColumn } from "std:memory"
+import type { TextColumn } from "zig:compiler_memory"
 
 export type Rows = {
     items: TextColumn,

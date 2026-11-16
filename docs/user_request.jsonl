@@ -487,3 +487,5 @@
 {"time": "2026-11-15", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "工作模式是，先以三千行左右代码设计一个迁移计划，然后执行迁移，然后性能回测，这样有计划地提交就能完成zig代码的全部迁移了", "kind": "goal"}
 {"time": "2026-11-15", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "不要求得满足1000行才能提交 还是保持完成一个大的特性改动就提交"}
 {"time": "2026-11-15", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "20000那个规则移除掉"}
+{"time": "2026-11-16", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "我希望的是 用户不需要关注如何借用 只需要用就行了 编译器自行处理借用"}
+{"time": "2026-11-16", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "从std memory中移除它，不要放入标准库，按我说的方式实现编译器处理借用"}

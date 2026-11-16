@@ -32,7 +32,7 @@ pub fn qualify(allocator: std.mem.Allocator, prefix: []const u8, parent: []const
 /// The first match in discovery order or in a stable bytewise path order.
 pub fn interfaceRow(comptime field: []const u8, records: anytype, path: []const u8, sorted: bool) ?usize {
     if (comptime generated) {
-        const paths = @import("zxc_standard").memory.borrowTextColumn(field, records);
+        const paths = @import("zx").memory.borrowTextColumn(field, records);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         const row = @import("generated_input_interface").executeValue(empty.allocator(), &.{

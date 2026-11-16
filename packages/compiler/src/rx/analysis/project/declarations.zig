@@ -1,7 +1,7 @@
 const std = @import("std");
 const rx = @import("rx");
 const generated = @import("rx_options").generated_graph;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const rule = if (generated) @import("generated_rx_declaration_next") else void;
 const Self = @This();
 pub const Kind = if (generated) @FieldType(std.meta.Child(rule.Input), "kind") else enum { Arguments, TypeImport, Store, Field };

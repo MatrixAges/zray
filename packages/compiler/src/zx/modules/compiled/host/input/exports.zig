@@ -1,5 +1,5 @@
 const std = @import("std");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const Export = @import("../../../compiled.zig").Export;
 
 pub fn columns(comptime Target: type, allocator: std.mem.Allocator, exports: []const Export, paths: *memory.TextColumn) std.mem.Allocator.Error!Target {

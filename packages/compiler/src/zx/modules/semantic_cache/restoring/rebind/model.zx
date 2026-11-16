@@ -1,4 +1,4 @@
-import type { OptionalU32Buffer } from "std:memory"
+import type { OptionalU32Buffer } from "zig:compiler_memory"
 import type { Aliases, Bindings, Signatures } from "../functions/model"
 import type { Input as Modules } from "../modules"
 

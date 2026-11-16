@@ -1,4 +1,4 @@
-import type { TextColumn, U8Buffer } from "std:memory"
+import type { TextColumn, U8Buffer } from "zig:compiler_memory"
 import type { Contracts } from "core/contract_table/model"
 import type { Expressions } from "core/expression_table/model"
 import type { Modules } from "core/native_module_table/model"

@@ -1,4 +1,4 @@
-import type { TextColumn } from "std:memory"
+import type { TextColumn } from "zig:compiler_memory"
 
 export enum SourceChange {
     DifferentPath,

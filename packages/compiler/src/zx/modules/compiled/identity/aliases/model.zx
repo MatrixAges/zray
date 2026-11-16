@@ -1,4 +1,4 @@
-import type { TextColumn } from "std:memory"
+import type { TextColumn } from "zig:compiler_memory"
 import type { Modules } from "core/native_module_table/model"
 
 export type Configured = {

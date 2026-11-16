@@ -15,7 +15,7 @@ pub fn scan(node: rx.ast.Node) Self {
     const rule = @import("generated_rx_call_attributes");
     const Input = std.meta.Child(rule.Input);
     const attributes = node.attributes;
-    const names = @import("zxc_standard").memory.borrowTextColumn("name", attributes);
+    const names = @import("zx").memory.borrowTextColumn("name", attributes);
     const input: Input = .{ .names = @ptrCast(&names), .count = attributes.len };
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
     const slots = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;

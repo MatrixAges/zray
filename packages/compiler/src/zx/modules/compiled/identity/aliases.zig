@@ -1,6 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const identity = @import("../identity.zig");
 const Modules = zx.ir.NativeModuleTable;
 

@@ -111,13 +111,6 @@
         "implementation_path": "src/root.zig"
     },
     {
-        "specifier": "std:memory",
-        "path": "interfaces/memory.d.zx",
-        "module": "zxc_standard",
-        "namespace": ["memory"],
-        "implementation_path": "src/root.zig"
-    },
-    {
         "specifier": "std:float",
         "path": "interfaces/float.d.zx",
         "module": "zxc_standard",

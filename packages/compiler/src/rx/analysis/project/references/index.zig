@@ -3,7 +3,7 @@ const frontend = @import("frontend");
 const Module = frontend.project.signature_project.Module;
 const Map = frontend.project.source_index.Map;
 const Sources = @import("../source_graph/model.zig").Sources;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const rule = @import("generated_rx_publish_signature_index");
 const Input = std.meta.Child(rule.Input);
 

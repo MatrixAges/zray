@@ -32,7 +32,7 @@ pub fn checkFile(self: Self, path: []const u8, reporter: *zx.Reporter, span: zx.
     if (self.scopes.len == 0) return;
 
     if (comptime enabled) {
-        const roots = @import("zxc_standard").memory.borrowTextColumn("root", self.scopes);
+        const roots = @import("zx").memory.borrowTextColumn("root", self.scopes);
 
         const input: std.meta.Child(boundary.Input) = .{
             .roots = &.{ .items = @ptrCast(&roots), .length = roots.count },

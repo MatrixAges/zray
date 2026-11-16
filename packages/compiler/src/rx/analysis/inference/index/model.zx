@@ -1,4 +1,4 @@
-import type { U8Buffer, U32Buffer } from "std:memory"
+import type { U8Buffer, U32Buffer } from "zig:compiler_memory"
 import type { State as KnownTypes } from "core/integer/map/model"
 import type { Graph, IndexPlan } from "../sequences/model"
 

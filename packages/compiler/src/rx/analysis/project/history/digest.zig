@@ -1,6 +1,6 @@
 const std = @import("std");
 const History = @import("../history.zig");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const project = @import("frontend").project;
 
 pub fn publishSource(cache: *const project.ParseCache, paths: []const []const u8, sources: []const project.Source, retained: ?*const History.Retained, target: History.SourceDigests) void {

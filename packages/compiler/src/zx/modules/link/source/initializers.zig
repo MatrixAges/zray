@@ -28,7 +28,7 @@ fn reuse(values: []const Initializer, shared: []const Initializer, prefix: u32) 
     const same_rows = values.ptr == shared.ptr;
 
     if (comptime generated) {
-        const memory = @import("zxc_standard").memory;
+        const memory = @import("zx").memory;
         const rule = @import("generated_source_initializer_prefix");
         const left = memory.borrowTextColumn("identity", values);
         const right = memory.borrowTextColumn("identity", shared);

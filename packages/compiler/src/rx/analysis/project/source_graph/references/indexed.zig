@@ -1,6 +1,6 @@
 const std = @import("std");
 const rx = @import("rx");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const batch = @import("generated_rx_reference_batch");
 const Reference = @import("../model.zig").Reference;
 const Entry = rx.dependency_reference.Entry;

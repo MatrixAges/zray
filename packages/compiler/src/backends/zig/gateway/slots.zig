@@ -1,6 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const Slot = @import("genz").gateway.Slot;
 const rule = @import("generated_gateway_slots");
 

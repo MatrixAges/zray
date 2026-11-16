@@ -33,8 +33,8 @@ pub const Names = struct {
         };
     }
 
-    pub fn column(self: Names) @import("zxc_standard").memory.TextColumn {
-        const memory = @import("zxc_standard").memory;
+    pub fn column(self: Names) @import("zx").memory.TextColumn {
+        const memory = @import("zx").memory;
 
         return switch (self.named) {
             inline else => |items| memory.borrowTextColumn("name", items),

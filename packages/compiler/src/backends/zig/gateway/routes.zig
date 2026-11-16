@@ -33,7 +33,7 @@ fn ordered(definition: anytype, exports: []const Export) bool {
     }
 
     const rule = @import("generated_gateway_route_services");
-    const memory = @import("zxc_standard").memory;
+    const memory = @import("zx").memory;
     const route_names = memory.borrowTextColumn("service", definition.routes);
     const export_names = memory.borrowTextColumn("name", exports);
 

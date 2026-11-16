@@ -6,7 +6,7 @@ import representative from "../forest/borrowed_root"
 import query from "./query"
 import { Action } from "./query"
 
-import type { U32Buffer } from "std:memory"
+import type { U32Buffer } from "zig:compiler_memory"
 import type { Columns } from "../fields/shape"
 import type { Mode as ObjectMode } from "../fields/view"
 import type { Output as Plan, Snapshot } from "./query"

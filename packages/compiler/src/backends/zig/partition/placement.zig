@@ -1,6 +1,6 @@
 const std = @import("std");
 const layout = @import("layout.zig");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 
 pub const File = struct { path: []const u8, source: []const u8 };
 

@@ -1,4 +1,4 @@
-import type { U32Buffer } from "std:memory"
+import type { U32Buffer } from "zig:compiler_memory"
 import type { Input as DepthInput, Output as DepthResult } from "../depth/model"
 import type { ClassLookup, Nodes } from "../model"
 

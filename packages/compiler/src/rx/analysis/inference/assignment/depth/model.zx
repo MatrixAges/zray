@@ -1,4 +1,4 @@
-import type { U32Buffer, U64Buffer } from "std:memory"
+import type { U32Buffer, U64Buffer } from "zig:compiler_memory"
 import type { Types } from "../../optional/model"
 import type { Edges, Nodes } from "../model"
 

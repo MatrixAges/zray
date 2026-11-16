@@ -46,7 +46,7 @@ pub fn copyExports(allocator: std.mem.Allocator, source: []const ir.Export, type
 
     const result = try allocator.alloc(ir.Export, source.len);
     const rows = names.borrow(source);
-    const target = @import("zxc_standard").memory.borrowNamedRows("type_id", result);
+    const target = @import("zx").memory.borrowNamedRows("type_id", result);
     var written: [1]u64 = .{0};
 
     errdefer {

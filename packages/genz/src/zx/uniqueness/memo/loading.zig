@@ -1,6 +1,6 @@
 const std = @import("std");
 const columns = @import("zx").columns;
-const borrowColumn = @import("zxc_standard").memory.borrowWriteColumn;
+const borrowColumn = @import("zx").memory.borrowWriteColumn;
 const Memo = @import("../memo.zig");
 const Function = @import("../function.zig");
 const disk = @import("disk.zig");

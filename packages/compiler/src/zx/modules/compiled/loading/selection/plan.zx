@@ -1,4 +1,4 @@
-import memory from "std:memory"
+import memory from "zig:compiler_memory"
 
 import { missing_public_module } from "./const"
 import locate from "./locate"

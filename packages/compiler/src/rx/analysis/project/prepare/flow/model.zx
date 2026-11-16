@@ -1,4 +1,4 @@
-import type { U8Buffer, U32Buffer } from "std:memory"
+import type { U8Buffer, U32Buffer } from "zig:compiler_memory"
 
 export type Index = {
     facts: u32[],

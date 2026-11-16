@@ -1,6 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const project = @import("frontend").project;
 const Collector = @import("../collect.zig");
 const position = @import("../position.zig");

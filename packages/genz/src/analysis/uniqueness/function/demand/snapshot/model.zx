@@ -1,4 +1,4 @@
-import type { WriteColumn } from "std:memory"
+import type { WriteColumn } from "zig:compiler_memory"
 import type { Growth } from "../../levels/model"
 
 export type Columns = {

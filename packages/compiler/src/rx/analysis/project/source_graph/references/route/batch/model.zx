@@ -1,4 +1,9 @@
-import type { IndirectTextColumn, ReadColumn, U64Buffer, U8Buffer } from "std:memory"
+import type {
+    IndirectTextColumn,
+    ReadColumn,
+    U64Buffer,
+    U8Buffer
+} from "zig:compiler_memory"
 import type { Input as Route } from "../model"
 
 export type References = {

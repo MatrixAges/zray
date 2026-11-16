@@ -4,7 +4,7 @@ import fixed from "core/bytes/index/fixed"
 import source from "../source_graph/source"
 import { Kind } from "../source_graph/source"
 
-import type { U64Buffer } from "std:memory"
+import type { U64Buffer } from "zig:compiler_memory"
 import type { Ranges } from "../source_graph/source"
 
 export type Input = {

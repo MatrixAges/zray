@@ -10,7 +10,7 @@ pub fn same(previous: Columns, incoming: anytype) bool {
 
     if (comptime generated) {
         const rule = @import("generated_input_parsed_same");
-        const memory = @import("zxc_standard").memory;
+        const memory = @import("zx").memory;
         const paths = memory.borrowTextColumn("path", incoming);
         const texts = memory.borrowTextColumn("source", incoming);
         var empty = std.heap.FixedBufferAllocator.init(&.{});

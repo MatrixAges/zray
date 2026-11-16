@@ -1,5 +1,5 @@
-import memory from "std:memory"
 import strings from "std:string"
+import memory from "zig:compiler_memory"
 
 import copyNames from "../copy_names"
 import copyOptionalName from "../copy_optional_name"
@@ -9,7 +9,7 @@ import type {
     StringBuffer,
     StringListBuffer,
     U32ListBuffer
-} from "std:memory"
+} from "zig:compiler_memory"
 import type { Modules } from "core/native_module_table/model"
 
 export type Destination = {

@@ -1,6 +1,6 @@
-import memory from "std:memory"
+import memory from "zig:compiler_memory"
 
-import type { U8Buffer, U32Buffer, U64Buffer } from "std:memory"
+import type { U8Buffer, U32Buffer, U64Buffer } from "zig:compiler_memory"
 import type { Metadata } from "core/expression_table/append/model"
 
 export type Header = {

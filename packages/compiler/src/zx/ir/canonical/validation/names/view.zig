@@ -1,4 +1,4 @@
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const Export = @import("zx").ir.Export;
 
 pub const Rows = []const memory.NamedId;

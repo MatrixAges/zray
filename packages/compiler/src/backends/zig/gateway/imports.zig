@@ -17,7 +17,7 @@ pub fn prefixed(allocator: std.mem.Allocator, prefix: []const u8, comptime field
     }
 
     const rule = @import("generated_gateway_imports");
-    const memory = @import("zxc_standard").memory;
+    const memory = @import("zx").memory;
     const modules = memory.borrowTextColumn(field, rows);
 
     const input: std.meta.Child(rule.Input) = .{

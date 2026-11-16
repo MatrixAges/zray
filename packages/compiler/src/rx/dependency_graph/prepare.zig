@@ -4,7 +4,7 @@ const generated = @import("generated_graph");
 const publish = @import("generated_graph_edges");
 const dependency = @import("reference.zig");
 const modules = @import("../modules.zig");
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
 pub const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
 const Issue = @typeInfo(@FieldType(Input, "issues")).pointer.child;

@@ -1,4 +1,4 @@
-import memory from "std:memory"
+import memory from "zig:compiler_memory"
 import key from "core/native_module_table/key"
 
 import locate from "../../loading/selection/locate"

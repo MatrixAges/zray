@@ -1,4 +1,4 @@
-import type { TextColumn } from "std:memory"
+import type { TextColumn } from "zig:compiler_memory"
 import type { Literal } from "core/constant/model"
 import type { FunctionBinding } from "../../../../../zx/modules/binding/model"
 import type { Prefix } from "../../../../../zx/modules/link/source/initializer_rows"

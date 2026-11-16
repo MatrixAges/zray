@@ -5,7 +5,7 @@ import { Action as FieldAction } from "../fields/existing"
 import field from "../fields/existing"
 import find from "../known/find"
 
-import type { U32Buffer } from "std:memory"
+import type { U32Buffer } from "zig:compiler_memory"
 import type { State as Known } from "core/integer/map/model"
 import type { Object, Output as Field } from "../fields/existing"
 

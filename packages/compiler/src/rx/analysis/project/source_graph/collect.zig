@@ -121,7 +121,7 @@ fn missingStore(self: *Self, owner: []const u8, location: rx.ast.Location) Error
 fn admit(self: *Self, path: []const u8, location: rx.ast.Location, reference: model.Reference, prior_row: ?usize, store_owner: ?[]const u8) Error!void {
     const rule = @import("generated_rx_registered_target");
     const import_scope = self.scope();
-    const roots = @import("zxc_standard").memory.borrowTextColumn("root", import_scope.scopes);
+    const roots = @import("zx").memory.borrowTextColumn("root", import_scope.scopes);
 
     const input: std.meta.Child(rule.Input) = .{
         .path = path,

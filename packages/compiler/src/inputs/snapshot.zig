@@ -87,7 +87,7 @@ pub fn reuse(allocator: std.mem.Allocator, input: Input) std.mem.Allocator.Error
 
 pub fn reuseObserved(observations: []const Observation, query: ObservationQuery) bool {
     const rule = @import("generated_input_snapshot_observed");
-    const memory = @import("zxc_standard").memory;
+    const memory = @import("zx").memory;
     const paths = memory.borrowTextColumn("path", observations);
     const inodes = memory.borrowReadColumn(u64, "inode", observations);
     const sizes = memory.borrowReadColumn(u64, "size", observations);

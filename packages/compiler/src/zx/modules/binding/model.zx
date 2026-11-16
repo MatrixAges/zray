@@ -1,4 +1,4 @@
-import type { NamedRows, TextColumn } from "std:memory"
+import type { NamedRows, TextColumn } from "zig:compiler_memory"
 import type { Diagnostic } from "../../analysis/semantic/resolving/model"
 import type { Span } from "../../frontend/lexer/token_model"
 import type { ImportKind } from "../../frontend/parser/imports/model"

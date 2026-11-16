@@ -64,30 +64,14 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
     errdefer arena.deinit();
 
+    var publication_arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer publication_arena.deinit();
+
     const owned = arena.allocator();
+    const workspace = publication_arena.allocator();
     const program = try @import("genz").zx.prepare(owned, library.program);
-    const public_modules = try owned.alloc(PublicModule, library.exports.len);
-    var function_count = library.exports.len;
-
-    for (library.exports) |exported| function_count += exported.members.len;
-
-    const exported_functions = try owned.alloc(@import("zx").ir.FunctionId, function_count);
-    var exported_count: usize = 0;
-
-    for (library.exports) |exported| {
-        if (exported.function) |id| {
-            exported_functions[exported_count] = id;
-            exported_count += 1;
-        }
-
-        for (exported.members) |member| {
-            if (member.intrinsic != null) continue;
-
-            exported_functions[exported_count] = member.id.?;
-            exported_count += 1;
-        }
-    }
-
+    const publication = try @import("library_publication.zig").create(workspace, library.exports, program.functions.count());
     const memos = @import("uniqueness_memo.zig");
     const keeps_memo = if (cache) |store| store.keeps_memo else false;
     var loaded = if (keeps_memo) null else try memos.load(allocator, cache);
@@ -98,9 +82,9 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
     const Analysis = @import("genz").zx.modules.Analysis;
 
     var analysis = if (concurrent_analysis)
-        try Analysis.createRememberedConcurrent(allocator, program, exported_functions[0..exported_count], memo)
+        try Analysis.createRememberedConcurrent(allocator, program, publication.roots, memo)
     else
-        try Analysis.createRemembered(allocator, program, exported_functions[0..exported_count], memo);
+        try Analysis.createRemembered(allocator, program, publication.roots, memo);
 
     // Names take the capabilities the analysis already found instead of tracing the call graph again.
     var identities = names.createWith(owned, allocator, program, library.nominal_types, .{ .io = analysis.value.io, .process = analysis.value.process }) catch |err| {
@@ -126,36 +110,21 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
     var prepared_library = library.*;
     prepared_library.program = program;
 
-    var member_roots: std.ArrayList(@import("zx").ir.FunctionId) = .empty;
     // Each export reenters the analysis with its own entry plan; their entries, the types and every needed function
     // are then generated together on all cores.
-    const public_batches = try owned.alloc(modules.Batch, library.exports.len);
+    const public_modules = try owned.alloc(PublicModule, library.exports.len);
+    const public_batches = try workspace.alloc(modules.Batch, library.exports.len);
+    var member_first: usize = 0;
 
-    for (library.exports, public_modules, public_batches, 0..) |exported, *public_module, *public_batch, index| {
+    for (library.exports, publication.ends, public_modules, public_batches, 0..) |*exported, end, *public_module, *public_batch, index| {
         const view = if (file_imports)
             try @import("library_entry.zig").create(owned, &prepared_library, index)
         else
             try prepared_library.module(index);
 
-        const member_first = member_roots.items.len;
-        var member_count: usize = 0;
-
-        for (exported.members) |member| {
-            if (member.intrinsic == null) member_count += 1;
-        }
-
-        const members = try owned.alloc(@import("genz").zx.modules.PublicMember, member_count);
-        var member_index: usize = 0;
-
-        for (exported.members) |member| {
-            if (member.intrinsic != null) continue;
-
-            members[member_index] = .{ .name = member.name, .function = member.id.? };
-            member_index += 1;
-
-            try member_roots.append(owned, member.id.?);
-        }
-
+        const member_end: usize = @intCast(end);
+        const members = publication.members[member_first..member_end];
+        const member_ids = publication.member_ids[member_first..member_end];
         var digest: [32]u8 = undefined;
 
         @import("zx").Sha256.hash(exported.name, &digest, .{});
@@ -165,7 +134,7 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
         try public_batch.analysis.value.reentry(owned, allocator, view);
 
-        const imports = try references.imports(owned, allocator, view.expressions, view.contracts, identities.functions, member_roots.items[member_first..]);
+        const imports = try references.imports(owned, allocator, view.expressions, view.contracts, identities.functions, member_ids);
 
         public_module.* = .{
             .name = try owned.dupe(u8, exported.name),
@@ -181,32 +150,18 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
                 .imports = imports,
             },
         };
+
+        member_first = member_end;
     }
 
-    const entry_roots = try owned.alloc(*const @import("zx").ir.Program, public_batches.len);
+    const entry_roots = try workspace.alloc(*const @import("zx").ir.Program, public_batches.len);
 
     for (entry_roots, public_batches) |*entry, *public_batch| entry.* = &public_batch.program;
 
-    const needed = try references.discover(owned, allocator, program.functions, entry_roots, member_roots.items);
-    const units = try modules.functionUnits(owned, needed);
-
-    if (function_count > library.exports.len) {
-        const public_functions = try owned.alloc(bool, needed.len);
-
-        @memset(public_functions, false);
-
-        for (library.exports) |exported| for (exported.members) |member| {
-            if (member.id) |id| public_functions[@backingInt(id)] = true;
-        };
-
-        for (units) |*unit| if (public_functions[@backingInt(unit.function)]) {
-            const id = unit.function;
-            unit.* = .{ .regular = id };
-        };
-    }
-
+    const needed = try references.discover(workspace, allocator, program.functions, entry_roots, publication.member_ids);
+    const units = try modules.functionUnitsWith(workspace, needed, publication.regular);
     const Job = @import("function_sources.zig").Job;
-    const jobs = try owned.alloc(Job, public_batches.len + 1 + units.len);
+    const jobs = try workspace.alloc(Job, public_batches.len + 1 + units.len);
 
     for (jobs[0..public_batches.len], public_batches) |*job, *public_batch| job.* = .{ .batch = public_batch, .unit = .entry };
 
@@ -220,7 +175,7 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
     const type_source = generated[public_batches.len];
     const initializers = try @import("library_initializers.zig").createBacked(owned, allocator, library, identities, cache);
-    const roots = try owned.alloc([]const u8, public_modules.len + initializers.files.len);
+    const roots = try workspace.alloc([]const u8, public_modules.len + initializers.files.len);
 
     for (roots[0..public_modules.len], public_modules) |*root, public_module| root.* = public_module.file.source;
     for (roots[public_modules.len..], initializers.files) |*root, file| root.* = file.source;

@@ -1,9 +1,9 @@
 import integers from "std:integer"
-import memory from "std:memory"
+import memory from "zig:compiler_memory"
 
 import { continues, lane_count, returns, tag_lane, unreachable } from "./const"
 
-import type { U32Buffer } from "std:memory"
+import type { U32Buffer } from "zig:compiler_memory"
 
 export type Input = {
     layout: U32Buffer,

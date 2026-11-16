@@ -1,7 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const expressions = @import("frontend").expressions;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const entry = @import("generated_rx_publish_type_imports");
 const Input = std.meta.Child(entry.Input);
 const Qualified = std.meta.Child(@typeInfo(@FieldType(Input, "qualified")).optional.child);

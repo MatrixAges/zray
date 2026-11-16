@@ -101,10 +101,24 @@ pub fn functionFilesAnalyzed(owned: std.mem.Allocator, batch: *const Batch, need
 
 /// The units of the `needed` functions.
 pub fn functionUnits(owned: std.mem.Allocator, needed: []const bool) std.mem.Allocator.Error![]generating.Unit {
+    return functionUnitsWith(owned, needed, &.{});
+}
+
+pub fn functionUnitsWith(owned: std.mem.Allocator, needed: []const bool, regular: []const u8) std.mem.Allocator.Error![]generating.Unit {
     var units: std.ArrayList(generating.Unit) = .empty;
 
     for (needed, 0..) |wanted, index| {
-        if (wanted) try units.append(owned, .{ .function = @fromBackingInt(@intCast(index)) });
+        if (!wanted) continue;
+
+        const id: @import("zx").ir.FunctionId = @fromBackingInt(@intCast(index));
+
+        const unit: generating.Unit = if (regular.len != 0 and regular[index] != 0)
+            .{ .regular = id }
+
+        else
+            .{ .function = id };
+
+        try units.append(owned, unit);
     }
 
     return units.toOwnedSlice(owned);

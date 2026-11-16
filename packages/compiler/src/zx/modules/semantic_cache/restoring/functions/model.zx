@@ -1,4 +1,4 @@
-import type { OptionalU32Buffer } from "std:memory"
+import type { OptionalU32Buffer } from "zig:compiler_memory"
 import type { Table } from "core/signature_table/model"
 import type { Rows } from "../../../../ir/canonical/validation/names/model"
 import type { FunctionBinding } from "../../../binding/model"

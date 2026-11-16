@@ -3,7 +3,7 @@ const zx = @import("zx");
 const Indexed = @import("frontend").ExpressionInput.Indexed;
 const Binding = @import("../store.zig").Binding;
 const Scope = @import("references.zig").Scope;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 
 pub const Setter = union(enum) {
     setter: @import("../call/target.zig").Setter,

@@ -32,7 +32,7 @@ fn generatedOwner(scopes: []const Scope, path: []const u8) ?usize {
 
     const generated = @import("generated_project_package_owner");
     const Input = std.meta.Child(generated.Input);
-    const roots = @import("zxc_standard").memory.borrowTextColumn("root", scopes);
+    const roots = @import("zx").memory.borrowTextColumn("root", scopes);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{

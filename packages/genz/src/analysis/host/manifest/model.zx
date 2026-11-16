@@ -1,5 +1,5 @@
 import type { Writer } from "std:bytes"
-import type { StringBuffer, U64Buffer } from "std:memory"
+import type { StringBuffer, U64Buffer } from "zig:compiler_memory"
 
 export type Read = {
     text: string,

@@ -1,10 +1,10 @@
 import integers from "std:integer"
-import memory from "std:memory"
+import memory from "zig:compiler_memory"
 
 import probe from "../history/prefix/probe"
 import { Decision } from "../history/prefix/probe"
 
-import type { U64Buffer } from "std:memory"
+import type { U64Buffer } from "zig:compiler_memory"
 import type { History } from "../history/prefix/model"
 
 export type Input = {

@@ -1,4 +1,4 @@
-import type { TextColumn, WriteColumn } from "std:memory"
+import type { TextColumn, WriteColumn } from "zig:compiler_memory"
 import type { Scope } from "../demand/model"
 import type { Placement } from "../layout/model"
 

@@ -1,4 +1,4 @@
-import type { U64Buffer } from "std:memory"
+import type { U64Buffer } from "zig:compiler_memory"
 
 export enum Kind {
     If,

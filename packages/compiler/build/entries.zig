@@ -440,6 +440,7 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/gateway/slots.zx", .name = "gateway_slots", .owner = .compiler },
     .{ .path = "backends/zig/gateway/imports.zx", .name = "gateway_imports", .owner = .compiler },
     .{ .path = "backends/zig/library_entry/build.rx", .name = "library_entry", .owner = .compiler },
+    .{ .path = "backends/zig/library_publication/build.rx", .name = "library_publication", .owner = .compiler },
     .{ .path = "genz/analysis/public_exports/build.rx", .name = "public_exports", .owner = .genz },
     .{ .path = "genz/analysis/partition/exports/build.rx", .name = "partition_exports", .owner = .compiler },
     .{ .path = "genz/analysis/partition/stub/build.rx", .name = "partition_stub", .owner = .compiler },

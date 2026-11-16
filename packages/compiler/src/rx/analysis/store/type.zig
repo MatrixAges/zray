@@ -153,7 +153,7 @@ fn validAliases(aliases: []const zx.ir.Export, count: usize) bool {
 
     if (comptime generated) {
         const rule = @import("generated_rx_store_type_aliases");
-        const rows = @import("zxc_standard").memory.borrowNamedRows("type_id", aliases);
+        const rows = @import("zx").memory.borrowNamedRows("type_id", aliases);
         const input: std.meta.Child(rule.Input) = .{ .aliases = @ptrCast(&rows), .length = rows.len, .type_count = count };
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 

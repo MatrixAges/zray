@@ -1,7 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
-const memory = if (generated) @import("zxc_standard").memory else void;
+const memory = if (generated) @import("zx").memory else void;
 pub const Digest = [zx.Sha256.digest_length]u8;
 pub const batch_size = 64;
 

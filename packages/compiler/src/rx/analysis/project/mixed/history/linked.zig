@@ -1,7 +1,7 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const Loaded = frontend.project.artifact.source_link.Loaded;
-const memory = @import("zxc_standard").memory;
+const memory = @import("zx").memory;
 const little_endian = @import("builtin").target.cpu.arch.endian() == .little;
 
 pub fn equal(left: *const Loaded, right: *const Loaded) bool {

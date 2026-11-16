@@ -1,4 +1,4 @@
-import type { StringBuffer, U8Buffer } from "std:memory"
+import type { StringBuffer, U8Buffer } from "zig:compiler_memory"
 
 export type Column = {
     source: u8[],

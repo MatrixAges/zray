@@ -3,6 +3,7 @@ pub const syntax = @import("syntax.zig");
 pub const ast = @import("ast.zig");
 pub const ir = @import("ir.zig");
 pub const columns = @import("columns.zig");
+pub const memory = @import("compiler_memory");
 pub const error_effects = @import("error_effects.zig");
 pub const parallel = @import("parallel.zig");
 pub const Arena = @import("arena.zig");

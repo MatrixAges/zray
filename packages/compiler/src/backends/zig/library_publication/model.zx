@@ -1,0 +1,33 @@
+import type {
+    ListColumn,
+    NamedRowBuffer,
+    ReadColumn,
+    U32Buffer,
+    U64Buffer,
+    U8Buffer
+} from "zig:compiler_memory"
+
+export type Exports = {
+    count: u64,
+    defaults: ReadColumn,
+    member_ids: ListColumn,
+    member_names: ListColumn
+}
+
+export type Buffers = {
+    roots: U32Buffer,
+    member_ids: U32Buffer,
+    members: NamedRowBuffer,
+    ends: U64Buffer,
+    regular: U8Buffer
+}
+
+export type Input = {
+    source: Exports,
+    target: Buffers
+}
+
+export type Output = {
+    roots: u64,
+    members: u64
+}

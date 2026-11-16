@@ -4,7 +4,7 @@ import representative from "../forest/borrowed_root"
 import spread from "./spread"
 import { Action } from "./spread"
 
-import type { U32Buffer } from "std:memory"
+import type { U32Buffer } from "zig:compiler_memory"
 import type { StringSet } from "zig:string"
 import type { Columns } from "../fields/shape"
 import type { Mode as ObjectMode } from "../fields/view"

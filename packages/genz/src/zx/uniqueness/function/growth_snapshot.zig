@@ -1,7 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const Growth = @import("../growth.zig");
-const borrowColumn = @import("zxc_standard").memory.borrowWriteColumn;
+const borrowColumn = @import("zx").memory.borrowWriteColumn;
 const generated = @import("generated_uniqueness_growth_snapshot");
 const Input = std.meta.Child(generated.Input);
 const Columns = std.meta.Child(@FieldType(Input, "normalized_target"));

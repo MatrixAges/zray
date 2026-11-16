@@ -1,4 +1,9 @@
-import type { NamedRowBuffer, NamedRows, StringBuffer, U32Buffer } from "std:memory"
+import type {
+    NamedRowBuffer,
+    NamedRows,
+    StringBuffer,
+    U32Buffer
+} from "zig:compiler_memory"
 
 export type Qualified = {
     alias: string,

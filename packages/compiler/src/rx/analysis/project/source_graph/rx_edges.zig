@@ -38,7 +38,7 @@ fn reference(collector: anytype, owner: []const u8, directory: []const u8, path:
     if (comptime !generated) return referenceSeed(collector, owner, selection, value, role);
 
     const packages = if (selection.package_allowed) collector.dependencies() else &.{};
-    const names = @import("zxc_standard").memory.borrowTextColumn("specifier", packages);
+    const names = @import("zx").memory.borrowTextColumn("specifier", packages);
 
     const input: RouteInput = .{
         .directory = directory,

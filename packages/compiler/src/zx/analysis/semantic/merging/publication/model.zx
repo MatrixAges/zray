@@ -1,4 +1,4 @@
-import type { StringBuffer, U64Buffer } from "std:memory"
+import type { StringBuffer, U64Buffer } from "zig:compiler_memory"
 import type { Input as Writes } from "../../../../ir/columns/write"
 import type { Input as BindNames } from "../../../../modules/nominal_origins/bind_names"
 import type { Input as Rebase } from "../rebase"
