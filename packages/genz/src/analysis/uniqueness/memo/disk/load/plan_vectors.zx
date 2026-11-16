@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+
+import type { Planned } from "../../../replay/ordered/model"
+import type { Input as Source, Planned as Shape } from "../model"
+
+export type Input = Source.Pick("source") & {
+    shape: Shape
+}
+
+export type Output = Planned.Omit("renewals") & {
+    keys: u64[]
+}
+
+export default function (in: Input): Output {
+    const { source, shape } = in
+
+    return {
+        flags: bytes.readU8s(source, shape.flags_start, shape.flags_end),
+        keys: bytes.readU64sLe(source, shape.keys_start, shape.keys_end),
+        transfers: bytes.readU64sLe(source, shape.transfers_start, shape.transfers_end),
+        slot_first:
+            bytes.readU32sLe(source, shape.slot_first_start, shape.slot_first_end)
+    }
+}

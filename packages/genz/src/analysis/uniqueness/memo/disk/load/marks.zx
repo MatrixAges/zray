@@ -1,0 +1,33 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import { false_byte, true_byte, mark_width } from "../const"
+import mark from "../rows/mark"
+
+import type { Marks as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, start, output, functions, slots, wants } = in
+
+    const count = integers.widen(in.count)
+    const first: u64 = 0
+
+    const written = loop(first, {
+        while: index => index < count,
+        next: index => {
+            const row = mark({
+                source,
+                start: start + index * mark_width
+            })
+            const flag = row.output ? true_byte : false_byte
+
+            memory.writeColumnU8(output, index, flag)
+            memory.writeColumnU32(functions, index, row.function)
+            memory.writeColumnU32(slots, index, row.slot)
+            memory.writeColumnU8(wants, index, row.want)
+            index += 1
+        }
+    })
+}

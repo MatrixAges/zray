@@ -1,0 +1,19 @@
+import bytes from "std:bytes"
+
+import type { Input as Source, Flowed as Shape } from "../model"
+import type { Flow as Output } from "./model"
+
+export type Input = Source.Pick("source") & {
+    shape: Shape
+}
+
+export default function (in: Input): Output {
+    const { source, shape } = in
+
+    return {
+        end: shape.end,
+        held: bytes.readU8s(source, shape.held_start, shape.held_end),
+        text_held: bytes.readU8s(source, shape.text_held_start, shape.text_held_end),
+        written: bytes.readU8s(source, shape.written_start, shape.written_end)
+    }
+}

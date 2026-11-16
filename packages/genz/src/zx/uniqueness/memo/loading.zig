@@ -1,8 +1,8 @@
 const std = @import("std");
 const columns = @import("zx").columns;
+const borrowColumn = @import("zxc_standard").memory.borrowWriteColumn;
 const Memo = @import("../memo.zig");
 const Function = @import("../function.zig");
-const Level = @import("../level.zig").Level;
 const disk = @import("disk.zig");
 const Error = std.mem.Allocator.Error;
 
@@ -40,69 +40,91 @@ fn Row(comptime T: type) type {
 fn settled(allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Settled) {
     const shape = try decode(@import("generated_uniqueness_memo_disk_settled"), memory, .{ .source = source, .start = start, .trusted = true }) orelse unreachable;
     const passed = try allocator.alloc(Function.Contribution, shape.passed_count);
-    var at = shape.passed_start;
+    const callees = borrowColumn(u32, "callee", passed);
+    const levels = borrowColumn([]const u8, "levels", passed);
+    const entry = @import("generated_uniqueness_memo_load_settlement");
+    const Input = std.meta.Child(entry.Input);
+    const layout = columns.view(std.meta.Child(@FieldType(Input, "shape")), shape);
 
-    for (passed) |*target| {
-        const row = try decode(@import("generated_uniqueness_memo_disk_contribution"), memory, .{ .source = source, .start = at });
-        target.* = .{ .callee = row.callee, .levels = try copy(Level, allocator, source, row.start, row.end) };
-        at = row.end;
-    }
+    const input: Input = .{
+        .source = source,
+        .shape = &layout,
+        .callees = @ptrCast(&callees),
+        .levels = @ptrCast(&levels),
+    };
+
+    const output = try decode(entry, allocator, input);
 
     return .{
-        .value = .{ .passed = passed, .output = try copy(Level, allocator, source, shape.output_start, shape.output_end), .used = false },
+        .value = .{ .passed = passed, .output = @ptrCast(output), .used = false },
         .end = shape.end,
     };
 }
 
 fn demanded(allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Demanded) {
     const shape = try decode(@import("generated_uniqueness_memo_disk_demanded"), memory, .{ .source = source, .start = start, .trusted = true }) orelse unreachable;
+    const marks = try allocator.alloc(Function.Mark, shape.marks_count);
+    const normalized = try allocator.alloc(Memo.Normalized, shape.normalized_count);
+    const renewed = try allocator.alloc(Memo.Renewed, shape.renewed_count);
+    const output = borrowColumn(u8, "output", marks);
+    const functions = borrowColumn(u32, "function", marks);
+    const slots = borrowColumn(u32, "slot", marks);
+    const mark_wants = borrowColumn(u8, "want", marks);
+    const normalized_ids = borrowColumn(u32, "id", normalized);
+    const normalized_wants = borrowColumn(u8, "want", normalized);
+    const renewed_keys = borrowColumn(u64, "key", renewed);
+    const renewed_wants = borrowColumn(u8, "want", renewed);
+    const entry = @import("generated_uniqueness_memo_load_demand");
+    const Input = std.meta.Child(entry.Input);
+    const layout = columns.view(std.meta.Child(@FieldType(Input, "shape")), shape);
+
+    const input: Input = .{
+        .source = source,
+        .shape = &layout,
+        .output = @ptrCast(&output),
+        .functions = @ptrCast(&functions),
+        .slots = @ptrCast(&slots),
+        .marks = @ptrCast(&mark_wants),
+        .normalized_ids = @ptrCast(&normalized_ids),
+        .normalized_wants = @ptrCast(&normalized_wants),
+        .renewed_keys = @ptrCast(&renewed_keys),
+        .renewed_wants = @ptrCast(&renewed_wants),
+    };
+
+    try decode(entry, memory, input);
 
     return .{
-        .value = .{
-            .marks = try rows(Function.Mark, @import("generated_uniqueness_memo_disk_mark"), allocator, memory, source, shape.marks_start, shape.marks_count),
-            .normalized = try rows(Memo.Normalized, @import("generated_uniqueness_memo_disk_normalized"), allocator, memory, source, shape.normalized_start, shape.normalized_count),
-            .renewed = try rows(Memo.Renewed, @import("generated_uniqueness_memo_disk_renewed"), allocator, memory, source, shape.renewed_start, shape.renewed_count),
-            .grew = shape.grew,
-            .used = false,
-        },
+        .value = .{ .marks = marks, .normalized = normalized, .renewed = renewed, .grew = shape.grew, .used = false },
         .end = shape.end,
     };
 }
 
-fn planned(allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Planned) {
-    const shape = try decode(@import("generated_uniqueness_memo_disk_planned"), memory, .{ .source = source, .start = start, .trusted = true }) orelse unreachable;
-    const paths = try allocator.alloc([]const u32, shape.paths_count);
-    var at = shape.paths_start;
-
-    for (paths) |*path| {
-        const span = try decode(@import("generated_uniqueness_memo_disk_vector"), memory, .{ .source = source, .start = at, .width = @as(u64, @sizeOf(u32)) });
-        path.* = try copy(u32, allocator, source, span.start, span.end);
-        at = span.end;
-    }
+fn planned(allocator: std.mem.Allocator, _: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Planned) {
+    const row = try decode(@import("generated_uniqueness_memo_load_plan"), allocator, .{ .source = source, .start = start }) orelse unreachable;
 
     return .{
         .value = .{
-            .flags = try copy(Function.Flags, allocator, source, shape.flags_start, shape.flags_end),
-            .renewals = .{ .keys = try copy(u64, allocator, source, shape.keys_start, shape.keys_end), .paths = paths },
-            .transfers = try copy(u64, allocator, source, shape.transfers_start, shape.transfers_end),
-            .slot_first = try copy(u32, allocator, source, shape.slot_first_start, shape.slot_first_end),
+            .flags = @ptrCast(row.flags),
+            .renewals = .{ .keys = row.renewals.keys, .paths = row.renewals.paths },
+            .transfers = row.transfers,
+            .slot_first = row.slot_first,
             .used = false,
         },
-        .end = shape.end,
+        .end = row.end,
     };
 }
 
-fn flowed(allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Flowed) {
-    const shape = try decode(@import("generated_uniqueness_memo_disk_flowed"), memory, .{ .source = source, .start = start, .trusted = true }) orelse unreachable;
+fn flowed(allocator: std.mem.Allocator, _: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Flowed) {
+    const row = try decode(@import("generated_uniqueness_memo_load_flow"), allocator, .{ .source = source, .start = start }) orelse unreachable;
 
     return .{
         .value = .{
-            .held = try copy(bool, allocator, source, shape.held_start, shape.held_end),
-            .text_held = try copy(bool, allocator, source, shape.text_held_start, shape.text_held_end),
-            .written = try copy(bool, allocator, source, shape.written_start, shape.written_end),
+            .held = @ptrCast(row.held),
+            .text_held = @ptrCast(row.text_held),
+            .written = @ptrCast(row.written),
             .used = false,
         },
-        .end = shape.end,
+        .end = row.end,
     };
 }
 
@@ -116,43 +138,4 @@ fn decode(comptime entry: type, memory: std.mem.Allocator, source: anytype) Erro
         error.OutOfMemory => error.OutOfMemory,
         else => std.debug.panic("validated memo row could not be decoded: {s}", .{@errorName(err)}),
     };
-}
-
-fn rows(comptime T: type, comptime entry: type, allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64, count: u32) Error![]const T {
-    const output = try allocator.alloc(T, count);
-    var at = start;
-
-    for (output) |*target| {
-        const row = try decode(entry, memory, .{ .source = source, .start = at });
-
-        inline for (@typeInfo(T).@"struct".field_names) |name| {
-            const Field = @FieldType(T, name);
-            const value = @field(row, name);
-
-            @field(target, name) = if (Field == Level)
-                @bitCast(@as(u3, @intCast(value)))
-
-            else if (@typeInfo(Field) == .@"enum")
-                @fromBackingInt(value)
-            else
-                value;
-        }
-
-        at = row.end;
-    }
-
-    return output;
-}
-
-fn copy(comptime T: type, allocator: std.mem.Allocator, source: []const u8, start: u64, end: u64) Error![]const T {
-    const raw = source[@intCast(start)..@intCast(end)];
-    const output = try allocator.alloc(T, @divExact(raw.len, @sizeOf(T)));
-
-    @memcpy(std.mem.sliceAsBytes(output), raw);
-
-    if (@sizeOf(T) != 1 and @import("builtin").target.cpu.arch.endian() != .little) {
-        for (output) |*value| value.* = @byteSwap(value.*);
-    }
-
-    return output;
 }

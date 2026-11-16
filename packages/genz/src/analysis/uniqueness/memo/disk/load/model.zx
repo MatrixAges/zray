@@ -1,0 +1,58 @@
+import type { WriteColumn } from "std:memory"
+import type { Planned } from "../../../replay/ordered/model"
+import type { Demanded, Settled } from "../model"
+import type { Input as Cursor } from "../rows/model"
+
+export type Input = Cursor
+
+export type Rows = Input & {
+    count: u32
+}
+
+export type Contributions = Rows & {
+    callees: WriteColumn,
+    levels: WriteColumn
+}
+
+export type Marks = Rows & {
+    output: WriteColumn,
+    functions: WriteColumn,
+    slots: WriteColumn,
+    wants: WriteColumn
+}
+
+export type Growth = Rows & {
+    keys: WriteColumn,
+    wants: WriteColumn
+}
+
+export type Settlement = {
+    source: u8[],
+    shape: Settled,
+    callees: WriteColumn,
+    levels: WriteColumn
+}
+
+export type Demand = {
+    source: u8[],
+    shape: Demanded,
+    output: WriteColumn,
+    functions: WriteColumn,
+    slots: WriteColumn,
+    marks: WriteColumn,
+    normalized_ids: WriteColumn,
+    normalized_wants: WriteColumn,
+    renewed_keys: WriteColumn,
+    renewed_wants: WriteColumn
+}
+
+export type Plan = Planned & {
+    end: u64
+}
+
+export type Flow = {
+    end: u64,
+    held: u8[],
+    text_held: u8[],
+    written: u8[]
+}

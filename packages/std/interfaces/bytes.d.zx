@@ -70,6 +70,27 @@ export declare function readU32(
     little_endian: bool
 ): u32 throws { IndexOutOfBounds } concurrent
 
+export declare function readU8s(
+    allocator,
+    source: u8[],
+    start: u64,
+    end: u64
+): u8[] throws { IndexOutOfBounds, OutOfMemory } concurrent
+
+export declare function readU32sLe(
+    allocator,
+    source: u8[],
+    start: u64,
+    end: u64
+): u32[] throws { IndexOutOfBounds, OutOfMemory } concurrent
+
+export declare function readU64sLe(
+    allocator,
+    source: u8[],
+    start: u64,
+    end: u64
+): u64[] throws { IndexOutOfBounds, OutOfMemory } concurrent
+
 export declare function loadAtomic(in: u8[], index: u64): u8 throws {
     IndexOutOfBounds
 } concurrent

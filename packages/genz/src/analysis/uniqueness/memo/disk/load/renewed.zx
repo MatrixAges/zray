@@ -1,0 +1,30 @@
+import integers from "std:integer"
+import memory from "std:memory"
+
+import { renewed_width } from "../const"
+import entry from "../rows/renewed"
+
+import type { Growth as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, start, keys, wants } = in
+
+    const count = integers.widen(in.count)
+    const first: u64 = 0
+
+    const written = loop(first, {
+        while: index => index < count,
+        next: index => {
+            const row = entry({
+                source,
+                start: start + index * renewed_width
+            })
+
+            memory.writeColumnU64(keys, index, row.key)
+            memory.writeColumnU8(wants, index, row.want)
+            index += 1
+        }
+    })
+}

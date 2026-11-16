@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Load" />
+
+    <Args in={Load.Input} out={Load.Flow?} />
+
+    <Call
+        fn="../flowed"
+        in={{
+            ...$in,
+            trusted: true
+        }}
+    />
+
+    <If on={$ctx.flowed != null}>
+        <Call
+            fn="flow_vectors"
+            in={{
+                source: $in.source,
+                shape: $ctx.flowed
+            }}
+        />
+
+        <Return value={$ctx.flow_vectors} />
+    </If>
+
+    <Return value={null} />
+</Module>

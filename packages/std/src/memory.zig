@@ -8,6 +8,17 @@ pub const readTextColumn = rows.readText;
 pub const readRowName = rows.readName;
 pub const readRowId = rows.readId;
 pub const writeNamedRow = rows.write;
+const column = @import("memory/write_column.zig");
+pub const WriteColumn = column.Column;
+pub const borrowWriteColumn = column.borrow;
+pub const writeColumnU8 = column.writeU8;
+pub const writeColumnU32 = column.writeU32;
+pub const writeColumnU64 = column.writeU64;
+pub const writeColumnBytes = column.writeBytes;
+
+pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {
+    return borrowRange(u8, source, first, count);
+}
 
 pub inline fn borrowU32Range(source: []const u32, first: u64, count: u64) error{IndexOutOfBounds}![]const u32 {
     return borrowRange(u32, source, first, count);

@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Load" />
+
+    <Args in={Load.Settlement} out={u8[]} />
+
+    <Call
+        fn="contributions"
+        in={{
+            source: $in.source,
+            start: $in.shape.passed_start,
+            count: $in.shape.passed_count,
+            callees: $in.callees,
+            levels: $in.levels
+        }}
+    />
+
+    <Call
+        fn="payload"
+        in={{
+            source: $in.source,
+            start: $in.shape.output_start,
+            end: $in.shape.output_end
+        }}
+    />
+
+    <Return value={$ctx.payload} />
+</Module>

@@ -1,0 +1,14 @@
+import bytes from "std:bytes"
+
+import type { Input as Source } from "../model"
+
+export type Input = Source & {
+    start: u64,
+    end: u64
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return bytes.readU8s(in.source, in.start, in.end)
+}

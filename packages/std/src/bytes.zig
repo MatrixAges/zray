@@ -20,6 +20,10 @@ pub const writeU64Le = writer.writeU64Le;
 pub const writeHexU64 = writer.writeHexU64;
 pub const writeU32sLe = writer.writeU32sLe;
 pub const writeU64sLe = writer.writeU64sLe;
+const reader = @import("bytes/reader.zig");
+pub const readU8s = reader.readU8s;
+pub const readU32sLe = reader.readU32sLe;
+pub const readU64sLe = reader.readU64sLe;
 
 pub fn repeat(allocator: std.mem.Allocator, count_value: u64, value: u8) std.mem.Allocator.Error![]const u8 {
     const length = std.math.cast(usize, count_value) orelse return error.OutOfMemory;

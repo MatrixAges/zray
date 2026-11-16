@@ -1,0 +1,45 @@
+<Module>
+    <Type from="model" as="Load" />
+
+    <Args in={Load.Input} out={Load.Plan?} />
+
+    <Call
+        fn="../planned"
+        in={{
+            ...$in,
+            trusted: true
+        }}
+    />
+
+    <If on={$ctx.planned != null}>
+        <Call
+            fn="paths"
+            in={{
+                source: $in.source,
+                start: $ctx.planned.paths_start,
+                count: $ctx.planned.paths_count
+            }}
+        />
+
+        <Call
+            fn="plan_vectors"
+            in={{
+                source: $in.source,
+                shape: $ctx.planned
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.plan_vectors.omit(["keys"]),
+                renewals: {
+                    keys: $ctx.plan_vectors.keys,
+                    paths: $ctx.paths
+                },
+                end: $ctx.planned.end
+            }}
+        />
+    </If>
+
+    <Return value={null} />
+</Module>

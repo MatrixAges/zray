@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Load" />
+
+    <Args in={Load.Demand} out={void} />
+
+    <Call
+        fn="marks"
+        in={{
+            source: $in.source,
+            start: $in.shape.marks_start,
+            count: $in.shape.marks_count,
+            output: $in.output,
+            functions: $in.functions,
+            slots: $in.slots,
+            wants: $in.marks
+        }}
+    />
+
+    <Call
+        fn="normalized"
+        in={{
+            source: $in.source,
+            start: $in.shape.normalized_start,
+            count: $in.shape.normalized_count,
+            keys: $in.normalized_ids,
+            wants: $in.normalized_wants
+        }}
+    />
+
+    <Call
+        fn="renewed"
+        in={{
+            source: $in.source,
+            start: $in.shape.renewed_start,
+            count: $in.shape.renewed_count,
+            keys: $in.renewed_keys,
+            wants: $in.renewed_wants
+        }}
+    />
+</Module>

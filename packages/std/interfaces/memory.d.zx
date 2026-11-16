@@ -9,6 +9,37 @@ export type StringListBuffer = opaque
 export type NamedRows = opaque
 export type NamedRowBuffer = opaque
 export type TextColumn = opaque
+export type WriteColumn = opaque
+
+export declare function borrowU8Range(
+    source: u8[],
+    first: u64,
+    count: u64
+): u8[] throws { IndexOutOfBounds } concurrent
+
+export declare function writeColumnU8(
+    target: WriteColumn,
+    index: u64,
+    value: u8
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnU32(
+    target: WriteColumn,
+    index: u64,
+    value: u32
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnU64(
+    target: WriteColumn,
+    index: u64,
+    value: u64
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnBytes(
+    target: WriteColumn,
+    index: u64,
+    value: u8[]
+): void throws { IndexOutOfBounds }
 
 export declare function borrowU32Range(
     source: u32[],
