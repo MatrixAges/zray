@@ -1,0 +1,52 @@
+import integer from "std:integer"
+import { ascii_digit_first, ascii_digit_last, decimal_radix } from "core/const"
+
+export type Input = {
+    source: u8[],
+    start: u64,
+    expected: u32
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { source, start, expected } = in
+
+    const version = integer.widen(expected)
+    const zero: u64 = 0
+
+    if (start >= source.length) {
+        return null
+    }
+
+    if (source[start] == ascii_digit_first) {
+        return expected == 0 ? start + 1 : null
+    }
+
+    const scanned = loop({
+        end: start,
+        value: zero,
+        digit: true
+    }, {
+        while: state =>
+            state.digit && state.end < source.length && state.value <= version,
+        next: state => {
+            const byte = source[state.end]
+
+            if (byte >= ascii_digit_first && byte <= ascii_digit_last) {
+                const digit = integer.widenByte(byte - ascii_digit_first)
+
+                state.value = state.value * decimal_radix + digit
+                state.end += 1
+            } else {
+                state.digit = false
+            }
+        }
+    })
+
+    if (scanned.end > start && scanned.value == version) {
+        return scanned.end
+    }
+
+    return null
+}

@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+
+import { borrowed_ownership, copy_ownership, owned_ownership } from "./const"
+
+export type Input = {
+    source: u8[],
+    start: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { source, start } = in
+
+    return match {
+        bytes.startsWithText(source, start, borrowed_ownership) =>
+            start + borrowed_ownership.length,
+        bytes.startsWithText(source, start, owned_ownership) =>
+            start + owned_ownership.length,
+        bytes.startsWithText(source, start, copy_ownership) =>
+            start + copy_ownership.length,
+        _ => null
+    }
+}

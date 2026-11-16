@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "std:memory"
 import strings from "std:string"
 
 import scope from "../../identity/scope"
@@ -30,7 +31,7 @@ export default function (in: Input): Output {
             const entry: Export = {
                 path: scope({
                     instance,
-                    value: source.paths[row]
+                    value: memory.readTextColumn(source.paths, row)
                 }),
                 function: match {
                     id == null => null,
@@ -64,14 +65,10 @@ export default function (in: Input): Output {
             row,
             first: row
         })[0],
-        _ => selection.names.map((name, index) => {
-            const row = selection.aliases[index]
-
-            return {
-                name: strings.copy(name),
-                row,
-                first: selection.first[row]
-            }
+        _ => selection.aliases.map((row, index) => {
+            name: strings.copy(memory.readTextColumn(selection.names, index)),
+            row,
+            first: selection.first[row]
         })[0]
     }
 

@@ -1,0 +1,56 @@
+import key from "core/native_module_table/key"
+
+import standard from "./standard"
+
+import type { Modules } from "core/native_module_table/model"
+
+export type Input = {
+    modules: Modules,
+    requested: string
+}
+
+export type Output = {
+    identity?: string,
+    shared: bool,
+    conflict: bool
+}
+
+export default function (in: Input): Output {
+    const { modules, requested } = in
+
+    const unknown: string? = null
+
+    return loop({
+        index: 0,
+        identity: unknown,
+        shared: false,
+        conflict: false
+    }, {
+        while: state => !state.conflict && state.index < modules.specifiers.length,
+        next: state => {
+            const specifier = modules.specifiers[state.index]
+            const identity = key({
+                modules,
+                index: state.index
+            })
+
+            if (specifier == requested || identity == requested) {
+                const previous = state.identity
+
+                if (previous != null && previous != identity) {
+                    state.conflict = true
+                } else {
+                    state.identity = identity
+                    state.shared = standard(specifier)
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state.pick([
+            "identity",
+            "shared",
+            "conflict"
+        ])
+    })
+}

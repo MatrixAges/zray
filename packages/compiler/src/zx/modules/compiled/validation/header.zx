@@ -30,7 +30,6 @@ export default function (in: Input): Output {
 
     return (
         - public_interface
-        - and exports.paths.length == count
         - and same_functions
         - and same_type_names
         - and same_type_ids

@@ -1,9 +1,15 @@
 <Module>
     <Type from="model" as="Envelope" />
 
-    <Args in={string} out={Envelope.Payload?} />
+    <Args
+        in={{
+            source: string,
+            ir_version: u32
+        }}
+        out={Envelope.Admission?}
+    />
 
-    <Call fn="inspect" in={$in} />
+    <Call fn="inspect" in={$in.source} />
 
     <If on={!$ctx.inspect.accepted}>
         <Return value={null} />
@@ -12,7 +18,7 @@
     <Call
         fn="../../zx/artifact_codec/content"
         in={{
-            source: $in,
+            source: $in.source,
             start: $ctx.inspect.start,
             digest_start: $ctx.inspect.digest_start
         }}
@@ -22,5 +28,21 @@
         <Return value={null} />
     </If>
 
-    <Return value={$ctx.inspect} />
+    <Call
+        fn="payload/current"
+        in={{
+            payload: $in.source,
+            start: $ctx.inspect.start,
+            expected: $in.ir_version
+        }}
+    />
+
+    <Return
+        value={{
+            start: $ctx.inspect.start,
+            maximum_depth: $ctx.inspect.maximum_depth,
+            legacy: $ctx.inspect.legacy,
+            current_ir: $ctx.current
+        }}
+    />
 </Module>

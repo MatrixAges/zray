@@ -9,17 +9,19 @@ pub const Payload = struct {
     bytes: []const u8,
     maximum_depth: usize,
     legacy: bool,
+    current_ir: bool = false,
 };
 
 pub fn open(source: []const u8) ?Payload {
     var buffer: [256]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+    const input: std.meta.Child(opening.Input) = .{ .source = source, .ir_version = @import("zx").ir_version };
 
-    const payload = (opening.executeValue(scratch.allocator(), source) catch |err| {
+    const payload = (columns.invoke(opening.executeValue, scratch.allocator(), &input) catch |err| {
         std.debug.panic("library header could not be checked: {s}", .{@errorName(err)});
     }) orelse return null;
 
-    return .{ .bytes = source[@intCast(payload.start)..], .maximum_depth = @intCast(payload.maximum_depth), .legacy = payload.legacy };
+    return .{ .bytes = source[@intCast(payload.start)..], .maximum_depth = @intCast(payload.maximum_depth), .legacy = payload.legacy, .current_ir = payload.current_ir };
 }
 
 pub fn encode(allocator: std.mem.Allocator, payload: anytype) std.mem.Allocator.Error![]u8 {

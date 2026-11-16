@@ -362,6 +362,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/compiled/loading/functions/remap.rx", .name = "compiled_owned_function" },
     .{ .path = "zx/modules/compiled/loading/interface/materialize.rx", .name = "compiled_interface" },
     .{ .path = "zx/modules/compiled/loading/native/materialize.rx", .name = "compiled_owned_native" },
+    .{ .path = "zx/modules/compiled/identity/declaration.zx", .name = "compiled_native_declaration" },
     .{ .path = "zx/modules/compiled/validation/publication.zx", .name = "compiled_header" },
     .{ .path = "zx/modules/compiled/validation/stores.zx", .name = "compiled_stores", .owner = .compiler },
     .{ .path = "zx/modules/semantic_cache/native_artifact/create.rx", .name = "native_artifact" },

@@ -1,5 +1,6 @@
 const std = @import("std");
 const compiler = @import("compiler");
+const resolve = compiler.project.compiled.resolve;
 const Inputs = @import("../watch/inputs.zig");
 const Self = @This();
 
@@ -20,11 +21,10 @@ pub fn add(self: *Self, io: std.Io, target: compiler.project.compiled.Target, pr
     self.failure_path = null;
     errdefer self.failure_path = target.artifact;
 
-    for (self.libraries.items) |library| {
-        if (!std.mem.eql(u8, library.instance, target.instance)) continue;
-        if (!std.mem.eql(u8, library.artifact, target.artifact)) return error.ConflictingLibraryArtifact;
-
-        return requireExport(library.exports, target.name);
+    switch (resolve.cached(self.libraries.items, target)) {
+        .found => |index| return requireExport(self.libraries.items[index].exports, target.name),
+        .conflict => return error.ConflictingLibraryArtifact,
+        .missing => {},
     }
 
     if (inputs) |observed| try observed.add(io, target.artifact);
@@ -48,7 +48,5 @@ pub fn add(self: *Self, io: std.Io, target: compiler.project.compiled.Target, pr
 }
 
 fn requireExport(exports: []const compiler.library.Export, name: []const u8) error{MissingPublicModule}!void {
-    for (exports) |exported| if (std.mem.eql(u8, exported.name, name)) return;
-
-    return error.MissingPublicModule;
+    if (!resolve.hasExport(exports, name)) return error.MissingPublicModule;
 }

@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "std:memory"
 
 import validConstants from "../../../../analysis/constants/valid"
 import text from "../../../../ir/canonical/native/text"
@@ -17,7 +18,7 @@ export type Output = bool
 export default function (in: Input): Output {
     const exports = in.graph.exports
     const name = exports.names[in.index]
-    const path = exports.paths[in.index]
+    const path = memory.readTextColumn(exports.paths, in.index)
     const function_id = exports.functions[in.index]
     const functions = in.graph.program.context.functions
 

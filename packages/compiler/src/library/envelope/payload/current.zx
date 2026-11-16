@@ -1,0 +1,67 @@
+import bytes from "std:bytes"
+import { ascii_comma, ascii_close_brace } from "core/ascii/const"
+
+import { library_version_key, program_ownership_key, program_version_key } from "./const"
+import ownershipEnd from "./ownership_end"
+import versionEnd from "./version_end"
+
+export type Input = {
+    payload: string,
+    start: u64,
+    expected: u32
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const source = bytes.fromText(in.payload)
+
+    const { start, expected } = in
+
+    if (!bytes.startsWithText(source, start, library_version_key)) {
+        return false
+    }
+
+    const outer_end = versionEnd({
+        source,
+        start: start + library_version_key.length,
+        expected
+    })
+
+    if (outer_end == null) {
+        return false
+    }
+
+    if (!bytes.startsWithText(source, outer_end, program_ownership_key)) {
+        return false
+    }
+
+    const ownership_end = ownershipEnd({
+        source,
+        start: outer_end + program_ownership_key.length
+    })
+
+    if (ownership_end == null) {
+        return false
+    }
+
+    if (!bytes.startsWithText(source, ownership_end, program_version_key)) {
+        return false
+    }
+
+    const program_end = versionEnd({
+        source,
+        start: ownership_end + program_version_key.length,
+        expected
+    })
+
+    if (program_end == null || program_end >= source.length) {
+        return false
+    }
+
+    return match source[program_end] {
+        ascii_comma => true,
+        ascii_close_brace => true,
+        _ => false
+    }
+}

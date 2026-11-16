@@ -1,4 +1,4 @@
-import type { U32Buffer } from "std:memory"
+import type { TextColumn, U32Buffer } from "std:memory"
 import type { Values } from "core/constant/model"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
@@ -9,7 +9,7 @@ import type { Mapping as FunctionMapping } from "./loading/functions/model"
 
 export type Exports = {
     names: string[],
-    paths: string[],
+    paths: TextColumn,
     functions: u32?[],
     type_names: string[][],
     type_ids: u32[][],
@@ -24,8 +24,9 @@ export type Initializers = {
 }
 
 export type Selection = {
-    names: string[],
-    modules: string[]
+    names: TextColumn,
+    modules: TextColumn,
+    count: u64
 }
 
 export type Graph = {
@@ -67,7 +68,7 @@ export type Result = {
 
 export type SelectionPlan = {
     rows: u64[],
-    names: string[],
+    names: TextColumn,
     aliases: u64[],
     first: u64[]
 }

@@ -8,6 +8,13 @@ export type Payload = {
     legacy: bool
 }
 
+export type Admission = Payload.Omit(
+    "accepted",
+    "digest_start"
+) & {
+    current_ir: bool
+}
+
 export type Seal = {
     writer: Writer,
     payload: string

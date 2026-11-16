@@ -1,12 +1,12 @@
 const std = @import("std");
+const memory = @import("zxc_standard").memory;
 const Export = @import("../../../compiled.zig").Export;
 
-pub fn columns(comptime Target: type, allocator: std.mem.Allocator, exports: []const Export) std.mem.Allocator.Error!Target {
+pub fn columns(comptime Target: type, allocator: std.mem.Allocator, exports: []const Export, paths: *memory.TextColumn) std.mem.Allocator.Error!Target {
     const MemberValue = std.meta.Child(@FieldType(Target, "members"));
     const Member = if (@typeInfo(MemberValue) == .pointer) std.meta.Child(MemberValue) else MemberValue;
     const members = try allocator.alloc(MemberValue, exports.len);
     const names = try allocator.alloc([]const u8, exports.len);
-    const paths = try allocator.alloc([]const u8, exports.len);
     const functions = try allocator.alloc(?u32, exports.len);
     const type_names = try allocator.alloc([]const []const u8, exports.len);
     const type_ids = try allocator.alloc([]const u32, exports.len);
@@ -23,7 +23,6 @@ pub fn columns(comptime Target: type, allocator: std.mem.Allocator, exports: []c
         const values = try @import("../../../../analysis/constants/input.zig").marshal(Values, allocator, exported.constants);
         constants[index] = if (values) |value| if (@typeInfo(Item) == .pointer) value else value.* else null;
         names[index] = exported.name;
-        paths[index] = exported.path;
         functions[index] = if (exported.function) |id| @backingInt(id) else null;
         const row_names = try allocator.alloc([]const u8, exported.types.len);
         const row_ids = try allocator.alloc(u32, exported.types.len);
@@ -37,5 +36,7 @@ pub fn columns(comptime Target: type, allocator: std.mem.Allocator, exports: []c
         type_ids[index] = row_ids;
     }
 
-    return .{ .names = names, .paths = paths, .functions = functions, .type_names = type_names, .type_ids = type_ids, .constants = constants, .members = members };
+    paths.* = memory.borrowTextColumn("path", exports);
+
+    return .{ .names = names, .paths = @ptrCast(paths), .functions = functions, .type_names = type_names, .type_ids = type_ids, .constants = constants, .members = members };
 }

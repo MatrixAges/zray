@@ -1,0 +1,11 @@
+export const library_version_key: string = "{\"ir_version\":"
+
+export const program_ownership_key: string = ",\"program\":{\"output_ownership\":"
+
+export const borrowed_ownership: string = "\"borrowed\""
+
+export const owned_ownership: string = "\"owned\""
+
+export const copy_ownership: string = "\"copy\""
+
+export const program_version_key: string = ",\"version\":"

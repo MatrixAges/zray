@@ -1,5 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
+const memory = @import("zxc_standard").memory;
 const model = @import("../../compiled.zig");
 const load = @import("../load.zig");
 const Origins = @import("../../nominal_origins.zig");
@@ -14,6 +15,7 @@ const Self = @This();
 program: @import("../../../ir/canonical/validation/input.zig").Storage(std.meta.Child(@FieldType(Graph, "program"))),
 origins: std.meta.Child(@FieldType(Graph, "origins")),
 exports: std.meta.Child(@FieldType(Graph, "exports")),
+paths: memory.TextColumn,
 initializers: std.meta.Child(@FieldType(Graph, "initializers")),
 types: std.meta.Child(@FieldType(Destination, "types")),
 base_origins: std.meta.Child(@FieldType(Destination, "origins")),
@@ -21,13 +23,15 @@ natives: std.meta.Child(@FieldType(Destination, "natives")),
 graph: Graph,
 destination: Destination,
 selection: Selection,
+selection_names: memory.TextColumn,
+selection_modules: memory.TextColumn,
 type_ids: []u32,
 input: Input,
 pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: ?load.Destination, seed: bool, selected: ?[]const model.PublicReference) std.mem.Allocator.Error!void {
     try self.program.init(allocator, &graph.program, .{});
 
     self.origins = Origins.Table.borrow(@TypeOf(self.origins), graph.nominal_types);
-    self.exports = try @import("input/exports.zig").columns(@TypeOf(self.exports), allocator, graph.exports);
+    self.exports = try @import("input/exports.zig").columns(@TypeOf(self.exports), allocator, graph.exports, &self.paths);
     self.initializers = try @import("input/initializers.zig").columns(@TypeOf(self.initializers), allocator, graph.store_initializers);
     self.types = ir.TypeTable.borrow(@TypeOf(self.types), if (destination) |target| target.types.view() else .{});
     self.base_origins = Origins.Table.borrow(@TypeOf(self.base_origins), if (destination) |target| target.origins.items.view() else .{});
@@ -36,15 +40,14 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
     self.destination = .{ .types = &self.types, .origins = &self.base_origins, .origin_names = if (destination) |target| target.origins.items.view().names else &.{}, .natives = &self.natives, .function_count = if (destination) |target| target.functions.count() else 0 };
 
     if (selected) |values| {
-        const names = try allocator.alloc([]const u8, values.len);
-        const modules = try allocator.alloc([]const u8, values.len);
+        self.selection_names = memory.borrowTextColumn("name", values);
+        self.selection_modules = memory.borrowTextColumn("module", values);
 
-        for (values, names, modules) |value, *name, *module| {
-            name.* = value.name;
-            module.* = value.module;
-        }
-
-        self.selection = .{ .names = names, .modules = modules };
+        self.selection = .{
+            .names = @ptrCast(&self.selection_names),
+            .modules = @ptrCast(&self.selection_modules),
+            .count = values.len,
+        };
     }
 
     self.type_ids = if (destination != null) try allocator.alloc(u32, graph.program.types.count()) else &.{};

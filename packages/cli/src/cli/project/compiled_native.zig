@@ -37,24 +37,7 @@ pub fn name(self: Self, allocator: std.mem.Allocator, local: []const u8) ![]cons
 }
 
 pub fn declaration(self: Self, allocator: std.mem.Allocator, specifier: []const u8) ![]const u8 {
-    var key: ?[]const u8 = null;
-    var shared = false;
-
-    for (0..self.library.program.native_modules.count()) |module_row| {
-        const module = self.library.program.native_modules.at(module_row);
-
-        if (!std.mem.eql(u8, module.specifier, specifier) and !std.mem.eql(u8, module.key(), specifier)) continue;
-        if (key) |previous| if (!std.mem.eql(u8, previous, module.key())) return error.ConflictingNativeAbiAlias;
-
-        key = module.key();
-        shared = std.mem.startsWith(u8, module.specifier, "std:");
-    }
-
-    const original = key orelse return error.UnknownNativeAbiAlias;
-
-    if (shared) return allocator.dupe(u8, original);
-
-    return identity.scope(allocator, self.instance, original);
+    return identity.declaration(allocator, self.library.program.native_modules, self.instance, specifier);
 }
 
 pub fn aliases(self: Self, allocator: std.mem.Allocator, configured: ?[]const model.AbiAlias) ![]const model.AbiAlias {
