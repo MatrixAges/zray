@@ -2,10 +2,7 @@ import bytes from "std:bytes"
 import { decimal_radix } from "core/const"
 
 import address from "../../ast/context/address"
-import block from "../../ast/context/block"
-import call from "../../ast/context/call"
 import options from "../../ast/context/empty_object"
-import field from "../../ast/context/field"
 import fixedArray from "../../ast/context/fixed_array"
 import identifier from "../../ast/context/identifier"
 import integer from "../../ast/context/integer"
@@ -18,9 +15,6 @@ import variable from "../../ast/context/variable"
 import fresh from "../../ast/fresh"
 import { ExpressionsKind, ExpressionsPrimitive } from "../../printer/model/expressions"
 import {
-    allocator_name,
-    dupe_name,
-    decimal_prefix,
     digits_prefix,
     decimal_buffer_length,
     lower_case,
@@ -38,13 +32,8 @@ export type Input = {
 export type Output = Node
 
 export default function (in: Input): Output {
-    const label = fresh({
-        serial: in.state.serial,
-        prefix: decimal_prefix
-    })
-
     const name = fresh({
-        serial: label.serial,
+        serial: in.state.serial,
         prefix: digits_prefix
     })
 
@@ -102,34 +91,8 @@ export default function (in: Input): Output {
         end: length.id
     })
 
-    const allocator = identifier({
-        state: digits.state,
-        name: bytes.fromText(allocator_name)
-    })
-
-    const dupe = field({
-        state: allocator.state,
-        target: allocator.id,
-        name: bytes.fromText(dupe_name)
-    })
-
-    const byte = primitive({
-        state: dupe.state,
-        value: ExpressionsPrimitive.U8
-    })
-
-    const copy = call({
-        state: byte.state,
-        callee: dupe.id,
-        arguments: [
-            byte.id,
-            digits.id
-        ],
-        fallible: true
-    })
-
     const capacity = integer({
-        state: copy.state,
+        state: digits.state,
         value: decimal_buffer_length
     })
 
@@ -145,7 +108,6 @@ export default function (in: Input): Output {
     })
 
     const initial = undefinedValue(buffer_type.state)
-    const first = initial.state.statements.tags.length
 
     const state = variable({
         state: initial.state,
@@ -154,10 +116,8 @@ export default function (in: Input): Output {
         value: initial.id
     })
 
-    return block({
+    return {
         state,
-        label: label.name,
-        first,
-        value: copy.id
-    })
+        id: digits.id
+    }
 }

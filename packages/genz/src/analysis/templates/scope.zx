@@ -1,0 +1,30 @@
+import block from "../../ast/context/block"
+import fresh from "../../ast/fresh"
+import { template_prefix } from "./const"
+
+import type { Node } from "../../ast/context/model"
+
+export type Input = Node
+
+export type Output = Node
+
+export default function (in: Input): Output {
+    if (in.state.statements.tags.length == 0) {
+        return in
+    }
+
+    const name = fresh({
+        serial: in.state.serial,
+        prefix: template_prefix
+    })
+
+    return block({
+        state: {
+            ...in.state,
+            serial: name.serial
+        },
+        label: name.name,
+        first: 0,
+        value: in.id
+    })
+}

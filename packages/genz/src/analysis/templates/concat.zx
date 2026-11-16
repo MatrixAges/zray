@@ -8,6 +8,7 @@ import primitive from "../../ast/context/primitive"
 import standard from "../../ast/context/standard"
 import { ExpressionsPrimitive } from "../../printer/model/expressions"
 import { allocator_name, memory_name, concat_name } from "./const"
+import scope from "./scope"
 
 import type { State, Output } from "./model"
 
@@ -54,8 +55,10 @@ export default function (in: Input): Output {
         fallible: true
     })
 
+    const scoped = scope(result)
+
     return {
-        ...result.state.pick([
+        ...scoped.state.pick([
             "expressions",
             "forms",
             "statements",
@@ -63,7 +66,7 @@ export default function (in: Input): Output {
             "serial",
             "valid"
         ]),
-        root: result.id,
+        root: scoped.id,
         uses_allocator: true
     }
 }

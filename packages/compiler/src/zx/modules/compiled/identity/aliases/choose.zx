@@ -1,0 +1,72 @@
+import memory from "std:memory"
+import key from "core/native_module_table/key"
+
+import locate from "../../loading/selection/locate"
+import standard from "../standard"
+
+import type { Cursor, Choice } from "./model"
+
+export type Input = Cursor
+
+export type Output = Choice
+
+export default function (in: Input): Output {
+    const { modules, configured, row } = in
+
+    if (configured != null) {
+        if (row >= configured.count) {
+            return {
+                next: row,
+                name: null,
+                request: null,
+                duplicate: false
+            }
+        }
+
+        return {
+            next: row + 1,
+            name: memory.readTextColumn(configured.names, row),
+            request: memory.readTextColumn(configured.requests, row),
+            duplicate: false
+        }
+    }
+
+    const names = modules.specifiers
+
+    const selected = loop({
+        index: row
+    }, {
+        while: state =>
+            state.index < names.length && standard(names[state.index]),
+        next: state => {
+            state.index += 1
+        },
+        return: state => state.index
+    })
+
+    if (selected == names.length) {
+        return {
+            next: selected,
+            name: null,
+            request: null,
+            duplicate: false
+        }
+    }
+
+    const name = names[selected]
+
+    const first = locate({
+        names,
+        module: name
+    })
+
+    return {
+        next: selected + 1,
+        name,
+        request: key({
+            modules,
+            index: selected
+        }),
+        duplicate: first != selected
+    }
+}

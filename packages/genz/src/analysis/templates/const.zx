@@ -1,7 +1,5 @@
 export const allocator_name: string = "allocator"
 
-export const dupe_name: string = "dupe"
-
 export const true_text: string = "true"
 
 export const false_text: string = "false"
@@ -10,7 +8,7 @@ export const float_format: string = "{d}"
 
 export const lower_case: string = "lower"
 
-export const decimal_prefix: string = "decimal_"
+export const template_prefix: string = "template_"
 
 export const digits_prefix: string = "digits_"
 

@@ -1,0 +1,29 @@
+import { Status } from "./model"
+
+import type { Output as Declaration } from "../declaration"
+import type { Choice, Item } from "./model"
+
+export type Input = {
+    choice: Choice,
+    declaration: Declaration
+}
+
+export type Output = Item
+
+export default function (in: Input): Output {
+    const { choice, declaration } = in
+
+    const status = match {
+        declaration.conflict => Status.Conflict,
+        declaration.identity == null => Status.Unknown,
+        _ => Status.Ready
+    }
+
+    return {
+        next: choice.next,
+        name: choice.name,
+        status,
+        identity: declaration.identity,
+        shared: declaration.shared
+    }
+}

@@ -31,7 +31,7 @@ pub fn inlineValue(builder: *Builder, program: ir.Program, borrow_text: bool) Bu
 
     try builder.symbols.appendFresh(builder.allocator, program.symbols, local_first, borrow_text);
 
-    const literal_bases = if (comptime generated) try literals.publish(builder, &program.expressions, borrow_text) else undefined;
+    const literal_bases: literals.Bases = if (comptime generated) try literals.publish(builder, &program.expressions, borrow_text) else undefined;
     const payloads = storage.payloads.unusedCapacitySlice()[0..plan.count];
 
     for (plan.rows, 0..) |row, index| {

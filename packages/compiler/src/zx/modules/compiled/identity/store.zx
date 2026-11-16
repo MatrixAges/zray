@@ -1,5 +1,7 @@
 import encoding from "std:encoding"
 
+import { library_store_prefix, store_identity_prefix } from "../const"
+
 export type Input = {
     instance: string,
     value: string
@@ -8,7 +10,8 @@ export type Input = {
 export type Output = string
 
 export default function (in: Input): Output {
-    const tail = encoding.sliceBytes(in.value, 6, in.value.length)
+    const tail =
+        encoding.sliceBytes(in.value, store_identity_prefix.length, in.value.length)
 
-    return `store.library:${in.instance.length}:${in.instance}:${tail}`
+    return `${library_store_prefix}${in.instance.length}:${in.instance}:${tail}`
 }

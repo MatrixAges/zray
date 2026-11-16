@@ -41,26 +41,5 @@ pub fn declaration(self: Self, allocator: std.mem.Allocator, specifier: []const 
 }
 
 pub fn aliases(self: Self, allocator: std.mem.Allocator, configured: ?[]const model.AbiAlias) ![]const model.AbiAlias {
-    var result: std.ArrayList(model.AbiAlias) = .empty;
-
-    if (configured) |entries| {
-        for (entries) |entry| try result.append(allocator, .{ .name = entry.name, .specifier = try self.declaration(allocator, entry.specifier) });
-    } else {
-        for (0..self.library.program.native_modules.count()) |module_row| {
-            const module = self.library.program.native_modules.at(module_row);
-
-            if (std.mem.startsWith(u8, module.specifier, "std:")) continue;
-
-            for (result.items) |previous| {
-                if (std.mem.eql(u8, previous.name, module.specifier)) return error.ConflictingNativeAbiAlias;
-            }
-
-            try result.append(allocator, .{
-                .name = try allocator.dupe(u8, module.specifier),
-                .specifier = try self.declaration(allocator, module.key()),
-            });
-        }
-    }
-
-    return result.toOwnedSlice(allocator);
+    return identity.aliases(allocator, self.library.program.native_modules, self.instance, model.AbiAlias, configured);
 }

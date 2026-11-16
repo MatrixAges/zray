@@ -1,0 +1,34 @@
+import type { TextColumn } from "std:memory"
+import type { Modules } from "core/native_module_table/model"
+
+export type Configured = {
+    names: TextColumn,
+    requests: TextColumn,
+    count: u64
+}
+
+export type Cursor = {
+    modules: Modules,
+    configured?: Configured,
+    row: u64
+}
+
+export type Choice = {
+    next: u64,
+    name?: string,
+    request?: string,
+    duplicate: bool
+}
+
+export enum Status {
+    Done,
+    Ready,
+    Conflict,
+    Unknown
+}
+
+export type Item = Choice.Pick("next", "name") & {
+    status: Status,
+    identity?: string,
+    shared: bool
+}

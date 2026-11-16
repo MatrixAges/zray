@@ -1,6 +1,8 @@
+import bytes from "std:bytes"
 import crypto from "std:crypto"
 import encoding from "std:encoding"
 
+import { library_native_prefix } from "../const"
 import scope from "./scope"
 
 export type Input = {
@@ -11,9 +13,8 @@ export type Input = {
 export type Output = string
 
 export default function (in: Input): Output {
-    return scope(in)
-        -> encoding.encodeUtf8(_)
+    return bytes.fromText(scope(in))
         -> crypto.sha256(_)
         -> encoding.encodeHex(_)
-        -> `library_native_${_}`
+        -> `${library_native_prefix}${_}`
 }

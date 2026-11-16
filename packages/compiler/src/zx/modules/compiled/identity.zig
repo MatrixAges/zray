@@ -3,8 +3,16 @@ const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
 const Library = @import("../compiled.zig").Library;
 pub const DeclarationError = std.mem.Allocator.Error || error{ ConflictingNativeAbiAlias, UnknownNativeAbiAlias };
+pub const aliases = @import("identity/aliases.zig").resolve;
 
 pub fn scope(allocator: std.mem.Allocator, instance: []const u8, value: []const u8) std.mem.Allocator.Error![]const u8 {
+    if (comptime generated) {
+        const entry = @import("generated_compiled_scope_identity");
+        const input: std.meta.Child(entry.Input) = .{ .instance = instance, .value = value };
+
+        return zx.columns.invoke(entry.executeValue, allocator, &input) catch return error.OutOfMemory;
+    }
+
     return std.fmt.allocPrint(allocator, "library:{d}:{s}:{s}", .{ instance.len, instance, value });
 }
 
@@ -21,7 +29,7 @@ pub fn declaration(allocator: std.mem.Allocator, modules: zx.ir.NativeModuleTabl
 
         const identity = selected.identity orelse return error.UnknownNativeAbiAlias;
 
-        return if (selected.shared) allocator.dupe(u8, identity) else scope(allocator, instance, identity);
+        return ownDeclaration(allocator, instance, identity, selected.shared);
     }
 
     return seedDeclaration(allocator, modules, instance, requested);
@@ -44,7 +52,11 @@ fn seedDeclaration(allocator: std.mem.Allocator, modules: zx.ir.NativeModuleTabl
 
     const original = identity orelse return error.UnknownNativeAbiAlias;
 
-    return if (shared) allocator.dupe(u8, original) else scope(allocator, instance, original);
+    return ownDeclaration(allocator, instance, original, shared);
+}
+
+pub fn ownDeclaration(allocator: std.mem.Allocator, instance: []const u8, identity: []const u8, shared: bool) std.mem.Allocator.Error![]const u8 {
+    return if (shared) allocator.dupe(u8, identity) else scope(allocator, instance, identity);
 }
 
 pub fn store(allocator: std.mem.Allocator, instance: []const u8, path: []const u8) std.mem.Allocator.Error![]const u8 {
@@ -68,7 +80,10 @@ pub fn nativeName(allocator: std.mem.Allocator, instance: []const u8, name: []co
 
     var digest: [32]u8 = undefined;
 
-    @import("zx").Sha256.hash(key, &digest, .{});
+    zx.Sha256.hash(key, &digest, .{});
 
-    return std.fmt.allocPrint(allocator, "library_native_{s}", .{std.fmt.bytesToHex(digest, .lower)});
+    const prefix = if (generated) @import("generated_compiled_identity_constants").@"zx.constants".library_native_prefix else "library_native_";
+    const encoded = std.fmt.bytesToHex(digest, .lower);
+
+    return std.mem.concat(allocator, u8, &.{ prefix, &encoded });
 }
