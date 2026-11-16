@@ -174,13 +174,13 @@ const Walker = struct {
         inline for (comptime Schedule.steps(.Selection)) |step| {
             switch (step) {
                 .Done => {},
-                .ParseSubject => parsed = try @import("../attribute.zig").parseBorrowed(allocator, entry.subject, owner),
-                .InferSubject => subject = try inferParsedAttribute(expression, &parsed.?, entry.subject, null),
+                .ParseSubject => parsed = try @import("../attribute.zig").parseBorrowed(allocator, entry.subject.*, owner),
+                .InferSubject => subject = try inferParsedAttribute(expression, &parsed.?, entry.subject.*, null),
                 .InferCases => {
                     const context: Cases = .{ .parsed = &parsed.?, .subject = subject, .labels = &labels, .cases = entry.cases, .bindings = expression.bindings.len };
 
-                    for (entry.cases, 0..) |case, row| {
-                        if (case.value != null) {
+                    for (entry.cases, 0..) |*case, row| {
+                        if (case.label.kind != .Default) {
                             try self.inferCase(.Case, &context, row);
                         } else try self.inferCase(.Default, &context, row);
                     }
@@ -198,7 +198,7 @@ const Walker = struct {
             switch (step) {
                 .Done => {},
                 .InferCaseLabel => {
-                    const attribute = case.value.?;
+                    const attribute = case.label.attribute().?;
                     var label = try context.labels.label(attribute);
 
                     defer label.deinit();

@@ -48,7 +48,7 @@ pub fn check(allocator: std.mem.Allocator, subject: *const zx.ir.Program, attrib
     if (!result.coverage.valid) return invalidSubject(attribute);
 
     if (result.failure.index) |index| {
-        const source = sources[@intCast(index)].value.?;
+        const source = sources[@intCast(index)].label.attribute().?;
 
         return if (result.failure.duplicate) duplicate(source) else invalidLabel(source);
     }
@@ -78,11 +78,11 @@ fn seed(subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []con
 
         switch (value) {
             .integer, .negative_integer, .string, .boolean, .enum_value => {},
-            else => return invalidLabel(source.value.?),
+            else => return invalidLabel(source.label.attribute().?),
         }
 
         for (cases[0..index]) |previous| {
-            if (previous) |other| if (same(value, label(other.*))) return duplicate(source.value.?);
+            if (previous) |other| if (same(value, label(other.*))) return duplicate(source.label.attribute().?);
         }
     }
 

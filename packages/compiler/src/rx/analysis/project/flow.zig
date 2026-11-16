@@ -16,7 +16,26 @@ pub const Kind = if (generated) @FieldType(std.meta.Child(rule.Output), "kind") 
 pub const Unit = rx.IndexedFlow.Unit;
 
 pub const Case = struct {
-    value: ?rx.ast.Attribute,
+    pub const Label = struct {
+        pub const Kind = enum(u8) { Case, Affirmative, Default };
+
+        kind: @This().Kind,
+        source: ?*const rx.ast.Attribute = null,
+        pub fn attribute(self: Label) ?rx.ast.Attribute {
+            return switch (self.kind) {
+                .Case => self.source.?.*,
+                .Affirmative => .{
+                    .name = "value",
+                    .value = "true",
+                    .kind = .expression,
+                    .location = self.source.?.location,
+                    .value_location = self.source.?.value_location,
+                },
+                .Default => null,
+            };
+        }
+    };
+    label: Label,
     body: Unit,
     /// Written by inference before the plan is passed to lowering.
     truth: ?bool = null,
@@ -29,7 +48,7 @@ pub const Task = struct {
     output: ?rx.ast.Attribute = null,
 };
 
-const Selection = struct { subject: rx.ast.Attribute, cases: []Case };
+const Selection = struct { subject: *const rx.ast.Attribute, cases: []Case };
 const Row = struct { kind: Kind, item: u32 };
 const Rows = std.MultiArrayList(Row);
 

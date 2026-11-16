@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Form} out={Preparation.Step[]} />
+
+    <If on={$in == Preparation.Form.Module}>
+        <Return
+            value={[
+                Preparation.Step.BeginModule,
+                Preparation.Step.ResolveStores,
+                Preparation.Step.PrepareFlow,
+                Preparation.Step.ImportTypes,
+                Preparation.Step.PublishModule
+            ]}
+        />
+    </If>
+
+    <Return
+        value={[
+            Preparation.Step.ScanAttributes,
+            Preparation.Step.ParseArgument,
+            Preparation.Step.Authorize,
+            Preparation.Step.ResolveCallee,
+            Preparation.Step.PublishCall,
+            Preparation.Step.RecordArgument
+        ]}
+    />
+</Module>

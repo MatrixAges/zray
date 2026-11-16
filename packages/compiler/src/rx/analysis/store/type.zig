@@ -4,16 +4,25 @@ const rx = @import("rx");
 const zx = @import("zx");
 const target = @import("../call/target.zig");
 const Layout = @import("layout.zig");
+const Schedule = @import("prepare/schedule.zig");
 const Diagnostic = @import("../expression.zig").Diagnostic;
 const generated = @import("rx_options").generated_graph;
 
 pub const Value = union(enum) { resolved: struct { types: zx.ir.TypeStorage, fields: []const zx.ir.TypeId }, diagnostic: Diagnostic };
 
 pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, owner: []const u8, layout: Layout, context: frontend.Context, aliases: []const zx.ir.Export) std.mem.Allocator.Error!Value {
-    if (context.types.count() != 0 and !frontend.validateTypes(context.types)) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid shared Store type table" }) };
-    if (!frontend.native_context.valid(context.types, context.native_modules)) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid shared native module table" }) };
-    if (!try frontend.validateNominalTypes(context.types, context.nominal_types)) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid shared nominal type table" }) };
-    if (!validAliases(aliases, context.types.count())) return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "Store type alias is missing from the shared type table" }) };
+    inline for (comptime Schedule.steps(.TypeContext)) |step| {
+        const issue: ?[]const u8 = switch (step) {
+            .Done => null,
+            .CheckTypes => if (context.types.count() != 0 and !frontend.validateTypes(context.types)) "invalid shared Store type table" else null,
+            .CheckNativeTypes => if (!frontend.native_context.valid(context.types, context.native_modules)) "invalid shared native module table" else null,
+            .CheckNominalTypes => if (!try frontend.validateNominalTypes(context.types, context.nominal_types)) "invalid shared nominal type table" else null,
+            .CheckAliases => if (!validAliases(aliases, context.types.count())) "Store type alias is missing from the shared type table" else null,
+            else => unreachable,
+        };
+
+        if (issue) |message| return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message }) };
+    }
 
     var parsed = try frontend.parseModule(temporary, layout.text, owner);
 
@@ -70,26 +79,30 @@ fn resolveDeclarations(allocator: std.mem.Allocator, temporary: std.mem.Allocato
 
     for (fields, 0..) |*field, index| {
         const declaration = declarations.next().?;
+        var id: zx.ir.TypeId = undefined;
 
-        if (comptime checked) {
-            if (mismatch == index) return invalid(temporary, layout);
-        } else {
-            if (declaration.name.span.start != layout.nameStart(index) or !std.mem.eql(u8, declaration.name.text, layout.names[index])) return invalid(temporary, layout);
+        inline for (comptime Schedule.steps(.FieldType)) |step| {
+            switch (step) {
+                .Done => {},
+                .CheckDeclaration => if (comptime checked) {
+                    if (mismatch == index) return invalid(temporary, layout);
+                } else {
+                    if (declaration.name.span.start != layout.nameStart(index) or !std.mem.eql(u8, declaration.name.text, layout.names[index])) return invalid(temporary, layout);
+                },
+                .ResolveFieldType => id = types.resolveView(resolving, declaration.value) catch |err| {
+                    if (err == error.OutOfMemory) return error.OutOfMemory;
+
+                    return .{ .diagnostic = try mapped(temporary, layout, reporter.diagnostic.?) };
+                },
+                .CheckFieldType => if (id == frontend.types.scalarId(.void)) {
+                    const offset = layout.typeStart(index);
+
+                    return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .type_mismatch, .span = .{ .start = offset, .end = offset }, .message = "Store fields cannot have void type" }) };
+                },
+                .RecordFieldType => field.* = id,
+                else => unreachable,
+            }
         }
-
-        const id = types.resolveView(resolving, declaration.value) catch |err| {
-            if (err == error.OutOfMemory) return error.OutOfMemory;
-
-            return .{ .diagnostic = try mapped(temporary, layout, reporter.diagnostic.?) };
-        };
-
-        if (id == frontend.types.scalarId(.void)) {
-            const offset = layout.typeStart(index);
-
-            return .{ .diagnostic = try mapped(temporary, layout, .{ .code = .type_mismatch, .span = .{ .start = offset, .end = offset }, .message = "Store fields cannot have void type" }) };
-        }
-
-        field.* = id;
     }
 
     return .{ .resolved = .{ .types = types.items, .fields = fields } };

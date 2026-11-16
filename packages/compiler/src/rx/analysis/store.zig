@@ -7,6 +7,8 @@ const target = @import("call/target.zig");
 const expression = @import("expression.zig");
 const initializer = @import("store/initializer.zig");
 const Layout = @import("store/layout.zig");
+const StoreType = @import("store/type.zig");
+const Schedule = @import("store/prepare/schedule.zig");
 pub const registry = @import("store/registry.zig");
 pub const collectInitializers = @import("store/selection.zig").collect;
 pub const Options = struct { aliases: []const zx.ir.Export = &.{}, owner: []const u8, node: rx.ast.Node, types: zx.ir.TypeTable = .{}, nominal_types: @FieldType(frontend.AnalysisResult, "nominal_types") = .{}, native_modules: zx.ir.NativeModuleTable = .{} };
@@ -62,43 +64,73 @@ pub fn analyzeWithValues(allocator: std.mem.Allocator, backing: std.mem.Allocato
         return failure(allocator, options.owner, options.node.location, "module", "Store definition must have a project-relative .store.rx path");
     };
 
-    const layout = try Layout.build(temporary, options.node, groups);
-    const resolved = try @import("store/type.zig").resolve(allocator, temporary, path, layout, .{ .types = options.types, .nominal_types = options.nominal_types, .native_modules = options.native_modules }, options.aliases);
+    var layout: Layout = undefined;
+    var types: zx.ir.TypeStorage = undefined;
+    var field_types: []const zx.ir.TypeId = undefined;
+    var values: frontend.expressions.BindingColumns = undefined;
+    var native_modules: zx.ir.NativeModuleTable = undefined;
+    var objects: []Object = undefined;
 
-    if (resolved == .diagnostic) return diagnostic(allocator, path, resolved.diagnostic);
+    inline for (comptime Schedule.steps(.Definition)) |step| {
+        switch (step) {
+            .Done => {},
+            .CollectLayout => layout = try Layout.build(temporary, options.node, groups),
+            .ResolveTypes => {
+                const context: frontend.Context = .{ .types = options.types, .nominal_types = options.nominal_types, .native_modules = options.native_modules };
+                const resolved = try StoreType.resolve(allocator, temporary, path, layout, context, options.aliases);
 
-    var types = resolved.resolved.types;
-    const values = value_imports orelse try @import("project/type_imports.zig").values(temporary, types.view(), options.aliases);
-    const native_modules = try frontend.native_context.copy(allocator, options.native_modules);
-    const objects = try allocator.alloc(Object, layout.starts.len);
+                if (resolved == .diagnostic) return diagnostic(allocator, path, resolved.diagnostic);
 
-    for (layout.starts, objects) |first, *object| {
-        const initialized = try initializer.compile(allocator, backing, .{
-            .owner = path,
-            .layout = layout,
-            .first = first,
-            .field_types = resolved.resolved.fields,
-            .types = &types,
-            .native_modules = native_modules,
-            .aliases = values,
-        });
+                types = resolved.resolved.types;
+                field_types = resolved.resolved.fields;
+            },
+            .PrepareValues => {
+                values = value_imports orelse try @import("project/type_imports.zig").values(temporary, types.view(), options.aliases);
+                native_modules = try frontend.native_context.copy(allocator, options.native_modules);
+            },
+            .CompileObjects => {
+                objects = try allocator.alloc(Object, layout.starts.len);
 
-        if (initialized == .diagnostic) return diagnostic(allocator, path, initialized.diagnostic);
+                for (layout.starts, objects) |first, *object| {
+                    const initialized = try initializer.compile(allocator, backing, .{
+                        .owner = path,
+                        .layout = layout,
+                        .first = first,
+                        .field_types = field_types,
+                        .types = &types,
+                        .native_modules = native_modules,
+                        .aliases = values,
+                    });
 
-        const name = target.attribute(layout.fragments[first], "name").value;
+                    if (initialized == .diagnostic) return diagnostic(allocator, path, initialized.diagnostic);
 
-        object.* = .{
-            .name = try allocator.dupe(u8, name),
-            .identity = try @import("store/names.zig").qualify(allocator, path, name, .identity),
-            .initial = initialized.program,
-        };
+                    const name = target.attribute(layout.fragments[first], "name").value;
+
+                    object.* = .{
+                        .name = try allocator.dupe(u8, name),
+                        .identity = try @import("store/names.zig").qualify(allocator, path, name, .identity),
+                        .initial = initialized.program,
+                    };
+                }
+            },
+            .PublishDefinition => {
+                const complete = types.view();
+
+                for (objects) |*object| object.initial.types = complete;
+
+                return .{ .definition = .{
+                    .source_path = path,
+                    .name = try allocator.dupe(u8, checked.value.data.attributes.name),
+                    .version = checked.value.data.attributes.version,
+                    .types = complete,
+                    .objects = objects,
+                } };
+            },
+            else => unreachable,
+        }
     }
 
-    const complete = types.view();
-
-    for (objects) |*object| object.initial.types = complete;
-
-    return .{ .definition = .{ .source_path = path, .name = try allocator.dupe(u8, checked.value.data.attributes.name), .version = checked.value.data.attributes.version, .types = complete, .objects = objects } };
+    unreachable;
 }
 
 fn diagnostic(allocator: std.mem.Allocator, path: []const u8, issue: expression.Diagnostic) std.mem.Allocator.Error!Value {

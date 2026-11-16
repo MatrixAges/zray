@@ -1,0 +1,34 @@
+import type { U8Buffer, U32Buffer } from "std:memory"
+
+export type Units = {
+    firsts: u32[],
+    counts: u32[]
+}
+
+export type Rows = {
+    tags: U8Buffer,
+    words: U32Buffer,
+    tag_offset: u64,
+    first_offset: u64,
+    count_offset: u64,
+    byte_stride: u64,
+    word_stride: u64
+}
+
+export type Labels = {
+    ordinary: u8,
+    affirmative: u8,
+    fallback: u8
+}
+
+export type Input = {
+    units: Units,
+    rows: Rows,
+    labels: Labels,
+    facts: u32[],
+    first_child: u64,
+    child_count: u64,
+    subject: u64,
+    conditional: bool,
+    has_else: bool
+}

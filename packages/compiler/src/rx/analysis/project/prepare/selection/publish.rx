@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Selection" />
+
+    <Args in={Selection.Input} out={void} />
+
+    <If on={$in.conditional}>
+        <Call
+            fn="conditional"
+            in={$in.omit([
+                "facts",
+                "conditional"
+            ])}
+        />
+
+        <Else>
+            <Call
+                fn="cases"
+                in={$in.omit([
+                    "subject",
+                    "conditional",
+                    "has_else"
+                ])}
+            />
+        </Else>
+    </If>
+</Module>

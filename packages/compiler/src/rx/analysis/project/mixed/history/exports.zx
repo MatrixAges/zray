@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+
+import type { ExportPair } from "./link_model"
+
+export type Input = ExportPair
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    if (left.count != right.count) {
+        return false
+    }
+
+    if (in.shared) {
+        return true
+    }
+
+    return loop({
+        row: 0,
+        same: true
+    }, {
+        while: state => state.same && state.row < left.count,
+        next: state => {
+            const row = state.row
+            const offset = row * in.stride + in.type_id
+            const left_type = bytes.readU32(left.data, offset, in.little_endian)
+            const right_type = bytes.readU32(right.data, offset, in.little_endian)
+
+            state.same = left_type == right_type &&
+                memory.readTextColumn(left.names, row) ==
+                memory.readTextColumn(right.names, row)
+
+            state.row += 1
+        },
+        return: state => state.same
+    })
+}

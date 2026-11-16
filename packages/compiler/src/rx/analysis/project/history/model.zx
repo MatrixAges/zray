@@ -1,7 +1,26 @@
+import type { TextColumn } from "std:memory"
+
 export enum SourceChange {
     DifferentPath,
     Unchanged,
     Edited
+}
+
+export type Sources = {
+    paths: TextColumn,
+    texts: TextColumn
+}
+
+export type Scan = {
+    earlier: Sources,
+    current: Sources,
+    first: u64,
+    end: u64
+}
+
+export type Changed = {
+    row: u64,
+    kind: SourceChange
 }
 
 export type Inputs = {

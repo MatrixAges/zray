@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+
+import type { TextColumn } from "std:memory"
+
+export type Input = {
+    path: string,
+    paths: TextColumn,
+    count: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const path = bytes.fromText(in.path)
+
+    const row = loop({
+        first: 0,
+        end: in.count
+    }, {
+        while: state => state.first < state.end,
+        next: state => {
+            const center = state.first + (state.end - state.first) / 2
+            const candidate = memory.readTextColumn(in.paths, center)
+
+            if (bytes.lessThan(bytes.fromText(candidate), path)) {
+                state.first = center + 1
+            } else {
+                state.end = center
+            }
+        },
+        return: state => state.first
+    })
+
+    if (row == in.count || in.path != memory.readTextColumn(in.paths, row)) {
+        return null
+    }
+
+    return row
+}

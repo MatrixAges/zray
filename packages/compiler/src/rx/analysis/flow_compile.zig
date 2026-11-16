@@ -144,7 +144,7 @@ fn task(self: *Self, work: *const Prepared.Task) Error!Flow.Step {
 
 fn selection(self: *Self, payload: u32) Error!Flow.Step {
     const selected = &self.plan.selections[payload];
-    var parsed = try @import("attribute.zig").parseBorrowed(self.scratch, selected.subject, self.owner);
+    var parsed = try @import("attribute.zig").parseBorrowed(self.scratch, selected.subject.*, self.owner);
 
     defer parsed.deinit();
 
@@ -156,7 +156,7 @@ fn selection(self: *Self, payload: u32) Error!Flow.Step {
     inline for (comptime Schedule.steps(.Selection)) |action| {
         switch (action) {
             .Done => {},
-            .CompileSubject => subject = try self.keep(try self.valueParsed(&parsed, selected.subject, null, false)),
+            .CompileSubject => subject = try self.keep(try self.valueParsed(&parsed, selected.subject.*, null, false)),
             .CompileCases => {
                 size = try Flow.index(selected.cases.len);
                 cases = try self.compiled.reserveCases(self.binding_allocator, size);
@@ -167,7 +167,7 @@ fn selection(self: *Self, payload: u32) Error!Flow.Step {
             },
             .CheckSelection => {
                 const labels = self.compiled.cases.items(.value)[cases..][0..size];
-                const checked = try @import("selection.zig").check(self.allocator, subject, selected.subject, labels, selected.cases);
+                const checked = try @import("selection.zig").check(self.allocator, subject, selected.subject.*, labels, selected.cases);
 
                 if (checked == .diagnostic) {
                     self.issue = checked.diagnostic;
@@ -193,7 +193,7 @@ fn compileCase(self: *Self, case: *const Prepared.Case, row: usize, subject: *co
     inline for (comptime Schedule.steps(.Case)) |action| {
         switch (action) {
             .Done => {},
-            .CompileLabel => if (case.value) |attribute| {
+            .CompileLabel => if (case.label.attribute()) |attribute| {
                 label = try self.keep(try self.value(attribute, subject_type, false));
             },
             .RefineSubject => {

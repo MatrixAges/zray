@@ -1,12 +1,12 @@
 <Module>
     <Type from="model" as="Namespace" />
 
-    <Args in={Namespace.Input} out={Namespace.Output} />
+    <Args in={Namespace.Declaration} out={Namespace.Binding} />
 
     <Call
         fn="../../result_name/identifier"
         in={{
-            name: $in.name,
+            name: $in.explicit ?? $in.fallback,
             allow_dollar: false
         }}
     />
@@ -15,12 +15,24 @@
         <Return
             value={{
                 index: $in.index,
-                status: Namespace.Status.Invalid
+                status: Namespace.Status.Invalid,
+                name: $in.explicit ?? $in.fallback
             }}
         />
     </If>
 
-    <Call fn="claim" in={$in} />
+    <Call
+        fn="claim"
+        in={{
+            index: $in.index,
+            name: $in.explicit ?? $in.fallback
+        }}
+    />
 
-    <Return value={$ctx.claim} />
+    <Return
+        value={{
+            ...$ctx.claim,
+            name: $in.explicit ?? $in.fallback
+        }}
+    />
 </Module>

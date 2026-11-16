@@ -1,3 +1,4 @@
+import type { TextColumn } from "std:memory"
 import type { Literal } from "core/constant/model"
 import type { FunctionBinding } from "../../../../../zx/modules/binding/model"
 
@@ -7,15 +8,10 @@ export type Port = {
     output_type: u32
 }
 
-export type Export = {
-    name: string,
-    type_id: u32
-}
-
-export type Initializer = {
-    function: u32,
-    identity: string,
-    schema_version: u32
+export type Rows = {
+    names: TextColumn,
+    data: u8[],
+    count: u64
 }
 
 export type Constant = {
@@ -23,19 +19,32 @@ export type Constant = {
     value: Literal
 }
 
-export type Pair = {
+export type PortPair = {
     left: Port,
     right: Port
 }
 
-export type ExportPair = {
-    left: Export,
-    right: Export
+export type RowPair = {
+    left: Rows,
+    right: Rows,
+    stride: u64,
+    little_endian: bool,
+    shared: bool
 }
 
-export type InitializerPair = {
-    left: Initializer,
-    right: Initializer
+export type ExportPair = RowPair & {
+    type_id: u64
+}
+
+export type InitializerPair = RowPair & {
+    function_id: u64,
+    schema_version: u64
+}
+
+export type Link = {
+    ports: PortPair,
+    exports: ExportPair,
+    initializers: InitializerPair
 }
 
 export type MemberPair = {

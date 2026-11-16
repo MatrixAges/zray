@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Shortcut" />
+
+    <Args in={Shortcut.Input} out={Shortcut.Output} />
+
+    <Call fn="route" in={$in.ports} />
+
+    <If on={$ctx.route.returns_value}>
+        <Call fn="result" in={$in.function_path} />
+
+        <Return
+            value={{
+                takes_input: $ctx.route.takes_input,
+                steps: $ctx.route.steps,
+                result: $ctx.result
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            takes_input: $ctx.route.takes_input,
+            steps: $ctx.route.steps,
+            result: null
+        }}
+    />
+</Module>

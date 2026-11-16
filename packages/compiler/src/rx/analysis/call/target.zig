@@ -173,17 +173,17 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
 }
 
 pub fn optionalAttribute(node: rx.ast.Node, name: []const u8) ?rx.ast.Attribute {
-    for (node.attributes) |item| if (std.mem.eql(u8, item.name, name)) return item;
+    return if (borrowAttribute(node, name)) |item| item.* else null;
+}
+
+pub fn borrowAttribute(node: rx.ast.Node, name: []const u8) ?*const rx.ast.Attribute {
+    for (node.attributes) |*item| if (std.mem.eql(u8, item.name, name)) return item;
 
     return null;
 }
 
 pub fn attribute(node: rx.ast.Node, name: []const u8) rx.ast.Attribute {
-    for (node.attributes) |item| {
-        if (std.mem.eql(u8, item.name, name)) return item;
-    }
-
-    unreachable;
+    return (borrowAttribute(node, name) orelse unreachable).*;
 }
 
 pub fn failure(allocator: std.mem.Allocator, issue: Diagnostic) std.mem.Allocator.Error!Value {

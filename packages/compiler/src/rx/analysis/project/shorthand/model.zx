@@ -1,0 +1,12 @@
+import type { Input as Ports } from "./route"
+
+export type Input = {
+    ports: Ports,
+    function_path: string
+}
+
+export type Output = {
+    takes_input: bool,
+    steps: u32,
+    result?: string
+}

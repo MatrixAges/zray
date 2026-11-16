@@ -1,3 +1,6 @@
+import bytes from "std:bytes"
+import memory from "std:memory"
+
 import type { InitializerPair } from "./link_model"
 
 export type Input = InitializerPair
@@ -7,7 +10,40 @@ export type Output = bool
 export default function (in: Input): Output {
     const { left, right } = in
 
-    const version = left.schema_version == right.schema_version
+    if (left.count != right.count) {
+        return false
+    }
 
-    return left.function == right.function && version && left.identity == right.identity
+    if (in.shared) {
+        return true
+    }
+
+    return loop({
+        row: 0,
+        same: true
+    }, {
+        while: state => state.same && state.row < left.count,
+        next: state => {
+            const row = state.row
+            const start = row * in.stride
+            const fn_offset = start + in.function_id
+            const left_fn = bytes.readU32(left.data, fn_offset, in.little_endian)
+            const right_fn = bytes.readU32(right.data, fn_offset, in.little_endian)
+
+            if (left_fn != right_fn) {
+                state.same = false
+            } else {
+                const version = start + in.schema_version
+                const left_ver = bytes.readU32(left.data, version, in.little_endian)
+                const right_ver = bytes.readU32(right.data, version, in.little_endian)
+
+                state.same = left_ver == right_ver &&
+                    memory.readTextColumn(left.names, row) ==
+                    memory.readTextColumn(right.names, row)
+            }
+
+            state.row += 1
+        },
+        return: state => state.same
+    })
 }

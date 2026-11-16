@@ -1,0 +1,34 @@
+export enum Form {
+    Definition,
+    Field,
+    Program,
+    TypeContext,
+    FieldType
+}
+
+export enum Step {
+    Done,
+    CollectLayout,
+    ResolveTypes,
+    PrepareValues,
+    CompileObjects,
+    PublishDefinition,
+    ReadFieldAttributes,
+    ParseField,
+    CompileField,
+    RecordField,
+    LinkField,
+    ResolveObjectType,
+    CheckLinks,
+    BuildProgram,
+    AnalyzeOwnership,
+    VerifyProgram,
+    CheckTypes,
+    CheckNativeTypes,
+    CheckNominalTypes,
+    CheckAliases,
+    CheckDeclaration,
+    ResolveFieldType,
+    CheckFieldType,
+    RecordFieldType
+}

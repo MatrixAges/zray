@@ -44,7 +44,7 @@ pub fn remaining(self: *Self, rest: []const Case) std.mem.Allocator.Error!?bool 
     for (rest) |case| {
         if (self.coverage.stopped) break;
 
-        const attribute = case.value orelse continue;
+        const attribute = case.label.attribute() orelse continue;
         const retain = self.pending.items.len < boolean_domain_size;
 
         if (retain) try self.pending.ensureTotalCapacityPrecise(self.allocator, boolean_domain_size);

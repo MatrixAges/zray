@@ -1,0 +1,25 @@
+import memory from "std:memory"
+
+import type { Rows, Units } from "./model"
+
+export type Input = {
+    rows: Rows,
+    units: Units,
+    slot: u64,
+    row: u64,
+    tag: u8
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows, units, slot, row, tag } = in
+
+    const first = units.firsts[slot]
+    const count = units.counts[slot]
+    const word = row * rows.word_stride
+
+    memory.writeU32(rows.words, word + rows.first_offset, first)
+    memory.writeU32(rows.words, word + rows.count_offset, count)
+    memory.writeU8(rows.tags, row * rows.byte_stride + rows.tag_offset, tag)
+}

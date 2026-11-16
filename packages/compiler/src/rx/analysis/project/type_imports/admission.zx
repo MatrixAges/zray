@@ -1,0 +1,19 @@
+import type { Target } from "../../call/availability"
+import type { Input as Signature } from "../references/lookup/model"
+
+export enum Status {
+    Resolved,
+    NonSource,
+    Native,
+    MissingSignature
+}
+
+export type Input = {
+    target: Target,
+    signature: Signature
+}
+
+export type Output = {
+    status: Status,
+    index?: i64
+}

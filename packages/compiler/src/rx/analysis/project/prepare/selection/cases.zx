@@ -1,0 +1,35 @@
+import integers from "std:integer"
+
+import { alternate } from "../../../../dependency_graph/flow/const"
+import write from "./write"
+
+import type { Input as Selection } from "./model"
+
+export type Input = Selection.Omit("subject", "conditional", "has_else")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { units, rows, labels, facts, first_child, child_count } = in
+
+    const mask = integers.widen(alternate)
+
+    const written = loop(0, {
+        while: row => row < child_count,
+        next: row => {
+            const slot = first_child + row
+            const flags = integers.widen(facts[slot])
+            const fallback = integers.andBits(flags, mask) != 0
+
+            write({
+                rows,
+                units,
+                slot,
+                row,
+                tag: fallback ? labels.fallback : labels.ordinary
+            })
+
+            row += 1
+        }
+    })
+}

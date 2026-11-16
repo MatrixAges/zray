@@ -7,12 +7,14 @@
 //! When every changed ZX source differs only inside its function body, the source graph, signatures and RX
 //! constraints cannot differ either, so the later analysis also takes the `Frame` the earlier one derived.
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const frontend = @import("frontend");
 const columns = @import("history/columns.zig");
 const admission = @import("history/admission.zig");
 const Graph = @import("source_graph/model.zig").Graph;
 const Types = frontend.project.artifact.type_link.Table;
+const generated = @import("rx_options").generated_graph;
 pub const OriginStorage = @FieldType(@FieldType(Types, "origins"), "items");
 pub const OriginTable = @typeInfo(@TypeOf(OriginStorage.view)).@"fn".return_type.?;
 
@@ -143,16 +145,30 @@ pub const History = struct {
 
         const paths = earlier.derived.dependencies.modules.items(.path)[0..sources.len];
 
-        for (earlier.sources, sources, paths) |*before, *after, path| switch (admission.source(before, after)) {
-            .DifferentPath => return false,
-            .Unchanged => {},
-            .Edited => {
-                const parsed = try cache.getModule(after.source, path);
-                const body = parsed.bodyStart() orelse return false;
+        if (comptime generated) {
+            const scan = admission.SourceScan.init(earlier.sources, sources);
+            var first: usize = 0;
 
-                if (!admission.sameHeader(before.source, after.source, body)) return false;
-            },
-        };
+            while (first < sources.len) {
+                const next = scan.next(first);
+                const row: usize = @intCast(next.row);
+
+                switch (next.kind) {
+                    .DifferentPath => return false,
+                    .Unchanged => return true,
+                    .Edited => if (!try sameBodyHeader(cache, paths[row], earlier.sources[row].source, sources[row].source)) return false,
+                }
+
+                first = row + 1;
+            }
+
+            return true;
+        }
+
+        for (earlier.sources, sources, paths) |*before, *after, path| {
+            if (!zx.bytes.equal(before.path, after.path)) return false;
+            if (!zx.bytes.equal(before.source, after.source) and !try sameBodyHeader(cache, path, before.source, after.source)) return false;
+        }
 
         return true;
     }
@@ -164,7 +180,15 @@ pub const History = struct {
 
         if (!admission.signed(&earlier.shape, &self.shape, &earlier.derived.dependencies, graph, entries)) return null;
 
-        for (earlier.sources, sources) |*before, *after| if (admission.source(before, after) != .Unchanged) return null;
+        if (comptime generated) {
+            const scan = admission.SourceScan.init(earlier.sources, sources);
+
+            return if (scan.next(0).kind == .Unchanged) earlier.derived.signatures else null;
+        }
+
+        for (earlier.sources, sources) |*before, *after| {
+            if (!zx.bytes.equal(before.path, after.path) or !zx.bytes.equal(before.source, after.source)) return null;
+        }
 
         return earlier.derived.signatures;
     }
@@ -178,3 +202,10 @@ pub const History = struct {
         return std.mem.order(u8, path, item.path);
     }
 };
+
+fn sameBodyHeader(cache: *frontend.project.ParseCache, path: []const u8, earlier: []const u8, current: []const u8) std.mem.Allocator.Error!bool {
+    const parsed = try cache.getModule(current, path);
+    const body = parsed.bodyStart() orelse return false;
+
+    return admission.sameHeader(earlier, current, body);
+}

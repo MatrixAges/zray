@@ -85,9 +85,10 @@ pub const Flow = struct {
 
         return .{ .first = self.unit_firsts[index], .count = self.unit_counts[index] };
     }
-    fn row(self: Flow, node: *const ast.Node) usize {
+    pub fn row(self: Flow, node: *const ast.Node) usize {
         return (@intFromPtr(node) - @intFromPtr(self.base)) / @sizeOf(ast.Node);
     }
+
     pub const Unit = struct { first: u32 = 0, count: u32 = 0 };
 };
 

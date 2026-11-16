@@ -3,10 +3,10 @@ const rx = @import("rx");
 const zx = @import("zx");
 const Prepared = @import("../prepare.zig");
 const SourceMap = @import("../../source_map.zig");
-const target = @import("../../call/target.zig");
+const Declarations = @import("../declarations.zig");
 const enabled = @import("rx_options").generated_graph;
 const Self = @This();
-const Entry = struct { module: u64, location: @FieldType(rx.ast.Node, "location"), attribute: rx.ast.Attribute, expression: []const u8 };
+const Entry = struct { module: u64, location: @FieldType(rx.ast.Node, "location"), attribute: *const rx.ast.Attribute, expression: []const u8 };
 
 allocator: std.mem.Allocator,
 text: []const u8 = &.{},
@@ -15,15 +15,9 @@ names: []const []const u8 = &.{},
 ends: []const u64 = &.{},
 pub fn collect(self: *Self, modules: []const Prepared.Module) std.mem.Allocator.Error!void {
     for (modules, 0..) |module, index| {
-        const children = module.source.node.children;
+        var declarations = Declarations.init(module.source.node, .Arguments);
 
-        if (comptime enabled) {
-            try self.collectModule(index, children);
-        } else {
-            for (children) |node| {
-                if (std.mem.eql(u8, node.name, "Args")) try self.appendPorts(index, node);
-            }
-        }
+        while (declarations.next()) |node| try self.appendPorts(index, node);
     }
 
     if (self.entries.len == 0) return;
@@ -61,29 +55,10 @@ pub fn collect(self: *Self, modules: []const Prepared.Module) std.mem.Allocator.
     self.ends = result.ends;
 }
 
-fn collectModule(self: *Self, index: usize, children: []const rx.ast.Node) std.mem.Allocator.Error!void {
-    if (children.len == 0) return;
+fn appendPorts(self: *Self, module: usize, node: *const rx.ast.Node) std.mem.Allocator.Error!void {
+    const ports = Declarations.attributes(node, .Arguments);
 
-    const rule = @import("generated_rx_args_declaration");
-    const names = @import("zxc_standard").memory.borrowTextColumn("name", children);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    var start: usize = 0;
-
-    while (start < children.len) {
-        const input: std.meta.Child(rule.Input) = .{ .names = @ptrCast(&names), .count = children.len, .start = start };
-        const next = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-        const row: usize = @intCast(next orelse return);
-
-        try self.appendPorts(index, children[row]);
-
-        start = row + 1;
-    }
-}
-
-fn appendPorts(self: *Self, module: usize, node: rx.ast.Node) std.mem.Allocator.Error!void {
-    for ([_][]const u8{ "in", "out" }) |key| {
-        const attribute = target.attribute(node, key);
-
+    for ([_]*const rx.ast.Attribute{ ports.first, ports.second.? }) |attribute| {
         try self.entries.append(self.allocator, .{ .module = module, .location = node.location, .attribute = attribute, .expression = attribute.value });
     }
 }
@@ -117,7 +92,7 @@ pub fn span(self: Self, source_map: SourceMap, offset: usize) zx.Span {
     const entry = self.entries.slice().get(selected.index);
 
     const location = if (selected.relative) |relative|
-        rx.attributeLocation(entry.attribute, relative) orelse entry.attribute.value_location
+        rx.attributeLocation(entry.attribute.*, relative) orelse entry.attribute.value_location
     else
         entry.location;
 

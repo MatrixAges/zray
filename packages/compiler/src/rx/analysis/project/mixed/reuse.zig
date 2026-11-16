@@ -62,10 +62,17 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
         self.digests.set(index, if (digest != null) &digest.? else null);
     }
 
-    for (paths[ranges.zx_count..ranges.rx_end], ranges.zx_count..) |path, index| {
-        const digest = owner.rxDigest(path);
+    if (comptime generated) {
+        @import("../history/digest.zig").publish(owner.rx_digests, paths[ranges.zx_count..ranges.rx_end], .{
+            .words = self.digests.words[ranges.zx_count..ranges.rx_end],
+            .present = self.digests.present[ranges.zx_count..ranges.rx_end],
+        });
+    } else {
+        for (paths[ranges.zx_count..ranges.rx_end], ranges.zx_count..) |path, index| {
+            const digest = owner.rxDigest(path);
 
-        self.digests.set(index, if (digest != null) &digest.? else null);
+            self.digests.set(index, if (digest != null) &digest.? else null);
+        }
     }
 
     @memset(self.digests.present[ranges.rx_end..], false);

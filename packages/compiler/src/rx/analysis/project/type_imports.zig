@@ -5,6 +5,7 @@ const expressions = @import("frontend").expressions;
 const target = @import("../call/target.zig");
 const Graph = @import("source_graph/model.zig");
 const Signatures = @import("references/signatures.zig");
+const Declarations = @import("declarations.zig");
 const generated = @import("rx_options").generated_graph;
 
 pub const Imports = struct {
@@ -34,26 +35,23 @@ pub fn collect(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator,
     var references: Graph.References = .{ .edges = edges };
     var types: std.ArrayList(zx.ir.Export) = .empty;
     var visible: expressions.BindingStorage = .empty;
+    var declarations = Declarations.init(source.node, .TypeImport);
 
-    for (source.node.children) |node| {
-        if (!std.mem.eql(u8, node.name, "Type")) continue;
-
-        const from = target.attribute(node, "from");
-        const alias = target.optionalAttribute(node, "as") orelse return failure(allocator, source, from, "Type requires an explicit as attribute");
+    while (declarations.next()) |node| {
+        const attributes = Declarations.attributes(node, .TypeImport);
+        const from = attributes.first;
+        const alias = attributes.second orelse return failure(allocator, source, from, "Type requires an explicit as attribute");
         const reference = references.next(.type_import).edge;
+        const signature = admit(&signatures, reference);
 
-        const index = switch (reference.target) {
-            .source => |index| index,
-            .compiled => return failure(allocator, source, from, "Type requires a ZX source module"),
-            .native => return failure(allocator, source, from, "native and standard imports must use the interface registry"),
+        const index = switch (signature.status) {
+            .Resolved => signature.index.?,
+            .NonSource => return failure(allocator, source, from, "Type requires a ZX source module"),
+            .Native => return failure(allocator, source, from, "native and standard imports must use the interface registry"),
+            .MissingSignature => return failure(allocator, source, from, "Type source signature is missing from the analyzed input set"),
         };
 
-        const signature = switch (signatures.lookup(index)) {
-            .zx => |resolved| resolved orelse return failure(allocator, source, from, "Type source signature is missing from the analyzed input set"),
-            .rx, .store => return failure(allocator, source, from, "Type requires a ZX source module"),
-        };
-
-        const exports = signature.module.signature.exports;
+        const exports = signatures.modules[@intCast(index)].signature.exports;
 
         try types.ensureUnusedCapacity(allocator, exports.len);
 
@@ -81,11 +79,50 @@ pub fn collect(allocator: std.mem.Allocator, value_allocator: std.mem.Allocator,
     return .{ .imports = .{ .types = types.items, .values = expressions.BindingColumns.view(visible.slice()) } };
 }
 
+const admission = if (generated) @import("generated_rx_type_import_admit") else void;
+
+const Decision = if (generated) @typeInfo(@TypeOf(admission.executeValue(undefined, undefined))).error_union.payload else struct {
+    status: enum { Resolved, NonSource, Native, MissingSignature },
+    index: ?i64 = null,
+};
+
+fn admit(signatures: *const Signatures, edge: *const Graph.Edge) Decision {
+    if (comptime generated) {
+        const ranges = signatures.graph.sources;
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+        return admission.executeValue(scratch.allocator(), &.{
+            .target = switch (edge.target) {
+                .source => .Source,
+                .compiled => .Compiled,
+                .native => .Native,
+            },
+            .signature = &.{
+                .owner = if (edge.target == .source) edge.target.source else 0,
+                .sources = &.{ .zx_count = ranges.zx_count, .rx_end = ranges.rx_end },
+                .indices = signatures.indices,
+            },
+        }) catch unreachable;
+    }
+
+    const index = switch (edge.target) {
+        .source => |row| row,
+        .compiled => return .{ .status = .NonSource },
+        .native => return .{ .status = .Native },
+    };
+
+    if (signatures.graph.sources.at(index) != .zx) return .{ .status = .NonSource };
+
+    const row = Signatures.indexAt(signatures.indices, index) orelse return .{ .status = .MissingSignature };
+
+    return .{ .status = .Resolved, .index = @intCast(row) };
+}
+
 fn valueKind(kind: u8) bool {
     return kind == @backingInt(std.meta.Tag(zx.ir.Type).enumeration);
 }
 
-fn failure(allocator: std.mem.Allocator, source: rx.ModuleSource, attribute: rx.ast.Attribute, message: []const u8) std.mem.Allocator.Error!Value {
+fn failure(allocator: std.mem.Allocator, source: rx.ModuleSource, attribute: *const rx.ast.Attribute, message: []const u8) std.mem.Allocator.Error!Value {
     return .{ .diagnostic = .{
         .path = try allocator.dupe(u8, source.path),
         .location = attribute.value_location,

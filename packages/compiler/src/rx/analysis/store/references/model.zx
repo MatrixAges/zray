@@ -15,3 +15,13 @@ export type Output = {
     index: Index,
     status: Status
 }
+
+export type Declaration = {
+    index: Index,
+    explicit?: string,
+    fallback: string
+}
+
+export type Binding = Output & {
+    name: string
+}

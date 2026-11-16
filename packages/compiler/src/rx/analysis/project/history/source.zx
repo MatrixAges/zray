@@ -1,23 +1,43 @@
 import bytes from "std:bytes"
+import memory from "std:memory"
 
 import { SourceChange } from "./model"
 
-export type Input = {
-    earlier_path: u8[],
-    current_path: u8[],
-    earlier_source: u8[],
-    current_source: u8[]
-}
+import type { Changed, Scan } from "./model"
 
-export type Output = SourceChange
+export type Input = Scan
+
+export type Output = Changed
 
 export default function (in: Input): Output {
-    if (!bytes.equals(in.earlier_path, in.current_path)) {
-        return SourceChange.DifferentPath
-    }
+    const { earlier, current } = in
 
-    return match {
-        bytes.equals(in.earlier_source, in.current_source) => SourceChange.Unchanged,
-        _ => SourceChange.Edited
-    }
+    return loop({
+        row: in.first,
+        kind: SourceChange.Unchanged
+    }, {
+        while: state => state.row < in.end && state.kind == SourceChange.Unchanged,
+        next: state => {
+            const row = state.row
+            const before_path =
+                bytes.fromText(memory.readTextColumn(earlier.paths, row))
+            const after_path =
+                bytes.fromText(memory.readTextColumn(current.paths, row))
+
+            if (!bytes.equals(before_path, after_path)) {
+                state.kind = SourceChange.DifferentPath
+            } else {
+                const before =
+                    bytes.fromText(memory.readTextColumn(earlier.texts, row))
+                const after =
+                    bytes.fromText(memory.readTextColumn(current.texts, row))
+
+                if (bytes.equals(before, after)) {
+                    state.row += 1
+                } else {
+                    state.kind = SourceChange.Edited
+                }
+            }
+        }
+    })
 }

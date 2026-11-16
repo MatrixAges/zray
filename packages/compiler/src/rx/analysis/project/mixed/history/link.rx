@@ -1,0 +1,21 @@
+<Module>
+    <Type from="link_model" as="History" />
+
+    <Args in={History.Link} out={bool} />
+
+    <Call fn="ports" in={$in.ports} />
+
+    <If on={!$ctx.ports}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="exports" in={$in.exports} />
+
+    <If on={!$ctx.exports}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="initializer" in={$in.initializers} />
+
+    <Return value={$ctx.initializer} />
+</Module>

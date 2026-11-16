@@ -1,0 +1,19 @@
+export enum Form {
+    Module,
+    Call
+}
+
+export enum Step {
+    Done,
+    BeginModule,
+    ResolveStores,
+    PrepareFlow,
+    ImportTypes,
+    PublishModule,
+    ScanAttributes,
+    ParseArgument,
+    Authorize,
+    ResolveCallee,
+    PublishCall,
+    RecordArgument
+}

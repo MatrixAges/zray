@@ -4,7 +4,9 @@ const zx = @import("zx");
 const Builder = @import("../program/builder.zig");
 const inlineValue = @import("../program/expression.zig").inlineValue;
 const expression = @import("../expression.zig");
-const target = @import("../call/target.zig");
+const rx = @import("rx");
+const Declarations = @import("../project/declarations.zig");
+const Schedule = @import("prepare/schedule.zig");
 const Layout = @import("layout.zig");
 const object = @import("initializer/object.zig");
 const Fields = @import("initializer/fields.zig");
@@ -45,50 +47,64 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, options
 
     while (ranges.next()) |range| {
         for (range.first..range.end, cursor..) |row, position| {
-            const node = layout.fields[row].*;
-            const attribute = target.attribute(node, "value");
+            const node = layout.fields[row];
             const id = options.field_types[row];
-            var parsed = try @import("../attribute.zig").parseBorrowed(backing, attribute, options.owner);
+            var field_name: *const rx.ast.Attribute = undefined;
+            var field_value: *const rx.ast.Attribute = undefined;
+            var parsed: ?frontend.ExpressionInput.Result = null;
+            var initial: ?expression.Result = null;
 
-            defer parsed.deinit();
+            defer if (parsed) |*value| value.deinit();
+            defer if (initial) |*value| value.deinit();
 
-            var initial = try expression.compileParsed(backing, &parsed, attribute, .{
-                .types = options.types.view(),
-                .borrow_types = true,
-                .type_storage = options.types,
-                .type_allocator = allocator,
-                .native_modules = options.native_modules,
-                .alias_columns = options.aliases,
-                .expected = id,
-                .scratch_backing = backing,
-            }, false);
+            inline for (comptime Schedule.steps(.Field)) |step| {
+                switch (step) {
+                    .Done => {},
+                    .ReadFieldAttributes => {
+                        const attributes = Declarations.attributes(node, .Field);
 
-            defer initial.deinit();
+                        field_name = attributes.first;
+                        field_value = attributes.second.?;
+                    },
+                    .ParseField => parsed = try @import("../attribute.zig").parseBorrowed(backing, field_value.*, options.owner),
+                    .CompileField => {
+                        initial = try expression.compileParsed(backing, &parsed.?, field_value.*, .{
+                            .types = options.types.view(),
+                            .borrow_types = true,
+                            .type_storage = options.types,
+                            .type_allocator = allocator,
+                            .native_modules = options.native_modules,
+                            .alias_columns = options.aliases,
+                            .expected = id,
+                            .scratch_backing = backing,
+                        }, false);
 
-            if (initial.value == .diagnostic) {
-                var issue = initial.value.diagnostic;
-                issue.issue = try issue.issue.clone(allocator);
+                        if (initial.?.value == .diagnostic) {
+                            var issue = initial.?.value.diagnostic;
+                            issue.issue = try issue.issue.clone(allocator);
 
-                return .{ .diagnostic = issue };
-            }
+                            return .{ .diagnostic = issue };
+                        }
+                    },
+                    .RecordField => {
+                        const name = try allocator.dupe(u8, field_name.value);
 
-            const name = try allocator.dupe(u8, target.attribute(node, "name").value);
+                        names[position] = name;
 
-            names[position] = name;
+                        fields.set(position, name, id);
+                    },
+                    .LinkField => if (!invalid_link) {
+                        // Finish checking the remaining fields before reporting a link failure.
+                        if (inlineValue(&builder, initial.?.value.ir, false)) |evaluated| {
+                            evaluation[position] = @backingInt(evaluated);
+                        } else |err| {
+                            if (err == error.OutOfMemory) return error.OutOfMemory;
 
-            fields.set(position, name, id);
-
-            if (!invalid_link) {
-                // Finish checking the field expressions before reporting a link failure.
-                const evaluated = inlineValue(&builder, initial.value.ir, false) catch |err| {
-                    if (err == error.OutOfMemory) return error.OutOfMemory;
-
-                    invalid_link = true;
-
-                    continue;
-                };
-
-                evaluation[position] = @backingInt(evaluated);
+                            invalid_link = true;
+                        }
+                    },
+                    else => unreachable,
+                }
             }
         }
 
@@ -113,26 +129,33 @@ fn publish(builder: *Builder, options: Options, fields: frontend.types.Fields, n
     var table = frontend.types{ .allocator = allocator, .reporter = reporter, .declarations = &.{}, .items = options.types.* };
     defer options.types.* = table.items;
 
-    const output = try table.object(fields);
+    var output: zx.ir.TypeId = undefined;
+    var program: zx.ir.Program = undefined;
 
-    if (invalid_link) return reporter.fail(.contract, span, "Store initializer expression cannot be linked");
+    inline for (comptime Schedule.steps(.Program)) |step| {
+        switch (step) {
+            .Done => {},
+            .ResolveObjectType => output = try table.object(fields),
+            .CheckLinks => if (invalid_link) return reporter.fail(.contract, span, "Store initializer expression cannot be linked"),
+            .BuildProgram => {
+                const root = try object.append(builder, output, names, table.get(output).object.names, evaluation, span);
 
-    const root = try object.append(builder, output, names, table.get(output).object.names, evaluation, span);
-
-    var program = zx.ir.Program{
-        .file_name = options.owner,
-        .types = table.items.view(),
-        .native_modules = options.native_modules,
-        .symbols = builder.symbols.view(),
-        .expressions = builder.expressions.view(),
-        .input_type = input_type,
-        .output_type = output,
-        .body = try zx.ir.ControlBody.fromValues(allocator, &.{.{ .result = root }}),
-    };
-
-    program.output_ownership = try frontend.analyzeOwnership(allocator, program, reporter);
-
-    if (try frontend.validateIr(allocator, program)) |issue| return reporter.fail(issue.code, issue.span, issue.message);
+                program = .{
+                    .file_name = options.owner,
+                    .types = table.items.view(),
+                    .native_modules = options.native_modules,
+                    .symbols = builder.symbols.view(),
+                    .expressions = builder.expressions.view(),
+                    .input_type = input_type,
+                    .output_type = output,
+                    .body = try zx.ir.ControlBody.fromValues(allocator, &.{.{ .result = root }}),
+                };
+            },
+            .AnalyzeOwnership => program.output_ownership = try frontend.analyzeOwnership(allocator, program, reporter),
+            .VerifyProgram => if (try frontend.validateIr(allocator, program)) |issue| return reporter.fail(issue.code, issue.span, issue.message),
+            else => unreachable,
+        }
+    }
 
     return program;
 }

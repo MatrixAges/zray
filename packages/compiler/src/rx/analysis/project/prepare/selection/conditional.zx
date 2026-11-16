@@ -1,0 +1,29 @@
+import write from "./write"
+
+import type { Input as Selection } from "./model"
+
+export type Input = Selection.Omit("facts", "conditional")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { units, rows, labels } = in
+
+    write({
+        rows,
+        units,
+        slot: in.subject,
+        row: 0,
+        tag: labels.affirmative
+    })
+
+    if (in.has_else) {
+        write({
+            rows,
+            units,
+            slot: in.first_child + in.child_count - 1,
+            row: 1,
+            tag: labels.fallback
+        })
+    }
+}

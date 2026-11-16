@@ -12,6 +12,9 @@ const zx = @import("zx");
 const Graph = @import("source_graph/model.zig");
 const Signatures = @import("references/signatures.zig");
 const Attributes = @import("../call/attributes.zig");
+const TypeImports = @import("type_imports.zig");
+const Schedule = @import("prepare/schedule.zig");
+const StoreCall = @import("../store/call.zig");
 const availability = @import("../call/availability.zig");
 const generated = @import("rx_options").generated_graph;
 const Callee = union(enum) { module: usize, signature: frontend.project.signature_project.Ports };
@@ -65,44 +68,60 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
     defer store_memory.deinit();
 
     for (modules, registered, plans, 0..) |source, edges, *plan, index| {
-        if (definitions.len != 0 and !store_memory.reset(.retain_capacity)) return error.OutOfMemory;
+        var flow: Flow.Plan = undefined;
+        var imports: TypeImports.Imports = undefined;
 
-        loader.owner = source.path;
-        loader.references = .{ .edges = edges };
-        loader.calls = .empty;
-        loader.local_calls = true;
-        loader.arguments = .empty;
-        loader.plan = .{};
-        loader.task_count = 0;
-        loader.deferred_shortcut = null;
+        inline for (comptime Schedule.steps(.Module)) |step| {
+            switch (step) {
+                .Done => {},
+                .BeginModule => {
+                    if (definitions.len != 0 and !store_memory.reset(.retain_capacity)) return error.OutOfMemory;
 
-        const references = try StoreReferences.resolve(allocator, store_memory.allocator(), source, edges, signatures.graph.sources, definitions);
+                    loader.owner = source.path;
+                    loader.references = .{ .edges = edges };
+                    loader.calls = .empty;
+                    loader.local_calls = true;
+                    loader.arguments = .empty;
+                    loader.plan = .{};
+                    loader.task_count = 0;
+                    loader.deferred_shortcut = null;
+                },
+                .ResolveStores => {
+                    const result = try StoreReferences.resolve(allocator, store_memory.allocator(), source, edges, signatures.graph.sources, definitions);
 
-        if (references == .diagnostic) return .{ .diagnostic = references.diagnostic };
+                    if (result == .diagnostic) return .{ .diagnostic = result.diagnostic };
 
-        loader.stores = references.scope;
+                    loader.stores = result.scope;
+                },
+                .PrepareFlow => flow = loader.moduleBody(source) catch |err| {
+                    if (err == error.OutOfMemory) return error.OutOfMemory;
 
-        const flow = loader.moduleBody(source) catch |err| {
-            if (err == error.OutOfMemory) return error.OutOfMemory;
+                    return .{ .diagnostic = loader.issue.? };
+                },
+                .ImportTypes => {
+                    const result = try TypeImports.collect(allocator, allocator, source, edges, signatures, loader.project.context.types.kinds);
 
-            return .{ .diagnostic = loader.issue.? };
-        };
+                    if (result == .diagnostic) return .{ .diagnostic = result.diagnostic };
 
-        const imported = try @import("type_imports.zig").collect(allocator, allocator, source, edges, signatures, loader.project.context.types.kinds);
+                    imports = result.imports;
+                },
+                .PublishModule => {
+                    try inputs.publish(modules.len, index, loader.arguments.items);
 
-        if (imported == .diagnostic) return .{ .diagnostic = imported.diagnostic };
-        try inputs.publish(modules.len, index, loader.arguments.items);
+                    plan.* = .{
+                        .source = source,
+                        .shortcut = loader.deferred_shortcut,
+                        .calls = loader.calls.slice(),
+                        .plan = flow,
+                        .type_imports = imports.types,
+                        .value_imports = imports.values,
+                    };
 
-        plan.* = .{
-            .source = source,
-            .shortcut = loader.deferred_shortcut,
-            .calls = loader.calls.slice(),
-            .plan = flow,
-            .type_imports = imported.imports.types,
-            .value_imports = imported.imports.values,
-        };
-
-        local_calls[index] = loader.local_calls;
+                    local_calls[index] = loader.local_calls;
+                },
+                else => unreachable,
+            }
+        }
     }
 
     return .{ .loaded = .{ .modules = plans, .local_calls = local_calls, .project = loader.project } };
@@ -113,7 +132,7 @@ pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signat
 
     for (modules, signatures) |*module, signature| {
         const index = module.shortcut orelse continue;
-        const plan = try shorthand.lower(allocator, module.source.node, index, signature.input_type, signature.output_type);
+        const plan = try shorthand.lower(allocator, module.calls.items(.node)[index], index, signature.input_type, signature.output_type);
 
         module.calls.items(.node)[index] = plan.node;
         module.calls.items(.input)[index] = plan.input;
@@ -142,7 +161,8 @@ const Loader = struct {
 
     fn shortcut(self: *Loader, node: rx.ast.Node) Error!Flow.Plan {
         const shorthand = @import("shorthand.zig");
-        const index = try self.call(try shorthand.call(self.allocator, node, false));
+        const invocation = shorthand.call(node);
+        const index = try self.call(invocation);
         const callee = self.calls.items(.callee)[index];
 
         const ports = switch (callee) {
@@ -154,7 +174,7 @@ const Loader = struct {
             },
         };
 
-        const plan = try shorthand.lower(self.allocator, node, index, ports.input_type, ports.output_type);
+        const plan = try shorthand.lower(self.allocator, invocation, index, ports.input_type, ports.output_type);
 
         self.calls.items(.node)[index] = plan.node;
         self.calls.items(.input)[index] = plan.input;
@@ -207,7 +227,7 @@ const Loader = struct {
                 },
                 .parallel => .{ .Parallel = try self.parallel(node) },
                 .switch_flow, .if_flow => selection: {
-                    const subject = target.attribute(node.*, "on");
+                    const subject = target.borrowAttribute(node.*, "on").?;
                     var branches: Flow.BranchExits = .{};
                     const cases = if (action == .switch_flow) try self.switchCases(node.*, &branches) else try self.ifCases(node, subject, &branches);
 
@@ -234,31 +254,35 @@ const Loader = struct {
 
         for (node.children, cases) |*child, *case| {
             const default = rx.execution.admit(child.name, .Any) == .Default;
-            const value = if (default) null else target.attribute(child.*, "value");
 
-            case.* = try self.selectionCase(value, child.children, exits);
+            const label: Flow.Case.Label = if (default) .{ .kind = .Default } else .{
+                .kind = .Case,
+                .source = target.borrowAttribute(child.*, "value").?,
+            };
+
+            case.* = try self.selectionCase(label, child.children, exits);
         }
 
         return cases;
     }
-    fn ifCases(self: *Loader, node: *const rx.ast.Node, subject: rx.ast.Attribute, exits: *Flow.BranchExits) Error![]Flow.Case {
+    fn ifCases(self: *Loader, node: *const rx.ast.Node, subject: *const rx.ast.Attribute, exits: *Flow.BranchExits) Error![]Flow.Case {
         const last = &node.children[node.children.len - 1];
         const has_else = rx.execution.admit(last.name, .Any) == .Else;
         const body = if (has_else) node.children[0 .. node.children.len - 1] else node.children;
         const cases = try self.allocator.alloc(Flow.Case, if (has_else) 2 else 1);
-        const value = rx.ast.Attribute{ .name = "value", .value = "true", .kind = .expression, .location = subject.location, .value_location = subject.value_location };
-        cases[0] = try self.selectionCase(value, body, exits);
 
-        if (has_else) cases[1] = try self.selectionCase(null, last.children, exits);
+        cases[0] = try self.selectionCase(.{ .kind = .Affirmative, .source = subject }, body, exits);
+
+        if (has_else) cases[1] = try self.selectionCase(.{ .kind = .Default }, last.children, exits);
 
         return cases;
     }
-    fn selectionCase(self: *Loader, value: ?rx.ast.Attribute, nodes: []const rx.ast.Node, exits: *Flow.BranchExits) Error!Flow.Case {
+    fn selectionCase(self: *Loader, label: Flow.Case.Label, nodes: []const rx.ast.Node, exits: *Flow.BranchExits) Error!Flow.Case {
         const body = try self.steps(nodes, try self.unit(nodes.len));
 
-        exits.add(value == null, body.exits);
+        exits.add(label.kind == .Default, body.exits);
 
-        return .{ .value = value, .body = body.unit };
+        return .{ .label = label, .body = body.unit };
     }
     fn parallel(self: *Loader, node: *const rx.ast.Node) Error!Flow.Unit {
         const branches = try self.unit(node.children.len);
@@ -311,64 +335,85 @@ const Loader = struct {
     }
     pub fn call(self: *Loader, node: rx.ast.Node) Error!usize {
         const index = self.calls.len;
-        const attributes = Attributes.scan(node);
-        const input = if (attributes.argument) |attribute| try self.inputs.parse(attribute.*, self.owner) else null;
-        const authorized = try @import("../store/call.zig").analyze(self.allocator, self.backing, self.owner, attributes, self.stores, input);
+        var attributes: Attributes = undefined;
+        var input: ?*const frontend.ExpressionInput.Result = undefined;
+        var capability: StoreCall.Authorization = undefined;
+        var kind: CalleeKind = undefined;
+        var row: usize = undefined;
+        var callee: Callee = undefined;
 
-        if (authorized == .diagnostic) {
-            self.issue = authorized.diagnostic;
+        inline for (comptime Schedule.steps(.Call)) |step| {
+            switch (step) {
+                .Done => {},
+                .ScanAttributes => attributes = Attributes.scan(node),
+                .ParseArgument => input = if (attributes.argument) |attribute| try self.inputs.parse(attribute.*, self.owner) else null,
+                .Authorize => {
+                    const authorized = try StoreCall.analyze(self.allocator, self.backing, self.owner, attributes, self.stores, input);
 
-            return error.InvalidFlow;
-        }
+                    if (authorized == .diagnostic) {
+                        self.issue = authorized.diagnostic;
 
-        const capability = authorized.authorized;
-        const selected = self.references.next(.call);
-        const edge = selected.edge;
+                        return error.InvalidFlow;
+                    }
 
-        const admission = availability.check(.{
-            .target = switch (edge.target) {
-                .source => .Source,
-                .compiled => .Compiled,
-                .native => .Native,
-            },
-            .declared_setter = attributes.setter != null,
-            .setter = capability.setter != null,
-            .ambient_store = self.project.context.stores.len != 0,
-        });
+                    capability = authorized.authorized;
+                },
+                .ResolveCallee => {
+                    const selected = self.references.next(.call);
+                    const edge = selected.edge;
 
-        const callee = switch (admission) {
-            .Source, .AuthorizedSource => try self.sourceCallee(edge.target.source, edge.location, admission == .AuthorizedSource),
-            .Compiled => try self.compiledCallee(attributes.module.?.value_location, edge.target.compiled, capability.setter != null),
-            .Native => return self.fail(edge.location, "module", "native and standard imports must use the interface registry"),
-            .Denied => return self.fail(node.location, "capability", "Store calls require explicit per-call authorization from module declarations"),
-        };
+                    const admission = availability.check(.{
+                        .target = switch (edge.target) {
+                            .source => .Source,
+                            .compiled => .Compiled,
+                            .native => .Native,
+                        },
+                        .declared_setter = attributes.setter != null,
+                        .setter = capability.setter != null,
+                        .ambient_store = self.project.context.stores.len != 0,
+                    });
 
-        try self.calls.append(self.allocator, .{
-            .node = node,
-            .setter = capability.setter,
-            .getters = capability.getters,
-            .input = attributes.argument,
-            .name_source = attributes.function orelse attributes.module.?,
-            .target_kind = switch (admission) {
-                .Source => .Source,
-                .AuthorizedSource => .AuthorizedSource,
-                .Compiled => .Compiled,
-                .Native, .Denied => unreachable,
-            },
-            .target = if (edge.target == .source) edge.target.source else selected.row,
-            .callee = callee,
-        });
+                    callee = switch (admission) {
+                        .Source, .AuthorizedSource => try self.sourceCallee(edge.target.source, edge.location, admission == .AuthorizedSource),
+                        .Compiled => try self.compiledCallee(attributes.module.?.value_location, edge.target.compiled, capability.setter != null),
+                        .Native => return self.fail(edge.location, "module", "native and standard imports must use the interface registry"),
+                        .Denied => return self.fail(node.location, "capability", "Store calls require explicit per-call authorization from module declarations"),
+                    };
 
-        self.local_calls = self.local_calls and admission == .Source;
+                    kind = switch (admission) {
+                        .Source => .Source,
+                        .AuthorizedSource => .AuthorizedSource,
+                        .Compiled => .Compiled,
+                        .Native, .Denied => unreachable,
+                    };
 
-        if (input) |parsed| {
-            const first = self.arguments.items.len;
+                    row = if (edge.target == .source) edge.target.source else selected.row;
+                },
+                .PublishCall => {
+                    try self.calls.append(self.allocator, .{
+                        .node = node,
+                        .setter = capability.setter,
+                        .getters = capability.getters,
+                        .input = attributes.argument,
+                        .name_source = attributes.function orelse attributes.module.?,
+                        .target_kind = kind,
+                        .target = row,
+                        .callee = callee,
+                    });
 
-            try self.arguments.resize(self.inputs.arena.allocator(), index + 1);
+                    self.local_calls = self.local_calls and kind == .Source;
+                },
+                .RecordArgument => if (input) |parsed| {
+                    const first = self.arguments.items.len;
 
-            @memset(self.arguments.items[first..index], null);
+                    try self.arguments.resize(self.inputs.arena.allocator(), index + 1);
 
-            self.arguments.items[index] = parsed;
+                    @memset(self.arguments.items[first..index], null);
+
+                    self.arguments.items[index] = parsed;
+                },
+                else => unreachable,
+            }
         }
 
         return index;

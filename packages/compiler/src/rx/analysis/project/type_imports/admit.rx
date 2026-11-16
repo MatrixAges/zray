@@ -1,0 +1,52 @@
+<Module>
+    <Type from="admission" as="Import" />
+    <Type from="../../call/availability" as="Call" />
+    <Type from="../source_graph/source" as="Source" />
+
+    <Args in={Import.Input} out={Import.Output} />
+
+    <If on={$in.target == Call.Target.Native}>
+        <Return
+            value={{
+                status: Import.Status.Native,
+                index: null
+            }}
+        />
+    </If>
+
+    <If on={$in.target == Call.Target.Compiled}>
+        <Return
+            value={{
+                status: Import.Status.NonSource,
+                index: null
+            }}
+        />
+    </If>
+
+    <Call module="../references/lookup/resolve" in={$in.signature} />
+
+    <If on={$ctx.resolve.kind != Source.Kind.ZX}>
+        <Return
+            value={{
+                status: Import.Status.NonSource,
+                index: null
+            }}
+        />
+    </If>
+
+    <If on={$ctx.resolve.signature == null}>
+        <Return
+            value={{
+                status: Import.Status.MissingSignature,
+                index: null
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            status: Import.Status.Resolved,
+            index: $ctx.resolve.signature
+        }}
+    />
+</Module>

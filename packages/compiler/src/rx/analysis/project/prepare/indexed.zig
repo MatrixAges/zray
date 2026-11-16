@@ -85,13 +85,8 @@ pub fn bind(loader: anytype, indexed: rx.IndexedFlow) @TypeOf(loader.*).Error!Fl
             },
             .Parallel => plan.groups.items[event.item] = body,
             .Switch, .If => {
-                const subject = target.attribute(node.*, "on");
-
-                const cases = if (event.route == .Switch)
-                    try switchCases(allocator, indexed, node.children)
-                else
-                    try ifCases(allocator, indexed, node, subject, body, event.else_branch);
-
+                const subject = target.borrowAttribute(node.*, "on").?;
+                const cases = try @import("selection.zig").bind(allocator, &indexed, node, subject, event.route == .If, event.else_branch);
                 plan.selections.items[event.item] = .{ .subject = subject, .cases = cases };
             },
         }
@@ -106,30 +101,4 @@ pub fn bind(loader: anytype, indexed: rx.IndexedFlow) @TypeOf(loader.*).Error!Fl
     }));
 
     return plan.finish(indexed.rootUnit());
-}
-
-fn switchCases(allocator: std.mem.Allocator, indexed: rx.IndexedFlow, nodes: []const rx.ast.Node) std.mem.Allocator.Error![]Flow.Case {
-    const cases = try allocator.alloc(Flow.Case, nodes.len);
-
-    for (nodes, cases) |*node, *case| {
-        case.* = .{
-            .value = if (indexed.get(node).alternate) null else target.attribute(node.*, "value"),
-            .body = indexed.unit(node),
-        };
-    }
-
-    return cases;
-}
-
-fn ifCases(allocator: std.mem.Allocator, indexed: rx.IndexedFlow, node: *const rx.ast.Node, subject: rx.ast.Attribute, body: Flow.Unit, has_else: bool) std.mem.Allocator.Error![]Flow.Case {
-    const cases = try allocator.alloc(Flow.Case, if (has_else) 2 else 1);
-
-    cases[0] = .{
-        .value = .{ .name = "value", .value = "true", .kind = .expression, .location = subject.location, .value_location = subject.value_location },
-        .body = body,
-    };
-
-    if (has_else) cases[1] = .{ .value = null, .body = indexed.unit(&node.children[node.children.len - 1]) };
-
-    return cases;
 }

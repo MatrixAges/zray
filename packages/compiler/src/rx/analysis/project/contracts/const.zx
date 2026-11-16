@@ -8,6 +8,4 @@ export const assignment: string = " = "
 
 export const newline: string = "\n"
 
-export const declaration_tag: string = "Args"
-
 export const ports_per_declaration: u64 = 2

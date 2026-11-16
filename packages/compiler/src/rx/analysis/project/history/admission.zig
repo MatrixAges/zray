@@ -3,11 +3,39 @@ const bytes = @import("zx").bytes;
 const Source = @import("frontend").project.Source;
 const Graph = @import("../source_graph/model.zig").Graph;
 const generated = @import("rx_options").generated_graph;
+const memory = @import("zxc_standard").memory;
 
-const SourceChange = if (generated) @import("generated_rx_history_source").Output else enum {
-    DifferentPath,
-    Unchanged,
-    Edited,
+pub const SourceScan = struct {
+    earlier_paths: memory.TextColumn,
+    earlier_texts: memory.TextColumn,
+    current_paths: memory.TextColumn,
+    current_texts: memory.TextColumn,
+    count: usize,
+    const rule = @import("generated_rx_history_source");
+
+    const Result = @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload;
+
+    pub fn init(earlier: []const Source, current: []const Source) SourceScan {
+        std.debug.assert(earlier.len == current.len);
+
+        return .{
+            .earlier_paths = memory.borrowTextColumn("path", earlier),
+            .earlier_texts = memory.borrowTextColumn("source", earlier),
+            .current_paths = memory.borrowTextColumn("path", current),
+            .current_texts = memory.borrowTextColumn("source", current),
+            .count = current.len,
+        };
+    }
+    pub fn next(self: *const SourceScan, first: usize) Result {
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return rule.executeValue(empty.allocator(), &.{
+            .earlier = &.{ .paths = @ptrCast(&self.earlier_paths), .texts = @ptrCast(&self.earlier_texts) },
+            .current = &.{ .paths = @ptrCast(&self.current_paths), .texts = @ptrCast(&self.current_texts) },
+            .first = first,
+            .end = self.count,
+        }) catch unreachable;
+    }
 };
 
 pub fn sameInputs(earlier: *const [32]u8, current: *const [32]u8, earlier_count: usize, current_count: usize) bool {
@@ -23,23 +51,6 @@ pub fn sameInputs(earlier: *const [32]u8, current: *const [32]u8, earlier_count:
     }
 
     return earlier_count == current_count and std.mem.eql(u8, earlier, current);
-}
-
-pub fn source(earlier: *const Source, current: *const Source) SourceChange {
-    if (comptime generated) {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        return @import("generated_rx_history_source").executeValue(empty.allocator(), &.{
-            .earlier_path = earlier.path,
-            .current_path = current.path,
-            .earlier_source = earlier.source,
-            .current_source = current.source,
-        }) catch unreachable;
-    }
-
-    if (!bytes.equal(earlier.path, current.path)) return .DifferentPath;
-
-    return if (bytes.equal(earlier.source, current.source)) .Unchanged else .Edited;
 }
 
 pub fn sameHeader(earlier: []const u8, current: []const u8, body: usize) bool {

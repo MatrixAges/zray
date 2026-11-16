@@ -1,6 +1,6 @@
-import type { Pair } from "./link_model"
+import type { PortPair } from "./link_model"
 
-export type Input = Pair
+export type Input = PortPair
 
 export type Output = bool
 

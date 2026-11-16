@@ -6,6 +6,7 @@ const ir = zx.ir;
 const Store = @import("../store.zig");
 const target = @import("../call/target.zig");
 const Graph = @import("../project/source_graph/model.zig");
+const Declarations = @import("../project/declarations.zig");
 const generated = @import("rx_options").generated_graph;
 const register = if (generated) @import("generated_rx_store_namespace").executeState else void;
 const Parameters = if (generated) @typeInfo(@TypeOf(register)).@"fn" else void;
@@ -13,6 +14,7 @@ const Parameter = if (generated) Parameters.param_types[1].? else void;
 const Registration = if (generated and @typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
 const Namespaces = if (generated) @FieldType(Registration, "index") else std.StringHashMapUnmanaged(void);
 const Status = if (generated) @FieldType(@typeInfo(Parameters.return_type.?).error_union.payload, "status") else enum { Accepted, Invalid, Duplicate };
+const Namespace = struct { name: []const u8, status: Status };
 
 const empty: Namespaces = if (generated) .{
     .keys = .{ .items = &.{}, .storage = .plain },
@@ -54,33 +56,29 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, sourc
     var bindings: Storage = .empty;
     var namespaces = empty;
     var references: Graph.References = .{ .edges = edges };
+    var declarations = Declarations.init(source.node, .Store);
 
     defer if (!generated) namespaces.deinit(temporary);
 
-    for (source.node.children) |node| {
-        if (!std.mem.eql(u8, node.name, "Store")) continue;
-
-        const from = target.attribute(node, "from");
+    while (declarations.next()) |node| {
+        const attributes = Declarations.attributes(node, .Store);
+        const from = attributes.first;
         const edge = references.next(.store).edge;
         const definition = &definitions[sources.at(edge.target.source).store];
-        var alias = definition.name;
-        var location = from.value_location;
+        const explicit = if (attributes.second) |named| named.value else null;
+        const location = (attributes.second orelse from).value_location;
+        const namespace = try claim(temporary, &namespaces, explicit, definition.name);
 
-        for (node.attributes) |attribute| if (std.mem.eql(u8, attribute.name, "as")) {
-            alias = attribute.value;
-            location = attribute.value_location;
-        };
-
-        switch (try claim(temporary, &namespaces, alias)) {
+        switch (namespace.status) {
             .Accepted => {},
             .Invalid => return failure(allocator, source.path, location, "Store namespace must be an identifier; use as for a different display name"),
             .Duplicate => return failure(allocator, source.path, location, "Store namespace is already registered in this module"),
         }
 
         const published = if (comptime generated)
-            try @import("references/publish.zig").append(allocator, temporary, alias, definition.objects, &bindings)
+            try @import("references/publish.zig").append(allocator, temporary, namespace.name, definition.objects, &bindings)
         else
-            try publishSeed(allocator, temporary, alias, definition.objects, &bindings);
+            try publishSeed(allocator, temporary, namespace.name, definition.objects, &bindings);
 
         if (!published) return failure(allocator, source.path, from.value_location, "Store Object names must be identifiers");
     }
@@ -90,24 +88,28 @@ pub fn resolve(allocator: std.mem.Allocator, temporary: std.mem.Allocator, sourc
     return .{ .scope = .{ .names = rows.items(.name), .paths = rows.items(.path), .types = rows.items(.type_id) } };
 }
 
-fn claim(allocator: std.mem.Allocator, state: *Namespaces, name: []const u8) std.mem.Allocator.Error!Status {
+fn claim(allocator: std.mem.Allocator, state: *Namespaces, explicit: ?[]const u8, fallback: []const u8) std.mem.Allocator.Error!Namespace {
     if (comptime !generated) {
-        if (!seedIdentifier(name)) return .Invalid;
+        const name = explicit orelse fallback;
 
-        return if ((try state.getOrPut(allocator, name)).found_existing) .Duplicate else .Accepted;
+        if (!seedIdentifier(name)) return .{ .name = name, .status = .Invalid };
+
+        const duplicate = (try state.getOrPut(allocator, name)).found_existing;
+
+        return .{ .name = name, .status = if (duplicate) .Duplicate else .Accepted };
     }
 
-    const input: Registration = .{ .index = state.*, .name = name };
+    const input: Registration = .{ .index = state.*, .explicit = explicit, .fallback = fallback };
 
     const result = register(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
-        error.InvalidUtf8 => return .Invalid,
+        error.InvalidUtf8 => return .{ .name = explicit orelse fallback, .status = .Invalid },
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
     state.* = result.index;
 
-    return result.status;
+    return .{ .name = result.name, .status = result.status };
 }
 
 fn publishSeed(allocator: std.mem.Allocator, storage: std.mem.Allocator, scope: []const u8, objects: []const Store.Object, bindings: *Storage) std.mem.Allocator.Error!bool {
