@@ -38,87 +38,16 @@ next_binding: usize = 0,
 unit_input: bool = false,
 issue: ?expression.Diagnostic = null,
 pub fn root(self: *Self, sequence: Prepared.Unit) Error!u32 {
-    return self.steps(sequence, true, self.retain_metadata);
+    return @import("flow_compile/traversal.zig").run(self, sequence);
 }
 
-fn steps(self: *Self, sequence: Prepared.Unit, block: bool, retain_return: bool) Error!u32 {
-    const plan = self.plan;
-    const first = try self.compiled.reserveSteps(self.binding_allocator, sequence.count);
-    var cursor = sequence;
-
-    while (plan.next(&cursor)) |run| {
-        const start = first + (run.first - sequence.first);
-
-        if (run.kind == .Call) {
-            for (run.items, @as(usize, start)..) |index, row| {
-                const id = try self.call(self.loaded[index], &self.bindings);
-
-                self.compiled.steps.set(row, .{ .kind = .Call, .first = id });
-            }
-
-            continue;
-        }
-
-        const payload = run.items[0];
-
-        const compiled: Flow.Step = switch (run.kind) {
-            .Parallel => try self.parallel(plan.groups[payload]),
-            .Result => .{
-                .kind = .Return,
-                .value = try self.keep(try self.value(plan.results[payload], self.output_type, retain_return)),
-            },
-            .Task => try self.task(&plan.tasks[payload]),
-            .Selection => try self.selection(payload),
-            .Call, .ParallelTask => unreachable,
-        };
-
-        self.compiled.steps.set(start, compiled);
-    }
-
-    return self.compiled.unit(self.binding_allocator, first, sequence.count, block);
-}
-
-fn parallel(self: *Self, branches: Prepared.Unit) Error!Flow.Step {
-    const plan = self.plan;
-    const calls = try Flow.index(self.calls.items.len);
-    var outputs: frontend.expressions.BindingStorage = .empty;
-
-    defer outputs.deinit(self.binding_allocator);
-
-    inline for (comptime Schedule.steps(.Parallel)) |action| {
-        switch (action) {
-            .Done => {},
-            .CompileParallelBranches => for (plan.indices(branches), plan.kinds[branches.first..][0..branches.count]) |index, kind| {
-                const id = switch (kind) {
-                    .Call => try self.call(self.loaded[index], &outputs),
-                    .ParallelTask => try @import("parallel_task.zig").compile(self, &plan.tasks[index], &outputs),
-                    else => unreachable,
-                };
-
-                if (kind == .Call and !try frontend.isParallelSafe(self.allocator, self.calls.items[id].callee)) {
-                    const location = self.loaded[index].node.location;
-                    self.issue = .{ .location = location, .issue = .{ .code = .unsupported, .span = .{ .start = location.offset, .end = location.offset }, .message = "Parallel branches require pure functions without Store capabilities or native external calls" } };
-
-                    return error.InvalidFlow;
-                }
-            },
-            .PublishParallelBindings => try zx.columns.appendRows(&self.bindings, self.binding_allocator, outputs.slice(), 0),
-            else => unreachable,
-        }
-    }
-
-    return .{ .kind = .Parallel, .first = calls, .count = branches.count };
-}
-
-fn task(self: *Self, work: *const Prepared.Task) Error!Flow.Step {
-    const count = self.bindings.len;
-    var step: Flow.Step = .{ .kind = .Task };
+pub fn finishTask(self: *Self, work: *const Prepared.Task, body: u32, count: usize) Error!Flow.Step {
+    var step: Flow.Step = .{ .kind = .Task, .first = body };
     var published: ?Module.Binding = null;
 
     inline for (comptime Schedule.steps(.Task)) |action| {
         switch (action) {
-            .Done => {},
-            .CompileTaskBody => step.first = try self.steps(work.body, false, false),
+            .Done, .CompileTaskBody => {},
             .CompileTaskOutput => if (work.output) |attribute| {
                 const binding = self.results.at(self.next_binding);
 
@@ -142,89 +71,64 @@ fn task(self: *Self, work: *const Prepared.Task) Error!Flow.Step {
     return step;
 }
 
-fn selection(self: *Self, payload: u32) Error!Flow.Step {
-    const selected = &self.plan.selections[payload];
-    var parsed = try @import("attribute.zig").parseBorrowed(self.scratch, selected.subject.*, self.owner);
+pub const CaseScope = struct { facts: usize, label: ?*const zx.ir.Program };
 
-    defer parsed.deinit();
-
-    var subject: *const zx.ir.Program = undefined;
-    var size: u32 = undefined;
-    var cases: u32 = undefined;
-    var exhaustive: bool = undefined;
-
-    inline for (comptime Schedule.steps(.Selection)) |action| {
-        switch (action) {
-            .Done => {},
-            .CompileSubject => subject = try self.keep(try self.valueParsed(&parsed, selected.subject.*, null, false)),
-            .CompileCases => {
-                size = try Flow.index(selected.cases.len);
-                cases = try self.compiled.reserveCases(self.binding_allocator, size);
-
-                for (selected.cases, @as(usize, cases)..) |*case, row| {
-                    try self.compileCase(case, row, &parsed, subject.output_type);
-                }
-            },
-            .CheckSelection => {
-                const labels = self.compiled.cases.items(.value)[cases..][0..size];
-                const checked = try @import("selection.zig").check(self.allocator, subject, selected.subject.*, labels, selected.cases);
-
-                if (checked == .diagnostic) {
-                    self.issue = checked.diagnostic;
-
-                    return error.InvalidFlow;
-                }
-
-                exhaustive = checked.exhaustive;
-            },
-            else => unreachable,
-        }
-    }
-
-    return .{ .kind = .Selection, .first = cases, .count = size, .value = subject, .exhaustive = exhaustive };
-}
-
-fn compileCase(self: *Self, case: *const Prepared.Case, row: usize, subject: *const frontend.ExpressionInput.Result, subject_type: zx.ir.TypeId) Error!void {
-    const count = self.bindings.len;
-    var facts: usize = undefined;
-    var label: ?*const zx.ir.Program = null;
-    var body: u32 = undefined;
+pub fn enterCase(self: *Self, case: *const Prepared.Case, subject: *const frontend.ExpressionInput.Result, subject_type: zx.ir.TypeId) Error!CaseScope {
+    var scope: CaseScope = .{ .label = null, .facts = undefined };
 
     inline for (comptime Schedule.steps(.Case)) |action| {
         switch (action) {
-            .Done => {},
+            .Done, .CompileCaseBody, .RestoreCaseScope, .WriteCase => {},
             .CompileLabel => if (case.label.attribute()) |attribute| {
-                label = try self.keep(try self.value(attribute, subject_type, false));
+                scope.label = try self.keep(try self.value(attribute, subject_type, false));
             },
             .RefineSubject => {
-                facts = self.nonnull.items.len;
+                scope.facts = self.nonnull.items.len;
 
                 if (case.truth) |present| {
-                    const scope: condition.Scope = .{
+                    const bindings: condition.Scope = .{
                         .allocator = self.allocator,
                         .bindings = self.bindings.items(.name),
                         .facts = &self.nonnull,
                     };
 
-                    condition.assumeParsed(self.allocator, subject, present, scope) catch |err| switch (err) {
+                    condition.assumeParsed(self.allocator, subject, present, bindings) catch |err| switch (err) {
                         error.OutOfMemory => return error.OutOfMemory,
                         else => return error.InvalidFlow,
                     };
                 }
             },
-            .CompileCaseBody => body = try self.steps(case.body, true, false),
-            .RestoreCaseScope => {
-                self.nonnull.shrinkRetainingCapacity(facts);
-
-                self.bindings.len = count;
-            },
-            .WriteCase => self.compiled.cases.set(row, .{ .value = label, .body = body }),
             else => unreachable,
         }
     }
+
+    return scope;
 }
 
-fn keep(self: *Self, program: zx.ir.Program) std.mem.Allocator.Error!*const zx.ir.Program {
+pub fn checkSelection(self: *Self, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, alternatives: []const Prepared.Case, first: u32, count: u32) Error!bool {
+    const labels = self.compiled.cases.items(.value)[first..][0..count];
+    const checked = try @import("selection.zig").check(self.allocator, subject, attribute, labels, alternatives);
+
+    if (checked == .diagnostic) {
+        self.issue = checked.diagnostic;
+
+        return error.InvalidFlow;
+    }
+
+    return checked.exhaustive;
+}
+
+pub fn checkParallelCall(self: *Self, index: u32, id: u32) Error!void {
+    if (try frontend.isParallelSafe(self.allocator, self.calls.items[id].callee)) return;
+
+    const location = self.loaded[index].node.location;
+
+    self.issue = .{ .location = location, .issue = .{ .code = .unsupported, .span = .{ .start = location.offset, .end = location.offset }, .message = "Parallel branches require pure functions without Store capabilities or native external calls" } };
+
+    return error.InvalidFlow;
+}
+
+pub fn keep(self: *Self, program: zx.ir.Program) std.mem.Allocator.Error!*const zx.ir.Program {
     const result = try self.binding_allocator.create(zx.ir.Program);
 
     result.* = program;
@@ -232,7 +136,7 @@ fn keep(self: *Self, program: zx.ir.Program) std.mem.Allocator.Error!*const zx.i
     return result;
 }
 
-fn value(self: *Self, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, retain: bool) Error!zx.ir.Program {
+pub fn value(self: *Self, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, retain: bool) Error!zx.ir.Program {
     var parsed = try @import("attribute.zig").parseBorrowed(self.scratch, attribute, self.owner);
 
     defer parsed.deinit();
@@ -240,7 +144,7 @@ fn value(self: *Self, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, reta
     return self.valueParsed(&parsed, attribute, expected, retain);
 }
 
-fn valueParsed(self: *Self, parsed: *const frontend.ExpressionInput.Result, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, retain: bool) Error!zx.ir.Program {
+pub fn valueParsed(self: *Self, parsed: *const frontend.ExpressionInput.Result, attribute: rx.ast.Attribute, expected: ?zx.ir.TypeId, retain: bool) Error!zx.ir.Program {
     try self.ensureTypeStorage();
 
     var arena = std.heap.ArenaAllocator.init(self.scratch);
@@ -312,7 +216,7 @@ fn viewed(storage: zx.ir.TypeStorage, types: zx.ir.TypeTable) bool {
     return true;
 }
 
-fn call(self: *Self, loaded: Module.Loaded, outputs: *frontend.expressions.BindingStorage) Error!u32 {
+pub fn call(self: *Self, loaded: Module.Loaded, outputs: *frontend.expressions.BindingStorage) Error!u32 {
     const count = self.bindings.len;
     const input = loaded.input;
     var argument: zx.ir.Program = undefined;

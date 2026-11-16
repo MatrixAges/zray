@@ -1,6 +1,5 @@
 const std = @import("std");
 const rx = @import("rx");
-const zx = @import("zx");
 const generated = @import("rx_options").generated_graph;
 const rule = if (generated) @import("generated_rx_flow_run") else void;
 
@@ -69,41 +68,7 @@ pub const Plan = struct {
     tasks: []const Task = &.{},
     groups: []const Unit = &.{},
     selections: []const Selection = &.{},
-    pub fn indices(self: *const Plan, unit: Unit) []const u32 {
-        return self.items[unit.first..][0..unit.count];
-    }
-    pub fn next(self: *const Plan, unit: *Unit) ?Run {
-        if (unit.count == 0) return null;
-
-        const first = unit.first;
-        const limit = first + unit.count;
-
-        const selected: Run = if (comptime generated) block: {
-            const input: std.meta.Child(rule.Input) = .{ .kinds = self.kinds, .items = self.items, .first = first, .end = limit };
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-            const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-
-            break :block .{ .kind = result.kind, .first = first, .items = result.items };
-        } else block: {
-            const kind = self.kinds[first];
-            var end = first + 1;
-
-            if (kind == .Call) {
-                while (end < limit and self.kinds[end] == .Call) : (end += 1) {}
-            }
-
-            break :block .{ .kind = kind, .first = first, .items = self.items[first..end] };
-        };
-
-        const count: u32 = @intCast(selected.items.len);
-        unit.first += count;
-        unit.count -= count;
-
-        return selected;
-    }
 };
-
-pub const Run = struct { kind: Kind, first: u32, items: []const u32 };
 
 pub const Builder = struct {
     rows: Rows = .empty,

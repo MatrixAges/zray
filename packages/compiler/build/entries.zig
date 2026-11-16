@@ -209,6 +209,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/inference/scope/candidates.zx", .name = "rx_scope_candidates", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/scope/rooted.zx", .name = "rx_scope_rooted", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/flow/run.zx", .name = "rx_flow_run", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/flow/traversal/advance.rx", .name = "rx_flow_traversal", .owner = .rx_analysis },
     .{ .path = "rx/analysis/value_rules/walk.zx", .name = "rx_value_policy", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/optional/walk.zx", .name = "rx_optional_walk", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/optional/hint.zx", .name = "rx_optional_hint", .owner = .rx_analysis },

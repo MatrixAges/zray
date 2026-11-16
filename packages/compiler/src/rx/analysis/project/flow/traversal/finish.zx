@@ -1,0 +1,16 @@
+import { Action, Region } from "./model"
+
+export type Input = Region
+
+export type Output = Action
+
+export default function (in: Input): Output {
+    return match in {
+        Region.Task => Action.CloseTask,
+        Region.ParallelTask => Action.CloseParallelTask,
+        Region.Parallel => Action.CloseParallel,
+        Region.Selection => Action.CloseSelection,
+        Region.Case => Action.CloseCase,
+        _ => Action.Done
+    }
+}

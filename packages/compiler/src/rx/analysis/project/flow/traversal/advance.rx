@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Traversal" />
+
+    <Args in={Traversal.Input} out={Traversal.Output} />
+
+    <If on={$in.first == $in.end}>
+        <Call fn="finish" in={$in.region} />
+
+        <Return
+            value={{
+                action: $ctx.finish,
+                next: $in.first,
+                items: []
+            }}
+        />
+    </If>
+
+    <If on={$in.region == Traversal.Region.Selection}>
+        <Return
+            value={{
+                action: Traversal.Action.OpenCase,
+                next: $in.first + 1,
+                items: []
+            }}
+        />
+    </If>
+
+    <Call fn="../run" in={$in.omit(["region"])} />
+    <Call fn="action" in={$ctx.run.kind} />
+
+    <Return
+        value={{
+            action: $ctx.action,
+            next: $in.first + $ctx.run.items.length,
+            items: $ctx.run.items
+        }}
+    />
+</Module>

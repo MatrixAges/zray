@@ -1,0 +1,17 @@
+import { Kind } from "../run"
+import { Action } from "./model"
+
+export type Input = Kind
+
+export type Output = Action
+
+export default function (in: Input): Output {
+    return match in {
+        Kind.Call => Action.Calls,
+        Kind.Result => Action.Return,
+        Kind.Task => Action.OpenTask,
+        Kind.ParallelTask => Action.OpenParallelTask,
+        Kind.Parallel => Action.OpenParallel,
+        _ => Action.OpenSelection
+    }
+}
