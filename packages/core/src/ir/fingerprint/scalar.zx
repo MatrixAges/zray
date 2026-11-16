@@ -1,0 +1,61 @@
+import bytes from "std:bytes"
+import floats from "std:float"
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import text from "./text"
+
+import type { ExpressionRow as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, expressions, kind, payload } = in
+
+    if (kind == ExpressionKind.None || kind == ExpressionKind.Unit) {
+        return
+    }
+
+    return match kind {
+        ExpressionKind.Integer =>
+            bytes.writeU64Le(out, expressions.integers[payload]),
+        ExpressionKind.NegativeInteger =>
+            bytes.writeU64Le(out, expressions.negative_integers[payload]),
+        ExpressionKind.Float =>
+            bytes.writeU64Le(out, floats.bits(expressions.floats[payload])),
+        ExpressionKind.String => text({
+            out,
+            text: expressions.strings[payload]
+        }),
+        ExpressionKind.Boolean =>
+            bytes.writeByte(out, expressions.booleans[payload] ? 1 : 0),
+        ExpressionKind.Some =>
+            bytes.writeU64Le(out, integers.widen(expressions.some[payload])),
+        ExpressionKind.Capture =>
+            bytes.writeU64Le(out, integers.widen(expressions.captures[payload])),
+        ExpressionKind.AwaitTask =>
+            bytes.writeU64Le(out, integers.widen(expressions.awaits[payload])),
+        ExpressionKind.CancelTask =>
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.cancellations[payload])
+            ),
+        ExpressionKind.OptionalValue =>
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.optional_values[payload])
+            ),
+        ExpressionKind.EnumValue =>
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.enumerations[payload])
+            ),
+        ExpressionKind.ErrorValue =>
+            bytes.writeU64Le(out, integers.widen(expressions.errors[payload])),
+        ExpressionKind.Reference =>
+            bytes.writeU64Le(out, integers.widen(expressions.references[payload])),
+        ExpressionKind.StoreGet =>
+            bytes.writeU64Le(out, integers.widen(expressions.stores[payload])),
+        _ => bytes.writeU64Le(out, integers.widen(expressions.lengths[payload]))
+    }
+}

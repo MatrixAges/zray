@@ -1,4 +1,4 @@
-import crypto from "std:crypto"
+import bytes from "std:bytes"
 
 import expression from "./expression"
 
@@ -7,7 +7,7 @@ import type { Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    crypto.updateSha256U64Le(in.hash, in.expressions.kinds.length)
+    bytes.writeU64Le(in.out, in.expressions.kinds.length)
 
     const result = loop({
         index: 0

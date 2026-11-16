@@ -1,0 +1,95 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import memory from "memory"
+
+import optionalWords from "./optional_words"
+import words from "./words"
+
+import type { ExpressionRow as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, expressions, kind, payload } = in
+
+    switch (kind) {
+        case ExpressionKind.Task:
+            bytes.writeU64Le(out, integers.widen(expressions.task_bodies[payload]))
+
+            words({
+                out,
+                values: memory.borrowU32Range(
+                    expressions.task_captures,
+                    integers.widen(expressions.task_capture_first[payload]),
+                    integers.widen(expressions.task_capture_count[payload])
+                )
+            })
+        case ExpressionKind.Parallel:
+            const first = integers.widen(expressions.parallel_first[payload])
+            const count = integers.widen(expressions.parallel_count[payload])
+
+            words({
+                out,
+                values: memory.borrowU32Range(
+                    expressions.parallel_tasks,
+                    first,
+                    count
+                )
+            })
+
+            optionalWords({
+                out,
+                values: expressions.parallel_fields,
+                first,
+                count
+            })
+
+            bytes.writeU64Le(out, count)
+        case ExpressionKind.Object:
+            const first = integers.widen(expressions.object_first[payload])
+            const count = integers.widen(expressions.object_count[payload])
+
+            words({
+                out,
+                values:
+                    memory.borrowU32Range(
+                        expressions.object_field_indices,
+                        first,
+                        count
+                    )
+            })
+
+            words({
+                out,
+                values:
+                    memory.borrowU32Range(
+                        expressions.object_field_values,
+                        first,
+                        count
+                    )
+            })
+
+            bytes.writeU64Le(out, count)
+
+            words({
+                out,
+                values: memory.borrowU32Range(
+                    expressions.object_evaluation_values,
+                    integers.widen(expressions.object_evaluation_first[payload]),
+                    integers.widen(
+                        expressions.object_evaluation_count[payload]
+                    )
+                )
+            })
+        default:
+            words({
+                out,
+                values: memory.borrowU32Range(
+                    expressions.sequence_items,
+                    integers.widen(expressions.sequence_first[payload]),
+                    integers.widen(expressions.sequence_count[payload])
+                )
+            })
+    }
+}

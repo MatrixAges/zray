@@ -36,35 +36,81 @@ pub fn plan(out: *Writer, value: generating.Analysis.Uniqueness.Plan) void {
     });
 }
 
-pub fn reference(out: *Writer, state: anytype, id: zx.ir.FunctionId) void {
-    const rule = @import("generated_generation_key_reference");
+pub fn body(out: *Writer, state: anytype, symbols: *const zx.ir.SymbolTable, expressions: *const zx.ir.ExpressionTable, control: zx.ir.ControlBody) void {
+    const rule = @import("generated_generation_key_body");
     const Input = std.meta.Child(rule.Input);
-    const Type = std.meta.Child(@FieldType(Input, "input"));
-    const index = @backingInt(id);
-    const functions = &state.program.functions;
-    const in = functions.input_types[index];
-    const output = functions.output_types[index];
-    const input_identity: Type = .{ .name = state.names.types[in], .digest = &state.state_plan.keys[in] };
-    const output_identity: Type = .{ .name = state.names.types[output], .digest = &state.state_plan.keys[output] };
+    const Context = std.meta.Child(@FieldType(Input, "context"));
+    var facts: Facts(Context) = .init(out, state);
+    const context = facts.borrow();
 
     execute(rule, .{
-        .out = @ptrCast(out),
-        .earlier = if (state.current_function) |owner| index < @backingInt(owner) else null,
-        .name = state.names.functions[index],
-        .stores = zx.columns.pointer(@FieldType(Input, "stores"), functions.stores[index]),
-        .input = &input_identity,
-        .output = &output_identity,
-        .errors = state.errors[index],
-        .value = state.value_functions[index],
-        .pure = state.pure_functions[index],
-        .local = state.local_functions[index],
-        .io = state.io_functions[index],
-        .process = state.process_functions[index],
-        .tasks = state.task_functions[index],
-        .identity_free = state.identity_free[index],
-        .fresh = state.fresh_outputs[index],
-        .constructed = state.constructed_outputs[index],
+        .context = &context,
+        .symbols = zx.columns.pointer(@FieldType(Input, "symbols"), symbols),
+        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), expressions),
+        .control = zx.columns.pointer(@FieldType(Input, "control"), control.control),
+        .root = if (control.root) |id| @backingInt(id) else null,
     });
+}
+
+pub fn contracts(out: *Writer, state: anytype, table: *const zx.ir.ContractTable) void {
+    if (table.count() == 0) {
+        out.writeInt(u64, 0, .little) catch unreachable;
+
+        return;
+    }
+
+    const rule = @import("generated_generation_key_contracts");
+    const Input = std.meta.Child(rule.Input);
+    const Context = std.meta.Child(@FieldType(Input, "context"));
+    var facts: Facts(Context) = .init(out, state);
+    const context = facts.borrow();
+
+    execute(rule, .{
+        .context = &context,
+        .contracts = zx.columns.pointer(@FieldType(Input, "contracts"), table),
+    });
+}
+
+fn Facts(comptime Context: type) type {
+    return struct {
+        const Self = @This();
+        const Prefix = std.meta.Child(@FieldType(Context, "prefix"));
+        const Calls = std.meta.Child(@FieldType(Context, "calls"));
+        prefix: Prefix,
+        calls: Calls,
+        fn init(out: *Writer, state: anytype) Self {
+            const functions = &state.program.functions;
+
+            return .{
+                .prefix = .{
+                    .out = @ptrCast(out),
+                    .key_count = state.state_plan.keys.len,
+                    .keys = std.mem.sliceAsBytes(state.state_plan.keys),
+                    .names = state.names.types,
+                },
+                .calls = .{
+                    .owner = if (state.current_function) |id| @backingInt(id) else null,
+                    .names = state.names.functions,
+                    .stores = zx.columns.slice(@FieldType(Calls, "stores"), functions.stores),
+                    .input_types = functions.input_types,
+                    .output_types = functions.output_types,
+                    .errors = state.errors,
+                    .value = state.value_functions,
+                    .pure = state.pure_functions,
+                    .local = state.local_functions,
+                    .io = state.io_functions,
+                    .process = state.process_functions,
+                    .tasks = state.task_functions,
+                    .identity_free = state.identity_free,
+                    .fresh = state.fresh_outputs,
+                    .constructed = state.constructed_outputs,
+                },
+            };
+        }
+        fn borrow(self: *const Self) Context {
+            return .{ .prefix = &self.prefix, .calls = &self.calls };
+        }
+    };
 }
 
 pub fn types(out: *Writer, program: *const zx.ir.Program, names: []const []const u8, keys: []const [32]u8) void {

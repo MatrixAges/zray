@@ -1,6 +1,5 @@
+import field from "core/ir/fingerprint/text"
 import memory from "memory"
-
-import field from "./field"
 
 import type { Writer } from "std:bytes"
 import type { Text } from "./model"

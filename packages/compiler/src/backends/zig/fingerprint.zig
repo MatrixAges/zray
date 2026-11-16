@@ -52,7 +52,7 @@ pub fn createAnalyzed(program: ir.Program, names: Names, unit: Unit, facts: @imp
 }
 
 fn finish(self: *Self, unit: Unit) [32]u8 {
-    const program = self.program;
+    const program = &self.program;
     const value_functions = self.value_functions;
 
     if (comptime generated) {
@@ -71,24 +71,33 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
 
             self.write(value_functions[@backingInt(id)]);
             self.plan(self.uniqueness.functions[@backingInt(id)]);
-            self.write(program.functions.at(@backingInt(id)));
+
+            if (comptime generated) {
+                self.functionSource(@backingInt(id));
+            } else {
+                self.write(program.functions.at(@backingInt(id)));
+            }
         },
         .entry => {
             self.plan(self.uniqueness.entry);
 
-            self.write(.{
-                .file_name = program.file_name,
-                .input_type = program.input_type,
-                .output_type = program.output_type,
-                .symbols = program.symbols,
-                .expressions = program.expressions,
-                .body = program.body,
-                .exports = program.exports,
-                .contracts = program.contracts,
-                .stores = program.stores,
-                .store_mode = program.store_mode,
-                .type_only = program.type_only,
-            });
+            if (comptime generated) {
+                self.entrySource();
+            } else {
+                self.write(.{
+                    .file_name = program.file_name,
+                    .input_type = program.input_type,
+                    .output_type = program.output_type,
+                    .symbols = program.symbols,
+                    .expressions = program.expressions,
+                    .body = program.body,
+                    .exports = program.exports,
+                    .contracts = program.contracts,
+                    .stores = program.stores,
+                    .store_mode = program.store_mode,
+                    .type_only = program.type_only,
+                });
+            }
 
             if (program.constant_exports.len != 0) self.write(program.constant_exports);
         },
@@ -107,6 +116,37 @@ fn finish(self: *Self, unit: Unit) [32]u8 {
     self.hash.hasher.final(&result);
 
     return result;
+}
+
+fn functionSource(self: *Self, index: usize) void {
+    const functions = &self.program.functions;
+    const signature = ir.SignatureTable.read(functions, index);
+    const out = &self.hash.writer;
+
+    self.write(functions.stores[index].*);
+    self.write(functions.store_modes[index]);
+    self.write(signature.output_ownership);
+    Source.contracts(out, self, functions.contracts[index]);
+    self.write(signature.external);
+    self.bytes(signature.file_name);
+    self.write(signature.input_type);
+    self.write(signature.output_type);
+    Source.body(out, self, functions.symbols[index], functions.expressions[index], functions.controlAt(index));
+}
+
+fn entrySource(self: *Self) void {
+    const program = &self.program;
+    const out = &self.hash.writer;
+
+    self.bytes(program.file_name);
+    self.write(program.input_type);
+    self.write(program.output_type);
+    Source.body(out, self, &program.symbols, &program.expressions, program.body);
+    self.write(program.exports);
+    Source.contracts(out, self, &program.contracts);
+    self.write(program.stores);
+    self.write(program.store_mode);
+    self.write(program.type_only);
 }
 
 fn typesSeed(self: *Self) void {
@@ -189,7 +229,6 @@ fn write(self: *Self, value: anytype) void {
     }
 
     if (T == ir.FunctionId) {
-        if (comptime generated) return Source.reference(&self.hash.writer, self, value);
         if (self.current_function) |owner| self.write(@backingInt(value) < @backingInt(owner));
 
         self.bytes(self.names.functions[@backingInt(value)]);

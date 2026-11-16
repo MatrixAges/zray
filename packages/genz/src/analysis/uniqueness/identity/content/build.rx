@@ -3,14 +3,13 @@
 
     <Args in={Identity.Input} out={void} />
 
-    <Call fn="seed" in={$in.hash} />
     <Call fn="symbols" in={$in} />
     <Call fn="expressions" in={$in} />
 
     <Call
         fn="block"
         in={{
-            hash: $in.hash,
+            out: $in.out,
             control: $in.control,
             first: $in.first,
             count: $in.count

@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
+import words from "core/ir/fingerprint/words"
 
 import strings from "../strings"
-import words from "../words"
 
 import type { Writer } from "std:bytes"
 import type { Table } from "core/type_table/model"

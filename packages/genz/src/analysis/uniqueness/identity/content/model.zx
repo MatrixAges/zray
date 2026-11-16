@@ -1,11 +1,10 @@
-import type { Sha256State } from "std:crypto"
+import type { Writer } from "std:bytes"
 import type { Control } from "core/control_table/model"
-import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Expressions } from "core/expression_table/model"
 import type { Symbols } from "core/symbol_table/model"
 
 export type Input = {
-    hash: Sha256State,
+    out: Writer,
     symbols: Symbols,
     expressions: Expressions,
     control: Control,
@@ -15,33 +14,8 @@ export type Input = {
     output_type: u32
 }
 
-export type Row = {
-    hash: Sha256State,
+export type Call = {
+    out: Writer,
     expressions: Expressions,
     payload: u64
-}
-
-export type Block = Input.Omit("expressions", "input_type", "output_type", "symbols")
-
-export type Optional = {
-    hash: Sha256State,
-    value?: u32
-}
-
-export type Optionals = {
-    hash: Sha256State,
-    values: u32?[],
-    first: u64,
-    count: u64
-}
-
-export type Booleans = {
-    hash: Sha256State,
-    values: bool[],
-    first: u64,
-    count: u64
-}
-
-export type Value = Row & {
-    kind: ExpressionKind
 }

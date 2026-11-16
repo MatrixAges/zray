@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
+import words from "core/ir/fingerprint/words"
 
 import { slot_stride } from "./const"
-import words from "./words"
 
 import type { Plan as Input } from "./model"
 

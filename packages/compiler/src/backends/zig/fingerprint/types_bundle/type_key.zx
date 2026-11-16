@@ -1,9 +1,9 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
+import text from "core/ir/fingerprint/text"
 import memory from "memory"
 
 import { digest_width } from "../../../../inputs/fingerprint/const"
-import text from "../../../../inputs/fingerprint/field"
 
 import type { TypeKey as Input } from "./model"
 

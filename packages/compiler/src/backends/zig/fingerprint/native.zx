@@ -1,4 +1,5 @@
-import text from "../../../inputs/fingerprint/field"
+import text from "core/ir/fingerprint/text"
+
 import optionalText from "./optional_text"
 import strings from "./strings"
 

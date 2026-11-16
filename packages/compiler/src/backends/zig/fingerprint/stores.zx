@@ -1,6 +1,7 @@
+import words from "core/ir/fingerprint/words"
+
 import booleans from "./booleans"
 import strings from "./strings"
-import words from "./words"
 
 import type { Writer } from "std:bytes"
 import type { Stores } from "core/store_table/model"

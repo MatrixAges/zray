@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Body" />
+
+    <Args in={Body.Body} out={void} />
+
+    <Call
+        fn="symbols"
+        in={{
+            prefix: $in.context.prefix,
+            symbols: $in.symbols
+        }}
+    />
+
+    <Call
+        fn="expressions/rows"
+        in={$in.pick([
+            "context",
+            "expressions"
+        ])}
+    />
+
+    <Call
+        fn="blocks"
+        in={{
+            out: $in.context.prefix.out,
+            control: $in.control,
+            root: $in.root
+        }}
+    />
+</Module>

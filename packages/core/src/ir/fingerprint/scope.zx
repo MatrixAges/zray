@@ -1,0 +1,128 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import memory from "memory"
+
+import optionalWord from "./optional_word"
+import optionalWords from "./optional_words"
+import words from "./words"
+
+import type { ExpressionRow as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, expressions, kind, payload } = in
+
+    switch (kind) {
+        case ExpressionKind.Scope:
+            const first = integers.widen(expressions.scope_first[payload])
+            const count = integers.widen(expressions.scope_count[payload])
+            const end = first + count
+
+            optionalWords({
+                out,
+                values: expressions.scope_symbols,
+                first,
+                count
+            })
+
+            words({
+                out,
+                values: memory.borrowU32Range(
+                    expressions.scope_values,
+                    first,
+                    count
+                )
+            })
+
+            bytes.writeU64Le(out, count)
+
+            const borrows = loop(first, {
+                while: index => index < end,
+                next: index => {
+                    bytes.writeByte(
+                        out,
+                        expressions.scope_borrows[index] ? 1 : 0
+                    )
+                    index += 1
+                }
+            })
+
+            bytes.writeU64Le(out, count)
+
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.scope_results[payload])
+            )
+        case ExpressionKind.Iteration:
+            optionalWord({
+                out,
+                value: expressions.iteration_environment_symbols[payload]
+            })
+
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.iteration_initials[payload])
+            )
+
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.iteration_condition_parameters[payload])
+            )
+
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.iteration_parameters[payload])
+            )
+
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.iteration_conditions[payload])
+            )
+
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.iteration_bodies[payload])
+            )
+
+            bytes.writeByte(
+                out,
+                expressions.iteration_postconditions[payload] ? 1 : 0
+            )
+        default:
+            const first = integers.widen(expressions.match_first[payload])
+            const count = integers.widen(expressions.match_count[payload])
+
+            optionalWord({
+                out,
+                value: expressions.match_subjects[payload]
+            })
+
+            words({
+                out,
+                values:
+                    memory.borrowU32Range(
+                        expressions.match_conditions,
+                        first,
+                        count
+                    )
+            })
+
+            words({
+                out,
+                values: memory.borrowU32Range(
+                    expressions.match_results,
+                    first,
+                    count
+                )
+            })
+
+            bytes.writeU64Le(out, count)
+
+            bytes.writeU64Le(
+                out,
+                integers.widen(expressions.match_fallbacks[payload])
+            )
+    }
+}

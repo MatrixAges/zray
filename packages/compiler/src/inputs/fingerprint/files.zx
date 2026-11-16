@@ -1,8 +1,8 @@
 import bytes from "std:bytes"
+import field from "core/ir/fingerprint/text"
 import memory from "memory"
 
 import { digest_width } from "./const"
-import field from "./field"
 
 import type { Writer } from "std:bytes"
 import type { Records } from "./model"

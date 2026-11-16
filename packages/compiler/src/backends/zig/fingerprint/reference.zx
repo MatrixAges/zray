@@ -1,36 +1,48 @@
 import bytes from "std:bytes"
+import integers from "std:integer"
+import text from "core/ir/fingerprint/text"
 
-import text from "../../../inputs/fingerprint/field"
 import stores from "./stores"
 import strings from "./strings"
+import typeKey from "./types_bundle/type_key"
 
-import type { Reference as Input } from "./model"
+import type { Context } from "./body/model"
+
+export type Input = {
+    context: Context,
+    id: u32
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { out, earlier, name, errors, input, output } = in
+    const { calls, prefix } = in.context
+    const { owner } = calls
+    const { out } = prefix
 
-    if (earlier != null) {
-        bytes.writeByte(out, earlier ? 1 : 0)
+    const index = integers.widen(in.id)
+    const errors = calls.errors[index]
+
+    if (owner != null) {
+        bytes.writeByte(out, in.id < owner ? 1 : 0)
     }
 
     text({
         out,
-        text: name
+        text: calls.names[index]
     })
 
     stores({
         out,
-        value: in.stores
+        value: calls.stores[index]
     })
 
-    bytes.writeByte(out, in.value ? 1 : 0)
-    bytes.writeByte(out, in.pure ? 1 : 0)
-    bytes.writeByte(out, in.local ? 1 : 0)
-    bytes.writeByte(out, in.io ? 1 : 0)
-    bytes.writeByte(out, in.process ? 1 : 0)
-    bytes.writeByte(out, in.tasks ? 1 : 0)
+    bytes.writeByte(out, calls.value[index] ? 1 : 0)
+    bytes.writeByte(out, calls.pure[index] ? 1 : 0)
+    bytes.writeByte(out, calls.local[index] ? 1 : 0)
+    bytes.writeByte(out, calls.io[index] ? 1 : 0)
+    bytes.writeByte(out, calls.process[index] ? 1 : 0)
+    bytes.writeByte(out, calls.tasks[index] ? 1 : 0)
     bytes.writeByte(out, errors == null ? 0 : 1)
 
     if (errors != null) {
@@ -40,21 +52,18 @@ export default function (in: Input): Output {
         })
     }
 
-    bytes.writeByte(out, in.identity_free ? 1 : 0)
+    bytes.writeByte(out, calls.identity_free[index] ? 1 : 0)
 
-    text({
-        out,
-        text: input.name
+    typeKey({
+        prefix,
+        id: calls.input_types[index]
     })
 
-    bytes.write(out, input.digest)
-
-    text({
-        out,
-        text: output.name
+    typeKey({
+        prefix,
+        id: calls.output_types[index]
     })
 
-    bytes.write(out, output.digest)
-    bytes.writeByte(out, in.fresh ? 1 : 0)
-    bytes.writeByte(out, in.constructed ? 1 : 0)
+    bytes.writeByte(out, calls.fresh[index] ? 1 : 0)
+    bytes.writeByte(out, calls.constructed[index] ? 1 : 0)
 }

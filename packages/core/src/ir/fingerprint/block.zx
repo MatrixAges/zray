@@ -1,0 +1,184 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
+
+import {
+    statement_evaluate,
+    statement_constant,
+    statement_parallel,
+    statement_destructure,
+    statement_branch,
+    statement_switch,
+    statement_store_set,
+    statement_result
+} from "./const"
+import optionalWord from "./optional_word"
+import optionals from "./optional_words"
+import statementTag from "./statement_tag"
+import text from "./text"
+
+import type { Block as Input } from "./model"
+
+export type Output = void
+
+export default function block(in: Input): Output {
+    const { out, control, symbolic, first, count } = in
+
+    const end = first + count
+
+    bytes.writeU64Le(out, count)
+
+    const result = loop(first, {
+        while: index => index < end,
+        next: index => {
+            const payload = integers.widen(control.statement_payloads[index])
+
+            const kind = control.statement_kinds[index]
+
+            if (symbolic) {
+                text({
+                    out,
+                    text: statementTag(kind)
+                })
+            } else {
+                const tag = match kind {
+                    StatementKind.Evaluate => statement_evaluate,
+                    StatementKind.Constant => statement_constant,
+                    StatementKind.Parallel => statement_parallel,
+                    StatementKind.Destructure => statement_destructure,
+                    StatementKind.Branch => statement_branch,
+                    StatementKind.Switch => statement_switch,
+                    StatementKind.StoreSet => statement_store_set,
+                    _ => statement_result
+                }
+
+                bytes.writeU64Le(out, tag)
+            }
+
+            switch (kind) {
+                case StatementKind.Evaluate:
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.evaluations[payload])
+                    )
+                case StatementKind.Constant:
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.constant_symbols[payload])
+                    )
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.constant_values[payload])
+                    )
+                case StatementKind.Parallel:
+                    const start = integers.widen(control.parallel_first[payload])
+                    const length = integers.widen(control.parallel_count[payload])
+
+                    bytes.writeU64Le(out, length)
+
+                    const invocations = loop(start, {
+                        while: slot => slot < start + length,
+                        next: slot => {
+                            optionalWord({
+                                out,
+                                value: control.parallel_symbols[slot]
+                            })
+                            bytes.writeU64Le(
+                                out,
+                                integers.widen(
+                                    control.parallel_values[slot]
+                                )
+                            )
+                            slot += 1
+                        }
+                    })
+                case StatementKind.Destructure:
+                    const start = integers.widen(control.destructure_first[payload])
+                    const length = integers.widen(control.destructure_count[payload])
+
+                    optionals({
+                        out,
+                        values: control.destructure_symbols,
+                        first: start,
+                        count: length
+                    })
+
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.destructure_values[payload])
+                    )
+                case StatementKind.Branch:
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.branch_conditions[payload])
+                    )
+                    const yes = integers.widen(control.branch_yes[payload])
+                    const no = integers.widen(control.branch_no[payload])
+
+                    block({
+                        ...in,
+                        first: integers.widen(control.block_first[yes]),
+                        count: integers.widen(control.block_count[yes])
+                    })
+                    block({
+                        ...in,
+                        first: integers.widen(control.block_first[no]),
+                        count: integers.widen(control.block_count[no])
+                    })
+                case StatementKind.Switch:
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.selection_subjects[payload])
+                    )
+
+                    const start = integers.widen(control.selection_first[payload])
+                    const length = integers.widen(control.selection_count[payload])
+
+                    bytes.writeU64Le(out, length)
+
+                    const branches = loop(start, {
+                        while: slot => slot < start + length,
+                        next: slot => {
+                            optionalWord({
+                                out,
+                                value: control.case_values[slot]
+                            })
+                            const child = integers.widen(control.case_bodies[slot])
+
+                            block({
+                                ...in,
+                                first: integers.widen(
+                                    control.block_first[child]
+                                ),
+                                count: integers.widen(
+                                    control.block_count[child]
+                                )
+                            })
+                            slot += 1
+                        }
+                    })
+
+                    bytes.writeByte(
+                        out,
+                        control.selection_exhaustive[payload] ? 1 : 0
+                    )
+                case StatementKind.StoreSet:
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.setter_slots[payload])
+                    )
+                    bytes.writeU64Le(
+                        out,
+                        integers.widen(control.setter_values[payload])
+                    )
+                case StatementKind.Result:
+                    optionalWord({
+                        out,
+                        value: control.results[payload]
+                    })
+            }
+
+            index += 1
+        }
+    })
+}

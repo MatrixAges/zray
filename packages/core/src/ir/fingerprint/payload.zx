@@ -1,0 +1,34 @@
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import aggregate from "./aggregate"
+import operation from "./operation"
+import scalar from "./scalar"
+import scope from "./scope"
+
+import type { ExpressionRow as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    return match in.kind {
+        ExpressionKind.Task => aggregate(in),
+        ExpressionKind.Parallel => aggregate(in),
+        ExpressionKind.List => aggregate(in),
+        ExpressionKind.Tuple => aggregate(in),
+        ExpressionKind.Template => aggregate(in),
+        ExpressionKind.Object => aggregate(in),
+        ExpressionKind.Scope => scope(in),
+        ExpressionKind.Iteration => scope(in),
+        ExpressionKind.Match => scope(in),
+        ExpressionKind.Field => operation(in),
+        ExpressionKind.TupleField => operation(in),
+        ExpressionKind.Index => operation(in),
+        ExpressionKind.ListOperation => operation(in),
+        ExpressionKind.Transform => operation(in),
+        ExpressionKind.ListUpdate => operation(in),
+        ExpressionKind.Unary => operation(in),
+        ExpressionKind.Binary => operation(in),
+        ExpressionKind.Conditional => operation(in),
+        _ => scalar(in)
+    }
+}

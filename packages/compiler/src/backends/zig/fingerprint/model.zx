@@ -1,5 +1,4 @@
 import type { Writer } from "std:bytes"
-import type { Stores } from "core/store_table/model"
 import type { NamedRows } from "memory"
 
 export enum Unit {
@@ -30,30 +29,6 @@ export type TypePrefix = {
     key_count: u64,
     keys: u8[],
     names: string[]
-}
-
-export type TypeIdentity = {
-    name: string,
-    digest: u8[]
-}
-
-export type Reference = {
-    out: Writer,
-    earlier?: bool,
-    name: string,
-    stores: Stores,
-    errors?: string[],
-    input: TypeIdentity,
-    output: TypeIdentity,
-    value: bool,
-    pure: bool,
-    local: bool,
-    io: bool,
-    process: bool,
-    tasks: bool,
-    identity_free: bool,
-    fresh: bool,
-    constructed: bool
 }
 
 export type Native = {

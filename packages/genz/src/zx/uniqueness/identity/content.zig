@@ -5,14 +5,14 @@ const generated = @import("generated_uniqueness_content_identity");
 const Input = std.meta.Child(generated.Input);
 
 pub fn build(symbols: ir.SymbolTable, expressions: ir.ExpressionTable, block: ir.Block, input_type: ir.TypeId, output_type: ir.TypeId) [32]u8 {
-    var hash: zx.Sha256 = undefined;
-    const hash_state = zx.Sha256State{ .value = &hash };
+    var pending: [4096]u8 = undefined;
+    var hash: std.Io.Writer.Hashing(zx.Sha256) = .init(&pending);
     const borrowed_symbols = zx.columns.borrow(std.meta.Child(@FieldType(Input, "symbols")), &symbols);
     const borrowed_expressions = zx.columns.borrow(std.meta.Child(@FieldType(Input, "expressions")), &expressions);
     const control = zx.columns.borrow(std.meta.Child(@FieldType(Input, "control")), block.control);
 
     const input: Input = .{
-        .hash = @ptrCast(&hash_state),
+        .out = @ptrCast(&hash.writer),
         .symbols = &borrowed_symbols,
         .expressions = &borrowed_expressions,
         .control = &control,
@@ -25,6 +25,7 @@ pub fn build(symbols: ir.SymbolTable, expressions: ir.ExpressionTable, block: ir
     var memory = std.heap.FixedBufferAllocator.init(&.{});
 
     generated.executeIn(memory.allocator(), &input) catch |err| std.debug.panic("content identity failed: {s}", .{@errorName(err)});
+    hash.writer.flush() catch unreachable;
 
-    return hash.finalResult();
+    return hash.hasher.finalResult();
 }

@@ -1,0 +1,56 @@
+import type { Writer } from "std:bytes"
+import type { Contracts } from "core/contract_table/model"
+import type { Control } from "core/control_table/model"
+import type { Expressions } from "core/expression_table/model"
+import type { Errors } from "core/signature_table/model"
+import type { Stores } from "core/store_table/model"
+import type { Symbols } from "core/symbol_table/model"
+import type { TypePrefix } from "../model"
+
+export type Calls = {
+    owner?: u32,
+    names: string[],
+    stores: Stores[],
+    input_types: u32[],
+    output_types: u32[],
+    errors: Errors[],
+    value: bool[],
+    pure: bool[],
+    local: bool[],
+    io: bool[],
+    process: bool[],
+    tasks: bool[],
+    identity_free: bool[],
+    fresh: bool[],
+    constructed: bool[]
+}
+
+export type Context = {
+    prefix: TypePrefix,
+    calls: Calls
+}
+
+export type Body = {
+    context: Context,
+    symbols: Symbols,
+    expressions: Expressions,
+    control: Control,
+    root?: u32
+}
+
+export type Predicates = {
+    context: Context,
+    contracts: Contracts
+}
+
+export type Block = {
+    out: Writer,
+    control: Control,
+    root?: u32
+}
+
+export type ExpressionRows = Body.Pick("context", "expressions")
+
+export type ExpressionRow = ExpressionRows & {
+    payload: u64
+}

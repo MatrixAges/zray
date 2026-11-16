@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+
+import optionalWord from "./optional_word"
+
+import type { Writer } from "std:bytes"
+
+export type Input = {
+    out: Writer,
+    values: u32?[],
+    first: u64,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, values, first, count } = in
+
+    const end = first + count
+
+    bytes.writeU64Le(out, count)
+
+    const result = loop(first, {
+        while: index => index < end,
+        next: index => {
+            optionalWord({
+                out,
+                value: values[index]
+            })
+            index += 1
+        }
+    })
+}

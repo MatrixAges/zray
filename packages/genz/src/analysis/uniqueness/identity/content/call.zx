@@ -1,27 +1,24 @@
-import crypto from "std:crypto"
+import bytes from "std:bytes"
 import integers from "std:integer"
+import words from "core/ir/fingerprint/words"
+import memory from "memory"
 
-import ids from "../types/ids"
-
-import type { Row as Input } from "./model"
+import type { Call as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    crypto.updateSha256U64Le(
-        in.hash,
-        integers.widen(in.expressions.call_functions[in.payload])
-    )
+    const { out, expressions, payload } = in
 
-    crypto.updateSha256U64Le(
-        in.hash,
-        integers.widen(in.expressions.call_arguments[in.payload])
-    )
+    bytes.writeU64Le(out, integers.widen(expressions.call_functions[payload]))
+    bytes.writeU64Le(out, integers.widen(expressions.call_arguments[payload]))
 
-    ids({
-        hash: in.hash,
-        values: in.expressions.call_stores,
-        first: integers.widen(in.expressions.call_store_first[in.payload]),
-        count: integers.widen(in.expressions.call_store_count[in.payload])
+    words({
+        out,
+        values: memory.borrowU32Range(
+            expressions.call_stores,
+            integers.widen(expressions.call_store_first[payload]),
+            integers.widen(expressions.call_store_count[payload])
+        )
     })
 }

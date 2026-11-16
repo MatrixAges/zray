@@ -1,0 +1,21 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import type { Writer } from "std:bytes"
+
+export type Input = {
+    out: Writer,
+    value?: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, value } = in
+
+    bytes.writeByte(out, value == null ? 0 : 1)
+
+    if (value != null) {
+        bytes.writeU64Le(out, integers.widen(value))
+    }
+}

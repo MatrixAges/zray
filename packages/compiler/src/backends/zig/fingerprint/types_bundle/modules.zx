@@ -1,6 +1,6 @@
 import bytes from "std:bytes"
+import text from "core/ir/fingerprint/text"
 
-import text from "../../../../inputs/fingerprint/field"
 import optionalText from "../optional_text"
 import strings from "../strings"
 import typeKey from "./type_key"

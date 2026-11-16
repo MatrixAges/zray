@@ -1,0 +1,27 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import block from "core/ir/fingerprint/block"
+
+import type { Block as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, control, root } = in
+
+    if (root == null) {
+        bytes.writeU64Le(out, 0)
+
+        return
+    }
+
+    const row = integers.widen(root)
+
+    block({
+        out,
+        control,
+        symbolic: false,
+        first: integers.widen(control.block_first[row]),
+        count: integers.widen(control.block_count[row])
+    })
+}

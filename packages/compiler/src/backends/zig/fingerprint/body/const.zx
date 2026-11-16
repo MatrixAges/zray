@@ -1,0 +1,81 @@
+export const ownership_copy: u64 = 0
+
+export const ownership_borrowed: u64 = 1
+
+export const ownership_owned: u64 = 2
+
+export const contract_requires: u64 = 0
+
+export const contract_ensures: u64 = 1
+
+export const expression_integer: u64 = 0
+
+export const expression_negative_integer: u64 = 1
+
+export const expression_float: u64 = 2
+
+export const expression_string: u64 = 3
+
+export const expression_boolean: u64 = 4
+
+export const expression_none: u64 = 5
+
+export const expression_unit: u64 = 6
+
+export const expression_some: u64 = 7
+
+export const expression_capture: u64 = 8
+
+export const expression_task: u64 = 9
+
+export const expression_await_task: u64 = 10
+
+export const expression_cancel_task: u64 = 11
+
+export const expression_parallel: u64 = 12
+
+export const expression_optional_value: u64 = 13
+
+export const expression_enum_value: u64 = 14
+
+export const expression_error_value: u64 = 15
+
+export const expression_reference: u64 = 16
+
+export const expression_store_get: u64 = 17
+
+export const expression_field: u64 = 18
+
+export const expression_index: u64 = 19
+
+export const expression_length: u64 = 20
+
+export const expression_list: u64 = 21
+
+export const expression_tuple: u64 = 22
+
+export const expression_tuple_field: u64 = 23
+
+export const expression_template: u64 = 24
+
+export const expression_list_operation: u64 = 25
+
+export const expression_transform: u64 = 26
+
+export const expression_scope: u64 = 27
+
+export const expression_iteration: u64 = 28
+
+export const expression_list_update: u64 = 29
+
+export const expression_call: u64 = 30
+
+export const expression_unary: u64 = 31
+
+export const expression_binary: u64 = 32
+
+export const expression_conditional: u64 = 33
+
+export const expression_match: u64 = 34
+
+export const expression_object: u64 = 35
