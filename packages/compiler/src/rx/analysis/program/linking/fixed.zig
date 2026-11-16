@@ -72,17 +72,22 @@ fn mapped(builder: *Builder, mapping: *const Mapping, table: *const ir.Expressio
         const Input = std.meta.Child(rule.Input);
         const Symbols = std.meta.Child(@FieldType(Input, "symbols"));
         const Kind = @FieldType(Input, "kind");
-        var values: [fields.len]u32 = undefined;
-        var output: [fields.len]u32 = undefined;
-        const target: []u32 = &output;
+        const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "columns")));
+        var views: [fields.len][]u32 = undefined;
+        var columns: [fields.len]Column = undefined;
+        var pointers: [fields.len]*const Column = undefined;
         const environment: []?u32 = if (comptime payload.optional) |name| @field(storage, name).unusedCapacitySlice()[0..1] else &.{};
 
-        inline for (fields, &values) |name, *value| value.* = @field(table, name)[row];
+        inline for (fields, 0..) |name, column| {
+            views[column] = @field(storage, name).unusedCapacitySlice()[0..1];
+            columns[column] = .{ .source = @field(table, name), .target = @ptrCast(&views[column]) };
+            pointers[column] = &columns[column];
+        }
 
         const input: Input = .{
             .kind = @as(Kind, @fromBackingInt(@intCast(@backingInt(kind)))),
-            .values = &values,
-            .target = @ptrCast(&target),
+            .columns = &pointers,
+            .row = row,
             .mapping = mapping.expressions[0..mapping.available],
             .symbols = &operands.symbolView(Symbols, mapping),
             .optional_symbol = if (comptime payload.optional) |name| @field(table, name)[row] else null,
@@ -90,8 +95,6 @@ fn mapped(builder: *Builder, mapping: *const Mapping, table: *const ir.Expressio
         };
 
         if (!try operands.invoke(rule, input)) return error.InvalidModule;
-
-        inline for (fields, output) |name, value| @field(storage, name).unusedCapacitySlice()[0] = value;
     } else {
         inline for (payload.expressions) |name| {
             const id = try mapping.seedId(@fromBackingInt(@field(table, name)[row]));

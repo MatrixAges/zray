@@ -1,0 +1,33 @@
+import type { Kind } from "../../control/model"
+
+export enum Region {
+    Root,
+    Task,
+    Selection,
+    Case
+}
+
+export enum Action {
+    Done,
+    Call,
+    Parallel,
+    Return,
+    OpenTask,
+    OpenSelection,
+    OpenCase,
+    CloseTask,
+    CloseSelection,
+    CloseCase
+}
+
+export type Input = {
+    region: Region,
+    kinds: Kind[],
+    position: u64,
+    end: u64
+}
+
+export type Output = {
+    action: Action,
+    next: u64
+}

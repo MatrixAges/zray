@@ -101,7 +101,7 @@ fn lowerBody(builder: *Builder, contract: Options) Builder.Error!ir.ControlBody 
 
     const statements = Statements{ .builder = builder, .flow = contract.flow, .plan = plan, .writer = &writer, .calls = contract.calls, .retain_metadata = contract.retain_metadata };
 
-    try statements.lower(unit, &cursor);
+    try statements.lower(temporary, unit, &cursor);
     if (plan.implicit_return) writer.result(&cursor, null);
 
     const root = try writer.finishBlock(&cursor, row.tag, &plan.size);
