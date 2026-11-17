@@ -1,0 +1,46 @@
+<Module>
+    <Type from="model" as="Discovery" />
+
+    <Args in={Discovery.Input} out={Discovery.Output} />
+
+    <Call
+        fn="eligible"
+        in={{
+            batch: $in.batch,
+            known: $in.eligible
+        }}
+    />
+
+    <If on={$ctx.eligible != 0 && $in.scoped == null}>
+        <Return
+            value={{
+                count: 0,
+                needs_scope: $ctx.eligible
+            }}
+        />
+    </If>
+
+    <If on={$ctx.eligible == 0 && $in.internal.length == 0}>
+        <Return
+            value={{
+                count: 0,
+                needs_scope: null
+            }}
+        />
+    </If>
+
+    <Call
+        fn="scan"
+        in={{
+            ...$in,
+            eligible: $ctx.eligible
+        }}
+    />
+
+    <Return
+        value={{
+            count: $ctx.scan,
+            needs_scope: null
+        }}
+    />
+</Module>

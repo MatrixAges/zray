@@ -6,7 +6,6 @@ import type { Input as Validation } from "./validation"
 export type Published = {
     inputs: U32Buffer,
     outputs: U32Buffer,
-    exports: U32Buffer
 }
 
 export type Input = {

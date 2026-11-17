@@ -1,0 +1,33 @@
+import type { StringBuffer, TextColumn } from "memory"
+import type { Import } from "../../../frontend/parser/imports/model"
+import type { Registry } from "./find"
+
+export type IndexedPaths = {
+    source: string,
+    imports: Import[]
+}
+
+export type Paths = {
+    indexed?: IndexedPaths,
+    native?: TextColumn
+}
+
+export type Batch = {
+    paths: Paths,
+    first: u64,
+    count: u64
+}
+
+export type Input = {
+    batch: Batch,
+    eligible?: u64,
+    standard: Registry,
+    scoped?: Registry,
+    internal: Registry,
+    output: StringBuffer
+}
+
+export type Output = {
+    count: u64,
+    needs_scope?: u64
+}

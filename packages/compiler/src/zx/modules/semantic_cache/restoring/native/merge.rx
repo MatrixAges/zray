@@ -49,15 +49,6 @@
             }}
         />
 
-        <Call
-            fn="exports"
-            in={{
-                source: $in.validation.request.exports,
-                target: $in.published.exports,
-                mapping: $in.type_ids
-            }}
-        />
-
         <Return
             value={{
                 status: Result.Status.Ready,

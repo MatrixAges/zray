@@ -36,5 +36,5 @@ pub fn restore(allocator: std.mem.Allocator, artifact: *const Artifact.Module, e
         .ConflictingNominalType => return error.ConflictingNominalType,
     }
 
-    return @import("native_publish.zig").apply(allocator, result.value.?, &input, artifact.functions, current);
+    return @import("native_publish.zig").apply(allocator, result.value.?, &input, artifact, current);
 }

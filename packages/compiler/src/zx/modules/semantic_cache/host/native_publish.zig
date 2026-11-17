@@ -2,16 +2,17 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Loaded = @import("../../native.zig");
-const Current = @import("../native_restore.zig").Current;
+const Artifact = @import("../../artifact/model.zig");
+const restore = @import("../native_restore.zig");
 const Input = @import("native_input.zig");
 const publication = @import("../../link/signature/publication/host.zig");
+const surface = @import("../../artifact/surface.zig");
+const remap = @import("../../artifact/nodes/remap.zig");
 
-pub fn apply(allocator: std.mem.Allocator, output: anytype, mapped: *const Input, signatures: ir.SignatureTable, current: Current) std.mem.Allocator.Error!Loaded.Result {
-    const exports = try allocator.alloc(ir.Export, mapped.export_rows.len);
-
-    for (exports, mapped.export_rows, mapped.export_ids) |*item, row, id| {
-        item.* = .{ .name = try allocator.dupe(u8, row.name), .type_id = @fromBackingInt(id) };
-    }
+pub fn apply(allocator: std.mem.Allocator, output: anytype, mapped: *const Input, artifact: *const Artifact.Module, current: restore.Current) restore.Error!Loaded.Result {
+    const mapping = remap.typeMapping(surface.Mapping, .{ .mapped = @ptrCast(mapped.type_ids) });
+    const exports = try surface.copyExports(allocator, artifact.exports, &mapping);
+    const signatures = artifact.functions;
 
     const staged = if (signatures.count() != 0) owned: {
         const first_member = signatures.native_members[0];

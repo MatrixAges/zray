@@ -1,26 +1,35 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
 import writeStore from "./store"
 
-import type { Writer } from "std:bytes"
-import type { Store } from "./model"
+import type { Input as Context } from "./model"
 
-export type Input = {
-    writer: Writer,
-    bindings: Store[]
-}
+export type Input = Context.Pick("writer", "stores")
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const result = loop({
-        row: 0
-    }, {
-        while: state => state.row < in.bindings.length,
-        next: state => {
+    const { writer, stores } = in
+
+    bytes.writeU64Le(writer, stores.count)
+
+    const encoded = loop(0, {
+        while: row => row < stores.count,
+        next: row => {
             writeStore({
-                writer: in.writer,
-                binding: in.bindings[state.row]
+                writer,
+                binding: {
+                    handle: memory.readTextColumn(stores.handle, row),
+                    path: memory.readTextColumn(stores.path, row),
+                    type_name: memory.readOptionalTextColumn(stores.type_name, row),
+                    type_id: memory.readColumnOptionalU32(stores.type_id, row),
+                    readable: memory.readColumnBool(stores.readable, row),
+                    writable: memory.readColumnBool(stores.writable, row)
+                }
             })
-            state.row += 1
+
+            row += 1
         }
     })
 }

@@ -25,7 +25,6 @@ exports: std.meta.Child(@FieldType(Request, "exports")),
 request: Request,
 validation: Validation,
 type_ids: []u32,
-export_ids: []u32,
 input_ids: []u32,
 output_ids: []u32,
 published: Published,
@@ -39,17 +38,14 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact
     self.base = ir.TypeTable.borrow(@TypeOf(self.base), current.types.view());
     self.base_origins = Origins.Table.borrow(@TypeOf(self.base_origins), current.origins.items.view());
     const type_count = artifact.types.count();
-    const export_count = artifact.exports.len;
     const member_count = artifact.functions.count();
     const ports = std.math.mul(usize, member_count, 2) catch return error.OutOfMemory;
-    const mapped = std.math.add(usize, type_count, ports) catch return error.OutOfMemory;
-    const count = std.math.add(usize, mapped, export_count) catch return error.OutOfMemory;
+    const count = std.math.add(usize, type_count, ports) catch return error.OutOfMemory;
     const ids = try allocator.alloc(u32, count);
 
     self.type_ids = ids[0..type_count];
     self.input_ids = ids[type_count..][0..member_count];
     self.output_ids = ids[type_count + member_count ..][0..member_count];
-    self.export_ids = ids[mapped..][0..export_count];
     self.export_rows = names.borrow(artifact.exports);
     self.exports = names.view(@TypeOf(self.exports), &self.export_rows);
 
@@ -79,7 +75,6 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact
     self.published = .{
         .inputs = @ptrCast(&self.input_ids),
         .outputs = @ptrCast(&self.output_ids),
-        .exports = @ptrCast(&self.export_ids),
     };
 
     self.input = .{

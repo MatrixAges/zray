@@ -1,0 +1,28 @@
+import encoding from "std:encoding"
+import memory from "memory"
+
+import type { Paths } from "./model"
+
+export type Input = {
+    paths: Paths,
+    row: u64
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { paths, row } = in
+
+    if (paths.indexed != null) {
+        const { source, imports } = paths.indexed
+        const { start, end } = imports[row].path
+
+        return encoding.sliceBytes(source, start + 1, end - 1)
+    }
+
+    if (paths.native != null) {
+        return memory.readTextColumn(paths.native, row)
+    }
+
+    return ""
+}

@@ -2,21 +2,38 @@ import integers from "std:integer"
 
 import classify from "../../specifier/check"
 import { Kind } from "../../specifier/model"
+import path from "./path"
 
-export type Input = string[]
+import type { Batch } from "./model"
+
+export type Input = {
+    batch: Batch,
+    known?: u64
+}
 
 export type Output = u64
 
 export default function (in: Input): Output {
+    if (in.known != null) {
+        return in.known
+    }
+
+    const { paths, first, count } = in.batch
+
     const mask: u64 = 0
 
     return loop({
         index: 0,
         mask
     }, {
-        while: state => state.index < in.length,
+        while: state => state.index < count,
         next: state => {
-            const eligible = match classify(in[state.index]) {
+            const name = path({
+                paths,
+                row: first + state.index
+            })
+
+            const eligible = match classify(name) {
                 Kind.File => false,
                 Kind.Package => false,
                 Kind.Invalid => false,

@@ -30,7 +30,7 @@
     />
 
     <Call
-        fn="store_count"
+        fn="stores"
         in={$in.pick([
             "writer",
             "stores"

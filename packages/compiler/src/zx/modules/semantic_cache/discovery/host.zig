@@ -11,6 +11,71 @@ const generated = @import("parser_options").generated_parser;
 pub fn prefetch(header: anytype, path: []const u8, project: *const Options, callback: anytype) !void {
     comptime std.debug.assert(batch_size <= @bitSizeOf(u64));
 
+    const Header = @TypeOf(header);
+    const indexed_header = @hasField(Header, "storage");
+
+    if (comptime !generated or (!indexed_header and Header != zx.syntax.header.Native)) {
+        return prefetchSeed(header, path, project, callback);
+    }
+
+    const total = header.importCount();
+
+    if (total == 0) return;
+
+    const rule = @import("generated_semantic_cache_discovery");
+    const Input = std.meta.Child(rule.Input);
+    const Batch = std.meta.Child(@FieldType(Input, "batch"));
+    const Paths = std.meta.Child(@FieldType(Batch, "paths"));
+    const Registry = std.meta.Child(@FieldType(Input, "standard"));
+    const Indexed = std.meta.Child(@typeInfo(@FieldType(Paths, "indexed")).optional.child);
+    const native = if (!indexed_header) zx.memory.borrowTextColumn("path", header.program.imports) else undefined;
+    const indexed: Indexed = if (indexed_header) .{ .source = header.source, .imports = zx.columns.slice(@FieldType(Indexed, "imports"), header.storage.imports) } else undefined;
+    const paths: Paths = .{ .indexed = if (indexed_header) &indexed else null, .native = if (indexed_header) null else @ptrCast(&native) };
+    const standard = Columns.borrow("specifier", &interface.standard);
+    const internal = Columns.borrow("module", project.internal_modules);
+    var scope: Columns = undefined;
+    var scope_view: Registry = undefined;
+    var keys: [2 * batch_size][]const u8 = undefined;
+    const output: [][]const u8 = &keys;
+    var batch: Batch = .{ .paths = &paths, .first = 0, .count = 0 };
+
+    var request: Input = .{
+        .batch = &batch,
+        .eligible = null,
+        .standard = &standard.view(Registry),
+        .scoped = null,
+        .internal = &internal.view(Registry),
+        .output = @ptrCast(&output),
+    };
+
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+    while (batch.first < total) {
+        batch.count = @min(batch_size, total - batch.first);
+        const scanned = zx.columns.invoke(rule.executeValue, scratch.allocator(), @as(*const Input, &request)) catch unreachable;
+
+        const count = if (scanned.needs_scope) |mask| resolved: {
+            const interfaces = scopes.nativeInterfaces(project.package_scopes, path, project.native_interfaces);
+
+            scope = .borrow("specifier", interfaces);
+            scope_view = scope.view(Registry);
+            request.scoped = &scope_view;
+            request.eligible = mask;
+
+            const resumed = zx.columns.invoke(rule.executeValue, scratch.allocator(), @as(*const Input, &request)) catch unreachable;
+
+            request.eligible = null;
+
+            break :resolved resumed.count;
+        } else scanned.count;
+
+        for (keys[0..@intCast(count)]) |key| try callback.loadNative(key);
+
+        batch.first += batch.count;
+    }
+}
+
+fn prefetchSeed(header: anytype, path: []const u8, project: *const Options, callback: anytype) !void {
     var paths: [batch_size][]const u8 = undefined;
     var offset: usize = 0;
     var scoped: ?[]const interface.Native = null;
@@ -25,19 +90,6 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
         const mask = eligible(batch);
 
         if (mask != 0 and scoped == null) scoped = scopes.nativeInterfaces(project.package_scopes, path, project.native_interfaces);
-
-        if (comptime generated) {
-            if (mask != 0 or project.internal_modules.len != 0) {
-                var keys: [2 * batch_size][]const u8 = undefined;
-                const identities = scan(batch, mask, scoped orelse &.{}, project.internal_modules, &keys);
-
-                for (identities) |key| try callback.loadNative(key);
-            }
-
-            offset += size;
-
-            continue;
-        }
 
         var remaining = mask;
 
@@ -64,12 +116,6 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
 }
 
 fn eligible(paths: []const []const u8) u64 {
-    if (comptime generated) {
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-        return @import("generated_semantic_cache_imports").executeValue(scratch.allocator(), paths) catch unreachable;
-    }
-
     var mask: u64 = 0;
 
     for (paths, 0..) |path, index| {
@@ -104,29 +150,3 @@ const Columns = struct {
         };
     }
 };
-
-fn scan(paths: []const []const u8, mask: u64, scoped: []const interface.Native, internal: []const interface.Native, output: [][]const u8) []const []const u8 {
-    const rule = @import("generated_semantic_cache_native_scan");
-    const Input = std.meta.Child(rule.Input);
-    const Registry = std.meta.Child(@FieldType(Input, "standard"));
-    const standard = Columns.borrow("specifier", &interface.standard);
-    const local = Columns.borrow("specifier", scoped);
-    const private = Columns.borrow("module", internal);
-    const standard_view = standard.view(Registry);
-    const local_view = local.view(Registry);
-    const private_view = private.view(Registry);
-
-    const input: Input = .{
-        .paths = paths,
-        .eligible = mask,
-        .standard = &standard_view,
-        .scoped = &local_view,
-        .internal = &private_view,
-        .output = @ptrCast(&output),
-    };
-
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    const count = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
-
-    return output[0..@intCast(count)];
-}
