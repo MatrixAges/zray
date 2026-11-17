@@ -2,6 +2,10 @@ const std = @import("std");
 const column_set = @import("column_set.zig");
 pub const ColumnSet = column_set.ColumnSet;
 pub const bindColumnSet = column_set.bind;
+pub const ColumnRanges = column_set.Ranges;
+pub const bindColumnRanges = column_set.bindRanges;
+pub const publishTypeRanges = column_set.publishRanges;
+pub const publishNominalRanges = column_set.publishRanges;
 pub const reserveColumnSet = column_set.reserve;
 pub const readColumnSet = column_set.read;
 pub const appendColumnSet = column_set.append;
@@ -12,6 +16,21 @@ pub const writeColumnU32s = writeU32;
 pub const copyColumnText = column_set.copyText;
 pub const copyColumnTexts = column_set.copyTexts;
 pub const copyColumnOptionalTexts = column_set.copyTexts;
+
+pub inline fn reserveTypeRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype, limit: ?u64, precise: bool) std.mem.Allocator.Error!void {
+    try column_set.reserveRanges(resource, target, elements, limit, precise, false);
+}
+
+pub inline fn reserveNominalRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype) std.mem.Allocator.Error!void {
+    try column_set.reserveRanges(resource, target, elements, null, false, true);
+}
+
+pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
+    const view: *const []const []const u8 = @ptrCast(@alignCast(source));
+
+    return view.*;
+}
+
 const rows = @import("rows.zig");
 pub const NamedId = rows.NamedId;
 pub const borrowNamedRows = rows.borrow;

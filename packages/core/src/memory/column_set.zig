@@ -73,6 +73,79 @@ pub fn append(target: *const anyopaque, row: anytype) void {
     }
 }
 
+pub const Range = struct {
+    storage: *anyopaque,
+    view: *anyopaque,
+    count: usize,
+};
+
+pub const Ranges = []const Range;
+
+pub fn bindRanges(comptime Elements: type, storage: anytype, source: anytype, views: anytype) [@typeInfo(Elements).@"struct".field_types.len]Range {
+    const names = @typeInfo(std.meta.Child(@TypeOf(storage))).@"struct".field_names;
+    const items = @typeInfo(Elements).@"struct".field_types;
+    var ranges: [items.len]Range = undefined;
+
+    inline for (names, items, &ranges) |name, Item, *range| {
+        const column: *std.ArrayList(Item) = &@field(storage, name);
+        const view: *[]const Item = &@field(views, name);
+        const rows = @field(source, name);
+
+        range.* = .{
+            .storage = column,
+            .view = @ptrCast(view),
+            .count = if (@typeInfo(@TypeOf(rows)) == .pointer) rows.len else rows,
+        };
+    }
+
+    return ranges;
+}
+
+pub fn reserveRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype, limit: ?u64, precise: bool, comptime uniform: bool) std.mem.Allocator.Error!void {
+    const columns: *const Ranges = @ptrCast(@alignCast(target));
+    const items = comptime rangeElements(@TypeOf(elements));
+    const allocator = borrowAllocator(resource);
+
+    if (limit) |maximum| {
+        inline for (items, 0..) |Item, index| {
+            const current = list(Item, columns.*[index].storage).items.len;
+
+            if (current > maximum or columns.*[index].count > maximum - current) return error.OutOfMemory;
+        }
+    }
+
+    inline for (items, 0..) |Item, index| {
+        const range = columns.*[index];
+        const column = list(Item, range.storage);
+        const count = if (uniform) columns.*[0].count else range.count;
+
+        if (precise) {
+            try column.ensureTotalCapacityPrecise(allocator, column.items.len + count);
+        } else {
+            try column.ensureUnusedCapacity(allocator, count);
+        }
+
+        const view: *[]const Item = @ptrCast(@alignCast(range.view));
+        view.* = column.unusedCapacitySlice()[0..range.count];
+    }
+}
+
+pub fn publishRanges(target: *const anyopaque, elements: anytype) void {
+    const columns: *const Ranges = @ptrCast(@alignCast(target));
+    const items = comptime rangeElements(@TypeOf(elements));
+
+    inline for (items, 0..) |Item, index| {
+        const range = columns.*[index];
+        _ = list(Item, range.storage).addManyAsSliceAssumeCapacity(range.count);
+    }
+}
+
+fn rangeElements(comptime Shape: type) []const type {
+    const Elements = std.meta.Child(@typeInfo(Shape).optional.child);
+
+    return @typeInfo(Elements).@"struct".field_types;
+}
+
 fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {
     return @ptrCast(@alignCast(storage));
 }

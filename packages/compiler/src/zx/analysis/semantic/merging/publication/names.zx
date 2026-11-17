@@ -1,0 +1,23 @@
+import memory from "memory"
+
+import bindNames from "../../../../modules/nominal_origins/bind_names"
+
+import type { StringBuffer } from "memory"
+import type { Input as Publication } from "./model"
+
+export type Input = Publication.Pick("base_labels") & {
+    ids: u32[],
+    delta_labels: StringBuffer,
+    names: StringBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    bindNames({
+        origin_ids: in.ids,
+        base_labels: memory.stringViews(in.base_labels),
+        delta_labels: memory.stringViews(in.delta_labels),
+        origin_names_out: in.names
+    })
+}

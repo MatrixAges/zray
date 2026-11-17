@@ -1,0 +1,17 @@
+import memory from "memory"
+
+import type { Destination } from "./model"
+
+export type Input = Destination
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { ranges, nominal_ranges, elements, nominal_elements } = in
+
+    memory.publishTypeRanges(ranges, elements)
+
+    if (nominal_ranges != null) {
+        memory.publishNominalRanges(nominal_ranges, nominal_elements)
+    }
+}

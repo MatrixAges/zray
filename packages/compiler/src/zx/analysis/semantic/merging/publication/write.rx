@@ -3,45 +3,54 @@
 
     <Args in={Model.Input} out={void} />
 
-    <Call
-        fn="text"
-        in={$in.pick([
-            "delta",
-            "origins",
-            "target",
-            "nominal",
-            "text_mode",
-            "progress"
-        ])}
-    />
+    <Call fn="reserve" in={$in.destination} />
 
-    <Call
-        fn="first"
-        in={{
-            kinds: $in.delta.kinds,
-            first: $in.delta.first,
-            target: $in.target.first,
-            offsets: $in.offsets
-        }}
-    />
+    <If
+        on={$in.delta.kinds.length != 0 || $in.delta.first.length != 0 ||
+            $in.origins.ids.length != 0}
+    >
+        <Call
+            fn="text"
+            in={$in.pick([
+                "delta",
+                "origins",
+                "target",
+                "nominal",
+                "text_mode",
+                "progress"
+            ])}
+        />
 
-    <Call
-        fn="payload"
-        in={$in.pick([
-            "delta",
-            "origins",
-            "target",
-            "nominal"
-        ])}
-    />
+        <Call
+            fn="first"
+            in={{
+                kinds: $in.delta.kinds,
+                first: $in.delta.first,
+                target: $in.target.first,
+                offsets: $in.offsets
+            }}
+        />
 
-    <Call
-        fn="../../../../modules/nominal_origins/bind_names"
-        in={{
-            origin_ids: $in.origins.ids,
-            base_labels: $in.base_labels,
-            delta_labels: $in.delta_labels,
-            origin_names_out: $in.nominal.names
-        }}
-    />
+        <Call
+            fn="payload"
+            in={$in.pick([
+                "delta",
+                "origins",
+                "target",
+                "nominal"
+            ])}
+        />
+
+        <Call
+            fn="names"
+            in={{
+                ids: $in.origins.ids,
+                base_labels: $in.base_labels,
+                delta_labels: $in.target.labels,
+                names: $in.nominal.names
+            }}
+        />
+    </If>
+
+    <Call fn="publish" in={$in.destination} />
 </Module>

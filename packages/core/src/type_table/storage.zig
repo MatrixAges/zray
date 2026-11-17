@@ -170,10 +170,3 @@ pub fn publishDelta(self: *Self, delta: Table) void {
         }
     }
 }
-
-/// Publishes a delta after all its reserved column tails have been written.
-pub fn publishReserved(self: *Self, delta: Table) void {
-    inline for (@typeInfo(Self).@"struct".field_names) |name| {
-        _ = @field(self, name).addManyAsSliceAssumeCapacity(@field(delta, name).len);
-    }
-}

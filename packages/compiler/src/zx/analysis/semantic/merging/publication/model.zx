@@ -1,6 +1,15 @@
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { StringBuffer, U8Buffer, U32Buffer, U64Buffer } from "memory"
+import type {
+    Allocator,
+    ColumnRanges,
+    NominalRangeElements,
+    TypeRangeElements,
+    StringBuffer,
+    U8Buffer,
+    U32Buffer,
+    U64Buffer
+} from "memory"
 import type { Input as Rebase } from "../rebase"
 
 export enum TextMode {
@@ -30,16 +39,25 @@ export type NominalTail = {
     names: StringBuffer
 }
 
+export type Destination = {
+    ranges: ColumnRanges,
+    nominal_ranges?: ColumnRanges,
+    elements?: TypeRangeElements,
+    nominal_elements?: NominalRangeElements,
+    resource: Allocator,
+    precise: bool
+}
+
 export type Input = {
     delta: Table,
     origins: Bindings,
     target: TypeTail,
     nominal: NominalTail,
     offsets?: Offsets,
-    base_labels: string[],
-    delta_labels: string[],
+    base_labels: StringBuffer,
     text_mode: TextMode,
-    progress: U64Buffer
+    progress: U64Buffer,
+    destination: Destination
 }
 
 export type Text = Input.Pick(

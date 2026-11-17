@@ -13,6 +13,36 @@ export type TextColumn = opaque
 export type ReadColumn = opaque
 export type ListColumn = opaque
 export type WriteColumn = opaque
+export type ColumnRanges = opaque
+
+export type TypeRangeElements = [u8, u32, u32, string, u32, u32, string, string]
+export type NominalRangeElements = [u32, u8, string, string, string]
+
+export declare function reserveTypeRanges(
+    resource: Allocator,
+    target: ColumnRanges,
+    elements: TypeRangeElements?,
+    limit: u64?,
+    precise: bool
+): void throws { OutOfMemory }
+
+export declare function reserveNominalRanges(
+    resource: Allocator,
+    target: ColumnRanges,
+    elements: NominalRangeElements?
+): void throws { OutOfMemory }
+
+export declare function publishTypeRanges(
+    target: ColumnRanges,
+    elements: TypeRangeElements?
+): void
+
+export declare function publishNominalRanges(
+    target: ColumnRanges,
+    elements: NominalRangeElements?
+): void
+
+export declare function stringViews(source: StringBuffer): string[]
 
 export declare function borrowU8Range(
     source: u8[],
