@@ -1,6 +1,6 @@
-import integers from "std:integer"
 import memory from "memory"
 
+import fromBinding from "./from_binding"
 import write from "./write"
 
 import type { Bindings, Kinds, Target } from "./model"
@@ -23,41 +23,22 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.row < bindings.count,
         next: state => {
-            const row = state.row
-            const name = memory.readTextColumn(bindings.names, row)
-            const intrinsic = memory.readColumnOptionalU8(bindings.intrinsics, row)
+            const index = state.row
+            const signature = fromBinding({
+                kinds,
+                facts: bindings.facts,
+                index
+            })
 
-            if (intrinsic != null) {
+            state.valid = signature != null
+
+            if (signature != null) {
                 write({
+                    ...signature,
                     target,
-                    name,
-                    kind: kinds.intrinsic,
-                    row: start + row,
-                    input_type: bindings.void_type,
-                    output_type: bindings.void_type,
-                    has_store: false
+                    name: memory.readTextColumn(bindings.names, index),
+                    row: start + index
                 })
-            } else {
-                const id = memory.readColumnOptionalU32(bindings.ids, row)
-                const input_type = memory.readColumnOptionalU32(bindings.inputs, row)
-                const output_type = memory.readColumnOptionalU32(bindings.outputs, row)
-                if (id == null) {
-                    state.valid = false
-                } else if (input_type == null || output_type == null) {
-                    state.valid = false
-                } else {
-                    const stores = bindings.stores[integers.widen(id)]
-
-                    write({
-                        target,
-                        name,
-                        kind: kinds.callable,
-                        row: start + row,
-                        input_type,
-                        output_type,
-                        has_store: stores.paths.length != 0
-                    })
-                }
             }
 
             state.row += 1

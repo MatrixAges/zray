@@ -5,12 +5,14 @@ import type { Input, Names as Output } from "./model"
 
 export default function (in: Input): Output {
     const invalid_name: u64? = null
+    const duplicate: string? = null
     const default_member: u64? = null
 
     const { keys, roots, buckets, capacity } = in
 
     return loop({
         invalid_name,
+        duplicate,
         default_member,
         cursor: 0
     }, {
@@ -24,6 +26,7 @@ export default function (in: Input): Output {
 
             if (roots && key.length == 0) {
                 state.invalid_name = row
+                state.duplicate = key
             } else {
                 const entered = claim({
                     keys,
@@ -35,6 +38,7 @@ export default function (in: Input): Output {
 
                 if (entered) {
                     state.invalid_name = row
+                    state.duplicate = key
                 } else if (row >= keys.third_start && key.length == 0) {
                     state.default_member = row - keys.third_start
                 }
@@ -45,6 +49,7 @@ export default function (in: Input): Output {
         return: state => {
             return {
                 invalid_name: state.invalid_name,
+                duplicate: state.duplicate,
                 default_member: state.default_member
             }
         }

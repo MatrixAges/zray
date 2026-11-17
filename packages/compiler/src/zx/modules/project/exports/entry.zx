@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { ReadColumn } from "memory"
+
+export type Input = {
+    own?: u32,
+    row?: u64,
+    ids: ReadColumn
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { own, row, ids } = in
+
+    if (own != null || row == null) {
+        return own
+    }
+
+    return memory.readColumnOptionalU32(ids, row)
+}

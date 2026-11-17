@@ -8,8 +8,9 @@
     <If on={$ctx.names.invalid_name != null}>
         <Return
             value={{
-                names: $ctx.names,
-                action: Exports.Action.None
+                ...$ctx.names.omit(["default_member"]),
+                has_store: false,
+                invalid: false
             }}
         />
     </If>
@@ -26,26 +27,35 @@
 
             <Return
                 value={{
-                    names: $ctx.names,
-                    action: $ctx.signature
-                }}
-            />
-        </If>
-
-        <If on={!$in.has_function}>
-            <Return
-                value={{
-                    names: $ctx.names,
-                    action: Exports.Action.Forward
+                    ...$ctx.signature
                 }}
             />
         </If>
     </If>
 
+    <If on={$in.signature == null}>
+        <Call
+            fn="entry"
+            in={{
+                own: $in.own,
+                row: $ctx.names.default_member,
+                ids: $in.ids
+            }}
+        />
+
+        <Return
+            value={{
+                entry: $ctx.entry,
+                has_store: false,
+                invalid: false
+            }}
+        />
+    </If>
+
     <Return
         value={{
-            names: $ctx.names,
-            action: Exports.Action.None
+            has_store: false,
+            invalid: false
         }}
     />
 </Module>

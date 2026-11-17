@@ -1,37 +1,42 @@
 import type { Segments } from "core/bytes/index/segments/model"
-import type { ReadColumn, U64Buffer } from "memory"
+import type { ReadColumn, TextColumn, U64Buffer } from "memory"
+import type { ReadColumn as Numeric } from "memory/columns"
 
 export type Input = {
     keys: Segments,
     buckets: U64Buffer,
     capacity: u64,
     roots: bool,
-    has_function: bool,
+    own?: u32,
+    ids: ReadColumn,
     signature?: Signature
 }
 
 export type Names = {
     invalid_name?: u64,
+    duplicate?: string,
     default_member?: u64
 }
 
 export type Signature = {
     kinds: ReadColumn,
+    inputs: Numeric,
+    outputs: Numeric,
+    stores: ReadColumn,
+    sources: TextColumn,
     callable: u8,
     deferred: u8,
     intrinsic: u8
 }
 
-export enum Action {
-    None,
-    Forward,
-    Callable,
-    Deferred,
-    Intrinsic,
-    Invalid
+export type DefaultSignature = {
+    input_type?: u32,
+    output_type?: u32,
+    has_store: bool,
+    deferred?: string,
+    invalid: bool
 }
 
-export type Output = {
-    names: Names,
-    action: Action
+export type Output = Names.Omit("default_member") & DefaultSignature & {
+    entry?: u32
 }

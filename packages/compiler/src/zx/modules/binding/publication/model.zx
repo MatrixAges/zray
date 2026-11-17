@@ -25,9 +25,12 @@ export type Binding = PortShape
 export type FunctionColumns =
     Source.Pick("id", "input_type", "output_type", "intrinsic")
 
-export type Functions = Selected & {
+export type Members = {
     named: FunctionColumns,
-    fallback?: Binding,
+    fallback?: Binding
+}
+
+export type Functions = Selected & Members & {
     target: Target,
     namespace?: string
 }

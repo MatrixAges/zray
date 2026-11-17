@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Types = @import("../analysis/types.zig");
 const FunctionImport = @import("function_import.zig");
+const DynamicMembers = @import("binding/members.zig");
 
 pub const Ports = struct {
     input_type: ir.TypeId,
@@ -17,6 +18,36 @@ pub const Member = struct {
     ports: Ports = .{ .input_type = Types.scalarId(.void), .output_type = Types.scalarId(.void) },
     source: []const u8 = &.{},
     has_store: bool = false,
+};
+
+const Target = struct {
+    name: zx.memory.WriteColumn,
+    kind: zx.memory.WriteColumn,
+    input_type: zx.memory.WriteColumn,
+    output_type: zx.memory.WriteColumn,
+    source: zx.memory.WriteColumn,
+    has_store: zx.memory.WriteColumn,
+    fn borrow(rows: []Member) Target {
+        const memory = zx.memory;
+
+        return .{
+            .name = memory.borrowWriteColumn([]const u8, "name", rows),
+            .kind = memory.borrowWriteColumn(Member.Kind, "kind", rows),
+            .input_type = memory.borrowNestedWriteColumn(ir.TypeId, &.{ "ports", "input_type" }, rows),
+            .output_type = memory.borrowNestedWriteColumn(ir.TypeId, &.{ "ports", "output_type" }, rows),
+            .source = memory.borrowWriteColumn([]const u8, "source", rows),
+            .has_store = memory.borrowWriteColumn(u8, "has_store", rows),
+        };
+    }
+    fn view(self: *const Target, comptime Shape: type) Shape {
+        var result: Shape = undefined;
+
+        inline for (@typeInfo(Shape).@"struct".field_names) |name| {
+            @field(result, name) = @ptrCast(&@field(self, name));
+        }
+
+        return result;
+    }
 };
 
 pub const Result = struct {
@@ -36,39 +67,86 @@ pub fn publishMembers(allocator: std.mem.Allocator, signature: *const Result, st
     const rule = @import("generated_project_signature_members");
     const Input = std.meta.Child(rule.Input);
     const Declaration = std.meta.Child(@typeInfo(@FieldType(Input, "callable")).optional.child);
-    const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
     const memory = zx.memory;
     const own: usize = @intFromBool(!signature.type_only);
     const declaration: Declaration = .{ .input_type = @backingInt(signature.ports.input_type), .output_type = @backingInt(signature.ports.output_type), .has_store = signature.has_store };
     const target = std.mem.sliceAsBytes(members[own..][0..forwarded.len]);
+    const output = Target.borrow(members);
+    const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
+    const Facts = std.meta.Child(@FieldType(Bindings, "facts"));
+    const MemberSource = std.meta.Child(@FieldType(Facts, "members"));
+    const readable = FunctionImport.Readable.borrowRows(native);
 
     const input: Input = .{
-        .target = &.{
-            .name = @ptrCast(&memory.borrowWriteColumn([]const u8, "name", members)),
-            .kind = @ptrCast(&memory.borrowWriteColumn(Member.Kind, "kind", members)),
-            .input_type = @ptrCast(&memory.borrowNestedWriteColumn(ir.TypeId, &.{ "ports", "input_type" }, members)),
-            .output_type = @ptrCast(&memory.borrowNestedWriteColumn(ir.TypeId, &.{ "ports", "output_type" }, members)),
-            .source = @ptrCast(&memory.borrowWriteColumn([]const u8, "source", members)),
-            .has_store = @ptrCast(&memory.borrowWriteColumn(u8, "has_store", members)),
-        },
+        .target = &output.view(std.meta.Child(@FieldType(Input, "target"))),
         .callable = if (own != 0) &declaration else null,
-        .kinds = &.{ .callable = @backingInt(Member.Kind.callable), .intrinsic = @backingInt(Member.Kind.intrinsic) },
+        .kinds = &kinds(std.meta.Child(@FieldType(Input, "kinds"))),
         .forwarded = &.{ .rows = std.mem.sliceAsBytes(forwarded), .target = @ptrCast(&target), .count = forwarded.len },
         .bindings = &.{
             .names = @ptrCast(&memory.borrowTextColumn("name", native)),
-            .ids = @ptrCast(&memory.borrowOptionalU32Column("id", native)),
-            .inputs = @ptrCast(&memory.borrowOptionalU32Column("input_type", native)),
-            .outputs = @ptrCast(&memory.borrowOptionalU32Column("output_type", native)),
-            .intrinsics = @ptrCast(&memory.borrowOptionalU8Column("intrinsic", native)),
-            .stores = zx.columns.slice(@FieldType(Bindings, "stores"), stores),
-            .void_type = @backingInt(Types.scalarId(.void)),
+            .facts = &bindingFacts(Facts, &.{ .named = &readable.view(std.meta.Child(@FieldType(MemberSource, "named"))), .fallback = null }, stores),
             .count = native.len,
         },
     };
 
-    if (!(zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (err) {
+    try writeMembers(rule, allocator, &input);
+}
+
+pub const Reexports = struct {
+    signatures: []const Member,
+    bindings: DynamicMembers,
+    stores: []const *const ir.StoreTable,
+    selected: @import("binding/symbols.zig").Bindings,
+};
+
+pub fn publishReexports(allocator: std.mem.Allocator, backing: std.mem.Allocator, imports: Reexports, members: *std.ArrayList(Member)) std.mem.Allocator.Error!void {
+    const count = imports.selected.names.len;
+
+    if (count == 0) return;
+    try members.ensureUnusedCapacity(backing, count);
+
+    const rule = @import("generated_project_signature_reexports");
+    const Input = std.meta.Child(rule.Input);
+    const Facts = std.meta.Child(@FieldType(Input, "facts"));
+    const Source = std.meta.Child(@FieldType(Facts, "members"));
+    const Fallback = std.meta.Child(@typeInfo(@FieldType(Source, "fallback")).optional.child);
+    const fallback = if (imports.bindings.default) |member| member.borrow(Fallback) else null;
+    const rows = members.unusedCapacitySlice()[0..count];
+    const target = Target.borrow(rows);
+    const buffer = std.mem.sliceAsBytes(rows);
+    const readable = FunctionImport.Readable.borrowRows(imports.bindings.named);
+
+    const input: Input = .{
+        .target = &target.view(std.meta.Child(@FieldType(Input, "target"))),
+        .buffer = @ptrCast(&buffer),
+        .signatures = std.mem.sliceAsBytes(imports.signatures),
+        .stride = @sizeOf(Member),
+        .names = imports.selected.names,
+        .indices = imports.selected.indices,
+        .facts = &bindingFacts(Facts, &.{
+            .named = &readable.view(std.meta.Child(@FieldType(Source, "named"))),
+            .fallback = if (fallback) |*value| value else null,
+        }, imports.stores),
+        .kinds = &kinds(std.meta.Child(@FieldType(Input, "kinds"))),
+    };
+
+    try writeMembers(rule, allocator, &input);
+
+    members.items.len += count;
+}
+
+fn kinds(comptime Kinds: type) Kinds {
+    return .{ .callable = @backingInt(Member.Kind.callable), .intrinsic = @backingInt(Member.Kind.intrinsic) };
+}
+
+fn bindingFacts(comptime Facts: type, source: @FieldType(Facts, "members"), stores: []const *const ir.StoreTable) Facts {
+    return .{ .members = source, .stores = zx.columns.slice(@FieldType(Facts, "stores"), stores), .void_type = @backingInt(Types.scalarId(.void)) };
+}
+
+fn writeMembers(comptime Rule: type, allocator: std.mem.Allocator, input: Rule.Input) std.mem.Allocator.Error!void {
+    if (!(zx.columns.invoke(Rule.executeValue, allocator, input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.IndexOutOfBounds => unreachable,
+        else => unreachable,
     })) unreachable;
 }
 

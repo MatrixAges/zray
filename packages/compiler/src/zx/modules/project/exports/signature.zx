@@ -1,24 +1,39 @@
 import memory from "memory"
+import columns from "memory/columns"
 
-import { Action } from "./model"
-
-import type { Signature } from "./model"
+import type { DefaultSignature, Signature } from "./model"
 
 export type Input = {
     signature: Signature,
     row: u64
 }
 
-export type Output = Action
+export type Output = DefaultSignature
 
 export default function (in: Input): Output {
-    const signature = in.signature
-    const kind = memory.readColumnU8(signature.kinds, in.row)
+    const { signature, row } = in
 
-    return match {
-        kind == signature.callable => Action.Callable,
-        kind == signature.deferred => Action.Deferred,
-        kind == signature.intrinsic => Action.Intrinsic,
-        _ => Action.Invalid
+    const kind = memory.readColumnU8(signature.kinds, row)
+
+    if (kind == signature.callable) {
+        return {
+            input_type: columns.readColumnU32(signature.inputs, row),
+            output_type: columns.readColumnU32(signature.outputs, row),
+            has_store: memory.readColumnBool(signature.stores, row),
+            invalid: false
+        }
+    }
+
+    if (kind == signature.deferred) {
+        return {
+            deferred: memory.readTextColumn(signature.sources, row),
+            has_store: false,
+            invalid: false
+        }
+    }
+
+    return {
+        has_store: false,
+        invalid: kind != signature.intrinsic
     }
 }

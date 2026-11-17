@@ -1,22 +1,31 @@
 import memory from "memory"
 
 import type { PortShape } from "../model"
-import type { FunctionColumns } from "./model"
+import type { Members } from "./model"
 
 export type Input = {
-    source: FunctionColumns,
+    members: Members,
     row: u64
 }
 
 export type Output = PortShape
 
 export default function (in: Input): Output {
-    const { source, row } = in
+    const { named, fallback } = in.members
+
+    const row = in.row
+
+    if (fallback != null && row == 0) {
+        return fallback
+    }
+
+    const first_named: u64 = fallback == null ? 0 : 1
+    const index = row - first_named
 
     return {
-        intrinsic: memory.readColumnOptionalU8(source.intrinsic, row),
-        id: memory.readColumnOptionalU32(source.id, row),
-        input_type: memory.readColumnOptionalU32(source.input_type, row),
-        output_type: memory.readColumnOptionalU32(source.output_type, row)
+        intrinsic: memory.readColumnOptionalU8(named.intrinsic, index),
+        id: memory.readColumnOptionalU32(named.id, index),
+        input_type: memory.readColumnOptionalU32(named.input_type, index),
+        output_type: memory.readColumnOptionalU32(named.output_type, index)
     }
 }

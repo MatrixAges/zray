@@ -1,0 +1,59 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+import memory from "memory"
+
+import fromBinding from "./from_binding"
+import write from "./write"
+
+import type { Reexports as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { names, indices, signatures, stride, buffer, target, kinds, facts } = in
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < names.length,
+        next: state => {
+            const row = state.row
+            const index = indices[row]
+
+            if (signatures.length != 0) {
+                const name = strings.copy(names[row])
+                const start = stride * index
+                const copied = memory.copyBytes(
+                    buffer,
+                    stride * row,
+                    signatures,
+                    start,
+                    start + stride
+                )
+
+                memory.writeColumnBytes(target.name, row, bytes.fromText(name))
+            } else {
+                const signature = fromBinding({
+                    kinds,
+                    facts,
+                    index
+                })
+
+                state.valid = signature != null
+
+                if (signature != null) {
+                    write({
+                        ...signature,
+                        name: strings.copy(names[row]),
+                        target,
+                        row
+                    })
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

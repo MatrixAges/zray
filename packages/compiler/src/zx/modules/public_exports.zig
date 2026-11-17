@@ -28,67 +28,45 @@ pub fn prepend(comptime T: type, allocator: std.mem.Allocator, own: ?T, forwarde
     return result;
 }
 
-const Action = if (generated_mode)
-    @FieldType(@typeInfo(@TypeOf(@import("generated_project_public_exports").executeValue(undefined, undefined))).error_union.payload, "action")
-
-else
-    enum { None, Forward, Callable, Deferred, Intrinsic, Invalid };
-
 const Plan = struct {
     invalid_name: ?usize = null,
-    default_member: ?usize = null,
-    action: Action = .None,
+    duplicate: ?[]const u8 = null,
+    entry: ?ir.FunctionId = null,
+    ports: ?Signature.Ports = null,
+    has_store: bool = false,
+    deferred: ?[]const u8 = null,
+    invalid: bool = false,
 };
 
 pub fn bodyEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, own: ?ir.FunctionId, types: []const ir.Export, constants: []const ir.Constant, functions: []const FunctionImport, reporter: *zx.Reporter) zx.Error!?ir.FunctionId {
-    const selected = try plan(allocator, backing, types, constants, functions, own != null, reporter);
-
-    return switch (selected.action) {
-        .None => own,
-        .Forward => functions[selected.default_member.?].id,
-        else => unreachable,
-    };
+    return (try plan(allocator, backing, types, constants, functions, own, reporter)).entry;
 }
 
 pub fn signatureEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, signature: *Signature.Result, reporter: *zx.Reporter) zx.Error!void {
-    const members = signature.members;
-    const selected = try plan(allocator, backing, signature.exports, signature.constant_exports, members, true, reporter);
+    const selected = try plan(allocator, backing, signature.exports, signature.constant_exports, signature.members, null, reporter);
 
-    switch (selected.action) {
-        .None, .Intrinsic => {},
-        .Invalid => return reporter.fail(.module, .{ .start = 0, .end = 0 }, "a default re-export requires a callable source"),
-        .Deferred => {
-            signature.has_deferred_source = true;
-            signature.deferred_source = members[selected.default_member.?].source;
-        },
-        .Callable => {
-            const member = members[selected.default_member.?];
+    if (selected.invalid) return reporter.fail(.module, .{ .start = 0, .end = 0 }, "a default re-export requires a callable source");
 
-            signature.ports = member.ports;
-            signature.has_store = member.has_store;
-            signature.type_only = false;
-        },
-        .Forward => unreachable,
+    if (selected.deferred) |source| {
+        signature.has_deferred_source = true;
+        signature.deferred_source = source;
+    }
+
+    if (selected.ports) |ports| {
+        signature.ports = ports;
+        signature.has_store = selected.has_store;
+        signature.type_only = false;
     }
 }
 
-fn plan(allocator: std.mem.Allocator, backing: std.mem.Allocator, types: []const ir.Export, constants: []const ir.Constant, functions: anytype, has_function: bool, reporter: *zx.Reporter) zx.Error!Plan {
+fn plan(allocator: std.mem.Allocator, backing: std.mem.Allocator, types: []const ir.Export, constants: []const ir.Constant, functions: anytype, own: ?ir.FunctionId, reporter: *zx.Reporter) zx.Error!Plan {
     var arena = std.heap.ArenaAllocator.init(backing);
 
     defer arena.deinit();
 
-    const first_function = types.len + constants.len;
-    const selected = try select(arena.allocator(), types, constants, functions, false, has_function);
+    const selected = try select(arena.allocator(), types, constants, functions, false, own);
 
-    if (selected.invalid_name) |duplicate| {
-        const name = if (duplicate < types.len)
-            types[duplicate].name
-
-        else if (duplicate < first_function)
-            constants[duplicate - types.len].name
-        else
-            functions[duplicate - first_function].name;
-
+    if (selected.duplicate) |name| {
         return reporter.fail(.name, .{ .start = 0, .end = 0 }, try std.fmt.allocPrint(allocator, "duplicate public export: {s}", .{if (name.len == 0) "default" else name}));
     }
 
@@ -96,15 +74,15 @@ fn plan(allocator: std.mem.Allocator, backing: std.mem.Allocator, types: []const
 }
 
 pub fn invalidRootName(allocator: std.mem.Allocator, roots: anytype) std.mem.Allocator.Error!?usize {
-    return (try select(allocator, roots, @as([]const ir.Constant, &.{}), @as([]const FunctionImport, &.{}), true, false)).invalid_name;
+    return (try select(allocator, roots, @as([]const ir.Constant, &.{}), @as([]const FunctionImport, &.{}), true, null)).invalid_name;
 }
 
-fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, has_function: bool) std.mem.Allocator.Error!Plan {
+fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, own: ?ir.FunctionId) std.mem.Allocator.Error!Plan {
     const first_function = first.len + second.len;
     const count = first_function + functions.len;
 
-    if (count == 0) return .{};
-    if (comptime !generated_mode) return seedSelect(allocator, first, second, functions, roots, has_function);
+    if (count == 0) return .{ .entry = own };
+    if (comptime !generated_mode) return seedSelect(allocator, first, second, functions, roots, own);
 
     const memory = @import("zx").memory;
     const generated = @import("generated_project_public_exports");
@@ -118,14 +96,7 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
     defer allocator.free(buckets);
 
     const signature = comptime std.meta.Elem(@TypeOf(functions)) == Signature.Member;
-    const kinds = if (signature) memory.borrowReadColumn(Signature.Member.Kind, "kind", functions) else undefined;
-
-    const facts: ?Facts = if (signature) .{
-        .kinds = @ptrCast(&kinds),
-        .callable = @backingInt(Signature.Member.Kind.callable),
-        .deferred = @backingInt(Signature.Member.Kind.deferred),
-        .intrinsic = @backingInt(Signature.Member.Kind.intrinsic),
-    } else null;
+    const empty: []const FunctionImport = &.{};
 
     const input: Input = .{
         .keys = &.{
@@ -139,8 +110,18 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
         .buckets = @ptrCast(&buckets),
         .capacity = buckets.len,
         .roots = roots,
-        .has_function = has_function,
-        .signature = if (facts) |*value| value else null,
+        .own = if (own) |id| @backingInt(id) else null,
+        .ids = @ptrCast(&memory.borrowOptionalU32Column("id", if (signature) empty else functions)),
+        .signature = if (signature) @as(*const Facts, &.{
+            .kinds = @ptrCast(&memory.borrowReadColumn(Signature.Member.Kind, "kind", functions)),
+            .inputs = @ptrCast(&memory.borrowNestedColumn(ir.TypeId, &.{ "ports", "input_type" }, functions)),
+            .outputs = @ptrCast(&memory.borrowNestedColumn(ir.TypeId, &.{ "ports", "output_type" }, functions)),
+            .stores = @ptrCast(&memory.borrowReadColumn(bool, "has_store", functions)),
+            .sources = @ptrCast(&memory.borrowTextColumn("source", functions)),
+            .callable = @backingInt(Signature.Member.Kind.callable),
+            .deferred = @backingInt(Signature.Member.Kind.deferred),
+            .intrinsic = @backingInt(Signature.Member.Kind.intrinsic),
+        }) else null,
     };
 
     const output = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
@@ -149,37 +130,42 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
     };
 
     return .{
-        .invalid_name = if (output.names.invalid_name) |index| @intCast(index) else null,
-        .default_member = if (output.names.default_member) |index| @intCast(index) else null,
-        .action = output.action,
+        .invalid_name = if (output.invalid_name) |index| @intCast(index) else null,
+        .duplicate = output.duplicate,
+        .entry = if (output.entry) |id| @fromBackingInt(id) else null,
+        .ports = if (output.input_type) |id| .{ .input_type = @fromBackingInt(id), .output_type = @fromBackingInt(output.output_type.?) } else null,
+        .has_store = output.has_store,
+        .deferred = output.deferred,
+        .invalid = output.invalid,
     };
 }
 
-fn seedSelect(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, has_function: bool) std.mem.Allocator.Error!Plan {
+fn seedSelect(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, own: ?ir.FunctionId) std.mem.Allocator.Error!Plan {
     var seen: std.StringHashMapUnmanaged(void) = .empty;
 
     defer seen.deinit(allocator);
 
-    var result: Plan = .{};
+    var result: Plan = .{ .entry = own };
     var index: usize = 0;
 
     inline for (.{ first, second, functions }, 0..) |items, section| {
-        for (items, 0..) |*item, row| {
+        for (items) |*item| {
             const name = item.name;
 
-            if ((roots and name.len == 0) or (try seen.getOrPut(allocator, name)).found_existing) return .{ .invalid_name = index };
+            if ((roots and name.len == 0) or (try seen.getOrPut(allocator, name)).found_existing) return .{ .invalid_name = index, .duplicate = name };
 
             if (section == 2 and name.len == 0) {
-                result.default_member = row;
-
                 if (comptime @TypeOf(item.*) == Signature.Member) {
-                    result.action = switch (item.kind) {
-                        .callable => .Callable,
-                        .deferred => .Deferred,
-                        .intrinsic => .Intrinsic,
-                    };
-                } else if (!has_function) {
-                    result.action = .Forward;
+                    switch (item.kind) {
+                        .callable => {
+                            result.ports = item.ports;
+                            result.has_store = item.has_store;
+                        },
+                        .deferred => result.deferred = item.source,
+                        .intrinsic => {},
+                    }
+                } else if (own == null) {
+                    result.entry = item.id;
                 }
             }
 

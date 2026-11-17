@@ -1,5 +1,6 @@
 import type { Stores } from "core/store_table/model"
-import type { ReadColumn, TextColumn, U8Buffer, WriteColumn } from "memory"
+import type { TextColumn, U8Buffer, WriteColumn } from "memory"
+import type { Members } from "../../../binding/publication/model"
 
 export type Target = {
     name: WriteColumn,
@@ -24,6 +25,16 @@ export type Kinds = {
     intrinsic: u8
 }
 
+export type BindingFacts = {
+    members: Members,
+    stores: Stores[],
+    void_type: u32
+}
+
+export type Value = Declaration & {
+    kind: u8
+}
+
 export type Forwarded = {
     target: U8Buffer,
     rows: u8[],
@@ -32,13 +43,19 @@ export type Forwarded = {
 
 export type Bindings = {
     names: TextColumn,
-    ids: ReadColumn,
-    inputs: ReadColumn,
-    outputs: ReadColumn,
-    intrinsics: ReadColumn,
-    stores: Stores[],
-    void_type: u32,
+    facts: BindingFacts,
     count: u64
+}
+
+export type Reexports = {
+    target: Target,
+    buffer: U8Buffer,
+    signatures: u8[],
+    stride: u64,
+    names: string[],
+    indices: u64[],
+    facts: BindingFacts,
+    kinds: Kinds
 }
 
 export type Input = {

@@ -438,14 +438,23 @@ const Project = struct {
         const constants = if (item.exported) &frame.export_constants else &frame.constant_imports;
 
         try import_binding.publishTypes(self.allocator, selected, imported.exports, imported.constant_exports, aliases, constants);
+        if (!item.exported) return;
 
-        if (item.exported) for (selected.functions.names, selected.functions.indices) |name, index| {
+        if (comptime @import("parser_options").generated_parser) return Signature.publishReexports(self.allocator, self.arena.child_allocator, .{
+            .signatures = imported.signatures,
+            .bindings = members,
+            .stores = self.functions.stores.items,
+            .selected = selected.functions,
+        }, &frame.signature_members);
+
+        for (selected.functions.names, selected.functions.indices) |name, index| {
             const row: usize = @intCast(index);
             var member = if (imported.signatures.len == 0) self.memberSignature(members.at(row)) else imported.signatures[row];
+
             member.name = try self.allocator.dupe(u8, name);
 
             try frame.signature_members.append(self.arena.child_allocator, member);
-        };
+        }
     }
     fn memberSignature(self: *const Project, member: *const FunctionImport) Signature.Member {
         if (member.intrinsic != null) return .{ .name = member.name, .kind = .intrinsic };

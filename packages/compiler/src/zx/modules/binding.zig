@@ -155,19 +155,12 @@ fn publish(allocator: std.mem.Allocator, selected: Selection, types: Types, func
     var function_target: std.meta.Child(@FieldType(Function, "target")) = undefined;
     var fallback: Fallback = undefined;
     var writable: FunctionImport.Writable = undefined;
-    var ids: memory.ReadColumn = undefined;
-    var inputs: memory.ReadColumn = undefined;
-    var outputs: memory.ReadColumn = undefined;
-    var intrinsics: memory.ReadColumn = undefined;
+    var readable: FunctionImport.Readable = undefined;
 
     if (function_count != 0) {
         const value = functions.?;
-        const rows = value.members.named;
-        ids = memory.borrowOptionalU32Column("id", rows);
-        inputs = memory.borrowOptionalU32Column("input_type", rows);
-        outputs = memory.borrowOptionalU32Column("output_type", rows);
-        intrinsics = memory.borrowOptionalU8Column("intrinsic", rows);
-        function_source = .{ .id = @ptrCast(&ids), .input_type = @ptrCast(&inputs), .output_type = @ptrCast(&outputs), .intrinsic = @ptrCast(&intrinsics) };
+        readable = FunctionImport.Readable.borrowRows(value.members.named);
+        function_source = readable.view(@TypeOf(function_source));
         writable = FunctionImport.Writable.borrowRows(value.imports.unusedCapacitySlice()[0..function_count]);
         function_target = writable.view(@TypeOf(function_target));
 

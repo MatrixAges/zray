@@ -1,0 +1,48 @@
+import integers from "std:integer"
+
+import read from "../../../binding/publication/read"
+
+import type { BindingFacts, Kinds, Value } from "./model"
+
+export type Input = {
+    facts: BindingFacts,
+    kinds: Kinds,
+    index: u64
+}
+
+export type Output = Value?
+
+export default function (in: Input): Output {
+    const { kinds, facts, index } = in
+
+    const { id, intrinsic, input_type, output_type } = read({
+        members: facts.members,
+        row: index
+    })
+
+    if (intrinsic != null) {
+        return {
+            kind: kinds.intrinsic,
+            input_type: facts.void_type,
+            output_type: facts.void_type,
+            has_store: false
+        }
+    }
+
+    if (id == null) {
+        return null
+    }
+
+    if (input_type == null || output_type == null) {
+        return null
+    }
+
+    const stores = facts.stores[integers.widen(id)]
+
+    return {
+        kind: kinds.callable,
+        input_type,
+        output_type,
+        has_store: stores.paths.length != 0
+    }
+}

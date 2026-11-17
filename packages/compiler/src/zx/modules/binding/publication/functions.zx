@@ -5,28 +5,28 @@ import columns from "memory/columns"
 
 import read from "./read"
 
-import type { Binding, Functions as Input } from "./model"
+import type { Functions as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
     const { names, indices, named, fallback, target, written } = in
 
+    const members = {
+        named,
+        fallback
+    }
+
     const namespace = in.namespace
     const owned: string? = namespace == null ? null : strings.copy(namespace)
-    const first_named: u64 = fallback == null ? 0 : 1
 
     const published = loop(0, {
         while: row => row < names.length,
         next: row => {
-            const index = indices[row]
-            const binding: Binding = match {
-                fallback != null && index == 0 => fallback,
-                _ => read({
-                    source: named,
-                    row: index - first_named
-                })
-            }
+            const binding = read({
+                members,
+                row: indices[row]
+            })
 
             const name = strings.copy(names[row])
 

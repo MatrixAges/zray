@@ -307,6 +307,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/binding/publication/publish.rx", .name = "project_binding_publication" },
     .{ .path = "zx/modules/project/exports/plan.rx", .name = "project_public_exports" },
     .{ .path = "zx/modules/project/exports/signatures/publish.rx", .name = "project_signature_members" },
+    .{ .path = "zx/modules/project/exports/signatures/reexports.zx", .name = "project_signature_reexports" },
     .{ .path = "zx/analysis/integer/decode.rx", .name = "integer" },
     constant_fold,
     .{ .path = "zx/analysis/constants/bindings.rx", .name = "constant_bindings" },

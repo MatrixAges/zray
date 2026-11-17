@@ -57,3 +57,29 @@ pub const Writable = struct {
         return result;
     }
 };
+
+pub const Readable = struct {
+    id: zx.memory.ReadColumn,
+    input_type: zx.memory.ReadColumn,
+    output_type: zx.memory.ReadColumn,
+    intrinsic: zx.memory.ReadColumn,
+    pub fn borrowRows(rows: []const Self) Readable {
+        const memory = zx.memory;
+
+        return .{
+            .id = memory.borrowOptionalU32Column("id", rows),
+            .input_type = memory.borrowOptionalU32Column("input_type", rows),
+            .output_type = memory.borrowOptionalU32Column("output_type", rows),
+            .intrinsic = memory.borrowOptionalU8Column("intrinsic", rows),
+        };
+    }
+    pub fn view(self: *const Readable, comptime Target: type) Target {
+        var result: Target = undefined;
+
+        inline for (@typeInfo(Target).@"struct".field_names) |name| {
+            @field(result, name) = @ptrCast(&@field(self, name));
+        }
+
+        return result;
+    }
+};
