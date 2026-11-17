@@ -1,0 +1,51 @@
+import type { Rows as Constants } from "core/constant/rows"
+import type { Stores } from "core/store_table/model"
+import type { Symbols } from "core/symbol_table/model"
+import type { NamedRowBuffer, U64Buffer } from "memory"
+import type { Rows as Exports } from "../../../../ir/canonical/validation/names/model"
+import type { Mapping } from "../../../artifact/remapping/model"
+import type { Target } from "../../../artifact/surface/constants"
+import type { Output as Wrapper } from "../../../forward_entry/model"
+
+export enum Stage {
+    Invalid,
+    Recursive,
+    Exports,
+    Constants,
+    Complete
+}
+
+export type Forward = {
+    symbols: Symbols,
+    input_type: u32,
+    output_type: u32,
+    function_id: u32
+}
+
+export type Surface = {
+    exports: Exports,
+    export_target?: NamedRowBuffer,
+    export_progress: U64Buffer,
+    exports_done: bool,
+    constants: Constants,
+    constant_target?: Target,
+    types: Mapping,
+    path: string,
+    forward?: Forward
+}
+
+export type Input = Surface & {
+    store_source: Stores,
+    stores?: Stores,
+    recursive_saved: bool
+}
+
+export type Published = {
+    stage: Stage,
+    path?: string,
+    wrapper?: Wrapper
+}
+
+export type Output = Published & {
+    stores?: Stores
+}

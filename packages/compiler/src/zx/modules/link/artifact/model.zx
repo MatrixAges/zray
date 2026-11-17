@@ -1,7 +1,0 @@
-export enum Step {
-    PrepareGraph,
-    MergeTypes,
-    LinkDependencies,
-    LinkEntry,
-    PublishProgram
-}

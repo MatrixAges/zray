@@ -1,0 +1,76 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Surface} out={Result.Published} />
+
+    <If on={!$in.exports_done && $in.exports.length != 0}>
+        <If on={$in.export_target == null}>
+            <Return
+                value={{
+                    stage: Result.Stage.Exports,
+                    path: null,
+                    wrapper: null
+                }}
+            />
+        </If>
+
+        <If on={$in.export_target != null}>
+            <Call
+                fn="../../../artifact/surface/exports"
+                in={{
+                    source: $in.exports,
+                    types: $in.types,
+                    target: $in.export_target,
+                    progress: $in.export_progress
+                }}
+            />
+        </If>
+    </If>
+
+    <If on={$in.constants.count != 0}>
+        <If on={$in.constant_target == null}>
+            <Return
+                value={{
+                    stage: Result.Stage.Constants,
+                    path: null,
+                    wrapper: null
+                }}
+            />
+        </If>
+
+        <If on={$in.constant_target != null}>
+            <Call
+                fn="../../../artifact/surface/constants"
+                in={{
+                    source: $in.constants,
+                    types: $in.types,
+                    target: $in.constant_target
+                }}
+            />
+        </If>
+    </If>
+
+    <Call fn="path" in={$in.path} />
+
+    <If on={$in.forward != null}>
+        <Call fn="forward" in={$in.forward} />
+
+        <Call module="../../../forward_entry/build" in={$ctx.forward} />
+
+        <Return
+            value={{
+                stage: Result.Stage.Complete,
+                path: $ctx.path,
+                wrapper: $ctx.build
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            stage: Result.Stage.Complete,
+            path: $ctx.path,
+            wrapper: null
+        }}
+    />
+</Module>

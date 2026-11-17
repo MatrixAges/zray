@@ -2,7 +2,6 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Model = @import("../../artifact/model.zig");
 const Nodes = @import("../../artifact/nodes.zig");
-const generated = @import("parser_options").generated_parser;
 
 pub const Tables = struct {
     types: ir.TypeTable,
@@ -22,21 +21,13 @@ pub fn materialize(allocator: std.mem.Allocator, temporary: std.mem.Allocator, m
 pub fn assemble(allocator: std.mem.Allocator, module: *const Model.Module, body: ?*const ir.Function, tables: Tables, mapping: []const ir.TypeId) Model.Error!ir.Program {
     var nodes: Nodes = .{ .allocator = allocator, .types = .{ .mapped = mapping }, .functions = .{ .indexed = &.{} }, .native_modules = .{ .indexed = &.{} } };
     const stores = try nodes.stores(module.stores);
+    const exports = try allocator.alloc(ir.Export, module.exports.len);
 
-    const exports, const constant_exports = if (comptime generated) source: {
-        const surface = @import("../../artifact/surface.zig");
-        const types = @import("../../artifact/nodes/remap.zig").typeMapping(surface.Mapping, nodes.types);
+    for (exports, module.exports) |*item, original| {
+        item.* = .{ .name = try allocator.dupe(u8, original.name), .type_id = try nodes.types.include(original.type_id) };
+    }
 
-        break :source .{ try surface.copyExports(allocator, module.exports, &types), try surface.copyConstants(allocator, module.constant_exports, &types) };
-    } else seed: {
-        const aliases = try allocator.alloc(ir.Export, module.exports.len);
-
-        for (aliases, module.exports) |*item, original| {
-            item.* = .{ .name = try allocator.dupe(u8, original.name), .type_id = try nodes.types.include(original.type_id) };
-        }
-
-        break :seed .{ @as([]const ir.Export, aliases), try nodes.constants(module.constant_exports) };
-    };
+    const constant_exports = try nodes.constants(module.constant_exports);
 
     return program(try allocator.dupe(u8, module.path), body, tables, stores, exports, constant_exports);
 }

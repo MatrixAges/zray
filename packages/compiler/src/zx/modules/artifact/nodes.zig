@@ -82,6 +82,7 @@ pub const remapInitializer = @import("nodes/initializer.zig").remap;
 pub const FunctionEntry = struct {
     body: ir.Function,
     recursive: ?ir.FunctionId = null,
+    descriptors: ?ir.FunctionStorage.Descriptors = null,
 };
 
 pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
@@ -91,6 +92,12 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
         return .{
             .body = linkedFunction(&value, linked),
             .recursive = if (linked.recursive) |id| @fromBackingInt(id) else null,
+            .descriptors = if (linked.recursive != null) .{
+                .symbols = zx.columns.pointer(*const ir.SymbolTable, linked.symbols),
+                .expressions = zx.columns.pointer(*const ir.ExpressionTable, linked.expressions),
+                .stores = if (linked.store_table) |store_table| zx.columns.pointer(*const ir.StoreTable, store_table) else null,
+                .contracts = zx.columns.pointer(*const ir.ContractTable, linked.contracts),
+            } else null,
         };
     }
 

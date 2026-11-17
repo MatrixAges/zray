@@ -3,6 +3,7 @@
 
     <Args in={LinkGraph.Input} out={LinkGraph.Output} />
 
+    <Call fn="paths" in={$in.path_columns} />
     <Call fn="registry" in={$in.paths} />
 
     <If on={!$ctx.registry.valid}>
@@ -10,6 +11,8 @@
             value={{
                 status: LinkGraph.Status.Invalid,
                 count: 0,
+                entry: null,
+                dependencies: 0,
                 buckets: [],
                 targets: []
             }}
@@ -29,6 +32,8 @@
             value={{
                 status: LinkGraph.Status.Missing,
                 count: 0,
+                entry: null,
+                dependencies: 0,
                 buckets: [],
                 targets: []
             }}
@@ -57,10 +62,25 @@
 
     <Call fn="status" in={$ctx.walk} />
 
+    <If on={$ctx.status == LinkGraph.Status.Ready}>
+        <Return
+            value={{
+                status: $ctx.status,
+                count: $ctx.walk.count,
+                entry: $ctx.locate,
+                dependencies: $ctx.walk.count - 1,
+                buckets: $ctx.registry.index.buckets,
+                targets: $ctx.edges.targets
+            }}
+        />
+    </If>
+
     <Return
         value={{
             status: $ctx.status,
             count: $ctx.walk.count,
+            entry: null,
+            dependencies: 0,
             buckets: $ctx.registry.index.buckets,
             targets: $ctx.edges.targets
         }}

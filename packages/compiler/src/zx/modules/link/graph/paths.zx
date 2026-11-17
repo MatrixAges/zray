@@ -1,0 +1,23 @@
+import memory from "memory"
+
+import type { StringBuffer, TextColumn } from "memory"
+
+export type Input = {
+    source: TextColumn,
+    target: StringBuffer,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target, count } = in
+
+    const filled = loop(0, {
+        while: row => row < count,
+        next: row => {
+            memory.writeString(target, row, memory.readTextColumn(source, row))
+            row += 1
+        }
+    })
+}

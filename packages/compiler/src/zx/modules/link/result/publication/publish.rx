@@ -1,0 +1,69 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Input} out={Result.Output} />
+
+    <If on={$in.forward != null && !$in.recursive_saved}>
+        <Return
+            value={{
+                stage: Result.Stage.Recursive,
+                path: null,
+                wrapper: null,
+                stores: null
+            }}
+        />
+    </If>
+
+    <If on={$in.stores != null}>
+        <Call
+            module="surface"
+            in={$in.omit([
+                "store_source",
+                "stores",
+                "recursive_saved"
+            ])}
+        />
+
+        <Return
+            value={{
+                ...$ctx.surface,
+                stores: $in.stores
+            }}
+        />
+    </If>
+
+    <Call
+        module="../../../artifact/materializing/stores/remap"
+        in={{
+            source: $in.store_source,
+            mapping: $in.types
+        }}
+    />
+
+    <If on={$ctx.remap == null}>
+        <Return
+            value={{
+                stage: Result.Stage.Invalid,
+                path: null,
+                wrapper: null,
+                stores: null
+            }}
+        />
+    </If>
+
+    <Call
+        module="surface"
+        in={$in.omit([
+            "store_source",
+            "stores",
+            "recursive_saved"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$ctx.surface,
+            stores: $ctx.remap
+        }}
+    />
+</Module>

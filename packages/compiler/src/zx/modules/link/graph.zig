@@ -6,6 +6,8 @@ pub const Error = @import("graph/seed.zig").Error;
 
 pub const Plan = struct {
     order: []const usize,
+    entry: usize,
+    dependency_count: usize,
     paths: []const []const u8 = &.{},
     buckets: []const ?u32 = &.{},
     offsets: []const u64 = &.{},
@@ -16,14 +18,16 @@ pub const Plan = struct {
 };
 
 pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []const u8) Error!Plan {
-    if (comptime !@import("parser_options").generated_parser) return .{ .order = try @import("graph/seed.zig").order(allocator, modules, entry) };
+    if (comptime !@import("parser_options").generated_parser) {
+        const order = try @import("graph/seed.zig").order(allocator, modules, entry);
+
+        return .{ .order = order, .entry = order[order.len - 1], .dependency_count = order.len - 1 };
+    }
 
     const paths = try allocator.alloc([]const u8, modules.len);
     const offsets = try allocator.alloc(u64, modules.len + 1);
     const order = try allocator.alloc(u64, modules.len);
-
-    for (modules, paths) |*module, *path| path.* = module.path;
-
+    const source_paths = zx.memory.borrowTextColumn("path", modules);
     const generated = @import("generated_artifact_graph");
     const Input = std.meta.Child(generated.Input);
     const kinds = zx.memory.borrowNestedListColumn(Target.Kind, "dependencies", &.{ "target", "kind" }, modules);
@@ -31,11 +35,12 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
 
     const input: Input = .{
         .paths = paths,
+        .path_columns = &.{ .source = @ptrCast(&source_paths), .target = @ptrCast(&paths), .count = paths.len },
         .dependencies = &.{
             .kinds = @ptrCast(&kinds),
             .paths = @ptrCast(&dependency_paths),
             .kind_stride = kinds.stride,
-            .source_kind = @intFromEnum(Target.Kind.source),
+            .source_kind = @backingInt(Target.Kind.source),
         },
         .offsets = offsets,
         .offset_target = @ptrCast(&offsets),
@@ -60,6 +65,8 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
 
     return .{
         .order = try rowsAsIndices(allocator, rows),
+        .entry = @intCast(plan.entry orelse return error.InvalidModule),
+        .dependency_count = @intCast(plan.dependencies),
         .paths = paths,
         .buckets = plan.buckets,
         .offsets = offsets,

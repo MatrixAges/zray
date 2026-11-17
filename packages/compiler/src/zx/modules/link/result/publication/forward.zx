@@ -1,0 +1,25 @@
+import type { Input as ForwardInput } from "../../../forward_entry/model"
+import type { Forward } from "./model"
+
+export type Input = Forward
+
+export type Output = ForwardInput
+
+export default function (in: Input): Output {
+    const { symbols, input_type, output_type, function_id } = in
+
+    return {
+        parameter: {
+            name: symbols.names[0],
+            type_id: symbols.types[0],
+            ownership: symbols.ownership[0],
+            span_start: symbols.span_start[0],
+            span_end: symbols.span_end[0]
+        },
+        input_type,
+        output_type,
+        function_id,
+        unit: false,
+        store_types: []
+    }
+}
