@@ -8,6 +8,7 @@ export type U32ListBuffer = opaque
 export type StringListBuffer = opaque
 export type NamedRows = opaque
 export type NamedRowBuffer = opaque
+export type Allocator = opaque
 export type TextColumn = opaque
 export type ReadColumn = opaque
 export type ListColumn = opaque
@@ -173,6 +174,12 @@ export declare function writeU32(
     index: u64,
     value: u32
 ): void throws { IndexOutOfBounds }
+
+export declare function allocateU32Buffer(
+    resource: Allocator,
+    target: U32Buffer,
+    count: u64
+): void throws { OutOfMemory }
 
 export declare function writeU64(
     target: U64Buffer,

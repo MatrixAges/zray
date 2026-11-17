@@ -1,0 +1,48 @@
+<Module>
+    <Type from="model" as="Merge" />
+
+    <Args in={Merge.Preparation} out={Merge.State?} />
+
+    <Call
+        module="../preflight"
+        in={{
+            first: $in.request.first,
+            complete: $in.complete,
+            names: $in.names,
+            origins: $in.request.origins,
+            source: $in.request.source,
+            target: $in.request.base,
+            validation: $in.validation
+        }}
+    />
+
+    <If on={$ctx.preflight != null}>
+        <If on={$in.resource != null}>
+            <Call
+                fn="preflight/allocate"
+                in={{
+                    resource: $in.resource,
+                    mapping: $in.request.mapping,
+                    count: $in.request.source.kinds.length
+                }}
+            />
+        </If>
+
+        <Call fn="initial" in={Merge.Status.Ready} />
+
+        <Call
+            module="../merge"
+            in={{
+                request: {
+                    ...$in.request,
+                    origin_indices: $ctx.preflight
+                },
+                state: $ctx.initial
+            }}
+        />
+
+        <Return value={$ctx.merge} />
+    </If>
+
+    <Return value={null} />
+</Module>

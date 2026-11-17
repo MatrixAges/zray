@@ -1,9 +1,6 @@
-import { Status } from "../../../../analysis/semantic/merging/model"
+import type { State, Status } from "./model"
 
-import type { State } from "../../../../analysis/semantic/merging/model"
-import type { Request } from "./model"
-
-export type Input = Request
+export type Input = Status
 
 export type Output = State
 
@@ -26,6 +23,6 @@ export default function (in: Input): Output {
             members: []
         },
         references: [],
-        status: Status.Ready
+        status: in
     }
 }

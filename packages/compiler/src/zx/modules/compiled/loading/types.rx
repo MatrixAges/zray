@@ -1,52 +1,29 @@
 <Module>
     <Type from="types/model" as="Model" />
-    <Type from="types/initial" as="Initial" />
     <Type from="../../../analysis/semantic/merging/model" as="Merge" />
 
-    <Args in={Model.Request} out={Initial.Output} />
-
-    <Call fn="types/initial" in={$in} />
+    <Args in={Model.Request} out={Merge.State} />
 
     <Call
-        module="../../../analysis/semantic/preflight"
+        module="../../../analysis/semantic/merging/prepare"
         in={{
-            source: $in.source,
-            target: $in.base,
-            origins: $in.origins,
+            request: {
+                ...$in.omit(["names"]),
+                first: 0,
+                checked: true
+            },
             names: $in.names,
-            first: 0,
             complete: true,
-            validation: null
+            validation: null,
+            resource: null
         }}
     />
 
-    <If on={$ctx.preflight != null}>
-        <Call
-            module="../../../analysis/semantic/merge"
-            in={{
-                request: {
-                    source: $in.source,
-                    origins: $in.origins,
-                    origin_indices: $ctx.preflight,
-                    base: $in.base,
-                    base_origins: $in.base_origins,
-                    mapping: $in.mapping,
-                    first: 0,
-                    checked: true
-                },
-                state: $ctx.initial
-            }}
-        />
-
-        <Return value={$ctx.merge} />
-
-        <Else>
-            <Return
-                value={{
-                    ...$ctx.initial,
-                    status: Merge.Status.Invalid
-                }}
-            />
-        </Else>
+    <If on={$ctx.prepare != null}>
+        <Return value={$ctx.prepare} />
     </If>
+
+    <Call fn="../../../analysis/semantic/merging/initial" in={Merge.Status.Invalid} />
+
+    <Return value={$ctx.initial} />
 </Module>

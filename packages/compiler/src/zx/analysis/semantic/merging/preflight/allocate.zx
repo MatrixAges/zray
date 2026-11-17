@@ -1,0 +1,15 @@
+import memory from "memory"
+
+import type { Allocator, U32Buffer } from "memory"
+
+export type Input = {
+    resource: Allocator,
+    mapping: U32Buffer,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.allocateU32Buffer(in.resource, in.mapping, in.count)
+}

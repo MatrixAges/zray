@@ -1,9 +1,18 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const Origins = @import("nominal_data");
-const Preflight = @import("preflight.zig");
+const Error = std.mem.Allocator.Error || error{InvalidModule};
 
-pub fn prepare(allocator: std.mem.Allocator, temporary: std.mem.Allocator, values: ir.TypeTable, nominal_types: Origins.Table, target: ir.TypeTable, first: usize, complete: bool) Preflight.Error!Preflight.Result {
+const Result = struct {
+    origins: []const u64,
+    mapping: []ir.TypeId,
+    arena: std.heap.ArenaAllocator,
+    pub fn deinitScratch(self: *Result) void {
+        self.arena.deinit();
+    }
+};
+
+pub fn prepare(allocator: std.mem.Allocator, temporary: std.mem.Allocator, values: ir.TypeTable, nominal_types: Origins.Table, target: ir.TypeTable, first: usize, complete: bool) Error!Result {
     if (!nominal_types.hasValidShape()) return error.InvalidModule;
 
     var arena = std.heap.ArenaAllocator.init(temporary);
