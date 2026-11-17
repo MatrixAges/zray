@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Surface" />
+
+    <Args in={Surface.Extraction} out={void} />
+
+    <Call module="own" in={$in.exported} />
+
+    <Call
+        module="own_constants"
+        in={{
+            source: $in.imported.constants,
+            types: $in.imported.types,
+            target: $in.imported.constant_target,
+            storage: $in.imported.constant_storage
+        }}
+    />
+
+    <Call
+        module="own_exports"
+        in={{
+            source: $in.imported.exports,
+            types: $in.imported.types,
+            target: $in.imported.export_target,
+            progress: $in.imported.export_progress
+        }}
+    />
+
+    <Task name="imports">
+        <Call fn="bindings" in={$in.function_imports} />
+    </Task>
+
+    <Task name="members">
+        <Call fn="bindings" in={$in.members} />
+    </Task>
+</Module>

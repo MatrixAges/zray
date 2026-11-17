@@ -3,6 +3,7 @@ import type { NamedRowBuffer, U64Buffer } from "memory"
 import type { RowBuffer } from "memory/columns"
 import type { Rows as Exports } from "../../../ir/canonical/validation/names/model"
 import type { Mapping } from "../remapping/model"
+import type { Input as Bindings } from "./bindings"
 import type { Target } from "./constants"
 
 export type Input = {
@@ -13,4 +14,11 @@ export type Input = {
     constant_target: Target,
     constant_storage: RowBuffer,
     types: Mapping
+}
+
+export type Extraction = {
+    exported: Input,
+    imported: Input,
+    function_imports: Bindings,
+    members: Bindings
 }

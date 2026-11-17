@@ -16,21 +16,11 @@ pub const RowBuffer = struct {
     columns: []Column,
     const Field = struct { offset: usize, width: usize };
 
-    pub fn init(comptime Row: type, comptime fields: []const []const u8, columns: *[fields.len]Column) RowBuffer {
-        const layout = comptime block: {
-            var entries: [fields.len]Field = undefined;
-
-            for (fields, &entries) |name, *entry| {
-                entry.* = .{ .offset = @offsetOf(Row, name), .width = @sizeOf(@FieldType(Row, name)) };
-            }
-
-            break :block entries;
-        };
-
+    fn init(comptime Row: type, comptime fields: []const Field, columns: *[fields.len]Column) RowBuffer {
         return .{
             .stride = @sizeOf(Row),
             .alignment = .of(Row),
-            .fields = &layout,
+            .fields = fields,
             .columns = columns,
         };
     }
@@ -48,9 +38,13 @@ pub fn RowOutput(comptime Row: type, comptime View: type, comptime fields: anyty
     const names = @typeInfo(View).@"struct".field_names;
 
     const layout = comptime block: {
-        var result: [names.len][]const u8 = undefined;
+        var result: [names.len]RowBuffer.Field = undefined;
 
-        for (names, &result) |name, *field| field.* = @field(fields, name);
+        for (names, &result) |name, *field| {
+            const location = @import("rows.zig").fieldLayout(Row, @field(fields, name));
+
+            field.* = .{ .offset = location.offset, .width = @sizeOf(location.type) };
+        }
 
         break :block result;
     };

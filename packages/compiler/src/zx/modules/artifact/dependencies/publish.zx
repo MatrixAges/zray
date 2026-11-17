@@ -5,7 +5,7 @@ import columns from "memory/columns"
 import own from "./own"
 
 import type { ReadColumn, TextColumn, WriteColumn } from "memory"
-import type { WriteColumn as ListTarget } from "memory/columns"
+import type { RowBuffer, WriteColumn as ListTarget } from "memory/columns"
 import type { Header } from "../../module_record/model"
 
 export type Source = {
@@ -25,7 +25,9 @@ export type Target = {
 
 export type Input = {
     source: Source,
-    target: Target
+    target: Target,
+    storage: RowBuffer,
+    records: u8[]
 }
 
 export type Output = void
@@ -34,6 +36,13 @@ export default function (in: Input): Output {
     const { source, target } = in
 
     const header = source.header
+
+    if (header.count == 0) {
+        return
+    }
+
+    columns.allocateRows(in.storage, header.count)
+    columns.copyRowPrefix(in.storage, in.records, header.count)
 
     const published = loop(0, {
         while: row => row < header.count,

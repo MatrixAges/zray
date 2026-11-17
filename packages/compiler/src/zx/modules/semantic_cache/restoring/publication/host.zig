@@ -34,7 +34,7 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, path: []const 
     const stores = zx.columns.columns(Stores, module.stores);
     var surface: Surface(std.meta.Child(@FieldType(Input, "surface"))) = undefined;
 
-    surface.init(module, nodes.types);
+    surface.init(module.exports, module.constant_exports, nodes.types);
     errdefer surface.release(nodes.allocator);
 
     const input: Input = .{

@@ -5,7 +5,7 @@ import columns from "memory/columns"
 import own from "./binding"
 
 import type { ReadColumn, TextColumn, WriteColumn } from "memory"
-import type { WriteColumn as OptionalColumn } from "memory/columns"
+import type { RowBuffer, WriteColumn as OptionalColumn } from "memory/columns"
 import type { Mapping } from "../remapping/model"
 
 export type Source = {
@@ -30,6 +30,7 @@ export type Target = {
 export type Input = {
     source: Source,
     target: Target,
+    storage: RowBuffer,
     types: Mapping,
     functions: Mapping
 }
@@ -38,6 +39,12 @@ export type Output = void
 
 export default function (in: Input): Output {
     const { source, target, types, functions } = in
+
+    if (source.count == 0) {
+        return
+    }
+
+    columns.allocateRows(in.storage, source.count)
 
     const published = loop(0, {
         while: row => row < source.count,

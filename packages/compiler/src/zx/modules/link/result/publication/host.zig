@@ -37,7 +37,7 @@ pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module
 
     var surface: Surface(std.meta.Child(@FieldType(Input, "surface"))) = undefined;
 
-    surface.init(module, .{ .mapped = mapping });
+    surface.init(module.exports, module.constant_exports, .{ .mapped = mapping });
     errdefer surface.release(allocator);
 
     const request: Input = .{

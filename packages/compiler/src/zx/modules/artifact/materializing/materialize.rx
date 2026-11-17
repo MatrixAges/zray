@@ -7,6 +7,8 @@
     <Type from="../planning/functions/model" as="Functions" />
     <Type from="content_model" as="Content" />
     <Type from="function_model" as="Function" />
+    <Type from="../surface/model" as="Surface" />
+    <Type from="../dependencies/publish" as="Dependencies" />
 
     <Type
         from="../../../analysis/semantic/extracting/materializing/nominal"
@@ -20,16 +22,20 @@
             declarations: Declarations.Table,
             modules: Native.Modules,
             plan: Functions.Plan,
-            content: Content.Input
+            content: Content.Input,
+            surface: Surface.Extraction,
+            path: string,
+            dependencies: Dependencies.Input
         }}
         out={{
             table: Types.Table,
             origins: OwnedNominal.Output,
-            natives?: Native.Modules,
-            signatures?: Declarations.Table,
+            natives: Native.Modules,
+            signatures: Declarations.Table,
             function?: Function.Owned,
-            stores?: Stores.Stores
-        }}
+            stores?: Stores.Stores,
+            path: string
+        }?}
     />
 
     <Call
@@ -50,52 +56,40 @@
         }}
     />
 
-    <If on={$ctx.natives == null}>
-        <Return
-            value={{
-                table: $ctx.materialize.table,
-                origins: $ctx.materialize.origins,
-                natives: null,
-                signatures: null,
-                function: null,
-                stores: null
+    <If on={$ctx.natives != null}>
+        <Call
+            fn="signatures"
+            in={{
+                source: $in.declarations,
+                plan: $in.plan.functions,
+                types: $in.plan.state.mapping,
+                natives: $in.plan.natives.mapping
             }}
         />
+
+        <If on={$ctx.signatures != null}>
+            <Call module="content" in={$in.content} />
+
+            <If on={$ctx.content.valid}>
+                <Call module="../surface/extract" in={$in.surface} />
+
+                <Call fn="../path" in={$in.path} />
+                <Call fn="../dependencies/publish" in={$in.dependencies} />
+
+                <Return
+                    value={{
+                        table: $ctx.materialize.table,
+                        origins: $ctx.materialize.origins,
+                        natives: $ctx.natives,
+                        signatures: $ctx.signatures,
+                        function: $ctx.content.function,
+                        stores: $ctx.content.stores,
+                        path: $ctx.path
+                    }}
+                />
+            </If>
+        </If>
     </If>
 
-    <Call
-        fn="signatures"
-        in={{
-            source: $in.declarations,
-            plan: $in.plan.functions,
-            types: $in.plan.state.mapping,
-            natives: $in.plan.natives.mapping
-        }}
-    />
-
-    <If on={$ctx.signatures == null}>
-        <Return
-            value={{
-                table: $ctx.materialize.table,
-                origins: $ctx.materialize.origins,
-                natives: null,
-                signatures: null,
-                function: null,
-                stores: null
-            }}
-        />
-    </If>
-
-    <Call module="content" in={$in.content} />
-
-    <Return
-        value={{
-            table: $ctx.materialize.table,
-            origins: $ctx.materialize.origins,
-            natives: $ctx.content.valid ? $ctx.natives : null,
-            signatures: $ctx.content.valid ? $ctx.signatures : null,
-            function: $ctx.content.function,
-            stores: $ctx.content.stores
-        }}
-    />
+    <Return value={null} />
 </Module>

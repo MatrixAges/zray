@@ -5,7 +5,7 @@
 
     <Call module="../../../artifact/surface/own" in={$in.surface} />
 
-    <Call fn="path" in={$in.path} />
+    <Call fn="../../../artifact/path" in={$in.path} />
 
     <If on={$in.forward != null}>
         <Call fn="forward" in={$in.forward} />

@@ -8,15 +8,12 @@ const Error = @import("model.zig").Error;
 const names = @import("../../ir/canonical/validation/names/view.zig");
 const constants = @import("generated_artifact_surface_constants");
 const exports = @import("generated_artifact_surface_exports");
-const bindings = @import("generated_artifact_surface_bindings");
 const memory = zx.memory;
 const ConstantRows = @import("../../analysis/constants/columns.zig").Rows;
 const ConstantInput = std.meta.Child(constants.Input);
 pub const Mapping = std.meta.Child(@FieldType(ConstantInput, "types"));
-const BindingInput = std.meta.Child(bindings.Input);
-const BindingMapping = std.meta.Child(@FieldType(BindingInput, "types"));
 
-const Surface = struct {
+pub const Surface = struct {
     exports: []const ir.Export = &.{},
     constant_exports: []const ir.Constant = &.{},
     constant_imports: []const ir.Constant = &.{},
@@ -24,23 +21,6 @@ const Surface = struct {
     function_imports: []const Binding = &.{},
     members: []const Binding = &.{},
 };
-
-pub fn copy(nodes: *const Nodes, source: Surface) Error!Surface {
-    const allocator = nodes.allocator;
-    const types = remap.typeMapping(Mapping, nodes.types);
-    const binding_types = remap.typeMapping(BindingMapping, nodes.types);
-    const functions = remap.idMapping(BindingMapping, nodes.functions);
-    var result: Surface = .{};
-
-    result.exports = try copyExports(allocator, source.exports, &types);
-    result.constant_exports = try copyConstants(allocator, source.constant_exports, &types);
-    result.constant_imports = try copyConstants(allocator, source.constant_imports, &types);
-    result.type_imports = try copyExports(allocator, source.type_imports, &types);
-    result.function_imports = try copyBindings(allocator, source.function_imports, &binding_types, &functions);
-    result.members = try copyBindings(allocator, source.members, &binding_types, &functions);
-
-    return result;
-}
 
 pub fn copyExports(allocator: std.mem.Allocator, source: []const ir.Export, types: *const Mapping) Error![]const ir.Export {
     if (source.len == 0) return &.{};
@@ -112,7 +92,7 @@ pub const ConstantTarget = struct {
 };
 
 pub fn constantOutput(comptime Target: type) type {
-    return memory.RowOutput(ir.Constant, Target, .{ .names = "name", .types = "type_id", .values = "value" });
+    return memory.RowOutput(ir.Constant, Target, .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} });
 }
 
 pub fn Publication(comptime Input: type) type {
@@ -132,13 +112,13 @@ pub fn Publication(comptime Input: type) type {
         constant_output: constantOutput(Target),
         mapping: std.meta.Child(@FieldType(Input, "types")),
         input: Input,
-        pub fn init(self: *Self, source: *const @import("model.zig").Module, types: Nodes.TypeMap) void {
-            self.export_rows = names.borrow(source.exports);
+        pub fn init(self: *Self, export_rows: []const ir.Export, constant_rows: []const ir.Constant, types: Nodes.TypeMap) void {
+            self.export_rows = names.borrow(export_rows);
             self.export_source = names.view(Exports, &self.export_rows);
             self.export_target = &.{};
             self.written = .{0};
             self.progress = &self.written;
-            self.constant_rows = ConstantRows.borrow(source.constant_exports);
+            self.constant_rows = ConstantRows.borrow(constant_rows);
             self.constant_source = self.constant_rows.view(Constants);
 
             self.constant_output.init();
@@ -171,30 +151,56 @@ pub fn Publication(comptime Input: type) type {
     };
 }
 
-fn copyBindings(allocator: std.mem.Allocator, source: []const Binding, types: *const BindingMapping, functions: *const BindingMapping) Error![]const Binding {
-    if (source.len == 0) return &.{};
+pub fn BindingPublication(comptime Input: type) type {
+    const Source = std.meta.Child(@FieldType(Input, "source"));
+    const Target = std.meta.Child(@FieldType(Input, "target"));
+    const Map = std.meta.Child(@FieldType(Input, "types"));
 
-    const result = try allocator.alloc(Binding, source.len);
-    const writable = Binding.Writable.borrowRows(result);
+    return struct {
+        const Self = @This();
+        source: Source,
+        names: memory.TextColumn,
+        namespaces: memory.ReadColumn,
+        ports: Binding.Readable,
+        output: memory.RowOutput(Binding, Target, .{
+            .name = &.{"name"},
+            .namespace = &.{"namespace"},
+            .id = &.{"id"},
+            .input_type = &.{"input_type"},
+            .output_type = &.{"output_type"},
+            .intrinsic = &.{"intrinsic"},
+        }),
+        types: Map,
+        functions: Map,
+        input: Input,
+        pub fn init(self: *Self, source: []const Binding, nodes: *const Nodes) void {
+            self.names = memory.borrowTextColumn("name", source);
+            self.namespaces = memory.borrowReadColumn(?[]const u8, "namespace", source);
+            self.ports = Binding.Readable.borrowRows(source);
+            self.types = remap.typeMapping(Map, nodes.types);
+            self.functions = remap.idMapping(Map, nodes.functions);
 
-    const input: BindingInput = .{
-        .source = &.{
-            .name = @ptrCast(&memory.borrowTextColumn("name", source)),
-            .namespace = @ptrCast(&memory.borrowReadColumn(?[]const u8, "namespace", source)),
-            .id = @ptrCast(&memory.borrowOptionalU32Column("id", source)),
-            .input_type = @ptrCast(&memory.borrowOptionalU32Column("input_type", source)),
-            .output_type = @ptrCast(&memory.borrowOptionalU32Column("output_type", source)),
-            .intrinsic = @ptrCast(&memory.borrowOptionalU8Column("intrinsic", source)),
-            .count = source.len,
-        },
-        .target = &writable.view(std.meta.Child(@FieldType(BindingInput, "target"))),
-        .types = types,
-        .functions = functions,
+            self.output.init();
+
+            self.source = .{
+                .name = @ptrCast(&self.names),
+                .namespace = @ptrCast(&self.namespaces),
+                .id = @ptrCast(&self.ports.id),
+                .input_type = @ptrCast(&self.ports.input_type),
+                .output_type = @ptrCast(&self.ports.output_type),
+                .intrinsic = @ptrCast(&self.ports.intrinsic),
+                .count = source.len,
+            };
+
+            self.input = .{
+                .source = &self.source,
+                .target = &self.output.view,
+                .storage = @ptrCast(&self.output.buffer),
+                .types = &self.types,
+                .functions = &self.functions,
+            };
+        }
     };
-
-    zx.columns.invoke(bindings.executeValue, allocator, &input) catch |err| return failure(err);
-
-    return result;
 }
 
 fn failure(err: anyerror) Error {

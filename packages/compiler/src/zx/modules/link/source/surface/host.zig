@@ -42,9 +42,9 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
     };
 
     var initial_output: memory.RowOutput(Initializer, InitTarget, .{
-        .identity = "identity",
-        .function = "function",
-        .schema_version = "schema_version",
+        .identity = &.{"identity"},
+        .function = &.{"function"},
+        .schema_version = &.{"schema_version"},
     }) = undefined;
 
     initial_output.init();
@@ -67,12 +67,12 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
     const outputs = memory.borrowOptionalU32Column("output_type", member_source);
 
     var member_output: memory.RowOutput(Binding, MemberTarget, .{
-        .names = "name",
-        .intrinsics = "intrinsic",
-        .ids = "id",
-        .inputs = "input_type",
-        .outputs = "output_type",
-        .namespaces = "namespace",
+        .names = &.{"name"},
+        .intrinsics = &.{"intrinsic"},
+        .ids = &.{"id"},
+        .inputs = &.{"input_type"},
+        .outputs = &.{"output_type"},
+        .namespaces = &.{"namespace"},
     }) = undefined;
 
     member_output.init();

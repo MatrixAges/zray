@@ -5,7 +5,6 @@ const Record = @import("../../module_record.zig");
 const Nodes = @import("../nodes.zig");
 const model = @import("../model.zig");
 const Origins = @import("../../nominal_origins.zig");
-const contents = @import("contents.zig");
 
 pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysis: *const Analysis.Result, record: Record) model.Error!model.Module {
     const program = &analysis.value.ir;
@@ -27,11 +26,12 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
         .native_modules = .{ .planned = prepared.plan.natives.mapping },
     };
 
-    const materialized = try @import("materialize.zig").materialize(&nodes, program, analysis.nominal_types, prepared, if (source) |*value| value else null);
+    const published = try @import("materialize.zig").materialize(&nodes, program, analysis.nominal_types, prepared, if (source) |*value| value else null, &record);
+    const materialized = published.contents;
     const types = zx.columns.view(zx.ir.TypeTable, materialized.table);
     const origins = zx.columns.view(Origins.Table, materialized.origins);
-    const native_modules = zx.columns.view(zx.ir.NativeModuleTable, materialized.natives orelse return error.InvalidModule);
-    const functions = zx.columns.view(zx.ir.SignatureTable, materialized.signatures orelse return error.InvalidModule);
+    const native_modules = zx.columns.view(zx.ir.NativeModuleTable, materialized.natives);
+    const functions = zx.columns.view(zx.ir.SignatureTable, materialized.signatures);
 
     const function = if (materialized.function) |mapped|
         Nodes.linkedFunction(&source.?, mapped)
@@ -40,20 +40,12 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
         null;
 
     const stores: zx.ir.StoreTable = if (materialized.stores) |value| zx.columns.view(zx.ir.StoreTable, value) else .{};
-
-    const surface = try @import("../surface.zig").copy(&nodes, .{
-        .exports = record.exports,
-        .constant_exports = record.constant_exports,
-        .constant_imports = record.constant_imports,
-        .type_imports = record.type_imports,
-        .function_imports = record.function_imports,
-        .members = record.reexports.functions,
-    });
+    const surface = published.surface;
 
     return .{
-        .path = try allocator.dupe(u8, record.path),
+        .path = materialized.path,
         .source_digest = record.source_digest,
-        .dependencies = try contents.dependencies(allocator, record.imports),
+        .dependencies = published.dependencies,
         .types = types,
         .nominal_types = origins,
         .exports = surface.exports,
