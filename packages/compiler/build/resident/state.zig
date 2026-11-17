@@ -3,7 +3,8 @@
 //! state; a resident generator keeps one for its lifetime.
 const std = @import("std");
 const compiler = @import("compiler");
-const History = @import("rx_analysis").project.History;
+const project = @import("rx_analysis").project;
+const History = project.History;
 const Files = @import("files.zig");
 const Modules = @import("modules.zig");
 const Self = @This();
@@ -17,12 +18,15 @@ files: Files,
 modules: Modules,
 generation: ?Generation = null,
 history: History = .{ .frame = @splat(0) },
-/// The analyses and request inputs the last analysis may point into: every one since the last analysis that reused
-/// nothing.
-epochs: std.ArrayList(std.heap.ArenaAllocator) = .empty,
+/// Each result may borrow its chosen predecessor and that predecessor's ancestors.
+epochs: std.ArrayList(Epoch) = .empty,
+parent_count: usize = 0,
+edited_rx: ?usize = null,
+same_analysis_input: bool = false,
 retained_capacity: usize = 0,
 /// Scratch for a request, including snapshot and output file bookkeeping.
 request: ?std.heap.ArenaAllocator = null,
+profile_memory: bool = false,
 /// Source descriptors, paths and interfaces the current analysis can retain.
 inputs: ?std.heap.ArenaAllocator = null,
 /// Memory the current request no longer needs, freed once it ends so that freeing it does not hold up the answer.
@@ -32,13 +36,23 @@ discarded: ?std.heap.ArenaAllocator = null,
 emission: std.heap.ArenaAllocator,
 const Generation = struct { path: []u8, cache: compiler.zig.GenerationCache };
 
+const Epoch = struct {
+    analysis: std.heap.ArenaAllocator,
+    inputs: ?std.heap.ArenaAllocator,
+    snapshot: @typeInfo(@FieldType(History, "previous")).optional.child,
+    modules: *Modules.Batch,
+    rx_digests: []const project.ModuleDigest,
+    edited_rx: ?usize,
+    capacity: usize,
+};
+
 /// `gpa` must be threadsafe: background cache writers and concurrent generation share it.
 pub fn init(io: std.Io, gpa: std.mem.Allocator) !Self {
     var scratch = std.heap.ArenaAllocator.init(gpa);
 
     defer scratch.deinit();
 
-    return .{ .gpa = gpa, .digest = try @import("../generator_digest.zig").create(io, scratch.allocator()), .parse_cache = .{ .allocator = gpa, .keeps_replaced = true }, .files = .{ .gpa = gpa }, .modules = .{ .gpa = gpa }, .emission = .init(gpa) };
+    return .{ .gpa = gpa, .digest = try @import("../generator_digest.zig").create(io, scratch.allocator()), .parse_cache = .{ .allocator = gpa, .keeps_replaced = true, .transactional = true }, .files = .{ .gpa = gpa }, .modules = .{ .gpa = gpa }, .emission = .init(gpa) };
 }
 
 pub fn deinit(self: *Self) void {
@@ -89,9 +103,11 @@ pub fn persist(self: *Self) void {
 pub fn requestAllocator(self: *Self) std.mem.Allocator {
     self.endRequest();
 
-    if (History.exceedsBudget(self.retained_capacity)) self.release();
+    if (History.exceedsBudget(self.retained_capacity +| self.modules.capacity +| self.files.retained_bytes +| self.parse_cache.retained_capacity)) self.release();
 
     self.request = .init(self.gpa);
+    self.modules.parsed = 0;
+    self.modules.reused = 0;
 
     return self.request.?.allocator();
 }
@@ -127,6 +143,10 @@ pub fn discard(self: *Self, arena: std.heap.ArenaAllocator) void {
 
 /// Ends the current request; its arena allocator must no longer be used.
 pub fn endRequest(self: *Self) void {
+    self.modules.discard();
+    self.files.endRequest();
+    self.parse_cache.endRequest();
+
     if (self.discarded) |*arena| arena.deinit();
 
     self.discarded = null;
@@ -140,8 +160,43 @@ pub fn endRequest(self: *Self) void {
     self.history.next = null;
 }
 
+pub fn logMemory(self: *const Self) void {
+    if (!self.profile_memory) return;
+
+    std.debug.print("resident memory: epochs={d} analysis_bytes={d} xml_versions={d} xml_bytes={d} xml_parsed={d} xml_reused={d} file_bytes={d} file_retained_bytes={d} file_replaced={d} zx_bytes={d} zx_retained_bytes={d} zx_replaced={d} emission_bytes={d}\n", .{
+        self.epochs.items.len,         self.retained_capacity,             self.modules.versions,              self.modules.capacity,
+        self.modules.parsed,           self.modules.reused,                self.files.active_bytes,            self.files.retained_bytes,
+        self.files.replaced.items.len, self.parse_cache.currentCapacity(), self.parse_cache.retained_capacity, self.parse_cache.replaced.items.len,
+        self.emission.queryCapacity(),
+    });
+}
+
 /// The history for an analysis of inputs identified by `frame`, whose RX sources have `rx_digests` within `shape`.
-pub fn startAnalysis(self: *Self, frame: [32]u8, shape: [32]u8, rx_digests: []const @import("rx_analysis").project.ModuleDigest) *History {
+pub fn startAnalysis(self: *Self, frame: [32]u8, shape: [32]u8, rx_digests: []const project.ModuleDigest, sources: []const compiler.project.Source) *History {
+    self.parent_count = self.epochs.items.len;
+    self.edited_rx = null;
+    self.same_analysis_input = false;
+
+    if (self.epochs.getLastOrNull()) |latest| {
+        if (compiler.bytes.equal(&latest.snapshot.shape, &shape)) {
+            const edits = @import("revision.zig").compare(latest.rx_digests, rx_digests);
+            const comparable = edits != .multiple and @import("revision.zig").sameSources(latest.snapshot.sources, sources);
+
+            if (comparable) switch (edits) {
+                .same => self.same_analysis_input = compiler.bytes.equal(&latest.snapshot.frame, &frame),
+                .single => |row| {
+                    self.edited_rx = row;
+
+                    // The current edit supersedes the last one. Reanalyze against its parent so the new result
+                    // never borrows the superseded arena. Other edited modules remain in the parent chain.
+                    if (latest.edited_rx == row) self.parent_count -= 1;
+                },
+                .multiple => unreachable,
+            };
+        }
+    }
+
+    self.history.previous = if (self.parent_count != 0) self.epochs.items[self.parent_count - 1].snapshot else null;
     self.history.frame = frame;
     self.history.shape = shape;
     self.history.rx_digests = rx_digests;
@@ -160,39 +215,60 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
 
     errdefer owned.deinit();
 
+    if (self.same_analysis_input) return owned.deinit();
+
     // Reserve before discarding old history so allocation failure cannot leave a half-published analysis.
     const borrowed = self.history.borrowsPrevious();
-    const count: usize = if (self.inputs == null) 1 else 2;
+    const parent_count = if (borrowed) self.parent_count else 0;
 
-    try self.epochs.ensureTotalCapacity(self.gpa, if (borrowed) self.epochs.items.len + count else count);
+    try self.epochs.ensureTotalCapacity(self.gpa, parent_count + 1);
+    try self.files.reserveAnalysis();
+    try self.parse_cache.reserveAnalysis();
+    if (borrowed) self.dropEpochs(parent_count) else self.release();
 
-    if (!borrowed) self.release();
+    const snapshot = self.history.next.?;
 
-    self.history.previous = self.history.next;
     self.history.next = null;
 
-    self.retain(owned);
+    const capacity = owned.queryCapacity() + if (self.inputs) |inputs| inputs.queryCapacity() else 0;
 
-    if (self.inputs) |inputs| self.retain(inputs);
+    self.epochs.appendAssumeCapacity(.{
+        .analysis = owned,
+        .inputs = self.inputs,
+        .snapshot = snapshot,
+        .modules = self.modules.publish(),
+        .rx_digests = self.history.rx_digests,
+        .edited_rx = if (borrowed) self.edited_rx else null,
+        .capacity = capacity,
+    });
+
+    self.retained_capacity += capacity;
+
+    self.files.keepAnalysis();
+    self.parse_cache.keepAnalysis();
 
     self.inputs = null;
 }
 
 fn release(self: *Self) void {
-    for (self.epochs.items) |*epoch| epoch.deinit();
+    self.dropEpochs(0);
 
-    self.epochs.clearRetainingCapacity();
-
-    self.retained_capacity = 0;
     self.history.previous = null;
 
     self.parse_cache.release();
     self.files.release();
-    self.modules.release();
 }
 
-fn retain(self: *Self, arena: std.heap.ArenaAllocator) void {
-    self.retained_capacity +|= arena.queryCapacity();
+fn dropEpochs(self: *Self, count: usize) void {
+    while (self.epochs.items.len > count) {
+        var epoch = self.epochs.pop().?;
 
-    self.epochs.appendAssumeCapacity(arena);
+        epoch.analysis.deinit();
+
+        if (epoch.inputs) |*inputs| inputs.deinit();
+
+        self.modules.release(epoch.modules);
+
+        self.retained_capacity -= epoch.capacity;
+    }
 }

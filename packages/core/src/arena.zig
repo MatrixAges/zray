@@ -79,6 +79,15 @@ pub fn allocator(self: *Self) std.mem.Allocator {
     return .{ .ptr = self, .vtable = &.{ .alloc = alloc, .resize = resize, .remap = remap, .free = free } };
 }
 
+pub fn queryCapacity(self: *const Self) usize {
+    var total: usize = 0;
+    var next = self.first;
+
+    while (next) |chunk| : (next = chunk.next) total += chunk.size;
+
+    return total;
+}
+
 fn release(self: *Self, from: ?*Chunk) void {
     var next = from;
 

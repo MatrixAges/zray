@@ -12,13 +12,28 @@ const Self = @This();
 gpa: std.mem.Allocator,
 entries: bytes.Map(Entry) = .empty,
 replaced: std.ArrayList([]u8) = .empty,
+transient: std.ArrayList(Transient) = .empty,
+retained_bytes: usize = 0,
+active_bytes: usize = 0,
 /// What vouches for a file's text: it is the same file, of the same size, unchanged since.
 pub const Metadata = snapshot.Metadata;
-const Entry = struct { metadata: Metadata, read: i96, text: []u8, digest: ?[32]u8 = null };
+
+const Entry = struct {
+    metadata: Metadata,
+    read: i96,
+    text: []u8,
+    digest: ?[32]u8 = null,
+    borrowable: bool,
+    retained: bool = false,
+};
+
+const Transient = struct { text: []u8, borrowable: bool, retained: bool };
 
 pub fn deinit(self: *Self) void {
+    self.endRequest();
     self.release();
     self.replaced.deinit(self.gpa);
+    self.transient.deinit(self.gpa);
 
     var entries = self.entries.iterator();
 
@@ -31,8 +46,12 @@ pub fn deinit(self: *Self) void {
 }
 
 /// The contents of `path` in `directory`, keyed by `key`, which names the file across requests.
-pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8) ![]const u8 {
-    if (try self.unchanged(io, directory, path, key, null)) |text| return text;
+pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, borrowable: bool) ![]const u8 {
+    if (try self.unchanged(io, directory, path, key, null)) |text| {
+        if (borrowable) self.entries.getPtr(key).?.borrowable = true;
+
+        return text;
+    }
 
     const started = std.Io.Timestamp.now(io, .real).nanoseconds;
     const file = try directory.openFile(io, path, .{});
@@ -47,7 +66,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
     if (try file.readPositionalAll(io, text, 0) != text.len) return error.FileChanged;
 
     const found = try self.entries.getOrPut(self.gpa, key);
-    const observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text };
+    var observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text, .borrowable = borrowable };
 
     if (found.found_existing) {
         const previous = found.value_ptr;
@@ -55,16 +74,19 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
         if (bytes.equal(previous.text, text)) {
             self.gpa.free(text);
 
-            const reused = previous.text;
-            const digest_value = previous.digest;
+            observed.text = previous.text;
+            observed.digest = previous.digest;
+            observed.borrowable = observed.borrowable or previous.borrowable;
+            observed.retained = previous.retained;
             previous.* = observed;
-            previous.text = reused;
-            previous.digest = digest_value;
 
-            return reused;
+            return observed.text;
         }
 
-        try self.replaced.append(self.gpa, previous.text);
+        if (previous.retained) try self.replaced.ensureUnusedCapacity(self.gpa, self.transient.items.len + 1);
+        try self.transient.append(self.gpa, .{ .text = previous.text, .borrowable = previous.borrowable, .retained = previous.retained });
+
+        self.active_bytes -= previous.text.len;
     } else {
         found.key_ptr.* = self.gpa.dupe(u8, key) catch |err| {
             self.entries.removeByPtr(found.key_ptr);
@@ -74,6 +96,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
     }
 
     found.value_ptr.* = observed;
+    self.active_bytes += text.len;
 
     return text;
 }
@@ -122,4 +145,41 @@ pub fn release(self: *Self) void {
     for (self.replaced.items) |text| self.gpa.free(text);
 
     self.replaced.clearRetainingCapacity();
+
+    self.retained_bytes = 0;
+
+    var entries = self.entries.valueIterator();
+
+    while (entries.next()) |entry| entry.retained = false;
+}
+
+pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
+    var count: usize = 0;
+
+    for (self.transient.items) |previous| count += @intFromBool(previous.borrowable);
+    try self.replaced.ensureUnusedCapacity(self.gpa, count);
+}
+
+pub fn keepAnalysis(self: *Self) void {
+    var entries = self.entries.valueIterator();
+
+    while (entries.next()) |entry| entry.retained = entry.borrowable;
+
+    self.retire(true);
+}
+
+pub fn endRequest(self: *Self) void {
+    self.retire(false);
+}
+
+fn retire(self: *Self, published: bool) void {
+    for (self.transient.items) |previous| {
+        if (previous.retained or (published and previous.borrowable)) {
+            self.replaced.appendAssumeCapacity(previous.text);
+
+            self.retained_bytes += previous.text.len;
+        } else self.gpa.free(previous.text);
+    }
+
+    self.transient.clearRetainingCapacity();
 }

@@ -20,6 +20,13 @@ pub const Result = union(enum) {
 
     native: parser.Result,
     indexed: Indexed,
+    pub fn queryCapacity(self: *const Self) usize {
+        return switch (self.*) {
+            .native => |*result| result.arena.queryCapacity(),
+            .indexed => |*result| if (indexed_enabled) result.arena.queryCapacity() + result.syntax_arena.queryCapacity() else unreachable,
+        };
+    }
+
     pub fn deinit(self: *Self) void {
         switch (self.*) {
             .native => |*result| result.deinit(),

@@ -41,6 +41,8 @@ pub const IndexedFlow = @import("modules.zig").IndexedFlow;
 const modules = @import("modules.zig");
 pub const validateModules = modules.validate;
 pub const validateModulePaths = modules.validatePaths;
+pub const markModuleSchema = modules.markSchema;
+pub const IndexedXml = @import("frontend").IndexedXml;
 
 pub fn validate(allocator: std.mem.Allocator, file_name: []const u8, node: ast.Node) std.mem.Allocator.Error!Result {
     return dsl.validate(File, allocator, node, file_name);

@@ -104,7 +104,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
             sources.items[row].source
 
         else
-            resident.files.read(io, std.Io.Dir.cwd(), interface.path, try std.fs.path.resolve(allocator, &.{interface.path})) catch |err| unread: {
+            resident.files.read(io, std.Io.Dir.cwd(), interface.path, try std.fs.path.resolve(allocator, &.{interface.path}), true) catch |err| unread: {
                 if (interface_error == null) interface_error = err;
 
                 break :unread "";
@@ -131,7 +131,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         }
     }
 
-    const rx_digests = try allocator.alloc(analysis.project.ModuleDigest, modules.items.len);
+    const rx_digests = try owned.alloc(analysis.project.ModuleDigest, modules.items.len);
 
     for (modules.items, rx_digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
 
@@ -164,23 +164,9 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         },
     };
 
-    const parsed = try resident.modules.parse(modules.items, fingerprint.packages(packages));
-
-    if (parsed.value == .diagnostic) {
-        std.debug.print("{s}: {s}\n", .{ modules.items[parsed.value.diagnostic.source_index].path, parsed.value.diagnostic.issue.message });
-
-        return error.InvalidParserModule;
-    }
+    const inputs = try resident.modules.prepare(owned, modules.items, fingerprint.packages(packages));
 
     if (interface_error) |err| return err;
-
-    const inputs = try owned.alloc(rx.ModuleSource, modules.items.len);
-
-    for (inputs, modules.items, parsed.inputs) |*item, source, *module| {
-        item.* = module.*;
-        item.path = source.path;
-        item.packages = source.packages;
-    }
 
     const summary = try @import("shared_generation.zig").run(io, allocator, owned, resident, project.entries, .{
         .modules = inputs,

@@ -37,7 +37,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, r
     };
 
     const parse_cache = &resident.parse_cache;
-    const history = resident.startAnalysis(inputs.frame, inputs.shape, inputs.rx_digests);
+    const history = resident.startAnalysis(inputs.frame, inputs.shape, inputs.rx_digests, inputs.sources);
 
     // When only function bodies changed, the earlier analysis already found the reachable modules.
     history.bodies_only = try history.bodiesOnly(inputs.sources, parse_cache);

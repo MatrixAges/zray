@@ -48,6 +48,7 @@ pub fn serve(init: std.process.Init, cache: []const u8, warm: ?Request) !void {
     defer server.deinit(io);
 
     var resident = try Resident.init(io, init.gpa);
+    resident.profile_memory = if (init.environ_map.get("ZXC_RESIDENT_MEMORY")) |value| std.mem.eql(u8, value, "1") else false;
     const identity = try Identity.own(io, init.arena.allocator());
     var watch = Watch{ .io = io, .path = path, .resident = &resident, .last = std.Io.Timestamp.now(io, .awake) };
 
@@ -65,6 +66,8 @@ pub fn serve(init: std.process.Init, cache: []const u8, warm: ?Request) !void {
         defer stream.close(io);
 
         const status = answer(io, &resident, identity, stream) catch .failed;
+
+        resident.logMemory();
 
         watch.last = std.Io.Timestamp.now(io, .awake);
 
@@ -98,7 +101,7 @@ fn answer(io: std.Io, resident: *Resident, identity: Identity, stream: std.Io.ne
         break :done .done;
     };
 
-    try writer.interface.writeByte(@intFromEnum(status));
+    try writer.interface.writeByte(@backingInt(status));
     try field(&writer.interface, summary);
     try writer.interface.flush();
 

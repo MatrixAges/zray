@@ -12,10 +12,13 @@ const Entry = struct {
     digest: Digest,
     result: ModuleResult,
     text: ?[]const u8,
+    retained: bool = false,
     fn init(digest: Digest, result: ModuleResult) Entry {
         return .{ .digest = digest, .result = result, .text = result.text() };
     }
 };
+
+const Transient = struct { result: ModuleResult, retained: bool };
 
 allocator: std.mem.Allocator,
 entries: Index = .empty,
@@ -23,10 +26,16 @@ parsed: usize = 0,
 reused: usize = 0,
 /// Keeps replaced results until `release` instead of freeing them, for analyses that still point into them.
 keeps_replaced: bool = false,
+/// A resident analysis pins the parses it publishes and drops replacements used only by a failed request.
+transactional: bool = false,
 replaced: std.ArrayList(ModuleResult) = .empty,
+transient: std.ArrayList(Transient) = .empty,
+retained_capacity: usize = 0,
 pub fn deinit(self: *Self) void {
+    self.endRequest();
     self.release();
     self.replaced.deinit(self.allocator);
+    self.transient.deinit(self.allocator);
 
     for (self.entries.keys.items, self.entries.values.items) |key, entry| {
         entry.result.deinit();
@@ -44,6 +53,44 @@ pub fn release(self: *Self) void {
     for (self.replaced.items) |*result| result.deinit();
 
     self.replaced.clearRetainingCapacity();
+
+    self.retained_capacity = 0;
+
+    for (self.entries.values.items) |entry| entry.retained = false;
+}
+
+pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
+    try self.replaced.ensureUnusedCapacity(self.allocator, self.transient.items.len);
+}
+
+pub fn keepAnalysis(self: *Self) void {
+    for (self.entries.values.items) |entry| entry.retained = true;
+
+    self.retire(true);
+}
+
+pub fn endRequest(self: *Self) void {
+    self.retire(false);
+}
+
+fn retire(self: *Self, published: bool) void {
+    for (self.transient.items) |*version| {
+        if (published or version.retained) {
+            self.replaced.appendAssumeCapacity(version.result);
+
+            self.retained_capacity += version.result.queryCapacity();
+        } else version.result.deinit();
+    }
+
+    self.transient.clearRetainingCapacity();
+}
+
+pub fn currentCapacity(self: *const Self) usize {
+    var capacity: usize = 0;
+
+    for (self.entries.values.items) |entry| capacity += entry.result.queryCapacity();
+
+    return capacity;
 }
 
 /// The digest of the source last parsed for `path`.
@@ -260,7 +307,7 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
 
 fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) std.mem.Allocator.Error!*Entry {
     if (found.existing) |entry| {
-        try self.replace(entry.result);
+        try self.replace(entry);
 
         entry.* = value.*;
         self.parsed += 1;
@@ -286,14 +333,23 @@ fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) 
     return entry;
 }
 
-fn replace(self: *Self, result: ModuleResult) std.mem.Allocator.Error!void {
+fn replace(self: *Self, entry: *const Entry) std.mem.Allocator.Error!void {
     if (!self.keeps_replaced) {
-        var owned = result;
+        var owned = entry.result;
 
         return owned.deinit();
     }
 
-    try self.replaced.append(self.allocator, result);
+    if (!self.transactional) {
+        try self.replaced.append(self.allocator, entry.result);
+
+        self.retained_capacity += entry.result.queryCapacity();
+
+        return;
+    }
+
+    if (entry.retained) try self.replaced.ensureUnusedCapacity(self.allocator, self.transient.items.len + 1);
+    try self.transient.append(self.allocator, .{ .result = entry.result, .retained = entry.retained });
 }
 
 fn getEntry(self: *Self, comptime native: bool, source: []const u8, path: []const u8) std.mem.Allocator.Error!*Entry {

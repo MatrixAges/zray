@@ -72,7 +72,8 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, files: ?*Files, root: []co
     defer directory.close(io);
 
     for (entries) |file| {
-        const source = file.text orelse if (files) |kept| try kept.read(io, directory, file.relative, file.path) else try directory.readFileAlloc(io, file.relative, allocator, .unlimited);
+        // The XML parser owns its source. ZX, template and native interface analyses may borrow theirs.
+        const source = file.text orelse if (files) |kept| try kept.read(io, directory, file.relative, file.path, file.kind != .RX) else try directory.readFileAlloc(io, file.relative, allocator, .unlimited);
 
         switch (file.kind) {
             .ZX => try sources.append(allocator, .{ .path = file.path, .source = source }),
