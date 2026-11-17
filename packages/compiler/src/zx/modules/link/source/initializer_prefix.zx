@@ -2,11 +2,15 @@ import equal from "./initializer_row"
 
 import type { Prefix } from "./initializer_rows"
 
-export type Input = Prefix
+export type Input = Prefix?
 
 export type Output = u64
 
 export default function (in: Input): Output {
+    if (in == null) {
+        return 0
+    }
+
     const { left, right, shared, function_prefix } = in
 
     const end = left.count < right.count ? left.count : right.count

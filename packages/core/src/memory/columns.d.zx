@@ -4,6 +4,19 @@ export type ReadColumn = opaque
 export type WriteColumn = opaque
 export type ListColumn = opaque
 export type ListProjection = opaque
+export type RowBuffer = opaque
+
+export declare function allocateRows(
+    allocator,
+    target: RowBuffer,
+    count: u64
+): void throws { OutOfMemory }
+
+export declare function copyRowPrefix(
+    target: RowBuffer,
+    source: u8[],
+    count: u64
+): void throws { IndexOutOfBounds }
 
 export declare function projectListColumns(
     target: ListProjection,

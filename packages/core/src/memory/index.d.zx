@@ -146,6 +146,12 @@ export declare function writeNamedRow(
     id: u32
 ): void throws { IndexOutOfBounds }
 
+export declare function allocateNamedRows(
+    allocator,
+    target: NamedRowBuffer,
+    count: u64
+): void throws { OutOfMemory }
+
 export declare function readU32(
     target: U32Buffer,
     index: u64

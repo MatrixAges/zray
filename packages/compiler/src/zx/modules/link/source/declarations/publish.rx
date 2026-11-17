@@ -1,48 +1,29 @@
 <Module>
     <Type from="model" as="Declarations" />
 
-    <Args in={Declarations.Input} out={Declarations.Output} />
+    <Args in={Declarations.Input} out={void} />
 
-    <If on={!$in.exports_done}>
-        <If on={$in.export_target != null}>
-            <Call
-                fn="../../../artifact/surface/exports"
-                in={{
-                    source: $in.exports,
-                    types: $in.types,
-                    target: $in.export_target,
-                    progress: $in.export_progress
-                }}
-            />
-        </If>
-
-        <If on={$in.export_target == null}>
-            <Call
-                fn="prefix"
-                in={{
-                    types: $in.export_types,
-                    count: $in.exports.length,
-                    prefix: $in.prefix
-                }}
-            />
-
-            <If on={!$ctx.prefix}>
-                <Return value={Declarations.Storage.Types} />
-            </If>
-        </If>
-    </If>
-
-    <If on={$in.constant_target != null}>
+    <Task name="exports" out={$ctx.prefix}>
         <Call
-            fn="../../../artifact/surface/constants"
+            fn="prefix"
             in={{
-                source: $in.constants,
-                types: $in.types,
-                target: $in.constant_target
+                types: $in.export_types,
+                count: $in.exports.length,
+                prefix: $in.prefix
             }}
         />
+    </Task>
 
-        <Return value={Declarations.Storage.None} />
+    <If on={!$ctx.task.exports}>
+        <Call
+            module="../../../artifact/surface/own_exports"
+            in={{
+                source: $in.exports,
+                types: $in.types,
+                target: $in.export_target,
+                progress: $in.export_progress
+            }}
+        />
     </If>
 
     <Call
@@ -55,8 +36,14 @@
     />
 
     <If on={!$ctx.prefix}>
-        <Return value={Declarations.Storage.Constants} />
+        <Call
+            module="../../../artifact/surface/own_constants"
+            in={{
+                source: $in.constants,
+                types: $in.types,
+                target: $in.constant_target,
+                storage: $in.constant_storage
+            }}
+        />
     </If>
-
-    <Return value={Declarations.Storage.None} />
 </Module>

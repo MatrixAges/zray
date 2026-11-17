@@ -111,6 +111,10 @@ pub const ConstantTarget = struct {
     }
 };
 
+pub fn constantOutput(comptime Target: type) type {
+    return memory.RowOutput(ir.Constant, Target, .{ .names = "name", .types = "type_id", .values = "value" });
+}
+
 fn copyBindings(allocator: std.mem.Allocator, source: []const Binding, types: *const BindingMapping, functions: *const BindingMapping) Error![]const Binding {
     if (source.len == 0) return &.{};
 

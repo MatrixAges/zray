@@ -3,52 +3,25 @@
 
     <Args in={Result.Surface} out={Result.Published} />
 
-    <If on={!$in.exports_done && $in.exports.length != 0}>
-        <If on={$in.export_target == null}>
-            <Return
-                value={{
-                    stage: Result.Stage.Exports,
-                    path: null,
-                    wrapper: null
-                }}
-            />
-        </If>
+    <Call
+        module="../../../artifact/surface/own_exports"
+        in={{
+            source: $in.exports,
+            types: $in.types,
+            target: $in.export_target,
+            progress: $in.export_progress
+        }}
+    />
 
-        <If on={$in.export_target != null}>
-            <Call
-                fn="../../../artifact/surface/exports"
-                in={{
-                    source: $in.exports,
-                    types: $in.types,
-                    target: $in.export_target,
-                    progress: $in.export_progress
-                }}
-            />
-        </If>
-    </If>
-
-    <If on={$in.constants.count != 0}>
-        <If on={$in.constant_target == null}>
-            <Return
-                value={{
-                    stage: Result.Stage.Constants,
-                    path: null,
-                    wrapper: null
-                }}
-            />
-        </If>
-
-        <If on={$in.constant_target != null}>
-            <Call
-                fn="../../../artifact/surface/constants"
-                in={{
-                    source: $in.constants,
-                    types: $in.types,
-                    target: $in.constant_target
-                }}
-            />
-        </If>
-    </If>
+    <Call
+        module="../../../artifact/surface/own_constants"
+        in={{
+            source: $in.constants,
+            types: $in.types,
+            target: $in.constant_target,
+            storage: $in.constant_storage
+        }}
+    />
 
     <Call fn="path" in={$in.path} />
 
@@ -59,7 +32,6 @@
 
         <Return
             value={{
-                stage: Result.Stage.Complete,
                 path: $ctx.path,
                 wrapper: $ctx.build
             }}
@@ -68,7 +40,6 @@
 
     <Return
         value={{
-            stage: Result.Stage.Complete,
             path: $ctx.path,
             wrapper: null
         }}

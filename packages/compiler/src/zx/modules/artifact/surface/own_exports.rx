@@ -1,0 +1,17 @@
+<Module>
+    <Type from="exports" as="Exports" />
+
+    <Args in={Exports.Input} out={void} />
+
+    <If on={$in.source.length != 0}>
+        <Call
+            fn="allocate_exports"
+            in={{
+                target: $in.target,
+                count: $in.source.length
+            }}
+        />
+
+        <Call fn="exports" in={$in} />
+    </If>
+</Module>

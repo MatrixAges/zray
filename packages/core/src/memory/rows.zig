@@ -1,5 +1,14 @@
 const std = @import("std");
+
 pub const NamedId = struct { name: []const u8, id: u32 };
+
+pub fn allocateNamedRows(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const output: *[]NamedId = @ptrCast(@alignCast(@constCast(target)));
+
+    std.debug.assert(output.len == 0);
+
+    output.* = try allocator.alloc(NamedId, std.math.cast(usize, count) orelse return error.OutOfMemory);
+}
 
 pub const ReadColumn = struct {
     bytes: []const u8,

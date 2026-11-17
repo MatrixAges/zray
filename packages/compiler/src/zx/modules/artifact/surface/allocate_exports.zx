@@ -1,0 +1,14 @@
+import memory from "memory"
+
+import type { NamedRowBuffer } from "memory"
+
+export type Input = {
+    target: NamedRowBuffer,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.allocateNamedRows(in.target, in.count)
+}

@@ -1,13 +1,11 @@
+import type { RowBuffer } from "memory/columns"
 import type { Prefix } from "../initializer_rows"
-import type { Input as Publish, Target } from "./model"
+import type { Input as Publish } from "./model"
 
-export type Input = Publish.Omit("target") & {
+export type Input = Publish.Omit("start") & {
     prefix?: Prefix,
-    target?: Target,
-    done: bool
+    storage: RowBuffer,
+    shared: u8[]
 }
 
-export type Output = {
-    start: u64,
-    needs_storage: bool
-}
+export type Output = u64

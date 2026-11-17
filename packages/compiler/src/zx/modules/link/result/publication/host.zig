@@ -5,7 +5,7 @@ const Nodes = @import("../../../artifact/nodes.zig");
 const Model = @import("../../../artifact/model.zig");
 const names = @import("../../../../ir/canonical/validation/names/view.zig");
 const ConstantRows = @import("../../../../analysis/constants/columns.zig").Rows;
-const ConstantTarget = @import("../../../artifact/surface.zig").ConstantTarget;
+const constantOutput = @import("../../../artifact/surface.zig").constantOutput;
 const remap = @import("../../../artifact/nodes/remap.zig");
 const program = @import("../host.zig");
 const rule = @import("generated_artifact_program_publication");
@@ -13,7 +13,7 @@ const Input = std.meta.Child(rule.Input);
 const Store = std.meta.Child(@FieldType(Input, "store_source"));
 const Forward = std.meta.Child(@typeInfo(@FieldType(Input, "forward")).optional.child);
 const Symbols = std.meta.Child(@FieldType(Forward, "symbols"));
-const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "constant_target")).optional.child);
+const Constants = std.meta.Child(@FieldType(Input, "constant_target"));
 
 pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module: *const Model.Module, function: ?*const Nodes.FunctionEntry, tables: program.Tables, functions: *ir.FunctionStorage, mapping: []const ir.TypeId) Model.Error!ir.Program {
     const source_stores = zx.columns.columns(Store, module.stores);
@@ -28,6 +28,12 @@ pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module
     var forward: Forward = undefined;
 
     if (recursive) |id| {
+        const entry = function.?;
+
+        try functions.reserve(allocator, 1);
+
+        functions.appendOwnedAssumeCapacity(entry.body, entry.descriptors.?);
+
         symbols = zx.columns.columns(Symbols, body.?.symbols);
 
         forward = .{
@@ -38,82 +44,47 @@ pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module
         };
     }
 
-    var request: Input = .{
+    const empty: []ir.Export = &.{};
+    var exports = zx.memory.borrowNamedRows("type_id", empty);
+    var constant_output: constantOutput(Constants) = undefined;
+
+    constant_output.init();
+
+    const request: Input = .{
         .store_source = &source_stores,
-        .stores = null,
-        .recursive_saved = false,
         .exports = &names.view(std.meta.Child(@FieldType(Input, "exports")), &export_rows),
-        .export_target = null,
+        .export_target = @ptrCast(&exports),
         .export_progress = @ptrCast(&progress),
-        .exports_done = false,
         .constants = &constants.view(std.meta.Child(@FieldType(Input, "constants"))),
-        .constant_target = null,
+        .constant_target = &constant_output.view,
+        .constant_storage = @ptrCast(&constant_output.buffer),
         .types = &types,
         .path = module.path,
         .forward = if (recursive != null) &forward else null,
     };
 
-    var retained_stores: Store = undefined;
-    var exports: []ir.Export = &.{};
-    var owned_constants: []ir.Constant = &.{};
-    var target_exports: []zx.memory.NamedId = undefined;
-    var target_columns: ConstantTarget = undefined;
-    var target_constants: Constants = undefined;
-
     errdefer {
         for (exports[0..@intCast(written[0])]) |value| allocator.free(value.name);
 
         allocator.free(exports);
-        allocator.free(owned_constants);
+        allocator.free(constant_output.rows());
     }
 
-    while (true) {
-        const published = zx.columns.invoke(rule.executeValue, allocator, @as(*const Input, &request)) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
+    const outcome = zx.columns.invoke(rule.executeValue, allocator, &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
 
-        if (request.stores == null) {
-            if (published.stores) |stores| {
-                retained_stores = zx.columns.view(Store, stores);
-                request.stores = &retained_stores;
-            }
-        }
+    const published = outcome orelse return error.InvalidModule;
+    var linked = tables;
+    linked.functions = functions.view();
+    const stores = zx.columns.view(ir.StoreTable, published.stores);
+    const exported: []const ir.Export = @ptrCast(exports);
+    const owned_constants = constant_output.rows();
+    var assembled = program.program(published.path, body, linked, stores, exported, owned_constants);
 
-        switch (published.stage) {
-            .Invalid => return error.InvalidModule,
-            .Recursive => {
-                const entry = function.?;
+    if (published.wrapper) |wrapper| try @import("../../../forward_entry/host.zig").install(allocator, &assembled, wrapper);
+    if (try @import("../../../../ir/validate.zig").validate(temporary, assembled) != null) return error.InvalidIr;
 
-                try functions.reserve(allocator, 1);
-
-                functions.appendOwnedAssumeCapacity(entry.body, entry.descriptors.?);
-
-                request.recursive_saved = true;
-            },
-            .Exports => {
-                exports = try allocator.alloc(ir.Export, module.exports.len);
-                target_exports = zx.memory.borrowNamedRows("type_id", exports);
-                request.export_target = @ptrCast(&target_exports);
-            },
-            .Constants => {
-                owned_constants = try allocator.alloc(ir.Constant, module.constant_exports.len);
-                target_columns = ConstantTarget.borrow(owned_constants);
-                target_constants = target_columns.view(Constants);
-                request.constant_target = &target_constants;
-                request.exports_done = true;
-            },
-            .Complete => {
-                var linked = tables;
-                linked.functions = functions.view();
-                const stores = zx.columns.view(ir.StoreTable, published.stores.?);
-                var assembled = program.program(published.path.?, body, linked, stores, exports, owned_constants);
-
-                if (published.wrapper) |wrapper| try @import("../../../forward_entry/host.zig").install(allocator, &assembled, wrapper);
-                if (try @import("../../../../ir/validate.zig").validate(temporary, assembled) != null) return error.InvalidIr;
-
-                return assembled;
-            },
-        }
-    }
+    return assembled;
 }

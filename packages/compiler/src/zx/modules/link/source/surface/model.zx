@@ -1,24 +1,15 @@
+import type { RowBuffer } from "memory/columns"
 import type { Input as Initializers } from "../initializers/resolve_model"
 import type { Input as Members, Result } from "../members/model"
 import type { Input as Ports, Output as PublishedPorts } from "./ports"
 
-export enum Allocation {
-    None,
-    Initializers,
-    Members
-}
-
 export type Input = {
     initializers: Initializers,
     members: Members,
-    member_storage: bool,
+    member_storage: RowBuffer,
     ports: Ports.Omit("entry")
 }
 
-export type Publication = Result & PublishedPorts
-
-export type Output = {
-    allocation: Allocation,
-    initializer_prefix: u64,
-    published?: Publication
+export type Output = Result & PublishedPorts & {
+    initializer_prefix: u64
 }
