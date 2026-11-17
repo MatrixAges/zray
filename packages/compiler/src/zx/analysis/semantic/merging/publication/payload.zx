@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import type { Payload } from "./model"
+
+export type Input = Payload
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { delta, origins, target, nominal } = in
+
+    memory.copyU8s(target.kinds, delta.kinds)
+    memory.copyU32s(target.second, delta.second)
+    memory.copyU32s(target.children, delta.children)
+    memory.copyU32s(target.field_types, delta.field_types)
+
+    memory.copyU32s(nominal.ids, origins.ids)
+    memory.copyU8s(nominal.kinds, origins.kinds)
+}

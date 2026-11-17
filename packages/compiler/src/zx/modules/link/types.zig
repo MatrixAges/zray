@@ -86,27 +86,27 @@ pub fn appendAnalyzed(self: *Self, mapping_allocator: std.mem.Allocator, tempora
 fn appendValues(self: *Self, mapping_allocator: std.mem.Allocator, temporary: std.mem.Allocator, values: ir.TypeTable, nominal_types: Origins.Table, first: usize, comptime analyzed: bool) Error![]const ir.TypeId {
     const checked = !analyzed or @import("../../ir/validate.zig").internal;
 
-    if ((first == 0 or checked) and !@import("../../ir/type_rules.zig").validate(values)) return error.InvalidModule;
+    if (comptime !@import("parser_options").generated_parser) {
+        if ((first == 0 or checked) and !@import("../../ir/type_rules.zig").validate(values)) return error.InvalidModule;
 
-    var prepared = try @import("../../analysis/semantic/preflight.zig").prepare(mapping_allocator, temporary, values, nominal_types, self.items.view(), first, !analyzed);
+        var prepared = try @import("../../analysis/semantic/seed_preflight.zig").prepare(mapping_allocator, temporary, values, nominal_types, self.items.view(), first, !analyzed);
 
-    defer prepared.deinitScratch();
-    errdefer mapping_allocator.free(prepared.mapping);
+        defer prepared.deinitScratch();
+        errdefer mapping_allocator.free(prepared.mapping);
 
-    if (!@import("parser_options").generated_parser) return @import("seed_types.zig").appendPrepared(self, temporary, values, nominal_types, first, prepared.origins, prepared.mapping);
+        return @import("seed_types.zig").appendPrepared(self, temporary, values, nominal_types, first, prepared.origins, prepared.mapping);
+    }
 
-    try @import("../../analysis/semantic/merge.zig").append(.{
+    return @import("../../analysis/semantic/merge.zig").append(.{
         .allocator = self.allocator,
+        .mapping_allocator = mapping_allocator,
         .temporary = temporary,
         .source = values,
         .origins = nominal_types,
-        .origin_indices = prepared.origins,
-        .mapping = prepared.mapping,
         .items = &self.items,
         .nominal = &self.origins.items,
         .first = first,
         .checked = checked,
+        .complete = !analyzed,
     });
-
-    return prepared.mapping;
 }

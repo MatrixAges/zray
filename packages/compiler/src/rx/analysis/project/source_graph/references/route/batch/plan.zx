@@ -1,4 +1,5 @@
 import memory from "memory"
+import columns from "memory/columns"
 
 import { Target } from "../../../../../../dependency_graph/reference/model"
 import { Kind } from "../model"
@@ -36,7 +37,7 @@ export default function (in: Input): Output {
         next: state => {
             const position = in.first + state.processed
             const row = references.count - position - 1
-            const value = memory.readOptionalIndirectTextColumn(references.values, row)
+            const value = columns.readOptionalIndirectTextColumn(references.values, row)
             const index = state.processed
 
             if (value == null) {

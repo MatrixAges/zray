@@ -1,3 +1,5 @@
+export type ReferenceColumn = opaque
+export type IndirectTextColumn = opaque
 export type ReadColumn = opaque
 export type WriteColumn = opaque
 export type ListColumn = opaque
@@ -78,3 +80,23 @@ export declare function readListOptionalU8(
     index: u64,
     member: u64
 ): u8? throws { IndexOutOfBounds }
+
+export declare function readReferencedOptionalBytes(
+    source: ReferenceColumn,
+    index: u64
+): u8[]? throws { IndexOutOfBounds }
+
+export declare function readReferencedBytes(
+    source: ReferenceColumn,
+    index: u64
+): u8[] throws { IndexOutOfBounds }
+
+export declare function readIndirectTextColumn(
+    source: IndirectTextColumn,
+    index: u64
+): string throws { IndexOutOfBounds, MissingField }
+
+export declare function readOptionalIndirectTextColumn(
+    source: IndirectTextColumn,
+    index: u64
+): string? throws { IndexOutOfBounds }

@@ -1,11 +1,13 @@
 import bytes from "std:bytes"
 import slot from "core/bytes/index/slot"
 import memory from "memory"
+import columns from "memory/columns"
 
 import content from "./content"
 
 import type { Input as Slot } from "core/bytes/index/slot"
-import type { ReferenceColumn, TextColumn, U8Buffer, U64Buffer } from "memory"
+import type { TextColumn, U8Buffer, U64Buffer } from "memory"
+import type { ReferenceColumn } from "memory/columns"
 
 export type Cache = Slot.Omit("key") & {
     texts: ReferenceColumn,
@@ -57,8 +59,11 @@ export default function (in: Input): Output {
                 }),
                 _ => content({
                     source,
-                    text: memory.readReferencedOptionalBytes(cache.texts, entry - 1),
-                    stored: memory.readReferencedBytes(cache.digests, entry - 1)
+                    text: columns.readReferencedOptionalBytes(
+                        cache.texts,
+                        entry - 1
+                    ),
+                    stored: columns.readReferencedBytes(cache.digests, entry - 1)
                 })
             }
 

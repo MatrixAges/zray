@@ -1,18 +1,54 @@
-import type { StringBuffer, U64Buffer } from "memory"
-import type { Input as Writes } from "../../../../ir/columns/write"
-import type { Input as BindNames } from "../../../../modules/nominal_origins/bind_names"
+import type { Table } from "core/type_table/model"
+import type { Bindings } from "core/type_table/nominal"
+import type { StringBuffer, U8Buffer, U32Buffer, U64Buffer } from "memory"
 import type { Input as Rebase } from "../rebase"
 
-export type Column = {
-    source: string[],
-    target: StringBuffer
+export enum TextMode {
+    Own,
+    Borrow,
+    OwnNames
 }
 
-export type Text = {
-    columns: Column[],
+export type Offsets = Rebase.Pick("children", "fields", "names")
+
+export type TypeTail = {
+    kinds: U8Buffer,
+    first: U32Buffer,
+    second: U32Buffer,
+    labels: StringBuffer,
+    children: U32Buffer,
+    field_types: U32Buffer,
+    field_names: StringBuffer,
+    names: StringBuffer
+}
+
+export type NominalTail = {
+    ids: U32Buffer,
+    kinds: U8Buffer,
+    owners: StringBuffer,
+    members: StringBuffer,
+    names: StringBuffer
+}
+
+export type Input = {
+    delta: Table,
+    origins: Bindings,
+    target: TypeTail,
+    nominal: NominalTail,
+    offsets?: Offsets,
+    base_labels: string[],
+    delta_labels: string[],
+    text_mode: TextMode,
     progress: U64Buffer
 }
 
-export type Input = Text & BindNames & Writes & {
-    rebase?: Rebase
-}
+export type Text = Input.Pick(
+    "delta",
+    "origins",
+    "target",
+    "nominal",
+    "text_mode",
+    "progress"
+)
+
+export type Payload = Input.Pick("delta", "origins", "target", "nominal")

@@ -52,19 +52,7 @@ pub fn commit(types: *Types, result: anytype, span: zx.Span, owns_names: bool) z
         .names = row.names,
     };
 
-    const first = try types.items.reserveDelta(types.allocator, delta);
-
-    first[0] = row.layout.first;
-
-    if (owns_names and delta.names.len != 0) {
-        const tail = types.items.names.unusedCapacitySlice()[0..delta.names.len];
-
-        try @import("merging/commit.zig").copyNames(types.allocator, delta.names, tail);
-
-        types.items.publishOwnedNames(delta);
-    } else {
-        types.items.publishDelta(delta);
-    }
+    try @import("merging/commit.zig").appendConstructed(types.allocator, &types.items, delta, owns_names);
 
     return @fromBackingInt(result.id);
 }

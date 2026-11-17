@@ -6,18 +6,34 @@ pub const Error = std.mem.Allocator.Error || error{ InvalidModule, MissingNomina
 
 pub const Request = struct {
     allocator: std.mem.Allocator,
+    mapping_allocator: std.mem.Allocator,
     temporary: std.mem.Allocator,
     source: ir.TypeTable,
     origins: Origins.Table,
-    origin_indices: []const u64,
-    mapping: []ir.TypeId,
     items: *ir.TypeStorage,
     nominal: *Origins.Storage,
     first: usize,
     checked: bool,
+    complete: bool,
 };
 
-pub fn append(request: Request) Error!void {
+pub fn append(request: Request) Error![]const ir.TypeId {
+    const target = request.items.view();
+
+    var prepared = try @import("preflight.zig").prepare(
+        request.mapping_allocator,
+        request.temporary,
+        request.source,
+        request.origins,
+        target,
+        request.first,
+        request.complete,
+        request.first == 0 or request.checked,
+    );
+
+    defer prepared.deinitScratch();
+    errdefer request.mapping_allocator.free(prepared.mapping);
+
     const Input = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
     const DataView = @FieldType(Input, "request");
     const Data = if (@typeInfo(DataView) == .pointer) std.meta.Child(DataView) else DataView;
@@ -26,12 +42,12 @@ pub fn append(request: Request) Error!void {
     const Delta = @FieldType(State, "delta");
     const BindingsView = @FieldType(Data, "origins");
     const Bindings = if (@typeInfo(BindingsView) == .pointer) std.meta.Child(BindingsView) else BindingsView;
-    const mapping: []u32 = @ptrCast(request.mapping);
+    const mapping: []u32 = @ptrCast(prepared.mapping);
 
     @memset(mapping, 0);
 
     const source = table(Table, request.source);
-    const base = table(Table, request.items.view());
+    const base = table(Table, target);
     const delta = table(Delta, .{});
     const origins = Origins.Table.borrow(Bindings, request.origins);
     const base_origins = Origins.Table.borrow(Bindings, request.nominal.view());
@@ -39,7 +55,7 @@ pub fn append(request: Request) Error!void {
     const data: Data = .{
         .source = if (@typeInfo(Table) == .pointer) &source else source,
         .origins = if (@typeInfo(BindingsView) == .pointer) &origins else origins,
-        .origin_indices = request.origin_indices,
+        .origin_indices = prepared.origins,
         .base = if (@typeInfo(Table) == .pointer) &base else base,
         .base_origins = if (@typeInfo(BindingsView) == .pointer) &base_origins else base_origins,
         .mapping = @ptrCast(&mapping),
@@ -66,7 +82,7 @@ pub fn append(request: Request) Error!void {
     try @import("merging/commit.zig").append(request.allocator, request.items, request.nominal, result.delta, result.origins);
 
     return switch (result.status) {
-        .Ready => {},
+        .Ready => prepared.mapping,
         .MissingOrigin => error.MissingNominalOrigin,
         .Conflict => error.ConflictingNominalType,
         .Invalid => error.InvalidModule,

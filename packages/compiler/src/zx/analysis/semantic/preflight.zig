@@ -13,17 +13,28 @@ pub const Result = struct {
 
 pub const Error = std.mem.Allocator.Error || error{InvalidModule};
 
-pub fn prepare(allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: ir.TypeTable, origins: Origins.Table, target: ir.TypeTable, first: usize, complete: bool) Error!Result {
-    if (!@import("parser_options").generated_parser) return @import("seed_preflight.zig").prepare(allocator, temporary, source, origins, target, first, complete);
-
+pub fn prepare(allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: ir.TypeTable, origins: Origins.Table, target: ir.TypeTable, first: usize, complete: bool, validate: bool) Error!Result {
     const generated = @import("generated_merge_preflight");
     const Input = @typeInfo(generated.Input).pointer.child;
     const Table = @typeInfo(@FieldType(Input, "source")).pointer.child;
     const Bindings = @typeInfo(@FieldType(Input, "origins")).pointer.child;
+    const Validation = @typeInfo(@FieldType(Input, "validation")).optional.child;
     const source_table = ir.TypeTable.borrow(Table, source);
     const target_table = ir.TypeTable.borrow(Table, target);
     const bindings = Origins.Table.borrow(Bindings, origins);
-    const input: Input = .{ .source = &source_table, .target = &target_table, .origins = &bindings, .names = origins.names, .first = first, .complete = complete };
+    const Limits = if (@typeInfo(Validation) == .pointer) std.meta.Child(Validation) else Validation;
+    const limits: Limits = .{ .maximum_count = std.math.maxInt(u32), .scalar_count = std.enums.values(ir.Scalar).len };
+
+    const input: Input = .{
+        .source = &source_table,
+        .target = &target_table,
+        .origins = &bindings,
+        .names = origins.names,
+        .first = first,
+        .complete = complete,
+        .validation = if (!validate) null else if (@typeInfo(Validation) == .pointer) &limits else limits,
+    };
+
     var arena = std.heap.ArenaAllocator.init(temporary);
 
     errdefer arena.deinit();

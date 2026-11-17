@@ -1,0 +1,9 @@
+export const completed_labels: u64 = 1
+
+export const completed_fields: u64 = 2
+
+export const completed_names: u64 = 3
+
+export const completed_owners: u64 = 4
+
+export const completed_members: u64 = 5

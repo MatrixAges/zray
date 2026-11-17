@@ -9,9 +9,7 @@ export type StringListBuffer = opaque
 export type NamedRows = opaque
 export type NamedRowBuffer = opaque
 export type TextColumn = opaque
-export type IndirectTextColumn = opaque
 export type ReadColumn = opaque
-export type ReferenceColumn = opaque
 export type ListColumn = opaque
 export type WriteColumn = opaque
 
@@ -71,26 +69,6 @@ export declare function readTextListColumn(
     source: ReadColumn,
     index: u64
 ): string[] throws { IndexOutOfBounds }
-
-export declare function readReferencedOptionalBytes(
-    source: ReferenceColumn,
-    index: u64
-): u8[]? throws { IndexOutOfBounds }
-
-export declare function readReferencedBytes(
-    source: ReferenceColumn,
-    index: u64
-): u8[] throws { IndexOutOfBounds }
-
-export declare function readIndirectTextColumn(
-    source: IndirectTextColumn,
-    index: u64
-): string throws { IndexOutOfBounds, MissingField }
-
-export declare function readOptionalIndirectTextColumn(
-    source: IndirectTextColumn,
-    index: u64
-): string? throws { IndexOutOfBounds }
 
 export declare function readColumnU8(
     source: ReadColumn,
@@ -238,3 +216,18 @@ export declare function copyStrings(
     target: StringBuffer,
     source: string[]
 ): void throws { IndexOutOfBounds, OutOfMemory }
+
+export declare function copyU8s(
+    target: U8Buffer,
+    source: u8[]
+): void throws { IndexOutOfBounds }
+
+export declare function copyU32s(
+    target: U32Buffer,
+    source: u32[]
+): void throws { IndexOutOfBounds }
+
+export declare function copyStringViews(
+    target: StringBuffer,
+    source: string[]
+): void throws { IndexOutOfBounds }

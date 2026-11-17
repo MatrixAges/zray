@@ -314,7 +314,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/semantic/preflight.rx", .name = "merge_preflight" },
     .{ .path = "zx/analysis/semantic/merge.rx", .name = "type_merge" },
     .{ .path = "zx/analysis/semantic/merging/publication/write.rx", .name = "type_merge_publication" },
-    .{ .path = "zx/analysis/semantic/merging/publication/text.zx", .name = "type_column_text" },
     .{ .path = "zx/analysis/semantic/merging/preflight/retained.zx", .name = "type_retained_payload" },
     .{ .path = "zx/analysis/semantic/validate_types.rx", .name = "type_validation" },
     .{ .path = "zx/analysis/semantic/resolve.rx", .name = "type_resolution" },

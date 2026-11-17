@@ -93,6 +93,26 @@ pub inline fn copyBytes(target: *const anyopaque, offset: u64, source: []const u
     return count;
 }
 
+pub inline fn copyU8s(target: *const anyopaque, source: []const u8) error{IndexOutOfBounds}!void {
+    return copySlice(u8, target, source);
+}
+
+pub inline fn copyU32s(target: *const anyopaque, source: []const u32) error{IndexOutOfBounds}!void {
+    return copySlice(u32, target, source);
+}
+
+pub inline fn copyStringViews(target: *const anyopaque, source: []const []const u8) error{IndexOutOfBounds}!void {
+    return copySlice([]const u8, target, source);
+}
+
+inline fn copySlice(comptime T: type, target: *const anyopaque, source: []const T) error{IndexOutOfBounds}!void {
+    const buffer: *const []T = @ptrCast(@alignCast(target));
+
+    if (buffer.len != source.len) return error.IndexOutOfBounds;
+
+    @memmove(buffer.*, source);
+}
+
 pub inline fn writeUtf8Scalar(target: *const anyopaque, offset: u64, codepoint: u64) error{ IndexOutOfBounds, InvalidUnicodeScalar }!u64 {
     const output: *const []u8 = @ptrCast(@alignCast(target));
     const scalar = std.math.cast(u21, codepoint) orelse return error.InvalidUnicodeScalar;

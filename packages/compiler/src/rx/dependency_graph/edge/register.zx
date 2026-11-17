@@ -1,15 +1,12 @@
 import memory from "memory"
+import columns from "memory/columns"
 
 import { issue_invalid_path, issue_missing, issue_none } from "../const"
 import { Issue } from "../model"
 import resolve from "./resolve.rx"
 
-import type {
-    IndirectTextColumn,
-    ReadColumn,
-    U64Buffer,
-    U8Buffer
-} from "memory"
+import type { ReadColumn, U64Buffer, U8Buffer } from "memory"
+import type { IndirectTextColumn } from "memory/columns"
 import type { Input as Edge } from "./model"
 
 export type Indexed = {
@@ -76,7 +73,7 @@ export default function (in: Input): Output {
             if (graph) {
                 const reference = match {
                     indexed == null => candidates.references[row],
-                    _ => memory.readIndirectTextColumn(indexed.values, row)
+                    _ => columns.readIndirectTextColumn(indexed.values, row)
                 }
 
                 const package_allowed = match {
