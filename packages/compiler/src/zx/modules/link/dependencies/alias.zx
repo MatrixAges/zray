@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import { kind_enumeration } from "core/type_table/const"
+import memory from "memory"
 
 import { Kind, Status } from "./model"
 import typeId from "./type_id"
@@ -34,7 +35,10 @@ export default function (in: Input): Output {
 
     const enumeration = dependency.kind == Kind.Enumeration
 
-    if (enumeration && provider.kinds[export_id] != kind_enumeration) {
+    if (
+        enumeration &&
+            memory.readColumnU8(provider.kinds, export_id) != kind_enumeration
+    ) {
         return Status.Conflict
     }
 

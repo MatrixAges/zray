@@ -2,55 +2,54 @@ import memory from "memory"
 
 import external from "../external"
 import { Status } from "../model"
+import source from "./source"
 
-import type { TextColumn } from "memory"
-import type { Cursor, Edges } from "./model"
+import type { Walk } from "./model"
 
-export type Input = {
-    cursor: Cursor,
-    edges: Edges,
-    specifiers: TextColumn,
-    native_specifiers: string[],
-    intrinsic_name: string
-}
+export type Input = Walk
 
-export type Output = Cursor & {
-    status: Status,
-    target?: u64
-}
+export type Output = Status
 
 export default function (in: Input): Output {
-    const { edges, specifiers, native_specifiers, intrinsic_name } = in
+    const { imports, providers } = in
+    const { edges, specifiers } = imports
     const { codes } = edges
 
-    const initial: Output = {
-        ...in.cursor,
-        status: Status.Ready,
-        target: null
-    }
-
-    return loop(initial, {
-        while: state => {
-            const ready = state.status == Status.Ready && state.target == null
-
-            return ready && state.row < edges.count
-        },
+    return loop({
+        row: 0,
+        source: 0,
+        status: Status.Ready
+    }, {
+        while: state => state.status == Status.Ready && state.row < edges.count,
         next: state => {
             const { row } = state
             const target = memory.readColumnU8(edges.target_kinds, row)
+            const kind = memory.readColumnU8(edges.kinds, row)
 
-            if (target == codes.source) {
-                state.target = edges.targets[state.source]
+            if (target == codes.source && providers != null) {
+                state.status = source({
+                    ...in.pick([
+                        "checks",
+                        "aliases",
+                        "constants",
+                        "imports"
+                    ]),
+                    row,
+                    providers,
+                    target: edges.targets[state.source],
+                    kind
+                })
+
                 state.source += 1
+            } else if (target == codes.source) {
+                state.status = Status.Invalid
             } else {
-                const kind = memory.readColumnU8(edges.kinds, row)
-
                 const allowed = external({
                     intrinsic: target == codes.intrinsic,
                     type_only: kind == codes.type_only,
                     specifier: memory.readTextColumn(specifiers, row),
-                    intrinsic_name,
-                    native_specifiers
+                    intrinsic_name: in.intrinsic_name,
+                    native_specifiers: in.native_specifiers
                 })
 
                 if (!allowed) {
@@ -60,6 +59,6 @@ export default function (in: Input): Output {
 
             state.row += 1
         },
-        return: state => state
+        return: state => state.status
     })
 }

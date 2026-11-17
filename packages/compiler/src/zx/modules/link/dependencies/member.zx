@@ -59,7 +59,7 @@ export default function (in: Input): Output {
     const expected = integers.widen(id)
     const declarations = provider.signatures
 
-    if (expected >= declarations.files.length) {
+    if (expected >= memory.columnLength(declarations.input_types)) {
         return Status.Invalid
     }
 
@@ -70,20 +70,28 @@ export default function (in: Input): Output {
     }
 
     const actual = integers.widen(mapped)
-    const input_id = integers.widen(declarations.input_types[expected])
-    const output_id = integers.widen(declarations.output_types[expected])
+
+    const input_id =
+        integers.widen(memory.readColumnU32(declarations.input_types, expected))
+
+    const output_id =
+        integers.widen(memory.readColumnU32(declarations.output_types, expected))
+
     const types = provider.types
 
     if (input_id >= types.length || output_id >= types.length) {
         return Status.Invalid
     }
 
-    const same_file = declarations.files[expected] == linked.files[actual]
+    const same_file =
+        memory.readTextColumn(declarations.files, expected) == linked.files[actual]
+
     const same_input = types[input_id] == linked.input_types[actual]
     const same_output = types[output_id] == linked.output_types[actual]
 
     const same_ownership =
-        declarations.ownership[expected] == linked.ownership[actual]
+        memory.readColumnU8(declarations.ownership, expected) ==
+        linked.ownership[actual]
 
     const compatible = (
         - same_file

@@ -1,11 +1,11 @@
 import { Status } from "./model"
 import port from "./port"
 
-import type { Bindings, Signatures } from "./model"
+import type { Bindings, LinkedSignatures } from "./model"
 
 export type Input = {
     imports: Bindings,
-    linked: Signatures,
+    linked: LinkedSignatures,
     functions: u32?[],
     types: u32[]
 }

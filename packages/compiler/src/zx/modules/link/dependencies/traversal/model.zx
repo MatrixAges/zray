@@ -1,4 +1,7 @@
-import type { ReadColumn } from "memory"
+import type { Rows as Constants } from "core/constant/rows"
+import type { ReadColumn, TextColumn } from "memory"
+import type { ListProjection } from "memory/columns"
+import type { Aliases, Bindings, Checks, SignatureColumns } from "../model"
 
 export type Codes = {
     source: u8,
@@ -16,7 +19,32 @@ export type Edges = {
     codes: Codes
 }
 
-export type Cursor = {
-    row: u64,
-    source: u64
+export type Imports = {
+    edges: Edges,
+    specifiers: TextColumn,
+    names: ReadColumn,
+    source_names: ReadColumn,
+    exported: ReadColumn,
+    wildcard: ReadColumn
+}
+
+export type Tables = {
+    projection: ListProjection,
+    members: Bindings.Omit("count"),
+    signatures: SignatureColumns,
+    aliases: Aliases.Omit("count"),
+    constants: Constants.Omit("count"),
+    kinds: ReadColumn,
+    types: u32[][],
+    functions: u32?[]
+}
+
+export type Walk = {
+    checks: Checks,
+    aliases: Aliases,
+    constants: Constants,
+    imports: Imports,
+    providers?: Tables,
+    native_specifiers: string[],
+    intrinsic_name: string
 }

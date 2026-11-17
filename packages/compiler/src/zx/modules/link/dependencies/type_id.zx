@@ -1,9 +1,9 @@
 import memory from "memory"
 
-import type { Rows } from "../../../ir/canonical/validation/names/model"
+import type { Aliases } from "./model"
 
 export type Input = {
-    aliases: Rows,
+    aliases: Aliases,
     name: string
 }
 
@@ -15,15 +15,15 @@ export default function (in: Input): Output {
     const id: u32? = null
 
     return loop({
-        end: aliases.length,
+        end: aliases.count,
         id
     }, {
         while: state => state.id == null && state.end != 0,
         next: state => {
             state.end -= 1
 
-            if (memory.readRowName(aliases.rows, state.end) == name) {
-                state.id = memory.readRowId(aliases.rows, state.end)
+            if (memory.readTextColumn(aliases.names, state.end) == name) {
+                state.id = memory.readColumnU32(aliases.ids, state.end)
             }
         },
         return: state => state.id

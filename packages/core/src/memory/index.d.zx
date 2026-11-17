@@ -85,6 +85,13 @@ export declare function readColumnI32(
     index: u64
 ): i32 throws { IndexOutOfBounds }
 
+export declare function readColumnU32(
+    source: ReadColumn,
+    index: u64
+): u32 throws { IndexOutOfBounds }
+
+export declare function columnLength(source: ReadColumn): u64
+
 export declare function readColumnU64(
     source: ReadColumn,
     index: u64

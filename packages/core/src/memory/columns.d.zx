@@ -3,6 +3,14 @@ export type IndirectTextColumn = opaque
 export type ReadColumn = opaque
 export type WriteColumn = opaque
 export type ListColumn = opaque
+export type ListProjection = opaque
+
+export declare function projectListColumns(
+    target: ListProjection,
+    index: u64
+): void throws { IndexOutOfBounds }
+
+export declare function columnLength(source: ReadColumn): u64
 
 export declare function writeColumnOptionalU32(
     target: WriteColumn,

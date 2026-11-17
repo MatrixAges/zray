@@ -29,6 +29,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/native_publication_row", .entry = "zx/modules/link/native/publication/row.rx" },
     .{ .specifier = "compiler/artifact_signature_row", .entry = "zx/modules/link/signature/bind.rx" },
     .{ .specifier = "compiler/artifact_named_item", .entry = "zx/modules/link/dependencies/item.rx" },
+    .{ .specifier = "compiler/artifact_dependency_edge", .entry = "zx/modules/link/dependencies/check.rx" },
     .{ .specifier = "compiler/artifact_dependency_equal", .entry = "zx/modules/semantic_cache/restoring/dependencies/equal.rx" },
     .{ .specifier = "compiler/artifact_binding_restore", .entry = "zx/modules/semantic_cache/restoring/functions/bind.rx" },
     .{ .specifier = "compiler/compiled_contract", .entry = "zx/modules/compiled/loading/remap/contract.rx" },

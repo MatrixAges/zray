@@ -21,6 +21,11 @@ pub const ListColumn = struct {
     offset: usize,
 };
 
+pub const ListProjection = struct {
+    sources: []const ListColumn,
+    target: []ReadColumn,
+};
+
 pub inline fn borrow(comptime id: []const u8, items: anytype) if (@typeInfo(@TypeOf(items)).pointer.attrs.@"const") []const NamedId else []NamedId {
     const Item = std.meta.Child(@TypeOf(items));
     const Field = @FieldType(Item, id);
@@ -122,6 +127,19 @@ pub inline fn borrowNestedList(comptime T: type, comptime field: []const u8, com
     return .{ .lists = borrowColumn(List, field, items), .stride = @sizeOf(Row), .offset = layout.offset };
 }
 
+pub inline fn borrowSliceColumn(comptime fields: []const []const u8, items: anytype) ListColumn {
+    const layout = comptime fieldLayout(std.meta.Child(@TypeOf(items)), fields);
+    const List = layout.type;
+
+    comptime if (@typeInfo(List).pointer.size != .slice) @compileError("Expected a slice field");
+
+    return .{
+        .lists = borrowNested(List, fields, items),
+        .stride = @sizeOf(std.meta.Child(List)),
+        .offset = 0,
+    };
+}
+
 pub fn fieldLayout(comptime Item: type, comptime fields: []const []const u8) struct { type: type, offset: usize } {
     var current = Item;
     var offset: usize = 0;
@@ -192,6 +210,22 @@ pub inline fn readColumnOptionalU32(source: *const anyopaque, index: u64) error{
 
 pub inline fn readColumnOptionalU8(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?u8 {
     return readColumn(?u8, source, index);
+}
+
+pub inline fn projectListColumns(projection: *const anyopaque, index: u64) error{IndexOutOfBounds}!void {
+    const view: *const ListProjection = @ptrCast(@alignCast(projection));
+
+    if (view.sources.len != view.target.len) return error.IndexOutOfBounds;
+
+    for (view.sources, view.target) |*source, *column| {
+        column.* = try listColumn(source, index);
+    }
+}
+
+pub inline fn columnLength(source: *const anyopaque) u64 {
+    const column: *const ReadColumn = @ptrCast(@alignCast(source));
+
+    return column.count;
 }
 
 pub inline fn listLength(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {

@@ -1,7 +1,6 @@
 import type { Rows as Constants } from "core/constant/rows"
 import type { Ownership } from "core/symbol_table/model"
 import type { ReadColumn, TextColumn } from "memory"
-import type { Rows } from "../../../ir/canonical/validation/names/model"
 
 export enum Status {
     Ready,
@@ -39,11 +38,28 @@ export type Signatures = {
     ownership: Ownership[]
 }
 
+export type LinkedSignatures = Signatures.Omit("ownership") & {
+    ownership: u8[]
+}
+
+export type SignatureColumns = {
+    files: TextColumn,
+    input_types: ReadColumn,
+    output_types: ReadColumn,
+    ownership: ReadColumn
+}
+
+export type Aliases = {
+    names: TextColumn,
+    ids: ReadColumn,
+    count: u64
+}
+
 export type Checks = {
     count: u64,
     functions: u32?[],
     imports: Bindings,
-    linked: Signatures,
+    linked: LinkedSignatures,
     members: Bindings,
     types: u32[]
 }
@@ -51,16 +67,16 @@ export type Checks = {
 export type Provider = {
     executable: bool,
     members: Bindings,
-    signatures: Signatures,
-    aliases: Rows,
-    kinds: u8[],
+    signatures: SignatureColumns,
+    aliases: Aliases,
+    kinds: ReadColumn,
     constants: Constants,
     types: u32[]
 }
 
 export type Consumer = {
     members: Bindings,
-    aliases: Rows,
+    aliases: Aliases,
     constants: Constants,
     types: u32[],
     functions: u32?[]
@@ -70,7 +86,7 @@ export type Request = {
     dependency: Dependency,
     provider: Provider,
     consumer: Consumer,
-    linked: Signatures
+    linked: LinkedSignatures
 }
 
 export type Item = {

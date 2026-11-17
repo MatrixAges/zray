@@ -1,45 +1,16 @@
 <Module>
     <Type from="../model" as="Link" />
-    <Type from="advance" as="Advance" />
+    <Type from="model" as="Traversal" />
 
-    <Args
-        in={{
-            checks?: Link.Checks,
-            edge?: Link.Request,
-            walk: Advance.Input
-        }}
-        out={Advance.Output}
-    />
+    <Args in={Traversal.Walk} out={Link.Status} />
 
-    <If on={$in.checks != null}>
-        <Call module="../bindings" in={$in.checks} />
+    <Call module="../bindings" in={$in.checks} />
 
-        <If on={$ctx.bindings != Link.Status.Ready}>
-            <Return
-                value={{
-                    ...$in.walk.cursor,
-                    status: $ctx.bindings,
-                    target: null
-                }}
-            />
-        </If>
+    <If on={$ctx.bindings != Link.Status.Ready}>
+        <Return value={$ctx.bindings} />
     </If>
 
-    <If on={$in.edge != null}>
-        <Call module="../check" in={$in.edge} />
-
-        <If on={$ctx.check != Link.Status.Ready}>
-            <Return
-                value={{
-                    ...$in.walk.cursor,
-                    status: $ctx.check,
-                    target: null
-                }}
-            />
-        </If>
-    </If>
-
-    <Call fn="advance" in={$in.walk} />
+    <Call fn="advance" in={$in} />
 
     <Return value={$ctx.advance} />
 </Module>
