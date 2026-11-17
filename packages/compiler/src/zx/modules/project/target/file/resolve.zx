@@ -28,10 +28,12 @@ export default function (in: Input): Output {
     if (directory) {
         return {
             kind: base.kind,
-            path: lexical.resolvePathJoined(anchor, [
+            path: lexical.resolvePathJoined(
+                anchor,
                 trim(stem.path),
-                stem.rx ? index_rx_file : index_file
-            ], base.prefix),
+                stem.rx ? index_rx_file : index_file,
+                base.prefix
+            ),
             fallback: false
         }
     }

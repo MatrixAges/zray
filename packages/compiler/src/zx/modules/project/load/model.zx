@@ -2,6 +2,7 @@ import type { U8Buffer, U64Buffer } from "memory"
 import type { Import as Interface, Selection } from "../interface/model"
 import type { Route } from "../target/model"
 import type { Rows } from "../target/select"
+import type { Input as Claim } from "./imports/claim"
 
 export enum Admission {
     Push,
@@ -55,15 +56,48 @@ export type SourcePlan = {
     index?: u64
 }
 
-export type Import = {
+export type Target = {
     path: string,
     intrinsic: string,
     internal: Rows,
     interfaces: Interface
 }
 
-export type ImportRoute = {
+export type TargetRoute = {
     route: Route,
     internal?: u64,
     interface?: Selection
+}
+
+export type Import = {
+    target: Target,
+    claim?: Claim,
+    row: u64,
+    count: u64,
+    exported: bool,
+    signature: bool
+}
+
+export type ImportRoute = TargetRoute & {
+    duplicate?: u64
+    next?: u64
+    exported: bool
+    record: bool
+}
+
+export enum Publication {
+    Signature,
+    Body
+}
+
+export type Scan = {
+    count: u64,
+    suspended?: u64,
+    signature: bool
+}
+
+export type FrameScan = {
+    first?: u64,
+    previous?: u64,
+    publication: Publication
 }

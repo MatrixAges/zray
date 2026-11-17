@@ -294,7 +294,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/project/load/complete.zx", .name = "project_load_completion" },
     .{ .path = "zx/modules/project/load/source.rx", .name = "project_load_source" },
     .{ .path = "zx/modules/project/load/route.rx", .name = "project_load_route" },
-    .{ .path = "zx/modules/project/load/imports/claim.zx", .name = "project_import_claim" },
+    .{ .path = "zx/modules/project/load/scan.zx", .name = "project_load_scan" },
     .{ .path = "zx/modules/module_record/names/alias.zx", .name = "module_record_alias" },
     .{ .path = "zx/modules/module_record/names/own.zx", .name = "module_record_names" },
     .{ .path = "zx/modules/compiled/resolution/resolve.rx", .name = "compiled_import_resolution" },

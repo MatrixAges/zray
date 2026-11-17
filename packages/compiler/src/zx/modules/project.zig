@@ -92,7 +92,7 @@ const LoadFrame = struct {
     index: usize,
     parsed: ParseCache.Version,
     scope: ?Target.Scope = null,
-    next_import: u64 = 0,
+    suspended_import: u64 = 0,
     aliases: std.ArrayList(ir.Export) = .empty,
     imported_names: @import("project/load/imports/host.zig") = .{},
     imports: std.ArrayList(FunctionImport) = .empty,
@@ -228,7 +228,7 @@ const Project = struct {
     fn dependencyDepth(self: *Project) zx.Error {
         return self.reporter.fail(.module, .{ .start = 0, .end = 0 }, "module dependency depth exceeds 256");
     }
-    fn loadInput(self: *Project, frame: *LoadFrame, input: anytype, comptime phase: Loading.Phase, completed: ?usize) zx.Error!?usize {
+    fn loadInput(self: *Project, frame: *LoadFrame, input: anytype, phase: Loading.Phase, completed: ?usize) zx.Error!?usize {
         const index = frame.index;
         const unit = &self.units[index];
         const header = input.header();
@@ -240,46 +240,51 @@ const Project = struct {
 
         defer paths.deinit();
 
-        const start_row: usize = if (completed) |child| resume_import: {
-            const next: usize = @intCast(frame.next_import);
-            const item = @import("import_view.zig").get(header, next - 1);
+        const scan = Loading.scan(import_count, if (completed != null) frame.suspended_import else null, phase);
+
+        if (scan.previous) |previous| {
+            const item = @import("import_view.zig").get(header, previous);
+            const child = completed.?;
             const loaded = &self.units[child];
 
             std.debug.assert(self.load_states[child] == .Done);
 
             try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
+        }
 
-            break :resume_import next;
-        } else 0;
+        var next = scan.first;
 
-        for (start_row..import_count) |import_row| {
+        while (next) |import_row| {
             const item = @import("import_view.zig").get(header, import_row);
-            const selected_aliases = if (item.exported) &frame.export_aliases else aliases;
-            const selected_imports = if (item.exported) &frame.export_functions else imports;
-            const selected_constants = if (item.exported) &frame.export_constants else constants;
+            const scope = frame.packageScope(self.options.package_scopes, unit.path);
+            const scoped = scope.nativeInterfaces(self.options.native_interfaces);
+            const externals = scope.externals(self.options.externals);
+
+            const plan = switch (try Loading.route(self.arena.child_allocator, &frame.imported_names, self.options.internal_modules, scoped, externals, item, import_count, phase)) {
+                .duplicate => |name| return self.reporter.fail(.name, name.span, "duplicate import binding"),
+                .selected => |selected| selected,
+            };
+
+            next = plan.next;
+
+            const selected_aliases = if (plan.exported) &frame.export_aliases else aliases;
+            const selected_imports = if (plan.exported) &frame.export_functions else imports;
+            const selected_constants = if (plan.exported) &frame.export_constants else constants;
             var path_buffer: [512]u8 = undefined;
             var path_memory = std.heap.BufferFirstAllocator.init(&path_buffer, paths.allocator());
 
             const resolved: Target.Resolved = target_block: {
-                if (try frame.imported_names.claim(self.arena.child_allocator, item)) |name| {
-                    return self.reporter.fail(.name, name.span, "duplicate import binding");
-                }
-
-                const scope = frame.packageScope(self.options.package_scopes, unit.path);
-                const scoped = scope.nativeInterfaces(self.options.native_interfaces);
-                const externals = scope.externals(self.options.externals);
-
-                const target = switch (Loading.route(self.options.internal_modules, scoped, externals, item)) {
+                const target = switch (plan.route) {
                     .target => |target| target,
                     .interface => |resolved| {
                         switch (resolved) {
                             .native => |entry| {
                                 try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
-                                if (phase == .body) try self.rememberImport(frame, item, .native, entry.key());
+                                if (plan.record) try self.rememberImport(frame, item, .native, entry.key());
                             },
                             .legacy => |first| {
                                 try self.importExternal(externals, first, item, imports);
-                                if (phase == .body) try self.rememberImport(frame, item, .external, null);
+                                if (plan.record) try self.rememberImport(frame, item, .external, null);
                             },
                             .duplicate => return self.reporter.fail(.module, item.span, "duplicate native interface module"),
                             .conflict => return self.reporter.fail(.module, item.span, "native declarations conflict with legacy external signatures"),
@@ -301,7 +306,7 @@ const Project = struct {
                             .members = &@import("intrinsic.zig").exports,
                         }, self.reporter, selected_aliases, selected_imports, selected_constants);
 
-                        if (phase == .body) try self.rememberImport(frame, item, .intrinsic, null);
+                        if (plan.record) try self.rememberImport(frame, item, .intrinsic, null);
 
                         continue;
                     },
@@ -318,7 +323,7 @@ const Project = struct {
 
             switch (resolved.target) {
                 .source => |path| {
-                    const plan = Loading.source(self.options.source_index.?, self.load_states, .{
+                    const source_plan = Loading.source(self.options.source_index.?, self.load_states, .{
                         .path = path,
                         .phase = phase,
                         .function_import = item.kind == .function,
@@ -326,10 +331,10 @@ const Project = struct {
                         .depth = self.load_frames.items.len,
                         .row = resolved.source_row,
                         .import_row = import_row,
-                        .cursor = &frame.next_import,
+                        .cursor = &frame.suspended_import,
                     });
 
-                    switch (plan.action) {
+                    switch (source_plan.action) {
                         .SkipSignature => continue,
                         .DeferSignature => {
                             const retained = try self.allocator.dupe(u8, path);
@@ -340,9 +345,9 @@ const Project = struct {
                         .Missing => return self.reporter.fail(.module, item.span, "import target is missing from the source set"),
                         .Cycle => return self.dependencyCycle(),
                         .Depth => return self.dependencyDepth(),
-                        .Descend => return plan.index,
+                        .Descend => return source_plan.index,
                         .Bind => {
-                            const loaded = &self.units[plan.index.?];
+                            const loaded = &self.units[source_plan.index.?];
 
                             try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
                         },
@@ -356,32 +361,39 @@ const Project = struct {
             }
         }
 
-        if (phase == .signature) {
-            var types = @import("../analysis/types.zig"){
-                .allocator = self.allocator,
-                .reporter = self.reporter,
-                .declarations = &.{},
-                .aliases = aliases.items,
-                .shared = .{ .origins = &self.nominal_origins, .origin = .{ .source = unit.path } },
-                .items = self.types,
-                .native_modules = self.native_modules.view(),
-            };
-
-            self.types = .{};
-            defer self.types = types.items;
-            unit.signature = try input.signature(&types, constants.items);
-
-            try self.publishSignature(frame, &unit.signature.?);
-
-            unit.signature_aliases = aliases.items;
-            unit.signature_imports = imports.items;
-            unit.signature_reexports = frame.export_functions.items;
-            unit.signature_constant_imports = constants.items;
-        } else try self.finishInput(frame, input);
+        switch (scan.publication) {
+            .Signature => try self.finishSignature(frame, input),
+            .Body => try self.finishInput(frame, input),
+        }
 
         return null;
     }
-    fn bindResolved(self: *Project, frame: *LoadFrame, item: anytype, comptime phase: Loading.Phase, imported: Imported, target: ModuleRecord.Target.Wire) zx.Error!void {
+    fn finishSignature(self: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
+        const unit = &self.units[frame.index];
+
+        var types = @import("../analysis/types.zig"){
+            .allocator = self.allocator,
+            .reporter = self.reporter,
+            .declarations = &.{},
+            .aliases = frame.aliases.items,
+            .shared = .{ .origins = &self.nominal_origins, .origin = .{ .source = unit.path } },
+            .items = self.types,
+            .native_modules = self.native_modules.view(),
+        };
+
+        self.types = .{};
+        defer self.types = types.items;
+        unit.signature = try input.signature(&types, frame.constant_imports.items);
+
+        try self.publishSignature(frame, &unit.signature.?);
+
+        unit.signature_aliases = frame.aliases.items;
+        unit.signature_imports = frame.imports.items;
+        unit.signature_reexports = frame.export_functions.items;
+        unit.signature_constant_imports = frame.constant_imports.items;
+    }
+
+    fn bindResolved(self: *Project, frame: *LoadFrame, item: anytype, phase: Loading.Phase, imported: Imported, target: ModuleRecord.Target.Wire) zx.Error!void {
         self.current_source = frame.index;
 
         if (phase == .signature) return self.bindSignature(frame, item, imported);
@@ -401,7 +413,7 @@ const Project = struct {
 
         try self.rememberImport(frame, item, target, null);
     }
-    fn importedSource(unit: *const Unit, comptime phase: Loading.Phase) Imported {
+    fn importedSource(unit: *const Unit, phase: Loading.Phase) Imported {
         if (phase == .signature) {
             const signature = &unit.signature.?;
 

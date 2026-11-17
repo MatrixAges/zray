@@ -14,11 +14,11 @@ pub fn resolveSuffix(allocator: Allocator, base: []const u8, spelling: []const u
     return std.fs.path.resolve(allocator, &.{ base, leaf });
 }
 
-pub fn resolveJoined(allocator: Allocator, base: []const u8, parts: []const []const u8, prefix: u64) ![]u8 {
+pub fn resolveJoined(allocator: Allocator, base: []const u8, directory: []const u8, name: []const u8, prefix: u64) ![]u8 {
     var buffer: [path_stack_capacity]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
     const temporary = scratch.allocator();
-    const leaf = try Module(@import("builtin").os.tag == .windows, void).join(temporary, parts);
+    const leaf = try Module(@import("builtin").os.tag == .windows, void).join(temporary, &.{ directory, name });
 
     defer temporary.free(leaf);
 

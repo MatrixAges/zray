@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Load" />
+    <Type from="../target/model" as="Target" />
+
+    <Args in={Load.Target} out={Load.TargetRoute} />
+
+    <Call
+        module="../target/classify"
+        in={$in.pick([
+            "path",
+            "intrinsic"
+        ])}
+    />
+
+    <If on={$ctx.classify == Target.Route.Interface}>
+        <Call module="../interface/route" in={$in.interfaces} />
+
+        <Return
+            value={{
+                route: $ctx.classify,
+                interface: $ctx.route
+            }}
+        />
+    </If>
+
+    <If on={$ctx.classify == Target.Route.Package && $in.internal.length != 0}>
+        <Call
+            fn="../target/select"
+            in={{
+                specifiers: $in.internal,
+                name: $in.path,
+                check_duplicates: false
+            }}
+        />
+
+        <Return
+            value={{
+                route: $ctx.classify,
+                internal: $ctx.select.first
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            route: $ctx.classify
+        }}
+    />
+</Module>

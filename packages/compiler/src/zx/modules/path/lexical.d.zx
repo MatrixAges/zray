@@ -15,6 +15,7 @@ export declare function resolvePathSuffix(
 export declare function resolvePathJoined(
     allocator,
     base: string,
-    parts: string[],
+    directory: string,
+    leaf: string,
     prefix: u64
 ): string throws { OutOfMemory, WriteFailed } concurrent

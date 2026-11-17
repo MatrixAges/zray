@@ -4,46 +4,29 @@
 
     <Args in={Load.Import} out={Load.ImportRoute} />
 
-    <Call
-        module="../target/classify"
-        in={$in.pick([
-            "path",
-            "intrinsic"
-        ])}
-    />
+    <If on={$in.claim != null}>
+        <Call fn="imports/claim" in={$in.claim} />
 
-    <If on={$ctx.classify == Target.Route.Interface}>
-        <Call module="../interface/route" in={$in.interfaces} />
-
-        <Return
-            value={{
-                route: $ctx.classify,
-                interface: $ctx.route
-            }}
-        />
+        <If on={$ctx.claim != null}>
+            <Return
+                value={{
+                    route: Target.Route.Invalid,
+                    duplicate: $ctx.claim,
+                    exported: false,
+                    record: false
+                }}
+            />
+        </If>
     </If>
 
-    <If on={$ctx.classify == Target.Route.Package && $in.internal.length != 0}>
-        <Call
-            fn="../target/select"
-            in={{
-                specifiers: $in.internal,
-                name: $in.path,
-                check_duplicates: false
-            }}
-        />
-
-        <Return
-            value={{
-                route: $ctx.classify,
-                internal: $ctx.select.first
-            }}
-        />
-    </If>
+    <Call module="target" in={$in.target} />
 
     <Return
         value={{
-            route: $ctx.classify
+            ...$ctx.target,
+            next: $in.row + 1 < $in.count ? $in.row + 1 : null,
+            exported: $in.exported,
+            record: !$in.signature
         }}
     />
 </Module>

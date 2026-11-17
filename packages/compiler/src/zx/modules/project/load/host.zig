@@ -4,6 +4,7 @@ const Index = @import("../../source_index.zig").Map;
 const interface = @import("../../interface.zig");
 const Interface = @import("../interface/host.zig");
 const Target = @import("../target/host.zig");
+const Claims = @import("imports/host.zig");
 const enabled = @import("parser_options").generated_parser;
 pub const State = enum(u8) { Fresh, Visiting, Done };
 pub const Phase = enum { body, signature };
@@ -16,47 +17,145 @@ fn Result(comptime module: type) type {
 
 const Route = union(enum) { target: Target.Route, interface: Interface.Route };
 
-pub fn route(internal: []const interface.Native, scoped: []const interface.Native, externals: []const interface.External, item: anytype) Route {
+const ImportPlan = struct {
+    route: Route,
+    next: ?usize,
+    exported: bool,
+    record: bool,
+};
+
+const ImportResult = union(enum) { selected: ImportPlan, duplicate: zx.ast.Name };
+
+pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const interface.Native, scoped: []const interface.Native, externals: []const interface.External, item: anytype, count: usize, phase: Phase) std.mem.Allocator.Error!ImportResult {
+    const indexed = enabled and @hasField(@TypeOf(item.header), "storage");
+
+    if (comptime !indexed) {
+        if (try claims.claim(allocator, item)) |duplicate| return .{ .duplicate = duplicate };
+    }
+
     if (comptime enabled) {
         const rule = @import("generated_project_load_route");
+        const Input = std.meta.Child(rule.Input);
+        const Claim = std.meta.Child(@typeInfo(@FieldType(Input, "claim")).optional.child);
         const standard = zx.memory.borrowTextColumn("specifier", @as([]const interface.Native, &interface.standard));
         const local = zx.memory.borrowTextColumn("specifier", scoped);
         const legacy = zx.memory.borrowTextColumn("specifier", externals);
         const names = zx.memory.borrowTextColumn("module", internal);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var buckets: []u64 = &.{};
+        var claim: ?Claim = null;
 
-        const input: std.meta.Child(rule.Input) = .{
-            .path = item.path,
-            .intrinsic = @import("../../intrinsic.zig").specifier,
-            .internal = &.{ .items = @ptrCast(&names), .length = names.count },
-            .interfaces = &.{
-                .native = &.{
-                    .standard = &.{ .items = @ptrCast(&standard), .length = standard.count },
-                    .scoped = &.{ .items = @ptrCast(&local), .length = local.count },
-                    .name = item.path,
-                    .check_duplicates = true,
+        if (comptime indexed) {
+            const row = item.header.storage.imports[item.index];
+
+            if (!row.exported and row.count != 0) {
+                buckets = try claims.buckets(allocator, item.header.importBindingCount());
+
+                claim = .{
+                    .source = item.header.source,
+                    .names = zx.columns.slice(@FieldType(Claim, "names"), item.header.storage.import_names),
+                    .first = row.first,
+                    .count = row.count,
+                    .buckets = @ptrCast(&buckets),
+                    .capacity = buckets.len,
+                };
+            }
+        }
+
+        const input: Input = .{
+            .target = &.{
+                .path = item.path,
+                .intrinsic = @import("../../intrinsic.zig").specifier,
+                .internal = &.{ .items = @ptrCast(&names), .length = names.count },
+                .interfaces = &.{
+                    .native = &.{
+                        .standard = &.{ .items = @ptrCast(&standard), .length = standard.count },
+                        .scoped = &.{ .items = @ptrCast(&local), .length = local.count },
+                        .name = item.path,
+                        .check_duplicates = true,
+                    },
+                    .external = &.{ .items = @ptrCast(&legacy), .length = legacy.count },
+                    .function_import = item.kind == .function,
+                    .binding_count = item.nameCount(),
                 },
-                .external = &.{ .items = @ptrCast(&legacy), .length = legacy.count },
-                .function_import = item.kind == .function,
-                .binding_count = item.nameCount(),
             },
+            .claim = if (claim) |*view| view else null,
+            .row = item.index,
+            .count = count,
+            .exported = item.exported,
+            .signature = phase == .signature,
         };
 
         const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-        if (result.internal) |row| return .{ .interface = .{ .native = &internal[@intCast(row)] } };
-        if (result.interface) |choice| return .{ .interface = Interface.selected(scoped, choice) };
+        if (result.duplicate) |offset| return .{ .duplicate = item.nameAt(@intCast(offset)) };
 
-        return .{ .target = result.route };
+        const selected: Route = if (result.internal) |row|
+            .{ .interface = .{ .native = &internal[@intCast(row)] } }
+
+        else if (result.interface) |choice|
+            .{ .interface = Interface.selected(scoped, choice) }
+        else
+            .{ .target = result.route };
+
+        return .{ .selected = .{
+            .route = selected,
+            .next = if (result.next) |row| @intCast(row) else null,
+            .exported = result.exported,
+            .record = result.record,
+        } };
     }
 
     const kind = Target.classify(item.path);
     const row = if (kind == .Package) @import("../target/registry.zig").select(internal, "module", item.path, false).first else null;
 
-    if (row) |index| return .{ .interface = .{ .native = &internal[index] } };
-    if (kind == .Interface) return .{ .interface = Interface.routeSeed(scoped, externals, item) };
+    const selected: Route = if (row) |index|
+        .{ .interface = .{ .native = &internal[index] } }
 
-    return .{ .target = kind };
+    else if (kind == .Interface)
+        .{ .interface = Interface.routeSeed(scoped, externals, item) }
+    else
+        .{ .target = kind };
+
+    return .{ .selected = .{
+        .route = selected,
+        .next = if (item.index + 1 < count) item.index + 1 else null,
+        .exported = item.exported,
+        .record = phase == .body,
+    } };
+}
+
+const Publication = if (enabled) @FieldType(Result(@import("generated_project_load_scan")), "publication") else enum { Signature, Body };
+const FrameScan = struct { first: ?usize, previous: ?usize, publication: Publication };
+
+pub fn scan(count: usize, suspended: ?u64, phase: Phase) FrameScan {
+    if (comptime enabled) {
+        const generated = @import("generated_project_load_scan");
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        const input: std.meta.Child(generated.Input) = .{
+            .count = count,
+            .suspended = suspended,
+            .signature = phase == .signature,
+        };
+
+        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
+
+        return .{
+            .first = if (result.first) |row| @intCast(row) else null,
+            .previous = if (result.previous) |row| @intCast(row) else null,
+            .publication = result.publication,
+        };
+    }
+
+    const previous: ?usize = if (suspended) |row| @intCast(row) else null;
+    const first = if (previous) |row| row + 1 else 0;
+
+    return .{
+        .first = if (first < count) first else null,
+        .previous = previous,
+        .publication = if (phase == .signature) .Signature else .Body,
+    };
 }
 
 pub fn states(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error![]State {
@@ -175,7 +274,7 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
 
     return switch (admit(state_column, row, request.depth)) {
         .Push => suspended: {
-            request.cursor.* = request.import_row + 1;
+            request.cursor.* = request.import_row;
 
             break :suspended .{ .action = .Descend, .index = row };
         },
