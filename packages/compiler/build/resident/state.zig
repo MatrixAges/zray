@@ -7,6 +7,7 @@ const project = @import("rx_analysis").project;
 const History = project.History;
 const Files = @import("files.zig");
 const Modules = @import("modules.zig");
+const revision = @import("revision.zig");
 const Self = @This();
 
 gpa: std.mem.Allocator,
@@ -21,7 +22,7 @@ history: History = .{ .frame = @splat(0) },
 /// Each result may borrow its chosen predecessor and that predecessor's ancestors.
 epochs: std.ArrayList(Epoch) = .empty,
 parent_count: usize = 0,
-edited_rx: ?usize = null,
+rx_only: bool = false,
 same_analysis_input: bool = false,
 retained_capacity: usize = 0,
 /// Scratch for a request, including snapshot and output file bookkeeping.
@@ -42,7 +43,8 @@ const Epoch = struct {
     snapshot: @typeInfo(@FieldType(History, "previous")).optional.child,
     modules: *Modules.Batch,
     rx_digests: []const project.ModuleDigest,
-    edited_rx: ?usize,
+    /// RX paths changed relative to the borrowed predecessor. Null crosses an input or graph-shape boundary.
+    edited_rx: ?[]const usize,
     capacity: usize,
 };
 
@@ -174,27 +176,10 @@ pub fn logMemory(self: *const Self) void {
 /// The history for an analysis of inputs identified by `frame`, whose RX sources have `rx_digests` within `shape`.
 pub fn startAnalysis(self: *Self, frame: [32]u8, shape: [32]u8, rx_digests: []const project.ModuleDigest, sources: []const compiler.project.Source) *History {
     self.parent_count = self.epochs.items.len;
-    self.edited_rx = null;
+    self.rx_only = false;
     self.same_analysis_input = false;
 
-    if (self.epochs.getLastOrNull()) |latest| {
-        if (compiler.bytes.equal(&latest.snapshot.shape, &shape)) {
-            const edits = @import("revision.zig").compare(latest.rx_digests, rx_digests);
-            const comparable = edits != .multiple and @import("revision.zig").sameSources(latest.snapshot.sources, sources);
-
-            if (comparable) switch (edits) {
-                .same => self.same_analysis_input = compiler.bytes.equal(&latest.snapshot.frame, &frame),
-                .single => |row| {
-                    self.edited_rx = row;
-
-                    // The current edit supersedes the last one. Reanalyze against its parent so the new result
-                    // never borrows the superseded arena. Other edited modules remain in the parent chain.
-                    if (latest.edited_rx == row) self.parent_count -= 1;
-                },
-                .multiple => unreachable,
-            };
-        }
-    }
+    self.chooseParent(&frame, &shape, rx_digests, sources);
 
     self.history.previous = if (self.parent_count != 0) self.epochs.items[self.parent_count - 1].snapshot else null;
     self.history.frame = frame;
@@ -209,17 +194,56 @@ pub fn startAnalysis(self: *Self, frame: [32]u8, shape: [32]u8, rx_digests: []co
     return &self.history;
 }
 
+fn chooseParent(self: *Self, frame: *const [32]u8, shape: *const [32]u8, rx_digests: []const project.ModuleDigest, sources: []const compiler.project.Source) void {
+    const latest = self.epochs.getLastOrNull() orelse return;
+
+    if (!compiler.bytes.equal(&latest.snapshot.shape, shape) or
+        !revision.samePaths(latest.rx_digests, rx_digests) or
+        !revision.sameSources(latest.snapshot.sources, sources)) return;
+
+    self.rx_only = true;
+
+    var before = self.epochs.items.len;
+
+    while (before > 1) {
+        before -= 1;
+        const epoch = &self.epochs.items[before];
+        const edits = epoch.edited_rx orelse break;
+
+        // Restart before every superseded edit. The remaining predecessors then have disjoint changes from
+        // the replacement, which can release the old suffix after successful publication.
+        if (revision.overlaps(edits, latest.rx_digests, rx_digests)) {
+            self.parent_count = before;
+        }
+    }
+
+    self.same_analysis_input = compiler.bytes.equal(&self.epochs.items[self.parent_count - 1].snapshot.frame, frame);
+}
+
 /// Keeps the analysis that just succeeded, whose memory is `analysis`, for the next request.
 pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allocator.Error!void {
     var owned = analysis;
 
     errdefer owned.deinit();
 
-    if (self.same_analysis_input) return owned.deinit();
+    if (self.same_analysis_input) {
+        self.history.next = null;
+
+        self.modules.restore(self.epochs.items[self.parent_count - 1].modules);
+        self.dropEpochs(self.parent_count);
+        owned.deinit();
+
+        return;
+    }
 
     // Reserve before discarding old history so allocation failure cannot leave a half-published analysis.
     const borrowed = self.history.borrowsPrevious();
     const parent_count = if (borrowed) self.parent_count else 0;
+
+    const edited_rx = if (borrowed and self.rx_only)
+        try revision.changed(owned.allocator(), self.epochs.items[parent_count - 1].rx_digests, self.history.rx_digests)
+    else
+        null;
 
     try self.epochs.ensureTotalCapacity(self.gpa, parent_count + 1);
     try self.files.reserveAnalysis();
@@ -238,7 +262,7 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
         .snapshot = snapshot,
         .modules = self.modules.publish(),
         .rx_digests = self.history.rx_digests,
-        .edited_rx = if (borrowed) self.edited_rx else null,
+        .edited_rx = edited_rx,
         .capacity = capacity,
     });
 

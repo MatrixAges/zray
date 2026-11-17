@@ -116,6 +116,17 @@ pub fn discard(self: *Self) void {
     self.pending = null;
 }
 
+/// Restores the successful batch after the inputs return to an earlier analysis revision.
+pub fn restore(self: *Self, batch: *Batch) void {
+    self.discard();
+
+    if (self.current == batch) return;
+    if (self.current) |current| self.release(current);
+
+    batch.readers += 1;
+    self.current = batch;
+}
+
 pub fn release(self: *Self, batch: *Batch) void {
     batch.readers -= 1;
 
