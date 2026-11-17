@@ -1,0 +1,58 @@
+import strings from "std:string"
+import { StoreMode } from "core/function_table/complete"
+
+import copyExternal from "../../../artifact/materializing/copy_external"
+import flags from "../../../artifact/materializing/publication/flags"
+
+import type {
+    Attributes,
+    Payload
+} from "../../../artifact/materializing/publication/model"
+import type { Record } from "./model"
+
+export type Input = Record
+
+export type Output = {
+    function: Payload,
+    attributes: Attributes
+}
+
+export default function (in: Input): Output {
+    const { source, row, ports, empty } = in
+
+    const external = copyExternal({
+        members: source.native_members[row],
+        errors: source.native_errors[row],
+        export_name: source.native_exports[row],
+        parameters: source.native_inputs[row]
+    })
+
+    return {
+        function: {
+            file: strings.copy(source.files[row]),
+            ports,
+            external,
+            symbols: empty.symbols,
+            expressions: empty.expressions,
+            contracts: empty.contracts,
+            control: empty.control,
+            store_table: empty.stores
+        },
+        attributes: {
+            ...flags({
+                source: source.pick([
+                    "ownership",
+                    "native_allocators",
+                    "native_io",
+                    "native_process",
+                    "native_tuples",
+                    "native_fallible",
+                    "native_concurrent"
+                ]),
+                row
+            }),
+            store_mode: StoreMode.transaction,
+            root: null
+        }
+    }
+}

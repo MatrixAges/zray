@@ -57,16 +57,15 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.Func
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
 
-    defer columns.publish(Columns, storage, source, @intCast(completed[0]));
+    defer storage.commitTail(@intCast(completed[0]));
 
     const target = columns.borrow(Columns, storage.reservedTail(count), true);
-    const source_columns = zx.columns.view(std.meta.Child(@FieldType(Input, "source")), source);
     const types = remap.typeMapping(Mapping, nodes.types);
     const functions = remap.idMapping(Mapping, nodes.functions);
     const natives = remap.idMapping(Mapping, nodes.native_modules);
 
     const input: Input = .{
-        .source = &source_columns,
+        .source = columns.borrow(@FieldType(Input, "source"), source, false),
         .target = target,
         .mappings = &.{ .types = &types, .functions = &functions, .natives = &natives },
         .empty = &.{

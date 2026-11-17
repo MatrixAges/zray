@@ -1,17 +1,38 @@
-import type { Complete } from "core/function_table/complete"
+import type { Control } from "core/control_table/model"
+import type { Complete, StoreMode } from "core/function_table/complete"
+import type { Table } from "core/signature_table/model"
+import type { Stores } from "core/store_table/model"
+import type { Ownership } from "core/symbol_table/model"
+import type { Owned } from "../function_model"
 
-export type Columns = Complete.Pick(
-    "files",
-    "input_types",
-    "output_types",
-    "native_modules",
-    "native_members",
-    "native_exports",
-    "native_inputs",
-    "native_errors",
-    "symbols",
-    "expressions",
-    "contracts",
-    "control",
-    "stores"
+export type Columns = Complete
+
+export type FlagColumns = Table.Pick(
+    "ownership",
+    "native_allocators",
+    "native_io",
+    "native_process",
+    "native_tuples",
+    "native_fallible",
+    "native_concurrent"
 )
+
+export type Flags = {
+    ownership: Ownership,
+    allocator_argument: bool,
+    io_argument: bool,
+    process_argument: bool,
+    expand_tuple: bool,
+    fallible: bool,
+    concurrent: bool
+}
+
+export type Attributes = Flags & {
+    store_mode: StoreMode,
+    root?: u32
+}
+
+export type Payload = Owned.Omit("stores", "recursive", "control", "store_table") & {
+    control: Control,
+    store_table: Stores
+}

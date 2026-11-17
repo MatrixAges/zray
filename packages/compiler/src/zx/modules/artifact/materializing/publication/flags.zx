@@ -1,0 +1,22 @@
+import type { FlagColumns, Flags } from "./model"
+
+export type Input = {
+    source: FlagColumns,
+    row: u64
+}
+
+export type Output = Flags
+
+export default function (in: Input): Output {
+    const { source, row } = in
+
+    return {
+        ownership: source.ownership[row],
+        allocator_argument: source.native_allocators[row],
+        io_argument: source.native_io[row],
+        process_argument: source.native_process[row],
+        expand_tuple: source.native_tuples[row],
+        fallible: source.native_fallible[row],
+        concurrent: source.native_concurrent[row]
+    }
+}

@@ -25,7 +25,7 @@ pub fn append(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, sour
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
 
-    defer columns.publish(Columns, functions, source, @intCast(completed[0]));
+    defer functions.commitTail(@intCast(completed[0]));
 
     const input: Input = .{
         .source = columns.borrow(@FieldType(Input, "source"), source, false),

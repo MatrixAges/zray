@@ -1,6 +1,9 @@
 import remap from "compiler/compiled_linked_function"
 import memory from "memory"
 
+import readAttributes from "../../../artifact/materializing/publication/attributes"
+import write from "../../../artifact/materializing/publication/write"
+
 import type { U64Buffer } from "memory"
 import type { Output as External } from "../../../artifact/materializing/copy_external"
 import type { Columns } from "../../../artifact/materializing/publication/model"
@@ -59,31 +62,28 @@ export default function (in: Input): Output {
                 external
             })
 
-            const abi: External = owned.external ?? {
-                members: [],
-                export_name: null,
-                parameters: null,
-                errors: null
-            }
-
-            state.columns = {
-                files: state.columns.files.with(row, owned.header.file),
-                input_types:
-                    state.columns.input_types.with(row, owned.header.input_type),
-                output_types:
-                    state.columns.output_types.with(row, owned.header.output_type),
-                native_modules:
-                    state.columns.native_modules.with(row, owned.header.native_module),
-                native_members: state.columns.native_members.with(row, abi.members),
-                native_exports: state.columns.native_exports.with(row, abi.export_name),
-                native_inputs: state.columns.native_inputs.with(row, abi.parameters),
-                native_errors: state.columns.native_errors.with(row, abi.errors),
-                symbols: state.columns.symbols.with(row, owned.symbols),
-                expressions: state.columns.expressions.with(row, owned.expressions),
-                contracts: state.columns.contracts.with(row, owned.contracts),
-                control: state.columns.control.with(row, owned.control),
-                stores: state.columns.stores.with(row, owned.stores)
-            }
+            state.columns = write({
+                columns: state.columns,
+                function: {
+                    file: owned.header.file,
+                    ports: {
+                        input: owned.header.input_type,
+                        output: owned.header.output_type,
+                        native_module: owned.header.native_module
+                    },
+                    external: owned.external,
+                    symbols: owned.symbols,
+                    expressions: owned.expressions,
+                    contracts: owned.contracts,
+                    control: owned.control,
+                    store_table: owned.stores
+                },
+                attributes: readAttributes({
+                    source,
+                    row
+                }),
+                row
+            })
 
             state.row += 1
             memory.writeU64(progress, 0, state.row)

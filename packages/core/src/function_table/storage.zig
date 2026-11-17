@@ -109,13 +109,12 @@ pub fn commitTail(self: *Self, len: usize) void {
     }
 }
 
-const empty_symbols: ir.SymbolTable = .{};
-const empty_expressions: ir.ExpressionTable = .{};
+pub const empty_symbols: ir.SymbolTable = .{};
+pub const empty_expressions: ir.ExpressionTable = .{};
+
 const empty_body: ir.ControlBody = .{};
-
 pub const empty_stores: ir.StoreTable = .{};
-
-const empty_contracts: ir.ContractTable = .{};
+pub const empty_contracts: ir.ContractTable = .{};
 
 pub fn appendSignatureAssumeCapacity(self: *Self, signature: ir.Signature) void {
     std.debug.assert(signature.external != null);

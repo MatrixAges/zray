@@ -1,6 +1,7 @@
 import link from "compiler/source_function_row"
 import memory from "memory"
 
+import readAttributes from "./attributes"
 import read from "./read"
 import write from "./write"
 
@@ -34,12 +35,26 @@ export default function (in: Input): Output {
             state.needed = linked.needed
             state.valid = linked.function != null
 
-            if (linked.function != null) {
+            const value = linked.function
+
+            if (value != null) {
                 state.columns = write({
                     columns: state.columns,
-                    function: linked.function,
-                    row,
-                    empty
+                    function: {
+                        ...value.omit([
+                            "stores",
+                            "recursive",
+                            "control",
+                            "store_table"
+                        ]),
+                        control: value.control ?? empty.control,
+                        store_table: value.store_table ?? empty.stores
+                    },
+                    attributes: readAttributes({
+                        source,
+                        row
+                    }),
+                    row
                 })
 
                 state.row += 1

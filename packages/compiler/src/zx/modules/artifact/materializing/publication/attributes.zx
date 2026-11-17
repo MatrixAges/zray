@@ -1,0 +1,31 @@
+import flags from "./flags"
+
+import type { Attributes, Columns } from "./model"
+
+export type Input = {
+    source: Columns,
+    row: u64
+}
+
+export type Output = Attributes
+
+export default function (in: Input): Output {
+    const { source, row } = in
+
+    return {
+        ...flags({
+            source: source.pick([
+                "ownership",
+                "native_allocators",
+                "native_io",
+                "native_process",
+                "native_tuples",
+                "native_fallible",
+                "native_concurrent"
+            ]),
+            row
+        }),
+        store_mode: source.store_modes[row],
+        root: source.roots[row]
+    }
+}

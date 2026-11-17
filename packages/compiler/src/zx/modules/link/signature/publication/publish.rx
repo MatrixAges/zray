@@ -1,0 +1,36 @@
+<Module>
+    <Type from="model" as="Signature" />
+    <Type from="../../../artifact/materializing/publication/model" as="Function" />
+
+    <Args in={Signature.Input} out={Function.Columns} />
+
+    <Call
+        fn="prepare"
+        in={$in.pick([
+            "source",
+            "row",
+            "ports",
+            "empty"
+        ])}
+    />
+
+    <Call
+        fn="../../../artifact/materializing/publication/write"
+        in={{
+            columns: $in.columns,
+            ...$ctx.prepare,
+            row: 0
+        }}
+    />
+
+    <Call
+        fn="../../artifact/body/slot"
+        in={{
+            first: $in.id,
+            slot: $in.row,
+            target: $in.mapping
+        }}
+    />
+
+    <Return value={$ctx.write} />
+</Module>

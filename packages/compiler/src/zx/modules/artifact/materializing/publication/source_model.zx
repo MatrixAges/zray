@@ -1,12 +1,11 @@
 import type { Control } from "core/control_table/model"
-import type { Complete } from "core/function_table/complete"
 import type { Stores } from "core/store_table/model"
 import type { U64Buffer } from "memory"
 import type { Mapping } from "../../remapping/model"
 import type { Input as FunctionInput, Owned } from "../function_model"
 import type { Columns } from "./model"
 
-export type Source = Columns & Complete.Pick("roots")
+export type Source = Columns
 
 export type Mappings = {
     types: Mapping,

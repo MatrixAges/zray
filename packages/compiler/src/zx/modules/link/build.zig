@@ -48,7 +48,7 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
     const imports = mappings.functions[0..value.functions.count()];
 
     if (comptime generated) {
-        try @import("signature/host.zig").bind(self, index, imports, mappings.modules, &nodes);
+        try @import("signature/host.zig").bind(self, index, imports, mappings.modules);
         try @import("dependencies/host.zig").verify(self, index, mappings.functions);
     } else {
         try self.bindSignaturesSeed(index, imports, &nodes);
@@ -242,12 +242,12 @@ fn importExternalSeed(self: *Self, signature: model.Signature, input: ir.TypeId,
     resolved.input_type = input;
     resolved.output_type = output;
 
-    try self.appendExternal(resolved, implementation);
+    try self.appendExternalSeed(resolved, implementation);
 
     return id;
 }
 
-pub fn appendExternal(self: *Self, signature: model.Signature, implementation: ir.External) Error!void {
+fn appendExternalSeed(self: *Self, signature: model.Signature, implementation: ir.External) Error!void {
     try self.functions.append(self.allocator, .{
         .file_name = try self.allocator.dupe(u8, signature.file_name),
         .input_type = signature.input_type,

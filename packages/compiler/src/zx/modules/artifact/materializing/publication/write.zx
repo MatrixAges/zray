@@ -1,19 +1,17 @@
 import type { Output as External } from "../copy_external"
-import type { Owned } from "../function_model"
-import type { Columns } from "./model"
-import type { Empty } from "./source_model"
+import type { Attributes, Columns, Payload } from "./model"
 
 export type Input = {
     columns: Columns,
-    function: Owned,
-    row: u64,
-    empty: Empty
+    function: Payload,
+    attributes: Attributes,
+    row: u64
 }
 
 export type Output = Columns
 
 export default function (in: Input): Output {
-    const { columns, function: value, row, empty } = in
+    const { columns, function: value, attributes, row } = in
 
     const external: External = value.external ?? {
         members: [],
@@ -26,15 +24,27 @@ export default function (in: Input): Output {
         files: columns.files.with(row, value.file),
         input_types: columns.input_types.with(row, value.ports.input),
         output_types: columns.output_types.with(row, value.ports.output),
+        ownership: columns.ownership.with(row, attributes.ownership),
+        store_modes: columns.store_modes.with(row, attributes.store_mode),
         native_modules: columns.native_modules.with(row, value.ports.native_module),
         native_members: columns.native_members.with(row, external.members),
         native_exports: columns.native_exports.with(row, external.export_name),
         native_inputs: columns.native_inputs.with(row, external.parameters),
         native_errors: columns.native_errors.with(row, external.errors),
+        native_allocators: columns.native_allocators.with(
+            row,
+            attributes.allocator_argument
+        ),
+        native_io: columns.native_io.with(row, attributes.io_argument),
+        native_process: columns.native_process.with(row, attributes.process_argument),
+        native_tuples: columns.native_tuples.with(row, attributes.expand_tuple),
+        native_fallible: columns.native_fallible.with(row, attributes.fallible),
+        native_concurrent: columns.native_concurrent.with(row, attributes.concurrent),
         symbols: columns.symbols.with(row, value.symbols),
         expressions: columns.expressions.with(row, value.expressions),
         contracts: columns.contracts.with(row, value.contracts),
-        control: columns.control.with(row, value.control ?? empty.control),
-        stores: columns.stores.with(row, value.store_table ?? empty.stores)
+        control: columns.control.with(row, value.control),
+        roots: columns.roots.with(row, attributes.root),
+        stores: columns.stores.with(row, value.store_table)
     }
 }

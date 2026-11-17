@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const memory = zx.memory;
 const Builder = @import("../build.zig");
-const Nodes = @import("../../artifact/nodes.zig");
 const Edges = @import("../dependencies/traversal/view.zig").Columns;
 const generated = @import("generated_artifact_signature");
 const Input = std.meta.Child(generated.Input);
@@ -11,7 +10,7 @@ const Providers = std.meta.Child(@FieldType(Input, "providers"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
 
-pub fn bind(self: *Builder, index: usize, mapping: []?ir.FunctionId, native_ids: []const ?ir.NativeModuleId, nodes: *Nodes) Builder.Error!void {
+pub fn bind(self: *Builder, index: usize, mapping: []?ir.FunctionId, native_ids: []const ?ir.NativeModuleId) Builder.Error!void {
     if (mapping.len == 0) return;
 
     const module = &self.modules[index];
@@ -58,18 +57,10 @@ pub fn bind(self: *Builder, index: usize, mapping: []?ir.FunctionId, native_ids:
         switch (result.status) {
             .Reuse => return,
             .Insert => {
-                const row: usize = @intCast(result.next);
-                var source = module.functions.at(row);
-                source.input_type = @fromBackingInt(result.input_type);
-                source.output_type = @fromBackingInt(result.output_type);
-                const native: ir.NativeModuleId = @fromBackingInt(result.native_id orelse return error.InvalidModule);
-                const external = try nodes.externalMapped(source.external orelse return error.InvalidModule, native);
+                try @import("publication/host.zig").append(self.allocator, &self.functions, module.functions, result, mapping);
 
-                try self.appendExternal(source, external);
-
-                mapping[row] = @fromBackingInt(@as(u32, @intCast(result.row)));
                 linked = zx.columns.columns(Signatures, ir.SignatureTable.fromFunctions(self.functions.view()));
-                request.start = row + 1;
+                request.start = result.next + 1;
             },
             .Invalid => return error.InvalidModule,
             .Conflict => return error.ConflictingInterface,
