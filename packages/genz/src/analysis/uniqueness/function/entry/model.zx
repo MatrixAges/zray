@@ -6,8 +6,6 @@ import type { Input as Plan, Output as Facts, Snapshot } from "../plan/model"
 export type Input = Plan.Omit("state") & {
     inputs: AtomicRows,
     outputs: AtomicRows,
-    input_facts: AtomicRows,
-    output_facts: AtomicRows,
     native_modules: u32?[]
 }
 

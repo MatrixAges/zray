@@ -18,8 +18,10 @@ written: []const []const bool,
 return_only: []const bool,
 effects: if (generated_analysis) Generated.Output else void,
 storage: if (generated_analysis) @import("summaries/storage.zig").Model else void,
-pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis) std.mem.Allocator.Error!Self {
-    if (generated_analysis) return @import("summaries/storage.zig").create(allocator, program, basis);
+pub const Scope = enum { program, entry };
+
+pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis, scope: Scope) std.mem.Allocator.Error!Self {
+    if (generated_analysis) return @import("summaries/storage.zig").create(allocator, program, basis, scope);
 
     const slots = basis.slots;
     const count = program.functions.count();
@@ -33,8 +35,10 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
         input[index] = try allocator.alloc(Level, slots.count(function.input_type));
         output[index] = try allocator.alloc(Level, slots.count(function.output_type));
 
-        @memset(input[index], if (function.external == null) .all else .none);
-        @memset(output[index], if (function.external == null) .all else .none);
+        const initial: Level = if (scope == .program and function.external == null) .all else .none;
+
+        @memset(input[index], initial);
+        @memset(output[index], initial);
 
         inputs[index] = try allocator.alloc(Level, input[index].len);
         outputs[index] = try allocator.alloc(Level, output[index].len);
@@ -43,12 +47,7 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
         @memset(outputs[index], .none);
     }
 
-    const effects = if (generated_analysis) Generated.executeIn(allocator, &.{ .held = basis.flow.held, .written = basis.flow.written, .return_only = basis.return_only }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    } else {};
-
-    return .{ .input = input, .output = output, .inputs = inputs, .outputs = outputs, .held = basis.flow.held, .written = basis.flow.written, .return_only = basis.return_only, .effects = effects, .storage = {} };
+    return .{ .input = input, .output = output, .inputs = inputs, .outputs = outputs, .held = basis.flow.held, .written = basis.flow.written, .return_only = basis.return_only, .effects = {}, .storage = {} };
 }
 
 pub fn mayHold(self: Self, function: ir.FunctionId, slot: u32) bool {

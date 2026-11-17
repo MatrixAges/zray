@@ -44,13 +44,7 @@
         }}
     />
 
-    <Call
-        module="module/exports"
-        in={{
-            module: $in,
-            analysis: $ctx.body
-        }}
-    />
+    <Call module="module/exports" in={$ctx.body} />
 
     <Call
         module="module/contracts"

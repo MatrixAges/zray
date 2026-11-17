@@ -94,7 +94,7 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer summary_memory.deinit();
 
-    var summaries = try Summaries.create(summary_memory.allocator(), program, basis);
+    var summaries = try Summaries.create(summary_memory.allocator(), program, basis, .program);
     const count = program.functions.count();
     const units = try temporary.alloc(?*Unit, count + 1);
     const topology = try Topology.collect(temporary, program);
@@ -210,13 +210,12 @@ pub fn analyzeEntry(allocator: std.mem.Allocator, workspace: std.mem.Allocator, 
 
     defer scratch.deinit();
 
-    var summaries = try Summaries.create(scratch.allocator(), program, basis);
+    var summaries = try Summaries.create(scratch.allocator(), program, basis, .entry);
 
     return analyzeEntryWith(allocator, workspace, program, basis, &summaries);
 }
 
-/// `analyzeEntry` over summaries created once for the program's functions, so entries into the same functions share
-/// them; they are cleared first.
+/// Entries into the same functions reuse `.entry` summaries. Callee facts stay unknown and only the demands reset.
 pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, basis: *const Basis, summaries: *Summaries) std.mem.Allocator.Error!Plan {
     if (program.type_only) return .{ .flags = &.{} };
 
@@ -228,10 +227,7 @@ pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocat
     const slots = basis.slots;
     const generated = @import("genz_options").generated_analysis;
 
-    if (!generated) {
-        summaries.clear();
-        summaries.clearWants();
-    }
+    if (!generated) summaries.clearWants();
 
     const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), &.{}, false);
 

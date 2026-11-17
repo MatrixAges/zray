@@ -22,8 +22,6 @@ pub fn analyze(function: *Function, allocator: std.mem.Allocator) std.mem.Alloca
         .operations = @ptrCast(function.operations),
         .repeated = @ptrCast(function.order.repeated),
         .results = @ptrCast(function.order.results),
-        .input_facts = @ptrCast(&summaries.input),
-        .output_facts = @ptrCast(&summaries.output),
         .inputs = @ptrCast(&summaries.inputs),
         .outputs = @ptrCast(&summaries.outputs),
         .native_modules = function.functions.native_modules,

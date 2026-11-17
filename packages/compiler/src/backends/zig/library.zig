@@ -114,6 +114,11 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
     // are then generated together on all cores.
     const public_modules = try owned.alloc(PublicModule, library.exports.len);
     const public_batches = try workspace.alloc(modules.Batch, library.exports.len);
+    var entry_memory = std.heap.ArenaAllocator.init(allocator);
+
+    defer entry_memory.deinit();
+
+    var entry_summaries: ?Analysis.Uniqueness.Summaries = null;
     var member_first: usize = 0;
 
     for (library.exports, publication.ends, public_modules, public_batches, 0..) |*exported, end, *public_module, *public_batch, index| {
@@ -128,11 +133,16 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
         var digest: [32]u8 = undefined;
 
         @import("zx").Sha256.hash(exported.name, &digest, .{});
+
         public_batch.* = batch;
         public_batch.program = view;
         public_batch.public_members = members;
 
-        try public_batch.analysis.value.reentry(owned, allocator, view);
+        if (!view.type_only and entry_summaries == null) {
+            entry_summaries = try .create(entry_memory.allocator(), program, batch.analysis.value.basis, .entry);
+        }
+
+        try public_batch.analysis.value.reentry(owned, allocator, view, if (entry_summaries) |*shared| shared else null);
 
         const imports = try references.imports(owned, allocator, view.expressions, view.contracts, identities.functions, member_ids);
 
@@ -153,6 +163,8 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
         member_first = member_end;
     }
+
+    _ = entry_memory.reset(.free_all);
 
     const entry_roots = try workspace.alloc(*const @import("zx").ir.Program, public_batches.len);
 

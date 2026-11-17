@@ -6,14 +6,6 @@
     <Call
         fn="../../summaries/clear"
         in={{
-            left: $in.input_facts,
-            right: $in.output_facts
-        }}
-    />
-
-    <Call
-        fn="../../summaries/clear"
-        in={{
             left: $in.inputs,
             right: $in.outputs
         }}

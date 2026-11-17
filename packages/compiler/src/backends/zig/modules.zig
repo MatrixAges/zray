@@ -52,12 +52,24 @@ pub fn createCached(allocator: std.mem.Allocator, analysis: *const Analysis, cac
 
     const owned = arena.allocator();
     const program = try @import("genz").zx.prepare(owned, analysis.value.ir);
-    const identities = try names.create(owned, allocator, program, analysis.nominal_types);
-    const needed = try references.reachable(owned, allocator, program);
-    var batch = try Batch.create(allocator, program, identities, cache);
+
+    var batch = batch: {
+        var facts = try generating.Analysis.create(allocator, program);
+
+        errdefer facts.deinit();
+
+        const identities = try names.createWith(owned, allocator, program, analysis.nominal_types, .{
+            .io = facts.value.io,
+            .process = facts.value.process,
+        });
+
+        break :batch Batch.fromAnalysis(allocator, program, identities, cache, facts);
+    };
 
     defer batch.deinit();
 
+    const identities = batch.names;
+    const needed = try references.reachable(owned, allocator, program);
     const entry = File{ .name = "application", .source = try batch.emit(owned, .entry), .imports = try references.imports(owned, allocator, program.expressions, program.contracts, identities.functions, &.{}) };
     const native_modules = try nativeModules(owned, program);
     const modules = try functionFilesAnalyzed(owned, &batch, needed, &.{entry.source}, native_modules.import_names);

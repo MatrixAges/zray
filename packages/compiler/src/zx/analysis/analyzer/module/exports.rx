@@ -1,31 +1,24 @@
 <Module>
     <Type from="model" as="Model" />
-    <Type from="../context" as="Context" />
 
-    <Args
-        in={{
-            analysis: Model.Analysis,
-            module: Context.ModuleInput
-        }}
-        out={Model.Analysis}
-    />
+    <Args in={Model.Analysis} out={Model.Analysis} />
 
-    <If on={$in.analysis.state.diagnostic.message == ""}>
+    <If on={$in.state.diagnostic.message == ""}>
         <Call
             fn="../exports"
             in={{
                 state: {
-                    types: $in.analysis.state.types,
-                    diagnostic: $in.analysis.state.diagnostic
+                    types: $in.state.types,
+                    diagnostic: $in.state.diagnostic
                 }
             }}
         />
 
         <Return
             value={{
-                ...$in.analysis,
+                ...$in,
                 state: {
-                    ...$in.analysis.state,
+                    ...$in.state,
                     types: $ctx.exports.state.types,
                     diagnostic: $ctx.exports.state.diagnostic
                 },
@@ -35,7 +28,7 @@
         />
 
         <Else>
-            <Return value={$in.analysis} />
+            <Return value={$in} />
         </Else>
     </If>
 </Module>

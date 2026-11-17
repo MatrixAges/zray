@@ -22,20 +22,16 @@ constructed_outputs: []const bool = &.{},
 grows: []const bool = &.{},
 uniqueness: Uniqueness.Result,
 basis: *const Uniqueness.Basis,
-/// Shared by every `reentry` into the same functions.
-entry_summaries: ?*Uniqueness.Summaries = null,
 /// Replaces the entry plan with one for `program`, an entry body over the same types and functions the facts were
-/// computed for.
-pub fn reentry(self: *Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!void {
+/// computed for. The caller can share its scratch summaries across entries into those functions.
+pub fn reentry(self: *Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, summaries: ?*Uniqueness.Summaries) std.mem.Allocator.Error!void {
     self.entry_flags = try Entry.analyze(workspace, program, .{ .local = self.value.local, .pure = self.value.pure, .io = self.io, .process = self.process, .tasks = self.tasks });
 
-    if (self.entry_summaries) |summaries| if (summaries.input.len == program.functions.count()) {
-        self.uniqueness.entry = try Uniqueness.analyzeEntryWith(allocator, workspace, program, self.basis, summaries);
+    self.uniqueness.entry = if (summaries) |shared|
+        try Uniqueness.analyzeEntryWith(allocator, workspace, program, self.basis, shared)
 
-        return;
-    };
-
-    self.uniqueness.entry = try Uniqueness.analyzeEntry(allocator, workspace, program, self.basis);
+    else
+        try Uniqueness.analyzeEntry(allocator, workspace, program, self.basis);
 }
 
 pub fn hasValueEntry(self: Self) bool {
@@ -100,10 +96,7 @@ fn createWithConcurrency(backing: std.mem.Allocator, program: ir.Program, export
 
     const owned = arena.allocator();
     const basis = try owned.create(Uniqueness.Basis);
-    var value = try analyzeFrom(owned, backing, program, exported, .{ .build = basis }, memo, concurrent);
-    const summaries = try owned.create(Uniqueness.Summaries);
-    summaries.* = try .create(owned, program, basis);
-    value.entry_summaries = summaries;
+    const value = try analyzeFrom(owned, backing, program, exported, .{ .build = basis }, memo, concurrent);
 
     return .{ .arena = arena, .value = value };
 }
