@@ -1,19 +1,27 @@
 <Module>
     <Type from="model" as="Rebind" />
 
-    <Args in={Rebind.Input} out={Rebind.Status} />
+    <Args in={Rebind.Input} out={Rebind.Result} />
 
     <Call fn="../functions/alias" in={$in.aliases} />
 
     <If on={!$ctx.alias}>
-        <Return value={Rebind.Status.Invalid} />
+        <Return
+            value={{
+                status: Rebind.Status.Invalid
+            }}
+        />
     </If>
 
     <If on={$in.modules.previous.specifiers.length != 0}>
         <Call fn="../modules" in={$in.modules} />
 
         <If on={!$ctx.modules}>
-            <Return value={Rebind.Status.Invalid} />
+            <Return
+                value={{
+                    status: Rebind.Status.Invalid
+                }}
+            />
         </If>
     </If>
 
@@ -22,20 +30,32 @@
     </Task>
 
     <If on={!$ctx.task.imports}>
-        <Return value={Rebind.Status.Invalid} />
+        <Return
+            value={{
+                status: Rebind.Status.Invalid
+            }}
+        />
     </If>
 
     <Call fn="../functions/bindings" in={$in.members} />
 
     <If on={!$ctx.bindings}>
-        <Return value={Rebind.Status.Invalid} />
+        <Return
+            value={{
+                status: Rebind.Status.Invalid
+            }}
+        />
     </If>
 
     <If on={$in.signatures.functions.length != 0}>
         <Call fn="../functions/signatures" in={$in.signatures} />
 
         <If on={!$ctx.signatures}>
-            <Return value={Rebind.Status.Invalid} />
+            <Return
+                value={{
+                    status: Rebind.Status.Invalid
+                }}
+            />
         </If>
     </If>
 

@@ -5,8 +5,12 @@ const Artifact = @import("../../../artifact/model.zig");
 const FunctionImport = @import("../../../function_import.zig");
 const Current = @import("../../restore.zig").Current;
 const names = @import("../../../../ir/canonical/validation/names/view.zig");
-const generated = @import("generated_semantic_restore_rebind");
-const Input = std.meta.Child(generated.Input);
+const generated = @import("generated_semantic_restore_transaction");
+const Transaction = std.meta.Child(generated.Input);
+const Input = std.meta.Child(@FieldType(Transaction, "rebind"));
+const Output = @typeInfo(@TypeOf(generated.executeValue(undefined, undefined))).error_union.payload;
+pub const TypeRequest = std.meta.Child(@FieldType(Transaction, "types"));
+pub const TypePlan = @typeInfo(@FieldType(Output, "plan")).optional.child;
 const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
 const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
 const BindingColumns = std.meta.Child(@FieldType(Bindings, "previous"));
@@ -15,16 +19,18 @@ const Modules = std.meta.Child(@FieldType(Input, "modules"));
 const Entry = std.meta.Child(@FieldType(Input, "entry"));
 
 pub const Maps = struct {
-    types: []const ir.TypeId,
+    types: []u32,
     functions: []?ir.FunctionId,
     natives: []?ir.NativeModuleId,
 };
 
-pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, maps: Maps) Artifact.Error!?ir.FunctionId {
+pub const Prepared = struct { types: TypePlan, entry: ?ir.FunctionId };
+
+pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, maps: Maps, types_request: *const TypeRequest) Artifact.Error!Prepared {
     const function_count = module.functions.count();
     const linked_count = current.functions.count();
     const linked = ir.SignatureTable.fromFunctions(current.functions.view());
-    const types: []const u32 = @ptrCast(maps.types);
+    const types: []const u32 = maps.types;
     const functions = maps.functions[0..function_count];
     const SignatureTable = std.meta.Child(@FieldType(Signatures, "previous"));
     const NativeTable = std.meta.Child(@FieldType(Modules, "previous"));
@@ -93,15 +99,20 @@ pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, curre
         .entry = &entry,
     };
 
-    const status = zx.columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const transaction: Transaction = .{ .types = types_request, .rebind = &input };
+
+    const prepared = zx.columns.invoke(generated.executeValue, temporary, &transaction) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    return switch (status) {
+    return switch (prepared.status) {
         .Invalid => error.InvalidModule,
         .Full => error.OutOfMemory,
-        .Ready => if (entry.has_body) maps.functions[function_count] else null,
+        .Ready => .{
+            .types = prepared.plan.?,
+            .entry = if (prepared.entry) |id| @fromBackingInt(id) else null,
+        },
     };
 }
 

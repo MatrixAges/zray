@@ -1,7 +1,11 @@
-export enum Step {
-    Admit,
-    Rebind,
-    Materialize,
-    StageEntry,
-    Verify
+import type { Input as Rebind, Result } from "./rebind/model"
+import type { Input as TypeRequest, Plan } from "./types/model"
+
+export type Input = {
+    types: TypeRequest,
+    rebind: Rebind
+}
+
+export type Output = Result & {
+    plan?: Plan
 }

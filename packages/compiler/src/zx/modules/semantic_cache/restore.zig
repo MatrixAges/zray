@@ -52,75 +52,61 @@ fn restoreChecked(module: *const model.Module, current: Current, decoded: bool) 
     const temporary = scratch.allocator();
     const allocator = current.allocator;
     const payload = if (generated) current.payloads.allocator() else allocator;
-    const result = @import("../link/result/host.zig");
-    var backup: Backup = undefined;
-    var started = false;
-    var staged_entry = false;
-    var binding: Bound = undefined;
-    var publication: Publication = undefined;
 
-    errdefer if (started) {
+    const valid = if (generated)
+        try @import("restoring/preflight/host.zig").check(temporary, module, &current, decoded)
+    else
+        Seed.preflight(module, &current);
+
+    if (!valid) return error.InvalidModule;
+
+    const backup: Backup = .{
+        .types = current.types.view(),
+        .origins = current.origins.items.view().count(),
+        .payload = if (generated) current.payloads.checkpoint() else {},
+    };
+
+    var staged_entry = false;
+
+    errdefer {
         if (staged_entry) _ = current.functions.pop(payload);
 
         current.types.retainColumns(backup.types);
         current.origins.items.retainPrefix(backup.origins);
 
         if (generated) current.payloads.rewind(backup.payload);
+    }
+
+    const binding = try rebind(module, &current, temporary, payload, decoded);
+    const structure: Nodes.Structure = if (decoded) .validated else .unchecked;
+
+    const tables: Tables = .{
+        .types = current.types.view(),
+        .functions = current.functions.view(),
+        .native_modules = current.native_modules,
     };
 
-    inline for (comptime @import("restoring/steps.zig").run()) |step| {
-        switch (step) {
-            .Admit => {
-                const valid = if (generated)
-                    try @import("restoring/preflight/host.zig").check(temporary, module, &current, decoded)
-                else
-                    Seed.preflight(module, &current);
+    var publication = try materialize(module, &current, binding, payload, tables, structure);
+    const program = &publication.restored.program;
 
-                if (!valid) return error.InvalidModule;
+    if (publication.restored.recursive != null) {
+        const entry = @import("../function_body.zig").value(program.*);
 
-                backup = .{
-                    .types = current.types.view(),
-                    .origins = current.origins.items.view().count(),
-                    .payload = if (generated) current.payloads.checkpoint() else {},
-                };
+        if (comptime generated) {
+            try current.functions.reserve(allocator, 1);
 
-                started = true;
-            },
-            .Rebind => binding = try rebind(module, &current, temporary, payload, decoded),
-            .Materialize => {
-                const structure: Nodes.Structure = if (decoded) .validated else .unchecked;
+            current.functions.appendOwnedAssumeCapacity(entry, publication.descriptors.?);
+        } else try current.functions.append(allocator, entry);
 
-                const tables: result.Tables = .{
-                    .types = current.types.view(),
-                    .functions = current.functions.view(),
-                    .native_modules = current.native_modules,
-                };
-
-                publication = try materialize(module, &current, binding, payload, tables, structure);
-            },
-            .StageEntry => if (publication.restored.recursive != null) {
-                const program = &publication.restored.program;
-                const entry = @import("../function_body.zig").value(program.*);
-
-                if (comptime generated) {
-                    try current.functions.reserve(allocator, 1);
-
-                    current.functions.appendOwnedAssumeCapacity(entry, publication.descriptors.?);
-                } else try current.functions.append(allocator, entry);
-
-                staged_entry = true;
-                program.functions = current.functions.view();
-            },
-            .Verify => {
-                const program = &publication.restored.program;
-
-                if (comptime generated) {
-                    const verified = try @import("../../ir/canonical/validation/host.zig").verify(temporary, program, current.verified.*);
-                    current.verified.* = verified orelse return error.InvalidIr;
-                } else if (try Validate.validateProjectPrefix(temporary, program.*, current.verified.*) != null) return error.InvalidIr;
-            },
-        }
+        staged_entry = true;
+        program.functions = current.functions.view();
     }
+
+    if (comptime generated) {
+        const verified = try @import("../../ir/canonical/validation/host.zig").verify(temporary, program, current.verified.*);
+
+        current.verified.* = verified orelse return error.InvalidIr;
+    } else if (try Validate.validateProjectPrefix(temporary, program.*, current.verified.*) != null) return error.InvalidIr;
 
     return publication.restored;
 }
@@ -156,17 +142,15 @@ fn rebind(module: *const model.Module, current: *const Current, temporary: std.m
 
         defer workspace.deinit();
 
-        const plan = try types.prepare(workspace.allocator(), module, current, ids, decoded);
-
-        const entry = try @import("restoring/rebind/host.zig").check(temporary, module, current, .{
-            .types = @ptrCast(ids),
+        const plan = try types.prepare(workspace.allocator(), module, current, .{
+            .types = ids,
             .functions = function_mapping,
             .natives = native_mapping,
-        });
+        }, decoded);
 
-        try types.commit(current, payload, plan);
+        try types.commit(current, payload, plan.types);
 
-        break :prepared .{ .mapping = @ptrCast(ids), .entry = entry };
+        break :prepared .{ .mapping = @ptrCast(ids), .entry = plan.entry };
     } else seed: {
         const ids = try Seed.mergeTypes(temporary, module, current);
         var nodes = Nodes{ .allocator = allocator, .types = .{ .mapped = ids }, .functions = .{ .indexed = function_mapping }, .native_modules = .{ .indexed = native_mapping } };

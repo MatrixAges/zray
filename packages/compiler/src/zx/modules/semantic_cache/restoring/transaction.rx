@@ -1,15 +1,33 @@
 <Module>
     <Type from="transaction_model" as="Restore" />
+    <Type from="rebind/model" as="Rebind" />
 
-    <Args in={void} out={Restore.Step[]} />
+    <Args in={Restore.Input} out={Restore.Output} />
+
+    <Call module="types/plan" in={$in.types} />
+
+    <If on={$ctx.plan == null}>
+        <Return
+            value={{
+                status: Rebind.Status.Invalid
+            }}
+        />
+    </If>
+
+    <Call module="rebind/check" in={$in.rebind} />
+
+    <If on={$ctx.check.status != Rebind.Status.Ready}>
+        <Return
+            value={{
+                status: $ctx.check.status
+            }}
+        />
+    </If>
 
     <Return
-        value={[
-            Restore.Step.Admit,
-            Restore.Step.Rebind,
-            Restore.Step.Materialize,
-            Restore.Step.StageEntry,
-            Restore.Step.Verify
-        ]}
+        value={{
+            ...$ctx.check,
+            plan: $ctx.plan
+        }}
     />
 </Module>

@@ -8,6 +8,11 @@ export enum Status {
     Ready
 }
 
+export type Result = {
+    status: Status,
+    entry?: u32
+}
+
 export type Entry = {
     has_body: bool,
     local_count: u64,

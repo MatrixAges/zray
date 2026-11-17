@@ -4,24 +4,31 @@ import memory from "memory"
 
 import { Status } from "./model"
 
-import type { Entry } from "./model"
+import type { Entry, Result } from "./model"
 
 export type Input = Entry
 
-export type Output = Status
+export type Output = Result
 
 export default function (in: Input): Output {
     if (!in.has_body) {
-        return Status.Ready
+        return {
+            status: Status.Ready
+        }
     }
 
     if (in.linked_count >= integers.widen(max_u32)) {
-        return Status.Full
+        return {
+            status: Status.Full
+        }
     }
 
     const id = integers.narrow(in.linked_count)
 
     memory.writeOptionalU32(in.target, in.local_count, id)
 
-    return Status.Ready
+    return {
+        status: Status.Ready,
+        entry: id
+    }
 }
