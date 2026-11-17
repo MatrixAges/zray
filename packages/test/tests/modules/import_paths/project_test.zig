@@ -24,8 +24,8 @@ test "normalized relative and root imports share one module function and cache e
 
     for ([_][]const u8{ "@/app/helper", "./helper", "./nested/../helper" }, result.modules[1].imports) |specifier, dependency| {
         try std.testing.expectEqualStrings(specifier, dependency.specifier);
-        try std.testing.expect(dependency.target == .source);
-        try std.testing.expectEqualStrings("/project/app/helper.zx", dependency.target.source);
+        try std.testing.expect(dependency.target.kind == .source);
+        try std.testing.expectEqualStrings("/project/app/helper.zx", dependency.target.path);
     }
 }
 
@@ -85,7 +85,7 @@ test "extensionless root alias uses the importing package root" {
         try std.testing.expect(result.value == .ir);
         try std.testing.expectEqual(@as(usize, 2), result.modules.len);
         try std.testing.expectEqualStrings(helper_path, result.modules[0].path);
-        try std.testing.expectEqualStrings(helper_path, result.modules[1].imports[0].target.source);
+        try std.testing.expectEqualStrings(helper_path, result.modules[1].imports[0].target.path);
     }
 }
 

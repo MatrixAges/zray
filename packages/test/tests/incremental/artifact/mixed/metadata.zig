@@ -64,22 +64,22 @@ pub fn dependencies(module: f.artifact.Module) !void {
         if (std.mem.eql(u8, item.specifier, "zig:host")) {
             native_count += 1;
 
-            try std.testing.expectEqual(.native, std.meta.activeTag(item.target));
+            try std.testing.expectEqual(.native, item.target.kind);
             try std.testing.expectEqualStrings("fixture@1", item.identity.?);
             try strings(item.names, if (entry) &.{"native"} else &.{"Node"});
         } else if (std.mem.eql(u8, item.specifier, "./noise")) {
             noise_count += 1;
 
-            try std.testing.expectEqual(.source, std.meta.activeTag(item.target));
-            try std.testing.expectEqualStrings("/project/noise.zx", item.target.source);
+            try std.testing.expectEqual(.source, item.target.kind);
+            try std.testing.expectEqualStrings("/project/noise.zx", item.target.path);
             try std.testing.expectEqual(null, item.identity);
             try strings(item.names, &.{"noise"});
         } else {
             types_count += 1;
 
             try std.testing.expectEqualStrings("./types", item.specifier);
-            try std.testing.expectEqual(.source, std.meta.activeTag(item.target));
-            try std.testing.expectEqualStrings("/project/types.zx", item.target.source);
+            try std.testing.expectEqual(.source, item.target.kind);
+            try std.testing.expectEqualStrings("/project/types.zx", item.target.path);
             try std.testing.expectEqual(null, item.identity);
             try strings(item.names, &.{ "Request", "Response" });
         }

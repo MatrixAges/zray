@@ -1,3 +1,6 @@
+import type { ReadColumn, TextColumn } from "memory"
+import type { Header } from "../../../module_record/model"
+
 export type Dependency = {
     specifier: string,
     identity: string,
@@ -17,9 +20,21 @@ export type Pair = {
     current: Dependency
 }
 
-export type Batch = {
-    previous: Dependency[],
-    current: Dependency[]
+export type Columns = {
+    header: Header,
+    names: ReadColumn,
+    source_names: ReadColumn,
+    kind: ReadColumn,
+    exported: ReadColumn,
+    wildcard: ReadColumn,
+    path: TextColumn,
+    instance: TextColumn,
+    member: TextColumn
+}
+
+export type Records = {
+    previous: Columns,
+    current: Columns
 }
 
 export type Names = {

@@ -48,13 +48,14 @@ pub fn compiled(analysis: *f.compiler.AnalysisResult, selected: usize, position:
     const imports = try analysis.arena.allocator().dupe(@TypeOf(values[selected].imports[0]), values[selected].imports);
 
     values[selected].imports = imports;
-    imports[position].target = .{ .compiled = .{ .instance = "dependency@1", .artifact = "dependency.zxlib", .name = "public" } };
+    imports[position].target = .from(.{ .compiled = .{ .instance = "dependency@1", .artifact = "dependency.zxlib", .name = "public" } });
 }
 
 pub fn unused(analysis: *f.compiler.AnalysisResult, selected: usize) !void {
     const main = try f.index(analysis.*, f.main_path);
     var dependency = analysis.modules[main].imports[0];
-    dependency.target = .{ .compiled = .{ .instance = "unused@1", .artifact = "unused.zxlib", .name = "public" } };
+
+    dependency.target = .from(.{ .compiled = .{ .instance = "unused@1", .artifact = "unused.zxlib", .name = "public" } });
 
     const values = try records(analysis);
     const imports = try analysis.arena.allocator().alloc(@TypeOf(dependency), values[selected].imports.len + 1);

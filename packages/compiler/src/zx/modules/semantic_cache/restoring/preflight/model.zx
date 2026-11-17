@@ -1,7 +1,7 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/signature_table/model"
 import type { Input as Control } from "../../../../ir/canonical/body/tree"
-import type { Batch } from "../dependencies/model"
+import type { Records } from "../dependencies/model"
 
 export type Input = {
     signatures: Table,
@@ -17,10 +17,6 @@ export type Input = {
     current_members: u64,
     decoded: bool,
     verified_native: bool,
-    first: bool,
-    dependency_count: u64,
-    current_dependency_count: u64,
-    dependencies: Batch,
-    finish: bool,
+    dependencies: Records,
     control?: Control
 }

@@ -1,8 +1,10 @@
 import equal from "compiler/artifact_dependency_equal"
 
-import type { Batch } from "./model"
+import read from "./read"
 
-export type Input = Batch
+import type { Records } from "./model"
+
+export type Input = Records
 
 export type Output = bool
 
@@ -13,11 +15,19 @@ export default function (in: Input): Output {
         row: 0,
         valid: true
     }, {
-        while: state => state.valid && state.row < previous.length,
+        while: state => state.valid && state.row < previous.header.count,
         next: state => {
+            const row = state.row
+
             state.valid = equal({
-                previous: previous[state.row],
-                current: current[state.row]
+                previous: read({
+                    columns: previous,
+                    row
+                }),
+                current: read({
+                    columns: current,
+                    row
+                })
             })
             state.row += 1
         },

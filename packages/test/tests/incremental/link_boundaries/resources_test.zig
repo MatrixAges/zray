@@ -32,7 +32,7 @@ fn run(allocator: std.mem.Allocator, mode: Mode) !void {
         .valid => {},
         .missing => modules = modules[1..],
         .cycle => {
-            dependency.target = .{ .source = fixture.modules[3].path };
+            dependency.target = .from(.{ .source = fixture.modules[3].path });
             fixture.modules[0].dependencies = (&dependency)[0..1];
         },
         .interface => fixture.modules[0].exports = &.{},

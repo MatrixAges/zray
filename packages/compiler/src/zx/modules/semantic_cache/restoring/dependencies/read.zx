@@ -1,0 +1,44 @@
+import memory from "memory"
+
+import type { Columns, Dependency as Output } from "./model"
+
+export type Input = {
+    columns: Columns,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { columns, row } = in
+
+    const header = columns.header
+    const specifier = memory.readTextColumn(header.specifier, row)
+    const identity = memory.readOptionalTextColumn(header.identity, row)
+    const names = memory.readTextListColumn(columns.names, row)
+    const source_names = memory.readTextListColumn(columns.source_names, row)
+    const target = memory.readColumnU8(header.target_kind, row)
+    const compiled = target == header.compiled_kind
+
+    return {
+        specifier,
+        identity: identity ?? specifier,
+        names,
+        source_names: source_names.length == 0 ? names : source_names,
+        kind: memory.readColumnU8(columns.kind, row),
+        exported: memory.readColumnBool(columns.exported, row),
+        wildcard: memory.readColumnBool(columns.wildcard, row),
+        target,
+        path: match {
+            compiled || target == header.source_kind =>
+                memory.readTextColumn(columns.path, row),
+            _ => ""
+        },
+        instance: match {
+            compiled => memory.readTextColumn(columns.instance, row),
+            _ => ""
+        },
+        member: match {
+            compiled => memory.readTextColumn(columns.member, row),
+            _ => ""
+        }
+    }
+}

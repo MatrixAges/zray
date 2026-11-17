@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
-
-pub const Target = union(enum) { source: []const u8, compiled: @import("compiled.zig").Target, native, external, intrinsic };
+pub const Target = @import("module_record/target.zig");
 pub const Reexports = struct { types: []const zx.ir.Export = &.{}, constants: []const zx.ir.Constant = &.{}, functions: []const @import("function_import.zig") = &.{} };
 
 pub const Import = struct {
@@ -29,7 +28,7 @@ function_imports: []const @import("function_import.zig"),
 body: union(enum) { types, entry, function: zx.ir.FunctionId },
 own_function: ?zx.ir.FunctionId = null,
 /// Source targets borrow the normalized unit path held by the project arena.
-pub fn copyImport(allocator: std.mem.Allocator, item: anytype, target: Target) std.mem.Allocator.Error!Import {
+pub fn copyImport(allocator: std.mem.Allocator, item: anytype, target: Target.Wire) std.mem.Allocator.Error!Import {
     const names = try @import("module_record/names/host.zig").own(allocator, item);
 
     return .{
@@ -40,9 +39,9 @@ pub fn copyImport(allocator: std.mem.Allocator, item: anytype, target: Target) s
         .specifier = try allocator.dupe(u8, item.path),
         .names = names.locals,
         .span = item.span,
-        .target = switch (target) {
+        .target = .from(switch (target) {
             .compiled => |value| .{ .compiled = try @import("compiled.zig").copyTarget(allocator, value) },
             else => target,
-        },
+        }),
     };
 }

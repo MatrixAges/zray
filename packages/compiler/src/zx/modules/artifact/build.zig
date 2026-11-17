@@ -52,7 +52,7 @@ pub fn extract(self: *Self, record: Record) Error!model.Module {
     const type_imports = try self.exports(record.type_imports);
 
     for (record.imports) |dependency| {
-        if (dependency.target != .native) continue;
+        if (dependency.target.kind != .native) continue;
 
         var found = false;
 
@@ -91,11 +91,11 @@ pub fn extract(self: *Self, record: Record) Error!model.Module {
         dependency.names = try nodes.strings(dependency.names);
         dependency.source_names = try nodes.strings(dependency.source_names);
 
-        dependency.target = switch (dependency.target) {
+        switch (dependency.target.kind) {
             .compiled => return error.InvalidModule,
-            .source => |path| .{ .source = try self.allocator.dupe(u8, path) },
-            .native, .external, .intrinsic => dependency.target,
-        };
+            .source => dependency.target.path = try self.allocator.dupe(u8, dependency.target.path),
+            .native, .external, .intrinsic => {},
+        }
     }
 
     return .{

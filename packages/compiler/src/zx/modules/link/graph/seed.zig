@@ -53,9 +53,9 @@ pub fn order(allocator: std.mem.Allocator, modules: []const Module, entry: []con
 
         frame.dependency += 1;
 
-        if (dependency.target != .source) continue;
+        if (dependency.target.kind != .source) continue;
 
-        const index = paths.get(dependency.target.source) orelse return error.MissingModule;
+        const index = paths.get(dependency.target.path) orelse return error.MissingModule;
 
         switch (states[index]) {
             .done => {},

@@ -414,7 +414,7 @@ const Project = struct {
 
         return .{ .exports = unit.exports, .constant_exports = unit.constants, .members = unit.members };
     }
-    fn rememberImport(self: *Project, frame: *LoadFrame, item: anytype, target: ModuleRecord.Target, identity: ?[]const u8) zx.Error!void {
+    fn rememberImport(self: *Project, frame: *LoadFrame, item: anytype, target: ModuleRecord.Target.Wire, identity: ?[]const u8) zx.Error!void {
         var dependency = try ModuleRecord.copyImport(self.allocator, item, target);
 
         if (identity) |name| dependency.identity = try self.allocator.dupe(u8, name);

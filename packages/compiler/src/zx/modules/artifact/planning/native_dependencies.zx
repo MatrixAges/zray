@@ -1,7 +1,7 @@
 import key from "core/native_module_table/key"
+import memory from "memory"
 
 import { Status } from "../../../analysis/semantic/extracting/planning/model"
-import { TargetKind } from "../dependencies/model"
 import includeNative from "./native_include"
 
 import type { Modules } from "core/native_module_table/model"
@@ -25,54 +25,66 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
+    const { request, modules, dependencies } = in
+
     const result = loop({
-        request: in.request,
         plan: in.state,
-        modules: in.modules,
         natives: in.natives,
-        dependencies: in.dependencies,
-        index: 0,
-        module: 0,
-        found: false
+        index: 0
     }, {
         while: current =>
             current.plan.status == Status.Ready &&
-            current.index < current.dependencies.kinds.length,
+            current.index < dependencies.count,
         next: current => {
-            if (
-                current.dependencies.kinds[current.index] != TargetKind.Native ||
-                    current.module >= current.modules.specifiers.length
-            ) {
-                if (
-                    current.dependencies.kinds[current.index] == TargetKind.Native &&
-                        !current.found
-                ) {
+            const row = current.index
+            const target = memory.readColumnU8(dependencies.target_kind, row)
+
+            if (target == dependencies.native_kind) {
+                const identity =
+                    memory.readOptionalTextColumn(dependencies.identity, row)
+                const name =
+                    identity ?? memory.readTextColumn(dependencies.specifier, row)
+
+                const matched = loop({
+                    plan: current.plan,
+                    natives: current.natives,
+                    index: 0,
+                    found: false
+                }, {
+                    while: registry =>
+                        registry.plan.status == Status.Ready &&
+                        registry.index < modules.specifiers.length,
+                    next: registry => {
+                        if (key({
+                            modules,
+                            index: registry.index
+                        }) == name) {
+                            const included = includeNative({
+                                request,
+                                state: registry.plan,
+                                modules,
+                                natives: registry.natives,
+                                index: registry.index
+                            })
+
+                            registry.plan = included.state
+                            registry.natives = included.natives
+                            registry.found = true
+                        }
+
+                        registry.index += 1
+                    }
+                })
+
+                current.plan = matched.plan
+                current.natives = matched.natives
+
+                if (!matched.found) {
                     current.plan.status = Status.Invalid
                 }
-
-                current.index += 1
-                current.module = 0
-                current.found = false
-            } else {
-                if (key({
-                    modules: current.modules,
-                    index: current.module
-                }) == current.dependencies.keys[current.index]) {
-                    const included = includeNative({
-                        request: current.request,
-                        state: current.plan,
-                        modules: current.modules,
-                        natives: current.natives,
-                        index: current.module
-                    })
-
-                    current.plan = included.state
-                    current.natives = included.natives
-                    current.found = true
-                }
-
-                current.module += 1
             }
+
+            current.index += 1
         }
     })
 

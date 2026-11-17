@@ -61,7 +61,7 @@ pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) B
     var source_index: usize = 0;
 
     for (consumer.dependencies) |*dependency| {
-        if (dependency.target == .source) {
+        if (dependency.target.kind == .source) {
             const target_index: usize = @intCast(targets[source_index]);
 
             try check(self, index, target_index, dependency, &context);
@@ -71,7 +71,7 @@ pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) B
             const external = @import("generated_artifact_external_dependency");
 
             const edge: std.meta.Child(external.Input) = .{
-                .intrinsic = dependency.target == .intrinsic,
+                .intrinsic = dependency.target.kind == .intrinsic,
                 .type_only = dependency.kind == .type_only,
                 .specifier = dependency.specifier,
                 .intrinsic_name = @import("../../intrinsic.zig").specifier,

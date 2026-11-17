@@ -3,41 +3,39 @@
 
     <Args in={Preflight.Input} out={bool} />
 
-    <If on={$in.first}>
-        <Call fn="counts" in={$in} />
+    <Call fn="counts" in={$in} />
 
-        <If on={!$ctx.counts}>
+    <If on={!$ctx.counts}>
+        <Return value={false} />
+    </If>
+
+    <If on={!$in.decoded}>
+        <Task name="cached" out={$ctx.structure}>
+            <Call
+                fn="../../../../ir/canonical/native/structure"
+                in={$in.cached_modules}
+            />
+        </Task>
+
+        <If on={!$ctx.task.cached}>
             <Return value={false} />
         </If>
 
-        <If on={!$in.decoded}>
-            <Task name="cached" out={$ctx.structure}>
-                <Call
-                    fn="../../../../ir/canonical/native/structure"
-                    in={$in.cached_modules}
-                />
-            </Task>
+        <Call fn="signatures" in={$in.signatures} />
 
-            <If on={!$ctx.task.cached}>
-                <Return value={false} />
-            </If>
-
-            <Call fn="signatures" in={$in.signatures} />
-
-            <If on={!$ctx.signatures}>
-                <Return value={false} />
-            </If>
+        <If on={!$ctx.signatures}>
+            <Return value={false} />
         </If>
+    </If>
 
-        <If on={!$in.verified_native}>
-            <Call
-                fn="../../../../ir/canonical/native/structure"
-                in={$in.current_modules}
-            />
+    <If on={!$in.verified_native}>
+        <Call
+            fn="../../../../ir/canonical/native/structure"
+            in={$in.current_modules}
+        />
 
-            <If on={!$ctx.structure}>
-                <Return value={false} />
-            </If>
+        <If on={!$ctx.structure}>
+            <Return value={false} />
         </If>
     </If>
 
@@ -47,12 +45,10 @@
         <Return value={false} />
     </If>
 
-    <If on={$in.finish}>
-        <If on={$in.control != null}>
-            <Call module="../../../../ir/canonical/control/structure" in={$in.control} />
+    <If on={$in.control != null}>
+        <Call module="../../../../ir/canonical/control/structure" in={$in.control} />
 
-            <Return value={$ctx.structure} />
-        </If>
+        <Return value={$ctx.structure} />
     </If>
 
     <Return value={true} />

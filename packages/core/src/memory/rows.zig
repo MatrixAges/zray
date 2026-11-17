@@ -72,11 +72,22 @@ pub inline fn borrowIndirectText(comptime field: []const u8, comptime text: []co
 }
 
 pub inline fn borrowColumn(comptime T: type, comptime field: []const u8, items: anytype) ReadColumn {
+    return borrowNested(T, &.{field}, items);
+}
+
+pub inline fn borrowNested(comptime T: type, comptime fields: []const []const u8, items: anytype) ReadColumn {
     const Item = std.meta.Child(@TypeOf(items));
+    comptime var Current = Item;
+    comptime var offset: usize = 0;
 
-    comptime if (@FieldType(Item, field) != T) @compileError("Incompatible borrowed column field");
+    inline for (fields) |field| {
+        offset += @offsetOf(Current, field);
+        Current = @FieldType(Current, field);
+    }
 
-    return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf(Item), .offset = @offsetOf(Item, field) };
+    comptime if (Current != T) @compileError("Incompatible borrowed column field");
+
+    return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf(Item), .offset = offset };
 }
 
 pub inline fn borrowOptionalU32(comptime field: []const u8, items: anytype) ReadColumn {
@@ -128,6 +139,10 @@ pub inline fn readText(source: *const anyopaque, index: u64) error{IndexOutOfBou
 
 pub inline fn readOptionalText(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?[]const u8 {
     return readColumn(?[]const u8, source, index);
+}
+
+pub inline fn readTextList(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const []const u8 {
+    return readColumn([]const []const u8, source, index);
 }
 
 pub inline fn readIndirectText(source: *const anyopaque, index: u64) error{ IndexOutOfBounds, MissingField }![]const u8 {

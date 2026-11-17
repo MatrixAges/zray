@@ -148,13 +148,13 @@ fn importsSeed(self: *Self, index: usize, nodes: *Nodes) Error!void {
     }
 
     for (value.dependencies) |dependency| {
-        if (dependency.target == .intrinsic) {
+        if (dependency.target.kind == .intrinsic) {
             if (!std.mem.eql(u8, dependency.specifier, @import("../intrinsic.zig").specifier) or dependency.kind == .type_only) return error.InvalidModule;
 
             continue;
         }
 
-        if (dependency.target != .source) {
+        if (dependency.target.kind != .source) {
             var found = false;
 
             for (0..value.native_modules.count()) |item_row| {
@@ -168,7 +168,7 @@ fn importsSeed(self: *Self, index: usize, nodes: *Nodes) Error!void {
             continue;
         }
 
-        const target_index = self.findSeed(dependency.target.source) orelse return error.InvalidModule;
+        const target_index = self.findSeed(dependency.target.path) orelse return error.InvalidModule;
         const target = &self.modules[target_index];
         const members = @import("members.zig");
         const consumers = if (dependency.exported) value.members else value.function_imports;
@@ -300,10 +300,10 @@ fn findSeed(self: *const Self, path: []const u8) ?usize {
 
 fn sourceDependencySeed(self: *Self, value: *const model.Module, path: []const u8) bool {
     for (value.dependencies) |dependency| {
-        if (dependency.target != .source or dependency.kind == .type_only) continue;
-        if (dependency.kind == .function and std.mem.eql(u8, dependency.target.source, path)) return true;
+        if (dependency.target.kind != .source or dependency.kind == .type_only) continue;
+        if (dependency.kind == .function and std.mem.eql(u8, dependency.target.path, path)) return true;
 
-        const target = &self.modules[self.findSeed(dependency.target.source) orelse return false];
+        const target = &self.modules[self.findSeed(dependency.target.path) orelse return false];
 
         for (target.members) |member| {
             if (member.intrinsic != null or !member.valid()) continue;

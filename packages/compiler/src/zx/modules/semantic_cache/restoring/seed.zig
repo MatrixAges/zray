@@ -157,14 +157,14 @@ pub fn sameDependencies(left: []const Record.Import, right: []const Record.Impor
         if (!std.mem.eql(u8, a.identity orelse a.specifier, b.identity orelse b.specifier)) return false;
         if (a.exported != b.exported or a.wildcard != b.wildcard) return false;
         if (!native.stringsEqual(if (a.source_names.len == 0) a.names else a.source_names, if (b.source_names.len == 0) b.names else b.source_names)) return false;
-        if (a.kind != b.kind or !std.mem.eql(u8, a.specifier, b.specifier) or !native.stringsEqual(a.names, b.names) or std.meta.activeTag(a.target) != std.meta.activeTag(b.target)) return false;
-        if (a.target == .source and !std.mem.eql(u8, a.target.source, b.target.source)) return false;
+        if (a.kind != b.kind or !std.mem.eql(u8, a.specifier, b.specifier) or !native.stringsEqual(a.names, b.names) or a.target.kind != b.target.kind) return false;
+        if (a.target.kind == .source and !std.mem.eql(u8, a.target.path, b.target.path)) return false;
 
-        if (a.target == .compiled) {
-            const left_target = a.target.compiled;
-            const right_target = b.target.compiled;
+        if (a.target.kind == .compiled) {
+            const left_target = a.target;
+            const right_target = b.target;
 
-            if (!std.mem.eql(u8, left_target.instance, right_target.instance) or !std.mem.eql(u8, left_target.artifact, right_target.artifact) or !std.mem.eql(u8, left_target.name, right_target.name)) return false;
+            if (!std.mem.eql(u8, left_target.instance, right_target.instance) or !std.mem.eql(u8, left_target.path, right_target.path) or !std.mem.eql(u8, left_target.member, right_target.member)) return false;
         }
     }
 

@@ -24,7 +24,7 @@ fn project(self: *const Builder, allocator: std.mem.Allocator, index: usize) std
     var count: usize = 0;
 
     for (module.dependencies) |*item| {
-        if (item.target != .source) continue;
+        if (item.target.kind != .source) continue;
 
         const provider = &self.modules[@intCast(targets[target_index])];
 

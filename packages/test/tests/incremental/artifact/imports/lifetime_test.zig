@@ -33,7 +33,7 @@ test "artifact alias names dependency paths and enum origins outlive source anal
         defer std.testing.allocator.free(specifier);
 
         try std.testing.expectEqualStrings(specifier, dependency.specifier);
-        try std.testing.expect(dependency.target == .source);
+        try std.testing.expect(dependency.target.kind == .source);
     }
 }
 

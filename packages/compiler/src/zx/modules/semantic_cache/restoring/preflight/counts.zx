@@ -7,7 +7,9 @@ export default function (in: Input): Output {
     const functions = in.functions == in.current_functions
     const constants = in.constants == in.current_constants
     const members = in.members == in.current_members
-    const dependencies = in.dependency_count == in.current_dependency_count
+
+    const dependencies = in.dependencies.previous.header.count ==
+        in.dependencies.current.header.count
 
     return (
         - types

@@ -13,7 +13,7 @@ test "source native and external dependencies preserve their kinds through every
         var native_count: usize = 0;
         var external_count: usize = 0;
 
-        for (analysis.modules[main].imports) |dependency| switch (dependency.target) {
+        for (analysis.modules[main].imports) |dependency| switch (dependency.target.kind) {
             .source => source_count += 1,
             .native => native_count += 1,
             .external => external_count += 1,

@@ -1,7 +1,0 @@
-export enum TargetKind {
-    Source,
-    Native,
-    External,
-    Compiled,
-    Intrinsic
-}

@@ -74,10 +74,7 @@
     <Call
         module="plan"
         in={{
-            dependencies: {
-                kinds: $in.source.record.import_kinds,
-                keys: $in.source.record.dependency_keys
-            },
+            dependencies: $in.source.record.dependencies,
             function_imports: {
                 ids: $in.source.record.function_ids,
                 inputs: $in.source.record.function_inputs,

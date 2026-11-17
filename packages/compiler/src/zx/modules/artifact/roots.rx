@@ -4,7 +4,7 @@
     <Args in={Model.Request} out={bool[]?} />
 
     <Call fn="roots/valid" in={$in} />
-    <Call fn="dependencies/allowed" in={$in.record.import_kinds} />
+    <Call fn="dependencies/allowed" in={$in.record.dependencies} />
 
     <If on={$ctx.valid && $ctx.allowed}>
         <Call module="roots/select" in={$in} />

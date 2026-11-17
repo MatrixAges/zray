@@ -82,7 +82,7 @@ pub const Block = struct { span: Span, statements: []const Statement };
 pub const SwitchCase = struct { value: ?*const Expression, body: Block, span: Span };
 
 pub const Import = struct {
-    kind: enum { type_only, function, enumeration },
+    kind: enum(u8) { type_only, function, enumeration },
     names: []const Name,
     source_names: []const Name = &.{},
     exported: bool = false,

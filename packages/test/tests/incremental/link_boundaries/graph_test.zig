@@ -59,7 +59,7 @@ test "self dependency is rejected before linking bodies" {
     defer fixture.deinit();
 
     var dependency = fixture.modules[1].dependencies[0];
-    dependency.target = .{ .source = fixture.modules[1].path };
+    dependency.target = .from(.{ .source = fixture.modules[1].path });
     fixture.modules[1].dependencies = (&dependency)[0..1];
 
     try fixture.expectError(error.CyclicDependency);
@@ -71,7 +71,7 @@ test "transitive cycle through entry is rejected" {
     defer fixture.deinit();
 
     var dependency = fixture.modules[1].dependencies[0];
-    dependency.target = .{ .source = fixture.modules[3].path };
+    dependency.target = .from(.{ .source = fixture.modules[3].path });
     fixture.modules[0].dependencies = (&dependency)[0..1];
 
     try fixture.expectError(error.CyclicDependency);
@@ -83,7 +83,7 @@ test "type only entry excludes unrelated broken dependency graph" {
     defer fixture.deinit();
 
     var dependency = fixture.modules[1].dependencies[0];
-    dependency.target = .{ .source = "/project/absent.zx" };
+    dependency.target = .from(.{ .source = "/project/absent.zx" });
     fixture.modules[3].dependencies = (&dependency)[0..1];
     var result = try linker.link(std.testing.allocator, &fixture.modules, "/project/shared.zx");
 

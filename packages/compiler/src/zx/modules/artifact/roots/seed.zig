@@ -41,7 +41,7 @@ pub fn collect(allocator: std.mem.Allocator, program: ir.Program, source_record:
     };
 
     for (record.imports) |dependency| {
-        if (dependency.target != .native) continue;
+        if (dependency.target.kind != .native) continue;
 
         for (0..program.native_modules.count()) |index| {
             const module = program.native_modules.at(index);

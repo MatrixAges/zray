@@ -20,7 +20,7 @@ fn failedSequence(sequence: []const usize, missing: usize) !void {
     }
 }
 
-fn ignored(target: f.Record.Target) !void {
+fn ignored(target: f.Record.Target.Wire) !void {
     for ([_]bool{ false, true }) |matching| {
         var analysis = try f.analyze(f.orders[0], true);
 
@@ -28,7 +28,7 @@ fn ignored(target: f.Record.Target) !void {
 
         var item = try f.dependency(analysis, f.specifiers[0]);
 
-        item.target = target;
+        item.target = .from(target);
 
         if (!matching) {
             item.identity = "missing@1";

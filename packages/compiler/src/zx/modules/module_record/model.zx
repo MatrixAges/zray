@@ -1,0 +1,11 @@
+import type { ReadColumn, TextColumn } from "memory"
+
+export type Header = {
+    specifier: TextColumn,
+    identity: ReadColumn,
+    target_kind: ReadColumn,
+    count: u64,
+    source_kind: u8,
+    native_kind: u8,
+    compiled_kind: u8
+}

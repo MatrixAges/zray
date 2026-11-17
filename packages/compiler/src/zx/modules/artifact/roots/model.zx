@@ -4,9 +4,9 @@ import type { Modules } from "core/native_module_table/model"
 import type { Stores } from "core/store_table/model"
 import type { Symbols } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
-import type { TextColumn, U8Buffer } from "memory"
+import type { U8Buffer } from "memory"
 import type { Rows } from "../../../ir/canonical/validation/names/model"
-import type { TargetKind } from "../dependencies/model"
+import type { Header } from "../../module_record/model"
 import type { Ids } from "./mark_constants"
 
 export type Functions = {
@@ -41,10 +41,7 @@ export type Record = {
     function_ids: u32[]
     function_inputs: u32[]
     function_outputs: u32[]
-    import_kinds: TargetKind[]
-    import_specifiers: TextColumn
-    import_count: u64
-    dependency_keys: string[]
+    dependencies: Header
     has_body: bool
     body_function?: u32
 }

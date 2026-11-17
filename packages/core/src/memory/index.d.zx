@@ -67,6 +67,11 @@ export declare function readOptionalTextColumn(
     index: u64
 ): string? throws { IndexOutOfBounds }
 
+export declare function readTextListColumn(
+    source: ReadColumn,
+    index: u64
+): string[] throws { IndexOutOfBounds }
+
 export declare function readReferencedOptionalBytes(
     source: ReferenceColumn,
     index: u64

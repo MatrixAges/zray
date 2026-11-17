@@ -36,9 +36,9 @@ test "same native specifier reuses enum identity across source modules" {
     try h.check(result, 1);
     try std.testing.expectEqualStrings("zig:first", result.nominal_types.at(0).origin.native);
     try std.testing.expectEqual(@as(usize, 2), result.modules.len);
-    try std.testing.expect(result.modules[0].imports[0].target == .native);
-    try std.testing.expect(result.modules[1].imports[0].target == .source);
-    try std.testing.expect(result.modules[1].imports[1].target == .native);
+    try std.testing.expect(result.modules[0].imports[0].target.kind == .native);
+    try std.testing.expect(result.modules[1].imports[0].target.kind == .source);
+    try std.testing.expect(result.modules[1].imports[1].target.kind == .native);
     try std.testing.expectEqualStrings("zig:first", result.modules[1].imports[1].specifier);
 }
 
@@ -62,7 +62,7 @@ test "legacy default bindings share the exported enum identity" {
     try std.testing.expectEqualStrings("first", result.nominal_types.at(0).origin.external.member);
 
     for (result.modules[0].imports) |dependency| {
-        try std.testing.expect(dependency.target == .external);
+        try std.testing.expect(dependency.target.kind == .external);
         try std.testing.expectEqualStrings("lib:sample", dependency.specifier);
     }
 }

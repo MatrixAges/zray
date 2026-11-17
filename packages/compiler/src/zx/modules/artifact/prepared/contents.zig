@@ -14,7 +14,7 @@ pub fn dependencies(allocator: std.mem.Allocator, source: []const Record.Import)
             .identity = borrowed.identity,
             .names = borrowed.names,
             .source_names = borrowed.source_names,
-            .path = if (borrowed.target == .source) borrowed.target.source else null,
+            .path = if (borrowed.target.kind == .source) borrowed.target.path else null,
         };
 
         const row = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -28,7 +28,7 @@ pub fn dependencies(allocator: std.mem.Allocator, source: []const Record.Import)
         owned.names = row.names;
         owned.source_names = row.source_names;
 
-        if (row.path) |path| owned.target = .{ .source = path };
+        if (row.path) |path| owned.target.path = path;
     }
 
     return result;

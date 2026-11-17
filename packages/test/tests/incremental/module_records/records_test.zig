@@ -52,8 +52,8 @@ test "direct imports preserve source order kind names target and exact range" {
         try std.testing.expectEqualStrings(specifier, dependency.specifier);
         try std.testing.expectEqual(@as(usize, 1), dependency.names.len);
         try std.testing.expectEqualStrings(binding, dependency.names[0]);
-        try std.testing.expect(dependency.target == .source);
-        try std.testing.expectEqualStrings(path, dependency.target.source);
+        try std.testing.expect(dependency.target.kind == .source);
+        try std.testing.expectEqualStrings(path, dependency.target.path);
 
         const end = std.mem.indexOfScalarPos(u8, f.main, offset, '\n').?;
 
@@ -143,6 +143,6 @@ test "records remain readable after parse cache destruction" {
     try f.check(result);
     try std.testing.expectEqualStrings("./shared", result.modules[1].imports[0].specifier);
     try std.testing.expectEqualStrings("Count", result.modules[1].imports[0].names[0]);
-    try std.testing.expectEqualStrings("/project/shared.zx", result.modules[1].imports[0].target.source);
+    try std.testing.expectEqualStrings("/project/shared.zx", result.modules[1].imports[0].target.path);
     try std.testing.expect(try compiler.validateIr(std.testing.allocator, result.value.ir) == null);
 }

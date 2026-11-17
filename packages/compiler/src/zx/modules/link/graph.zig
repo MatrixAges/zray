@@ -32,7 +32,7 @@ pub fn prepare(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules
         offset.* = targets.items.len;
 
         for (module.dependencies) |dependency| {
-            if (dependency.target == .source) try targets.append(workspace, dependency.target.source);
+            if (dependency.target.kind == .source) try targets.append(workspace, dependency.target.path);
         }
     }
 

@@ -17,7 +17,7 @@ pub fn module(analysis: f.compiler.AnalysisResult, index: usize, value: f.artifa
     for (record.imports, value.dependencies) |original, copy| {
         try std.testing.expectEqual(original.kind, copy.kind);
         try std.testing.expectEqualStrings(original.specifier, copy.specifier);
-        try std.testing.expectEqualStrings(original.target.source, copy.target.source);
+        try std.testing.expectEqualStrings(original.target.path, copy.target.path);
     }
 
     for (record.function_imports, value.function_imports, 0..) |original, copied, position| {
