@@ -3,19 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Nodes = @import("../../nodes.zig");
 const Error = @import("../../model.zig").Error;
-const owned = @import("generated_artifact_owned_stores");
 const remapped = @import("generated_artifact_remap_stores");
-
-pub fn own(allocator: std.mem.Allocator, source: *const ir.StoreTable, types: []const u32) Error!?*const ir.StoreTable {
-    if (source.count() == 0) return null;
-
-    const Input = std.meta.Child(owned.Input);
-    const Source = @FieldType(Input, "source");
-    const input: Input = .{ .source = zx.columns.pointer(Source, source), .types = types };
-    const result = zx.columns.invoke(owned.executeValue, allocator, &input) catch |err| return failure(err);
-
-    return zx.columns.pointer(*const ir.StoreTable, result);
-}
 
 pub fn remap(nodes: *const Nodes, source: *const ir.StoreTable) Error!ir.StoreTable {
     const Input = std.meta.Child(remapped.Input);

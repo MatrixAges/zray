@@ -2,15 +2,20 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const generated = @import("generated_artifact_remap");
-const functions = @import("generated_artifact_function_remap");
+const functions = @import("generated_artifact_linked_function");
 const Nodes = @import("../nodes.zig");
 const Error = @import("../model.zig").Error;
+const external_host = @import("../materializing/external_host.zig");
 const Input = std.meta.Child(generated.Input);
 const Mapping = std.meta.Child(@FieldType(Input, "type_mapping"));
 const Output = @typeInfo(@TypeOf(generated.executeValue(undefined, undefined))).error_union.payload;
-const Admission = std.meta.Child(functions.Input);
+const Link = std.meta.Child(functions.Input);
+const Admission = std.meta.Child(@FieldType(Link, "admission"));
 const FunctionInput = std.meta.Child(@FieldType(Admission, "source"));
-pub const FunctionOutput = @typeInfo(@typeInfo(@TypeOf(functions.executeValue(undefined, undefined))).error_union.payload).optional.child;
+const Metadata = std.meta.Child(@FieldType(Link, "metadata"));
+const External = std.meta.Child(@typeInfo(@FieldType(Metadata, "external")).optional.child);
+const Control = @typeInfo(@FieldType(Link, "control")).optional.child;
+const FunctionOutput = @typeInfo(@typeInfo(@TypeOf(functions.executeValue(undefined, undefined))).error_union.payload).optional.child;
 
 pub const BodyColumns = struct {
     input_type: ir.TypeId,
@@ -61,22 +66,45 @@ pub fn columns(allocator: std.mem.Allocator, nodes: *const Nodes, types: []const
     return zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| return failure(err);
 }
 
-pub fn function(nodes: *const Nodes, body: BodyColumns, candidate: ?ir.FunctionId, structure: Nodes.Structure) Error!FunctionOutput {
-    var view: FunctionView(FunctionInput) = undefined;
+pub fn function(nodes: *const Nodes, body: BodyColumns, control: ir.ControlBody, file: []const u8, native: ?ir.External, candidate: ?ir.FunctionId, structure: Nodes.Structure) Error!FunctionOutput {
+    if (structure == .unchecked and !try @import("control.zig").valid(nodes.allocator, control)) return error.InvalidModule;
 
-    view.initColumns(nodes, body, candidate);
+    var request: FunctionRequest = undefined;
 
-    const input: Admission = .{
-        .source = &view.input,
-        .stores = zx.columns.pointer(@FieldType(Admission, "stores"), body.stores),
-        .checked = structure == .validated,
-        .max_offset = std.math.maxInt(usize),
-    };
+    request.init(nodes, body, control, file, native, candidate, structure);
 
-    const mapped = zx.columns.invoke(functions.executeValue, nodes.allocator, &input) catch |err| return failure(err);
+    const input: *const Link = &request.input;
+    const mapped = zx.columns.invoke(functions.executeValue, nodes.allocator, input) catch |err| return failure(err);
 
     return mapped orelse error.InvalidModule;
 }
+
+pub const FunctionRequest = struct {
+    view: FunctionView(FunctionInput),
+    admission: Admission,
+    metadata: Metadata,
+    abi: ?External,
+    input: Link,
+    pub fn init(self: *FunctionRequest, nodes: *const Nodes, body: BodyColumns, control: ir.ControlBody, file: []const u8, native: ?ir.External, candidate: ?ir.FunctionId, structure: Nodes.Structure) void {
+        self.view.initColumns(nodes, body, candidate);
+
+        self.admission = .{
+            .source = &self.view.input,
+            .stores = zx.columns.pointer(@FieldType(Admission, "stores"), body.stores),
+            .checked = structure == .validated,
+            .max_offset = std.math.maxInt(usize),
+        };
+
+        self.abi = if (native) |value| external_host.borrow(External, value) else null;
+        self.metadata = .{ .file = file, .external = if (self.abi) |*value| value else null };
+
+        self.input = .{
+            .admission = &self.admission,
+            .metadata = &self.metadata,
+            .control = if (control.root != null) zx.columns.pointer(Control, control.control) else null,
+        };
+    }
+};
 
 pub fn FunctionView(comptime T: type) type {
     const FunctionMapping = std.meta.Child(@FieldType(T, "types"));

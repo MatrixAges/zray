@@ -4,10 +4,9 @@
     <Type from="core/type_table/model" as="Types" />
     <Type from="core/native_module_table/model" as="Native" />
     <Type from="core/store_table/model" as="Stores" />
-    <Type from="core/control_table/model" as="Control" />
     <Type from="../planning/functions/model" as="Functions" />
-    <Type from="../remapping/model" as="Remap" />
     <Type from="content_model" as="Content" />
+    <Type from="function_model" as="Function" />
 
     <Type
         from="../../../analysis/semantic/extracting/materializing/nominal"
@@ -28,9 +27,7 @@
             origins: OwnedNominal.Output,
             natives?: Native.Modules,
             signatures?: Declarations.Table,
-            function?: Remap.FunctionOutput,
-            control?: Control.Control,
-            body_stores?: Stores.Stores,
+            function?: Function.Owned,
             stores?: Stores.Stores
         }}
     />
@@ -61,8 +58,6 @@
                 natives: null,
                 signatures: null,
                 function: null,
-                control: null,
-                body_stores: null,
                 stores: null
             }}
         />
@@ -86,8 +81,6 @@
                 natives: null,
                 signatures: null,
                 function: null,
-                control: null,
-                body_stores: null,
                 stores: null
             }}
         />
@@ -102,8 +95,6 @@
             natives: $ctx.content.valid ? $ctx.natives : null,
             signatures: $ctx.content.valid ? $ctx.signatures : null,
             function: $ctx.content.function,
-            control: $ctx.content.control,
-            body_stores: $ctx.content.body_stores,
             stores: $ctx.content.stores
         }}
     />

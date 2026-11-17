@@ -1,0 +1,38 @@
+<Module>
+    <Type from="function_model" as="Function" />
+
+    <Args in={Function.Input} out={Function.Owned?} />
+
+    <Call module="../remapping/admit_body" in={$in.admission} />
+
+    <If on={$ctx.admit_body != null}>
+        <Call
+            module="stores/optional"
+            in={{
+                source: $in.admission.stores,
+                types: $ctx.admit_body.stores
+            }}
+        />
+
+        <Call module="optional_control" in={$in.control} />
+
+        <Call
+            fn="metadata"
+            in={{
+                ...$in.metadata,
+                instance: null
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.admit_body,
+                ...$ctx.metadata,
+                control: $ctx.optional_control,
+                store_table: $ctx.optional
+            }}
+        />
+    </If>
+
+    <Return value={null} />
+</Module>

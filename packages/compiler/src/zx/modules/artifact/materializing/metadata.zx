@@ -1,0 +1,35 @@
+import strings from "std:string"
+
+import scope from "../../compiled/identity/scope"
+import copyExternal from "./copy_external"
+
+import type { Output as External } from "./copy_external"
+
+export type Output = {
+    file: string,
+    external?: External
+}
+
+export type Input = Output & {
+    instance?: string
+}
+
+export default function (in: Input): Output {
+    const { instance, external } = in
+
+    const file = match {
+        instance == null => strings.copy(in.file),
+        _ => scope({
+            instance,
+            value: in.file
+        })
+    }
+
+    return {
+        file,
+        external: match {
+            external == null => null,
+            _ => copyExternal(external)
+        }
+    }
+}

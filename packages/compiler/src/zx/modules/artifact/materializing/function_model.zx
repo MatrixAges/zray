@@ -1,0 +1,15 @@
+import type { Control } from "core/control_table/model"
+import type { Stores } from "core/store_table/model"
+import type { Admission, FunctionOutput } from "../remapping/model"
+import type { Output as Metadata } from "./metadata"
+
+export type Input = {
+    admission: Admission,
+    metadata: Metadata,
+    control?: Control
+}
+
+export type Owned = FunctionOutput & Metadata & {
+    control?: Control,
+    store_table?: Stores
+}

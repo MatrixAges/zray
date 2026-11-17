@@ -3,51 +3,42 @@
 
     <Args in={Content.Input} out={Content.Output} />
 
-    <Call
-        module="../remapping/optional_body"
-        in={{
-            source: $in.source
-        }}
-    />
+    <If on={$in.function != null}>
+        <Call module="own_function" in={$in.function} />
 
-    <If on={$ctx.optional_body != null && $in.body_stores != null}>
-        <Call
-            fn="stores/own"
-            in={{
-                source: $in.body_stores,
-                types: $ctx.optional_body.stores
-            }}
-        />
+        <If on={$ctx.own_function != null}>
+            <If on={$in.copy_entry_stores}>
+                <Call
+                    module="stores/remap"
+                    in={{
+                        source: $in.entry_stores,
+                        mapping: $in.type_mapping
+                    }}
+                />
 
-        <Call module="optional_control" in={$in.control} />
-
-        <If on={$in.copy_entry_stores}>
-            <Call
-                module="stores/remap"
-                in={{
-                    source: $in.entry_stores,
-                    mapping: $in.type_mapping
-                }}
-            />
+                <Return
+                    value={{
+                        valid: $ctx.remap != null,
+                        function: $ctx.own_function,
+                        stores: $ctx.remap
+                    }}
+                />
+            </If>
 
             <Return
                 value={{
-                    valid: $ctx.remap != null,
-                    function: $ctx.optional_body,
-                    control: $ctx.optional_control,
-                    body_stores: $ctx.own,
-                    stores: $ctx.remap
+                    valid: true,
+                    function: $ctx.own_function,
+                    stores: $ctx.own_function.store_table
                 }}
             />
         </If>
 
         <Return
             value={{
-                valid: true,
-                function: $ctx.optional_body,
-                control: $ctx.optional_control,
-                body_stores: $ctx.own,
-                stores: $ctx.own
+                valid: false,
+                function: null,
+                stores: null
             }}
         />
     </If>
@@ -56,8 +47,6 @@
         value={{
             valid: !$in.copy_entry_stores,
             function: null,
-            control: null,
-            body_stores: null,
             stores: null
         }}
     />

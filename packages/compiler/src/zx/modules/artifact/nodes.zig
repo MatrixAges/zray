@@ -88,22 +88,21 @@ pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: *const i
 }
 
 fn appendLinked(self: *Self, storage: *ir.FunctionStorage, source: ir.Signature, store_mode: ir.StoreMode, body_value: ir.ControlBody, columns: remap.BodyColumns) Error!void {
-    const linked = try self.linkBody(columns, body_value, null, .unchecked);
-    const mapped = linked.mapped;
+    const linked = try remap.function(self, columns, body_value, source.file_name, source.external, null, .unchecked);
 
     const signature: ir.Signature = .{
-        .file_name = try self.allocator.dupe(u8, source.file_name),
-        .input_type = @fromBackingInt(mapped.ports.input),
-        .output_type = @fromBackingInt(mapped.ports.output),
+        .file_name = linked.file,
+        .input_type = @fromBackingInt(linked.ports.input),
+        .output_type = @fromBackingInt(linked.ports.output),
         .output_ownership = source.output_ownership,
-        .external = if (source.external) |entry| try self.externalMapped(entry, @fromBackingInt(mapped.ports.native_module.?)) else null,
+        .external = linkedExternal(source.external, linked),
     };
 
-    storage.appendBodyAssumeCapacity(signature, store_mode, linked.control, .{
-        .symbols = zx.columns.pointer(*const ir.SymbolTable, mapped.symbols),
-        .expressions = zx.columns.pointer(*const ir.ExpressionTable, mapped.expressions),
-        .stores = linked.stores,
-        .contracts = zx.columns.pointer(*const ir.ContractTable, mapped.contracts),
+    storage.appendBodyAssumeCapacity(signature, store_mode, controlBody(body_value.root, linked.control), .{
+        .symbols = zx.columns.pointer(*const ir.SymbolTable, linked.symbols),
+        .expressions = zx.columns.pointer(*const ir.ExpressionTable, linked.expressions),
+        .stores = if (linked.store_table) |store_table| zx.columns.pointer(*const ir.StoreTable, store_table) else null,
+        .contracts = zx.columns.pointer(*const ir.ContractTable, linked.contracts),
     });
 }
 
@@ -117,12 +116,11 @@ pub const FunctionEntry = struct {
 
 pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
     if (comptime generated) {
-        const linked = try self.linkBody(remap.BodyColumns.borrow(&value), value.body, candidate, structure);
-        const stores_view: ir.StoreTable = if (linked.stores) |table| table.* else .{};
+        const linked = try remap.function(self, remap.BodyColumns.borrow(&value), value.body, value.file_name, value.external, candidate, structure);
 
         return .{
-            .body = try self.ownFunction(&value, linked.mapped, stores_view, linked.control),
-            .recursive = if (linked.mapped.recursive) |id| @fromBackingInt(id) else null,
+            .body = linkedFunction(&value, linked),
+            .recursive = if (linked.recursive) |id| @fromBackingInt(id) else null,
         };
     }
 
@@ -133,7 +131,7 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
     result.output_type = try self.types.include(value.output_type);
     result.symbols = try self.symbolsSeed(value.symbols);
     result.expressions = try self.expressionsSeed(value.expressions);
-    result.body = try self.body(value.body, .unchecked);
+    result.body = try self.bodySeed(value.body);
     result.stores = try self.stores(value.stores);
     result.contracts = try self.contractsSeed(value.contracts);
     result.external = if (value.external) |entry| try self.external(entry) else null;
@@ -143,26 +141,20 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
     return .{ .body = result, .recursive = recursive };
 }
 
-const LinkedBody = struct {
-    mapped: remap.FunctionOutput,
-    stores: ?*const ir.StoreTable,
-    control: ir.ControlBody,
-};
-
-fn linkBody(self: *Self, columns: remap.BodyColumns, control: ir.ControlBody, candidate: ?ir.FunctionId, structure: Structure) Error!LinkedBody {
-    const mapped = try remap.function(self, columns, candidate, structure);
-    const store_table = try @import("materializing/stores/host.zig").own(self.allocator, columns.stores, mapped.stores);
-
-    return .{ .mapped = mapped, .stores = store_table, .control = try self.body(control, structure) };
-}
-
-pub fn ownFunction(self: *Self, value: *const ir.Function, mapped: anytype, store_table: ir.StoreTable, control: ir.ControlBody) Error!ir.Function {
-    var result = materializeBody(value, mapped, control);
-    result.file_name = try self.allocator.dupe(u8, value.file_name);
-    result.stores = store_table;
-    result.external = if (value.external) |entry| try self.externalMapped(entry, @fromBackingInt(mapped.ports.native_module.?)) else null;
+pub fn linkedFunction(value: *const ir.Function, linked: anytype) ir.Function {
+    var result = materializeBody(value, linked, controlBody(value.body.root, linked.control));
+    result.file_name = linked.file;
+    result.stores = if (linked.store_table) |store_table| zx.columns.view(ir.StoreTable, store_table) else .{};
+    result.external = linkedExternal(value.external, linked);
 
     return result;
+}
+
+fn linkedExternal(value: ?ir.External, linked: anytype) ?ir.External {
+    const source = value orelse return null;
+    const module: ir.NativeModuleId = @fromBackingInt(linked.ports.native_module.?);
+
+    return @import("materializing/external_host.zig").apply(source, module, linked.external.?);
 }
 
 pub fn controlBody(root: ?ir.BlockId, table: anytype) ir.ControlBody {
@@ -271,29 +263,9 @@ fn contractsSeed(self: *Self, values: ir.ContractTable) Error!ir.ContractTable {
     return own(self.allocator, values, .{ .symbols = owned_symbols, .expressions = owned_expressions });
 }
 
-fn body(self: *Self, value: ir.ControlBody, structure: Structure) Error!ir.ControlBody {
-    if (structure == .unchecked) {
-        const valid = if (comptime generated)
-            try @import("nodes/control.zig").valid(self.allocator, value)
-        else
-            try value.validStructure(self.allocator);
-
-        if (!valid) return error.InvalidModule;
-    }
-
+fn bodySeed(self: *Self, value: ir.ControlBody) Error!ir.ControlBody {
+    if (!try value.validStructure(self.allocator)) return error.InvalidModule;
     if (value.root == null) return .{};
-
-    if (comptime generated) {
-        const entry = @import("generated_artifact_owned_control");
-        const input = zx.columns.pointer(entry.Input, value.control);
-
-        const table = entry.executeIn(self.allocator, input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
-
-        return .{ .control = zx.columns.pointer(*const ir.ControlTable, table), .root = value.root };
-    }
 
     const table = try self.allocator.create(ir.ControlTable);
 

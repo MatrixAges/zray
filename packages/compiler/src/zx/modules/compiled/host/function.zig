@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const strings = @import("native.zig").strings;
+const external_host = @import("../../artifact/materializing/external_host.zig");
 const Error = std.mem.Allocator.Error || error{InvalidModule};
 const generated = @import("generated_compiled_owned_function");
 const Input = std.meta.Child(generated.Input);
@@ -15,12 +16,7 @@ pub const Context = struct {
 };
 
 pub fn appendAssumeCapacity(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, source: ir.Function, context: Context) Error!void {
-    const external: ?External = if (source.external) |value| .{
-        .members = value.member,
-        .errors = value.errors,
-        .export_name = value.export_name,
-        .parameters = if (value.input) |native| native.names else null,
-    } else null;
+    const external = if (source.external) |value| external_host.borrow(External, value) else null;
 
     const header: std.meta.Child(@FieldType(Input, "header")) = .{
         .file = source.file_name,
@@ -54,13 +50,7 @@ pub fn appendAssumeCapacity(allocator: std.mem.Allocator, functions: *ir.Functio
     result.body.control = zx.columns.pointer(*const ir.ControlTable, owned.control);
 
     if (owned.external) |details| {
-        const target = &result.external.?;
-
-        target.module = @fromBackingInt(owned.header.native_module.?);
-        target.member = details.members;
-        target.errors = details.errors;
-        target.export_name = details.export_name;
-        target.input = if (details.parameters) |names| .{ .names = names } else null;
+        result.external = external_host.apply(source.external.?, @fromBackingInt(owned.header.native_module.?), details);
     }
 
     functions.appendOwnedAssumeCapacity(result, .{

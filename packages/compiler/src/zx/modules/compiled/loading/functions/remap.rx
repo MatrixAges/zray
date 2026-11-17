@@ -3,7 +3,7 @@
 
     <Args in={Model.Request} out={Model.Mapped} />
 
-    <Call fn="header" in={$in} />
+    <Call fn="ports" in={$in} />
 
     <Call
         fn="../remap/symbols"
@@ -42,31 +42,27 @@
 
     <Call fn="../../../artifact/materializing/control" in={$in.control} />
 
-    <If on={$in.external != null}>
-        <Call fn="../../../artifact/materializing/copy_external" in={$in.external} />
-
-        <Return
-            value={{
-                header: $ctx.header,
-                symbols: $ctx.symbols,
-                expressions: $ctx.expressions,
-                contracts: $ctx.contracts,
-                stores: $ctx.stores,
-                control: $ctx.control,
-                external: $ctx.copy_external
-            }}
-        />
-    </If>
+    <Call
+        fn="../../../artifact/materializing/metadata"
+        in={{
+            file: $in.header.file,
+            instance: $in.instance,
+            external: $in.external
+        }}
+    />
 
     <Return
         value={{
-            header: $ctx.header,
+            header: {
+                ...$ctx.ports,
+                file: $ctx.metadata.file
+            },
             symbols: $ctx.symbols,
             expressions: $ctx.expressions,
             contracts: $ctx.contracts,
             stores: $ctx.stores,
             control: $ctx.control,
-            external: null
+            external: $ctx.metadata.external
         }}
     />
 </Module>

@@ -1,0 +1,13 @@
+<Module>
+    <Type from="own" as="Store" />
+
+    <Args in={Store.Input} out={Store.Output?} />
+
+    <If on={$in.source.paths.length == 0}>
+        <Return value={null} />
+    </If>
+
+    <Call fn="own" in={$in} />
+
+    <Return value={$ctx.own} />
+</Module>
