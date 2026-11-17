@@ -300,6 +300,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/project/publication/plan.rx", .name = "project_body_publish" },
     .{ .path = "zx/modules/project/publication/finalize.rx", .name = "project_entry_publish" },
     .{ .path = "zx/modules/parse_cache/probe.rx", .name = "parse_cache_probe" },
+    .{ .path = "zx/modules/parse_cache/batch.zx", .name = "parse_cache_batch" },
     .{ .path = "zx/modules/binding/bind.rx", .name = "project_binding" },
     .{ .path = "zx/modules/project/exports/plan.rx", .name = "project_public_exports" },
     .{ .path = "zx/analysis/integer/decode.rx", .name = "integer" },

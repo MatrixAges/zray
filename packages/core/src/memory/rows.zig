@@ -51,6 +51,10 @@ pub inline fn borrowText(comptime field: []const u8, items: anytype) TextColumn 
     return borrowColumn([]const u8, field, items);
 }
 
+pub inline fn borrowTextSlice(items: []const []const u8) TextColumn {
+    return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf([]const u8), .offset = 0 };
+}
+
 /// Non-null pointers must keep their text fields alive for the life of this view.
 pub inline fn borrowIndirectText(comptime field: []const u8, comptime text: []const u8, items: anytype) IndirectTextColumn {
     const Item = std.meta.Child(@TypeOf(items));

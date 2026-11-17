@@ -1,0 +1,82 @@
+import bytes from "std:bytes"
+import slot from "core/bytes/index/slot"
+import memory from "memory"
+
+import content from "./content"
+
+import type { Input as Slot } from "core/bytes/index/slot"
+import type { ReferenceColumn, TextColumn, U8Buffer, U64Buffer } from "memory"
+
+export type Cache = Slot.Omit("key") & {
+    texts: ReferenceColumn,
+    digests: ReferenceColumn
+}
+
+export type Input = {
+    cache: Cache,
+    paths: TextColumn,
+    sources: TextColumn,
+    first: u64,
+    count: u64,
+    hits: U64Buffer,
+    digests: U8Buffer,
+    digest_width: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { cache, paths, sources, first, count, hits, digests, digest_width } = in
+
+    const scanned = loop(0, {
+        while: offset => offset < count,
+        next: offset => {
+            const index = first + offset
+            const source = bytes.fromText(memory.readTextColumn(sources, index))
+
+            const entry = match {
+                cache.capacity == 0 => 0,
+                _ => slot({
+                    ...cache.pick([
+                        "keys",
+                        "buckets",
+                        "capacity"
+                    ]),
+                    key: bytes.fromText(
+                        memory.readTextColumn(
+                            paths,
+                            index
+                        )
+                    )
+                }).entry
+            }
+
+            const digest = match entry {
+                0 => content({
+                    source
+                }),
+                _ => content({
+                    source,
+                    text: memory.readReferencedOptionalBytes(cache.texts, entry - 1),
+                    stored: memory.readReferencedBytes(cache.digests, entry - 1)
+                })
+            }
+
+            if (digest == null) {
+                memory.writeU64(hits, offset, entry)
+            } else {
+                memory.writeU64(hits, offset, 0)
+
+                const written = memory.copyBytes(
+                    digests,
+                    offset * digest_width,
+                    digest,
+                    0,
+                    digest.length
+                )
+            }
+
+            offset += 1
+        }
+    })
+}

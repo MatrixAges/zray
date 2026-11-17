@@ -3,54 +3,23 @@
 
     <Args in={Cache.Probe} out={Cache.Result} />
 
-    <If on={$in.text != null}>
-        <Call
-            fn="matches"
-            in={{
-                bytes: $in.source,
-                cached: $in.text
+    <Call fn="content" in={$in.omit(["format"])} />
+
+    <If on={$ctx.content == null}>
+        <Call fn="reuse" in={$in.format} />
+
+        <Return
+            value={{
+                action: $ctx.reuse,
+                digest: null
             }}
         />
-
-        <If on={$ctx.matches}>
-            <Call fn="reuse" in={$in.format} />
-
-            <Return
-                value={{
-                    action: $ctx.reuse,
-                    digest: null
-                }}
-            />
-        </If>
-    </If>
-
-    <Call fn="hash" in={$in.source} />
-
-    <If on={$in.stored != null}>
-        <Call
-            fn="matches"
-            in={{
-                bytes: $ctx.hash,
-                cached: $in.stored
-            }}
-        />
-
-        <If on={$ctx.matches}>
-            <Call fn="reuse" in={$in.format} />
-
-            <Return
-                value={{
-                    action: $ctx.reuse,
-                    digest: null
-                }}
-            />
-        </If>
     </If>
 
     <Return
         value={{
             action: Cache.Action.Parse,
-            digest: $ctx.hash
+            digest: $ctx.content
         }}
     />
 </Module>

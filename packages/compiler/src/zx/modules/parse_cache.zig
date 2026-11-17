@@ -1,12 +1,21 @@
 const std = @import("std");
+const zx = @import("zx");
 const parser = @import("../frontend/parse.zig");
 const probe = @import("parse_cache/probe.zig");
 const Index = @import("source_index/growing.zig").Map(*Entry);
 const Self = @This();
 pub const ModuleResult = parser.ModuleResult;
 pub const indexed_enabled = @import("../frontend/module_result.zig").indexed_enabled;
+const Digest = [zx.Sha256.digest_length]u8;
 
-const Entry = struct { digest: [32]u8, result: ModuleResult };
+const Entry = struct {
+    digest: Digest,
+    result: ModuleResult,
+    text: ?[]const u8,
+    fn init(digest: Digest, result: ModuleResult) Entry {
+        return .{ .digest = digest, .result = result, .text = result.text() };
+    }
+};
 
 allocator: std.mem.Allocator,
 entries: Index = .empty,
@@ -135,7 +144,7 @@ pub fn prefetchRegistered(self: *Self, allocator: std.mem.Allocator, sources: []
 fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: type, outputs: ?[]*const Output) std.mem.Allocator.Error!void {
     if (count == 0) return;
 
-    const parallel = @import("zx").parallel;
+    const parallel = zx.parallel;
 
     const Prefetch = struct {
         cache: *const Self,
@@ -147,11 +156,14 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
         next: std.atomic.Value(usize) = .init(0),
         failed: std.atomic.Value(bool) = .init(false),
         fn run(work: *@This(), participant: usize) void {
-            var scratch = @import("zx").Arena.init(std.heap.page_allocator);
+            var scratch = zx.Arena.init(std.heap.page_allocator);
 
             defer scratch.deinit();
 
             const staged = work.staging[participant].allocator();
+            var hits: [max_parse_batch]u64 = undefined;
+            var digests: [max_parse_batch]Digest = undefined;
+            var digest_scratch: [max_parse_batch * @sizeOf(Digest)]u8 = undefined;
 
             while (!work.failed.load(.monotonic)) {
                 const first = work.next.fetchAdd(work.batch_size, .monotonic);
@@ -160,18 +172,41 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
 
                 const end = first + @min(work.batch_size, work.results.len - first);
 
-                for (first..end) |index| {
-                    const request = work.requests.at(index);
-                    var digest: [32]u8 = undefined;
-                    const found = work.cache.entries.get(request.path);
+                if (comptime indexed_enabled) {
+                    const batch_count = end - first;
 
-                    if (lookup(found, request.source, false, &digest) == .Reuse) {
-                        if (work.outputs) |views| views[index] = if (Output == Entry) found.? else &found.?.result;
+                    @import("parse_cache/batch.zig").classify(&work.cache.entries, work.requests, first, hits[0..batch_count], digests[0..batch_count], &digest_scratch) catch {
+                        work.failed.store(true, .monotonic);
+
+                        return;
+                    };
+                }
+
+                for (first..end, 0..) |index, offset| {
+                    var digest: Digest = undefined;
+
+                    const found: ?*Entry = if (comptime indexed_enabled) hit: {
+                        const row = hits[offset];
+
+                        if (row != 0) break :hit work.cache.entries.values.items[@intCast(row - 1)];
+
+                        digest = digests[offset];
+
+                        break :hit null;
+                    } else seed: {
+                        const request = work.requests.at(index);
+                        const existing = work.cache.entries.get(request.path);
+
+                        break :seed if (lookup(existing, request.source, false, &digest) == .Reuse) existing else null;
+                    };
+
+                    if (found) |entry| {
+                        if (work.outputs) |views| views[index] = if (Output == Entry) entry else &entry.result;
 
                         continue;
                     }
 
-                    work.results[index] = parse(staged, &scratch, request, digest) catch {
+                    work.results[index] = parse(staged, &scratch, work.requests.at(index), digest) catch {
                         work.failed.store(true, .monotonic);
 
                         return;
@@ -179,10 +214,10 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
                 }
             }
         }
-        fn parse(staged: std.mem.Allocator, scratch: *@import("zx").Arena, request: Request, digest: [32]u8) std.mem.Allocator.Error!*Entry {
+        fn parse(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, digest: Digest) std.mem.Allocator.Error!*Entry {
             const entry = try staged.create(Entry);
             const result = try parser.parseModuleIn(std.heap.smp_allocator, scratch, request.source, request.path);
-            entry.* = .{ .digest = digest, .result = result };
+            entry.* = .init(digest, result);
 
             return entry;
         }
@@ -275,10 +310,10 @@ fn getEntry(self: *Self, comptime native: bool, source: []const u8, path: []cons
         .Parse => {},
     }
 
-    var prepared: Entry = .{
-        .digest = digest,
-        .result = if (native) .{ .native = try parser.parse(self.allocator, source, path) } else try parser.parseModule(self.allocator, source, path),
-    };
+    var prepared = Entry.init(digest, if (native)
+        .{ .native = try parser.parse(self.allocator, source, path) }
+    else
+        try parser.parseModule(self.allocator, source, path));
 
     errdefer prepared.result.deinit();
 
@@ -288,5 +323,5 @@ fn getEntry(self: *Self, comptime native: bool, source: []const u8, path: []cons
 fn lookup(entry: ?*const Entry, source: []const u8, native: bool, digest: *[32]u8) probe.Action {
     const kept = entry orelse return probe.run(source, null, null, native, false, digest);
 
-    return probe.run(source, kept.result.text(), &kept.digest, native, kept.result == .indexed, digest);
+    return probe.run(source, kept.text, &kept.digest, native, kept.result == .indexed, digest);
 }

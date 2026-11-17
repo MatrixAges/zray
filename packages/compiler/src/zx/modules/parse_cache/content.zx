@@ -1,0 +1,34 @@
+import hash from "./hash"
+import matches from "./matches"
+
+import type { Probe } from "./model"
+
+export type Input = Probe.Omit("format")
+
+export type Output = u8[]?
+
+export default function (in: Input): Output {
+    const { source, text, stored } = in
+
+    if (text != null) {
+        if (matches({
+            bytes: source,
+            cached: text
+        })) {
+            return null
+        }
+    }
+
+    const digest = hash(source)
+
+    if (stored != null) {
+        if (matches({
+            bytes: digest,
+            cached: stored
+        })) {
+            return null
+        }
+    }
+
+    return digest
+}
