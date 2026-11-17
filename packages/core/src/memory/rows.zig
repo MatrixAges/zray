@@ -230,7 +230,7 @@ inline fn listColumn(source: *const anyopaque, index: u64) error{IndexOutOfBound
     };
 }
 
-inline fn readColumn(comptime T: type, source: *const anyopaque, index: u64) error{IndexOutOfBounds}!T {
+pub inline fn readColumn(comptime T: type, source: *const anyopaque, index: u64) error{IndexOutOfBounds}!T {
     const column: *const ReadColumn = @ptrCast(@alignCast(source));
 
     if (index >= column.count) return error.IndexOutOfBounds;

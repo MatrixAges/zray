@@ -31,6 +31,13 @@ native_modules: IdMap(ir.NativeModuleId),
 pub fn constants(self: *Self, values: []const ir.Constant) Error![]const ir.Constant {
     if (values.len == 0) return &.{};
 
+    if (comptime generated) {
+        const surface = @import("surface.zig");
+        const types = remap.typeMapping(surface.Mapping, self.types);
+
+        return surface.copyConstants(self.allocator, values, &types);
+    }
+
     const result = try self.allocator.alloc(ir.Constant, values.len);
 
     for (values, result) |value, *owned| {

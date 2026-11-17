@@ -87,15 +87,16 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
 fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, own: ?ir.FunctionId, type_prefix: usize) program_link.Error!Loaded {
     const program = &input.program;
     const entry = try publishEntry(program, destination.functions, nodes, own);
-    const stable = if (input.owned_declarations) type_prefix else 0;
-    const exports, const constants = try publishDeclarations(nodes, program, stable);
     var result: Loaded = undefined;
-    result.exports = exports;
-    result.constant_exports = constants;
 
     if (comptime generated) {
+        const stable = if (input.owned_declarations) type_prefix else 0;
+
+        result.exports, result.constant_exports = try @import("source/declarations/host.zig").publish(nodes, program, stable);
+
         try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, &result);
     } else {
+        result.exports, result.constant_exports = try publishSeedDeclarations(nodes, program);
         result.store_initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);
         const surface = try @import("source/members.zig").link(nodes, input.members, entry);
         result.function = surface.entry;
@@ -151,20 +152,8 @@ fn publishEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes:
     return id;
 }
 
-fn publishDeclarations(nodes: *Nodes, program: *const ir.Program, type_prefix: usize) program_link.Error!struct { []const ir.Export, []const ir.Constant } {
+fn publishSeedDeclarations(nodes: *Nodes, program: *const ir.Program) program_link.Error!struct { []const ir.Export, []const ir.Constant } {
     const allocator = nodes.allocator;
-
-    if (comptime generated) {
-        const surface = @import("../artifact/surface.zig");
-        const types = @import("../artifact/nodes/remap.zig").typeMapping(surface.Mapping, nodes.types);
-        const prefix = @import("source/declarations.zig");
-
-        return .{
-            if (prefix.contains(program.exports, type_prefix)) program.exports else try surface.copyExports(allocator, program.exports, &types),
-            if (prefix.contains(program.constant_exports, type_prefix)) program.constant_exports else try surface.copyConstants(allocator, program.constant_exports, &types),
-        };
-    }
-
     const aliases = try allocator.alloc(ir.Export, program.exports.len);
 
     for (program.exports, aliases) |source, *exported| {

@@ -6,12 +6,11 @@ const Nodes = @import("nodes.zig");
 const remap = @import("nodes/remap.zig");
 const Error = @import("model.zig").Error;
 const names = @import("../../ir/canonical/validation/names/view.zig");
-const declarations = @import("generated_artifact_surface_declaration");
+const constants = @import("generated_artifact_surface_constants");
 const exports = @import("generated_artifact_surface_exports");
 const bindings = @import("generated_artifact_surface_binding");
-const Declaration = std.meta.Child(declarations.Input);
-const OwnedDeclaration = @typeInfo(@TypeOf(declarations.executeValue(undefined, undefined))).error_union.payload;
-pub const Mapping = std.meta.Child(@FieldType(Declaration, "types"));
+const ConstantInput = std.meta.Child(constants.Input);
+pub const Mapping = std.meta.Child(@FieldType(ConstantInput, "types"));
 const BindingInput = std.meta.Child(bindings.Input);
 const BindingMapping = std.meta.Child(@FieldType(BindingInput, "types"));
 
@@ -66,29 +65,71 @@ pub fn copyExports(allocator: std.mem.Allocator, source: []const ir.Export, type
         .progress = @ptrCast(&progress),
     };
 
-    _ = zx.columns.invoke(exports.executeValue, allocator, &input) catch |err| return failure(err);
+    zx.columns.invoke(exports.executeValue, allocator, &input) catch |err| return failure(err);
 
     return result;
 }
 
 pub fn copyConstants(allocator: std.mem.Allocator, source: []const ir.Constant, types: *const Mapping) Error![]const ir.Constant {
+    if (source.len == 0) return &.{};
+
     const result = try allocator.alloc(ir.Constant, source.len);
+    const rows = ConstantRows.borrow(source);
+    const target = ConstantTarget.borrow(result);
 
-    for (source, result) |*item, *target| {
-        const text = if (item.value == .string) item.value.string else null;
-        const mapped = try ownDeclaration(allocator, .{ .name = item.name, .type_id = @backingInt(item.type_id), .text = text, .types = types });
+    const input: ConstantInput = .{
+        .source = &rows.view(std.meta.Child(@FieldType(ConstantInput, "source")), source.len),
+        .target = &target.view(std.meta.Child(@FieldType(ConstantInput, "target"))),
+        .types = types,
+    };
 
-        target.* = .{ .name = mapped.name, .type_id = @fromBackingInt(mapped.type_id), .value = item.value };
-
-        if (mapped.text) |value| target.value = .{ .string = value };
-    }
+    zx.columns.invoke(constants.executeValue, allocator, &input) catch |err| return failure(err);
 
     return result;
 }
 
-fn ownDeclaration(allocator: std.mem.Allocator, input: Declaration) Error!OwnedDeclaration {
-    return zx.columns.invoke(declarations.executeValue, allocator, &input) catch |err| return failure(err);
-}
+pub const ConstantRows = struct {
+    names: zx.memory.TextColumn,
+    types: zx.memory.ReadColumn,
+    values: zx.memory.ReadColumn,
+    pub fn borrow(source: []const ir.Constant) ConstantRows {
+        return .{
+            .names = zx.memory.borrowTextColumn("name", source),
+            .types = zx.memory.borrowReadColumn(ir.TypeId, "type_id", source),
+            .values = zx.memory.borrowReadColumn(ir.ConstantValue, "value", source),
+        };
+    }
+
+    pub fn view(self: *const ConstantRows, comptime Rows: type, count: usize) Rows {
+        return .{
+            .names = @ptrCast(&self.names),
+            .types = @ptrCast(&self.types),
+            .values = @ptrCast(&self.values),
+            .count = count,
+        };
+    }
+};
+
+pub const ConstantTarget = struct {
+    names: zx.memory.WriteColumn,
+    types: zx.memory.WriteColumn,
+    values: zx.memory.WriteColumn,
+    pub fn borrow(target: []ir.Constant) ConstantTarget {
+        return .{
+            .names = zx.memory.borrowWriteColumn([]const u8, "name", target),
+            .types = zx.memory.borrowWriteColumn(u32, "type_id", target),
+            .values = zx.memory.borrowWriteColumn(ir.ConstantValue, "value", target),
+        };
+    }
+
+    pub fn view(self: *const ConstantTarget, comptime Target: type) Target {
+        return .{
+            .names = @ptrCast(&self.names),
+            .types = @ptrCast(&self.types),
+            .values = @ptrCast(&self.values),
+        };
+    }
+};
 
 fn copyBindings(allocator: std.mem.Allocator, source: []const Binding, types: *const BindingMapping, functions: *const BindingMapping) Error![]const Binding {
     const result = try allocator.alloc(Binding, source.len);

@@ -1,0 +1,62 @@
+<Module>
+    <Type from="model" as="Declarations" />
+
+    <Args in={Declarations.Input} out={Declarations.Output} />
+
+    <If on={!$in.exports_done}>
+        <If on={$in.export_target != null}>
+            <Call
+                fn="../../../artifact/surface/exports"
+                in={{
+                    source: $in.exports,
+                    types: $in.types,
+                    target: $in.export_target,
+                    progress: $in.export_progress
+                }}
+            />
+        </If>
+
+        <If on={$in.export_target == null}>
+            <Call
+                fn="prefix"
+                in={{
+                    types: $in.export_types,
+                    count: $in.exports.length,
+                    prefix: $in.prefix
+                }}
+            />
+
+            <If on={!$ctx.prefix}>
+                <Return value={Declarations.Storage.Types} />
+            </If>
+        </If>
+    </If>
+
+    <If on={$in.constant_target != null}>
+        <Call
+            fn="../../../artifact/surface/constants"
+            in={{
+                source: $in.constants,
+                types: $in.types,
+                target: $in.constant_target
+            }}
+        />
+
+        <Return value={Declarations.Storage.None} />
+    </If>
+
+    <Call
+        fn="prefix"
+        in={{
+            types: $in.constants.types,
+            count: $in.constants.count,
+            prefix: $in.prefix
+        }}
+    />
+
+    <If on={!$ctx.prefix}>
+        <Return value={Declarations.Storage.Constants} />
+    </If>
+
+    <Return value={Declarations.Storage.None} />
+</Module>

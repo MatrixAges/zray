@@ -56,7 +56,7 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
 
         const function_id = try @import("entry.zig").bind(&functions, &nodes, program, input.analysis.entry_function);
         const public_types = try @import("interface.zig").complete(owned, allocator, program, nodes.types);
-        const constants = try @import("constants.zig").complete(allocator, &nodes, program.constant_exports);
+        const constants = try nodes.constants(program.constant_exports);
         const members = try @import("members.zig").complete(owned, allocator, input.analysis, program.file_name, &nodes);
         exported.* = .{ .name = try owned.dupe(u8, input.name), .path = try owned.dupe(u8, program.file_name), .function = function_id, .types = public_types, .constants = constants, .members = members };
     }

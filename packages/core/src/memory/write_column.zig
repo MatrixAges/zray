@@ -57,7 +57,7 @@ pub inline fn writeOptionalText(target: *const anyopaque, index: u64, value: ?[]
     return write(?[]const u8, target, index, value);
 }
 
-inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T) IndexError!void {
+pub inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T) IndexError!void {
     const column: *const Column = @ptrCast(@alignCast(target));
 
     if (index >= column.count or column.width != @sizeOf(T)) return error.IndexOutOfBounds;

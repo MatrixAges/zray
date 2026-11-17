@@ -14,13 +14,13 @@ export type Input = {
     progress: U64Buffer
 }
 
-export type Output = u64
+export type Output = void
 
 export default function (in: Input): Output {
     const { source, types, target, progress } = in
     const { rows, length } = source
 
-    return loop(0, {
+    const published = loop(0, {
         while: row => row < length,
         next: row => {
             const id = remap({

@@ -1,0 +1,64 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+import memory from "memory"
+import columns from "memory/columns"
+
+import remap from "../remapping/id"
+
+import type { TextColumn, WriteColumn } from "memory"
+import type { ReadColumn, WriteColumn as ScalarTarget } from "memory/columns"
+import type { Mapping } from "../remapping/model"
+
+export type Rows = {
+    names: TextColumn,
+    types: ReadColumn,
+    values: ReadColumn,
+    count: u64
+}
+
+export type Target = {
+    names: WriteColumn,
+    types: WriteColumn,
+    values: ScalarTarget
+}
+
+export type Input = {
+    source: Rows,
+    target: Target,
+    types: Mapping
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target, types } = in
+
+    const published = loop(0, {
+        while: row => row < source.count,
+        next: row => {
+            const text = columns.readScalarText(source.values, row)
+
+            const owned: string? = match {
+                text == null => null,
+                _ => strings.copy(text)
+            }
+
+            const name = strings.copy(memory.readTextColumn(source.names, row))
+            const type_id = remap({
+                id: columns.readColumnU32(source.types, row),
+                mapping: types
+            })
+
+            memory.writeColumnBytes(target.names, row, bytes.fromText(name))
+            memory.writeColumnU32(target.types, row, type_id)
+
+            if (owned != null) {
+                columns.writeScalarText(target.values, row, owned)
+            } else {
+                columns.copyScalar(source.values, target.values, row)
+            }
+
+            row += 1
+        }
+    })
+}

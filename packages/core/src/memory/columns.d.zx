@@ -23,3 +23,20 @@ export declare function readColumnU32(
     source: ReadColumn,
     index: u64
 ): u32 throws { IndexOutOfBounds }
+
+export declare function readScalarText(
+    source: ReadColumn,
+    index: u64
+): string? throws { IndexOutOfBounds }
+
+export declare function copyScalar(
+    source: ReadColumn,
+    target: WriteColumn,
+    index: u64
+): void throws { IndexOutOfBounds }
+
+export declare function writeScalarText(
+    target: WriteColumn,
+    index: u64,
+    value: string
+): void throws { IndexOutOfBounds }

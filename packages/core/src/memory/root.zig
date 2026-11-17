@@ -47,6 +47,11 @@ pub const writeColumnBytes = column.writeBytes;
 pub const writeColumnOptionalU32 = column.writeOptionalU32;
 pub const writeColumnOptionalU8 = column.writeOptionalU8;
 pub const writeColumnOptionalText = column.writeOptionalText;
+const scalar_column = @import("scalar.zig");
+pub const Scalar = scalar_column.Value;
+pub const readScalarText = scalar_column.readText;
+pub const copyScalar = scalar_column.copy;
+pub const writeScalarText = scalar_column.writeText;
 
 pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {
     return borrowRange(u8, source, first, count);

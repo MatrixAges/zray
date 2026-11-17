@@ -1,0 +1,25 @@
+import type { NamedRowBuffer, U64Buffer } from "memory"
+import type { ReadColumn } from "memory/columns"
+import type { Rows } from "../../../../ir/canonical/validation/names/model"
+import type { Mapping } from "../../../artifact/remapping/model"
+import type { Rows as Constants, Target } from "../../../artifact/surface/constants"
+
+export enum Storage {
+    None,
+    Types,
+    Constants
+}
+
+export type Input = {
+    prefix: u64,
+    types: Mapping,
+    exports: Rows,
+    export_types: ReadColumn,
+    export_target?: NamedRowBuffer,
+    export_progress: U64Buffer,
+    exports_done: bool,
+    constants: Constants,
+    constant_target?: Target
+}
+
+export type Output = Storage
