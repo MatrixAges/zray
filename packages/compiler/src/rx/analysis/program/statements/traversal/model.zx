@@ -1,4 +1,4 @@
-import type { Kind } from "../../control/model"
+import type { Steps, Units } from "../../control/model"
 
 export enum Region {
     Root,
@@ -9,25 +9,42 @@ export enum Region {
 
 export enum Action {
     Done,
-    Call,
+    Calls,
     Parallel,
     Return,
+    ReturnBorrowed,
     OpenTask,
     OpenSelection,
     OpenCase,
     CloseTask,
+    EvaluateTask,
+    BindTask,
     CloseSelection,
     CloseCase
 }
 
+export type Shape = {
+    steps: Steps,
+    units: Units.Pick("firsts", "counts"),
+    cases: u32[]
+}
+
 export type Input = {
+    shape: Shape,
     region: Region,
-    kinds: Kind[],
     position: u64,
-    end: u64
+    end: u64,
+    scope_step: u64,
+    case_first: u32,
+    borrow_root: bool
 }
 
 export type Output = {
     action: Action,
-    next: u64
+    next: u64,
+    first?: u32,
+    count?: u32,
+    unit?: u32,
+    target?: u32,
+    exhaustive?: bool
 }

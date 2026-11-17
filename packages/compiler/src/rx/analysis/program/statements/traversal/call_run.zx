@@ -1,0 +1,20 @@
+import { Kind } from "../../control/model"
+import { Action } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const kinds = in.shape.steps.kinds
+
+    const next = loop(in.position + 1, {
+        while: row => row < in.end && kinds[row] == Kind.Call,
+        next: row => {
+            row += 1
+        }
+    })
+
+    return {
+        action: Action.Calls,
+        next
+    }
+}

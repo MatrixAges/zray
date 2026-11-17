@@ -8,8 +8,6 @@ pub const Form = if (generated) rule.Input else enum {
     Task,
     TaskWithEvaluation,
     TaskWithBinding,
-    Case,
-    Default,
     ImportFunctions,
     ImportFunctionsAndInitializers,
 };
@@ -26,14 +24,10 @@ const Step = if (generated) std.meta.Child(rule.Output) else enum {
     LinkInitializers,
     AppendFunctionEntry,
     WriteCall,
-    LowerTask,
     EvaluateTaskOutput,
     WriteEvaluation,
     DefineTaskBinding,
     PublishTaskBinding,
-    EvaluateLabel,
-    LowerBranch,
-    WriteCase,
 };
 
 const capacity = 6;
@@ -53,11 +47,9 @@ fn seed(form: Form) []const Step {
     return switch (form) {
         .CallWithArgument => &.{ .BindGetters, .EvaluateArgument, .RestoreBindings, .ResolveStores, .ImportCallee, .WriteCall },
         .CallWithoutArgument => &.{ .BindGetters, .UnitArgument, .RestoreBindings, .ResolveStores, .ImportCallee, .WriteCall },
-        .Task => &.{ .LowerTask, .RestoreBindings },
-        .TaskWithEvaluation => &.{ .LowerTask, .EvaluateTaskOutput, .WriteEvaluation, .RestoreBindings },
-        .TaskWithBinding => &.{ .LowerTask, .EvaluateTaskOutput, .DefineTaskBinding, .RestoreBindings, .PublishTaskBinding },
-        .Case => &.{ .EvaluateLabel, .LowerBranch, .WriteCase },
-        .Default => &.{ .LowerBranch, .WriteCase },
+        .Task => &.{.RestoreBindings},
+        .TaskWithEvaluation => &.{ .EvaluateTaskOutput, .WriteEvaluation, .RestoreBindings },
+        .TaskWithBinding => &.{ .EvaluateTaskOutput, .DefineTaskBinding, .RestoreBindings, .PublishTaskBinding },
         .ImportFunctions => &.{ .AppendFunctionTail, .AppendFunctionEntry },
         .ImportFunctionsAndInitializers => &.{ .AppendFunctionTail, .LinkInitializers, .AppendFunctionEntry },
     };

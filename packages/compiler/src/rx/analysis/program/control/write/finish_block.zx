@@ -4,7 +4,7 @@ import integers from "std:integer"
 export type Input = {
     firsts: u32[],
     lengths: u32[],
-    block: u64,
+    block: u32,
     statement: u64,
     actual: u8[],
     expected: u8[]
@@ -13,8 +13,9 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
-    const first = integers.widen(in.firsts[in.block])
-    const length = integers.widen(in.lengths[in.block])
+    const row = integers.widen(in.block)
+    const first = integers.widen(in.firsts[row])
+    const length = integers.widen(in.lengths[row])
 
     return in.statement == first + length && bytes.equals(in.actual, in.expected)
 }

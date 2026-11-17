@@ -170,6 +170,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/program/control/write/result.zx", .name = "rx_control_write_result", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/control/write/publish_parallel.rx", .name = "rx_control_write_parallel", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/control/write/selection.zx", .name = "rx_control_write_selection", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/control/write/publish_case.rx", .name = "rx_control_publish_case", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/control/write/member.zx", .name = "rx_control_write_member", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/control/write/finish_block.zx", .name = "rx_control_finish_block", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/statements/plan.rx", .name = "rx_statement_schedule", .owner = .rx_analysis },

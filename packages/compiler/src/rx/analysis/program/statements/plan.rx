@@ -31,18 +31,12 @@
         </Case>
 
         <Case value={Steps.Form.Task}>
-            <Return
-                value={[
-                    Steps.Step.LowerTask,
-                    Steps.Step.RestoreBindings
-                ]}
-            />
+            <Return value={[Steps.Step.RestoreBindings]} />
         </Case>
 
         <Case value={Steps.Form.TaskWithEvaluation}>
             <Return
                 value={[
-                    Steps.Step.LowerTask,
                     Steps.Step.EvaluateTaskOutput,
                     Steps.Step.WriteEvaluation,
                     Steps.Step.RestoreBindings
@@ -53,30 +47,10 @@
         <Case value={Steps.Form.TaskWithBinding}>
             <Return
                 value={[
-                    Steps.Step.LowerTask,
                     Steps.Step.EvaluateTaskOutput,
                     Steps.Step.DefineTaskBinding,
                     Steps.Step.RestoreBindings,
                     Steps.Step.PublishTaskBinding
-                ]}
-            />
-        </Case>
-
-        <Case value={Steps.Form.Case}>
-            <Return
-                value={[
-                    Steps.Step.EvaluateLabel,
-                    Steps.Step.LowerBranch,
-                    Steps.Step.WriteCase
-                ]}
-            />
-        </Case>
-
-        <Case value={Steps.Form.Default}>
-            <Return
-                value={[
-                    Steps.Step.LowerBranch,
-                    Steps.Step.WriteCase
                 ]}
             />
         </Case>

@@ -22,24 +22,8 @@ pub const Cursor = extern struct {
 columns: ir.ControlStorage = .{},
 pub fn finishBlock(self: *const Self, cursor: *const Cursor, block: u32, end: *const Counts) Error!ir.BlockId {
     if (comptime generated) {
-        comptime {
-            const fields = @typeInfo(Counts).@"struct".field_types;
-
-            if (@sizeOf(Counts) != fields.len * @sizeOf(u32)) @compileError("control cursor counts need a packed column layout");
-        }
-
         const rule = @import("generated_rx_control_finish_block");
-        const Input = std.meta.Child(rule.Input);
-
-        const input: Input = .{
-            .firsts = self.columns.block_first.items,
-            .lengths = self.columns.block_count.items,
-            .block = block,
-            .statement = cursor.statement,
-            .actual = std.mem.asBytes(&cursor.counts),
-            .expected = std.mem.asBytes(end),
-        };
-
+        const input = self.blockInput(std.meta.Child(rule.Input), cursor, block, end);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const complete = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch return error.InvalidModule;
 
@@ -49,6 +33,23 @@ pub fn finishBlock(self: *const Self, cursor: *const Cursor, block: u32, end: *c
     }
 
     return @fromBackingInt(block);
+}
+
+fn blockInput(self: *const Self, comptime Input: type, cursor: *const Cursor, block: u32, end: *const Counts) Input {
+    comptime {
+        const fields = @typeInfo(Counts).@"struct".field_types;
+
+        if (@sizeOf(Counts) != fields.len * @sizeOf(u32)) @compileError("control cursor counts need a packed column layout");
+    }
+
+    return .{
+        .firsts = self.columns.block_first.items,
+        .lengths = self.columns.block_count.items,
+        .block = block,
+        .statement = cursor.statement,
+        .actual = std.mem.asBytes(&cursor.counts),
+        .expected = std.mem.asBytes(end),
+    };
 }
 
 pub fn init(allocator: std.mem.Allocator, blocks: u32) std.mem.Allocator.Error!Self {
@@ -180,8 +181,34 @@ pub fn parallel(self: *Self, cursor: *Cursor, count: usize, bindings: []ir.Symbo
     }
 }
 
-pub fn selectionCase(self: *Self, position: usize, value: ?ir.ExprId, body: ir.BlockId) void {
-    member(position, &self.columns.case_values.items, &self.columns.case_bodies.items, if (value) |id| @backingInt(id) else null, @backingInt(body));
+pub fn finishCase(self: *Self, cursor: *const Cursor, block: u32, end: *const Counts, position: u32, label: ?ir.ExprId) Error!void {
+    const value = if (label) |id| @backingInt(id) else null;
+
+    if (comptime generated) {
+        const rule = @import("generated_rx_control_publish_case");
+        const Input = std.meta.Child(rule.Input);
+        const check = self.blockInput(std.meta.Child(@FieldType(Input, "block")), cursor, block, end);
+
+        const input: Input = .{
+            .block = &check,
+            .member = &.{
+                .optional = @ptrCast(&self.columns.case_values.items),
+                .required = @ptrCast(&self.columns.case_bodies.items),
+                .index = position,
+                .optional_id = value,
+            },
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const complete = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch return error.InvalidModule;
+
+        if (!complete) return error.InvalidModule;
+    } else {
+        const body = try self.finishBlock(cursor, block, end);
+
+        self.columns.case_values.items[position] = value;
+        self.columns.case_bodies.items[position] = @backingInt(body);
+    }
 }
 
 fn member(index: usize, optional: *const []?u32, required: *const []u32, optional_id: ?u32, required_id: u32) void {

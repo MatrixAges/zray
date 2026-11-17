@@ -1,0 +1,7 @@
+import type { Input as Block } from "./finish_block"
+import type { Input as Member } from "./member"
+
+export type Input = {
+    block: Block,
+    member: Member.Omit("required_id")
+}

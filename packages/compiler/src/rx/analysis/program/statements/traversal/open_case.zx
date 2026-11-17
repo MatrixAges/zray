@@ -1,0 +1,20 @@
+import integers from "std:integer"
+
+import { Action } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const unit = in.shape.cases[in.position]
+    const row = integers.widen(unit)
+    const offset = integers.narrow(in.position) - in.shape.steps.firsts[in.scope_step]
+
+    return {
+        action: Action.OpenCase,
+        next: in.position + 1,
+        first: in.shape.units.firsts[row],
+        count: in.shape.units.counts[row],
+        unit,
+        target: in.case_first + offset
+    }
+}

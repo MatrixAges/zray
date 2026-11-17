@@ -8,88 +8,31 @@ const inlineValue = @import("../expression.zig").inlineValue;
 const generated = @import("rx_options").generated_graph;
 const rule = if (generated) @import("generated_rx_statement_traversal") else void;
 const Input = if (generated) std.meta.Child(rule.Input) else void;
-const Outcome = if (generated) @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload else void;
-const Event = if (generated and @typeInfo(Outcome) == .pointer) std.meta.Child(Outcome) else Outcome;
-const Region = if (generated) @FieldType(Input, "region") else enum { Root, Task, Selection, Case };
-
-const Action = if (generated) @FieldType(Event, "action") else enum {
-    Done,
-    Call,
-    Parallel,
-    Return,
-    OpenTask,
-    OpenSelection,
-    OpenCase,
-    CloseTask,
-    CloseSelection,
-    CloseCase,
-};
-
+const Shape = if (generated) std.meta.Child(@FieldType(Input, "shape")) else void;
+const Region = if (generated) @FieldType(Input, "region") else @import("traversal/seed.zig").Region;
+const Event = if (generated) @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload else @import("traversal/seed.zig").Event;
 const inline_depth = 4;
 
 const Cursor = struct {
     position: usize,
     end: usize,
-    fn range(first: usize, count: usize) Cursor {
-        return .{ .position = first, .end = first + count };
-    }
-    fn unit(flow: *const Flow, owner: u32) Cursor {
-        const body = flow.units.get(owner);
-
-        return range(body.first, body.count);
-    }
-    fn advance(self: *Cursor, region: Region, kinds: []const Flow.Kind) Action {
-        if (comptime generated) {
-            const input: Input = .{
-                .region = region,
-                .kinds = zx.columns.slice(@FieldType(Input, "kinds"), kinds),
-                .position = self.position,
-                .end = self.end,
-            };
-
-            var buffer: [@sizeOf(Event)]u8 align(@alignOf(Event)) = undefined;
-            var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-            const event = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
-
-            self.position = @intCast(event.next);
-
-            return event.action;
-        }
-
-        if (self.position == self.end) return switch (region) {
-            .Root => .Done,
-            .Task => .CloseTask,
-            .Selection => .CloseSelection,
-            .Case => .CloseCase,
-        };
-
-        const position = self.position;
-
-        self.position += 1;
-
-        if (region == .Selection) return .OpenCase;
-
-        return switch (kinds[position]) {
-            .Call => .Call,
-            .Parallel => .Parallel,
-            .Return => .Return,
-            .Task => .OpenTask,
-            .Selection => .OpenSelection,
-        };
+    fn range(first: u32, count: u32) Cursor {
+        return .{ .position = first, .end = @as(usize, first) + count };
     }
 };
 
 const Frame = struct {
     cursor: Cursor,
-    /// Inline units borrow a cursor by stack index so growth cannot invalidate it.
+    // An inline unit borrows its enclosing block's writer by index across stack growth.
     block: ?usize = null,
+    step: usize = 0,
     scope: union(Region) {
         Root: void,
-        Task: struct { step: usize, bindings: usize },
-        Selection: struct { step: usize, subject: ir.ExprId, first: usize },
+        Task: usize,
+        Selection: ir.ExprId,
         Case: struct {
             unit: u32,
-            target: usize,
+            target: u32,
             label: ?ir.ExprId,
             bindings: usize,
             writer: Writer.Cursor,
@@ -97,13 +40,30 @@ const Frame = struct {
     },
 };
 
-pub fn lower(self: *const Statements, allocator: std.mem.Allocator, owner: u32, root_writer: *Writer.Cursor) Statements.Error!void {
+pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer: *Writer.Cursor) Statements.Error!void {
     const flow = self.flow;
     const steps = flow.steps.slice();
     const cases = flow.cases.slice();
+    const units = flow.units.slice();
     const builder = self.builder;
-    const kinds = steps.items(.kind);
-    var root: Frame = .{ .cursor = Cursor.unit(flow, owner), .scope = .Root };
+    const owner = self.plan.root();
+
+    const step_columns: if (generated) std.meta.Child(@FieldType(Shape, "steps")) else void = if (generated) .{
+        .kinds = zx.columns.slice(@FieldType(std.meta.Child(@FieldType(Shape, "steps")), "kinds"), @as([]const Flow.Kind, steps.items(.kind))),
+        .outputs = zx.columns.slice(@FieldType(std.meta.Child(@FieldType(Shape, "steps")), "outputs"), @as([]const Flow.Publish, steps.items(.output))),
+        .firsts = steps.items(.first),
+        .counts = steps.items(.count),
+        .exhaustive = steps.items(.exhaustive),
+    } else {};
+
+    const shape: Shape = if (generated) .{
+        .steps = &step_columns,
+        .units = &.{ .firsts = units.items(.first), .counts = units.items(.count) },
+        .cases = cases.items(.body),
+    } else {};
+
+    const unit = flow.units.get(owner);
+    var root: Frame = .{ .cursor = .range(unit.first, unit.count), .scope = .Root };
     var buffer: [inline_depth]Frame = undefined;
     var storage = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&buffer), allocator);
     const temporary = storage.allocator();
@@ -125,84 +85,101 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, owner: u32, 
         const block = frame.block;
         const writer = if (block) |index| &stack.items[index].scope.Case.writer else root_writer;
 
-        switch (frame.cursor.advance(region, kinds)) {
+        const event = if (generated) decision: {
+            const input: Input = .{
+                .region = region,
+                .shape = &shape,
+                .position = position,
+                .end = frame.cursor.end,
+                .scope_step = frame.step,
+                .case_first = writer.counts.cases,
+                .borrow_root = self.retain_metadata,
+            };
+
+            var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+            break :decision rule.executeValue(empty.allocator(), &input) catch return error.InvalidModule;
+        } else @import("traversal/seed.zig").advance(flow, .{
+            .region = region,
+            .position = position,
+            .end = frame.cursor.end,
+            .scope_step = frame.step,
+            .case_first = writer.counts.cases,
+            .borrow_root = self.retain_metadata,
+        });
+
+        frame.cursor.position = @intCast(event.next);
+
+        switch (event.action) {
             .Done => return,
-            .Call => try self.call(writer, &self.calls[steps.items(.first)[position]]),
-            .Parallel => {
-                const first = steps.items(.first)[position];
-                const count = steps.items(.count)[position];
-
-                try self.parallel(writer, self.calls[first..][0..count]);
+            .Calls => {
+                for (steps.items(.first)[position..frame.cursor.position]) |call| {
+                    try self.call(writer, &self.calls[call]);
+                }
             },
-            .Return => {
+            .Parallel => try self.parallel(writer, self.calls[event.first.?..][0..event.count.?]),
+            .Return, .ReturnBorrowed => {
                 const program = steps.items(.value)[position].?;
-                const borrow = region == .Root and self.retain_metadata and owner == self.plan.root();
 
-                self.writer.result(writer, try inlineValue(builder, program.*, borrow));
+                self.writer.result(writer, try inlineValue(builder, program.*, event.action == .ReturnBorrowed));
             },
-            .OpenTask => {
-                const child = try stack.addOne(temporary);
-
-                child.* = .{
-                    .cursor = Cursor.unit(flow, steps.items(.first)[position]),
-                    .block = block,
-                    .scope = .{ .Task = .{ .step = position, .bindings = builder.bindings.items.len } },
-                };
-            },
+            .OpenTask => try stack.append(temporary, .{
+                .cursor = .range(event.first.?, event.count.?),
+                .block = block,
+                .step = position,
+                .scope = .{ .Task = builder.bindings.items.len },
+            }),
             .OpenSelection => {
                 const subject = try inlineValue(builder, steps.items(.value)[position].?.*, false);
-                const first = writer.counts.cases;
-                const step_first = steps.items(.first)[position];
-                const count = steps.items(.count)[position];
-                const child = try stack.addOne(temporary);
 
-                child.* = .{
-                    .cursor = Cursor.range(step_first, count),
+                try stack.append(temporary, .{
+                    .cursor = .range(event.first.?, event.count.?),
                     .block = block,
-                    .scope = .{ .Selection = .{ .step = position, .subject = subject, .first = first } },
-                };
+                    .step = position,
+                    .scope = .{ .Selection = subject },
+                });
             },
             .OpenCase => {
-                const selection = frame.scope.Selection;
-                const target = selection.first + position - steps.items(.first)[selection.step];
-                const unit = cases.items(.body)[position];
-                const label = try self.caseLabel(cases.items(.value)[position]);
-                const index = stack.items.len;
-                const child = try stack.addOne(temporary);
+                const label = if (cases.items(.value)[position]) |program| try inlineValue(builder, program.*, false) else null;
+                const child = event.unit.?;
 
-                child.* = .{
-                    .cursor = Cursor.unit(flow, unit),
-                    .block = index,
+                try stack.append(temporary, .{
+                    .cursor = .range(event.first.?, event.count.?),
+                    .block = stack.items.len,
                     .scope = .{ .Case = .{
-                        .unit = unit,
-                        .target = target,
+                        .unit = child,
+                        .target = event.target.?,
                         .label = label,
                         .bindings = builder.bindings.items.len,
-                        .writer = Writer.Cursor.init(self.plan.rows[unit].first),
+                        .writer = Writer.Cursor.init(self.plan.rows[child].first),
                     } },
-                };
+                });
             },
-            .CloseTask => {
-                const task = frame.scope.Task;
+            .CloseTask, .EvaluateTask, .BindTask => {
+                const step = steps.get(frame.step);
+                const bindings = frame.scope.Task;
 
-                try self.finishTask(writer, steps.get(task.step), task.bindings);
+                switch (event.action) {
+                    .CloseTask => try self.finishTask(.Task, writer, step, bindings),
+                    .EvaluateTask => try self.finishTask(.TaskWithEvaluation, writer, step, bindings),
+                    .BindTask => try self.finishTask(.TaskWithBinding, writer, step, bindings),
+                    else => unreachable,
+                }
 
                 _ = stack.pop();
             },
             .CloseSelection => {
-                const selection = frame.scope.Selection;
-
-                self.writer.selection(writer, selection.subject, steps.items(.count)[selection.step], steps.items(.exhaustive)[selection.step]);
+                self.writer.selection(writer, frame.scope.Selection, event.count.?, event.exhaustive.?);
 
                 _ = stack.pop();
             },
             .CloseCase => {
                 const branch = &frame.scope.Case;
                 const row = self.plan.rows[branch.unit];
-                const body = try self.writer.finishBlock(writer, row.tag, self.plan.end(branch.unit));
+
+                try self.writer.finishCase(writer, row.tag, self.plan.end(branch.unit), branch.target, branch.label);
 
                 builder.bindings.shrinkRetainingCapacity(branch.bindings);
-                self.writer.selectionCase(branch.target, branch.label, body);
 
                 _ = stack.pop();
             },

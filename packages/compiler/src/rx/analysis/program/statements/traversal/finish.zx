@@ -1,14 +1,33 @@
+import { Publish } from "../../control/model"
 import { Action, Region } from "./model"
 
-export type Input = Region
-
-export type Output = Action
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    return match in {
-        Region.Task => Action.CloseTask,
-        Region.Selection => Action.CloseSelection,
-        Region.Case => Action.CloseCase,
-        _ => Action.Done
+    if (in.region == Region.Selection) {
+        return {
+            action: Action.CloseSelection,
+            next: in.position,
+            count: in.shape.steps.counts[in.scope_step],
+            exhaustive: in.shape.steps.exhaustive[in.scope_step]
+        }
+    }
+
+    if (in.region == Region.Task) {
+        const action = match in.shape.steps.outputs[in.scope_step] {
+            Publish.None => Action.CloseTask,
+            Publish.Evaluate => Action.EvaluateTask,
+            _ => Action.BindTask
+        }
+
+        return {
+            action,
+            next: in.position
+        }
+    }
+
+    return {
+        action: in.region == Region.Root ? Action.Done : Action.CloseCase,
+        next: in.position
     }
 }

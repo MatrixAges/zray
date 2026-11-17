@@ -20,22 +20,14 @@ plan: Plan,
 writer: *Writer,
 calls: []const Module.Call,
 retain_metadata: bool,
-pub fn finishTask(self: *const Self, cursor: *Writer.Cursor, step: Flow.Step, count: usize) Builder.Error!void {
-    return switch (step.output) {
-        .None => self.lowerTask(.Task, cursor, step, count),
-        .Evaluate => self.lowerTask(.TaskWithEvaluation, cursor, step, count),
-        .Constant => self.lowerTask(.TaskWithBinding, cursor, step, count),
-    };
-}
-
-fn lowerTask(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cursor, step: Flow.Step, count: usize) Builder.Error!void {
+pub fn finishTask(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cursor, step: Flow.Step, count: usize) Builder.Error!void {
     const builder = self.builder;
     var value: ir.ExprId = undefined;
     var symbol: ir.SymbolId = undefined;
 
     inline for (comptime Schedule.steps(form)) |action| {
         switch (action) {
-            .Done, .LowerTask => {},
+            .Done => {},
             .EvaluateTaskOutput => value = try inlineValue(builder, step.value.?.*, false),
             .WriteEvaluation => self.writer.evaluate(cursor, value),
             .DefineTaskBinding => {
@@ -48,20 +40,6 @@ fn lowerTask(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cu
             else => unreachable,
         }
     }
-}
-
-pub fn caseLabel(self: *const Self, program: ?*const ir.Program) Builder.Error!?ir.ExprId {
-    const label = program orelse return null;
-
-    inline for (comptime Schedule.steps(.Case)) |action| {
-        switch (action) {
-            .Done, .LowerBranch, .WriteCase => {},
-            .EvaluateLabel => return try inlineValue(self.builder, label.*, false),
-            else => unreachable,
-        }
-    }
-
-    unreachable;
 }
 
 pub fn parallel(self: *const Self, cursor: *Writer.Cursor, branches: []const Module.Call) Builder.Error!void {

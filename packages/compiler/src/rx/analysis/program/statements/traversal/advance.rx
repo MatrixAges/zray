@@ -1,40 +1,72 @@
 <Module>
+    <Type from="../../control/model" as="Control" />
     <Type from="model" as="Traversal" />
 
     <Args in={Traversal.Input} out={Traversal.Output} />
 
     <If on={$in.position == $in.end}>
-        <Call fn="finish" in={$in.region} />
+        <Call fn="finish" in={$in} />
 
-        <Return
-            value={{
-                action: $ctx.finish,
-                next: $in.position
-            }}
-        />
+        <Return value={$ctx.finish} />
     </If>
 
     <If on={$in.region == Traversal.Region.Selection}>
-        <Return
-            value={{
-                action: Traversal.Action.OpenCase,
-                next: $in.position + 1
-            }}
-        />
+        <Call fn="open_case" in={$in} />
+
+        <Return value={$ctx.open_case} />
     </If>
 
-    <Call
-        fn="step"
-        in={$in.pick([
-            "kinds",
-            "position"
-        ])}
-    />
+    <Switch on={$in.shape.steps.kinds[$in.position]}>
+        <Case value={Control.Kind.Call}>
+            <Call fn="call_run" in={$in} />
 
-    <Return
-        value={{
-            action: $ctx.step,
-            next: $in.position + 1
-        }}
-    />
+            <Return value={$ctx.call_run} />
+        </Case>
+
+        <Case value={Control.Kind.Parallel}>
+            <Return
+                value={{
+                    action: Traversal.Action.Parallel,
+                    next: $in.position + 1,
+                    first: $in.shape.steps.firsts[$in.position],
+                    count: $in.shape.steps.counts[$in.position]
+                }}
+            />
+        </Case>
+
+        <Case value={Control.Kind.Return}>
+            <If on={$in.region == Traversal.Region.Root && $in.borrow_root}>
+                <Return
+                    value={{
+                        action: Traversal.Action.ReturnBorrowed,
+                        next: $in.position + 1
+                    }}
+                />
+            </If>
+
+            <Return
+                value={{
+                    action: Traversal.Action.Return,
+                    next: $in.position + 1
+                }}
+            />
+        </Case>
+
+        <Case value={Control.Kind.Task}>
+            <Call fn="open_task" in={$in} />
+
+            <Return value={$ctx.open_task} />
+        </Case>
+
+        <Case value={Control.Kind.Selection}>
+            <Return
+                value={{
+                    action: Traversal.Action.OpenSelection,
+                    next: $in.position + 1,
+                    first: $in.shape.steps.firsts[$in.position],
+                    count: $in.shape.steps.counts[$in.position]
+                }}
+            />
+        </Case>
+    </Switch>
 </Module>

@@ -1,0 +1,19 @@
+<Module>
+    <Type from="case_model" as="CaseWrite" />
+
+    <Args in={CaseWrite.Input} out={bool} />
+
+    <Call fn="finish_block" in={$in.block} />
+
+    <If on={$ctx.finish_block}>
+        <Call
+            fn="member"
+            in={{
+                ...$in.member,
+                required_id: $in.block.block
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.finish_block} />
+</Module>

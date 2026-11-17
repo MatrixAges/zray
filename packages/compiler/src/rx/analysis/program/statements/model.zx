@@ -4,8 +4,6 @@ export enum Form {
     Task,
     TaskWithEvaluation,
     TaskWithBinding,
-    Case,
-    Default,
     ImportFunctions,
     ImportFunctionsAndInitializers
 }
@@ -22,14 +20,10 @@ export enum Step {
     LinkInitializers,
     AppendFunctionEntry,
     WriteCall,
-    LowerTask,
     EvaluateTaskOutput,
     WriteEvaluation,
     DefineTaskBinding,
-    PublishTaskBinding,
-    EvaluateLabel,
-    LowerBranch,
-    WriteCase
+    PublishTaskBinding
 }
 
 export type Input = Form
