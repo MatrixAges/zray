@@ -1,0 +1,81 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import own from "./own"
+
+import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { WriteColumn as ListTarget } from "memory/columns"
+import type { Header } from "../../module_record/model"
+
+export type Source = {
+    header: Header,
+    names: ReadColumn,
+    source_names: ReadColumn,
+    path: TextColumn
+}
+
+export type Target = {
+    specifier: WriteColumn,
+    identity: ListTarget,
+    names: ListTarget,
+    source_names: ListTarget,
+    path: WriteColumn
+}
+
+export type Input = {
+    source: Source,
+    target: Target
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target } = in
+
+    const header = source.header
+
+    const published = loop(0, {
+        while: row => row < header.count,
+        next: row => {
+            const kind = memory.readColumnU8(header.target_kind, row)
+            const path: string? = match {
+                kind == header.source_kind => memory.readTextColumn(source.path, row),
+                _ => null
+            }
+
+            const value = own({
+                specifier: memory.readTextColumn(header.specifier, row),
+                identity: memory.readOptionalTextColumn(header.identity, row),
+                names: memory.readTextListColumn(source.names, row),
+                source_names: memory.readTextListColumn(source.source_names, row),
+                path
+            })
+
+            memory.writeColumnBytes(
+                target.specifier,
+                row,
+                bytes.fromText(value.specifier)
+            )
+            columns.writeColumnOptionalText(target.identity, row, value.identity)
+            columns.writeColumnTextList(target.names, row, value.names)
+            columns.writeColumnTextList(
+                target.source_names,
+                row,
+                value.source_names
+            )
+
+            const owned_path = value.path
+
+            if (owned_path != null) {
+                memory.writeColumnBytes(
+                    target.path,
+                    row,
+                    bytes.fromText(owned_path)
+                )
+            }
+
+            row += 1
+        }
+    })
+}

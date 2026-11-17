@@ -10,8 +10,13 @@ pub const Column = struct {
 
 /// The caller lends a mutable field of each row exclusively until the generated call returns.
 pub inline fn borrow(comptime T: type, comptime field: []const u8, rows: anytype) Column {
+    return borrowNested(T, &.{field}, rows);
+}
+
+pub inline fn borrowNested(comptime T: type, comptime fields: []const []const u8, rows: anytype) Column {
     const Row = std.meta.Child(@TypeOf(rows));
-    const Field = @FieldType(Row, field);
+    const layout = comptime @import("rows.zig").fieldLayout(Row, fields);
+    const Field = layout.type;
 
     comptime {
         if (@sizeOf(Field) != @sizeOf(T) or @alignOf(Field) != @alignOf(T)) {
@@ -22,7 +27,7 @@ pub inline fn borrow(comptime T: type, comptime field: []const u8, rows: anytype
     const bytes: [*]u8 = @ptrCast(rows.ptr);
 
     return .{
-        .items = if (rows.len == 0) bytes else bytes + @offsetOf(Row, field),
+        .items = if (rows.len == 0) bytes else bytes + layout.offset,
         .count = rows.len,
         .stride = @sizeOf(Row),
         .width = @sizeOf(T),
@@ -55,6 +60,10 @@ pub inline fn writeOptionalU8(target: *const anyopaque, index: u64, value: ?u8) 
 
 pub inline fn writeOptionalText(target: *const anyopaque, index: u64, value: ?[]const u8) IndexError!void {
     return write(?[]const u8, target, index, value);
+}
+
+pub inline fn writeTextList(target: *const anyopaque, index: u64, value: []const []const u8) IndexError!void {
+    return write([]const []const u8, target, index, value);
 }
 
 pub inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T) IndexError!void {

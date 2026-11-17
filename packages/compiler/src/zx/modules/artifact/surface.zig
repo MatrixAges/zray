@@ -8,7 +8,8 @@ const Error = @import("model.zig").Error;
 const names = @import("../../ir/canonical/validation/names/view.zig");
 const constants = @import("generated_artifact_surface_constants");
 const exports = @import("generated_artifact_surface_exports");
-const bindings = @import("generated_artifact_surface_binding");
+const bindings = @import("generated_artifact_surface_bindings");
+const memory = zx.memory;
 const ConstantRows = @import("../../analysis/constants/columns.zig").Rows;
 const ConstantInput = std.meta.Child(constants.Input);
 pub const Mapping = std.meta.Child(@FieldType(ConstantInput, "types"));
@@ -111,30 +112,33 @@ pub const ConstantTarget = struct {
 };
 
 fn copyBindings(allocator: std.mem.Allocator, source: []const Binding, types: *const BindingMapping, functions: *const BindingMapping) Error![]const Binding {
+    if (source.len == 0) return &.{};
+
     const result = try allocator.alloc(Binding, source.len);
 
-    for (source, result) |*item, *target| {
-        const input: BindingInput = .{
-            .name = item.name,
-            .namespace = item.namespace,
-            .id = if (item.id) |id| @backingInt(id) else null,
-            .input_type = if (item.input_type) |id| @backingInt(id) else null,
-            .output_type = if (item.output_type) |id| @backingInt(id) else null,
-            .types = types,
-            .functions = functions,
-        };
+    const input: BindingInput = .{
+        .source = &.{
+            .name = @ptrCast(&memory.borrowTextColumn("name", source)),
+            .namespace = @ptrCast(&memory.borrowReadColumn(?[]const u8, "namespace", source)),
+            .id = @ptrCast(&memory.borrowOptionalU32Column("id", source)),
+            .input_type = @ptrCast(&memory.borrowOptionalU32Column("input_type", source)),
+            .output_type = @ptrCast(&memory.borrowOptionalU32Column("output_type", source)),
+            .intrinsic = @ptrCast(&memory.borrowOptionalU8Column("intrinsic", source)),
+            .count = source.len,
+        },
+        .target = &.{
+            .name = @ptrCast(&memory.borrowWriteColumn([]const u8, "name", result)),
+            .namespace = @ptrCast(&memory.borrowWriteColumn(?[]const u8, "namespace", result)),
+            .id = @ptrCast(&memory.borrowWriteColumn(?u32, "id", result)),
+            .input_type = @ptrCast(&memory.borrowWriteColumn(?u32, "input_type", result)),
+            .output_type = @ptrCast(&memory.borrowWriteColumn(?u32, "output_type", result)),
+            .intrinsic = @ptrCast(&memory.borrowWriteColumn(?u8, "intrinsic", result)),
+        },
+        .types = types,
+        .functions = functions,
+    };
 
-        const row = zx.columns.invoke(bindings.executeValue, allocator, &input) catch |err| return failure(err);
-
-        target.* = .{
-            .name = row.name,
-            .namespace = row.namespace,
-            .id = if (row.id) |id| @fromBackingInt(id) else null,
-            .input_type = if (row.input_type) |id| @fromBackingInt(id) else null,
-            .output_type = if (row.output_type) |id| @fromBackingInt(id) else null,
-            .intrinsic = item.intrinsic,
-        };
-    }
+    zx.columns.invoke(bindings.executeValue, allocator, &input) catch |err| return failure(err);
 
     return result;
 }

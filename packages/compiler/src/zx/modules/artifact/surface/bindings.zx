@@ -1,0 +1,78 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import own from "./binding"
+
+import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { WriteColumn as OptionalColumn } from "memory/columns"
+import type { Mapping } from "../remapping/model"
+
+export type Source = {
+    name: TextColumn,
+    namespace: ReadColumn,
+    id: ReadColumn,
+    input_type: ReadColumn,
+    output_type: ReadColumn,
+    intrinsic: ReadColumn,
+    count: u64
+}
+
+export type Target = {
+    name: WriteColumn,
+    namespace: OptionalColumn,
+    id: OptionalColumn,
+    input_type: OptionalColumn,
+    output_type: OptionalColumn,
+    intrinsic: OptionalColumn
+}
+
+export type Input = {
+    source: Source,
+    target: Target,
+    types: Mapping,
+    functions: Mapping
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target, types, functions } = in
+
+    const published = loop(0, {
+        while: row => row < source.count,
+        next: row => {
+            const value = own({
+                name: memory.readTextColumn(source.name, row),
+                namespace: memory.readOptionalTextColumn(source.namespace, row),
+                id: memory.readColumnOptionalU32(source.id, row),
+                input_type: memory.readColumnOptionalU32(source.input_type, row),
+                output_type: memory.readColumnOptionalU32(source.output_type, row),
+                types,
+                functions
+            })
+
+            memory.writeColumnBytes(target.name, row, bytes.fromText(value.name))
+            columns.writeColumnOptionalText(target.namespace, row, value.namespace)
+            columns.writeColumnOptionalU32(target.id, row, value.id)
+            columns.writeColumnOptionalU32(
+                target.input_type,
+                row,
+                value.input_type
+            )
+            columns.writeColumnOptionalU32(
+                target.output_type,
+                row,
+                value.output_type
+            )
+            const intrinsic = memory.readColumnOptionalU8(
+                source.intrinsic,
+                row
+            )
+
+            columns.writeColumnOptionalU8(target.intrinsic, row, intrinsic)
+
+            row += 1
+        }
+    })
+}

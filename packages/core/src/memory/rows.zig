@@ -122,7 +122,7 @@ pub inline fn borrowNestedList(comptime T: type, comptime field: []const u8, com
     return .{ .lists = borrowColumn(List, field, items), .stride = @sizeOf(Row), .offset = layout.offset };
 }
 
-fn fieldLayout(comptime Item: type, comptime fields: []const []const u8) struct { type: type, offset: usize } {
+pub fn fieldLayout(comptime Item: type, comptime fields: []const []const u8) struct { type: type, offset: usize } {
     var current = Item;
     var offset: usize = 0;
 

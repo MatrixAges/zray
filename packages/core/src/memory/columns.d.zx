@@ -20,6 +20,12 @@ export declare function writeColumnOptionalText(
     value: string?
 ): void throws { IndexOutOfBounds }
 
+export declare function writeColumnTextList(
+    target: WriteColumn,
+    index: u64,
+    value: string[]
+): void throws { IndexOutOfBounds }
+
 export declare function readColumnU32(
     source: ReadColumn,
     index: u64
