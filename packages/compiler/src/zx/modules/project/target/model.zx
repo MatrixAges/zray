@@ -1,3 +1,7 @@
+import type { Table } from "core/bytes/index/fixed"
+import type { Output as Alias } from "../../path/alias/model"
+import type { Boundary, Input as Scope } from "./scope/check"
+
 export enum Route {
     File,
     Package,
@@ -31,13 +35,23 @@ export type File = {
     allow_rx: bool
 }
 
+export type FileRequest = File & {
+    from: string,
+    root: string
+}
+
 export type FileTarget = {
     kind: PathBase,
-    prefix: u64,
-    path: string,
-    suffix: string,
-    directory: bool,
-    rx: bool
+    path?: string,
+    fallback: bool
+}
+
+export type FileProbe = Scope & {
+    index: Table
+}
+
+export type FileSelection = Alias & {
+    boundary: Boundary
 }
 
 export enum PackageShape {
@@ -54,4 +68,16 @@ export type Package = {
     instance: bool,
     artifact: bool,
     name: bool
+}
+
+export type PackageRequest = {
+    shape: Package,
+    duplicate: bool,
+    root: string,
+    artifact?: string
+}
+
+export type PackageTarget = {
+    kind: PackageShape,
+    path?: string
 }

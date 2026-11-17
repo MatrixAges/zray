@@ -1,0 +1,15 @@
+import lexical from "lexical_path"
+
+export type Input = {
+    root: string,
+    path: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return lexical.resolvePathParts([
+        in.root,
+        in.path
+    ])
+}

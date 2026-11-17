@@ -1,9 +1,15 @@
 <Module>
     <Type from="model" as="Target" />
 
-    <Args in={Target.File} out={Target.FileTarget} />
+    <Args in={Target.FileRequest} out={Target.FileTarget} />
 
-    <Call fn="stem" in={$in} />
+    <Call
+        fn="stem"
+        in={$in.omit([
+            "from",
+            "root"
+        ])}
+    />
 
     <Call
         fn="../../path/directory"
@@ -22,13 +28,30 @@
         }}
     />
 
-    <Return
-        value={{
-            ...$ctx.base,
-            path: $ctx.stem.path,
-            suffix: $ctx.stem.suffix,
-            directory: $ctx.directory,
-            rx: $ctx.stem.rx
+    <If
+        on={$ctx.base.kind == Target.PathBase.Extension ||
+            $ctx.base.kind == Target.PathBase.Invalid}
+    >
+        <Return
+            value={{
+                kind: $ctx.base.kind,
+                fallback: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="file/resolve"
+        in={{
+            context: $in.pick([
+                "from",
+                "root"
+            ]),
+            stem: $ctx.stem,
+            base: $ctx.base,
+            directory: $ctx.directory
         }}
     />
+
+    <Return value={$ctx.resolve} />
 </Module>

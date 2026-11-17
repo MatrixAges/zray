@@ -283,6 +283,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/path/directory.zx", .name = "module_directory" },
     .{ .path = "zx/modules/project/target/classify.rx", .name = "project_import_route" },
     .{ .path = "zx/modules/project/target/file.rx", .name = "project_file_target" },
+    .{ .path = "zx/modules/project/target/file/select.rx", .name = "project_file_selection" },
     .{ .path = "zx/modules/project/target/package/admit.rx", .name = "project_package_admission" },
     .{ .path = "zx/modules/project/target/select.zx", .name = "project_package_select" },
     .{ .path = "zx/modules/project/target/interface/lookup.rx", .name = "project_interface_lookup" },

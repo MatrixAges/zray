@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const zx = @import("zx");
 const paths = @import("../../module_path.zig");
 const scopes = @import("../../package_scope.zig");
@@ -19,7 +20,7 @@ pub const Memory = struct {
     compiled: std.mem.Allocator,
 };
 
-const FilePlan = if (enabled) Output(@import("generated_project_file_target")) else struct {
+const SeedFilePlan = struct {
     kind: enum { Relative, Root, Extension, Invalid },
     prefix: u64,
     path: []const u8,
@@ -29,7 +30,7 @@ const FilePlan = if (enabled) Output(@import("generated_project_file_target")) e
 };
 
 const ResolvedFile = struct { path: []const u8, fallback: bool };
-const Shape = if (enabled) Output(@import("generated_project_package_admission")) else enum { Source, Compiled, InvalidSource, InvalidCompiled, Duplicate };
+const SeedShape = enum { Source, Compiled, InvalidSource, InvalidCompiled, Duplicate };
 
 fn Output(comptime module: type) type {
     return @typeInfo(@TypeOf(module.executeValue(undefined, undefined))).error_union.payload;
@@ -56,13 +57,31 @@ pub fn resolvePath(allocator: std.mem.Allocator, from: []const u8, path: []const
 }
 
 fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8, root: []const u8, allow_rx: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error!ResolvedFile {
-    const plan = filePlan(path, allow_rx);
+    if (comptime enabled) {
+        const rule = @import("generated_project_file_target");
 
-    switch (plan.kind) {
-        .Extension => return reporter.fail(.module, span, "project imports must omit the .zx extension; runtime and RX imports are forbidden"),
-        .Invalid => return reporter.fail(.module, span, "imports require ./, ../ or @/ paths; external interfaces require explicit registration"),
-        .Relative, .Root => {},
+        const input: std.meta.Child(rule.Input) = .{
+            .path = path,
+            .from = from,
+            .root = root,
+            .basename = std.fs.path.basename(path),
+            .extension = std.fs.path.extension(path).len != 0,
+            .allow_rx = allow_rx,
+        };
+
+        const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.WriteFailed => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        try reportPath(result.kind, reporter, span);
+
+        return .{ .path = result.path.?, .fallback = result.fallback };
     }
+
+    const plan = seedFilePlan(path, allow_rx);
+
+    try reportPath(plan.kind, reporter, span);
 
     var buffer: [512]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
@@ -87,26 +106,20 @@ fn resolveFile(allocator: std.mem.Allocator, from: []const u8, path: []const u8,
     };
 }
 
-fn filePlan(path: []const u8, allow_rx: bool) FilePlan {
-    if (comptime enabled) {
-        const generated = @import("generated_project_file_target");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        const input: std.meta.Child(generated.Input) = .{
-            .path = path,
-            .basename = std.fs.path.basename(path),
-            .extension = std.fs.path.extension(path).len != 0,
-            .allow_rx = allow_rx,
-        };
-
-        return zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
+fn reportPath(kind: anytype, reporter: *zx.Reporter, span: zx.Span) zx.Error!void {
+    switch (kind) {
+        .Extension => return reporter.fail(.module, span, "project imports must omit the .zx extension; runtime and RX imports are forbidden"),
+        .Invalid => return reporter.fail(.module, span, "imports require ./, ../ or @/ paths; external interfaces require explicit registration"),
+        .Relative, .Root => {},
     }
+}
 
+fn seedFilePlan(path: []const u8, allow_rx: bool) SeedFilePlan {
     const rx = allow_rx and std.mem.endsWith(u8, path, ".rx");
     const stem = if (rx) path[0 .. path.len - ".rx".len] else path;
     const directory = paths.directoryReference(stem);
 
-    const kind: @FieldType(FilePlan, "kind") = if (!directory and std.fs.path.extension(stem).len != 0)
+    const kind: @FieldType(SeedFilePlan, "kind") = if (!directory and std.fs.path.extension(stem).len != 0)
         .Extension
 
     else if (std.mem.startsWith(u8, stem, "@/"))
@@ -149,6 +162,9 @@ fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []
             const allocator = memory.source;
             const root = scope.root(options.root_dir);
             const file = try resolveFile(allocator, from, path, root, true, reporter, span);
+
+            if (comptime enabled) return finishFile(keep_row, allocator, file, options.source_index, scope, reporter, span);
+
             var resolved = file.path;
 
             errdefer allocator.free(resolved);
@@ -180,57 +196,112 @@ fn resolveIn(comptime keep_row: bool, memory: Memory, from: []const u8, path: []
     }
 }
 
+fn finishFile(comptime keep_row: bool, allocator: std.mem.Allocator, file: ResolvedFile, index: ?*const source_index.Map, scope: Scope, reporter: *zx.Reporter, span: zx.Span) zx.Error!Resolved {
+    const table = if (file.fallback) index orelse &source_index.Map.empty else &source_index.Map.empty;
+    var resolved = file.path;
+
+    if (table.buckets.len == 0 and scope.scopes.len == 0) return .{ .target = .{ .source = resolved } };
+
+    errdefer allocator.free(resolved);
+
+    const roots = zx.memory.borrowTextColumn("root", scope.scopes);
+    const rule = @import("generated_project_file_selection");
+
+    const input: std.meta.Child(rule.Input) = .{
+        .path = resolved,
+        .roots = &.{ .items = @ptrCast(&roots), .length = roots.count },
+        .owner = scope.owner,
+        .windows = builtin.os.tag == .windows,
+        .index = &.{ .keys = table.keys, .buckets = @ptrCast(&table.buckets), .capacity = table.buckets.len },
+    };
+
+    const selected = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.WriteFailed => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    if (selected.fallback) |path| {
+        if (selected.row != null) {
+            allocator.free(resolved);
+
+            resolved = path;
+        } else {
+            allocator.free(path);
+        }
+    }
+
+    try Scope.report(selected.boundary, reporter, span);
+
+    const row = if (keep_row) selected.row else null;
+
+    return .{ .target = .{ .source = resolved }, .source_row = if (row) |value| @intCast(value) else null };
+}
+
 fn dependency(memory: Memory, root: []const u8, packages: []const scopes.Package, selected: registry.Match, reporter: *zx.Reporter, span: zx.Span) zx.Error!Target {
     const index = selected.first orelse return reporter.fail(.module, span, "ZX package is not declared in the project dependencies");
     const package = &packages[index];
+    const allocator = if (package.compiled != null) memory.compiled else memory.source;
+    const artifact = if (package.compiled) |target| target.artifact else null;
 
-    switch (admitPackage(package, selected.duplicate)) {
+    const resolved = if (comptime enabled)
+        try resolvePackage(allocator, root, package, artifact, selected.duplicate, reporter, span)
+
+    else seed: {
+        try reportPackage(seedPackageShape(package, selected.duplicate), reporter, span);
+
+        break :seed try std.fs.path.resolve(allocator, &.{ root, artifact orelse package.entry });
+    };
+
+    errdefer allocator.free(resolved);
+
+    if (package.compiled) |target| {
+        const instance = try allocator.dupe(u8, target.instance);
+
+        errdefer allocator.free(instance);
+
+        return .{ .compiled = .{ .instance = instance, .artifact = resolved, .name = try allocator.dupe(u8, target.name) } };
+    }
+
+    return .{ .source = resolved };
+}
+
+fn reportPackage(kind: anytype, reporter: *zx.Reporter, span: zx.Span) zx.Error!void {
+    switch (kind) {
         .InvalidSource => return reporter.fail(.module, span, "package entry must be a .zx or .rx source file"),
         .InvalidCompiled => return reporter.fail(.module, span, "compiled package target must identify one instance, artifact and public module"),
         .Duplicate => return reporter.fail(.module, span, "duplicate ZX package specifier"),
         .Source, .Compiled => {},
     }
-
-    if (package.compiled) |value| {
-        const allocator = memory.compiled;
-        const instance = try allocator.dupe(u8, value.instance);
-
-        errdefer allocator.free(instance);
-
-        const artifact = try std.fs.path.resolve(allocator, &.{ root, value.artifact });
-
-        errdefer allocator.free(artifact);
-
-        return .{ .compiled = .{
-            .instance = instance,
-            .artifact = artifact,
-            .name = try allocator.dupe(u8, value.name),
-        } };
-    }
-
-    return .{ .source = try std.fs.path.resolve(memory.source, &.{ root, package.entry }) };
 }
 
-fn admitPackage(package: *const scopes.Package, duplicate: bool) Shape {
-    if (comptime enabled) {
-        const generated = @import("generated_project_package_admission");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const value = if (package.compiled) |*target| target else null;
+fn resolvePackage(allocator: std.mem.Allocator, root: []const u8, package: *const scopes.Package, artifact: ?[]const u8, duplicate: bool, reporter: *zx.Reporter, span: zx.Span) zx.Error![]const u8 {
+    const rule = @import("generated_project_package_admission");
+    const value = if (package.compiled) |*target| target else null;
 
-        const input: std.meta.Child(generated.Input) = .{
-            .shape = &.{
-                .entry = package.entry,
-                .compiled = value != null,
-                .instance = if (value) |target| target.instance.len != 0 else false,
-                .artifact = if (value) |target| target.artifact.len != 0 else false,
-                .name = if (value) |target| target.name.len != 0 else false,
-            },
-            .duplicate = duplicate,
-        };
+    const input: std.meta.Child(rule.Input) = .{
+        .shape = &.{
+            .entry = package.entry,
+            .compiled = value != null,
+            .instance = if (value) |target| target.instance.len != 0 else false,
+            .artifact = if (value) |target| target.artifact.len != 0 else false,
+            .name = if (value) |target| target.name.len != 0 else false,
+        },
+        .duplicate = duplicate,
+        .root = root,
+        .artifact = artifact,
+    };
 
-        return zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-    }
+    const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
+    try reportPackage(result.kind, reporter, span);
+
+    return result.path.?;
+}
+
+fn seedPackageShape(package: *const scopes.Package, duplicate: bool) SeedShape {
     if (package.compiled) |value| {
         if (package.entry.len != 0 or value.instance.len == 0 or value.artifact.len == 0 or value.name.len == 0) return .InvalidCompiled;
 

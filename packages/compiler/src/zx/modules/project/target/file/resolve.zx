@@ -1,0 +1,46 @@
+import encoding from "std:encoding"
+import lexical from "lexical_path"
+
+import { current_directory, index_file, index_rx_file } from "../../../path/const"
+import trim from "../../../path/trim_directory"
+import { PathBase } from "../model"
+
+import type { Base, FileRequest, FileTarget } from "../model"
+import type { Output as Stem } from "../stem"
+
+export type Input = {
+    context: FileRequest.Pick("from", "root"),
+    stem: Stem,
+    base: Base,
+    directory: bool
+}
+
+export type Output = FileTarget
+
+export default function (in: Input): Output {
+    const { context, stem, base, directory } = in
+
+    const anchor = match base.kind {
+        PathBase.Root => context.root,
+        _ => lexical.pathParent(context.from) ?? current_directory
+    }
+
+    if (directory) {
+        return {
+            kind: base.kind,
+            path: lexical.resolvePathJoined(anchor, [
+                trim(stem.path),
+                stem.rx ? index_rx_file : index_file
+            ], base.prefix),
+            fallback: false
+        }
+    }
+
+    const spelling = encoding.sliceBytes(stem.path, base.prefix, stem.path.length)
+
+    return {
+        kind: base.kind,
+        path: lexical.resolvePathSuffix(anchor, spelling, stem.suffix),
+        fallback: !stem.rx
+    }
+}

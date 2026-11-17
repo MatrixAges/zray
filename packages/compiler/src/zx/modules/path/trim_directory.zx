@@ -1,0 +1,22 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+
+import { directory_separator } from "./const"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const source = bytes.fromText(in)
+
+    const end = loop(source.length, {
+        while: end =>
+            end != 0 && bytes.startsWithText(source, end - 1, directory_separator),
+        next: end => {
+            end -= 1
+        }
+    })
+
+    return encoding.sliceBytes(in, 0, end)
+}

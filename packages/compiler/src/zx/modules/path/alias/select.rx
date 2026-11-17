@@ -3,6 +3,15 @@
 
     <Args in={Alias.Input} out={Alias.Output} />
 
+    <If on={$in.index.capacity == 0}>
+        <Return
+            value={{
+                row: null,
+                fallback: null
+            }}
+        />
+    </If>
+
     <Call fn="find" in={$in} />
 
     <If on={$ctx.find != null}>

@@ -1,13 +1,7 @@
 <Module>
     <Type from="../model" as="Target" />
 
-    <Args
-        in={{
-            shape: Target.Package,
-            duplicate: bool
-        }}
-        out={Target.PackageShape}
-    />
+    <Args in={Target.PackageRequest} out={Target.PackageTarget} />
 
     <Call fn="../package" in={$in.shape} />
 
@@ -17,12 +11,33 @@
             $ctx.package == Target.PackageShape.InvalidCompiled
         }
     >
-        <Return value={$ctx.package} />
+        <Return
+            value={{
+                kind: $ctx.package
+            }}
+        />
     </If>
 
     <If on={$in.duplicate}>
-        <Return value={Target.PackageShape.Duplicate} />
+        <Return
+            value={{
+                kind: Target.PackageShape.Duplicate
+            }}
+        />
     </If>
 
-    <Return value={$ctx.package} />
+    <Call
+        fn="path"
+        in={{
+            root: $in.root,
+            path: $in.artifact ?? $in.shape.entry
+        }}
+    />
+
+    <Return
+        value={{
+            kind: $ctx.package,
+            path: $ctx.path
+        }}
+    />
 </Module>

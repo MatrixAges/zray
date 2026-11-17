@@ -1,0 +1,20 @@
+export declare function pathParent(value: string): string? concurrent
+
+export declare function resolvePathParts(
+    allocator,
+    parts: string[]
+): string throws { OutOfMemory } concurrent
+
+export declare function resolvePathSuffix(
+    allocator,
+    base: string,
+    spelling: string,
+    suffix: string
+): string throws { OutOfMemory } concurrent
+
+export declare function resolvePathJoined(
+    allocator,
+    base: string,
+    parts: string[],
+    prefix: u64
+): string throws { OutOfMemory, WriteFailed } concurrent

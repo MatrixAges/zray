@@ -1,6 +1,29 @@
 const std = @import("std");
 const syntax = @import("syntax.zig");
 const Allocator = std.mem.Allocator;
+const path_stack_capacity = 512;
+
+pub fn resolveSuffix(allocator: Allocator, base: []const u8, spelling: []const u8, suffix: []const u8) Allocator.Error![]u8 {
+    var buffer: [path_stack_capacity]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    const temporary = scratch.allocator();
+    const leaf = try std.fmt.allocPrint(temporary, "{s}{s}", .{ spelling, suffix });
+
+    defer temporary.free(leaf);
+
+    return std.fs.path.resolve(allocator, &.{ base, leaf });
+}
+
+pub fn resolveJoined(allocator: Allocator, base: []const u8, parts: []const []const u8, prefix: u64) ![]u8 {
+    var buffer: [path_stack_capacity]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    const temporary = scratch.allocator();
+    const leaf = try Module(@import("builtin").os.tag == .windows, void).join(temporary, parts);
+
+    defer temporary.free(leaf);
+
+    return std.fs.path.resolve(allocator, &.{ base, leaf[@intCast(prefix)..] });
+}
 
 pub fn Module(comptime windows: bool, comptime api: type) type {
     return struct {
