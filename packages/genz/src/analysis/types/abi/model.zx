@@ -3,6 +3,7 @@ import type {
     ExpressionsKind,
     ExpressionsPrimitive
 } from "../../../printer/model/expressions"
+import type { Columns } from "../cache/model"
 
 export type Input = {
     types: Table,
@@ -43,6 +44,13 @@ export type Output = {
     layouts: u32[],
     valid: bool
 }
+
+export type BuildRequest = {
+    source: Input,
+    columns: Columns
+}
+
+export type Built = Output.Pick("expressions", "valid")
 
 export type Build = {
     source: Input,

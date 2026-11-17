@@ -1,10 +1,25 @@
 <Module>
     <Type from="model" as="Query" />
 
-    <Args in={Query.Input} out={Query.Output} />
+    <Args in={Query.BuildRequest} out={Query.Built} />
 
-    <Call fn="plan" in={$in} />
+    <Call fn="plan" in={$in.source} />
     <Call fn="construct" in={$ctx.plan} />
 
-    <Return value={$ctx.construct} />
+    <If on={$ctx.construct.valid}>
+        <Call
+            fn="../cache/publish_shared"
+            in={{
+                entries: $ctx.construct.entries,
+                columns: $in.columns
+            }}
+        />
+    </If>
+
+    <Return
+        value={$ctx.construct.pick([
+            "segments",
+            "valid"
+        ])}
+    />
 </Module>

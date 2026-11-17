@@ -1,4 +1,5 @@
 import type { Input as AbiInput, Expressions } from "../abi/model"
+import type { Columns } from "../cache/model"
 
 export enum Mode {
     Abi,
@@ -77,3 +78,10 @@ export type Output = {
     entries: Entry[],
     valid: bool
 }
+
+export type BuildRequest = {
+    source: Input,
+    columns: Columns
+}
+
+export type Built = Output.Pick("segments", "valid")

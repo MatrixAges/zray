@@ -12,6 +12,7 @@ pub const abi_view = @import("abi_view.zig");
 pub const typeNames = @import("types/export_names.zig").build;
 pub const Error = std.mem.Allocator.Error || error{ InvalidNames, InvalidFunction };
 pub const PublicMember = struct { name: []const u8, function: ir.FunctionId };
+pub const TypeScratch = @import("types/scratch.zig");
 
 /// Function types for separately compiled files. Bodies are deliberately absent: importing a type
 /// must not pull the owning function and its dependency graph into another compilation unit.
@@ -21,7 +22,7 @@ pub fn signatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    var lower = try initialize(temporary, backing, program, names, facts);
+    var lower = try initialize(temporary, backing, program, names, facts, null);
     var output: std.ArrayList(node.Declaration) = .empty;
     var emitted: std.StringHashMapUnmanaged(void) = .empty;
 
@@ -126,7 +127,7 @@ pub fn publicEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, pro
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    var lower = try initialize(temporary, backing, program, names, facts);
+    var lower = try initialize(temporary, backing, program, names, facts, null);
     const prefix = try lower.declarations();
     const suffix = try @import("public_exports.zig").append(&lower, names, members);
 
@@ -167,11 +168,15 @@ pub fn prepared(allocator: std.mem.Allocator, program: ir.Program, names: Names,
 }
 
 pub fn analyzed(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, unit: Unit, facts: Analysis) Error![]u8 {
+    return analyzedWithScratch(allocator, backing, program, names, unit, facts, null);
+}
+
+pub fn analyzedWithScratch(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, unit: Unit, facts: Analysis, scratch: ?*TypeScratch) Error![]u8 {
     return switch (unit) {
         .entry => entryPrepared(allocator, backing, program, names, facts),
         .types => typesPrepared(allocator, backing, program, names, facts),
-        .function => |id| functionPrepared(allocator, backing, program, id, names, facts, false),
-        .regular => |id| functionPrepared(allocator, backing, program, id, names, facts, true),
+        .function => |id| functionPrepared(allocator, backing, program, id, names, facts, false, scratch),
+        .regular => |id| functionPrepared(allocator, backing, program, id, names, facts, true, scratch),
     };
 }
 
@@ -180,7 +185,7 @@ fn entryPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, progr
 
     defer arena.deinit();
 
-    var lower = try initialize(arena.allocator(), backing, program, names, facts);
+    var lower = try initialize(arena.allocator(), backing, program, names, facts, null);
 
     return @import("../render.zig").renderStored(allocator, lower.builder.nodes, try lower.declarations());
 }
@@ -190,22 +195,26 @@ fn typesPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, progr
 
     defer arena.deinit();
 
-    var lower = try initialize(arena.allocator(), backing, program, names, facts);
+    var lower = try initialize(arena.allocator(), backing, program, names, facts, null);
 
     lower.shared_types = false;
 
     return @import("../render.zig").renderStored(allocator, lower.builder.nodes, try @import("type_bundle.zig").declarations(&lower));
 }
 
-fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, id: ir.FunctionId, names: Names, facts: Analysis, regular: bool) Error![]u8 {
+fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, id: ir.FunctionId, names: Names, facts: Analysis, regular: bool, scratch: ?*TypeScratch) Error![]u8 {
     if (@backingInt(id) >= program.functions.count()) return error.InvalidFunction;
 
     var arena = std.heap.ArenaAllocator.init(backing);
 
     defer arena.deinit();
 
+    const working = if (@import("genz_options").generated_analysis) scratch else null;
+
+    defer if (working) |storage| storage.reset();
+
     const temporary = arena.allocator();
-    var lower = try initialize(temporary, backing, program, names, facts);
+    var lower = try initialize(temporary, backing, program, names, facts, working);
     const selected = try selectFunction(&lower, id);
 
     lower.plan = lower.plans[@backingInt(id)];
@@ -268,10 +277,10 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
     return @import("../render.zig").renderStored(allocator, lower.builder.nodes, declarations);
 }
 
-fn initialize(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis) Error!Lower {
+fn initialize(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, scratch: ?*TypeScratch) Error!Lower {
     if (names.types.len != program.types.count() or names.functions.len != program.functions.count()) return error.InvalidNames;
 
-    var lower = try @import("render.zig").initializeAnalyzed(allocator, backing, program, facts);
+    var lower = try @import("render.zig").initializeAnalyzed(allocator, backing, program, facts, scratch);
 
     lower.type_names = names.types;
     lower.function_modules = names.functions;

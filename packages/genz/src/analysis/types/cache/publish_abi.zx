@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import record from "./record"
+
+import type { Output as Nodes } from "../abi/model"
+import type { Columns } from "./model"
+
+export type Input = {
+    nodes: Nodes,
+    columns: Columns
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { nodes, columns } = in
+
+    const first: u64 = 0
+
+    const written = loop(first, {
+        while: index => index < nodes.ids.length,
+        next: index => {
+            const row = nodes.ids[index]
+            const position = integers.widen(row)
+
+            record({
+                columns,
+                row
+            })
+
+            memory.writeU32(columns.abi_types, position, nodes.values[index])
+            memory.writeU32(columns.abi_layouts, position, nodes.layouts[index])
+            index += 1
+        }
+    })
+}

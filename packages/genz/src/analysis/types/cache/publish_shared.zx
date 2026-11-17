@@ -1,0 +1,47 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { Mode } from "../shared/model"
+import record from "./record"
+
+import type { Entry } from "../shared/model"
+import type { Columns } from "./model"
+
+export type Input = {
+    entries: Entry[],
+    columns: Columns
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { entries, columns } = in
+
+    const first: u64 = 0
+
+    const written = loop(first, {
+        while: index => index < entries.length,
+        next: index => {
+            const entry = entries[index]
+            const row = entry.request.id
+            const position = integers.widen(row)
+
+            record({
+                columns,
+                row
+            })
+
+            if (entry.request.mode == Mode.Abi) {
+                memory.writeU32(columns.abi_types, position, entry.value)
+                memory.writeU32(columns.abi_layouts, position, entry.layout)
+            } else if (entry.request.mode == Mode.State) {
+                memory.writeU32(columns.state_types, position, entry.value)
+                memory.writeU32(columns.state_layouts, position, entry.layout)
+            } else {
+                memory.writeU32(columns.views, position, entry.value)
+            }
+
+            index += 1
+        }
+    })
+}

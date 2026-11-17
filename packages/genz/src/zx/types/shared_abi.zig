@@ -1,29 +1,38 @@
 const std = @import("std");
+const zx = @import("zx");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
 const Lower = @import("../lower.zig");
+const Cache = @import("cache.zig");
 const generated = @import("generated_shared_abi");
 
 pub fn build(self: *Lower, index: usize) Lower.Error!void {
-    const Input = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
-    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
+    const Input = std.meta.Child(generated.Input);
+    const Source = std.meta.Child(@FieldType(Input, "source"));
+    const Columns = std.meta.Child(@FieldType(Input, "columns"));
+    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "types")), self.program.types);
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
 
-    const input: Input = .{
+    const source: Source = .{
         .types = &types,
         .names = self.type_names,
-        .cached = view.slice(@FieldType(Input, "cached"), @as([]const node.ExpressionId, self.abi_types)),
+        .cached = view.slice(@FieldType(Source, "cached"), @as([]const node.ExpressionId, self.abi_types)),
         .root = @intCast(index),
         .base = @intCast(self.builder.nodes.expressions.tags.items.len),
     };
 
-    const output = generated.executeValue(buffered.allocator(), input) catch |err| switch (err) {
+    const target = Cache.borrow(self);
+    const tracked = target.touch(Cache.Touched(Columns));
+    const columns = target.columns(Columns, &tracked);
+    const input: Input = .{ .source = &source, .columns = &columns };
+
+    const output = zx.columns.invoke(generated.executeValue, buffered.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
@@ -47,9 +56,4 @@ pub fn build(self: *Lower, index: usize) Lower.Error!void {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidAst => unreachable,
     };
-
-    for (output.ids, output.values, output.layouts) |id, value, layout| {
-        self.abi_types[id] = @fromBackingInt(value);
-        self.abi_layouts[id] = @fromBackingInt(layout);
-    }
 }

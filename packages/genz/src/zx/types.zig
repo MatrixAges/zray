@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 /// A type expression not built yet: a file that imports the shared type bundle builds each one when first used.
-const unset: node.ExpressionId = @fromBackingInt(std.math.maxInt(u32));
+const unset = @import("types/scratch.zig").unset;
 
 pub fn lower(self: *Lower, output: *std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
     if (self.shared_types) return shared(self, output);
@@ -106,6 +106,17 @@ fn shared(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!vo
 
     self.abi_types = self.types;
     self.abi_layouts = self.layouts;
+
+    if (self.type_scratch) |scratch| {
+        const columns = scratch.columns(self.types.len);
+
+        self.state_types = columns.state_types;
+        self.state_layouts = columns.state_layouts;
+        self.view_types = columns.views;
+
+        return;
+    }
+
     self.state_types = try self.allocator.alloc(node.ExpressionId, self.types.len);
     self.state_layouts = try self.allocator.alloc(node.ExpressionId, self.types.len);
     self.view_types = try self.allocator.alloc(node.ExpressionId, self.types.len);

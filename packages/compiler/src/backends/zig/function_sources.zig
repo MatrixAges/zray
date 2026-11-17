@@ -47,8 +47,10 @@ const Work = struct {
     /// generating unit after unit reuses them instead of mapping and faulting fresh ones.
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
         var scratch = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        var types: generating.TypeScratch = .{ .allocator = std.heap.page_allocator };
 
         defer scratch.deinit();
+        defer types.deinit();
 
         while (self.failure.load(.monotonic) == 0) {
             const position = self.next.fetchAdd(1, .monotonic);
@@ -58,7 +60,7 @@ const Work = struct {
             defer _ = scratch.reset(.{ .retain_with_limit = 32 << 20 });
             const job = self.jobs[if (self.pending) |positions| @intCast(positions[position]) else position];
 
-            self.results[position].source = generate(job, arena.allocator(), scratch.allocator()) catch |err| {
+            self.results[position].source = generate(job, arena.allocator(), scratch.allocator(), &types) catch |err| {
                 _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
 
                 return;
@@ -66,14 +68,14 @@ const Work = struct {
         }
     }
 
-    fn generate(job: Job, output: std.mem.Allocator, scratch: std.mem.Allocator) generating.Error![]const u8 {
+    fn generate(job: Job, output: std.mem.Allocator, scratch: std.mem.Allocator, types: *generating.TypeScratch) generating.Error![]const u8 {
         if (generated and job.batch.cache != null) {
-            const source = try job.batch.generate(scratch, scratch, job.unit);
+            const source = try job.batch.generate(scratch, scratch, job.unit, types);
 
             return std.heap.smp_allocator.dupe(u8, source);
         }
 
-        return job.batch.generate(output, scratch, job.unit);
+        return job.batch.generate(output, scratch, job.unit, types);
     }
 };
 

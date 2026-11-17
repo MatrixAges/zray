@@ -91,18 +91,22 @@ fn initializePreparedWithConcurrency(temporary: std.mem.Allocator, workspace: st
     else
         try Analysis.analyze(temporary, workspace, program, &.{}, basis, null);
 
-    return initializeAnalyzed(temporary, workspace, program, facts);
+    return initializeAnalyzed(temporary, workspace, program, facts, null);
 }
 
-pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: @import("function_analysis.zig")) std.mem.Allocator.Error!Lower {
+pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: @import("function_analysis.zig"), scratch: ?*@import("types/scratch.zig")) std.mem.Allocator.Error!Lower {
+    const count = program.types.count();
+    const shared = if (scratch) |storage| try storage.prepare(count) else null;
+
     return .{
         .allocator = temporary,
         .workspace = workspace,
         .program = program,
         .entry_flags = facts.entry_flags,
         .builder = try @import("../builder.zig").init(temporary),
-        .types = try temporary.alloc(node.ExpressionId, program.types.count()),
-        .layouts = try temporary.alloc(node.ExpressionId, program.types.count()),
+        .types = if (shared) |columns| columns.abi_types else try temporary.alloc(node.ExpressionId, count),
+        .layouts = if (shared) |columns| columns.abi_layouts else try temporary.alloc(node.ExpressionId, count),
+        .type_scratch = scratch,
         .state_plan = facts.value.state,
         .layout_types = facts.layout_types,
         .slot_counts = facts.basis.slots.counts,

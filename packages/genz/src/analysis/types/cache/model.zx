@@ -1,0 +1,15 @@
+import type { U32Buffer } from "memory"
+
+export type Touched = {
+    rows: U32Buffer,
+    count: U32Buffer
+}
+
+export type Columns = {
+    abi_types: U32Buffer,
+    abi_layouts: U32Buffer,
+    state_types: U32Buffer,
+    state_layouts: U32Buffer,
+    views: U32Buffer,
+    touched?: Touched
+}

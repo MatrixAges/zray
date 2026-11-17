@@ -1,10 +1,25 @@
 <Module>
     <Type from="model" as="Abi" />
 
-    <Args in={Abi.Input} out={Abi.Output} />
+    <Args in={Abi.BuildRequest} out={Abi.Built} />
 
-    <Call fn="dependencies" in={$in} />
+    <Call fn="dependencies" in={$in.source} />
     <Call fn="construct" in={$ctx.dependencies} />
 
-    <Return value={$ctx.construct} />
+    <If on={$ctx.construct.valid}>
+        <Call
+            fn="../cache/publish_abi"
+            in={{
+                nodes: $ctx.construct,
+                columns: $in.columns
+            }}
+        />
+    </If>
+
+    <Return
+        value={$ctx.construct.pick([
+            "expressions",
+            "valid"
+        ])}
+    />
 </Module>

@@ -40,7 +40,7 @@ pub fn deinit(self: *Self) void {
 pub const Lookup = struct { name: []const u8, key: [32]u8, source: ?[]const u8 };
 
 pub fn emit(self: *const Self, owned: std.mem.Allocator, unit: generating.Unit) generating.Error![]const u8 {
-    if (self.cache == null) return self.generate(owned, self.backing, unit);
+    if (self.cache == null) return self.generate(owned, self.backing, unit, null);
 
     var scratch = std.heap.ArenaAllocator.init(self.backing);
 
@@ -50,7 +50,7 @@ pub fn emit(self: *const Self, owned: std.mem.Allocator, unit: generating.Unit) 
 
     if (found.source) |source| return owned.dupe(u8, source);
 
-    const source = try self.generate(owned, self.backing, unit);
+    const source = try self.generate(owned, self.backing, unit, null);
 
     errdefer owned.free(source);
 
@@ -112,10 +112,10 @@ pub fn identify(self: *const Self, scratch: std.mem.Allocator, unit: generating.
 }
 
 /// Pure generation of one unit; threads may share a batch when each passes its own `owned` and a thread-safe `backing`.
-pub fn generate(self: *const Self, owned: std.mem.Allocator, backing: std.mem.Allocator, unit: generating.Unit) generating.Error![]const u8 {
+pub fn generate(self: *const Self, owned: std.mem.Allocator, backing: std.mem.Allocator, unit: generating.Unit, scratch: ?*generating.TypeScratch) generating.Error![]const u8 {
     if (unit == .entry and self.public_members.len != 0) return generating.publicEntry(owned, backing, self.program, self.names, self.analysis.value, self.public_members);
 
-    return generating.analyzed(owned, backing, self.program, self.names, unit, self.analysis.value);
+    return generating.analyzedWithScratch(owned, backing, self.program, self.names, unit, self.analysis.value, scratch);
 }
 
 pub fn remember(self: *const Self, found: Lookup, source: []const u8) std.mem.Allocator.Error!void {
