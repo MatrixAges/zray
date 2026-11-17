@@ -20,7 +20,29 @@ pub fn appendWithPayload(allocator: std.mem.Allocator, payload: std.mem.Allocato
 
     if (origins) |storage| try storage.ensureUnusedCapacity(allocator, bindings.ids.len);
 
-    const first = try target.reserveDelta(allocator, table);
+    _ = try target.reserveDelta(allocator, table);
+
+    try writeReserved(payload, target, origins, table, bindings, true);
+}
+
+pub fn snapshot(allocator: std.mem.Allocator, table: ir.TypeTable, comptime own_text: bool) std.mem.Allocator.Error!ir.TypeStorage {
+    var target: ir.TypeStorage = .{};
+
+    if (table.count() == 0) return target;
+
+    errdefer target.deinit(allocator);
+
+    inline for (@typeInfo(ir.TypeStorage).@"struct".field_names) |name| {
+        try @field(target, name).ensureTotalCapacityPrecise(allocator, @field(table, name).len);
+    }
+
+    try writeReserved(allocator, &target, null, table, @as(Origins.Table, .{}), own_text);
+
+    return target;
+}
+
+fn writeReserved(payload: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*Origins.Storage, table: ir.TypeTable, bindings: anytype, comptime own_text: bool) std.mem.Allocator.Error!void {
+    const first = target.first.unusedCapacitySlice()[0..table.first.len];
     const labels = target.labels.unusedCapacitySlice()[0..table.labels.len];
     const fields = target.field_names.unusedCapacitySlice()[0..table.field_names.len];
     const names = target.names.unusedCapacitySlice()[0..table.names.len];
@@ -31,10 +53,15 @@ pub fn appendWithPayload(allocator: std.mem.Allocator, payload: std.mem.Allocato
     const origin_kinds: []u8 = if (origins) |storage| storage.kinds.unusedCapacitySlice()[0..bindings.kinds.len] else &.{};
     const sources = .{ table.labels, table.field_names, table.names, bindings.owners, bindings.members };
     const tails = .{ labels, fields, names, owners, members };
-    const words = .{ table.kinds, table.second, table.children, table.field_types, bindings.ids, bindings.kinds };
+    const child_offset = target.children.items.len;
+    const field_offset = target.field_types.items.len;
+    const name_offset = target.names.items.len;
+    const shifted = child_offset != 0 or field_offset != 0 or name_offset != 0;
+    const words = .{ table.kinds, if (shifted) table.first[0..0] else table.first, table.second, table.children, table.field_types, bindings.ids, bindings.kinds };
 
     const reserved = .{
         target.kinds.unusedCapacitySlice()[0..table.kinds.len],
+        first,
         target.second.unusedCapacitySlice()[0..table.second.len],
         target.children.unusedCapacitySlice()[0..table.children.len],
         target.field_types.unusedCapacitySlice()[0..table.field_types.len],
@@ -42,20 +69,28 @@ pub fn appendWithPayload(allocator: std.mem.Allocator, payload: std.mem.Allocato
         origin_kinds,
     };
 
-    if (first.len != 0 or bindings.ids.len != 0) {
-        try materialize(payload, sources, tails, words, reserved, .{
+    if (table.count() != 0 or first.len != 0 or bindings.ids.len != 0) {
+        const offsets: ?Rebase = if (shifted) .{
             .kinds = table.kinds,
             .first = table.first,
-            .target = &first,
-            .children = @intCast(target.children.items.len),
-            .fields = @intCast(target.field_types.items.len),
-            .names = @intCast(target.names.items.len),
-        }, .{
+            .target = @ptrCast(&first),
+            .children = @intCast(child_offset),
+            .fields = @intCast(field_offset),
+            .names = @intCast(name_offset),
+        } else null;
+
+        const nominal: Labels = .{
             .ids = bindings.ids,
             .base = target.labels.items,
             .delta = labels,
             .names = &origin_names,
-        });
+        };
+
+        if (own_text) {
+            try materialize(payload, sources, tails, words, reserved, offsets, nominal);
+        } else {
+            try materialize(payload, .{}, .{}, words ++ sources, reserved ++ tails, offsets, nominal);
+        }
     }
 
     target.publishReserved(table);
@@ -73,6 +108,7 @@ const generated = @import("generated_type_merge_publication");
 const Input = std.meta.Child(generated.Input);
 const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "columns")));
 const ByteColumn = std.meta.Child(std.meta.Child(@FieldType(Input, "writes")));
+const Rebase = std.meta.Child(@typeInfo(@FieldType(Input, "rebase")).optional.child);
 
 /// Writes owned text straight to a reserved column tail.
 pub fn copyNames(allocator: std.mem.Allocator, source: []const []const u8, tail: [][]const u8) std.mem.Allocator.Error!void {
@@ -90,15 +126,6 @@ pub fn copyNames(allocator: std.mem.Allocator, source: []const []const u8, tail:
     };
 }
 
-const Rebase = struct {
-    kinds: []const u8,
-    first: []const u32,
-    target: *const []u32,
-    children: u32,
-    fields: u32,
-    names: u32,
-};
-
 const Labels = struct {
     ids: []const u32,
     base: []const []const u8,
@@ -106,7 +133,7 @@ const Labels = struct {
     names: *const [][]const u8,
 };
 
-fn materialize(allocator: std.mem.Allocator, sources: anytype, tails: anytype, words: anytype, reserved: anytype, offsets: Rebase, labels: Labels) std.mem.Allocator.Error!void {
+fn materialize(allocator: std.mem.Allocator, sources: anytype, tails: anytype, words: anytype, reserved: anytype, offsets: ?Rebase, labels: Labels) std.mem.Allocator.Error!void {
     var columns: [tails.len]Column = undefined;
     var pointers: [tails.len]*const Column = undefined;
 
@@ -136,12 +163,7 @@ fn materialize(allocator: std.mem.Allocator, sources: anytype, tails: anytype, w
         .columns = &pointers,
         .writes = &word_pointers,
         .progress = @ptrCast(&progress),
-        .kinds = offsets.kinds,
-        .first = offsets.first,
-        .target = @ptrCast(offsets.target),
-        .children = offsets.children,
-        .fields = offsets.fields,
-        .names = offsets.names,
+        .rebase = if (offsets) |*data| data else null,
         .origin_ids = labels.ids,
         .base_labels = labels.base,
         .delta_labels = labels.delta,

@@ -11,17 +11,11 @@
         ])}
     />
 
-    <Call
-        fn="../rebase"
-        in={$in.pick([
-            "kinds",
-            "first",
-            "target",
-            "children",
-            "fields",
-            "names"
-        ])}
-    />
+    <If on={$in.rebase != null}>
+        <Call fn="../rebase" in={$in.rebase} />
+    </If>
+
+    <Call fn="../../../../ir/columns/write" in={$in.pick(["writes"])} />
 
     <Call
         fn="../../../../modules/nominal_origins/bind_names"
@@ -32,6 +26,4 @@
             "origin_names_out"
         ])}
     />
-
-    <Call fn="../../../../ir/columns/write" in={$in.pick(["writes"])} />
 </Module>

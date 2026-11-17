@@ -1,0 +1,53 @@
+import integers from "std:integer"
+import {
+    kind_enumeration,
+    kind_error_set,
+    kind_object,
+    kind_tuple
+} from "core/type_table/const"
+
+import type { Table } from "core/type_table/model"
+
+export type Input = Table.Pick("kinds", "first", "second") & {
+    count: u64
+}
+
+export type Output = {
+    children: u64,
+    fields: u64,
+    names: u64
+}
+
+export default function (in: Input): Output {
+    return loop({
+        row: 0,
+        children: 0,
+        fields: 0,
+        names: 0
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const index = state.row
+            const first = integers.widen(in.first[index])
+            const end = first + integers.widen(in.second[index])
+
+            switch (in.kinds[index]) {
+                case kind_object:
+                    state.fields = end > state.fields ? end : state.fields
+                case kind_tuple:
+                    state.children = end > state.children ? end : state.children
+                case kind_error_set:
+                    state.names = end > state.names ? end : state.names
+                case kind_enumeration:
+                    state.names = end > state.names ? end : state.names
+            }
+
+            state.row += 1
+        },
+        return: state => ({
+            children: state.children,
+            fields: state.fields,
+            names: state.names
+        })
+    })
+}

@@ -13,4 +13,6 @@ export type Text = {
     progress: U64Buffer
 }
 
-export type Input = Text & Rebase & BindNames & Writes
+export type Input = Text & BindNames & Writes & {
+    rebase?: Rebase
+}

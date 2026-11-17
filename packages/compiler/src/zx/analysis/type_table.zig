@@ -33,7 +33,7 @@ pub fn copy(allocator: std.mem.Allocator, values: ir.TypeTable) std.mem.Allocato
 }
 
 pub fn storage(allocator: std.mem.Allocator, values: ir.TypeTable) std.mem.Allocator.Error!ir.TypeStorage {
-    if (comptime generated) return materialize(allocator, values, true);
+    if (comptime generated) return @import("semantic/merging/commit.zig").snapshot(allocator, values, true);
 
     var result: ir.TypeStorage = .{};
 
@@ -54,7 +54,7 @@ pub fn storage(allocator: std.mem.Allocator, values: ir.TypeTable) std.mem.Alloc
 /// Copies only the columns of a table whose strings outlive the copy, such as a shared project table that one
 /// module's analysis extends; the rows the analysis appends are owned by the copy as usual.
 pub fn columns(allocator: std.mem.Allocator, values: ir.TypeTable) std.mem.Allocator.Error!ir.TypeStorage {
-    if (comptime generated) return materialize(allocator, values, false);
+    if (comptime generated) return @import("semantic/merging/commit.zig").snapshot(allocator, values, false);
 
     var result: ir.TypeStorage = .{};
 
@@ -62,30 +62,6 @@ pub fn columns(allocator: std.mem.Allocator, values: ir.TypeTable) std.mem.Alloc
         const column = @field(values, name);
 
         @field(result, name) = @FieldType(ir.TypeStorage, name).fromOwnedSlice(try allocator.dupe(std.meta.Elem(@TypeOf(column)), column));
-    }
-
-    return result;
-}
-
-fn materialize(allocator: std.mem.Allocator, values: ir.TypeTable, own_text: bool) std.mem.Allocator.Error!ir.TypeStorage {
-    if (values.count() == 0) return .{};
-
-    const entry = @import("generated_analysis_publish_base_types");
-    const Input = std.meta.Child(entry.Input);
-    const source = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "source")), values);
-    const input: Input = .{ .source = &source, .own_text = own_text };
-
-    const table = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    defer allocator.destroy(table);
-
-    var result: ir.TypeStorage = .{};
-
-    inline for (@typeInfo(ir.TypeStorage).@"struct".field_names) |name| {
-        @field(result, name) = .fromOwnedSlice(@constCast(@field(table, name)));
     }
 
     return result;
