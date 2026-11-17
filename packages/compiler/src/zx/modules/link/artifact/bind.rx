@@ -56,14 +56,14 @@
     </If>
 
     <Call
-        module="body/place"
+        module="body/prepare"
         in={{
             ...$in.body,
             first: $in.dependencies.walk.checks.linked.files.length
         }}
     />
 
-    <Switch on={$ctx.place}>
+    <Switch on={$ctx.prepare}>
         <Case value={Body.Placement.Absent}>
             <Return value={Binding.Status.Absent} />
         </Case>

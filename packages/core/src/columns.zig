@@ -94,6 +94,14 @@ fn viewMode(comptime Target: type, value: anytype, comptime borrowed: bool) Targ
 
     if (target == .pointer) return if (target.pointer.size == .slice) slice(Target, value) else pointer(Target, value);
 
+    const source_pointer = @typeInfo(@TypeOf(value));
+
+    if (borrowed and target == .@"struct" and source_pointer == .pointer and source_pointer.pointer.size == .slice and
+        @hasField(Target, "items") and @hasField(Target, "storage"))
+    {
+        return .{ .items = slice(@FieldType(Target, "items"), value), .storage = .plain };
+    }
+
     if (target == .@"struct") {
         const source = if (@typeInfo(@TypeOf(value)) == .pointer) value.* else value;
         var result: Target = undefined;

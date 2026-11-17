@@ -83,14 +83,9 @@ pub const FunctionEntry = struct {
     body: ir.Function,
     recursive: ?ir.FunctionId = null,
     descriptors: ?ir.FunctionStorage.Descriptors = null,
-};
-
-pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
-    if (comptime generated) {
-        const linked = try remap.function(self, remap.BodyColumns.borrow(&value), value.body, value.file_name, value.external, candidate, structure);
-
+    pub fn fromLinked(body: ir.Function, linked: anytype) FunctionEntry {
         return .{
-            .body = linkedFunction(&value, linked),
+            .body = body,
             .recursive = if (linked.recursive) |id| @fromBackingInt(id) else null,
             .descriptors = if (linked.recursive != null) .{
                 .symbols = zx.columns.pointer(*const ir.SymbolTable, linked.symbols),
@@ -99,6 +94,14 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
                 .contracts = zx.columns.pointer(*const ir.ContractTable, linked.contracts),
             } else null,
         };
+    }
+};
+
+pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId, structure: Structure) Error!FunctionEntry {
+    if (comptime generated) {
+        const linked = try remap.function(self, remap.BodyColumns.borrow(&value), value.body, value.file_name, value.external, candidate, structure);
+
+        return FunctionEntry.fromLinked(linkedFunction(&value, linked), linked);
     }
 
     var result = value;
@@ -119,10 +122,17 @@ pub fn functionEntry(self: *Self, value: ir.Function, candidate: ?ir.FunctionId,
 }
 
 pub fn linkedFunction(value: *const ir.Function, linked: anytype) ir.Function {
+    var result = linkedBody(value, linked);
+
+    result.external = linkedExternal(value.external, linked);
+
+    return result;
+}
+
+pub fn linkedBody(value: *const ir.Function, linked: anytype) ir.Function {
     var result = materializeBody(value, linked, controlBody(value.body.root, linked.control));
     result.file_name = linked.file;
     result.stores = if (linked.store_table) |store_table| zx.columns.view(ir.StoreTable, store_table) else .{};
-    result.external = linkedExternal(value.external, linked);
 
     return result;
 }

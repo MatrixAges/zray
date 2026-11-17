@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import slot from "./slot"
+
+import type { Tail } from "./publication"
+
+export type Input = Tail
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.publishColumnLengths(in.lengths, 1)
+
+    slot({
+        first: in.first,
+        slot: in.module,
+        target: in.linked
+    })
+}

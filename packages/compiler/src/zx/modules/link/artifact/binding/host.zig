@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const memory = zx.memory;
+const Nodes = @import("../../../artifact/nodes.zig");
 const Builder = @import("../../build.zig");
 const Edges = @import("../../dependencies/traversal/view.zig").Columns;
 const admission = @import("../admission/host.zig");
@@ -10,6 +11,9 @@ const native = @import("../../native/host.zig");
 const generated = @import("generated_artifact_module_binding");
 const Binding = std.meta.Child(generated.Input);
 const Body = std.meta.Child(@FieldType(Binding, "body"));
+const Control = std.meta.Child(@typeInfo(@FieldType(Body, "control")).optional.child);
+const Workspace = std.meta.Child(@FieldType(Control, "workspace"));
+const inline_depth_slots = 2048 / @sizeOf(u32);
 const Header = std.meta.Child(@typeInfo(@FieldType(Body, "body")).optional.child);
 const Input = std.meta.Child(@typeInfo(@FieldType(Binding, "signatures")).optional.child);
 const Providers = std.meta.Child(@FieldType(Input, "providers"));
@@ -19,9 +23,8 @@ const Modules = std.meta.Child(@typeInfo(@FieldType(Native, "shape")).optional.c
 const Linked = std.meta.Child(@typeInfo(@FieldType(Input, "linked_shape")).optional.child);
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Layout = std.meta.Child(std.meta.Child(@FieldType(Destination, "shape")));
-pub const Bound = struct { mappings: admission.Mappings, placement: dependencies.Placement };
 
-pub fn bind(self: *Builder, index: usize, comptime entry: bool) Builder.Error!Bound {
+pub fn bind(self: *Builder, index: usize, comptime entry: bool) Builder.Error!?Nodes.FunctionEntry {
     const module = &self.modules[index];
     const types: []const u32 = @ptrCast(self.type_mappings[index]);
     var mappings: admission.Mappings = .{ .functions = &.{}, .modules = &.{} };
@@ -40,7 +43,36 @@ pub fn bind(self: *Builder, index: usize, comptime entry: bool) Builder.Error!Bo
 
     if (has_natives) native_view.init(&self.allocator, &self.native_modules, module.native_modules, types, &mappings.modules);
 
-    const header: Header = if (module.function) |*body| .{ .path = module.path, .file_name = body.file_name, .external = body.external != null } else undefined;
+    const linked = module.function != null or module.functions.count() != 0;
+    const write_slots = if (linked) memory.bindColumnSet(Layout, true, &self.functions) else undefined;
+    const writable: memory.ColumnSet = &write_slots;
+
+    const destination: Destination = .{
+        .storage = @ptrCast(&writable),
+        .shape = null,
+        .maximum_count = std.math.maxInt(u32),
+        .resource = @ptrCast(&self.allocator),
+    };
+
+    var buffer: [inline_depth_slots]u32 = undefined;
+    var scratch: memory.U32Scratch = .{ .allocator = self.temporary, .items = &buffer };
+
+    defer scratch.deinit();
+
+    var header: Header = undefined;
+    var workspace: Workspace = undefined;
+    var control: Control = undefined;
+
+    if (module.function) |*value| {
+        header = .{ .path = module.path, .file_name = value.file_name, .external = value.external != null };
+        workspace = scratch.borrow(Workspace, entry);
+
+        control = .{
+            .control = zx.columns.pointer(@FieldType(Control, "control"), value.body.control),
+            .root = if (value.body.root) |id| @backingInt(id) else null,
+            .workspace = &workspace,
+        };
+    }
 
     const body: Body = .{
         .body = if (module.function != null) &header else null,
@@ -48,6 +80,8 @@ pub fn bind(self: *Builder, index: usize, comptime entry: bool) Builder.Error!Bo
         .stores = module.stores.count(),
         .slot = module.functions.count(),
         .target = @ptrCast(&mappings.functions),
+        .destination = if (linked) &destination else null,
+        .control = if (module.function != null) &control else null,
     };
 
     const request: dependencies.Inputs = .{
@@ -59,12 +93,21 @@ pub fn bind(self: *Builder, index: usize, comptime entry: bool) Builder.Error!Bo
     const placement = if (module.functions.count() == 0)
         try dependencies.bind(self, index, &mappings, request)
     else
-        try bindSignatures(self, index, &mappings, request);
+        try bindSignatures(self, index, &mappings, request, &destination);
 
-    return .{ .mappings = mappings, .placement = placement };
+    const value = if (module.function) |*function| function else return null;
+
+    const nodes: Nodes = .{
+        .allocator = self.allocator,
+        .types = .{ .mapped = self.type_mappings[index] },
+        .functions = .{ .indexed = mappings.functions },
+        .native_modules = .{ .indexed = mappings.modules },
+    };
+
+    return @import("../body/host.zig").publish(&nodes, value, &self.functions, self.module_functions, index, placement);
 }
 
-fn bindSignatures(self: *Builder, index: usize, mappings: *admission.Mappings, binding: dependencies.Inputs) Builder.Error!dependencies.Placement {
+fn bindSignatures(self: *Builder, index: usize, mappings: *admission.Mappings, binding: dependencies.Inputs, destination: *const Destination) Builder.Error!dependencies.Placement {
     const module = &self.modules[index];
     const signatures = binding.admission.layout.signatures;
     const edges = Edges.borrow(module.dependencies, self.plan.sources(index));
@@ -87,9 +130,7 @@ fn bindSignatures(self: *Builder, index: usize, mappings: *admission.Mappings, b
     const native_columns: memory.ColumnSet = &native_slots;
     var modules: Modules = undefined;
     const read_slots = memory.bindColumnSet(Linked, false, &self.functions);
-    const write_slots = memory.bindColumnSet(Layout, true, &self.functions);
     const readable: memory.ColumnSet = &read_slots;
-    const writable: memory.ColumnSet = &write_slots;
     var snapshot: Linked = undefined;
 
     const request: Input = .{
@@ -106,12 +147,7 @@ fn bindSignatures(self: *Builder, index: usize, mappings: *admission.Mappings, b
         .providers = &providers,
         .functions = @ptrCast(self.module_functions),
         .target = @ptrCast(&mappings.functions),
-        .destination = &.{
-            .storage = @ptrCast(&writable),
-            .shape = null,
-            .maximum_count = std.math.maxInt(u32),
-            .resource = @ptrCast(&self.allocator),
-        },
+        .destination = destination,
         .read_columns = @ptrCast(&readable),
         .snapshot = @ptrCast(&snapshot),
         .linked_shape = null,

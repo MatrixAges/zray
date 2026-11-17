@@ -1,0 +1,52 @@
+<Module>
+    <Type from="publication" as="Publication" />
+
+    <Args in={Publication.Input} out={Publication.Output?} />
+
+    <Call module="../../../artifact/materializing/own_function" in={$in.body} />
+
+    <If on={$in.reject_store}>
+        <Return value={null} />
+    </If>
+
+    <If on={$ctx.own_function != null}>
+        <If on={$in.tail != null}>
+            <Call
+                fn="../../../artifact/materializing/publication/write"
+                in={{
+                    columns: $in.columns,
+                    function: {
+                        ...$ctx.own_function.omit([
+                            "stores",
+                            "recursive",
+                            "control",
+                            "store_table"
+                        ]),
+                        control: $ctx.own_function.control ?? $in.empty.control,
+                        store_table: $ctx.own_function.store_table ?? $in.empty.stores
+                    },
+                    attributes: $in.attributes,
+                    row: 0
+                }}
+            />
+
+            <Call fn="commit" in={$in.tail} />
+
+            <Return
+                value={{
+                    retained: null,
+                    columns: $ctx.write
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                retained: $ctx.own_function,
+                columns: null
+            }}
+        />
+    </If>
+
+    <Return value={null} />
+</Module>

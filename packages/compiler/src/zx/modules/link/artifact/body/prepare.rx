@@ -1,0 +1,37 @@
+<Module>
+    <Type from="model" as="Body" />
+
+    <Args in={Body.Preparation} out={Body.Placement} />
+
+    <Call
+        module="place"
+        in={$in.omit([
+            "control",
+            "destination"
+        ])}
+    />
+
+    <If on={$ctx.place == Body.Placement.Append && $in.destination != null}>
+        <Call fn="../../signature/publication/reserve" in={$in.destination} />
+    </If>
+
+    <If on={$ctx.place == Body.Placement.Invalid}>
+        <Return value={$ctx.place} />
+    </If>
+
+    <If on={$in.control != null}>
+        <Call module="../../../../ir/canonical/control/structure" in={$in.control} />
+
+        <If on={!$ctx.structure}>
+            <Return value={Body.Placement.Invalid} />
+        </If>
+
+        <Else>
+            <If on={$ctx.place == Body.Placement.RejectStoreDependency}>
+                <Return value={Body.Placement.Invalid} />
+            </If>
+        </Else>
+    </If>
+
+    <Return value={$ctx.place} />
+</Module>

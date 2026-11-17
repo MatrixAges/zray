@@ -1,4 +1,6 @@
 import type { OptionalU32Buffer } from "memory"
+import type { Input as ControlCheck } from "../../../../ir/canonical/body/workspace"
+import type { Destination } from "../../signature/publication/model"
 import type { Input as Layout } from "../entry"
 
 export enum Placement {
@@ -16,4 +18,9 @@ export type Input = {
     first: u64,
     slot: u64,
     target: OptionalU32Buffer
+}
+
+export type Preparation = Input & {
+    control?: ControlCheck,
+    destination?: Destination
 }

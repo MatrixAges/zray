@@ -1,0 +1,31 @@
+import type { ColumnLengths, OptionalU32Buffer } from "memory"
+import type {
+    Input as Body,
+    Owned
+} from "../../../artifact/materializing/function_model"
+import type {
+    Attributes,
+    Columns
+} from "../../../artifact/materializing/publication/model"
+import type { Empty } from "../../../artifact/materializing/publication/source_model"
+
+export type Tail = {
+    lengths: ColumnLengths,
+    linked: OptionalU32Buffer,
+    module: u64,
+    first: u64
+}
+
+export type Input = {
+    body: Body,
+    columns: Columns,
+    tail?: Tail,
+    attributes: Attributes,
+    empty: Empty,
+    reject_store: bool
+}
+
+export type Output = {
+    retained?: Owned,
+    columns?: Columns
+}

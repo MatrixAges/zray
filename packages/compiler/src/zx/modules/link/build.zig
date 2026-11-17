@@ -16,43 +16,29 @@ functions: ir.FunctionStorage = .{},
 native_modules: ir.NativeModuleStorage = .{},
 module_functions: []?ir.FunctionId,
 pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.FunctionEntry {
+    if (comptime generated) return @import("artifact/binding/host.zig").bind(self, index, entry);
+
     const value = &self.modules[index];
     const admission = @import("artifact/admission/host.zig");
-    const types = self.type_mappings[index];
-    var placement: if (generated) @import("dependencies/host.zig").Placement else void = undefined;
 
-    const mappings = if (comptime generated) source: {
-        const bound = try @import("artifact/binding/host.zig").bind(self, index, entry);
-        placement = bound.placement;
+    if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
 
-        break :source bound.mappings;
-    } else seed: {
-        if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
-
-        break :seed try admission.reserve(self.temporary, value);
-    };
+    const mappings = try admission.reserve(self.temporary, value);
 
     var nodes: Nodes = .{
         .allocator = self.allocator,
-        .types = .{ .mapped = types },
+        .types = .{ .mapped = self.type_mappings[index] },
         .functions = .{ .indexed = mappings.functions },
         .native_modules = .{ .indexed = mappings.modules },
     };
 
-    if (comptime !generated) {
-        try checkExportsSeed(value.exports, nodes.types);
-        try checkExportsSeed(value.type_imports, nodes.types);
+    try checkExportsSeed(value.exports, nodes.types);
+    try checkExportsSeed(value.type_imports, nodes.types);
 
-        const constants = @import("../../analysis/constants/input.zig").nativeValid;
+    const constants = @import("../../analysis/constants/input.zig").nativeValid;
 
-        if (!constants(value.types, value.constant_exports)) return error.InvalidModule;
-        if (!constants(value.types, value.constant_imports)) return error.InvalidModule;
-    }
-
-    if (comptime generated) {
-        return @import("artifact/body/host.zig").publish(&nodes, value, &self.functions, self.temporary, &self.module_functions[index], placement, entry);
-    }
-
+    if (!constants(value.types, value.constant_exports)) return error.InvalidModule;
+    if (!constants(value.types, value.constant_imports)) return error.InvalidModule;
     try native.link(self.temporary, &self.native_modules, value.native_modules, mappings.modules, &nodes);
     try self.bindSignaturesSeed(index, mappings.functions[0..value.functions.count()], &nodes);
 
