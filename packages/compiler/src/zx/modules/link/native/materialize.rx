@@ -10,7 +10,7 @@
     />
 
     <Call
-        fn="../remap/ids"
+        fn="../../compiled/loading/remap/ids"
         in={{
             values: $in.source.ids,
             mapping: $in.mapping
@@ -18,7 +18,7 @@
     />
 
     <Call
-        fn="../../../native_context/copy_binding"
+        fn="../../native_context/copy_binding"
         in={{
             source: $in.source,
             mapped_ids: $ctx.ids

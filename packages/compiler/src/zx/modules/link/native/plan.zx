@@ -1,0 +1,88 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import binding from "core/native_module_table/binding"
+import memory from "memory"
+
+import lookup from "./lookup"
+import { Status } from "./model"
+import pending from "./pending"
+
+import type { Modules } from "core/native_module_table/model"
+import type { OptionalU32Buffer } from "memory"
+
+export type Input = {
+    source: Modules,
+    base: Modules,
+    types: u32[],
+    target: OptionalU32Buffer
+}
+
+export type Output = {
+    additions: u64[],
+    failure?: Status
+}
+
+export default function (in: Input): Output {
+    const { source, base, types, target } = in
+
+    const additions: u64[] = []
+    const failure: Status? = null
+    const base_count = base.specifiers.length
+    const count = source.specifiers.length
+    const maximum = integers.widen(max_u32)
+
+    return loop({
+        row: 0,
+        additions,
+        failure
+    }, {
+        while: state => state.failure == null && state.row < count,
+        next: state => {
+            const row = state.row
+            const value = binding({
+                source,
+                row
+            })
+
+            const existing = lookup({
+                table: base,
+                value,
+                mapping: types
+            })
+
+            const decision = match existing.status {
+                Status.Missing => pending({
+                    source,
+                    value,
+                    additions: state.additions,
+                    mapping: types,
+                    first: base_count,
+                    maximum
+                }),
+                _ => existing
+            }
+
+            if (
+                decision.status == Status.Reuse || decision.status == Status.Insert
+            ) {
+                memory.writeOptionalU32(
+                    target,
+                    row,
+                    integers.narrow(decision.row)
+                )
+
+                if (decision.status == Status.Insert) {
+                    state.additions = state.additions.push(row)[0]
+                }
+            } else {
+                state.failure = decision.status
+            }
+
+            state.row += 1
+        },
+        return: state => ({
+            additions: state.additions,
+            failure: state.failure
+        })
+    })
+}

@@ -1,0 +1,69 @@
+import compatible from "core/native_module_table/compatible"
+import key from "core/native_module_table/key"
+
+import { Status } from "./model"
+
+import type { Binding, Modules } from "core/native_module_table/model"
+import type { Decision } from "./model"
+
+export type Input = {
+    source: Modules,
+    value: Binding,
+    additions: u64[],
+    mapping: u32[],
+    first: u64,
+    maximum: u64
+}
+
+export type Output = Decision
+
+export default function (in: Input): Output {
+    const { source, value, additions, mapping, first, maximum } = in
+
+    const name = value.identity ?? value.specifier
+    const count = additions.length
+
+    const position = loop({
+        index: 0,
+        found: false
+    }, {
+        while: state => !state.found && state.index < count,
+        next: state => {
+            const index = additions[state.index]
+            const candidate = key({
+                modules: source,
+                index
+            })
+
+            state.found = candidate == name &&
+                source.import_names[index] == value.import_name
+
+            if (!state.found) {
+                state.index += 1
+            }
+        },
+        return: state => state.index
+    })
+
+    if (position == count) {
+        const row = first + count
+
+        return {
+            status: row < maximum ? Status.Insert : Status.Full,
+            row
+        }
+    }
+
+    const valid = compatible({
+        table: source,
+        value,
+        mapping,
+        previous_mapping: mapping,
+        index: additions[position]
+    })
+
+    return {
+        status: valid ? Status.Reuse : Status.Conflict,
+        row: first + position
+    }
+}

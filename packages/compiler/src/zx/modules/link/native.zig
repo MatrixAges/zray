@@ -4,62 +4,64 @@ const columns = @import("zx").columns;
 const Nodes = @import("../artifact/nodes.zig");
 const Error = @import("../artifact/model.zig").Error || error{ConflictingInterface};
 
-pub fn append(allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, value: ir.NativeModule, nodes: *Nodes) Error!ir.NativeModuleId {
-    if (!@import("parser_options").generated_parser) return appendSeed(allocator, modules, value, nodes);
+pub fn link(temporary: std.mem.Allocator, modules: *ir.NativeModuleStorage, source: ir.NativeModuleTable, mapping: []?ir.NativeModuleId, nodes: *Nodes) Error!void {
+    if (source.count() == 0) return;
 
-    const plan = try bindingPlan(allocator, modules.view(), value, nodes.types.mapped);
+    const allocator = nodes.allocator;
 
-    switch (plan.status) {
-        .Invalid, .Missing => return error.InvalidModule,
-        .Conflict => return error.ConflictingInterface,
-        .Full => return error.OutOfMemory,
-        .Reuse => {},
-        .Insert => {
-            const binding = plan.owned orelse return error.InvalidModule;
+    if (comptime !@import("parser_options").generated_parser) {
+        for (mapping, 0..) |*id, row| id.* = try appendSeed(allocator, modules, source.at(row), nodes);
 
-            try modules.append(allocator, .{
-                .specifier = binding.specifier,
-                .identity = binding.identity,
-                .import_name = binding.import_name,
-                .type_namespace = binding.namespace,
-                .types = .{ .names = binding.names, .type_ids = binding.ids },
-            });
-        },
+        return;
     }
 
-    return @fromBackingInt(@as(u32, @intCast(plan.row)));
-}
-
-fn bindingPlan(
-    allocator: std.mem.Allocator,
-    modules: ir.NativeModuleTable,
-    value: ir.NativeModule,
-    mapping: []const ir.TypeId,
-) @import("../artifact/model.zig").Error!@typeInfo(@TypeOf(@import("generated_native_link_binding").executeValue(undefined, undefined))).error_union.payload {
-    const entry = @import("generated_native_link_binding");
+    const entry = @import("generated_native_link_plan");
     const Input = std.meta.Child(entry.Input);
-    const Binding = std.meta.Child(@FieldType(Input, "value"));
-    const table = columns.columns(std.meta.Child(@FieldType(Input, "table")), modules);
+    const Table = std.meta.Child(@FieldType(Input, "source"));
+    const base = columns.columns(Table, modules.view());
+    const rows = columns.columns(Table, source);
+    const types: []const u32 = @ptrCast(nodes.types.mapped);
+    const input: Input = .{ .base = &base, .source = &rows, .types = types, .target = @ptrCast(&mapping) };
 
-    const binding: Binding = .{
-        .identity = value.identity,
-        .specifier = value.specifier,
-        .import_name = value.import_name,
-        .namespace = value.type_namespace,
-        .names = value.types.names,
-        .ids = value.types.type_ids,
-    };
-
-    const input: Input = .{
-        .table = &table,
-        .value = &binding,
-        .mapping = @as([*]const u32, @ptrCast(mapping.ptr))[0..mapping.len],
-        .maximum = std.math.maxInt(u32),
-    };
-
-    return columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const plan = columns.invoke(entry.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
+    };
+
+    if (plan.failure) |status| return switch (status) {
+        .Conflict => error.ConflictingInterface,
+        .Full => error.OutOfMemory,
+        else => error.InvalidModule,
+    };
+
+    for (plan.additions) |row| {
+        try modules.append(allocator, try materialize(allocator, source.at(@intCast(row)), types));
+    }
+}
+
+pub fn materialize(allocator: std.mem.Allocator, source: ir.NativeModule, mapping: []const u32) std.mem.Allocator.Error!ir.NativeModule {
+    const entry = @import("generated_native_link_owned");
+    const Input = std.meta.Child(entry.Input);
+    const Binding = std.meta.Child(@FieldType(Input, "source"));
+
+    const binding: Binding = .{
+        .specifier = source.specifier,
+        .identity = source.identity,
+        .import_name = source.import_name,
+        .namespace = source.type_namespace,
+        .names = source.types.names,
+        .ids = source.types.type_ids,
+    };
+
+    const input: Input = .{ .source = &binding, .mapping = mapping };
+    const owned = columns.invoke(entry.executeValue, allocator, &input) catch return error.OutOfMemory;
+
+    return .{
+        .specifier = owned.specifier,
+        .identity = owned.identity,
+        .import_name = owned.import_name,
+        .type_namespace = owned.namespace,
+        .types = .{ .names = owned.names, .type_ids = owned.ids },
     };
 }
 

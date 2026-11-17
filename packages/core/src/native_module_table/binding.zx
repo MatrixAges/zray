@@ -1,0 +1,21 @@
+import type { Binding, Modules } from "./model"
+
+export type Input = {
+    source: Modules,
+    row: u64
+}
+
+export type Output = Binding
+
+export default function (in: Input): Output {
+    const { source, row } = in
+
+    return {
+        identity: source.identities[row],
+        specifier: source.specifiers[row],
+        import_name: source.import_names[row],
+        namespace: source.type_namespaces[row],
+        names: source.type_names[row],
+        ids: source.type_ids[row]
+    }
+}

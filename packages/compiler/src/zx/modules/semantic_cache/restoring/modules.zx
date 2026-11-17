@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import binding from "core/native_module_table/binding"
 import memory from "memory"
 
 import lookup from "../../link/native/lookup"
@@ -31,14 +32,10 @@ export default function (in: Input): Output {
             const result = lookup({
                 table: current,
                 mapping: types,
-                value: {
-                    identity: previous.identities[index],
-                    specifier: previous.specifiers[index],
-                    import_name: previous.import_names[index],
-                    namespace: previous.type_namespaces[index],
-                    names: previous.type_names[index],
-                    ids: previous.type_ids[index]
-                }
+                value: binding({
+                    source: previous,
+                    row: index
+                })
             })
 
             state.valid = result.status == Status.Reuse

@@ -30,8 +30,6 @@ pub fn append(input: Input, destination: Destination) Error!Nodes {
     const range = try @import("function_table.zig").range(destination.functions.count(), program.functions.count(), 0, program.types.count(), program.native_modules.count());
     const native_mapping = try temporary.alloc(?ir.NativeModuleId, program.native_modules.count());
 
-    @memset(native_mapping, null);
-
     var nodes = Nodes{
         .allocator = allocator,
         .types = .{ .mapped = type_mapping },
@@ -39,10 +37,7 @@ pub fn append(input: Input, destination: Destination) Error!Nodes {
         .native_modules = .{ .indexed = native_mapping },
     };
 
-    for (0..program.native_modules.count(), native_mapping) |row, *id| {
-        id.* = try native.append(allocator, destination.native_modules, program.native_modules.at(row), &nodes);
-    }
-
+    try native.link(temporary, destination.native_modules, program.native_modules, native_mapping, &nodes);
     try nodes.appendFunctions(destination.functions, program.functions);
 
     return nodes;

@@ -5,6 +5,7 @@ import bounds from "./bounds"
 import { Status } from "./model"
 
 import type { Binding, Modules } from "core/native_module_table/model"
+import type { Decision } from "./model"
 
 export type Input = {
     table: Modules,
@@ -12,10 +13,7 @@ export type Input = {
     mapping: u32[]
 }
 
-export type Output = {
-    status: Status,
-    row: u64
-}
+export type Output = Decision
 
 export default function (in: Input): Output {
     const { table, value, mapping } = in

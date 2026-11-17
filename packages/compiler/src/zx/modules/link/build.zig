@@ -34,7 +34,6 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
                 native_mapping = try self.temporary.alloc(?ir.NativeModuleId, value.native_modules.count());
 
                 @memset(function_mapping, null);
-                @memset(native_mapping, null);
 
                 nodes = .{
                     .allocator = self.allocator,
@@ -56,9 +55,7 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
                 if (!try constants.validate(self.temporary, value.types, value.constant_imports)) return error.InvalidModule;
             },
             .LinkNativeModules => {
-                for (0..value.native_modules.count(), native_mapping) |row, *id| {
-                    id.* = try native.append(self.allocator, &self.native_modules, value.native_modules.at(row), &nodes);
-                }
+                try native.link(self.temporary, &self.native_modules, value.native_modules, native_mapping, &nodes);
             },
             .BindSignatures => {
                 const imports = function_mapping[0..value.functions.count()];
