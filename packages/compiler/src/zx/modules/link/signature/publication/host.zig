@@ -3,6 +3,8 @@ const zx = @import("zx");
 const ir = zx.ir;
 const FunctionImport = @import("../../../function_import.zig");
 const columns = @import("../../../artifact/materializing/publication/columns.zig");
+const export_rows = @import("../../../../ir/canonical/validation/names/view.zig");
+const finalize = @import("generated_native_module_finalize");
 const publication = @import("generated_native_members_publication");
 const NativeParameter = @typeInfo(@TypeOf(publication.executeState)).@"fn".param_types[1].?;
 const NativeInput = if (@typeInfo(NativeParameter) == .pointer) std.meta.Child(NativeParameter) else NativeParameter;
@@ -80,6 +82,48 @@ pub fn stageNative(allocator: std.mem.Allocator, storage: *ir.FunctionStorage, s
     columns.checkBorrow(target, written.functions);
 
     return .{ .members = members, .namespace = written.namespace.items };
+}
+
+pub fn finalizeNative(allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, functions: *ir.FunctionStorage, module: ir.NativeModuleId, loaded: @import("../../../native.zig").Result, original: []const []const u8) std.mem.Allocator.Error!void {
+    const Input = std.meta.Child(finalize.Input);
+    const Exports = std.meta.Child(@FieldType(Input, "exports"));
+    const rows = export_rows.borrow(loaded.exports);
+    const view = export_rows.view(std.meta.Child(@FieldType(Exports, "source")), &rows);
+    const length_slots = zx.memory.borrowColumnLengths(functions);
+    const lengths: zx.memory.ColumnLengths = &length_slots;
+    var names: [][]const u8 = &.{};
+    var ids: []u32 = &.{};
+
+    errdefer {
+        allocator.free(ids);
+        allocator.free(names);
+    }
+
+    const namespace: std.meta.Child(@FieldType(Input, "namespace")) = .{ .published = loaded.namespace, .original = original };
+
+    const exports: Exports = .{
+        .source = &view,
+        .names = @ptrCast(&names),
+        .ids = @ptrCast(&ids),
+    };
+
+    const destination: std.meta.Child(@FieldType(Input, "destination")) = .{
+        .module = @backingInt(module),
+        .namespaces = @ptrCast(&modules.type_namespaces.items),
+        .names = @ptrCast(&modules.type_names.items),
+        .ids = @ptrCast(&modules.type_ids.items),
+        .functions = @ptrCast(&lengths),
+        .member_count = loaded.members.len,
+    };
+
+    const input: Input = .{ .namespace = &namespace, .exports = &exports, .destination = &destination };
+
+    const installed = finalize.executeIn(allocator, &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.IndexOutOfBounds => unreachable,
+    };
+
+    if (!installed) return error.OutOfMemory;
 }
 
 fn emptyBody(comptime T: type) T {

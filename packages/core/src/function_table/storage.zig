@@ -103,12 +103,6 @@ pub fn reservedTail(self: *Self, len: usize) Table {
     return result;
 }
 
-pub fn commitTail(self: *Self, len: usize) void {
-    inline for (@typeInfo(Self).@"struct".field_names) |name| {
-        _ = @field(self, name).addManyAsSliceAssumeCapacity(len);
-    }
-}
-
 pub const empty_symbols: ir.SymbolTable = .{};
 pub const empty_expressions: ir.ExpressionTable = .{};
 

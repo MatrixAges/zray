@@ -1,0 +1,13 @@
+import strings from "std:string"
+
+import type { Namespace } from "./finalize_model"
+
+export type Input = Namespace
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const { published } = in
+
+    return published ?? strings.copyList(in.original)
+}

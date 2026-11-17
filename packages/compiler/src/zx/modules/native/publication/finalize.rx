@@ -1,0 +1,24 @@
+<Module>
+    <Type from="finalize_model" as="Native" />
+
+    <Args in={Native.Input} out={bool} />
+
+    <Call fn="namespace" in={$in.namespace} />
+    <Call fn="bindings" in={$in.exports} />
+
+    <If on={$ctx.bindings}>
+        <Call
+            fn="install"
+            in={{
+                destination: $in.destination,
+                namespace: $ctx.namespace,
+                names: $in.exports.names,
+                ids: $in.exports.ids
+            }}
+        />
+
+        <Return value={true} />
+    </If>
+
+    <Return value={false} />
+</Module>

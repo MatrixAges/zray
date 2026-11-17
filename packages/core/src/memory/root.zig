@@ -35,6 +35,25 @@ pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
     return view.*;
 }
 
+pub fn allocateStringViews(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    try allocateViews([]const u8, allocator, target, count);
+}
+
+pub fn allocateU32Views(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    try allocateViews(u32, allocator, target, count);
+}
+
+fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
+    output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);
+}
+
+pub inline fn u32Views(source: *const anyopaque) []const u32 {
+    const view: *const []const u32 = @ptrCast(@alignCast(source));
+
+    return view.*;
+}
+
 pub inline fn optionalU32Views(source: *const anyopaque) []const ?u32 {
     const view: *const []const ?u32 = @ptrCast(@alignCast(source));
 

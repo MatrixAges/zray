@@ -677,20 +677,24 @@ const Project = struct {
             else
                 try @import("native.zig").load(self.arena, entry, module_id, &self.types, &self.nominal_origins, &self.functions, self.reporter, item.span);
 
-            const namespace = loaded.namespace orelse try @import("compiled/host/native.zig").strings(self.allocator, entry.namespace);
-            const bindings = try ir.NativeBindings.fromValues(self.allocator, loaded.exports);
             const native_index = @backingInt(module_id);
-            self.verified.functions = 0;
-            self.verified.native = false;
-            self.native_modules.type_namespaces.items[native_index] = namespace;
-            self.native_modules.type_names.items[native_index] = bindings.names;
-            self.native_modules.type_ids.items[native_index] = bindings.type_ids;
 
             const members = if (comptime @import("parser_options").generated_parser) published: {
-                self.functions.commitTail(loaded.members.len);
+                try @import("link/signature/publication/host.zig").finalizeNative(self.allocator, &self.native_modules, &self.functions, module_id, loaded, entry.namespace);
+
+                self.verified.functions = 0;
+                self.verified.native = false;
 
                 break :published loaded.members;
             } else seed: {
+                const namespace = loaded.namespace orelse try @import("compiled/host/native.zig").strings(self.allocator, entry.namespace);
+                const bindings = try ir.NativeBindings.fromValues(self.allocator, loaded.exports);
+                self.verified.functions = 0;
+                self.verified.native = false;
+                self.native_modules.type_namespaces.items[native_index] = namespace;
+                self.native_modules.type_names.items[native_index] = bindings.names;
+                self.native_modules.type_ids.items[native_index] = bindings.type_ids;
+
                 const rows = try self.allocator.alloc(FunctionImport, loaded.members.len);
                 const first = self.functions.count();
 

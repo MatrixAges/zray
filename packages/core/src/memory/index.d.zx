@@ -25,6 +25,18 @@ export declare function publishColumnLengths(
     count: u64
 ): void
 
+export declare function allocateStringViews(
+    allocator,
+    target: StringBuffer,
+    count: u64
+): void throws { OutOfMemory }
+
+export declare function allocateU32Views(
+    allocator,
+    target: U32Buffer,
+    count: u64
+): void throws { OutOfMemory }
+
 export declare function reserveTypeRanges(
     resource: Allocator,
     target: ColumnRanges,
@@ -50,6 +62,8 @@ export declare function publishNominalRanges(
 ): void
 
 export declare function stringViews(source: StringBuffer): string[]
+
+export declare function u32Views(source: U32Buffer): u32[]
 
 export declare function optionalU32Views(source: OptionalU32Buffer): u32?[]
 
