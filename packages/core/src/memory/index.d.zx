@@ -44,6 +44,13 @@ export declare function publishNominalRanges(
 
 export declare function stringViews(source: StringBuffer): string[]
 
+export declare function optionalU32Views(source: OptionalU32Buffer): u32?[]
+
+export declare function refreshOptionalU32View(
+    target: OptionalU32Buffer,
+    source: OptionalU32Buffer
+): void
+
 export declare function borrowU8Range(
     source: u8[],
     first: u64,

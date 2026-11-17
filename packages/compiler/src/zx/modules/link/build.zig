@@ -20,7 +20,7 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
     const admission = @import("artifact/admission/host.zig");
     const types = self.type_mappings[index];
 
-    const mappings = if (comptime generated) try admission.admit(self.temporary, value, types.len) else seed: {
+    const mappings = if (comptime generated) try @import("artifact/binding/host.zig").bind(self, index) else seed: {
         if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
 
         break :seed try admission.reserve(self.temporary, value);
@@ -43,27 +43,19 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
         if (!constants(value.types, value.constant_imports)) return error.InvalidModule;
     }
 
-    try native.link(self.temporary, &self.native_modules, value.native_modules, mappings.modules, &nodes);
-
-    const imports = mappings.functions[0..value.functions.count()];
-
-    if (comptime generated) {
-        try @import("signature/host.zig").bind(self, index, imports, mappings.modules);
-        try @import("dependencies/host.zig").verify(self, index, mappings.functions);
-    } else {
-        try self.bindSignaturesSeed(index, imports, &nodes);
-
-        for ([_][]const @import("../function_import.zig"){ value.function_imports, value.members }) |bindings| for (bindings) |binding| {
-            if (!binding.valid()) return error.InvalidModule;
-            if (binding.intrinsic == null and @backingInt(binding.id.?) >= value.functions.count()) return error.InvalidModule;
-        };
-
-        try self.importsSeed(index, &nodes);
-    }
-
     if (comptime generated) {
         return @import("artifact/body/host.zig").publish(&nodes, value, &self.functions, self.temporary, mappings.functions, &self.module_functions[index], entry);
     }
+
+    try native.link(self.temporary, &self.native_modules, value.native_modules, mappings.modules, &nodes);
+    try self.bindSignaturesSeed(index, mappings.functions[0..value.functions.count()], &nodes);
+
+    for ([_][]const @import("../function_import.zig"){ value.function_imports, value.members }) |bindings| for (bindings) |binding| {
+        if (!binding.valid()) return error.InvalidModule;
+        if (binding.intrinsic == null and @backingInt(binding.id.?) >= value.functions.count()) return error.InvalidModule;
+    };
+
+    try self.importsSeed(index, &nodes);
 
     const function = if (value.function) |*body| body else return null;
     const own: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));

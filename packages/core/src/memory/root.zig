@@ -8,6 +8,7 @@ pub const publishTypeRanges = column_set.publishRanges;
 pub const publishNominalRanges = column_set.publishRanges;
 pub const reserveColumnSet = column_set.reserve;
 pub const readColumnSet = column_set.read;
+pub const readNativeColumnSet = column_set.read;
 pub const appendColumnSet = column_set.append;
 pub const reserveNativeColumnSet = column_set.reserve;
 pub const appendNativeColumnSet = column_set.append;
@@ -29,6 +30,21 @@ pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
     const view: *const []const []const u8 = @ptrCast(@alignCast(source));
 
     return view.*;
+}
+
+pub inline fn optionalU32Views(source: *const anyopaque) []const ?u32 {
+    const view: *const []const ?u32 = @ptrCast(@alignCast(source));
+
+    return view.*;
+}
+
+pub inline fn refreshOptionalU32View(target: *const anyopaque, source: *const anyopaque) void {
+    const view: *[]const ?u32 = @ptrCast(@alignCast(@constCast(target)));
+    view.* = optionalU32Views(source);
+}
+
+pub inline fn refreshLinkedPorts(source: *const anyopaque, target: *const anyopaque, shape: anytype) void {
+    _ = column_set.read(source, target, shape);
 }
 
 const rows = @import("rows.zig");

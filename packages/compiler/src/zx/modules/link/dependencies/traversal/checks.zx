@@ -1,0 +1,13 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Views } from "./model"
+
+export type Input = Views
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.refreshOptionalU32View(in.functions, in.mapping)
+    columns.refreshLinkedPorts(in.linked_columns, in.linked_view, in.linked_shape)
+}

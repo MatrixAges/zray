@@ -1,0 +1,58 @@
+<Module>
+    <Type from="binding" as="Binding" />
+    <Type from="../native/model" as="Native" />
+    <Type from="../signature/decision" as="Signature" />
+    <Type from="../dependencies/model" as="Dependencies" />
+
+    <Args in={Binding.Input} out={Binding.Status} />
+
+    <Call module="admission/check" in={$in.admission} />
+
+    <If on={!$ctx.check}>
+        <Return value={Binding.Status.Invalid} />
+    </If>
+
+    <If on={$in.native != null}>
+        <Call module="../native/link" in={$in.native} />
+
+        <If on={$ctx.link != null}>
+            <Switch on={$ctx.link}>
+                <Case value={Native.Status.Conflict}>
+                    <Return value={Binding.Status.Conflict} />
+                </Case>
+
+                <Case value={Native.Status.Full}>
+                    <Return value={Binding.Status.Full} />
+                </Case>
+
+                <Default>
+                    <Return value={Binding.Status.Invalid} />
+                </Default>
+            </Switch>
+        </If>
+    </If>
+
+    <If on={$in.signatures != null}>
+        <Call fn="../signature/batch" in={$in.signatures} />
+
+        <If on={$ctx.batch == Signature.Status.Conflict}>
+            <Return value={Binding.Status.Conflict} />
+        </If>
+
+        <If on={$ctx.batch != Signature.Status.Reuse}>
+            <Return value={Binding.Status.Invalid} />
+        </If>
+    </If>
+
+    <Call module="../dependencies/traversal/walk" in={$in.dependencies} />
+
+    <If on={$ctx.walk == Dependencies.Status.Conflict}>
+        <Return value={Binding.Status.Conflict} />
+    </If>
+
+    <If on={$ctx.walk != Dependencies.Status.Ready}>
+        <Return value={Binding.Status.Invalid} />
+    </If>
+
+    <Return value={Binding.Status.Ready} />
+</Module>

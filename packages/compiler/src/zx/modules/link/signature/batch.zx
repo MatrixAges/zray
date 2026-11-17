@@ -17,10 +17,20 @@ export type Output = Status
 export default function (in: Input): Output {
     const { signatures, target } = in
 
+    const modules =
+        columns.readNativeColumnSet(
+            in.native.storage,
+            in.native.snapshot,
+            in.native.shape
+        )
+
+    const native_ids = memory.optionalU32Views(in.native.ids)
+    const linked = columns.readColumnSet(in.read_columns, in.snapshot, in.linked_shape)
+
     const initial = {
         next: 0,
         status: Status.Reuse,
-        linked: in.linked
+        linked
     }
 
     return loop(initial, {
@@ -52,11 +62,14 @@ export default function (in: Input): Output {
                     "target",
                     "destination",
                     "read_columns",
+                    "linked_shape",
                     "snapshot",
                     "empty",
-                    "linked"
+                    "native"
                 ]),
                 linked: state.linked,
+                modules,
+                native_ids,
                 path,
                 key: bytes.fromText(path),
                 external,
@@ -92,7 +105,7 @@ export default function (in: Input): Output {
                     state.linked = columns.readColumnSet(
                         in.read_columns,
                         in.snapshot,
-                        null
+                        in.linked_shape
                     )
                     state.next += 1
                 case Status.Invalid:

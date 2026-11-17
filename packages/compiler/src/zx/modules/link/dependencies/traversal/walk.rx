@@ -2,15 +2,17 @@
     <Type from="../model" as="Link" />
     <Type from="model" as="Traversal" />
 
-    <Args in={Traversal.Walk} out={Link.Status} />
+    <Args in={Traversal.Input} out={Link.Status} />
 
-    <Call module="../bindings" in={$in.checks} />
+    <Call fn="checks" in={$in.views} />
+
+    <Call module="../bindings" in={$in.walk.checks} />
 
     <If on={$ctx.bindings != Link.Status.Ready}>
         <Return value={$ctx.bindings} />
     </If>
 
-    <Call fn="advance" in={$in} />
+    <Call fn="advance" in={$in.walk} />
 
     <Return value={$ctx.advance} />
 </Module>

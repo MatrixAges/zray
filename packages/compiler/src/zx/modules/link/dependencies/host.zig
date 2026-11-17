@@ -6,19 +6,29 @@ const Builder = @import("../build.zig");
 const Constants = @import("../../../analysis/constants/columns.zig").Rows;
 const BindingColumns = @import("bindings/view.zig").Columns;
 const Edges = @import("traversal/view.zig").Columns;
-const generated = @import("generated_artifact_dependencies");
-const Input = std.meta.Child(generated.Input);
-const Checks = std.meta.Child(@FieldType(Input, "checks"));
-const Imports = std.meta.Child(@FieldType(Input, "imports"));
-const Tables = std.meta.Child(@typeInfo(@FieldType(Input, "providers")).optional.child);
+const admission = @import("../artifact/admission/host.zig");
+const generated = @import("generated_artifact_module_binding");
+const Binding = std.meta.Child(generated.Input);
+const Input = std.meta.Child(@FieldType(Binding, "dependencies"));
+const Walk = std.meta.Child(@FieldType(Input, "walk"));
+const Views = std.meta.Child(@FieldType(Input, "views"));
+const Checks = std.meta.Child(@FieldType(Walk, "checks"));
+const Imports = std.meta.Child(@FieldType(Walk, "imports"));
+const Tables = std.meta.Child(@typeInfo(@FieldType(Walk, "providers")).optional.child);
 const Bindings = std.meta.Child(@FieldType(Checks, "imports"));
-const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
-const ConstantView = std.meta.Child(@FieldType(Input, "constants"));
-const Signatures = std.meta.Child(@FieldType(Checks, "linked"));
+const Aliases = std.meta.Child(@FieldType(Walk, "aliases"));
+const ConstantView = std.meta.Child(@FieldType(Walk, "constants"));
+const Signatures = std.meta.Child(@typeInfo(@FieldType(Views, "linked_shape")).optional.child);
 const Ownership = ir.SymbolTable.Ownership;
 const Export = ir.Export;
 
-pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) Builder.Error!void {
+pub const Inputs = struct {
+    admission: @FieldType(Binding, "admission"),
+    native: @FieldType(Binding, "native"),
+    signatures: @FieldType(Binding, "signatures") = null,
+};
+
+pub fn bind(self: *Builder, index: usize, mappings: *admission.Mappings, inputs: Inputs) Builder.Error!void {
     comptime std.debug.assert(@sizeOf(Ownership) == @sizeOf(u8));
 
     const module = &self.modules[index];
@@ -27,7 +37,9 @@ pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) B
     const consumer_constants = Constants.borrow(module.constant_imports);
     const alias_names = memory.borrowTextColumn("name", module.type_imports);
     const alias_ids = memory.borrowReadColumn(ir.TypeId, "type_id", module.type_imports);
-    const linked = self.functions.view();
+    const linked_slots = memory.bindColumnSet(Signatures, false, &self.functions);
+    const linked_columns: memory.ColumnSet = &linked_slots;
+    var linked: Signatures = undefined;
     const targets = self.plan.sources(index);
     const dependencies = module.dependencies;
     const edges = Edges.borrow(dependencies, targets);
@@ -37,21 +49,24 @@ pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) B
     const exported = memory.borrowReadColumn(bool, "exported", dependencies);
     const wildcard = memory.borrowReadColumn(bool, "wildcard", dependencies);
 
-    const checks: Checks = .{
+    var checks: Checks = .{
         .count = module.functions.count(),
-        .functions = @ptrCast(functions),
         .imports = &imports.view(Bindings),
         .members = &members.view(Bindings),
-        .linked = &Signatures{
-            .files = linked.files,
-            .input_types = linked.input_types,
-            .output_types = linked.output_types,
-            .ownership = std.mem.sliceAsBytes(linked.ownership),
-        },
         .types = @ptrCast(self.type_mappings[index]),
+        .linked = &linked,
+        .functions = &.{},
     };
 
-    const input: Input = .{
+    const views: Views = .{
+        .mapping = @ptrCast(&mappings.functions),
+        .functions = @ptrCast(&checks.functions),
+        .linked_columns = @ptrCast(&linked_columns),
+        .linked_view = @ptrCast(&linked),
+        .linked_shape = null,
+    };
+
+    const walk: Walk = .{
         .checks = &checks,
         .aliases = &Aliases{ .names = @ptrCast(&alias_names), .ids = @ptrCast(&alias_ids), .count = alias_names.count },
         .constants = &consumer_constants.view(ConstantView),
@@ -68,9 +83,9 @@ pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) B
         .intrinsic_name = @import("../../intrinsic.zig").specifier,
     };
 
-    if (targets.len == 0) return run(self.temporary, &input);
+    if (targets.len == 0) return run(self.temporary, inputs, &.{ .walk = &walk, .views = &views });
 
-    return verifySources(self, &input);
+    return bindSources(self, inputs, &walk, &views);
 }
 
 const Field = enum {
@@ -94,7 +109,7 @@ const Field = enum {
 
 const Projection = std.enums.EnumArray(Field, memory.ReadColumn);
 
-fn verifySources(self: *Builder, input: *const Input) Builder.Error!void {
+fn bindSources(self: *Builder, inputs: Inputs, walk: *const Walk, views: *const Views) Builder.Error!void {
     const modules = self.modules;
 
     const sources = std.enums.EnumArray(Field, memory.ListColumn).init(.{
@@ -149,16 +164,23 @@ fn verifySources(self: *Builder, input: *const Input) Builder.Error!void {
         .functions = @ptrCast(self.module_functions),
     };
 
-    var request = input.*;
+    var request = walk.*;
 
     request.providers = &tables;
 
-    return run(self.temporary, &request);
+    return run(self.temporary, inputs, &.{ .walk = &request, .views = views });
 }
 
-fn run(temporary: std.mem.Allocator, request: *const Input) Builder.Error!void {
-    const status = zx.columns.invoke(generated.executeValue, temporary, request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+fn run(temporary: std.mem.Allocator, inputs: Inputs, dependencies: *const Input) Builder.Error!void {
+    const request: Binding = .{
+        .admission = inputs.admission,
+        .native = inputs.native,
+        .signatures = inputs.signatures,
+        .dependencies = dependencies,
+    };
+
+    const status = generated.executeIn(temporary, &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
@@ -166,5 +188,6 @@ fn run(temporary: std.mem.Allocator, request: *const Input) Builder.Error!void {
         .Ready => {},
         .Invalid => error.InvalidModule,
         .Conflict => error.ConflictingInterface,
+        .Full => error.OutOfMemory,
     };
 }

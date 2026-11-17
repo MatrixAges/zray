@@ -4,8 +4,8 @@ const ir = zx.ir;
 const Module = @import("../../../artifact/model.zig").Module;
 const Error = @import("../../../artifact/model.zig").Error;
 const names = @import("../../../../ir/canonical/validation/names/view.zig");
-const rule = @import("generated_artifact_module_admission");
-const Input = std.meta.Child(rule.Input);
+const binding = @import("generated_artifact_module_binding");
+const Input = std.meta.Child(@FieldType(std.meta.Child(binding.Input), "admission"));
 const Layout = std.meta.Child(@FieldType(Input, "layout"));
 const Surface = std.meta.Child(@FieldType(Input, "surface"));
 const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "constants")).optional.child);
@@ -27,46 +27,49 @@ pub fn reserve(allocator: std.mem.Allocator, module: *const Module) Error!Mappin
     return .{ .functions = functions, .modules = modules };
 }
 
-pub fn admit(allocator: std.mem.Allocator, module: *const Module, type_count: usize) Error!Mappings {
-    const natives = zx.columns.columns(std.meta.Child(@FieldType(Layout, "native_modules")), module.native_modules);
-    const signatures = zx.columns.columns(std.meta.Child(@FieldType(Layout, "signatures")), module.functions);
-    const Rows = std.meta.Child(@FieldType(Surface, "exports"));
-    const export_rows = names.borrow(module.exports);
-    const import_rows = names.borrow(module.type_imports);
-    var constants: @import("../../../../analysis/constants/columns.zig").Pair(Constants) = undefined;
-    const has_constants = module.constant_exports.len != 0 or module.constant_imports.len != 0;
+const Natives = std.meta.Child(@FieldType(Layout, "native_modules"));
+const Signatures = std.meta.Child(@FieldType(Layout, "signatures"));
+const Rows = std.meta.Child(@FieldType(Surface, "exports"));
+const Names = @TypeOf(names.borrow(@as([]const ir.Export, &.{})));
 
-    if (has_constants) constants.init(module.types, module.constant_exports, module.constant_imports);
+pub const View = struct {
+    input: Input,
+    natives: Natives,
+    signatures: Signatures,
+    layout: Layout,
+    surface: Surface,
+    export_rows: Names,
+    import_rows: Names,
+    exports: Rows,
+    imports: Rows,
+    constants: @import("../../../../analysis/constants/columns.zig").Pair(Constants),
+    mappings: std.meta.Child(@FieldType(Input, "mappings")),
+    pub fn init(self: *View, module: *const Module, type_count: usize, mappings: *Mappings) void {
+        self.natives = zx.columns.columns(Natives, module.native_modules);
+        self.signatures = zx.columns.columns(Signatures, module.functions);
+        self.layout = .{ .native_modules = &self.natives, .signatures = &self.signatures };
+        self.export_rows = names.borrow(module.exports);
+        self.import_rows = names.borrow(module.type_imports);
+        self.exports = names.view(Rows, &self.export_rows);
+        self.imports = names.view(Rows, &self.import_rows);
+        self.surface = .{ .exports = &self.exports, .imports = &self.imports, .type_count = type_count };
 
-    var mappings: Mappings = .{ .functions = &.{}, .modules = &.{} };
+        const has_constants = module.constant_exports.len != 0 or module.constant_imports.len != 0;
 
-    errdefer {
-        allocator.free(mappings.modules);
-        allocator.free(mappings.functions);
-    }
+        if (has_constants) self.constants.init(module.types, module.constant_exports, module.constant_imports);
 
-    const request: Input = .{
-        .layout = &.{ .native_modules = &natives, .signatures = &signatures },
-        .surface = &.{
-            .exports = &names.view(Rows, &export_rows),
-            .imports = &names.view(Rows, &import_rows),
-            .type_count = type_count,
-        },
-        .constants = if (has_constants) &constants.input else null,
-        .mappings = &.{
+        self.mappings = .{
             .functions = @ptrCast(&mappings.functions),
             .modules = @ptrCast(&mappings.modules),
             .function_count = module.functions.count() + @intFromBool(module.function != null),
             .module_count = module.native_modules.count(),
-        },
-    };
+        };
 
-    const valid = zx.columns.invoke(rule.executeValue, allocator, &request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    if (!valid) return error.InvalidModule;
-
-    return mappings;
-}
+        self.input = .{
+            .layout = &self.layout,
+            .surface = &self.surface,
+            .constants = if (has_constants) &self.constants.input else null,
+            .mappings = &self.mappings,
+        };
+    }
+};

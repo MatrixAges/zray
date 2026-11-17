@@ -40,6 +40,13 @@ export type LinkedSignatureColumns = {
     native_fallible: bool[]
 }
 
+export type LinkedPortColumns = {
+    files: string[],
+    input_types: u32[],
+    output_types: u32[],
+    ownership: u8[]
+}
+
 export type FunctionRow = {
     files: string,
     input_types: u32,
@@ -73,6 +80,27 @@ export type NativeModuleRow = {
     type_names: string[],
     type_namespaces: string[]
 }
+
+export type NativeModuleColumns = {
+    identities: string?[],
+    import_names: string[],
+    specifiers: string[],
+    type_ids: u32[][],
+    type_names: string[][],
+    type_namespaces: string[][]
+}
+
+export declare function refreshLinkedPorts(
+    source: ColumnSet,
+    buffer: ColumnView,
+    shape: LinkedPortColumns?
+): void
+
+export declare function readNativeColumnSet(
+    source: ColumnSet,
+    buffer: ColumnView,
+    shape: NativeModuleColumns?
+): NativeModuleColumns
 
 export declare function reserveColumnSet(
     resource: ColumnAllocator,

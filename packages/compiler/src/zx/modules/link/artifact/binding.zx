@@ -1,0 +1,24 @@
+import type { Input as Dependencies } from "../dependencies/traversal/model"
+import type { Input as NativePlan } from "../native/plan"
+import type { Input as NativePublication } from "../native/publication/model"
+import type { Batch } from "../signature/model"
+import type { Input as Admission } from "./admission/model"
+
+export enum Status {
+    Ready,
+    Invalid,
+    Conflict,
+    Full
+}
+
+export type Native = {
+    plan?: NativePlan,
+    publication: NativePublication.Omit("rows")
+}
+
+export type Input = {
+    admission: Admission,
+    native?: Native,
+    signatures?: Batch
+    dependencies: Dependencies
+}
