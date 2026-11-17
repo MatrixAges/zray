@@ -101,7 +101,8 @@ fn analyze(allocator: std.mem.Allocator, options: Options) !compiler.AnalysisRes
     errdefer analyzed.deinit();
 
     if (analyzed.value == .diagnostic) return analyzed;
-    if (try checkProgram(allocator, options, analyzed.value.ir)) |issue| analyzed.value = .{ .diagnostic = issue };
+    // Every project analysis branch validates its final IR before returning it.
+    if (try checkRequirements(allocator, options, analyzed.value.ir)) |issue| analyzed.value = .{ .diagnostic = issue };
 
     return analyzed;
 }
@@ -116,6 +117,10 @@ pub fn emitModules(allocator: std.mem.Allocator, options: Options, analyzed: *co
 fn checkProgram(allocator: std.mem.Allocator, options: Options, program: compiler.ir.Program) !?compiler.Diagnostic {
     if (try compiler.validateIr(allocator, program)) |issue| return issue;
 
+    return checkRequirements(allocator, options, program);
+}
+
+fn checkRequirements(allocator: std.mem.Allocator, options: Options, program: compiler.ir.Program) !?compiler.Diagnostic {
     if (options.dependencies) |dependencies| {
         for (program.native_modules.import_names) |name| try dependencies.append(allocator, try allocator.dupe(u8, name));
     }
