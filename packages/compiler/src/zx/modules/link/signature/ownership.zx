@@ -1,0 +1,14 @@
+import { Ownership } from "core/symbol_table/model"
+import { ColumnOwnership } from "memory/columns"
+
+export type Input = Ownership
+
+export type Output = ColumnOwnership
+
+export default function (in: Input): Output {
+    return match in {
+        Ownership.Copy => ColumnOwnership.Copy,
+        Ownership.Borrowed => ColumnOwnership.Borrowed,
+        _ => ColumnOwnership.Owned
+    }
+}

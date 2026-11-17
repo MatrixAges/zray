@@ -2,11 +2,13 @@ import type { Index } from "core/bytes/index/model"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/signature_table/model"
 import type { OptionalU32Buffer } from "memory"
+import type { ColumnSet, ColumnView, LinkedSignatureColumns } from "memory/columns"
 import type { Edges } from "../dependencies/traversal/model"
 import type { External } from "../native/signature/model"
 import type { Providers } from "../source_signature/model"
 import type { Status } from "./decision"
 import type { Ports } from "./ports"
+import type { Destination, OpaqueBody } from "./publication/model"
 
 export type Request = {
     path: string,
@@ -16,7 +18,7 @@ export type Request = {
     types: u32[],
     modules: Modules,
     native_ids: u32?[],
-    linked: Table,
+    linked: LinkedSignatureColumns,
     registry: Index,
     edges: Edges,
     providers: Providers,
@@ -33,10 +35,9 @@ export type Binding = {
 
 export type Batch = Request.Omit("path", "key", "ports", "external") & {
     signatures: Table,
-    start: u64,
-    target: OptionalU32Buffer
-}
-
-export type BatchResult = Binding & {
-    next: u64
+    target: OptionalU32Buffer,
+    destination: Destination,
+    read_columns: ColumnSet,
+    snapshot: ColumnView,
+    empty: OpaqueBody
 }

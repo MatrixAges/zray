@@ -1,6 +1,7 @@
 import type { Modules } from "core/native_module_table/model"
-import type { Names, Table } from "core/signature_table/model"
+import type { Names } from "core/signature_table/model"
 import type { Ownership } from "core/symbol_table/model"
+import type { LinkedSignatureColumns } from "memory/columns"
 
 export type External = {
     module_id: u32,
@@ -16,7 +17,7 @@ export type External = {
 
 export type Lookup = {
     modules: Modules,
-    signatures: Table,
+    signatures: LinkedSignatureColumns,
     value: External,
     input_type: u32,
     output_type: u32,

@@ -1,8 +1,18 @@
+import type { Contracts } from "core/contract_table/model"
+import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/signature_table/model"
+import type { Symbols } from "core/symbol_table/model"
 import type { Input as External } from "../../artifact/materializing/copy_external"
 import type { Columns, Flags } from "../../artifact/materializing/publication/model"
+import type { Empty } from "../../artifact/materializing/publication/source_model"
 import type { Target } from "../../artifact/surface/bindings"
-import type { EmptyBody } from "../../link/signature/publication/model"
+
+export type EmptyBody = Empty & {
+    symbols: Symbols,
+    expressions: Expressions,
+    contracts: Contracts
+}
+
 import type { Member } from "../interface/members"
 
 export type Cache = {

@@ -1,25 +1,19 @@
 <Module>
     <Type from="model" as="Signature" />
-    <Type from="../../../artifact/materializing/publication/model" as="Function" />
 
-    <Args in={Signature.Input} out={Function.Columns} />
+    <Args in={Signature.Input} out={void} />
+
+    <Call fn="reserve" in={$in.destination} />
 
     <Call
         fn="prepare"
-        in={$in.pick([
-            "source",
-            "row",
-            "ports",
-            "empty"
-        ])}
-    />
-
-    <Call
-        fn="../../../artifact/materializing/publication/write"
         in={{
-            columns: $in.columns,
-            ...$ctx.prepare,
-            row: 0
+            ...$in.pick([
+                "source",
+                "row",
+                "ports"
+            ]),
+            resource: $in.destination.resource
         }}
     />
 
@@ -32,5 +26,12 @@
         }}
     />
 
-    <Return value={$ctx.write} />
+    <Call
+        fn="append"
+        in={{
+            destination: $in.destination,
+            empty: $in.empty,
+            prepared: $ctx.prepare
+        }}
+    />
 </Module>

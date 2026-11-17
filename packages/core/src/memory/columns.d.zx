@@ -5,6 +5,97 @@ export type WriteColumn = opaque
 export type ListColumn = opaque
 export type ListProjection = opaque
 export type RowBuffer = opaque
+export type ColumnSet = opaque
+export type ColumnView = opaque
+export type ColumnObject = opaque
+export type ColumnAllocator = opaque
+
+export enum ColumnOwnership {
+    Copy,
+    Borrowed,
+    Owned
+}
+
+export enum ColumnStoreMode {
+    transaction,
+    orchestration
+}
+
+export type ColumnNames = string?[]
+export type ColumnErrors = string[]?
+
+export type LinkedSignatureColumns = {
+    input_types: u32[],
+    output_types: u32[],
+    ownership: ColumnOwnership[],
+    native_inputs: ColumnNames?[],
+    native_modules: u32?[],
+    native_members: string[][],
+    native_exports: string?[],
+    native_allocators: bool[],
+    native_io: bool[],
+    native_process: bool[],
+    native_tuples: bool[],
+    native_fallible: bool[]
+}
+
+export type FunctionRow = {
+    files: string,
+    input_types: u32,
+    output_types: u32,
+    ownership: ColumnOwnership,
+    store_modes: ColumnStoreMode,
+    contracts: ColumnObject,
+    native_inputs?: ColumnNames,
+    native_modules?: u32,
+    native_members: string[],
+    native_exports?: string,
+    native_allocators: bool,
+    native_io: bool,
+    native_process: bool,
+    native_tuples: bool,
+    native_fallible: bool,
+    native_errors: ColumnErrors,
+    native_concurrent: bool,
+    symbols: ColumnObject,
+    expressions: ColumnObject,
+    control: ColumnObject,
+    roots?: u32,
+    stores: ColumnObject
+}
+
+export declare function reserveColumnSet(
+    resource: ColumnAllocator,
+    target: ColumnSet,
+    shape: FunctionRow?,
+    limit: u64
+): void throws { OutOfMemory }
+
+export declare function readColumnSet(
+    source: ColumnSet,
+    buffer: ColumnView,
+    shape: LinkedSignatureColumns?
+): LinkedSignatureColumns
+
+export declare function appendColumnSet(
+    target: ColumnSet,
+    row: FunctionRow
+): void
+
+export declare function copyColumnText(
+    resource: ColumnAllocator,
+    source: string
+): string throws { OutOfMemory }
+
+export declare function copyColumnTexts(
+    resource: ColumnAllocator,
+    source: string[]
+): string[] throws { OutOfMemory }
+
+export declare function copyColumnOptionalTexts(
+    resource: ColumnAllocator,
+    source: ColumnNames
+): ColumnNames throws { OutOfMemory }
 
 export declare function allocateRows(
     allocator,
@@ -83,7 +174,6 @@ export declare function readScalarText(
     source: ReadColumn,
     index: u64
 ): string? throws { IndexOutOfBounds }
-
 export declare function copyScalar(
     source: ReadColumn,
     target: WriteColumn,

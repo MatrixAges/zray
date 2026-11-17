@@ -1,4 +1,13 @@
 const std = @import("std");
+const column_set = @import("column_set.zig");
+pub const ColumnSet = column_set.ColumnSet;
+pub const bindColumnSet = column_set.bind;
+pub const reserveColumnSet = column_set.reserve;
+pub const readColumnSet = column_set.read;
+pub const appendColumnSet = column_set.append;
+pub const copyColumnText = column_set.copyText;
+pub const copyColumnTexts = column_set.copyTexts;
+pub const copyColumnOptionalTexts = column_set.copyTexts;
 const rows = @import("rows.zig");
 pub const NamedId = rows.NamedId;
 pub const borrowNamedRows = rows.borrow;

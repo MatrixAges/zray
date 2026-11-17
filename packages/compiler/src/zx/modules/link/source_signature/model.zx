@@ -1,7 +1,6 @@
 import type { Index } from "core/bytes/index/model"
 import type { ListColumn, ReadColumn } from "memory"
-import type { ListColumn as ByteList } from "memory/columns"
-import type { Signatures } from "../dependencies/model"
+import type { LinkedSignatureColumns, ListColumn as ByteList } from "memory/columns"
 import type { Edges } from "../dependencies/traversal/model"
 import type { Ports } from "../signature/ports"
 
@@ -28,5 +27,5 @@ export type Request = {
     edges: Edges,
     providers: Providers,
     functions: u32?[],
-    linked: Signatures
+    linked: LinkedSignatureColumns
 }

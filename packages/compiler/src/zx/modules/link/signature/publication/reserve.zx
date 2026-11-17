@@ -1,0 +1,11 @@
+import memory from "memory/columns"
+
+import type { Destination } from "./model"
+
+export type Input = Destination
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.reserveColumnSet(in.resource, in.storage, in.shape, in.maximum_count)
+}

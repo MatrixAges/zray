@@ -68,12 +68,7 @@
             edges: $in.edges,
             providers: $in.providers,
             functions: $in.functions,
-            linked: $in.linked.pick([
-                "files",
-                "input_types",
-                "output_types",
-                "ownership"
-            ])
+            linked: $in.linked
         }}
     />
 

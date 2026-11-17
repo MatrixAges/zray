@@ -9,6 +9,9 @@ const Input = std.meta.Child(generated.Input);
 const Providers = std.meta.Child(@FieldType(Input, "providers"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
+const Linked = std.meta.Child(@FieldType(Input, "linked"));
+const Destination = std.meta.Child(@FieldType(Input, "destination"));
+const Layout = std.meta.Child(std.meta.Child(@FieldType(Destination, "shape")));
 
 pub fn bind(self: *Builder, index: usize, mapping: []?ir.FunctionId, native_ids: []const ?ir.NativeModuleId) Builder.Error!void {
     if (mapping.len == 0) return;
@@ -32,38 +35,51 @@ pub fn bind(self: *Builder, index: usize, mapping: []?ir.FunctionId, native_ids:
     };
 
     const modules = zx.columns.columns(Modules, self.native_modules.view());
-    var linked = zx.columns.columns(Signatures, ir.SignatureTable.fromFunctions(self.functions.view()));
+    const read_slots = memory.bindColumnSet(Linked, false, &self.functions);
+    const write_slots = memory.bindColumnSet(Layout, true, &self.functions);
+    const readable: memory.ColumnSet = &read_slots;
+    const writable: memory.ColumnSet = &write_slots;
+    var initial: Linked = undefined;
+    var snapshot: Linked = undefined;
+    const linked = memory.readColumnSet(@ptrCast(&readable), &initial, @as(?*const Linked, null));
 
-    var request: Input = .{
+    const request: Input = .{
         .signatures = &signatures,
         .registry = &.{ .keys = self.plan.paths, .buckets = self.plan.buckets, .values = &.{} },
         .modules = &modules,
         .native_ids = @ptrCast(native_ids),
         .types = @ptrCast(self.type_mappings[index]),
-        .linked = &linked,
+        .linked = linked,
         .edges = &edges.view(std.meta.Child(@FieldType(Input, "edges"))),
         .providers = &providers,
         .functions = @ptrCast(self.module_functions),
-        .start = 0,
         .target = @ptrCast(&mapping),
+        .destination = &.{
+            .storage = @ptrCast(&writable),
+            .shape = null,
+            .maximum_count = std.math.maxInt(u32),
+            .resource = @ptrCast(&self.allocator),
+        },
+        .read_columns = @ptrCast(&readable),
+        .snapshot = @ptrCast(&snapshot),
+        .empty = &.{
+            .symbols = @ptrCast(&ir.FunctionStorage.empty_symbols),
+            .expressions = @ptrCast(&ir.FunctionStorage.empty_expressions),
+            .contracts = @ptrCast(&ir.FunctionStorage.empty_contracts),
+            .control = @ptrCast((ir.ControlBody{}).control),
+            .stores = @ptrCast(&ir.FunctionStorage.empty_stores),
+        },
     };
 
-    while (true) {
-        const result = zx.columns.invoke(generated.executeValue, self.temporary, @as(*const Input, &request)) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
+    const status = generated.executeIn(self.temporary, &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
 
-        switch (result.status) {
-            .Reuse => return,
-            .Insert => {
-                try @import("publication/host.zig").append(self.allocator, &self.functions, module.functions, result, mapping);
-
-                linked = zx.columns.columns(Signatures, ir.SignatureTable.fromFunctions(self.functions.view()));
-                request.start = result.next + 1;
-            },
-            .Invalid => return error.InvalidModule,
-            .Conflict => return error.ConflictingInterface,
-        }
-    }
+    return switch (status) {
+        .Reuse => {},
+        .Invalid => error.InvalidModule,
+        .Conflict => error.ConflictingInterface,
+        .Insert => unreachable,
+    };
 }

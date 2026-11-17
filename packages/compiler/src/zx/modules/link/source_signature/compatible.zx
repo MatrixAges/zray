@@ -1,11 +1,13 @@
 import integers from "std:integer"
 
-import type { Signatures } from "../dependencies/model"
+import ownership from "../signature/ownership"
+
+import type { LinkedSignatureColumns } from "memory/columns"
 import type { Ports } from "../signature/ports"
 
 export type Input = {
     ports: Ports,
-    linked: Signatures,
+    linked: LinkedSignatureColumns,
     id: u32
 }
 
@@ -18,7 +20,7 @@ export default function (in: Input): Output {
 
     const same_input = ports.input_type == linked.input_types[row]
     const same_output = ports.output_type == linked.output_types[row]
-    const same_owner = ports.ownership == linked.ownership[row]
+    const same_owner = ownership(ports.ownership) == linked.ownership[row]
 
     const compatible = same_input && same_output && same_owner
 

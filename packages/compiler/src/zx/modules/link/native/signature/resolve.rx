@@ -10,7 +10,7 @@
         <Return
             value={{
                 status: Link.Status.Insert,
-                row: $in.signatures.files.length
+                row: $in.signatures.native_modules.length
             }}
         />
     </If>

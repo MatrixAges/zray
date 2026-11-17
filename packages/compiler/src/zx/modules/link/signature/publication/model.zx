@@ -1,27 +1,37 @@
-import type { Contracts } from "core/contract_table/model"
-import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/signature_table/model"
-import type { Symbols } from "core/symbol_table/model"
 import type { OptionalU32Buffer } from "memory"
-import type { Columns } from "../../../artifact/materializing/publication/model"
-import type { Empty } from "../../../artifact/materializing/publication/source_model"
+import type {
+    ColumnAllocator,
+    ColumnObject,
+    ColumnSet,
+    FunctionRow
+} from "memory/columns"
 import type { Ports } from "../../../artifact/remapping/model"
 
-export type EmptyBody = Empty & {
-    symbols: Symbols,
-    expressions: Expressions,
-    contracts: Contracts
+export type OpaqueBody = {
+    symbols: ColumnObject,
+    expressions: ColumnObject,
+    contracts: ColumnObject,
+    control: ColumnObject,
+    stores: ColumnObject
 }
 
 export type Record = {
     source: Table,
     row: u64,
-    ports: Ports,
-    empty: EmptyBody
+    ports: Ports
+}
+
+export type Destination = {
+    storage: ColumnSet,
+    shape?: FunctionRow,
+    maximum_count: u64,
+    resource: ColumnAllocator
 }
 
 export type Input = Record & {
-    columns: Columns,
+    destination: Destination,
+    empty: OpaqueBody,
     mapping: OptionalU32Buffer,
     id: u64
 }

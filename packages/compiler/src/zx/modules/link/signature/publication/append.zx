@@ -1,0 +1,55 @@
+import memory from "memory/columns"
+import { ColumnStoreMode } from "memory/columns"
+
+import ownership from "../ownership"
+
+import type { FunctionRow } from "memory/columns"
+import type { Output as External } from "../../../artifact/materializing/copy_external"
+import type { Destination, OpaqueBody } from "./model"
+import type { Output as Prepared } from "./prepare"
+
+export type Input = {
+    destination: Destination,
+    empty: OpaqueBody,
+    prepared: Prepared
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { function: value, flags } = in.prepared
+
+    const external: External = value.external ?? {
+        members: [],
+        errors: null,
+        export_name: null,
+        parameters: null
+    }
+
+    const row: FunctionRow = {
+        files: value.file,
+        input_types: value.ports.input,
+        output_types: value.ports.output,
+        ownership: ownership(flags.ownership),
+        store_modes: ColumnStoreMode.transaction,
+        contracts: in.empty.contracts,
+        native_inputs: external.parameters,
+        native_modules: value.ports.native_module,
+        native_members: external.members,
+        native_exports: external.export_name,
+        native_allocators: flags.allocator_argument,
+        native_io: flags.io_argument,
+        native_process: flags.process_argument,
+        native_tuples: flags.expand_tuple,
+        native_fallible: flags.fallible,
+        native_errors: external.errors,
+        native_concurrent: flags.concurrent,
+        symbols: in.empty.symbols,
+        expressions: in.empty.expressions,
+        control: in.empty.control,
+        roots: null,
+        stores: in.empty.stores
+    }
+
+    memory.appendColumnSet(in.destination.storage, row)
+}

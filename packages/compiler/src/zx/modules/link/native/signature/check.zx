@@ -1,3 +1,4 @@
+import ownership from "../../signature/ownership"
 import compatible from "./compatible"
 
 import type { External, Row } from "./model"
@@ -12,7 +13,7 @@ export default function (in: Input): Output {
 
     const same_input = signatures.input_types[index] == request.input_type
     const same_output = signatures.output_types[index] == request.output_type
-    const same_ownership = signatures.ownership[index] == request.ownership
+    const same_ownership = signatures.ownership[index] == ownership(request.ownership)
     const same_signature = same_input && same_output && same_ownership
 
     if (!same_signature) {
