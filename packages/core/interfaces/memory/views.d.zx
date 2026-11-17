@@ -11,6 +11,7 @@ export type StringListBuffer = opaque
 export type NamedRows = opaque
 export type NamedRowBuffer = opaque
 export type Allocator = opaque
+export type Arena = opaque
 export type TextColumn = opaque
 export type ReadColumn = opaque
 export type ListColumn = opaque
@@ -20,6 +21,10 @@ export type ColumnLengths = opaque
 
 export type TypeRangeElements = [u8, u32, u32, string, u32, u32, string, string]
 export type NominalRangeElements = [u32, u8, string, string, string]
+
+export declare function resetArena(
+    arena: Arena
+): void throws { OutOfMemory }
 
 export declare function publishColumnLengths(
     target: ColumnLengths,

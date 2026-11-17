@@ -136,6 +136,29 @@ pub inline fn borrowNestedList(comptime T: type, comptime field: []const u8, com
     return .{ .lists = borrowColumn(List, field, items), .stride = @sizeOf(Row), .offset = layout.offset };
 }
 
+pub fn bindSliceColumns(comptime View: type, comptime group: []const u8, items: anytype) [@typeInfo(View).@"struct".field_names.len]ReadColumn {
+    const names = @typeInfo(View).@"struct".field_names;
+    var result: [names.len]ReadColumn = undefined;
+
+    inline for (names, &result) |name, *column| {
+        column.* = borrowNested(@FieldType(View, name), &.{ group, name }, items);
+    }
+
+    return result;
+}
+
+pub fn readSliceRow(source: *const anyopaque, buffer: *const anyopaque, shape: anytype, row: u64) error{IndexOutOfBounds}!std.meta.Child(@TypeOf(shape)) {
+    const columns: *const []const ReadColumn = @ptrCast(@alignCast(source));
+    const View = std.meta.Child(std.meta.Child(@TypeOf(shape)));
+    const output: *View = @ptrCast(@alignCast(@constCast(buffer)));
+
+    inline for (@typeInfo(View).@"struct".field_names, 0..) |name, index| {
+        @field(output, name) = try readColumn(@FieldType(View, name), &columns.*[index], row);
+    }
+
+    return output;
+}
+
 pub inline fn borrowSliceColumn(comptime fields: []const []const u8, items: anytype) ListColumn {
     const layout = comptime fieldLayout(std.meta.Child(@TypeOf(items)), fields);
     const List = layout.type;

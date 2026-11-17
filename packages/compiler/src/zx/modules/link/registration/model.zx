@@ -1,0 +1,24 @@
+import type { Allocator, Arena, ReadColumn, U32ListBuffer, U64Buffer } from "memory"
+import type { ColumnSet, ColumnView, SliceColumns } from "memory/columns"
+import type { Target } from "../../../analysis/semantic/merging/publication/model"
+import type { Input as Shape } from "../../../analysis/semantic/types/validation/shape"
+
+export type Tables = {
+    rows: SliceColumns,
+    storage: ColumnSet,
+    row_view: ColumnView,
+    base_view: ColumnView
+}
+
+export type Input = {
+    order: u64[],
+    cursor: U64Buffer,
+    types: Tables,
+    origins: Tables,
+    names: ReadColumn,
+    mappings: U32ListBuffer,
+    resource: Allocator,
+    scratch: Arena,
+    limits: Shape.Pick("maximum_count", "scalar_count"),
+    publication: Target
+}

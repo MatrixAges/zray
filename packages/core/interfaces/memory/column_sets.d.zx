@@ -10,6 +10,7 @@ export type ColumnView = opaque
 export type ColumnObject = opaque
 export type ColumnAllocator = opaque
 export type ColumnU32s = opaque
+export type SliceColumns = opaque
 
 export enum ColumnOwnership {
     Copy,
@@ -89,6 +90,50 @@ export type NativeModuleColumns = {
     type_names: string[][],
     type_namespaces: string[][]
 }
+
+export type TypeColumns = {
+    kinds: u8[],
+    first: u32[],
+    second: u32[],
+    labels: string[],
+    children: u32[],
+    field_types: u32[],
+    field_names: string[],
+    names: string[]
+}
+
+export type NominalColumns = {
+    ids: u32[],
+    kinds: u8[],
+    owners: string[],
+    members: string[]
+}
+
+export declare function readTypeColumns(
+    source: ColumnSet,
+    buffer: ColumnView,
+    shape: TypeColumns?
+): TypeColumns
+
+export declare function readNominalColumns(
+    source: ColumnSet,
+    buffer: ColumnView,
+    shape: NominalColumns?
+): NominalColumns
+
+export declare function readTypeSliceRow(
+    source: SliceColumns,
+    buffer: ColumnView,
+    shape: TypeColumns?,
+    row: u64
+): TypeColumns throws { IndexOutOfBounds }
+
+export declare function readNominalSliceRow(
+    source: SliceColumns,
+    buffer: ColumnView,
+    shape: NominalColumns?,
+    row: u64
+): NominalColumns throws { IndexOutOfBounds }
 
 export declare function refreshLinkedPorts(
     source: ColumnSet,

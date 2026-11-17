@@ -11,6 +11,7 @@ pub const ColumnLengths = column_set.Lengths;
 pub const borrowColumnLengths = column_set.borrowLengths;
 pub const publishColumnLengths = column_set.publishLengths;
 pub const bindColumnSet = column_set.bind;
+pub const ColumnRange = column_set.Range;
 pub const ColumnRanges = column_set.Ranges;
 pub const bindColumnRanges = column_set.bindRanges;
 pub const publishTypeRanges = column_set.publishRanges;
@@ -19,6 +20,8 @@ pub const setColumnRangeCount = column_set.setRangeCount;
 pub const reserveColumnSet = column_set.reserve;
 pub const readColumnSet = column_set.read;
 pub const readNativeColumnSet = column_set.read;
+pub const readTypeColumns = column_set.read;
+pub const readNominalColumns = column_set.read;
 pub const appendColumnSet = column_set.append;
 pub const reserveNativeColumnSet = column_set.reserve;
 pub const appendNativeColumnSet = column_set.append;
@@ -34,6 +37,12 @@ pub inline fn reserveTypeRanges(resource: *const anyopaque, target: *const anyop
 
 pub inline fn reserveNominalRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype) std.mem.Allocator.Error!void {
     try column_set.reserveRanges(resource, target, elements, null, false, true);
+}
+
+pub fn resetArena(source: *const anyopaque) std.mem.Allocator.Error!void {
+    const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(@constCast(source)));
+
+    if (!arena.reset(.retain_capacity)) return error.OutOfMemory;
 }
 
 pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
@@ -97,6 +106,9 @@ pub const borrowOptionalU8Column = rows.borrowOptionalU8;
 pub const borrowListColumn = rows.borrowList;
 pub const borrowNestedListColumn = rows.borrowNestedList;
 pub const borrowSliceColumn = rows.borrowSliceColumn;
+pub const bindSliceColumns = rows.bindSliceColumns;
+pub const readTypeSliceRow = rows.readSliceRow;
+pub const readNominalSliceRow = rows.readSliceRow;
 pub const ListProjection = rows.ListProjection;
 pub const projectListColumns = rows.projectListColumns;
 pub const columnLength = rows.columnLength;
@@ -312,6 +324,18 @@ pub inline fn writeString(target: *const anyopaque, index: u64, value: []const u
 
 pub inline fn writeOptionalString(target: *const anyopaque, index: u64, value: ?[]const u8) error{IndexOutOfBounds}!void {
     return write(?[]const u8, target, index, value);
+}
+
+pub inline fn initializeU32ListSlot(target: *const anyopaque, index: u64, shape: anytype) error{IndexOutOfBounds}!std.meta.Child(@TypeOf(shape)) {
+    const output: *const [][]const u32 = @ptrCast(@alignCast(target));
+
+    if (index >= output.len) return error.IndexOutOfBounds;
+
+    const slot = &output.*[@intCast(index)];
+
+    slot.* = &.{};
+
+    return @ptrCast(slot);
 }
 
 pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {

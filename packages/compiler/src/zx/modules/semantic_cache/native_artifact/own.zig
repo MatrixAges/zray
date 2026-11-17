@@ -24,12 +24,14 @@ pub fn artifact(allocator: std.mem.Allocator, value: anytype, entry: Native, fin
     const target = columns.borrow(@FieldType(Input, "signature_target"), signatures, true);
     const ExportRows = @FieldType(Input, "exports");
     const Members = @FieldType(Input, "members");
+    const OriginInput = @FieldType(Input, "origins");
+    const borrowed_origins = if (@typeInfo(OriginInput) == .pointer) zx.columns.view(std.meta.Child(OriginInput), value.origins) else {};
 
     const input: Input = .{
         .key = entry.key(),
         .declaration = &.{ .identity = entry.identity, .specifier = entry.specifier, .import_name = entry.module, .path = entry.path, .namespace = entry.namespace },
         .labels = .{ .items = types.labels, .storage = .plain },
-        .origins = columns.borrow(@FieldType(Input, "origins"), value.origins, false),
+        .origins = if (@typeInfo(OriginInput) == .pointer) &borrowed_origins else columns.borrow(OriginInput, value.origins, false),
         .exports = .{ .items = zx.columns.slice(@FieldType(ExportRows, "items"), value.exports), .storage = .plain },
         .members = .{ .items = zx.columns.slice(@FieldType(Members, "items"), value.members), .storage = .plain },
         .signature_target = target,

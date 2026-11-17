@@ -42,12 +42,16 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 
     @memset(function_ids, null);
 
-    for (plan.registration) |row| {
-        const index: usize = @intCast(row);
+    if (comptime @import("parser_options").generated_parser) {
+        try @import("link/registration/host.zig").register(&types, modules, plan.registration, mappings, scratch, &module_scratch);
+    } else {
+        for (plan.registration) |row| {
+            const index: usize = @intCast(row);
 
-        mappings[index] = try types.appendTemporary(scratch, workspace, &modules[index]);
+            mappings[index] = try types.appendTemporary(scratch, workspace, &modules[index]);
 
-        if (!module_scratch.reset(.retain_capacity)) return error.OutOfMemory;
+            if (!module_scratch.reset(.retain_capacity)) return error.OutOfMemory;
+        }
     }
 
     var builder: Builder = .{ .allocator = owned, .temporary = workspace, .modules = modules, .plan = plan, .type_mappings = mappings, .module_functions = function_ids };

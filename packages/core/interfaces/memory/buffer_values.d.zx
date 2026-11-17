@@ -78,6 +78,12 @@ export declare function writeOptionalString(
     value: string?
 ): void throws { IndexOutOfBounds }
 
+export declare function initializeU32ListSlot(
+    target: U32ListBuffer,
+    index: u64,
+    shape: U32Buffer?
+): U32Buffer throws { IndexOutOfBounds }
+
 export declare function writeU32List(
     target: U32ListBuffer,
     index: u64,

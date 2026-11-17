@@ -348,6 +348,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/ir/canonical/validation/function_columns.rx", .name = "ir_function_columns" },
     .{ .path = "zx/ir/canonical/control/structure.rx", .name = "ir_control_structure" },
     .{ .path = "zx/modules/link/graph/order.rx", .name = "artifact_graph" },
+    .{ .path = "zx/modules/link/registration/register.zx", .name = "artifact_type_registration" },
     .{ .path = "zx/modules/forward_entry/build.rx", .name = "recursive_forward_entry" },
     .{ .path = "zx/modules/forward_entry/recursive.zx", .name = "recursive_call" },
     .{ .path = "zx/ir/canonical/refinement/facts/mark.rx", .name = "refinement_mark" },
