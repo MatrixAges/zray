@@ -115,7 +115,15 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer replay.deinit();
 
-    if (try shortcut(allocator, workspace, temporary, program, slots, &summaries, units, memo, &replay)) |result| return result;
+    var event: Round.Event = .Start;
+
+    if (Round.next(event, replay.trace != null, memo.persistent) == .Replay) {
+        const reused = try shortcut(allocator, workspace, temporary, program, slots, &summaries, units, memo, &replay);
+
+        event = if (reused == null) .ReplayRejected else .ReplayAccepted;
+
+        if (Round.next(event, false, memo.persistent) == .Finished) return reused.?;
+    }
 
     var pool = try Pool.init(temporary, concurrent);
 
@@ -129,16 +137,16 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer work.deinit();
 
-    var round = try work.advance(&program, &summaries, known, .start);
+    var round = try work.advance(&program, &summaries, known, event);
 
-    while (round.phase != .planned) {
-        const event: Round.Event = switch (round.phase) {
-            .settled => try settle(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead, round.budget),
-            .demanded => try demand(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead),
-            .planned => unreachable,
+    while (round.phase != .Planned) {
+        const outcome: Round.Event = switch (round.phase) {
+            .Settled => try settle(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead, round.budget),
+            .Demanded => try demand(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead),
+            .Replay, .Planned, .CommitTrace, .Finished => unreachable,
         };
 
-        round = try work.advance(&program, &summaries, known, event);
+        round = try work.advance(&program, &summaries, known, outcome);
     }
 
     ahead.begin(.planned);
@@ -190,7 +198,7 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
         if (index < count) plans[index] = plan else entry_plan = plan;
     }
 
-    if (memo.persistent) {
+    if (Round.next(.PlansPublished, false, memo.persistent) == .CommitTrace) {
         const trace = try replay.finish();
 
         if (memo.trace) |*previous| previous.deinit();
@@ -277,8 +285,8 @@ fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         try lookAhead(.settled, work, memo, replay, ahead);
 
         const index = switch (try work.takeSettlement(&remaining)) {
-            .done => return .settled,
-            .exhausted => return .exhausted,
+            .done => return .Settled,
+            .exhausted => return .Exhausted,
             .body => |index| index,
         };
 
@@ -377,7 +385,7 @@ fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         try work.notify(ahead.dirty, program, changed, callers[index], index);
     }
 
-    return if (added) .demand_grew else .demand_stable;
+    return if (added) .DemandGrew else .DemandStable;
 }
 
 /// The plans of an analysis that takes the path of the trace it follows, known without walking it: every changed body,
@@ -385,8 +393,6 @@ fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
 /// it met before. Only the plans of the changed bodies are new. Null, with the summaries and growth copies as they
 /// were, when a changed body differs.
 fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, memo: *Memo, replay: *const Trace.Replay) std.mem.Allocator.Error!?Result {
-    if (replay.trace == null) return null;
-
     const trace = &memo.trace.?;
     var scratch = std.heap.ArenaAllocator.init(workspace);
 

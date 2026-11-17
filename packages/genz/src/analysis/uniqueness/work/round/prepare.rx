@@ -3,7 +3,14 @@
 
     <Args in={Round.Input} out={Round.Output} />
 
-    <Call fn="phase" in={$in.event} />
+    <Call
+        module="phase"
+        in={{
+            event: $in.event,
+            following: false,
+            persistent: false
+        }}
+    />
 
     <If on={$ctx.phase == Round.Phase.Settled}>
         <Call fn="../../summaries/reset" in={$in.facts} />

@@ -19,21 +19,10 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, event: Round.Event) std.mem.Allocator.Error!Round.Step {
-    const phase: Round.Phase = switch (event) {
-        .start, .demand_grew => reset: {
-            summaries.reset(program.*, known);
+    const phase = Round.next(event, false, false);
 
-            break :reset .settled;
-        },
-        .settled => .demanded,
-        .exhausted => cleared: {
-            summaries.clear();
-
-            break :cleared .demanded;
-        },
-        .demand_stable => .planned,
-    };
-
+    if (phase == .Settled) summaries.reset(program.*, known);
+    if (event == .Exhausted) summaries.clear();
     try self.fill(program);
 
     return .{ .phase = phase, .budget = 64 * @as(u64, self.queued.len) };

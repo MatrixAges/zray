@@ -4,16 +4,28 @@ import type { Fill, Notify, State } from "../model"
 
 export enum Event {
     Start,
+    ReplayAccepted,
+    ReplayRejected,
     Settled,
     Exhausted,
     DemandGrew,
-    DemandStable
+    DemandStable,
+    PlansPublished
 }
 
 export enum Phase {
+    Replay,
     Settled,
     Demanded,
-    Planned
+    Planned,
+    CommitTrace,
+    Finished
+}
+
+export type Transition = {
+    event: Event,
+    following: bool,
+    persistent: bool
 }
 
 export type Input = {

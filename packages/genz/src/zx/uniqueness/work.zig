@@ -49,12 +49,12 @@ pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summar
         .known = known,
     };
 
-    const input: Input = .{ .queue = &queue, .facts = &facts, .event = @fromBackingInt(@intCast(@backingInt(event))) };
+    const input: Input = .{ .queue = &queue, .facts = &facts, .event = event };
     const output = preparing.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
 
     self.state = output.state;
 
-    return .{ .phase = @fromBackingInt(@intCast(@backingInt(output.phase))), .budget = output.budget };
+    return .{ .phase = output.phase, .budget = output.budget };
 }
 
 pub fn publish(self: *Self, settlement: Round.Settlement) std.mem.Allocator.Error!void {

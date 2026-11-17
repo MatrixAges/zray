@@ -535,6 +535,7 @@ pub const main = [_]Entry{
     partition_groups,
     .{ .path = "genz/analysis/uniqueness/work/create.rx", .name = "uniqueness_work_create", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/round/prepare.rx", .name = "uniqueness_prepare_round", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/work/round/phase.rx", .name = "uniqueness_round_phase", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/round/take.zx", .name = "uniqueness_take_settlement", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/round/publish.rx", .name = "uniqueness_publish_settlement", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/pop.rx", .name = "uniqueness_work_pop", .owner = .genz },
