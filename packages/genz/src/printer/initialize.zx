@@ -1,11 +1,12 @@
 import { Action, ByteSource } from "./model"
 import { Token } from "./model/token"
 
+import type { ByteWriter } from "memory"
 import type { Source, State, Frame } from "./model"
 
 export type Input = {
     source: Source,
-    output: u8[]
+    output: ByteWriter
 }
 
 export type Output = State

@@ -53,14 +53,18 @@ pub fn render(allocator: std.mem.Allocator, workspace: std.mem.Allocator, compti
         .count = count,
     };
 
-    const input: Input = .{ .source = &source, .output = &.{} };
+    var output: zx.memory.ByteWriter = .{ .allocator = allocator };
 
-    const output = zx.columns.invoke(generated.executeValue, workspace, &input) catch |err| switch (err) {
+    defer output.deinit();
+
+    const input: Input = .{ .source = &source, .output = @ptrCast(&output) };
+
+    generated.executeIn(workspace, &input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return allocator.dupe(u8, output);
+    return output.finish();
 }
 
 fn project(comptime Target: type, sources: anytype) Target {

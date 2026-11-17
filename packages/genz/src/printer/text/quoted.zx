@@ -13,32 +13,32 @@ import {
     ascii_tab
 } from "core/ascii/const"
 import { hexadecimal_radix } from "core/const"
+import memory from "memory"
 
 import { hexadecimal_digits } from "../../const"
 
+import type { ByteWriter } from "memory"
+
 export type Input = {
-    output: u8[],
+    output: ByteWriter,
     bytes: u8[]
 }
 
-export type Output = u8[]
+export type Output = void
 
 export default function (in: Input): Output {
-    return loop({
-        output: in.output.push(ascii_double_quote)[0],
-        index: 0,
-        bytes: in.bytes,
-        digits: hexadecimal_digits
-    }, {
-        while: current => current.index < current.bytes.length,
-        next: current => {
-            const byte = current.bytes[current.index]
+    memory.appendByte(in.output, ascii_double_quote)
+
+    const written = loop(0, {
+        while: index => index < in.bytes.length,
+        next: index => {
+            const byte = in.bytes[index]
 
             if (byte == ascii_double_quote || byte == ascii_backslash) {
-                current.output = current.output.concat([
+                memory.appendBytes(in.output, [
                     ascii_backslash,
                     byte
-                ])[0]
+                ])
             } else {
                 const condition = (
                     - byte == ascii_line_feed
@@ -47,38 +47,33 @@ export default function (in: Input): Output {
                 )
 
                 if (condition) {
-                    current.output =
-                        current.output.concat(
-                            [
-                                ascii_backslash,
-                                match byte {
-                                    ascii_line_feed => ascii_lower_n,
-                                    ascii_carriage_return => ascii_lower_r,
-                                    _ => ascii_lower_t,
-                                }
-                            ]
-                        )[0]
+                    const escape = match byte {
+                        ascii_line_feed => ascii_lower_n,
+                        ascii_carriage_return => ascii_lower_r,
+                        _ => ascii_lower_t
+                    }
+
+                    memory.appendBytes(in.output, [
+                        ascii_backslash,
+                        escape
+                    ])
                 } else if (byte >= ascii_space && byte <= ascii_printable_last) {
-                    current.output = current.output.push(byte)[0]
+                    memory.appendByte(in.output, byte)
                 } else {
-                    current.output =
-                        current.output.concat(
-                            [
-                                ascii_backslash,
-                                ascii_lower_x,
-                                current
-                                    .digits[integers.widenByte(byte) /
-                                        hexadecimal_radix],
-                                current
-                                    .digits[integers.widenByte(byte) %
-                                        hexadecimal_radix]
-                            ]
-                        )[0]
+                    const value = integers.widenByte(byte)
+
+                    memory.appendBytes(in.output, [
+                        ascii_backslash,
+                        ascii_lower_x,
+                        hexadecimal_digits[value / hexadecimal_radix],
+                        hexadecimal_digits[value % hexadecimal_radix]
+                    ])
                 }
             }
 
-            current.index += 1
-        },
-        return: state => state.output.push(ascii_double_quote)[0]
+            index += 1
+        }
     })
+
+    memory.appendByte(in.output, ascii_double_quote)
 }

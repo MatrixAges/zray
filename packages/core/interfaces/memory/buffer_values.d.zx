@@ -109,3 +109,22 @@ export declare function copyStringViews(
     target: StringBuffer,
     source: string[]
 ): void throws { IndexOutOfBounds }
+
+export declare function appendByte(
+    target: ByteWriter,
+    byte: u8
+): void throws { OutOfMemory }
+
+export declare function appendBytes(
+    target: ByteWriter,
+    bytes: u8[]
+): void throws { OutOfMemory }
+
+export declare function appendText(
+    target: ByteWriter,
+    text: string
+): void throws { OutOfMemory }
+
+export declare function byteWriterLength(target: ByteWriter): u64
+
+export declare function reverseByteWriterTail(target: ByteWriter, start: u64): void

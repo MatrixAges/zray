@@ -8,7 +8,6 @@
     <If on={!$ctx.build.valid || $ctx.build.invalid_route}>
         <Return
             value={{
-                output: [],
                 valid: $ctx.build.valid,
                 invalid_route: $ctx.build.invalid_route
             }}
@@ -21,13 +20,12 @@
         module="../../../printer/render"
         in={{
             source: $ctx.dispatch,
-            output: $in.state.output
+            output: $in.writer
         }}
     />
 
     <Return
         value={{
-            output: $ctx.render,
             valid: true,
             invalid_route: false
         }}

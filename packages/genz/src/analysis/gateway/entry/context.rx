@@ -17,7 +17,6 @@
         <If on={!$ctx.build.valid}>
             <Return
                 value={{
-                    output: [],
                     valid: false,
                     invalid_route: false
                 }}
@@ -30,20 +29,24 @@
             module="../../../printer/render"
             in={{
                 source: $ctx.adapter,
-                output: $in.state.output
+                output: $in.writer
             }}
         />
 
         <Return
             value={{
-                output: $ctx.render,
                 valid: true,
                 invalid_route: false
             }}
         />
 
         <Else>
-            <Return value={$in.state} />
+            <Return
+                value={{
+                    valid: true,
+                    invalid_route: false
+                }}
+            />
         </Else>
     </If>
 </Module>

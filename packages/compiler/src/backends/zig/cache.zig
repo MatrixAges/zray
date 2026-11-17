@@ -25,7 +25,7 @@ memo: ?Memo = null,
 unwritten: std.ArrayList(Unwritten) = .empty,
 writer: ?std.Thread = null,
 writing: Writing = .{},
-const Unwritten = struct { key: [32]u8, source: []u8, retired: bool = false };
+const Unwritten = struct { key: [32]u8, source: []u8, owner: Owner, retired: bool = false };
 
 /// What the writer thread did, read once it was joined.
 const Writing = struct {
@@ -145,12 +145,21 @@ pub fn put(self: *Self, name: []const u8, key: [32]u8, source: []const u8) std.m
 
     errdefer self.allocator.free(owned);
 
+    return self.putOwned(name, key, owned, .cache);
+}
+
+/// Transfers an independently allocated buffer to the cache once publication succeeds.
+pub fn putShared(self: *Self, name: []const u8, key: [32]u8, source: []u8) std.mem.Allocator.Error!void {
+    try self.putOwned(name, key, source, .shared);
+}
+
+fn putOwned(self: *Self, name: []const u8, key: [32]u8, source: []u8, owner: Owner) std.mem.Allocator.Error!void {
     if (self.storage != null) try self.unwritten.ensureUnusedCapacity(self.allocator, 1);
 
     const pending = if (self.storage != null) self.unwritten.items.len else null;
 
-    try self.store(name, .{ .key = key, .source = owned, .pending = pending });
-    if (pending != null) self.unwritten.appendAssumeCapacity(.{ .key = key, .source = owned });
+    try self.store(name, .{ .key = key, .source = source, .pending = pending, .owner = owner });
+    if (pending != null) self.unwritten.appendAssumeCapacity(.{ .key = key, .source = source, .owner = owner });
 }
 
 /// Writes the sources put so far to storage on another thread, or here when no thread starts.
@@ -192,7 +201,7 @@ pub fn finishWriting(self: *Self) void {
     self.io_errors += self.writing.io_errors;
 
     if (self.writing.last_io_error) |err| self.last_io_error = err;
-    for (self.writing.queue.items) |item| if (item.retired) self.allocator.free(item.source);
+    for (self.writing.queue.items) |item| if (item.retired) self.sourceAllocator(item.owner).free(item.source);
 
     self.writing.queue.deinit(self.allocator);
 

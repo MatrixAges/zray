@@ -1,3 +1,4 @@
+import type { ByteWriter } from "memory"
 import type { Declarations } from "./model/declarations"
 import type { Expressions } from "./model/expressions"
 import type { Fields, Arms } from "./model/members"
@@ -78,7 +79,7 @@ export type Frame = {
 export type State = {
     source: Source
     stack: Frame[]
-    output: u8[]
+    output: ByteWriter
     depth: u32
 }
 

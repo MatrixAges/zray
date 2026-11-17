@@ -8,12 +8,15 @@
     <Call
         module="prelude"
         in={{
-            bases: $ctx.bases,
-            declaration_base: 0,
-            service_modules: $in.service_modules,
-            listen: $in.listen,
-            max_header_bytes: $in.max_header_bytes,
-            max_body_bytes: $in.max_body_bytes
+            writer: $in.writer,
+            config: {
+                bases: $ctx.bases,
+                declaration_base: 0,
+                service_modules: $in.service_modules,
+                listen: $in.listen,
+                max_header_bytes: $in.max_header_bytes,
+                max_body_bytes: $in.max_body_bytes
+            }
         }}
     />
 
@@ -24,7 +27,7 @@
     <Call
         module="dispatch"
         in={{
-            state: $ctx.prelude,
+            writer: $in.writer,
             config: {
                 bases: $ctx.bases,
                 declaration_base: 0,
@@ -40,7 +43,7 @@
     <Call
         fn="services"
         in={{
-            state: $ctx.dispatch,
+            writer: $in.writer,
             bases: $ctx.bases,
             services: $in.services,
             bound: $in.bound
@@ -54,7 +57,7 @@
     <Call
         module="http"
         in={{
-            state: $ctx.services,
+            writer: $in.writer,
             bases: $ctx.bases
         }}
     />

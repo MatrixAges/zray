@@ -12,7 +12,7 @@
     <Call
         module="invoke"
         in={{
-            state: $ctx.context,
+            writer: $in.writer,
             config: {
                 bases: $in.bases,
                 declaration_base: 0,

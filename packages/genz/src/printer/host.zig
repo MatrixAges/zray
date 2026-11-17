@@ -1,4 +1,5 @@
 const std = @import("std");
+const zx = @import("zx");
 const Storage = @import("../node/storage.zig");
 const view = @import("../node/view.zig");
 const generated = @import("generated_printer");
@@ -22,16 +23,20 @@ pub fn renderStored(allocator: std.mem.Allocator, nodes: *Storage, selected: @im
         .count = selected.len,
     };
 
-    var arena = @import("zx").Arena.init(nodes.allocator);
+    var arena = zx.Arena.init(nodes.allocator);
 
     defer arena.deinit();
 
-    const input: Input = .{ .source = &source, .output = &.{} };
+    var output: zx.memory.ByteWriter = .{ .allocator = allocator };
 
-    const output = @import("zx").columns.invoke(generated.executeValue, arena.allocator(), &input) catch |err| switch (err) {
+    defer output.deinit();
+
+    const input: Input = .{ .source = &source, .output = @ptrCast(&output) };
+
+    generated.executeIn(arena.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return allocator.dupe(u8, output);
+    return output.finish();
 }

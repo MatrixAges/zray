@@ -1,5 +1,11 @@
 const std = @import("std");
 const column_set = @import("column_set.zig");
+pub const ByteWriter = @import("byte_writer.zig");
+pub const appendByte = ByteWriter.appendByte;
+pub const appendBytes = ByteWriter.appendBytes;
+pub const appendText = ByteWriter.appendBytes;
+pub const byteWriterLength = ByteWriter.length;
+pub const reverseByteWriterTail = ByteWriter.reverseTail;
 pub const ColumnSet = column_set.ColumnSet;
 pub const ColumnLengths = column_set.Lengths;
 pub const borrowColumnLengths = column_set.borrowLengths;

@@ -50,7 +50,12 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
         };
     }
 
+    var writer: zx.memory.ByteWriter = .{ .allocator = allocator };
+
+    defer writer.deinit();
+
     const input: Input = .{
+        .writer = @ptrCast(&writer),
         .services = if (bound == null) try services(@FieldType(Input, "services"), workspace, options.services) else &.{},
         .bound = if (bound != null) &source else null,
         .routes = try routes(@FieldType(Input, "routes"), workspace, options.routes),
@@ -65,7 +70,7 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
     if (output.invalid_route) @panic("invalid Gateway method group");
     if (!output.valid) return error.OutOfMemory;
 
-    return allocator.dupe(u8, output.output);
+    return writer.finish();
 }
 
 fn routes(comptime Target: type, allocator: std.mem.Allocator, values: []const model.Route) std.mem.Allocator.Error!Target {

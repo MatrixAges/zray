@@ -1,10 +1,8 @@
 <Module>
     <Type from="initialize" as="Initialize" />
 
-    <Args in={Initialize.Input} out={u8[]} />
+    <Args in={Initialize.Input} out={void} />
 
     <Call fn="initialize" in={$in} />
     <Call fn="walk" in={$ctx.initialize} />
-
-    <Return value={$ctx.walk.output} />
 </Module>

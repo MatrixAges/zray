@@ -58,12 +58,22 @@ const Work = struct {
             defer _ = scratch.reset(.{ .retain_with_limit = 32 << 20 });
             const job = self.jobs[if (self.pending) |positions| @intCast(positions[position]) else position];
 
-            self.results[position].source = job.batch.generate(arena.allocator(), scratch.allocator(), job.unit) catch |err| {
+            self.results[position].source = generate(job, arena.allocator(), scratch.allocator()) catch |err| {
                 _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
 
                 return;
             };
         }
+    }
+
+    fn generate(job: Job, output: std.mem.Allocator, scratch: std.mem.Allocator) generating.Error![]const u8 {
+        if (generated and job.batch.cache != null) {
+            const source = try job.batch.generate(scratch, scratch, job.unit);
+
+            return std.heap.smp_allocator.dupe(u8, source);
+        }
+
+        return job.batch.generate(output, scratch, job.unit);
     }
 };
 
@@ -94,7 +104,7 @@ pub fn createJobs(owned: std.mem.Allocator, backing: std.mem.Allocator, jobs: []
     defer for (arenas) |*arena| arena.deinit();
 
     if (!hasCache(jobs)) {
-        try produce(owned, temporary, jobs, null, arenas, sources);
+        try produce(owned, temporary, jobs, null, null, arenas, sources);
 
         return sources;
     }
@@ -127,13 +137,7 @@ pub fn createJobs(owned: std.mem.Allocator, backing: std.mem.Allocator, jobs: []
         }
     }
 
-    try produce(owned, temporary, jobs, plan.pending, arenas, sources);
-
-    for (plan.pending) |position| {
-        const job = jobs[position];
-
-        if (job.batch.cache != null) try job.batch.remember(search.lookups[position], sources[position]);
-    }
+    try produce(owned, temporary, jobs, plan.pending, search.lookups, arenas, sources);
 
     return sources;
 }
@@ -144,10 +148,20 @@ fn hasCache(jobs: []const Job) bool {
     return false;
 }
 
-fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: []const Job, pending: ?[]const u64, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
+fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: []const Job, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
     const count = if (pending) |positions| positions.len else jobs.len;
     const results = try temporary.alloc(publication.Result, count);
     var work = Work{ .jobs = jobs, .pending = pending, .results = results };
+
+    if (generated and pending != null) @memset(results, .{ .source = null });
+
+    defer if (generated) {
+        if (pending) |positions| for (positions, results) |position, result| {
+            if (jobs[position].batch.cache != null) {
+                if (result.source) |source| std.heap.smp_allocator.free(source);
+            }
+        };
+    };
 
     try spread(Work, &work, arenas[0..@min(arenas.len, count)]);
 
@@ -158,6 +172,22 @@ fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: []const
             const position = if (pending) |positions| positions[index] else index;
 
             sources[position] = try owned.dupe(u8, result.source.?);
+        }
+    }
+
+    if (pending) |positions| {
+        for (positions, results) |position, *result| {
+            const job = jobs[position];
+            const cache = job.batch.cache orelse continue;
+            const found = lookups.?[position];
+
+            if (comptime generated) {
+                cache.generated += 1;
+
+                try cache.putShared(found.name, found.key, @constCast(result.source.?));
+
+                result.source = null;
+            } else try job.batch.remember(found, sources[position]);
         }
     }
 }
