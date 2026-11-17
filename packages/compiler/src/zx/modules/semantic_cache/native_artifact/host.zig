@@ -29,15 +29,12 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
         else => return fail(error_allocator, reporter, entry, span, .contract, 0, try std.fmt.allocPrint(scratch.allocator(), "internal compiler error: generated native analysis failed with {s}", .{@errorName(err)})),
     };
 
-    const value = result.artifact orelse return fail(error_allocator, reporter, entry, span,
-        std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), result.diagnostic.code) orelse unreachable,
-        @intCast(result.diagnostic.start), result.diagnostic.message);
-
+    const value = result.artifact orelse return fail(error_allocator, reporter, entry, span, std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), result.diagnostic.code) orelse unreachable, @intCast(result.diagnostic.start), result.diagnostic.message);
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
 
-    const module = try @import("own.zig").artifact(arena.allocator(), value, entry.key(), fingerprint);
+    const module = try @import("own.zig").artifact(arena.allocator(), value, entry, fingerprint);
 
     return .{ .arena = arena, .value = module };
 }

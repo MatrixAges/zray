@@ -36,36 +36,14 @@
         }}
     />
 
-    <Call fn="surface" in={$ctx.load.exports} />
-
-    <Call
-        fn="signatures"
-        in={{
-            members: $ctx.load.members,
-            declaration: $in.declaration
-        }}
-    />
-
-    <Call fn="function_ids" in={$ctx.load.members} />
-
-    <Call
-        fn="modules"
-        in={{
-            declaration: $in.declaration,
-            exports: $ctx.surface
-        }}
-    />
-
     <Return
         value={{
             diagnostic: $ctx.load.diagnostic,
             artifact: {
                 types: $ctx.load.delta,
                 origins: $ctx.produce,
-                exports: $ctx.surface,
-                signatures: $ctx.signatures,
-                function_ids: $ctx.function_ids,
-                modules: $ctx.modules
+                exports: $ctx.load.exports,
+                members: $ctx.load.members
             }
         }}
     />

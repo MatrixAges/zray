@@ -1,0 +1,28 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Target } from "../../artifact/surface/bindings"
+
+export type Input = {
+    target: Target,
+    row: u64,
+    first: u64,
+    name: string,
+    input: u32,
+    output: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, row, first, name, input, output } = in
+
+    memory.writeColumnBytes(target.name, row, bytes.fromText(name))
+    columns.writeColumnOptionalU32(target.id, row, integers.narrow(first + row))
+    columns.writeColumnOptionalU32(target.input_type, row, input)
+    columns.writeColumnOptionalU32(target.output_type, row, output)
+    columns.writeColumnOptionalText(target.namespace, row, null)
+    columns.writeColumnOptionalU8(target.intrinsic, row, null)
+}

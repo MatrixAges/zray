@@ -28,3 +28,16 @@ pub fn checkBorrow(initial: anytype, returned: @TypeOf(initial)) void {
         }
     }
 }
+
+pub fn view(comptime Layout: type, source: anytype) Layout {
+    var result: Layout = undefined;
+
+    inline for (@typeInfo(Layout).@"struct".field_names) |name| {
+        const column = @field(source, name);
+        const entries = if (@typeInfo(@TypeOf(column)) == .pointer) column else column.items;
+
+        @field(result, name) = zx.columns.slice(@FieldType(Layout, name), entries);
+    }
+
+    return result;
+}

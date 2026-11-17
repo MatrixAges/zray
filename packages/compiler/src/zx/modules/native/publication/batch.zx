@@ -1,9 +1,7 @@
-import bytes from "std:bytes"
-import integers from "std:integer"
-import memory from "memory"
-import columns from "memory/columns"
+import { StoreMode } from "core/function_table/complete"
 
 import write from "../../artifact/materializing/publication/write"
+import bind from "./binding"
 import own from "./record"
 import read from "./row"
 
@@ -28,26 +26,35 @@ export default function (in: Input): Output {
             })
             const record = own({
                 source,
-                owner,
-                empty
+                owner
             })
 
             state.functions = write({
                 columns: state.functions,
-                function: record.function,
-                attributes: record.attributes,
+                function: {
+                    ...record.signature,
+                    symbols: empty.symbols,
+                    expressions: empty.expressions,
+                    contracts: empty.contracts,
+                    control: empty.control,
+                    store_table: empty.stores
+                },
+                attributes: {
+                    ...record.flags,
+                    store_mode: StoreMode.transaction,
+                    root: null
+                },
                 row
             })
 
-            const name = bytes.fromText(record.name)
-            const id = integers.narrow(first + row)
-
-            memory.writeColumnBytes(members.name, row, name)
-            columns.writeColumnOptionalU32(members.id, row, id)
-            columns.writeColumnOptionalU32(members.input_type, row, source.input)
-            columns.writeColumnOptionalU32(members.output_type, row, source.output)
-            columns.writeColumnOptionalText(members.namespace, row, null)
-            columns.writeColumnOptionalU8(members.intrinsic, row, null)
+            bind({
+                target: members,
+                row,
+                first,
+                name: record.name,
+                input: source.input,
+                output: source.output
+            })
 
             state.row += 1
         },

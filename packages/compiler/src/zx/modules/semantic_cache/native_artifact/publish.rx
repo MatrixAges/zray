@@ -1,0 +1,60 @@
+<Module>
+    <Type from="model" as="Artifact" />
+
+    <Args in={Artifact.Publish} out={Artifact.Published} />
+
+    <Call
+        fn="header"
+        in={{
+            key: $in.key,
+            path: $in.declaration.path,
+            namespace: $in.declaration.namespace
+        }}
+    />
+
+    <Call
+        fn="surface"
+        in={$in.pick([
+            "exports",
+            "export_target"
+        ])}
+    />
+
+    <Call
+        fn="modules"
+        in={{
+            declaration: $in.declaration,
+            exports: $ctx.surface,
+            key: $ctx.header.key,
+            namespace: $ctx.header.owner.namespace
+        }}
+    />
+
+    <Call
+        fn="publish_members"
+        in={{
+            members: $in.members,
+            signature_target: $in.signature_target,
+            binding_target: $in.binding_target,
+            owner: $ctx.header.owner
+        }}
+    />
+
+    <Call
+        fn="origins"
+        in={{
+            origins: $in.origins,
+            labels: $in.labels,
+            key: $ctx.header.key
+        }}
+    />
+
+    <Return
+        value={{
+            path: $ctx.header.key,
+            modules: $ctx.modules,
+            signatures: $ctx.publish_members,
+            origins: $ctx.origins
+        }}
+    />
+</Module>

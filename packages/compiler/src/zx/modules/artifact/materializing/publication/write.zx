@@ -1,4 +1,5 @@
-import type { Output as External } from "../copy_external"
+import signature from "./signature"
+
 import type { Attributes, Columns, Payload } from "./model"
 
 export type Input = {
@@ -13,33 +14,31 @@ export type Output = Columns
 export default function (in: Input): Output {
     const { columns, function: value, attributes, row } = in
 
-    const external: External = value.external ?? {
-        members: [],
-        errors: null,
-        export_name: null,
-        parameters: null
-    }
+    const signed = signature({
+        columns: columns.omit([
+            "store_modes",
+            "symbols",
+            "expressions",
+            "contracts",
+            "control",
+            "roots",
+            "stores"
+        ]),
+        signature: value.pick([
+            "file",
+            "ports",
+            "external"
+        ]),
+        flags: attributes.omit([
+            "store_mode",
+            "root"
+        ]),
+        row
+    })
 
     return {
-        files: columns.files.with(row, value.file),
-        input_types: columns.input_types.with(row, value.ports.input),
-        output_types: columns.output_types.with(row, value.ports.output),
-        ownership: columns.ownership.with(row, attributes.ownership),
+        ...signed,
         store_modes: columns.store_modes.with(row, attributes.store_mode),
-        native_modules: columns.native_modules.with(row, value.ports.native_module),
-        native_members: columns.native_members.with(row, external.members),
-        native_exports: columns.native_exports.with(row, external.export_name),
-        native_inputs: columns.native_inputs.with(row, external.parameters),
-        native_errors: columns.native_errors.with(row, external.errors),
-        native_allocators: columns.native_allocators.with(
-            row,
-            attributes.allocator_argument
-        ),
-        native_io: columns.native_io.with(row, attributes.io_argument),
-        native_process: columns.native_process.with(row, attributes.process_argument),
-        native_tuples: columns.native_tuples.with(row, attributes.expand_tuple),
-        native_fallible: columns.native_fallible.with(row, attributes.fallible),
-        native_concurrent: columns.native_concurrent.with(row, attributes.concurrent),
         symbols: columns.symbols.with(row, value.symbols),
         expressions: columns.expressions.with(row, value.expressions),
         contracts: columns.contracts.with(row, value.contracts),

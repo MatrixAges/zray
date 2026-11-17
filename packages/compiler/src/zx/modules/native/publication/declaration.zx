@@ -1,0 +1,32 @@
+import { Ownership } from "core/symbol_table/model"
+
+import type { Member } from "../interface/members"
+import type { Row } from "./model"
+
+export type Input = Member
+
+export type Output = Row
+
+export default function (in: Input): Output {
+    const member = in
+
+    return {
+        name: member.name,
+        named: true,
+        details: {
+            errors: member.errors,
+            parameters: member.signature.names
+        },
+        input: member.signature.input,
+        output: member.signature.output,
+        flags: {
+            ownership: Ownership.Borrowed,
+            allocator_argument: member.allocator_argument,
+            io_argument: member.io_argument,
+            process_argument: member.process_argument,
+            expand_tuple: member.expand_tuple,
+            fallible: member.fallible,
+            concurrent: member.concurrent
+        }
+    }
+}

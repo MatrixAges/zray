@@ -1,0 +1,27 @@
+import strings from "std:string"
+
+import own from "../../native/publication/owner"
+import { local_module } from "./const"
+
+import type { Owner } from "../../native/publication/model"
+import type { Declaration } from "../restoring/native/model"
+
+export type Input = Declaration.Pick("path", "namespace") & {
+    key: string
+}
+
+export type Output = {
+    key: string,
+    owner: Owner
+}
+
+export default function (in: Input): Output {
+    return {
+        key: strings.copy(in.key),
+        owner: own({
+            path: in.path,
+            namespace: in.namespace,
+            module: local_module
+        })
+    }
+}

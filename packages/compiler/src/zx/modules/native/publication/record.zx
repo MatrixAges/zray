@@ -1,28 +1,25 @@
 import strings from "std:string"
-import { StoreMode } from "core/function_table/complete"
 
 import copyParameters from "../../artifact/materializing/copy_parameters"
 import copyNames from "../../copy_names"
 
 import type { Errors, Names } from "core/signature_table/model"
-import type { Attributes, Payload } from "../../artifact/materializing/publication/model"
-import type { EmptyBody } from "../../link/signature/publication/model"
+import type { Flags, Signature } from "../../artifact/materializing/publication/model"
 import type { Owner, Row } from "./model"
 
 export type Input = {
     source: Row,
-    owner: Owner,
-    empty: EmptyBody
+    owner: Owner
 }
 
 export type Output = {
     name: string,
-    function: Payload,
-    attributes: Attributes
+    signature: Signature,
+    flags: Flags
 }
 
 export default function (in: Input): Output {
-    const { source, owner, empty } = in
+    const { source, owner } = in
 
     const name = strings.copy(source.name)
     const parts = owner.namespace.push(name)[0]
@@ -41,7 +38,7 @@ export default function (in: Input): Output {
 
     return {
         name,
-        function: {
+        signature: {
             file: owner.path,
             ports: {
                 input: source.input,
@@ -53,17 +50,8 @@ export default function (in: Input): Output {
                 export_name: source.named ? name : null,
                 errors: owned_errors,
                 parameters: owned_parameters
-            },
-            symbols: empty.symbols,
-            expressions: empty.expressions,
-            contracts: empty.contracts,
-            control: empty.control,
-            store_table: empty.stores
+            }
         },
-        attributes: {
-            ...source.flags,
-            store_mode: StoreMode.transaction,
-            root: null
-        }
+        flags: source.flags
     }
 }

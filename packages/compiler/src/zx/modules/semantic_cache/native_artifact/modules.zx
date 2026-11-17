@@ -1,3 +1,5 @@
+import strings from "std:string"
+
 import type { Modules } from "core/native_module_table/model"
 import type { Declaration } from "../restoring/native/model"
 import type { Surface } from "./model"
@@ -5,19 +7,23 @@ import type { Surface } from "./model"
 export type Input = {
     declaration: Declaration
     exports: Surface
+    key: string
+    namespace: string[]
 }
 
 export type Output = Modules
 
 export default function (in: Input): Output {
-    const { declaration, exports } = in
+    const { declaration, exports, key, namespace } = in
+
+    const identity: string? = declaration.identity == null ? null : key
 
     return {
-        identities: [declaration.identity],
-        import_names: [declaration.import_name],
-        specifiers: [declaration.specifier],
+        identities: [identity],
+        import_names: [strings.copy(declaration.import_name)],
+        specifiers: [strings.copy(declaration.specifier)],
         type_ids: [exports.ids],
         type_names: [exports.names],
-        type_namespaces: [declaration.namespace]
+        type_namespaces: [namespace]
     }
 }

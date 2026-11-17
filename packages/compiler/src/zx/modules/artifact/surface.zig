@@ -115,6 +115,7 @@ fn copyBindings(allocator: std.mem.Allocator, source: []const Binding, types: *c
     if (source.len == 0) return &.{};
 
     const result = try allocator.alloc(Binding, source.len);
+    const writable = Binding.Writable.borrowRows(result);
 
     const input: BindingInput = .{
         .source = &.{
@@ -126,14 +127,7 @@ fn copyBindings(allocator: std.mem.Allocator, source: []const Binding, types: *c
             .intrinsic = @ptrCast(&memory.borrowOptionalU8Column("intrinsic", source)),
             .count = source.len,
         },
-        .target = &.{
-            .name = @ptrCast(&memory.borrowWriteColumn([]const u8, "name", result)),
-            .namespace = @ptrCast(&memory.borrowWriteColumn(?[]const u8, "namespace", result)),
-            .id = @ptrCast(&memory.borrowWriteColumn(?u32, "id", result)),
-            .input_type = @ptrCast(&memory.borrowWriteColumn(?u32, "input_type", result)),
-            .output_type = @ptrCast(&memory.borrowWriteColumn(?u32, "output_type", result)),
-            .intrinsic = @ptrCast(&memory.borrowWriteColumn(?u8, "intrinsic", result)),
-        },
+        .target = &writable.view(std.meta.Child(@FieldType(BindingInput, "target"))),
         .types = types,
         .functions = functions,
     };

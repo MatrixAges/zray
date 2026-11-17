@@ -379,6 +379,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/compiled/validation/publication.zx", .name = "compiled_header" },
     .{ .path = "zx/modules/compiled/validation/stores.zx", .name = "compiled_stores", .owner = .compiler },
     .{ .path = "zx/modules/semantic_cache/native_artifact/create.rx", .name = "native_artifact" },
+    .{ .path = "zx/modules/semantic_cache/native_artifact/publish.rx", .name = "native_artifact_publication" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/eligible.rx", .name = "native_cache_eligible" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/bindings.zx", .name = "native_cache_bindings" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/restore.rx", .name = "native_restore" },

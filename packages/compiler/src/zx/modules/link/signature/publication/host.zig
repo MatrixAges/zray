@@ -76,6 +76,7 @@ pub fn stageNative(allocator: std.mem.Allocator, storage: *ir.FunctionStorage, s
 
     try storage.reserve(allocator, count);
 
+    const writable = FunctionImport.Writable.borrowRows(members);
     const target = columns.borrow(@FieldType(NativeInput, "functions"), storage.reservedTail(count), true);
     var cache_table: if (@typeInfo(CacheSignatures) == .pointer) std.meta.Child(CacheSignatures) else CacheSignatures = undefined;
 
@@ -104,14 +105,7 @@ pub fn stageNative(allocator: std.mem.Allocator, storage: *ir.FunctionStorage, s
         .rows = &rows,
         .owner = .{ .path = path, .namespace = .{ .items = namespace, .storage = .plain }, .module = @backingInt(module) },
         .functions = target,
-        .members = &.{
-            .name = @ptrCast(&zx.memory.borrowWriteColumn([]const u8, "name", members)),
-            .namespace = @ptrCast(&zx.memory.borrowWriteColumn(?[]const u8, "namespace", members)),
-            .id = @ptrCast(&zx.memory.borrowWriteColumn(?u32, "id", members)),
-            .input_type = @ptrCast(&zx.memory.borrowWriteColumn(?u32, "input_type", members)),
-            .output_type = @ptrCast(&zx.memory.borrowWriteColumn(?u32, "output_type", members)),
-            .intrinsic = @ptrCast(&zx.memory.borrowWriteColumn(?u8, "intrinsic", members)),
-        },
+        .members = &writable.view(std.meta.Child(@FieldType(NativeInput, "members"))),
         .first = storage.count(),
         .empty = &emptyBody(std.meta.Child(@FieldType(NativeInput, "empty"))),
     };

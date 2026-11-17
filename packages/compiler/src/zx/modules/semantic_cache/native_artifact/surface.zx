@@ -1,13 +1,27 @@
-import type { Export } from "../../native/interface/exports"
-import type { Surface } from "./model"
+import strings from "std:string"
+import memory from "memory"
 
-export type Input = Export[]
+import type { Publish, Surface } from "./model"
+
+export type Input = Publish.Pick("exports", "export_target")
 
 export type Output = Surface
 
 export default function (in: Input): Output {
+    const names = in.exports.map(item => strings.copy(item.name))[0]
+    const ids = in.exports.map(item => item.type_id)[0]
+    const target = in.export_target
+
+    const written = loop(0, {
+        while: row => row < names.length,
+        next: row => {
+            memory.writeNamedRow(target, row, names[row], ids[row])
+            row += 1
+        }
+    })
+
     return {
-        names: in.map(item => item.name)[0],
-        ids: in.map(item => item.type_id)[0]
+        names,
+        ids
     }
 }

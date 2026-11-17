@@ -1,0 +1,19 @@
+import integers from "std:integer"
+
+import type { OwnedOrigins, Publish } from "./model"
+
+export type Input = Publish.Pick("origins", "key", "labels")
+
+export type Output = OwnedOrigins
+
+export default function (in: Input): Output {
+    const { origins, key, labels } = in
+
+    return {
+        ids: origins.ids.map(id => id)[0],
+        kinds: origins.kinds.map(kind => kind)[0],
+        owners: origins.ids.map(id => key)[0],
+        members: origins.ids.map(id => "")[0],
+        names: origins.ids.map(id => labels[integers.widen(id)])[0]
+    }
+}

@@ -36,3 +36,5 @@ export type Payload = Owned.Omit("stores", "recursive", "control", "store_table"
     control: Control,
     store_table: Stores
 }
+
+export type Signature = Payload.Pick("file", "ports", "external")

@@ -2,7 +2,11 @@ import type { Modules } from "core/native_module_table/model"
 import type { Table as Signatures } from "core/signature_table/model"
 import type { Table as Types } from "core/type_table/model"
 import type { Bindings as Origins } from "core/type_table/nominal"
+import type { NamedRowBuffer } from "memory"
 import type { Diagnostic } from "../../../frontend/lexer/model"
+import type { Target as MemberRows } from "../../artifact/surface/bindings"
+import type { Export } from "../../native/interface/exports"
+import type { Member } from "../../native/interface/members"
 import type { Declaration } from "../restoring/native/model"
 
 export type Request = {
@@ -21,13 +25,34 @@ export type Surface = {
 export type Artifact = {
     types: Types
     origins: Origins
-    exports: Surface
-    signatures: Signatures
-    function_ids: u32[]
-    modules: Modules
+    exports: Export[]
+    members: Member[]
 }
 
 export type Outcome = {
     diagnostic: Diagnostic
     artifact?: Artifact
+}
+
+export type OwnedOrigins = Origins & {
+    names: string[]
+}
+
+export type Publish = {
+    declaration: Declaration,
+    key: string,
+    labels: string[],
+    origins: Origins,
+    exports: Export[],
+    members: Member[],
+    signature_target: Signatures,
+    binding_target: MemberRows,
+    export_target: NamedRowBuffer
+}
+
+export type Published = {
+    path: string,
+    origins: OwnedOrigins,
+    signatures: Signatures,
+    modules: Modules
 }

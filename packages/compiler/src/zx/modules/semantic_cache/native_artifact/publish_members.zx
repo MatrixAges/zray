@@ -1,0 +1,52 @@
+import signature from "../../artifact/materializing/publication/signature"
+import bind from "../../native/publication/binding"
+import declaration from "../../native/publication/declaration"
+import own from "../../native/publication/record"
+
+import type { Table } from "core/signature_table/model"
+import type { Owner } from "../../native/publication/model"
+import type { Publish } from "./model"
+
+export type Input = Publish.Pick("members", "signature_target", "binding_target") & {
+    owner: Owner
+}
+
+export type Output = Table
+
+export default function (in: Input): Output {
+    const { members, owner, binding_target } = in
+
+    return loop({
+        row: 0,
+        signatures: in.signature_target
+    }, {
+        while: state => state.row < members.length,
+        next: state => {
+            const row = state.row
+            const source = declaration(members[row])
+            const record = own({
+                source,
+                owner
+            })
+
+            state.signatures = signature({
+                columns: state.signatures,
+                signature: record.signature,
+                flags: record.flags,
+                row
+            })
+
+            bind({
+                target: binding_target,
+                row,
+                first: 0,
+                name: record.name,
+                input: source.input,
+                output: source.output
+            })
+
+            state.row += 1
+        },
+        return: state => state.signatures
+    })
+}
