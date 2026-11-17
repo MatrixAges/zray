@@ -14,6 +14,8 @@ pub fn analyze(function: *Function, allocator: std.mem.Allocator) std.mem.Alloca
     const context: *const @TypeOf(borrowed.descriptor) = &borrowed.descriptor;
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), function.slots.types);
     const summaries = function.summaries;
+    const demands = @constCast(summaries.storage.demands);
+    const dirty: []u32 = @as(*[1]u32, @ptrCast(&summaries.entry_dirty));
 
     const input: Input = .{
         .context = zx.columns.pointer(@FieldType(Input, "context"), context),
@@ -25,6 +27,7 @@ pub fn analyze(function: *Function, allocator: std.mem.Allocator) std.mem.Alloca
         .inputs = @ptrCast(&summaries.inputs),
         .outputs = @ptrCast(&summaries.outputs),
         .native_modules = function.functions.native_modules,
+        .clear_demands = &.{ .cells = @ptrCast(&demands), .count = demands.len, .dirty = @ptrCast(&dirty) },
     };
 
     const facts = zx.columns.invoke(generated.executeValue, function.allocator, &input) catch |err| switch (err) {

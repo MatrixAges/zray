@@ -1,4 +1,4 @@
-import bytes from "std:bytes"
+import memory from "memory"
 
 import encode from "../function/levels/encode"
 import { Knowledge } from "../function/levels/model"
@@ -9,40 +9,50 @@ import type { Lifecycle as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = bytes.atomicRowsCount(in.input)
+    const { layout, guarantees } = in
+
+    const count = layout.input_first.length
     const all = encode(Knowledge.All)
     const none = encode(Knowledge.None)
+    const initial: u64 = 0
 
-    const result_initial = {
-        index: 0
-    }
+    const filled = loop(initial, {
+        while: row => row < count,
+        next: row => {
+            const internal = in.native_modules[row] == null
+            const reached = in.mode == Mode.Initialize || in.known[row]
+            const next = row + 1
+            const input = layout.input_first[row]
+            const output = layout.output_first[row]
 
-    const result_scope = {
-        input: in,
-        count,
-        all,
-        none
-    }
+            const input_end = match {
+                next == count => layout.input_count,
+                _ => layout.input_first[next]
+            }
+            const output_end = match {
+                next == count => layout.output_count,
+                _ => layout.output_first[next]
+            }
 
-    const result = loop(result_initial, {
-        while: state => state.index < result_scope.count,
-        next: state => {
-            const internal = result_scope.input.native_modules[state.index] == null
-            const reached = result_scope.input.mode == Mode.Initialize ||
-                result_scope.input.known[state.index]
+            if (input != input_end) {
+                memory.fillByteRange(
+                    guarantees,
+                    input,
+                    input_end - input,
+                    internal && reached ? all : none
+                )
+            }
 
-            bytes.fillAtomicRow(
-                result_scope.input.input,
-                state.index,
-                internal && reached ? result_scope.all : result_scope.none
-            )
-            bytes.fillAtomicRow(
-                result_scope.input.output,
-                state.index,
-                internal ? result_scope.all : result_scope.none
-            )
+            if (output != output_end) {
+                memory.fillByteRange(
+                    guarantees,
+                    layout.input_count + output,
+                    output_end - output,
+                    internal ? all : none
+                )
+            }
 
-            state.index += 1
+            row = next
         }
     })
 }

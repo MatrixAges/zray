@@ -14,6 +14,13 @@ export declare function writeU8(
     value: u8
 ): void throws { IndexOutOfBounds }
 
+export declare function fillByteRange(
+    target: U8Buffer,
+    first: u64,
+    count: u64,
+    value: u8
+): void throws { IndexOutOfBounds }
+
 export declare function writeU32(
     target: U32Buffer,
     index: u64,

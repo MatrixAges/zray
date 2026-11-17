@@ -24,6 +24,7 @@ pub fn analyze(function: *Function, owner: std.mem.Allocator, changed: *std.Arra
         .function_index = if (function.function) |index| @intCast(index) else null,
         .deferred = function.deferred,
         .record_marks = true,
+        .entry_dirty = null,
         .operations = @ptrCast(function.operations),
         .results = @ptrCast(function.order.results),
     };

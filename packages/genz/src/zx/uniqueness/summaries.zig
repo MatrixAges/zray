@@ -18,6 +18,7 @@ written: []const []const bool,
 return_only: []const bool,
 effects: if (generated_analysis) Generated.Output else void,
 storage: if (generated_analysis) @import("summaries/storage.zig").Model else void,
+entry_dirty: u32 = 0,
 pub const Scope = enum { program, entry };
 
 pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis, scope: Scope) std.mem.Allocator.Error!Self {
@@ -62,7 +63,7 @@ pub fn mayMutate(self: Self, function: ir.FunctionId, slot: u32) bool {
     return slot >= values.len or values[slot];
 }
 
-/// Optimistic facts for every body; inputs stay unknown unless every caller is a known call site.
+/// With exclusive access, resets optimistic facts. Inputs stay unknown unless every caller is a known call site.
 pub fn reset(self: Self, program: ir.Program, known: []const bool) void {
     if (generated_analysis) return @import("summaries/lifecycle.zig").apply(self, .Reset, program.functions.native_modules, known);
 
@@ -74,13 +75,14 @@ pub fn reset(self: Self, program: ir.Program, known: []const bool) void {
     }
 }
 
+/// Forgets facts when the caller exclusively owns the summaries.
 pub fn clear(self: Self) void {
     if (generated_analysis) return @import("summaries/lifecycle.zig").apply(self, .Clear, &.{}, &.{});
     for (self.input) |values| @memset(values, .none);
     for (self.output) |values| @memset(values, .none);
 }
 
-/// Forgets what updates downstream of each slot want, as `create` leaves it.
+/// Forgets demands when the caller exclusively owns the summaries.
 pub fn clearWants(self: Self) void {
     if (generated_analysis) return @import("summaries/lifecycle.zig").apply(self, .ClearWants, &.{}, &.{});
     for (self.inputs) |values| @memset(values, .none);

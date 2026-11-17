@@ -7,12 +7,11 @@ import type { Layout as Input, Storage as Output } from "./model"
 
 export default function (in: Input): Output {
     const empty = encode(Knowledge.None)
+    const count = in.input_count + in.output_count
 
     return {
         layout: in,
-        input: bytes.repeat(in.input_count, empty),
-        output: bytes.repeat(in.output_count, empty),
-        inputs: bytes.repeat(in.input_count, empty),
-        outputs: bytes.repeat(in.output_count, empty)
+        guarantees: bytes.repeat(count, empty),
+        demands: bytes.repeat(count, empty)
     }
 }

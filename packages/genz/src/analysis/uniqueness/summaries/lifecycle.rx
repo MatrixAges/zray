@@ -16,8 +16,8 @@
             <Call
                 fn="clear"
                 in={{
-                    left: $in.input,
-                    right: $in.output
+                    cells: $in.guarantees,
+                    count: $in.layout.input_count + $in.layout.output_count
                 }}
             />
         </Case>
@@ -26,8 +26,8 @@
             <Call
                 fn="clear"
                 in={{
-                    left: $in.inputs,
-                    right: $in.outputs
+                    cells: $in.demands,
+                    count: $in.layout.input_count + $in.layout.output_count
                 }}
             />
         </Case>

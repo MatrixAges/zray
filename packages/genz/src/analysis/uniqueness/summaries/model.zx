@@ -1,4 +1,4 @@
-import type { AtomicRows } from "std:bytes"
+import type { U8Buffer, U32Buffer } from "memory"
 
 export type Shape = {
     counts: u32[],
@@ -15,10 +15,8 @@ export type Layout = {
 
 export type Storage = {
     layout: Layout,
-    input: u8[],
-    output: u8[],
-    inputs: u8[],
-    outputs: u8[]
+    guarantees: u8[],
+    demands: u8[]
 }
 
 export enum Mode {
@@ -30,10 +28,18 @@ export enum Mode {
 
 export type Lifecycle = {
     mode: Mode,
-    input: AtomicRows,
-    output: AtomicRows,
-    inputs: AtomicRows,
-    outputs: AtomicRows,
+    layout: Layout,
+    guarantees: U8Buffer,
+    demands: U8Buffer,
     native_modules: u32?[],
     known: bool[]
+}
+
+export type Clear = {
+    cells: U8Buffer,
+    count: u64
+}
+
+export type EntryReset = Clear & {
+    dirty: U32Buffer
 }

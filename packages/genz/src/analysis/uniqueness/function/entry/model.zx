@@ -1,4 +1,5 @@
 import type { AtomicRows } from "std:bytes"
+import type { EntryReset } from "../../summaries/model"
 import type { Source } from "../demand/model"
 import type { Context } from "../levels/model"
 import type { Input as Plan, Output as Facts, Snapshot } from "../plan/model"
@@ -6,7 +7,8 @@ import type { Input as Plan, Output as Facts, Snapshot } from "../plan/model"
 export type Input = Plan.Omit("state") & {
     inputs: AtomicRows,
     outputs: AtomicRows,
-    native_modules: u32?[]
+    native_modules: u32?[],
+    clear_demands: EntryReset
 }
 
 export type Demand =

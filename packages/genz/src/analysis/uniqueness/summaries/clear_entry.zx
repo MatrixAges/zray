@@ -1,0 +1,18 @@
+import memory from "memory"
+
+import clear from "./clear"
+
+import type { EntryReset as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (memory.readU32(in.dirty, 0) != 0) {
+        clear(in.pick([
+            "cells",
+            "count"
+        ]))
+
+        memory.writeU32(in.dirty, 0, 0)
+    }
+}

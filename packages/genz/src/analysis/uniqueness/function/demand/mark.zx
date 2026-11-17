@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
+import memory from "memory"
 
 import join from "../../level/join"
 import decode from "../levels/decode"
@@ -43,6 +44,12 @@ export default function (in: Input): Output {
 
     if (next == before) {
         return working
+    }
+
+    const entry_dirty = in.stage.source.entry_dirty
+
+    if (entry_dirty != null) {
+        memory.writeU32(entry_dirty, 0, 1)
     }
 
     bytes.storeAtomicCell(rows, row, slot, encode(next))

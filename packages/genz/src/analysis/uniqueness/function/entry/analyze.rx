@@ -3,13 +3,7 @@
 
     <Args in={Entry.Input} out={Entry.Output} />
 
-    <Call
-        fn="../../summaries/clear"
-        in={{
-            left: $in.inputs,
-            right: $in.outputs
-        }}
-    />
+    <Call fn="../../summaries/clear_entry" in={$in.clear_demands} />
 
     <Call
         fn="converge"
@@ -21,6 +15,7 @@
                 native_modules: $in.native_modules,
                 inputs: $in.inputs,
                 outputs: $in.outputs,
+                entry_dirty: $in.clear_demands.dirty,
                 operations: $in.operations,
                 results: $in.results
             }

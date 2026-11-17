@@ -29,11 +29,13 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
         else => unreachable,
     };
 
+    const split: usize = @intCast(storage.layout.input_count);
+
     const result = Summaries{
-        .input = try rows(allocator, storage.input, storage.layout.input_first),
-        .output = try rows(allocator, storage.output, storage.layout.output_first),
-        .inputs = try rows(allocator, storage.inputs, storage.layout.input_first),
-        .outputs = try rows(allocator, storage.outputs, storage.layout.output_first),
+        .input = try rows(allocator, storage.guarantees[0..split], storage.layout.input_first),
+        .output = try rows(allocator, storage.guarantees[split..], storage.layout.output_first),
+        .inputs = try rows(allocator, storage.demands[0..split], storage.layout.input_first),
+        .outputs = try rows(allocator, storage.demands[split..], storage.layout.output_first),
         .held = basis.flow.held,
         .written = basis.flow.written,
         .return_only = basis.return_only,

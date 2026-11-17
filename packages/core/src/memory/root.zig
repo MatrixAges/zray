@@ -276,6 +276,14 @@ pub inline fn writeU8(target: *const anyopaque, index: u64, value: u8) error{Ind
     return write(u8, target, index, value);
 }
 
+pub inline fn fillByteRange(target: *const anyopaque, first: u64, count: u64, value: u8) error{IndexOutOfBounds}!void {
+    const output: *const []u8 = @ptrCast(@alignCast(target));
+
+    if (first > output.len or count > output.len - first) return error.IndexOutOfBounds;
+
+    @memset(output.*[@intCast(first)..][0..@intCast(count)], value);
+}
+
 pub inline fn writeU64(target: *const anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
     return write(u64, target, index, value);
 }

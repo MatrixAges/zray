@@ -2,6 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Round = @import("work/round.zig");
 const Summaries = @import("summaries.zig");
+const SummaryState = @import("summaries/lifecycle.zig");
 const creating = @import("generated_uniqueness_work_create");
 const preparing = @import("generated_uniqueness_prepare_round");
 const taking = @import("generated_uniqueness_take_settlement");
@@ -31,7 +32,6 @@ pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summar
     const Parameter = @typeInfo(@TypeOf(preparing.executeState)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     const Queue = std.meta.Child(@FieldType(Input, "queue"));
-    const Facts = std.meta.Child(@FieldType(Input, "facts"));
 
     const queue: Queue = .{
         .state = self.state,
@@ -39,16 +39,9 @@ pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summar
         .type_only = program.type_only,
     };
 
-    const facts: Facts = .{
-        .mode = .Reset,
-        .input = @ptrCast(&summaries.input),
-        .output = @ptrCast(&summaries.output),
-        .inputs = @ptrCast(&summaries.inputs),
-        .outputs = @ptrCast(&summaries.outputs),
-        .native_modules = program.functions.native_modules,
-        .known = known,
-    };
-
+    // The preceding round has drained its readers, so this entry may reset the backing cells.
+    const state = SummaryState.Borrowed.init(summaries);
+    const facts = state.input(.Reset, program.functions.native_modules, known);
     const input: Input = .{ .queue = &queue, .facts = &facts, .event = event };
     const output = preparing.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
 

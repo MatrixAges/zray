@@ -20,8 +20,8 @@
         <Call
             fn="../../summaries/clear"
             in={{
-                left: $in.facts.input,
-                right: $in.facts.output
+                cells: $in.facts.guarantees,
+                count: $in.facts.layout.input_count + $in.facts.layout.output_count
             }}
         />
     </If>

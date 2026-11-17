@@ -1,46 +1,12 @@
-import bytes from "std:bytes"
+import memory from "memory"
 
 import encode from "../function/levels/encode"
 import { Knowledge } from "../function/levels/model"
 
-import type { AtomicRows } from "std:bytes"
-
-export type Input = {
-    left: AtomicRows,
-    right: AtomicRows
-}
+import type { Clear as Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const count = bytes.atomicRowsCount(in.left)
-    const none = encode(Knowledge.None)
-
-    const result_initial = {
-        index: 0
-    }
-
-    const result_scope = {
-        input: in,
-        count,
-        none
-    }
-
-    const result = loop(result_initial, {
-        while: state => state.index < result_scope.count,
-        next: state => {
-            bytes.fillAtomicRow(
-                result_scope.input.left,
-                state.index,
-                result_scope.none
-            )
-            bytes.fillAtomicRow(
-                result_scope.input.right,
-                state.index,
-                result_scope.none
-            )
-
-            state.index += 1
-        }
-    })
+    memory.fillByteRange(in.cells, 0, in.count, encode(Knowledge.None))
 }
