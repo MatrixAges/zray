@@ -115,6 +115,62 @@ pub fn constantOutput(comptime Target: type) type {
     return memory.RowOutput(ir.Constant, Target, .{ .names = "name", .types = "type_id", .values = "value" });
 }
 
+pub fn Publication(comptime Input: type) type {
+    const Exports = std.meta.Child(@FieldType(Input, "exports"));
+    const Constants = std.meta.Child(@FieldType(Input, "constants"));
+    const Target = std.meta.Child(@FieldType(Input, "constant_target"));
+
+    return struct {
+        const Self = @This();
+        export_rows: names.Rows,
+        export_source: Exports,
+        export_target: []memory.NamedId,
+        progress: []u64,
+        written: [1]u64,
+        constant_rows: ConstantRows,
+        constant_source: Constants,
+        constant_output: constantOutput(Target),
+        mapping: std.meta.Child(@FieldType(Input, "types")),
+        input: Input,
+        pub fn init(self: *Self, source: *const @import("model.zig").Module, types: Nodes.TypeMap) void {
+            self.export_rows = names.borrow(source.exports);
+            self.export_source = names.view(Exports, &self.export_rows);
+            self.export_target = &.{};
+            self.written = .{0};
+            self.progress = &self.written;
+            self.constant_rows = ConstantRows.borrow(source.constant_exports);
+            self.constant_source = self.constant_rows.view(Constants);
+
+            self.constant_output.init();
+
+            self.mapping = remap.typeMapping(@TypeOf(self.mapping), types);
+
+            self.input = .{
+                .types = &self.mapping,
+                .exports = &self.export_source,
+                .export_target = @ptrCast(&self.export_target),
+                .export_progress = @ptrCast(&self.progress),
+                .constants = &self.constant_source,
+                .constant_target = &self.constant_output.view,
+                .constant_storage = @ptrCast(&self.constant_output.buffer),
+            };
+        }
+        pub fn release(self: *const Self, allocator: std.mem.Allocator) void {
+            for (self.export_target[0..@intCast(self.written[0])]) |item| allocator.free(item.name);
+
+            allocator.free(self.export_target);
+            allocator.free(self.constant_output.rows());
+        }
+
+        pub fn exports(self: *const Self) []const ir.Export {
+            return @ptrCast(self.export_target);
+        }
+        pub fn constants(self: *const Self) []const ir.Constant {
+            return self.constant_output.rows();
+        }
+    };
+}
+
 fn copyBindings(allocator: std.mem.Allocator, source: []const Binding, types: *const BindingMapping, functions: *const BindingMapping) Error![]const Binding {
     if (source.len == 0) return &.{};
 

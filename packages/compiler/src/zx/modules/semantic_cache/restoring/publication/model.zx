@@ -2,16 +2,16 @@ import type { Control } from "core/control_table/model"
 import type { Stores } from "core/store_table/model"
 import type {
     FunctionInput,
-    FunctionOutput,
-    Mapping
+    FunctionOutput
 } from "../../../artifact/remapping/model"
+import type { Input as Surface } from "../../../artifact/surface/model"
 
 export type Input = {
     body?: FunctionInput,
     control?: Control,
     stores: Stores,
     reuse_store_types: bool,
-    types: Mapping
+    surface: Surface
 }
 
 export type Plan = {

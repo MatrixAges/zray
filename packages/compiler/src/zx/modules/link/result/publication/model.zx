@@ -1,11 +1,6 @@
-import type { Rows as Constants } from "core/constant/rows"
 import type { Stores } from "core/store_table/model"
 import type { Symbols } from "core/symbol_table/model"
-import type { NamedRowBuffer, U64Buffer } from "memory"
-import type { RowBuffer } from "memory/columns"
-import type { Rows as Exports } from "../../../../ir/canonical/validation/names/model"
-import type { Mapping } from "../../../artifact/remapping/model"
-import type { Target } from "../../../artifact/surface/constants"
+import type { Input as ArtifactSurface } from "../../../artifact/surface/model"
 import type { Output as Wrapper } from "../../../forward_entry/model"
 
 export type Forward = {
@@ -16,13 +11,7 @@ export type Forward = {
 }
 
 export type Surface = {
-    exports: Exports,
-    export_target: NamedRowBuffer,
-    export_progress: U64Buffer,
-    constants: Constants,
-    constant_target: Target,
-    constant_storage: RowBuffer,
-    types: Mapping,
+    surface: ArtifactSurface,
     path: string,
     forward?: Forward
 }

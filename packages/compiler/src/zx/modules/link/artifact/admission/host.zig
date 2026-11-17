@@ -6,14 +6,9 @@ const Error = @import("../../../artifact/model.zig").Error;
 const names = @import("../../../../ir/canonical/validation/names/view.zig");
 const rule = @import("generated_artifact_module_admission");
 const Input = std.meta.Child(rule.Input);
-const Layout = child("layout");
+const Layout = std.meta.Child(@FieldType(Input, "layout"));
 const Surface = std.meta.Child(@FieldType(Input, "surface"));
-const Constants = child("constants");
-const Status = @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload;
-
-fn child(comptime field: []const u8) type {
-    return std.meta.Child(@typeInfo(@FieldType(Input, field)).optional.child);
-}
+const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "constants")).optional.child);
 
 pub const Mappings = struct {
     functions: []?ir.FunctionId,
@@ -41,38 +36,37 @@ pub fn admit(allocator: std.mem.Allocator, module: *const Module, type_count: us
     var constants: @import("../../../../analysis/constants/columns.zig").Pair(Constants) = undefined;
     const has_constants = module.constant_exports.len != 0 or module.constant_imports.len != 0;
 
-    var request: Input = .{
-        .layout = &.{ .native_modules = &natives, .signatures = &signatures },
-        .surface = &.{
-            .exports = &names.view(Rows, &export_rows),
-            .imports = &names.view(Rows, &import_rows),
-            .type_count = type_count,
-        },
-        .constants = null,
-    };
+    if (has_constants) constants.init(module.types, module.constant_exports, module.constant_imports);
 
-    if (try check(allocator, &request) != .Reserve) return error.InvalidModule;
-
-    const mappings = try reserve(allocator, module);
+    var mappings: Mappings = .{ .functions = &.{}, .modules = &.{} };
 
     errdefer {
         allocator.free(mappings.modules);
         allocator.free(mappings.functions);
     }
 
-    if (has_constants) constants.init(module.types, module.constant_exports, module.constant_imports);
+    const request: Input = .{
+        .layout = &.{ .native_modules = &natives, .signatures = &signatures },
+        .surface = &.{
+            .exports = &names.view(Rows, &export_rows),
+            .imports = &names.view(Rows, &import_rows),
+            .type_count = type_count,
+        },
+        .constants = if (has_constants) &constants.input else null,
+        .mappings = &.{
+            .functions = @ptrCast(&mappings.functions),
+            .modules = @ptrCast(&mappings.modules),
+            .function_count = module.functions.count() + @intFromBool(module.function != null),
+            .module_count = module.native_modules.count(),
+        },
+    };
 
-    request.layout = null;
-    request.constants = if (has_constants) &constants.input else null;
+    const valid = zx.columns.invoke(rule.executeValue, allocator, &request) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
 
-    if (try check(allocator, &request) != .Ready) return error.InvalidModule;
+    if (!valid) return error.InvalidModule;
 
     return mappings;
-}
-
-fn check(allocator: std.mem.Allocator, request: *const Input) Error!Status {
-    return zx.columns.invoke(rule.executeValue, allocator, request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => error.OutOfMemory,
-        else => error.InvalidModule,
-    };
 }

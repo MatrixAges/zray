@@ -3,25 +3,7 @@
 
     <Args in={Result.Surface} out={Result.Published} />
 
-    <Call
-        module="../../../artifact/surface/own_exports"
-        in={{
-            source: $in.exports,
-            types: $in.types,
-            target: $in.export_target,
-            progress: $in.export_progress
-        }}
-    />
-
-    <Call
-        module="../../../artifact/surface/own_constants"
-        in={{
-            source: $in.constants,
-            types: $in.types,
-            target: $in.constant_target,
-            storage: $in.constant_storage
-        }}
-    />
+    <Call module="../../../artifact/surface/own" in={$in.surface} />
 
     <Call fn="path" in={$in.path} />
 

@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Surface" />
+
+    <Args in={Surface.Input} out={void} />
+
+    <Call
+        module="own_exports"
+        in={{
+            source: $in.exports,
+            types: $in.types,
+            target: $in.export_target,
+            progress: $in.export_progress
+        }}
+    />
+
+    <Call
+        module="own_constants"
+        in={{
+            source: $in.constants,
+            types: $in.types,
+            target: $in.constant_target,
+            storage: $in.constant_storage
+        }}
+    />
+</Module>

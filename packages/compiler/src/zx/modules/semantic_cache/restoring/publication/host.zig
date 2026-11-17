@@ -5,11 +5,11 @@ const Artifact = @import("../../../artifact/model.zig");
 const Nodes = @import("../../../artifact/nodes.zig");
 const remap = @import("../../../artifact/nodes/remap.zig");
 const result = @import("../../../link/result/host.zig");
+const Surface = @import("../../../artifact/surface.zig").Publication;
 const generated = @import("generated_semantic_restore_publication");
 const Input = std.meta.Child(generated.Input);
 const Body = std.meta.Child(@typeInfo(@FieldType(Input, "body")).optional.child);
 const Control = @typeInfo(@FieldType(Input, "control")).optional.child;
-const Mapping = std.meta.Child(@FieldType(Input, "types"));
 const Stores = std.meta.Child(@FieldType(Input, "stores"));
 const Restored = @import("../../restore.zig").Restored;
 
@@ -31,15 +31,18 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, path: []const 
         if (value.body.root != null) control_source = zx.columns.pointer(Control, value.body.control);
     }
 
-    const mapping = remap.typeMapping(Mapping, nodes.types);
     const stores = zx.columns.columns(Stores, module.stores);
+    var surface: Surface(std.meta.Child(@FieldType(Input, "surface"))) = undefined;
+
+    surface.init(module, nodes.types);
+    errdefer surface.release(nodes.allocator);
 
     const input: Input = .{
         .body = if (source != null) &view.input else null,
         .control = control_source,
         .stores = &stores,
         .reuse_store_types = if (source) |value| sameColumn(module.stores.types, value.stores.types) else false,
-        .types = &mapping,
+        .surface = &surface.input,
     };
 
     const prepared = zx.columns.invoke(generated.executeValue, nodes.allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -55,12 +58,7 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, path: []const 
     else
         null;
 
-    const owned = nodes.allocator;
     const store_table = zx.columns.view(ir.StoreTable, plan.stores);
-    const surface = @import("../../../artifact/surface.zig");
-    const types = remap.typeMapping(surface.Mapping, nodes.types);
-    const exported = try surface.copyExports(owned, module.exports, &types);
-    const constants = try surface.copyConstants(owned, module.constant_exports, &types);
     const recursive = if (plan.body) |mapped| mapped.recursive else null;
 
     const descriptors: ?ir.FunctionStorage.Descriptors = if (recursive != null) .{
@@ -72,7 +70,7 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, path: []const 
 
     return .{
         .restored = .{
-            .program = result.program(path, if (body) |*value| value else null, tables, store_table, exported, constants),
+            .program = result.program(path, if (body) |*value| value else null, tables, store_table, surface.exports(), surface.constants()),
             .recursive = if (recursive) |id| @fromBackingInt(id) else null,
         },
         .descriptors = descriptors,

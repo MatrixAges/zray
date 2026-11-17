@@ -200,6 +200,13 @@ export declare function writeOptionalU32(
     value: u32?
 ): void throws { IndexOutOfBounds }
 
+export declare function allocateOptionalU32Buffer(
+    allocator,
+    target: OptionalU32Buffer,
+    count: u64,
+    clear: bool
+): void throws { OutOfMemory }
+
 export declare function writeString(
     target: StringBuffer,
     index: u64,

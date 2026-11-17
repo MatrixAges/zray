@@ -20,13 +20,14 @@
         module="stores"
         in={{
             source: $in.stores,
-            mapping: $in.types,
+            mapping: $in.surface.types,
             body: $ctx.optional_body,
             reuse: $in.reuse_store_types
         }}
     />
 
     <Call module="../../../artifact/materializing/optional_control" in={$in.control} />
+    <Call module="../../../artifact/surface/own" in={$in.surface} />
 
     <Return
         value={{

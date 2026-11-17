@@ -7,7 +7,7 @@
         module="../../../artifact/materializing/stores/remap"
         in={{
             source: $in.store_source,
-            mapping: $in.types
+            mapping: $in.surface.types
         }}
     />
 

@@ -1,22 +1,24 @@
 <Module>
     <Type from="model" as="Admission" />
 
-    <Args in={Admission.Input} out={Admission.Status} />
+    <Args in={Admission.Input} out={bool} />
 
-    <If on={$in.layout != null}>
+    <Task name="layout" out={$ctx.admit}>
         <Call module="../../signature/admit" in={$in.layout} />
+    </Task>
 
-        <If on={!$ctx.admit}>
-            <Return value={Admission.Status.Invalid} />
-        </If>
-
-        <Return value={Admission.Status.Reserve} />
+    <If on={!$ctx.task.layout}>
+        <Return value={false} />
     </If>
 
-    <Call module="../../surface/admit" in={$in.surface} />
+    <Call fn="reserve" in={$in.mappings} />
 
-    <If on={!$ctx.admit}>
-        <Return value={Admission.Status.Invalid} />
+    <Task name="surface" out={$ctx.admit}>
+        <Call module="../../surface/admit" in={$in.surface} />
+    </Task>
+
+    <If on={!$ctx.task.surface}>
+        <Return value={false} />
     </If>
 
     <If on={$in.constants != null}>
@@ -26,9 +28,9 @@
         />
 
         <If on={!$ctx.pair}>
-            <Return value={Admission.Status.Invalid} />
+            <Return value={false} />
         </If>
     </If>
 
-    <Return value={Admission.Status.Ready} />
+    <Return value={true} />
 </Module>
