@@ -1,9 +1,10 @@
 import type { Control } from "core/control_table/model"
 import type { Stores } from "core/store_table/model"
-import type { U64Buffer } from "memory"
+import type { ColumnLengths, U64Buffer } from "memory"
 import type { Workspace } from "../../../../ir/canonical/body/workspace"
 import type { Mapping } from "../../remapping/model"
 import type { Input as FunctionInput, Owned } from "../function_model"
+import type { PublicationStatus } from "./model"
 import type { Columns } from "./model"
 
 export type Source = Columns
@@ -34,10 +35,11 @@ export type Input = {
     empty: Empty,
     workspace: Workspace,
     max_offset: u64,
-    progress: U64Buffer
+    progress: U64Buffer,
+    lengths: ColumnLengths
 }
 
 export type Output = {
-    columns: Columns,
-    valid: bool
+    columns?: Columns,
+    status: PublicationStatus
 }

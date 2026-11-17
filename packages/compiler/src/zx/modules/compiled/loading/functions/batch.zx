@@ -2,9 +2,10 @@ import remap from "compiler/compiled_linked_function"
 import memory from "memory"
 
 import readAttributes from "../../../artifact/materializing/publication/attributes"
+import { PublicationStatus } from "../../../artifact/materializing/publication/model"
 import write from "../../../artifact/materializing/publication/write"
 
-import type { U64Buffer } from "memory"
+import type { ColumnLengths, U64Buffer } from "memory"
 import type { Output as External } from "../../../artifact/materializing/copy_external"
 import type { Columns } from "../../../artifact/materializing/publication/model"
 import type { Mapping } from "./model"
@@ -15,17 +16,21 @@ export type Input = {
     mapping: Mapping,
     instance: string,
     first: u64,
-    progress: U64Buffer
+    progress: U64Buffer,
+    lengths: ColumnLengths
 }
 
-export type Output = Columns
+export type Output = {
+    columns?: Columns,
+    status: PublicationStatus
+}
 
 export default function (in: Input): Output {
     const { source, target, mapping, instance, first, progress } = in
 
     const count = source.files.length
 
-    return loop({
+    const [failure, result] = try loop({
         row: 0,
         columns: target
     }, {
@@ -90,4 +95,30 @@ export default function (in: Input): Output {
         },
         return: state => state.columns
     })
+
+    memory.publishColumnLengths(in.lengths, memory.readU64(progress, 0))
+
+    const allocation_failed = failure == error.OutOfMemory
+    const overflow = failure == error.Overflow
+    const integer_overflow = failure == error.IntegerOverflow
+    const exhausted = allocation_failed || overflow || integer_overflow
+
+    if (exhausted) {
+        return {
+            columns: null,
+            status: PublicationStatus.Exhausted
+        }
+    }
+
+    if (result == null) {
+        return {
+            columns: null,
+            status: PublicationStatus.Invalid
+        }
+    }
+
+    return {
+        columns: result,
+        status: PublicationStatus.Complete
+    }
 }

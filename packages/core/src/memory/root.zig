@@ -1,6 +1,9 @@
 const std = @import("std");
 const column_set = @import("column_set.zig");
 pub const ColumnSet = column_set.ColumnSet;
+pub const ColumnLengths = column_set.Lengths;
+pub const borrowColumnLengths = column_set.borrowLengths;
+pub const publishColumnLengths = column_set.publishLengths;
 pub const bindColumnSet = column_set.bind;
 pub const ColumnRanges = column_set.Ranges;
 pub const bindColumnRanges = column_set.bindRanges;

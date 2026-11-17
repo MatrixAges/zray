@@ -1,5 +1,24 @@
 const std = @import("std");
 pub const ColumnSet = []const *anyopaque;
+pub const Lengths = []const *usize;
+
+pub fn borrowLengths(storage: anytype) [@typeInfo(std.meta.Child(@TypeOf(storage))).@"struct".field_names.len]*usize {
+    const fields = @typeInfo(std.meta.Child(@TypeOf(storage))).@"struct".field_names;
+    var lengths: [fields.len]*usize = undefined;
+
+    inline for (fields, &lengths) |name, *length| {
+        length.* = &@field(storage, name).items.len;
+    }
+
+    return lengths;
+}
+
+pub fn publishLengths(target: *const anyopaque, count: u64) void {
+    const lengths: *const Lengths = @ptrCast(@alignCast(target));
+    const additional: usize = @intCast(count);
+
+    for (lengths.*) |length| length.* += additional;
+}
 
 pub fn bind(comptime View: type, comptime scalar: bool, storage: anytype) [@typeInfo(View).@"struct".field_names.len]*anyopaque {
     const names = @typeInfo(View).@"struct".field_names;

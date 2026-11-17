@@ -57,9 +57,8 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.Func
 
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
-
-    defer storage.commitTail(@intCast(completed[0]));
-
+    const length_slots = zx.memory.borrowColumnLengths(storage);
+    const lengths: zx.memory.ColumnLengths = &length_slots;
     const target = columns.borrow(Columns, storage.reservedTail(count), true);
     const types = remap.typeMapping(Mapping, nodes.types);
     const functions = remap.idMapping(Mapping, nodes.functions);
@@ -80,6 +79,7 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.Func
         .workspace = &scratch.borrow(Workspace, false),
         .max_offset = std.math.maxInt(usize),
         .progress = @ptrCast(&progress),
+        .lengths = @ptrCast(&lengths),
     };
 
     const output = generated.executeState(nodes.allocator, input) catch |err| switch (@as(anyerror, err)) {
@@ -87,9 +87,11 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.Func
         else => return error.InvalidModule,
     };
 
-    columns.checkBorrow(target, output.columns);
-
-    if (!output.valid) return error.InvalidModule;
+    switch (output.status) {
+        .Exhausted => return error.OutOfMemory,
+        .Invalid => return error.InvalidModule,
+        .Complete => columns.checkBorrow(target, output.columns.?),
+    }
 
     std.debug.assert(completed[0] == count);
 }

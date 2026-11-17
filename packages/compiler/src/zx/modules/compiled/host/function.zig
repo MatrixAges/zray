@@ -24,8 +24,8 @@ pub fn append(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, sour
     const tails = functions.reservedTail(count);
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
-
-    defer functions.commitTail(@intCast(completed[0]));
+    const length_slots = zx.memory.borrowColumnLengths(functions);
+    const lengths: zx.memory.ColumnLengths = &length_slots;
 
     const input: Input = .{
         .source = columns.borrow(@FieldType(Input, "source"), source, false),
@@ -34,6 +34,7 @@ pub fn append(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, sour
         .first = context.first,
         .instance = context.instance,
         .progress = @ptrCast(&progress),
+        .lengths = @ptrCast(&lengths),
     };
 
     const output = generated.executeState(allocator, input) catch |err| switch (@as(anyerror, err)) {
@@ -41,8 +42,13 @@ pub fn append(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, sour
         else => return error.InvalidModule,
     };
 
+    switch (output.status) {
+        .Exhausted => return error.OutOfMemory,
+        .Invalid => return error.InvalidModule,
+        .Complete => columns.checkBorrow(input.target, output.columns.?),
+    }
+
     std.debug.assert(completed[0] == count);
-    columns.checkBorrow(input.target, output);
 }
 
 pub fn copyExternalDetails(allocator: std.mem.Allocator, source: ir.External) std.mem.Allocator.Error!ir.External {

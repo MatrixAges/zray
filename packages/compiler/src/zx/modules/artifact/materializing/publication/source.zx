@@ -2,6 +2,7 @@ import link from "compiler/source_function_row"
 import memory from "memory"
 
 import readAttributes from "./attributes"
+import { PublicationStatus } from "./model"
 import read from "./read"
 import write from "./write"
 
@@ -12,7 +13,7 @@ export default function (in: Input): Output {
 
     const end = source.files.length
 
-    const result = loop({
+    const [failure, result] = try loop({
         row: 0,
         columns: target,
         valid: true
@@ -57,8 +58,24 @@ export default function (in: Input): Output {
         }
     })
 
+    memory.publishColumnLengths(in.lengths, memory.readU64(progress, 0))
+
+    if (failure == error.OutOfMemory) {
+        return {
+            columns: null,
+            status: PublicationStatus.Exhausted
+        }
+    }
+
+    if (result != null && result.valid) {
+        return {
+            columns: result.columns,
+            status: PublicationStatus.Complete
+        }
+    }
+
     return {
-        columns: result.columns,
-        valid: result.valid
+        columns: null,
+        status: PublicationStatus.Invalid
     }
 }

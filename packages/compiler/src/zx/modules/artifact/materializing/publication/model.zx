@@ -5,6 +5,12 @@ import type { Stores } from "core/store_table/model"
 import type { Ownership } from "core/symbol_table/model"
 import type { Owned } from "../function_model"
 
+export enum PublicationStatus {
+    Complete,
+    Invalid,
+    Exhausted
+}
+
 export type Columns = Complete
 
 export type FlagColumns = Table.Pick(

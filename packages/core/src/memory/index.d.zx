@@ -15,9 +15,15 @@ export type ReadColumn = opaque
 export type ListColumn = opaque
 export type WriteColumn = opaque
 export type ColumnRanges = opaque
+export type ColumnLengths = opaque
 
 export type TypeRangeElements = [u8, u32, u32, string, u32, u32, string, string]
 export type NominalRangeElements = [u32, u8, string, string, string]
+
+export declare function publishColumnLengths(
+    target: ColumnLengths,
+    count: u64
+): void
 
 export declare function reserveTypeRanges(
     resource: Allocator,
