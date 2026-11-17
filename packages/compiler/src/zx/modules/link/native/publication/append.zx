@@ -1,0 +1,40 @@
+import memory from "memory/columns"
+
+import type { Binding } from "core/native_module_table/model"
+import type { NativeModuleRow } from "memory/columns"
+import type { Destination } from "./model"
+
+export type Input = {
+    source: Binding,
+    destination: Destination,
+    ids: u32[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, destination, ids } = in
+    const { resource } = destination
+    const { identity } = source
+
+    const owned_identity: string? = match {
+        identity != null => memory.copyColumnText(resource, identity),
+        _ => null
+    }
+
+    const specifier = memory.copyColumnText(resource, source.specifier)
+    const import_name = memory.copyColumnText(resource, source.import_name)
+    const namespace = memory.copyColumnTexts(resource, source.namespace)
+    const names = memory.copyColumnTexts(resource, source.names)
+
+    const row: NativeModuleRow = {
+        identities: owned_identity,
+        import_names: import_name,
+        specifiers: specifier,
+        type_ids: ids,
+        type_names: names,
+        type_namespaces: namespace
+    }
+
+    memory.appendNativeColumnSet(destination.storage, row)
+}

@@ -8,9 +8,7 @@ export type Input = Batch
 export type Output = void
 
 export default function (in: Input): Output {
-    const { source, mapping, rows, target } = in
-
-    const count = rows == null ? source.specifiers.length : rows.length
+    const { source, mapping, rows, destination, count } = in
 
     const published = loop(0, {
         while: index => index < count,
@@ -18,13 +16,12 @@ export default function (in: Input): Output {
             const row = rows == null ? index : rows[index]
 
             write({
-                ...target,
+                destination,
                 source: binding({
                     source,
                     row
                 }),
-                mapping,
-                index
+                mapping
             })
 
             index += 1

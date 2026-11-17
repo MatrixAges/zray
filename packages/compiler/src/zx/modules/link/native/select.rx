@@ -1,0 +1,23 @@
+<Module>
+    <Type from="plan" as="Plan" />
+
+    <Args in={Plan.Input?} out={Plan.Selection} />
+
+    <If on={$in != null}>
+        <Call fn="plan" in={$in} />
+
+        <Return
+            value={{
+                rows: $ctx.plan.additions,
+                failure: $ctx.plan.failure
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            rows: null,
+            failure: null
+        }}
+    />
+</Module>

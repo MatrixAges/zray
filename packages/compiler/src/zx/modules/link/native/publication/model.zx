@@ -1,20 +1,31 @@
 import type { Binding, Modules } from "core/native_module_table/model"
-import type { U64Buffer } from "memory"
-import type { Destination } from "../../../native_context/copy"
+import type {
+    ColumnAllocator,
+    ColumnSet,
+    ColumnU32s,
+    NativeModuleRow
+} from "memory/columns"
 
-export type Target = {
-    columns: Destination,
-    progress: U64Buffer
+export type Destination = {
+    storage: ColumnSet,
+    shape?: NativeModuleRow,
+    resource: ColumnAllocator,
+    ids: ColumnU32s
 }
 
-export type Row = Target & {
+export type Row = {
+    destination: Destination,
     source: Binding,
-    index: u64
+    mapping: u32[]
 }
 
-export type Batch = {
+export type Input = {
     source: Modules,
     mapping: u32[],
     rows?: u64[],
-    target: Target
+    destination: Destination
+}
+
+export type Batch = Input & {
+    count: u64
 }

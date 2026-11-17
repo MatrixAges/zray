@@ -36,17 +36,19 @@ pub fn bind(comptime View: type, comptime scalar: bool, storage: anytype) [@type
     return result;
 }
 
-pub fn reserve(resource: *const anyopaque, target: *const anyopaque, shape: anytype, limit: u64) std.mem.Allocator.Error!void {
+pub fn reserve(resource: *const anyopaque, target: *const anyopaque, shape: anytype, additional: u64, limit: u64) std.mem.Allocator.Error!void {
     const allocator = borrowAllocator(resource);
     const columns: *const ColumnSet = @ptrCast(@alignCast(target));
     const View = std.meta.Child(std.meta.Child(@TypeOf(shape)));
     const names = @typeInfo(View).@"struct".field_names;
     const first = list(@FieldType(View, names[0]), columns.*[0]);
 
-    if (first.items.len >= limit) return error.OutOfMemory;
+    if (first.items.len > limit or additional > limit - first.items.len) return error.OutOfMemory;
+
+    const count = std.math.cast(usize, additional) orelse return error.OutOfMemory;
 
     inline for (names, 0..) |name, index| {
-        try list(@FieldType(View, name), columns.*[index]).ensureUnusedCapacity(allocator, 1);
+        try list(@FieldType(View, name), columns.*[index]).ensureUnusedCapacity(allocator, count);
     }
 }
 
@@ -77,6 +79,16 @@ fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {
 
 pub fn copyText(resource: *const anyopaque, source: []const u8) std.mem.Allocator.Error![]const u8 {
     return borrowAllocator(resource).dupe(u8, source);
+}
+
+pub fn allocateU32s(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error![]const u32 {
+    const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+    const size = std.math.cast(usize, count) orelse return error.OutOfMemory;
+    const items = try borrowAllocator(resource).alloc(u32, size);
+
+    output.* = items;
+
+    return items;
 }
 
 pub fn copyTexts(resource: *const anyopaque, source: anytype) std.mem.Allocator.Error!@TypeOf(source) {

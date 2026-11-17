@@ -9,6 +9,7 @@ export type ColumnSet = opaque
 export type ColumnView = opaque
 export type ColumnObject = opaque
 export type ColumnAllocator = opaque
+export type ColumnU32s = opaque
 
 export enum ColumnOwnership {
     Copy,
@@ -64,10 +65,20 @@ export type FunctionRow = {
     stores: ColumnObject
 }
 
+export type NativeModuleRow = {
+    identities?: string,
+    import_names: string,
+    specifiers: string,
+    type_ids: u32[],
+    type_names: string[],
+    type_namespaces: string[]
+}
+
 export declare function reserveColumnSet(
     resource: ColumnAllocator,
     target: ColumnSet,
     shape: FunctionRow?,
+    count: u64,
     limit: u64
 ): void throws { OutOfMemory }
 
@@ -81,6 +92,31 @@ export declare function appendColumnSet(
     target: ColumnSet,
     row: FunctionRow
 ): void
+
+export declare function reserveNativeColumnSet(
+    resource: ColumnAllocator,
+    target: ColumnSet,
+    shape: NativeModuleRow?,
+    count: u64,
+    limit: u64
+): void throws { OutOfMemory }
+
+export declare function appendNativeColumnSet(
+    target: ColumnSet,
+    row: NativeModuleRow
+): void
+
+export declare function allocateColumnU32s(
+    resource: ColumnAllocator,
+    target: ColumnU32s,
+    count: u64
+): u32[] throws { OutOfMemory }
+
+export declare function writeColumnU32s(
+    target: ColumnU32s,
+    index: u64,
+    value: u32
+): void throws { IndexOutOfBounds }
 
 export declare function copyColumnText(
     resource: ColumnAllocator,

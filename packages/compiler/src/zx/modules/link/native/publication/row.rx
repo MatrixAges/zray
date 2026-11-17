@@ -1,37 +1,24 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args
-        in={Publication.Row & {
-            mapping: u32[]
-        }}
-        out={void}
-    />
+    <Args in={Publication.Row} out={void} />
 
     <Call
-        fn="../../../compiled/loading/remap/ids"
+        fn="ids"
         in={{
             values: $in.source.ids,
-            mapping: $in.mapping
+            mapping: $in.mapping,
+            target: $in.destination.ids,
+            resource: $in.destination.resource
         }}
     />
 
     <Call
-        fn="../../../native_context/copy_binding"
+        fn="append"
         in={{
+            destination: $in.destination,
             source: $in.source,
-            mapped_ids: $ctx.ids
-        }}
-    />
-
-    <Call
-        fn="write"
-        in={{
-            ...$in.omit([
-                "mapping",
-                "source"
-            ]),
-            source: $ctx.copy_binding
+            ids: $ctx.ids
         }}
     />
 </Module>

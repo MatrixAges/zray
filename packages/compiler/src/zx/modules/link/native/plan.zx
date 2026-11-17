@@ -22,6 +22,11 @@ export type Output = {
     failure?: Status
 }
 
+export type Selection = {
+    rows?: u64[],
+    failure?: Status
+}
+
 export default function (in: Input): Output {
     const { source, base, types, target } = in
 

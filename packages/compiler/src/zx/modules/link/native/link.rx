@@ -1,29 +1,29 @@
 <Module>
     <Type from="plan" as="Plan" />
+    <Type from="model" as="Link" />
     <Type from="publication/model" as="Publication" />
 
     <Args
         in={{
             plan?: Plan.Input,
-            publish?: Publication.Batch
+            publication: Publication.Input.Omit("rows")
         }}
-        out={Plan.Output}
+        out={Link.Status?}
     />
 
-    <If on={$in.plan != null}>
-        <Call fn="plan" in={$in.plan} />
+    <Call module="select" in={$in.plan} />
 
-        <Return value={$ctx.plan} />
+    <If on={$ctx.select.failure != null}>
+        <Return value={$ctx.select.failure} />
     </If>
 
-    <If on={$in.publish != null}>
-        <Call fn="publication/batch" in={$in.publish} />
-    </If>
-
-    <Return
-        value={{
-            additions: [],
-            failure: null
+    <Call
+        module="publication/publish"
+        in={{
+            ...$in.publication,
+            rows: $ctx.select.rows
         }}
     />
+
+    <Return value={null} />
 </Module>

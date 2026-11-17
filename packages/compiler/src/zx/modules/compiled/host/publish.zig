@@ -7,12 +7,12 @@ const Output = std.meta.Child(@import("generated_compiled_library").Output);
 const borrow = @import("../../../ir/canonical/borrow.zig");
 const function = @import("function.zig");
 
-pub fn apply(allocator: std.mem.Allocator, input: *const Input, library: *const model.Library, output: *const Output, destination: load.Destination, call_scratch: ?load.CallScratch) (std.mem.Allocator.Error || error{InvalidModule})!model.Loaded {
+pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, input: *const Input, library: *const model.Library, output: *const Output, destination: load.Destination, call_scratch: ?load.CallScratch) (std.mem.Allocator.Error || error{InvalidModule})!model.Loaded {
     try @import("../../../analysis/semantic/merging/commit.zig").append(allocator, destination.types, &destination.origins.items, output.types.*, output.origins.*);
 
     const natives = borrow.columns(ir.NativeModuleTable, output.natives.*);
 
-    try @import("../../link/native/host.zig").append(allocator, destination.native_modules, natives, output.functions.types);
+    try @import("../../link/native/host.zig").append(temporary, allocator, destination.native_modules, natives, output.functions.types);
 
     const first_function = destination.functions.count();
     const function_allocator = if (call_scratch) |scratch| scratch.functions else allocator;
