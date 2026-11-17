@@ -1,6 +1,6 @@
 import type { Contracts } from "core/contract_table/model"
 import type { Contract } from "../../../frontend/parser/header/model"
-import type { Cache } from "../../semantic/resolving/model"
+import type { Aliases } from "../../semantic/resolving/model"
 import type { Source } from "../expressions/request"
 import type { Prepared } from "../model"
 
@@ -8,6 +8,6 @@ export type ContractWork = {
     state: Prepared,
     source: Source,
     items: Contract[],
-    aliases: Cache,
+    aliases: Aliases,
     contracts: Contracts
 }

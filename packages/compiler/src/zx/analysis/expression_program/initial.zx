@@ -40,10 +40,7 @@ export default function (in: Input): Output {
                 names: [],
                 ids: []
             },
-            aliases: {
-                names: in.alias_names,
-                ids: in.alias_types
-            },
+            aliases: in.aliases,
             visiting: [],
             native_interface: false
         },

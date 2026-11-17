@@ -35,7 +35,8 @@ export default function (in: Input): Output {
     }
 
     if (owner.kind != ExprKind.Identifier) {
-        const same_names = in.state.types.context.aliases.names.length == 0
+        const aliases = in.state.types.context.aliases
+        const same_names = aliases.row_count + aliases.names.length == 0
 
         const condition = match {
             owner.kind != ExprKind.Field => true,

@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { Aliases } from "./model"
+
+export type Input = {
+    aliases: Aliases
+    row: u64
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { aliases, row } = in
+    const { rows, row_count } = aliases
+
+    if (rows != null && row < row_count) {
+        return memory.readRowId(rows, row)
+    }
+
+    return aliases.ids[row - row_count]
+}

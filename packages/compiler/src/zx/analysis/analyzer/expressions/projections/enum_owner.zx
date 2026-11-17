@@ -2,6 +2,8 @@ import { Kind } from "core/type_table/model"
 
 import { ExprKind } from "../../../../frontend/parser/expressions/state/model"
 import constant from "../../../constants/lookup"
+import aliasId from "../../../semantic/resolving/alias_id"
+import aliasName from "../../../semantic/resolving/alias_name"
 import row from "../../../semantic/types/row"
 import lookup from "../../bindings/lookup"
 import { NameKind } from "../../source/model"
@@ -30,9 +32,12 @@ export default function (in: Input): Output {
         return missing
     }
 
+    const aliases = in.state.types.context.aliases
+    const alias_count = aliases.row_count + aliases.names.length
+
     const condition = match {
         !qualified => false,
-        in.state.types.context.aliases.names.length == 0 => true,
+        alias_count == 0 => true,
         _ => in.source.tree.nodes[owner.first].kind != ExprKind.Identifier
     }
 
@@ -120,21 +125,25 @@ export default function (in: Input): Output {
     const candidate = loop({
         source: in.source,
         node: in.node,
-        aliases: in.state.types.context.aliases,
         index: 0,
         found: false,
         id: missing.id
     }, {
         while: current =>
-            current.index < current.aliases.names.length && !current.found,
+            current.index < alias_count && !current.found,
         next: current => {
+            const entry = {
+                aliases,
+                row: current.index
+            }
+
             if (matches({
                 source: current.source,
                 node: current.node,
-                path: current.aliases.names[current.index]
+                path: aliasName(entry)
             })) {
                 current.found = true
-                current.id = current.aliases.ids[current.index]
+                current.id = aliasId(entry)
             }
 
             current.index += 1

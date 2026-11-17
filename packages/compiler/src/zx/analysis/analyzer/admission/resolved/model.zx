@@ -2,7 +2,7 @@ import type { Values } from "core/constant/model"
 import type { Complete } from "core/function_table/complete"
 import type { Table } from "core/type_table/model"
 import type { Program } from "../../../../frontend/parser/syntax/model"
-import type { Cache } from "../../../semantic/resolving/model"
+import type { Aliases } from "../../../semantic/resolving/model"
 import type { FunctionImports } from "../../context"
 import type { NativeModule } from "../../source/model"
 
@@ -17,7 +17,7 @@ export type Request = {
     native?: NativeModule
     syntax: Program
     table: Table
-    aliases: Cache
+    aliases: Aliases
     constants?: Values
     bindings: FunctionImports
     functions: Complete

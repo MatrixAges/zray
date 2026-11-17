@@ -122,11 +122,13 @@ export default function (in: Input): Output {
         }
     }
 
+    const aliases = state.types.context.aliases
+
     const condition = match {
         node.kind != ExprKind.Field => false,
         source.tree.nodes[node.first].kind == ExprKind.Identifier => true,
         source.tree.nodes[node.first].kind != ExprKind.Field => false,
-        state.types.context.aliases.names.length == 0 => false,
+        aliases.row_count + aliases.names.length == 0 => false,
         _ => source.tree.nodes[source.tree.nodes[node.first].first].kind ==
             ExprKind.Identifier
     }

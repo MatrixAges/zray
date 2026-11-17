@@ -64,7 +64,7 @@ pub fn named(self: *Types, view: anytype, raw_name: zx.ast.Name) zx.Error!ir.Typ
         if (!std.mem.eql(u8, declaration.name.text, name.text)) continue;
         try self.visiting.put(self.allocator, name.text, {});
 
-        defer _ = self.visiting.remove(name.text);
+        defer _ = self.visiting.swapRemove(name.text);
         const kind = view.kind(declaration.value);
 
         const id = if (self.native_interface and kind == .named and std.mem.eql(u8, view.name(declaration.value).text, "opaque")) blk: {

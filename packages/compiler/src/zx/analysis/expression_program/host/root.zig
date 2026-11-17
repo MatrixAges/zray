@@ -50,7 +50,15 @@ fn run(comptime mode: Mode, allocator: std.mem.Allocator, parsed: anytype, optio
 fn execute(comptime mode: Mode, scratch: *std.heap.ArenaAllocator, allocator: std.mem.Allocator, parsed: anytype, options: Options, reporter: *zx.Reporter) zx.Error!generated.Output {
     const temporary = scratch.allocator();
     const bindings = options.binding_columns orelse try marshal(temporary, options.bindings);
-    const aliases = options.alias_columns orelse try marshal(temporary, options.aliases);
+    const rows = @import("../../semantic/resolving/host/aliases.zig").borrow(options.aliases);
+    const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
+
+    const aliases: Aliases = if (options.alias_columns) |columns|
+        .{ .rows = null, .row_count = 0, .names = columns.names, .ids = @ptrCast(columns.types) }
+
+    else
+        rows.view(Aliases);
+
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "type_base")), options.types);
 
     const source = if (@TypeOf(parsed) == NativeParsed)
@@ -70,8 +78,7 @@ fn execute(comptime mode: Mode, scratch: *std.heap.ArenaAllocator, allocator: st
         .constant_values = constants,
         .binding_names = bindings.names,
         .binding_types = @ptrCast(bindings.types),
-        .alias_names = aliases.names,
-        .alias_types = @ptrCast(aliases.types),
+        .aliases = &aliases,
         .unit_bindings = options.unit_bindings,
         .nonnull_bindings = options.nonnull_bindings,
         .expected = if (options.expected) |expected| @backingInt(expected) else null,

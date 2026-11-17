@@ -43,7 +43,7 @@
                 analysis: $ctx.task.resolved,
                 constant_values: $in.input.constant_values,
                 binding_types: $in.input.binding_types,
-                alias_types: $in.input.alias_types,
+                check_aliases: true,
                 expected: $in.input.expected,
                 check_bindings: $in.analysis.program
             }}

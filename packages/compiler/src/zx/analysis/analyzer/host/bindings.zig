@@ -4,18 +4,6 @@ const FunctionImport = @import("../../../modules/function_import.zig");
 const StoreBinding = @import("../../analyze.zig").StoreBinding;
 const model = @import("model.zig");
 
-pub fn aliases(allocator: std.mem.Allocator, values: []const ir.Export) std.mem.Allocator.Error!model.Aliases {
-    const names = try allocator.alloc([]const u8, values.len);
-    const ids = try allocator.alloc(u32, values.len);
-
-    for (values, names, ids) |value, *name, *id| {
-        name.* = value.name;
-        id.* = @backingInt(value.type_id);
-    }
-
-    return .{ .names = names, .ids = ids };
-}
-
 pub fn imports(allocator: std.mem.Allocator, values: []const FunctionImport) std.mem.Allocator.Error!model.FunctionImports {
     const namespaces = try allocator.alloc(?[]const u8, values.len);
     const names = try allocator.alloc([]const u8, values.len);

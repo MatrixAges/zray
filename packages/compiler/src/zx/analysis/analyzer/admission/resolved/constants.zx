@@ -1,4 +1,5 @@
 import valid from "../../../constants/valid"
+import findAlias from "../../../semantic/resolving/alias"
 import declared from "./declared"
 import { DeclarationKind } from "./model"
 
@@ -34,6 +35,10 @@ export default function (in: Input): Output {
         return false
     }
 
+    const { aliases } = in
+
+    const alias_count = aliases.row_count + aliases.names.length
+
     return loop({
         input: in,
         names: constants.names,
@@ -52,21 +57,14 @@ export default function (in: Input): Output {
                 kind: DeclarationKind.Constant
             })
 
-            const matching = loop({
-                names: current.input.aliases.names,
-                name,
-                index: 0,
-                found: false
-            }, {
-                while: alias => !alias.found && alias.index < alias.names.length,
-                next: alias => {
-                    alias.found = alias.names[alias.index] == alias.name
-                    alias.index += 1
-                },
-                return: state => state.found
-            })
+            if (current.valid) {
+                current.valid = findAlias({
+                    aliases,
+                    name,
+                    end: alias_count
+                }) == null
+            }
 
-            current.valid = current.valid && !matching
             current.index += 1
         },
         return: state => state.valid

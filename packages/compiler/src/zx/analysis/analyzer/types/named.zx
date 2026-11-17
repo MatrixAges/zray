@@ -1,5 +1,6 @@
 import integers from "std:integer"
 
+import findAlias from "../../semantic/resolving/alias"
 import builtin from "../../semantic/resolving/builtin"
 import lookup from "../../semantic/resolving/lookup"
 
@@ -36,11 +37,20 @@ export default function (in: Input): Output {
         })
     }
 
-    return match {
-        resolved.found => resolved,
-        _ => lookup({
-            cache: in.types.context.aliases,
-            name: in.name
-        })
+    if (resolved.found) {
+        return resolved
+    }
+
+    const aliases = in.types.context.aliases
+
+    const candidate = findAlias({
+        aliases,
+        name: in.name,
+        end: aliases.row_count + aliases.names.length
+    })
+
+    return {
+        found: candidate != null,
+        id: candidate ?? 0
     }
 }

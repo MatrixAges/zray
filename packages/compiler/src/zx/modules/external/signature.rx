@@ -19,6 +19,8 @@
                 native: null,
                 type_base: $in.input.type_base,
                 aliases: {
+                    rows: null,
+                    row_count: 0,
                     names: [],
                     ids: []
                 },

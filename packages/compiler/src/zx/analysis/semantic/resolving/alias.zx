@@ -1,0 +1,38 @@
+import idAt from "./alias_id"
+import nameAt from "./alias_name"
+
+import type { Aliases } from "./model"
+
+export type Input = {
+    aliases: Aliases,
+    name: string,
+    end: u64
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { aliases, name, end } = in
+
+    const id: u32? = null
+
+    return loop({
+        row: 0,
+        id
+    }, {
+        while: state => state.id == null && state.row < end,
+        next: state => {
+            const item = {
+                aliases,
+                row: state.row
+            }
+
+            if (nameAt(item) == name) {
+                state.id = idAt(item)
+            }
+
+            state.row += 1
+        },
+        return: state => state.id
+    })
+}

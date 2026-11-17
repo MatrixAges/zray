@@ -49,6 +49,8 @@
                         ids: []
                     },
                     aliases: {
+                        rows: null,
+                        row_count: 0,
                         names: [],
                         ids: []
                     },

@@ -14,15 +14,18 @@ export type Input = {
 export type Output = ContractWork
 
 export default function (in: Input): Output {
+    const aliases = in.state.types.context.aliases
+
     return {
         state: in.state,
         source: in.source,
         items: in.items,
         aliases: match {
-            in.items.length == 0 => in.state.types.context.aliases,
+            in.items.length == 0 => aliases,
             _ => {
-                names: in.state.types.context.aliases.names.concat(in.names)[0],
-                ids: in.state.types.context.aliases.ids.concat(in.types)[0]
+                ...aliases,
+                names: aliases.names.concat(in.names)[0],
+                ids: aliases.ids.concat(in.types)[0]
             }
         },
         contracts: {

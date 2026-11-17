@@ -40,7 +40,7 @@
                         in={{
                             analysis: $ctx.values,
                             binding_types: [],
-                            alias_types: [],
+                            check_aliases: false,
                             expected: $in.input.expected,
                             check_bindings: true
                         }}

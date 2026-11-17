@@ -26,7 +26,8 @@ pub fn analyzeNative(analyzer: *Context, source: []const u8, program: zx.ast.Pro
 
 fn run(analyzer: *Context, arena: *zx.Arena, source: []const u8, syntax: @FieldType(model.Input, "syntax"), native: @FieldType(model.Input, "native"), file_name: []const u8) zx.Error!zx.ir.Program {
     const prepared = try Input.init(arena.allocator(), analyzer);
-    const context = prepared.context(analyzer);
+    const aliases = prepared.aliases.view(model.Aliases);
+    const context = prepared.context(analyzer, &aliases);
 
     const input = model.Input{
         .bytes = source,

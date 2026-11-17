@@ -1,5 +1,8 @@
 import integers from "std:integer"
 
+import findAlias from "../../../semantic/resolving/alias"
+import aliasId from "../../../semantic/resolving/alias_id"
+import aliasName from "../../../semantic/resolving/alias_name"
 import declared from "./declared"
 import { DeclarationKind } from "./model"
 
@@ -10,20 +13,27 @@ export type Input = Request
 export type Output = bool
 
 export default function (in: Input): Output {
+    const { aliases } = in
+
+    const count = aliases.row_count + aliases.names.length
+
     return loop({
         input: in,
         index: 0,
         valid: true
     }, {
         while: current =>
-            current.valid && current.index < current.input.aliases.names.length,
+            current.valid && current.index < count,
         next: current => {
-            const name = current.input.aliases.names[current.index]
+            const row = {
+                aliases,
+                row: current.index
+            }
+            const name = aliasName(row)
+            const id = integers.widen(aliasId(row))
 
             current.valid =
-                integers.widen(
-                    current.input.aliases.ids[current.index]
-                ) < current.input.table.kinds.length &&
+                id < current.input.table.kinds.length &&
                 declared({
                     source_text: current.input.source_text,
                     native: current.input.native,
@@ -33,22 +43,11 @@ export default function (in: Input): Output {
                 })
 
             if (current.valid) {
-                current.valid = loop({
-                    names: current.input.aliases.names,
-                    limit: current.index,
+                current.valid = findAlias({
+                    aliases,
                     name,
-                    index: 0,
-                    valid: true
-                }, {
-                    while: previous =>
-                        previous.valid && previous.index < previous.limit,
-                    next: previous => {
-                        previous.valid =
-                            previous.names[previous.index] != previous.name
-                        previous.index += 1
-                    },
-                    return: state => state.valid
-                })
+                    end: current.index
+                }) == null
             }
 
             current.index += 1

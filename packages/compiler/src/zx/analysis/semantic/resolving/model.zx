@@ -1,4 +1,5 @@
 import type { Table } from "core/type_table/model"
+import type { NamedRows } from "memory"
 import type { Source, Name, Reference } from "./source/model"
 
 export enum Operation {
@@ -17,6 +18,13 @@ export type Cache = {
     ids: u32[]
 }
 
+export type Aliases = {
+    rows?: NamedRows,
+    row_count: u64,
+    names: string[],
+    ids: u32[]
+}
+
 export type Diagnostic = {
     code: string,
     message: string,
@@ -28,7 +36,7 @@ export type Context = {
     source: Source,
     base: Table,
     resolved: Cache,
-    aliases: Cache,
+    aliases: Aliases,
     visiting: string[],
     native_interface: bool
 }

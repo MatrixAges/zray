@@ -46,22 +46,15 @@ fn run(types: *Types, arena: *zx.Arena, source: []const u8, syntax: @FieldType(D
         .member = if (origin == .external) origin.external.member else "",
     };
 
-    const names = try allocator.alloc([]const u8, types.aliases.len);
-    const ids = try allocator.alloc(u32, types.aliases.len);
-
-    for (types.aliases, names, ids) |alias, *name, *id| {
-        name.* = alias.name;
-        id.* = @backingInt(alias.type_id);
-    }
-
-    const aliases: std.meta.Child(@FieldType(Declarations, "aliases")) = .{ .names = names, .ids = ids };
+    const aliases = @import("../../analysis/semantic/resolving/host/aliases.zig").borrow(types.aliases);
+    const alias_view = aliases.view(std.meta.Child(@FieldType(Declarations, "aliases")));
 
     const declarations = Declarations{
         .bytes = source,
         .syntax = syntax,
         .native = native,
         .type_base = &type_base,
-        .aliases = &aliases,
+        .aliases = &alias_view,
         .nominal_base = &nominal_base,
         .nominal_origin = &nominal_origin,
         .shared = types.shared != null,

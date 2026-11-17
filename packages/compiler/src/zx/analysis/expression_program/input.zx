@@ -2,6 +2,7 @@ import type { Values } from "core/constant/model"
 import type { Table } from "core/type_table/model"
 import type { Expression } from "../../frontend/parser/syntax/model"
 import type { NativeModule } from "../analyzer/source/model"
+import type { Aliases } from "../semantic/resolving/model"
 
 export enum Mode {
     Expression,
@@ -17,8 +18,7 @@ export type CompileInput = {
     constant_values?: Values
     binding_names: string[]
     binding_types: u32[]
-    alias_names: string[]
-    alias_types: u32[]
+    aliases: Aliases
     unit_bindings: string[]
     nonnull_bindings: string[]
     expected?: u32

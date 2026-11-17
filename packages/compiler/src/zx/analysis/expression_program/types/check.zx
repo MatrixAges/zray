@@ -1,6 +1,7 @@
 import integers from "std:integer"
 
 import constants from "../../constants/valid"
+import aliasId from "../../semantic/resolving/alias_id"
 
 import type { Values } from "core/constant/model"
 import type { Analysis } from "../model"
@@ -9,7 +10,7 @@ export type Input = {
     analysis: Analysis,
     constant_values?: Values,
     binding_types: u32[],
-    alias_types: u32[],
+    check_aliases: bool,
     expected?: u32,
     check_bindings: bool
 }
@@ -25,16 +26,19 @@ export default function (in: Input): Output {
         in.analysis.state.types.context.base.kinds.length +
         in.analysis.state.types.delta.kinds.length
 
+    const aliases = in.analysis.state.types.context.aliases
+    const alias_count = in.check_aliases ? aliases.row_count + aliases.names.length : 0
+
     const aliases_valid = loop({
-        types: in.alias_types,
-        count,
         index: 0,
         valid: true
     }, {
-        while: current => current.valid && current.index < current.types.length,
+        while: current => current.valid && current.index < alias_count,
         next: current => {
-            current.valid =
-                integers.widen(current.types[current.index]) < current.count
+            current.valid = integers.widen(aliasId({
+                aliases,
+                row: current.index
+            })) < count
             current.index += 1
         },
         return: state => state.valid

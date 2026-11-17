@@ -7,17 +7,22 @@ export type Input = State
 export type Output = State
 
 export default function (in: Input): Output {
+    const aliases = in.context.aliases
+
+    const count = aliases.row_count + aliases.names.length
+
     return loop({
         state: in,
         index: 0
     }, {
         while: current =>
-            current.index < current.state.context.aliases.names.length &&
+            current.index < count &&
             current.state.diagnostic.message == "",
         next: current => {
             current.state = imported({
                 state: current.state,
-                index: current.index
+                index: current.index,
+                aliases
             })
             current.index += 1
         },

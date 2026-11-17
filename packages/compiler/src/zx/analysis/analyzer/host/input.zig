@@ -2,12 +2,13 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Context = @import("context.zig");
 const Origins = @import("../../../modules/nominal_origins.zig");
+const AliasRows = @import("../../semantic/resolving/host/aliases.zig");
 const bindings = @import("bindings.zig");
 const model = @import("model.zig");
 const Self = @This();
 
 types: model.Types,
-aliases: model.Aliases,
+aliases: AliasRows.Rows,
 constants: model.Constants,
 origins: model.Origins,
 origin: model.Origin,
@@ -21,7 +22,7 @@ pub fn init(allocator: std.mem.Allocator, analyzer: *const Context) std.mem.Allo
 
     return .{
         .types = ir.TypeTable.borrow(model.Types, analyzer.base_types),
-        .aliases = try bindings.aliases(allocator, analyzer.aliases),
+        .aliases = AliasRows.borrow(analyzer.aliases),
         .constants = try @import("../../constants/input.zig").marshal(std.meta.Child(@typeInfo(model.Constants).optional.child), allocator, analyzer.constant_imports),
         .origins = Origins.Table.borrow(model.Origins, analyzer.base_origins),
         .origin = .{
@@ -44,7 +45,7 @@ pub fn init(allocator: std.mem.Allocator, analyzer: *const Context) std.mem.Allo
     };
 }
 
-pub fn context(self: *const Self, analyzer: *const Context) model.Context {
+pub fn context(self: *const Self, analyzer: *const Context, alias_view: *const model.Aliases) model.Context {
     return .{
         .mode = switch (analyzer.mode) {
             .standalone => .Standalone,
@@ -52,7 +53,7 @@ pub fn context(self: *const Self, analyzer: *const Context) model.Context {
             .project => .Project,
         },
         .type_base = &self.types,
-        .aliases = &self.aliases,
+        .aliases = alias_view,
         .constant_imports = self.constants,
         .nominal_base = &self.origins,
         .nominal_names = analyzer.base_origins.names,

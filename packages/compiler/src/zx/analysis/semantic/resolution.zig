@@ -4,7 +4,6 @@ const Types = @import("../types.zig");
 const generated = @import("generated_type_resolution");
 const model = @import("resolving/host/model.zig");
 const Source = @import("resolving/host/source.zig");
-const Snapshot = @import("resolving/host/snapshot.zig");
 const Origins = @import("../../modules/nominal_origins.zig");
 
 pub fn Request(comptime View: type) type {
@@ -25,15 +24,22 @@ pub fn execute(types: *Types, view: anytype, request: Request(@TypeOf(view))) zx
 
     try source.init(allocator, view, request.node);
 
-    const snapshot = try Snapshot.init(allocator, types);
     const base = zx.ir.TypeTable.borrow(model.Table, types.items.view());
+    const Aliases = std.meta.Child(@FieldType(model.Context, "aliases"));
+    const aliases = @import("resolving/host/aliases.zig").borrow(types.aliases);
+    const alias_view = aliases.view(Aliases);
+
+    const resolved: model.Cache = .{
+        .names = types.resolved.keys(),
+        .ids = @ptrCast(types.resolved.values()),
+    };
 
     const context: model.Context = .{
         .source = &source.value,
         .base = &base,
-        .resolved = &snapshot.resolved,
-        .aliases = &snapshot.aliases,
-        .visiting = snapshot.visiting,
+        .resolved = &resolved,
+        .aliases = &alias_view,
+        .visiting = types.visiting.keys(),
         .native_interface = types.native_interface,
     };
 

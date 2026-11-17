@@ -4,6 +4,7 @@ import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
 import { ImportKind } from "../../../../frontend/parser/imports/model"
+import findAlias from "../../../semantic/resolving/alias"
 import importName from "../../source/import_name"
 import localName from "./local_name"
 
@@ -124,47 +125,26 @@ export default function (in: Input): Output {
                                     _ => null
                                 }
 
-                            const matched = loop({
-                                input: names.input,
+                            const aliases = names.input.aliases
+                            const candidate = findAlias({
+                                aliases,
                                 name,
-                                kind: names.item.kind,
-                                index: 0,
-                                found: false,
-                                valid: true
-                            }, {
-                                while: alias =>
-                                    alias.valid && !alias.found &&
-                                    alias.index <
-                                    alias.input.aliases.names.length,
-                                next: alias => {
-                                    if (
-                                        alias.input.aliases.names[alias.index] ==
-                                            alias.name
-                                    ) {
-                                        alias.found = true
-                                        alias.valid =
-                                            alias.kind !=
-                                            ImportKind.Enumeration ||
-                                            kind(
-                                                alias.input.table
-                                                    .kinds[integers
-                                                        .widen(
-                                                            alias.input.aliases
-                                                                .ids[alias
-                                                                    .index]
-                                                        )]
-                                            ) == Kind.Enumeration
-                                    }
-
-                                    alias.index += 1
-                                }
+                                end: aliases.row_count + aliases.names.length
                             })
 
-                            names.valid =
-                                value != null ||
-                                (
-                                    matched.found && matched.valid
-                                )
+                            names.valid = match {
+                                value != null => true,
+                                candidate == null => false,
+                                names.item.kind != ImportKind.Enumeration => true,
+                                _ => kind(
+                                    names.input.table
+                                        .kinds[
+                                            integers.widen(
+                                                candidate
+                                            )
+                                        ]
+                                ) == Kind.Enumeration
+                            }
                         }
 
                         names.index += 1
