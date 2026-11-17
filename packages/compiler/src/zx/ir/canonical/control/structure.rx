@@ -1,7 +1,7 @@
 <Module>
-    <Type from="../body/tree" as="Tree" />
+    <Type from="../body/workspace" as="Workspace" />
 
-    <Args in={Tree.Input} out={bool} />
+    <Args in={Workspace.Input} out={bool} />
 
     <Call fn="validate" in={$in.control} />
 
@@ -9,7 +9,7 @@
         <Return value={false} />
     </If>
 
-    <Call fn="../body/tree" in={$in} />
+    <Call fn="../body/workspace" in={$in} />
 
-    <Return value={$ctx.tree} />
+    <Return value={$ctx.workspace} />
 </Module>

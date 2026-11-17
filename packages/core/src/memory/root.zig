@@ -186,6 +186,46 @@ pub inline fn writeU32(target: *const anyopaque, index: u64, value: u32) error{I
     return write(u32, target, index, value);
 }
 
+pub inline fn u32BufferLength(source: *const anyopaque) u64 {
+    const view: *const []u32 = @ptrCast(@alignCast(source));
+
+    return view.len;
+}
+
+pub inline fn clearU32Buffer(target: *const anyopaque, count: u64) error{IndexOutOfBounds}!void {
+    const view: *const []u32 = @ptrCast(@alignCast(target));
+
+    if (count > view.len) return error.IndexOutOfBounds;
+
+    @memset(view.*[0..@intCast(count)], 0);
+}
+
+pub const U32Scratch = struct {
+    allocator: std.mem.Allocator,
+    items: []u32 = &.{},
+    backing: std.ArrayList(u32) = .empty,
+    pub fn borrow(self: *U32Scratch, comptime View: type, precise: bool) View {
+        return .{ .depths = @ptrCast(&self.items), .scratch = @ptrCast(self), .precise = precise };
+    }
+
+    pub fn deinit(self: *U32Scratch) void {
+        self.backing.deinit(self.allocator);
+    }
+};
+
+pub fn growU32Scratch(scratch: *const anyopaque, count: u64, precise: bool) std.mem.Allocator.Error!void {
+    const workspace: *U32Scratch = @ptrCast(@alignCast(@constCast(scratch)));
+    const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
+
+    if (precise) {
+        try workspace.backing.ensureTotalCapacityPrecise(workspace.allocator, length);
+    } else {
+        try workspace.backing.ensureTotalCapacity(workspace.allocator, length);
+    }
+
+    workspace.items = workspace.backing.allocatedSlice();
+}
+
 pub fn allocateU32Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
     const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));

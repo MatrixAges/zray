@@ -10,6 +10,7 @@ pub fn Storage(comptime Input: type) type {
     const Context = std.meta.Child(@FieldType(Input, "context"));
     const Unit = std.meta.Child(@FieldType(Input, "unit"));
     const Body = std.meta.Child(@FieldType(Unit, "body"));
+    const Workspace = std.meta.Child(@FieldType(Context, "workspace"));
     const Prefix = std.meta.Child(@typeInfo(@FieldType(Context, "verified_types")).optional.child);
 
     return struct {
@@ -20,13 +21,15 @@ pub fn Storage(comptime Input: type) type {
         prefix: Prefix,
         body: Body,
         context: Context,
+        depths: zx.memory.U32Scratch,
+        workspace: Workspace,
         unit: Unit,
         export_rows: names.Rows,
         exports: std.meta.Child(@FieldType(Input, "exports")),
         constant_rows: Rows,
         constants: std.meta.Child(@typeInfo(@FieldType(Input, "constant_exports")).optional.child),
         input: Input,
-        pub fn init(self: *Self, program: *const ir.Program, verified: Verified) void {
+        pub fn init(self: *Self, temporary: std.mem.Allocator, program: *const ir.Program, verified: Verified) void {
             self.table = ir.TypeTable.borrow(@TypeOf(self.table), program.types);
             self.functions = @import("../functions/input.zig").view(@TypeOf(self.functions), program.functions);
 
@@ -36,6 +39,9 @@ pub fn Storage(comptime Input: type) type {
                 .fields = value.fields,
                 .names = value.names,
             };
+
+            self.depths = .{ .allocator = temporary };
+            self.workspace = self.depths.borrow(Workspace, false);
 
             self.context = .{
                 .table = &self.table,
@@ -47,6 +53,7 @@ pub fn Storage(comptime Input: type) type {
                 .verified = verified.functions,
                 .verified_types = if (verified.types != null) &self.prefix else null,
                 .verified_native = verified.native,
+                .workspace = &self.workspace,
             };
 
             self.body = .{

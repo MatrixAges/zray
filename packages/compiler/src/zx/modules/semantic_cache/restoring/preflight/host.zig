@@ -12,11 +12,17 @@ const Dependencies = std.meta.Child(@FieldType(Input, "dependencies"));
 const Columns = std.meta.Child(@FieldType(Dependencies, "previous"));
 const Header = std.meta.Child(@FieldType(Columns, "header"));
 const Control = std.meta.Child(@typeInfo(@FieldType(Input, "control")).optional.child);
+const Workspace = std.meta.Child(@FieldType(Control, "workspace"));
 
 pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, decoded: bool) std.mem.Allocator.Error!bool {
     const previous_modules = zx.columns.columns(Modules, module.native_modules);
     const current_modules = zx.columns.columns(Modules, current.native_modules);
     const previous_signatures = zx.columns.columns(Signatures, module.functions);
+    var depths: zx.memory.U32Scratch = .{ .allocator = temporary };
+
+    defer depths.deinit();
+
+    const workspace = depths.borrow(Workspace, true);
     var control: Control = undefined;
     const unchecked = if (decoded) null else if (module.function) |*body| body else null;
 
@@ -24,6 +30,7 @@ pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, curre
         control = .{
             .control = zx.columns.pointer(@FieldType(Control, "control"), body.body.control),
             .root = if (body.body.root) |root| @backingInt(root) else null,
+            .workspace = &workspace,
         };
     }
 

@@ -24,7 +24,8 @@ export default function (in: Input): Output {
 
             current.valid = check({
                 unit,
-                max_offset: current.context.max_offset
+                max_offset: current.context.max_offset,
+                workspace: current.context.workspace
             })
             current.index += 1
         },

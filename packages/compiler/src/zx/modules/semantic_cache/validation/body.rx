@@ -7,7 +7,8 @@
         module="../../../ir/canonical/body/structure"
         in={$in.pick([
             "body",
-            "max_offset"
+            "max_offset",
+            "workspace"
         ])}
     />
 

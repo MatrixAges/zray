@@ -1,78 +1,55 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import walk from "./walk"
 
-import type { Input as Tree } from "./tree"
+import type { Control } from "core/control_table/model"
+import type { U32Buffer, U32Scratch } from "memory"
 
-export type Input = Tree & {
-    depths: u32[]
+export type Workspace = {
+    depths: U32Buffer,
+    scratch: U32Scratch,
+    precise: bool
 }
 
-export type Output = {
-    valid: bool,
-    depths: u32[],
-    needed: u64
+export type Input = {
+    control: Control,
+    root?: u32,
+    workspace: Workspace
 }
+
+export type Output = bool
 
 export default function (in: Input): Output {
-    const { depths, control } = in
+    const { control, workspace } = in
+    const { depths, scratch, precise } = workspace
 
     const count = control.block_first.length
     const block = in.root
 
-    const idle: Output = {
-        valid: false,
-        depths,
-        needed: 0
-    }
-
     if (block == null) {
-        return {
-            ...idle,
-            valid: count == 0
-        }
+        return count == 0
     }
 
     const root = integers.widen(block)
 
     if (root >= count) {
-        return idle
+        return false
     }
 
     if (count == 1) {
-        return {
-            ...idle,
-            valid: true
-        }
+        return true
     }
 
-    if (count > depths.length) {
-        return {
-            ...idle,
-            needed: count
-        }
+    if (count > memory.u32BufferLength(depths)) {
+        memory.growU32Scratch(scratch, count, precise)
     }
 
-    const cleared = loop({
-        index: 0,
-        depths
-    }, {
-        while: state => state.index < count,
-        next: state => {
-            state.depths[state.index] = 0
-            state.index += 1
-        },
-        return: state => state.depths
-    })
+    memory.clearU32Buffer(depths, count)
 
-    const result = walk({
+    return walk({
         control,
         root,
-        depths: cleared
+        depths
     })
-
-    return {
-        ...result,
-        needed: 0
-    }
 }

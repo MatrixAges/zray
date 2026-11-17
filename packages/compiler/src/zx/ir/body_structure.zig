@@ -1,5 +1,6 @@
 const std = @import("std");
 const options = @import("parser_options");
+const memory = @import("zx").memory;
 const borrow = @import("canonical/borrow.zig");
 
 pub fn valid(allocator: std.mem.Allocator, value: anytype) std.mem.Allocator.Error!bool {
@@ -16,7 +17,16 @@ pub fn valid(allocator: std.mem.Allocator, value: anytype) std.mem.Allocator.Err
 
         defer arena.deinit();
 
-        return generated.execute(&arena, &.{ .body = &body, .max_offset = std.math.maxInt(usize) }) catch |err| switch (err) {
+        const Workspace = std.meta.Child(@FieldType(Input, "workspace"));
+        var scratch: memory.U32Scratch = .{ .allocator = arena.allocator() };
+
+        defer scratch.deinit();
+
+        return generated.execute(&arena, &.{
+            .body = &body,
+            .max_offset = std.math.maxInt(usize),
+            .workspace = &scratch.borrow(Workspace, true),
+        }) catch |err| switch (err) {
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             else => return false,
         };

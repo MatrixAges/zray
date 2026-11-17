@@ -8,34 +8,28 @@ import write from "./write"
 import type { Input, Output } from "./source_model"
 
 export default function (in: Input): Output {
-    const { source, target, mappings, max_offset, progress, empty } = in
+    const { source, target, mappings, max_offset, progress, empty, workspace } = in
 
     const end = source.files.length
 
     const result = loop({
-        row: in.start,
+        row: 0,
         columns: target,
-        depths: in.depths,
-        needed: 0,
         valid: true
     }, {
         while: state => state.valid && state.row < end,
         next: state => {
             const row = state.row
 
-            const linked = link(read({
+            const value = link(read({
                 source,
                 mappings,
                 row,
-                depths: state.depths,
+                workspace,
                 max_offset
             }))
 
-            state.depths = linked.depths
-            state.needed = linked.needed
-            state.valid = linked.function != null
-
-            const value = linked.function
+            state.valid = value != null
 
             if (value != null) {
                 state.columns = write({
@@ -65,7 +59,6 @@ export default function (in: Input): Output {
 
     return {
         columns: result.columns,
-        depths: result.depths,
-        needed: result.needed
+        valid: result.valid
     }
 }

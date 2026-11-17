@@ -1,10 +1,12 @@
 <Module>
     <Type from="references/control" as="Control" />
+    <Type from="workspace" as="Workspace" />
 
     <Args
         in={{
             body: Control.Input,
-            max_offset: u64
+            max_offset: u64,
+            workspace: Workspace.Workspace
         }}
         out={bool}
     />
@@ -47,7 +49,8 @@
         module="../control/structure"
         in={{
             control: $in.body.control,
-            root: $in.body.root
+            root: $in.body.root,
+            workspace: $in.workspace
         }}
     />
 

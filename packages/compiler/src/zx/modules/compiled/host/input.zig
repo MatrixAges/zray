@@ -28,7 +28,7 @@ selection_modules: memory.TextColumn,
 type_ids: []u32,
 input: Input,
 pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: ?load.Destination, seed: bool, selected: ?[]const model.PublicReference) std.mem.Allocator.Error!void {
-    self.program.init(&graph.program, .{});
+    self.program.init(allocator, &graph.program, .{});
 
     self.origins = Origins.Table.borrow(@TypeOf(self.origins), graph.nominal_types);
     self.exports = try @import("input/exports.zig").columns(@TypeOf(self.exports), allocator, graph.exports, &self.paths);

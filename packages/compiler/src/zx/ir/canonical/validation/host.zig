@@ -12,7 +12,7 @@ pub fn verify(allocator: std.mem.Allocator, program: *const ir.Program, verified
 
     var storage: Storage = undefined;
 
-    storage.init(program, verified);
+    storage.init(arena.allocator(), program, verified);
 
     const input: *const @TypeOf(storage.input) = &storage.input;
 

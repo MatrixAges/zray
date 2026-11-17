@@ -3,35 +3,17 @@
 
     <Args in={Source.Row} out={Source.Link} />
 
-    <Call fn="../../../../ir/canonical/control/validate" in={$in.control} />
-
-    <If on={!$ctx.validate}>
-        <Return
-            value={{
-                function: null,
-                depths: $in.depths,
-                needed: 0
-            }}
-        />
-    </If>
-
     <Call
-        fn="../../../../ir/canonical/body/workspace"
+        module="../../../../ir/canonical/control/structure"
         in={$in.pick([
             "control",
             "root",
-            "depths"
+            "workspace"
         ])}
     />
 
-    <If on={!$ctx.workspace.valid}>
-        <Return
-            value={{
-                function: null,
-                depths: $ctx.workspace.depths,
-                needed: $ctx.workspace.needed
-            }}
-        />
+    <If on={!$ctx.structure}>
+        <Return value={null} />
     </If>
 
     <Call
@@ -43,11 +25,5 @@
         }}
     />
 
-    <Return
-        value={{
-            function: $ctx.own_function,
-            depths: $ctx.workspace.depths,
-            needed: 0
-        }}
-    />
+    <Return value={$ctx.own_function} />
 </Module>

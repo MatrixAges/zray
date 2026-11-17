@@ -1,5 +1,6 @@
 export type U8Buffer = opaque
 export type U32Buffer = opaque
+export type U32Scratch = opaque
 export type U64Buffer = opaque
 export type OptionalU32Buffer = opaque
 export type StringBuffer = opaque
@@ -50,6 +51,19 @@ export declare function refreshOptionalU32View(
     target: OptionalU32Buffer,
     source: OptionalU32Buffer
 ): void
+
+export declare function u32BufferLength(source: U32Buffer): u64
+
+export declare function clearU32Buffer(
+    target: U32Buffer,
+    count: u64
+): void throws { IndexOutOfBounds }
+
+export declare function growU32Scratch(
+    scratch: U32Scratch,
+    count: u64,
+    precise: bool
+): void throws { OutOfMemory }
 
 export declare function borrowU8Range(
     source: u8[],

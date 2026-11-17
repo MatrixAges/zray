@@ -1,6 +1,6 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/signature_table/model"
-import type { Input as Control } from "../../../../ir/canonical/body/tree"
+import type { Input as Control } from "../../../../ir/canonical/body/workspace"
 import type { Records } from "../dependencies/model"
 
 export type Input = {

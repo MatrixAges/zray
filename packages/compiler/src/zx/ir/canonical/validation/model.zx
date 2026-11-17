@@ -6,6 +6,7 @@ import type { Modules } from "core/native_module_table/model"
 import type { Ownership } from "core/symbol_table/model"
 import type { Table } from "core/type_table/model"
 import type { Prefix } from "../../../analysis/semantic/types/validation/shape"
+import type { Workspace } from "../body/workspace"
 import type { Rows } from "./names/model"
 
 export type Context = {
@@ -17,7 +18,8 @@ export type Context = {
     maximum_count: u64,
     verified: u64,
     verified_types?: Prefix,
-    verified_native: bool
+    verified_native: bool,
+    workspace: Workspace
 }
 
 export type Unit = {

@@ -11,6 +11,7 @@ const Columns = @FieldType(Input, "target");
 const Mappings = std.meta.Child(@FieldType(Input, "mappings"));
 const Mapping = std.meta.Child(@FieldType(Mappings, "types"));
 const Empty = std.meta.Child(@FieldType(Input, "empty"));
+const Workspace = std.meta.Child(@FieldType(Input, "workspace"));
 const stack_depth_slots = 2048 / @sizeOf(u32);
 
 pub fn appendOne(nodes: *const Nodes, storage: *ir.FunctionStorage, function: *const ir.Function, temporary: std.mem.Allocator) Error!void {
@@ -63,6 +64,10 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.Func
     const types = remap.typeMapping(Mapping, nodes.types);
     const functions = remap.idMapping(Mapping, nodes.functions);
     const natives = remap.idMapping(Mapping, nodes.native_modules);
+    var fixed: [stack_depth_slots]u32 = undefined;
+    var scratch: zx.memory.U32Scratch = .{ .allocator = temporary, .items = &fixed };
+
+    defer scratch.deinit();
 
     const input: Input = .{
         .source = columns.borrow(@FieldType(Input, "source"), source, false),
@@ -72,37 +77,19 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.Func
             .control = zx.columns.pointer(@FieldType(Empty, "control"), (ir.ControlBody{}).control),
             .stores = zx.columns.pointer(@FieldType(Empty, "stores"), &ir.FunctionStorage.empty_stores),
         },
-        .depths = undefined,
-        .start = 0,
+        .workspace = &scratch.borrow(Workspace, false),
         .max_offset = std.math.maxInt(usize),
         .progress = @ptrCast(&progress),
     };
 
-    var fixed: [stack_depth_slots]u32 = undefined;
-    var dynamic: std.ArrayList(u32) = .empty;
+    const output = generated.executeState(nodes.allocator, input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
 
-    defer dynamic.deinit(temporary);
+    columns.checkBorrow(target, output.columns);
 
-    var depths: []u32 = &fixed;
+    if (!output.valid) return error.InvalidModule;
 
-    while (true) {
-        var request = input;
-
-        request.start = completed[0];
-        request.depths = .{ .items = depths, .storage = .owned };
-
-        const output = generated.executeState(nodes.allocator, request) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
-
-        columns.checkBorrow(target, output.columns);
-        std.debug.assert(output.depths.items.ptr == depths.ptr);
-
-        if (completed[0] == count) return;
-        if (output.needed == 0) return error.InvalidModule;
-        try dynamic.ensureTotalCapacity(temporary, @intCast(output.needed));
-
-        depths = dynamic.allocatedSlice();
-    }
+    std.debug.assert(completed[0] == count);
 }

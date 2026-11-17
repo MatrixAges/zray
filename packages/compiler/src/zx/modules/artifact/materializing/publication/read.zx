@@ -1,12 +1,12 @@
 import type { Output as External } from "../copy_external"
 import type { Input as Batch, Row as Output } from "./source_model"
 
-export type Input = Batch.Pick("source", "mappings", "depths", "max_offset") & {
+export type Input = Batch.Pick("source", "mappings", "workspace", "max_offset") & {
     row: u64
 }
 
 export default function (in: Input): Output {
-    const { source, mappings, row, depths, max_offset } = in
+    const { source, mappings, row, workspace, max_offset } = in
 
     const native_module = source.native_modules[row]
     const store_table = source.stores[row]
@@ -46,6 +46,6 @@ export default function (in: Input): Output {
         },
         root: source.roots[row],
         control: source.control[row],
-        depths
+        workspace
     }
 }
