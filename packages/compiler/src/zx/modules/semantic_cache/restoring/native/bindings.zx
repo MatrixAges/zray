@@ -1,17 +1,25 @@
 import integers from "std:integer"
+import memory from "memory"
 
+import readPorts from "../../../binding/read_ports"
 import shape from "../../../binding/shape"
 import { local_module } from "../../native_artifact/const"
 
 import type { Table } from "core/signature_table/model"
-import type { FunctionBinding } from "../../../binding/model"
+import type { ReadColumn, TextColumn } from "memory"
+import type { PortRows } from "../../../binding/model"
 import type { Declaration } from "./model"
+
+export type Rows = {
+    ports: PortRows,
+    names: TextColumn,
+    namespaces: ReadColumn
+}
 
 export type Input = {
     signatures: Table,
-    imports: FunctionBinding[],
-    declaration: Declaration,
-    first: u64
+    imports: Rows,
+    declaration: Declaration
 }
 
 export type Output = bool
@@ -19,37 +27,38 @@ export type Output = bool
 export default function (in: Input): Output {
     const count = in.signatures.files.length
 
-    if (in.first > count || in.imports.length > count - in.first) {
+    if (in.imports.ports.count != count) {
         return false
     }
 
-    const { signatures, imports, declaration, first } = in
+    const { signatures, imports, declaration } = in
 
     return loop({
         index: 0,
         valid: true
     }, {
-        while: current => current.valid && current.index < imports.length,
+        while: current => current.valid && current.index < count,
         next: current => {
-            const index = first + current.index
-            const binding = imports[current.index]
+            const index = current.index
+            const binding = readPorts({
+                source: imports.ports,
+                row: index
+            })
+
             const member = signatures.native_members[index]
             const module_id = signatures.native_modules[index]
             const namespace = declaration.namespace
             const input_type = binding.input_type ?? 0
             const output_type = binding.output_type ?? 0
 
-            const valid = shape(binding.omit([
-                "namespace",
-                "name"
-            ]))
+            const valid = shape(binding)
 
             const condition = match {
                 !valid => true,
                 binding.intrinsic != null => true,
                 signatures.files[index] != declaration.path => true,
                 integers.widen(binding.id ?? 0) != index => true,
-                binding.namespace != null => true,
+                memory.readOptionalTextColumn(imports.namespaces, index) != null => true,
                 input_type != signatures.input_types[index] => true,
                 _ => output_type != signatures.output_types[index]
             }
@@ -86,7 +95,7 @@ export default function (in: Input): Output {
 
                 current.valid =
                     same_namespace && member[namespace.length] == name &&
-                    binding.name == name
+                    memory.readTextColumn(imports.names, index) == name
             }
 
             current.index += 1

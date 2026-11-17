@@ -1,0 +1,29 @@
+<Module>
+    <Type from="bindings" as="Bindings" />
+    <Type from="request" as="Artifact" />
+
+    <Args
+        in={{
+            request: Artifact.Request,
+            imports: Bindings.Rows
+        }}
+        out={bool}
+    />
+
+    <Call module="eligible" in={$in.request} />
+
+    <If on={!$ctx.eligible}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="bindings"
+        in={{
+            declaration: $in.request.declaration,
+            signatures: $in.request.signatures,
+            imports: $in.imports
+        }}
+    />
+
+    <Return value={$ctx.bindings} />
+</Module>

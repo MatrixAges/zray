@@ -15,14 +15,6 @@ export default function (in: Input): Output {
         return false
     }
 
-    const function_ids = record.function_ids.length
-    const input_mismatch = record.function_inputs.length != function_ids
-    const output_mismatch = record.function_outputs.length != function_ids
-
-    if (input_mismatch || output_mismatch) {
-        return false
-    }
-
     const different_files = functions.files.length != count
     const different_input_types = functions.input_types.length != count
     const different_output_types = functions.output_types.length != count

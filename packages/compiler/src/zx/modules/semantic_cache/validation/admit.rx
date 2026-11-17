@@ -3,29 +3,49 @@
 
     <Args in={Artifact.Request} out={bool} />
 
-    <If on={$in.header != null}>
-        <If on={$in.expected_path != null}>
-            <Call
-                fn="../state/observe"
-                in={{
-                    path: $in.path,
-                    expected: $in.expected_path
-                }}
-            />
+    <If on={$in.expected_path != null}>
+        <Call
+            fn="../state/observe"
+            in={{
+                path: $in.path,
+                expected: $in.expected_path
+            }}
+        />
 
-            <If on={!$ctx.observe}>
-                <Return value={false} />
-            </If>
-        </If>
-
-        <Call module="header" in={$in.header} />
-
-        <If on={!$ctx.header}>
+        <If on={!$ctx.observe}>
             <Return value={false} />
         </If>
     </If>
 
-    <Call fn="binding" in={$in.bindings} />
+    <Call module="header" in={$in.header} />
+
+    <If on={!$ctx.header}>
+        <Return value={false} />
+    </If>
+
+    <Task name="imports" out={$ctx.binding}>
+        <Call
+            fn="binding"
+            in={{
+                bindings: $in.imports,
+                input_types: $in.header.tables.signatures.input_types,
+                output_types: $in.header.tables.signatures.output_types
+            }}
+        />
+    </Task>
+
+    <If on={!$ctx.task.imports}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="binding"
+        in={{
+            bindings: $in.members,
+            input_types: $in.header.tables.signatures.input_types,
+            output_types: $in.header.tables.signatures.output_types
+        }}
+    />
 
     <If on={!$ctx.binding}>
         <Return value={false} />

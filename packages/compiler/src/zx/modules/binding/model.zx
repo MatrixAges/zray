@@ -1,4 +1,4 @@
-import type { NamedRows, TextColumn } from "memory"
+import type { NamedRows, ReadColumn, TextColumn } from "memory"
 import type { Diagnostic } from "../../analysis/semantic/resolving/model"
 import type { Span } from "../../frontend/lexer/token_model"
 import type { ImportKind } from "../../frontend/parser/imports/model"
@@ -64,6 +64,14 @@ export type FunctionBinding = {
 }
 
 export type PortShape = FunctionBinding.Omit("namespace", "name")
+
+export type PortRows = {
+    id: ReadColumn,
+    input_type: ReadColumn,
+    output_type: ReadColumn,
+    intrinsic: ReadColumn,
+    count: u64
+}
 
 export type Result = {
     aliases: Bindings,

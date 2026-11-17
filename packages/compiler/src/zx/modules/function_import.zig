@@ -10,11 +10,9 @@ input_type: ?ir.TypeId = null,
 output_type: ?ir.TypeId = null,
 intrinsic: ?@import("intrinsic.zig").Operation = null,
 pub fn valid(self: @This()) bool {
-    return if (self.intrinsic != null)
-        self.id == null and self.input_type == null and self.output_type == null
+    if (self.intrinsic != null) return self.id == null and self.input_type == null and self.output_type == null;
 
-    else
-        self.id != null and self.input_type != null and self.output_type != null;
+    return self.id != null and self.input_type != null and self.output_type != null;
 }
 
 pub fn borrow(self: *const @This(), comptime Row: type) Row {
@@ -77,7 +75,11 @@ pub const Readable = struct {
         var result: Target = undefined;
 
         inline for (@typeInfo(Target).@"struct".field_names) |name| {
-            @field(result, name) = @ptrCast(&@field(self, name));
+            if (comptime std.mem.eql(u8, name, "count")) {
+                @field(result, name) = self.id.count;
+            } else {
+                @field(result, name) = @ptrCast(&@field(self, name));
+            }
         }
 
         return result;

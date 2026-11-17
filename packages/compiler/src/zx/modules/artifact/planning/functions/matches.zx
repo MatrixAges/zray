@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import type { PortRows } from "../../../binding/model"
+import type { Signatures } from "./model"
+
+export type Input = {
+    bindings: PortRows,
+    row: u64,
+    index: u64,
+    signatures: Signatures
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { bindings, row, index, signatures } = in
+
+    if (index >= signatures.inputs.length) {
+        return false
+    }
+
+    const input = memory.readColumnOptionalU32(bindings.input_type, row)
+    const output = memory.readColumnOptionalU32(bindings.output_type, row)
+
+    return input == signatures.inputs[index] && output == signatures.outputs[index]
+}

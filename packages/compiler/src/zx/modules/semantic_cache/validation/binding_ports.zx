@@ -2,10 +2,10 @@ import integers from "std:integer"
 
 import shape from "../../binding/shape"
 
-import type { FunctionBinding } from "../../binding/model"
+import type { PortShape } from "../../binding/model"
 
 export type Input = {
-    binding: FunctionBinding,
+    binding: PortShape,
     input_types: u32[],
     output_types: u32[]
 }
@@ -15,10 +15,7 @@ export type Output = bool
 export default function (in: Input): Output {
     const { binding, input_types, output_types } = in
 
-    if (!shape(binding.omit([
-        "namespace",
-        "name"
-    ]))) {
+    if (!shape(binding)) {
         return false
     }
 

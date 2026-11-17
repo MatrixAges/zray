@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { PortRows, PortShape } from "./model"
+
+export type Input = {
+    source: PortRows,
+    row: u64
+}
+
+export type Output = PortShape
+
+export default function (in: Input): Output {
+    const { source, row } = in
+
+    return {
+        id: memory.readColumnOptionalU32(source.id, row),
+        input_type: memory.readColumnOptionalU32(source.input_type, row),
+        output_type: memory.readColumnOptionalU32(source.output_type, row),
+        intrinsic: memory.readColumnOptionalU8(source.intrinsic, row)
+    }
+}

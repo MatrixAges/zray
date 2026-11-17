@@ -9,10 +9,25 @@
         <Return value={null} />
     </If>
 
+    <Task name="function_imports" out={$ctx.function_root}>
+        <Call
+            fn="function_root"
+            in={{
+                request: $in.request,
+                bindings: $in.request.record.function_imports
+            }}
+        />
+    </Task>
+
+    <If on={!$ctx.task.function_imports}>
+        <Return value={null} />
+    </If>
+
     <Call
         fn="function_root"
         in={{
-            request: $in.request
+            request: $in.request,
+            bindings: $in.request.record.function_exports
         }}
     />
 

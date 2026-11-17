@@ -25,7 +25,7 @@ pub fn execute(temporary: std.mem.Allocator, analysis: *const Analysis.Result, r
     const Projected = std.meta.Child(@FieldType(Source, "record"));
     var view: projection.View(Projected) = undefined;
 
-    try view.init(temporary, record);
+    view.init(record);
 
     const table = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "table")), program.types);
     const origins = Origins.Table.borrow(std.meta.Child(@FieldType(Input, "origins")), analysis.nominal_types);

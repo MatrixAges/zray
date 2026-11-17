@@ -2,6 +2,7 @@
     <Type from="../../../ir/canonical/validation/names/model" as="Names" />
     <Type from="model" as="PlanningModel" />
     <Type from="functions/model" as="FunctionsModel" />
+    <Type from="../../binding/model" as="Binding" />
     <Type from="../../../ir/canonical/native/structure" as="Structure" />
 
     <Type
@@ -12,7 +13,8 @@
     <Args
         in={{
             dependencies: PlanningModel.Dependencies,
-            function_imports: FunctionsModel.Imports,
+            function_imports: Binding.PortRows,
+            function_exports: Binding.PortRows,
             modules: Structure.Input,
             own_function?: u32,
             request: ExtractingPlanningModel.Request,
@@ -81,6 +83,7 @@
             modules: $in.modules,
             signatures: $in.signatures,
             imports: $in.function_imports,
+            reexports: $in.function_exports,
             plan: {
                 state: $ctx.imports.state,
                 natives: $ctx.imports.natives,

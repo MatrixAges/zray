@@ -1,16 +1,13 @@
+import type { Modules } from "core/native_module_table/model"
 import type { State } from "../../../../analysis/semantic/extracting/planning/model"
+import type { Request } from "../../../../analysis/semantic/extracting/planning/model"
+import type { PortRows } from "../../../binding/model"
 import type { NativePlan } from "../model"
 
 export type Signatures = {
     inputs: u32[],
     outputs: u32[],
     native_modules: u32?[]
-}
-
-export type Imports = {
-    ids: u32[],
-    inputs: u32[],
-    outputs: u32[]
 }
 
 export type FunctionPlan = {
@@ -23,4 +20,12 @@ export type Plan = {
     state: State,
     natives: NativePlan,
     functions: FunctionPlan
+}
+
+export type ImportRequest = {
+    request: Request,
+    modules: Modules,
+    signatures: Signatures,
+    imports: PortRows,
+    plan: Plan
 }

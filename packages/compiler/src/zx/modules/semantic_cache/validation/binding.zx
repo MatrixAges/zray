@@ -1,3 +1,4 @@
+import readPorts from "../../binding/read_ports"
 import matches from "./binding_ports"
 
 import type { Bindings } from "./model"
@@ -13,10 +14,15 @@ export default function (in: Input): Output {
         row: 0,
         valid: true
     }, {
-        while: state => state.valid && state.row < bindings.length,
+        while: state => state.valid && state.row < bindings.count,
         next: state => {
+            const binding = readPorts({
+                source: bindings,
+                row: state.row
+            })
+
             state.valid = matches({
-                binding: bindings[state.row],
+                binding,
                 input_types,
                 output_types
             })

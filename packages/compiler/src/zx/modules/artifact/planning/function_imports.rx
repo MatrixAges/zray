@@ -1,14 +1,18 @@
 <Module>
-    <Type from="functions/imports" as="Imports" />
     <Type from="functions/model" as="Model" />
+    <Type from="../../binding/model" as="Binding" />
 
-    <Args in={Imports.Input} out={Model.Plan} />
+    <Args
+        in={Model.ImportRequest & {
+            reexports: Binding.PortRows
+        }}
+        out={Model.Plan}
+    />
 
     <Call
         fn="functions/validate"
         in={$in.pick([
             "signatures",
-            "imports",
             "plan"
         ])}
     />
@@ -18,19 +22,28 @@
         in={$ctx.validate.state}
     />
 
-    <If on={$ctx.ready}>
+    <If on={!$ctx.ready}>
+        <Return value={$ctx.validate} />
+    </If>
+
+    <Task name="declared" out={$ctx.imports}>
         <Call
             fn="functions/imports"
             in={{
-                ...$in,
+                ...$in.omit(["reexports"]),
                 plan: $ctx.validate
             }}
         />
+    </Task>
 
-        <Return value={$ctx.imports} />
+    <Call
+        fn="functions/imports"
+        in={{
+            ...$in.omit(["reexports"]),
+            imports: $in.reexports,
+            plan: $ctx.task.declared
+        }}
+    />
 
-        <Else>
-            <Return value={$ctx.validate} />
-        </Else>
-    </If>
+    <Return value={$ctx.imports} />
 </Module>

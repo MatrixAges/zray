@@ -75,11 +75,8 @@
         module="plan"
         in={{
             dependencies: $in.source.record.dependencies,
-            function_imports: {
-                ids: $in.source.record.function_ids,
-                inputs: $in.source.record.function_inputs,
-                outputs: $in.source.record.function_outputs
-            },
+            function_imports: $in.source.record.function_imports,
+            function_exports: $in.source.record.function_exports,
             modules: $in.source.modules,
             own_function: $in.body.own_function,
             request: {

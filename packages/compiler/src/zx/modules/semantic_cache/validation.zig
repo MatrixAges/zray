@@ -6,16 +6,10 @@ const Artifact = @import("../artifact/model.zig");
 const FunctionImport = @import("../function_import.zig");
 const generated = @import("generated_semantic_cache_admit");
 const Input = std.meta.Child(generated.Input);
-const Header = child("header");
-const Function = child("function_body");
-const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
-const Row = std.meta.Child(std.meta.Elem(@FieldType(Bindings, "bindings")));
-const batch_size = @import("../package_scope.zig").lookup_batch_size;
+const Header = std.meta.Child(@FieldType(Input, "header"));
+const Function = std.meta.Child(@typeInfo(@FieldType(Input, "function_body")).optional.child);
+const Bindings = std.meta.Child(@FieldType(Input, "imports"));
 const Error = std.mem.Allocator.Error;
-
-fn child(comptime field: []const u8) type {
-    return std.meta.Child(@typeInfo(@FieldType(Input, field)).optional.child);
-}
 
 pub fn validate(allocator: std.mem.Allocator, module: *const Artifact.Module, expected: ?[]const u8) Error!bool {
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -66,78 +60,20 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Artifact.Module, ex
         };
     }
 
-    const walk: Walk = .{
-        .temporary = temporary,
-        .input_types = module.functions.input_types,
-        .output_types = module.functions.output_types,
+    const imports = FunctionImport.Readable.borrowRows(module.function_imports);
+    const members = FunctionImport.Readable.borrowRows(module.members);
+
+    const input: Input = .{
         .path = module.path,
-        .expected = expected,
+        .expected_path = expected,
         .header = &header,
-        .function = if (module.function != null) &function else null,
+        .imports = &imports.view(Bindings),
+        .members = &members.view(Bindings),
+        .function_body = if (module.function != null) &function else null,
     };
 
-    return walk.check(module.function_imports, module.members);
+    return columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => false,
+    };
 }
-
-const Walk = struct {
-    temporary: std.mem.Allocator,
-    input_types: []const u32,
-    output_types: []const u32,
-    path: []const u8,
-    expected: ?[]const u8,
-    header: *const Header,
-    function: ?*const Function,
-    fn check(self: Walk, imports: []const FunctionImport, members: []const FunctionImport) Error!bool {
-        var rows: [batch_size]Row = undefined;
-        var pointers: [batch_size]*const Row = undefined;
-        const sets = [_][]const FunctionImport{ imports, members };
-        const first_set: usize = if (imports.len != 0) 0 else 1;
-        var first = true;
-
-        for (sets[first_set..], first_set..) |bindings, set| {
-            var offset: usize = 0;
-
-            while (true) {
-                const end = offset + @min(rows.len, bindings.len - offset);
-                const count = end - offset;
-
-                for (bindings[offset..end], rows[0..count], pointers[0..count]) |*source, *row, *pointer| {
-                    row.* = source.borrow(Row);
-                    pointer.* = row;
-                }
-
-                const finished = end == bindings.len;
-                const last = finished and (set == sets.len - 1 or members.len == 0);
-
-                const batch: Bindings = .{
-                    .bindings = pointers[0..count],
-                    .input_types = self.input_types,
-                    .output_types = self.output_types,
-                };
-
-                const input: Input = .{
-                    .path = self.path,
-                    .expected_path = self.expected,
-                    .header = if (first) self.header else null,
-                    .bindings = &batch,
-                    .function_body = if (last) self.function else null,
-                };
-
-                const valid = columns.invoke(generated.executeValue, self.temporary, &input) catch |err| switch (@as(anyerror, err)) {
-                    error.OutOfMemory => return error.OutOfMemory,
-                    else => false,
-                };
-
-                if (!valid or last) return valid;
-                if (finished) break;
-
-                first = false;
-                offset = end;
-            }
-
-            first = false;
-        }
-
-        unreachable;
-    }
-};

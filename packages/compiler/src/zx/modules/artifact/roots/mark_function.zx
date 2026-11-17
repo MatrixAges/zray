@@ -1,0 +1,65 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import mark from "./mark"
+
+import type { PortShape } from "../../binding/model"
+import type { Request } from "./model"
+
+export type Input = {
+    request: Request,
+    ports: PortShape
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { functions, modules, roots, buffer } = in.request
+    const { ports } = in
+
+    const index = integers.widen(ports.id ?? 0)
+
+    if (index >= functions.count) {
+        return false
+    }
+
+    const count = roots.length
+    const input = integers.widen(ports.input_type ?? 0)
+    const output = integers.widen(ports.output_type ?? 0)
+    const source_input = integers.widen(functions.input_types[index])
+    const source_output = integers.widen(functions.output_types[index])
+
+    const invalid = (
+        - input >= count
+        - or output >= count
+        - or source_input >= count
+        - or source_output >= count
+    )
+
+    if (invalid) {
+        return false
+    }
+
+    memory.writeU8(buffer, input, 1)
+    memory.writeU8(buffer, output, 1)
+    memory.writeU8(buffer, source_input, 1)
+    memory.writeU8(buffer, source_output, 1)
+
+    const module = functions.native_modules[index]
+
+    if (module == null) {
+        return true
+    }
+
+    const native = integers.widen(module)
+
+    if (native >= modules.specifiers.length) {
+        return false
+    }
+
+    return mark({
+        buffer,
+        count,
+        values: modules.type_ids[native]
+    })
+}

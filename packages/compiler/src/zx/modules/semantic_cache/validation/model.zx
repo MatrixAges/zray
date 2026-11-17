@@ -7,7 +7,7 @@ import type { Table as Types } from "core/type_table/model"
 import type {
     Interface as Constants
 } from "../../../analysis/constants/validation/model"
-import type { FunctionBinding } from "../../binding/model"
+import type { PortRows } from "../../binding/model"
 
 export type Tables = {
     signatures: Signatures,
@@ -30,15 +30,14 @@ export type Function = {
 }
 
 export type Bindings = {
-    bindings: FunctionBinding[],
-    input_types: u32[],
-    output_types: u32[]
-}
+    bindings: PortRows
+} & Signatures.Pick("input_types", "output_types")
 
 export type Request = {
     path: string,
     expected_path?: string,
-    header?: Header,
-    bindings: Bindings,
+    header: Header,
+    imports: PortRows,
+    members: PortRows,
     function_body?: Function
 }

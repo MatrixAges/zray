@@ -1,12 +1,8 @@
 import { Status } from "../../../../analysis/semantic/extracting/planning/model"
 
-import type { Signatures, Imports, Plan } from "./model"
+import type { ImportRequest, Plan } from "./model"
 
-export type Input = {
-    signatures: Signatures,
-    imports: Imports,
-    plan: Plan
-}
+export type Input = ImportRequest.Pick("signatures", "plan")
 
 export type Output = Plan
 
@@ -16,21 +12,10 @@ export default function (in: Input): Output {
     }
 
     const count = in.signatures.inputs.length
-    const imported = in.imports.ids.length
-
     const different_outputs = in.signatures.outputs.length != count
     const different_native_modules = in.signatures.native_modules.length != count
-    const different_inputs = in.imports.inputs.length != imported
-    const different_outputs_2 = in.imports.outputs.length != imported
 
-    const condition = (
-        - different_outputs
-        - or different_native_modules
-        - or different_inputs
-        - or different_outputs_2
-    )
-
-    if (condition) {
+    if (different_outputs || different_native_modules) {
         return {
             ...in.plan,
             state: {
