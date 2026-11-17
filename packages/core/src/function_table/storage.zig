@@ -93,6 +93,22 @@ pub fn reserve(self: *Self, allocator: std.mem.Allocator, additional: usize) std
     inline for (@typeInfo(Self).@"struct".field_names) |name| try @field(self, name).ensureUnusedCapacity(allocator, additional);
 }
 
+pub fn reservedTail(self: *Self, len: usize) Table {
+    var result: Table = undefined;
+
+    inline for (@typeInfo(Table).@"struct".field_names) |name| {
+        @field(result, name) = @field(self, name).unusedCapacitySlice()[0..len];
+    }
+
+    return result;
+}
+
+pub fn commitTail(self: *Self, len: usize) void {
+    inline for (@typeInfo(Self).@"struct".field_names) |name| {
+        _ = @field(self, name).addManyAsSliceAssumeCapacity(len);
+    }
+}
+
 const empty_symbols: ir.SymbolTable = .{};
 const empty_expressions: ir.ExpressionTable = .{};
 const empty_body: ir.ControlBody = .{};

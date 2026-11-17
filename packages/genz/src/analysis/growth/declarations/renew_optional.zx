@@ -37,7 +37,8 @@ export default function (in: Input): Output {
             in.state.symbols.allocator,
             inner.id,
             in.path,
-            in.state.symbols.exact
+            in.state.symbols.exact,
+            in.writable
         ],
         fallible: true,
     })

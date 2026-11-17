@@ -10,6 +10,7 @@ import {
     frontier_name,
     minimum_name,
     exact_name,
+    writable_name,
     length_name,
     target_name,
     path_name
@@ -67,7 +68,8 @@ export default function (in: Input): Output {
             allocator_name,
             target_name,
             path_name,
-            exact_name
+            exact_name,
+            writable_name
         ]
     }
 
@@ -87,6 +89,7 @@ export default function (in: Input): Output {
                 t_name => true,
                 frontier_name => true,
                 exact_name => true,
+                writable_name => true,
                 path_name => true,
                 _ => false
             }

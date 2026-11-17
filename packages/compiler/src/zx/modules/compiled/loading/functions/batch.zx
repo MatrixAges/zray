@@ -1,0 +1,109 @@
+import remap from "compiler/compiled_linked_function"
+import memory from "memory"
+
+import type { Complete } from "core/function_table/complete"
+import type { U64Buffer } from "memory"
+import type { Output as External } from "../../../artifact/materializing/copy_external"
+import type { Mapping } from "./model"
+
+export type Columns = Complete.Pick(
+    "files",
+    "input_types",
+    "output_types",
+    "native_modules",
+    "native_members",
+    "native_exports",
+    "native_inputs",
+    "native_errors",
+    "symbols",
+    "expressions",
+    "contracts",
+    "control",
+    "stores"
+)
+
+export type Input = {
+    source: Columns,
+    target: Columns,
+    mapping: Mapping,
+    instance: string,
+    first: u64,
+    progress: U64Buffer
+}
+
+export type Output = Columns
+
+export default function (in: Input): Output {
+    const { source, target, mapping, instance, first, progress } = in
+
+    const count = source.files.length
+
+    return loop({
+        row: 0,
+        columns: target
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const row = state.row
+            const native_module = source.native_modules[row]
+
+            const external: External? = match {
+                native_module != null => {
+                    members: source.native_members[row],
+                    errors: source.native_errors[row],
+                    export_name: source.native_exports[row],
+                    parameters: source.native_inputs[row]
+                },
+                _ => null
+            }
+
+            const owned = remap({
+                header: {
+                    file: source.files[row],
+                    input_type: source.input_types[row],
+                    output_type: source.output_types[row],
+                    native_module
+                },
+                mapping,
+                instance,
+                first,
+                symbols: source.symbols[row],
+                expressions: source.expressions[row],
+                contracts: source.contracts[row],
+                control: source.control[row],
+                stores: source.stores[row],
+                external
+            })
+
+            const abi: External = owned.external ?? {
+                members: [],
+                export_name: null,
+                parameters: null,
+                errors: null
+            }
+
+            state.columns = {
+                files: state.columns.files.with(row, owned.header.file),
+                input_types:
+                    state.columns.input_types.with(row, owned.header.input_type),
+                output_types:
+                    state.columns.output_types.with(row, owned.header.output_type),
+                native_modules:
+                    state.columns.native_modules.with(row, owned.header.native_module),
+                native_members: state.columns.native_members.with(row, abi.members),
+                native_exports: state.columns.native_exports.with(row, abi.export_name),
+                native_inputs: state.columns.native_inputs.with(row, abi.parameters),
+                native_errors: state.columns.native_errors.with(row, abi.errors),
+                symbols: state.columns.symbols.with(row, owned.symbols),
+                expressions: state.columns.expressions.with(row, owned.expressions),
+                contracts: state.columns.contracts.with(row, owned.contracts),
+                control: state.columns.control.with(row, owned.control),
+                stores: state.columns.stores.with(row, owned.stores)
+            }
+
+            state.row += 1
+            memory.writeU64(progress, 0, state.row)
+        },
+        return: state => state.columns
+    })
+}

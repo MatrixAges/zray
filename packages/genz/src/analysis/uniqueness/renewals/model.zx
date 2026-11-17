@@ -1,4 +1,5 @@
 export type Renewals = {
+    // High word groups by owner and value; bit zero permits writable headerless storage.
     keys: u64[],
     paths: u32[][]
 }

@@ -102,6 +102,7 @@ export type Renewal = {
     optional: u32,
     pointer: u32,
     terminal: u32,
+    writable: u32,
     optional_body: Range,
     pointer_body: Range,
     fields_body: Range,

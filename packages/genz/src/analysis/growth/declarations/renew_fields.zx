@@ -97,7 +97,8 @@ export default function (in: Input): Output {
             in.state.symbols.allocator,
             child_address.id,
             rest.id,
-            in.state.symbols.exact
+            in.state.symbols.exact,
+            in.writable
         ],
         fallible: true,
     })

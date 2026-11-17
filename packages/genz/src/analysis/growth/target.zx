@@ -32,6 +32,7 @@ export default function (in: Input): Output {
             Operation.Bounded => bounded_name,
             Operation.Copy => allocate_name,
             Operation.Renew => renew_name,
+            Operation.RenewWritable => renew_name,
             _ => retract_name
         }
     )

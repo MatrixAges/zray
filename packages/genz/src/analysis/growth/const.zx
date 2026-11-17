@@ -3,7 +3,8 @@ export enum Operation {
     Bounded,
     Copy,
     Retract,
-    Renew
+    Renew,
+    RenewWritable
 }
 
 export const reserve_name: string = "zxReserve"

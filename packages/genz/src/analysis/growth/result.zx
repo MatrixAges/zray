@@ -8,7 +8,14 @@ import type { State as Input, State as Output } from "./model"
 export default function (in: Input): Output {
     const operation = in.source.operation
 
-    if (operation == Operation.Retract || operation == Operation.Renew) {
+    const statement = match operation {
+        Operation.Retract => true,
+        Operation.Renew => true,
+        Operation.RenewWritable => true,
+        _ => false
+    }
+
+    if (statement) {
         const result = header({
             ...in.body.pick([
                 "tags",

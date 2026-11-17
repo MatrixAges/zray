@@ -25,4 +25,4 @@ export type Solved = {
     state: Snapshot
 }
 
-export type Output = Facts.Pick("flags", "keys", "needed")
+export type Output = Facts.Pick("flags", "keys", "writable", "needed")

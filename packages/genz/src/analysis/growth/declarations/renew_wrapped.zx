@@ -1,5 +1,6 @@
 import textBytes from "std:bytes"
 
+import makeBinary from "../../../ast/context/binary"
 import makeBuiltin from "../../../ast/context/builtin"
 import makeCall from "../../../ast/context/call"
 import makeField from "../../../ast/context/field"
@@ -10,6 +11,7 @@ import makeBranch from "../../../ast/statements/builder/branch"
 import makeClose from "../../../ast/statements/builder/close"
 import makeOpen from "../../../ast/statements/builder/open"
 import {
+    ExpressionsBinaryOperator as B,
     ExpressionsBuiltinName as F,
     ExpressionsUnaryOperator as U
 } from "../../../printer/model/expressions"
@@ -34,10 +36,30 @@ export default function (in: Input): Output {
         operation: Operation.Exclusive
     })
 
-    const needed = makeUnary({
+    const mutable = makePermission({
         state: exclusive.state,
+        value: in.value,
+        operation: Operation.Writable
+    })
+
+    const accepts_writable = makeBinary({
+        state: mutable.state,
+        operator: B.LogicalAnd,
+        left: in.writable,
+        right: mutable.id
+    })
+
+    const permitted = makeBinary({
+        state: accepts_writable.state,
+        operator: B.LogicalOr,
+        left: exclusive.id,
+        right: accepts_writable.id
+    })
+
+    const needed = makeUnary({
+        state: permitted.state,
         operator: U.Not,
-        operand: exclusive.id,
+        operand: permitted.id,
     })
 
     const copy_body = makeOpen(parent.state)

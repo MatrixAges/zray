@@ -28,6 +28,8 @@ export const data_name: string = "data"
 
 export const exact_name: string = "exact"
 
+export const writable_name: string = "writable"
+
 export const forward_name: string = "forward"
 
 export const fresh_name: string = "fresh"

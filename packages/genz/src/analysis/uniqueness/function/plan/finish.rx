@@ -8,7 +8,8 @@
         in={$in.pick([
             "metadata",
             "type_kinds",
-            "keys"
+            "keys",
+            "writable"
         ])}
     />
 
@@ -25,10 +26,7 @@
     <Return
         value={{
             flags: $ctx.pack_flags,
-            renewals: {
-                keys: $in.keys,
-                paths: $ctx.renewal_paths
-            },
+            renewals: $ctx.renewal_paths,
             transfers: $ctx.build
         }}
     />

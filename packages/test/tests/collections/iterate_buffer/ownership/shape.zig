@@ -36,7 +36,7 @@ pub fn check(source: []const u8, mode: []const u8) !void {
             else => continue,
         };
 
-        if (std.mem.eql(u8, name, "zxRenew") and call.ast.params.len == 4) {
+        if (std.mem.eql(u8, name, "zxRenew")) {
             copies += 1;
 
             continue;

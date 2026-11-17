@@ -16,19 +16,18 @@ pub fn apply(allocator: std.mem.Allocator, input: *const Input, library: *const 
         try destination.native_modules.append(allocator, try @import("../../link/native.zig").materialize(allocator, natives.at(index), output.functions.types));
     }
 
-    const functions = library.program.functions;
-    const mapping: function.Mapping = .{ .types = output.functions.types, .natives = output.functions.natives };
-    const context: function.Context = .{ .mapping = &mapping, .first = destination.functions.count(), .instance = library.instance };
+    const first_function = destination.functions.count();
     const function_allocator = if (call_scratch) |scratch| scratch.functions else allocator;
 
-    try destination.functions.reserve(function_allocator, functions.count());
-
-    for (0..functions.count()) |index| {
-        try function.appendAssumeCapacity(function_allocator, destination.functions, functions.at(index), context);
-    }
+    try function.append(function_allocator, destination.functions, library.program.functions, .{
+        .types = output.functions.types,
+        .natives = output.functions.natives,
+        .first = first_function,
+        .instance = library.instance,
+    });
 
     const interface = if (call_scratch == null)
-        try @import("interface.zig").materialize(allocator, input, output, context.first)
+        try @import("interface.zig").materialize(allocator, input, output, first_function)
     else
         @as(@import("interface.zig").Interface, .{});
 

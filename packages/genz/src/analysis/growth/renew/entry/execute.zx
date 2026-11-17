@@ -1,3 +1,4 @@
+import { Operation } from "../../const"
 import append from "../append.rx"
 import buffered from "../buffered"
 
@@ -39,7 +40,12 @@ export default function (in: Input): Output {
                             path,
                             source: {
                                 ...source.source,
-                                value: in.value
+                                value: in.value,
+                                operation: match {
+                                    source.keys[index] % 2 == 1 =>
+                                        Operation.RenewWritable,
+                                    _ => Operation.Renew
+                                }
                             }
                         },
                         growth: state.growth

@@ -21,7 +21,8 @@ import {
     path_name,
     pointer_name,
     target_name,
-    v_name
+    v_name,
+    writable_name
 } from "./const"
 
 import type { State } from "./model"
@@ -152,10 +153,15 @@ export default function (in: Input): Output {
         mutable: false,
     })
 
+    const writable = makeIdentifier({
+        state: type_info.state,
+        name: textBytes.fromText(writable_name),
+    })
+
     return {
         state: {
             ...in,
-            context: type_info.state,
+            context: writable.state,
             statements: statement_info,
         },
         value: value.id,
@@ -167,6 +173,7 @@ export default function (in: Input): Output {
         optional: optional.id,
         pointer: pointer.id,
         terminal: terminal.id,
+        writable: writable.id,
         optional_body: {
             first: 0,
             count: 0

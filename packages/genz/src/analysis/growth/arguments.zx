@@ -30,7 +30,10 @@ export default function (in: Input): Output {
         name: bytes.fromText(allocator_name)
     })
 
-    if (source.operation == Operation.Renew) {
+    const renewing = source.operation == Operation.Renew ||
+        source.operation == Operation.RenewWritable
+
+    if (renewing) {
         const target = address({
             state: allocator.state,
             value: source.value
@@ -41,14 +44,20 @@ export default function (in: Input): Output {
             value: source.flag
         })
 
+        const writable = boolean({
+            state: exact.state,
+            value: source.operation == Operation.RenewWritable
+        })
+
         return {
             ...in,
-            context: exact.state,
+            context: writable.state,
             arguments: [
                 allocator.id,
                 target.id,
                 source.count,
-                exact.id
+                exact.id,
+                writable.id
             ]
         }
     }

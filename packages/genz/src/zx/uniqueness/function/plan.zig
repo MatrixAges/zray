@@ -41,7 +41,8 @@ pub fn publish(function: *const Function, allocator: std.mem.Allocator, borrowed
         .metadata = zx.columns.pointer(@FieldType(Finish, "metadata"), &borrowed.metadata),
         .type_kinds = function.slots.types.kinds,
         .flags = facts.flags,
-        .keys = try allocator.dupe(u64, facts.keys),
+        .keys = facts.keys,
+        .writable = facts.writable,
         .needed = facts.needed,
     };
 

@@ -5,6 +5,7 @@ export type Input = {
     source: GrowthInput,
     types: Table,
     type_id: u32,
+    keys: u64[],
     paths: u32[][],
     skipped: u64[],
     name?: u8[],

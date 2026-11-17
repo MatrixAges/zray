@@ -32,16 +32,24 @@ export default function (in: Input): Output {
     const left = value(in.value)
     const right = value(wanted)
 
-    return match {
-        lacks({
-            left,
-            right
-        }) => knowledge(evaluate({
-            operation: Operation.Materialized,
-            left,
-            right,
-            linear: true
-        })),
-        _ => in.value
+    if (!lacks({
+        left,
+        right
+    })) {
+        return in.value
     }
+
+    if (right.unique && !right.headered) {
+        return knowledge({
+            ...left,
+            unique: true
+        })
+    }
+
+    return knowledge(evaluate({
+        operation: Operation.Materialized,
+        left,
+        right,
+        linear: true
+    }))
 }

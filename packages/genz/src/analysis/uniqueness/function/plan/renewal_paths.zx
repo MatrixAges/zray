@@ -3,24 +3,40 @@ import integers from "std:integer"
 import { slot_stride, sort_owner_stride } from "../../renewals/const"
 import path from "../../slots/path"
 
+import type { Renewals } from "../../renewals/model"
 import type { Finish } from "./model"
 
-export type Input = Finish.Pick("metadata", "type_kinds", "keys")
+export type Input = Finish.Pick("metadata", "type_kinds", "keys", "writable")
 
-export type Output = u32[][]
+export type Output = Renewals
 
 export default function (in: Input): Output {
-    const paths: Output = []
+    const paths: u32[][] = []
+    const keys: u64[] = []
 
     return loop({
         index: 0,
-        paths
+        next_writable: 0,
+        paths,
+        keys
     }, {
         while: state => state.index < in.keys.length,
         next: state => {
             const key = in.keys[state.index]
             const owner = key / sort_owner_stride
             const metadata = in.metadata
+
+            const writable = state.next_writable < in.writable.length &&
+                in.writable[state.next_writable] == key
+
+            if (writable) {
+                state.next_writable += 1
+            }
+
+            // Only the group and the header requirement are needed after resolving the path.
+            state.keys = state.keys.push(
+                (key / slot_stride) * slot_stride + (writable ? 1 : 0)
+            )[0]
 
             state.paths = state.paths.push(path({
                 layout: metadata.layout,
@@ -30,6 +46,9 @@ export default function (in: Input): Output {
             }))[0]
             state.index += 1
         },
-        return: state => state.paths
+        return: state => ({
+            paths: state.paths,
+            keys: state.keys
+        })
     })
 }

@@ -65,6 +65,7 @@
         value={{
             ...$ctx.renewal_keys.working,
             keys: $ctx.renewal_keys.keys,
+            writable: $ctx.renewal_keys.writable,
             needed: $ctx.selected
         }}
     />

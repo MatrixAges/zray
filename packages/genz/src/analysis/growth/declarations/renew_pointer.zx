@@ -115,7 +115,8 @@ export default function (in: Input): Output {
             in.state.symbols.allocator,
             fresh.id,
             in.path,
-            in.state.symbols.exact
+            in.state.symbols.exact,
+            in.writable
         ],
         fallible: true,
     })

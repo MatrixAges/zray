@@ -199,7 +199,7 @@ const Emitter = struct {
 
         const recurse = struct {
             fn call(emitter: Emitter, argument: node.ExpressionId, rest: node.ExpressionId) Lower.Error!node.Statement {
-                return .{ .expression = try emitter.lowering.call(try emitter.id("zxRenew"), &.{ try emitter.id("allocator"), argument, rest, try emitter.id("exact") }, true) };
+                return .{ .expression = try emitter.lowering.call(try emitter.id("zxRenew"), &.{ try emitter.id("allocator"), argument, rest, try emitter.id("exact"), try emitter.id("writable") }, true) };
             }
         }.call;
 
@@ -236,7 +236,9 @@ const Emitter = struct {
         };
 
         const exclusive = try @import("../state_value/list.zig").exclusive(lowering, value);
-        const ensure_exclusive = try lowering.builder.branch(try lowering.builder.expression(.{ .unary = .{ .operator = .not, .operand = exclusive } }), &wrapped, &.{});
+        const writable = try self.binary(.logical_and, try self.id("writable"), try @import("../state_value/list.zig").writable(lowering, value));
+        const permitted = try self.binary(.logical_or, exclusive, writable);
+        const ensure_exclusive = try lowering.builder.branch(try lowering.builder.expression(.{ .unary = .{ .operator = .not, .operand = permitted } }), &wrapped, &.{});
         const terminal = try self.binary(.equal, try lowering.field(path, "len"), try lowering.builder.integer(0));
 
         const nonoptional = [_]node.Statement{
@@ -256,6 +258,7 @@ const Emitter = struct {
                 .{ .name = "target", .value = try self.primitive(.@"anytype") },
                 .{ .name = "path", .value = try lowering.builder.expression(.{ .const_slice = try lowering.builder.expression(.{ .fixed_array_type = .{ .length = try lowering.builder.integer(2), .element = try lowering.builder.expression(.{ .const_slice = try self.primitive(.u8) }) } }) }), .comptime_parameter = true },
                 .{ .name = "exact", .value = try self.primitive(.bool), .comptime_parameter = true },
+                .{ .name = "writable", .value = try self.primitive(.bool), .comptime_parameter = true },
             }),
             .return_type = try lowering.builder.expression(.{ .error_union = .{ .payload = try self.primitive(.void), .errors = &.{"OutOfMemory"} } }),
             .body = try lowering.builder.statements(&statements),

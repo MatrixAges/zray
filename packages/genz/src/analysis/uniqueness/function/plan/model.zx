@@ -17,7 +17,7 @@ export type Input = {
     results: u32[]
 }
 
-export type Working = Output.Omit("needed", "keys")
+export type Working = Output.Omit("needed", "keys", "writable")
 
 export type Stage = {
     source: Input,
@@ -26,7 +26,8 @@ export type Stage = {
 
 export type Selected = {
     working: Working,
-    keys: u64[]
+    keys: u64[],
+    writable: u64[]
 }
 
 export type Output = {
@@ -34,6 +35,7 @@ export type Output = {
     reads: Read[],
     flags: u64[],
     keys: u64[],
+    writable: u64[],
     needed: bool[]
 }
 
@@ -42,6 +44,7 @@ export type Finish = {
     type_kinds: u8[],
     flags: u64[],
     keys: u64[],
+    writable: u64[],
     needed: bool[]
 }
 

@@ -247,7 +247,10 @@ fn entering(self: *Self, owner: ir.ExprId, initial: ir.ExprId, slot: u32) Level 
     const result = self.level(initial, slot);
     const want = self.growth.renewed.get(renewal(owner, slot)) orelse return result;
 
-    return if (Level.lacks(result, want)) Level.materialized(result, want, true) else result;
+    if (!Level.lacks(result, want)) return result;
+    if (want.unique and !want.headered) return .{ .headered = result.headered, .unique = true, .deferred = result.deferred };
+
+    return Level.materialized(result, want, true);
 }
 
 fn renewal(owner: ir.ExprId, slot: u32) u64 {
@@ -277,7 +280,7 @@ fn renewals(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error![
         const start = if (value) self.raw(owner, slot) else self.level(self.carriedState(owner).?.initial, slot);
 
         if (!Level.lacks(start, entry.value_ptr.*)) continue;
-        try result.append(allocator, .{ .owner = @backingInt(owner), .path = try self.slots.path(allocator, self.row(owner).type_id, slot), .value = value });
+        try result.append(allocator, .{ .owner = @backingInt(owner), .path = try self.slots.path(allocator, self.row(owner).type_id, slot), .value = value, .writable = !value and !entry.value_ptr.headered });
     }
 
     std.mem.sort(Renewal, result.items, {}, struct {

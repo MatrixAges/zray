@@ -1,4 +1,3 @@
-import { slot_stride } from "../../renewals/const"
 import integers from "./integers"
 
 import type { Renewals } from "../../renewals/model"
@@ -22,8 +21,8 @@ export default function (in: Input): Output {
         while: state => state.equal && state.index < in.left.keys.length,
         next: state => {
             const index = state.index
-            const left = in.left.keys[index] / slot_stride
-            const right = in.right.keys[index] / slot_stride
+            const left = in.left.keys[index]
+            const right = in.right.keys[index]
 
             state.equal = left == right && integers({
                 left: in.left.paths[index],

@@ -9,7 +9,7 @@ const Input = std.meta.Child(generated.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
 pub const Target = union(enum) { reference: node.ExpressionId, name: []const u8 };
 
-pub fn appendEntry(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, target: Target, paths: []const []const u32, skipped: []const u64) Lower.Error!void {
+pub fn appendEntry(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, target: Target, keys: []const u64, paths: []const []const u32, skipped: []const u64) Lower.Error!void {
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
 
     var source = calls.prepare(self, .Renew, .{
@@ -30,6 +30,7 @@ pub fn appendEntry(self: *Lower, body: *std.ArrayList(node.Statement), type_id: 
         .source = &source,
         .types = &types,
         .type_id = @backingInt(type_id),
+        .keys = keys,
         .paths = paths,
         .skipped = skipped,
         .name = if (target == .name) target.name else null,

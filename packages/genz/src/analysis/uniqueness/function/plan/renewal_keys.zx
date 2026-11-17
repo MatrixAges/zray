@@ -12,11 +12,13 @@ import type { Stage as Input, Selected as Output } from "./model"
 
 export default function (in: Input): Output {
     const keys: u64[] = []
+    const writable: u64[] = []
 
     const selected = loop({
         index: 0,
         working: in.working,
-        keys
+        keys,
+        writable
     }, {
         while: state =>
             state.index < in.source.context.renewed.length,
@@ -64,10 +66,14 @@ export default function (in: Input): Output {
                         left: value(result.value),
                         right: want
                     })) {
-                        state.keys = state.keys.push(
-                            node * sort_owner_stride +
-                                (own_value ? slot_stride : 0) + slot
-                        )[0]
+                        const key = node * sort_owner_stride +
+                            (own_value ? slot_stride : 0) + slot
+
+                        state.keys = state.keys.push(key)[0]
+
+                        if (!own_value && !want.headered) {
+                            state.writable = state.writable.push(key)[0]
+                        }
                     }
                 }
             }
@@ -78,6 +84,7 @@ export default function (in: Input): Output {
 
     return {
         working: selected.working,
-        keys: selected.keys.sort()[0]
+        keys: selected.keys.sort()[0],
+        writable: selected.writable.sort()[0]
     }
 }

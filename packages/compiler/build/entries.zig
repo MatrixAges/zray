@@ -373,7 +373,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/binding_path/write.zx", .name = "binding_path_write" },
     .{ .path = "zx/ir/canonical/validation/verify.rx", .name = "ir_validation" },
     .{ .path = "zx/modules/compiled/execute.rx", .name = "compiled_library" },
-    .{ .path = "zx/modules/compiled/loading/functions/remap.rx", .name = "compiled_owned_function" },
+    .{ .path = "zx/modules/compiled/loading/functions/batch.zx", .name = "compiled_function_batch" },
     .{ .path = "zx/modules/compiled/loading/interface/materialize.rx", .name = "compiled_interface" },
     .{ .path = "zx/modules/compiled/identity/declaration.zx", .name = "compiled_native_declaration" },
     .{ .path = "zx/modules/compiled/identity/aliases/step.rx", .name = "compiled_native_alias_step" },

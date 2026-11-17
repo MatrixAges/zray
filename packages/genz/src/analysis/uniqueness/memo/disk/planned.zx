@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
-import { word_radix, word_width } from "../encoding/const"
+import { word_width } from "../encoding/const"
 import { byte_width, wide_width } from "./const"
 import boolean from "./fields/boolean"
 import vector from "./fields/vector"
@@ -50,7 +50,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.path_offset != 0 && state.key_offset < keys.end,
         next: state => {
-            const key = match trusted {
+            const group = match trusted {
                 true => state.previous,
                 _ => integers.widen(
                     bytes.readU32(
@@ -58,16 +58,10 @@ export default function (in: Input): Output {
                         state.key_offset + word_width,
                         true
                     )
-                ) * word_radix + integers.widen(
-                    bytes.readU32(
-                        source,
-                        state.key_offset,
-                        true
-                    )
                 )
             }
 
-            if (key < state.previous) {
+            if (group < state.previous) {
                 state.path_offset = 0
             } else {
                 state.path_offset = vector({
@@ -75,7 +69,7 @@ export default function (in: Input): Output {
                     start: state.path_offset,
                     width: word_width
                 }).end
-                state.previous = key
+                state.previous = group
                 state.key_offset += wide_width
             }
         },

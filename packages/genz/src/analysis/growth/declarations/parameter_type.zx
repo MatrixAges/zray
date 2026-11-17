@@ -11,6 +11,7 @@ import {
     path_name,
     frontier_name,
     exact_name,
+    writable_name,
     mem_name,
     allocator_type_name
 } from "./const"
@@ -81,6 +82,7 @@ export default function (in: Input): Output {
         t_name => in.state.symbols.type_type,
         frontier_name => in.state.symbols.boolean,
         exact_name => in.state.symbols.boolean,
+        writable_name => in.state.symbols.boolean,
         _ => in.state.symbols.size
     }
 

@@ -2,63 +2,82 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const strings = @import("native.zig").strings;
-const external_host = @import("../../artifact/materializing/external_host.zig");
 const Error = std.mem.Allocator.Error || error{InvalidModule};
-const generated = @import("generated_compiled_owned_function");
-const Input = std.meta.Child(generated.Input);
-const External = std.meta.Child(@typeInfo(@FieldType(Input, "external")).optional.child);
-pub const Mapping = std.meta.Child(@FieldType(Input, "mapping"));
+const generated = @import("generated_compiled_function_batch");
+const Input = @typeInfo(@TypeOf(generated.executeState)).@"fn".param_types[1].?;
+const Columns = @FieldType(Input, "target");
 
 pub const Context = struct {
-    mapping: *const Mapping,
+    types: []const u32,
+    natives: []const u32,
     first: usize,
     instance: []const u8,
 };
 
-pub fn appendAssumeCapacity(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, source: ir.Function, context: Context) Error!void {
-    const external = if (source.external) |value| external_host.borrow(External, value) else null;
+pub fn append(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, source: ir.FunctionTable, context: Context) Error!void {
+    const count = source.count();
 
-    const header: std.meta.Child(@FieldType(Input, "header")) = .{
-        .file = source.file_name,
-        .input_type = @backingInt(source.input_type),
-        .output_type = @backingInt(source.output_type),
-        .native_module = if (source.external) |value| @backingInt(value.module) else null,
-    };
+    if (count == 0) return;
+    try functions.reserve(allocator, count);
+
+    const tails = functions.reservedTail(count);
+    var completed: [1]u64 = .{0};
+    const progress: []u64 = &completed;
+
+    defer publish(functions, source, @intCast(completed[0]));
 
     const input: Input = .{
-        .header = &header,
-        .mapping = context.mapping,
+        .source = stateColumns(@FieldType(Input, "source"), source, false),
+        .target = stateColumns(Columns, tails, true),
+        .mapping = stateColumns(@FieldType(Input, "mapping"), context, false),
         .first = context.first,
         .instance = context.instance,
-        .symbols = zx.columns.pointer(@FieldType(Input, "symbols"), &source.symbols),
-        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), &source.expressions),
-        .control = zx.columns.pointer(@FieldType(Input, "control"), source.body.control),
-        .stores = zx.columns.pointer(@FieldType(Input, "stores"), &source.stores),
-        .contracts = zx.columns.pointer(@FieldType(Input, "contracts"), &source.contracts),
-        .external = if (external) |*value| value else null,
+        .progress = @ptrCast(&progress),
     };
 
-    const owned = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const output = generated.executeState(allocator, input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    var result = source;
-    result.file_name = owned.header.file;
-    result.input_type = @fromBackingInt(owned.header.input_type);
-    result.output_type = @fromBackingInt(owned.header.output_type);
-    result.body.control = zx.columns.pointer(*const ir.ControlTable, owned.control);
+    std.debug.assert(completed[0] == count);
 
-    if (owned.external) |details| {
-        result.external = external_host.apply(source.external.?, @fromBackingInt(owned.header.native_module.?), details);
+    inline for (@typeInfo(Columns).@"struct".field_names) |name| {
+        if (comptime @hasField(ir.FunctionTable, name)) {
+            std.debug.assert(@field(output, name).items.ptr == @field(input.target, name).items.ptr);
+        }
+    }
+}
+
+fn stateColumns(comptime Layout: type, source: anytype, comptime owns_tail: bool) Layout {
+    var result: Layout = undefined;
+
+    inline for (@typeInfo(Layout).@"struct".field_names) |name| {
+        if (comptime std.mem.eql(u8, name, "zx_origin")) {
+            @field(result, name) = null;
+        } else {
+            const Field = @FieldType(Layout, name);
+
+            @field(result, name) = .{
+                .items = zx.columns.slice(@FieldType(Field, "items"), @field(source, name)),
+                .storage = if (owns_tail) .owned else .plain,
+            };
+        }
     }
 
-    functions.appendOwnedAssumeCapacity(result, .{
-        .symbols = zx.columns.pointer(*const ir.SymbolTable, owned.symbols),
-        .expressions = zx.columns.pointer(*const ir.ExpressionTable, owned.expressions),
-        .stores = zx.columns.pointer(*const ir.StoreTable, owned.stores),
-        .contracts = zx.columns.pointer(*const ir.ContractTable, owned.contracts),
-    });
+    return result;
+}
+
+fn publish(functions: *ir.FunctionStorage, source: ir.FunctionTable, count: usize) void {
+    if (count == 0) return;
+
+    inline for (@typeInfo(ir.FunctionTable).@"struct".field_names) |name| {
+        if (comptime !@hasField(Columns, name)) {
+            @memcpy(@field(functions, name).unusedCapacitySlice()[0..count], @field(source, name)[0..count]);
+        }
+    }
+
+    functions.commitTail(count);
 }
 
 pub fn copyExternalDetails(allocator: std.mem.Allocator, source: ir.External) std.mem.Allocator.Error!ir.External {

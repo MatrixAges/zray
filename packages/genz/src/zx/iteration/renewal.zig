@@ -26,11 +26,11 @@ pub const Plan = struct {
         if (generated) {
             if (self.end - self.first == self.skipped.len) return;
 
-            return renewal.appendEntry(lowering, body, type_id, target, lowering.plan.renewals.paths[self.first..self.end], self.skipped);
+            return renewal.appendEntry(lowering, body, type_id, target, lowering.plan.renewals.keys[self.first..self.end], lowering.plan.renewals.paths[self.first..self.end], self.skipped);
         }
 
         for (lowering.plan.renewals) |record| {
-            if (record.owner == @backingInt(self.owner) and !record.value) try renew(lowering, body, type_id, target, record.path);
+            if (record.owner == @backingInt(self.owner) and !record.value) try renew(lowering, body, type_id, target, record.path, record.writable);
         }
     }
 };
@@ -94,11 +94,11 @@ pub fn plan(self: *const Lower, temporary: std.mem.Allocator, request: Request) 
     };
 }
 
-fn renew(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, target: Target, path: []const u32) Lower.Error!void {
+fn renew(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, target: Target, path: []const u32, writable: bool) Lower.Error!void {
     const reference = switch (target) {
         .reference => |value| value,
         .name => |name| try self.builder.identifier(name),
     };
 
-    return @import("../growth/renew_seed.zig").renew(self, body, type_id, reference, path);
+    return @import("../growth/renew_seed.zig").renew(self, body, type_id, reference, path, writable);
 }

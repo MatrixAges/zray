@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 
-pub fn renew(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, state: node.ExpressionId, path: []const u32) Lower.Error!void {
+pub fn renew(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, state: node.ExpressionId, path: []const u32, writable: bool) Lower.Error!void {
     if (self.iteration_value) |context| if (context.bufferedPath(type_id, path)) return;
 
     const steps = try self.allocator.alloc(node.ExpressionId, path.len);
@@ -26,7 +26,7 @@ pub fn renew(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Typ
     const pair = try self.builder.expression(.{ .fixed_array_type = .{ .length = try self.builder.integer(2), .element = text } });
     const names = try self.builder.expression(.{ .address_of = try self.builder.expression(.{ .array = .{ .element_type = pair, .values = steps } }) });
 
-    try body.append(self.allocator, .{ .expression = try self.call(try reference(self), &.{ try self.builder.identifier("allocator"), try self.builder.expression(.{ .address_of = state }), names, try self.builder.expression(.{ .boolean = !self.may_grow }) }, true) });
+    try body.append(self.allocator, .{ .expression = try self.call(try reference(self), &.{ try self.builder.identifier("allocator"), try self.builder.expression(.{ .address_of = state }), names, try self.builder.expression(.{ .boolean = !self.may_grow }), try self.builder.expression(.{ .boolean = writable }) }, true) });
 }
 
 fn reference(self: *Lower) Lower.Error!node.ExpressionId {
