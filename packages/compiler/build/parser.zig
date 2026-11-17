@@ -31,6 +31,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
 
     const manifests = b.addWriteFiles();
     const manifest = @import("generation_manifest.zig");
+    const declarations = @import("memory_interfaces.zig").create(b, core_dependency, manifests.getDirectory(), directories[2]);
 
     const manifest_roots = [_]manifest.Root{
         .{ .path = directories[0] },
@@ -63,11 +64,11 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             .path = b.dependency("zxc_std", .{}).builder.root.joinString(b.allocator, "interfaces/string.d.zx") catch @panic("out of memory"),
             .module = "zxc_string",
         },
-        .{ .path = b.fmt("{s}/memory/index.d.zx", .{directories[2]}), .module = "memory" },
+        .{ .path = declarations.index_path, .module = "memory" },
     };
 
     const main_interfaces = interfaces ++ [_]manifest.Interface{
-        .{ .path = b.fmt("{s}/memory/columns.d.zx", .{directories[2]}), .module = memory_columns },
+        .{ .path = declarations.columns_path, .module = memory_columns },
         .{ .path = b.fmt("{s}/zx/modules/path/lexical.d.zx", .{directories[0]}), .module = lexical_path },
     };
 
@@ -109,16 +110,20 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
 
         run.addArg("--manifest");
 
-        const manifest_path = manifests.add(b.fmt("{s}.json", .{@tagName(set)}), content);
+        const name = b.fmt("{s}.json", .{@tagName(set)});
+
+        _ = manifests.add(name, content);
+
+        const manifest_path = declarations.manifests.path(b, name);
 
         if (set == .main) b.addNamedLazyPath("generation_manifest", manifest_path);
 
         run.addFileArg(manifest_path);
         run.addFileInput(b.dependency("zxc_std", .{}).path("interfaces/string.d.zx"));
-        run.addFileInput(roots[2].path(b, "memory/index.d.zx"));
+        run.addFileInput(declarations.index);
 
         if (set == .main) {
-            run.addFileInput(roots[2].path(b, "memory/columns.d.zx"));
+            run.addFileInput(declarations.columns);
             run.addFileInput(roots[0].path(b, "zx/modules/path/lexical.d.zx"));
         }
 

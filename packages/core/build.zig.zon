@@ -4,5 +4,5 @@
     .version = "0.0.1",
     .minimum_zig_version = "0.17.0",
     .dependencies = .{ .zxc_std = .{ .path = "../std" } },
-    .paths = .{ "build.zig", "build.zig.zon", "src", "README.md", "IR契约.md" },
+    .paths = .{ "build.zig", "build.zig.zon", "interfaces", "src", "README.md", "IR契约.md" },
 }

@@ -1,0 +1,105 @@
+export declare function readU32(
+    target: U32Buffer,
+    index: u64
+): u32 throws { IndexOutOfBounds }
+
+export declare function readU64(
+    target: U64Buffer,
+    index: u64
+): u64 throws { IndexOutOfBounds }
+
+export declare function writeU8(
+    target: U8Buffer,
+    index: u64,
+    value: u8
+): void throws { IndexOutOfBounds }
+
+export declare function writeU32(
+    target: U32Buffer,
+    index: u64,
+    value: u32
+): void throws { IndexOutOfBounds }
+
+export declare function allocateU32Buffer(
+    resource: Allocator,
+    target: U32Buffer,
+    count: u64
+): void throws { OutOfMemory }
+
+export declare function writeU64(
+    target: U64Buffer,
+    index: u64,
+    value: u64
+): void throws { IndexOutOfBounds }
+
+export declare function copyBytes(
+    target: U8Buffer,
+    offset: u64,
+    source: u8[],
+    start: u64,
+    end: u64
+): u64 throws { IndexOutOfBounds }
+
+export declare function writeUtf8Scalar(
+    target: U8Buffer,
+    offset: u64,
+    codepoint: u64
+): u64 throws { IndexOutOfBounds, InvalidUnicodeScalar }
+
+export declare function writeOptionalU32(
+    target: OptionalU32Buffer,
+    index: u64,
+    value: u32?
+): void throws { IndexOutOfBounds }
+
+export declare function allocateOptionalU32Buffer(
+    allocator,
+    target: OptionalU32Buffer,
+    count: u64,
+    clear: bool
+): void throws { OutOfMemory }
+
+export declare function writeString(
+    target: StringBuffer,
+    index: u64,
+    value: string
+): void throws { IndexOutOfBounds }
+
+export declare function writeOptionalString(
+    target: OptionalStringBuffer,
+    index: u64,
+    value: string?
+): void throws { IndexOutOfBounds }
+
+export declare function writeU32List(
+    target: U32ListBuffer,
+    index: u64,
+    value: u32[]
+): void throws { IndexOutOfBounds }
+
+export declare function writeStringList(
+    target: StringListBuffer,
+    index: u64,
+    value: string[]
+): void throws { IndexOutOfBounds }
+
+export declare function copyStrings(
+    allocator,
+    target: StringBuffer,
+    source: string[]
+): void throws { IndexOutOfBounds, OutOfMemory }
+
+export declare function copyU8s(
+    target: U8Buffer,
+    source: u8[]
+): void throws { IndexOutOfBounds }
+
+export declare function copyU32s(
+    target: U32Buffer,
+    source: u32[]
+): void throws { IndexOutOfBounds }
+
+export declare function copyStringViews(
+    target: StringBuffer,
+    source: string[]
+): void throws { IndexOutOfBounds }

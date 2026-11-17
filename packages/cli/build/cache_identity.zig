@@ -51,6 +51,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         source(run, "file", b.fmt("{s}/build.zig.zon", .{name}), dependency.path("build.zig.zon"));
 
         if (std.mem.eql(u8, name, "lint")) source(run, "directory", "lint-bootstrap", dependency.path("bootstrap"));
+        if (std.mem.eql(u8, name, "core")) source(run, "directory", "core-interfaces", dependency.path("interfaces"));
 
         if (std.mem.eql(u8, name, "compiler")) {
             source(run, "directory", "compiler-build", dependency.path("build"));
