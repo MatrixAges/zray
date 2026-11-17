@@ -5,7 +5,7 @@
 
     <Call fn="names" in={$in} />
 
-    <If on={$ctx.names.invalid_name != null || $ctx.names.default_member == null}>
+    <If on={$ctx.names.invalid_name != null}>
         <Return
             value={{
                 names: $ctx.names,
@@ -14,24 +14,32 @@
         />
     </If>
 
-    <If on={$in.signature != null}>
-        <Call fn="signature" in={$in.signature} />
+    <If on={$ctx.names.default_member != null}>
+        <If on={$in.signature != null}>
+            <Call
+                fn="signature"
+                in={{
+                    signature: $in.signature,
+                    row: $ctx.names.default_member
+                }}
+            />
 
-        <Return
-            value={{
-                names: $ctx.names,
-                action: $ctx.signature
-            }}
-        />
-    </If>
+            <Return
+                value={{
+                    names: $ctx.names,
+                    action: $ctx.signature
+                }}
+            />
+        </If>
 
-    <If on={!$in.has_function}>
-        <Return
-            value={{
-                names: $ctx.names,
-                action: Exports.Action.Forward
-            }}
-        />
+        <If on={!$in.has_function}>
+            <Return
+                value={{
+                    names: $ctx.names,
+                    action: Exports.Action.Forward
+                }}
+            />
+        </If>
     </If>
 
     <Return

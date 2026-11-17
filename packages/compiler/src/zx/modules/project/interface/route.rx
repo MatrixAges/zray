@@ -1,23 +1,67 @@
 <Module>
     <Type from="model" as="Interface" />
 
-    <Args in={Interface.Import} out={Interface.Route} />
+    <Args in={Interface.Import} out={Interface.Selection} />
 
-    <If on={$in.duplicate}>
-        <Return value={Interface.Route.Duplicate} />
+    <Call module="../target/interface/lookup" in={$in.native} />
+
+    <If on={$ctx.lookup.duplicate}>
+        <Return
+            value={{
+                route: Interface.Route.Duplicate
+            }}
+        />
     </If>
 
-    <If on={$in.found}>
-        <If on={$in.legacy_conflict}>
-            <Return value={Interface.Route.Conflict} />
+    <If
+        on={$ctx.lookup.selected == null &&
+            (!$in.function_import || $in.binding_count != 1)}
+    >
+        <Return
+            value={{
+                route: Interface.Route.InvalidLegacy
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../target/select"
+        in={{
+            specifiers: $in.external,
+            name: $in.native.name,
+            check_duplicates: false
+        }}
+    />
+
+    <If on={$ctx.lookup.selected != null}>
+        <If on={$ctx.select.first != null}>
+            <Return
+                value={{
+                    route: Interface.Route.Conflict
+                }}
+            />
         </If>
 
-        <Return value={Interface.Route.Native} />
+        <Return
+            value={{
+                route: Interface.Route.Native,
+                native: $ctx.lookup.selected
+            }}
+        />
     </If>
 
-    <If on={!$in.function_import || $in.binding_count != 1}>
-        <Return value={Interface.Route.InvalidLegacy} />
+    <If on={$ctx.select.first == null}>
+        <Return
+            value={{
+                route: Interface.Route.MissingLegacy
+            }}
+        />
     </If>
 
-    <Return value={Interface.Route.Legacy} />
+    <Return
+        value={{
+            route: Interface.Route.Legacy,
+            external: $ctx.select.first
+        }}
+    />
 </Module>

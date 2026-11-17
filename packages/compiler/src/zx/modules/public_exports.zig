@@ -59,12 +59,12 @@ pub fn signatureEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
         .Invalid => return reporter.fail(.module, .{ .start = 0, .end = 0 }, "a default re-export requires a callable source"),
         .Deferred => {
             signature.has_deferred_source = true;
-            signature.deferred_source = members[selected.default_member.?].source.?;
+            signature.deferred_source = members[selected.default_member.?].source;
         },
         .Callable => {
             const member = members[selected.default_member.?];
 
-            signature.ports = member.ports.?;
+            signature.ports = member.ports;
             signature.has_store = member.has_store;
             signature.type_only = false;
         },
@@ -117,7 +117,15 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
 
     defer allocator.free(buckets);
 
-    const facts: ?Facts = if (comptime std.meta.Elem(@TypeOf(functions)) == Signature.Member) signatureFacts(Facts, functions) else null;
+    const signature = comptime std.meta.Elem(@TypeOf(functions)) == Signature.Member;
+    const kinds = if (signature) memory.borrowReadColumn(Signature.Member.Kind, "kind", functions) else undefined;
+
+    const facts: ?Facts = if (signature) .{
+        .kinds = @ptrCast(&kinds),
+        .callable = @backingInt(Signature.Member.Kind.callable),
+        .deferred = @backingInt(Signature.Member.Kind.deferred),
+        .intrinsic = @backingInt(Signature.Member.Kind.intrinsic),
+    } else null;
 
     const input: Input = .{
         .keys = &.{
@@ -147,18 +155,6 @@ fn select(allocator: std.mem.Allocator, first: anytype, second: []const ir.Const
     };
 }
 
-fn signatureFacts(comptime Facts: type, functions: []const Signature.Member) ?Facts {
-    for (functions) |*member| {
-        if (member.name.len == 0) return .{
-            .callable = member.ports != null,
-            .deferred = member.source != null,
-            .intrinsic = member.intrinsic != null,
-        };
-    }
-
-    return null;
-}
-
 fn seedSelect(allocator: std.mem.Allocator, first: anytype, second: []const ir.Constant, functions: anytype, roots: bool, has_function: bool) std.mem.Allocator.Error!Plan {
     var seen: std.StringHashMapUnmanaged(void) = .empty;
 
@@ -177,13 +173,11 @@ fn seedSelect(allocator: std.mem.Allocator, first: anytype, second: []const ir.C
                 result.default_member = row;
 
                 if (comptime @TypeOf(item.*) == Signature.Member) {
-                    result.action = if (item.ports != null) .Callable else if (item.source != null)
-                        .Deferred
-
-                    else if (item.intrinsic != null)
-                        .Intrinsic
-                    else
-                        .Invalid;
+                    result.action = switch (item.kind) {
+                        .callable => .Callable,
+                        .deferred => .Deferred,
+                        .intrinsic => .Intrinsic,
+                    };
                 } else if (!has_function) {
                     result.action = .Forward;
                 }

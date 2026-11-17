@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const zx = @import("zx");
 const registry = @import("../../package_scope.zig");
+const interface = @import("../../interface.zig");
 const enabled = @import("parser_options").generated_parser;
 const boundary = if (enabled) @import("generated_project_package_boundary") else void;
 pub const Boundary = if (enabled) boundary.Output else enum { Allowed, MissingOwner, Crossed };
@@ -22,6 +23,18 @@ pub fn dependencies(self: Self, fallback: []const registry.Package) []const regi
     if (self.scopes.len == 0) return fallback;
 
     return if (self.owner) |index| self.scopes[index].packages else &.{};
+}
+
+pub fn nativeInterfaces(self: Self, fallback: []const interface.Native) []const interface.Native {
+    if (self.scopes.len == 0) return fallback;
+
+    return if (self.owner) |index| self.scopes[index].native_interfaces else &.{};
+}
+
+pub fn externals(self: Self, fallback: []const interface.External) []const interface.External {
+    if (self.scopes.len == 0) return fallback;
+
+    return if (self.owner) |index| self.scopes[index].externals else &.{};
 }
 
 pub fn checkOwner(self: Self, reporter: *zx.Reporter, span: zx.Span) zx.Error!void {

@@ -1,14 +1,24 @@
+import memory from "memory"
+
 import { Action } from "./model"
 
-import type { Signature as Input } from "./model"
+import type { Signature } from "./model"
+
+export type Input = {
+    signature: Signature,
+    row: u64
+}
 
 export type Output = Action
 
 export default function (in: Input): Output {
+    const signature = in.signature
+    const kind = memory.readColumnU8(signature.kinds, in.row)
+
     return match {
-        in.callable => Action.Callable,
-        in.deferred => Action.Deferred,
-        in.intrinsic => Action.Intrinsic,
+        kind == signature.callable => Action.Callable,
+        kind == signature.deferred => Action.Deferred,
+        kind == signature.intrinsic => Action.Intrinsic,
         _ => Action.Invalid
     }
 }

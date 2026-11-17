@@ -1,5 +1,5 @@
 import type { Segments } from "core/bytes/index/segments/model"
-import type { U64Buffer } from "memory"
+import type { ReadColumn, U64Buffer } from "memory"
 
 export type Input = {
     keys: Segments,
@@ -16,9 +16,10 @@ export type Names = {
 }
 
 export type Signature = {
-    callable: bool,
-    deferred: bool,
-    intrinsic: bool
+    kinds: ReadColumn,
+    callable: u8,
+    deferred: u8,
+    intrinsic: u8
 }
 
 export enum Action {

@@ -1,17 +1,27 @@
+import type { ReadColumn } from "memory"
+import type { Lookup, Match } from "../target/interface/model"
+import type { Rows } from "../target/select"
+
 export enum Route {
     Native,
     Legacy,
     Duplicate,
     Conflict,
-    InvalidLegacy
+    InvalidLegacy,
+    MissingLegacy
 }
 
 export type Import = {
-    found: bool,
-    duplicate: bool,
-    legacy_conflict: bool,
+    native: Lookup,
+    external: Rows,
     function_import: bool,
     binding_count: u64
+}
+
+export type Selection = {
+    route: Route,
+    native?: Match,
+    external?: u64
 }
 
 export type Legacy = {
@@ -27,4 +37,19 @@ export type Binding = {
     default_export: bool,
     name: string,
     namespace?: string
+}
+
+export type External = {
+    specifiers: Rows,
+    exports: ReadColumn,
+    first: u64,
+    specifier: string,
+    local: string
+}
+
+export type ExternalPlan = {
+    rows: u64[],
+    names: string[],
+    namespace?: string,
+    invalid: bool
 }

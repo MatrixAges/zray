@@ -1,0 +1,72 @@
+import bytes from "std:bytes"
+import claim from "core/bytes/index/claim"
+import memory from "memory"
+
+import bind from "./legacy"
+
+import type { Index } from "core/bytes/index/model"
+import type { External as Input, ExternalPlan as Output } from "./model"
+
+export default function (in: Input): Output {
+    const rows: u64[] = []
+    const names: string[] = []
+    const namespace: string? = null
+
+    const keys: Index = {
+        keys: [],
+        values: [],
+        buckets: []
+    }
+
+    const { specifiers, exports, specifier, local } = in
+
+    return loop({
+        index: in.first,
+        keys,
+        rows,
+        names,
+        namespace,
+        previous_default: false,
+        invalid: false
+    }, {
+        while: state => !state.invalid && state.index < specifiers.length,
+        next: state => {
+            const row = state.index
+
+            if (memory.readTextColumn(specifiers.items, row) == specifier) {
+                const export_name = memory.readOptionalTextColumn(exports, row)
+                const claimed = claim({
+                    index: state.keys,
+                    key: bytes.fromText(export_name ?? ""),
+                    value: 0
+                })
+
+                const result = bind({
+                    export_name,
+                    local,
+                    duplicate: claimed.previous != null,
+                    count: state.rows.length,
+                    previous_default: state.previous_default
+                })
+
+                state.invalid = !result.valid
+
+                if (result.valid) {
+                    state.keys = claimed.index
+                    state.rows = state.rows.push(row)[0]
+                    state.names = state.names.push(result.name)[0]
+                    state.namespace = result.namespace
+                    state.previous_default = result.default_export
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => ({
+            rows: state.rows,
+            names: state.names,
+            namespace: state.namespace,
+            invalid: state.invalid
+        })
+    })
+}

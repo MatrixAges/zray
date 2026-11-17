@@ -3,47 +3,84 @@ const zx = @import("zx");
 const registry = @import("../target/registry.zig");
 const interface = @import("../../interface.zig");
 const enabled = @import("parser_options").generated_parser;
+const ExternalPlan = if (enabled) @typeInfo(@TypeOf(@import("generated_project_legacy_plan").executeValue(undefined, undefined))).error_union.payload else void;
 
-pub const Route = union(enum) { native: *const interface.Native, legacy, duplicate, conflict, invalid_legacy };
+pub const Route = union(enum) { native: *const interface.Native, legacy: usize, duplicate, conflict, invalid_legacy, missing_legacy };
 
 pub fn route(scoped: []const interface.Native, externals: []const interface.External, item: anytype) Route {
-    const selected = registry.native(scoped, item.path, true);
-    const conflict = selected == .found and registry.select(externals, "specifier", item.path, false).first != null;
-
     if (comptime enabled) {
         const generated = @import("generated_project_interface_route");
         const Input = std.meta.Child(generated.Input);
+        const memory = zx.memory;
+        const standard = memory.borrowTextColumn("specifier", @as([]const interface.Native, &interface.standard));
+        const local = memory.borrowTextColumn("specifier", scoped);
+        const legacy = memory.borrowTextColumn("specifier", externals);
 
         const input: Input = .{
-            .found = selected == .found,
-            .duplicate = selected == .duplicate,
-            .legacy_conflict = conflict,
+            .native = &.{
+                .standard = &.{ .items = @ptrCast(&standard), .length = standard.count },
+                .scoped = &.{ .items = @ptrCast(&local), .length = local.count },
+                .name = item.path,
+                .check_duplicates = true,
+            },
+            .external = &.{ .items = @ptrCast(&legacy), .length = legacy.count },
             .function_import = item.kind == .function,
             .binding_count = item.nameCount(),
         };
 
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
+        const selected = zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
 
-        return switch (zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable) {
-            .Native => .{ .native = selected.found },
-            .Legacy => .legacy,
+        return switch (selected.route) {
+            .Native => .{ .native = switch (selected.native.?.source) {
+                .Standard => &interface.standard[@intCast(selected.native.?.index)],
+                .Scoped => &scoped[@intCast(selected.native.?.index)],
+            } },
+            .Legacy => .{ .legacy = @intCast(selected.external.?) },
             .Duplicate => .duplicate,
             .Conflict => .conflict,
             .InvalidLegacy => .invalid_legacy,
+            .MissingLegacy => .missing_legacy,
         };
     }
 
-    return switch (selected) {
+    return switch (registry.native(scoped, item.path, true)) {
         .duplicate => .duplicate,
-        .found => |entry| if (conflict) .conflict else .{ .native = entry },
-        .missing => if (item.kind == .function and item.nameCount() == 1) .legacy else .invalid_legacy,
+        .found => |entry| if (registry.select(externals, "specifier", item.path, false).first != null) .conflict else .{ .native = entry },
+        .missing => if (item.kind != .function or item.nameCount() != 1)
+            .invalid_legacy
+        else if (registry.select(externals, "specifier", item.path, false).first) |index|
+            .{ .legacy = index }
+        else
+            .missing_legacy,
     };
 }
 
-const Binding = struct {
+pub const Binding = struct {
     name: []const u8,
     namespace: ?[]const u8,
 };
+
+pub fn legacyPlan(allocator: std.mem.Allocator, rows: []const interface.External, first: usize, specifier: []const u8, local: []const u8) std.mem.Allocator.Error!ExternalPlan {
+    const generated = @import("generated_project_legacy_plan");
+    const Input = std.meta.Child(generated.Input);
+    const memory = zx.memory;
+    const specifiers = memory.borrowTextColumn("specifier", rows);
+    const exports = memory.borrowReadColumn(?[]const u8, "export_name", rows);
+
+    const input: Input = .{
+        .specifiers = &.{ .items = @ptrCast(&specifiers), .length = specifiers.count },
+        .exports = @ptrCast(&exports),
+        .first = first,
+        .specifier = specifier,
+        .local = local,
+    };
+
+    return zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+}
 
 pub const Legacy = struct {
     names: std.StringHashMapUnmanaged(void) = .empty,
@@ -51,28 +88,6 @@ pub const Legacy = struct {
     pub fn bind(self: *Legacy, allocator: std.mem.Allocator, export_name: ?[]const u8, local: []const u8) std.mem.Allocator.Error!?Binding {
         const count = self.names.count();
         const claimed = try self.names.getOrPut(allocator, export_name orelse "");
-
-        if (comptime enabled) {
-            const generated = @import("generated_project_legacy_binding");
-            const Input = std.meta.Child(generated.Input);
-
-            const input: Input = .{
-                .export_name = export_name,
-                .local = local,
-                .duplicate = claimed.found_existing,
-                .count = count,
-                .previous_default = self.previous_default,
-            };
-
-            var scratch = std.heap.FixedBufferAllocator.init(&.{});
-            const result = zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
-
-            if (!result.valid) return null;
-
-            self.previous_default = result.default_export;
-
-            return .{ .name = result.name, .namespace = result.namespace };
-        }
 
         if (claimed.found_existing or (count != 0 and (self.previous_default or export_name == null))) return null;
 

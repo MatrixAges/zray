@@ -7,7 +7,15 @@ pub const Ports = struct {
     output_type: ir.TypeId,
 };
 
-pub const Member = struct { name: []const u8, ports: ?Ports, source: ?[]const u8 = null, has_store: bool = false, intrinsic: ?@import("intrinsic.zig").Operation = null };
+pub const Member = struct {
+    pub const Kind = enum(u8) { callable, deferred, intrinsic };
+
+    name: []const u8,
+    kind: Kind,
+    ports: Ports = .{ .input_type = Types.scalarId(.void), .output_type = Types.scalarId(.void) },
+    source: []const u8 = &.{},
+    has_store: bool = false,
+};
 
 pub const Result = struct {
     ports: Ports,
