@@ -14,6 +14,7 @@ pub const references = @import("references.zig");
 pub const names = @import("names.zig");
 pub const partition = @import("partition.zig");
 pub const prepare = @import("inline_call/root.zig").prepare;
+pub const prepareWithWorkspace = @import("inline_call/root.zig").prepareWithWorkspace;
 pub const function_analysis = @import("function_analysis.zig");
 pub const constant_namespace = @import("module/constants.zig").namespace;
 
@@ -32,7 +33,7 @@ fn emitWithConcurrency(allocator: std.mem.Allocator, program: zx.ir.Program, com
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    var lower = try initializePreparedWithConcurrency(temporary, allocator, try prepare(temporary, program), concurrent);
+    var lower = try initializePreparedWithConcurrency(temporary, allocator, try prepareWithWorkspace(temporary, allocator, program), concurrent);
 
     return @import("../render.zig").renderStored(allocator, lower.builder.nodes, try lower.declarations());
 }
@@ -52,7 +53,7 @@ fn bundleWithConcurrency(allocator: std.mem.Allocator, program: zx.ir.Program, c
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    var lower = try initializePreparedWithConcurrency(temporary, allocator, try prepare(temporary, program), concurrent);
+    var lower = try initializePreparedWithConcurrency(temporary, allocator, try prepareWithWorkspace(temporary, allocator, program), concurrent);
     const types = try @import("../render.zig").renderStored(allocator, lower.builder.nodes, try @import("type_bundle.zig").declarations(&lower));
 
     errdefer allocator.free(types);
@@ -73,7 +74,7 @@ pub const Bundle = struct {
 
 /// Workspace backs short-lived analysis storage that is released before the lowering arena.
 pub fn initialize(temporary: std.mem.Allocator, workspace: std.mem.Allocator, source: zx.ir.Program) std.mem.Allocator.Error!Lower {
-    return initializePrepared(temporary, workspace, try prepare(temporary, source));
+    return initializePrepared(temporary, workspace, try prepareWithWorkspace(temporary, workspace, source));
 }
 
 pub fn initializePrepared(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program) std.mem.Allocator.Error!Lower {

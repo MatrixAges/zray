@@ -9,11 +9,11 @@ const Functions = std.meta.Child(@FieldType(Program, "functions"));
 const Unit = std.meta.Child(@typeInfo(@FieldType(Input, "units")).pointer.child);
 const unwrap = @import("../function_analysis/abi.zig").unwrap;
 
-/// The returned program borrows unchanged storage from the input. The arena owns replacements.
-pub fn prepare(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!ir.Program {
+/// The returned program borrows unchanged storage from the input. The output allocator owns replacements.
+pub fn prepare(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!ir.Program {
     if (program.functions.count() == 0) return program;
 
-    var scratch = std.heap.ArenaAllocator.init(allocator);
+    var scratch = std.heap.ArenaAllocator.init(workspace);
 
     defer scratch.deinit();
 

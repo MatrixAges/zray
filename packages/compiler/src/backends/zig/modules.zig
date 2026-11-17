@@ -51,7 +51,7 @@ pub fn createCached(allocator: std.mem.Allocator, analysis: *const Analysis, cac
     errdefer arena.deinit();
 
     const owned = arena.allocator();
-    const program = try @import("genz").zx.prepare(owned, analysis.value.ir);
+    const program = try @import("genz").zx.prepareWithWorkspace(owned, allocator, analysis.value.ir);
 
     var batch = batch: {
         var facts = try generating.Analysis.create(allocator, program);
@@ -92,7 +92,9 @@ pub fn emit(allocator: std.mem.Allocator, program: @import("zx").ir.Program, ide
 
     defer arena.deinit();
 
-    return emitPrepared(allocator, try @import("genz").zx.prepare(arena.allocator(), program), identities, unit, cache);
+    const prepared = try @import("genz").zx.prepareWithWorkspace(arena.allocator(), allocator, program);
+
+    return emitPrepared(allocator, prepared, identities, unit, cache);
 }
 
 pub fn emitPrepared(allocator: std.mem.Allocator, program: @import("zx").ir.Program, identities: generating.Names, unit: fingerprint.Unit, cache: ?*Cache) Error![]const u8 {

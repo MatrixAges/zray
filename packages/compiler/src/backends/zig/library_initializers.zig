@@ -37,7 +37,7 @@ pub fn createBacked(allocator: std.mem.Allocator, backing: std.mem.Allocator, li
 
         defer scratch.deinit();
 
-        const prepared = try @import("genz").zx.prepare(scratch.allocator(), program);
+        const prepared = try @import("genz").zx.prepareWithWorkspace(scratch.allocator(), backing, program);
         var batch = try modules.Batch.create(backing, prepared, names, cache);
 
         defer batch.deinit();

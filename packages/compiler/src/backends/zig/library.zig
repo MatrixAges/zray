@@ -70,7 +70,7 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
     const owned = arena.allocator();
     const workspace = publication_arena.allocator();
-    const program = try @import("genz").zx.prepare(owned, library.program);
+    const program = try @import("genz").zx.prepareWithWorkspace(owned, allocator, library.program);
     const publication = try @import("library_publication.zig").create(workspace, library.exports, program.functions.count());
     const memos = @import("uniqueness_memo.zig");
     const keeps_memo = if (cache) |store| store.keeps_memo else false;
