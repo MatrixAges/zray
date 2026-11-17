@@ -1,49 +1,60 @@
 import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
 
-import valid from "../dependencies/binding_valid"
+import shape from "../../binding/shape"
 import { Visibility } from "./model"
 
-import type { Edge } from "./model"
+import type { Providers } from "./model"
 
 export type Input = {
-    edge: Edge,
-    path: string
+    providers: Providers,
+    target: u64,
+    path: string,
+    default_call: bool
 }
 
 export type Output = Visibility
 
 export default function (in: Input): Output {
-    const { edge, path } = in
+    const { providers, target, path, default_call } = in
 
-    if (edge.default_call && edge.path == path) {
+    if (default_call && providers.paths[target] == path) {
         return Visibility.Found
     }
 
-    const members = edge.members
+    const count = memory.listLength(providers.ids, target)
 
-    if (members == null) {
+    if (count == 0) {
         return Visibility.Missing
     }
+
+    const files = memory.readTextListColumn(providers.files, target)
 
     return loop({
         row: 0,
         status: Visibility.Missing
     }, {
-        while: state =>
-            state.status == Visibility.Missing && state.row < members.names.length,
+        while: state => state.status == Visibility.Missing && state.row < count,
         next: state => {
-            const row = state.row
-            const id = members.ids[row]
+            const { row } = state
+            const id = memory.readListOptionalU32(providers.ids, target, row)
 
-            if (id != null && valid({
-                bindings: members,
-                row
+            if (id != null && shape({
+                id,
+                input_type: memory.readListOptionalU32(providers.inputs, target, row),
+                output_type: memory.readListOptionalU32(providers.outputs, target, row),
+                intrinsic: columns.readListOptionalU8(
+                    providers.intrinsics,
+                    target,
+                    row
+                )
             })) {
                 const index = integers.widen(id)
 
-                if (index >= edge.files.length) {
+                if (index >= files.length) {
                     state.status = Visibility.Invalid
-                } else if (edge.files[index] == path) {
+                } else if (files[index] == path) {
                     state.status = Visibility.Found
                 }
             }

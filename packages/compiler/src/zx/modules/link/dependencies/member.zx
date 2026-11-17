@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import valid from "./binding_valid"
 import find from "./find"
@@ -16,7 +17,7 @@ export default function (in: Input): Output {
 
     const member = provider.members
 
-    if (member.namespaces[row] != null || !valid({
+    if (memory.readOptionalTextColumn(member.namespaces, row) != null || !valid({
         bindings: member,
         row
     })) {
@@ -26,8 +27,8 @@ export default function (in: Input): Output {
     const bindings = consumer.members
 
     const local = find({
-        names: bindings.names,
-        namespaces: bindings.namespaces,
+        bindings,
+        include_namespaced: false,
         name: in.local
     })
 
@@ -35,9 +36,9 @@ export default function (in: Input): Output {
         return Status.Conflict
     }
 
-    const intrinsic = member.intrinsics[row]
+    const intrinsic = memory.readColumnOptionalU8(member.intrinsics, row)
 
-    if (intrinsic != bindings.intrinsics[local] || !valid({
+    if (intrinsic != memory.readColumnOptionalU8(bindings.intrinsics, local) || !valid({
         bindings,
         row: local
     })) {
@@ -48,8 +49,8 @@ export default function (in: Input): Output {
         return Status.Ready
     }
 
-    const id = member.ids[row]
-    const local_id = bindings.ids[local]
+    const id = memory.readColumnOptionalU32(member.ids, row)
+    const local_id = memory.readColumnOptionalU32(bindings.ids, local)
 
     if (id == null || local_id == null) {
         return Status.Invalid

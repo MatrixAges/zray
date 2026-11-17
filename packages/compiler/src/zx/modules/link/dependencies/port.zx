@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import { Status } from "./model"
 
@@ -17,13 +18,13 @@ export type Output = Status
 export default function (in: Input): Output {
     const { imports, linked, row } = in
 
-    if (imports.intrinsics[row] != null) {
+    if (memory.readColumnOptionalU8(imports.intrinsics, row) != null) {
         return Status.Ready
     }
 
-    const id = imports.ids[row]
-    const input = imports.inputs[row]
-    const output = imports.outputs[row]
+    const id = memory.readColumnOptionalU32(imports.ids, row)
+    const input = memory.readColumnOptionalU32(imports.inputs, row)
+    const output = memory.readColumnOptionalU32(imports.outputs, row)
 
     if (id == null || input == null) {
         return Status.Invalid

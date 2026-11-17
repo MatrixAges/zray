@@ -25,6 +25,7 @@
         fn="visible"
         in={{
             edges: $in.edges,
+            providers: $in.providers,
             path: $in.path
         }}
     />

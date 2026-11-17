@@ -8,8 +8,8 @@
         <Call
             fn="find"
             in={{
-                names: $in.request.provider.members.names,
-                namespaces: null,
+                bindings: $in.request.provider.members,
+                include_namespaced: true,
                 name: $in.original
             }}
         />
@@ -28,9 +28,12 @@
         </If>
     </If>
 
-    <If on={$in.request.provider.constants != null}>
+    <If
+        on={$in.request.dependency.kind == Link.Kind.Enumeration &&
+            $in.request.provider.constants.count != 0}
+    >
         <Call
-            fn="../../../analysis/constants/bindings/named"
+            fn="../../../analysis/constants/bindings/borrowed"
             in={{
                 previous: $in.request.provider.constants,
                 current: $in.request.consumer.constants,
@@ -40,11 +43,11 @@
             }}
         />
 
-        <If on={$ctx.named == Constants.Comparison.Equal}>
+        <If on={$ctx.borrowed == Constants.Comparison.Equal}>
             <Return value={Link.Status.Ready} />
         </If>
 
-        <If on={$ctx.named == Constants.Comparison.Different}>
+        <If on={$ctx.borrowed == Constants.Comparison.Different}>
             <Return value={Link.Status.Conflict} />
         </If>
     </If>

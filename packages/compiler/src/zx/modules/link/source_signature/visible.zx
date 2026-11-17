@@ -1,26 +1,48 @@
+import memory from "memory"
+
 import inspect from "./edge"
 import { Visibility } from "./model"
 
-import type { Edge } from "./model"
+import type { Edges } from "../dependencies/traversal/model"
+import type { Providers } from "./model"
 
 export type Input = {
-    edges: Edge[],
+    edges: Edges,
+    providers: Providers,
     path: string
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
+    const { edges, providers, path } = in
+    const { codes } = edges
+
     return loop({
         row: 0,
+        source: 0,
         status: Visibility.Missing
     }, {
-        while: state => state.status == Visibility.Missing && state.row < in.edges.length,
+        while: state => state.status == Visibility.Missing && state.row < edges.count,
         next: state => {
-            state.status = inspect({
-                edge: in.edges[state.row],
-                path: in.path
-            })
+            if (
+                memory.readColumnU8(edges.target_kinds, state.row) == codes.source
+            ) {
+                const target = edges.targets[state.source]
+                const kind = memory.readColumnU8(edges.kinds, state.row)
+
+                if (kind != codes.type_only) {
+                    state.status = inspect({
+                        providers,
+                        target,
+                        path,
+                        default_call: kind == codes.function
+                    })
+                }
+
+                state.source += 1
+            }
+
             state.row += 1
         },
         return: state => state.status == Visibility.Found

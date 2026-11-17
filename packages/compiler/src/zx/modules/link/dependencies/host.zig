@@ -2,182 +2,149 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Builder = @import("../build.zig");
-const name_rows = @import("../../../ir/canonical/validation/names/view.zig");
+const names = @import("../../../ir/canonical/validation/names/view.zig");
 const Record = @import("../../module_record.zig");
-const Binding = @import("../../function_import.zig");
+const BindingColumns = @import("bindings/view.zig").Columns;
+const Constants = @import("../../../analysis/constants/columns.zig").Rows;
+const Edges = @import("traversal/view.zig").Columns;
 const generated = @import("generated_artifact_dependencies");
-const Request = std.meta.Child(generated.Input);
-const Provider = std.meta.Child(@FieldType(Request, "provider"));
-const Consumer = std.meta.Child(@FieldType(Request, "consumer"));
-const Bindings = std.meta.Child(@FieldType(Provider, "members"));
+const Input = std.meta.Child(generated.Input);
+const Checks = child("checks");
+const Edge = child("edge");
+const Walk = std.meta.Child(@FieldType(Input, "walk"));
+const Cursor = std.meta.Child(@FieldType(Walk, "cursor"));
+const Provider = std.meta.Child(@FieldType(Edge, "provider"));
+const Consumer = std.meta.Child(@FieldType(Edge, "consumer"));
+const Dependency = std.meta.Child(@FieldType(Edge, "dependency"));
+const Bindings = std.meta.Child(@FieldType(Checks, "imports"));
 const Aliases = std.meta.Child(@FieldType(Provider, "aliases"));
-const Constants = std.meta.Child(@typeInfo(@FieldType(Provider, "constants")).optional.child);
-const Signatures = std.meta.Child(@FieldType(Request, "linked"));
-const Dependency = std.meta.Child(@FieldType(Request, "dependency"));
+const ConstantView = std.meta.Child(@FieldType(Provider, "constants"));
+const Signatures = std.meta.Child(@FieldType(Checks, "linked"));
 
-const Context = struct {
-    imports: Bindings,
-    members: Bindings,
-    aliases: Aliases,
-    types: []const u32,
-    functions: []const ?u32,
-    linked: Signatures,
-};
+fn child(comptime name: []const u8) type {
+    return std.meta.Child(@typeInfo(@FieldType(Input, name)).optional.child);
+}
 
 pub fn verify(self: *Builder, index: usize, functions: []const ?ir.FunctionId) Builder.Error!void {
-    const consumer = &self.modules[index];
-    var arena = std.heap.ArenaAllocator.init(self.temporary);
-    var buffer: [2048]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    const module = &self.modules[index];
+    const imports = BindingColumns.borrow(module.function_imports);
+    const members = BindingColumns.borrow(module.members);
+    const consumer_constants = Constants.borrow(module.constant_imports);
+    const consumer_aliases = names.borrow(module.type_imports);
+    const linked = signatures(ir.SignatureTable.fromFunctions(self.functions.view()));
 
-    defer arena.deinit();
-
-    const memory = scratch.allocator();
-    const consumer_aliases = name_rows.borrow(consumer.type_imports);
-
-    const context: Context = .{
-        .imports = try bindings(memory, consumer.function_imports),
-        .members = try bindings(memory, consumer.members),
-        .aliases = name_rows.view(Aliases, &consumer_aliases),
-        .types = @ptrCast(self.type_mappings[index]),
+    const binding_checks: Checks = .{
+        .count = module.functions.count(),
         .functions = @ptrCast(functions),
-        .linked = signatures(ir.SignatureTable.fromFunctions(self.functions.view())),
+        .imports = &imports.view(Bindings),
+        .members = &members.view(Bindings),
+        .linked = &linked,
+        .types = @ptrCast(self.type_mappings[index]),
     };
 
-    const checks = @import("generated_artifact_binding_checks");
-
-    const input: std.meta.Child(checks.Input) = .{
-        .count = consumer.functions.count(),
-        .functions = context.functions,
-        .imports = &context.imports,
-        .linked = &context.linked,
-        .members = &context.members,
-        .types = context.types,
+    var consumer: Consumer = .{
+        .members = binding_checks.imports,
+        .aliases = &names.view(Aliases, &consumer_aliases),
+        .constants = &consumer_constants.view(ConstantView),
+        .types = binding_checks.types,
+        .functions = binding_checks.functions,
     };
 
-    try decision(checks.executeValue, memory, &input);
+    const edges = Edges.borrow(module.dependencies, self.plan.sources(index));
+    const specifiers = zx.memory.borrowTextColumn("specifier", module.dependencies);
+    var cursor: Cursor = .{ .row = 0, .source = 0 };
 
-    const targets = self.plan.sources(index);
-    var source_index: usize = 0;
+    const walk: Walk = .{
+        .cursor = &cursor,
+        .edges = &edges.view(std.meta.Child(@FieldType(Walk, "edges"))),
+        .specifiers = @ptrCast(&specifiers),
+        .native_specifiers = module.native_modules.specifiers,
+        .intrinsic_name = @import("../../intrinsic.zig").specifier,
+    };
 
-    for (consumer.dependencies) |*dependency| {
-        if (dependency.target.kind == .source) {
-            const target_index: usize = @intCast(targets[source_index]);
+    var request: Input = .{ .checks = &binding_checks, .edge = null, .walk = &walk };
+    var pending: SourceEdge = undefined;
 
-            try check(self, index, target_index, dependency, &context);
+    while (true) {
+        const result = zx.columns.invoke(generated.executeValue, self.temporary, @as(*const Input, &request)) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return error.InvalidModule,
+        };
 
-            source_index += 1;
-        } else {
-            const external = @import("generated_artifact_external_dependency");
-
-            const edge: std.meta.Child(external.Input) = .{
-                .intrinsic = dependency.target.kind == .intrinsic,
-                .type_only = dependency.kind == .type_only,
-                .specifier = dependency.specifier,
-                .intrinsic_name = @import("../../intrinsic.zig").specifier,
-                .native_specifiers = consumer.native_modules.specifiers,
-            };
-
-            const allowed = zx.columns.invoke(external.executeValue, memory, &edge) catch |err| return failure(err);
-
-            if (!allowed) return error.InvalidModule;
+        switch (result.status) {
+            .Ready => {},
+            .Invalid => return error.InvalidModule,
+            .Conflict => return error.ConflictingInterface,
         }
+
+        const target = result.target orelse return;
+        const dependency = &module.dependencies[@intCast(result.row - 1)];
+        const provider: usize = @intCast(target);
+        consumer.members = if (dependency.exported) binding_checks.members else binding_checks.imports;
+
+        pending.init(&self.modules[provider], self.type_mappings[provider], dependency, &consumer, &linked);
+
+        cursor = .{ .row = result.row, .source = result.source };
+        request.checks = null;
+        request.edge = &pending.request;
     }
 }
 
-fn check(self: *Builder, index: usize, target_index: usize, dependency: *const Record.Import, context: *const Context) Builder.Error!void {
-    const consumer = &self.modules[index];
-    const provider = &self.modules[target_index];
-    var arena = std.heap.ArenaAllocator.init(self.temporary);
-    var buffer: [2048]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+const SourceEdge = struct {
+    aliases: names.Rows,
+    constants: Constants,
+    members: BindingColumns,
+    member_view: Bindings,
+    alias_view: Aliases,
+    constant_view: ConstantView,
+    provider_signatures: Signatures,
+    provider: Provider,
+    dependency: Dependency,
+    request: Edge,
+    fn init(self: *SourceEdge, module: *const @import("../../artifact/model.zig").Module, types: []const ir.TypeId, edge: *const Record.Import, consumer: *const Consumer, linked: *const Signatures) void {
+        self.aliases = names.borrow(module.exports);
+        self.constants = Constants.borrow(module.constant_exports);
+        self.members = BindingColumns.borrow(module.members);
+        self.member_view = self.members.view(Bindings);
+        self.alias_view = names.view(Aliases, &self.aliases);
+        self.constant_view = self.constants.view(ConstantView);
+        self.provider_signatures = signatures(module.functions);
 
-    defer arena.deinit();
+        self.provider = .{
+            .executable = module.function != null,
+            .members = &self.member_view,
+            .signatures = &self.provider_signatures,
+            .aliases = &self.alias_view,
+            .kinds = module.types.kinds,
+            .constants = &self.constant_view,
+            .types = @ptrCast(types),
+        };
 
-    const memory = scratch.allocator();
-    const compare_constants = dependency.kind == .enumeration and provider.constant_exports.len != 0;
-    const marshal = @import("../../../analysis/constants/input.zig").marshal;
-    const selected = if (dependency.exported) &context.members else &context.imports;
-    const has_members = dependency.kind != .type_only and provider.members.len != 0;
-    const has_aliases = dependency.kind != .function and dependency.names.len != 0;
-    const provider_members = try bindings(memory, if (has_members) provider.members else &.{});
-    const rows = name_rows.borrow(if (has_aliases) provider.exports else &.{});
-    const provider_aliases = name_rows.view(Aliases, &rows);
-    const provider_signatures = signatures(provider.functions);
+        self.dependency = .{
+            .kind = switch (edge.kind) {
+                .type_only => .TypeOnly,
+                .function => .Function,
+                .enumeration => .Enumeration,
+            },
+            .names = edge.names,
+            .source_names = edge.source_names,
+            .wildcard = edge.wildcard,
+        };
 
-    const source: Provider = .{
-        .executable = provider.function != null,
-        .members = &provider_members,
-        .signatures = &provider_signatures,
-        .aliases = &provider_aliases,
-        .kinds = provider.types.kinds,
-        .constants = if (compare_constants) try marshal(Constants, memory, provider.constant_exports) else null,
-        .types = @ptrCast(self.type_mappings[target_index]),
-    };
+        self.request = .{
+            .provider = &self.provider,
+            .consumer = consumer,
+            .linked = linked,
+            .dependency = &self.dependency,
+        };
+    }
+};
 
-    const destination: Consumer = .{
-        .members = selected,
-        .aliases = &context.aliases,
-        .constants = if (compare_constants) try marshal(Constants, memory, consumer.constant_imports) else null,
-        .types = context.types,
-        .functions = context.functions,
-    };
-
-    const edge: Dependency = .{
-        .kind = switch (dependency.kind) {
-            .type_only => .TypeOnly,
-            .function => .Function,
-            .enumeration => .Enumeration,
-        },
-        .names = dependency.names,
-        .source_names = dependency.source_names,
-        .wildcard = dependency.wildcard,
-    };
-
-    const input: Request = .{ .provider = &source, .consumer = &destination, .linked = &context.linked, .dependency = &edge };
-
-    return decision(generated.executeValue, memory, &input);
-}
-
-fn decision(comptime execute: anytype, allocator: std.mem.Allocator, input: anytype) Builder.Error!void {
-    const result = zx.columns.invoke(execute, allocator, input) catch |err| return failure(err);
-
-    return switch (result) {
-        .Ready => {},
-        .Invalid => error.InvalidModule,
-        .Conflict => error.ConflictingInterface,
-    };
-}
-
-fn failure(err: anyerror) Builder.Error {
-    return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
-}
-
-pub fn signatures(source: ir.SignatureTable) Signatures {
+fn signatures(source: ir.SignatureTable) Signatures {
     return .{
         .files = source.files,
         .input_types = source.input_types,
         .output_types = source.output_types,
         .ownership = zx.columns.slice(@FieldType(Signatures, "ownership"), source.ownership),
     };
-}
-
-pub fn bindings(allocator: std.mem.Allocator, source: []const Binding) std.mem.Allocator.Error!Bindings {
-    const names = try allocator.alloc([]const u8, source.len);
-    const namespaces = try allocator.alloc(?[]const u8, source.len);
-    const ids = try allocator.alloc(?u32, source.len);
-    const inputs = try allocator.alloc(?u32, source.len);
-    const outputs = try allocator.alloc(?u32, source.len);
-    const intrinsics = try allocator.alloc(?u8, source.len);
-
-    for (source, names, namespaces, ids, inputs, outputs, intrinsics) |binding, *name, *namespace, *id, *input, *output, *intrinsic| {
-        name.* = binding.name;
-        namespace.* = binding.namespace;
-        id.* = if (binding.id) |value| @backingInt(value) else null;
-        input.* = if (binding.input_type) |value| @backingInt(value) else null;
-        output.* = if (binding.output_type) |value| @backingInt(value) else null;
-        intrinsic.* = if (binding.intrinsic) |value| @backingInt(value) else null;
-    }
-
-    return .{ .names = names, .namespaces = namespaces, .ids = ids, .inputs = inputs, .outputs = outputs, .intrinsics = intrinsics };
 }

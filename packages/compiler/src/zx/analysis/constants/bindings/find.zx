@@ -1,0 +1,29 @@
+import memory from "memory"
+
+import type { Rows } from "core/constant/rows"
+
+export type Input = {
+    constants: Rows,
+    name: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { constants, name } = in
+
+    return loop({
+        row: 0,
+        found: false
+    }, {
+        while: state => !state.found && state.row < constants.count,
+        next: state => {
+            state.found = memory.readTextColumn(constants.names, state.row) == name
+
+            if (!state.found) {
+                state.row += 1
+            }
+        },
+        return: state => state.found ? state.row : null
+    })
+}

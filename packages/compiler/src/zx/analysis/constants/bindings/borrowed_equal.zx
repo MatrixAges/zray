@@ -1,0 +1,52 @@
+import floats from "std:float"
+import {
+    scalar_integer,
+    scalar_negative_integer,
+    scalar_float,
+    scalar_string,
+    scalar_boolean,
+    scalar_enumeration
+} from "core/constant/const"
+import columns from "memory/columns"
+
+import type { ReadColumn } from "memory/columns"
+
+export type Input = {
+    previous: ReadColumn,
+    current: ReadColumn,
+    left: u64,
+    right: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { previous, current, left, right } = in
+
+    const kind = columns.readScalarKind(previous, left)
+
+    if (kind != columns.readScalarKind(current, right)) {
+        return false
+    }
+
+    if (kind == scalar_integer || kind == scalar_negative_integer) {
+        return columns.readScalarMagnitude(previous, left) ==
+            columns.readScalarMagnitude(current, right)
+    }
+
+    return match kind {
+        scalar_float =>
+            floats.bits(columns.readScalarFloat(previous, left)) ==
+            floats.bits(columns.readScalarFloat(current, right)),
+        scalar_string =>
+            columns.readScalarText(previous, left) ==
+            columns.readScalarText(current, right),
+        scalar_boolean =>
+            columns.readScalarBoolean(previous, left) ==
+            columns.readScalarBoolean(current, right),
+        scalar_enumeration =>
+            columns.readScalarEnumeration(previous, left) ==
+            columns.readScalarEnumeration(current, right),
+        _ => false,
+    }
+}

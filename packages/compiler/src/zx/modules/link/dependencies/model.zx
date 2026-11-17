@@ -1,5 +1,6 @@
-import type { Values } from "core/constant/model"
+import type { Rows as Constants } from "core/constant/rows"
 import type { Ownership } from "core/symbol_table/model"
+import type { ReadColumn, TextColumn } from "memory"
 import type { Rows } from "../../../ir/canonical/validation/names/model"
 
 export enum Status {
@@ -22,12 +23,13 @@ export type Dependency = {
 }
 
 export type Bindings = {
-    names: string[],
-    namespaces: string?[],
-    ids: u32?[],
-    inputs: u32?[],
-    outputs: u32?[],
-    intrinsics: u8?[]
+    names: TextColumn,
+    namespaces: ReadColumn,
+    ids: ReadColumn,
+    inputs: ReadColumn,
+    outputs: ReadColumn,
+    intrinsics: ReadColumn,
+    count: u64
 }
 
 export type Signatures = {
@@ -37,20 +39,29 @@ export type Signatures = {
     ownership: Ownership[]
 }
 
+export type Checks = {
+    count: u64,
+    functions: u32?[],
+    imports: Bindings,
+    linked: Signatures,
+    members: Bindings,
+    types: u32[]
+}
+
 export type Provider = {
     executable: bool,
     members: Bindings,
     signatures: Signatures,
     aliases: Rows,
     kinds: u8[],
-    constants?: Values,
+    constants: Constants,
     types: u32[]
 }
 
 export type Consumer = {
     members: Bindings,
     aliases: Rows,
-    constants?: Values,
+    constants: Constants,
     types: u32[],
     functions: u32?[]
 }

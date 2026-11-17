@@ -1,0 +1,83 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import bind from "compiler/artifact_signature_row"
+import memory from "memory"
+
+import { Status } from "./decision"
+
+import type { External } from "../native/signature/model"
+import type { Batch, BatchResult } from "./model"
+
+export type Input = Batch
+
+export type Output = BatchResult
+
+export default function (in: Input): Output {
+    const { signatures, target } = in
+
+    const initial: Output = {
+        next: in.start,
+        status: Status.Reuse,
+        row: 0,
+        native_id: null,
+        input_type: 0,
+        output_type: 0
+    }
+
+    return loop(initial, {
+        while: state =>
+            state.status == Status.Reuse && state.next < signatures.files.length,
+        next: state => {
+            const index = state.next
+            const path = signatures.files[index]
+            const module_id = signatures.native_modules[index]
+
+            const external: External? = match {
+                module_id == null => null,
+                _ => {
+                    module_id,
+                    member: signatures.native_members[index],
+                    export_name: signatures.native_exports[index],
+                    input: signatures.native_inputs[index],
+                    allocator_argument: signatures.native_allocators[index],
+                    io_argument: signatures.native_io[index],
+                    process_argument: signatures.native_process[index],
+                    expand_tuple: signatures.native_tuples[index],
+                    fallible: signatures.native_fallible[index]
+                },
+            }
+
+            const found = bind({
+                ...in.omit([
+                    "signatures",
+                    "start",
+                    "target"
+                ]),
+                path,
+                key: bytes.fromText(path),
+                external,
+                ports: {
+                    input_type: signatures.input_types[index],
+                    output_type: signatures.output_types[index],
+                    ownership: signatures.ownership[index]
+                }
+            })
+
+            if (found.status == Status.Reuse) {
+                memory.writeOptionalU32(
+                    target,
+                    index,
+                    integers.narrow(found.row)
+                )
+                state.next += 1
+            } else {
+                state.status = found.status
+                state.row = found.row
+                state.native_id = found.native_id
+                state.input_type = found.input_type
+                state.output_type = found.output_type
+            }
+        },
+        return: state => state
+    })
+}

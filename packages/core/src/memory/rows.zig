@@ -112,8 +112,8 @@ pub inline fn borrowNestedList(comptime T: type, comptime field: []const u8, com
     comptime {
         if (@typeInfo(List).pointer.size != .slice) @compileError("Expected a slice field");
 
-        if (T == ?u32) {
-            requireOptional(u32, layout.type);
+        if (T == ?u32 or T == ?u8) {
+            requireOptional(@typeInfo(T).optional.child, layout.type);
         } else if (layout.type != T) {
             @compileError("Incompatible borrowed list column field");
         }
@@ -216,6 +216,12 @@ pub inline fn readListOptionalU32(source: *const anyopaque, index: u64, member: 
     const column = try listColumn(source, index);
 
     return readColumn(?u32, &column, member);
+}
+
+pub inline fn readListOptionalU8(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!?u8 {
+    const column = try listColumn(source, index);
+
+    return readColumn(?u8, &column, member);
 }
 
 inline fn listColumn(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!ReadColumn {

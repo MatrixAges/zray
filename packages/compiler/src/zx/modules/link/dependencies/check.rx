@@ -11,8 +11,8 @@
         <Call
             fn="find"
             in={{
-                names: $in.provider.members.names,
-                namespaces: null,
+                bindings: $in.provider.members,
+                include_namespaced: true,
                 name: ""
             }}
         />

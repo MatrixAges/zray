@@ -26,6 +26,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/compiled_native", .entry = "zx/modules/compiled/loading/native/step.rx" },
     .{ .specifier = "compiler/source_function_row", .entry = "zx/modules/artifact/materializing/publication/link.rx" },
     .{ .specifier = "compiler/compiled_linked_function", .entry = "zx/modules/compiled/loading/functions/remap.rx" },
+    .{ .specifier = "compiler/artifact_signature_row", .entry = "zx/modules/link/signature/bind.rx" },
     .{ .specifier = "compiler/artifact_named_item", .entry = "zx/modules/link/dependencies/item.rx" },
     .{ .specifier = "compiler/artifact_dependency_equal", .entry = "zx/modules/semantic_cache/restoring/dependencies/equal.rx" },
     .{ .specifier = "compiler/artifact_binding_restore", .entry = "zx/modules/semantic_cache/restoring/functions/bind.rx" },

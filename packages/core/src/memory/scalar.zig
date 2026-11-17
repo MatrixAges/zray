@@ -33,6 +33,13 @@ pub inline fn readFloat(source: *const anyopaque, index: u64) ReadError!f64 {
     };
 }
 
+pub inline fn readBoolean(source: *const anyopaque, index: u64) ReadError!bool {
+    return switch (try read(Value, source, index)) {
+        .boolean => |value| value,
+        else => error.UnexpectedScalarKind,
+    };
+}
+
 pub inline fn readEnumeration(source: *const anyopaque, index: u64) ReadError!u32 {
     return switch (try read(Value, source, index)) {
         .enumeration => |value| value,

@@ -1,0 +1,61 @@
+import floats from "std:float"
+import integers from "std:integer"
+import columns from "memory/columns"
+
+import equal from "./borrowed_equal"
+import find from "./find"
+import { Comparison } from "./model"
+
+import type { Rows } from "core/constant/rows"
+
+export type Input = {
+    previous: Rows,
+    current: Rows,
+    mapping: u32[],
+    current_mapping: u32[],
+    name: string
+}
+
+export type Output = Comparison
+
+export default function (in: Input): Output {
+    const { previous, current, name, mapping, current_mapping } = in
+
+    const left = find({
+        constants: previous,
+        name
+    })
+
+    if (left == null) {
+        return Comparison.Missing
+    }
+
+    const right = find({
+        constants: current,
+        name
+    })
+
+    if (right == null) {
+        return Comparison.Different
+    }
+
+    const left_type = integers.widen(columns.readColumnU32(previous.types, left))
+    const right_type = integers.widen(columns.readColumnU32(current.types, right))
+
+    if (left_type >= mapping.length || right_type >= current_mapping.length) {
+        return Comparison.Different
+    }
+
+    if (mapping[left_type] != current_mapping[right_type]) {
+        return Comparison.Different
+    }
+
+    const same = equal({
+        previous: previous.values,
+        current: current.values,
+        left,
+        right
+    })
+
+    return same ? Comparison.Equal : Comparison.Different
+}

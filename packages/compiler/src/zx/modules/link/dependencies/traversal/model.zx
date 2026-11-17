@@ -1,0 +1,22 @@
+import type { ReadColumn } from "memory"
+
+export type Codes = {
+    source: u8,
+    intrinsic: u8,
+    type_only: u8,
+    function: u8,
+    enumeration: u8
+}
+
+export type Edges = {
+    targets: u64[],
+    target_kinds: ReadColumn,
+    kinds: ReadColumn,
+    count: u64,
+    codes: Codes
+}
+
+export type Cursor = {
+    row: u64,
+    source: u64
+}

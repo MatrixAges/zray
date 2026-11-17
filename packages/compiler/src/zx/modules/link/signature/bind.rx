@@ -66,6 +66,7 @@
             ports: $ctx.ports,
             registry: $in.registry,
             edges: $in.edges,
+            providers: $in.providers,
             functions: $in.functions,
             linked: $in.linked.pick([
                 "files",

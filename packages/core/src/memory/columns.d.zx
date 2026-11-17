@@ -1,5 +1,6 @@
 export type ReadColumn = opaque
 export type WriteColumn = opaque
+export type ListColumn = opaque
 
 export declare function writeColumnOptionalU32(
     target: WriteColumn,
@@ -39,6 +40,11 @@ export declare function readScalarFloat(
     index: u64
 ): f64 throws { IndexOutOfBounds, UnexpectedScalarKind }
 
+export declare function readScalarBoolean(
+    source: ReadColumn,
+    index: u64
+): bool throws { IndexOutOfBounds, UnexpectedScalarKind }
+
 export declare function readScalarEnumeration(
     source: ReadColumn,
     index: u64
@@ -60,3 +66,9 @@ export declare function writeScalarText(
     index: u64,
     value: string
 ): void throws { IndexOutOfBounds }
+
+export declare function readListOptionalU8(
+    source: ListColumn,
+    index: u64,
+    member: u64
+): u8? throws { IndexOutOfBounds }

@@ -18,7 +18,7 @@ export default function (in: Input): Output {
         status: Status.Ready
     }, {
         while: state =>
-            state.status == Status.Ready && state.row < in.imports.names.length,
+            state.status == Status.Ready && state.row < in.imports.count,
         next: state => {
             state.status = port({
                 ...in,

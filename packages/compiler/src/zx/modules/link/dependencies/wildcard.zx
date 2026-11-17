@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import member from "./member"
 import { Status } from "./model"
 
@@ -8,15 +10,15 @@ export type Input = Request
 export type Output = Status
 
 export default function (in: Input): Output {
-    const names = in.provider.members.names
+    const members = in.provider.members
 
     return loop({
         row: 0,
         status: Status.Ready
     }, {
-        while: state => state.status == Status.Ready && state.row < names.length,
+        while: state => state.status == Status.Ready && state.row < members.count,
         next: state => {
-            const name = names[state.row]
+            const name = memory.readTextColumn(members.names, state.row)
 
             if (name.length != 0) {
                 state.status = member({

@@ -1,17 +1,7 @@
 <Module>
     <Type from="model" as="Link" />
 
-    <Args
-        in={{
-            count: u64,
-            functions: u32?[],
-            imports: Link.Bindings,
-            linked: Link.Signatures,
-            members: Link.Bindings,
-            types: u32[]
-        }}
-        out={Link.Status}
-    />
+    <Args in={Link.Checks} out={Link.Status} />
 
     <Task name="imports" out={$ctx.shape}>
         <Call

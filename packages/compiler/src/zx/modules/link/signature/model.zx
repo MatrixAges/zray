@@ -1,8 +1,10 @@
 import type { Index } from "core/bytes/index/model"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/signature_table/model"
+import type { OptionalU32Buffer } from "memory"
+import type { Edges } from "../dependencies/traversal/model"
 import type { External } from "../native/signature/model"
-import type { Edge } from "../source_signature/model"
+import type { Providers } from "../source_signature/model"
 import type { Status } from "./decision"
 import type { Ports } from "./ports"
 
@@ -16,7 +18,8 @@ export type Request = {
     native_ids: u32?[],
     linked: Table,
     registry: Index,
-    edges: Edge[],
+    edges: Edges,
+    providers: Providers,
     functions: u32?[]
 }
 
@@ -26,4 +29,14 @@ export type Binding = {
     native_id?: u32,
     input_type: u32,
     output_type: u32
+}
+
+export type Batch = Request.Omit("path", "key", "ports", "external") & {
+    signatures: Table,
+    start: u64,
+    target: OptionalU32Buffer
+}
+
+export type BatchResult = Binding & {
+    next: u64
 }
