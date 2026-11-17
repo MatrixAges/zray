@@ -286,7 +286,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/project/target/select.zx", .name = "project_package_select" },
     .{ .path = "zx/modules/project/target/interface/lookup.rx", .name = "project_interface_lookup" },
     .{ .path = "zx/modules/project/target/interface/register.rx", .name = "project_interface_register" },
-    .{ .path = "zx/modules/project/interface/route.rx", .name = "project_interface_route" },
     .{ .path = "zx/modules/project/interface/plan.zx", .name = "project_legacy_plan" },
     .{ .path = "zx/modules/project/target/scope/owner.zx", .name = "project_package_owner" },
     .{ .path = "zx/modules/project/target/scope/check.zx", .name = "project_package_boundary" },

@@ -1,7 +1,8 @@
 const std = @import("std");
 const zx = @import("zx");
 const Index = @import("../../source_index.zig").Map;
-const NativeInterface = @import("../../interface.zig").Native;
+const interface = @import("../../interface.zig");
+const Interface = @import("../interface/host.zig");
 const Target = @import("../target/host.zig");
 const enabled = @import("parser_options").generated_parser;
 pub const State = enum(u8) { Fresh, Visiting, Done };
@@ -13,31 +14,49 @@ fn Result(comptime module: type) type {
     return @typeInfo(@TypeOf(module.executeValue(undefined, undefined))).error_union.payload;
 }
 
-const Route = struct { kind: Target.Route, internal: ?*const NativeInterface };
+const Route = union(enum) { target: Target.Route, interface: Interface.Route };
 
-pub fn route(path: []const u8, internal: []const NativeInterface) Route {
+pub fn route(internal: []const interface.Native, scoped: []const interface.Native, externals: []const interface.External, item: anytype) Route {
     if (comptime enabled) {
-        if (internal.len == 0) return .{ .kind = Target.classify(path), .internal = null };
-
         const rule = @import("generated_project_load_route");
+        const standard = zx.memory.borrowTextColumn("specifier", @as([]const interface.Native, &interface.standard));
+        const local = zx.memory.borrowTextColumn("specifier", scoped);
+        const legacy = zx.memory.borrowTextColumn("specifier", externals);
         const names = zx.memory.borrowTextColumn("module", internal);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         const input: std.meta.Child(rule.Input) = .{
-            .path = path,
+            .path = item.path,
             .intrinsic = @import("../../intrinsic.zig").specifier,
             .internal = &.{ .items = @ptrCast(&names), .length = names.count },
+            .interfaces = &.{
+                .native = &.{
+                    .standard = &.{ .items = @ptrCast(&standard), .length = standard.count },
+                    .scoped = &.{ .items = @ptrCast(&local), .length = local.count },
+                    .name = item.path,
+                    .check_duplicates = true,
+                },
+                .external = &.{ .items = @ptrCast(&legacy), .length = legacy.count },
+                .function_import = item.kind == .function,
+                .binding_count = item.nameCount(),
+            },
         };
 
         const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-        return .{ .kind = result.route, .internal = if (result.internal) |row| &internal[@intCast(row)] else null };
+        if (result.internal) |row| return .{ .interface = .{ .native = &internal[@intCast(row)] } };
+        if (result.interface) |choice| return .{ .interface = Interface.selected(scoped, choice) };
+
+        return .{ .target = result.route };
     }
 
-    const kind = Target.classify(path);
-    const row = if (kind == .Package) @import("../target/registry.zig").select(internal, "module", path, false).first else null;
+    const kind = Target.classify(item.path);
+    const row = if (kind == .Package) @import("../target/registry.zig").select(internal, "module", item.path, false).first else null;
 
-    return .{ .kind = kind, .internal = if (row) |index| &internal[index] else null };
+    if (row) |index| return .{ .interface = .{ .native = &internal[index] } };
+    if (kind == .Interface) return .{ .interface = Interface.routeSeed(scoped, externals, item) };
+
+    return .{ .target = kind };
 }
 
 pub fn states(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error![]State {
@@ -156,7 +175,7 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
 
     return switch (admit(state_column, row, request.depth)) {
         .Push => suspended: {
-            request.cursor.* = request.import_row;
+            request.cursor.* = request.import_row + 1;
 
             break :suspended .{ .action = .Descend, .index = row };
         },

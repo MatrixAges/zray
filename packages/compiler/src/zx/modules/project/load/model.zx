@@ -1,4 +1,5 @@
 import type { U8Buffer, U64Buffer } from "memory"
+import type { Import as Interface, Selection } from "../interface/model"
 import type { Route } from "../target/model"
 import type { Rows } from "../target/select"
 
@@ -57,10 +58,12 @@ export type SourcePlan = {
 export type Import = {
     path: string,
     intrinsic: string,
-    internal: Rows
+    internal: Rows,
+    interfaces: Interface
 }
 
 export type ImportRoute = {
     route: Route,
-    internal?: u64
+    internal?: u64,
+    interface?: Selection
 }

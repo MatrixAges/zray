@@ -7,43 +7,21 @@ const ExternalPlan = if (enabled) @typeInfo(@TypeOf(@import("generated_project_l
 
 pub const Route = union(enum) { native: *const interface.Native, legacy: usize, duplicate, conflict, invalid_legacy, missing_legacy };
 
-pub fn route(scoped: []const interface.Native, externals: []const interface.External, item: anytype) Route {
-    if (comptime enabled) {
-        const generated = @import("generated_project_interface_route");
-        const Input = std.meta.Child(generated.Input);
-        const memory = zx.memory;
-        const standard = memory.borrowTextColumn("specifier", @as([]const interface.Native, &interface.standard));
-        const local = memory.borrowTextColumn("specifier", scoped);
-        const legacy = memory.borrowTextColumn("specifier", externals);
+pub fn selected(scoped: []const interface.Native, result: anytype) Route {
+    return switch (result.route) {
+        .Native => .{ .native = switch (result.native.?.source) {
+            .Standard => &interface.standard[@intCast(result.native.?.index)],
+            .Scoped => &scoped[@intCast(result.native.?.index)],
+        } },
+        .Legacy => .{ .legacy = @intCast(result.external.?) },
+        .Duplicate => .duplicate,
+        .Conflict => .conflict,
+        .InvalidLegacy => .invalid_legacy,
+        .MissingLegacy => .missing_legacy,
+    };
+}
 
-        const input: Input = .{
-            .native = &.{
-                .standard = &.{ .items = @ptrCast(&standard), .length = standard.count },
-                .scoped = &.{ .items = @ptrCast(&local), .length = local.count },
-                .name = item.path,
-                .check_duplicates = true,
-            },
-            .external = &.{ .items = @ptrCast(&legacy), .length = legacy.count },
-            .function_import = item.kind == .function,
-            .binding_count = item.nameCount(),
-        };
-
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-        const selected = zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
-
-        return switch (selected.route) {
-            .Native => .{ .native = switch (selected.native.?.source) {
-                .Standard => &interface.standard[@intCast(selected.native.?.index)],
-                .Scoped => &scoped[@intCast(selected.native.?.index)],
-            } },
-            .Legacy => .{ .legacy = @intCast(selected.external.?) },
-            .Duplicate => .duplicate,
-            .Conflict => .conflict,
-            .InvalidLegacy => .invalid_legacy,
-            .MissingLegacy => .missing_legacy,
-        };
-    }
-
+pub fn routeSeed(scoped: []const interface.Native, externals: []const interface.External, item: anytype) Route {
     return switch (registry.native(scoped, item.path, true)) {
         .duplicate => .duplicate,
         .found => |entry| if (registry.select(externals, "specifier", item.path, false).first != null) .conflict else .{ .native = entry },

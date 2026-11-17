@@ -14,7 +14,7 @@ export type Input = {
 export type Output = SourcePlan
 
 export default function (in: Input): Output {
-    memory.writeU64(in.cursor, 0, in.import_row)
+    memory.writeU64(in.cursor, 0, in.import_row + 1)
 
     return {
         action: SourceAction.Descend,

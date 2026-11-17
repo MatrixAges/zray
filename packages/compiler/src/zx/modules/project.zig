@@ -92,7 +92,7 @@ const LoadFrame = struct {
     index: usize,
     parsed: ParseCache.Version,
     scope: ?Target.Scope = null,
-    suspended_import: u64 = 0,
+    next_import: u64 = 0,
     aliases: std.ArrayList(ir.Export) = .empty,
     imported_names: @import("project/load/imports/host.zig") = .{},
     imports: std.ArrayList(FunctionImport) = .empty,
@@ -241,15 +241,15 @@ const Project = struct {
         defer paths.deinit();
 
         const start_row: usize = if (completed) |child| resume_import: {
-            const row: usize = @intCast(frame.suspended_import);
-            const item = @import("import_view.zig").get(header, row);
+            const next: usize = @intCast(frame.next_import);
+            const item = @import("import_view.zig").get(header, next - 1);
             const loaded = &self.units[child];
 
             std.debug.assert(self.load_states[child] == .Done);
 
             try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
 
-            break :resume_import row + 1;
+            break :resume_import next;
         } else 0;
 
         for (start_row..import_count) |import_row| {
@@ -265,35 +265,14 @@ const Project = struct {
                     return self.reporter.fail(.name, name.span, "duplicate import binding");
                 }
 
-                const route = Loading.route(item.path, self.options.internal_modules);
+                const scope = frame.packageScope(self.options.package_scopes, unit.path);
+                const scoped = scope.nativeInterfaces(self.options.native_interfaces);
+                const externals = scope.externals(self.options.externals);
 
-                if (route.internal) |entry| {
-                    try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
-                    if (phase == .body) try self.rememberImport(frame, item, .native, entry.key());
-
-                    continue;
-                }
-
-                switch (route.kind) {
-                    .Invalid => return self.reporter.fail(.module, item.span, "invalid or unknown import specifier"),
-                    .Intrinsic => {
-                        try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
-                            .target = .native,
-                            .types = self.types.view(),
-                            .exports = &.{},
-                            .members = &@import("intrinsic.zig").exports,
-                        }, self.reporter, selected_aliases, selected_imports, selected_constants);
-
-                        if (phase == .body) try self.rememberImport(frame, item, .intrinsic, null);
-
-                        continue;
-                    },
-                    .Interface => {
-                        const scope = frame.packageScope(self.options.package_scopes, unit.path);
-                        const scoped = scope.nativeInterfaces(self.options.native_interfaces);
-                        const externals = scope.externals(self.options.externals);
-
-                        switch (Interface.route(scoped, externals, item)) {
+                const target = switch (Loading.route(self.options.internal_modules, scoped, externals, item)) {
+                    .target => |target| target,
+                    .interface => |resolved| {
+                        switch (resolved) {
                             .native => |entry| {
                                 try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
                                 if (phase == .body) try self.rememberImport(frame, item, .native, entry.key());
@@ -310,11 +289,27 @@ const Project = struct {
 
                         continue;
                     },
+                };
+
+                switch (target) {
+                    .Invalid => return self.reporter.fail(.module, item.span, "invalid or unknown import specifier"),
+                    .Intrinsic => {
+                        try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
+                            .target = .native,
+                            .types = self.types.view(),
+                            .exports = &.{},
+                            .members = &@import("intrinsic.zig").exports,
+                        }, self.reporter, selected_aliases, selected_imports, selected_constants);
+
+                        if (phase == .body) try self.rememberImport(frame, item, .intrinsic, null);
+
+                        continue;
+                    },
+                    .Interface => unreachable,
                     .File, .Package => {
                         const scratch = path_memory.allocator();
-                        const scope = frame.packageScope(self.options.package_scopes, unit.path);
 
-                        break :target_block try Target.resolveIndexed(.{ .source = scratch, .compiled = scratch }, unit.path, item.path, route.kind, self.options, scope, null, self.reporter, item.span);
+                        break :target_block try Target.resolveIndexed(.{ .source = scratch, .compiled = scratch }, unit.path, item.path, target, self.options, scope, null, self.reporter, item.span);
                     },
                 }
             };
@@ -331,7 +326,7 @@ const Project = struct {
                         .depth = self.load_frames.items.len,
                         .row = resolved.source_row,
                         .import_row = import_row,
-                        .cursor = &frame.suspended_import,
+                        .cursor = &frame.next_import,
                     });
 
                     switch (plan.action) {
