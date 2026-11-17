@@ -3,9 +3,12 @@ import type { Input as NativePlan } from "../native/plan"
 import type { Input as NativePublication } from "../native/publication/model"
 import type { Batch } from "../signature/model"
 import type { Input as Admission } from "./admission/model"
+import type { Input as Body } from "./body/model"
 
 export enum Status {
-    Ready,
+    Absent,
+    Append,
+    Retain,
     Invalid,
     Conflict,
     Full
@@ -20,5 +23,6 @@ export type Input = {
     admission: Admission,
     native?: Native,
     signatures?: Batch
-    dependencies: Dependencies
+    dependencies: Dependencies,
+    body: Body.Omit("first")
 }

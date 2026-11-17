@@ -9,6 +9,8 @@ const dependencies = @import("../../dependencies/host.zig");
 const native = @import("../../native/host.zig");
 const generated = @import("generated_artifact_module_binding");
 const Binding = std.meta.Child(generated.Input);
+const Body = std.meta.Child(@FieldType(Binding, "body"));
+const Header = std.meta.Child(@typeInfo(@FieldType(Body, "body")).optional.child);
 const Input = std.meta.Child(@typeInfo(@FieldType(Binding, "signatures")).optional.child);
 const Providers = std.meta.Child(@FieldType(Input, "providers"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
@@ -17,8 +19,9 @@ const Modules = std.meta.Child(@typeInfo(@FieldType(Native, "shape")).optional.c
 const Linked = std.meta.Child(@typeInfo(@FieldType(Input, "linked_shape")).optional.child);
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Layout = std.meta.Child(std.meta.Child(@FieldType(Destination, "shape")));
+pub const Bound = struct { mappings: admission.Mappings, placement: dependencies.Placement };
 
-pub fn bind(self: *Builder, index: usize) Builder.Error!admission.Mappings {
+pub fn bind(self: *Builder, index: usize, comptime entry: bool) Builder.Error!Bound {
     const module = &self.modules[index];
     const types: []const u32 = @ptrCast(self.type_mappings[index]);
     var mappings: admission.Mappings = .{ .functions = &.{}, .modules = &.{} };
@@ -37,21 +40,31 @@ pub fn bind(self: *Builder, index: usize) Builder.Error!admission.Mappings {
 
     if (has_natives) native_view.init(&self.allocator, &self.native_modules, module.native_modules, types, &mappings.modules);
 
+    const header: Header = if (module.function) |*body| .{ .path = module.path, .file_name = body.file_name, .external = body.external != null } else undefined;
+
+    const body: Body = .{
+        .body = if (module.function != null) &header else null,
+        .entry = entry,
+        .stores = module.stores.count(),
+        .slot = module.functions.count(),
+        .target = @ptrCast(&mappings.functions),
+    };
+
     const request: dependencies.Inputs = .{
         .admission = &admission_view.input,
         .native = if (has_natives) &native_view.input else null,
+        .body = &body,
     };
 
-    if (module.functions.count() == 0) {
-        try dependencies.bind(self, index, &mappings, request);
-    } else {
+    const placement = if (module.functions.count() == 0)
+        try dependencies.bind(self, index, &mappings, request)
+    else
         try bindSignatures(self, index, &mappings, request);
-    }
 
-    return mappings;
+    return .{ .mappings = mappings, .placement = placement };
 }
 
-fn bindSignatures(self: *Builder, index: usize, mappings: *admission.Mappings, binding: dependencies.Inputs) Builder.Error!void {
+fn bindSignatures(self: *Builder, index: usize, mappings: *admission.Mappings, binding: dependencies.Inputs) Builder.Error!dependencies.Placement {
     const module = &self.modules[index];
     const signatures = binding.admission.layout.signatures;
     const edges = Edges.borrow(module.dependencies, self.plan.sources(index));

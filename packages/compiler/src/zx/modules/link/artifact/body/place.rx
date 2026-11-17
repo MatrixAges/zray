@@ -4,6 +4,12 @@
     <Args in={Body.Input} out={Body.Placement} />
 
     <If on={$in.body != null}>
+        <Call fn="fits" in={$in.first} />
+
+        <If on={!$ctx.fits}>
+            <Return value={Body.Placement.Invalid} />
+        </If>
+
         <Call
             fn="slot"
             in={$in.pick([

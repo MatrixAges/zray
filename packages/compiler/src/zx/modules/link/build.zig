@@ -19,8 +19,14 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
     const value = &self.modules[index];
     const admission = @import("artifact/admission/host.zig");
     const types = self.type_mappings[index];
+    var placement: if (generated) @import("dependencies/host.zig").Placement else void = undefined;
 
-    const mappings = if (comptime generated) try @import("artifact/binding/host.zig").bind(self, index) else seed: {
+    const mappings = if (comptime generated) source: {
+        const bound = try @import("artifact/binding/host.zig").bind(self, index, entry);
+        placement = bound.placement;
+
+        break :source bound.mappings;
+    } else seed: {
         if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
 
         break :seed try admission.reserve(self.temporary, value);
@@ -44,7 +50,7 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
     }
 
     if (comptime generated) {
-        return @import("artifact/body/host.zig").publish(&nodes, value, &self.functions, self.temporary, mappings.functions, &self.module_functions[index], entry);
+        return @import("artifact/body/host.zig").publish(&nodes, value, &self.functions, self.temporary, &self.module_functions[index], placement, entry);
     }
 
     try native.link(self.temporary, &self.native_modules, value.native_modules, mappings.modules, &nodes);

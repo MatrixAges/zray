@@ -1,5 +1,6 @@
 <Module>
     <Type from="binding" as="Binding" />
+    <Type from="body/model" as="Body" />
     <Type from="../native/model" as="Native" />
     <Type from="../signature/decision" as="Signature" />
     <Type from="../dependencies/model" as="Dependencies" />
@@ -54,5 +55,29 @@
         <Return value={Binding.Status.Invalid} />
     </If>
 
-    <Return value={Binding.Status.Ready} />
+    <Call
+        module="body/place"
+        in={{
+            ...$in.body,
+            first: $in.dependencies.walk.checks.linked.files.length
+        }}
+    />
+
+    <Switch on={$ctx.place}>
+        <Case value={Body.Placement.Absent}>
+            <Return value={Binding.Status.Absent} />
+        </Case>
+
+        <Case value={Body.Placement.Append}>
+            <Return value={Binding.Status.Append} />
+        </Case>
+
+        <Case value={Body.Placement.Retain}>
+            <Return value={Binding.Status.Retain} />
+        </Case>
+
+        <Default>
+            <Return value={Binding.Status.Invalid} />
+        </Default>
+    </Switch>
 </Module>

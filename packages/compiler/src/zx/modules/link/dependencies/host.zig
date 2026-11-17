@@ -9,6 +9,7 @@ const Edges = @import("traversal/view.zig").Columns;
 const admission = @import("../artifact/admission/host.zig");
 const generated = @import("generated_artifact_module_binding");
 const Binding = std.meta.Child(generated.Input);
+pub const Placement = generated.Output;
 const Input = std.meta.Child(@FieldType(Binding, "dependencies"));
 const Walk = std.meta.Child(@FieldType(Input, "walk"));
 const Views = std.meta.Child(@FieldType(Input, "views"));
@@ -26,9 +27,10 @@ pub const Inputs = struct {
     admission: @FieldType(Binding, "admission"),
     native: @FieldType(Binding, "native"),
     signatures: @FieldType(Binding, "signatures") = null,
+    body: @FieldType(Binding, "body"),
 };
 
-pub fn bind(self: *Builder, index: usize, mappings: *admission.Mappings, inputs: Inputs) Builder.Error!void {
+pub fn bind(self: *Builder, index: usize, mappings: *admission.Mappings, inputs: Inputs) Builder.Error!Placement {
     comptime std.debug.assert(@sizeOf(Ownership) == @sizeOf(u8));
 
     const module = &self.modules[index];
@@ -109,7 +111,7 @@ const Field = enum {
 
 const Projection = std.enums.EnumArray(Field, memory.ReadColumn);
 
-fn bindSources(self: *Builder, inputs: Inputs, walk: *const Walk, views: *const Views) Builder.Error!void {
+fn bindSources(self: *Builder, inputs: Inputs, walk: *const Walk, views: *const Views) Builder.Error!Placement {
     const modules = self.modules;
 
     const sources = std.enums.EnumArray(Field, memory.ListColumn).init(.{
@@ -171,12 +173,13 @@ fn bindSources(self: *Builder, inputs: Inputs, walk: *const Walk, views: *const 
     return run(self.temporary, inputs, &.{ .walk = &request, .views = views });
 }
 
-fn run(temporary: std.mem.Allocator, inputs: Inputs, dependencies: *const Input) Builder.Error!void {
+fn run(temporary: std.mem.Allocator, inputs: Inputs, dependencies: *const Input) Builder.Error!Placement {
     const request: Binding = .{
         .admission = inputs.admission,
         .native = inputs.native,
         .signatures = inputs.signatures,
         .dependencies = dependencies,
+        .body = inputs.body,
     };
 
     const status = generated.executeIn(temporary, &request) catch |err| switch (@as(anyerror, err)) {
@@ -185,7 +188,7 @@ fn run(temporary: std.mem.Allocator, inputs: Inputs, dependencies: *const Input)
     };
 
     return switch (status) {
-        .Ready => {},
+        .Absent, .Append, .Retain => status,
         .Invalid => error.InvalidModule,
         .Conflict => error.ConflictingInterface,
         .Full => error.OutOfMemory,
