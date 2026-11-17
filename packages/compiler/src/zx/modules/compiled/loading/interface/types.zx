@@ -1,19 +1,38 @@
 import integers from "std:integer"
 import strings from "std:string"
+import memory from "memory"
 
+import type { ListColumn } from "memory"
 import type { Type } from "./model"
 
 export type Input = {
-    names: string[],
-    ids: u32[],
+    names: ListColumn,
+    ids: ListColumn,
+    row: u64,
     mapping: u32[]
 }
 
 export type Output = Type[]
 
 export default function (in: Input): Output {
-    return in.names.map((name, index) => {
-        name: strings.copy(name),
-        type_id: in.mapping[integers.widen(in.ids[index])]
-    })[0]
+    const length = memory.listLength(in.names, in.row)
+    const values: Type[] = []
+
+    return loop({
+        index: 0,
+        values
+    }, {
+        while: state => state.index < length,
+        next: state => {
+            const name = memory.readListText(in.names, in.row, state.index)
+            const id = memory.readListU32(in.ids, in.row, state.index)
+
+            state.values = state.values.push({
+                name: strings.copy(name),
+                type_id: in.mapping[integers.widen(id)]
+            })[0]
+            state.index += 1
+        },
+        return: state => state.values
+    })
 }

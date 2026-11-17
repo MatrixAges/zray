@@ -17,18 +17,14 @@ export type Output = bool
 
 export default function (in: Input): Output {
     const exports = in.graph.exports
-    const name = exports.names[in.index]
+    const name = memory.readTextColumn(exports.names, in.index)
     const path = memory.readTextColumn(exports.paths, in.index)
-    const function_id = exports.functions[in.index]
+    const function_id = memory.readColumnOptionalU32(exports.functions, in.index)
     const functions = in.graph.program.context.functions
 
-    const condition = match {
-        !text(name) => true,
-        !text(path) => true,
-        _ => exports.type_names[in.index].length != exports.type_ids[in.index].length
-    }
+    const type_count = memory.listLength(exports.type_names, in.index)
 
-    if (condition) {
+    if (!text(name) || !text(path)) {
         return false
     }
 
@@ -63,13 +59,17 @@ export default function (in: Input): Output {
     }
 
     return members({
-        members: exports.members[in.index],
-        types: exports.type_names[in.index],
+        members: exports.members,
+        type_names: exports.type_names,
+        type_count,
+        row: in.index,
         constants: exports.constants[in.index],
         functions
     }) && types({
-        names: exports.type_names[in.index],
-        ids: exports.type_ids[in.index],
+        names: exports.type_names,
+        ids: exports.type_ids,
+        length: type_count,
+        row: in.index,
         count: in.graph.program.context.table.kinds.length,
         function_id,
         functions

@@ -249,10 +249,22 @@ pub inline fn readListText(source: *const anyopaque, index: u64, member: u64) er
     return readColumn([]const u8, &column, member);
 }
 
+pub inline fn readListOptionalText(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!?[]const u8 {
+    const column = try listColumn(source, index);
+
+    return readColumn(?[]const u8, &column, member);
+}
+
 pub inline fn borrowListBytes(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u8 {
     const column = try listColumn(source, index);
 
     return if (column.count == 0) &.{} else column.bytes[column.offset..];
+}
+
+pub inline fn readListU32(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!u32 {
+    const column = try listColumn(source, index);
+
+    return readColumn(u32, &column, member);
 }
 
 pub inline fn readListOptionalU32(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!?u32 {

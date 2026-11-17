@@ -2,25 +2,36 @@ import type { Values } from "core/constant/model"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { TextColumn, U32Buffer } from "memory"
+import type { ListColumn, ReadColumn, TextColumn, U32Buffer } from "memory"
+import type { ListColumn as ByteList } from "memory/columns"
 import type { Program } from "../../ir/canonical/validation/model"
-import type { Imports } from "../function_import"
 import type { Mapping as FunctionMapping } from "./loading/functions/model"
 
 export type Exports = {
-    names: string[],
+    count: u64,
+    names: TextColumn,
     paths: TextColumn,
-    functions: u32?[],
-    type_names: string[][],
-    type_ids: u32[][],
+    functions: ReadColumn,
+    type_names: ListColumn,
+    type_ids: ListColumn,
     constants: Values?[],
-    members: Imports[]
+    members: Members
+}
+
+export type Members = {
+    names: ListColumn,
+    namespaces: ListColumn,
+    ids: ListColumn,
+    inputs: ListColumn,
+    outputs: ListColumn,
+    intrinsics: ByteList
 }
 
 export type Initializers = {
-    identities: string[],
-    versions: u32[],
-    functions: u32[]
+    count: u64,
+    identities: TextColumn,
+    versions: ReadColumn,
+    functions: ReadColumn
 }
 
 export type Selection = {

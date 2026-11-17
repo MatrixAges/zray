@@ -1,0 +1,31 @@
+import strings from "std:string"
+import memory from "memory"
+
+import type { Exports } from "../../model"
+import type { Reference } from "./model"
+
+export type Input = Exports
+
+export type Output = Reference[]
+
+export default function (in: Input): Output {
+    const references: Reference[] = []
+
+    return loop({
+        row: 0,
+        references
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const row = state.row
+
+            state.references = state.references.push({
+                name: strings.copy(memory.readTextColumn(in.names, row)),
+                row,
+                first: row
+            })[0]
+            state.row += 1
+        },
+        return: state => state.references
+    })
+}

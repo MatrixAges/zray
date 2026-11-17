@@ -1,7 +1,7 @@
 import memory from "memory"
 
+import select from "../../../project/target/select"
 import { missing_public_module } from "./const"
-import locate from "./locate"
 
 import type { Exports, Selection, SelectionPlan } from "../../model"
 
@@ -38,12 +38,16 @@ export default function (in: Input): Output {
             current.found && current.index < selection.count,
         next: current => {
             const module = memory.readTextColumn(selection.modules, current.index)
-            const row = locate({
-                names: source.names,
-                module
-            })
+            const row = select({
+                specifiers: {
+                    items: source.names,
+                    length: source.count
+                },
+                name: module,
+                check_duplicates: false
+            }).first
 
-            if (row < source.names.length) {
+            if (row != null) {
                 const selected_rows = current.rows
                 const selected = loop({
                     index: 0

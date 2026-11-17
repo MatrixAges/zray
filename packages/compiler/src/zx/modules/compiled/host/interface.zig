@@ -15,13 +15,13 @@ pub const Interface = struct {
 };
 
 pub fn materialize(allocator: std.mem.Allocator, input: *const Input, plan: *const Plan, first: usize) (std.mem.Allocator.Error || error{InvalidModule})!Interface {
-    if (input.exports.names.len == 0 and input.initializers.identities.len == 0) return .{};
+    if (input.exports.input.count == 0 and input.initializers.input.count == 0) return .{};
 
     const Exports = std.meta.Child(@FieldType(Request, "exports"));
     const Initializers = std.meta.Child(@FieldType(Request, "initializers"));
     const Selection = std.meta.Child(@typeInfo(@FieldType(Request, "selection")).optional.child);
-    const exports_view = zx.columns.view(Exports, input.exports);
-    const initializers_view = zx.columns.view(Initializers, input.initializers);
+    const exports_view = zx.columns.view(Exports, input.exports.input);
+    const initializers_view = zx.columns.view(Initializers, input.initializers.input);
     const selection = if (plan.selection) |value| zx.columns.view(Selection, value) else null;
 
     const request: Request = .{
@@ -81,7 +81,7 @@ fn exportRow(allocator: std.mem.Allocator, name: []const u8, source: anytype) st
         .id = if (value.id) |id| @fromBackingInt(id) else null,
         .input_type = if (value.input_type) |id| @fromBackingInt(id) else null,
         .output_type = if (value.output_type) |id| @fromBackingInt(id) else null,
-        .intrinsic = if (value.intrinsic) |operation| @fromBackingInt(@intCast(@backingInt(operation))) else null,
+        .intrinsic = if (value.intrinsic) |operation| @fromBackingInt(operation) else null,
     };
 
     for (source.constants, constants) |value, *target| target.* = .{

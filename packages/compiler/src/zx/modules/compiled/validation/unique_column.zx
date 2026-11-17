@@ -1,0 +1,36 @@
+import memory from "memory"
+
+import unique from "./unique"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    names: TextColumn,
+    count: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (in.count < 2) {
+        return true
+    }
+
+    const names: string[] = []
+
+    const values = loop({
+        row: 0,
+        names
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const name = memory.readTextColumn(in.names, state.row)
+
+            state.names = state.names.push(name)[0]
+            state.row += 1
+        },
+        return: state => state.names
+    })
+
+    return unique(values)
+}

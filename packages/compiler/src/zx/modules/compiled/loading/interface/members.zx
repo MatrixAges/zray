@@ -1,11 +1,14 @@
 import integers from "std:integer"
 import strings from "std:string"
+import memory from "memory"
+import columns from "memory/columns"
 
-import type { Imports } from "../../../function_import"
+import type { Members } from "../../model"
 import type { Member } from "./model"
 
 export type Input = {
-    source: Imports,
+    source: Members,
+    row: u64,
     mapping: u32[],
     first: u64
 }
@@ -13,22 +16,37 @@ export type Input = {
 export type Output = Member[]
 
 export default function (in: Input): Output {
-    const { source, mapping, first } = in
+    const { source, row, mapping, first } = in
 
-    return source.names.map((name, index) => {
-        const id = source.ids[index]
-        const input = source.input_types[index]
-        const output = source.output_types[index]
+    const count = memory.listLength(source.names, row)
+    const members: Member[] = []
 
-        return {
-            name: strings.copy(name),
-            id: match {
-                id == null => null,
-                _ => integers.narrow(first + integers.widen(id))
-            },
-            input_type: input == null ? null : mapping[integers.widen(input)],
-            output_type: output == null ? null : mapping[integers.widen(output)],
-            intrinsic: source.intrinsics[index]
-        }
-    })[0]
+    return loop({
+        index: 0,
+        members
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const index = state.index
+            const name = memory.readListText(source.names, row, index)
+            const id = memory.readListOptionalU32(source.ids, row, index)
+            const input = memory.readListOptionalU32(source.inputs, row, index)
+            const output = memory.readListOptionalU32(source.outputs, row, index)
+
+            const member: Member = {
+                name: strings.copy(name),
+                id: match {
+                    id == null => null,
+                    _ => integers.narrow(first + integers.widen(id))
+                },
+                input_type: input == null ? null : mapping[integers.widen(input)],
+                output_type: output == null ? null : mapping[integers.widen(output)],
+                intrinsic: columns.readListOptionalU8(source.intrinsics, row, index)
+            }
+
+            state.members = state.members.push(member)[0]
+            state.index += 1
+        },
+        return: state => state.members
+    })
 }

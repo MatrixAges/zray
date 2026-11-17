@@ -1,5 +1,4 @@
 import type { ExpressionKind } from "core/expression_table/kinds"
-import type { Operation } from "../../../intrinsic/model"
 import type { Exports, Initializers, SelectionPlan } from "../../model"
 
 export type Type = {
@@ -12,7 +11,7 @@ export type Member = {
     id?: u32,
     input_type?: u32,
     output_type?: u32,
-    intrinsic?: Operation
+    intrinsic?: u8
 }
 
 export type Constant = {

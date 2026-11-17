@@ -5,6 +5,7 @@ import memory from "memory"
 import scope from "../../identity/scope"
 import constants from "./constants"
 import members from "./members"
+import referencesFromNames from "./references"
 import types from "./types"
 
 import type { Export, ExportRequest, Reference, Surface } from "./model"
@@ -17,7 +18,7 @@ export default function (in: Input): Output {
     const { source, selection, mapping, first, instance } = in
 
     const exports: Export[] = []
-    const count = selection == null ? source.names.length : selection.rows.length
+    const count = selection == null ? source.count : selection.rows.length
 
     const mapped = loop({
         index: 0,
@@ -27,7 +28,7 @@ export default function (in: Input): Output {
         next: current => {
             const index = current.index
             const row = selection == null ? index : selection.rows[index]
-            const id = source.functions[row]
+            const id = memory.readColumnOptionalU32(source.functions, row)
             const entry: Export = {
                 path: scope({
                     instance,
@@ -38,12 +39,14 @@ export default function (in: Input): Output {
                     _ => integers.narrow(first + integers.widen(id))
                 },
                 types: types({
-                    names: source.type_names[row],
-                    ids: source.type_ids[row],
+                    names: source.type_names,
+                    ids: source.type_ids,
+                    row,
                     mapping
                 }),
                 members: members({
-                    source: source.members[row],
+                    source: source.members,
+                    row,
                     mapping,
                     first
                 }),
@@ -60,11 +63,7 @@ export default function (in: Input): Output {
     })
 
     const references: Reference[] = match {
-        selection == null => source.names.map((name, row) => {
-            name: strings.copy(name),
-            row,
-            first: row
-        })[0],
+        selection == null => referencesFromNames(source),
         _ => selection.aliases.map((row, index) => {
             name: strings.copy(memory.readTextColumn(selection.names, index)),
             row,

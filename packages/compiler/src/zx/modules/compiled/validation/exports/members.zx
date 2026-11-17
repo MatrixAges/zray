@@ -1,15 +1,20 @@
 import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
 
 import text from "../../../../ir/canonical/native/text"
 import unique from "../unique"
 
 import type { Values } from "core/constant/model"
 import type { Complete } from "core/function_table/complete"
-import type { Imports } from "../../../function_import"
+import type { ListColumn } from "memory"
+import type { Members } from "../../model"
 
 export type Input = {
-    members: Imports,
-    types: string[],
+    members: Members,
+    type_names: ListColumn,
+    type_count: u64,
+    row: u64,
     constants?: Values,
     functions: Complete
 }
@@ -17,87 +22,84 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
-    const members = in.members
-    const count = members.names.length
+    const { members, row } = in
 
-    const different_namespaces = members.namespaces.length != count
-    const different_input_types = members.input_types.length != count
-    const different_output_types = members.output_types.length != count
-    const different_intrinsics = members.intrinsics.length != count
+    const count = memory.listLength(members.names, row)
 
-    const condition = (
-        - different_namespaces
-        - or members.ids.length != count
-        - or different_input_types
-        - or different_output_types
-        - or different_intrinsics
-    )
-
-    if (condition) {
-        return false
-    }
-
-    if (count == 0 && in.constants == null) {
-        return true
-    }
-
-    const names = in.types.concat(members.names)[0]
     const constants = in.constants
-    const public_names = constants == null ? names : names.concat(constants.names)[0]
+    const constant_count = constants == null ? 0 : constants.names.length
+    const total = in.type_count + count + constant_count
+
+    if (total > 1) {
+        const names: string[] = []
+
+        const values = loop({
+            names,
+            index: 0
+        }, {
+            while: state => state.index < total,
+            next: state => {
+                const index = state.index
+
+                const name = match {
+                    index < in.type_count =>
+                        memory.readListText(in.type_names, in.row, index),
+                    index < in.type_count + count =>
+                        memory.readListText(members.names, row, index - in.type_count),
+                    constants != null =>
+                        constants.names[index - in.type_count - count],
+                    _ => ""
+                }
+
+                state.names = state.names.push(name)[0]
+                state.index += 1
+            },
+            return: state => state.names
+        })
+
+        if (!unique(values)) {
+            return false
+        }
+    }
 
     return loop({
-        input: in,
         index: 0,
-        valid: unique(public_names)
+        valid: true
     }, {
-        while: current =>
-            current.valid && current.index < current.input.members.names.length,
+        while: current => current.valid && current.index < count,
         next: current => {
-            const values = current.input.members
-            const row = current.index
-            const id = values.ids[row]
-            const input = values.input_types[row]
-            const output = values.output_types[row]
+            const index = current.index
+            const name = memory.readListText(members.names, row, index)
+            const namespace =
+                memory.readListOptionalText(members.namespaces, row, index)
+            const id = memory.readListOptionalU32(members.ids, row, index)
+            const input = memory.readListOptionalU32(members.inputs, row, index)
+            const output = memory.readListOptionalU32(members.outputs, row, index)
+            const intrinsic =
+                columns.readListOptionalU8(members.intrinsics, row, index)
 
-            const name = values.names[row]
-            const named = match {
-                text(name) => true,
-                name == "" => values.intrinsics[row] != null,
-                _ => false
-            }
+            const named = text(name) || (name == "" && intrinsic != null)
 
-            current.valid = named && values.namespaces[row] == null
+            current.valid = named && namespace == null
 
             if (current.valid) {
-                if (values.intrinsics[row] != null) {
+                const complete = id != null && input != null && output != null
+
+                if (intrinsic != null) {
                     current.valid = id == null && input == null && output == null
-                } else {
-                    const condition_2 = (
-                        - id != null
-                        - and input != null
-                        - and output != null
-                    )
+                } else if (complete && id != null) {
+                    const linked = integers.widen(id)
+                    const functions = in.functions
 
-                    if (condition_2) {
+                    current.valid = linked < functions.files.length
+
+                    if (current.valid) {
                         current.valid =
-                            integers.widen(id) < current.input.functions.files.length
-
-                        if (current.valid) {
-                            current.valid =
-                                input ==
-                                current.input.functions
-                                .input_types[integers.widen(
-                                    id
-                                )] &&
-                                output ==
-                                current.input.functions
-                                .output_types[integers.widen(
-                                    id
-                                )]
-                        }
-                    } else {
-                        current.valid = false
+                            input == functions.input_types[linked] &&
+                            output == functions.output_types[linked]
                     }
+                } else {
+                    current.valid = false
                 }
             }
 

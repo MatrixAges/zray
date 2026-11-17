@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import store from "../../identity/store"
 
@@ -16,14 +17,28 @@ export type Output = Initializer[]
 export default function (in: Input): Output {
     const { source, first, instance } = in
 
-    return source.identities.map((value, index) => {
-        identity: store({
-            instance,
-            value
-        }),
-        schema_version: source.versions[index],
-        function: integers.narrow(
-            first + integers.widen(source.functions[index])
-        )
-    })[0]
+    const rows: Initializer[] = []
+
+    return loop({
+        index: 0,
+        rows
+    }, {
+        while: state => state.index < source.count,
+        next: state => {
+            const index = state.index
+            const value = memory.readTextColumn(source.identities, index)
+            const id = memory.readColumnU32(source.functions, index)
+
+            state.rows = state.rows.push({
+                identity: store({
+                    instance,
+                    value
+                }),
+                schema_version: memory.readColumnU32(source.versions, index),
+                function: integers.narrow(first + integers.widen(id))
+            })[0]
+            state.index += 1
+        },
+        return: state => state.rows
+    })
 }

@@ -1,14 +1,17 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import text from "../../../../ir/canonical/native/text"
 import { input_type_name, output_type_name } from "../../const"
-import unique from "../unique"
 
 import type { Complete } from "core/function_table/complete"
+import type { ListColumn } from "memory"
 
 export type Input = {
-    names: string[],
-    ids: u32[],
+    names: ListColumn,
+    ids: ListColumn,
+    row: u64,
+    length: u64,
     count: u64,
     function_id?: u32,
     functions: Complete
@@ -20,12 +23,12 @@ export default function (in: Input): Output {
     return loop({
         input: in,
         index: 0,
-        valid: unique(in.names)
+        valid: true
     }, {
-        while: current => current.valid && current.index < current.input.names.length,
+        while: current => current.valid && current.index < current.input.length,
         next: current => {
-            const name = current.input.names[current.index]
-            const id = current.input.ids[current.index]
+            const name = memory.readListText(in.names, in.row, current.index)
+            const id = memory.readListU32(in.ids, in.row, current.index)
             const function_id = current.input.function_id
 
             current.valid = text(name) && integers.widen(id) < current.input.count

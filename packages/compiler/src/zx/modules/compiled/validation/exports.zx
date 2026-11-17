@@ -1,5 +1,5 @@
 import check from "./exports/check"
-import unique from "./unique"
+import unique from "./unique_column"
 
 import type { Graph } from "../model"
 
@@ -11,10 +11,13 @@ export default function (in: Input): Output {
     return loop({
         graph: in,
         index: 0,
-        valid: unique(in.exports.names)
+        valid: unique({
+            names: in.exports.names,
+            count: in.exports.count
+        })
     }, {
         while: current =>
-            current.valid && current.index < current.graph.exports.names.length,
+            current.valid && current.index < current.graph.exports.count,
         next: current => {
             current.valid = check({
                 graph: current.graph,
