@@ -1,5 +1,6 @@
 const std = @import("std");
 const entries = @import("entries.zig");
+const memory_columns = "memory/columns";
 pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, ordered: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, host: std.Build.LazyPath };
 
 pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []const u8, partitions: u32, executable: *std.Build.Step.Compile) Sources {
@@ -55,6 +56,19 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
 
     sources.lexer = lexer_run.addOutputFileArg("lexer.zig");
 
+    const interfaces = [_]manifest.Interface{
+        .{
+            .specifier = "zig:string",
+            .path = b.dependency("zxc_std", .{}).builder.root.joinString(b.allocator, "interfaces/string.d.zx") catch @panic("out of memory"),
+            .module = "zxc_string",
+        },
+        .{ .path = b.fmt("{s}/memory/index.d.zx", .{directories[2]}), .module = "memory" },
+    };
+
+    const main_interfaces = interfaces ++ [_]manifest.Interface{
+        .{ .path = b.fmt("{s}/memory/columns.d.zx", .{directories[2]}), .module = memory_columns },
+    };
+
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
     for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .ordered, .collections, .growth, .host }) |set| {
         const run = generatorRun(b, executable, stage0);
@@ -86,14 +100,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             },
             .entries = entries.of(set),
             .packages = @import("source_packages.zig").entries,
-            .interfaces = &.{ .{
-                .specifier = "zig:string",
-                .path = b.dependency("zxc_std", .{}).builder.root.joinString(b.allocator, "interfaces/string.d.zx") catch @panic("out of memory"),
-                .module = "zxc_string",
-            }, .{
-                .path = b.fmt("{s}/memory/index.d.zx", .{directories[2]}),
-                .module = "memory",
-            } },
+            .interfaces = if (set == .main) &main_interfaces else &interfaces,
         };
 
         const content = std.json.Stringify.valueAlloc(b.allocator, project, .{}) catch @panic("out of memory");
@@ -107,6 +114,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         run.addFileArg(manifest_path);
         run.addFileInput(b.dependency("zxc_std", .{}).path("interfaces/string.d.zx"));
         run.addFileInput(roots[2].path(b, "memory/index.d.zx"));
+
+        if (set == .main) run.addFileInput(roots[2].path(b, "memory/columns.d.zx"));
 
         switch (set) {
             .ordered => inline for (ordered_roots) |path| addSubtree(run, tracked[3], path),
@@ -258,6 +267,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
             .{ .name = "memory", .module = memory },
+            .{ .name = memory_columns, .module = memory },
         },
     });
 
@@ -280,6 +290,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
             .{ .name = "memory", .module = memory },
+            .{ .name = memory_columns, .module = memory },
             .{ .name = "zxc_bridge", .module = bridge },
             .{ .name = "zxc_signatures", .module = signatures },
         };
@@ -297,6 +308,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
                 .{ .name = "zxc_standard", .module = standard },
                 .{ .name = "zxc_string", .module = string },
                 .{ .name = "memory", .module = memory },
+                .{ .name = memory_columns, .module = memory },
             },
         }));
 
@@ -445,7 +457,7 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     run.addArgs(&.{ level, "--dep", "zxc_abi", "-Mzxc_signatures=%generated%/signatures.zig", level });
     run.addPrefixedFileArg("-Mzxc_bridge=", b.path("build/partition/bridge.zig"));
     run.addArgs(stripped);
-    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "memory", "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
+    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "memory", "--dep", memory_columns ++ "=memory", "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
     run.addArgs(&.{ "--name", if (llvm) "zxc_partition_%index%" else "zxc_partition_%index%_self_hosted", "-femit-bin=%objects%/zxc_partition_%index%.o" });
 
     // The object directory persists across runs, so unchanged partitions keep their objects.

@@ -45,6 +45,18 @@ pub inline fn writeBytes(target: *const anyopaque, index: u64, value: []const u8
     return write([]const u8, target, index, value);
 }
 
+pub inline fn writeOptionalU32(target: *const anyopaque, index: u64, value: ?u32) IndexError!void {
+    return write(?u32, target, index, value);
+}
+
+pub inline fn writeOptionalU8(target: *const anyopaque, index: u64, value: ?u8) IndexError!void {
+    return write(?u8, target, index, value);
+}
+
+pub inline fn writeOptionalText(target: *const anyopaque, index: u64, value: ?[]const u8) IndexError!void {
+    return write(?[]const u8, target, index, value);
+}
+
 inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T) IndexError!void {
     const column: *const Column = @ptrCast(@alignCast(target));
 

@@ -1,0 +1,84 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import map from "../member"
+
+import type { Input, Result } from "./model"
+
+export type Output = Result?
+
+export default function (in: Input): Output {
+    const { source, target, type_ids, functions } = in
+
+    return loop({
+        row: 0,
+        written: 0,
+        entry: in.entry,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < source.count,
+        next: state => {
+            const index = state.row
+            const intrinsic = memory.readColumnOptionalU8(source.intrinsics, index)
+
+            const member = map({
+                name: memory.readTextColumn(source.names, index),
+                id: memory.readColumnOptionalU32(source.ids, index),
+                input_type: memory.readColumnOptionalU32(source.inputs, index),
+                output_type: memory.readColumnOptionalU32(source.outputs, index),
+                intrinsic: intrinsic != null,
+                type_ids,
+                functions
+            })
+
+            if (member == null) {
+                state.valid = false
+            } else if (member.entry) {
+                state.valid = state.entry == null
+                state.entry = member.id
+            } else {
+                memory.writeColumnBytes(
+                    target.names,
+                    state.written,
+                    bytes.fromText(member.name)
+                )
+                columns.writeColumnOptionalU32(
+                    target.ids,
+                    state.written,
+                    member.id
+                )
+                columns.writeColumnOptionalU32(
+                    target.inputs,
+                    state.written,
+                    member.input_type
+                )
+                columns.writeColumnOptionalU32(
+                    target.outputs,
+                    state.written,
+                    member.output_type
+                )
+                columns.writeColumnOptionalU8(
+                    target.intrinsics,
+                    state.written,
+                    intrinsic
+                )
+                columns.writeColumnOptionalText(
+                    target.namespaces,
+                    state.written,
+                    null
+                )
+                state.written += 1
+            }
+
+            state.row += 1
+        },
+        return: state => match {
+            state.valid => {
+                written: state.written,
+                entry: state.entry
+            },
+            _ => null
+        }
+    })
+}

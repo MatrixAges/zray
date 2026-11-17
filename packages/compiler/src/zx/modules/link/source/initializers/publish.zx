@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import remap from "../initializer"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target, functions, end } = in
+
+    const completed = loop(in.start, {
+        while: row => row < end,
+        next: row => {
+            const initial = remap({
+                source: {
+                    identity: memory.readTextColumn(source.identity, row),
+                    schema_version: columns.readColumnU32(source.schema_version, row),
+                    function: columns.readColumnU32(source.function, row)
+                },
+                functions,
+                own_identity: true
+            })
+
+            const encoded = bytes.fromText(initial.identity)
+
+            memory.writeColumnBytes(target.identity, row, encoded)
+            memory.writeColumnU32(
+                target.schema_version,
+                row,
+                initial.schema_version
+            )
+            memory.writeColumnU32(target.function, row, initial.function)
+
+            row += 1
+        }
+    })
+}

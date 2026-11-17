@@ -178,6 +178,10 @@ pub inline fn readColumnI32(source: *const anyopaque, index: u64) error{IndexOut
     return readColumn(i32, source, index);
 }
 
+pub inline fn readColumnU32(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u32 {
+    return readColumn(u32, source, index);
+}
+
 pub inline fn readColumnU64(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
     return readColumn(u64, source, index);
 }

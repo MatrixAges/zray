@@ -1,0 +1,25 @@
+export type ReadColumn = opaque
+export type WriteColumn = opaque
+
+export declare function writeColumnOptionalU32(
+    target: WriteColumn,
+    index: u64,
+    value: u32?
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnOptionalU8(
+    target: WriteColumn,
+    index: u64,
+    value: u8?
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnOptionalText(
+    target: WriteColumn,
+    index: u64,
+    value: string?
+): void throws { IndexOutOfBounds }
+
+export declare function readColumnU32(
+    source: ReadColumn,
+    index: u64
+): u32 throws { IndexOutOfBounds }

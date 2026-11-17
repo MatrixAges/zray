@@ -1,0 +1,43 @@
+import integers from "std:integer"
+
+import remap from "../../artifact/remapping/id"
+
+import type { Mapping } from "../../artifact/remapping/model"
+
+export type Input = {
+    own?: u32,
+    type_only: bool,
+    next: u64,
+    functions: Mapping
+}
+
+export type Output = {
+    function?: u32,
+    append: bool
+}
+
+export default function (in: Input): Output {
+    const { own, type_only, next, functions } = in
+
+    if (own != null) {
+        return {
+            function: remap({
+                id: own,
+                mapping: functions
+            }),
+            append: false
+        }
+    }
+
+    if (type_only) {
+        return {
+            function: null,
+            append: false
+        }
+    }
+
+    return {
+        function: integers.narrow(next),
+        append: true
+    }
+}

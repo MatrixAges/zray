@@ -37,6 +37,24 @@ pub fn own(program: ir.Program) ?ir.FunctionId {
 }
 
 pub fn ownTail(program: ir.Program, tail: ir.FunctionTable, first: usize) ?ir.FunctionId {
+    if (comptime generated) {
+        const rule = @import("generated_source_owned_entry");
+
+        const input: std.meta.Child(rule.Input) = .{
+            .calls = program.expressions.call_functions,
+            .count = tail.count(),
+            .first = first,
+            .type_only = program.type_only,
+        };
+
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+        const candidate = @import("zx").columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+
+        if (candidate == null) return null;
+
+        return if (std.meta.eql(value(program), tail.at(tail.count() - 1))) @fromBackingInt(candidate.?) else null;
+    }
+
     if (program.type_only or tail.count() == 0) return null;
 
     const row = tail.count() - 1;

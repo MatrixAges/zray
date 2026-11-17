@@ -1,4 +1,5 @@
 const std = @import("std");
+const zx = @import("zx");
 const Initializer = @import("../../compiled.zig").StoreInitializer;
 const Nodes = @import("../../artifact/nodes.zig");
 const Error = @import("../../artifact/model.zig").Error;
@@ -15,9 +16,40 @@ pub fn link(nodes: *Nodes, values: []const Initializer, shared: []const Initiali
 
     @memcpy(initializers[0..borrowed], shared[0..borrowed]);
 
-    for (values[borrowed..], initializers[borrowed..]) |source, *initializer| initializer.* = try nodes.remapInitializer(source, true);
+    if (comptime generated) {
+        try publish(nodes, values, initializers, borrowed);
+    } else {
+        for (values[borrowed..], initializers[borrowed..]) |source, *initializer| initializer.* = try nodes.remapInitializer(source, true);
+    }
 
     return initializers;
+}
+
+fn publish(nodes: *const Nodes, values: []const Initializer, initializers: []Initializer, start: usize) Error!void {
+    const rule = @import("generated_source_initializer_publish");
+    const Input = std.meta.Child(rule.Input);
+    const Mapping = std.meta.Child(@FieldType(Input, "functions"));
+    const memory = zx.memory;
+    const functions = @import("../../artifact/nodes/remap.zig").idMapping(Mapping, nodes.functions);
+    const identities = memory.borrowTextColumn("identity", values);
+    const ids = memory.borrowReadColumn(zx.ir.FunctionId, "function", values);
+    const schemas = memory.borrowReadColumn(u32, "schema_version", values);
+    const out_identities = memory.borrowWriteColumn([]const u8, "identity", initializers);
+    const out_ids = memory.borrowWriteColumn(u32, "function", initializers);
+    const out_schemas = memory.borrowWriteColumn(u32, "schema_version", initializers);
+
+    const input: Input = .{
+        .source = &.{ .identity = @ptrCast(&identities), .function = @ptrCast(&ids), .schema_version = @ptrCast(&schemas) },
+        .target = &.{ .identity = @ptrCast(&out_identities), .function = @ptrCast(&out_ids), .schema_version = @ptrCast(&out_schemas) },
+        .functions = &functions,
+        .start = start,
+        .end = values.len,
+    };
+
+    zx.columns.invoke(rule.executeValue, nodes.allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
 }
 
 fn reuse(values: []const Initializer, shared: []const Initializer, prefix: u32) usize {

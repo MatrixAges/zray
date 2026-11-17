@@ -108,15 +108,7 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
 
     inline for (comptime steps.run(.Surface)) |step| {
         switch (step) {
-            .PublishEntry => {
-                result.function = if (own) |id| try nodes.functionId(id) else if (program.type_only) null else append: {
-                    const id: ir.FunctionId = @fromBackingInt(@intCast(destination.functions.count()));
-
-                    try nodes.appendFunction(destination.functions, &function_body.value(program.*));
-
-                    break :append id;
-                };
-            },
+            .PublishEntry => result.function = try publishEntry(program, destination.functions, nodes, own),
             .PublishDeclarations => {
                 const stable = if (input.owned_declarations) type_prefix else 0;
 
@@ -144,6 +136,42 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
     }
 
     return result;
+}
+
+fn publishEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes: *Nodes, own: ?ir.FunctionId) program_link.Error!?ir.FunctionId {
+    if (comptime generated) {
+        const rule = @import("generated_source_link_entry");
+        const EntryInput = std.meta.Child(rule.Input);
+        const Mapping = std.meta.Child(@FieldType(EntryInput, "functions"));
+        const functions = @import("../artifact/nodes/remap.zig").idMapping(Mapping, nodes.functions);
+
+        const input: EntryInput = .{
+            .own = if (own) |id| @backingInt(id) else null,
+            .type_only = program.type_only,
+            .next = storage.count(),
+            .functions = &functions,
+        };
+
+        var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+        const output = @import("zx").columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return error.InvalidModule,
+        };
+
+        if (output.append) try nodes.appendFunction(storage, &function_body.value(program.*));
+
+        return if (output.function) |id| @fromBackingInt(id) else null;
+    }
+
+    if (own) |id| return try nodes.functionId(id);
+    if (program.type_only) return null;
+
+    const id: ir.FunctionId = @fromBackingInt(@intCast(storage.count()));
+
+    try nodes.appendFunction(storage, &function_body.value(program.*));
+
+    return id;
 }
 
 fn publishDeclarations(nodes: *Nodes, program: *const ir.Program, type_prefix: usize) program_link.Error!struct { []const ir.Export, []const ir.Constant } {

@@ -26,6 +26,7 @@ pub const readOptionalIndirectTextColumn = rows.readOptionalIndirectText;
 pub const readColumnU8 = rows.readColumnU8;
 pub const readColumnBool = rows.readColumnBool;
 pub const readColumnI32 = rows.readColumnI32;
+pub const readColumnU32 = rows.readColumnU32;
 pub const readColumnU64 = rows.readColumnU64;
 pub const readColumnOptionalU32 = rows.readColumnOptionalU32;
 pub const readColumnOptionalU8 = rows.readColumnOptionalU8;
@@ -43,6 +44,9 @@ pub const writeColumnU8 = column.writeU8;
 pub const writeColumnU32 = column.writeU32;
 pub const writeColumnU64 = column.writeU64;
 pub const writeColumnBytes = column.writeBytes;
+pub const writeColumnOptionalU32 = column.writeOptionalU32;
+pub const writeColumnOptionalU8 = column.writeOptionalU8;
+pub const writeColumnOptionalText = column.writeOptionalText;
 
 pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {
     return borrowRange(u8, source, first, count);

@@ -1,0 +1,25 @@
+import integers from "std:integer"
+
+import recursive from "./recursive"
+
+export type Input = {
+    calls: u32[],
+    count: u64,
+    first: u64,
+    type_only: bool
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { calls, count, first, type_only } = in
+
+    if (type_only || count == 0) {
+        return null
+    }
+
+    return recursive({
+        calls,
+        candidate: integers.narrow(first + (count - 1))
+    })
+}

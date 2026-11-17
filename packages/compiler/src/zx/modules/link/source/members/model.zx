@@ -1,0 +1,37 @@
+import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { WriteColumn as OptionalColumn } from "memory/columns"
+import type { Mapping } from "../../../artifact/remapping/model"
+
+export type Names = {
+    names: TextColumn,
+    intrinsics: ReadColumn,
+    count: u64
+}
+
+export type Source = Names & {
+    ids: ReadColumn,
+    inputs: ReadColumn,
+    outputs: ReadColumn
+}
+
+export type Target = {
+    names: WriteColumn,
+    intrinsics: OptionalColumn,
+    ids: OptionalColumn,
+    inputs: OptionalColumn,
+    outputs: OptionalColumn,
+    namespaces: OptionalColumn
+}
+
+export type Input = {
+    source: Source,
+    target: Target,
+    entry?: u32,
+    type_ids: u32[],
+    functions: Mapping
+}
+
+export type Result = {
+    written: u64,
+    entry?: u32
+}
