@@ -13,6 +13,41 @@ const Mapping = std.meta.Child(@FieldType(Mappings, "types"));
 const Empty = std.meta.Child(@FieldType(Input, "empty"));
 const stack_depth_slots = 2048 / @sizeOf(u32);
 
+pub fn appendOne(nodes: *const Nodes, storage: *ir.FunctionStorage, function: *const ir.Function, temporary: std.mem.Allocator) Error!void {
+    const signature = function.external;
+
+    const source: ir.FunctionTable = .{
+        .files = &.{function.file_name},
+        .input_types = &.{@backingInt(function.input_type)},
+        .output_types = &.{@backingInt(function.output_type)},
+        .ownership = &.{switch (function.output_ownership) {
+            .copy => .Copy,
+            .borrowed => .Borrowed,
+            .owned => .Owned,
+        }},
+        .store_modes = &.{function.store_mode},
+        .native_inputs = &.{if (signature) |external| if (external.input) |input| input.names else null else null},
+        .native_modules = &.{if (signature) |external| @backingInt(external.module) else null},
+        .native_members = &.{if (signature) |external| external.member else &.{}},
+        .native_exports = &.{if (signature) |external| external.export_name else null},
+        .native_allocators = &.{if (signature) |external| external.allocator_argument else false},
+        .native_io = &.{if (signature) |external| external.io_argument else false},
+        .native_process = &.{if (signature) |external| external.process_argument else false},
+        .native_tuples = &.{if (signature) |external| external.expand_tuple else false},
+        .native_fallible = &.{if (signature) |external| external.fallible else false},
+        .native_errors = &.{if (signature) |external| external.errors else null},
+        .native_concurrent = &.{if (signature) |external| external.concurrent else false},
+        .symbols = &.{&function.symbols},
+        .expressions = &.{&function.expressions},
+        .contracts = &.{&function.contracts},
+        .control = &.{function.body.control},
+        .roots = &.{if (function.body.root) |root| @backingInt(root) else null},
+        .stores = &.{&function.stores},
+    };
+
+    return append(nodes, storage, source, temporary);
+}
+
 pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.FunctionTable, temporary: std.mem.Allocator) Error!void {
     const count = source.count();
 

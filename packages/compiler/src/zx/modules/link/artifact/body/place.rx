@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Body" />
+
+    <Args in={Body.Input} out={Body.Placement} />
+
+    <If on={$in.body != null}>
+        <Call
+            fn="slot"
+            in={$in.pick([
+                "first",
+                "slot",
+                "target"
+            ])}
+        />
+
+        <Call fn="../entry" in={$in.body} />
+
+        <If on={!$ctx.entry}>
+            <Return value={Body.Placement.Invalid} />
+        </If>
+
+        <If on={!$in.entry && $in.stores == 0}>
+            <Return value={Body.Placement.Append} />
+        </If>
+
+        <Return value={Body.Placement.Retain} />
+    </If>
+
+    <Return value={Body.Placement.Absent} />
+</Module>

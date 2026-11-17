@@ -1,0 +1,18 @@
+import type { OptionalU32Buffer } from "memory"
+import type { Input as Layout } from "../entry"
+
+export enum Placement {
+    Absent,
+    Invalid,
+    Append,
+    Retain
+}
+
+export type Input = {
+    body?: Layout,
+    entry: bool,
+    stores: u64,
+    first: u64,
+    slot: u64,
+    target: OptionalU32Buffer
+}

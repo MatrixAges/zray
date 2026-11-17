@@ -1,0 +1,29 @@
+<Module>
+    <Type from="plan" as="Plan" />
+    <Type from="publication/model" as="Publication" />
+
+    <Args
+        in={{
+            plan?: Plan.Input,
+            publish?: Publication.Batch
+        }}
+        out={Plan.Output}
+    />
+
+    <If on={$in.plan != null}>
+        <Call fn="plan" in={$in.plan} />
+
+        <Return value={$ctx.plan} />
+    </If>
+
+    <If on={$in.publish != null}>
+        <Call fn="publication/batch" in={$in.publish} />
+    </If>
+
+    <Return
+        value={{
+            additions: [],
+            failure: null
+        }}
+    />
+</Module>

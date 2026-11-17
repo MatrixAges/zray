@@ -104,7 +104,7 @@ fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program
                 .expressions = program.expressions,
                 .body = program.body,
                 .contracts = program.contracts,
-            }) catch |err| return linkFailure(err),
+            }, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
             else => unreachable,
         }
     }

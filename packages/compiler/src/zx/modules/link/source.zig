@@ -86,7 +86,7 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
 
 fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, own: ?ir.FunctionId, type_prefix: usize) program_link.Error!Loaded {
     const program = &input.program;
-    const entry = try publishEntry(program, destination.functions, nodes, own);
+    const entry = try publishEntry(program, destination.functions, nodes, own, destination.temporary);
     var result: Loaded = undefined;
 
     if (comptime generated) {
@@ -116,7 +116,7 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
     return result;
 }
 
-fn publishEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes: *Nodes, own: ?ir.FunctionId) program_link.Error!?ir.FunctionId {
+fn publishEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes: *Nodes, own: ?ir.FunctionId, temporary: std.mem.Allocator) program_link.Error!?ir.FunctionId {
     if (comptime generated) {
         const rule = @import("generated_source_link_entry");
         const EntryInput = std.meta.Child(rule.Input);
@@ -137,7 +137,7 @@ fn publishEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes:
             else => return error.InvalidModule,
         };
 
-        if (output.append) try nodes.appendFunction(storage, &function_body.value(program.*));
+        if (output.append) try nodes.appendFunction(storage, &function_body.value(program.*), temporary);
 
         return if (output.function) |id| @fromBackingInt(id) else null;
     }
@@ -147,7 +147,7 @@ fn publishEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes:
 
     const id: ir.FunctionId = @fromBackingInt(@intCast(storage.count()));
 
-    try nodes.appendFunction(storage, &function_body.value(program.*));
+    try nodes.appendFunction(storage, &function_body.value(program.*), temporary);
 
     return id;
 }

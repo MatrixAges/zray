@@ -68,41 +68,12 @@ pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.Func
     }
 }
 
-pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: *const ir.Function) Error!void {
+pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: *const ir.Function, temporary: std.mem.Allocator) Error!void {
     if (comptime generated) {
-        try storage.reserve(self.allocator, 1);
-
-        const signature: ir.Signature = .{
-            .file_name = value.file_name,
-            .input_type = value.input_type,
-            .output_type = value.output_type,
-            .output_ownership = value.output_ownership,
-            .external = value.external,
-        };
-
-        try self.appendLinked(storage, signature, value.store_mode, value.body, remap.BodyColumns.borrow(value));
+        try @import("materializing/publication/host.zig").appendOne(self, storage, value, temporary);
     } else {
         try storage.append(self.allocator, try self.function(value.*));
     }
-}
-
-fn appendLinked(self: *Self, storage: *ir.FunctionStorage, source: ir.Signature, store_mode: ir.StoreMode, body_value: ir.ControlBody, columns: remap.BodyColumns) Error!void {
-    const linked = try remap.function(self, columns, body_value, source.file_name, source.external, null, .unchecked);
-
-    const signature: ir.Signature = .{
-        .file_name = linked.file,
-        .input_type = @fromBackingInt(linked.ports.input),
-        .output_type = @fromBackingInt(linked.ports.output),
-        .output_ownership = source.output_ownership,
-        .external = linkedExternal(source.external, linked),
-    };
-
-    storage.appendBodyAssumeCapacity(signature, store_mode, controlBody(body_value.root, linked.control), .{
-        .symbols = zx.columns.pointer(*const ir.SymbolTable, linked.symbols),
-        .expressions = zx.columns.pointer(*const ir.ExpressionTable, linked.expressions),
-        .stores = if (linked.store_table) |store_table| zx.columns.pointer(*const ir.StoreTable, store_table) else null,
-        .contracts = zx.columns.pointer(*const ir.ContractTable, linked.contracts),
-    });
 }
 
 pub const Structure = enum { unchecked, validated };

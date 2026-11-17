@@ -21,13 +21,3 @@ pub fn graph() [5]Step {
 
     return sequence[0..5].*;
 }
-
-pub fn entry(path: []const u8, function: *const @import("zx").ir.Function) bool {
-    if (comptime !generated) return function.external == null and std.mem.eql(u8, path, function.file_name);
-
-    const check = @import("generated_artifact_link_entry");
-    const input: std.meta.Child(check.Input) = .{ .path = path, .file_name = function.file_name, .external = function.external != null };
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    return check.executeValue(scratch.allocator(), &input) catch unreachable;
-}

@@ -1,6 +1,5 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const steps = @import("artifact/steps.zig");
 const generated = @import("parser_options").generated_parser;
 const model = @import("../artifact/model.zig");
 const Nodes = @import("../artifact/nodes.zig");
@@ -62,22 +61,16 @@ pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.Func
         try self.importsSeed(index, &nodes);
     }
 
+    if (comptime generated) {
+        return @import("artifact/body/host.zig").publish(&nodes, value, &self.functions, self.temporary, mappings.functions, &self.module_functions[index], entry);
+    }
+
     const function = if (value.function) |*body| body else return null;
     const own: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
 
     mappings.functions[value.functions.count()] = own;
 
-    if (!steps.entry(value.path, function)) return error.InvalidModule;
-
-    if (comptime generated and !entry) {
-        if (@import("placement.zig").select(value.stores.count(), true) == .Append) {
-            try nodes.appendFunction(&self.functions, function);
-
-            self.module_functions[index] = own;
-
-            return null;
-        }
-    }
+    if (function.external != null or !std.mem.eql(u8, value.path, function.file_name)) return error.InvalidModule;
 
     return try nodes.functionEntry(function.*, if (entry) own else null, .unchecked);
 }

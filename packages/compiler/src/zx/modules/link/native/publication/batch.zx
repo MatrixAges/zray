@@ -1,0 +1,33 @@
+import write from "compiler/native_publication_row"
+import binding from "core/native_module_table/binding"
+
+import type { Batch } from "./model"
+
+export type Input = Batch
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, mapping, rows, target } = in
+
+    const count = rows == null ? source.specifiers.length : rows.length
+
+    const published = loop(0, {
+        while: index => index < count,
+        next: index => {
+            const row = rows == null ? index : rows[index]
+
+            write({
+                ...target,
+                source: binding({
+                    source,
+                    row
+                }),
+                mapping,
+                index
+            })
+
+            index += 1
+        }
+    })
+}

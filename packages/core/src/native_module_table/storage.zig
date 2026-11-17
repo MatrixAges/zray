@@ -18,15 +18,24 @@ pub fn at(self: *const Self, index: usize) ir.NativeModule {
 }
 
 pub fn append(self: *Self, allocator: std.mem.Allocator, value: ir.NativeModule) std.mem.Allocator.Error!void {
-    if (self.count() == std.math.maxInt(u32)) return error.OutOfMemory;
+    try self.reserve(allocator, 1);
 
-    inline for (@typeInfo(Self).@"struct".field_names) |name| try @field(self, name).ensureUnusedCapacity(allocator, 1);
     self.identities.appendAssumeCapacity(value.identity);
     self.import_names.appendAssumeCapacity(value.import_name);
     self.specifiers.appendAssumeCapacity(value.specifier);
     self.type_ids.appendAssumeCapacity(value.types.type_ids);
     self.type_names.appendAssumeCapacity(value.types.names);
     self.type_namespaces.appendAssumeCapacity(value.type_namespace);
+}
+
+pub fn reserve(self: *Self, allocator: std.mem.Allocator, additional: usize) std.mem.Allocator.Error!void {
+    if (additional > std.math.maxInt(u32) - self.count()) return error.OutOfMemory;
+
+    inline for (@typeInfo(Self).@"struct".field_names) |name| try @field(self, name).ensureUnusedCapacity(allocator, additional);
+}
+
+pub fn commitTail(self: *Self, len: usize) void {
+    inline for (@typeInfo(Self).@"struct".field_names) |name| _ = @field(self, name).addManyAsSliceAssumeCapacity(len);
 }
 
 pub fn view(self: *const Self) Table {

@@ -1,6 +1,5 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const columns = @import("zx").columns;
 const Nodes = @import("../artifact/nodes.zig");
 const Error = @import("../artifact/model.zig").Error || error{ConflictingInterface};
 
@@ -15,54 +14,7 @@ pub fn link(temporary: std.mem.Allocator, modules: *ir.NativeModuleStorage, sour
         return;
     }
 
-    const entry = @import("generated_native_link_plan");
-    const Input = std.meta.Child(entry.Input);
-    const Table = std.meta.Child(@FieldType(Input, "source"));
-    const base = columns.columns(Table, modules.view());
-    const rows = columns.columns(Table, source);
-    const types: []const u32 = @ptrCast(nodes.types.mapped);
-    const input: Input = .{ .base = &base, .source = &rows, .types = types, .target = @ptrCast(&mapping) };
-
-    const plan = columns.invoke(entry.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    if (plan.failure) |status| return switch (status) {
-        .Conflict => error.ConflictingInterface,
-        .Full => error.OutOfMemory,
-        else => error.InvalidModule,
-    };
-
-    for (plan.additions) |row| {
-        try modules.append(allocator, try materialize(allocator, source.at(@intCast(row)), types));
-    }
-}
-
-pub fn materialize(allocator: std.mem.Allocator, source: ir.NativeModule, mapping: []const u32) std.mem.Allocator.Error!ir.NativeModule {
-    const entry = @import("generated_native_link_owned");
-    const Input = std.meta.Child(entry.Input);
-    const Binding = std.meta.Child(@FieldType(Input, "source"));
-
-    const binding: Binding = .{
-        .specifier = source.specifier,
-        .identity = source.identity,
-        .import_name = source.import_name,
-        .namespace = source.type_namespace,
-        .names = source.types.names,
-        .ids = source.types.type_ids,
-    };
-
-    const input: Input = .{ .source = &binding, .mapping = mapping };
-    const owned = columns.invoke(entry.executeValue, allocator, &input) catch return error.OutOfMemory;
-
-    return .{
-        .specifier = owned.specifier,
-        .identity = owned.identity,
-        .import_name = owned.import_name,
-        .type_namespace = owned.namespace,
-        .types = .{ .names = owned.names, .type_ids = owned.ids },
-    };
+    return @import("native/host.zig").link(temporary, allocator, modules, source, mapping, @ptrCast(nodes.types.mapped));
 }
 
 fn appendSeed(allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, value: ir.NativeModule, nodes: *Nodes) Error!ir.NativeModuleId {

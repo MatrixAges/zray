@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import type { Row } from "./model"
+
+export type Input = Row
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, columns, index, progress } = in
+
+    memory.writeOptionalString(columns.identities, index, source.identity)
+    memory.writeString(columns.specifiers, index, source.specifier)
+    memory.writeString(columns.import_names, index, source.import_name)
+    memory.writeStringList(columns.type_namespaces, index, source.namespace)
+    memory.writeStringList(columns.type_names, index, source.names)
+    memory.writeU32List(columns.type_ids, index, source.ids)
+    memory.writeU64(progress, 0, index + 1)
+}
