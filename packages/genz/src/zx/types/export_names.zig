@@ -14,15 +14,12 @@ pub fn build(owned: std.mem.Allocator, workspace: std.mem.Allocator, program: ir
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    const keys = try temporary.alloc([]const u8, state_plan.keys.len);
-
-    for (state_plan.keys, keys) |*key, *target| target.* = key;
 
     const input: Input = .{
         .kinds = program.types.kinds,
         .names = base_names,
         .selected = state_plan.selected,
-        .keys = keys,
+        .keys = std.mem.sliceAsBytes(state_plan.keys),
     };
 
     const output = generated.executeIn(temporary, &input) catch |err| switch (err) {

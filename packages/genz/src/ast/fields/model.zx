@@ -4,3 +4,10 @@ export type Columns = {
     default_value: u32?[],
     comptime_parameter: bool[]
 }
+
+export type Field = {
+    name: u8[],
+    value: u32,
+    default_value?: u32,
+    comptime_parameter: bool
+}

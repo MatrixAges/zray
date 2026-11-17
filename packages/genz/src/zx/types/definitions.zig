@@ -31,10 +31,8 @@ pub fn build(self: *Lower, declarations: *std.ArrayList(node.Declaration), expor
 
     try @import("import.zig").append(self, declarations, Output, output, result.fields, if (self.type_names != null) .borrow_text else .copy);
 
-    for (output.values, output.layouts, self.types, self.layouts) |value, layout, *type_target, *layout_target| {
-        type_target.* = @fromBackingInt(value);
-        layout_target.* = @fromBackingInt(layout);
-    }
+    @memcpy(@as([]u32, @ptrCast(self.types)), output.values);
+    @memcpy(@as([]u32, @ptrCast(self.layouts)), output.layouts);
 
     return output.has_lists;
 }

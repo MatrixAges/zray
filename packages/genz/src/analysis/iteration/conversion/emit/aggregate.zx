@@ -6,7 +6,7 @@ import tuple from "../../../../ast/context/tuple"
 import { ExpressionsBuiltinName } from "../../../../printer/model/expressions"
 import { Operation } from "../model"
 
-import type { Field } from "../../../types/definitions/model"
+import type { Field } from "../../../../ast/fields/model"
 import type { Step as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {

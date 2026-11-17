@@ -13,3 +13,5 @@ export const wrapped_nodes: u64 = 2
 export const pointer_nodes: u64 = 3
 
 export const task_nodes: u64 = 5
+
+export const named_layout_offset: u32 = 1

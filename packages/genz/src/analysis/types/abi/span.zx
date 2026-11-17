@@ -1,0 +1,20 @@
+import { Kind } from "core/type_table/model"
+
+import { leaf_nodes, pointer_nodes, task_nodes, wrapped_nodes } from "./const"
+
+export type Input = {
+    target: Kind,
+    named: bool,
+    string: bool
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return match {
+        in.named && in.target != Kind.Enumeration => pointer_nodes,
+        in.named || in.string => wrapped_nodes,
+        in.target == Kind.Task => task_nodes,
+        _ => leaf_nodes
+    }
+}

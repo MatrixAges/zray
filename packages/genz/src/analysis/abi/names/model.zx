@@ -2,7 +2,7 @@ export type Input = {
     kinds: u8[],
     names: string[],
     selected: bool[],
-    keys: u8[][]
+    keys: u8[]
 }
 
 export type Output = {

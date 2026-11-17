@@ -3,7 +3,10 @@ import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import type { Input as Source, Output, Types, Field } from "./model"
+import appendField from "../../../ast/fields/append"
+import emptyFields from "../../../ast/fields/empty"
+
+import type { Input as Source, Output, Types } from "./model"
 
 export type Input = {
     source: Source,
@@ -11,8 +14,6 @@ export type Input = {
 }
 
 export default function (in: Input): Output {
-    const fields: Field[] = []
-
     const result = loop({
         source: in.source.types,
         values: in.types.values,
@@ -20,7 +21,7 @@ export default function (in: Input): Output {
         type_index: 0,
         field_index: 0,
         field_end: 0,
-        fields
+        fields: emptyFields({})
     }, {
         while: current => current.valid &&
             (
@@ -31,7 +32,8 @@ export default function (in: Input): Output {
             if (current.field_index < current.field_end) {
                 const field = current.field_index
 
-                current.fields = current.fields.push({
+                current.fields = appendField({
+                    table: current.fields,
                     name: bytes.fromText(current.source.field_names[field]),
                     value: current
                         .values[integers.widen(
@@ -39,7 +41,7 @@ export default function (in: Input): Output {
                         )],
                     default_value: null,
                     comptime_parameter: false
-                })[0]
+                })
                 current.field_index += 1
             } else {
                 const index = current.type_index

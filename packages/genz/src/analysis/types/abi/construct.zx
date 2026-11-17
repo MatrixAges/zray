@@ -7,12 +7,14 @@ import { Kind } from "core/type_table/model"
 
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import { abi_binding, standard_binding, io_member, future_member } from "./const"
-import { leaf_nodes, wrapped_nodes, pointer_nodes, task_nodes } from "./const"
+import { named_layout_offset } from "./const"
 import finish from "./construct/finish"
 import initial from "./construct/initial"
 import members from "./members"
 import typeName from "./name"
+import isNamed from "./named"
 import scalar from "./scalar"
+import span from "./span"
 
 import type { Plan, Output } from "./model"
 
@@ -26,24 +28,15 @@ export default function (in: Input): Output {
             const id = current.order[current.remaining]
             const index = integers.widen(id)
             const target = kind(current.source.types.kinds[index])
-            const named = (
-                match target {
-                    Kind.Object => true,
-                    Kind.Tuple => true,
-                    Kind.Enumeration => true,
-                    Kind.NativeReference => true,
-                    _ => false
-                }
-            )
+            const named = isNamed(target)
             const first = current.source.types.first[index]
             const second = current.source.types.second[index]
             const string = target == Kind.Scalar && first == scalar_string
-            const count = match {
-                named && target != Kind.Enumeration => pointer_nodes,
-                named || string => wrapped_nodes,
-                target == Kind.Task => task_nodes,
-                _ => leaf_nodes
-            }
+            const count = span({
+                target,
+                named,
+                string
+            })
 
             const end =
                 integers.widen(current.source.base) + current.tags.length + count
@@ -55,13 +48,8 @@ export default function (in: Input): Output {
                     integers.narrow(
                         integers.widen(current.source.base) + current.tags.length
                     )
-                const value = match {
-                    named && target != Kind.Enumeration => start + 2,
-                    named || string => start + 1,
-                    target == Kind.Task => start + 4,
-                    _ => start
-                }
-                const layout = named ? start + 1 : value
+                const value = integers.narrow(end - 1)
+                const layout = named ? start + named_layout_offset : value
 
                 if (named) {
                     const name = typeName({

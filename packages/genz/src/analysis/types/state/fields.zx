@@ -3,9 +3,10 @@ import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
+import appendField from "../../../ast/fields/append"
+import emptyFields from "../../../ast/fields/empty"
 import { items_field, storage_field } from "./const"
 
-import type { Field } from "../definitions/model"
 import type { Plan, Types, Output } from "./model"
 
 export type Input = {
@@ -14,8 +15,6 @@ export type Input = {
 }
 
 export default function (in: Input): Output {
-    const fields: Field[] = []
-
     const result = loop({
         source: in.plan.source.types,
         origins: in.plan.origins,
@@ -25,7 +24,7 @@ export default function (in: Input): Output {
         valid: in.types.valid,
         record: 0,
         member: 0,
-        fields
+        fields: emptyFields({})
     }, {
         while: current => current.valid && current.record < current.records.length,
         next: current => {
@@ -39,27 +38,30 @@ export default function (in: Input): Output {
                 current.member = 0
             } else {
                 if (list) {
-                    current.fields = current.fields.push({
+                    current.fields = appendField({
+                        table: current.fields,
                         name: bytes.fromText(
                             current.member == 0 ? items_field : storage_field
                         ),
                         value: record.start + (current.member == 0 ? 0 : 1),
                         default_value: null,
                         comptime_parameter: false
-                    })[0]
+                    })
                 } else if (current.member + 1 == count) {
-                    current.fields = current.fields.push({
+                    current.fields = appendField({
+                        table: current.fields,
                         name: current.origins[owner],
                         value: record.start,
                         default_value: record.start + 1,
                         comptime_parameter: false
-                    })[0]
+                    })
                 } else {
                     const field = integers.widen(current.source.first[owner]) +
                         current.member
                     const child = integers.widen(current.source.field_types[field])
 
-                    current.fields = current.fields.push({
+                    current.fields = appendField({
+                        table: current.fields,
                         name: bytes.fromText(current.source.field_names[field]),
                         value: match {
                             record.view => current.views[child],
@@ -67,7 +69,7 @@ export default function (in: Input): Output {
                         },
                         default_value: null,
                         comptime_parameter: false
-                    })[0]
+                    })
                 }
 
                 current.member += 1

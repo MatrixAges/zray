@@ -7,11 +7,12 @@ const Lower = @import("../lower.zig");
 pub fn lower(self: *Lower, output: *std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
     self.abi_types = self.types;
     self.abi_layouts = self.layouts;
+
+    if (@import("genz_options").generated_analysis) return @import("../types/state.zig").build(self, output, exported);
+
     self.state_types = try self.allocator.dupe(node.ExpressionId, self.types);
     self.state_layouts = try self.allocator.dupe(node.ExpressionId, self.layouts);
     self.view_types = try self.allocator.dupe(node.ExpressionId, self.types);
-
-    if (@import("genz_options").generated_analysis) return @import("../types/state.zig").build(self, output, exported);
 
     var declared: std.StringHashMapUnmanaged(void) = .empty;
 

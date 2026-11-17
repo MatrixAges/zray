@@ -1,0 +1,15 @@
+import { Kind } from "core/type_table/model"
+
+export type Input = Kind
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return match in {
+        Kind.Object => true,
+        Kind.Tuple => true,
+        Kind.Enumeration => true,
+        Kind.NativeReference => true,
+        _ => false
+    }
+}

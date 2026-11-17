@@ -2,6 +2,7 @@ import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
+import stateKey from "./key"
 import stateName from "./name"
 import origin from "./origin"
 
@@ -64,7 +65,10 @@ export default function (in: Input): Output {
                 names: current.names.push(match {
                     selected => stateName({
                         names: current.source.names,
-                        key: current.source.keys[index],
+                        key: stateKey({
+                            keys: current.source.keys,
+                            index
+                        }),
                         index
                     }),
                     _ => ""

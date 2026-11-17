@@ -8,8 +8,8 @@ import {
 } from "../../../printer/model/expressions"
 import { abi_binding } from "../abi/const"
 import { view_prefix } from "../state/const"
+import stateKey from "../state/key"
 import stateName from "../state/name"
-import key from "./key"
 import { Mode } from "./model"
 
 import type { Expressions } from "../abi/model"
@@ -27,8 +27,8 @@ export default function (in: Input): Output {
 
     const state = stateName({
         names: in.source.abi.names,
-        key: key({
-            bytes: in.source.keys,
+        key: stateKey({
+            keys: in.source.keys,
             index
         }),
         index

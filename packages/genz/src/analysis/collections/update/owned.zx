@@ -7,7 +7,7 @@ import tag from "../../state/list/tag"
 import { items_field, storage_field, list_field_count } from "../../types/state/const"
 import header from "./header"
 
-import type { Field } from "../../types/definitions/model"
+import type { Field } from "../../../ast/fields/model"
 import type { Written as Input, Written as Output } from "./model"
 
 export default function (in: Input): Output {

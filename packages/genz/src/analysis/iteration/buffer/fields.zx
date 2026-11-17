@@ -2,7 +2,7 @@ import bytes from "std:bytes"
 
 import { owner_field, items_field, owned_field } from "../types/const"
 
-import type { Field } from "../../types/definitions/model"
+import type { Field } from "../../../ast/fields/model"
 
 export type Input = {
     owner: u32,

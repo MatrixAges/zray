@@ -10,16 +10,13 @@ pub fn build(self: *Lower, declarations: *std.ArrayList(node.Declaration), expor
     const Output = std.meta.Child(@FieldType(std.meta.Child(generated.Output), "types"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
     const allocator = self.allocator;
-    const keys = try allocator.alloc([]const u8, self.state_plan.keys.len);
-
-    for (self.state_plan.keys, keys) |*key, *target| target.* = key;
 
     const input: Input = .{
         .types = &types,
         .selected = self.state_plan.selected,
         .element_storage = self.state_plan.element_storage,
         .borrowed = self.state_plan.borrowed,
-        .keys = keys,
+        .keys = std.mem.sliceAsBytes(self.state_plan.keys),
         .names = self.type_names,
         .abi_types = view.slice(@FieldType(Input, "abi_types"), @as([]const node.ExpressionId, self.abi_types)),
         .abi_layouts = view.slice(@FieldType(Input, "abi_layouts"), @as([]const node.ExpressionId, self.abi_layouts)),
@@ -36,11 +33,11 @@ pub fn build(self: *Lower, declarations: *std.ArrayList(node.Declaration), expor
     const output = result.types;
 
     if (!output.valid) return error.OutOfMemory;
+
     try @import("import.zig").append(self, declarations, Output, output, result.fields, .retain);
 
-    for (output.values, output.layouts, output.views, self.state_types, self.state_layouts, self.view_types) |value, layout, projected, *state_type, *state_layout, *view_type| {
-        state_type.* = @fromBackingInt(value);
-        state_layout.* = @fromBackingInt(layout);
-        view_type.* = @fromBackingInt(projected);
-    }
+    // The three vectors are built in the owning AST allocator and never borrow the ABI vectors.
+    self.state_types = @as([*]node.ExpressionId, @ptrCast(@constCast(output.values.ptr)))[0..output.values.len];
+    self.state_layouts = @as([*]node.ExpressionId, @ptrCast(@constCast(output.layouts.ptr)))[0..output.layouts.len];
+    self.view_types = @as([*]node.ExpressionId, @ptrCast(@constCast(output.views.ptr)))[0..output.views.len];
 }

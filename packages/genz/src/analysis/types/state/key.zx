@@ -1,0 +1,14 @@
+import memory from "memory"
+
+import { state_key_size } from "../../state/const"
+
+export type Input = {
+    keys: u8[],
+    index: u64
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return memory.borrowU8Range(in.keys, in.index * state_key_size, state_key_size)
+}

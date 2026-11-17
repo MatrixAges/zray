@@ -2,8 +2,8 @@ import type { State as Context } from "../../../ast/context/model"
 import type { Capture } from "../../../ast/expressions/fallible"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
+import type { Field } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
-import type { Field } from "../../types/definitions/model"
 import type { State as History } from "../transfer/history/model"
 
 export type View = {

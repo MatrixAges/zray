@@ -1,5 +1,6 @@
 import type { Table } from "core/type_table/model"
 import type { Constant } from "../../../ast/declarations/model"
+import type { Columns as FieldColumns } from "../../../ast/fields/model"
 import type {
     ExpressionsKind,
     ExpressionsPrimitive
@@ -37,16 +38,9 @@ export type Types = {
     valid: bool
 }
 
-export type Field = {
-    name: u8[],
-    value: u32,
-    default_value?: u32,
-    comptime_parameter: bool
-}
-
 export type Output = {
     types: Types,
-    fields: Field[]
+    fields: FieldColumns
 }
 
 export type Build = {

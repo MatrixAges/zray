@@ -30,16 +30,10 @@ pub fn append(self: *Lower, declarations: anytype, comptime Output: type, output
         error.InvalidAst => unreachable,
     };
 
-    try self.builder.nodes.field_columns.reserve(self.allocator, fields.len);
-
-    for (fields) |item| {
-        self.builder.nodes.field_columns.append(.{
-            .name = item.name,
-            .value = @fromBackingInt(item.value),
-            .default_value = if (item.default_value) |value| @fromBackingInt(value) else null,
-            .comptime_parameter = item.comptime_parameter,
-        });
-    }
+    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, fields) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
 
     try declarations.ensureUnusedCapacity(self.allocator, output.declarations.len);
 
