@@ -29,16 +29,17 @@ const Search = struct {
     }
     fn step(self: *Search, allocator: std.mem.Allocator, position: usize) generating.Error!void {
         const job = self.jobs[position];
+        const cache = job.batch.cache orelse return;
         const found = try job.batch.identify(allocator, job.unit);
         self.lookups[position] = found;
-        self.fetched[position] = if (job.batch.cache) |cache| try cache.fetch(found.name, found.key, .shared) else .{};
+        self.fetched[position] = try cache.fetch(found.name, found.key, .shared);
     }
 };
 
 /// Generates every unit no cached source covers.
 const Work = struct {
     jobs: []const Job,
-    pending: []const u64,
+    pending: ?[]const u64,
     results: []publication.Result,
     next: std.atomic.Value(usize) = .init(0),
     failure: std.atomic.Value(u16) = .init(0),
@@ -52,10 +53,10 @@ const Work = struct {
         while (self.failure.load(.monotonic) == 0) {
             const position = self.next.fetchAdd(1, .monotonic);
 
-            if (position >= self.pending.len) return;
+            if (position >= self.results.len) return;
 
             defer _ = scratch.reset(.{ .retain_with_limit = 32 << 20 });
-            const job = self.jobs[@intCast(self.pending[position])];
+            const job = self.jobs[if (self.pending) |positions| @intCast(positions[position]) else position];
 
             self.results[position].source = job.batch.generate(arena.allocator(), scratch.allocator(), job.unit) catch |err| {
                 _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
@@ -92,11 +93,17 @@ pub fn createJobs(owned: std.mem.Allocator, backing: std.mem.Allocator, jobs: []
 
     defer for (arenas) |*arena| arena.deinit();
 
+    if (!hasCache(jobs)) {
+        try produce(owned, temporary, jobs, null, arenas, sources);
+
+        return sources;
+    }
+
     var search = Search{ .jobs = jobs, .lookups = try temporary.alloc(Batch.Lookup, jobs.len), .fetched = try temporary.alloc(Cache.Fetched, jobs.len) };
 
     @memset(search.fetched, .{});
 
-    defer for (jobs, search.fetched) |job, fetched| {
+    errdefer for (jobs, search.fetched) |job, fetched| {
         if (job.batch.cache) |cache| cache.releaseFetched(fetched);
     };
 
@@ -111,21 +118,48 @@ pub fn createJobs(owned: std.mem.Allocator, backing: std.mem.Allocator, jobs: []
         try @import("function_sources_seed.zig").restore(owned, search.fetched, plan, sources, arenas);
     }
 
-    for (jobs, search.lookups, search.fetched) |job, found, *fetched| {
-        if (job.batch.cache) |cache| _ = try cache.record(found.name, found.key, fetched);
+    for (plan.records.first..plan.records.end) |position| {
+        const job = jobs[position];
+
+        if (job.batch.cache) |cache| {
+            const found = search.lookups[position];
+            _ = try cache.record(found.name, found.key, &search.fetched[position]);
+        }
     }
 
-    var work = Work{ .jobs = jobs, .pending = plan.pending, .results = try temporary.alloc(publication.Result, plan.pending.len) };
+    try produce(owned, temporary, jobs, plan.pending, arenas, sources);
 
-    try spread(Work, &work, arenas[0..@min(arenas.len, plan.pending.len)]);
-    if (comptime generated) try publication.generated(owned, temporary, work.results, plan.pending, sources);
+    for (plan.pending) |position| {
+        const job = jobs[position];
 
-    for (plan.pending, work.results) |position, result| {
-        if (comptime !generated) sources[position] = try owned.dupe(u8, result.source.?);
-        try jobs[position].batch.remember(search.lookups[position], sources[position]);
+        if (job.batch.cache != null) try job.batch.remember(search.lookups[position], sources[position]);
     }
 
     return sources;
+}
+
+fn hasCache(jobs: []const Job) bool {
+    for (jobs) |job| if (job.batch.cache != null) return true;
+
+    return false;
+}
+
+fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: []const Job, pending: ?[]const u64, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
+    const count = if (pending) |positions| positions.len else jobs.len;
+    const results = try temporary.alloc(publication.Result, count);
+    var work = Work{ .jobs = jobs, .pending = pending, .results = results };
+
+    try spread(Work, &work, arenas[0..@min(arenas.len, count)]);
+
+    if (comptime generated) {
+        try publication.generated(owned, temporary, results, pending, sources);
+    } else {
+        for (results, 0..) |result, index| {
+            const position = if (pending) |positions| positions[index] else index;
+
+            sources[position] = try owned.dupe(u8, result.source.?);
+        }
+    }
 }
 
 /// Runs `task` on this thread and the shared workers, one arena per participant, and reports the first failure.

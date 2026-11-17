@@ -129,6 +129,10 @@ pub inline fn readOptionalIndirectText(source: *const anyopaque, index: u64) err
     return @as(*align(1) const []const u8, @ptrCast(item + column.text_offset)).*;
 }
 
+pub inline fn readColumnU8(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u8 {
+    return readColumn(u8, source, index);
+}
+
 pub inline fn readColumnBool(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!bool {
     return readColumn(bool, source, index);
 }

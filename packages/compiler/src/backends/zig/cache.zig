@@ -76,7 +76,7 @@ pub const Fetched = struct {
     failure: ?anyerror = null,
     kind: Kind = .absent,
     owner: Owner = .cache,
-    const Kind = enum { held, stored, absent, invalid, failed };
+    pub const Kind = enum(u8) { held, stored, absent, invalid, failed };
 };
 
 /// A parallel search uses the shared allocator for disk buffers. Cache metadata stays on the caller's allocator.

@@ -1,8 +1,8 @@
 const std = @import("std");
 const zx = @import("zx");
 const Cache = @import("../cache.zig");
-const Plan = @import("../function_sources_plan.zig").Plan;
-const layout = @import("generated_function_sources_offsets");
+const planning = @import("../function_sources_plan.zig");
+const Plan = planning.Plan;
 const copying = @import("generated_function_sources_copy");
 const Copy = std.meta.Child(copying.Input);
 const chunk_size = 16;
@@ -19,38 +19,30 @@ pub fn restore(owned: std.mem.Allocator, fetched: []const Cache.Fetched, plan: P
     }, plan.size, target);
 }
 
-pub fn generated(owned: std.mem.Allocator, scratch: std.mem.Allocator, results: []const Result, positions: []const u64, target: [][]const u8) std.mem.Allocator.Error!void {
-    if (positions.len == 0) return;
+pub fn generated(owned: std.mem.Allocator, scratch: std.mem.Allocator, results: []const Result, positions: ?[]const u64, target: [][]const u8) std.mem.Allocator.Error!void {
+    if (results.len == 0) return;
 
-    const offsets = try scratch.alloc(u64, positions.len);
+    const offsets = try scratch.alloc(u64, results.len);
     const items = zx.memory.borrowReadColumn(?[]const u8, "source", results);
-
-    const input: std.meta.Child(layout.Input) = .{
-        .count = results.len,
-        .items = @ptrCast(&items),
-        .offsets = @ptrCast(&offsets),
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const size = (zx.columns.invoke(layout.executeValue, empty.allocator(), &input) catch |err| return failure(err)) orelse unreachable;
+    const size = try planning.layout(&items, offsets);
 
     try publish(owned, .{
         .items = @ptrCast(&items),
         .contiguous = true,
         .positions = positions,
         .offsets = offsets,
-    }, std.math.cast(usize, size) orelse return error.OutOfMemory, target);
+    }, size, target);
 }
 
 const Sources = struct {
     items: @FieldType(Copy, "items"),
     contiguous: bool,
-    positions: []const u64,
+    positions: ?[]const u64,
     offsets: []const u64,
 };
 
 fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target: [][]const u8) std.mem.Allocator.Error!void {
-    if (sources.positions.len == 0) return;
+    if (sources.offsets.len == 0) return;
 
     const data = try owned.alloc(u8, size);
 
@@ -68,7 +60,7 @@ fn publish(owned: std.mem.Allocator, sources: Sources, size: usize, target: [][]
         .end = 0,
     } };
 
-    const chunks = std.math.divCeil(usize, sources.positions.len, chunk_size) catch unreachable;
+    const chunks = std.math.divCeil(usize, sources.offsets.len, chunk_size) catch unreachable;
 
     zx.parallel.spread(Workers, &workers, Workers.run, @min(zx.parallel.width(), chunks));
 
@@ -83,7 +75,7 @@ const Workers = struct {
     error_code: std.atomic.Value(u16) = .init(0),
     fn run(self: *Workers, _: usize) void {
         var input = self.input;
-        const count = input.positions.len;
+        const count = input.offsets.len;
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         while (self.error_code.load(.monotonic) == 0) {

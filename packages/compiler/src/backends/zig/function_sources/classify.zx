@@ -3,22 +3,48 @@ import memory from "memory"
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
+    const { lookup } = in
+
+    const first: u64? = null
+
     return loop({
         index: 0,
         reused: 0,
         pending: 0,
-        size: 0
+        size: 0,
+        record_first: first,
+        record_end: 0
     }, {
         while: current => current.index < in.count,
         next: current => {
             const { index } = current
             const source = memory.readOptionalTextColumn(in.sources, index)
 
+            if (lookup != null) {
+                const recordable =
+                    source != null ||
+                    memory.readColumnU8(lookup.kinds, index) != lookup.absent
+
+                if (recordable) {
+                    if (current.record_first == null) {
+                        current.record_first = index
+                    }
+
+                    current.record_end = index + 1
+                }
+            }
+
             if (source == null) {
-                memory.writeU64(in.pending, current.pending, index)
+                if (lookup != null) {
+                    memory.writeU64(lookup.pending, current.pending, index)
+                }
+
                 current.pending += 1
             } else {
-                memory.writeU64(in.reused, current.reused, index)
+                if (lookup != null) {
+                    memory.writeU64(lookup.reused, current.reused, index)
+                }
+
                 memory.writeU64(in.offsets, current.reused, current.size)
                 current.reused += 1
                 current.size += source.length
@@ -29,7 +55,9 @@ export default function (in: Input): Output {
         return: current => {
             reused: current.reused,
             pending: current.pending,
-            size: current.size
+            size: current.size,
+            record_first: current.record_first,
+            record_end: current.record_end
         }
     })
 }

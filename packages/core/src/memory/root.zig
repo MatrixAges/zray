@@ -14,6 +14,7 @@ pub const readTextColumn = rows.readText;
 pub const readOptionalTextColumn = rows.readOptionalText;
 pub const readIndirectTextColumn = rows.readIndirectText;
 pub const readOptionalIndirectTextColumn = rows.readOptionalIndirectText;
+pub const readColumnU8 = rows.readColumnU8;
 pub const readColumnBool = rows.readColumnBool;
 pub const readColumnI32 = rows.readColumnI32;
 pub const readColumnU64 = rows.readColumnU64;

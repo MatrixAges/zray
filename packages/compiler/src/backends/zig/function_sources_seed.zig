@@ -19,7 +19,7 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched) std.
         }
     }
 
-    return .{ .reused = reused.items, .pending = pending.items, .offsets = offsets.items, .size = size };
+    return .{ .reused = reused.items, .pending = pending.items, .offsets = offsets.items, .size = size, .records = .{ .first = 0, .end = fetched.len } };
 }
 
 pub fn restore(owned: std.mem.Allocator, fetched: []const Cache.Fetched, plan: Plan, target: [][]const u8, arenas: []std.heap.ArenaAllocator) @import("genz").zx.modules.Error!void {

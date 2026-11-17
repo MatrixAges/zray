@@ -468,7 +468,6 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/regular_calls/select.zx", .name = "regular_calls_select", .owner = .compiler },
     .{ .path = "backends/zig/regular_calls/publish.zx", .name = "regular_calls_publish", .owner = .compiler },
     .{ .path = "backends/zig/function_sources/plan.rx", .name = "function_sources_plan", .owner = .compiler },
-    .{ .path = "backends/zig/function_sources/offsets.zx", .name = "function_sources_offsets", .owner = .compiler },
     .{ .path = "backends/zig/function_sources/copy.zx", .name = "function_sources_copy", .owner = .compiler },
     .{ .path = "backends/zig/function_files/register.rx", .name = "function_files_register", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/validation/eligible.zx", .name = "store_initializer_eligible", .owner = .compiler },

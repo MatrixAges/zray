@@ -76,6 +76,11 @@ export declare function readOptionalIndirectTextColumn(
     index: u64
 ): string? throws { IndexOutOfBounds }
 
+export declare function readColumnU8(
+    source: ReadColumn,
+    index: u64
+): u8 throws { IndexOutOfBounds }
+
 export declare function readColumnBool(
     source: ReadColumn,
     index: u64
