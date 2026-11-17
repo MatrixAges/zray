@@ -7,8 +7,8 @@ import path from "../../../../../ast/context/path"
 import primitive from "../../../../../ast/context/primitive"
 import binding from "../../../../../ast/statements/builder/binding"
 import { ExpressionsPrimitive as P } from "../../../../../printer/model/expressions"
+import optional from "../../../tree/optional"
 import { api_name } from "../../context/const"
-import optional from "../../context/optional"
 import { value_type } from "../../task/const"
 import {
     array_kind_name,

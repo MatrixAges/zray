@@ -1,4 +1,4 @@
-import construct from "../../../../ast/expressions/error_union"
+import construct from "../../../ast/expressions/error_union"
 
 import type { State, Node as Output } from "./model"
 

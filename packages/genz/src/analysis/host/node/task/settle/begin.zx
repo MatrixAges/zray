@@ -1,13 +1,13 @@
 import bytes from "std:bytes"
 
 import conditional from "../../../../../ast/context/conditional"
+import invoke from "../../../../../ast/context/invoke"
 import nullValue from "../../../../../ast/context/null_value"
 import path from "../../../../../ast/context/path"
 import binding from "../../../../../ast/statements/builder/binding"
 import branch from "../../../../../ast/statements/builder/branch"
 import open from "../../../../../ast/statements/builder/open"
 import result from "../../../../../ast/statements/builder/result"
-import invoke from "../../../cli/invoke"
 import { self_name, closing_name, env_name, api_name } from "../../context/const"
 import {
     context_name,
@@ -22,7 +22,7 @@ import {
 } from "../const"
 import { error_capture } from "../const"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const closing = path({

@@ -2,7 +2,7 @@ import path from "../../../../ast/context/path"
 import pointer from "../../../../ast/context/pointer"
 import { self_type } from "./const"
 
-import type { State as Input, State } from "./model"
+import type { State as Input, State } from "../../tree/ast"
 
 export type Output = {
     state: State,

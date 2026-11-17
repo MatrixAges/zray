@@ -2,6 +2,8 @@ import call from "../../../../../ast/context/call"
 import identifier from "../../../../../ast/context/identifier"
 import path from "../../../../../ast/context/path"
 import result from "../../../../../ast/statements/builder/result"
+import errorUnion from "../../../tree/error_union"
+import method from "../../../tree/method"
 import { api_name, env_name, env_type, std_name } from "../../context/const"
 import {
     allocator_name,
@@ -10,13 +12,11 @@ import {
     read_name,
     write_name
 } from "../../task/const"
-import errorUnion from "../../task/error_union"
-import method from "../../task/method"
 import { mem_name, allocator_type, read_prefix, write_prefix } from "../codec/const"
 import name from "../codec/name"
 import { type_prefix } from "../plan/const"
 
-import type { Parameter } from "../../task/model"
+import type { Parameter } from "../../../tree/model"
 import type { Selection as Input, State as Output } from "../codec/model"
 
 export default function (in: Input): Output {

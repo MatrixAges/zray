@@ -11,7 +11,7 @@ import {
     ExpressionsBuiltinName as Builtin,
     ExpressionsKind as K
 } from "../../../printer/model/expressions"
-import { non_finite_error } from "../cli/const"
+import { non_finite_error } from "../json_output/const"
 import { output_name, result_module, emit_name } from "./const"
 
 import type { State as Input, Validation as Output } from "./model"

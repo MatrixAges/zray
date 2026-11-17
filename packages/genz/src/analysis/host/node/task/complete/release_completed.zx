@@ -1,13 +1,13 @@
 import path from "../../../../../ast/context/path"
 import open from "../../../../../ast/statements/builder/open"
+import caught from "../../../tree/catch"
+import invoke from "../../../tree/invoke"
 import { env_name, close_name, destroy_name, self_name } from "../../context/const"
-import caught from "../catch"
 import { context_name, settle_name, next_capture } from "../const"
 import evaluate from "../evaluate"
-import invoke from "../invoke"
-import { Target } from "../model"
+import { Target } from "./target"
 
-import type { State, State as Output } from "../model"
+import type { State, State as Output } from "../../../tree/model"
 
 export type Input = {
     state: State,

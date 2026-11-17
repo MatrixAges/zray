@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 
 import address from "../../../../ast/context/address"
+import invoke from "../../../../ast/context/invoke"
 import calledMethod from "../../../../ast/context/method"
 import unwrap from "../../../../ast/context/optional_unwrap"
 import path from "../../../../ast/context/path"
@@ -11,7 +12,7 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsKind as K
 } from "../../../../printer/model/expressions"
-import invoke from "../../cli/invoke"
+import method from "../../tree/method"
 import {
     self_name,
     data_name,
@@ -29,10 +30,9 @@ import {
     blank_name
 } from "./const"
 import prepare from "./execute_request"
-import method from "./method"
 import selfBinding from "./self_binding"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     const binding = selfBinding(in)

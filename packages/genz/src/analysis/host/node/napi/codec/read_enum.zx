@@ -9,9 +9,9 @@ import {
     ExpressionsBinaryOperator as B,
     ExpressionsKind as K
 } from "../../../../../printer/model/expressions"
+import invoke from "../../../tree/invoke"
 import { std_name, env_name } from "../../context/const"
 import { value_name, allocator_name } from "../../task/const"
-import invoke from "../../task/invoke"
 import {
     type_prefix,
     meta_name,

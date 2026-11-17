@@ -12,7 +12,7 @@ import {
     ExpressionsBuiltinName as Builtin,
     ExpressionsKind as K
 } from "../../../printer/model/expressions"
-import invoke from "../node/task/invoke"
+import invoke from "../tree/invoke"
 import {
     std_name,
     executing_name,

@@ -9,9 +9,9 @@ import {
     ExpressionsUnaryOperator as U,
     ExpressionsBuiltinName as Builtin
 } from "../../../../../printer/model/expressions"
+import invoke from "../../../tree/invoke"
 import { std_name } from "../../context/const"
 import { result_name } from "../../task/const"
-import invoke from "../../task/invoke"
 import {
     type_prefix,
     math_name,

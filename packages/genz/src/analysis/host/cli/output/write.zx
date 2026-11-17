@@ -3,6 +3,7 @@ import bytes from "std:bytes"
 import address from "../../../../ast/context/address"
 import binary from "../../../../ast/context/binary"
 import empty from "../../../../ast/context/empty_object"
+import invoke from "../../../../ast/context/invoke"
 import path from "../../../../ast/context/path"
 import primitive from "../../../../ast/context/primitive"
 import text from "../../../../ast/context/text"
@@ -28,7 +29,6 @@ import {
     application_name,
     output_type
 } from "../const"
-import invoke from "../invoke"
 
 import type { Gated as Input, Gated as Output } from "../model"
 

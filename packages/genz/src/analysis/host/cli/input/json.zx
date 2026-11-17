@@ -4,6 +4,7 @@ import integers from "std:integer"
 import binary from "../../../../ast/context/binary"
 import index from "../../../../ast/context/index"
 import integer from "../../../../ast/context/integer"
+import invoke from "../../../../ast/context/invoke"
 import object from "../../../../ast/context/object"
 import path from "../../../../ast/context/path"
 import text from "../../../../ast/context/text"
@@ -27,7 +28,6 @@ import {
     json_input_argc,
     json_input_error
 } from "../const"
-import invoke from "../invoke"
 import block from "./block"
 
 import type { State as Input, State as Output } from "../model"

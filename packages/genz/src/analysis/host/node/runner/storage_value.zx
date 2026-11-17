@@ -1,4 +1,5 @@
 import path from "../../../../ast/context/path"
+import invoke from "../../tree/invoke"
 import {
     arena_type,
     std_name,
@@ -7,9 +8,8 @@ import {
     state_field
 } from "../context/const"
 import { context_name, request_name, init_name } from "../task/const"
-import invoke from "../task/invoke"
 
-import type { State as Input, Node as Output } from "../task/model"
+import type { State as Input, Node as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     if (in.ast.stateful) {

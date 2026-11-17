@@ -9,6 +9,8 @@ import undefinedValue from "../../../../ast/context/undefined"
 import append from "../../../../ast/fields/append"
 import { DeclarationsKind as D } from "../../../../printer/model/declarations"
 import { ExpressionsKind as K } from "../../../../printer/model/expressions"
+import errorUnion from "../../tree/error_union"
+import optional from "../../tree/optional"
 import {
     std_name,
     heap_name,
@@ -18,7 +20,6 @@ import {
     arena_name,
     next_name
 } from "../context/const"
-import optional from "../context/optional"
 import {
     context_type,
     application_name,
@@ -36,9 +37,8 @@ import {
     resolve_name,
     reject_name
 } from "./const"
-import errorUnion from "./error_union"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     const context = path({

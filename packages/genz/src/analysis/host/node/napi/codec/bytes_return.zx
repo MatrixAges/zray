@@ -12,8 +12,8 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsBinaryOperator as B
 } from "../../../../../printer/model/expressions"
+import invoke from "../../../tree/invoke"
 import { allocator_name } from "../../task/const"
-import invoke from "../../task/invoke"
 import { dupe_name } from "./const"
 import { byte_count_name, bytes_name } from "./const"
 

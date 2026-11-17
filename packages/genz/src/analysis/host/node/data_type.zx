@@ -1,9 +1,9 @@
 import pointer from "../../../ast/context/pointer"
 import primitive from "../../../ast/context/primitive"
 import { ExpressionsPrimitive as P } from "../../../printer/model/expressions"
-import optional from "./context/optional"
+import optional from "../tree/optional"
 
-import type { State as Input, State } from "./context/model"
+import type { State as Input, State } from "../tree/ast"
 
 export type Output = {
     state: State,

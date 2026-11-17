@@ -6,7 +6,7 @@ import open from "../../../../../ast/statements/builder/open"
 import result from "../../../../../ast/statements/builder/result"
 import { ExpressionsKind as K } from "../../../../../printer/model/expressions"
 
-import type { State, State as Output } from "../../task/model"
+import type { State, State as Output } from "../../../tree/model"
 
 export type Input = {
     state: State,

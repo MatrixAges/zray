@@ -4,6 +4,7 @@ import address from "../../../../ast/context/address"
 import call from "../../../../ast/context/call"
 import fixedArray from "../../../../ast/context/fixed_array"
 import integer from "../../../../ast/context/integer"
+import invoke from "../../../../ast/context/invoke"
 import path from "../../../../ast/context/path"
 import primitive from "../../../../ast/context/primitive"
 import text from "../../../../ast/context/text"
@@ -26,7 +27,6 @@ import {
     buffer_name,
     file_name
 } from "../const"
-import invoke from "../invoke"
 
 import type { Gated as Input, Gated as Output } from "../model"
 

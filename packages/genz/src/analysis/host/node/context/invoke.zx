@@ -1,8 +1,7 @@
-import call from "../../../../ast/context/call"
-import path from "../../../../ast/context/path"
+import invoke from "../../../../ast/context/invoke"
 import evaluate from "../../../../ast/statements/builder/evaluate"
 
-import type { State } from "./model"
+import type { State } from "../../tree/ast"
 
 export type Input = {
     state: State,
@@ -14,14 +13,9 @@ export type Input = {
 export type Output = State
 
 export default function (in: Input): Output {
-    const callee = path({
+    const result = invoke({
         state: in.state.context,
-        path: in.path
-    })
-
-    const result = call({
-        state: callee.state,
-        callee: callee.id,
+        path: in.path,
         arguments: in.arguments,
         fallible: false
     })

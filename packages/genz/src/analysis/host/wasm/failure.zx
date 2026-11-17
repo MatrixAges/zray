@@ -7,7 +7,7 @@ import assignment from "../../../ast/statements/builder/assignment"
 import open from "../../../ast/statements/builder/open"
 import result from "../../../ast/statements/builder/result"
 import { ExpressionsBuiltinName } from "../../../printer/model/expressions"
-import catchScope from "../node/task/catch"
+import catchScope from "../tree/catch"
 import { error_name, result_name } from "./const"
 
 import type { State, Node as Output } from "./model"

@@ -1,0 +1,7 @@
+import type { Table } from "core/type_table/model"
+
+export type Input = {
+    stateful: bool,
+    types: Table,
+    output_type: u32
+}

@@ -14,8 +14,8 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsBuiltinName as Builtin
 } from "../../../printer/model/expressions"
-import invoke from "../node/task/invoke"
-import method from "../node/task/method"
+import invoke from "../tree/invoke"
+import method from "../tree/method"
 import {
     std_name,
     input_storage,

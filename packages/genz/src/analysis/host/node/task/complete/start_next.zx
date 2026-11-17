@@ -5,14 +5,14 @@ import assignment from "../../../../../ast/statements/builder/assignment"
 import continued from "../../../../../ast/statements/builder/continue_loop"
 import open from "../../../../../ast/statements/builder/open"
 import result from "../../../../../ast/statements/builder/result"
-import caught from "../catch"
+import caught from "../../../tree/catch"
+import invoke from "../../../tree/invoke"
 import { next_capture, start_name, output_name, error_capture } from "../const"
 import evaluate from "../evaluate"
-import invoke from "../invoke"
-import { Target } from "../model"
 import releaseCompleted from "./release_completed"
+import { Target } from "./target"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const started = invoke({

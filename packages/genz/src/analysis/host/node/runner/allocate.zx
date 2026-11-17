@@ -7,6 +7,7 @@ import path from "../../../../ast/context/path"
 import field from "../../../../ast/fields/append"
 import assignment from "../../../../ast/statements/builder/assignment"
 import binding from "../../../../ast/statements/builder/binding"
+import invoke from "../../tree/invoke"
 import {
     std_name,
     env_name,
@@ -19,7 +20,6 @@ import {
 import { create_name } from "../enqueue/const"
 import { context_name, context_type, init_name } from "../task/const"
 import deferValue from "../task/defer_value"
-import invoke from "../task/invoke"
 
 import type { State as Input, State as Output } from "./model"
 

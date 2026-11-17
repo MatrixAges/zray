@@ -1,4 +1,4 @@
-import initialize from "../task/initialize"
+import initialize from "../../tree/initialize"
 
 import type { Args as Input, State as Output } from "./model"
 

@@ -5,7 +5,7 @@ import unwrap from "../../../ast/context/optional_unwrap"
 import path from "../../../ast/context/path"
 import binding from "../../../ast/statements/builder/binding"
 import evaluate from "../../../ast/statements/builder/evaluate"
-import invoke from "../node/task/invoke"
+import invoke from "../tree/invoke"
 import { request_name, current_name, prepare_name, failure_code } from "./const"
 import failure from "./failure"
 

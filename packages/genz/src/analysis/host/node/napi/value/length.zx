@@ -12,10 +12,10 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsUnaryOperator as U
 } from "../../../../../printer/model/expressions"
+import errorUnion from "../../../tree/error_union"
+import method from "../../../tree/method"
 import { api_name, env_name, env_type } from "../../context/const"
 import { result_name, value_type, value_name } from "../../task/const"
-import errorUnion from "../../task/error_union"
-import method from "../../task/method"
 import check from "./check_call"
 import {
     length_name,

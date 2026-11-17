@@ -7,6 +7,7 @@ import path from "../../../../ast/context/path"
 import field from "../../../../ast/fields/append"
 import assignment from "../../../../ast/statements/builder/assignment"
 import binding from "../../../../ast/statements/builder/binding"
+import invoke from "../../tree/invoke"
 import {
     std_name,
     heap_name,
@@ -17,7 +18,6 @@ import {
     arena_type
 } from "../context/const"
 import { context_name, init_name } from "../task/const"
-import invoke from "../task/invoke"
 import { create_name } from "./const"
 
 import type { State as Input, State as Output } from "./model"

@@ -1,6 +1,6 @@
-import close from "../../../../ast/statements/builder/close"
-import header from "../../../../ast/statements/builder/header"
-import { StatementsKind as S } from "../../../../printer/model/statements"
+import close from "../../../ast/statements/builder/close"
+import header from "../../../ast/statements/builder/header"
+import { StatementsKind as S } from "../../../printer/model/statements"
 
 import type { Saved as Input, State as Output } from "./model"
 

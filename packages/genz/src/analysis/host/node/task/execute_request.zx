@@ -4,6 +4,7 @@ import field from "../../../../ast/context/field"
 import unwrap from "../../../../ast/context/optional_unwrap"
 import path from "../../../../ast/context/path"
 import assignment from "../../../../ast/statements/builder/assignment"
+import invoke from "../../tree/invoke"
 import {
     self_name,
     state_field,
@@ -14,9 +15,8 @@ import {
     arena_type
 } from "../context/const"
 import { request_name, context_name, init_name } from "./const"
-import invoke from "./invoke"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     if (!in.ast.stateful) {

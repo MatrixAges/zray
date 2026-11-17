@@ -21,7 +21,7 @@ import {
     api_import_index
 } from "./const"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/ast"
 
 export default function (in: Input): Output {
     const names = [

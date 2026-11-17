@@ -1,15 +1,7 @@
-import type { StatementsKind } from "../../../../printer/model/statements"
-import type { State as Ast } from "../context/model"
-import type { Published } from "../context/model"
+import type { StatementsKind } from "../../../printer/model/statements"
+import type { Input as AstInput, State as Ast, Published } from "./ast"
 
-export enum Target {
-    Current,
-    Next
-}
-
-export type Input = {
-    stateful: bool
-}
+export type Input = AstInput
 
 export type Extra = {
     error_union_payload: u32[],

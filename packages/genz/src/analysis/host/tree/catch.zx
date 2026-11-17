@@ -1,7 +1,7 @@
-import construct from "../../../../ast/expressions/catch_scope"
-import close from "../../../../ast/statements/builder/close"
+import construct from "../../../ast/expressions/catch_scope"
+import close from "../../../ast/statements/builder/close"
 
-import type { StatementsKind } from "../../../../printer/model/statements"
+import type { StatementsKind } from "../../../printer/model/statements"
 import type { State, Node as Output } from "./model"
 
 export type Input = {

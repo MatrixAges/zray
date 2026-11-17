@@ -11,6 +11,7 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsBinaryOperator as B
 } from "../../../../printer/model/expressions"
+import method from "../../tree/method"
 import {
     self_name,
     env_name,
@@ -35,9 +36,8 @@ import {
     delete_ref
 } from "./const"
 import destroyRequest from "./destroy_request"
-import method from "./method"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     const self = parameter(in.ast)

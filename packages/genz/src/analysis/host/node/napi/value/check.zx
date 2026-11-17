@@ -9,10 +9,10 @@ import {
     ExpressionsBinaryOperator as B,
     ExpressionsKind as K
 } from "../../../../../printer/model/expressions"
+import errorUnion from "../../../tree/error_union"
+import method from "../../../tree/method"
 import { api_name } from "../../context/const"
 import { ok_tag, status_type, status_name, check_name } from "../../task/const"
-import errorUnion from "../../task/error_union"
-import method from "../../task/method"
 import { pending_tag, pending_exception, invalid_node_value } from "./const"
 import guard from "./guard"
 

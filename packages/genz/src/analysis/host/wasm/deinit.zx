@@ -5,8 +5,8 @@ import assignment from "../../../ast/statements/builder/assignment"
 import evaluate from "../../../ast/statements/builder/evaluate"
 import guard from "../../../ast/statements/builder/guard"
 import { ExpressionsPrimitive as P } from "../../../printer/model/expressions"
-import invoke from "../node/task/invoke"
-import method from "../node/task/method"
+import invoke from "../tree/invoke"
+import method from "../tree/method"
 import {
     std_name,
     state_arena,

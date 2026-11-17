@@ -1,10 +1,10 @@
 <Module>
-    <Type from="model" as="Context" />
+    <Type from="../../tree/ast" as="Context" />
 
     <Args in={Context.Input} out={Context.Published} />
 
-    <Call fn="initialize" in={$in} />
-    <Call fn="prelude" in={$ctx.initialize} />
+    <Call fn="../../tree/initialize_ast" in={$in} />
+    <Call fn="prelude" in={$ctx.initialize_ast} />
     <Call fn="fields" in={$ctx.prelude} />
     <Call fn="retain" in={$ctx.fields} />
     <Call fn="release" in={$ctx.retain} />

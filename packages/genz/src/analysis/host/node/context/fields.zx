@@ -11,6 +11,7 @@ import undefinedValue from "../../../../ast/context/undefined"
 import append from "../../../../ast/fields/append"
 import { DeclarationsKind as D } from "../../../../printer/model/declarations"
 import { ExpressionsPrimitive as P } from "../../../../printer/model/expressions"
+import optional from "../../tree/optional"
 import {
     std_name,
     heap_name,
@@ -30,9 +31,8 @@ import {
     head_name,
     tail_name
 } from "./const"
-import optional from "./optional"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/ast"
 
 export default function (in: Input): Output {
     const arena = path({

@@ -1,5 +1,8 @@
 import path from "../../../../ast/context/path"
 import result from "../../../../ast/statements/builder/result"
+import errorUnion from "../../tree/error_union"
+import invoke from "../../tree/invoke"
+import method from "../../tree/method"
 import { api_name, env_name, env_type } from "../context/const"
 import { info_name, info_type } from "../enqueue/const"
 import {
@@ -9,9 +12,6 @@ import {
     output_name,
     write_name
 } from "../task/const"
-import errorUnion from "../task/error_union"
-import invoke from "../task/invoke"
-import method from "../task/method"
 
 import type { State as Input, State as Output } from "./model"
 

@@ -7,7 +7,7 @@ import path from "../../../ast/context/path"
 import text from "../../../ast/context/text"
 import makeResult from "../../../ast/statements/builder/result"
 import { ExpressionsKind as K } from "../../../printer/model/expressions"
-import method from "../node/task/method"
+import method from "../tree/method"
 import {
     application_name,
     scalar_ready,

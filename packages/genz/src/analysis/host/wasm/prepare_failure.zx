@@ -6,8 +6,8 @@ import evaluate from "../../../ast/statements/builder/evaluate"
 import open from "../../../ast/statements/builder/open"
 import result from "../../../ast/statements/builder/result"
 import { ExpressionsKind as K } from "../../../printer/model/expressions"
-import catchScope from "../node/task/catch"
-import invoke from "../node/task/invoke"
+import catchScope from "../tree/catch"
+import invoke from "../tree/invoke"
 import {
     state_name,
     state_arena,

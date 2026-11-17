@@ -24,7 +24,7 @@ import {
     request_type
 } from "./const"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     const names = [

@@ -1,6 +1,6 @@
-import optional from "../../../../ast/expressions/optional_type"
+import optional from "../../../ast/expressions/optional_type"
 
-import type { State } from "./model"
+import type { State } from "./ast"
 
 export type Input = {
     state: State,

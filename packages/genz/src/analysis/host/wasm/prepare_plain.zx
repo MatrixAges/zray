@@ -5,7 +5,7 @@ import object from "../../../ast/context/object"
 import path from "../../../ast/context/path"
 import field from "../../../ast/fields/append"
 import assignment from "../../../ast/statements/builder/assignment"
-import invoke from "../node/task/invoke"
+import invoke from "../tree/invoke"
 import {
     std_name,
     arena_name,

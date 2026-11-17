@@ -6,7 +6,7 @@ import path from "../../../ast/context/path"
 import text from "../../../ast/context/text"
 import field from "../../../ast/fields/append"
 import { ExpressionsKind as K } from "../../../printer/model/expressions"
-import invoke from "../node/task/invoke"
+import invoke from "../tree/invoke"
 import {
     std_name,
     application_name,

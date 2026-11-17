@@ -1,8 +1,8 @@
 import bytes from "std:bytes"
 
+import invoke from "../../../../ast/context/invoke"
 import binding from "../../../../ast/statements/builder/binding"
 import { state_name, request_name } from "../const"
-import invoke from "../invoke"
 
 import type { State as Input, State as Output } from "../model"
 

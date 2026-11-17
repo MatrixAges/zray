@@ -1,7 +1,7 @@
 import primitive from "../../../ast/context/primitive"
 import { ExpressionsPrimitive as P } from "../../../printer/model/expressions"
-import errorUnion from "../node/task/error_union"
-import method from "../node/task/method"
+import errorUnion from "../tree/error_union"
+import method from "../tree/method"
 import { prepare_name } from "./const"
 
 import type { State as Input, State as Output } from "./model"

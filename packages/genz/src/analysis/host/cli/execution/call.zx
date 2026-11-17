@@ -1,3 +1,4 @@
+import invoke from "../../../../ast/context/invoke"
 import path from "../../../../ast/context/path"
 import {
     init_name,
@@ -9,7 +10,6 @@ import {
     io_name,
     minimal_name
 } from "../const"
-import invoke from "../invoke"
 
 import type { State, Node as Output } from "../../../../ast/context/model"
 

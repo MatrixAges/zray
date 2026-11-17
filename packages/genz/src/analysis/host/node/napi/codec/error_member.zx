@@ -12,9 +12,9 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsKind as K
 } from "../../../../../printer/model/expressions"
+import invoke from "../../../tree/invoke"
 import { std_name } from "../../context/const"
 import { name_name } from "../../task/const"
-import invoke from "../../task/invoke"
 import { type_prefix, mem_name, equal_name } from "./const"
 import typeName from "./name"
 

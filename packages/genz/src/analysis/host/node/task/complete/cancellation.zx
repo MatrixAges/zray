@@ -13,7 +13,7 @@ import {
 import { self_name } from "../../context/const"
 import { status_name, ok_tag, output_name, cancelled_error } from "../const"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const status = path({

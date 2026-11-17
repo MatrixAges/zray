@@ -27,7 +27,7 @@ import invoke from "./invoke"
 import method from "./method"
 import parameter from "./self_parameter"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/ast"
 
 export default function (in: Input): Output {
     const self = parameter(in)

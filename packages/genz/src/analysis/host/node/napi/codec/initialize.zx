@@ -1,6 +1,6 @@
 import context from "../../../../../ast/context/initialize"
 import statements from "../../../../../ast/statements/builder/initialize"
-import initialize from "../../task/initialize"
+import initialize from "../../../tree/initialize"
 import classify from "./classify"
 
 import type { Input, State as Output } from "./model"

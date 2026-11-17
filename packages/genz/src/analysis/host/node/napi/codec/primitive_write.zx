@@ -22,7 +22,7 @@ import {
     create_bigint_u64
 } from "./const"
 
-import type { State, State as Output } from "../../task/model"
+import type { State, State as Output } from "../../../tree/model"
 
 export type Input = {
     state: State,

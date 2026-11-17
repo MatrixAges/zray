@@ -21,6 +21,8 @@ import {
     ExpressionsKind as K,
     ExpressionsUnaryOperator as U
 } from "../../../../../printer/model/expressions"
+import invoke from "../../../tree/invoke"
+import method from "../../../tree/method"
 import { api_name, env_name, env_type } from "../../context/const"
 import { fail_name } from "../../enqueue/const"
 import {
@@ -30,8 +32,6 @@ import {
     value_type,
     error_capture
 } from "../../task/const"
-import invoke from "../../task/invoke"
-import method from "../../task/method"
 import { throw_error } from "./const"
 
 import type { State as Input, State as Output } from "./model"

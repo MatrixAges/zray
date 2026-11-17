@@ -1,5 +1,5 @@
 <Module>
-    <Type from="../model" as="Task" />
+    <Type from="../../../tree/model" as="Task" />
 
     <Args in={Task.State} out={Task.State} />
 

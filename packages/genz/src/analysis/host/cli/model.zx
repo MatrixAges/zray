@@ -14,6 +14,7 @@ import type {
     StatementsKind,
     Statements as PublishedStatements
 } from "../../../printer/model/statements"
+import type { Input as HostInput } from "../input"
 import type { State as JsonState } from "../json_output/model"
 
 export enum Owner {
@@ -21,11 +22,7 @@ export enum Owner {
     Request
 }
 
-export type Input = {
-    stateful: bool,
-    types: Table,
-    output_type: u32
-}
+export type Input = HostInput
 
 export type Extra = {
     error_union_payload: u32[],

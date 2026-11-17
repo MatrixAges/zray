@@ -10,7 +10,7 @@ import check from "../check"
 import { reference_name, reject_name, pending_name, exception_pending } from "../const"
 import exception from "./exception"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const reference = path({

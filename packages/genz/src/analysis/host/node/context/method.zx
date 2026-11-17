@@ -8,7 +8,17 @@ import field from "../../../../ast/fields/append"
 import close from "../../../../ast/statements/builder/close"
 import { ExpressionsPrimitive as P } from "../../../../printer/model/expressions"
 
-import type { Method as Input, State as Output } from "./model"
+import type { State } from "../../tree/ast"
+
+export type Input = {
+    state: State,
+    name: string,
+    parameter_type: u32,
+    parameter_name: string,
+    convention?: u32
+}
+
+export type Output = State
 
 export default function (in: Input): Output {
     const state = in.state

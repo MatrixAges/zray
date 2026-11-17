@@ -2,7 +2,7 @@ import integer from "../../../../ast/context/integer"
 import primitive from "../../../../ast/context/primitive"
 import result from "../../../../ast/statements/builder/result"
 import { ExpressionsPrimitive as P } from "../../../../printer/model/expressions"
-import method from "../task/method"
+import method from "../../tree/method"
 import { version_name, napi_version } from "./const"
 
 import type { State as Input, State as Output } from "./model"

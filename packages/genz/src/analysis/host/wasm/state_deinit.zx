@@ -2,7 +2,7 @@ import path from "../../../ast/context/path"
 import branch from "../../../ast/statements/builder/branch"
 import evaluate from "../../../ast/statements/builder/evaluate"
 import open from "../../../ast/statements/builder/open"
-import invoke from "../node/task/invoke"
+import invoke from "../tree/invoke"
 import { state_name, initialized_name, deinit_name } from "./const"
 
 import type { State as Input, State as Output } from "./model"

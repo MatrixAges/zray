@@ -10,11 +10,11 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsBuiltinName as B
 } from "../../../../printer/model/expressions"
+import optional from "../../tree/optional"
 import { data_name, self_name } from "../context/const"
-import optional from "../context/optional"
 import selfParameter from "../context/self_parameter"
 
-import type { State as Input, State } from "./model"
+import type { State as Input, State } from "../../tree/model"
 
 export type Output = {
     state: State,

@@ -1,6 +1,6 @@
 import evaluate from "../../../../ast/statements/builder/evaluate"
 
-import type { Node as Input, State as Output } from "./model"
+import type { Node as Input, State as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     return {

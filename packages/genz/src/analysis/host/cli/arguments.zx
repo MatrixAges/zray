@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 
+import invoke from "../../../ast/context/invoke"
 import path from "../../../ast/context/path"
 import binding from "../../../ast/statements/builder/binding"
 import {
@@ -10,7 +11,6 @@ import {
     allocator_name,
     arena_name
 } from "./const"
-import invoke from "./invoke"
 
 import type { State as Input, State as Output } from "./model"
 

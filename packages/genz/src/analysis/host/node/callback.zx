@@ -5,14 +5,14 @@ import text from "../../../ast/context/text"
 import open from "../../../ast/statements/builder/open"
 import result from "../../../ast/statements/builder/result"
 import { ExpressionsKind as K } from "../../../printer/model/expressions"
+import caught from "../tree/catch"
+import invoke from "../tree/invoke"
+import method from "../tree/method"
 import { api_name, env_name, env_type, c_convention } from "./context/const"
 import { fail_name } from "./enqueue/const"
-import caught from "./task/catch"
 import { napi_name, value_type, error_capture } from "./task/const"
-import invoke from "./task/invoke"
-import method from "./task/method"
 
-import type { State as Tree } from "./task/model"
+import type { State as Tree } from "../tree/model"
 
 export type Input = {
     tree: Tree,

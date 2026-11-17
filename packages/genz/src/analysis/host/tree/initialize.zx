@@ -1,4 +1,4 @@
-import initialize from "../context/initialize"
+import initialize from "./initialize_ast"
 
 import type { Input, State as Output } from "./model"
 

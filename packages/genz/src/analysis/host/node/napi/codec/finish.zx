@@ -7,9 +7,9 @@ import functionDeclaration from "../../../../../ast/declarations/function"
 import append from "../../../../../ast/declarations/table/function"
 import field from "../../../../../ast/fields/append"
 import close from "../../../../../ast/statements/builder/close"
+import errorUnion from "../../../tree/error_union"
 import { api_name, env_name, env_type, std_name } from "../../context/const"
 import { value_name, value_type, allocator_name } from "../../task/const"
-import errorUnion from "../../task/error_union"
 import {
     type_prefix,
     read_prefix,

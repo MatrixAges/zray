@@ -5,8 +5,8 @@ import tuple from "../../../../../ast/context/tuple"
 import check from "../check"
 import { value_name, ignored_name, call_function } from "../const"
 
-import type { State as Ast } from "../../context/model"
-import type { State as Output, Extra } from "../model"
+import type { State as Ast } from "../../../tree/ast"
+import type { State as Output, Extra } from "../../../tree/model"
 
 export type Input = {
     ast: Ast,

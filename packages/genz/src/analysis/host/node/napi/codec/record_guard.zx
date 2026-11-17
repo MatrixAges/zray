@@ -7,7 +7,7 @@ import {
     ExpressionsKind as K,
     ExpressionsBinaryOperator as B
 } from "../../../../../printer/model/expressions"
-import invoke from "../../task/invoke"
+import invoke from "../../../tree/invoke"
 import {
     length_name,
     kind_name,
@@ -17,7 +17,7 @@ import {
 } from "./const"
 import guard from "./tree_guard"
 
-import type { State as Tree } from "../../task/model"
+import type { State as Tree } from "../../../tree/model"
 
 export type Input = {
     state: Tree,

@@ -1,7 +1,7 @@
+import invoke from "../../../../ast/context/invoke"
 import header from "../../../../ast/statements/builder/header"
 import { StatementsKind } from "../../../../printer/model/statements"
 import { deinit_name, state_name, request_name } from "../const"
-import invoke from "../invoke"
 import { Owner } from "../model"
 
 import type { State, State as Output } from "../model"

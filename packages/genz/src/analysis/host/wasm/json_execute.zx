@@ -17,9 +17,9 @@ import {
     ExpressionsUnaryOperator as U,
     ExpressionsKind as K
 } from "../../../printer/model/expressions"
-import deferScope from "../node/task/defer_scope"
-import invoke from "../node/task/invoke"
-import method from "../node/task/method"
+import deferScope from "../tree/defer_scope"
+import invoke from "../tree/invoke"
+import method from "../tree/method"
 import {
     result_name,
     ready_name,

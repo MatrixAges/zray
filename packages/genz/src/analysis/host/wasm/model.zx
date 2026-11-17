@@ -7,8 +7,8 @@ import type { Declarations } from "../../../printer/model/declarations"
 import type { StatementsKind } from "../../../printer/model/statements"
 import type { Statements } from "../../../printer/model/statements"
 import type { Arms } from "../../match/model"
-import type { Input as HostInput } from "../cli/model"
-import type { State as Tree, Extra as TaskExtra } from "../node/task/model"
+import type { Input as HostInput } from "../input"
+import type { State as Tree, Extra as TreeExtra } from "../tree/model"
 
 export type Input = HostInput
 
@@ -56,7 +56,7 @@ export type Node = {
 
 export type Module = {
     context: Context,
-    extra: TaskExtra,
+    extra: TreeExtra,
     expression_forms: ExpressionColumns,
     statements: Statements,
     fields: Fields,

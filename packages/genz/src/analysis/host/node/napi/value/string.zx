@@ -6,6 +6,8 @@ import primitive from "../../../../../ast/context/primitive"
 import slice from "../../../../../ast/context/slice"
 import result from "../../../../../ast/statements/builder/result"
 import { ExpressionsPrimitive as P } from "../../../../../printer/model/expressions"
+import errorUnion from "../../../tree/error_union"
+import method from "../../../tree/method"
 import { std_name, api_name, env_name, env_type } from "../../context/const"
 import {
     len_name,
@@ -14,8 +16,6 @@ import {
     allocator_name,
     value_name
 } from "../../task/const"
-import errorUnion from "../../task/error_union"
-import method from "../../task/method"
 import check from "./check_call"
 import {
     string_name,

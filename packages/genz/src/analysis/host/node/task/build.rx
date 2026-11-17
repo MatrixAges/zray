@@ -1,9 +1,9 @@
 <Module>
-    <Type from="model" as="Task" />
+    <Type from="../../tree/model" as="Task" />
 
     <Args in={Task.Input} out={Task.Output} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="../../tree/initialize" in={$in} />
     <Call fn="prelude" in={$ctx.initialize} />
     <Call fn="fields" in={$ctx.prelude} />
     <Call fn="destroy" in={$ctx.fields} />

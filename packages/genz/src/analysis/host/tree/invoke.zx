@@ -1,4 +1,4 @@
-import invoke from "../../cli/invoke"
+import invoke from "../../../ast/context/invoke"
 
 import type { State, Node as Output } from "./model"
 

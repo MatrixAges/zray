@@ -1,7 +1,7 @@
-import call from "../../../ast/context/call"
-import path from "../../../ast/context/path"
+import call from "./call"
+import path from "./path"
 
-import type { State, Node as Output } from "../../../ast/context/model"
+import type { State, Node as Output } from "./model"
 
 export type Input = {
     state: State,

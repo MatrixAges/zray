@@ -8,7 +8,7 @@ import open from "../../../../../ast/statements/builder/open"
 import { result_name, value_name, output_name, error_capture } from "../const"
 import reject from "./reject"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const result = path({

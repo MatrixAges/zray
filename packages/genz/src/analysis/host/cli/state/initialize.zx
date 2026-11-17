@@ -1,6 +1,6 @@
+import invoke from "../../../../ast/context/invoke"
 import evaluate from "../../../../ast/statements/builder/evaluate"
 import { state_name, initialize_name } from "../const"
-import invoke from "../invoke"
 
 import type { State as Input, State as Output } from "../model"
 

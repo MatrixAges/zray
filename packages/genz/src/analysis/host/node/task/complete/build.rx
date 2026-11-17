@@ -1,5 +1,6 @@
 <Module>
-    <Type from="../model" as="Task" />
+    <Type from="../../../tree/model" as="Task" />
+    <Type from="target" as="Completion" />
 
     <Args in={Task.State} out={Task.State} />
 
@@ -11,7 +12,7 @@
         fn="release_completed"
         in={{
             state: $ctx.cancellation,
-            target: Task.Target.Current
+            target: Completion.Target.Current
         }}
     />
 

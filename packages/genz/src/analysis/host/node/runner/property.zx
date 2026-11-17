@@ -25,7 +25,7 @@ import {
     utf8_name
 } from "./const"
 
-import type { State, State as Output } from "../task/model"
+import type { State, State as Output } from "../../tree/model"
 
 export type Input = {
     state: State,

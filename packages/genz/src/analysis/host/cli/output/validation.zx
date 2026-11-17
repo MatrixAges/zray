@@ -6,7 +6,8 @@ import close from "../../../../ast/statements/builder/close"
 import open from "../../../../ast/statements/builder/open"
 import result from "../../../../ast/statements/builder/result"
 import { ExpressionsKind } from "../../../../printer/model/expressions"
-import { non_finite_error, output_name } from "../const"
+import { non_finite_error } from "../../json_output/const"
+import { output_name } from "../const"
 
 import type { Gated as Input, Prepared as Output } from "../model"
 

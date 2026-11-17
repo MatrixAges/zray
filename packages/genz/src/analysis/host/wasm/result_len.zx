@@ -6,7 +6,7 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsBuiltinName as Builtin
 } from "../../../printer/model/expressions"
-import method from "../node/task/method"
+import method from "../tree/method"
 import { result_name, len_name, zxc_result_len } from "./const"
 
 import type { State as Input, State as Output } from "./model"

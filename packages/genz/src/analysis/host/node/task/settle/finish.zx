@@ -1,13 +1,13 @@
 import path from "../../../../../ast/context/path"
 import primitive from "../../../../../ast/context/primitive"
 import { ExpressionsPrimitive as P } from "../../../../../printer/model/expressions"
+import errorUnion from "../../../tree/error_union"
+import method from "../../../tree/method"
 import { self_name, env_name, api_name, env_type } from "../../context/const"
 import parameter from "../../context/self_parameter"
 import { settle_name } from "../const"
-import errorUnion from "../error_union"
-import method from "../method"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const self = parameter(in.ast)

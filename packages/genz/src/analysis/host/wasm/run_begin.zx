@@ -4,7 +4,7 @@ import address from "../../../ast/context/address"
 import unwrap from "../../../ast/context/optional_unwrap"
 import path from "../../../ast/context/path"
 import binding from "../../../ast/statements/builder/binding"
-import invoke from "../node/task/invoke"
+import invoke from "../tree/invoke"
 import {
     arena_name,
     request_name,

@@ -7,15 +7,15 @@ import binding from "../../../../../ast/statements/builder/binding"
 import header from "../../../../../ast/statements/builder/header"
 import open from "../../../../../ast/statements/builder/open"
 import { StatementsKind as S } from "../../../../../printer/model/statements"
+import deferScope from "../../../tree/defer_scope"
+import invoke from "../../../tree/invoke"
 import {
     self_name, retain_name, release_name, busy_name
 } from "../../context/const"
 import { context_name } from "../const"
-import deferScope from "../defer_scope"
 import evaluate from "../evaluate"
-import invoke from "../invoke"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const context = path({

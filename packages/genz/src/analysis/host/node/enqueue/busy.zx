@@ -2,9 +2,9 @@ import boolean from "../../../../ast/context/boolean"
 import path from "../../../../ast/context/path"
 import assignment from "../../../../ast/statements/builder/assignment"
 import open from "../../../../ast/statements/builder/open"
+import deferred from "../../tree/defer_scope"
 import { busy_name } from "../context/const"
 import { context_name } from "../task/const"
-import deferred from "../task/defer_scope"
 
 import type { State as Input, State as Output } from "./model"
 

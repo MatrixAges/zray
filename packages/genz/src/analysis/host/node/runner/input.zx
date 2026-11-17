@@ -10,6 +10,7 @@ import nullValue from "../../../../ast/context/null_value"
 import path from "../../../../ast/context/path"
 import binding from "../../../../ast/statements/builder/binding"
 import { ExpressionsBinaryOperator as B } from "../../../../printer/model/expressions"
+import invoke from "../../tree/invoke"
 import { env_name, arena_name } from "../context/const"
 import { arguments_name } from "../enqueue/const"
 import {
@@ -19,7 +20,6 @@ import {
     allocator_name,
     read_name
 } from "../task/const"
-import invoke from "../task/invoke"
 import { expected_name } from "./const"
 
 import type { State as Input, State as Output } from "./model"

@@ -1,7 +1,7 @@
 import header from "../../../../ast/statements/builder/header"
 import { StatementsKind as S } from "../../../../printer/model/statements"
 
-import type { Node as Input, State as Output } from "./model"
+import type { Node as Input, State as Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     return {

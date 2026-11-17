@@ -15,7 +15,7 @@ import {
     ExpressionsBuiltinName as Builtin,
     ExpressionsKind as K
 } from "../../../printer/model/expressions"
-import method from "../node/task/method"
+import method from "../tree/method"
 import {
     application_name,
     scalar_ready,

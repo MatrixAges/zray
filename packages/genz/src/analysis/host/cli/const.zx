@@ -48,8 +48,6 @@ export const no_arguments_error: string = "ExpectedNoArguments"
 
 export const json_input_error: string = "ExpectedJsonInput"
 
-export const non_finite_error: string = "NonFiniteJsonNumber"
-
 export const no_input_argc: u64 = 1
 
 export const json_input_argc: u64 = 2

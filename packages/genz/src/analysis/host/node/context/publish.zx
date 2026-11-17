@@ -3,7 +3,7 @@ import emptyStatements from "../../../../ast/snapshot/empty_statements"
 import expressions from "../../../../ast/snapshot/expressions"
 import statements from "../../../../ast/statements/builder/publish"
 
-import type { State as Input, Published as Output } from "./model"
+import type { State as Input, Published as Output } from "../../tree/ast"
 
 export default function (in: Input): Output {
     const body = statements(in.statements)

@@ -8,7 +8,7 @@ import { context_name, next_capture } from "../const"
 import advance from "./advance"
 import start from "./start_next"
 
-import type { State as Input, State as Output } from "../model"
+import type { State as Input, State as Output } from "../../../tree/model"
 
 export default function (in: Input): Output {
     const head = path({

@@ -12,7 +12,7 @@ import branch from "../../../ast/statements/builder/branch"
 import evaluate from "../../../ast/statements/builder/evaluate"
 import open from "../../../ast/statements/builder/open"
 import { ExpressionsUnaryOperator as U } from "../../../printer/model/expressions"
-import invoke from "../node/task/invoke"
+import invoke from "../tree/invoke"
 import {
     state_name,
     arena_name,

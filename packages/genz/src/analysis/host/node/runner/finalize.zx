@@ -8,6 +8,8 @@ import {
     ExpressionsPrimitive as P,
     ExpressionsKind as K
 } from "../../../../printer/model/expressions"
+import invoke from "../../tree/invoke"
+import method from "../../tree/method"
 import {
     api_name,
     env_type,
@@ -18,8 +20,6 @@ import {
 import decode from "../data_context"
 import dataType from "../data_type"
 import { context_name, blank_name } from "../task/const"
-import invoke from "../task/invoke"
-import method from "../task/method"
 import { finalize_name } from "./const"
 
 import type { State as Input, State as Output } from "./model"

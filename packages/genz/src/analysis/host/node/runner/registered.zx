@@ -1,9 +1,9 @@
 import path from "../../../../ast/context/path"
 import result from "../../../../ast/statements/builder/result"
+import errorUnion from "../../tree/error_union"
+import method from "../../tree/method"
 import { api_name, env_name, env_type } from "../context/const"
 import { value_type } from "../task/const"
-import errorUnion from "../task/error_union"
-import method from "../task/method"
 import { register_name, exports_name } from "./const"
 
 import type { State as Input, State as Output } from "./model"

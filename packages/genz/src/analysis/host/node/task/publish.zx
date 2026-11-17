@@ -1,6 +1,6 @@
 import publish from "../context/publish"
 
-import type { State as Input, Output } from "./model"
+import type { State as Input, Output } from "../../tree/model"
 
 export default function (in: Input): Output {
     const result = publish(in.ast)

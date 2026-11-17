@@ -9,7 +9,7 @@ import { ExpressionsBuiltinName as B } from "../../../printer/model/expressions"
 import { data_name } from "./context/const"
 import { context_type, context_name } from "./task/const"
 
-import type { State as Tree } from "./task/model"
+import type { State as Tree } from "../tree/model"
 
 export type Input = {
     tree: Tree

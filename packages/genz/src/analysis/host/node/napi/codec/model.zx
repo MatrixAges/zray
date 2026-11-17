@@ -6,7 +6,7 @@ import type { Columns as Fields } from "../../../../../ast/fields/model"
 import type { Columns as Loops } from "../../../../../ast/statements/builder/for_loop"
 import type { Columns as Scopes } from "../../../../../ast/statements/builder/scope"
 import type { Statements } from "../../../../../printer/model/statements"
-import type { State as Tree } from "../../task/model"
+import type { State as Tree } from "../../../tree/model"
 
 export type Kind = TypeKind
 

@@ -14,6 +14,7 @@ import {
     ExpressionsBuiltinName as B,
     ExpressionsKind as K
 } from "../../../../printer/model/expressions"
+import optional from "../../tree/optional"
 import {
     data_name,
     self_name,
@@ -26,10 +27,9 @@ import {
 } from "./const"
 import invoke from "./invoke"
 import method from "./method"
-import optional from "./optional"
 import parameter from "./self_parameter"
 
-import type { State as Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "../../tree/ast"
 
 export default function (in: Input): Output {
     const self = parameter(in)
