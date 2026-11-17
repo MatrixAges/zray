@@ -1,11 +1,12 @@
 const std = @import("std");
+const Digest = [std.crypto.hash.Blake3.digest_length]u8;
 
 /// Fingerprints the compiler sources into the identity that names zxc's persistent caches:
 ///
 ///     cache-identity <output> (text <value> | file <name> <path> | directory <name> <path>)...
 ///
 /// Files are hashed on every core and folded in argument order, a directory's files by sorted relative path. The
-/// output directory receives `digest.zig`, which declares `digest`, and `cache_identity.s`, which defines the
+/// output directory receives `digest.bin`, which holds the raw identity, and `cache_identity.s`, which defines the
 /// `zxc_cache_identity` symbol for a platform link. Running as a build step instead of at configure time keeps an
 /// edit from invalidating Zig's configuration cache, which would rerun every build script.
 pub fn main(init: std.process.Init) !void {
@@ -23,6 +24,7 @@ pub fn main(init: std.process.Init) !void {
 
         if (std.mem.eql(u8, kind, "text") and index + 1 < args.len) {
             try fields.append(allocator, .{ .text = args[index + 1] });
+
             index += 2;
 
             continue;
@@ -42,17 +44,14 @@ pub fn main(init: std.process.Init) !void {
             const relative = try listed(init.io, allocator, path);
 
             try fields.append(allocator, .{ .files = .{ .name = name, .first = files.items.len, .relative = relative, .directory = true } });
-
             for (relative) |entry| try files.append(allocator, try std.fs.path.join(allocator, &.{ path, entry }));
         } else return error.UnknownField;
     }
 
-    const digests = try allocator.alloc([32]u8, files.items.len);
+    const digests = try allocator.alloc(anyerror!Digest, files.items.len);
     var work = Work{ .io = init.io, .paths = files.items, .digests = digests };
 
     try work.spread(allocator);
-
-    if (work.failure) |err| return err;
 
     var hash = std.crypto.hash.Blake3.init(.{});
 
@@ -65,17 +64,17 @@ pub fn main(init: std.process.Init) !void {
 
             if (group.directory) integer(&hash, group.relative.len);
 
-            for (group.relative, digests[group.first..][0..group.relative.len]) |relative, *digest| {
+            for (group.relative, digests[group.first..][0..group.relative.len]) |relative, *result| {
                 if (group.directory) field(&hash, relative);
-
-                hash.update(digest);
+                if (result.*) |*digest| hash.update(digest) else |err| return err;
             }
         },
     };
 
-    var identity: [32]u8 = undefined;
+    var identity: Digest = undefined;
 
     hash.final(&identity);
+
     try emit(init.io, allocator, args[1], identity);
 }
 
@@ -88,10 +87,8 @@ const Field = union(enum) {
 const Work = struct {
     io: std.Io,
     paths: []const []const u8,
-    digests: [][32]u8,
+    digests: []anyerror!Digest,
     next: std.atomic.Value(usize) = .init(0),
-    failure: ?anyerror = null,
-
     fn spread(self: *Work, allocator: std.mem.Allocator) !void {
         const threads = try allocator.alloc(std.Thread, @min(std.Thread.getCpuCount() catch 1, self.paths.len / 32 + 1) -| 1);
         var started: usize = 0;
@@ -105,7 +102,6 @@ const Work = struct {
 
         for (threads[0..started]) |thread| thread.join();
     }
-
     fn run(self: *Work) void {
         var buffer: [64 * 1024]u8 = undefined;
 
@@ -114,16 +110,12 @@ const Work = struct {
 
             if (position >= self.paths.len) return;
 
-            self.digests[position] = digestOf(self.io, self.paths[position], &buffer) catch |err| {
-                self.failure = err;
-
-                return;
-            };
+            self.digests[position] = digestOf(self.io, self.paths[position], &buffer);
         }
     }
 };
 
-fn digestOf(io: std.Io, path: []const u8, buffer: []u8) ![32]u8 {
+fn digestOf(io: std.Io, path: []const u8, buffer: []u8) !Digest {
     const file = try std.Io.Dir.cwd().openFile(io, path, .{});
 
     defer file.close(io);
@@ -139,7 +131,7 @@ fn digestOf(io: std.Io, path: []const u8, buffer: []u8) ![32]u8 {
         hash.update(buffer[0..count]);
     }
 
-    var digest: [32]u8 = undefined;
+    var digest: Digest = undefined;
 
     hash.final(&digest);
 
@@ -170,7 +162,7 @@ fn listed(io: std.Io, allocator: std.mem.Allocator, path: []const u8) ![]const [
 }
 
 /// Writes the identity's two forms, leaving files that already hold them untouched.
-fn emit(io: std.Io, allocator: std.mem.Allocator, output: []const u8, identity: [32]u8) !void {
+fn emit(io: std.Io, allocator: std.mem.Allocator, output: []const u8, identity: Digest) !void {
     var bytes: std.Io.Writer.Allocating = .init(allocator);
 
     for (identity, 0..) |byte, index| try bytes.writer.print("{s}{d}", .{ if (index == 0) "" else ", ", byte });
@@ -180,7 +172,7 @@ fn emit(io: std.Io, allocator: std.mem.Allocator, output: []const u8, identity: 
 
     defer directory.close(io);
 
-    try update(io, allocator, directory, "digest.zig", try std.fmt.allocPrint(allocator, "pub const digest: [32]u8 = .{{ {s} }};\n", .{listing}));
+    try update(io, allocator, directory, "digest.bin", &identity);
     try update(io, allocator, directory, "cache_identity.s", try std.fmt.allocPrint(allocator, ".section __TEXT,__const\n.globl _zxc_cache_identity\n_zxc_cache_identity:\n.byte {s}\n", .{listing}));
 }
 
@@ -188,7 +180,6 @@ fn update(io: std.Io, allocator: std.mem.Allocator, directory: std.Io.Dir, name:
     const current = directory.readFileAlloc(io, name, allocator, .limited(4096)) catch null;
 
     if (current) |value| if (std.mem.eql(u8, value, content)) return;
-
     try directory.writeFile(io, .{ .sub_path = name, .data = content });
 }
 

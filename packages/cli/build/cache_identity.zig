@@ -1,11 +1,15 @@
 const std = @import("std");
 
-/// The directory holding the identity as `digest.zig` and `cache_identity.s` (see `cache_identity/digest.zig`).
+/// The directory holding the raw digest and its assembly representation (see `cache_identity/digest.zig`).
 pub const Identity = struct {
     directory: std.Build.LazyPath,
     /// A module declaring `digest`, for units that embed the identity.
     pub fn module(self: Identity, b: *std.Build) *std.Build.Module {
-        return b.createModule(.{ .root_source_file = self.directory.path(b, "digest.zig") });
+        const embedded = b.createModule(.{ .root_source_file = b.path("src/host/identity_data.zig") });
+
+        embedded.addAnonymousImport("cache_identity_bytes", .{ .root_source_file = self.directory.path(b, "digest.bin") });
+
+        return embedded;
     }
     /// An assembly source defining the `zxc_cache_identity` symbol, for a platform link.
     pub fn assembly(self: Identity, b: *std.Build) std.Build.LazyPath {
