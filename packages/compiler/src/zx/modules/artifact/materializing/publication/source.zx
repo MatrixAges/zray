@@ -1,0 +1,56 @@
+import link from "compiler/source_function_row"
+import memory from "memory"
+
+import read from "./read"
+import write from "./write"
+
+import type { Input, Output } from "./source_model"
+
+export default function (in: Input): Output {
+    const { source, target, mappings, max_offset, progress, empty } = in
+
+    const end = source.files.length
+
+    const result = loop({
+        row: in.start,
+        columns: target,
+        depths: in.depths,
+        needed: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < end,
+        next: state => {
+            const row = state.row
+
+            const linked = link(read({
+                source,
+                mappings,
+                row,
+                depths: state.depths,
+                max_offset
+            }))
+
+            state.depths = linked.depths
+            state.needed = linked.needed
+            state.valid = linked.function != null
+
+            if (linked.function != null) {
+                state.columns = write({
+                    columns: state.columns,
+                    function: linked.function,
+                    row,
+                    empty
+                })
+
+                state.row += 1
+                memory.writeU64(progress, 0, state.row)
+            }
+        }
+    })
+
+    return {
+        columns: result.columns,
+        depths: result.depths,
+        needed: result.needed
+    }
+}

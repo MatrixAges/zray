@@ -1,0 +1,51 @@
+import type { Output as External } from "../copy_external"
+import type { Input as Batch, Row as Output } from "./source_model"
+
+export type Input = Batch.Pick("source", "mappings", "depths", "max_offset") & {
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { source, mappings, row, depths, max_offset } = in
+
+    const native_module = source.native_modules[row]
+    const store_table = source.stores[row]
+
+    const external: External? = match {
+        native_module == null => null,
+        _ => {
+            members: source.native_members[row],
+            errors: source.native_errors[row],
+            export_name: source.native_exports[row],
+            parameters: source.native_inputs[row]
+        }
+    }
+
+    return {
+        admission: {
+            source: {
+                ...mappings,
+                ports: {
+                    input: source.input_types[row],
+                    output: source.output_types[row],
+                    native_module
+                },
+                symbols: source.symbols[row],
+                expressions: source.expressions[row],
+                contracts: source.contracts[row],
+                stores: store_table.types,
+                candidate: null
+            },
+            stores: store_table,
+            checked: false,
+            max_offset
+        },
+        metadata: {
+            file: source.files[row],
+            external
+        },
+        root: source.roots[row],
+        control: source.control[row],
+        depths
+    }
+}

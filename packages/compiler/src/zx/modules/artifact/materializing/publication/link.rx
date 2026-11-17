@@ -1,0 +1,53 @@
+<Module>
+    <Type from="source_model" as="Source" />
+
+    <Args in={Source.Row} out={Source.Link} />
+
+    <Call fn="../../../../ir/canonical/control/validate" in={$in.control} />
+
+    <If on={!$ctx.validate}>
+        <Return
+            value={{
+                function: null,
+                depths: $in.depths,
+                needed: 0
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../../../ir/canonical/body/workspace"
+        in={$in.pick([
+            "control",
+            "root",
+            "depths"
+        ])}
+    />
+
+    <If on={!$ctx.workspace.valid}>
+        <Return
+            value={{
+                function: null,
+                depths: $ctx.workspace.depths,
+                needed: $ctx.workspace.needed
+            }}
+        />
+    </If>
+
+    <Call
+        module="../own_function"
+        in={{
+            admission: $in.admission,
+            metadata: $in.metadata,
+            control: $in.root == null ? null : $in.control
+        }}
+    />
+
+    <Return
+        value={{
+            function: $ctx.own_function,
+            depths: $ctx.workspace.depths,
+            needed: 0
+        }}
+    />
+</Module>

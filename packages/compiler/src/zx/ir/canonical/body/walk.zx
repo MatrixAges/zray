@@ -1,0 +1,119 @@
+import integers from "std:integer"
+import { max_nesting_depth, max_u32 } from "core/const"
+import { StatementKind } from "core/control_table/model"
+
+import type { Control } from "core/control_table/model"
+
+export type Input = {
+    control: Control,
+    root: u64,
+    depths: u32[]
+}
+
+export type Output = {
+    valid: bool,
+    depths: u32[]
+}
+
+export default function (in: Input): Output {
+    const { root } = in
+
+    const checked = loop({
+        control: in.control,
+        depths: in.depths,
+        block: 0,
+        index: 0,
+        edge: 0,
+        valid: true
+    }, {
+        while: current =>
+            current.valid && current.block < current.control.block_first.length,
+        next: current => {
+            if (
+                current.index ==
+                    integers.widen(
+                        current.control.block_count[current.block]
+                    )
+            ) {
+                current.block += 1
+                current.index = 0
+            } else {
+                const statement =
+                    integers.widen(
+                        current.control.block_first[current.block]
+                    ) + current.index
+                const kind = current.control.statement_kinds[statement]
+                const payload =
+                    integers.widen(
+                        current.control.statement_payloads[statement]
+                    )
+                const count = match kind {
+                    StatementKind.Branch => 2,
+                    StatementKind.Switch =>
+                        integers.widen(
+                            current.control.selection_count[payload]
+                        ),
+                    _ => 0
+                }
+
+                if (current.edge == count) {
+                    current.index += 1
+                    current.edge = 0
+                } else {
+                    const child = match kind {
+                        StatementKind.Branch =>
+                            integers.widen(
+                                match {
+                                    current.edge ==
+                                        0 => current.control.branch_yes[payload],
+                                    _ => current.control.branch_no[payload]
+                                }
+                            ),
+                        _ =>
+                            integers.widen(
+                                current.control
+                                    .case_bodies[integers.widen(
+                                        current.control.selection_first[payload]
+                                    ) + current.edge]
+                            )
+                    }
+                    const child_depth = current.depths[child]
+                    const depth = integers.widen(child_depth) + 1
+
+                    current.valid = child != root && depth <= max_nesting_depth
+
+                    if (current.valid) {
+                        current.depths[child] = max_u32
+
+                        if (
+                            depth > integers.widen(current.depths[current.block])
+                        ) {
+                            current.depths[current.block] = integers.narrow(depth)
+                        }
+                    }
+
+                    current.edge += 1
+                }
+            }
+        }
+    })
+
+    const valid = loop({
+        index: 0,
+        valid: checked.valid
+    }, {
+        while: state =>
+            state.valid && state.index < in.control.block_first.length,
+        next: state => {
+            state.valid = state.index == in.root ||
+                checked.depths[state.index] == max_u32
+            state.index += 1
+        },
+        return: state => state.valid
+    })
+
+    return {
+        valid,
+        depths: checked.depths
+    }
+}

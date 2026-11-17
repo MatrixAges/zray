@@ -1,26 +1,10 @@
 import remap from "compiler/compiled_linked_function"
 import memory from "memory"
 
-import type { Complete } from "core/function_table/complete"
 import type { U64Buffer } from "memory"
 import type { Output as External } from "../../../artifact/materializing/copy_external"
+import type { Columns } from "../../../artifact/materializing/publication/model"
 import type { Mapping } from "./model"
-
-export type Columns = Complete.Pick(
-    "files",
-    "input_types",
-    "output_types",
-    "native_modules",
-    "native_members",
-    "native_exports",
-    "native_inputs",
-    "native_errors",
-    "symbols",
-    "expressions",
-    "contracts",
-    "control",
-    "stores"
-)
 
 export type Input = {
     source: Columns,

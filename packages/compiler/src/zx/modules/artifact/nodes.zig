@@ -49,21 +49,13 @@ pub fn function(self: *Self, value: ir.Function) Error!ir.Function {
     return (try self.functionEntry(value, null, .unchecked)).body;
 }
 
-pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.FunctionTable) Error!void {
+pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.FunctionTable, temporary: std.mem.Allocator) Error!void {
     const count = table.count();
 
     if (count == 0) return;
 
     if (comptime generated) {
-        try storage.reserve(self.allocator, count);
-
-        for (0..count) |row| {
-            const signature = ir.SignatureTable.read(&table, row);
-            const control = table.controlAt(row);
-            const columns = remap.BodyColumns.at(&table, row);
-
-            try self.appendLinked(storage, signature, table.store_modes[row], control, columns);
-        }
+        try @import("materializing/publication/host.zig").append(self, storage, table, temporary);
     } else {
         for (0..count) |row| try storage.append(self.allocator, try self.function(table.at(row)));
     }

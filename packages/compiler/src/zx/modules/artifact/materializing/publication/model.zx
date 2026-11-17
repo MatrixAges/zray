@@ -1,0 +1,17 @@
+import type { Complete } from "core/function_table/complete"
+
+export type Columns = Complete.Pick(
+    "files",
+    "input_types",
+    "output_types",
+    "native_modules",
+    "native_members",
+    "native_exports",
+    "native_inputs",
+    "native_errors",
+    "symbols",
+    "expressions",
+    "contracts",
+    "control",
+    "stores"
+)

@@ -112,7 +112,9 @@ pub fn commitTail(self: *Self, len: usize) void {
 const empty_symbols: ir.SymbolTable = .{};
 const empty_expressions: ir.ExpressionTable = .{};
 const empty_body: ir.ControlBody = .{};
-const empty_stores: ir.StoreTable = .{};
+
+pub const empty_stores: ir.StoreTable = .{};
+
 const empty_contracts: ir.ContractTable = .{};
 
 pub fn appendSignatureAssumeCapacity(self: *Self, signature: ir.Signature) void {

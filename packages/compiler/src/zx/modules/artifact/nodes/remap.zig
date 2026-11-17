@@ -36,18 +36,6 @@ pub const BodyColumns = struct {
             .stores = &value.stores,
         };
     }
-
-    pub fn at(table: *const ir.FunctionTable, row: usize) BodyColumns {
-        return .{
-            .input_type = @fromBackingInt(table.input_types[row]),
-            .output_type = @fromBackingInt(table.output_types[row]),
-            .native_module = if (table.native_modules[row]) |id| @fromBackingInt(id) else null,
-            .symbols = table.symbols[row],
-            .expressions = table.expressions[row],
-            .contracts = table.contracts[row],
-            .stores = table.stores[row],
-        };
-    }
 };
 
 pub fn columns(allocator: std.mem.Allocator, nodes: *const Nodes, types: []const u32, calls: []const u32) Error!Output {

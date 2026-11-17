@@ -92,7 +92,7 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
                     .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
                 };
 
-                try nodes.appendFunctions(destination.functions, tail);
+                try nodes.appendFunctions(destination.functions, tail, temporary);
             },
             .FinishBody => return finish(&input, destination, &nodes, function_body.ownTail(program.*, tail, base.count()), type_prefix),
             else => unreachable,

@@ -1,0 +1,49 @@
+import type { Control } from "core/control_table/model"
+import type { Complete } from "core/function_table/complete"
+import type { Stores } from "core/store_table/model"
+import type { U64Buffer } from "memory"
+import type { Mapping } from "../../remapping/model"
+import type { Input as FunctionInput, Owned } from "../function_model"
+import type { Columns } from "./model"
+
+export type Source = Columns & Complete.Pick("roots")
+
+export type Mappings = {
+    types: Mapping,
+    functions: Mapping,
+    natives: Mapping
+}
+
+export type Empty = {
+    control: Control,
+    stores: Stores
+}
+
+export type Row = FunctionInput.Omit("control") & {
+    control: Control,
+    root?: u32,
+    depths: u32[]
+}
+
+export type Link = {
+    function?: Owned,
+    depths: u32[],
+    needed: u64
+}
+
+export type Input = {
+    source: Source,
+    target: Columns,
+    mappings: Mappings,
+    empty: Empty,
+    depths: u32[],
+    start: u64,
+    max_offset: u64,
+    progress: U64Buffer
+}
+
+export type Output = {
+    columns: Columns,
+    depths: u32[],
+    needed: u64
+}

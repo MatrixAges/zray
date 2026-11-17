@@ -1,0 +1,78 @@
+import integers from "std:integer"
+
+import walk from "./walk"
+
+import type { Input as Tree } from "./tree"
+
+export type Input = Tree & {
+    depths: u32[]
+}
+
+export type Output = {
+    valid: bool,
+    depths: u32[],
+    needed: u64
+}
+
+export default function (in: Input): Output {
+    const { depths, control } = in
+
+    const count = control.block_first.length
+    const block = in.root
+
+    const idle: Output = {
+        valid: false,
+        depths,
+        needed: 0
+    }
+
+    if (block == null) {
+        return {
+            ...idle,
+            valid: count == 0
+        }
+    }
+
+    const root = integers.widen(block)
+
+    if (root >= count) {
+        return idle
+    }
+
+    if (count == 1) {
+        return {
+            ...idle,
+            valid: true
+        }
+    }
+
+    if (count > depths.length) {
+        return {
+            ...idle,
+            needed: count
+        }
+    }
+
+    const cleared = loop({
+        index: 0,
+        depths
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            state.depths[state.index] = 0
+            state.index += 1
+        },
+        return: state => state.depths
+    })
+
+    const result = walk({
+        control,
+        root,
+        depths: cleared
+    })
+
+    return {
+        ...result,
+        needed: 0
+    }
+}

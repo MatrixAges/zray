@@ -38,7 +38,7 @@ pub fn append(input: Input, destination: Destination) Error!Nodes {
     };
 
     try native.link(temporary, destination.native_modules, program.native_modules, native_mapping, &nodes);
-    try nodes.appendFunctions(destination.functions, program.functions);
+    try nodes.appendFunctions(destination.functions, program.functions, temporary);
 
     return nodes;
 }

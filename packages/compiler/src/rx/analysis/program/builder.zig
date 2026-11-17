@@ -87,7 +87,7 @@ fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program
     inline for (comptime Schedule.steps(form)) |step| {
         switch (step) {
             .Done => {},
-            .AppendFunctionTail => nodes.appendFunctions(&self.functions, tail) catch |err| return linkFailure(err),
+            .AppendFunctionTail => nodes.appendFunctions(&self.functions, tail, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
             .LinkInitializers => for (initializers) |initial| {
                 const mapped = nodes.remapInitializer(initial, false) catch |err| return linkFailure(err);
 

@@ -343,6 +343,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/artifact/surface/exports.zx", .name = "artifact_surface_exports" },
     .{ .path = "zx/modules/artifact/surface/binding.zx", .name = "artifact_surface_binding" },
     .{ .path = "zx/modules/artifact/remapping/columns.rx", .name = "artifact_remap" },
+    .{ .path = "zx/modules/artifact/materializing/publication/source.zx", .name = "source_function_batch" },
     .{ .path = "zx/modules/artifact/materializing/own_function.rx", .name = "artifact_linked_function" },
     .{ .path = "zx/ir/canonical/validation/function_columns.rx", .name = "ir_function_columns" },
     .{ .path = "zx/ir/canonical/control/structure.rx", .name = "ir_control_structure" },
