@@ -9,6 +9,7 @@ const names = @import("../../ir/canonical/validation/names/view.zig");
 const constants = @import("generated_artifact_surface_constants");
 const exports = @import("generated_artifact_surface_exports");
 const bindings = @import("generated_artifact_surface_binding");
+const ConstantRows = @import("../../analysis/constants/columns.zig").Rows;
 const ConstantInput = std.meta.Child(constants.Input);
 pub const Mapping = std.meta.Child(@FieldType(ConstantInput, "types"));
 const BindingInput = std.meta.Child(bindings.Input);
@@ -78,7 +79,7 @@ pub fn copyConstants(allocator: std.mem.Allocator, source: []const ir.Constant, 
     const target = ConstantTarget.borrow(result);
 
     const input: ConstantInput = .{
-        .source = &rows.view(std.meta.Child(@FieldType(ConstantInput, "source")), source.len),
+        .source = &rows.view(std.meta.Child(@FieldType(ConstantInput, "source"))),
         .target = &target.view(std.meta.Child(@FieldType(ConstantInput, "target"))),
         .types = types,
     };
@@ -87,28 +88,6 @@ pub fn copyConstants(allocator: std.mem.Allocator, source: []const ir.Constant, 
 
     return result;
 }
-
-pub const ConstantRows = struct {
-    names: zx.memory.TextColumn,
-    types: zx.memory.ReadColumn,
-    values: zx.memory.ReadColumn,
-    pub fn borrow(source: []const ir.Constant) ConstantRows {
-        return .{
-            .names = zx.memory.borrowTextColumn("name", source),
-            .types = zx.memory.borrowReadColumn(ir.TypeId, "type_id", source),
-            .values = zx.memory.borrowReadColumn(ir.ConstantValue, "value", source),
-        };
-    }
-
-    pub fn view(self: *const ConstantRows, comptime Rows: type, count: usize) Rows {
-        return .{
-            .names = @ptrCast(&self.names),
-            .types = @ptrCast(&self.types),
-            .values = @ptrCast(&self.values),
-            .count = count,
-        };
-    }
-};
 
 pub const ConstantTarget = struct {
     names: zx.memory.WriteColumn,

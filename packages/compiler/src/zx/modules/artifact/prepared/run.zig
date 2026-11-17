@@ -59,22 +59,17 @@ pub fn execute(temporary: std.mem.Allocator, analysis: *const Analysis.Result, r
         .own_function = if (record.own_function) |id| @backingInt(id) else null,
     };
 
-    const Tables = std.meta.Child(@FieldType(Constants, "types"));
-    const Values = std.meta.Child(@typeInfo(@FieldType(Constants, "imports")).optional.child);
-    const marshal = @import("../../../analysis/constants/input.zig").marshal;
-    const base = ir.TypeTable.borrow(std.meta.Child(@FieldType(Tables, "base")), program.types);
-    const delta = ir.TypeTable.borrow(std.meta.Child(@FieldType(Tables, "delta")), .{});
-    const tables: Tables = .{ .base = &base, .delta = &delta };
-    const exports = try marshal(Values, temporary, record.constant_exports);
-    const imports = try marshal(Values, temporary, record.constant_imports);
-    const constants: Constants = .{ .types = &tables, .exports = exports, .imports = imports };
+    var constants: @import("../../../analysis/constants/columns.zig").Pair(Constants) = undefined;
+    const has_constants = record.constant_exports.len != 0 or record.constant_imports.len != 0;
+
+    if (has_constants) constants.init(program.types, record.constant_exports, record.constant_imports);
 
     const input: Input = .{
         .source = &source,
         .body = &body,
         .origins = &origins,
         .origin_names = analysis.nominal_types.names,
-        .constants = if (exports != null or imports != null) &constants else null,
+        .constants = if (has_constants) &constants.input else null,
         .scalar_count = std.enums.values(ir.Scalar).len,
         .maximum_count = std.math.maxInt(u32),
     };

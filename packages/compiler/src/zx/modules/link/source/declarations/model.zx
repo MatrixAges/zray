@@ -1,8 +1,9 @@
+import type { Rows as Constants } from "core/constant/rows"
 import type { NamedRowBuffer, U64Buffer } from "memory"
 import type { ReadColumn } from "memory/columns"
 import type { Rows } from "../../../../ir/canonical/validation/names/model"
 import type { Mapping } from "../../../artifact/remapping/model"
-import type { Rows as Constants, Target } from "../../../artifact/surface/constants"
+import type { Target } from "../../../artifact/surface/constants"
 
 export enum Storage {
     None,

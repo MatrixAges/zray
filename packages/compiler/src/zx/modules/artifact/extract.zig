@@ -15,11 +15,11 @@ pub fn validated(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analy
         return .{ .arena = arena, .value = value };
     }
 
-    const constants = @import("../../analysis/constants/check.zig");
+    const constants = @import("../../analysis/constants/input.zig").nativeValid;
     const types = analysis.value.ir.types;
 
-    if (!try constants.validate(allocator, types, record.constant_exports)) return error.InvalidModule;
-    if (!try constants.validate(allocator, types, record.constant_imports)) return error.InvalidModule;
+    if (!constants(types, record.constant_exports)) return error.InvalidModule;
+    if (!constants(types, record.constant_imports)) return error.InvalidModule;
 
     var builder = try @import("build.zig").init(arena.allocator(), scratch, analysis);
     const value = try builder.extract(record);

@@ -5,16 +5,10 @@ import columns from "memory/columns"
 
 import remap from "../remapping/id"
 
-import type { TextColumn, WriteColumn } from "memory"
-import type { ReadColumn, WriteColumn as ScalarTarget } from "memory/columns"
+import type { Rows } from "core/constant/rows"
+import type { WriteColumn } from "memory"
+import type { WriteColumn as ScalarTarget } from "memory/columns"
 import type { Mapping } from "../remapping/model"
-
-export type Rows = {
-    names: TextColumn,
-    types: ReadColumn,
-    values: ReadColumn,
-    count: u64
-}
 
 export type Target = {
     names: WriteColumn,

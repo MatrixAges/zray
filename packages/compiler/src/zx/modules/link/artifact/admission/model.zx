@@ -1,0 +1,29 @@
+import type { Modules } from "core/native_module_table/model"
+import type { Table as Signatures } from "core/signature_table/model"
+import type {
+    Interface as Constants
+} from "../../../../analysis/constants/validation/model"
+import type { Rows } from "../../../../ir/canonical/validation/names/model"
+
+export type Layout = {
+    native_modules: Modules,
+    signatures: Signatures
+}
+
+export type Surface = {
+    exports: Rows,
+    imports: Rows,
+    type_count: u64
+}
+
+export type Input = {
+    layout?: Layout,
+    surface: Surface,
+    constants?: Constants
+}
+
+export enum Status {
+    Invalid,
+    Reserve,
+    Ready
+}

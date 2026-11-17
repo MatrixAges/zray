@@ -16,9 +16,9 @@ pub fn preflight(module: *const model.Module, current: *const @import("../restor
 }
 
 pub fn mergeTypes(temporary: std.mem.Allocator, module: *const model.Module, current: *const @import("../restore.zig").Current) (@import("../../link/types.zig").Error || Error)![]const ir.TypeId {
-    const validate = @import("../../../analysis/constants/check.zig").validate;
+    const validate = @import("../../../analysis/constants/input.zig").nativeValid;
 
-    if (!try validate(temporary, current.types.view(), current.constant_imports)) return error.InvalidModule;
+    if (!validate(current.types.view(), current.constant_imports)) return error.InvalidModule;
 
     const Types = @import("../../link/types.zig");
     var types = Types{ .allocator = current.allocator, .items = current.types.*, .origins = current.origins.* };
@@ -112,10 +112,10 @@ fn sameSignature(previous: ir.Signature, current: ir.Signature, types: Nodes.Typ
 }
 
 fn constants(temporary: std.mem.Allocator, module: *const model.Module, current: []const ir.Constant, mapping: []const ir.TypeId) std.mem.Allocator.Error!bool {
-    const validate = @import("../../../analysis/constants/check.zig").validate;
+    const validate = @import("../../../analysis/constants/input.zig").nativeValid;
 
-    if (!try validate(temporary, module.types, module.constant_exports)) return false;
-    if (!try validate(temporary, module.types, module.constant_imports)) return false;
+    if (!validate(module.types, module.constant_exports)) return false;
+    if (!validate(module.types, module.constant_imports)) return false;
 
     return try @import("../../../analysis/constants/bindings.zig").compare(temporary, .{ .previous = module.constant_imports, .current = current, .mapping = mapping }) == .Equal;
 }

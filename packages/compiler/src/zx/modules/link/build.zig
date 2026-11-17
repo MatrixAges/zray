@@ -18,88 +18,68 @@ native_modules: ir.NativeModuleStorage = .{},
 module_functions: []?ir.FunctionId,
 pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.FunctionEntry {
     const value = &self.modules[index];
-    var function_mapping: []?ir.FunctionId = undefined;
-    var native_mapping: []?ir.NativeModuleId = undefined;
-    var nodes: Nodes = undefined;
+    const admission = @import("artifact/admission/host.zig");
+    const types = self.type_mappings[index];
 
-    inline for (comptime steps.run(.Module)) |step| {
-        switch (step) {
-            .VerifyLayout => if (comptime generated) {
-                if (!@import("signature/structure.zig").valid(value)) return error.InvalidModule;
-            } else {
-                if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
-            },
-            .ReserveMappings => {
-                function_mapping = try self.temporary.alloc(?ir.FunctionId, value.functions.count() + @intFromBool(value.function != null));
-                native_mapping = try self.temporary.alloc(?ir.NativeModuleId, value.native_modules.count());
+    const mappings = if (comptime generated) try admission.admit(self.temporary, value, types.len) else seed: {
+        if (!value.native_modules.validStructure() or !value.functions.validStructure()) return error.InvalidModule;
 
-                @memset(function_mapping, null);
+        break :seed try admission.reserve(self.temporary, value);
+    };
 
-                nodes = .{
-                    .allocator = self.allocator,
-                    .types = .{ .mapped = self.type_mappings[index] },
-                    .functions = .{ .indexed = function_mapping },
-                    .native_modules = .{ .indexed = native_mapping },
-                };
-            },
-            .CheckNames => if (comptime generated) {
-                try @import("surface/host.zig").admit(self.temporary, value.exports, value.type_imports, self.type_mappings[index].len);
-            } else {
-                try checkExportsSeed(value.exports, nodes.types);
-                try checkExportsSeed(value.type_imports, nodes.types);
-            },
-            .CheckConstants => {
-                const constants = @import("../../analysis/constants/check.zig");
+    var nodes: Nodes = .{
+        .allocator = self.allocator,
+        .types = .{ .mapped = types },
+        .functions = .{ .indexed = mappings.functions },
+        .native_modules = .{ .indexed = mappings.modules },
+    };
 
-                if (!try constants.validate(self.temporary, value.types, value.constant_exports)) return error.InvalidModule;
-                if (!try constants.validate(self.temporary, value.types, value.constant_imports)) return error.InvalidModule;
-            },
-            .LinkNativeModules => {
-                try native.link(self.temporary, &self.native_modules, value.native_modules, native_mapping, &nodes);
-            },
-            .BindSignatures => {
-                const imports = function_mapping[0..value.functions.count()];
+    if (comptime !generated) {
+        try checkExportsSeed(value.exports, nodes.types);
+        try checkExportsSeed(value.type_imports, nodes.types);
 
-                if (comptime generated) {
-                    try @import("signature/host.zig").bind(self, index, imports, native_mapping, &nodes);
-                } else {
-                    try self.bindSignaturesSeed(index, imports, &nodes);
-                }
-            },
-            .CheckImports => if (comptime generated) {
-                try @import("dependencies/host.zig").verify(self, index, function_mapping);
-            } else {
-                for ([_][]const @import("../function_import.zig"){ value.function_imports, value.members }) |bindings| for (bindings) |binding| {
-                    if (!binding.valid()) return error.InvalidModule;
-                    if (binding.intrinsic == null and @backingInt(binding.id.?) >= value.functions.count()) return error.InvalidModule;
-                };
+        const constants = @import("../../analysis/constants/input.zig").nativeValid;
 
-                try self.importsSeed(index, &nodes);
-            },
-            .ResolveBody => if (value.function) |*function| {
-                const own: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
+        if (!constants(value.types, value.constant_exports)) return error.InvalidModule;
+        if (!constants(value.types, value.constant_imports)) return error.InvalidModule;
+    }
 
-                function_mapping[value.functions.count()] = own;
+    try native.link(self.temporary, &self.native_modules, value.native_modules, mappings.modules, &nodes);
 
-                if (!steps.entry(value.path, function)) return error.InvalidModule;
+    const imports = mappings.functions[0..value.functions.count()];
 
-                if (comptime generated and !entry) {
-                    if (@import("placement.zig").select(value.stores.count(), true) == .Append) {
-                        try nodes.appendFunction(&self.functions, function);
+    if (comptime generated) {
+        try @import("signature/host.zig").bind(self, index, imports, mappings.modules, &nodes);
+        try @import("dependencies/host.zig").verify(self, index, mappings.functions);
+    } else {
+        try self.bindSignaturesSeed(index, imports, &nodes);
 
-                        self.module_functions[index] = own;
+        for ([_][]const @import("../function_import.zig"){ value.function_imports, value.members }) |bindings| for (bindings) |binding| {
+            if (!binding.valid()) return error.InvalidModule;
+            if (binding.intrinsic == null and @backingInt(binding.id.?) >= value.functions.count()) return error.InvalidModule;
+        };
 
-                        return null;
-                    }
-                }
+        try self.importsSeed(index, &nodes);
+    }
 
-                return try nodes.functionEntry(function.*, if (entry) own else null, .unchecked);
-            },
-            else => unreachable,
+    const function = if (value.function) |*body| body else return null;
+    const own: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
+
+    mappings.functions[value.functions.count()] = own;
+
+    if (!steps.entry(value.path, function)) return error.InvalidModule;
+
+    if (comptime generated and !entry) {
+        if (@import("placement.zig").select(value.stores.count(), true) == .Append) {
+            try nodes.appendFunction(&self.functions, function);
+
+            self.module_functions[index] = own;
+
+            return null;
         }
     }
 
-    return null;
+    return try nodes.functionEntry(function.*, if (entry) own else null, .unchecked);
 }
 
 fn bindSignaturesSeed(self: *Self, index: usize, mapping: []?ir.FunctionId, nodes: *Nodes) Error!void {

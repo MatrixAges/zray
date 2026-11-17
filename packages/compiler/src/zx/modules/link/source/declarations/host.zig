@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Nodes = @import("../../../artifact/nodes.zig");
+const ConstantRows = @import("../../../../analysis/constants/columns.zig").Rows;
 const surface = @import("../../../artifact/surface.zig");
 const names = @import("../../../../ir/canonical/validation/names/view.zig");
 const remap = @import("../../../artifact/nodes/remap.zig");
@@ -18,7 +19,7 @@ pub fn publish(nodes: *const Nodes, program: *const ir.Program, prefix: usize) E
     const types = remap.typeMapping(Mapping, nodes.types);
     const export_rows = names.borrow(program.exports);
     const export_types = zx.memory.borrowReadColumn(ir.TypeId, "type_id", program.exports);
-    const constant_rows = surface.ConstantRows.borrow(program.constant_exports);
+    const constant_rows = ConstantRows.borrow(program.constant_exports);
     var written: [1]u64 = .{0};
     const progress: []u64 = &written;
 
@@ -30,7 +31,7 @@ pub fn publish(nodes: *const Nodes, program: *const ir.Program, prefix: usize) E
         .export_target = null,
         .export_progress = @ptrCast(&progress),
         .exports_done = false,
-        .constants = &constant_rows.view(std.meta.Child(@FieldType(Input, "constants")), program.constant_exports.len),
+        .constants = &constant_rows.view(std.meta.Child(@FieldType(Input, "constants"))),
         .constant_target = null,
     };
 

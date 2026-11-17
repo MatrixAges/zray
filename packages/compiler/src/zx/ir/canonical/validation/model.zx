@@ -1,4 +1,4 @@
-import type { Values } from "core/constant/model"
+import type { Rows as Constants } from "core/constant/rows"
 import type { Contracts } from "core/contract_table/model"
 import type { Complete } from "core/function_table/complete"
 import type { Body } from "core/ir/body"
@@ -36,5 +36,5 @@ export type Program = {
     context: Context,
     unit: Unit,
     exports: Rows,
-    constant_exports?: Values
+    constant_exports?: Constants
 }

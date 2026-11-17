@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Admission" />
+
+    <Args in={Admission.Input} out={Admission.Status} />
+
+    <If on={$in.layout != null}>
+        <Call module="../../signature/admit" in={$in.layout} />
+
+        <If on={!$ctx.admit}>
+            <Return value={Admission.Status.Invalid} />
+        </If>
+
+        <Return value={Admission.Status.Reserve} />
+    </If>
+
+    <Call module="../../surface/admit" in={$in.surface} />
+
+    <If on={!$ctx.admit}>
+        <Return value={Admission.Status.Invalid} />
+    </If>
+
+    <If on={$in.constants != null}>
+        <Call
+            module="../../../../analysis/constants/validation/pair"
+            in={$in.constants}
+        />
+
+        <If on={!$ctx.pair}>
+            <Return value={Admission.Status.Invalid} />
+        </If>
+    </If>
+
+    <Return value={Admission.Status.Ready} />
+</Module>

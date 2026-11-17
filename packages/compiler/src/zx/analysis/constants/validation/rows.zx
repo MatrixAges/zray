@@ -1,0 +1,59 @@
+import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
+
+import valid from "./borrowed"
+
+import type { Group } from "./model"
+
+export type Input = Group
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { constants, types } = in
+
+    const count = types.base.kinds.length + types.delta.kinds.length
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < constants.count,
+        next: state => {
+            const { row } = state
+            const name = memory.readTextColumn(constants.names, row)
+            const type_id = columns.readColumnU32(constants.types, row)
+
+            if (name == "" || integers.widen(type_id) >= count) {
+                state.valid = false
+            } else {
+                const unique = loop({
+                    row: 0,
+                    valid: true
+                }, {
+                    while: previous => previous.valid && previous.row < row,
+                    next: previous => {
+                        previous.valid = memory.readTextColumn(
+                            constants.names,
+                            previous.row
+                        ) != name
+                        previous.row += 1
+                    },
+                    return: previous => previous.valid
+                })
+                const literal = valid({
+                    constants,
+                    types,
+                    row,
+                    type_id
+                })
+
+                state.valid = unique && literal
+            }
+
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

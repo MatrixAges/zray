@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const borrow = @import("../borrow.zig");
 const Verified = @import("../../validate.zig").Verified;
+const Rows = @import("../../../analysis/constants/columns.zig").Rows;
 const names = @import("names/view.zig");
 
 pub fn Storage(comptime Input: type) type {
@@ -22,8 +23,10 @@ pub fn Storage(comptime Input: type) type {
         unit: Unit,
         export_rows: names.Rows,
         exports: std.meta.Child(@FieldType(Input, "exports")),
+        constant_rows: Rows,
+        constants: std.meta.Child(@typeInfo(@FieldType(Input, "constant_exports")).optional.child),
         input: Input,
-        pub fn init(self: *Self, allocator: std.mem.Allocator, program: *const ir.Program, verified: Verified) std.mem.Allocator.Error!void {
+        pub fn init(self: *Self, program: *const ir.Program, verified: Verified) void {
             self.table = ir.TypeTable.borrow(@TypeOf(self.table), program.types);
             self.functions = @import("../functions/input.zig").view(@TypeOf(self.functions), program.functions);
 
@@ -71,13 +74,18 @@ pub fn Storage(comptime Input: type) type {
             self.export_rows = names.borrow(program.exports);
             self.exports = names.view(@TypeOf(self.exports), &self.export_rows);
 
+            if (program.constant_exports.len != 0) {
+                self.constant_rows = Rows.borrow(program.constant_exports);
+                self.constants = self.constant_rows.view(@TypeOf(self.constants));
+            }
+
             self.input = .{
                 .version = program.version,
                 .expected_version = zx.ir_version,
                 .context = &self.context,
                 .unit = &self.unit,
                 .exports = &self.exports,
-                .constant_exports = try @import("../../../analysis/constants/input.zig").marshal(std.meta.Child(@typeInfo(@FieldType(Input, "constant_exports")).optional.child), allocator, program.constant_exports),
+                .constant_exports = if (program.constant_exports.len != 0) &self.constants else null,
             };
         }
     };

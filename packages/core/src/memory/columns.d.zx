@@ -24,6 +24,26 @@ export declare function readColumnU32(
     index: u64
 ): u32 throws { IndexOutOfBounds }
 
+export declare function readScalarKind(
+    source: ReadColumn,
+    index: u64
+): u8 throws { IndexOutOfBounds }
+
+export declare function readScalarMagnitude(
+    source: ReadColumn,
+    index: u64
+): u64 throws { IndexOutOfBounds, UnexpectedScalarKind }
+
+export declare function readScalarFloat(
+    source: ReadColumn,
+    index: u64
+): f64 throws { IndexOutOfBounds, UnexpectedScalarKind }
+
+export declare function readScalarEnumeration(
+    source: ReadColumn,
+    index: u64
+): u32 throws { IndexOutOfBounds, UnexpectedScalarKind }
+
 export declare function readScalarText(
     source: ReadColumn,
     index: u64

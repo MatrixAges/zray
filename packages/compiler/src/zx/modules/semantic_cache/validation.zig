@@ -32,25 +32,18 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Artifact.Module, ex
     const tables: Tables = .{ .signatures = &signatures, .modules = &natives, .stores = &stores };
     const Type = std.meta.Child(@FieldType(Header, "types"));
     const types = ir.TypeTable.borrow(Type, module.types);
-    const empty = ir.TypeTable.borrow(Type, .{});
     const Constants = std.meta.Child(@typeInfo(@FieldType(Header, "constants")).optional.child);
-    const TypeTables = std.meta.Child(@FieldType(Constants, "types"));
-    const Values = std.meta.Child(@typeInfo(@FieldType(Constants, "imports")).optional.child);
-    const type_tables: TypeTables = .{ .base = &types, .delta = &empty };
-    const marshal = @import("../../analysis/constants/input.zig").marshal;
+    var constants: @import("../../analysis/constants/columns.zig").Pair(Constants) = undefined;
+    const has_constants = module.constant_exports.len != 0 or module.constant_imports.len != 0;
 
-    const values: Constants = .{
-        .types = &type_tables,
-        .exports = try marshal(Values, temporary, module.constant_exports),
-        .imports = try marshal(Values, temporary, module.constant_imports),
-    };
+    if (has_constants) constants.init(module.types, module.constant_exports, module.constant_imports);
 
     const header: Header = .{
         .tables = &tables,
         .types = &types,
         .scalar_count = std.enums.values(ir.Scalar).len,
         .maximum_count = std.math.maxInt(u32),
-        .constants = if (values.exports != null or values.imports != null) &values else null,
+        .constants = if (has_constants) &constants.input else null,
     };
 
     const Body = std.meta.Child(@FieldType(Function, "body"));

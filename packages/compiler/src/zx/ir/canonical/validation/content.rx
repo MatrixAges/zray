@@ -5,7 +5,7 @@
 
     <If on={$in.constant_exports != null}>
         <Call
-            fn="../../../analysis/constants/valid"
+            fn="../../../analysis/constants/validation/rows"
             in={{
                 constants: $in.constant_exports,
                 types: {
@@ -24,7 +24,7 @@
             }}
         />
 
-        <If on={!$ctx.valid}>
+        <If on={!$ctx.rows}>
             <Return value={false} />
         </If>
     </If>

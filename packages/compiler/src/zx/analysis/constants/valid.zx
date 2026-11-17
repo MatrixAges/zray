@@ -1,12 +1,6 @@
-import floats from "std:float"
 import integers from "std:integer"
-import { type_id_string, type_id_bool } from "core/const"
-import { ExpressionKind } from "core/expression_table/kinds"
-import { Kind } from "core/type_table/model"
-import row from "core/type_table/row"
 
-import maximum from "../analyzer/expressions/numbers/maximum"
-import target from "../analyzer/expressions/numbers/target"
+import literal from "./validation/literal"
 
 import type { Values } from "core/constant/model"
 import type { Tables } from "core/type_table/model"
@@ -62,45 +56,15 @@ export default function (in: Input): Output {
                     },
                     return: state => state.valid
                 })
-                const numeric = target({
-                    expected: value.type_id,
-                    floating: false,
-                    negative: false
+                const valid = literal({
+                    ...value.omit([
+                        "text",
+                        "boolean"
+                    ]),
+                    types: current.types
                 })
-                const type_row = row({
-                    tables: current.types,
-                    id: value.type_id
-                })
-                const not_signed = !value.negative || numeric.signed
 
-                const literal = match value.kind {
-                    ExpressionKind.Integer => match {
-                        !numeric.integer => false,
-                        !not_signed => false,
-                        _ => value.integer <= maximum({
-                            id: value.type_id,
-                            negative: value.negative
-                        })
-                    },
-                    ExpressionKind.Float => match {
-                        !numeric.floating => false,
-                        !floats.isFinite(value.floating) => false,
-                        !numeric.single => true,
-                        _ =>
-                            floats.widen(floats.narrow(value.floating)) == value.floating
-                    },
-                    ExpressionKind.String =>
-                        type_row.kind == Kind.Scalar &&
-                        value.type_id == type_id_string,
-                    ExpressionKind.Boolean =>
-                        type_row.kind == Kind.Scalar && value.type_id == type_id_bool,
-                    ExpressionKind.EnumValue =>
-                        type_row.kind == Kind.Enumeration &&
-                        value.enumeration < type_row.second,
-                    _ => false
-                }
-
-                current.valid = unique && literal
+                current.valid = unique && valid
             }
 
             current.index += 1

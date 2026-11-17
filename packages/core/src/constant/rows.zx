@@ -1,0 +1,9 @@
+import type { TextColumn } from "memory"
+import type { ReadColumn } from "memory/columns"
+
+export type Rows = {
+    names: TextColumn,
+    types: ReadColumn,
+    values: ReadColumn,
+    count: u64
+}

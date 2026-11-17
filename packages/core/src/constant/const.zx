@@ -1,0 +1,11 @@
+export const scalar_integer: u8 = 0
+
+export const scalar_negative_integer: u8 = 1
+
+export const scalar_float: u8 = 2
+
+export const scalar_string: u8 = 3
+
+export const scalar_boolean: u8 = 4
+
+export const scalar_enumeration: u8 = 5

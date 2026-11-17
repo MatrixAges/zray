@@ -1,7 +1,6 @@
 const std = @import("std");
 const generated = @import("parser_options").generated_parser;
 const rule = if (generated) @import("generated_artifact_link_steps") else void;
-const Phase = if (generated) rule.Input else enum { Graph, Module };
 
 const Step = if (generated) std.meta.Child(rule.Output) else enum {
     PrepareGraph,
@@ -9,32 +8,18 @@ const Step = if (generated) std.meta.Child(rule.Output) else enum {
     LinkDependencies,
     LinkEntry,
     PublishProgram,
-    VerifyLayout,
-    ReserveMappings,
-    CheckNames,
-    CheckConstants,
-    LinkNativeModules,
-    BindSignatures,
-    CheckImports,
-    ResolveBody,
 };
 
-pub fn run(comptime phase: Phase) if (phase == .Graph) [5]Step else [8]Step {
+pub fn graph() [5]Step {
+    if (comptime !generated) return .{ .PrepareGraph, .MergeTypes, .LinkDependencies, .LinkEntry, .PublishProgram };
+
     var buffer: [256]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-    const sequence = if (generated) rule.executeValue(scratch.allocator(), phase) catch unreachable else seed(phase);
-    const count = if (phase == .Graph) 5 else 8;
+    const sequence = rule.executeValue(scratch.allocator(), {}) catch unreachable;
 
-    if (sequence.len != count) @panic("invalid artifact link schedule length");
+    if (sequence.len != 5) @panic("invalid artifact link schedule length");
 
-    return sequence[0..count].*;
-}
-
-fn seed(comptime phase: Phase) []const Step {
-    return switch (phase) {
-        .Graph => &.{ .PrepareGraph, .MergeTypes, .LinkDependencies, .LinkEntry, .PublishProgram },
-        .Module => &.{ .VerifyLayout, .ReserveMappings, .CheckNames, .CheckConstants, .LinkNativeModules, .BindSignatures, .CheckImports, .ResolveBody },
-    };
+    return sequence[0..5].*;
 }
 
 pub fn entry(path: []const u8, function: *const @import("zx").ir.Function) bool {

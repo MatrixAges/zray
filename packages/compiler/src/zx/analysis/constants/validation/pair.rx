@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Constants" />
+
+    <Args in={Constants.Interface} out={bool} />
+
+    <Task name="exports" out={$ctx.rows}>
+        <Call
+            fn="rows"
+            in={{
+                types: $in.types,
+                constants: $in.exports
+            }}
+        />
+    </Task>
+
+    <If on={!$ctx.task.exports}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="rows"
+        in={{
+            types: $in.types,
+            constants: $in.imports
+        }}
+    />
+
+    <Return value={$ctx.rows} />
+</Module>

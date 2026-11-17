@@ -1,0 +1,57 @@
+import {
+    scalar_integer,
+    scalar_negative_integer,
+    scalar_float,
+    scalar_string,
+    scalar_boolean,
+    scalar_enumeration
+} from "core/constant/const"
+import { ExpressionKind } from "core/expression_table/kinds"
+import columns from "memory/columns"
+
+import literal from "./literal"
+
+import type { Group } from "./model"
+
+export type Input = Group & {
+    row: u64,
+    type_id: u32
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { row, type_id, types } = in
+    const { values } = in.constants
+
+    const kind = columns.readScalarKind(values, row)
+    const integer = kind == scalar_integer || kind == scalar_negative_integer
+
+    return literal({
+        types,
+        type_id,
+        kind: match kind {
+            scalar_integer => ExpressionKind.Integer,
+            scalar_negative_integer => ExpressionKind.Integer,
+            scalar_float => ExpressionKind.Float,
+            scalar_string => ExpressionKind.String,
+            scalar_boolean => ExpressionKind.Boolean,
+            scalar_enumeration => ExpressionKind.EnumValue,
+            _ => ExpressionKind.None,
+        },
+        integer: match {
+            integer => columns.readScalarMagnitude(values, row),
+            _ => 0,
+        },
+        negative: kind == scalar_negative_integer,
+        floating: match {
+            kind == scalar_float => columns.readScalarFloat(values, row),
+            _ => 0.0,
+        },
+        enumeration: match {
+            kind == scalar_enumeration =>
+                columns.readScalarEnumeration(values, row),
+            _ => 0,
+        }
+    })
+}

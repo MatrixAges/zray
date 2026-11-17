@@ -95,15 +95,18 @@ fn decodeSeed(allocator: std.mem.Allocator, bytes: []const u8, compiler_digest: 
         return error.InvalidCache;
     };
 
-    try validateSeed(allocator, arena.allocator(), &parsed.module);
+    try validateSeed(allocator, &parsed.module);
 
     return .{ .result = .{ .arena = arena, .value = parsed.module }, .context_digest = parsed.context_digest };
 }
 
-fn validateSeed(allocator: std.mem.Allocator, artifact_allocator: std.mem.Allocator, module: *const Artifact.Module) Error!void {
+fn validateSeed(allocator: std.mem.Allocator, module: *const Artifact.Module) Error!void {
     if (!module.functions.validStructure() or !module.native_modules.validStructure() or !module.stores.validStructure() or !@import("../../ir/type_rules.zig").validate(module.types)) return error.InvalidCache;
-    if (!try @import("../../analysis/constants/check.zig").validate(artifact_allocator, module.types, module.constant_exports)) return error.InvalidCache;
-    if (!try @import("../../analysis/constants/check.zig").validate(artifact_allocator, module.types, module.constant_imports)) return error.InvalidCache;
+
+    const constants = @import("../../analysis/constants/input.zig").nativeValid;
+
+    if (!constants(module.types, module.constant_exports)) return error.InvalidCache;
+    if (!constants(module.types, module.constant_imports)) return error.InvalidCache;
 
     for ([_][]const @import("../function_import.zig"){ module.function_imports, module.members }) |bindings| for (bindings) |binding| {
         if (!binding.valid()) return error.InvalidCache;

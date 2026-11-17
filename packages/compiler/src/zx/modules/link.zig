@@ -44,7 +44,7 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     var entry_index: usize = undefined;
     var function: ?@import("artifact/nodes.zig").FunctionEntry = undefined;
 
-    inline for (comptime steps.run(.Graph)) |step| {
+    inline for (comptime steps.graph()) |step| {
         switch (step) {
             .PrepareGraph => {
                 plan = try graph.prepare(scratch, modules, entry);
@@ -86,7 +86,6 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 
                 return .{ .arena = arena, .program = program, .nominal_types = types.origins.items.view() };
             },
-            else => unreachable,
         }
     }
 
