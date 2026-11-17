@@ -3,32 +3,32 @@
 
     <Args in={Rebind.Input} out={Rebind.Status} />
 
-    <If on={$in.first}>
-        <Call fn="../functions/alias" in={$in.aliases} />
+    <Call fn="../functions/alias" in={$in.aliases} />
 
-        <If on={!$ctx.alias}>
+    <If on={!$ctx.alias}>
+        <Return value={Rebind.Status.Invalid} />
+    </If>
+
+    <If on={$in.modules.previous.specifiers.length != 0}>
+        <Call fn="../modules" in={$in.modules} />
+
+        <If on={!$ctx.modules}>
             <Return value={Rebind.Status.Invalid} />
-        </If>
-
-        <If on={$in.modules.previous.specifiers.length != 0}>
-            <Call fn="../modules" in={$in.modules} />
-
-            <If on={!$ctx.modules}>
-                <Return value={Rebind.Status.Invalid} />
-            </If>
         </If>
     </If>
 
-    <If on={$in.bindings.previous.length != 0}>
+    <Task name="imports" out={$ctx.bindings}>
         <Call fn="../functions/bindings" in={$in.bindings} />
+    </Task>
 
-        <If on={!$ctx.bindings}>
-            <Return value={Rebind.Status.Invalid} />
-        </If>
+    <If on={!$ctx.task.imports}>
+        <Return value={Rebind.Status.Invalid} />
     </If>
 
-    <If on={!$in.finish}>
-        <Return value={Rebind.Status.Ready} />
+    <Call fn="../functions/bindings" in={$in.members} />
+
+    <If on={!$ctx.bindings}>
+        <Return value={Rebind.Status.Invalid} />
     </If>
 
     <If on={$in.signatures.functions.length != 0}>

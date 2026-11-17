@@ -4,13 +4,12 @@ const ir = zx.ir;
 const Artifact = @import("../../../artifact/model.zig");
 const FunctionImport = @import("../../../function_import.zig");
 const Current = @import("../../restore.zig").Current;
-const imports = @import("../imports.zig");
 const names = @import("../../../../ir/canonical/validation/names/view.zig");
 const generated = @import("generated_semantic_restore_rebind");
 const Input = std.meta.Child(generated.Input);
 const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
 const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
-const Binding = std.meta.Child(std.meta.Elem(@FieldType(Bindings, "previous")));
+const BindingColumns = std.meta.Child(@FieldType(Bindings, "previous"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
 const Entry = std.meta.Child(@FieldType(Input, "entry"));
@@ -62,61 +61,78 @@ pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, curre
     const previous_names = names.view(AliasRows, &previous_aliases);
     const current_names = names.view(AliasRows, &current_aliases);
     const alias_view: Aliases = .{ .previous = &previous_names, .current = &current_names, .types = types };
-    var bindings: imports.Batch(Binding) = undefined;
-    var binding_offset: usize = 0;
-    var member_offset: usize = 0;
-    var first = true;
+    const old_imports = Columns.borrow(module.function_imports);
+    const new_imports = Columns.borrow(current.imports);
+    const old_members = Columns.borrow(module.members);
+    const new_members = Columns.borrow(current.members);
+    const old_bindings = old_imports.view();
+    const new_bindings = new_imports.view();
+    const old_exports = old_members.view();
+    const new_exports = new_members.view();
 
-    while (true) {
-        const imported = @min(imports.batch_size, current.imports.len - binding_offset);
-        const forwarded = @min(imports.batch_size - imported, current.members.len - member_offset);
-        const import_end = binding_offset + imported;
-        const member_end = member_offset + forwarded;
+    const binding_view: Bindings = .{
+        .previous = &old_bindings,
+        .current = &new_bindings,
+        .mapping = @ptrCast(functions),
+        .target = @ptrCast(&functions),
+        .types = types,
+        .current_count = linked_count,
+    };
 
-        bindings.write(0, module.function_imports[binding_offset..import_end], current.imports[binding_offset..import_end], binding);
-        bindings.write(imported, module.members[member_offset..member_end], current.members[member_offset..member_end], binding);
+    var member_view = binding_view;
 
-        const binding_rows = bindings.rows(imported + forwarded);
-        const finish = import_end == current.imports.len and member_end == current.members.len;
+    member_view.previous = &old_exports;
+    member_view.current = &new_exports;
 
-        const binding_view: Bindings = .{
-            .previous = binding_rows.previous,
-            .current = binding_rows.current,
-            .mapping = @ptrCast(functions),
-            .target = @ptrCast(&functions),
-            .types = types,
-            .current_count = linked_count,
+    const input: Input = .{
+        .aliases = &alias_view,
+        .modules = &modules,
+        .bindings = &binding_view,
+        .members = &member_view,
+        .signatures = &signatures,
+        .entry = &entry,
+    };
+
+    const status = zx.columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
+
+    return switch (status) {
+        .Invalid => error.InvalidModule,
+        .Full => error.OutOfMemory,
+        .Ready => if (entry.has_body) maps.functions[function_count] else null,
+    };
+}
+
+const Columns = struct {
+    namespace: zx.memory.ReadColumn,
+    name: zx.memory.ReadColumn,
+    id: zx.memory.ReadColumn,
+    input_type: zx.memory.ReadColumn,
+    output_type: zx.memory.ReadColumn,
+    intrinsic: zx.memory.ReadColumn,
+    fn borrow(rows: []const FunctionImport) Columns {
+        const memory = zx.memory;
+
+        return .{
+            .namespace = memory.borrowReadColumn(?[]const u8, "namespace", rows),
+            .name = memory.borrowTextColumn("name", rows),
+            .id = memory.borrowOptionalU32Column("id", rows),
+            .input_type = memory.borrowOptionalU32Column("input_type", rows),
+            .output_type = memory.borrowOptionalU32Column("output_type", rows),
+            .intrinsic = memory.borrowOptionalU8Column("intrinsic", rows),
         };
-
-        const input: Input = .{
-            .aliases = &alias_view,
-            .modules = &modules,
-            .bindings = &binding_view,
-            .signatures = &signatures,
-            .entry = &entry,
-            .first = first,
-            .finish = finish,
-        };
-
-        const status = zx.columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
-
-        switch (status) {
-            .Invalid => return error.InvalidModule,
-            .Full => return error.OutOfMemory,
-            .Ready => {},
-        }
-
-        if (finish) return if (entry.has_body) maps.functions[function_count] else null;
-
-        first = false;
-        binding_offset = import_end;
-        member_offset = member_end;
     }
-}
-
-fn binding(comptime Row: type, value: *const FunctionImport) Row {
-    return value.borrow(Row);
-}
+    fn view(self: *const Columns) BindingColumns {
+        return .{
+            .namespace = @ptrCast(&self.namespace),
+            .name = @ptrCast(&self.name),
+            .id = @ptrCast(&self.id),
+            .input_type = @ptrCast(&self.input_type),
+            .output_type = @ptrCast(&self.output_type),
+            .intrinsic = @ptrCast(&self.intrinsic),
+            .count = self.name.count,
+        };
+    }
+};

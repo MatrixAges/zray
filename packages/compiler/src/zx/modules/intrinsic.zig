@@ -2,7 +2,7 @@ const std = @import("std");
 const Binding = @import("function_import.zig");
 pub const specifier = "std:utils";
 
-pub const Operation = enum {
+pub const Operation = enum(u8) {
     pick,
     omit,
     identity,

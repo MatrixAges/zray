@@ -1,0 +1,40 @@
+import memory from "memory"
+
+import select from "../../project/target/select"
+
+import type { ReadColumn, TextColumn } from "memory"
+
+export type Registry = {
+    names: TextColumn,
+    length: u64,
+    specifiers: TextColumn,
+    identities: ReadColumn
+}
+
+export type Input = {
+    registry: Registry,
+    name: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { registry, name } = in
+
+    const selected = select({
+        specifiers: {
+            items: registry.names,
+            length: registry.length
+        },
+        name,
+        check_duplicates: false
+    }).first
+
+    if (selected == null) {
+        return null
+    }
+
+    const identity = memory.readOptionalTextColumn(registry.identities, selected)
+
+    return identity ?? memory.readTextColumn(registry.specifiers, selected)
+}

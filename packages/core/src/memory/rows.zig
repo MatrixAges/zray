@@ -80,9 +80,17 @@ pub inline fn borrowColumn(comptime T: type, comptime field: []const u8, items: 
 }
 
 pub inline fn borrowOptionalU32(comptime field: []const u8, items: anytype) ReadColumn {
+    return borrowOptional(u32, field, items);
+}
+
+pub inline fn borrowOptionalU8(comptime field: []const u8, items: anytype) ReadColumn {
+    return borrowOptional(u8, field, items);
+}
+
+inline fn borrowOptional(comptime T: type, comptime field: []const u8, items: anytype) ReadColumn {
     const Field = @FieldType(std.meta.Child(@TypeOf(items)), field);
 
-    comptime requireOptionalU32(Field);
+    comptime requireOptional(T, Field);
 
     return borrowColumn(Field, field, items);
 }
@@ -96,7 +104,7 @@ pub inline fn borrowList(comptime T: type, comptime field: []const u8, comptime 
         if (@typeInfo(List).pointer.size != .slice) @compileError("Expected a slice field");
 
         if (T == ?u32) {
-            requireOptionalU32(Field);
+            requireOptional(u32, Field);
         } else if (Field != T) {
             @compileError("Incompatible borrowed list column field");
         }
@@ -105,12 +113,12 @@ pub inline fn borrowList(comptime T: type, comptime field: []const u8, comptime 
     return .{ .lists = borrowColumn(List, field, items), .stride = @sizeOf(Row), .offset = @offsetOf(Row, member) };
 }
 
-fn requireOptionalU32(comptime Field: type) void {
+fn requireOptional(comptime T: type, comptime Field: type) void {
     const Value = @typeInfo(Field).optional.child;
     const Raw = if (@typeInfo(Value) == .@"enum") @typeInfo(Value).@"enum".tag_type else Value;
 
-    if (Raw != u32 or @sizeOf(Field) != @sizeOf(?u32) or @alignOf(Field) != @alignOf(?u32)) {
-        @compileError("Incompatible optional u32 column");
+    if (Raw != T or @sizeOf(Field) != @sizeOf(?T) or @alignOf(Field) != @alignOf(?T)) {
+        @compileError("Incompatible optional integer column");
     }
 }
 
@@ -151,6 +159,10 @@ pub inline fn readColumnU64(source: *const anyopaque, index: u64) error{IndexOut
 
 pub inline fn readColumnOptionalU32(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?u32 {
     return readColumn(?u32, source, index);
+}
+
+pub inline fn readColumnOptionalU8(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?u8 {
+    return readColumn(?u8, source, index);
 }
 
 pub inline fn listLength(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {

@@ -395,6 +395,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/semantic_cache/envelope/layout.zx", .name = "semantic_cache_layout" },
     .{ .path = "zx/modules/semantic_cache/state/version.zx", .name = "semantic_cache_entry_version" },
     .{ .path = "zx/modules/semantic_cache/discovery/eligible.zx", .name = "semantic_cache_imports" },
+    .{ .path = "zx/modules/semantic_cache/discovery/scan.zx", .name = "semantic_cache_native_scan" },
     .{ .path = "zx/modules/semantic_cache/fingerprint/native.rx", .name = "semantic_cache_native_fingerprint" },
     .{ .path = "zx/modules/semantic_cache/fingerprint/context/encode.rx", .name = "semantic_context_encode" },
     .{ .path = "zx/modules/semantic_cache/fingerprint/context/stores.zx", .name = "semantic_context_stores" },

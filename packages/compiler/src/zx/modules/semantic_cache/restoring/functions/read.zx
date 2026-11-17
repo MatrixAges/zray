@@ -1,0 +1,22 @@
+import memory from "memory"
+
+import type { FunctionBinding as Output } from "../../../binding/model"
+import type { BindingColumns } from "./model"
+
+export type Input = {
+    columns: BindingColumns,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { columns, row } = in
+
+    return {
+        namespace: memory.readOptionalTextColumn(columns.namespace, row),
+        name: memory.readTextColumn(columns.name, row),
+        id: memory.readColumnOptionalU32(columns.id, row),
+        input_type: memory.readColumnOptionalU32(columns.input_type, row),
+        output_type: memory.readColumnOptionalU32(columns.output_type, row),
+        intrinsic: memory.readColumnOptionalU8(columns.intrinsic, row)
+    }
+}

@@ -1,0 +1,80 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import find from "./find"
+
+import type { StringBuffer } from "memory"
+import type { Registry } from "./find"
+
+export type Input = {
+    paths: string[],
+    eligible: u64,
+    standard: Registry,
+    scoped: Registry,
+    internal: Registry,
+    output: StringBuffer
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { paths, eligible, standard, scoped, internal, output } = in
+
+    const native_count = loop({
+        row: 0,
+        count: 0,
+        remaining: eligible
+    }, {
+        while: state => state.remaining != 0,
+        next: state => {
+            if (integers.andBits(state.remaining, 1) != 0) {
+                const name = paths[state.row]
+                const builtin = find({
+                    registry: standard,
+                    name
+                })
+                const key = match {
+                    builtin != null => builtin,
+                    _ => find({
+                        registry: scoped,
+                        name
+                    })
+                }
+
+                if (key != null) {
+                    memory.writeString(output, state.count, key)
+                    state.count += 1
+                }
+            }
+
+            state.remaining /= 2
+            state.row += 1
+        },
+        return: state => state.count
+    })
+
+    if (internal.length == 0) {
+        return native_count
+    }
+
+    return loop({
+        row: 0,
+        count: native_count
+    }, {
+        while: state => state.row < paths.length,
+        next: state => {
+            const key = find({
+                registry: internal,
+                name: paths[state.row]
+            })
+
+            if (key != null) {
+                memory.writeString(output, state.count, key)
+                state.count += 1
+            }
+
+            state.row += 1
+        },
+        return: state => state.count
+    })
+}
