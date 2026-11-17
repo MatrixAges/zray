@@ -6,7 +6,6 @@ const Nodes = @import("../artifact/nodes.zig");
 const Initializer = @import("../compiled.zig").StoreInitializer;
 const function_body = @import("../function_body.zig");
 const generated = @import("parser_options").generated_parser;
-const steps = @import("source/steps.zig");
 const table = @import("function_table.zig");
 const checks = @import("../../ir/validate.zig");
 
@@ -54,84 +53,62 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
 
     defer scratch.deinit();
 
-    var tail: ir.FunctionTable = undefined;
-    var count: usize = undefined;
-    var type_prefix: usize = undefined;
-    var mapping: []const ir.TypeId = undefined;
-    var nodes: Nodes = undefined;
+    const shared = if (input.base_types == null) sameView(base, destination.functions.view()) else base.count() <= destination.functions.count();
+
+    if (!shared or !sameView(program.native_modules, destination.native_modules.view())) return error.InvalidModule;
+
+    const tail = table.appendTail(program.functions, base, if (input.function_suffix) |*suffix| suffix else null) orelse return error.InvalidModule;
+    const count = std.math.add(usize, base.count(), tail.count()) catch return error.OutOfMemory;
     const temporary = scratch.allocator();
 
-    inline for (comptime steps.run(.Body)) |step| {
-        switch (step) {
-            .CheckViews => {
-                const shared = if (input.base_types == null) sameView(base, destination.functions.view()) else base.count() <= destination.functions.count();
+    if (comptime checks.internal) {
+        var checked = program.*;
 
-                if (!shared or !sameView(program.native_modules, destination.native_modules.view())) return error.InvalidModule;
-            },
-            .SelectSuffix => {
-                tail = table.appendTail(program.functions, base, if (input.function_suffix) |*suffix| suffix else null) orelse return error.InvalidModule;
-                count = std.math.add(usize, base.count(), tail.count()) catch return error.OutOfMemory;
-            },
-            .VerifyIr => if (comptime checks.internal) {
-                var checked = program.*;
-
-                if (input.function_suffix != null) checked.functions = try table.join(temporary, base, tail);
-                if (try checks.validateExtending(temporary, checked, input.verified_functions) != null) return error.InvalidIr;
-            },
-            .MergeTypes => {
-                type_prefix = input.base_types orelse destination.types.items.count();
-                mapping = try destination.types.appendAnalyzed(temporary, temporary, program.types, input.nominal_types, type_prefix);
-            },
-            .AppendFunctions => {
-                const range = try table.range(destination.functions.count(), count, base.count(), program.types.count(), program.native_modules.count());
-
-                nodes = .{
-                    .allocator = destination.allocator,
-                    .types = .{ .mapped = mapping },
-                    .functions = .{ .range = .{ .first = range.first, .count = range.count, .prefix = range.prefix } },
-                    .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
-                };
-
-                try nodes.appendFunctions(destination.functions, tail, temporary);
-            },
-            .FinishBody => return finish(&input, destination, &nodes, function_body.ownTail(program.*, tail, base.count()), type_prefix),
-            else => unreachable,
-        }
+        if (input.function_suffix != null) checked.functions = try table.join(temporary, base, tail);
+        if (try checks.validateExtending(temporary, checked, input.verified_functions) != null) return error.InvalidIr;
     }
 
-    unreachable;
+    const type_prefix = input.base_types orelse destination.types.items.count();
+    const mapping = try destination.types.appendAnalyzed(temporary, temporary, program.types, input.nominal_types, type_prefix);
+    const range = try table.range(destination.functions.count(), count, base.count(), program.types.count(), program.native_modules.count());
+
+    var nodes: Nodes = .{
+        .allocator = destination.allocator,
+        .types = .{ .mapped = mapping },
+        .functions = .{ .range = .{ .first = range.first, .count = range.count, .prefix = range.prefix } },
+        .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
+    };
+
+    try nodes.appendFunctions(destination.functions, tail, temporary);
+
+    return finish(&input, destination, &nodes, function_body.ownTail(program.*, tail, base.count()), type_prefix);
 }
 
 fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, own: ?ir.FunctionId, type_prefix: usize) program_link.Error!Loaded {
     const program = &input.program;
+    const entry = try publishEntry(program, destination.functions, nodes, own);
+    const stable = if (input.owned_declarations) type_prefix else 0;
+    const exports, const constants = try publishDeclarations(nodes, program, stable);
     var result: Loaded = undefined;
+    result.exports = exports;
+    result.constant_exports = constants;
 
-    inline for (comptime steps.run(.Surface)) |step| {
-        switch (step) {
-            .PublishEntry => result.function = try publishEntry(program, destination.functions, nodes, own),
-            .PublishDeclarations => {
-                const stable = if (input.owned_declarations) type_prefix else 0;
+    if (comptime generated) {
+        try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, &result);
+    } else {
+        result.store_initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);
+        const surface = try @import("source/members.zig").link(nodes, input.members, entry);
+        result.function = surface.entry;
+        result.members = surface.members;
 
-                result.exports, result.constant_exports = try publishDeclarations(nodes, program, stable);
-            },
-            .PublishInitializers => {
-                result.store_initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);
-            },
-            .PublishMembers => {
-                const surface = try @import("source/members.zig").link(nodes, input.members, result.function);
-                result.function = surface.entry;
-                result.members = surface.members;
-            },
-            .ResolvePorts => if (result.function) |id| {
-                const row = @backingInt(id);
+        if (result.function) |id| {
+            const row = @backingInt(id);
 
-                result.input_type = @fromBackingInt(destination.functions.input_types.items[row]);
-                result.output_type = @fromBackingInt(destination.functions.output_types.items[row]);
-            } else {
-                result.input_type = try nodes.types.include(program.input_type);
-                result.output_type = try nodes.types.include(program.output_type);
-            },
-            else => unreachable,
+            result.input_type = @fromBackingInt(destination.functions.input_types.items[row]);
+            result.output_type = @fromBackingInt(destination.functions.output_types.items[row]);
+        } else {
+            result.input_type = try nodes.types.include(program.input_type);
+            result.output_type = try nodes.types.include(program.output_type);
         }
     }
 

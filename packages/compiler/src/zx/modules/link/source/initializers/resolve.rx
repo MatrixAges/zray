@@ -1,0 +1,53 @@
+<Module>
+    <Type from="resolve_model" as="Initializers" />
+
+    <Args in={Initializers.Input} out={Initializers.Output} />
+
+    <If on={$in.done || $in.end == 0}>
+        <Return
+            value={{
+                start: $in.start,
+                needs_storage: false
+            }}
+        />
+    </If>
+
+    <If on={$in.target != null}>
+        <Call
+            fn="publish"
+            in={{
+                ...$in.omit([
+                    "done",
+                    "prefix",
+                    "target"
+                ]),
+                target: $in.target
+            }}
+        />
+
+        <Return
+            value={{
+                start: $in.start,
+                needs_storage: false
+            }}
+        />
+    </If>
+
+    <If on={$in.prefix != null}>
+        <Call fn="../initializer_prefix" in={$in.prefix} />
+
+        <Return
+            value={{
+                start: $ctx.initializer_prefix,
+                needs_storage: $ctx.initializer_prefix < $in.end
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            start: 0,
+            needs_storage: true
+        }}
+    />
+</Module>

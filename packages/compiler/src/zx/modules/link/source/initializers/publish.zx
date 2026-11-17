@@ -1,8 +1,9 @@
 import bytes from "std:bytes"
+import strings from "std:string"
 import memory from "memory"
 import columns from "memory/columns"
 
-import remap from "../initializer"
+import remap from "../../../artifact/remapping/id"
 
 import type { Input } from "./model"
 
@@ -14,25 +15,18 @@ export default function (in: Input): Output {
     const completed = loop(in.start, {
         while: row => row < end,
         next: row => {
-            const initial = remap({
-                source: {
-                    identity: memory.readTextColumn(source.identity, row),
-                    schema_version: columns.readColumnU32(source.schema_version, row),
-                    function: columns.readColumnU32(source.function, row)
-                },
-                functions,
-                own_identity: true
+            const identity = memory.readTextColumn(source.identity, row)
+            const schema_version = columns.readColumnU32(source.schema_version, row)
+            const id = columns.readColumnU32(source.function, row)
+            const owned = strings.copy(identity)
+            const function_id = remap({
+                id,
+                mapping: functions
             })
 
-            const encoded = bytes.fromText(initial.identity)
-
-            memory.writeColumnBytes(target.identity, row, encoded)
-            memory.writeColumnU32(
-                target.schema_version,
-                row,
-                initial.schema_version
-            )
-            memory.writeColumnU32(target.function, row, initial.function)
+            memory.writeColumnBytes(target.identity, row, bytes.fromText(owned))
+            memory.writeColumnU32(target.schema_version, row, schema_version)
+            memory.writeColumnU32(target.function, row, function_id)
 
             row += 1
         }

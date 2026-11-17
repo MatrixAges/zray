@@ -1,0 +1,63 @@
+<Module>
+    <Type from="model" as="Surface" />
+
+    <Args in={Surface.Input} out={Surface.Output?} />
+
+    <Call module="../initializers/resolve" in={$in.initializers} />
+
+    <If on={$ctx.resolve.needs_storage}>
+        <Return
+            value={{
+                allocation: Surface.Allocation.Initializers,
+                initializer_prefix: $ctx.resolve.start,
+                published: null
+            }}
+        />
+    </If>
+
+    <If on={!$in.member_storage && $in.members.source.count != 0}>
+        <Call
+            fn="../members/needs_storage"
+            in={$in.members.source.pick([
+                "names",
+                "intrinsics",
+                "count"
+            ])}
+        />
+
+        <If on={$ctx.needs_storage}>
+            <Return
+                value={{
+                    allocation: Surface.Allocation.Members,
+                    initializer_prefix: $ctx.resolve.start,
+                    published: null
+                }}
+            />
+        </If>
+    </If>
+
+    <Call fn="../members/publish" in={$in.members} />
+
+    <If on={$ctx.publish != null}>
+        <Call
+            fn="ports"
+            in={{
+                ...$in.ports,
+                entry: $ctx.publish.entry
+            }}
+        />
+
+        <Return
+            value={{
+                allocation: Surface.Allocation.None,
+                initializer_prefix: $ctx.resolve.start,
+                published: {
+                    ...$ctx.publish,
+                    ...$ctx.ports
+                }
+            }}
+        />
+    </If>
+
+    <Return value={null} />
+</Module>

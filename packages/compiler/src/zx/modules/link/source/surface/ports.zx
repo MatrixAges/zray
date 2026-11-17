@@ -1,0 +1,44 @@
+import integers from "std:integer"
+
+import remap from "../../../artifact/remapping/id"
+
+import type { Mapping } from "../../../artifact/remapping/model"
+
+export type Ports = {
+    input_type: u32,
+    output_type: u32
+}
+
+export type Input = {
+    entry?: u32,
+    declared: Ports,
+    inputs: u32[],
+    outputs: u32[],
+    types: Mapping
+}
+
+export type Output = Ports
+
+export default function (in: Input): Output {
+    const { entry, declared, types } = in
+
+    if (entry != null) {
+        const row = integers.widen(entry)
+
+        return {
+            input_type: in.inputs[row],
+            output_type: in.outputs[row]
+        }
+    }
+
+    return {
+        input_type: remap({
+            id: declared.input_type,
+            mapping: types
+        }),
+        output_type: remap({
+            id: declared.output_type,
+            mapping: types
+        })
+    }
+}

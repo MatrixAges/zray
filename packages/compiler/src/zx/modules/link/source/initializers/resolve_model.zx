@@ -1,0 +1,13 @@
+import type { Prefix } from "../initializer_rows"
+import type { Input as Publish, Target } from "./model"
+
+export type Input = Publish.Omit("target") & {
+    prefix?: Prefix,
+    target?: Target,
+    done: bool
+}
+
+export type Output = {
+    start: u64,
+    needs_storage: bool
+}
