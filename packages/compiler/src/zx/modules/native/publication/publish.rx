@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Input} out={Native.Output} />
+
+    <Call fn="owner" in={$in.owner} />
+
+    <Call
+        fn="batch"
+        in={{
+            ...$in,
+            owner: $ctx.owner
+        }}
+    />
+
+    <Return
+        value={{
+            functions: $ctx.batch,
+            namespace: $ctx.owner.namespace
+        }}
+    />
+</Module>

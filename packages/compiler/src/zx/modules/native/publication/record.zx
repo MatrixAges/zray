@@ -1,0 +1,69 @@
+import strings from "std:string"
+import { StoreMode } from "core/function_table/complete"
+
+import copyParameters from "../../artifact/materializing/copy_parameters"
+import copyNames from "../../copy_names"
+
+import type { Errors, Names } from "core/signature_table/model"
+import type { Attributes, Payload } from "../../artifact/materializing/publication/model"
+import type { EmptyBody } from "../../link/signature/publication/model"
+import type { Owner, Row } from "./model"
+
+export type Input = {
+    source: Row,
+    owner: Owner,
+    empty: EmptyBody
+}
+
+export type Output = {
+    name: string,
+    function: Payload,
+    attributes: Attributes
+}
+
+export default function (in: Input): Output {
+    const { source, owner, empty } = in
+
+    const name = strings.copy(source.name)
+    const parts = owner.namespace.push(name)[0]
+
+    const { errors, parameters } = source.details
+
+    const owned_errors: Errors = match {
+        errors != null => copyNames(errors),
+        _ => null
+    }
+
+    const owned_parameters: Names? = match {
+        parameters != null => copyParameters(parameters),
+        _ => null
+    }
+
+    return {
+        name,
+        function: {
+            file: owner.path,
+            ports: {
+                input: source.input,
+                output: source.output,
+                native_module: owner.module
+            },
+            external: {
+                members: parts,
+                export_name: source.named ? name : null,
+                errors: owned_errors,
+                parameters: owned_parameters
+            },
+            symbols: empty.symbols,
+            expressions: empty.expressions,
+            contracts: empty.contracts,
+            control: empty.control,
+            store_table: empty.stores
+        },
+        attributes: {
+            ...source.flags,
+            store_mode: StoreMode.transaction,
+            root: null
+        }
+    }
+}

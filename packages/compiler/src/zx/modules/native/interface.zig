@@ -1,17 +1,16 @@
 const std = @import("std");
 const zx = @import("zx");
 const Types = @import("../../analysis/types.zig");
-const Members = @import("members.zig");
 const Native = @import("../interface.zig").Native;
 const generated = @import("generated_native_interface");
 
 pub const Result = struct {
     exports: []const zx.ir.Export,
-    members: []const Members.Member,
+    members: @import("../native.zig").PublishedMembers,
     namespace: ?[]const []const u8 = null,
 };
 
-pub fn analyze(types: *Types, entry: Native, module: zx.ir.NativeModuleId) zx.Error!Result {
+pub fn analyze(types: *Types, entry: Native, module: zx.ir.NativeModuleId, functions: *zx.ir.FunctionStorage) zx.Error!Result {
     var arena = std.heap.ArenaAllocator.init(types.allocator);
 
     defer arena.deinit();
@@ -53,15 +52,7 @@ pub fn analyze(types: *Types, entry: Native, module: zx.ir.NativeModuleId) zx.Er
         item.* = .{ .name = try types.allocator.dupe(u8, value.name), .type_id = @fromBackingInt(value.type_id) };
     }
 
-    const members = try types.allocator.alloc(Members.Member, result.members.len);
+    const staged = try @import("../link/signature/publication/host.zig").stageNative(types.allocator, functions, .{ .fresh = result.members }, entry.path, entry.namespace, module);
 
-    const namespace = if (members.len != 0) owned: {
-        const owner = try Members.init(types.allocator, entry, module);
-
-        for (result.members, members) |value, *member| member.* = try owner.create(value, .{ .names = value.signature.names });
-
-        break :owned owner.namespace;
-    } else null;
-
-    return .{ .exports = exports, .members = members, .namespace = namespace };
+    return .{ .exports = exports, .members = staged.members, .namespace = staged.namespace };
 }

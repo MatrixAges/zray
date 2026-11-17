@@ -1,0 +1,69 @@
+import { Ownership } from "core/symbol_table/model"
+
+import readFlags from "../../artifact/materializing/publication/flags"
+
+import type { Row, Rows } from "./model"
+
+export type Input = {
+    rows: Rows,
+    row: u64
+}
+
+export type Output = Row
+
+export default function (in: Input): Output {
+    const { rows, row } = in
+
+    const cached = rows.cached
+
+    if (cached == null) {
+        const member = rows.fresh[row]
+
+        return {
+            name: member.name,
+            named: true,
+            details: {
+                errors: member.errors,
+                parameters: member.signature.names
+            },
+            input: member.signature.input,
+            output: member.signature.output,
+            flags: {
+                ownership: Ownership.Borrowed,
+                allocator_argument: member.allocator_argument,
+                io_argument: member.io_argument,
+                process_argument: member.process_argument,
+                expand_tuple: member.expand_tuple,
+                fallible: member.fallible,
+                concurrent: member.concurrent
+            }
+        }
+    }
+
+    const source = cached.signatures
+    const parts = source.native_members[row]
+    const export_name = source.native_exports[row]
+
+    return {
+        name: export_name ?? parts[parts.length - 1],
+        named: export_name != null,
+        details: {
+            errors: source.native_errors[row],
+            parameters: source.native_inputs[row]
+        },
+        input: cached.inputs[row],
+        output: cached.outputs[row],
+        flags: readFlags({
+            source: source.pick([
+                "ownership",
+                "native_allocators",
+                "native_io",
+                "native_process",
+                "native_tuples",
+                "native_fallible",
+                "native_concurrent"
+            ]),
+            row
+        })
+    }
+}

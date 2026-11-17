@@ -1,0 +1,47 @@
+import type { Table } from "core/signature_table/model"
+import type { Input as External } from "../../artifact/materializing/copy_external"
+import type { Columns, Flags } from "../../artifact/materializing/publication/model"
+import type { Target } from "../../artifact/surface/bindings"
+import type { EmptyBody } from "../../link/signature/publication/model"
+import type { Member } from "../interface/members"
+
+export type Cache = {
+    signatures: Table,
+    inputs: u32[],
+    outputs: u32[]
+}
+
+export type Rows = {
+    fresh: Member[],
+    cached?: Cache,
+    count: u64
+}
+
+export type Owner = {
+    path: string,
+    namespace: string[],
+    module: u32
+}
+
+export type Row = {
+    name: string,
+    named: bool,
+    details: External.Pick("errors", "parameters"),
+    input: u32,
+    output: u32,
+    flags: Flags
+}
+
+export type Input = {
+    rows: Rows,
+    owner: Owner,
+    functions: Columns,
+    members: Target,
+    first: u64,
+    empty: EmptyBody
+}
+
+export type Output = {
+    functions: Columns,
+    namespace: string[]
+}

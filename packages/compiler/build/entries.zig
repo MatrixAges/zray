@@ -330,6 +330,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/ir/canonical/native_modules_check.rx", .name = "native_modules" },
     .{ .path = "zx/modules/native_context/copy.zx", .name = "native_context_copy" },
     .{ .path = "zx/modules/native/load.rx", .name = "native_interface" },
+    .{ .path = "zx/modules/native/publication/publish.rx", .name = "native_members_publication" },
     .{ .path = "zx/modules/native/parse.rx", .name = "native_syntax" },
     .{ .path = "zx/modules/link/native/link.rx", .name = "native_link" },
     .{ .path = "zx/modules/artifact/planning/prepare.rx", .name = "artifact_prepare" },

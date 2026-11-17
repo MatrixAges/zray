@@ -1,0 +1,15 @@
+import strings from "std:string"
+
+import type { Owner } from "./model"
+
+export type Input = Owner
+
+export type Output = Owner
+
+export default function (in: Input): Output {
+    return {
+        path: strings.copy(in.path),
+        namespace: strings.copyList(in.namespace),
+        module: in.module
+    }
+}

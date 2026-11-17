@@ -6,18 +6,24 @@ const Members = @import("native/members.zig");
 const Types = @import("../analysis/types.zig");
 pub const Member = Members.Member;
 
+pub const PublishedMembers = if (@import("parser_options").generated_parser)
+    []const @import("function_import.zig")
+
+else
+    []const Member;
+
 pub const Result = struct {
     types: ir.TypeTable,
     exports: []const ir.Export,
-    members: []const Member,
+    members: PublishedMembers,
     namespace: ?[]const []const u8 = null,
 };
 
-pub fn load(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, existing: *ir.TypeStorage, origins: ?*@import("nominal_origins.zig"), reporter: *zx.Reporter, span: zx.Span) zx.Error!Result {
+pub fn load(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, existing: *ir.TypeStorage, origins: ?*@import("nominal_origins.zig"), functions: ?*ir.FunctionStorage, reporter: *zx.Reporter, span: zx.Span) zx.Error!Result {
     const allocator = arena.allocator();
     var local: zx.Reporter = .{};
 
-    return analyze(arena, entry, module, existing, origins, &local) catch |err| {
+    return analyze(arena, entry, module, existing, origins, functions, &local) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         const issue = local.diagnostic.?;
@@ -28,7 +34,7 @@ pub fn load(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeMod
     };
 }
 
-fn analyze(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, existing: *ir.TypeStorage, origins: ?*@import("nominal_origins.zig"), reporter: *zx.Reporter) zx.Error!Result {
+fn analyze(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModuleId, existing: *ir.TypeStorage, origins: ?*@import("nominal_origins.zig"), functions: ?*ir.FunctionStorage, reporter: *zx.Reporter) zx.Error!Result {
     const allocator = arena.allocator();
     var types = Types{ .native_interface = true, .allocator = allocator, .reporter = reporter, .declarations = &.{}, .shared = if (origins) |items| Types.Shared{ .origins = items, .origin = .{ .native = entry.key() } } else null };
 
@@ -37,7 +43,7 @@ fn analyze(arena: *std.heap.ArenaAllocator, entry: Native, module: ir.NativeModu
     defer existing.* = types.items;
 
     const analyzed = if (@import("parser_options").generated_parser)
-        try @import("native/interface.zig").analyze(&types, entry, module)
+        try @import("native/interface.zig").analyze(&types, entry, module, functions.?)
     else
         try @import("native/seed.zig").analyze(arena, &types, entry, module);
 

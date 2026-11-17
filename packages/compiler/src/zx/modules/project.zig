@@ -660,9 +660,9 @@ const Project = struct {
             const module_id = try self.nativeModule(entry.specifier, entry.identity, entry.module, item.span);
 
             const loaded = if (self.semantic_cache) |cache|
-                try cache.native.load(self.allocator, entry, .{ .module = module_id, .types = &self.types, .origins = &self.nominal_origins, .backing = self.arena.child_allocator }, self.reporter, item.span)
+                try cache.native.load(self.allocator, entry, .{ .module = module_id, .types = &self.types, .origins = &self.nominal_origins, .functions = &self.functions, .backing = self.arena.child_allocator }, self.reporter, item.span)
             else
-                try @import("native.zig").load(self.arena, entry, module_id, &self.types, &self.nominal_origins, self.reporter, item.span);
+                try @import("native.zig").load(self.arena, entry, module_id, &self.types, &self.nominal_origins, &self.functions, self.reporter, item.span);
 
             const namespace = loaded.namespace orelse try @import("compiled/host/native.zig").strings(self.allocator, entry.namespace);
             const bindings = try ir.NativeBindings.fromValues(self.allocator, loaded.exports);
@@ -673,16 +673,24 @@ const Project = struct {
             self.native_modules.type_names.items[native_index] = bindings.names;
             self.native_modules.type_ids.items[native_index] = bindings.type_ids;
 
-            const members = try self.allocator.alloc(FunctionImport, loaded.members.len);
-            const first = self.functions.count();
+            const members = if (comptime @import("parser_options").generated_parser) published: {
+                self.functions.commitTail(loaded.members.len);
 
-            try self.functions.reserve(self.allocator, members.len);
+                break :published loaded.members;
+            } else seed: {
+                const rows = try self.allocator.alloc(FunctionImport, loaded.members.len);
+                const first = self.functions.count();
 
-            for (loaded.members, members, first..) |*member, *binding, index| {
-                self.functions.appendSignatureAssumeCapacity(member.signature);
+                try self.functions.reserve(self.allocator, rows.len);
 
-                binding.* = .{ .name = member.name, .id = @fromBackingInt(@as(u32, @intCast(index))), .input_type = member.signature.input_type, .output_type = member.signature.output_type };
-            }
+                for (loaded.members, rows, first..) |*member, *binding, index| {
+                    self.functions.appendSignatureAssumeCapacity(member.signature);
+
+                    binding.* = .{ .name = member.name, .id = @fromBackingInt(@as(u32, @intCast(index))), .input_type = member.signature.input_type, .output_type = member.signature.output_type };
+                }
+
+                break :seed rows;
+            };
 
             const result = NativeUnit{ .exports = loaded.exports, .members = members };
             const key = self.native_modules.view().at(native_index).key();
