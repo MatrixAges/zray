@@ -1,29 +1,74 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
 import locate from "./locate"
 
 import type { Index } from "core/bytes/index/model"
+import type { U64Buffer } from "memory"
 import type { Graph } from "../../../../rx/dependency_graph/model"
+import type { Dependencies } from "./model"
 
 export type Input = {
     index: Index,
-    targets: u8[][],
+    dependencies: Dependencies,
     offsets: u64[],
+    offset_target: U64Buffer,
     root: u64
 }
 
 export type Output = Graph
 
 export default function (in: Input): Output {
-    const missing = in.offsets.length - 1
+    const { index, dependencies, offsets, offset_target } = in
 
-    const targets = in.targets.map(
-        key => locate({
-            index: in.index,
-            key
-        }) ?? missing
-    )[0]
+    const count = index.keys.length
+    const empty: u64[] = []
+
+    memory.writeU64(offset_target, 0, 0)
+
+    const targets = loop({
+        owner: 0,
+        targets: empty
+    }, {
+        while: state => state.owner < count,
+        next: state => {
+            const owner = state.owner
+            const size = memory.listLength(dependencies.kinds, owner)
+            const kinds = memory.borrowListBytes(dependencies.kinds, owner)
+
+            state.targets = loop({
+                offset: 0,
+                targets: state.targets
+            }, {
+                while: member => member.offset < size,
+                next: member => {
+                    const offset = member.offset
+                    const kind = kinds[offset * dependencies.kind_stride]
+
+                    if (kind == dependencies.source_kind) {
+                        const path =
+                            memory.readListText(dependencies.paths, owner, offset)
+                        const target = locate({
+                            index,
+                            key: bytes.fromText(path)
+                        })
+
+                        member.targets = member.targets.push(target ?? count)[0]
+                    }
+
+                    member.offset += 1
+                },
+                return: member => member.targets
+            })
+
+            state.owner += 1
+            memory.writeU64(offset_target, state.owner, state.targets.length)
+        },
+        return: state => state.targets
+    })
 
     return {
-        offsets: in.offsets,
+        offsets,
         targets,
         issues: [],
         root: in.root,

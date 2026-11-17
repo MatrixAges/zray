@@ -1,4 +1,5 @@
 import type { Index } from "core/bytes/index/model"
+import type { ListColumn, U64Buffer } from "memory"
 import type { OrderTarget } from "../../../../rx/dependency_graph/model"
 
 export enum Status {
@@ -10,9 +11,17 @@ export enum Status {
 
 export type Input = OrderTarget & {
     paths: u8[][],
-    targets: u8[][],
+    dependencies: Dependencies,
     offsets: u64[],
+    offset_target: U64Buffer,
     entry: u8[]
+}
+
+export type Dependencies = {
+    kinds: ListColumn,
+    paths: ListColumn,
+    kind_stride: u64,
+    source_kind: u8
 }
 
 export type Registry = {

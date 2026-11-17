@@ -77,17 +77,11 @@ pub inline fn borrowColumn(comptime T: type, comptime field: []const u8, items: 
 
 pub inline fn borrowNested(comptime T: type, comptime fields: []const []const u8, items: anytype) ReadColumn {
     const Item = std.meta.Child(@TypeOf(items));
-    comptime var Current = Item;
-    comptime var offset: usize = 0;
+    const layout = comptime fieldLayout(Item, fields);
 
-    inline for (fields) |field| {
-        offset += @offsetOf(Current, field);
-        Current = @FieldType(Current, field);
-    }
+    comptime if (layout.type != T) @compileError("Incompatible borrowed column field");
 
-    comptime if (Current != T) @compileError("Incompatible borrowed column field");
-
-    return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf(Item), .offset = offset };
+    return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf(Item), .offset = layout.offset };
 }
 
 pub inline fn borrowOptionalU32(comptime field: []const u8, items: anytype) ReadColumn {
@@ -107,21 +101,37 @@ inline fn borrowOptional(comptime T: type, comptime field: []const u8, items: an
 }
 
 pub inline fn borrowList(comptime T: type, comptime field: []const u8, comptime member: []const u8, items: anytype) ListColumn {
+    return borrowNestedList(T, field, &.{member}, items);
+}
+
+pub inline fn borrowNestedList(comptime T: type, comptime field: []const u8, comptime members: []const []const u8, items: anytype) ListColumn {
     const List = @FieldType(std.meta.Child(@TypeOf(items)), field);
     const Row = std.meta.Child(List);
-    const Field = @FieldType(Row, member);
+    const layout = comptime fieldLayout(Row, members);
 
     comptime {
         if (@typeInfo(List).pointer.size != .slice) @compileError("Expected a slice field");
 
         if (T == ?u32) {
-            requireOptional(u32, Field);
-        } else if (Field != T) {
+            requireOptional(u32, layout.type);
+        } else if (layout.type != T) {
             @compileError("Incompatible borrowed list column field");
         }
     }
 
-    return .{ .lists = borrowColumn(List, field, items), .stride = @sizeOf(Row), .offset = @offsetOf(Row, member) };
+    return .{ .lists = borrowColumn(List, field, items), .stride = @sizeOf(Row), .offset = layout.offset };
+}
+
+fn fieldLayout(comptime Item: type, comptime fields: []const []const u8) struct { type: type, offset: usize } {
+    var current = Item;
+    var offset: usize = 0;
+
+    for (fields) |field| {
+        offset += @offsetOf(current, field);
+        current = @FieldType(current, field);
+    }
+
+    return .{ .type = current, .offset = offset };
 }
 
 fn requireOptional(comptime T: type, comptime Field: type) void {
@@ -190,6 +200,12 @@ pub inline fn readListText(source: *const anyopaque, index: u64, member: u64) er
     const column = try listColumn(source, index);
 
     return readColumn([]const u8, &column, member);
+}
+
+pub inline fn borrowListBytes(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u8 {
+    const column = try listColumn(source, index);
+
+    return if (column.count == 0) &.{} else column.bytes[column.offset..];
 }
 
 pub inline fn readListOptionalU32(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!?u32 {

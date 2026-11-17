@@ -1,6 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const Module = @import("../artifact/model.zig").Module;
+const Target = @import("../module_record.zig").Target;
 pub const Error = @import("graph/seed.zig").Error;
 
 pub const Plan = struct {
@@ -14,37 +15,30 @@ pub const Plan = struct {
     }
 };
 
-pub fn prepare(allocator: std.mem.Allocator, backing: std.mem.Allocator, modules: []const Module, entry: []const u8) Error!Plan {
+pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []const u8) Error!Plan {
     if (comptime !@import("parser_options").generated_parser) return .{ .order = try @import("graph/seed.zig").order(allocator, modules, entry) };
 
     const paths = try allocator.alloc([]const u8, modules.len);
     const offsets = try allocator.alloc(u64, modules.len + 1);
     const order = try allocator.alloc(u64, modules.len);
-    var buffer: [2048]u8 = undefined;
-    var temporary = std.heap.BufferFirstAllocator.init(&buffer, backing);
-    const workspace = temporary.allocator();
-    var targets: std.ArrayList([]const u8) = .empty;
 
-    defer targets.deinit(workspace);
-
-    for (modules, paths, offsets[0..modules.len]) |*module, *path, *offset| {
-        path.* = module.path;
-        offset.* = targets.items.len;
-
-        for (module.dependencies) |dependency| {
-            if (dependency.target.kind == .source) try targets.append(workspace, dependency.target.path);
-        }
-    }
-
-    offsets[modules.len] = targets.items.len;
+    for (modules, paths) |*module, *path| path.* = module.path;
 
     const generated = @import("generated_artifact_graph");
     const Input = std.meta.Child(generated.Input);
+    const kinds = zx.memory.borrowNestedListColumn(Target.Kind, "dependencies", &.{ "target", "kind" }, modules);
+    const dependency_paths = zx.memory.borrowNestedListColumn([]const u8, "dependencies", &.{ "target", "path" }, modules);
 
     const input: Input = .{
         .paths = paths,
-        .targets = targets.items,
+        .dependencies = &.{
+            .kinds = @ptrCast(&kinds),
+            .paths = @ptrCast(&dependency_paths),
+            .kind_stride = kinds.stride,
+            .source_kind = @intFromEnum(Target.Kind.source),
+        },
         .offsets = offsets,
+        .offset_target = @ptrCast(&offsets),
         .entry = entry,
         .order = @ptrCast(&order),
         .capacity = order.len,

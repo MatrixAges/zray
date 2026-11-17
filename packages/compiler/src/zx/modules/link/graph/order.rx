@@ -39,8 +39,9 @@
         fn="edges"
         in={{
             index: $ctx.registry.index,
-            targets: $in.targets,
+            dependencies: $in.dependencies,
             offsets: $in.offsets,
+            offset_target: $in.offset_target,
             root: $ctx.locate ?? 0
         }}
     />

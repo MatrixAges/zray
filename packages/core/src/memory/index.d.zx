@@ -133,6 +133,11 @@ export declare function readListText(
     member: u64
 ): string throws { IndexOutOfBounds }
 
+export declare function borrowListBytes(
+    source: ListColumn,
+    index: u64
+): u8[] throws { IndexOutOfBounds }
+
 export declare function readListOptionalU32(
     source: ListColumn,
     index: u64,

@@ -47,7 +47,7 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     inline for (comptime steps.run(.Graph)) |step| {
         switch (step) {
             .PrepareGraph => {
-                plan = try graph.prepare(scratch, allocator, modules, entry);
+                plan = try graph.prepare(scratch, modules, entry);
                 mappings = try scratch.alloc([]const ir.TypeId, modules.len);
                 function_ids = try scratch.alloc(?ir.FunctionId, modules.len);
                 types = try Types.init(owned);
