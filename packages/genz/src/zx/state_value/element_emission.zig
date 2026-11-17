@@ -23,13 +23,7 @@ pub fn selected(self: *const Lower, list: ir.TypeId) bool {
 pub fn elementType(self: *Lower, list: ir.TypeId) Lower.Error!node.ExpressionId {
     const decision = choice(self, list, .Type, false);
 
-    const table = switch (decision.table) {
-        .Abi => self.abi_types,
-        .Layout => self.abi_layouts,
-        .State => self.state_types,
-    };
-
-    return @import("../types.zig").get(self, table, @fromBackingInt(decision.type_id));
+    return @import("../types.zig").resource(self, @fromBackingInt(decision.type_id), decision.table);
 }
 
 pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), list: ir.TypeId, value: node.ExpressionId, operation: Operation) Lower.Error!node.ExpressionId {
@@ -84,14 +78,8 @@ fn execute(self: *Lower, body: *std.ArrayList(node.Statement), decision: Decisio
 
     const allocator = buffered.allocator();
     var boundary: conversion.Capture = undefined;
-
-    const capture_value = if (self.capture) |capture_value| boundary: {
-        boundary = .{ .name = capture_value.name, .label = capture_value.label, .failure = @backingInt(capture_value.failure) };
-
-        break :boundary &boundary;
-    } else null;
-
-    const common = if (!decision.stored) try prepare(self, allocator, decision, value, capture_value) else null;
+    const capture_value = conversion.captureBoundary(self, &boundary);
+    const common = if (!decision.stored) try conversion.prepareMode(self, allocator, @fromBackingInt(decision.type_id), value, decision.mode, capture_value) else null;
     const layout = if (decision.stored) try @import("../types.zig").get(self, self.state_types, @fromBackingInt(decision.type_id)) else null;
     const choice_value = zx.columns.view(Choice, decision);
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("list_emission.zig").borrow(self));
@@ -118,25 +106,6 @@ fn execute(self: *Lower, body: *std.ArrayList(node.Statement), decision: Decisio
     if (decision.capture) try body.insertSlice(self.allocator, 0, prefix.items);
 
     return .{ .value = result, .name = if (decision.capture) try self.allocator.dupe(u8, output.name) else name };
-}
-
-pub fn prepare(self: *Lower, allocator: std.mem.Allocator, decision: Decision, value: node.ExpressionId, capture_value: ?*const conversion.Capture) Lower.Error!conversion.Input {
-    const entry = @import("generated_state_conversion_plan");
-    const Input = std.meta.Child(entry.Input);
-    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
-
-    const input: Input = .{
-        .types = &types,
-        .queries = zx.columns.slice(@FieldType(Input, "queries"), self.state_plan.queries),
-        .selected = self.state_plan.selected,
-        .element_storage = self.state_plan.element_storage,
-        .root = decision.type_id,
-        .mode = decision.mode,
-    };
-
-    const plan = entry.executeIn(allocator, &input) catch |err| return failure(err);
-
-    return conversion.prepare(self, allocator, plan, value, capture_value);
 }
 
 fn failure(err: anyerror) Lower.Error {

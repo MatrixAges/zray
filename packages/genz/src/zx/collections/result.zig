@@ -24,13 +24,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Typ
 
     const temporary = memory.allocator();
     var boundary: conversion.Capture = undefined;
-
-    const capture = if (self.capture) |item| captured: {
-        boundary = .{ .name = item.name, .label = item.label, .failure = @backingInt(item.failure) };
-
-        break :captured &boundary;
-    } else null;
-
+    const capture = conversion.captureBoundary(self, &boundary);
     const types = self.program.typeOf(type_id).tuple;
     const members = try temporary.alloc(Member, types.len);
 

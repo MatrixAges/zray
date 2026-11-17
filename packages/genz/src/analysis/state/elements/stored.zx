@@ -3,10 +3,10 @@ import bytes from "std:bytes"
 import boolean from "../../../ast/context/boolean"
 import field from "../../../ast/context/field"
 import { items_field } from "../../types/state/const"
-import { Operation, Storage } from "../list/const"
+import { Operation } from "../list/const"
+import construct from "../list/construct"
 import permission from "../list/permission"
 import proven from "../list/proven"
-import record from "../list/record"
 
 import type { Work as Input, Work as Output } from "./model"
 
@@ -35,26 +35,13 @@ export default function (in: Input): Output {
         unique: unique.id
     })
 
-    const result = record({
-        source: {
-            request: {
-                operation: Operation.Proven,
-                selected: true,
-                value: items.id,
-                ast: in.source.ast
-            },
-            construct: true,
-            condition: header.id,
-            unique: unique.id,
-            storage: Storage.Plain,
-            flag: false,
-            layout: in.source.layout,
-            expression_base: in.source.expression_base,
-            field_base: in.source.field_base
-        },
+    const result = construct({
         context: storage.state,
-        root: storage.id,
-        fields: []
+        fields: in.state.fields,
+        first: in.source.field_base,
+        layout: in.source.layout,
+        value: items.id,
+        storage: storage.id
     })
 
     return {
@@ -62,7 +49,7 @@ export default function (in: Input): Output {
         state: {
             ...in.state,
             context: result.context,
-            fields: in.state.fields.concat(result.fields)[0]
+            fields: result.fields
         },
         root: result.root
     }

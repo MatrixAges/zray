@@ -6,18 +6,13 @@ import type {
 } from "../conversion/emit/model"
 import type { Input as Facts, Mode } from "../conversion/model"
 import type { Ast } from "../list/model"
+import type { Resource } from "../resources/model"
 
 export enum Operation {
     Read,
     Write,
     Capture,
     Type
-}
-
-export enum Table {
-    Abi,
-    Layout,
-    State
 }
 
 export type Query = {
@@ -36,7 +31,7 @@ export type Choice = {
     capture: bool,
     type_id: u32,
     mode: Mode,
-    table: Table
+    table: Resource
 }
 
 export type Input = {

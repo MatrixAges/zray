@@ -1,27 +1,14 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
 
-import object from "../../../../ast/context/object"
-import { items_field, storage_field, list_field_count } from "../../../types/state/const"
 import { Storage } from "../../list/const"
+import construct from "../../list/construct"
 import tag from "../../list/tag"
 
-import type { State as Context } from "../../../../ast/context/model"
-import type { Field } from "../../../types/definitions/model"
+import type { Record, Recorded as Output } from "../../list/model"
 
-export type Input = {
-    context: Context,
-    fields: Field[],
+export type Input = Record.Omit("storage", "first") & {
     field_base: u32,
-    layout: u32,
-    value: u32,
     shared: bool
-}
-
-export type Output = {
-    context: Context,
-    fields: Field[],
-    root: u32
 }
 
 export default function (in: Input): Output {
@@ -30,33 +17,12 @@ export default function (in: Input): Output {
         storage: in.shared ? Storage.Shared : Storage.Plain
     })
 
-    const first = in.field_base + integers.narrow(in.fields.length)
-
-    const fields: Field[] = [
-        {
-            name: bytes.fromText(items_field),
-            value: in.value,
-            default_value: null,
-            comptime_parameter: false
-        },
-        {
-            name: bytes.fromText(storage_field),
-            value: storage.id,
-            default_value: null,
-            comptime_parameter: false
-        }
-    ]
-
-    const result = object({
-        state: storage.state,
-        type_expr: in.layout,
-        first,
-        count: list_field_count
+    return construct({
+        context: storage.state,
+        fields: in.fields,
+        first: in.field_base + integers.narrow(in.fields.name.length),
+        layout: in.layout,
+        value: in.value,
+        storage: storage.id
     })
-
-    return {
-        context: result.state,
-        fields: in.fields.concat(fields)[0],
-        root: result.id
-    }
 }

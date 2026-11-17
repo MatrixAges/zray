@@ -5,6 +5,11 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Mode = @import("conversion.zig").Mode;
 const view = @import("../../node/view.zig");
+const planner = @import("generated_state_conversion_plan");
+const PlanInput = std.meta.Child(planner.Input);
+const PlanningMode = @FieldType(PlanInput, "mode");
+const resources = @import("generated_state_conversion_resources");
+const ResourceInput = std.meta.Child(resources.Input);
 
 pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     return lowerWithStorage(self, body, body, id, value, mode);
@@ -19,13 +24,7 @@ pub fn lowerWithStorage(self: *Lower, borrow_storage: *std.ArrayList(node.Statem
 
     const temporary = buffered.allocator();
     var boundary: Capture = undefined;
-
-    const capture = if (self.capture) |captured| capture: {
-        boundary = .{ .name = captured.name, .label = captured.label, .failure = @backingInt(captured.failure) };
-
-        break :capture &boundary;
-    } else null;
-
+    const capture = captureBoundary(self, &boundary);
     const input = try prepareFor(self, temporary, id, value, mode, capture);
     const output = @import("generated_state_conversion_emit").executeIn(temporary, &input) catch |err| return failure(err);
 
@@ -33,8 +32,20 @@ pub fn lowerWithStorage(self: *Lower, borrow_storage: *std.ArrayList(node.Statem
 }
 
 pub fn prepareFor(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: Mode, capture: ?*const Capture) Lower.Error!Input {
-    const planner = @import("generated_state_conversion_plan");
-    const PlanInput = std.meta.Child(planner.Input);
+    return prepareMode(self, temporary, id, value, switch (mode) {
+        .value => .Value,
+        .value_layout => .ValueLayout,
+        .row_value => .RowValue,
+        .pointer => .Pointer,
+        .layout => .Layout,
+        .row_layout => .RowLayout,
+        .borrow => .Borrow,
+        .view_value => .ViewValue,
+        .view_layout => .ViewLayout,
+    }, capture);
+}
+
+pub fn prepareMode(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: PlanningMode, capture: ?*const Capture) Lower.Error!Input {
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(PlanInput, "types")), self.program.types);
 
     const request: PlanInput = .{
@@ -43,20 +54,10 @@ pub fn prepareFor(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, val
         .selected = self.state_plan.selected,
         .element_storage = self.state_plan.element_storage,
         .root = @backingInt(id),
-        .mode = switch (mode) {
-            .value => .Value,
-            .value_layout => .ValueLayout,
-            .row_value => .RowValue,
-            .pointer => .Pointer,
-            .layout => .Layout,
-            .row_layout => .RowLayout,
-            .borrow => .Borrow,
-            .view_value => .ViewValue,
-            .view_layout => .ViewLayout,
-        },
+        .mode = mode,
     };
 
-    const plan = if (mode == .view_value or mode == .view_layout)
+    const plan = if (mode == .ViewValue or mode == .ViewLayout)
         try @import("view_plan.zig").build(self, temporary, &request)
     else
         planner.executeIn(temporary, &request) catch |err| return failure(err);
@@ -66,50 +67,45 @@ pub fn prepareFor(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, val
 
 pub const Input = std.meta.Child(@import("generated_state_conversion_emit").Input);
 pub const Capture = std.meta.Child(@typeInfo(@FieldType(Input, "capture")).optional.child);
-const Plan = std.meta.Child(@import("generated_state_conversion_plan").Output);
+const Plan = std.meta.Child(planner.Output);
 
-pub fn prepare(self: *Lower, temporary: std.mem.Allocator, plan: *const Plan, value: node.ExpressionId, capture: ?*const Capture) Lower.Error!Input {
-    const layouts = try temporary.alloc(u32, plan.types.len);
-    const targets = try temporary.alloc(u32, plan.types.len);
-    const elements = try temporary.alloc(u32, plan.types.len);
-    const origins = try temporary.alloc([]const u8, plan.types.len);
+pub fn captureBoundary(self: *const Lower, storage: *Capture) ?*const Capture {
+    const captured = self.capture orelse return null;
+
+    storage.* = .{ .name = captured.name, .label = captured.label, .failure = @backingInt(captured.failure) };
+
+    return storage;
+}
+
+fn prepare(self: *Lower, temporary: std.mem.Allocator, plan: *const Plan, value: node.ExpressionId, capture: ?*const Capture) Lower.Error!Input {
+    const count = plan.types.len;
+    const capacity = std.math.mul(usize, count, 3) catch return error.OutOfMemory;
+    const buffer = try temporary.alloc(u32, capacity);
+    const layouts = buffer[0..count];
+    const targets = buffer[count..][0..count];
+    const elements = buffer[count * 2 ..];
+    const origins = try temporary.alloc([]const u8, count);
     const serial = self.serial;
     const declarations = self.task_declarations.count();
     const type_expression = @import("../types.zig");
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    for (plan.types, plan.kinds, layouts, targets, elements, origins, 0..) |type_id, kind, *layout, *target, *element, *origin, index| {
+    for (plan.types, plan.kinds, plan.modes, plan.count, layouts, targets, elements, origins) |type_id, kind, mode, children, *layout, *target, *element, *origin| {
         const selected: ir.TypeId = @fromBackingInt(type_id);
 
-        const input = switch (plan.modes[index]) {
-            .Value, .ValueLayout, .RowValue, .ViewValue => true,
-            else => false,
+        const request: ResourceInput = .{
+            .mode = zx.columns.view(@FieldType(ResourceInput, "mode"), mode),
+            .operation = zx.columns.view(@FieldType(ResourceInput, "operation"), kind),
+            .referenced = self.state_plan.referenced(selected),
+            .has_children = children != 0,
         };
 
-        const list = kind == .Rows or kind == .Borrowed;
-        const represented_layout = kind != .Value and (input or !list);
-        const optional_target = kind == .Optional;
-        const pointer_target = !input and plan.modes[index] == .Pointer and (kind == .Object or kind == .Tuple);
-        const needs_target = optional_target or pointer_target;
-        const view_mode = plan.modes[index] == .ViewValue or plan.modes[index] == .ViewLayout;
-        const referenced = input and self.state_plan.referenced(selected);
+        const selection = zx.columns.invoke(resources.executeValue, fixed.allocator(), &request) catch unreachable;
 
-        const layout_table = if (view_mode)
-            (if (!input) self.view_types else if (referenced) self.state_layouts else self.state_types)
-
-        else if (input)
-            self.state_layouts
-        else
-            self.abi_layouts;
-
-        const type_table = if (view_mode) layout_table else if (input) self.state_types else self.abi_types;
-
-        layout.* = if (represented_layout) @backingInt(try type_expression.get(self, layout_table, selected)) else 0;
-        target.* = if (needs_target) @backingInt(try type_expression.get(self, type_table, selected)) else layout.*;
-        element.* = if (kind == .Rows) @backingInt(try type_expression.get(self, if (!input) self.abi_types else if (plan.count[index] == 0) self.abi_layouts else self.state_types, self.program.typeOf(selected).list)) else 0;
-
-        const needs_origin = plan.modes[index] != .RowLayout and (kind == .Object or (kind == .Tuple and (!input or view_mode)));
-
-        origin.* = if (needs_origin) try @import("origin.zig").name(self, selected) else &.{};
+        layout.* = @backingInt(try type_expression.resource(self, selected, selection.layout));
+        target.* = if (selection.target == .None) layout.* else @backingInt(try type_expression.resource(self, selected, selection.target));
+        element.* = if (selection.element == .None) 0 else @backingInt(try type_expression.resource(self, self.program.typeOf(selected).list, selection.element));
+        origin.* = if (selection.origin) try @import("origin.zig").name(self, selected) else &.{};
     }
 
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
@@ -144,15 +140,7 @@ pub fn apply(self: *Lower, borrow_storage: *std.ArrayList(node.Statement), body:
     @import("../../node/import_statements.zig").appendSelected(self.allocator, &self.reference_storage, &storage) catch |err| return imported(err);
     @import("../../node/import_statements.zig").appendSelected(self.allocator, borrow_storage, &borrowed) catch |err| return imported(err);
     @import("../../node/import_statements.zig").appendSelected(self.allocator, body, &flat) catch |err| return imported(err);
-    try self.builder.nodes.field_columns.reserve(self.allocator, output.fields.len);
-
-    for (output.fields) |field| self.builder.nodes.field_columns.append(.{
-        .name = field.name,
-        .value = @fromBackingInt(field.value),
-        .default_value = if (field.default_value) |item| @fromBackingInt(item) else null,
-        .comptime_parameter = field.comptime_parameter,
-    });
-
+    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| return imported(err);
     self.serial = @intCast(output.serial);
     self.uses_allocator = self.uses_allocator or output.uses_allocator;
 

@@ -1,0 +1,53 @@
+import isInput from "../conversion/is_input"
+import isView from "../conversion/is_view"
+import { Mode, Operation } from "../conversion/model"
+import { Resource } from "./model"
+
+import type { Conversion as Input, Selection as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { mode, operation } = in
+
+    const input = isInput(mode)
+    const view = isView(mode)
+    const rows = operation == Operation.Rows
+    const object = operation == Operation.Object
+    const tuple = operation == Operation.Tuple
+    const list = rows || operation == Operation.Borrowed
+
+    const layout_table = match {
+        view && !input => Resource.ViewType,
+        view && !in.referenced => Resource.StateType,
+        input => Resource.StateLayout,
+        _ => Resource.AbiLayout
+    }
+
+    const type_table = match {
+        view => layout_table,
+        input => Resource.StateType,
+        _ => Resource.AbiType
+    }
+
+    const represented = operation != Operation.Value && (input || !list)
+    const aggregate = object || tuple
+    const pointer = !input && mode == Mode.Pointer && aggregate
+    const optional = operation == Operation.Optional
+    const tuple_origin = tuple && (!input || view)
+    const origin = mode != Mode.RowLayout && (object || tuple_origin)
+
+    const layout = represented ? layout_table : Resource.None
+
+    const element = match {
+        !rows => Resource.None,
+        !input => Resource.AbiType,
+        in.has_children => Resource.StateType,
+        _ => Resource.AbiLayout
+    }
+
+    return {
+        layout,
+        target: optional || pointer ? type_table : Resource.None,
+        element,
+        origin
+    }
+}

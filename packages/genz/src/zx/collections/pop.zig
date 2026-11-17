@@ -39,16 +39,10 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
     defer scratch.deinit();
 
     var boundary: conversion.Capture = undefined;
-
-    const capture = if (self.capture) |value| captured: {
-        boundary = .{ .name = value.name, .label = value.label, .failure = @backingInt(value.failure) };
-
-        break :captured &boundary;
-    } else null;
-
+    const capture = conversion.captureBoundary(self, &boundary);
     var common: Prepared = undefined;
 
-    if (!decision.passthrough and !decision.stored) common = zx.columns.view(Prepared, try elements.prepare(self, memory.allocator(), decision, @fromBackingInt(0), capture));
+    if (!decision.passthrough and !decision.stored) common = zx.columns.view(Prepared, try conversion.prepareMode(self, memory.allocator(), @fromBackingInt(decision.type_id), @fromBackingInt(0), decision.mode, capture));
 
     const element_layout = if (!decision.passthrough and decision.stored) try @import("../types.zig").get(self, self.state_types, @fromBackingInt(decision.type_id)) else null;
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../state_value/list_emission.zig").borrow(self));

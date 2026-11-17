@@ -3,6 +3,7 @@ import integers from "std:integer"
 import builtin from "../../../../ast/context/builtin"
 import object from "../../../../ast/context/object"
 import tuple from "../../../../ast/context/tuple"
+import append from "../../../../ast/fields/append"
 import { ExpressionsBuiltinName } from "../../../../printer/model/expressions"
 import isInput from "../is_input"
 import isView from "../is_view"
@@ -12,16 +13,14 @@ import origin from "./origin"
 import outbound from "./outbound"
 import reference from "./reference"
 
-import type { Field } from "../../../types/definitions/model"
 import type { Step as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const fields: Field[] = []
     const values: u32[] = []
     const category = in.source.plan.kinds[in.node]
 
     const children = loop({
-        fields,
+        fields: in.state.fields,
         values,
         index: 0
     }, {
@@ -32,12 +31,13 @@ export default function (in: Input): Output {
             const value = in.state.nodes[child].result
 
             if (category == Operation.Object) {
-                current.fields = current.fields.push({
+                current.fields = append({
+                    table: current.fields,
                     name: in.source.plan.names[child],
                     value,
                     default_value: null,
                     comptime_parameter: false
-                })[0]
+                })
             } else {
                 current.values = current.values.push(value)[0]
             }
@@ -60,12 +60,13 @@ export default function (in: Input): Output {
     }
 
     const members = match {
-        provenance_field && category == Operation.Object => children.fields.push({
+        provenance_field && category == Operation.Object => append({
+            table: children.fields,
             name: in.source.origins[in.node],
             value: provenance.id,
             default_value: null,
             comptime_parameter: false
-        })[0],
+        }),
         _ => children.fields
     }
 
@@ -79,8 +80,10 @@ export default function (in: Input): Output {
         Operation.Object => object({
             state: provenance.state,
             type_expr: in.source.layouts[in.node],
-            first: in.source.field_base + integers.narrow(in.state.fields.length),
-            count: integers.narrow(members.length)
+            first: in.source.field_base + integers.narrow(in.state.fields.name.length),
+            count: integers.narrow(
+                members.name.length - in.state.fields.name.length
+            )
         }),
         _ => tuple({
             state: provenance.state,
@@ -103,10 +106,7 @@ export default function (in: Input): Output {
     const state = {
         ...in.state,
         context: result.state,
-        fields: match category {
-            Operation.Object => in.state.fields.concat(members)[0],
-            _ => in.state.fields
-        },
+        fields: members,
         body: in.state.body,
         nodes: in.state.nodes.with(in.node, {
             ...in.state.nodes[in.node],

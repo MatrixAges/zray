@@ -7,8 +7,9 @@ import { Mode } from "../conversion/model"
 import inlineStored from "../locals/inline_stored"
 import { Property } from "../queries/model"
 import read from "../queries/read"
+import { Resource } from "../resources/model"
 import { discard_name } from "./const"
-import { Operation, Table } from "./model"
+import { Operation } from "./model"
 
 import type { Query as Input, Choice as Output } from "./model"
 
@@ -22,7 +23,7 @@ export default function (in: Input): Output {
         capture: false,
         type_id: 0,
         mode: Mode.Value,
-        table: Table.Abi
+        table: Resource.AbiType
     }
 
     const capture = in.operation == Operation.Capture
@@ -55,9 +56,9 @@ export default function (in: Input): Output {
     })
 
     const table = match {
-        !in.active || !selected => Table.Abi,
-        target == Kind.List => Table.State,
-        _ => Table.Layout
+        !in.active || !selected => Resource.AbiType,
+        target == Kind.List => Resource.StateType,
+        _ => Resource.AbiLayout
     }
 
     if (in.operation == Operation.Type) {

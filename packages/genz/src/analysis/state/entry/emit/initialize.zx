@@ -1,4 +1,5 @@
 import initialize from "../../../../ast/context/initialize"
+import emptyFields from "../../../../ast/fields/empty"
 
 import type { Input, Work as Output } from "./model"
 
@@ -19,7 +20,7 @@ export default function (in: Input): Output {
                 tags: [],
                 offsets: []
             },
-            fields: [],
+            fields: emptyFields({}),
             nodes: [],
             index: 0,
             uses_allocator: false

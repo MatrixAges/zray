@@ -3,8 +3,8 @@ import type { State as Context, Variables } from "../../../../ast/context/model"
 import type { Capture } from "../../../../ast/expressions/fallible"
 import type { Columns as Forms } from "../../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../../ast/expressions/model"
+import type { Columns as Fields } from "../../../../ast/fields/model"
 import type { Columns as Statements } from "../../../../ast/statements/model"
-import type { Field } from "../../../types/definitions/model"
 import type { Plan } from "../model"
 
 export type Input = {
@@ -40,7 +40,7 @@ export type State = {
     body: Body,
     storage: Body,
     borrow_storage: Body,
-    fields: Field[],
+    fields: Fields
     nodes: Frame[],
     index: u64,
     uses_allocator: bool
@@ -60,7 +60,7 @@ export type Output = {
     storage: Statements,
     borrow_storage: Statements,
     variables: Variables,
-    fields: Field[],
+    fields: Fields
     root: u32,
     serial: u64,
     uses_allocator: bool,

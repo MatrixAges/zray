@@ -6,10 +6,10 @@ import { Kind } from "core/type_table/model"
 import inlineStored from "../../locals/inline_stored"
 import { Property } from "../../queries/model"
 import read from "../../queries/read"
+import { Resource } from "../../resources/model"
 import isView from "../is_view"
 import { Mode, Operation } from "../model"
 import operation from "../plan/operation"
-import { Resource } from "./model"
 
 import type { Query as Input, Decision as Output } from "./model"
 
@@ -77,14 +77,14 @@ export default function (in: Input): Output {
     if (in.source.states[row] == max_u32) {
         return {
             ...initial,
-            resource: Resource.State
+            resource: Resource.StateType
         }
     }
 
     if (in.source.views[row] == max_u32) {
         return {
             ...initial,
-            resource: Resource.View
+            resource: Resource.ViewType
         }
     }
 

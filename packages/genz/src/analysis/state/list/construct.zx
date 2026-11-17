@@ -1,0 +1,38 @@
+import bytes from "std:bytes"
+
+import object from "../../../ast/context/object"
+import append from "../../../ast/fields/append"
+import { items_field, storage_field, list_field_count } from "../../types/state/const"
+
+import type { Record as Input, Recorded as Output } from "./model"
+
+export default function (in: Input): Output {
+    const items = append({
+        table: in.fields,
+        name: bytes.fromText(items_field),
+        value: in.value,
+        default_value: null,
+        comptime_parameter: false
+    })
+
+    const fields = append({
+        table: items,
+        name: bytes.fromText(storage_field),
+        value: in.storage,
+        default_value: null,
+        comptime_parameter: false
+    })
+
+    const value = object({
+        state: in.context,
+        type_expr: in.layout,
+        first: in.first,
+        count: list_field_count
+    })
+
+    return {
+        context: value.state,
+        fields,
+        root: value.id
+    }
+}

@@ -1,6 +1,6 @@
 import { max_u32 } from "core/const"
 
-import { Resource } from "./model"
+import { Resource } from "../../resources/model"
 
 import type { Mode } from "../model"
 

@@ -60,14 +60,8 @@ fn emit(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.
 
     const allocator = buffered.allocator();
     var boundary: conversion.Capture = undefined;
-
-    const capture = if (self.capture) |captured| capture: {
-        boundary = .{ .name = captured.name, .label = captured.label, .failure = @backingInt(captured.failure) };
-
-        break :capture &boundary;
-    } else null;
-
-    const common = if (self.state_plan.represented(self.program, id)) try prepare(self, allocator, id, value, capture) else null;
+    const capture = conversion.captureBoundary(self, &boundary);
+    const common = if (self.state_plan.represented(self.program, id)) try conversion.prepareMode(self, allocator, id, value, .Value, capture) else null;
 
     const context: Context = .{
         .capture = capture,
@@ -82,25 +76,6 @@ fn emit(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.
     var body: std.ArrayList(node.Statement) = .empty;
 
     return conversion.apply(self, &body, &body, output);
-}
-
-fn prepare(self: *Lower, allocator: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, capture: ?*const conversion.Capture) Lower.Error!conversion.Input {
-    const entry = @import("generated_state_conversion_plan");
-    const PlanInput = std.meta.Child(entry.Input);
-    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(PlanInput, "types")), self.program.types);
-
-    const input: PlanInput = .{
-        .types = &types,
-        .queries = zx.columns.slice(@FieldType(PlanInput, "queries"), self.state_plan.queries),
-        .selected = self.state_plan.selected,
-        .element_storage = self.state_plan.element_storage,
-        .root = @backingInt(id),
-        .mode = .Value,
-    };
-
-    const plan = entry.executeIn(allocator, &input) catch |err| return failure(err);
-
-    return conversion.prepare(self, allocator, plan, value, capture);
 }
 
 fn Child(comptime Value: type) type {

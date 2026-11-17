@@ -1,0 +1,24 @@
+import type { Mode, Operation } from "../conversion/model"
+
+export enum Resource {
+    None,
+    AbiType,
+    AbiLayout,
+    StateType,
+    StateLayout,
+    ViewType
+}
+
+export type Conversion = {
+    mode: Mode,
+    operation: Operation,
+    referenced: bool,
+    has_children: bool
+}
+
+export type Selection = {
+    layout: Resource,
+    target: Resource,
+    element: Resource,
+    origin: bool
+}

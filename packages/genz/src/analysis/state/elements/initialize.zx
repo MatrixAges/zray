@@ -1,5 +1,6 @@
 import identifier from "../../../ast/context/identifier"
 import initialize from "../../../ast/context/initialize"
+import emptyFields from "../../../ast/fields/empty"
 import fresh from "../../../ast/fresh"
 import { element_prefix } from "../conversion/const"
 
@@ -61,7 +62,7 @@ export default function (in: Input): Output {
                 tags: [],
                 offsets: []
             },
-            fields: [],
+            fields: emptyFields({}),
             nodes: [],
             index: 0,
             uses_allocator: false

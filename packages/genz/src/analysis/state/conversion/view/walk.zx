@@ -1,6 +1,6 @@
+import { Resource } from "../../resources/model"
 import advance from "./advance"
 import enter from "./enter"
-import { Resource } from "./model"
 import query from "./query"
 
 import type { Step as Input, Walk as Output } from "./model"

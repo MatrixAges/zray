@@ -71,11 +71,9 @@ fn borrowed(self: *const Lower, conversion: *const Conversion) Source {
 }
 
 fn resolve(self: *Lower, id: u32, resource: anytype) Lower.Error!void {
-    switch (resource) {
-        .State => _ = try @import("../types.zig").get(self, self.state_types, @fromBackingInt(id)),
-        .View => _ = try @import("../types.zig").get(self, self.view_types, @fromBackingInt(id)),
-        .None => @panic("missing view type request"),
-    }
+    std.debug.assert(resource != .None);
+
+    _ = try @import("../types.zig").resource(self, @fromBackingInt(id), resource);
 }
 
 fn Child(comptime Value: type) type {

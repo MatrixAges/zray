@@ -1,9 +1,6 @@
-import bytes from "std:bytes"
-
-import object from "../../../ast/context/object"
 import slice from "../../../ast/context/slice"
+import construct from "../../state/list/construct"
 import proven from "../../state/list/proven"
-import { items_field, storage_field, list_field_count } from "../../types/state/const"
 
 import type { State as Input, State as Output } from "./model"
 
@@ -33,35 +30,22 @@ export default function (in: Input): Output {
         unique: in.writable
     })
 
-    const fields = in.state.fields.concat([
-        {
-            name: bytes.fromText(items_field),
-            value: shortened.id,
-            default_value: null,
-            comptime_parameter: false
-        },
-        {
-            name: bytes.fromText(storage_field),
-            value: storage.id,
-            default_value: null,
-            comptime_parameter: false
-        }
-    ])[0]
-
-    const value = object({
-        state: storage.state,
-        type_expr: in.source.layout,
+    const value = construct({
+        context: storage.state,
+        fields: in.state.fields,
         first: in.source.bases.field_base,
-        count: list_field_count
+        layout: in.source.layout,
+        value: shortened.id,
+        storage: storage.id
     })
 
     return {
         ...in,
         state: {
             ...in.state,
-            context: value.state,
-            fields
+            context: value.context,
+            fields: value.fields
         },
-        remaining: value.id
+        remaining: value.root
     }
 }

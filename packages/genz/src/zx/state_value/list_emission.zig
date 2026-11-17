@@ -76,14 +76,10 @@ pub fn lower(self: *Lower, id: ?ir.TypeId, operation: Operation, request: Reques
         error.InvalidAst => unreachable,
     };
 
-    try self.builder.nodes.field_columns.reserve(self.allocator, output.fields.len);
-
-    for (output.fields) |field| self.builder.nodes.field_columns.append(.{
-        .name = field.name,
-        .value = @fromBackingInt(field.value),
-        .default_value = if (field.default_value) |value| @fromBackingInt(value) else null,
-        .comptime_parameter = field.comptime_parameter,
-    });
+    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => @panic("invalid state list field columns"),
+    };
 
     return @fromBackingInt(output.root);
 }

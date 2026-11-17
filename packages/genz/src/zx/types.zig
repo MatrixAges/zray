@@ -84,6 +84,19 @@ pub fn get(self: *Lower, table: []const node.ExpressionId, id: ir.TypeId) Lower.
     return table[index];
 }
 
+pub fn resource(self: *Lower, id: ir.TypeId, selection: anytype) Lower.Error!node.ExpressionId {
+    const table = switch (selection) {
+        .None => return @fromBackingInt(0),
+        .AbiType => self.abi_types,
+        .AbiLayout => self.abi_layouts,
+        .StateType => self.state_types,
+        .StateLayout => self.state_layouts,
+        .ViewType => self.view_types,
+    };
+
+    return get(self, table, id);
+}
+
 /// A file that imports the shared type bundle declares only the import; a function uses few of the program's types.
 fn shared(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
     try output.append(self.allocator, .{ .constant = .{

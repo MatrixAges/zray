@@ -10,7 +10,7 @@ export default function (in: Input): Output {
         ...in.element,
         value: in.source.root,
         field_base: in.source.source.bases.field_base +
-            integers.narrow(in.source.state.fields.length)
+            integers.narrow(in.source.state.fields.name.length)
     }
 
     const work = initialize(source)
