@@ -2,7 +2,7 @@ const std = @import("std");
 const Module = @import("../../artifact/model.zig").Module;
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, MissingModule, CyclicDependency };
 
-pub fn order(allocator: std.mem.Allocator, modules: []const Module, entry: []const u8) Error![]const usize {
+pub fn order(allocator: std.mem.Allocator, modules: []const Module, entry: []const u8) Error![]const u64 {
     var paths: std.StringHashMapUnmanaged(usize) = .empty;
 
     defer paths.deinit(allocator);
@@ -27,7 +27,7 @@ pub fn order(allocator: std.mem.Allocator, modules: []const Module, entry: []con
 
     const Frame = struct { index: usize, dependency: usize = 0 };
     var pending: std.ArrayList(Frame) = .empty;
-    var result: std.ArrayList(usize) = .empty;
+    var result: std.ArrayList(u64) = .empty;
 
     defer pending.deinit(allocator);
     errdefer result.deinit(allocator);

@@ -159,6 +159,12 @@ pub fn publishRanges(target: *const anyopaque, elements: anytype) void {
     }
 }
 
+pub inline fn setRangeCount(target: *const anyopaque, index: u64, count: u64) void {
+    const columns: *const Ranges = @ptrCast(@alignCast(target));
+
+    @constCast(columns.*)[@intCast(index)].count = @intCast(count);
+}
+
 fn rangeElements(comptime Shape: type) []const type {
     const Elements = std.meta.Child(@typeInfo(Shape).optional.child);
 

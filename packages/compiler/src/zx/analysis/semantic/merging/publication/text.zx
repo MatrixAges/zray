@@ -16,22 +16,22 @@ export type Input = Text
 export type Output = void
 
 export default function (in: Input): Output {
-    const { delta, origins, target, nominal, text_mode, progress } = in
+    const { delta, origins, target, nominal, text_mode, progress, payload } = in
 
     if (text_mode == TextMode.Own) {
-        memory.copyStrings(target.labels, delta.labels)
+        memory.copyStringsWithAllocator(payload, target.labels, delta.labels)
         memory.writeU64(progress, 0, completed_labels)
 
-        memory.copyStrings(target.field_names, delta.field_names)
+        memory.copyStringsWithAllocator(payload, target.field_names, delta.field_names)
         memory.writeU64(progress, 0, completed_fields)
 
-        memory.copyStrings(target.names, delta.names)
+        memory.copyStringsWithAllocator(payload, target.names, delta.names)
         memory.writeU64(progress, 0, completed_names)
 
-        memory.copyStrings(nominal.owners, origins.owners)
+        memory.copyStringsWithAllocator(payload, nominal.owners, origins.owners)
         memory.writeU64(progress, 0, completed_owners)
 
-        memory.copyStrings(nominal.members, origins.members)
+        memory.copyStringsWithAllocator(payload, nominal.members, origins.members)
         memory.writeU64(progress, 0, completed_members)
 
         return
@@ -43,7 +43,7 @@ export default function (in: Input): Output {
     memory.copyStringViews(nominal.members, origins.members)
 
     if (text_mode == TextMode.OwnNames) {
-        memory.copyStrings(target.names, delta.names)
+        memory.copyStringsWithAllocator(payload, target.names, delta.names)
         memory.writeU64(progress, 0, completed_names)
     } else {
         memory.copyStringViews(target.names, delta.names)

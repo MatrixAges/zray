@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Merge" />
+
+    <Args in={Merge.Append} out={Merge.Status} />
+
+    <Call module="prepare" in={$in.preparation} />
+
+    <If on={$ctx.prepare != null}>
+        <Call
+            fn="publication/size"
+            in={{
+                delta: $ctx.prepare.delta,
+                origins: $ctx.prepare.origins,
+                destination: $in.publication.destination
+            }}
+        />
+
+        <Call
+            module="publication/write"
+            in={{
+                ...$in.publication,
+                delta: $ctx.prepare.delta,
+                origins: $ctx.prepare.origins
+            }}
+        />
+
+        <Return value={$ctx.prepare.status} />
+    </If>
+
+    <Return value={Merge.Status.Invalid} />
+</Module>

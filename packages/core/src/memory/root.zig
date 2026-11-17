@@ -9,6 +9,7 @@ pub const ColumnRanges = column_set.Ranges;
 pub const bindColumnRanges = column_set.bindRanges;
 pub const publishTypeRanges = column_set.publishRanges;
 pub const publishNominalRanges = column_set.publishRanges;
+pub const setColumnRangeCount = column_set.setRangeCount;
 pub const reserveColumnSet = column_set.reserve;
 pub const readColumnSet = column_set.read;
 pub const readNativeColumnSet = column_set.read;
@@ -148,6 +149,10 @@ pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{In
 
 pub inline fn borrowU32Range(source: []const u32, first: u64, count: u64) error{IndexOutOfBounds}![]const u32 {
     return borrowRange(u32, source, first, count);
+}
+
+pub inline fn borrowU64Range(source: []const u64, first: u64, count: u64) error{IndexOutOfBounds}![]const u64 {
+    return borrowRange(u64, source, first, count);
 }
 
 pub inline fn borrowStringRange(source: []const []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const []const u8 {
@@ -315,6 +320,12 @@ pub fn copyStrings(allocator: std.mem.Allocator, target: *const anyopaque, sourc
         item.* = try allocator.dupe(u8, text);
         copied += 1;
     }
+}
+
+pub inline fn copyStringsWithAllocator(resource: *const anyopaque, target: *const anyopaque, source: []const []const u8) (std.mem.Allocator.Error || error{IndexOutOfBounds})!void {
+    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
+
+    try copyStrings(allocator.*, target, source);
 }
 
 // The caller exclusively lends a descriptor for a mutable slice for the duration of the call.

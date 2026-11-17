@@ -76,6 +76,10 @@
             <Return value={Binding.Status.Retain} />
         </Case>
 
+        <Case value={Body.Placement.RejectStoreDependency}>
+            <Return value={Binding.Status.RejectStoreDependency} />
+        </Case>
+
         <Default>
             <Return value={Binding.Status.Invalid} />
         </Default>

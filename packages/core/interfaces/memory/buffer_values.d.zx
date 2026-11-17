@@ -89,6 +89,12 @@ export declare function copyStrings(
     source: string[]
 ): void throws { IndexOutOfBounds, OutOfMemory }
 
+export declare function copyStringsWithAllocator(
+    resource: Allocator,
+    target: StringBuffer,
+    source: string[]
+): void throws { IndexOutOfBounds, OutOfMemory }
+
 export declare function copyU8s(
     target: U8Buffer,
     source: u8[]

@@ -2,6 +2,7 @@ import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
 import type { Allocator, U32Buffer } from "memory"
 import type { Input as Shape } from "../types/validation/shape"
+import type { Target as Publication } from "./publication/model"
 
 export type Request = {
     source: Table
@@ -39,4 +40,9 @@ export type Preparation = {
     complete: bool,
     validation?: Shape.Pick("maximum_count", "scalar_count"),
     resource?: Allocator
+}
+
+export type Append = {
+    preparation: Preparation,
+    publication: Publication
 }

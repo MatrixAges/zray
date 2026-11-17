@@ -17,7 +17,13 @@ pub fn publish(nodes: *Nodes, module: *const Module, storage: *ir.FunctionStorag
 
             break :published null;
         },
-        .Retain => try nodes.functionEntry(module.function.?, if (entry) @fromBackingInt(@intCast(first)) else null, .unchecked),
+        .Retain => if (entry) try nodes.functionEntry(module.function.?, @fromBackingInt(@intCast(first)), .unchecked) else unreachable,
+        .RejectStoreDependency => {
+            // A malformed body is diagnosed before the dependency's Store restriction.
+            if (module.function) |function| _ = try nodes.functionEntry(function, null, .unchecked);
+
+            return error.InvalidModule;
+        },
         .Invalid, .Conflict, .Full => unreachable,
     };
 }

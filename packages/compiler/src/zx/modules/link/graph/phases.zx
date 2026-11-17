@@ -1,0 +1,17 @@
+import memory from "memory"
+
+import type { Output as Graph } from "./model"
+
+export type Input = {
+    order: u64[],
+    count: u64
+}
+
+export type Output = Graph.Pick("registration", "dependencies")
+
+export default function (in: Input): Output {
+    return {
+        registration: memory.borrowU64Range(in.order, 0, in.count),
+        dependencies: memory.borrowU64Range(in.order, 0, in.count - 1)
+    }
+}

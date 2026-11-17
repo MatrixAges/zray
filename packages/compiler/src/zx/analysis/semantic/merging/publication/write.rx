@@ -17,7 +17,8 @@
                 "target",
                 "nominal",
                 "text_mode",
-                "progress"
+                "progress",
+                "payload"
             ])}
         />
 

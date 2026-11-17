@@ -61,6 +61,12 @@ export declare function publishNominalRanges(
     elements: NominalRangeElements?
 ): void
 
+export declare function setColumnRangeCount(
+    target: ColumnRanges,
+    index: u64,
+    count: u64
+): void
+
 export declare function stringViews(source: StringBuffer): string[]
 
 export declare function u32Views(source: U32Buffer): u32[]
@@ -120,6 +126,12 @@ export declare function borrowU32Range(
     first: u64,
     count: u64
 ): u32[] throws { IndexOutOfBounds } concurrent
+
+export declare function borrowU64Range(
+    source: u64[],
+    first: u64,
+    count: u64
+): u64[] throws { IndexOutOfBounds } concurrent
 
 export declare function borrowStringRange(
     source: string[],

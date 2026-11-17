@@ -10,9 +10,9 @@
         <Return
             value={{
                 status: LinkGraph.Status.Invalid,
-                count: 0,
+                registration: [],
                 entry: null,
-                dependencies: 0,
+                dependencies: [],
                 buckets: [],
                 targets: []
             }}
@@ -31,9 +31,9 @@
         <Return
             value={{
                 status: LinkGraph.Status.Missing,
-                count: 0,
+                registration: [],
                 entry: null,
-                dependencies: 0,
+                dependencies: [],
                 buckets: [],
                 targets: []
             }}
@@ -63,12 +63,19 @@
     <Call fn="status" in={$ctx.walk} />
 
     <If on={$ctx.status == LinkGraph.Status.Ready}>
+        <Call
+            fn="phases"
+            in={{
+                order: $in.order_rows,
+                count: $ctx.walk.count
+            }}
+        />
+
         <Return
             value={{
+                ...$ctx.phases,
                 status: $ctx.status,
-                count: $ctx.walk.count,
                 entry: $ctx.locate,
-                dependencies: $ctx.walk.count - 1,
                 buckets: $ctx.registry.index.buckets,
                 targets: $ctx.edges.targets
             }}
@@ -78,9 +85,9 @@
     <Return
         value={{
             status: $ctx.status,
-            count: $ctx.walk.count,
+            registration: [],
             entry: null,
-            dependencies: 0,
+            dependencies: [],
             buckets: $ctx.registry.index.buckets,
             targets: $ctx.edges.targets
         }}

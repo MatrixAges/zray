@@ -259,7 +259,9 @@ fn appendExternalSeed(self: *Self, signature: model.Signature, implementation: i
 }
 
 fn findSeed(self: *const Self, path: []const u8) ?usize {
-    for (self.plan.order) |index| {
+    for (self.plan.registration) |row| {
+        const index: usize = @intCast(row);
+
         if (std.mem.eql(u8, self.modules[index].path, path)) return index;
     }
 

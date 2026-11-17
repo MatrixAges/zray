@@ -11,6 +11,23 @@ const TextMode = @FieldType(Input, "text_mode");
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const TypeElements = std.meta.Child(@typeInfo(@FieldType(Destination, "elements")).optional.child);
 const NominalElements = std.meta.Child(@typeInfo(@FieldType(Destination, "nominal_elements")).optional.child);
+const Merge = @import("generated_type_merge");
+const MergeInput = std.meta.Child(Merge.Input);
+const Publication = std.meta.Child(@FieldType(MergeInput, "publication"));
+pub const Preparation = std.meta.Child(@FieldType(MergeInput, "preparation"));
+pub const Error = std.mem.Allocator.Error || error{InvalidModule};
+const Operation = enum { register, publish };
+const Registration = struct { temporary: std.mem.Allocator, preparation: *const Preparation };
+
+const Options = struct {
+    allocator: std.mem.Allocator,
+    payload: std.mem.Allocator,
+    types: *ir.TypeStorage,
+    origins: ?*Origins.Storage,
+    offsets: ?*const Offsets = null,
+    text_mode: TextMode = .Own,
+    precise: bool = false,
+};
 
 pub fn appendTypes(allocator: std.mem.Allocator, target: *ir.TypeStorage, delta: anytype) std.mem.Allocator.Error!void {
     try append(allocator, target, null, delta, @as(Origins.Table, .{}));
@@ -21,18 +38,25 @@ pub fn append(allocator: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*
 }
 
 pub fn appendWithPayload(allocator: std.mem.Allocator, payload: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*Origins.Storage, delta: anytype, bindings: anytype) std.mem.Allocator.Error!void {
-    // The Source reservation validates these lengths before the offsets are used.
-    const offsets: Offsets = .{
-        .children = @truncate(target.children.items.len),
-        .fields = @truncate(target.field_types.items.len),
-        .names = @truncate(target.names.items.len),
-    };
+    const base = offsets(target);
 
-    try write(allocator, payload, target, origins, zx.columns.view(ir.TypeTable, delta), bindings, &offsets, .Own, false);
+    try write(.publish, .{
+        .allocator = allocator,
+        .payload = payload,
+        .types = target,
+        .origins = origins,
+        .offsets = &base,
+    }, zx.columns.view(ir.TypeTable, delta), bindings, {});
 }
 
 pub fn appendConstructed(allocator: std.mem.Allocator, target: *ir.TypeStorage, table: ir.TypeTable, owns_names: bool) std.mem.Allocator.Error!void {
-    try write(allocator, allocator, target, null, table, @as(Origins.Table, .{}), null, if (owns_names) .OwnNames else .Borrow, false);
+    try write(.publish, .{
+        .allocator = allocator,
+        .payload = allocator,
+        .types = target,
+        .origins = null,
+        .text_mode = if (owns_names) .OwnNames else .Borrow,
+    }, table, @as(Origins.Table, .{}), {});
 }
 
 pub fn snapshot(allocator: std.mem.Allocator, table: ir.TypeTable, comptime own_text: bool) std.mem.Allocator.Error!ir.TypeStorage {
@@ -42,26 +66,51 @@ pub fn snapshot(allocator: std.mem.Allocator, table: ir.TypeTable, comptime own_
 
     errdefer target.deinit(allocator);
 
-    try write(allocator, allocator, &target, null, table, @as(Origins.Table, .{}), null, if (own_text) .Own else .Borrow, true);
+    try write(.publish, .{
+        .allocator = allocator,
+        .payload = allocator,
+        .types = &target,
+        .origins = null,
+        .text_mode = if (own_text) .Own else .Borrow,
+        .precise = true,
+    }, table, @as(Origins.Table, .{}), {});
 
     return target;
 }
 
-fn write(allocator: std.mem.Allocator, payload: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*Origins.Storage, table: ir.TypeTable, bindings: anytype, offsets: ?*const Offsets, text_mode: TextMode, precise: bool) std.mem.Allocator.Error!void {
-    const types = ir.TypeTable.borrow(Table, table);
-
-    const nominal: Bindings = .{
-        .ids = bindings.ids,
-        .kinds = bindings.kinds,
-        .owners = bindings.owners,
-        .members = bindings.members,
+fn offsets(target: *const ir.TypeStorage) Offsets {
+    // Reservation validates the column lengths before they are used.
+    return .{
+        .children = @truncate(target.children.items.len),
+        .fields = @truncate(target.field_types.items.len),
+        .names = @truncate(target.names.items.len),
     };
+}
 
+pub fn register(allocator: std.mem.Allocator, target: *ir.TypeStorage, origins: *Origins.Storage, registration: Registration) Error!Merge.Output {
+    const base = offsets(target);
+
+    return write(.register, .{
+        .allocator = allocator,
+        .payload = allocator,
+        .types = target,
+        .origins = origins,
+        .offsets = &base,
+    }, .{}, @as(Origins.Table, .{}), registration);
+}
+
+fn write(
+    comptime operation: Operation,
+    options: Options,
+    table: ir.TypeTable,
+    bindings: anytype,
+    registration: if (operation == .register) Registration else void,
+) (if (operation == .register) Error!Merge.Output else std.mem.Allocator.Error!void) {
     var tails: ir.TypeTable = .{};
     var nominal_tails: Origins.Table = .{};
-    const slots = zx.memory.bindColumnRanges(TypeElements, target, table, &tails);
+    var slots = zx.memory.bindColumnRanges(TypeElements, options.types, table, &tails);
 
-    const nominal_slots = if (origins) |storage| zx.memory.bindColumnRanges(NominalElements, storage, .{
+    var nominal_slots = if (options.origins) |storage| zx.memory.bindColumnRanges(NominalElements, storage, .{
         .ids = bindings.ids,
         .kinds = bindings.kinds,
         .owners = bindings.owners,
@@ -74,21 +123,19 @@ fn write(allocator: std.mem.Allocator, payload: std.mem.Allocator, target: *ir.T
     var copied: [1]u64 = .{0};
     const progress: []u64 = &copied;
 
-    errdefer switch (text_mode) {
+    errdefer switch (options.text_mode) {
         .Own => {
             const ordered = .{ tails.labels, tails.field_names, tails.names, nominal_tails.owners, nominal_tails.members };
 
             inline for (ordered, 0..) |column, index| {
-                if (index < copied[0]) for (column) |text| payload.free(text);
+                if (index < copied[0]) for (column) |text| options.payload.free(text);
             }
         },
-        .OwnNames => if (copied[0] != 0) for (tails.names) |text| payload.free(text),
+        .OwnNames => if (copied[0] != 0) for (tails.names) |text| options.payload.free(text),
         .Borrow => {},
     };
 
-    const input: Input = .{
-        .delta = &types,
-        .origins = &nominal,
+    const publication: Publication = .{
         .target = &.{
             .kinds = @ptrCast(&tails.kinds),
             .first = @ptrCast(&tails.first),
@@ -106,21 +153,53 @@ fn write(allocator: std.mem.Allocator, payload: std.mem.Allocator, target: *ir.T
             .members = @ptrCast(&nominal_tails.members),
             .names = @ptrCast(&nominal_tails.names),
         },
-        .offsets = offsets,
-        .base_labels = @ptrCast(&target.labels.items),
-        .text_mode = text_mode,
+        .offsets = options.offsets,
+        .base_labels = @ptrCast(&options.types.labels.items),
+        .text_mode = options.text_mode,
         .progress = @ptrCast(&progress),
+        .payload = @ptrCast(&options.payload),
         .destination = &.{
             .ranges = @ptrCast(&ranges),
-            .nominal_ranges = if (origins != null) @ptrCast(&nominal_ranges) else null,
+            .nominal_ranges = if (options.origins != null) @ptrCast(&nominal_ranges) else null,
             .elements = null,
             .nominal_elements = null,
-            .resource = @ptrCast(&allocator),
-            .precise = precise,
+            .resource = @ptrCast(&options.allocator),
+            .precise = options.precise,
         },
     };
 
-    rule.executeIn(payload, &input) catch |err| switch (@as(anyerror, err)) {
+    if (comptime operation == .register) {
+        const input: MergeInput = .{ .preparation = registration.preparation, .publication = &publication };
+
+        return Merge.executeIn(registration.temporary, &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => error.OutOfMemory,
+            else => error.InvalidModule,
+        };
+    }
+
+    const types = ir.TypeTable.borrow(Table, table);
+
+    const nominal: Bindings = .{
+        .ids = bindings.ids,
+        .kinds = bindings.kinds,
+        .owners = bindings.owners,
+        .members = bindings.members,
+    };
+
+    const input: Input = .{
+        .delta = &types,
+        .origins = &nominal,
+        .target = publication.target,
+        .nominal = publication.nominal,
+        .offsets = publication.offsets,
+        .base_labels = publication.base_labels,
+        .text_mode = publication.text_mode,
+        .progress = publication.progress,
+        .destination = publication.destination,
+        .payload = publication.payload,
+    };
+
+    rule.executeIn(options.payload, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };

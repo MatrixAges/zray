@@ -25,11 +25,19 @@
             <Return value={Body.Placement.Invalid} />
         </If>
 
-        <If on={!$in.entry && $in.stores == 0}>
+        <If on={$in.entry}>
+            <Return value={Body.Placement.Retain} />
+        </If>
+
+        <If on={$in.stores == 0}>
             <Return value={Body.Placement.Append} />
         </If>
 
-        <Return value={Body.Placement.Retain} />
+        <Return value={Body.Placement.RejectStoreDependency} />
+    </If>
+
+    <If on={!$in.entry && $in.stores != 0}>
+        <Return value={Body.Placement.RejectStoreDependency} />
     </If>
 
     <Return value={Body.Placement.Absent} />

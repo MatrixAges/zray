@@ -5,9 +5,9 @@ const Target = @import("../module_record.zig").Target;
 pub const Error = @import("graph/seed.zig").Error;
 
 pub const Plan = struct {
-    order: []const usize,
+    registration: []const u64,
     entry: usize,
-    dependency_count: usize,
+    dependencies: []const u64,
     paths: []const []const u8 = &.{},
     buckets: []const ?u32 = &.{},
     offsets: []const u64 = &.{},
@@ -21,7 +21,7 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
     if (comptime !@import("parser_options").generated_parser) {
         const order = try @import("graph/seed.zig").order(allocator, modules, entry);
 
-        return .{ .order = order, .entry = order[order.len - 1], .dependency_count = order.len - 1 };
+        return .{ .registration = order, .entry = @intCast(order[order.len - 1]), .dependencies = order[0 .. order.len - 1] };
     }
 
     const paths = try allocator.alloc([]const u8, modules.len);
@@ -46,6 +46,7 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
         .offset_target = @ptrCast(&offsets),
         .entry = entry,
         .order = @ptrCast(&order),
+        .order_rows = order,
         .capacity = order.len,
     };
 
@@ -61,25 +62,13 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
         .Ready => {},
     }
 
-    const rows = order[0..@intCast(plan.count)];
-
     return .{
-        .order = try rowsAsIndices(allocator, rows),
+        .registration = plan.registration,
         .entry = @intCast(plan.entry orelse return error.InvalidModule),
-        .dependency_count = @intCast(plan.dependencies),
+        .dependencies = plan.dependencies,
         .paths = paths,
         .buckets = plan.buckets,
         .offsets = offsets,
         .targets = plan.targets,
     };
-}
-
-fn rowsAsIndices(allocator: std.mem.Allocator, rows: []const u64) std.mem.Allocator.Error![]const usize {
-    if (comptime @sizeOf(usize) == @sizeOf(u64)) return @ptrCast(rows);
-
-    const result = try allocator.alloc(usize, rows.len);
-
-    for (rows, result) |row, *index| index.* = @intCast(row);
-
-    return result;
 }

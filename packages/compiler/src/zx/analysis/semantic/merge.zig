@@ -2,12 +2,12 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Origins = @import("nominal_data");
-const generated = @import("generated_type_merge");
-const Input = std.meta.Child(generated.Input);
-const Data = std.meta.Child(@FieldType(Input, "request"));
+const publication = @import("merging/commit.zig");
+const Preparation = publication.Preparation;
+const Data = std.meta.Child(@FieldType(Preparation, "request"));
 const Table = std.meta.Child(@FieldType(Data, "source"));
 const Bindings = std.meta.Child(@FieldType(Data, "origins"));
-const Limits = std.meta.Child(@typeInfo(@FieldType(Input, "validation")).optional.child);
+const Limits = std.meta.Child(@typeInfo(@FieldType(Preparation, "validation")).optional.child);
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, MissingNominalOrigin, ConflictingNominalType };
 
 pub const Request = struct {
@@ -36,7 +36,7 @@ pub fn append(request: Request) Error![]const ir.TypeId {
     const base_origins = Origins.Table.borrow(Bindings, request.nominal.view());
     const limits: Limits = .{ .maximum_count = std.math.maxInt(u32), .scalar_count = std.enums.values(ir.Scalar).len };
 
-    const input: Input = .{
+    const preparation: Preparation = .{
         .request = &.{
             .source = &source,
             .origins = &origins,
@@ -52,16 +52,12 @@ pub fn append(request: Request) Error![]const ir.TypeId {
         .validation = if (request.first == 0 or request.checked) &limits else null,
     };
 
-    const prepared = zx.columns.invoke(generated.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
+    const status = try publication.register(request.allocator, request.items, request.nominal, .{
+        .temporary = arena.allocator(),
+        .preparation = &preparation,
+    });
 
-    const result = prepared orelse return error.InvalidModule;
-
-    try @import("merging/commit.zig").append(request.allocator, request.items, request.nominal, result.delta, result.origins);
-
-    return switch (result.status) {
+    return switch (status) {
         .Ready => @ptrCast(mapping),
         .MissingOrigin => error.MissingNominalOrigin,
         .Conflict => error.ConflictingNominalType,

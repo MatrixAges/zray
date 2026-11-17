@@ -48,16 +48,20 @@ export type Destination = {
     precise: bool
 }
 
-export type Input = {
-    delta: Table,
-    origins: Bindings,
+export type Target = {
     target: TypeTail,
     nominal: NominalTail,
     offsets?: Offsets,
     base_labels: StringBuffer,
     text_mode: TextMode,
     progress: U64Buffer,
-    destination: Destination
+    destination: Destination,
+    payload: Allocator
+}
+
+export type Input = Target & {
+    delta: Table,
+    origins: Bindings
 }
 
 export type Text = Input.Pick(
@@ -66,7 +70,8 @@ export type Text = Input.Pick(
     "target",
     "nominal",
     "text_mode",
-    "progress"
+    "progress",
+    "payload"
 )
 
 export type Payload = Input.Pick("delta", "origins", "target", "nominal")

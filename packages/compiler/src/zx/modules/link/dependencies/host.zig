@@ -188,7 +188,7 @@ fn run(temporary: std.mem.Allocator, inputs: Inputs, dependencies: *const Input)
     };
 
     return switch (status) {
-        .Absent, .Append, .Retain => status,
+        .Absent, .Append, .Retain, .RejectStoreDependency => status,
         .Invalid => error.InvalidModule,
         .Conflict => error.ConflictingInterface,
         .Full => error.OutOfMemory,

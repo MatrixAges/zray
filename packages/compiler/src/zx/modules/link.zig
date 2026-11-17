@@ -42,7 +42,9 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 
     @memset(function_ids, null);
 
-    for (plan.order) |index| {
+    for (plan.registration) |row| {
+        const index: usize = @intCast(row);
+
         mappings[index] = try types.appendTemporary(scratch, workspace, &modules[index]);
 
         if (!module_scratch.reset(.retain_capacity)) return error.OutOfMemory;
@@ -50,7 +52,7 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 
     var builder: Builder = .{ .allocator = owned, .temporary = workspace, .modules = modules, .plan = plan, .type_mappings = mappings, .module_functions = function_ids };
 
-    for (plan.order[0..plan.dependency_count]) |index| try linkDependency(&builder, index, &module_scratch);
+    for (plan.dependencies) |index| try linkDependency(&builder, @intCast(index), &module_scratch);
 
     const function = try builder.module(plan.entry, true);
 
@@ -84,19 +86,17 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 }
 
 fn linkDependency(builder: *Builder, index: usize, scratch: *std.heap.ArenaAllocator) Error!void {
-    const module = &builder.modules[index];
     const function = try builder.module(index, false);
 
     if (!scratch.reset(.retain_capacity)) return error.OutOfMemory;
-    if (builder.module_functions[index] != null) return;
 
-    switch (@import("link/placement.zig").select(module.stores.count(), function != null)) {
-        .Invalid => return error.InvalidModule,
-        .Skip => {},
-        .Append => {
-            builder.module_functions[index] = @fromBackingInt(@as(u32, @intCast(builder.functions.count())));
+    if (comptime !@import("parser_options").generated_parser) {
+        if (builder.modules[index].stores.count() != 0) return error.InvalidModule;
 
-            try builder.functions.append(builder.allocator, function.?.body);
-        },
+        if (function) |body| {
+            builder.module_functions[index] = @fromBackingInt(@intCast(builder.functions.count()));
+
+            try builder.functions.append(builder.allocator, body.body);
+        }
     }
 }
