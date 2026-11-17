@@ -92,7 +92,7 @@ const LoadFrame = struct {
     index: usize,
     parsed: ParseCache.Version,
     scope: ?Target.Scope = null,
-    next_import: usize = 0,
+    suspended_import: u64 = 0,
     aliases: std.ArrayList(ir.Export) = .empty,
     imported_names: @import("project/load/imports/host.zig") = .{},
     imports: std.ArrayList(FunctionImport) = .empty,
@@ -236,27 +236,45 @@ const Project = struct {
         const aliases = &frame.aliases;
         const imports = &frame.imports;
         const constants = &frame.constant_imports;
-        var pending = completed;
         var paths = std.heap.ArenaAllocator.init(self.arena.child_allocator);
 
         defer paths.deinit();
 
-        while (frame.next_import < import_count) : (frame.next_import += 1) {
-            const item = @import("import_view.zig").get(header, frame.next_import);
+        const start_row: usize = if (completed) |child| resume_import: {
+            const row: usize = @intCast(frame.suspended_import);
+            const item = @import("import_view.zig").get(header, row);
+            const loaded = &self.units[child];
+
+            std.debug.assert(self.load_states[child] == .Done);
+
+            try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
+
+            break :resume_import row + 1;
+        } else 0;
+
+        for (start_row..import_count) |import_row| {
+            const item = @import("import_view.zig").get(header, import_row);
             const selected_aliases = if (item.exported) &frame.export_aliases else aliases;
             const selected_imports = if (item.exported) &frame.export_functions else imports;
             const selected_constants = if (item.exported) &frame.export_constants else constants;
             var path_buffer: [512]u8 = undefined;
             var path_memory = std.heap.BufferFirstAllocator.init(&path_buffer, paths.allocator());
 
-            const resolved: Target.Resolved = if (pending) |resumed| .{ .target = .{ .source = self.units[resumed].path } } else target_block: {
+            const resolved: Target.Resolved = target_block: {
                 if (try frame.imported_names.claim(self.arena.child_allocator, item)) |name| {
                     return self.reporter.fail(.name, name.span, "duplicate import binding");
                 }
 
-                const route = Target.classify(item.path);
+                const route = Loading.route(item.path, self.options.internal_modules);
 
-                switch (route) {
+                if (route.internal) |entry| {
+                    try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
+                    if (phase == .body) try self.rememberImport(frame, item, .native, entry.key());
+
+                    continue;
+                }
+
+                switch (route.kind) {
                     .Invalid => return self.reporter.fail(.module, item.span, "invalid or unknown import specifier"),
                     .Intrinsic => {
                         try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
@@ -293,39 +311,18 @@ const Project = struct {
                         continue;
                     },
                     .File, .Package => {
-                        if (route == .Package) {
-                            if (self.options.internalModule(item.path)) |entry| {
-                                try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
-                                if (phase == .body) try self.rememberImport(frame, item, .native, entry.key());
-
-                                continue;
-                            }
-                        }
-
                         const scratch = path_memory.allocator();
                         const scope = frame.packageScope(self.options.package_scopes, unit.path);
 
-                        break :target_block try Target.resolveIndexed(.{ .source = scratch, .compiled = scratch }, unit.path, item.path, route, self.options, scope, null, self.reporter, item.span);
+                        break :target_block try Target.resolveIndexed(.{ .source = scratch, .compiled = scratch }, unit.path, item.path, route.kind, self.options, scope, null, self.reporter, item.span);
                     },
                 }
             };
 
             defer _ = paths.reset(.retain_capacity);
-            var source_path: ?[]const u8 = null;
-            const target = resolved.target;
 
-            const imported = switch (target) {
-                .source => |path| block: {
-                    if (pending) |child| {
-                        const loaded = &self.units[child];
-
-                        std.debug.assert(self.load_states[child] == .Done);
-
-                        source_path = loaded.path;
-
-                        break :block importedSource(loaded, phase);
-                    }
-
+            switch (resolved.target) {
+                .source => |path| {
                     const plan = Loading.source(self.options.source_index.?, self.load_states, .{
                         .path = path,
                         .phase = phase,
@@ -333,6 +330,8 @@ const Project = struct {
                         .exported = item.exported,
                         .depth = self.load_frames.items.len,
                         .row = resolved.source_row,
+                        .import_row = import_row,
+                        .cursor = &frame.suspended_import,
                     });
 
                     switch (plan.action) {
@@ -340,7 +339,7 @@ const Project = struct {
                         .DeferSignature => {
                             const retained = try self.allocator.dupe(u8, path);
 
-                            break :block Imported{ .exports = &.{}, .signatures = &.{.{ .name = "", .kind = .deferred, .source = retained }} };
+                            try self.bindSignature(frame, item, .{ .exports = &.{}, .signatures = &.{.{ .name = "", .kind = .deferred, .source = retained }} });
                         },
                         .RejectRx => return self.reporter.fail(.module, item.span, "ZX package entry must be a .zx source file"),
                         .Missing => return self.reporter.fail(.module, item.span, "import target is missing from the source set"),
@@ -349,34 +348,16 @@ const Project = struct {
                         .Descend => return plan.index,
                         .Bind => {
                             const loaded = &self.units[plan.index.?];
-                            source_path = loaded.path;
 
-                            break :block importedSource(loaded, phase);
+                            try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
                         },
                     }
                 },
-                .compiled => |value| try self.loadCompiled(value, item.span),
-            };
+                .compiled => |value| {
+                    const imported = try self.loadCompiled(value, item.span);
 
-            pending = null;
-            self.current_source = index;
-
-            if (phase == .signature) {
-                try self.bindSignature(frame, item, imported);
-            } else {
-                try @import("binding.zig").apply(self.allocator, self.bindingAllocator(), item, .{
-                    .target = if (target == .source) .source else .compiled,
-                    .types = self.types.view(),
-                    .exports = imported.exports,
-                    .constant_exports = imported.constant_exports,
-                    .members = imported.members,
-                    .default_member = imported.default_member,
-                }, self.reporter, selected_aliases, selected_imports, selected_constants);
-
-                try self.rememberImport(frame, item, switch (target) {
-                    .source => .{ .source = source_path.? },
-                    .compiled => |value| .{ .compiled = value },
-                }, null);
+                    try self.bindResolved(frame, item, phase, imported, .{ .compiled = value });
+                },
             }
         }
 
@@ -405,6 +386,26 @@ const Project = struct {
 
         return null;
     }
+    fn bindResolved(self: *Project, frame: *LoadFrame, item: anytype, comptime phase: Loading.Phase, imported: Imported, target: ModuleRecord.Target.Wire) zx.Error!void {
+        self.current_source = frame.index;
+
+        if (phase == .signature) return self.bindSignature(frame, item, imported);
+
+        const aliases = if (item.exported) &frame.export_aliases else &frame.aliases;
+        const imports = if (item.exported) &frame.export_functions else &frame.imports;
+        const constants = if (item.exported) &frame.export_constants else &frame.constant_imports;
+
+        try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
+            .target = if (target == .source) .source else .compiled,
+            .types = self.types.view(),
+            .exports = imported.exports,
+            .constant_exports = imported.constant_exports,
+            .members = imported.members,
+            .default_member = imported.default_member,
+        }, self.reporter, aliases, imports, constants);
+
+        try self.rememberImport(frame, item, target, null);
+    }
     fn importedSource(unit: *const Unit, comptime phase: Loading.Phase) Imported {
         if (phase == .signature) {
             const signature = &unit.signature.?;
@@ -415,9 +416,8 @@ const Project = struct {
         return .{ .exports = unit.exports, .constant_exports = unit.constants, .members = unit.members };
     }
     fn rememberImport(self: *Project, frame: *LoadFrame, item: anytype, target: ModuleRecord.Target.Wire, identity: ?[]const u8) zx.Error!void {
-        var dependency = try ModuleRecord.copyImport(self.allocator, item, target);
+        const dependency = try ModuleRecord.copyImport(self.allocator, item, target, identity);
 
-        if (identity) |name| dependency.identity = try self.allocator.dupe(u8, name);
         try frame.dependencies.append(self.allocator, dependency);
     }
     fn bindSignature(self: *Project, frame: *LoadFrame, item: anytype, imported: Imported) zx.Error!void {

@@ -1,0 +1,23 @@
+import memory from "memory"
+
+import { SourceAction } from "./model"
+
+import type { U64Buffer } from "memory"
+import type { SourcePlan } from "./model"
+
+export type Input = {
+    child: u64,
+    import_row: u64,
+    cursor: U64Buffer
+}
+
+export type Output = SourcePlan
+
+export default function (in: Input): Output {
+    memory.writeU64(in.cursor, 0, in.import_row)
+
+    return {
+        action: SourceAction.Descend,
+        index: in.child
+    }
+}

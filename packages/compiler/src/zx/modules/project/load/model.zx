@@ -1,4 +1,6 @@
 import type { U8Buffer, U64Buffer } from "memory"
+import type { Route } from "../target/model"
+import type { Rows } from "../target/select"
 
 export enum Admission {
     Push,
@@ -38,6 +40,8 @@ export type Source = {
     exported: bool,
     depth: u64,
     row?: u64,
+    import_row: u64,
+    cursor: U64Buffer,
     keys: u8[][],
     buckets: U64Buffer,
     capacity: u64,
@@ -48,4 +52,15 @@ export type Source = {
 export type SourcePlan = {
     action: SourceAction,
     index?: u64
+}
+
+export type Import = {
+    path: string,
+    intrinsic: string,
+    internal: Rows
+}
+
+export type ImportRoute = {
+    route: Route,
+    internal?: u64
 }

@@ -28,15 +28,16 @@ function_imports: []const @import("function_import.zig"),
 body: union(enum) { types, entry, function: zx.ir.FunctionId },
 own_function: ?zx.ir.FunctionId = null,
 /// Source targets borrow the normalized unit path held by the project arena.
-pub fn copyImport(allocator: std.mem.Allocator, item: anytype, target: Target.Wire) std.mem.Allocator.Error!Import {
-    const names = try @import("module_record/names/host.zig").own(allocator, item);
+pub fn copyImport(allocator: std.mem.Allocator, item: anytype, target: Target.Wire, identity: ?[]const u8) std.mem.Allocator.Error!Import {
+    const names = try @import("module_record/names/host.zig").own(allocator, item, identity);
 
     return .{
         .kind = item.kind,
         .exported = item.exported,
         .wildcard = item.wildcard,
         .source_names = names.originals,
-        .specifier = try allocator.dupe(u8, item.path),
+        .specifier = names.specifier,
+        .identity = names.identity,
         .names = names.locals,
         .span = item.span,
         .target = .from(switch (target) {

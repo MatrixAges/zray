@@ -1,6 +1,8 @@
 const std = @import("std");
 const zx = @import("zx");
 const Index = @import("../../source_index.zig").Map;
+const NativeInterface = @import("../../interface.zig").Native;
+const Target = @import("../target/host.zig");
 const enabled = @import("parser_options").generated_parser;
 pub const State = enum(u8) { Fresh, Visiting, Done };
 pub const Phase = enum { body, signature };
@@ -9,6 +11,33 @@ const SourceAction = if (enabled) @FieldType(Result(@import("generated_project_l
 
 fn Result(comptime module: type) type {
     return @typeInfo(@TypeOf(module.executeValue(undefined, undefined))).error_union.payload;
+}
+
+const Route = struct { kind: Target.Route, internal: ?*const NativeInterface };
+
+pub fn route(path: []const u8, internal: []const NativeInterface) Route {
+    if (comptime enabled) {
+        if (internal.len == 0) return .{ .kind = Target.classify(path), .internal = null };
+
+        const rule = @import("generated_project_load_route");
+        const names = zx.memory.borrowTextColumn("module", internal);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        const input: std.meta.Child(rule.Input) = .{
+            .path = path,
+            .intrinsic = @import("../../intrinsic.zig").specifier,
+            .internal = &.{ .items = @ptrCast(&names), .length = names.count },
+        };
+
+        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        return .{ .kind = result.route, .internal = if (result.internal) |row| &internal[@intCast(row)] else null };
+    }
+
+    const kind = Target.classify(path);
+    const row = if (kind == .Package) @import("../target/registry.zig").select(internal, "module", path, false).first else null;
+
+    return .{ .kind = kind, .internal = if (row) |index| &internal[index] else null };
 }
 
 pub fn states(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error![]State {
@@ -77,6 +106,8 @@ pub const Source = struct {
     exported: bool,
     depth: usize,
     row: ?usize,
+    import_row: usize,
+    cursor: *u64,
 };
 
 const Plan = struct {
@@ -90,6 +121,7 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const Input = std.meta.Child(generated.Input);
         const marks = std.mem.sliceAsBytes(state_column);
+        const cursor: []u64 = @as(*[1]u64, @ptrCast(request.cursor));
 
         const input: Input = .{
             .path = request.path,
@@ -98,6 +130,8 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
             .exported = request.exported,
             .depth = request.depth,
             .row = if (request.row) |row| row else null,
+            .import_row = request.import_row,
+            .cursor = @ptrCast(&cursor),
             .keys = index.keys,
             .buckets = @ptrCast(&index.buckets),
             .capacity = index.buckets.len,
@@ -121,7 +155,11 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
     if (row >= state_column.len) return .{ .action = .Missing };
 
     return switch (admit(state_column, row, request.depth)) {
-        .Push => .{ .action = .Descend, .index = row },
+        .Push => suspended: {
+            request.cursor.* = request.import_row;
+
+            break :suspended .{ .action = .Descend, .index = row };
+        },
         .Skip => .{ .action = .Bind, .index = row },
         .Cycle => .{ .action = .Cycle },
         .Depth => .{ .action = .Depth },

@@ -8,10 +8,15 @@ import type { Names } from "./model"
 export type Input = {
     names: Names,
     locals: StringBuffer,
-    originals?: StringBuffer
+    originals?: StringBuffer,
+    specifier: string,
+    identity?: string
 }
 
-export type Output = void
+export type Output = {
+    specifier: string,
+    identity?: string
+}
 
 export default function (in: Input): Output {
     const { source, locals, originals } = in.names
@@ -50,4 +55,11 @@ export default function (in: Input): Output {
             state.index += 1
         }
     })
+
+    const identity = in.identity
+
+    return {
+        specifier: strings.copy(in.specifier),
+        identity: identity == null ? null : strings.copy(identity)
+    }
 }
