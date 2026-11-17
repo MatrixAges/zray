@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { Declaration, Target } from "./model"
+
+export type Input = Declaration & {
+    target: Target,
+    name: string,
+    kind: u8,
+    row: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, row } = in
+
+    memory.writeColumnBytes(target.name, row, bytes.fromText(in.name))
+    memory.writeColumnU8(target.kind, row, in.kind)
+    memory.writeColumnU32(target.input_type, row, in.input_type)
+    memory.writeColumnU32(target.output_type, row, in.output_type)
+    memory.writeColumnBytes(target.source, row, [])
+    memory.writeColumnU8(target.has_store, row, in.has_store ? 1 : 0)
+}

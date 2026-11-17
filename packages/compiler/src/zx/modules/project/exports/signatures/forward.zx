@@ -1,0 +1,11 @@
+import memory from "memory"
+
+import type { Forwarded as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, rows } = in
+
+    const copied = memory.copyBytes(target, 0, rows, 0, rows.length)
+}

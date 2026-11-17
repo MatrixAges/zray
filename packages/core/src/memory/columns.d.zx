@@ -69,6 +69,13 @@ export declare function copyScalar(
     index: u64
 ): void throws { IndexOutOfBounds }
 
+export declare function copyScalarAt(
+    source: ReadColumn,
+    index: u64,
+    target: WriteColumn,
+    destination: u64
+): void throws { IndexOutOfBounds }
+
 export declare function writeScalarText(
     target: WriteColumn,
     index: u64,

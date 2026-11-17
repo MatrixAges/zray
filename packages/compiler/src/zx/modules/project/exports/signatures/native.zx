@@ -1,0 +1,67 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import write from "./write"
+
+import type { Bindings, Kinds, Target } from "./model"
+
+export type Input = {
+    target: Target,
+    kinds: Kinds,
+    bindings: Bindings,
+    start: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { target, kinds, bindings, start } = in
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < bindings.count,
+        next: state => {
+            const row = state.row
+            const name = memory.readTextColumn(bindings.names, row)
+            const intrinsic = memory.readColumnOptionalU8(bindings.intrinsics, row)
+
+            if (intrinsic != null) {
+                write({
+                    target,
+                    name,
+                    kind: kinds.intrinsic,
+                    row: start + row,
+                    input_type: bindings.void_type,
+                    output_type: bindings.void_type,
+                    has_store: false
+                })
+            } else {
+                const id = memory.readColumnOptionalU32(bindings.ids, row)
+                const input_type = memory.readColumnOptionalU32(bindings.inputs, row)
+                const output_type = memory.readColumnOptionalU32(bindings.outputs, row)
+                if (id == null) {
+                    state.valid = false
+                } else if (input_type == null || output_type == null) {
+                    state.valid = false
+                } else {
+                    const stores = bindings.stores[integers.widen(id)]
+
+                    write({
+                        target,
+                        name,
+                        kind: kinds.callable,
+                        row: start + row,
+                        input_type,
+                        output_type,
+                        has_store: stores.paths.length != 0
+                    })
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

@@ -55,7 +55,11 @@ pub inline fn readText(source: *const anyopaque, index: u64) IndexError!?[]const
 }
 
 pub inline fn copy(source: *const anyopaque, target: *const anyopaque, index: u64) IndexError!void {
-    return write(Value, target, index, try read(Value, source, index));
+    return copyAt(source, index, target, index);
+}
+
+pub inline fn copyAt(source: *const anyopaque, index: u64, target: *const anyopaque, destination: u64) IndexError!void {
+    return write(Value, target, destination, try read(Value, source, index));
 }
 
 pub inline fn writeText(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {

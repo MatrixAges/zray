@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Constants as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { names, indices, source, target, written } = in
+
+    const published = loop(0, {
+        while: row => row < names.length,
+        next: row => {
+            const index = indices[row]
+            const name = strings.copy(names[row])
+            const type_id = columns.readColumnU32(source.types, index)
+            const text = columns.readScalarText(source.values, index)
+
+            if (text != null) {
+                columns.writeScalarText(target.values, row, strings.copy(text))
+            } else {
+                columns.copyScalarAt(source.values, index, target.values, row)
+            }
+
+            memory.writeColumnBytes(target.names, row, bytes.fromText(name))
+            memory.writeColumnU32(target.types, row, type_id)
+            row += 1
+            memory.writeU64(written, 0, row)
+        }
+    })
+}

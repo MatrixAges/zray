@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Members" />
+
+    <Args in={Members.Input} out={bool} />
+
+    <If on={$in.callable != null}>
+        <Call
+            fn="write"
+            in={{
+                ...$in.callable,
+                target: $in.target,
+                name: "",
+                kind: $in.kinds.callable,
+                row: 0
+            }}
+        />
+    </If>
+
+    <If on={$in.forwarded.count != 0}>
+        <Call fn="forward" in={$in.forwarded} />
+    </If>
+
+    <If on={$in.bindings.count != 0}>
+        <Call
+            fn="native"
+            in={{
+                ...$in.omit([
+                    "callable",
+                    "forwarded"
+                ]),
+                start: $in.forwarded.count + ($in.callable == null ? 0 : 1)
+            }}
+        />
+
+        <Return value={$ctx.native} />
+    </If>
+
+    <Return value={true} />
+</Module>

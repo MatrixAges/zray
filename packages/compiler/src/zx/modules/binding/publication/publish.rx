@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Bindings" />
+
+    <Args in={Bindings.Input} out={void} />
+
+    <If on={$in.aliases != null}>
+        <Call fn="aliases" in={$in.aliases} />
+    </If>
+
+    <If on={$in.constants != null}>
+        <Call fn="constants" in={$in.constants} />
+    </If>
+
+    <If on={$in.functions != null}>
+        <Call fn="functions" in={$in.functions} />
+    </If>
+</Module>

@@ -59,6 +59,7 @@ pub const readScalarBoolean = scalar_column.readBoolean;
 pub const readScalarEnumeration = scalar_column.readEnumeration;
 pub const readScalarText = scalar_column.readText;
 pub const copyScalar = scalar_column.copy;
+pub const copyScalarAt = scalar_column.copyAt;
 pub const writeScalarText = scalar_column.writeText;
 
 pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {

@@ -1,0 +1,51 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+import memory from "memory"
+import columns from "memory/columns"
+
+import read from "./read"
+
+import type { Binding, Functions as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { names, indices, named, fallback, target, written } = in
+
+    const namespace = in.namespace
+    const owned: string? = namespace == null ? null : strings.copy(namespace)
+    const first_named: u64 = fallback == null ? 0 : 1
+
+    const published = loop(0, {
+        while: row => row < names.length,
+        next: row => {
+            const index = indices[row]
+            const binding: Binding = match {
+                fallback != null && index == 0 => fallback,
+                _ => read({
+                    source: named,
+                    row: index - first_named
+                })
+            }
+
+            const name = strings.copy(names[row])
+
+            memory.writeColumnBytes(target.name, row, bytes.fromText(name))
+            columns.writeColumnOptionalText(target.namespace, row, owned)
+            columns.writeColumnOptionalU32(target.id, row, binding.id)
+            columns.writeColumnOptionalU32(
+                target.input_type,
+                row,
+                binding.input_type
+            )
+            columns.writeColumnOptionalU32(
+                target.output_type,
+                row,
+                binding.output_type
+            )
+            columns.writeColumnOptionalU8(target.intrinsic, row, binding.intrinsic)
+            row += 1
+            memory.writeU64(written, 0, row)
+        }
+    })
+}

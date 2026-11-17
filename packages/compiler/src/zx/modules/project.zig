@@ -463,11 +463,15 @@ const Project = struct {
         const native = frame.export_functions.items;
         const members = try self.allocator.alloc(Signature.Member, own + forwarded.len + native.len);
 
-        if (own != 0) members[0] = .{ .name = "", .kind = .callable, .ports = signature.ports, .has_store = signature.has_store };
+        if (comptime @import("parser_options").generated_parser) {
+            try Signature.publishMembers(self.allocator, signature, self.functions.stores.items, forwarded, native, members);
+        } else {
+            if (own != 0) members[0] = .{ .name = "", .kind = .callable, .ports = signature.ports, .has_store = signature.has_store };
 
-        @memcpy(members[own..][0..forwarded.len], forwarded);
+            @memcpy(members[own..][0..forwarded.len], forwarded);
 
-        for (native, members[own + forwarded.len ..]) |*member, *binding| binding.* = self.memberSignature(member);
+            for (native, members[own + forwarded.len ..]) |*member, *binding| binding.* = self.memberSignature(member);
+        }
 
         signature.exports = try public_exports.merge(ir.Export, self.allocator, signature.exports, frame.export_aliases.items);
         signature.constant_exports = try public_exports.merge(ir.Constant, self.allocator, signature.constant_exports, frame.export_constants.items);

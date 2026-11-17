@@ -1,0 +1,39 @@
+import type { Rows } from "core/constant/rows"
+import type { NamedRowBuffer, NamedRows, U64Buffer } from "memory"
+import type { Source, Target } from "../../artifact/surface/bindings"
+import type { Target as ConstantTarget } from "../../artifact/surface/constants"
+import type { PortShape } from "../model"
+
+export type Selected = {
+    names: string[],
+    indices: u64[],
+    written: U64Buffer
+}
+
+export type Aliases = Selected & {
+    source: NamedRows,
+    target: NamedRowBuffer
+}
+
+export type Constants = Selected & {
+    source: Rows.Pick("types", "values"),
+    target: ConstantTarget
+}
+
+export type Binding = PortShape
+
+export type FunctionColumns =
+    Source.Pick("id", "input_type", "output_type", "intrinsic")
+
+export type Functions = Selected & {
+    named: FunctionColumns,
+    fallback?: Binding,
+    target: Target,
+    namespace?: string
+}
+
+export type Input = {
+    aliases?: Aliases,
+    constants?: Constants,
+    functions?: Functions
+}
