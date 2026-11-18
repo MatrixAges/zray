@@ -1,6 +1,8 @@
 import changed from "../changed"
+import sameSignature from "../signature"
 import sameBoundaries from "./boundaries"
 import sameDigest from "./digest"
+import readSignature from "./read_signature"
 
 import type { Ranges } from "../../../source_graph/source"
 import type { History } from "./model"
@@ -16,7 +18,6 @@ export type Input = {
 export enum Decision {
     Analyze,
     Reuse,
-    CompareSignature,
     CompareStore
 }
 
@@ -56,7 +57,11 @@ export default function (in: Input): Output {
     }
 
     if (index >= sources.rx_end) {
-        return Decision.CompareStore
+        if (index < history.previous_sources.rx_end) {
+            return Decision.Analyze
+        }
+
+        return history.shared_stores ? Decision.Reuse : Decision.CompareStore
     }
 
     const same = sameDigest({
@@ -69,5 +74,32 @@ export default function (in: Input): Output {
         return Decision.Analyze
     }
 
-    return index < sources.zx_count ? Decision.Reuse : Decision.CompareSignature
+    if (index < sources.zx_count) {
+        return Decision.Reuse
+    }
+
+    const previous = history.previous_sources
+
+    if (index < previous.zx_count || index >= previous.rx_end) {
+        return Decision.Analyze
+    }
+
+    const signatures = history.signatures
+
+    if (signatures == null) {
+        return Decision.Reuse
+    }
+
+    const compatible = sameSignature({
+        previous: readSignature({
+            columns: signatures.earlier,
+            row: index - previous.zx_count
+        }),
+        current: readSignature({
+            columns: signatures.current,
+            row: index - sources.zx_count
+        })
+    })
+
+    return compatible ? Decision.Reuse : Decision.Analyze
 }

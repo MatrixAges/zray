@@ -13,7 +13,7 @@ export default function (in: Input): Output {
     return loop({
         position: in.first,
         stopped: false,
-        inspect_source: false
+        inspect_store: false
     }, {
         while: state => state.position < end && !state.stopped,
         next: state => {
@@ -29,13 +29,13 @@ export default function (in: Input): Output {
             if (decision == Decision.Reuse) {
                 state.position += 1
             } else {
-                state.inspect_source = decision != Decision.Analyze
+                state.inspect_store = decision == Decision.CompareStore
                 state.stopped = true
             }
         },
         return: state => ({
             position: state.position,
-            inspect_source: state.inspect_source
+            inspect_store: state.inspect_store
         })
     })
 }

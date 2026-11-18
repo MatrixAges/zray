@@ -18,17 +18,18 @@ const Graph = @FieldType(State, "graph");
 const generated = @import("rx_options").generated_graph;
 const batch_reuse = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const Self = @This();
+pub const Prefix = if (batch_reuse) @import("history/admit.zig").Borrowed else void;
 
 record: ?*history.History,
-
 previous: ?*const history.Retained = null,
 derived: history.Frame,
 aligned: bool = false,
+prefix: if (batch_reuse) ?*const Prefix else void = if (batch_reuse) null else {},
 /// Modules whose rows or link differ from the earlier ones, or that depend on such a module.
 redone: []bool = &.{},
 digests: history.SourceDigests = .{},
 boundaries: []history.Checkpoint = &.{},
-pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*history.History, derived: history.Frame, sources: []const project.Source) std.mem.Allocator.Error!Self {
+pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*history.History, derived: history.Frame, sources: []const project.Source, prefix: *Prefix) std.mem.Allocator.Error!Self {
     const owner = record orelse return .{ .record = null, .derived = derived };
     const count = state.graph.modules.len;
 
@@ -70,6 +71,14 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
     self.previous = previous;
     self.aligned = matches(state, previous, &owner.shape, &self.boundaries[0]);
 
+    if (comptime batch_reuse) {
+        if (self.aligned) {
+            prefix.init(state, &derived, previous, self.digests, self.redone);
+
+            self.prefix = prefix;
+        }
+    }
+
     return self;
 }
 
@@ -84,16 +93,18 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
 
     if (comptime batch_reuse) {
         const admission = @import("history/admit.zig");
-        const inputs = admission.Borrowed.init(state, previous, self.digests, self.redone);
-        const retained = inputs.view();
+        const retained = &self.prefix.?.history;
 
         while (position < limit) : (position += 1) {
-            const prefix = admission.scan(state, &retained, position, limit);
+            const prefix = admission.scan(state, retained, position, limit);
 
             position = @intCast(prefix.position);
 
-            if (!prefix.inspect_source) break;
-            if (!admission.confirm(state, &self.derived, previous, order[position])) break;
+            if (!prefix.inspect_store) break;
+
+            const index = order[position];
+
+            if (!admission.sameStore(&self.derived, previous, state.graph.sources.at(index).store, previous.derived.dependencies.sources.at(index).store)) break;
         }
     } else {
         while (position < limit and self.reusable(state, order[position], position)) : (position += 1) {}

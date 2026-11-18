@@ -1,6 +1,6 @@
 import bind from "compiler/artifact_binding_restore"
 
-import read from "./read"
+import read from "../../../binding/read"
 
 import type { Bindings } from "./model"
 

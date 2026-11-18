@@ -64,3 +64,4 @@ pub const storesOwnValues = @import("ownership/stores.zig").check;
 pub const constants = @import("analysis/constants/host.zig");
 pub const copyConstant = @import("analysis/constants/copy.zig").copy;
 pub const borrowConstant = @import("analysis/constants/input.zig").borrow;
+pub const ConstantRows = @import("analysis/constants/columns.zig").Rows;

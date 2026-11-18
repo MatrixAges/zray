@@ -13,6 +13,7 @@ pub const TypeRequest = std.meta.Child(@FieldType(Transaction, "types"));
 pub const TypePlan = @typeInfo(@FieldType(Output, "plan")).optional.child;
 const Aliases = std.meta.Child(@FieldType(Input, "aliases"));
 const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
+const Columns = FunctionImport.Columns;
 const BindingColumns = std.meta.Child(@FieldType(Bindings, "previous"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
@@ -71,10 +72,10 @@ pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, cur
     const new_imports = Columns.borrow(current.imports);
     const old_members = Columns.borrow(module.members);
     const new_members = Columns.borrow(current.members);
-    const old_bindings = old_imports.view();
-    const new_bindings = new_imports.view();
-    const old_exports = old_members.view();
-    const new_exports = new_members.view();
+    const old_bindings = old_imports.view(BindingColumns);
+    const new_bindings = new_imports.view(BindingColumns);
+    const old_exports = old_members.view(BindingColumns);
+    const new_exports = new_members.view(BindingColumns);
 
     const binding_view: Bindings = .{
         .previous = &old_bindings,
@@ -115,35 +116,3 @@ pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, cur
         },
     };
 }
-
-const Columns = struct {
-    namespace: zx.memory.ReadColumn,
-    name: zx.memory.ReadColumn,
-    id: zx.memory.ReadColumn,
-    input_type: zx.memory.ReadColumn,
-    output_type: zx.memory.ReadColumn,
-    intrinsic: zx.memory.ReadColumn,
-    fn borrow(rows: []const FunctionImport) Columns {
-        const memory = zx.memory;
-
-        return .{
-            .namespace = memory.borrowReadColumn(?[]const u8, "namespace", rows),
-            .name = memory.borrowTextColumn("name", rows),
-            .id = memory.borrowOptionalU32Column("id", rows),
-            .input_type = memory.borrowOptionalU32Column("input_type", rows),
-            .output_type = memory.borrowOptionalU32Column("output_type", rows),
-            .intrinsic = memory.borrowOptionalU8Column("intrinsic", rows),
-        };
-    }
-    fn view(self: *const Columns) BindingColumns {
-        return .{
-            .namespace = @ptrCast(&self.namespace),
-            .name = @ptrCast(&self.name),
-            .id = @ptrCast(&self.id),
-            .input_type = @ptrCast(&self.input_type),
-            .output_type = @ptrCast(&self.output_type),
-            .intrinsic = @ptrCast(&self.intrinsic),
-            .count = self.name.count,
-        };
-    }
-};

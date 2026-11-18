@@ -17,5 +17,24 @@
 
     <Call fn="initializer" in={$in.initializers} />
 
-    <Return value={$ctx.initializer} />
+    <If on={!$ctx.initializer}>
+        <Return value={false} />
+    </If>
+
+    <If
+        on={$in.members.left.count != $in.members.right.count ||
+            $in.constants.left.count != $in.constants.right.count}
+    >
+        <Return value={false} />
+    </If>
+
+    <Call fn="members" in={$in.members} />
+
+    <If on={!$ctx.members}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="constants" in={$in.constants} />
+
+    <Return value={$ctx.constants} />
 </Module>

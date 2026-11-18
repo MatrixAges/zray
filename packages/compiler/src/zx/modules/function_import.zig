@@ -85,3 +85,27 @@ pub const Readable = struct {
         return result;
     }
 };
+
+pub const Columns = struct {
+    namespace: zx.memory.ReadColumn,
+    name: zx.memory.TextColumn,
+    ports: Readable,
+    pub fn borrow(rows: []const Self) Columns {
+        return .{
+            .namespace = zx.memory.borrowReadColumn(?[]const u8, "namespace", rows),
+            .name = zx.memory.borrowTextColumn("name", rows),
+            .ports = Readable.borrowRows(rows),
+        };
+    }
+    pub fn view(self: *const Columns, comptime Target: type) Target {
+        return .{
+            .namespace = @ptrCast(&self.namespace),
+            .name = @ptrCast(&self.name),
+            .id = @ptrCast(&self.ports.id),
+            .input_type = @ptrCast(&self.ports.input_type),
+            .output_type = @ptrCast(&self.ports.output_type),
+            .intrinsic = @ptrCast(&self.ports.intrinsic),
+            .count = self.name.count,
+        };
+    }
+};

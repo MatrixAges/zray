@@ -1,7 +1,6 @@
 import memory from "memory"
 
-import type { FunctionBinding as Output } from "../../../binding/model"
-import type { BindingColumns } from "./model"
+import type { BindingColumns, FunctionBinding as Output } from "./model"
 
 export type Input = {
     columns: BindingColumns,

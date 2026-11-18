@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { Signature as Output } from "../signature"
+import type { SignatureColumns } from "./model"
+
+export type Input = {
+    columns: SignatureColumns,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { columns, row } = in
+
+    return {
+        input_type: memory.readColumnU32(columns.inputs, row),
+        output_type: memory.readColumnU32(columns.outputs, row),
+        bindings: memory.readTextListColumn(columns.names, row),
+        binding_types: memory.borrowListBytes(columns.bindings, row),
+        task_types: memory.borrowListBytes(columns.tasks, row)
+    }
+}

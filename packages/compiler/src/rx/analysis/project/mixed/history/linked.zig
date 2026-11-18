@@ -7,43 +7,6 @@ const little_endian = @import("builtin").target.cpu.arch.endian() == .little;
 pub fn equal(left: *const Loaded, right: *const Loaded) bool {
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const allocator = fixed.allocator();
-
-    if (!sameLink(allocator, left, right)) return false;
-    if (left.members.len != right.members.len or left.constant_exports.len != right.constant_exports.len) return false;
-
-    if (left.members.ptr != right.members.ptr) {
-        const entry = @import("generated_rx_mixed_history_member");
-        const Pair = std.meta.Child(entry.Input);
-        const Member = std.meta.Child(@FieldType(Pair, "left"));
-
-        for (left.members, right.members) |*x, *y| {
-            const l = x.borrow(Member);
-            const r = y.borrow(Member);
-
-            if (!(entry.executeIn(allocator, &.{ .left = &l, .right = &r }) catch unreachable)) return false;
-        }
-    }
-
-    if (left.constant_exports.ptr != right.constant_exports.ptr) {
-        const entry = @import("generated_rx_mixed_history_constant");
-        const Pair = std.meta.Child(entry.Input);
-        const Constant = std.meta.Child(@FieldType(Pair, "left"));
-        const Literal = std.meta.Child(@FieldType(Constant, "value"));
-
-        for (left.constant_exports, right.constant_exports) |x, y| {
-            const l = frontend.borrowConstant(Literal, x);
-            const r = frontend.borrowConstant(Literal, y);
-            const a_constant: Constant = .{ .name = x.name, .value = &l };
-            const b_constant: Constant = .{ .name = y.name, .value = &r };
-
-            if (!(entry.executeIn(allocator, &.{ .left = &a_constant, .right = &b_constant }) catch unreachable)) return false;
-        }
-    }
-
-    return true;
-}
-
-fn sameLink(allocator: std.mem.Allocator, left: *const Loaded, right: *const Loaded) bool {
     const link = @import("generated_rx_mixed_history_link");
     const Input = std.meta.Child(link.Input);
     const Port = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "ports")), "left"));
@@ -60,8 +23,24 @@ fn sameLink(allocator: std.mem.Allocator, left: *const Loaded, right: *const Loa
     const right_exports = rows(Row, &right_names, right.exports);
     const left_initializers = rows(Row, &left_identities, left.store_initializers);
     const right_initializers = rows(Row, &right_identities, right.store_initializers);
+    const MemberView = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "members")), "left"));
+    const ConstantView = std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "constants")), "left"));
+    const left_members = frontend.project.FunctionImport.Columns.borrow(left.members);
+    const right_members = frontend.project.FunctionImport.Columns.borrow(right.members);
+    const left_constants = frontend.ConstantRows.borrow(left.constant_exports);
+    const right_constants = frontend.ConstantRows.borrow(right.constant_exports);
 
     const input: Input = .{
+        .members = &.{
+            .left = &left_members.view(MemberView),
+            .right = &right_members.view(MemberView),
+            .shared = left.members.ptr == right.members.ptr,
+        },
+        .constants = &.{
+            .left = &left_constants.view(ConstantView),
+            .right = &right_constants.view(ConstantView),
+            .shared = left.constant_exports.ptr == right.constant_exports.ptr,
+        },
         .ports = &.{ .left = &left_port, .right = &right_port },
         .exports = &.{
             .left = &left_exports,

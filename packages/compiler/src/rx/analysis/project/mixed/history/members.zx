@@ -1,0 +1,37 @@
+import read from "../../../../../zx/modules/binding/read"
+import equal from "./member"
+
+import type { Members as Input } from "./link_model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    if (in.shared) {
+        return true
+    }
+
+    return loop({
+        row: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.row < left.count,
+        next: state => {
+            const row = state.row
+
+            state.equal = equal({
+                left: read({
+                    columns: left,
+                    row
+                }),
+                right: read({
+                    columns: right,
+                    row
+                })
+            })
+            state.row += 1
+        },
+        return: state => state.equal
+    })
+}

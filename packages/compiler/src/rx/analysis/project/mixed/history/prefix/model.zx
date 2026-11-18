@@ -1,3 +1,4 @@
+import type { ListColumn, ReadColumn } from "memory"
 import type { Ranges } from "../../../source_graph/source"
 
 export type Dependencies = {
@@ -19,11 +20,27 @@ export type Boundaries = {
     links_offset: u64
 }
 
+export type SignatureColumns = {
+    inputs: ReadColumn,
+    outputs: ReadColumn,
+    names: ReadColumn,
+    bindings: ListColumn,
+    tasks: ListColumn
+}
+
+export type Signatures = {
+    earlier: SignatureColumns,
+    current: SignatureColumns
+}
+
 export type History = {
     dependencies: Dependencies,
     earlier: Digests,
     current: Digests,
-    boundaries: Boundaries
+    boundaries: Boundaries,
+    previous_sources: Ranges,
+    signatures?: Signatures,
+    shared_stores: bool
 }
 
 export type Input = {
@@ -37,5 +54,5 @@ export type Input = {
 
 export type Output = {
     position: u64,
-    inspect_source: bool
+    inspect_store: bool
 }

@@ -128,8 +128,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/mixed/history/publish/prefix.rx", .name = "rx_mixed_history_publish", .owner = .rx_analysis },
     .{ .path = "zx/ir/columns/write.zx", .name = "rx_history_column_write", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/history/link.rx", .name = "rx_mixed_history_link", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/mixed/history/member.zx", .name = "rx_mixed_history_member", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/mixed/history/constant.zx", .name = "rx_mixed_history_constant", .owner = .rx_analysis },
     .{ .path = "rx/analysis/source_map/module_at.zx", .name = "rx_source_module", .owner = .rx_analysis },
     .{ .path = "rx/syntax/attribute_position/coordinates.zx", .name = "rx_attribute_coordinates", .owner = .rx },
     .{ .path = "rx/syntax/attribute_position/offset.zx", .name = "rx_attribute_offset", .owner = .rx },

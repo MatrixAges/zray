@@ -73,6 +73,11 @@ export type PortRows = {
     count: u64
 }
 
+export type BindingColumns = PortRows & {
+    namespace: ReadColumn,
+    name: TextColumn
+}
+
 export type Result = {
     aliases: Bindings,
     constants: Bindings,

@@ -16,7 +16,14 @@ pub const Borrowed = struct {
     earlier: std.meta.Child(@FieldType(ScanHistory, "earlier")),
     current: std.meta.Child(@FieldType(ScanHistory, "current")),
     boundaries: std.meta.Child(@FieldType(ScanHistory, "boundaries")),
-    pub fn init(state: *const State, previous: *const History.Retained, digests: History.SourceDigests, redone: []const bool) Borrowed {
+    previous_sources: std.meta.Child(@FieldType(ScanHistory, "previous_sources")),
+    earlier_signatures: SignatureColumns,
+    current_signatures: SignatureColumns,
+    earlier_view: SignatureView,
+    current_view: SignatureView,
+    signatures: SignaturePair,
+    history: ScanHistory,
+    pub fn init(self: *Borrowed, state: *const State, current: *const History.Frame, previous: *const History.Retained, digests: History.SourceDigests, redone: []const bool) void {
         const graph = &state.graph;
         const edges = graph.source_dependencies.?;
         const word = @sizeOf(u64);
@@ -28,7 +35,7 @@ pub const Borrowed = struct {
             if (@offsetOf(Checkpoint, "initializers") != offset + word or @offsetOf(Checkpoint, "libraries") != offset + 2 * word) @compileError("mixed history link counters must be adjacent native words");
         }
 
-        return .{
+        self.* = .{
             .dependencies = .{
                 .compiled = graph.modules.items(.compiled_dependency),
                 .starts = edges.starts,
@@ -49,16 +56,64 @@ pub const Borrowed = struct {
                 .stride = @sizeOf(History.Checkpoint) / word,
                 .links_offset = @offsetOf(History.Checkpoint, "native_modules") / word,
             },
+            .previous_sources = .{ .zx_count = previous.derived.dependencies.sources.zx_count, .rx_end = previous.derived.dependencies.sources.rx_end },
+            .earlier_signatures = undefined,
+            .current_signatures = undefined,
+            .earlier_view = undefined,
+            .current_view = undefined,
+            .signatures = undefined,
+            .history = undefined,
         };
-    }
 
-    pub fn view(self: *const Borrowed) ScanHistory {
-        return .{
+        const earlier = &previous.derived;
+        const shared = self.previous_sources.zx_count == graph.sources.zx_count and earlier.resolved.ptr == current.resolved.ptr and earlier.resolved.len == current.resolved.len;
+
+        if (!shared) {
+            self.earlier_signatures = .borrow(earlier.resolved);
+            self.current_signatures = .borrow(current.resolved);
+            self.earlier_view = self.earlier_signatures.view();
+            self.current_view = self.current_signatures.view();
+            self.signatures = .{ .earlier = &self.earlier_view, .current = &self.current_view };
+        }
+
+        self.history = .{
+            .previous_sources = &self.previous_sources,
+            .signatures = if (shared) null else &self.signatures,
+            .shared_stores = self.previous_sources.rx_end == graph.sources.rx_end and earlier.stores.ptr == current.stores.ptr and earlier.stores.len == current.stores.len,
             .dependencies = &self.dependencies,
             .earlier = &self.earlier,
             .current = &self.current,
             .boundaries = &self.boundaries,
         };
+    }
+};
+
+const SignaturePair = std.meta.Child(@typeInfo(@FieldType(ScanHistory, "signatures")).optional.child);
+const SignatureView = std.meta.Child(@FieldType(SignaturePair, "earlier"));
+
+const SignatureColumns = struct {
+    inputs: zx.memory.ReadColumn,
+    outputs: zx.memory.ReadColumn,
+    names: zx.memory.ReadColumn,
+    bindings: zx.memory.ListColumn,
+    tasks: zx.memory.ListColumn,
+    fn borrow(rows: []const Signature) SignatureColumns {
+        const memory = zx.memory;
+
+        return .{
+            .inputs = memory.borrowReadColumn(zx.ir.TypeId, "input_type", rows),
+            .outputs = memory.borrowReadColumn(zx.ir.TypeId, "output_type", rows),
+            .names = memory.borrowNestedColumn([]const []const u8, &.{ "bindings", "names" }, rows),
+            .bindings = memory.borrowSliceColumn(&.{ "bindings", "types" }, rows),
+            .tasks = memory.borrowSliceColumn(&.{"tasks"}, rows),
+        };
+    }
+    fn view(self: *const SignatureColumns) SignatureView {
+        var result: SignatureView = undefined;
+
+        inline for (@typeInfo(SignatureColumns).@"struct".field_names) |field| @field(result, field) = @ptrCast(&@field(self, field));
+
+        return result;
     }
 };
 
@@ -102,14 +157,18 @@ pub fn reusable(state: *const State, current: *const History.Frame, previous: *c
     return eligible and confirm(state, current, previous, index);
 }
 
-pub fn confirm(state: *const State, current: *const History.Frame, previous: *const History.Retained, index: usize) bool {
+fn confirm(state: *const State, current: *const History.Frame, previous: *const History.Retained, index: usize) bool {
     const earlier = previous.derived.dependencies.sources.at(index);
 
     return switch (state.graph.sources.at(index)) {
         .zx => true,
         .rx => |row| earlier == .rx and sameSignature(&previous.derived.resolved[earlier.rx], &current.resolved[row]),
-        .store => |row| earlier == .store and @import("../../history/columns.zig").same(previous.derived.stores[earlier.store].node, current.stores[row].node),
+        .store => |row| earlier == .store and sameStore(current, previous, row, earlier.store),
     };
+}
+
+pub fn sameStore(current: *const History.Frame, previous: *const History.Retained, row: usize, earlier: usize) bool {
+    return @import("../../history/columns.zig").same(previous.derived.stores[earlier].node, current.stores[row].node);
 }
 
 fn sameSignature(previous: *const Signature, current: *const Signature) bool {

@@ -27,6 +27,8 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, derived
 
     defer state.scratch.deinit();
 
+    var prefix: Reuse.Prefix = undefined;
+
     var transaction: Transaction = .{
         .state = &state,
         .derived = &derived,
@@ -36,7 +38,7 @@ pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, derived
         .cache = cache,
         .keep_skipped = record != null,
         .arguments = arguments,
-        .reuse = try Reuse.begin(&state, cache, record, derived, sources),
+        .reuse = try Reuse.begin(&state, cache, record, derived, sources, &prefix),
     };
 
     defer transaction.ahead.deinit();

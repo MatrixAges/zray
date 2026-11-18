@@ -1,4 +1,3 @@
-import integers from "std:integer"
 import memory from "memory"
 
 import probe from "../history/prefix/probe"
@@ -22,8 +21,7 @@ export type Input = {
 
 export type Output = {
     next: u64,
-    count: u64,
-    signature_checks: u64
+    count: u64
 }
 
 export default function (in: Input): Output {
@@ -40,8 +38,7 @@ export default function (in: Input): Output {
 
     return loop({
         next: in.start,
-        count: 0,
-        signature_checks: 0
+        count: 0
     }, {
         while: state => state.next < end && state.count < capacity,
         next: state => {
@@ -66,12 +63,6 @@ export default function (in: Input): Output {
                     if (decision != Decision.Reuse) {
                         memory.writeU64(positions, state.count, state.next)
 
-                        if (decision == Decision.CompareSignature) {
-                            const bit = integers.bitMask(state.count)
-                            state.signature_checks =
-                                integers.orBits(state.signature_checks, bit)
-                        }
-
                         state.count += 1
                     }
                 }
@@ -81,8 +72,7 @@ export default function (in: Input): Output {
         },
         return: state => ({
             next: state.next,
-            count: state.count,
-            signature_checks: state.signature_checks
+            count: state.count
         })
     })
 }

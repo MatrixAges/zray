@@ -16,7 +16,6 @@ end: usize,
 positions: [chunk_size]u64 = undefined,
 first: usize = 0,
 count: usize = 0,
-signature_checks: u64 = 0,
 pub fn next(self: *Self) ?Item {
     const graph = &self.state.graph;
 
@@ -30,15 +29,10 @@ pub fn next(self: *Self) ?Item {
         const row = self.first;
         const position: usize = @intCast(self.positions[row]);
         const index = graph.order[position];
+
         self.first += 1;
 
-        const reused = if (comptime enabled) reuse: {
-            if ((self.signature_checks & (@as(u64, 1) << @as(u6, @intCast(row)))) == 0) break :reuse false;
-
-            break :reuse @import("../history/admit.zig").confirm(self.state, &self.reuse.derived, self.reuse.previous.?, index);
-        } else self.reuse.reusable(self.state, index, position);
-
-        if (!reused) {
+        if (enabled or !self.reuse.reusable(self.state, index, position)) {
             return .{ .position = position, .action = if (index < graph.sources.zx_count) .AnalyzeZX else .LowerRX };
         }
     }
@@ -47,12 +41,9 @@ pub fn next(self: *Self) ?Item {
 fn fill(self: *Self) void {
     const rule = @import("generated_rx_mixed_preview");
     const Input = std.meta.Child(rule.Input);
-    const admission = @import("../history/admit.zig");
     const graph = &self.state.graph;
     const output: []u64 = &self.positions;
-    const previous = if (self.reuse.aligned) self.reuse.previous else null;
-    const inputs = if (previous) |retained| admission.Borrowed.init(self.state, retained, self.reuse.digests, self.reuse.redone) else undefined;
-    const history = if (previous != null) inputs.view() else undefined;
+    const borrowed = if (self.reuse.aligned) self.reuse.prefix else null;
 
     const input: Input = .{
         .order = @ptrCast(graph.order),
@@ -62,7 +53,7 @@ fn fill(self: *Self) void {
         .signatures = self.state.signature_indices,
         .local_calls = self.local_calls,
         .compiled_dependencies = graph.modules.items(.compiled_dependency),
-        .history = if (previous != null) zx.columns.pointer(@typeInfo(@FieldType(Input, "history")).optional.child, &history) else null,
+        .history = if (borrowed) |prefix| zx.columns.pointer(@typeInfo(@FieldType(Input, "history")).optional.child, &prefix.history) else null,
         .positions = @ptrCast(&output),
         .capacity = output.len,
     };
@@ -73,7 +64,6 @@ fn fill(self: *Self) void {
     self.position = @intCast(result.next);
     self.first = 0;
     self.count = @intCast(result.count);
-    self.signature_checks = result.signature_checks;
 }
 
 fn fillSeed(self: *Self) void {

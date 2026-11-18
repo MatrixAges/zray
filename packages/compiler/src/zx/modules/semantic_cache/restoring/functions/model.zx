@@ -1,7 +1,7 @@
 import type { Table } from "core/signature_table/model"
-import type { OptionalU32Buffer, ReadColumn, TextColumn } from "memory"
+import type { OptionalU32Buffer } from "memory"
 import type { Rows } from "../../../../ir/canonical/validation/names/model"
-import type { FunctionBinding } from "../../../binding/model"
+import type { BindingColumns, FunctionBinding } from "../../../binding/model"
 
 export type Binding = {
     previous: FunctionBinding,
@@ -16,16 +16,6 @@ export type Aliases = {
     previous: Rows,
     current: Rows,
     types: u32[]
-}
-
-export type BindingColumns = {
-    namespace: ReadColumn,
-    name: TextColumn,
-    id: ReadColumn,
-    input_type: ReadColumn,
-    output_type: ReadColumn,
-    intrinsic: ReadColumn,
-    count: u64
 }
 
 export type Bindings = Binding.Omit("previous", "current") & {
