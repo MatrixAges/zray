@@ -1,12 +1,6 @@
-const std = @import("std");
-const zx = @import("zx");
 const Flow = @import("../flow.zig");
-const generated = @import("rx_options").generated_graph;
-const rule = if (generated) @import("generated_rx_flow_traversal") else void;
-const Input = if (generated) std.meta.Child(rule.Input) else void;
-const Result = if (generated) @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload else void;
 
-const Event = if (generated) (if (@typeInfo(Result) == .pointer) std.meta.Child(Result) else Result) else struct {
+const Event = struct {
     action: enum {
         Done,
         Calls,
@@ -23,10 +17,9 @@ const Event = if (generated) (if (@typeInfo(Result) == .pointer) std.meta.Child(
         CloseCase,
     },
     next: u64,
-    items: []const u32,
 };
 
-pub const Region = if (generated) @FieldType(Input, "region") else enum {
+pub const Region = enum(u8) {
     Root,
     Task,
     ParallelTask,
@@ -45,26 +38,6 @@ pub const Cursor = struct {
         return .{ .first = 0, .end = count };
     }
     pub fn advance(self: *Cursor, region: Region, plan: *const Flow.Plan) Event {
-        if (comptime !generated) return self.seed(region, plan);
-
-        const input: Input = .{
-            .region = region,
-            .first = self.first,
-            .end = self.end,
-            .kinds = plan.kinds,
-            .items = plan.items,
-        };
-
-        var buffer: [@sizeOf(Event)]u8 align(@alignOf(Event)) = undefined;
-        var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-        const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
-        const event = if (comptime @typeInfo(Result) == .pointer) result.* else result;
-
-        self.first = @intCast(event.next);
-
-        return event;
-    }
-    fn seed(self: *Cursor, region: Region, plan: *const Flow.Plan) Event {
         const first = self.first;
 
         if (first == self.end) {
@@ -75,13 +48,13 @@ pub const Cursor = struct {
                 .Parallel => .CloseParallel,
                 .Selection => .CloseSelection,
                 .Case => .CloseCase,
-            }, .next = first, .items = &.{} };
+            }, .next = first };
         }
 
         if (region == .Selection) {
             self.first += 1;
 
-            return .{ .action = .OpenCase, .next = self.first, .items = &.{} };
+            return .{ .action = .OpenCase, .next = self.first };
         }
 
         const kind = plan.kinds[first];
@@ -100,6 +73,6 @@ pub const Cursor = struct {
             .ParallelTask => .OpenParallelTask,
             .Parallel => .OpenParallel,
             .Selection => .OpenSelection,
-        }, .next = end, .items = plan.items[first..end] };
+        }, .next = end };
     }
 };

@@ -1,0 +1,125 @@
+<Module>
+    <Type from="model" as="Walk" />
+    <Type from="../traversal/model" as="Traversal" />
+
+    <Args in={Walk.Driver} out={bool} />
+
+    <Call fn="observe" in={$in} />
+
+    <Call module="../traversal/advance" in={$ctx.observe} />
+
+    <Switch on={$ctx.advance.action}>
+        <Case value={Traversal.Action.Done}>
+            <Return value={false} />
+        </Case>
+
+        <Case value={Traversal.Action.Calls}>
+            <Call
+                fn="calls"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    next: $ctx.advance.next
+                }}
+            />
+        </Case>
+
+        <Case value={Traversal.Action.Return}>
+            <Call
+                fn="result"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    next: $ctx.advance.next
+                }}
+            />
+        </Case>
+
+        <Case value={Traversal.Action.OpenTask}>
+            <Call
+                fn="enter_task"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    next: $ctx.advance.next,
+                    parallel: false
+                }}
+            />
+        </Case>
+
+        <Case value={Traversal.Action.OpenParallelTask}>
+            <Call
+                fn="enter_task"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    next: $ctx.advance.next,
+                    parallel: true
+                }}
+            />
+        </Case>
+
+        <Case value={Traversal.Action.OpenParallel}>
+            <Call
+                fn="parallel"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    next: $ctx.advance.next
+                }}
+            />
+        </Case>
+
+        <Case value={Traversal.Action.OpenSelection}>
+            <Call
+                fn="selection"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    next: $ctx.advance.next
+                }}
+            />
+        </Case>
+
+        <Case value={Traversal.Action.OpenCase}>
+            <Call
+                fn="enter_case"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    next: $ctx.advance.next
+                }}
+            />
+        </Case>
+
+        <Default>
+            <Call
+                fn="leave"
+                in={{
+                    ...$in.pick([
+                        "context",
+                        "compiling"
+                    ]),
+                    action: $ctx.advance.action,
+                    next: $ctx.advance.next
+                }}
+            />
+        </Default>
+    </Switch>
+
+    <Return value={true} />
+</Module>

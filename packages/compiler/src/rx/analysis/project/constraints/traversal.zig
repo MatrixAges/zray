@@ -48,109 +48,139 @@ const Frame = struct {
     }
 };
 
-pub fn run(walker: anytype, body: Flow.Unit) zx.Error!void {
-    const plan = &walker.module.plan;
-    const expression = walker.expression;
-    var buffer: [@sizeOf(Frame) * inline_frames]u8 align(@alignOf(Frame)) = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, expression.scope);
-    const allocator = scratch.allocator();
-    var stack: std.ArrayList(Frame) = .empty;
-    var root: Frame = .{ .cursor = Cursor.body(body), .payload = .Root };
+const Walker = @import("../constraints.zig").Walker;
+const driver = @import("../flow/driver/host.zig");
+const generated = @import("rx_options").generated_graph;
+
+pub const Host = struct {
+    walker: *Walker,
+    root: Frame,
+    stack: std.ArrayList(Frame) = .empty,
+    memory: std.mem.Allocator,
+    pub fn frame(self: *Host) *Frame {
+        if (self.stack.items.len == 0) return &self.root;
+
+        return &self.stack.items[self.stack.items.len - 1];
+    }
+    pub fn pop(self: *Host) void {
+        const last = self.stack.items.len - 1;
+
+        self.stack.items[last].release(self.walker.expression.scope);
+
+        self.stack.items.len = last;
+    }
+
+    pub fn calls(self: *Host, current: *Frame, first: usize, next: usize) zx.Error!void {
+        const walker = self.walker;
+        const outputs = if (current.payload == .Parallel) &current.payload.Parallel else &walker.expression.bindings;
+
+        for (walker.module.plan.items[first..next]) |item| try walker.call(item, outputs);
+    }
+    pub fn result(self: *Host, _: *Frame, first: usize, _: usize) zx.Error!void {
+        const walker = self.walker;
+        const plan = &walker.module.plan;
+
+        try walker.inferReturn(plan.results[plan.items[first]]);
+    }
+    pub fn task(self: *Host, _: *Frame, first: usize, _: usize, parallel_task: bool) zx.Error!void {
+        const walker = self.walker;
+        const plan = &walker.module.plan;
+        const item = plan.items[first];
+        const target = &plan.tasks[item];
+        const saved: Task = .{ .item = item, .bindings = walker.expression.bindings.len, .output = walker.output, .returned = walker.returned };
+        const child = try self.stack.addOne(self.memory);
+
+        child.* = .{
+            .cursor = Cursor.body(target.body),
+            .payload = if (parallel_task) .{ .ParallelTask = saved } else .{ .Task = saved },
+        };
+
+        if (parallel_task) try walker.enterParallelTask(target);
+    }
+    pub fn parallel(self: *Host, _: *Frame, first: usize, _: usize) zx.Error!void {
+        const plan = &self.walker.module.plan;
+        const child = try self.stack.addOne(self.memory);
+        child.* = .{ .cursor = Cursor.body(plan.groups[plan.items[first]]), .payload = .{ .Parallel = .empty } };
+    }
+    pub fn selection(self: *Host, _: *Frame, first: usize, _: usize) zx.Error!void {
+        const walker = self.walker;
+        const plan = &walker.module.plan;
+        const selected = &plan.selections[plan.items[first]];
+        const owner = walker.module.source.path;
+        const scope = walker.expression.scope;
+        var parsed = try @import("../../attribute.zig").parseBorrowed(scope, selected.subject.*, owner);
+
+        errdefer parsed.deinit();
+
+        const subject = try walker.inferParsed(&parsed, selected.subject.*, null);
+        const child = try self.stack.addOne(self.memory);
+
+        child.* = .{ .cursor = Cursor.cases(selected.cases.len), .payload = .{ .Selection = .{
+            .cases = selected.cases,
+            .subject = subject,
+            .parsed = parsed,
+            .labels = .{ .allocator = scope, .owner = owner },
+        } } };
+    }
+    pub fn openCase(self: *Host, current: *Frame, first: usize, _: usize) zx.Error!void {
+        const walker = self.walker;
+        const selected = &current.payload.Selection;
+        const bindings = walker.expression.bindings.len;
+        const facts = try walker.enterCase(&selected.parsed, selected.subject, &selected.labels, selected.cases, first);
+        const unit = selected.cases[first].body;
+        const child = try self.stack.addOne(self.memory);
+
+        child.* = .{ .cursor = Cursor.body(unit), .payload = .{ .Case = .{ .bindings = bindings, .facts = facts } } };
+    }
+
+    pub fn closeTask(self: *Host, parallel_task: bool) zx.Error!void {
+        const walker = self.walker;
+        const current = self.frame();
+        const saved = if (parallel_task) current.payload.ParallelTask else current.payload.Task;
+        const outputs = if (parallel_task) &self.stack.items[self.stack.items.len - 2].payload.Parallel else &walker.expression.bindings;
+
+        try walker.finishTask(&walker.module.plan.tasks[saved.item], parallel_task, saved.bindings, saved.output, saved.returned, outputs);
+    }
+    pub fn closeParallel(self: *Host) zx.Error!void {
+        const expression = self.walker.expression;
+
+        try Scope.publishParallel(expression.graph, &expression.bindings, expression.scope, self.frame().payload.Parallel.slice());
+    }
+
+    pub fn closeSelection(_: *Host) zx.Error!void {}
+
+    pub fn closeCase(self: *Host) zx.Error!void {
+        const expression = self.walker.expression;
+        const saved = self.frame().payload.Case;
+
+        expression.nonnull.shrinkRetainingCapacity(saved.facts);
+        expression.bindings.shrinkRetainingCapacity(saved.bindings);
+    }
+};
+
+pub fn run(walker: *Walker, body: Flow.Unit) zx.Error!void {
+    var buffer: [inline_frames]Frame = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&buffer), walker.expression.scope);
+
+    var state: Host = .{
+        .walker = walker,
+        .root = .{ .cursor = Cursor.body(body), .payload = .Root },
+        .memory = scratch.allocator(),
+    };
 
     defer {
-        while (stack.pop()) |frame| {
-            var closing = frame;
+        while (state.stack.items.len != 0) state.pop();
 
-            closing.release(expression.scope);
-        }
-
-        stack.deinit(allocator);
+        state.stack.deinit(state.memory);
     }
 
-    while (true) {
-        const frame = if (stack.items.len == 0) &root else &stack.items[stack.items.len - 1];
-        const region = std.meta.activeTag(frame.payload);
-        const first = frame.cursor.first;
-        const event = frame.cursor.advance(region, plan);
-
-        switch (event.action) {
-            .Done => return,
-            .Calls => {
-                const outputs = if (region == .Parallel) &frame.payload.Parallel else &expression.bindings;
-
-                for (event.items) |item| try walker.call(item, outputs);
-            },
-            .Return => try walker.inferReturn(plan.results[event.items[0]]),
-            .OpenTask, .OpenParallelTask => {
-                const item = event.items[0];
-                const task = &plan.tasks[item];
-                const saved: Task = .{ .item = item, .bindings = expression.bindings.len, .output = walker.output, .returned = walker.returned };
-                const parallel = event.action == .OpenParallelTask;
-                const child = try stack.addOne(allocator);
-
-                child.* = .{
-                    .cursor = Cursor.body(task.body),
-                    .payload = if (parallel) .{ .ParallelTask = saved } else .{ .Task = saved },
-                };
-
-                if (parallel) try walker.enterParallelTask(task);
-            },
-            .OpenParallel => {
-                const child = try stack.addOne(allocator);
-                child.* = .{ .cursor = Cursor.body(plan.groups[event.items[0]]), .payload = .{ .Parallel = .empty } };
-            },
-            .OpenSelection => {
-                const selection = &plan.selections[event.items[0]];
-                const owner = walker.module.source.path;
-                var parsed = try @import("../../attribute.zig").parseBorrowed(expression.scope, selection.subject.*, owner);
-
-                errdefer parsed.deinit();
-
-                const subject = try walker.inferParsed(&parsed, selection.subject.*, null);
-                const child = try stack.addOne(allocator);
-
-                child.* = .{ .cursor = Cursor.cases(selection.cases.len), .payload = .{ .Selection = .{
-                    .cases = selection.cases,
-                    .subject = subject,
-                    .parsed = parsed,
-                    .labels = .{ .allocator = expression.scope, .owner = owner },
-                } } };
-            },
-            .OpenCase => {
-                const selection = &frame.payload.Selection;
-                const bindings = expression.bindings.len;
-                const facts = try walker.enterCase(&selection.parsed, selection.subject, &selection.labels, selection.cases, first);
-                const unit = selection.cases[first].body;
-                const child = try stack.addOne(allocator);
-                child.* = .{ .cursor = Cursor.body(unit), .payload = .{ .Case = .{ .bindings = bindings, .facts = facts } } };
-            },
-            .CloseTask, .CloseParallelTask => {
-                const parallel = event.action == .CloseParallelTask;
-                const saved = if (parallel) frame.payload.ParallelTask else frame.payload.Task;
-                const outputs = if (parallel) &stack.items[stack.items.len - 2].payload.Parallel else &expression.bindings;
-
-                try walker.finishTask(&plan.tasks[saved.item], parallel, saved.bindings, saved.output, saved.returned, outputs);
-
-                _ = stack.pop();
-            },
-            .CloseParallel => {
-                try Scope.publishParallel(expression.graph, &expression.bindings, expression.scope, frame.payload.Parallel.slice());
-
-                frame.release(expression.scope);
-
-                _ = stack.pop();
-            },
-            .CloseSelection => {
-                frame.release(expression.scope);
-
-                _ = stack.pop();
-            },
-            .CloseCase => {
-                expression.nonnull.shrinkRetainingCapacity(frame.payload.Case.facts);
-                expression.bindings.shrinkRetainingCapacity(frame.payload.Case.bindings);
-
-                _ = stack.pop();
-            },
-        }
+    if (comptime generated) {
+        return driver.run(&state, &walker.module.plan, false) catch |err| switch (err) {
+            error.OutOfMemory => error.OutOfMemory,
+            error.InvalidSource => error.InvalidSource,
+            error.InvalidFlow => unreachable,
+        };
     }
+
+    try driver.seed(&state, &walker.module.plan);
 }

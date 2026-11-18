@@ -56,150 +56,200 @@ const Frame = struct {
     }
 };
 
+const driver = @import("../project/flow/driver/host.zig");
+const generated = @import("rx_options").generated_graph;
+
+pub const Host = struct {
+    compiler: *Compiler,
+    root: Frame,
+    stack: std.ArrayList(Frame) = .empty,
+    memory: std.mem.Allocator,
+    pub fn frame(self: *Host) *Frame {
+        if (self.stack.items.len == 0) return &self.root;
+
+        return &self.stack.items[self.stack.items.len - 1];
+    }
+    pub fn pop(self: *Host) void {
+        const last = self.stack.items.len - 1;
+
+        self.stack.items[last].release(self.compiler.binding_allocator);
+
+        self.stack.items.len = last;
+    }
+
+    pub fn calls(self: *Host, current: *Frame, first: usize, next: usize) Compiler.Error!void {
+        const compiler = self.compiler;
+        const items = compiler.plan.items[first..next];
+
+        if (current.payload == .Parallel) {
+            for (items) |item| {
+                const id = try compiler.call(compiler.loaded[item], &current.payload.Parallel.outputs);
+
+                try compiler.checkParallelCall(item, id);
+            }
+
+            return;
+        }
+
+        for (items, current.row(first)..) |item, row| {
+            const id = try compiler.call(compiler.loaded[item], &compiler.bindings);
+
+            compiler.compiled.steps.set(row, .{ .kind = .Call, .first = id });
+        }
+    }
+
+    pub fn result(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+        const compiler = self.compiler;
+        const plan = compiler.plan;
+        const value = try compiler.value(plan.results[plan.items[first]], compiler.output_type, current.payload == .Root and compiler.retain_metadata);
+
+        compiler.compiled.steps.set(current.row(first), .{ .kind = .Return, .value = try compiler.keep(value) });
+    }
+    pub fn task(self: *Host, current: *Frame, first: usize, _: usize, parallel_task: bool) Compiler.Error!void {
+        const compiler = self.compiler;
+        const plan = compiler.plan;
+        const item = plan.items[first];
+
+        if (parallel_task) {
+            _ = try @import("../parallel_task.zig").compile(compiler, &plan.tasks[item], &current.payload.Parallel.outputs);
+
+            return;
+        }
+
+        const unit = plan.tasks[item].body;
+        const destination = current.row(first);
+        const range = try Body.reserve(compiler, unit);
+        const child = try self.stack.addOne(self.memory);
+
+        child.* = .{ .cursor = Cursor.body(unit), .destination = destination, .body = range, .payload = .{
+            .Task = .{ .item = item, .bindings = compiler.bindings.len },
+        } };
+    }
+
+    pub fn parallel(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+        const compiler = self.compiler;
+        const plan = compiler.plan;
+        const branches = plan.groups[plan.items[first]];
+        const destination = current.row(first);
+        const first_call = try Flow.index(compiler.calls.items.len);
+        const child = try self.stack.addOne(self.memory);
+
+        child.* = .{ .cursor = Cursor.body(branches), .destination = destination, .payload = .{
+            .Parallel = .{ .first = first_call, .count = branches.count },
+        } };
+    }
+
+    pub fn selection(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+        const compiler = self.compiler;
+        const plan = compiler.plan;
+        const item = plan.items[first];
+        const selected = &plan.selections[item];
+        const destination = current.row(first);
+        var parsed = try @import("../attribute.zig").parseBorrowed(compiler.scratch, selected.subject.*, compiler.owner);
+
+        errdefer parsed.deinit();
+
+        const subject = try compiler.keep(try compiler.valueParsed(&parsed, selected.subject.*, null, false));
+        const count = try Flow.index(selected.cases.len);
+        const cases = try compiler.compiled.reserveCases(compiler.binding_allocator, count);
+        const child = try self.stack.addOne(self.memory);
+
+        child.* = .{ .cursor = Cursor.cases(count), .destination = destination, .payload = .{
+            .Selection = .{ .item = item, .parsed = parsed, .subject = subject, .first = cases, .count = count },
+        } };
+    }
+
+    pub fn openCase(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+        const compiler = self.compiler;
+        const selected = &current.payload.Selection;
+        const case = &compiler.plan.selections[selected.item].cases[first];
+        const bindings = compiler.bindings.len;
+        const scope = try compiler.enterCase(case, &selected.parsed, selected.subject.output_type);
+        const destination = selected.first + @as(u32, @intCast(first));
+        const range = try Body.reserve(compiler, case.body);
+        const child = try self.stack.addOne(self.memory);
+
+        child.* = .{ .cursor = Cursor.body(case.body), .destination = destination, .body = range, .payload = .{
+            .Case = .{ .bindings = bindings, .scope = scope },
+        } };
+    }
+
+    pub fn closeTask(self: *Host, parallel_task: bool) Compiler.Error!void {
+        if (parallel_task) unreachable;
+
+        const current = self.frame();
+        const compiler = self.compiler;
+        const saved = current.payload.Task;
+        const body = try current.body.close(compiler, false);
+        const compiled = try compiler.finishTask(&compiler.plan.tasks[saved.item], body, saved.bindings);
+
+        compiler.compiled.steps.set(current.destination, compiled);
+    }
+
+    pub fn closeParallel(self: *Host) Compiler.Error!void {
+        const compiler = self.compiler;
+        const current = self.frame();
+        const branches = &current.payload.Parallel;
+
+        try zx.columns.appendRows(&compiler.bindings, compiler.binding_allocator, branches.outputs.slice(), 0);
+
+        compiler.compiled.steps.set(current.destination, .{ .kind = .Parallel, .first = branches.first, .count = branches.count });
+    }
+
+    pub fn closeSelection(self: *Host) Compiler.Error!void {
+        const compiler = self.compiler;
+        const current = self.frame();
+        const selected = &current.payload.Selection;
+        const plan = &compiler.plan.selections[selected.item];
+        const exhaustive = try compiler.checkSelection(selected.subject, plan.subject.*, plan.cases, selected.first, selected.count);
+
+        compiler.compiled.steps.set(current.destination, .{
+            .kind = .Selection,
+            .first = selected.first,
+            .count = selected.count,
+            .value = selected.subject,
+            .exhaustive = exhaustive,
+        });
+    }
+
+    pub fn closeCase(self: *Host) Compiler.Error!void {
+        const compiler = self.compiler;
+        const current = self.frame();
+        const case = current.payload.Case;
+        const unit = try current.body.close(compiler, true);
+
+        compiler.nonnull.shrinkRetainingCapacity(case.scope.facts);
+
+        compiler.bindings.len = case.bindings;
+        compiler.compiled.cases.set(current.destination, .{ .value = case.scope.label, .body = unit });
+    }
+};
+
 pub fn run(compiler: *Compiler, body: Prepared.Unit) Compiler.Error!u32 {
-    const allocator = compiler.binding_allocator;
-    const plan = compiler.plan;
-    var buffer: [@sizeOf(Frame) * inline_frames]u8 align(@alignOf(Frame)) = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
-    const frame_memory = scratch.allocator();
-    var stack: std.ArrayList(Frame) = .empty;
-    var root: Frame = .{ .cursor = Cursor.body(body), .body = try Body.reserve(compiler, body), .payload = .Root };
+    var buffer: [inline_frames]Frame = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&buffer), compiler.binding_allocator);
+
+    var state: Host = .{
+        .compiler = compiler,
+        .root = .{ .cursor = Cursor.body(body), .body = try Body.reserve(compiler, body), .payload = .Root },
+        .memory = scratch.allocator(),
+    };
 
     defer {
-        while (stack.pop()) |frame| {
-            var closing = frame;
+        while (state.stack.items.len != 0) state.pop();
 
-            closing.release(allocator);
-        }
-
-        stack.deinit(frame_memory);
+        state.stack.deinit(state.memory);
     }
 
-    while (true) {
-        const frame = if (stack.items.len == 0) &root else &stack.items[stack.items.len - 1];
-        const region = std.meta.activeTag(frame.payload);
-        const first = frame.cursor.first;
-        const event = frame.cursor.advance(region, plan);
-
-        switch (event.action) {
-            .Done => return frame.body.close(compiler, true),
-            .Calls => if (region == .Parallel) {
-                for (event.items) |item| {
-                    const id = try compiler.call(compiler.loaded[item], &frame.payload.Parallel.outputs);
-
-                    try compiler.checkParallelCall(item, id);
-                }
-            } else {
-                for (event.items, frame.row(first)..) |item, row| {
-                    const id = try compiler.call(compiler.loaded[item], &compiler.bindings);
-
-                    compiler.compiled.steps.set(row, .{ .kind = .Call, .first = id });
-                }
-            },
-            .Return => {
-                const value = try compiler.value(plan.results[event.items[0]], compiler.output_type, region == .Root and compiler.retain_metadata);
-
-                compiler.compiled.steps.set(frame.row(first), .{ .kind = .Return, .value = try compiler.keep(value) });
-            },
-            .OpenTask => {
-                const item = event.items[0];
-                const unit = plan.tasks[item].body;
-                const destination = frame.row(first);
-                const range = try Body.reserve(compiler, unit);
-                const child = try stack.addOne(frame_memory);
-
-                child.* = .{ .cursor = Cursor.body(unit), .destination = destination, .body = range, .payload = .{
-                    .Task = .{ .item = item, .bindings = compiler.bindings.len },
-                } };
-            },
-            .OpenParallelTask => _ = try @import("../parallel_task.zig").compile(compiler, &plan.tasks[event.items[0]], &frame.payload.Parallel.outputs),
-            .OpenParallel => {
-                const branches = plan.groups[event.items[0]];
-                const destination = frame.row(first);
-                const first_call = try Flow.index(compiler.calls.items.len);
-                const child = try stack.addOne(frame_memory);
-
-                child.* = .{ .cursor = Cursor.body(branches), .destination = destination, .payload = .{
-                    .Parallel = .{ .first = first_call, .count = branches.count },
-                } };
-            },
-            .OpenSelection => {
-                const item = event.items[0];
-                const selection = &plan.selections[item];
-                const destination = frame.row(first);
-                var parsed = try @import("../attribute.zig").parseBorrowed(compiler.scratch, selection.subject.*, compiler.owner);
-
-                errdefer parsed.deinit();
-
-                const subject = try compiler.keep(try compiler.valueParsed(&parsed, selection.subject.*, null, false));
-                const count = try Flow.index(selection.cases.len);
-                const cases = try compiler.compiled.reserveCases(allocator, count);
-                const child = try stack.addOne(frame_memory);
-
-                child.* = .{ .cursor = Cursor.cases(count), .destination = destination, .payload = .{
-                    .Selection = .{ .item = item, .parsed = parsed, .subject = subject, .first = cases, .count = count },
-                } };
-            },
-            .OpenCase => {
-                const selection = &frame.payload.Selection;
-                const case = &plan.selections[selection.item].cases[first];
-                const bindings = compiler.bindings.len;
-                const scope = try compiler.enterCase(case, &selection.parsed, selection.subject.output_type);
-                const destination = selection.first + @as(u32, @intCast(first));
-                const range = try Body.reserve(compiler, case.body);
-                const child = try stack.addOne(frame_memory);
-
-                child.* = .{ .cursor = Cursor.body(case.body), .destination = destination, .body = range, .payload = .{
-                    .Case = .{ .bindings = bindings, .scope = scope },
-                } };
-            },
-            .CloseTask => {
-                const task = frame.payload.Task;
-                const compiled = try compiler.finishTask(&plan.tasks[task.item], try frame.body.close(compiler, false), task.bindings);
-
-                compiler.compiled.steps.set(frame.destination, compiled);
-
-                _ = stack.pop();
-            },
-            .CloseParallelTask => unreachable,
-            .CloseParallel => {
-                const parallel = &frame.payload.Parallel;
-
-                try zx.columns.appendRows(&compiler.bindings, allocator, parallel.outputs.slice(), 0);
-
-                compiler.compiled.steps.set(frame.destination, .{ .kind = .Parallel, .first = parallel.first, .count = parallel.count });
-                frame.release(allocator);
-
-                _ = stack.pop();
-            },
-            .CloseSelection => {
-                const selection = &frame.payload.Selection;
-                const selected = &plan.selections[selection.item];
-                const exhaustive = try compiler.checkSelection(selection.subject, selected.subject.*, selected.cases, selection.first, selection.count);
-
-                compiler.compiled.steps.set(frame.destination, .{
-                    .kind = .Selection,
-                    .first = selection.first,
-                    .count = selection.count,
-                    .value = selection.subject,
-                    .exhaustive = exhaustive,
-                });
-
-                frame.release(allocator);
-
-                _ = stack.pop();
-            },
-            .CloseCase => {
-                const case = frame.payload.Case;
-                const unit = try frame.body.close(compiler, true);
-
-                compiler.nonnull.shrinkRetainingCapacity(case.scope.facts);
-
-                compiler.bindings.len = case.bindings;
-                compiler.compiled.cases.set(frame.destination, .{ .value = case.scope.label, .body = unit });
-
-                _ = stack.pop();
-            },
-        }
+    if (comptime generated) {
+        driver.run(&state, compiler.plan, true) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.InvalidFlow => return error.InvalidFlow,
+            error.InvalidSource => unreachable,
+        };
+    } else {
+        try driver.seed(&state, compiler.plan);
     }
+
+    return state.root.body.close(compiler, true);
 }

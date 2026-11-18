@@ -1,0 +1,18 @@
+import step from "compiler/rx_prepared_flow_step"
+
+import type { Driver } from "./model"
+
+export type Input = Driver
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const complete = loop({
+        active: true
+    }, {
+        while: state => state.active,
+        next: state => {
+            state.active = step(in)
+        }
+    })
+}

@@ -66,7 +66,7 @@ pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: Sour
     return states;
 }
 
-const Walker = struct {
+pub const Walker = struct {
     expression: *Expression,
     module: Prepared.Module,
     states: Ports,
