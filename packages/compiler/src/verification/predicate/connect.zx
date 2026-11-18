@@ -1,0 +1,17 @@
+import conjunction from "../scalar/conjunction"
+import { Operator } from "./model"
+
+import type { Connection as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const a = in.left
+    const b = in.right
+
+    return match in.operator {
+        Operator.And => conjunction(in.omit(["operator"])),
+        Operator.Or => templateFile("../scalar/templates/or.tpl"),
+        _ => templateFile("../scalar/templates/equal.tpl")
+    }
+}

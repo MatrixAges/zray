@@ -23,7 +23,7 @@ pub fn evaluate(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
 
     try self.graph.step(expression.span);
 
-    const result = try self.retain(expression, try self.evaluateRaw(id));
+    const result = try self.retain(expression, try self.evaluateRaw(id, expression));
 
     try self.cache.put(self.allocator, id, result);
 
@@ -32,7 +32,7 @@ pub fn evaluate(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
 
 fn retain(self: *Self, expression: ir.ExpressionRow, result: Evaluation) zx.Error!Evaluation {
     return .{
-        .value = try self.graph.value(self.program, expression.type_id, result.value, expression.span),
+        .value = try self.graph.retain(self.program, expression.type_id, result.value, expression.span),
         .safe = try self.boolean(result.safe, expression.span),
     };
 }
@@ -41,9 +41,7 @@ fn boolean(self: *Self, value: []const u8, span: zx.Span) zx.Error![]const u8 {
     return self.graph.bind(value, 0, .{ .file_name = self.program.file_name, .span = span });
 }
 
-fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
-    const expression = self.program.expression(id);
-
+fn evaluateRaw(self: *Self, id: ir.ExprId, expression: ir.ExpressionRow) zx.Error!Evaluation {
     if (self.depth >= 256) return self.reporter.fail(.unsupported, expression.span, "verification expression depth exceeds 256");
 
     self.depth += 1;
@@ -53,11 +51,11 @@ fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
         .reference => |symbol| return .{ .value = self.environment[@backingInt(symbol)] orelse return self.reporter.fail(.contract, expression.span, "verification encountered an unbound symbol") },
         .integer, .negative_integer => |number| {
             const target = terms.integer(self.program.typeOf(expression.type_id)).?;
-            const value = try terms.constant(self.allocator, number, target.width);
+            const value = try terms.literal(self.allocator, number, target.width, expression.value == .negative_integer);
 
-            return .{ .value = .{ .scalar = if (expression.value == .negative_integer) try terms.unary(self.allocator, "bvneg", value) else value } };
+            return .{ .value = .{ .scalar = value } };
         },
-        .enum_value => |member| return .{ .value = .{ .scalar = try terms.constant(self.allocator, member, terms.enumWidth(self.program.typeOf(expression.type_id))) } },
+        .enum_value => |member| return .{ .value = .{ .scalar = try terms.literal(self.allocator, member, terms.enumWidth(self.program.typeOf(expression.type_id)), false) } },
         .boolean => |value| return .{ .value = .{ .scalar = if (value) "true" else "false" } },
         .unit => return .{ .value = .{ .fields = &.{} } },
         .field, .tuple_field => |field| {
@@ -87,8 +85,8 @@ fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
             const no = try self.evaluate(choice.no);
 
             return .{
-                .value = try terms.select(self.allocator, condition.value.scalar, yes.value, no.value),
-                .safe = try terms.binary(self.allocator, "and", condition.safe, try terms.choose(self.allocator, condition.value.scalar, yes.safe, no.safe)),
+                .value = try self.graph.select(self.program, expression.type_id, condition.value.scalar, yes.value, no.value, expression.span),
+                .safe = try terms.guarded(self.allocator, condition.value.scalar, condition.safe, yes.safe, no.safe),
             };
         },
         .match_expr => |selection| {
@@ -101,15 +99,15 @@ fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
                 const arm = selection.arms.at(index);
                 const condition = try self.evaluate(arm.condition);
                 const yes = try self.evaluate(arm.result);
-                const selected = if (subject) |value| try terms.binary(self.allocator, "=", value.value.scalar, condition.value.scalar) else condition.value.scalar;
+                const selected = if (subject) |value| try terms.connect(self.allocator, .Equal, value.value.scalar, condition.value.scalar) else condition.value.scalar;
 
                 result = try self.retain(expression, .{
-                    .value = try terms.select(self.allocator, selected, yes.value, result.value),
-                    .safe = try terms.binary(self.allocator, "and", condition.safe, try terms.choose(self.allocator, selected, yes.safe, result.safe)),
+                    .value = try self.graph.select(self.program, expression.type_id, selected, yes.value, result.value, expression.span),
+                    .safe = try terms.guarded(self.allocator, selected, condition.safe, yes.safe, result.safe),
                 });
             }
 
-            if (subject) |value| result.safe = try terms.binary(self.allocator, "and", value.safe, result.safe);
+            if (subject) |value| result.safe = try terms.connect(self.allocator, .And, value.safe, result.safe);
 
             return result;
         },
@@ -121,7 +119,7 @@ fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
                 const value = try self.evaluate(item);
 
                 field.* = value.value;
-                safe = try self.boolean(try terms.binary(self.allocator, "and", safe, value.safe), expression.span);
+                safe = try self.boolean(try terms.connect(self.allocator, .And, safe, value.safe), expression.span);
             }
 
             return .{ .value = .{ .fields = fields }, .safe = safe };
@@ -133,15 +131,15 @@ fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
             for (object.evaluation) |item| {
                 const value = try self.evaluate(item);
 
-                safe = try self.boolean(try terms.binary(self.allocator, "and", safe, value.safe), expression.span);
+                safe = try self.boolean(try terms.connect(self.allocator, .And, safe, value.safe), expression.span);
             }
 
             for (0..object.fields.len) |record_index| {
-    const field = object.fields.at(record_index);
+                const field = object.fields.at(record_index);
                 const value = try self.evaluate(field.value);
 
                 fields[field.index] = value.value;
-                safe = try self.boolean(try terms.binary(self.allocator, "and", safe, value.safe), expression.span);
+                safe = try self.boolean(try terms.connect(self.allocator, .And, safe, value.safe), expression.span);
             }
 
             return .{ .value = .{ .fields = fields }, .safe = safe };

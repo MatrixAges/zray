@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Predicate" />
+
+    <Args in={Predicate.Guard} out={string} />
+
+    <Call fn="choose" in={$in.omit(["safe"])} />
+
+    <Call
+        fn="../scalar/conjunction"
+        in={{
+            left: $in.safe,
+            right: $ctx.choose
+        }}
+    />
+
+    <Return value={$ctx.conjunction} />
+</Module>

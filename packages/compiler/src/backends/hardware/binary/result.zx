@@ -1,0 +1,20 @@
+import { Family, Result } from "./model"
+
+import type { Operands as Input } from "./model"
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    const { left, right, family } = in
+
+    if (left.width != right.width || left.boolean != right.boolean) {
+        return Result.Invalid
+    }
+
+    return match family {
+        Family.Equality => Result.Boolean,
+        Family.Logical => left.boolean ? Result.Boolean : Result.Invalid,
+        Family.Arithmetic => left.boolean ? Result.Invalid : Result.Operand,
+        _ => left.boolean ? Result.Invalid : Result.Boolean
+    }
+}

@@ -1,9 +1,12 @@
 const std = @import("std");
+const binary = @import("binary.zig");
 const ir = @import("ir.zig");
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidHardwareTerm};
+pub const max_nodes = 100000;
 
 allocator: std.mem.Allocator,
+scratch: std.mem.Allocator,
 nodes: std.ArrayList(ir.Node) = .empty,
 variables: std.StringHashMapUnmanaged(ir.Id) = .empty,
 cache: std.StringHashMapUnmanaged(ir.Id) = .empty,
@@ -12,9 +15,9 @@ offset: usize = 0,
 depth: usize = 0,
 origin: ?ir.Origin = null,
 pub fn add(self: *Self, node: ir.Node) Error!ir.Id {
-    if (self.nodes.items.len >= 100000 or node.sort.width == 0 or node.sort.width > 256) return error.InvalidHardwareTerm;
+    if (self.nodes.items.len >= max_nodes or node.sort.width == 0 or node.sort.width > 256) return error.InvalidHardwareTerm;
 
-    const id: ir.Id = @enumFromInt(self.nodes.items.len);
+    const id: ir.Id = @fromBackingInt(@intCast(self.nodes.items.len));
     var located = node;
     located.origin = self.origin;
 
@@ -63,7 +66,7 @@ fn term(self: *Self) Error!ir.Id {
 
     const id = try self.add(node);
 
-    try self.cache.put(self.allocator, key, id);
+    try self.cache.put(self.scratch, key, id);
 
     return id;
 }
@@ -133,21 +136,14 @@ fn application(self: *Self) Error!ir.Node {
 
     try self.expect(")");
 
-    const operation = operators.get(operator) orelse return error.InvalidHardwareTerm;
+    const operation = binary.names.get(operator) orelse return error.InvalidHardwareTerm;
+    const result = binary.result(operation, left_sort, right_sort) orelse return error.InvalidHardwareTerm;
 
-    if (!left_sort.equal(right_sort)) return error.InvalidHardwareTerm;
-
-    const logical = operation == .logical_and or operation == .logical_or;
-    const equality = operation == .equal;
-    const comparison = @intFromEnum(operation) >= @intFromEnum(ir.Operator.unsigned_less);
-
-    if (!equality and left_sort.boolean != logical) return error.InvalidHardwareTerm;
-
-    return .{ .sort = if (logical or equality or comparison) .{ .width = 1, .boolean = true } else left_sort, .value = .{ .binary = .{ .operator = operation, .left = left, .right = right } } };
+    return .{ .sort = result, .value = .{ .binary = .{ .operator = operation, .left = left, .right = right } } };
 }
 
 fn sort(self: *Self, id: ir.Id) ir.Sort {
-    return self.nodes.items[@intFromEnum(id)].sort;
+    return self.nodes.items[@backingInt(id)].sort;
 }
 
 fn number(self: *Self) Error!u16 {
@@ -175,12 +171,3 @@ fn token(self: *Self) Error![]const u8 {
 fn space(self: *Self) void {
     while (self.offset < self.text.len and std.ascii.isWhitespace(self.text[self.offset])) : (self.offset += 1) {}
 }
-
-const operators = std.StaticStringMap(ir.Operator).initComptime(.{
-    .{ "and", .logical_and },         .{ "or", .logical_or },                .{ "=", .equal },
-    .{ "bvadd", .add },               .{ "bvsub", .subtract },               .{ "bvmul", .multiply },
-    .{ "bvudiv", .unsigned_divide },  .{ "bvsdiv", .signed_divide },         .{ "bvurem", .unsigned_remainder },
-    .{ "bvsrem", .signed_remainder }, .{ "bvult", .unsigned_less },          .{ "bvule", .unsigned_less_equal },
-    .{ "bvugt", .unsigned_greater },  .{ "bvuge", .unsigned_greater_equal }, .{ "bvslt", .signed_less },
-    .{ "bvsle", .signed_less_equal }, .{ "bvsgt", .signed_greater },         .{ "bvsge", .signed_greater_equal },
-});

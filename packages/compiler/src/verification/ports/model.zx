@@ -1,0 +1,18 @@
+export type Type = {
+    width: u64,
+    members: u64
+}
+
+export type Parameter = Type & {
+    index: u64
+}
+
+export type Named = Type & {
+    name: string
+}
+
+export type Declaration = {
+    symbol: string,
+    declaration: string,
+    domain?: string
+}

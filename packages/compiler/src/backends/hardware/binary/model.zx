@@ -1,0 +1,57 @@
+export enum Operator {
+    logical_and,
+    logical_or,
+    equal,
+    add,
+    subtract,
+    multiply,
+    unsigned_divide,
+    signed_divide,
+    unsigned_remainder,
+    signed_remainder,
+    unsigned_less,
+    unsigned_less_equal,
+    unsigned_greater,
+    unsigned_greater_equal,
+    signed_less,
+    signed_less_equal,
+    signed_greater,
+    signed_greater_equal
+}
+
+export enum Family {
+    Logical,
+    Equality,
+    Arithmetic,
+    Comparison
+}
+
+export enum Rendering {
+    Plain,
+    Signed,
+    SignedRemainder
+}
+
+export type Traits = {
+    smt: string,
+    token: string,
+    family: Family,
+    rendering: Rendering
+}
+
+export type Sort = {
+    width: u16,
+    boolean: bool
+}
+
+export type Operands = {
+    family: Family,
+    left: Sort,
+    right: Sort
+}
+
+export enum Result {
+    Invalid,
+    Boolean,
+    Operand
+}

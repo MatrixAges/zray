@@ -1,0 +1,13 @@
+import type { Named as Input } from "./model"
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    if (in.members == 0) {
+        return null
+    }
+
+    const maximum = in.members - 1
+
+    return templateFile("./templates/domain.tpl")
+}

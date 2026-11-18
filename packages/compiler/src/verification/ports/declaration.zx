@@ -1,0 +1,14 @@
+import type { Named } from "./model"
+
+export type Input = Named.Omit("members")
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const name = in.name
+
+    return match in.width {
+        0 => templateFile("./templates/boolean.tpl"),
+        _ => templateFile("./templates/bitvector.tpl")
+    }
+}

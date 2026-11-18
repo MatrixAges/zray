@@ -1,0 +1,152 @@
+import {
+    smt_and,
+    smt_or,
+    smt_equal,
+    smt_bvadd,
+    smt_bvsub,
+    smt_bvmul,
+    smt_bvudiv,
+    smt_bvsdiv,
+    smt_bvurem,
+    smt_bvsrem,
+    smt_bvult,
+    smt_bvule,
+    smt_bvugt,
+    smt_bvuge,
+    smt_bvslt,
+    smt_bvsle,
+    smt_bvsgt,
+    smt_bvsge
+} from "../../../verification/scalar/const"
+import {
+    rtl_logical_and,
+    rtl_logical_or,
+    rtl_equal,
+    rtl_add,
+    rtl_subtract,
+    rtl_multiply,
+    rtl_divide,
+    rtl_remainder,
+    rtl_less,
+    rtl_less_equal,
+    rtl_greater,
+    rtl_greater_equal
+} from "./const"
+import { Operator, Family, Rendering } from "./model"
+
+import type { Traits as Output } from "./model"
+
+export type Input = Operator
+
+export default function (in: Input): Output {
+    return match in {
+        Operator.logical_and => {
+            smt: smt_and,
+            token: rtl_logical_and,
+            family: Family.Logical,
+            rendering: Rendering.Plain
+        },
+        Operator.logical_or => {
+            smt: smt_or,
+            token: rtl_logical_or,
+            family: Family.Logical,
+            rendering: Rendering.Plain
+        },
+        Operator.equal => {
+            smt: smt_equal,
+            token: rtl_equal,
+            family: Family.Equality,
+            rendering: Rendering.Plain
+        },
+        Operator.add => {
+            smt: smt_bvadd,
+            token: rtl_add,
+            family: Family.Arithmetic,
+            rendering: Rendering.Plain
+        },
+        Operator.subtract => {
+            smt: smt_bvsub,
+            token: rtl_subtract,
+            family: Family.Arithmetic,
+            rendering: Rendering.Plain
+        },
+        Operator.multiply => {
+            smt: smt_bvmul,
+            token: rtl_multiply,
+            family: Family.Arithmetic,
+            rendering: Rendering.Plain
+        },
+        Operator.unsigned_divide => {
+            smt: smt_bvudiv,
+            token: rtl_divide,
+            family: Family.Arithmetic,
+            rendering: Rendering.Plain
+        },
+        Operator.signed_divide => {
+            smt: smt_bvsdiv,
+            token: rtl_divide,
+            family: Family.Arithmetic,
+            rendering: Rendering.Signed
+        },
+        Operator.unsigned_remainder => {
+            smt: smt_bvurem,
+            token: rtl_remainder,
+            family: Family.Arithmetic,
+            rendering: Rendering.Plain
+        },
+        Operator.signed_remainder => {
+            smt: smt_bvsrem,
+            token: rtl_remainder,
+            family: Family.Arithmetic,
+            rendering: Rendering.SignedRemainder
+        },
+        Operator.unsigned_less => {
+            smt: smt_bvult,
+            token: rtl_less,
+            family: Family.Comparison,
+            rendering: Rendering.Plain
+        },
+        Operator.unsigned_less_equal => {
+            smt: smt_bvule,
+            token: rtl_less_equal,
+            family: Family.Comparison,
+            rendering: Rendering.Plain
+        },
+        Operator.unsigned_greater => {
+            smt: smt_bvugt,
+            token: rtl_greater,
+            family: Family.Comparison,
+            rendering: Rendering.Plain
+        },
+        Operator.unsigned_greater_equal => {
+            smt: smt_bvuge,
+            token: rtl_greater_equal,
+            family: Family.Comparison,
+            rendering: Rendering.Plain
+        },
+        Operator.signed_less => {
+            smt: smt_bvslt,
+            token: rtl_less,
+            family: Family.Comparison,
+            rendering: Rendering.Signed
+        },
+        Operator.signed_less_equal => {
+            smt: smt_bvsle,
+            token: rtl_less_equal,
+            family: Family.Comparison,
+            rendering: Rendering.Signed
+        },
+        Operator.signed_greater => {
+            smt: smt_bvsgt,
+            token: rtl_greater,
+            family: Family.Comparison,
+            rendering: Rendering.Signed
+        },
+        _ => {
+            smt: smt_bvsge,
+            token: rtl_greater_equal,
+            family: Family.Comparison,
+            rendering: Rendering.Signed
+        }
+    }
+}

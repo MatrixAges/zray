@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Port" />
+
+    <Args in={Port.Parameter} out={Port.Declaration} />
+
+    <Call
+        fn="name"
+        in={{
+            index: $in.index,
+            output: false
+        }}
+    />
+
+    <Call
+        fn="declaration"
+        in={{
+            name: $ctx.name,
+            width: $in.width
+        }}
+    />
+
+    <Call
+        fn="domain"
+        in={{
+            name: $ctx.name,
+            width: $in.width,
+            members: $in.members
+        }}
+    />
+
+    <Return
+        value={{
+            symbol: $ctx.name,
+            declaration: $ctx.declaration,
+            domain: $ctx.domain
+        }}
+    />
+</Module>

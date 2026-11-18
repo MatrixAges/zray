@@ -1,0 +1,21 @@
+import type { Input as Pair } from "../scalar/conjunction"
+
+export enum Operator {
+    And,
+    Or,
+    Equal
+}
+
+export type Connection = Pair & {
+    operator: Operator
+}
+
+export type Choice = {
+    condition: string,
+    yes: string,
+    no: string
+}
+
+export type Guard = Choice & {
+    safe: string
+}

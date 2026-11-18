@@ -1,0 +1,1 @@
+(_ bv${in.value} ${in.width})

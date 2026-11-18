@@ -129,24 +129,35 @@ fn appendDefinition(self: *Self, definition: Definition) void {
     self.declaration_payload_bytes +|= definition.name.len +| definition.expression.len;
 }
 
-pub fn value(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, input: terms.Value, span: zx.Span) zx.Error!terms.Value {
-    const target = program.typeOf(type_id);
+/// Every composite is assembled from evaluations whose scalar leaves are already bound.
+pub fn retain(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, input: terms.Value, span: zx.Span) zx.Error!terms.Value {
+    if (input == .fields) return input;
 
-    if (target == .object or target == .tuple) {
-        const fields = try self.allocator.alloc(terms.Value, input.fields.len);
-
-        for (input.fields, fields, 0..) |child, *field, index| {
-            field.* = try self.value(program, if (target == .object) target.object.at(index).type_id else target.tuple.at(index), child, span);
-        }
-
-        return .{ .fields = fields };
-    }
-
-    if (target == .scalar and target.scalar == .void) return input;
-
-    const width = terms.symbolicWidth(target) orelse return self.reporter.fail(.unsupported, span, "symbolic graph requires boolean, enum or fixed-width integer values");
+    const width = terms.symbolicWidth(program.typeOf(type_id)) orelse return self.reporter.fail(.unsupported, span, "symbolic graph requires boolean, enum or fixed-width integer values");
 
     return .{ .scalar = try self.bind(input.scalar, width, .{ .file_name = program.file_name, .span = span }) };
+}
+
+pub fn select(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, condition: []const u8, yes: terms.Value, no: terms.Value, span: zx.Span) zx.Error!terms.Value {
+    if (yes == .scalar and no == .scalar) {
+        const selected = try terms.choose(self.allocator, condition, yes.scalar, no.scalar);
+
+        return self.retain(program, type_id, .{ .scalar = selected }, span);
+    }
+
+    if (yes != .fields or no != .fields or yes.fields.len != no.fields.len) return error.InvalidSource;
+    if (yes.fields.len == 0) return yes;
+
+    const target = program.typeOf(type_id);
+    const fields = try self.allocator.alloc(terms.Value, yes.fields.len);
+
+    for (fields, yes.fields, no.fields, 0..) |*field, left, right, index| {
+        const child = if (target == .object) target.object.at(index).type_id else target.tuple.at(index);
+
+        field.* = try self.select(program, child, condition, left, right, span);
+    }
+
+    return .{ .fields = fields };
 }
 
 pub fn writeDeclarations(self: *Self, output: *std.Io.Writer) zx.Error!void {

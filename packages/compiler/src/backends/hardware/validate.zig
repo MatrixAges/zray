@@ -31,13 +31,9 @@ pub fn validate(module: ir.Module) bool {
             .binary => |binary| {
                 const left = child(module, index, binary.left) orelse return false;
                 const right = child(module, index, binary.right) orelse return false;
-                const logical = binary.operator == .logical_and or binary.operator == .logical_or;
-                const equality = binary.operator == .equal;
-                const comparison = @intFromEnum(binary.operator) >= @intFromEnum(ir.Operator.unsigned_less);
-                const result: ir.Sort = if (logical or equality or comparison) .{ .width = 1, .boolean = true } else left;
+                const result = @import("binary.zig").result(binary.operator, left, right) orelse return false;
 
-                if (!left.equal(right) or !node.sort.equal(result)) return false;
-                if (!equality and left.boolean != logical) return false;
+                if (!node.sort.equal(result)) return false;
             },
         }
     }

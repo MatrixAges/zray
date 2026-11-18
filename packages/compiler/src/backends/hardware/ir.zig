@@ -11,7 +11,7 @@ pub const Sort = struct {
     }
 };
 
-pub const Operator = enum {
+pub const Operator = if (@import("parser_options").generated_parser) @import("generated_hardware_binary_traits").Input else enum {
     logical_and,
     logical_or,
     equal,

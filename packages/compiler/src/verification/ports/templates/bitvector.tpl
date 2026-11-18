@@ -1,0 +1,1 @@
+(declare-fun ${name} () (_ BitVec ${in.width}))

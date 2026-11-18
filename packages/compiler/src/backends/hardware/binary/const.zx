@@ -1,0 +1,23 @@
+export const rtl_logical_and: string = "&&"
+
+export const rtl_logical_or: string = "||"
+
+export const rtl_equal: string = "=="
+
+export const rtl_add: string = "+"
+
+export const rtl_subtract: string = "-"
+
+export const rtl_multiply: string = "*"
+
+export const rtl_divide: string = "/"
+
+export const rtl_remainder: string = "%"
+
+export const rtl_less: string = "<"
+
+export const rtl_less_equal: string = "<="
+
+export const rtl_greater: string = ">"
+
+export const rtl_greater_equal: string = ">="

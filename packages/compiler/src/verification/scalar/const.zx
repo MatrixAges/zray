@@ -43,3 +43,9 @@ export const bits_short: u64 = 16
 export const bits_word: u64 = 32
 
 export const bits_long: u64 = 64
+
+export const smt_and: string = "and"
+
+export const smt_or: string = "or"
+
+export const smt_equal: string = "="

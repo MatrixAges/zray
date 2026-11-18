@@ -1,0 +1,1 @@
+(assert (bvule ${in.name} (_ bv${maximum} ${in.width})))

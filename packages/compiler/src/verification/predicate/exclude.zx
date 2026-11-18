@@ -1,0 +1,17 @@
+import { smt_true, smt_false } from "../scalar/const"
+
+import type { Input as Pair } from "../scalar/conjunction"
+
+export type Input = Pair
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const operand = in.right
+
+    return match in.left {
+        smt_false => smt_false,
+        smt_true => templateFile("../scalar/templates/not.tpl"),
+        _ => templateFile("./templates/exclude.tpl")
+    }
+}

@@ -21,28 +21,14 @@ pub fn write(writer: *std.Io.Writer, module: ir.Module, node: ir.Node) std.Io.Wr
         .binary => |binary| {
             const left = @intFromEnum(binary.left);
             const right = @intFromEnum(binary.right);
-            const operator = binary.operator;
+            const traits = @import("../hardware/binary.zig").traits(binary.operator);
+            const token = traits.token;
 
-            const token: []const u8 = switch (operator) {
-                .logical_and => "&&",
-                .logical_or => "||",
-                .equal => "==",
-                .add => "+",
-                .subtract => "-",
-                .multiply => "*",
-                .unsigned_divide, .signed_divide => "/",
-                .unsigned_remainder, .signed_remainder => "%",
-                .unsigned_less, .signed_less => "<",
-                .unsigned_less_equal, .signed_less_equal => "<=",
-                .unsigned_greater, .signed_greater => ">",
-                .unsigned_greater_equal, .signed_greater_equal => ">=",
-            };
-
-            if (operator == .signed_remainder) {
+            if (traits.rendering == .SignedRemainder) {
                 const width = module.nodes[left].sort.width;
 
                 try writer.print("$signed({{n_{d}[{d}], n_{d}}}) % $signed({{n_{d}[{d}], n_{d}}})", .{ left, width - 1, left, right, width - 1, right });
-            } else if (operator == .signed_divide or @intFromEnum(operator) >= @intFromEnum(ir.Operator.signed_less)) {
+            } else if (traits.rendering == .Signed) {
                 try writer.print("$signed(n_{d}) {s} $signed(n_{d})", .{ left, token, right });
             } else try writer.print("n_{d} {s} n_{d}", .{ left, token, right });
         },

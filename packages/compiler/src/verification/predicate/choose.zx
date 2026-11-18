@@ -1,0 +1,11 @@
+import type { Choice as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const a = in.condition
+
+    const { yes, no } = in
+
+    return templateFile("../scalar/templates/guard.tpl")
+}

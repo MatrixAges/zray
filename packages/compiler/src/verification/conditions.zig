@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const terms = @import("terms.zig");
+const ports = @import("ports.zig");
 const Expressions = @import("expressions.zig");
 const Value = terms.Value;
 const Self = @This();
@@ -14,7 +15,6 @@ reporter: *zx.Reporter,
 declarations: std.ArrayList([]const u8) = .empty,
 violations: std.ArrayList([]const u8) = .empty,
 input: Value = undefined,
-next_input: usize = 0,
 inputs: std.ArrayList(Input) = .empty,
 returns: std.ArrayList(Return) = .empty,
 call_depth: usize = 0,
@@ -26,11 +26,10 @@ pub const Input = struct { symbol: []const u8, path: []const u8, type_id: ir.Typ
 pub const Query = struct { feasibility: []const u8, correctness: []const u8, inputs: []const Input };
 pub const Model = struct { inputs: []const Input, output: terms.Evaluation, definitions: Graph.Definitions.Slice };
 
-pub fn model(self: *Self) zx.Error!Model {
+pub fn model(self: *Self, port_allocator: std.mem.Allocator) zx.Error!Model {
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "symbolic execution requires a pure executable function without Store capabilities");
 
-    self.input = try self.parameter(self.program.input_type, "in");
-
+    self.input = try self.parameter(self.program.input_type, "in", port_allocator);
     const output = try self.call();
 
     return .{ .inputs = self.inputs.items, .output = output, .definitions = self.graph.?.definitions.slice() };
@@ -40,7 +39,7 @@ pub fn generate(self: *Self, scratch: std.mem.Allocator) zx.Error!Query {
     try self.ensureGraph();
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification requires an executable pure function without Store capabilities");
 
-    self.input = try self.parameter(self.program.input_type, "in");
+    self.input = try self.parameter(self.program.input_type, "in", null);
 
     var precondition: []const u8 = "true";
 
@@ -97,7 +96,7 @@ pub fn generate(self: *Self, scratch: std.mem.Allocator) zx.Error!Query {
     };
 }
 
-fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8) zx.Error!Value {
+fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: ?std.mem.Allocator) zx.Error!Value {
     const target = self.program.typeOf(type_id);
 
     if (target == .object or target == .tuple) {
@@ -105,9 +104,9 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8) zx.Error!Value {
         const fields = try self.allocator.alloc(Value, count);
 
         for (fields, 0..) |*field, index| {
-            const child_path = if (target == .object) try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ path, target.object.at(index).name }) else try std.fmt.allocPrint(self.allocator, "{s}[{d}]", .{ path, index });
+            const child_path = try ports.fieldPath(port_allocator orelse self.allocator, path, if (target == .object) target.object.at(index).name else null, index);
 
-            field.* = try self.parameter(if (target == .object) target.object.at(index).type_id else target.tuple.at(index), child_path);
+            field.* = try self.parameter(if (target == .object) target.object.at(index).type_id else target.tuple.at(index), child_path, port_allocator);
         }
 
         return .{ .fields = fields };
@@ -116,28 +115,28 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8) zx.Error!Value {
     if (target == .scalar and target.scalar == .void) return .{ .fields = &.{} };
 
     const width = terms.symbolicWidth(target) orelse return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification currently supports boolean, enum and fixed-width integer inputs with static objects or tuples");
-    const sort = if (width == 0) "Bool" else try std.fmt.allocPrint(self.allocator, "(_ BitVec {d})", .{width});
-    const name = try std.fmt.allocPrint(self.allocator, "input_{d}", .{self.next_input});
+    const index = self.inputs.items.len;
 
-    self.next_input += 1;
+    const symbol = if (port_allocator) |owned| try ports.name(owned, index, false) else blk: {
+        const members = if (target == .enumeration) target.enumeration.members.len else 0;
+        const declared = try ports.parameter(self.allocator, index, width, members);
 
-    try self.declarations.append(self.allocator, try std.fmt.allocPrint(self.allocator, "(declare-fun {s} () {s})", .{ name, sort }));
+        try self.declarations.append(self.allocator, declared.declaration);
+        if (declared.domain) |domain| try self.declarations.append(self.allocator, domain);
 
-    if (target == .enumeration) {
-        const maximum = try terms.constant(self.allocator, target.enumeration.members.len - 1, width);
+        break :blk declared.symbol;
+    };
 
-        try self.declarations.append(self.allocator, try std.fmt.allocPrint(self.allocator, "(assert (bvule {s} {s}))", .{ name, maximum }));
-    }
+    try self.inputs.append(self.allocator, .{ .symbol = symbol, .path = path, .type_id = type_id });
 
-    try self.inputs.append(self.allocator, .{ .symbol = name, .path = path, .type_id = type_id });
-
-    return .{ .scalar = name };
+    return .{ .scalar = symbol };
 }
 
 fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []const u8) zx.Error![]const u8 {
     var path = initial;
     var evaluator = Expressions{ .allocator = self.allocator, .program = self.program, .environment = environment, .graph = self.graph.?, .reporter = self.reporter, .call_depth = self.call_depth };
 
+    // Scope validation gives each binding a unique slot and rejects reads outside its branch.
     for (0..statements.len) |statement_index| {
         const statement = statements.at(statement_index);
 
@@ -175,8 +174,11 @@ fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []co
                 const value = if (result) |id| try evaluator.evaluate(id) else terms.Evaluation{ .value = .{ .fields = &.{} } };
 
                 try self.require(path, value.safe);
-                try self.postconditions(try self.conjunction(path, value.safe), value.value);
-                try self.returns.append(self.allocator, .{ .path = try self.conjunction(path, value.safe), .value = value.value });
+
+                const completed = try self.conjunction(path, value.safe);
+
+                try self.postconditions(completed, value.value);
+                try self.returns.append(self.allocator, .{ .path = completed, .value = value.value });
 
                 return "false";
             },
@@ -186,9 +188,8 @@ fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []co
                 try self.require(path, condition.safe);
 
                 path = try self.conjunction(path, condition.safe);
-                const yes = try self.block(branch.yes, try self.allocator.dupe(?Value, environment), try self.conjunction(path, condition.value.scalar));
-                const no = try self.block(branch.no, try self.allocator.dupe(?Value, environment), try self.conjunction(path, try terms.unary(self.allocator, "not", condition.value.scalar)));
-
+                const yes = try self.block(branch.yes, environment, try self.conjunction(path, condition.value.scalar));
+                const no = try self.block(branch.no, environment, try self.excluding(path, condition.value.scalar));
                 path = try self.disjunction(yes, no);
             },
             .switch_stmt => |selection| {
@@ -206,16 +207,16 @@ fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []co
 
                     if (case.value) |id| {
                         const label = try evaluator.evaluate(id);
-                        const matches = try terms.binary(self.allocator, "=", subject.value.scalar, label.value.scalar);
-                        const remaining = try self.block(case.body, try self.allocator.dupe(?Value, environment), try self.conjunction(path, matches));
+                        const matches = try terms.connect(self.allocator, .Equal, subject.value.scalar, label.value.scalar);
+                        const remaining = try self.block(case.body, environment, try self.conjunction(path, matches));
 
                         continuation = try self.disjunction(continuation, remaining);
-                        unmatched = try self.conjunction(unmatched, try terms.unary(self.allocator, "not", matches));
+                        unmatched = try self.excluding(unmatched, matches);
                     } else fallback = case.body;
                 }
 
                 const default_path = try self.conjunction(path, unmatched);
-                const remaining = if (fallback) |body| try self.block(body, try self.allocator.dupe(?Value, environment), default_path) else default_path;
+                const remaining = if (fallback) |body| try self.block(body, environment, default_path) else default_path;
 
                 path = try self.disjunction(continuation, remaining);
             },
@@ -300,17 +301,21 @@ fn postconditions(self: *Self, path: []const u8, value: Value) zx.Error!void {
 }
 
 fn require(self: *Self, path: []const u8, predicate: []const u8) zx.Error!void {
-    const condition = try self.conjunction(path, try terms.unary(self.allocator, "not", predicate));
+    const condition = try self.excluding(path, predicate);
 
     try self.violations.append(self.allocator, condition);
 }
 
 fn conjunction(self: *Self, left: []const u8, right: []const u8) zx.Error![]const u8 {
-    return self.boolean(try terms.binary(self.allocator, "and", left, right));
+    return self.boolean(try terms.connect(self.allocator, .And, left, right));
+}
+
+fn excluding(self: *Self, path: []const u8, predicate: []const u8) zx.Error![]const u8 {
+    return self.boolean(try terms.exclude(self.allocator, path, predicate));
 }
 
 fn disjunction(self: *Self, left: []const u8, right: []const u8) zx.Error![]const u8 {
-    return self.boolean(try terms.binary(self.allocator, "or", left, right));
+    return self.boolean(try terms.connect(self.allocator, .Or, left, right));
 }
 
 fn boolean(self: *Self, value: []const u8) zx.Error![]const u8 {
@@ -365,11 +370,11 @@ pub fn call(self: *Self) zx.Error!terms.Evaluation {
     var safe: []const u8 = "true";
 
     for (self.returns.items) |result| {
-        value = try self.graph.?.value(self.program, self.program.output_type, try terms.select(self.allocator, result.path, result.value, value), .{ .start = 0, .end = 0 });
+        value = try self.graph.?.select(self.program, self.program.output_type, result.path, result.value, value, .{ .start = 0, .end = 0 });
         returned = try self.disjunction(returned, result.path);
     }
 
-    for (self.violations.items) |violation| safe = try self.conjunction(safe, try terms.unary(self.allocator, "not", violation));
+    for (self.violations.items) |violation| safe = try self.excluding(safe, violation);
 
     return .{ .value = value, .safe = try self.conjunction(safe, returned) };
 }

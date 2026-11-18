@@ -48,7 +48,7 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
     const argument_key = try std.json.Stringify.valueAlloc(self.allocator, argument.value, .{});
     const key = try std.fmt.allocPrint(self.allocator, "{d}:{s}", .{ @backingInt(invocation.function), argument_key });
 
-    if (self.graph.calls.get(key)) |result| return .{ .value = result.value, .safe = try terms.binary(self.allocator, "and", argument.safe, result.safe) };
+    if (self.graph.calls.get(key)) |result| return .{ .value = result.value, .safe = try terms.connect(self.allocator, .And, argument.safe, result.safe) };
 
     var program = self.program;
 
@@ -74,5 +74,5 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
 
     try self.graph.calls.put(self.allocator, key, result);
 
-    return .{ .value = result.value, .safe = try terms.binary(self.allocator, "and", argument.safe, result.safe) };
+    return .{ .value = result.value, .safe = try terms.connect(self.allocator, .And, argument.safe, result.safe) };
 }

@@ -1,0 +1,1 @@
+(bvneg (_ bv${in.value} ${in.width}))

@@ -1,0 +1,13 @@
+export type Input = {
+    index: u64,
+    output: bool
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return match in.output {
+        true => templateFile("./templates/output.tpl"),
+        _ => templateFile("./templates/input.tpl")
+    }
+}

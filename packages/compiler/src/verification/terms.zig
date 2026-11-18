@@ -14,15 +14,15 @@ pub fn integer(target: ir.Type) ?Integer {
             var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
             for (std.enums.values(ir.Scalar)) |scalar| {
-                const traits = @import("generated_verification_numeric").executeValue(scratch.allocator(), @intFromEnum(scalar)) catch unreachable;
+                const traits = @import("generated_verification_numeric").executeValue(scratch.allocator(), @backingInt(scalar)) catch unreachable;
 
-                entries[@intFromEnum(scalar)] = if (traits.width == 0) null else .{ .width = @intCast(traits.width), .signed = traits.signed };
+                entries[@backingInt(scalar)] = if (traits.width == 0) null else .{ .width = @intCast(traits.width), .signed = traits.signed };
             }
 
             break :blk entries;
         };
 
-        return mapped[@intFromEnum(target.scalar)];
+        return mapped[@backingInt(target.scalar)];
     }
 
     return switch (target.scalar) {
@@ -49,35 +49,58 @@ pub fn symbolicWidth(target: ir.Type) ?u16 {
     return null;
 }
 
-pub fn unary(allocator: std.mem.Allocator, operator: []const u8, value: []const u8) zx.Error![]const u8 {
-    return std.fmt.allocPrint(allocator, "({s} {s})", .{ operator, value });
-}
+const generated = @import("parser_options").generated_parser;
+const seed = @import("predicate/seed.zig");
+const Operator = if (generated) @FieldType(std.meta.Child(@import("generated_verification_connect").Input), "operator") else enum { And, Or, Equal };
 
-pub fn binary(allocator: std.mem.Allocator, operator: []const u8, left: []const u8, right: []const u8) zx.Error![]const u8 {
-    if (std.mem.eql(u8, operator, "and")) {
-        if (std.mem.eql(u8, left, "false") or std.mem.eql(u8, right, "false")) return "false";
-        if (std.mem.eql(u8, left, "true")) return right;
-        if (std.mem.eql(u8, right, "true")) return left;
+pub fn connect(allocator: std.mem.Allocator, operator: Operator, left: []const u8, right: []const u8) zx.Error![]const u8 {
+    if (comptime generated) {
+        return @import("generated_verification_connect").executeValue(allocator, &.{ .operator = operator, .left = left, .right = right });
     }
 
-    return std.fmt.allocPrint(allocator, "({s} {s} {s})", .{ operator, left, right });
+    return seed.binary(allocator, switch (operator) {
+        .And => "and",
+        .Or => "or",
+        .Equal => "=",
+    }, left, right);
+}
+
+pub fn exclude(allocator: std.mem.Allocator, path: []const u8, predicate: []const u8) zx.Error![]const u8 {
+    if (comptime generated) {
+        const rule = @import("generated_verification_exclude");
+        const input: std.meta.Child(rule.Input) = .{ .left = path, .right = predicate };
+
+        return zx.columns.invoke(rule.executeValue, allocator, &input);
+    }
+
+    return seed.binary(allocator, "and", path, try seed.unary(allocator, "not", predicate));
 }
 
 pub fn choose(allocator: std.mem.Allocator, condition: []const u8, yes: []const u8, no: []const u8) zx.Error![]const u8 {
-    return std.fmt.allocPrint(allocator, "(ite {s} {s} {s})", .{ condition, yes, no });
+    if (comptime generated) {
+        const rule = @import("generated_verification_choose");
+        const input: std.meta.Child(rule.Input) = .{ .condition = condition, .yes = yes, .no = no };
+
+        return zx.columns.invoke(rule.executeValue, allocator, &input);
+    }
+
+    return seed.choose(allocator, condition, yes, no);
 }
 
-pub fn select(allocator: std.mem.Allocator, condition: []const u8, yes: Value, no: Value) zx.Error!Value {
-    if (yes == .scalar and no == .scalar) return .{ .scalar = try choose(allocator, condition, yes.scalar, no.scalar) };
-    if (yes != .fields or no != .fields or yes.fields.len != no.fields.len) return error.InvalidSource;
+pub fn guarded(allocator: std.mem.Allocator, condition: []const u8, safe: []const u8, yes: []const u8, no: []const u8) zx.Error![]const u8 {
+    if (comptime generated) {
+        return @import("generated_verification_guard").executeValue(allocator, &.{ .condition = condition, .safe = safe, .yes = yes, .no = no });
+    }
 
-    const fields = try allocator.alloc(Value, yes.fields.len);
-
-    for (fields, yes.fields, no.fields) |*field, left, right| field.* = try select(allocator, condition, left, right);
-
-    return .{ .fields = fields };
+    return seed.binary(allocator, "and", safe, try seed.choose(allocator, condition, yes, no));
 }
 
-pub fn constant(allocator: std.mem.Allocator, value: u64, width: u16) zx.Error![]const u8 {
-    return std.fmt.allocPrint(allocator, "(_ bv{d} {d})", .{ value, width });
+pub fn literal(allocator: std.mem.Allocator, value: u64, width: u16, negative: bool) zx.Error![]const u8 {
+    if (comptime generated) {
+        return @import("generated_verification_literal").executeValue(allocator, &.{ .value = value, .width = width, .negative = negative });
+    }
+
+    const text = try seed.constant(allocator, value, width);
+
+    return if (negative) seed.unary(allocator, "bvneg", text) else text;
 }
