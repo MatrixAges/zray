@@ -43,6 +43,7 @@ fn checkModule(allocator: std.mem.Allocator, data: ModuleBase.Data, input: anyty
         return;
     }
 
+    try @import("../schema/call/sequence.zig").check(node, reporter);
     if (comptime @import("rx_options").generated_rules) return @import("../schema/module/adapter.zig").check(allocator, data.children, node, reporter);
 
     return checkSeed(input, reporter);

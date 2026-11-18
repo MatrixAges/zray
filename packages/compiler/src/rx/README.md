@@ -119,6 +119,8 @@ Call.fn 相对当前 RX 文件目录解析，省略后缀时补 `.zx`，未指�
 
 `<Call fn="operations/" export="normalize" in={$in} />` 调用 `operations/index.zx` 的公开函数 `normalize`，非 void 结果通过 `$ctx.normalize` 访问。目录入口可用 `export { default as normalize } from "./normalize"` 归集函数。命名调用静态解析到与 ZX 导入相同的函数，适用于普通 ZX 及有显式接口的原生函数再导出。
 
+顺序编排中的 Call 可以省略 `in`，有输入的 Call 会接收同层紧邻前一个 Call 或带 `out` 的 Task 的输出。首个有输入的 Call 显式传参。并行分支和条件分支分别建立各自的顺序，分支之间不传递默认输入。使用 `zxc fmt --write` 时，直接引用前一步输出的 `in` 会被省略，`zxc lint` 提示需要格式化。
+
 Call.module 先匹配当前 RX 文件所属包中已声明的公开模块引用；源码导出进入统一 RX/ZX 源码依赖图，编译库导出按实例装载统一库产物；未命中包引用时按当前文件目录解析本地 RX（可省略 .rx）。本地引用与包引用同名时显式加 ./。`Call.module="package/public-module"` 始终通过依赖和公开导出解析，不能穿透私有源码路径；编译库消费不要求原始源码。例如：
 
 ```xml

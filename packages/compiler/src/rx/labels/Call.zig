@@ -21,12 +21,10 @@ fn check(data: Base.Data, input: anytype, _: anytype, reporter: *dsl.Reporter) d
     switch (@import("../schema/call/adapter.zig").check(&.{
         .has_function = data.attributes.@"fn" != null,
         .has_module = data.attributes.module != null,
-        .has_input = data.attributes.in != null,
         .has_setter = data.attributes.setter != null,
     })) {
         .None => {},
         .Target => return checks.fail(node, "module", "Call requires exactly one of fn or module", reporter),
-        .Input => return reporter.fail(.{ .code = .missing_attribute, .location = node.location(), .element = node.name(), .attribute = "in", .message = "Missing required attribute" }),
         .Setter => return checks.fail(node, "setter", "Store authorization belongs inside the called RX module", reporter),
     }
 

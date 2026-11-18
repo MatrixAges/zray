@@ -122,18 +122,13 @@ pub const State = struct {
             .callee = selected.callee,
         });
 
+        loader.omitted_inputs = loader.omitted_inputs or self.attributes.argument == null;
         loader.local_calls = loader.local_calls and (selected.kind == .Source or selected.kind == .NamedSource);
     }
 
     pub fn record(self: *State) Error!void {
         const parsed = self.input orelse return;
-        const arguments = &self.loader.arguments;
-        const first = arguments.items.len;
 
-        try arguments.resize(self.loader.inputs.arena.allocator(), self.index + 1);
-
-        @memset(arguments.items[first..self.index], null);
-
-        arguments.items[self.index] = parsed;
+        try self.loader.recordArgument(self.index, parsed);
     }
 };

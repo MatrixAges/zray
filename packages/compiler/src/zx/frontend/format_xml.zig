@@ -76,8 +76,7 @@ fn formatWith(allocator: std.mem.Allocator, source: []const u8, node: anytype, p
     var edits: std.ArrayList(lint.spacing.Edit) = .empty;
     const newline: []const u8 = if (std.mem.indexOf(u8, source, "\r\n") != null) "\r\n" else "\n";
 
-    try attributes(temporary, node, 0, &edits, newline);
-
+    try attributes(temporary, source, node, 0, &edits, newline, null);
     if (edits.items.len == 0) return finish(allocator, temporary, source, node, parsed);
 
     const values = try lint.spacing.format(temporary, source, edits.items);
@@ -96,13 +95,23 @@ fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []
     return lint.rx.formatView(allocator, structured, root(&parsed.*.?));
 }
 
-fn attributes(allocator: std.mem.Allocator, node: anytype, level: usize, edits: *std.ArrayList(lint.spacing.Edit), newline: []const u8) std.mem.Allocator.Error!void {
+fn attributes(allocator: std.mem.Allocator, source: []const u8, node: anytype, level: usize, edits: *std.ArrayList(lint.spacing.Edit), newline: []const u8, previous: ?@import("format_call_input.zig").Output) std.mem.Allocator.Error!void {
+    const call_input = @import("format_call_input.zig");
+
     for (0..node.attributeCount()) |index| {
         const attribute = node.attribute(index);
 
         if (!attribute.expression) continue;
 
         const raw = attribute.raw.?;
+
+        if (previous) |output| {
+            if (std.mem.eql(u8, node.name(), "Call") and std.mem.eql(u8, attribute.name, "in") and output.matches(raw)) {
+                try edits.append(allocator, call_input.remove(source, attribute));
+
+                continue;
+            }
+        }
 
         if (!lint.attribute_required(raw, level + 1, attribute.name.len + 2)) continue;
 
@@ -139,6 +148,11 @@ fn attributes(allocator: std.mem.Allocator, node: anytype, level: usize, edits: 
     }
 
     var children = node.children();
+    var output: ?call_input.Output = null;
+    const sequential = !std.mem.eql(u8, node.name(), "Parallel");
 
-    while (children.next()) |child| try attributes(allocator, child, level + 1, edits, newline);
+    while (children.next()) |child| {
+        try attributes(allocator, source, child, level + 1, edits, newline, output);
+        if (sequential) output = call_input.of(child);
+    }
 }

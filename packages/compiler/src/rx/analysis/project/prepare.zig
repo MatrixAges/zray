@@ -121,6 +121,7 @@ pub const Loader = struct {
     plan: Flow.Builder = .{},
     task_count: usize = 0,
     deferred_shortcut: bool = false,
+    omitted_inputs: bool = false,
     issue: ?target.Diagnostic = null,
     pub const Error = std.mem.Allocator.Error || error{InvalidFlow};
 
@@ -312,6 +313,19 @@ pub const Loader = struct {
 
         return state.index;
     }
+
+    pub fn recordArgument(self: *Loader, index: usize, parsed: *const frontend.ExpressionInput.Result) Error!void {
+        const first = self.arguments.items.len;
+
+        if (index >= first) {
+            try self.arguments.resize(self.inputs.arena.allocator(), index + 1);
+
+            @memset(self.arguments.items[first..index], null);
+        }
+
+        self.arguments.items[index] = parsed;
+    }
+
     pub fn sourceCallee(self: *Loader, source: usize, location: rx.ast.Location, setter: bool) Error!Callee {
         const resolved = switch (self.signatures.lookup(source)) {
             .rx => |index| return .{ .module = index },

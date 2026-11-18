@@ -58,6 +58,7 @@ pub const State = struct {
         loader.plan = .{};
         loader.task_count = 0;
         loader.deferred_shortcut = false;
+        loader.omitted_inputs = false;
     }
 
     pub fn stores(self: *State) Error!void {
@@ -72,11 +73,16 @@ pub const State = struct {
 
         loader.stores = result.scope;
     }
-
     pub fn body(self: *State) Error!void {
-        self.flow = try self.loader.moduleBody(self.modules[self.row]);
-    }
+        const source = self.modules[self.row];
+        const loader = self.loader;
 
+        self.flow = try loader.moduleBody(source);
+
+        if (loader.omitted_inputs and @import("../../../call/target.zig").optionalAttribute(source.node, "fn") == null) {
+            try @import("../previous_input.zig").bind(loader, self.flow, self.flow.root);
+        }
+    }
     pub fn types(self: *State) Error!void {
         const loader = self.loader;
         const result = try TypeImports.collect(loader.allocator, loader.allocator, self.modules[self.row], self.registered[self.row], loader.signatures, loader.project.context.types.kinds);
