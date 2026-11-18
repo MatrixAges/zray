@@ -6,6 +6,7 @@ const Growth = @import("growth.zig");
 const Order = @import("order/seed.zig");
 const Identity = @import("identity.zig");
 const Trace = @import("trace.zig");
+const Shortcut = @import("replay/shortcut.zig");
 pub const Memo = @import("memo.zig");
 const Sites = @import("sites/seed.zig");
 const Ahead = @import("ahead.zig");
@@ -366,9 +367,9 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
 
     defer scratch.deinit();
 
-    const Replacement = struct { body: usize, value: Memo.Planned };
+    const Replacement = struct { visit: usize, value: Memo.Planned };
     var replacements: std.ArrayList(Replacement) = .empty;
-    var cursor: @import("replay/shortcut.zig") = .{};
+    var cursor: Shortcut = .{};
 
     while (true) {
         cursor = cursor.next(&program, trace, replay.changed);
@@ -386,34 +387,37 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
                 const value = try revisit(kind, scratch.allocator(), temporary, program, slots, summaries, units[cursor.body].?, cursor.body, memo, visit.state) orelse return undo(summaries, units, replay.changed);
 
                 if (kind == .planned) {
-                    try replacements.append(temporary, .{ .body = cursor.body, .value = value });
+                    try replacements.append(temporary, .{ .visit = cursor.visit, .value = value });
                 } else if (!try Trace.agree(kind, scratch.allocator(), visit.value, value)) return undo(summaries, units, replay.changed);
             },
         }
     }
 
-    const count = program.functions.count();
-    const plans = try allocator.alloc(Plan, count);
-    var entry_plan = Plan{ .flags = &.{} };
-    var next: usize = 0;
+    const plans = try allocator.alloc(Plan, program.functions.count());
+    var entry_plan: Plan = undefined;
+    var first: usize = 0;
+    var replacement: usize = 0;
 
-    for (units, 0..) |entry, index| {
-        const plan: Plan = if (entry == null) .{ .flags = &.{} } else plan: {
-            const value = if (next < replacements.items.len and replacements.items[next].body == index) changed: {
-                const replacement = replacements.items[next].value;
+    while (first < units.len) {
+        const span = Shortcut.range(trace.planned.starts, replay.changed, first);
+        const recorded = trace.planned.starts[first];
 
-                next += 1;
+        for (first..span.end, 0..) |index, offset| {
+            const target = if (index == plans.len) &entry_plan else &plans[index];
 
-                break :changed replacement;
-            } else trace.of(.planned, index)[0].value;
+            target.* = switch (span.source) {
+                .empty => .{ .flags = &.{} },
+                .recorded => try trace.planned.entries[recorded + offset].value.plan().copy(allocator),
+                .replacement => try replacements.items[replacement + offset].value.plan().copy(allocator),
+            };
+        }
 
-            break :plan try value.plan().copy(allocator);
-        };
+        if (span.source == .replacement) replacement += span.end - first;
 
-        if (index < count) plans[index] = plan else entry_plan = plan;
+        first = span.end;
     }
 
-    for (replacements.items) |replacement| trace.of(.planned, replacement.body)[0].value = replacement.value;
+    for (replacements.items) |change| trace.planned.entries[change.visit].value = change.value;
 
     @memcpy(trace.identities, replay.identities);
 
@@ -456,6 +460,9 @@ fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, lasting: std.
 /// Clears what revisiting changed bodies left behind, as the fixpoint expects to start from.
 fn undo(summaries: *Summaries, units: []const ?*Unit, changed: []const bool) ?Result {
     summaries.clearWants();
+
+    // Source restores growth into the visit's local store. Only the seed revisits a unit's own store.
+    if (@import("genz_options").generated_analysis) return null;
 
     for (units, changed) |entry, differs| if (differs) if (entry) |unit| {
         Growth.clear(&unit.growth);

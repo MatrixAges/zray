@@ -60,3 +60,24 @@ fn nextSeed(self: Cursor, program: *const zx.ir.Program, trace: *const Trace, ch
 
     return .{ .body = body, .visit = trace.planned.starts[body], .phase = .planned };
 }
+
+pub const Range = struct {
+    end: usize,
+    source: enum { empty, recorded, replacement },
+};
+
+/// Consecutive accepted bodies backed by the same table; each active body has one visit.
+pub fn range(planned: []const u32, changed: []const bool, first: usize) Range {
+    if (!@import("genz_options").generated_analysis) {
+        const inactive = planned[first] == planned[first + 1];
+
+        return .{ .end = first + 1, .source = if (inactive) .empty else if (changed[first]) .replacement else .recorded };
+    }
+
+    const entry = @import("generated_uniqueness_shortcut_range");
+    const input: std.meta.Child(entry.Input) = .{ .first = first, .planned = planned, .changed = changed };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+
+    return .{ .end = @intCast(result.end), .source = @fromBackingInt(@intCast(@backingInt(result.source))) };
+}

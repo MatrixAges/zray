@@ -1,0 +1,10 @@
+<Module>
+    <Type from="model" as="Trace" />
+
+    <Args in={Trace.Input} out={void} />
+
+    <Call module="../graph/capture" in={$in.graph} />
+    <Call module="../../group/borrowed/build" in={$in.settled} />
+    <Call module="../../group/borrowed/build" in={$in.demanded} />
+    <Call module="../../group/borrowed/build" in={$in.planned} />
+</Module>

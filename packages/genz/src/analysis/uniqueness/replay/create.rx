@@ -17,25 +17,19 @@
         />
 
         <If on={$ctx.compatible}>
-            <Call
-                fn="initial"
-                in={{
-                    source: $in,
+            <Return
+                value={{
+                    following: true,
                     changed: $ctx.changes
                 }}
             />
-
-            <Return value={$ctx.initial} />
         </If>
     </If>
 
     <Return
         value={{
             following: false,
-            changed: [],
-            settled: [],
-            demanded: [],
-            planned: []
+            changed: []
         }}
     />
 </Module>

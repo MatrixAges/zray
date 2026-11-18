@@ -1,4 +1,5 @@
-import equal from "./digest"
+import bytes from "std:bytes"
+import memory from "memory"
 
 import type { Input } from "./model"
 
@@ -20,12 +21,10 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < in.callees.length,
         next: state => {
-            const unchanged = equal({
-                previous: previous.identities,
-                current: identities,
-                start: state.index * width,
-                width
-            })
+            const start = state.index * width
+            const old = memory.borrowU8Range(previous.identities, start, width)
+            const current = memory.borrowU8Range(identities, start, width)
+            const unchanged = bytes.equals(old, current)
 
             state.changed = state.changed.push(!unchanged)[0]
             state.index += 1

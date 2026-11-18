@@ -1,18 +1,10 @@
+import type { U32Buffer } from "memory"
 import type { Graph } from "./graph/model"
-
-export enum Kind {
-    Settled,
-    Demanded,
-    Planned
-}
 
 export type Previous = {
     key: u8[],
     identities: u8[],
-    callees: Graph,
-    settled: u32[],
-    demanded: u32[],
-    planned: u32[]
+    callees: Graph
 }
 
 export type Input = {
@@ -24,10 +16,7 @@ export type Input = {
 
 export type State = {
     following: bool,
-    changed: bool[],
-    settled: u32[],
-    demanded: u32[],
-    planned: u32[]
+    changed: bool[]
 }
 
 export type Build = {
@@ -36,20 +25,14 @@ export type Build = {
 }
 
 export type Step = {
-    state: State,
-    kind: Kind,
+    positions: U32Buffer,
+    changed: bool,
+    verify: bool,
     index: u64,
-    end: u32
+    starts: u32[]
 }
 
 export type Selection = {
-    state: State,
+    following: bool,
     cursor?: u32
-}
-
-export type Confirmation = {
-    state: State,
-    kind: Kind,
-    index: u64,
-    matched: bool
 }

@@ -1,0 +1,35 @@
+import memory from "memory"
+
+import type { Step as Input, Selection as Output } from "./model"
+
+export default function (in: Input): Output {
+    if (in.changed != in.verify) {
+        return {
+            following: true,
+            cursor: null
+        }
+    }
+
+    if (memory.u32Views(in.positions).length == 0) {
+        const count = in.starts.length - 1
+
+        memory.allocateU32Views(in.positions, count)
+        memory.copyU32s(in.positions, memory.borrowU32Range(in.starts, 0, count))
+    }
+
+    const position = memory.readU32(in.positions, in.index)
+
+    if (position == in.starts[in.index + 1]) {
+        return {
+            following: false,
+            cursor: null
+        }
+    }
+
+    memory.writeU32(in.positions, in.index, position + 1)
+
+    return {
+        following: true,
+        cursor: position
+    }
+}

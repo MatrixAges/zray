@@ -1,0 +1,36 @@
+import { PlanSource } from "./model"
+
+import type { Scan, Range as Output } from "./model"
+
+export type Input = Scan.Pick("planned", "changed") & {
+    first: u64
+}
+
+export default function (in: Input): Output {
+    const { planned, changed, first } = in
+
+    const active = planned[first] != planned[first + 1]
+    const replaced = changed[first]
+
+    const source = match {
+        !active => PlanSource.Empty,
+        replaced => PlanSource.Replacement,
+        _ => PlanSource.Recorded
+    }
+
+    const end = loop(first + 1, {
+        while: index => match {
+            index == changed.length => false,
+            (planned[index] != planned[index + 1]) != active => false,
+            _ => !active || changed[index] == replaced
+        },
+        next: index => {
+            index += 1
+        }
+    })
+
+    return {
+        end,
+        source
+    }
+}

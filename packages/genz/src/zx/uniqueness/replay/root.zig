@@ -1,17 +1,16 @@
 const std = @import("std");
 const creating = @import("generated_uniqueness_replay_create");
-const recalling = @import("generated_uniqueness_replay_recall");
-const expecting = @import("generated_uniqueness_replay_expect");
-const confirming = @import("generated_uniqueness_replay_confirm");
-const State = @typeInfo(@typeInfo(@TypeOf(creating.executeState)).@"fn".return_type.?).error_union.payload;
-const Creation = Input(creating.executeState);
+const columns = @import("zx").columns;
+const selecting = @import("generated_uniqueness_replay_select");
+const Creation = std.meta.Child(creating.Input);
 const PreviousParameter = @typeInfo(@FieldType(Creation, "previous")).optional.child;
 const indirect_previous = @typeInfo(PreviousParameter) == .pointer;
 const Previous = if (indirect_previous) std.meta.Child(PreviousParameter) else PreviousParameter;
 const Self = @This();
 
-allocator: std.mem.Allocator,
-state: State,
+active: bool,
+changes: []const bool,
+cursors: [3][]u32 = @splat(&.{}),
 pub fn init(allocator: std.mem.Allocator, previous: anytype, key: [32]u8, identities: []const [32]u8, callees: []const []const u32) std.mem.Allocator.Error!Self {
     var descriptor: Previous = undefined;
     var calls: std.meta.Child(@FieldType(Previous, "callees")) = undefined;
@@ -23,9 +22,6 @@ pub fn init(allocator: std.mem.Allocator, previous: anytype, key: [32]u8, identi
             .key = &value.key,
             .identities = std.mem.sliceAsBytes(value.identities),
             .callees = &calls,
-            .settled = value.settled.starts,
-            .demanded = value.demanded.starts,
-            .planned = value.planned.starts,
         };
     }
 
@@ -36,66 +32,27 @@ pub fn init(allocator: std.mem.Allocator, previous: anytype, key: [32]u8, identi
         .callees = callees,
     };
 
-    const parameter = @typeInfo(@TypeOf(creating.executeState)).@"fn".param_types[1].?;
-    const state = creating.executeState(allocator, if (@typeInfo(parameter) == .pointer) &input else input) catch |err| return failure(err);
-
-    return .{ .allocator = allocator, .state = state };
-}
-
-pub fn changed(self: *const Self) []const bool {
-    return self.state.changed.items;
-}
-
-pub fn following(self: *const Self) bool {
-    return self.state.following;
-}
-
-pub fn recall(self: *Self, comptime kind: anytype, index: usize, end: u32) std.mem.Allocator.Error!?u32 {
-    return self.select(recalling, kind, index, end);
-}
-
-pub fn expect(self: *Self, comptime kind: anytype, index: usize, end: u32) std.mem.Allocator.Error!?u32 {
-    return self.select(expecting, kind, index, end);
-}
-
-fn select(self: *Self, comptime entry: type, comptime kind: anytype, index: usize, end: u32) std.mem.Allocator.Error!?u32 {
-    const parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
-
-    const input: Input(entry.executeState) = .{
-        .state = self.state,
-        .kind = @fromBackingInt(@backingInt(kind)),
-        .index = index,
-        .end = end,
+    const state = columns.invoke(creating.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
     };
 
-    const output = entry.executeState(self.allocator, if (@typeInfo(parameter) == .pointer) &input else input) catch |err| return failure(err);
-
-    self.state = output.state;
-
-    return output.cursor;
+    return .{ .active = state.following, .changes = state.changed };
 }
 
-pub fn confirm(self: *Self, comptime kind: anytype, index: usize, matched: bool) std.mem.Allocator.Error!void {
-    const parameter = @typeInfo(@TypeOf(confirming.executeState)).@"fn".param_types[1].?;
-
-    const input: Input(confirming.executeState) = .{
-        .state = self.state,
-        .kind = @fromBackingInt(@backingInt(kind)),
+pub fn select(self: *Self, allocator: std.mem.Allocator, comptime kind: anytype, index: usize, starts: []const u32, verify: bool) std.mem.Allocator.Error!@import("../trace.zig").Selection {
+    const input: std.meta.Child(selecting.Input) = .{
+        .positions = @ptrCast(&self.cursors[@backingInt(kind)]),
         .index = index,
-        .matched = matched,
+        .starts = starts,
+        .changed = self.changes[index],
+        .verify = verify,
     };
 
-    self.state = confirming.executeState(self.allocator, if (@typeInfo(parameter) == .pointer) &input else input) catch |err| return failure(err);
-}
+    const result = columns.invoke(selecting.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-fn Input(comptime function: anytype) type {
-    const parameter = @typeInfo(@TypeOf(function)).@"fn".param_types[1].?;
-
-    return if (@typeInfo(parameter) == .pointer) std.meta.Child(parameter) else parameter;
-}
-
-fn failure(err: anyerror) std.mem.Allocator.Error {
-    if (err == error.OutOfMemory) return error.OutOfMemory;
-
-    std.debug.panic("replay state failed: {s}", .{@errorName(err)});
+    return .{ .following = result.following, .cursor = result.cursor };
 }

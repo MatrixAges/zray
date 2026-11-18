@@ -1,0 +1,9 @@
+import type { Input as Group } from "../../group/borrowed/model"
+import type { Capture } from "../graph/model"
+
+export type Input = {
+    graph: Capture,
+    settled: Group,
+    demanded: Group,
+    planned: Group
+}

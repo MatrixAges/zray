@@ -1,7 +1,6 @@
 const std = @import("std");
 const Memo = @import("memo.zig");
-const Graph = @import("replay/graph.zig");
-const Group = @import("replay/group.zig");
+const generated = @import("genz_options").generated_analysis;
 const Self = @This();
 const Control = if (@import("genz_options").generated_analysis) @import("replay/root.zig") else @import("replay/seed.zig");
 /// The results every body met in one analysis of a program, visit by visit, with the states it met them in. An
@@ -10,12 +9,13 @@ const Control = if (@import("genz_options").generated_analysis) @import("replay/
 /// computing memo keys, and when the changed bodies agree in every recorded state the whole path is known up front.
 pub const Digest = [32]u8;
 pub const Kind = Memo.Kind;
+pub const Selection = struct { following: bool, cursor: ?u32 = null };
 
 arena: std.heap.ArenaAllocator,
 /// The program shape and exported functions the analysis ran for.
 key: Digest,
 identities: []Digest,
-callees: Graph.Storage,
+callees: if (generated) struct { starts: []const u64, edges: []const u32 } else []const []const u32,
 settled: Visits(Memo.Settled),
 demanded: Visits(Memo.Demanded),
 planned: Visits(Memo.Planned),
@@ -29,7 +29,7 @@ pub fn deinit(self: *Self) void {
 /// `starts[index]..starts[index + 1]`.
 fn Visits(comptime Result: type) type {
     return struct {
-        starts: []const u32,
+        starts: []u32,
         entries: []Log(Result).Entry,
     };
 }
@@ -47,15 +47,6 @@ fn Log(comptime Value: type) type {
             self.owners.appendAssumeCapacity(owner);
         }
     };
-}
-
-/// The results and states of body `index` for `kind`.
-pub fn of(self: *const Self, comptime kind: Kind, index: usize) []Log(Memo.Result(kind)).Entry {
-    const visits = @field(self, @tagName(kind));
-    const start = visits.starts[index];
-    const end = visits.starts[index + 1];
-
-    return visits.entries[start..end];
 }
 
 /// One analysis following the trace an earlier one left, and recording its own.
@@ -79,7 +70,7 @@ pub const Replay = struct {
     pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, previous: ?*const Self, key: Digest, identities: []const Digest, callees: []const []const u32) std.mem.Allocator.Error!Replay {
         const control = try Control.init(allocator, previous, key, identities, callees);
 
-        return .{ .allocator = allocator, .recording = .init(backing), .trace = if (control.following()) previous else null, .changed = control.changed(), .control = control, .key = key, .identities = identities, .callees = callees };
+        return .{ .allocator = allocator, .recording = .init(backing), .trace = if (control.active) previous else null, .changed = control.changes, .control = control, .key = key, .identities = identities, .callees = callees };
     }
 
     pub fn deinit(self: *Replay) void {
@@ -89,11 +80,7 @@ pub const Replay = struct {
     pub fn recall(self: *Replay, comptime kind: Kind, index: usize) std.mem.Allocator.Error!?Memo.Result(kind) {
         const trace = self.trace orelse return null;
         const visits = @field(trace, @tagName(kind));
-        const selected = try self.control.recall(kind, index, visits.starts[index + 1]);
-
-        if (!self.control.following()) self.trace = null;
-
-        const cursor = selected orelse return null;
+        const cursor = (try self.select(kind, index, visits.starts, false)) orelse return null;
         const visit = visits.entries[cursor];
         self.recalled = visit.state;
 
@@ -111,31 +98,45 @@ pub const Replay = struct {
 
         const trace = self.trace orelse return;
         const visits = @field(trace, @tagName(kind));
-        const selected = try self.control.expect(kind, index, visits.starts[index + 1]);
+        const cursor = (try self.select(kind, index, visits.starts, true)) orelse return;
 
-        if (!self.control.following()) self.trace = null;
+        if (!try agree(kind, self.allocator, visits.entries[cursor].value, value)) self.trace = null;
+    }
+    fn select(self: *Replay, comptime kind: Kind, index: usize, starts: []const u32, verify: bool) std.mem.Allocator.Error!?u32 {
+        const selected = try self.control.select(self.allocator, kind, index, starts, verify);
 
-        const cursor = selected orelse return;
-        const matched = try agree(kind, self.allocator, visits.entries[cursor].value, value);
+        if (!selected.following) self.trace = null;
 
-        try self.control.confirm(kind, index, matched);
-
-        if (!self.control.following()) self.trace = null;
+        return selected.cursor;
     }
     /// The trace of this analysis, for the next one.
     pub fn finish(self: *Replay) std.mem.Allocator.Error!Self {
         const arena = &self.recording.?;
         const allocator = arena.allocator();
+        const columns = self.identities.len + 1;
+        const starts = try allocator.alloc(u32, std.math.mul(usize, columns, @typeInfo(Kind).@"enum".field_names.len) catch return error.OutOfMemory);
 
-        var result: Self = .{
-            .arena = undefined,
-            .key = self.key,
-            .identities = try allocator.dupe(Digest, self.identities),
-            .callees = try Graph.capture(allocator, self.callees),
-            .settled = try group(Memo.Settled, allocator, self.identities.len, self.settled),
-            .demanded = try group(Memo.Demanded, allocator, self.identities.len, self.demanded),
-            .planned = try group(Memo.Planned, allocator, self.identities.len, self.planned),
-        };
+        @memset(starts, 0);
+
+        var result: Self = undefined;
+        result.key = self.key;
+        result.identities = try allocator.dupe(Digest, self.identities);
+
+        inline for (@typeInfo(Kind).@"enum".field_names, 0..) |kind, index| {
+            const log = @field(self, kind);
+            const Entry = std.meta.Child(@TypeOf(log.entries.items));
+
+            @field(result, kind) = .{
+                .starts = starts[index * columns ..][0..columns],
+                .entries = try allocator.alloc(Entry, log.entries.items.len),
+            };
+        }
+
+        if (generated) {
+            try @import("replay/publication.zig").capture(allocator, self, &result);
+        } else {
+            try @import("replay/seed.zig").capture(allocator, self, &result);
+        }
 
         result.arena = arena.*;
         self.recording = null;
@@ -143,17 +144,6 @@ pub const Replay = struct {
         return result;
     }
 };
-
-/// Visits sorted by body, keeping their order within each body.
-fn group(comptime Value: type, allocator: std.mem.Allocator, bodies: usize, log: Log(Value)) std.mem.Allocator.Error!Visits(Value) {
-    const Entry = Log(Value).Entry;
-    const starts = try allocator.alloc(u32, bodies + 1);
-    const entries = try allocator.alloc(Entry, log.entries.items.len);
-
-    try Group.build(Entry, starts, log.owners.items, log.entries.items, entries);
-
-    return .{ .starts = starts, .entries = entries };
-}
 
 /// Whether two results of `kind` have the same effect: growth copies are sets, whatever order they were listed in.
 pub fn agree(comptime kind: Kind, allocator: std.mem.Allocator, left: Memo.Result(kind), right: Memo.Result(kind)) std.mem.Allocator.Error!bool {

@@ -28,3 +28,14 @@ export type Scan = {
 }
 
 export type Input = Scan & Visits
+
+export enum PlanSource {
+    Empty,
+    Recorded,
+    Replacement
+}
+
+export type Range = {
+    end: u64,
+    source: PlanSource
+}
