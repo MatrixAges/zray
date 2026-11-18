@@ -1,0 +1,14 @@
+import type { Complete } from "core/function_table/complete"
+
+export enum Tail {
+    Invalid,
+    Embedded,
+    Separate
+}
+
+export type Input = {
+    functions: Complete,
+    base: Complete,
+    suffix?: Complete,
+    maximum_count: u64
+}

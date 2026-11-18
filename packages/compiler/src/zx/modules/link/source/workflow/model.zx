@@ -1,0 +1,12 @@
+export enum Form {
+    Program,
+    AnalyzedBody
+}
+
+export enum Stage {
+    ValidateProgram,
+    RegisterTypes,
+    MapFunctions,
+    BindNatives,
+    PublishFunctions
+}

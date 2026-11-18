@@ -24,35 +24,44 @@ pub fn join(allocator: std.mem.Allocator, base: ir.FunctionTable, delta: ir.Func
 }
 
 pub fn hasPrefix(table: ir.FunctionTable, prefix: ir.FunctionTable) bool {
-    if (table.count() < prefix.count() or !valid(&prefix)) return false;
-
-    inline for (@typeInfo(ir.FunctionTable).@"struct".field_names) |name| {
-        if (!sameColumn(@field(table, name), @field(prefix, name))) return false;
-    }
-
-    return structure.validSuffix(&table, prefix.count());
+    return appendTail(table, prefix, null) != null;
 }
 
 pub fn appendTail(table: ir.FunctionTable, prefix: ir.FunctionTable, separate: ?*const ir.FunctionTable) ?ir.FunctionTable {
-    if (!hasPrefix(table, prefix)) return null;
+    const covers = @import("../../ir/verified_prefix.zig").covers;
 
-    if (separate) |suffix| {
-        if (table.count() != prefix.count() or !valid(suffix)) return null;
+    if (comptime !@import("parser_options").generated_parser) {
+        if (table.count() < prefix.count() or !valid(&prefix)) return null;
+        if (!structure.validSuffix(&table, prefix.count()) or !covers(&table, &prefix)) return null;
 
-        return suffix.*;
+        if (separate) |suffix| {
+            if (table.count() != prefix.count() or !valid(suffix)) return null;
+
+            return suffix.*;
+        }
+
+        return table.suffix(prefix.count());
     }
 
-    return table.suffix(prefix.count());
-}
+    const rule = @import("generated_source_link_tail");
+    const Input = std.meta.Child(rule.Input);
+    const Functions = std.meta.Child(@FieldType(Input, "functions"));
+    const view = @import("../../ir/canonical/functions/input.zig").view;
+    const functions = view(Functions, table);
+    const base = view(Functions, prefix);
+    const suffix = if (separate) |part| view(Functions, part.*) else undefined;
 
-/// A table that extends another in place shares its columns, which settles the prefix without comparing rows.
-fn sameColumn(values: anytype, expected: @TypeOf(values)) bool {
-    if (values.len < expected.len) return false;
-    if (values.ptr == expected.ptr) return true;
+    const input: Input = .{
+        .functions = &functions,
+        .base = &base,
+        .suffix = if (separate != null) &suffix else null,
+        .maximum_count = std.math.maxInt(u32),
+    };
 
-    for (values[0..expected.len], expected) |actual, previous| {
-        if (!std.meta.eql(actual, previous)) return false;
-    }
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const selected = @import("zx").columns.invoke(rule.executeValue, empty.allocator(), &input) catch return null;
 
-    return true;
+    if (selected == .Invalid or !covers(&table, &prefix)) return null;
+
+    return if (selected == .Separate) separate.?.* else table.suffix(prefix.count());
 }

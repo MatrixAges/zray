@@ -76,7 +76,7 @@ pub fn parallel(self: *Analyzer, expression: anytype) zx.Error!ir.ExprId {
         branches[index] = .{ .task = task, .field = null };
 
         if (result != Types.scalarId(.void)) {
-            fields.set(field_count, try self.allocator.dupe(u8, field.name.text), result);
+            fields.set(field_count, try self.types.allocator.dupe(u8, field.name.text), result);
 
             field_count += 1;
         }

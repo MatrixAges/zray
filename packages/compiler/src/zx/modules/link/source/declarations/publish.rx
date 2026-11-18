@@ -8,7 +8,7 @@
             fn="prefix"
             in={{
                 types: $in.export_types,
-                count: $in.exports.length,
+                count: $in.rows.exports.length,
                 prefix: $in.prefix
             }}
         />
@@ -18,10 +18,10 @@
         <Call
             module="../../../artifact/surface/own_exports"
             in={{
-                source: $in.exports,
-                types: $in.types,
-                target: $in.export_target,
-                progress: $in.export_progress
+                source: $in.rows.exports,
+                types: $in.rows.types,
+                target: $in.rows.export_target,
+                progress: $in.rows.export_progress
             }}
         />
     </If>
@@ -29,8 +29,8 @@
     <Call
         fn="prefix"
         in={{
-            types: $in.constants.types,
-            count: $in.constants.count,
+            types: $in.rows.constants.types,
+            count: $in.rows.constants.count,
             prefix: $in.prefix
         }}
     />
@@ -39,10 +39,10 @@
         <Call
             module="../../../artifact/surface/own_constants"
             in={{
-                source: $in.constants,
-                types: $in.types,
-                target: $in.constant_target,
-                storage: $in.constant_storage
+                source: $in.rows.constants,
+                types: $in.rows.types,
+                target: $in.rows.constant_target,
+                storage: $in.rows.constant_storage
             }}
         />
     </If>

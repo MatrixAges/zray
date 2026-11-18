@@ -1,9 +1,11 @@
 import type { RowBuffer } from "memory/columns"
+import type { Input as Declarations } from "../declarations/model"
 import type { Input as Initializers } from "../initializers/resolve_model"
 import type { Input as Members, Result } from "../members/model"
 import type { Input as Ports, Output as PublishedPorts } from "./ports"
 
 export type Input = {
+    declarations?: Declarations,
     initializers: Initializers,
     members: Members,
     member_storage: RowBuffer,

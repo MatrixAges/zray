@@ -151,7 +151,7 @@ pub fn object(self: *Analyzer, fields: anytype, span: zx.Span, expected: ?ir.Typ
 
     const type_fields = try @import("types.zig").Fields.init(self.allocator, entries.items.len);
 
-    for (entries.items, 0..) |entry, index| type_fields.set(index, try self.allocator.dupe(u8, entry.name), self.node(entry.value).type_id);
+    for (entries.items, 0..) |entry, index| type_fields.set(index, try self.types.allocator.dupe(u8, entry.name), self.node(entry.value).type_id);
 
     const type_id = try self.types.object(type_fields);
     const output_fields = try self.allocator.alloc(ir.ObjectField, entries.items.len);

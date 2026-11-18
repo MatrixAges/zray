@@ -1,0 +1,34 @@
+import strings from "zig:string"
+
+export type Input = {
+    left: string?[],
+    right: string?[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    return loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < left.length,
+        next: state => {
+            const a = left[state.index]
+            const b = right[state.index]
+
+            if (a == null || b == null) {
+                state.equal = a == null && b == null
+            } else {
+                state.equal = strings.sameStorage(a, b)
+            }
+
+            if (state.equal) {
+                state.index += 1
+            }
+        },
+        return: state => state.index
+    })
+}

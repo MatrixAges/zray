@@ -69,17 +69,15 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
     }
 
     const type_prefix = input.base_types orelse destination.types.items.count();
-    const mapping = try destination.types.appendAnalyzed(temporary, temporary, program.types, input.nominal_types, type_prefix);
-    const range = try table.range(destination.functions.count(), count, base.count(), program.types.count(), program.native_modules.count());
+    var workspace = destination;
+    workspace.temporary = temporary;
 
-    var nodes: Nodes = .{
-        .allocator = destination.allocator,
-        .types = .{ .mapped = mapping },
-        .functions = .{ .range = .{ .first = range.first, .count = range.count, .prefix = range.prefix } },
-        .native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } },
-    };
-
-    try nodes.appendFunctions(destination.functions, tail, temporary);
+    var nodes = try program_link.appendAnalyzed(program, input.nominal_types, &workspace, &.{
+        .types = type_prefix,
+        .base = base.count(),
+        .total = count,
+        .tail = &tail,
+    });
 
     return finish(&input, destination, &nodes, function_body.ownTail(program.*, tail, base.count()), type_prefix);
 }
@@ -90,11 +88,7 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
     var result: Loaded = undefined;
 
     if (comptime generated) {
-        const stable = if (input.owned_declarations) type_prefix else 0;
-
-        result.exports, result.constant_exports = try @import("source/declarations/host.zig").publish(nodes, program, stable);
-
-        try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, &result);
+        try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, type_prefix, &result);
     } else {
         result.exports, result.constant_exports = try publishSeedDeclarations(nodes, program);
         result.store_initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);

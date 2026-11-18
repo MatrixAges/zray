@@ -1,0 +1,23 @@
+import strings from "zig:string"
+
+export type Input = {
+    left: string[],
+    right: string[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    return loop({
+        index: 0
+    }, {
+        while: state => state.index < left.length &&
+            strings.sameStorage(left[state.index], right[state.index]),
+        next: state => {
+            state.index += 1
+        },
+        return: state => state.index
+    })
+}

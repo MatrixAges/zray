@@ -3,6 +3,10 @@
 
     <Args in={Surface.Input} out={Surface.Output?} />
 
+    <If on={$in.declarations != null}>
+        <Call module="../declarations/publish" in={$in.declarations} />
+    </If>
+
     <Call module="../initializers/resolve" in={$in.initializers} />
 
     <If on={$in.members.source.count != 0}>

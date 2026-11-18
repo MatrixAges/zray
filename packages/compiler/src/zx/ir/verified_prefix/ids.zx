@@ -1,0 +1,21 @@
+export type Input = {
+    left: u32?[],
+    right: u32?[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    return loop({
+        index: 0
+    }, {
+        while: state => state.index < left.length &&
+            left[state.index] == right[state.index],
+        next: state => {
+            state.index += 1
+        },
+        return: state => state.index
+    })
+}

@@ -10,6 +10,8 @@ const Error = @import("../../program.zig").Error;
 const remap = @import("../../../artifact/nodes/remap.zig");
 const generated = @import("generated_source_surface");
 const Input = std.meta.Child(generated.Input);
+const Declarations = std.meta.Child(@typeInfo(@FieldType(Input, "declarations")).optional.child);
+const Surface = @import("../../../artifact/surface.zig").Publication(std.meta.Child(@FieldType(Declarations, "rows")));
 const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
 const Members = std.meta.Child(@FieldType(Input, "members"));
 const Ports = std.meta.Child(@FieldType(Input, "ports"));
@@ -18,7 +20,7 @@ const Prefix = std.meta.Child(@typeInfo(@FieldType(Initializers, "prefix")).opti
 const InitTarget = std.meta.Child(@FieldType(Initializers, "target"));
 const MemberTarget = std.meta.Child(@FieldType(Members, "target"));
 
-pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, nodes: *const Nodes, entry: ?ir.FunctionId, result: *Source.Loaded) Error!void {
+pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, nodes: *const Nodes, entry: ?ir.FunctionId, type_prefix: usize, result: *Source.Loaded) Error!void {
     const allocator = nodes.allocator;
     const functions = remap.idMapping(Mapping, nodes.functions);
     const types = remap.typeMapping(Mapping, nodes.types);
@@ -92,7 +94,23 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
         .functions = zx.columns.pointer(@FieldType(Members, "functions"), &functions),
     };
 
+    const program = &input.program;
+    const declared = program.exports.len != 0 or program.constant_exports.len != 0;
+    var surface: Surface = undefined;
+    var export_types: memory.ReadColumn = undefined;
+    var declarations: Declarations = undefined;
+
+    if (declared) {
+        surface.init(program.exports, program.constant_exports, nodes.types);
+
+        export_types = memory.borrowReadColumn(ir.TypeId, "type_id", program.exports);
+        declarations = .{ .rows = &surface.input, .export_types = @ptrCast(&export_types), .prefix = if (input.owned_declarations) type_prefix else 0 };
+    }
+
+    errdefer if (declared) surface.release(allocator);
+
     const request: Input = .{
+        .declarations = if (declared) &declarations else null,
         .initializers = &initializers,
         .members = &members,
         .member_storage = @ptrCast(&member_output.buffer),
@@ -116,6 +134,8 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
     const first: usize = @intCast(published.initializer_prefix);
     const owned = initial_output.rows();
 
+    result.exports = if (declared and surface.exports().len != 0) surface.exports() else program.exports;
+    result.constant_exports = if (declared and surface.constants().len != 0) surface.constants() else program.constant_exports;
     result.function = if (published.entry) |id| @fromBackingInt(id) else null;
     result.input_type = @fromBackingInt(published.input_type);
     result.output_type = @fromBackingInt(published.output_type);

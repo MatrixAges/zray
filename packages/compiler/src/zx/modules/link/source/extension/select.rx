@@ -1,0 +1,64 @@
+<Module>
+    <Type from="model" as="Extension" />
+
+    <Args in={Extension.Input} out={Extension.Tail} />
+
+    <If on={$in.functions.files.length < $in.base.files.length}>
+        <Return value={Extension.Tail.Invalid} />
+    </If>
+
+    <Task name="base" out={$ctx.functions}>
+        <Call
+            fn="../../../../ir/canonical/validation/structure/functions"
+            in={{
+                functions: $in.base,
+                maximum_count: $in.maximum_count,
+                verified: 0
+            }}
+        />
+    </Task>
+
+    <If on={!$ctx.task.base}>
+        <Return value={Extension.Tail.Invalid} />
+    </If>
+
+    <Task name="extended" out={$ctx.functions}>
+        <Call
+            fn="../../../../ir/canonical/validation/structure/functions"
+            in={{
+                functions: $in.functions,
+                maximum_count: $in.maximum_count,
+                verified: $in.base.files.length
+            }}
+        />
+    </Task>
+
+    <If on={!$ctx.task.extended}>
+        <Return value={Extension.Tail.Invalid} />
+    </If>
+
+    <If on={$in.suffix != null}>
+        <If on={$in.functions.files.length != $in.base.files.length}>
+            <Return value={Extension.Tail.Invalid} />
+        </If>
+
+        <Task name="suffix" out={$ctx.functions}>
+            <Call
+                fn="../../../../ir/canonical/validation/structure/functions"
+                in={{
+                    functions: $in.suffix,
+                    maximum_count: $in.maximum_count,
+                    verified: 0
+                }}
+            />
+        </Task>
+
+        <If on={!$ctx.task.suffix}>
+            <Return value={Extension.Tail.Invalid} />
+        </If>
+
+        <Return value={Extension.Tail.Separate} />
+    </If>
+
+    <Return value={Extension.Tail.Embedded} />
+</Module>
