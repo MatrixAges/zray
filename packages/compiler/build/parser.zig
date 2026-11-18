@@ -12,6 +12,8 @@ const rx_prepared_flow = "rx_prepared_flow";
 const rx_prepared_flow_dir = "rx/analysis/project/flow/driver/";
 const rx_prepare = "rx_prepare";
 const rx_prepare_dir = "rx/analysis/project/prepare/";
+const rx_project_workflow = "rx_project_workflow";
+const rx_project_workflow_dir = "rx/analysis/project/workflow/";
 const uniqueness_program = "uniqueness_program";
 const uniqueness_interface = "analysis/uniqueness/program/native.d.zx";
 const uniqueness_native = "src/zx/uniqueness/program/native.zig";
@@ -89,6 +91,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/{s}frame.d.zx", .{ directories[0], rx_statement_frame_dir }), .module = rx_statement_frame },
         .{ .path = b.fmt("{s}/{s}native.d.zx", .{ directories[0], rx_prepared_flow_dir }), .module = rx_prepared_flow },
         .{ .path = b.fmt("{s}/{s}native.d.zx", .{ directories[0], rx_prepare_dir }), .module = rx_prepare },
+        .{ .path = b.fmt("{s}/{s}native.d.zx", .{ directories[0], rx_project_workflow_dir }), .module = rx_project_workflow },
         .{ .path = b.fmt("{s}/{s}", .{ directories[3], uniqueness_interface }), .module = uniqueness_program },
     };
 
@@ -150,6 +153,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             run.addFileInput(roots[0].path(b, rx_statement_frame_dir ++ "frame.d.zx"));
             run.addFileInput(roots[0].path(b, rx_prepared_flow_dir ++ "native.d.zx"));
             run.addFileInput(roots[0].path(b, rx_prepare_dir ++ "native.d.zx"));
+            run.addFileInput(roots[0].path(b, rx_project_workflow_dir ++ "native.d.zx"));
             run.addFileInput(roots[3].path(b, uniqueness_interface));
         }
 
@@ -285,6 +289,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     const statement_frame = b.createModule(.{ .root_source_file = b.path("src/" ++ rx_statement_frame_dir ++ "frame.zig"), .target = target, .optimize = optimize });
     const prepared_flow = b.createModule(.{ .root_source_file = b.path("src/" ++ rx_prepared_flow_dir ++ "native.zig"), .target = target, .optimize = optimize });
     const preparation = b.createModule(.{ .root_source_file = b.path("src/" ++ rx_prepare_dir ++ "native.zig"), .target = target, .optimize = optimize });
+    const workflow = b.createModule(.{ .root_source_file = b.path("src/" ++ rx_project_workflow_dir ++ "native.zig"), .target = target, .optimize = optimize });
     const uniqueness = b.createModule(.{ .root_source_file = b.dependency("genz", .{}).path(uniqueness_native), .target = target, .optimize = optimize });
 
     const standard = b.createModule(.{
@@ -316,6 +321,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = rx_statement_frame, .module = statement_frame },
             .{ .name = rx_prepared_flow, .module = prepared_flow },
             .{ .name = rx_prepare, .module = preparation },
+            .{ .name = rx_project_workflow, .module = workflow },
             .{ .name = uniqueness_program, .module = uniqueness },
         },
     });
@@ -346,6 +352,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = rx_statement_frame, .module = statement_frame },
             .{ .name = rx_prepared_flow, .module = prepared_flow },
             .{ .name = rx_prepare, .module = preparation },
+            .{ .name = rx_project_workflow, .module = workflow },
             .{ .name = uniqueness_program, .module = uniqueness },
             .{ .name = "zxc_bridge", .module = bridge },
             .{ .name = "zxc_signatures", .module = signatures },
@@ -371,6 +378,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
                 .{ .name = rx_statement_frame, .module = statement_frame },
                 .{ .name = rx_prepared_flow, .module = prepared_flow },
                 .{ .name = rx_prepare, .module = preparation },
+                .{ .name = rx_project_workflow, .module = workflow },
                 .{ .name = uniqueness_program, .module = uniqueness },
             },
         }));
@@ -506,6 +514,7 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     const statement_frame = b.path("src/" ++ rx_statement_frame_dir ++ "frame.zig");
     const prepared_flow = b.path("src/" ++ rx_prepared_flow_dir ++ "native.zig");
     const preparation = b.path("src/" ++ rx_prepare_dir ++ "native.zig");
+    const workflow = b.path("src/" ++ rx_project_workflow_dir ++ "native.zig");
     const uniqueness = b.dependency("genz", .{}).path(uniqueness_native);
 
     run.addFileArg(view);
@@ -513,6 +522,7 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     run.addFileArg(statement_frame);
     run.addFileArg(prepared_flow);
     run.addFileArg(preparation);
+    run.addFileArg(workflow);
     run.addFileArg(uniqueness);
 
     const memory = b.dependency("core", .{}).path("src/memory");
@@ -547,12 +557,15 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     run.addPrefixedFileArg("-M" ++ rx_prepare ++ "=", preparation);
     run.addArgs(stripped);
     run.addArg(level);
+    run.addPrefixedFileArg("-M" ++ rx_project_workflow ++ "=", workflow);
+    run.addArgs(stripped);
+    run.addArg(level);
     run.addPrefixedFileArg("-M" ++ uniqueness_program ++ "=", uniqueness);
     run.addArgs(stripped);
     run.addArgs(&.{ level, "--dep", "zxc_abi", "-Mzxc_signatures=%generated%/signatures.zig", level });
     run.addPrefixedFileArg("-Mzxc_bridge=", b.path("build/partition/bridge.zig"));
     run.addArgs(stripped);
-    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "memory", "--dep", memory_columns ++ "=memory", "--dep", lexical_path ++ "=zxc_standard", "--dep", artifact_view, "--dep", project_frame, "--dep", rx_statement_frame, "--dep", rx_prepared_flow, "--dep", rx_prepare, "--dep", uniqueness_program, "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
+    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "memory", "--dep", memory_columns ++ "=memory", "--dep", lexical_path ++ "=zxc_standard", "--dep", artifact_view, "--dep", project_frame, "--dep", rx_statement_frame, "--dep", rx_prepared_flow, "--dep", rx_prepare, "--dep", rx_project_workflow, "--dep", uniqueness_program, "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
     run.addArgs(&.{ "--name", if (llvm) "zxc_partition_%index%" else "zxc_partition_%index%_self_hosted", "-femit-bin=%objects%/zxc_partition_%index%.o" });
 
     // The object directory persists across runs, so unchanged partitions keep their objects.

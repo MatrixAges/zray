@@ -1,0 +1,22 @@
+<Module>
+    <Type from="input" as="Project" />
+
+    <Args in={Project.Input} out={void} />
+
+    <Call fn="normalize" in={$in} />
+    <Call fn="reuse" in={$in} />
+
+    <If on={!$ctx.reuse}>
+        <Call fn="derive" in={$in} />
+    </If>
+
+    <Call fn="compile" in={$in} />
+
+    <If on={$ctx.reuse}>
+        <Call fn="retain" in={$in} />
+
+        <Else>
+            <Call fn="publish" in={$in} />
+        </Else>
+    </If>
+</Module>

@@ -1,0 +1,9 @@
+import project from "rx_project_workflow"
+
+import type { Input } from "./input"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    project.collectGraph(in)
+}

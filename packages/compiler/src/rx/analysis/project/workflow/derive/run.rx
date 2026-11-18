@@ -1,0 +1,21 @@
+<Module>
+    <Type from="input" as="Project" />
+
+    <Args in={Project.Input} out={void} />
+
+    <Call fn="modules" in={$in} />
+    <Call fn="graph" in={$in} />
+    <Call fn="ordered" in={$in} />
+    <Call fn="reuse" in={$in} />
+
+    <If on={!$ctx.reuse}>
+        <Call fn="signatures" in={$in} />
+    </If>
+
+    <Call fn="index" in={$in} />
+    <Call fn="stores" in={$in} />
+    <Call fn="prepare" in={$in} />
+    <Call fn="infer" in={$in} />
+    <Call fn="complete" in={$in} />
+    <Call fn="publish" in={$in} />
+</Module>

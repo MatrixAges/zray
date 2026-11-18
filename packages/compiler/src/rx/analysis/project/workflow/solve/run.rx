@@ -1,0 +1,9 @@
+<Module>
+    <Type from="input" as="Project" />
+
+    <Args in={Project.Input} out={void} />
+
+    <Call fn="collect" in={$in} />
+    <Call fn="finish" in={$in} />
+    <Call fn="resolve" in={$in} />
+</Module>
