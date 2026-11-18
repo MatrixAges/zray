@@ -1,5 +1,6 @@
 const std = @import("std");
 const rx = @import("rx");
+const zx = @import("zx");
 const Flow = @import("../flow.zig");
 const target = @import("../../call/target.zig");
 const Prepare = @import("../prepare.zig");
@@ -10,7 +11,6 @@ const payload_lanes = 5;
 
 pub fn bind(loader: *Prepare.Loader, indexed: rx.IndexedFlow) Prepare.Loader.Error!Flow.Plan {
     const allocator = loader.allocator;
-    var state: State = .{ .loader = loader, .index = &indexed };
     loader.plan = try Flow.Builder.init(allocator, indexed.capacity);
 
     try loader.calls.setCapacity(allocator, indexed.capacity.calls);
@@ -50,13 +50,53 @@ pub fn bind(loader: *Prepare.Loader, indexed: rx.IndexedFlow) Prepare.Loader.Err
     }
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const input: Input = .{ .index = &index, .rows = &rows, .count = indexed.events.len, .context = @ptrCast(&state) };
+    var remaining: u64 = indexed.events.len;
 
-    entry.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidFlow => return error.InvalidFlow,
-        else => unreachable,
-    };
+    while (remaining != 0) {
+        const input: Input = .{ .index = &index, .rows = &rows, .remaining = remaining };
+        const event = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+
+        remaining = event.remaining;
+
+        if (event.route == .Done) break;
+
+        const node = &indexed.base[@intCast(event.slot)];
+        const item = event.item;
+        const unit: Flow.Unit = .{ .first = event.first, .count = event.count };
+
+        switch (event.route) {
+            .Call => {
+                const index_written = try loader.call(node.*, event.previous_end);
+
+                std.debug.assert(index_written == item);
+            },
+            .Result => loader.plan.results.items[item] = target.attribute(node.*, "value"),
+            .Task => loader.plan.tasks.items[item] = .{
+                .node = node,
+                .body = unit,
+                .output = if (event.task_output) target.attribute(node.*, "out") else null,
+            },
+            .ParallelTask => {
+                if (event.implicit_item) |result| loader.plan.results.items[result] = target.attribute(node.*, "out");
+
+                loader.plan.tasks.items[item] = .{ .node = node, .body = unit, .id = @intCast(event.task_id.?) };
+            },
+            .Parallel => loader.plan.groups.items[item] = unit,
+            .Switch, .If => {
+                const subject = target.borrowAttribute(node.*, "on").?;
+                const cases = try @import("selection.zig").bind(allocator, &indexed, node, subject, event.route == .If, event.else_branch);
+                loader.plan.selections.items[item] = .{ .subject = subject, .cases = cases };
+            },
+            .TaskReturns, .Unreachable, .Unsupported => {
+                const report = @import("generated_rx_prepare_diagnostic");
+                const issue = report.executeValue(empty.allocator(), event.route) catch unreachable;
+                const location = if (issue.at_output) target.attribute(node.*, "out").value_location else node.location;
+
+                return loader.fail(location, issue.code, issue.message);
+            },
+            .Done => unreachable,
+        }
+    }
 
     std.debug.assert(std.mem.eql(u32, &counters, &.{
         indexed.capacity.calls,
@@ -68,67 +108,3 @@ pub fn bind(loader: *Prepare.Loader, indexed: rx.IndexedFlow) Prepare.Loader.Err
 
     return loader.plan.finish(indexed.rootUnit());
 }
-
-const Error = Prepare.Loader.Error;
-
-pub const State = struct {
-    loader: *Prepare.Loader,
-    index: *const rx.IndexedFlow,
-    fn node(self: *const State, slot: u64) *const rx.ast.Node {
-        return &self.index.base[@intCast(slot)];
-    }
-    pub fn call(self: *State, slot: u64, item: u32, previous_end: u32) Error!void {
-        const actual = try self.loader.call(self.node(slot).*, previous_end);
-
-        std.debug.assert(actual == item);
-    }
-
-    pub fn result(self: *State, slot: u64, item: u32) void {
-        self.loader.plan.results.items[item] = target.attribute(self.node(slot).*, "value");
-    }
-
-    pub fn taskResult(self: *State, slot: u64, item: u32) void {
-        self.loader.plan.results.items[item] = target.attribute(self.node(slot).*, "out");
-    }
-
-    pub fn task(self: *State, slot: u64, item: u32, first: u32, count: u32, output: bool) void {
-        const task_node = self.node(slot);
-
-        self.loader.plan.tasks.items[item] = .{
-            .node = task_node,
-            .body = .{ .first = first, .count = count },
-            .output = if (output) target.attribute(task_node.*, "out") else null,
-        };
-    }
-
-    pub fn parallelTask(self: *State, slot: u64, item: u32, first: u32, count: u32, task_id: u64) void {
-        self.loader.plan.tasks.items[item] = .{
-            .id = @intCast(task_id),
-            .node = self.node(slot),
-            .body = .{ .first = first, .count = count },
-        };
-    }
-
-    pub fn group(self: *State, item: u32, first: u32, count: u32) void {
-        self.loader.plan.groups.items[item] = .{ .first = first, .count = count };
-    }
-
-    pub fn selection(self: *State, slot: u64, item: u32, conditional: bool, else_branch: bool) Error!void {
-        const selection_node = self.node(slot);
-        const subject = target.borrowAttribute(selection_node.*, "on").?;
-        const cases = try @import("selection.zig").bind(self.loader.allocator, self.index, selection_node, subject, conditional, else_branch);
-        self.loader.plan.selections.items[item] = .{ .subject = subject, .cases = cases };
-    }
-
-    pub fn taskReturns(self: *State, slot: u64) Error!void {
-        const location = target.attribute(self.node(slot).*, "out").value_location;
-
-        return self.loader.fail(location, "return_path", "Task.out and Return cannot both define the same task output");
-    }
-    pub fn unreachableStep(self: *State, slot: u64) Error!void {
-        return self.loader.fail(self.node(slot).location, "return_path", "steps after a terminating Return, Switch or If are unreachable");
-    }
-    pub fn unsupportedStep(self: *State, slot: u64) Error!void {
-        return self.loader.fail(self.node(slot).location, "unsupported", "RX execution supports Store declarations, Call, Return, Task, Switch, If and pure Parallel branches; events require host linking");
-    }
-};

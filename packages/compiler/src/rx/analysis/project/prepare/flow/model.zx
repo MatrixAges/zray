@@ -1,5 +1,4 @@
 import type { U8Buffer, U32Buffer } from "memory"
-import type { FlowTarget } from "rx_prepare"
 
 export type Index = {
     facts: u32[],
@@ -57,6 +56,7 @@ export type Event = {
 export type Layout = Event.Pick("remaining", "slot") & {
     route: Route,
     row: u32,
+    previous_end: u32,
     first: u32,
     count: u32,
     task_id?: u64,
@@ -68,24 +68,3 @@ export type Output = Layout & {
     item: u32,
     implicit_item?: u32
 }
-
-export type Walk = Input.Omit("remaining") & {
-    context: FlowTarget,
-    count: u64
-}
-
-export type Step = Input & {
-    context: FlowTarget
-}
-
-export type Target = {
-    context: FlowTarget
-}
-
-export type Position = Target & Output.Pick("slot", "item")
-
-export type Group = Target & Output.Pick("first", "count", "item")
-
-export type TaskBinding = Target & Output
-
-export type Diagnostic = Target & Output.Pick("slot", "route")

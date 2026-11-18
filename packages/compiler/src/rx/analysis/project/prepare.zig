@@ -12,11 +12,6 @@ const zx = @import("zx");
 const Graph = @import("source_graph/model.zig");
 const Signatures = @import("references/signatures.zig");
 const generated = @import("rx_options").generated_graph;
-
-comptime {
-    if (generated) _ = @import("prepare/effects.zig");
-}
-
 pub const Callee = union(enum) { module: usize, signature: frontend.project.signature_project.Ports };
 pub const batch_callees = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const CalleeInput = if (batch_callees) std.meta.Child(@import("generated_rx_mixed_callees").Input) else void;
@@ -300,21 +295,8 @@ pub const Loader = struct {
 
         return body;
     }
-    pub fn call(self: *Loader, node: rx.ast.Node, previous_end: u32) Error!usize {
-        var state: @import("prepare/invocation/host.zig").State = .{
-            .loader = self,
-            .node = node,
-            .index = self.calls.len,
-        };
 
-        try state.bind();
-
-        if (previous_end != 0) {
-            try @import("prepare/previous_input.zig").bind(self, state.index, previous_end - 1);
-        }
-
-        return state.index;
-    }
+    pub const call = @import("prepare/invocation/host.zig").bind;
 
     pub fn recordArgument(self: *Loader, index: usize, parsed: *const frontend.ExpressionInput.Result) Error!void {
         const first = self.arguments.items.len;

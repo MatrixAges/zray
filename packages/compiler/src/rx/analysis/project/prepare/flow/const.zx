@@ -7,3 +7,16 @@ export const tasks: u64 = 2
 export const groups: u64 = 3
 
 export const selections: u64 = 4
+
+export const return_path_code: string = "return_path"
+
+export const unsupported_code: string = "unsupported"
+
+export const conflicting_output: string =
+    "Task.out and Return cannot both define the same task output"
+
+export const unreachable_step: string =
+    "steps after a terminating Return, Switch or If are unreachable"
+
+export const unsupported_step: string =
+    "RX execution supports Store declarations, Call, Return, Task, Switch, If and pure Parallel branches; events require host linking"

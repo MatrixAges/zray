@@ -7,6 +7,9 @@ export enum Target {
 export enum Route {
     Source,
     AuthorizedSource,
+    NamedSource,
+    NamedSetter,
+    NamedTarget,
     Compiled,
     Native,
     Denied
@@ -14,20 +17,34 @@ export enum Route {
 
 export type Input = {
     target: Target,
+    named: bool,
     declared_setter: bool,
     setter: bool,
     ambient_store: bool
 }
 
-export type Output = Route
+export type Output = {
+    route: Route,
+    local: bool
+}
 
 export default function (in: Input): Output {
     const explicit = in.declared_setter == in.setter
     const permitted = explicit && !in.ambient_store
 
-    return match in.target {
-        Target.Source => in.setter ? Route.AuthorizedSource : Route.Source,
-        Target.Compiled => permitted ? Route.Compiled : Route.Denied,
-        _ => Route.Native
+    const route = match {
+        in.named && in.target != Target.Source => Route.NamedTarget,
+        in.named && in.setter => Route.NamedSetter,
+        in.named => Route.NamedSource,
+        _ => match in.target {
+            Target.Source => in.setter ? Route.AuthorizedSource : Route.Source,
+            Target.Compiled => permitted ? Route.Compiled : Route.Denied,
+            _ => Route.Native
+        }
+    }
+
+    return {
+        route,
+        local: route == Route.Source || route == Route.NamedSource
     }
 }

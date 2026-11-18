@@ -7,6 +7,7 @@ import {
     if_action,
     if_has_else,
     parallel_action,
+    previous_output,
     return_action,
     switch_action,
     task_action,
@@ -32,6 +33,7 @@ export default function (in: Input): Output {
         integers.narrow(integers.andBits(flags, integers.widen(action_mask)))
 
     const route = match {
+        !event.ready => Route.Done,
         phase == check_task_phase => Route.TaskReturns,
         integers.andBits(flags, integers.widen(unreachable)) != 0 => Route.Unreachable,
         _ => match action {
@@ -46,6 +48,7 @@ export default function (in: Input): Output {
     }
 
     const published = match route {
+        Route.Done => false,
         Route.TaskReturns => false,
         Route.Unreachable => false,
         Route.Unsupported => false,
@@ -68,11 +71,15 @@ export default function (in: Input): Output {
     const task_output = integers.andBits(flags, integers.widen(task_has_output)) != 0
     const else_branch = integers.andBits(flags, integers.widen(if_has_else)) != 0
 
+    const row = published ? in.index.step_rows[slot] : 0
+    const previous = integers.andBits(flags, integers.widen(previous_output)) != 0
+
     return {
         remaining: event.remaining,
         slot,
         route,
-        row: published ? in.index.step_rows[slot] : 0,
+        row,
+        previous_end: previous ? row : 0,
         first: has_body ? in.index.unit_firsts[slot] : 0,
         count: has_body ? in.index.unit_counts[slot] : 0,
         task_id,

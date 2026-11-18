@@ -1,20 +1,36 @@
-import native from "rx_prepare"
-
+import {
+    conflicting_output,
+    return_path_code,
+    unreachable_step,
+    unsupported_code,
+    unsupported_step
+} from "./const"
 import { Route } from "./model"
 
-import type { Diagnostic } from "./model"
+export type Input = Route
 
-export type Input = Diagnostic
-
-export type Output = void
+export type Output = {
+    code: string,
+    message: string,
+    at_output: bool
+}
 
 export default function (in: Input): Output {
-    switch (in.route) {
-        case Route.TaskReturns:
-            native.taskReturns(in.context, in.slot)
-        case Route.Unreachable:
-            native.unreachableStep(in.context, in.slot)
-        default:
-            native.unsupportedStep(in.context, in.slot)
+    return match in {
+        Route.TaskReturns => {
+            code: return_path_code,
+            message: conflicting_output,
+            at_output: true
+        },
+        Route.Unreachable => {
+            code: return_path_code,
+            message: unreachable_step,
+            at_output: false
+        },
+        _ => {
+            code: unsupported_code,
+            message: unsupported_step,
+            at_output: false
+        }
     }
 }
