@@ -16,6 +16,7 @@ allocator: std.mem.Allocator,
 scratch: std.mem.Allocator,
 binding_allocator: std.mem.Allocator,
 retain_metadata: bool = false,
+root_return: ?*const zx.ir.Program = null,
 owner: []const u8,
 aliases: frontend.expressions.BindingColumns = .{},
 types: zx.ir.TypeTable,
@@ -181,7 +182,7 @@ pub fn valueParsed(self: *Self, parsed: *const frontend.ExpressionInput.Result, 
     return program;
 }
 
-pub fn takeTypeStorage(self: *Self) Error!zx.ir.TypeStorage {
+pub fn takeTypeStorage(self: *Self) std.mem.Allocator.Error!zx.ir.TypeStorage {
     try self.ensureTypeStorage();
 
     const storage = self.type_storage;
@@ -191,7 +192,7 @@ pub fn takeTypeStorage(self: *Self) Error!zx.ir.TypeStorage {
     return storage;
 }
 
-fn ensureTypeStorage(self: *Self) Error!void {
+fn ensureTypeStorage(self: *Self) std.mem.Allocator.Error!void {
     if (viewed(self.type_storage, self.types)) return;
 
     self.type_storage = try frontend.type_table.columns(self.allocator, self.types);

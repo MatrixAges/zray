@@ -5,9 +5,9 @@ const State = @import("state.zig");
 const Loading = @import("../prepare.zig");
 const Inputs = @import("../call_inputs.zig");
 const Signature = @import("../signatures.zig").Signature;
-const Module = @import("../../module.zig");
+const Compilation = @import("../../module_compile.zig");
 const Source = frontend.project.artifact.source_link;
-pub const Result = struct { loaded: Source.Loaded, contract: ?Module.Contract };
+pub const Result = struct { loaded: Source.Loaded, metadata: ?*Compilation.Metadata };
 
 /// A module ready for lowering: the functions its calls bind, which the shared tables already hold, and the extent of
 /// the tables it is lowered against.
@@ -37,10 +37,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
     if (!entry) _ = state.scratch.reset(.retain_capacity);
 
     const allocator = if (entry) state.allocator else state.scratch.allocator();
-    const view = state.functions.view();
-    // Only the entry retains its call metadata after linking may move the shared columns.
-    const base = if (entry) try view.snapshot(allocator) else view;
-    const prepared = try prepare(state, index, module, signature, ids, arguments, base);
+    const prepared = try prepare(state, index, module, signature, ids, arguments, state.functions.view());
     const result = try lower(state, allocator, prepared);
 
     if (result == .diagnostic) {
@@ -51,7 +48,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
         return error.InvalidSourceGraph;
     }
 
-    return link(state, prepared, result.contract);
+    return link(state, prepared, result.body);
 }
 
 /// Binds the calls of `module` to the functions `ids` names, over the shared tables as they stand.
@@ -63,8 +60,9 @@ pub fn prepare(state: *State, index: usize, module: Loading.Module, signature: S
 
 /// Lowers a prepared module against the shared tables, which it only reads, so modules that depend on none of each
 /// other may lower at once.
-pub fn lower(state: *const State, allocator: std.mem.Allocator, prepared: Prepared) std.mem.Allocator.Error!Module.Value {
-    return @import("../../module_compile.zig").compile(allocator, state.scratch.child_allocator, .{
+pub fn lower(state: *const State, allocator: std.mem.Allocator, prepared: Prepared) std.mem.Allocator.Error!Compilation.Value {
+    return Compilation.compile(allocator, state.scratch.child_allocator, .{
+        .entry = prepared.index == state.graph.entry,
         .aliases = prepared.module.value_imports,
         .module = prepared.module.source,
         .calls = prepared.module.calls,
@@ -86,34 +84,30 @@ pub fn lower(state: *const State, allocator: std.mem.Allocator, prepared: Prepar
 
 /// Whether a module lowered earlier can still be linked as it is: the tables it read may only have gained types, and
 /// functions when it adds none of its own.
-pub fn current(state: *const State, prepared: Prepared, contract: Module.Contract) bool {
-    const count = contract.program.functions.count() + contract.function_suffix.count();
+pub fn current(state: *const State, prepared: Prepared, body: Compilation.Body) bool {
+    const count = body.lowered.program.functions.count() + body.lowered.function_suffix.count();
 
     return @import("body.zig").accept(state, prepared.native_modules, prepared.initializers, prepared.functions, count);
 }
 
 /// Links a lowered module. The tables may have grown, and moved, since it was lowered, but the rows it read are
 /// unchanged, so the module refers to them where they are now.
-pub fn link(state: *State, prepared: Prepared, lowered: Module.Contract) State.Error!Result {
-    const entry = prepared.index == state.graph.entry;
-    var contract = lowered;
-
-    if (entry) try @import("metadata.zig").retain(state.allocator, &contract);
-
+pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Error!Result {
+    var program = body.lowered.program;
     const destination = state.destination();
     const base = state.functions.view().prefix(prepared.functions);
-    const plan = @import("body/link.zig").prepare(state, .{ .functions = prepared.functions, .types = prepared.types }, contract.program.functions.count(), true);
+    const plan = @import("body/link.zig").prepare(state, .{ .functions = prepared.functions, .types = prepared.types }, program.functions.count(), true);
 
     // Without new functions, lowering returns a borrowed view of the analyzed prefix.
-    if (plan.replace_prefix) contract.program.functions = base;
+    if (plan.replace_prefix) program.functions = base;
 
     const loaded = state.linked(Source.appendBody(.{
-        .program = contract.program,
+        .program = program,
         .base_functions = base,
-        .function_suffix = if (contract.function_suffix.count() != 0) contract.function_suffix else null,
+        .function_suffix = if (body.lowered.function_suffix.count() != 0) body.lowered.function_suffix else null,
         .verified_functions = state.verifiedFunctions(),
-        .nominal_types = contract.nominal_types,
-        .store_initializers = contract.store_initializers,
+        .nominal_types = body.nominal_types,
+        .store_initializers = body.lowered.store_initializers,
         .shared_initializers = try state.initializersView(),
         .base_types = plan.type_prefix,
     }, destination) catch |err| {
@@ -122,14 +116,5 @@ pub fn link(state: *State, prepared: Prepared, lowered: Module.Contract) State.E
         return state.fail(prepared.module.source.node.location, "RX module body cannot be linked to its shared compilation context");
     });
 
-    if (!entry) return .{ .loaded = loaded, .contract = null };
-
-    contract.program = try @import("function.zig").view(state, loaded.function.?, state.functions.view());
-    contract.function_suffix = .{};
-    contract.types = state.types.items.view();
-    contract.nominal_types = state.types.origins.items.view();
-    contract.native_modules = state.native_modules.view();
-    contract.store_initializers = loaded.store_initializers;
-
-    return .{ .loaded = loaded, .contract = contract };
+    return .{ .loaded = loaded, .metadata = body.metadata };
 }

@@ -53,16 +53,6 @@ pub fn unit(self: *Self, allocator: std.mem.Allocator, first: u32, count: u32, b
     return id;
 }
 
-pub fn result(self: *const Self, root: u32) ?ir.Program {
-    const extent = self.units.get(root);
-
-    if (extent.count == 0) return null;
-
-    const last = self.steps.get(extent.first + extent.count - 1);
-
-    return if (last.kind == .Return) last.value.?.* else null;
-}
-
 pub fn index(value: usize) std.mem.Allocator.Error!u32 {
     return std.math.cast(u32, value) orelse error.OutOfMemory;
 }

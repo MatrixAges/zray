@@ -11,7 +11,7 @@ const State = @import("state.zig");
 const Reuse = @import("reuse.zig");
 const Zx = @import("zx.zig");
 const Rx = @import("rx.zig");
-const Module = @import("../../module.zig");
+const Compilation = @import("../../module_compile.zig");
 const Frame = @import("../history.zig").Frame;
 const Inputs = @import("../call_inputs.zig");
 const Body = @import("body.zig");
@@ -31,13 +31,13 @@ const Item = struct {
 
 const Result = union(enum) {
     zx: struct { prepared: Zx.Prepared, outcome: ?Zx.Outcome = null },
-    rx: struct { prepared: Rx.Prepared, value: ?Module.Value = null },
+    rx: struct { prepared: Rx.Prepared, value: ?Compilation.Value = null },
 };
 
 /// Fewer modules than this are analyzed at their turn: waking the other cores costs more than a run of two or three
 /// modules saves.
 const minimum = 4;
-pub const Lowered = struct { prepared: Rx.Prepared, contract: Module.Contract };
+pub const Lowered = struct { prepared: Rx.Prepared, body: Compilation.Body };
 
 fn initArenas(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
     if (self.arenas.len != 0) return;
@@ -183,7 +183,7 @@ pub fn lowered(self: *const Self, state: *const State, selected: ?usize) ?Lowere
 
     const value = lowering.value orelse return null;
 
-    return if (value == .contract and Rx.current(state, lowering.prepared, value.contract)) .{ .prepared = lowering.prepared, .contract = value.contract } else null;
+    return if (value == .body and Rx.current(state, lowering.prepared, value.body)) .{ .prepared = lowering.prepared, .body = value.body } else null;
 }
 
 pub fn next(self: *Self, state: *const State, first: usize, end: usize, keep_skipped: bool) @import("schedule/dispatch.zig").Result {

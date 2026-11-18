@@ -66,7 +66,7 @@ pub const Transaction = struct {
     schedule: Schedule = .{},
     position: usize = 0,
     next: Dispatch = undefined,
-    entry: ?Module.Contract = null,
+    entry: ?*@import("mixed/metadata.zig") = null,
     output: Module.Contract = undefined,
     fn execute(self: *Transaction) Error!void {
         if (comptime generated) {
@@ -170,12 +170,12 @@ pub const Transaction = struct {
         const linked = if (self.ahead.lowered(state, self.next.prepared_row)) |lowered| ready: {
             _ = state.scratch.reset(.retain_capacity);
 
-            break :ready try module.link(state, lowered.prepared, lowered.contract);
+            break :ready try module.link(state, lowered.prepared, lowered.body);
         } else try module.compile(state, self.cache, self.sources, index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
 
         state.finished.set(index, linked.loaded);
 
-        if (index == derived.dependencies.entry) self.entry = linked.contract;
+        if (linked.metadata) |metadata| self.entry = metadata;
     }
 
     pub fn record(self: *Transaction) void {
@@ -185,7 +185,7 @@ pub const Transaction = struct {
     }
 
     pub fn materialize(self: *Transaction) Error!void {
-        self.output = try Publication.materialize(self.state, self.derived, &self.entry, self.exports.len != 0);
+        self.output = try Publication.materialize(self.state, self.derived, self.entry, self.exports.len != 0);
     }
 
     pub fn publish(self: *Transaction) Error!void {

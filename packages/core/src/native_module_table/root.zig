@@ -12,6 +12,14 @@ pub fn count(self: Self) usize {
     return self.specifiers.len;
 }
 
+pub fn prefix(self: Self, len: usize) Self {
+    var result: Self = .{};
+
+    inline for (@typeInfo(Self).@"struct".field_names) |name| @field(result, name) = @field(self, name)[0..len];
+
+    return result;
+}
+
 pub fn at(self: Self, index: usize) ir.NativeModule {
     return .{
         .specifier = self.specifiers[index],

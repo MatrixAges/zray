@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const State = @import("state.zig");
 
 pub fn admitted(ids: []const ir.FunctionId, count: usize) bool {
     if (ids.len == 0) return true;
@@ -17,12 +16,6 @@ pub fn admitted(ids: []const ir.FunctionId, count: usize) bool {
     for (ids) |id| if (@backingInt(id) >= count) return false;
 
     return true;
-}
-
-pub fn view(state: *State, id: ir.FunctionId, functions: ir.FunctionTable) State.Error!ir.Program {
-    if (@backingInt(id) >= state.functions.count()) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "resolved function is outside the shared function table");
-
-    return programView(state.allocator, state.functions.at(@backingInt(id)), id, functions, state.types.items.view(), state.native_modules.view());
 }
 
 pub fn programView(allocator: std.mem.Allocator, function: ir.Function, id: ir.FunctionId, functions: ir.FunctionTable, types: ir.TypeTable, native_modules: ir.NativeModuleTable) std.mem.Allocator.Error!ir.Program {

@@ -5,8 +5,19 @@ const zx = @import("zx");
 const Module = @import("module.zig");
 const expression = @import("expression.zig");
 const target = @import("call/target.zig");
+const Lowering = @import("program.zig");
+pub const Metadata = @import("project/mixed/metadata.zig");
+
+pub const Body = struct {
+    lowered: Lowering.Result,
+    nominal_types: @FieldType(frontend.AnalysisResult, "nominal_types"),
+    metadata: ?*Metadata,
+};
+
+pub const Value = union(enum) { body: Body, diagnostic: target.Diagnostic };
 
 pub const Options = struct {
+    entry: bool,
     aliases: frontend.expressions.BindingColumns = .{},
     module: rx.ModuleSource,
     calls: @import("project/prepare.zig").Calls.Slice,
@@ -25,7 +36,7 @@ pub const Options = struct {
     output_type: zx.ir.TypeId,
 };
 
-pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options: Options) std.mem.Allocator.Error!Module.Value {
+pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options: Options) std.mem.Allocator.Error!Value {
     var scope = std.heap.ArenaAllocator.init(scratch);
 
     defer scope.deinit();
@@ -34,7 +45,7 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
         .allocator = allocator,
         .scratch = scratch,
         .binding_allocator = scope.allocator(),
-        .retain_metadata = true,
+        .retain_metadata = options.entry,
         .owner = options.module.path,
         .aliases = options.aliases,
         .types = options.types,
@@ -51,7 +62,7 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
 
     if (options.input_type != @as(zx.ir.TypeId, @fromBackingInt(@intCast(@backingInt(zx.ir.Scalar.void))))) try flow.bindings.append(flow.binding_allocator, .{ .name = "$in", .type_id = options.input_type });
 
-    const root = flow.root(options.plan.root) catch |err| {
+    _ = flow.root(options.plan.root) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return diagnostic(allocator, options.module.path, flow.issue.?);
@@ -59,7 +70,6 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
 
     const types = flow.types;
     const calls = flow.calls;
-    var result = flow.compiled.result(root);
     const native_modules = options.native_modules;
 
     for (calls.items) |*call| {
@@ -70,12 +80,7 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
         if (frontend.checks_internal_ir) if (try frontend.validateIrExtending(allocator, call.callee, options.verified_functions)) |issue| return invalid(allocator, options, issue);
     }
 
-    if (result) |*program| {
-        program.types = types;
-        program.native_modules = native_modules;
-    }
-
-    const lowered = @import("program.zig").lower(allocator, .{
+    var lowered = Lowering.lower(allocator, .{
         .owner = options.module.path,
         .types = types,
         .input_type = options.input_type,
@@ -94,27 +99,31 @@ pub fn compile(allocator: std.mem.Allocator, scratch: std.mem.Allocator, options
         return invalid(allocator, options, .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "RX expression environment cannot be linked to the module program" });
     };
 
-    var program = lowered.program;
+    const program = &lowered.program;
     var reporter: zx.Reporter = .{};
 
-    program.output_ownership = frontend.analyzeOwnershipWithSuffix(allocator, program, lowered.function_suffix, &reporter) catch |err| {
+    program.output_ownership = frontend.analyzeOwnershipWithSuffix(allocator, program.*, lowered.function_suffix, &reporter) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return invalid(allocator, options, reporter.diagnostic.?);
     };
 
-    if (frontend.checks_internal_ir) if (try frontend.validateIrExtending(allocator, program, options.verified_functions)) |issue| return invalid(allocator, options, issue);
+    if (frontend.checks_internal_ir) if (try frontend.validateIrExtending(allocator, program.*, options.verified_functions)) |issue| return invalid(allocator, options, issue);
 
-    return .{ .contract = .{ .program = program, .function_suffix = lowered.function_suffix, .store_initializers = lowered.store_initializers, .types = types, .nominal_types = options.nominal_types, .input_type = options.input_type, .output_type = options.output_type, .calls = calls.items, .result = result, .native_modules = native_modules } };
+    return .{ .body = .{
+        .lowered = lowered,
+        .nominal_types = options.nominal_types,
+        .metadata = if (options.entry) try Metadata.capture(&flow) else null,
+    } };
 }
 
-fn diagnostic(allocator: std.mem.Allocator, owner: []const u8, issue: expression.Diagnostic) std.mem.Allocator.Error!Module.Value {
+fn diagnostic(allocator: std.mem.Allocator, owner: []const u8, issue: expression.Diagnostic) std.mem.Allocator.Error!Value {
     const failed = try target.failure(allocator, .{ .path = owner, .location = issue.location, .code = @tagName(issue.issue.code), .message = issue.issue.message });
 
     return .{ .diagnostic = failed.diagnostic };
 }
 
-fn invalid(allocator: std.mem.Allocator, options: Options, issue: zx.Diagnostic) std.mem.Allocator.Error!Module.Value {
+fn invalid(allocator: std.mem.Allocator, options: Options, issue: zx.Diagnostic) std.mem.Allocator.Error!Value {
     const location = @import("source_map.zig").locateSource(options.module, issue.span.start);
     const failed = try target.failure(allocator, .{ .path = options.module.path, .location = location, .code = @tagName(issue.code), .message = issue.message });
 

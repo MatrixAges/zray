@@ -1,6 +1,14 @@
 import integers from "std:integer"
 
+export enum Form {
+    Missing,
+    InvalidFunction,
+    TypeOnly,
+    Function
+}
+
 export type Input = {
+    present: bool,
     function?: u32,
     natives: u32?[],
     rx: bool,
@@ -9,6 +17,7 @@ export type Input = {
 }
 
 export type Output = {
+    form: Form,
     visible: u64,
     entry?: u32
 }
@@ -17,13 +26,28 @@ export default function (in: Input): Output {
     const id = in.function
     const count = in.natives.length
 
+    if (!in.present) {
+        return {
+            form: Form.Missing,
+            visible: 0
+        }
+    }
+
     if (id == null) {
         return {
+            form: Form.TypeOnly,
             visible: count
         }
     }
 
     const row = integers.widen(id)
+
+    if (row >= count) {
+        return {
+            form: Form.InvalidFunction,
+            visible: 0
+        }
+    }
 
     const inline_body = (
         - in.rx
@@ -33,18 +57,14 @@ export default function (in: Input): Output {
 
     if (inline_body) {
         return {
+            form: Form.Function,
             visible: row
         }
     }
 
-    const entry: u32? = match {
-        row >= count => null,
-        in.natives[row] != null => null,
-        _ => id
-    }
-
     return {
+        form: Form.Function,
         visible: count,
-        entry
+        entry: in.natives[row] == null ? id : null
     }
 }

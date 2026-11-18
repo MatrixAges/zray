@@ -101,9 +101,12 @@ pub const Host = struct {
     pub fn result(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
         const compiler = self.compiler;
         const plan = compiler.plan;
-        const value = try compiler.value(plan.results[plan.items[first]], compiler.output_type, current.payload == .Root and compiler.retain_metadata);
+        const publish = current.payload == .Root and compiler.retain_metadata;
+        const value = try compiler.keep(try compiler.value(plan.results[plan.items[first]], compiler.output_type, publish));
 
-        compiler.compiled.steps.set(current.row(first), .{ .kind = .Return, .value = try compiler.keep(value) });
+        compiler.compiled.steps.set(current.row(first), .{ .kind = .Return, .value = value });
+
+        if (publish) compiler.root_return = value;
     }
     pub fn task(self: *Host, current: *Frame, first: usize, _: usize, parallel_task: bool) Compiler.Error!void {
         const compiler = self.compiler;

@@ -5,81 +5,103 @@ const Source = @import("frontend").project.artifact.source_link;
 const State = @import("state.zig");
 const Module = @import("../../module.zig");
 const Frame = @import("../history.zig").Frame;
+const Metadata = @import("metadata.zig");
+const generated = @import("rx_options").generated_graph;
+const Form = if (generated) @FieldType(std.meta.Child(@import("generated_rx_mixed_entry").Output), "form") else enum { Missing, InvalidFunction, TypeOnly, Function };
+const Plan = struct { form: Form, visible: usize = 0, entry: ?ir.FunctionId = null };
 
-pub const Plan = struct { visible: usize, entry: ?ir.FunctionId };
+fn entry(table: *const ir.FunctionTable, loaded: ?Source.Loaded, orchestration: bool, exports: bool) Plan {
+    const function = if (loaded) |value| value.function else null;
+    const members = if (loaded) |value| value.members.len != 0 else false;
 
-pub fn entry(table: *const ir.FunctionTable, loaded: *const Source.Loaded, orchestration: bool, exports: bool) Plan {
-    if (comptime @import("rx_options").generated_graph) {
+    if (comptime generated) {
         const rule = @import("generated_rx_mixed_entry");
 
         const input: std.meta.Child(rule.Input) = .{
-            .function = if (loaded.function) |id| @backingInt(id) else null,
+            .present = loaded != null,
+            .function = if (function) |id| @backingInt(id) else null,
             .natives = table.native_modules,
             .rx = orchestration,
             .has_exports = exports,
-            .has_members = loaded.members.len != 0,
+            .has_members = members,
         };
 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
         return .{
+            .form = result.form,
             .visible = @intCast(result.visible),
             .entry = if (result.entry) |id| @fromBackingInt(id) else null,
         };
     }
 
-    const count = table.count();
-    const id = loaded.function orelse return .{ .visible = count, .entry = null };
-    const row = @backingInt(id);
-    const visible = if (orchestration and !exports and loaded.members.len == 0) row else count;
+    if (loaded == null) return .{ .form = .Missing };
 
-    return .{ .visible = visible, .entry = if (row < visible and table.native_modules[row] == null) id else null };
+    const count = table.count();
+    const id = function orelse return .{ .form = .TypeOnly, .visible = count };
+    const row = @backingInt(id);
+
+    if (row >= count) return .{ .form = .InvalidFunction };
+
+    const visible = if (orchestration and !exports and !members) row else count;
+
+    return .{ .form = .Function, .visible = visible, .entry = if (row < visible and table.native_modules[row] == null) id else null };
 }
 
-pub fn materialize(state: *State, derived: *const Frame, entry_contract: *const ?Module.Contract, exports: bool) State.Error!Module.Contract {
+pub fn materialize(state: *State, derived: *const Frame, metadata: ?*Metadata, exports: bool) State.Error!Module.Contract {
     const dependencies = &derived.dependencies;
     const index = dependencies.entry;
-    const root_path = dependencies.modules.items(.path)[index];
     state.owner = index;
 
-    const finished = state.finished.get(index) orelse {
-        state.issue = .{ .path = root_path, .location = .{ .offset = 0, .line = 1, .column = 1 }, .code = "module", .message = "entry source module was not compiled" };
+    const finished = state.finished.get(index);
+    const table = state.functions.view();
+    const plan = entry(&table, finished, dependencies.sources.at(index) == .rx, exports);
+    const functions = table.prefix(plan.visible);
+    const types = state.types.items.view();
+    const natives = state.native_modules.view();
+    const location = @import("rx").ast.Location{ .offset = 0, .line = 1, .column = 1 };
 
-        return error.InvalidSourceGraph;
+    var program: ir.Program = switch (plan.form) {
+        .Missing => return state.fail(location, "entry source module was not compiled"),
+        .InvalidFunction => return state.fail(location, "resolved function is outside the shared function table"),
+        .Function => body: {
+            const id = finished.?.function.?;
+
+            break :body try @import("function.zig").programView(state.allocator, table.get(id), id, functions, types, natives);
+        },
+        .TypeOnly => .{
+            .file_name = dependencies.modules.items(.path)[index],
+            .types = types,
+            .input_type = finished.?.input_type,
+            .output_type = finished.?.output_type,
+            .symbols = .{},
+            .expressions = .{},
+            .body = .{},
+            .functions = functions,
+            .native_modules = natives,
+            .type_only = true,
+        },
     };
 
-    const table = state.functions.view();
-    const plan = entry(&table, &finished, dependencies.sources.at(index) == .rx, exports);
-    const functions = table.prefix(plan.visible);
+    const loaded = &finished.?;
 
-    const program: zx.ir.Program = if (finished.function) |function|
-        try @import("function.zig").view(state, function, functions)
-    else
-        .{ .file_name = root_path, .types = state.types.items.view(), .input_type = finished.input_type, .output_type = finished.output_type, .symbols = .{}, .expressions = .{}, .body = .{}, .functions = functions, .native_modules = state.native_modules.view(), .type_only = true };
+    program.exports = loaded.exports;
+    program.constant_exports = loaded.constant_exports;
 
-    var contract = entry_contract.* orelse Module.Contract{
+    if (metadata) |observed| try observed.publish(state);
+
+    return .{
         .program = program,
-        .types = state.types.items.view(),
+        .types = types,
+        .native_modules = natives,
         .nominal_types = state.types.origins.items.view(),
         .input_type = program.input_type,
         .output_type = program.output_type,
-        .calls = &.{},
-        .result = null,
-        .native_modules = state.native_modules.view(),
+        .entry_function = plan.entry,
+        .public_functions = loaded.members,
+        .store_initializers = state.initializers.items,
+        .calls = if (metadata) |observed| observed.calls else &.{},
+        .result = if (metadata) |observed| observed.result else null,
     };
-
-    contract.program = program;
-    contract.program.exports = finished.exports;
-    contract.program.constant_exports = finished.constant_exports;
-    contract.entry_function = plan.entry;
-    contract.public_functions = finished.members;
-    contract.store_initializers = state.initializers.items;
-    contract.types = state.types.items.view();
-    contract.native_modules = state.native_modules.view();
-    contract.nominal_types = state.types.origins.items.view();
-    contract.input_type = program.input_type;
-    contract.output_type = program.output_type;
-
-    return contract;
 }
