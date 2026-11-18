@@ -6,6 +6,7 @@ pub fn build(b: *std.Build) void {
     const stage0 = b.option([]const u8, "stage0", "Pinned bootstrap generator executable") orelse "";
     const partitions = b.option(u32, "generated-partitions", "Compile generated bootstrap functions as this many separately cached objects (0 = one unit)") orelse 0;
     const compiler = b.dependency("compiler", .{ .target = target, .optimize = optimize, .stage0 = stage0, .@"generated-partitions" = partitions });
+    const pkgs = b.dependency("pkgs", .{ .target = target, .optimize = optimize, .stage0 = stage0, .@"share-compiler-standard" = true, .@"generated-partitions" = partitions });
     const module = compiler.module("compiler");
     const standard = compiler.module("standard");
     const generated_objects = compiler.builder.modules.get("generated_objects");
@@ -20,7 +21,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "rx", .module = compiler.module("rx") },
             .{ .name = "rx_analysis", .module = compiler.module("rx_analysis") },
             .{ .name = "lint", .module = compiler.module("lint") },
-            .{ .name = "pkgs", .module = b.dependency("pkgs", .{ .target = target, .optimize = optimize }).module("pkgs") },
+            .{ .name = "pkgs", .module = pkgs.module("pkgs") },
             .{ .name = "compiler", .module = module },
             .{ .name = "napi_resources", .module = b.dependency("napi", .{ .target = target, .optimize = optimize }).module("resources") },
             .{ .name = "napi_declarations", .module = b.dependency("napi", .{ .target = target, .optimize = optimize }).module("declarations") },
@@ -32,7 +33,7 @@ pub fn build(b: *std.Build) void {
 
     if (b.option(bool, "strip", "Omit debug information from hand-written zxc code as well (generated modules already omit it); faster and lighter to compile, without source locations in stack traces")) |strip| host.strip = strip;
 
-    const cache_identity = @import("build/cache_identity.zig").create(b, target, optimize, compiler);
+    const cache_identity = @import("build/cache_identity.zig").create(b, target, optimize, compiler, pkgs);
     const identity = b.createModule(.{ .root_source_file = b.path("src/host/identity.zig"), .target = target, .optimize = optimize });
 
     // The identity changes with every compiler source; with a separate host object only the entry unit embeds it.
@@ -40,7 +41,7 @@ pub fn build(b: *std.Build) void {
 
     host.addImport("cache_identity", identity);
 
-    const pkgs_index = b.dependency("pkgs", .{ .target = target, .optimize = optimize }).namedLazyPath("index");
+    const pkgs_index = pkgs.namedLazyPath("index");
     const bundle = @import("build/toolchain.zig").create(b, target, pkgs_index, b.dependency("zxc_std", .{}).builder.root.join(b.allocator, "src") catch @panic("OOM"), compiler.namedLazyPath("host_metadata_tool"));
     // Only release packages embed the official Zig archive. Other builds read it from this build cache, or take
     // the Zig executable named by ZXC_ZIG, so linking zxc does not copy the archive into the binary.

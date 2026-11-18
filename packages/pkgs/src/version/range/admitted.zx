@@ -1,0 +1,14 @@
+import type { Comparison } from "../model"
+
+export type Input = Comparison.Omit("operator")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { bound } = in
+
+    const same_minor = bound.major == in.major && bound.minor == in.minor
+    const same_core = same_minor && bound.patch == in.patch
+
+    return bound.pre_start < bound.pre_end && same_core
+}

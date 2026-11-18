@@ -1,0 +1,7 @@
+export const scheme: string = "workspace:"
+
+export const current_prefix: string = "./"
+
+export const parent_prefix: string = "../"
+
+export const root_path: string = "."

@@ -1,0 +1,81 @@
+import { Operator } from "../model"
+import partial from "../parse/partial"
+import admitted from "./admitted"
+import compare from "./compare"
+import token from "./token"
+
+import type { Clause, Span } from "../model"
+
+export type Input = Clause & {
+    first: Span,
+    separator_end: u64
+}
+
+export type Output = bool?
+
+export default function (in: Input): Output {
+    const { text, end, limit } = in
+
+    const last = token({
+        text,
+        start: in.separator_end,
+        end
+    })
+
+    const tail = token({
+        text,
+        start: last.end,
+        end
+    })
+
+    if (last.start == last.end || tail.start < tail.end) {
+        return null
+    }
+
+    const left = partial({
+        text,
+        ...in.first,
+        limit
+    })
+
+    const right = partial({
+        text,
+        ...last,
+        limit
+    })
+
+    const request = in.omit([
+        "start",
+        "end",
+        "first",
+        "separator_end"
+    ])
+
+    const lower = {
+        ...request,
+        bound: left
+    }
+
+    const upper = {
+        ...request,
+        bound: right
+    }
+
+    const a = compare({
+        ...lower,
+        operator: Operator.GreaterEqual
+    })
+
+    const b = compare({
+        ...upper,
+        operator: Operator.LessEqual
+    })
+
+    if (a == null || b == null) {
+        return null
+    }
+
+    const prerelease = !in.prerelease || admitted(lower) || admitted(upper)
+
+    return (a ?? false) && (b ?? false) && prerelease
+}

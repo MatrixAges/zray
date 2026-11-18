@@ -1,0 +1,81 @@
+import { Order } from "./model"
+import identifier from "./parse/identifier"
+
+import type { Comparison } from "./model"
+
+export type Input = Comparison.Omit("operator")
+
+export type Output = Order
+
+export default function (in: Input): Output {
+    const { text, pre, bound } = in
+
+    const has_bound = bound.pre_start != bound.pre_end
+
+    if (!in.prerelease) {
+        return has_bound ? Order.Greater : Order.Equal
+    }
+
+    if (!has_bound) {
+        return Order.Less
+    }
+
+    return loop({
+        a: 0,
+        b: bound.pre_start,
+        order: Order.Equal
+    }, {
+        while: s => {
+            const available = s.a < pre.length && s.b < bound.pre_end
+
+            return s.order == Order.Equal && available
+        },
+        next: s => {
+            const left = identifier({
+                text: pre,
+                start: s.a,
+                end: pre.length
+            })
+            const right = identifier({
+                text,
+                start: s.b,
+                end: bound.pre_end
+            })
+            const alen = left.end - s.a
+            const blen = right.end - s.b
+
+            if (left.numeric != right.numeric) {
+                s.order = left.numeric ? Order.Less : Order.Greater
+            } else if (left.numeric && alen != blen) {
+                s.order = alen < blen ? Order.Less : Order.Greater
+            } else {
+                const length = alen < blen ? alen : blen
+                const a = s.a
+                const b = s.b
+                const pos = loop(0, {
+                    while: i => i < length && pre[a + i] == text[b + i],
+                    next: i => {
+                        i += 1
+                    }
+                })
+
+                s.order = match {
+                    pos < length && pre[a + pos] < text[b + pos] => Order.Less,
+                    pos < length => Order.Greater,
+                    alen < blen => Order.Less,
+                    alen > blen => Order.Greater,
+                    _ => Order.Equal
+                }
+            }
+
+            s.a = left.end + 1
+            s.b = right.end + 1
+        },
+        return: s => match {
+            s.order != Order.Equal => s.order,
+            s.a < pre.length => Order.Greater,
+            s.b < bound.pre_end => Order.Less,
+            _ => Order.Equal
+        }
+    })
+}

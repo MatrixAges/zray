@@ -1,0 +1,67 @@
+import component from "./component"
+
+import type { Input as Relative } from "./valid"
+
+export type Input = Relative.Omit("kind") & {
+    target: string
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { owner, path, target } = in
+
+    return loop({
+        relative: true,
+        left: path.length,
+        right: target.length,
+        equal: true,
+        done: false
+    }, {
+        while: s => s.equal && !s.done,
+        next: s => {
+            const text = s.relative ? path : owner
+            const part = component({
+                text,
+                end: s.left,
+                skip: 0
+            })
+            const parent = s.relative && part.start == part.end
+            const left = match {
+                parent => component({
+                    text: owner,
+                    end: owner.length,
+                    skip: part.skip
+                }),
+                _ => part
+            }
+            const right = component({
+                text: target,
+                end: s.right,
+                skip: 0
+            })
+            const source = parent ? owner : text
+            const width = left.end - left.start
+            const other = right.end - right.start
+
+            s.relative = s.relative && !parent
+            s.left = left.start
+            s.right = right.start
+            s.done = width == 0
+            s.equal = width == other
+
+            if (s.equal && !s.done) {
+                s.equal = loop(0, {
+                    while: i =>
+                        i < width &&
+                        source[left.start + i] == target[right.start + i],
+                    next: i => {
+                        i += 1
+                    },
+                    return: i => i == width
+                })
+            }
+        },
+        return: s => s.equal
+    })
+}

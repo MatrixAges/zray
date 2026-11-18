@@ -1,0 +1,76 @@
+import partial from "../parse/partial"
+import admitted from "./admitted"
+import compare from "./compare"
+import prefix from "./operator"
+import token from "./token"
+
+import type { Clause, Span } from "../model"
+
+export type Input = Clause & {
+    first: Span
+}
+
+export type Output = bool?
+
+export default function (in: Input): Output {
+    const { text, end, limit, first } = in
+
+    const request = in.omit([
+        "first",
+        "start",
+        "end"
+    ])
+
+    return loop({
+        start: first.start,
+        stop: first.end,
+        valid: true,
+        matched: true,
+        prerelease: !in.prerelease
+    }, {
+        while: s => s.valid && s.start < s.stop,
+        next: s => {
+            const op = prefix({
+                text,
+                start: s.start,
+                end: s.stop
+            })
+            const operand = match {
+                op.operand != s.stop => {
+                    start: op.operand,
+                    end: s.stop
+                },
+                _ => token({
+                    text,
+                    start: s.stop,
+                    end
+                })
+            }
+            const bound = partial({
+                text,
+                ...operand,
+                limit
+            })
+            const input = {
+                ...request,
+                bound
+            }
+            const result = compare({
+                ...input,
+                operator: op.operator
+            })
+            const next = token({
+                text,
+                start: operand.end,
+                end
+            })
+
+            s.valid = result != null
+            s.matched = s.matched && (result ?? false)
+            s.prerelease = s.prerelease || admitted(input)
+            s.start = next.start
+            s.stop = next.end
+        },
+        return: s => s.valid ? s.matched && s.prerelease : null
+    })
+}

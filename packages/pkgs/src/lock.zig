@@ -23,19 +23,8 @@ pub fn validate(self: Lock, allocator: std.mem.Allocator) !void {
     try @import("lock/validate.zig").validate(self, allocator);
 }
 
-pub fn workspaceTarget(self: Lock, allocator: std.mem.Allocator, owner: usize, name: []const u8, requirement: []const u8) !usize {
-    if (owner >= self.packages.len or self.packages[owner].source != .workspace or !std.mem.startsWith(u8, requirement, "workspace:")) return error.InvalidLockWorkspaceTarget;
+pub fn workspaceTarget(self: Lock, _: std.mem.Allocator, owner: usize, name: []const u8, requirement: []const u8) !usize {
+    const workspace = @import("workspace.zig");
 
-    for (self.packages, 0..) |package, index| {
-        if (package.source != .workspace) continue;
-
-        @import("lock/edges.zig").workspace(allocator, self.packages[owner].source.workspace, .{ .name = name, .requirement = requirement, .development = false, .target = index }, package) catch |err| switch (err) {
-            error.InvalidLockWorkspaceTarget => continue,
-            else => return err,
-        };
-
-        return index;
-    }
-
-    return error.InvalidLockWorkspaceTarget;
+    return workspace.find(workspace.parse(name, requirement), self.packages, owner);
 }

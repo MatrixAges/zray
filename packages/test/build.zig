@@ -7,6 +7,7 @@ pub fn build(b: *std.Build) void {
     const compiler = b.dependency("compiler", .{ .target = target, .optimize = optimize, .stage0 = stage0, .@"generated-partitions" = @as(u32, 0) });
     const zig_archive = b.option([]const u8, "zig-archive", "Official Zig archive for the zxc host");
     const cli_dependency = if (zig_archive) |path| b.dependency("cli", .{ .target = target, .optimize = optimize, .@"zig-archive" = path, .stage0 = stage0 }) else b.dependency("cli", .{ .target = target, .optimize = optimize, .stage0 = stage0 });
+    const pkgs = b.dependency("pkgs", .{ .target = target, .optimize = optimize, .stage0 = stage0, .@"share-compiler-standard" = true, .@"generated-partitions" = @as(u32, 0) });
     const test_step = b.step("test", "Run ZX conformance catalogs and their integrity checks");
     const suites = @import("build/catalog.zig").load(b);
 
@@ -784,7 +785,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(@import("build/rx_formatting.zig").add(b, cli_dependency, compiler, target, optimize));
     test_step.dependOn(@import("build/configuration_formatting.zig").add(b, cli_dependency, compiler, target, optimize));
     test_step.dependOn(@import("build/compiled_packages.zig").add(b, cli_dependency, compiler, target, optimize));
-    test_step.dependOn(@import("build/manifest_resources.zig").add(b, cli_dependency, compiler, target, optimize));
+    test_step.dependOn(@import("build/manifest_resources.zig").add(b, cli_dependency, compiler, pkgs.module("pkgs"), target, optimize));
 
     const archive_step = b.step("test-package-archive", "Validate package archive integrity paths extraction and resources");
 
@@ -873,7 +874,6 @@ pub fn build(b: *std.Build) void {
     index_step.dependOn(&index_tests.step);
     test_step.dependOn(index_step);
 
-    const pkgs = b.dependency("pkgs", .{ .target = target, .optimize = optimize });
     const store_step = b.step("test-package-store", "Validate package store publication offline cache integrity and resources");
 
     const store_module = b.createModule(.{

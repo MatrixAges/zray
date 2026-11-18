@@ -1,0 +1,62 @@
+import {
+    ascii_equals,
+    ascii_greater_than,
+    ascii_less_than,
+    ascii_null
+} from "core/ascii/const"
+
+import { ascii_caret, ascii_tilde } from "../const"
+import { Operator } from "../model"
+
+import type { Text as Input } from "../model"
+
+export type Output = {
+    operator: Operator,
+    operand: u64
+}
+
+export default function (in: Input): Output {
+    const { text, start, end } = in
+
+    const operand = loop(start, {
+        while: i => {
+            const byte = i < end ? text[i] : ascii_null
+
+            return match byte {
+                ascii_less_than => true,
+                ascii_greater_than => true,
+                ascii_equals => true,
+                ascii_caret => true,
+                ascii_tilde => true,
+                _ => false
+            }
+        },
+        next: i => {
+            i += 1
+        }
+    })
+
+    const length = operand - start
+
+    const operator = match length {
+        0 => Operator.Equal,
+        1 => match text[start] {
+            ascii_less_than => Operator.Less,
+            ascii_greater_than => Operator.Greater,
+            ascii_caret => Operator.Caret,
+            ascii_tilde => Operator.Tilde,
+            _ => Operator.Equal
+        },
+        _ => match {
+            length != 2 || text[start + 1] != ascii_equals => Operator.Invalid,
+            text[start] == ascii_less_than => Operator.LessEqual,
+            text[start] == ascii_greater_than => Operator.GreaterEqual,
+            _ => Operator.Invalid
+        }
+    }
+
+    return {
+        operator,
+        operand
+    }
+}

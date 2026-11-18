@@ -1,0 +1,37 @@
+import { ascii_lower_f, ascii_upper_f } from "core/ascii/const"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_lower_first,
+    ascii_upper_first
+} from "core/const"
+
+import { sha256_hex_length } from "./const"
+
+import type { Input as Archive } from "./archive"
+
+export type Input = Archive.Omit("archive")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { digest, lowercase } = in
+
+    return loop({
+        i: 0,
+        valid: digest.length == sha256_hex_length
+    }, {
+        while: s => s.valid && s.i < digest.length,
+        next: s => {
+            const byte = digest[s.i]
+            const digit = byte >= ascii_digit_first && byte <= ascii_digit_last
+            const lower = byte >= ascii_lower_first && byte <= ascii_lower_f
+            const upper = byte >= ascii_upper_first && byte <= ascii_upper_f
+
+            const uppercase = !lowercase && upper
+            s.valid = digit || lower || uppercase
+            s.i += 1
+        },
+        return: s => s.valid
+    })
+}

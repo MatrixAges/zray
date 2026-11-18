@@ -1,0 +1,19 @@
+<Module>
+    <Type from="archive" as="Archive" />
+
+    <Args in={Archive.Input} out={Archive.Status} />
+
+    <Call fn="source" in={$in.archive} />
+
+    <If on={!$ctx.source}>
+        <Return value={Archive.Status.InvalidArchiveSource} />
+    </If>
+
+    <Call fn="digest" in={$in.omit(["archive"])} />
+
+    <If on={!$ctx.digest}>
+        <Return value={Archive.Status.InvalidArchiveDigest} />
+    </If>
+
+    <Return value={Archive.Status.Valid} />
+</Module>

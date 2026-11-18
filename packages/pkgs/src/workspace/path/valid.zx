@@ -1,0 +1,79 @@
+import bytes from "std:bytes"
+import {
+    ascii_backslash,
+    ascii_colon,
+    ascii_dot,
+    ascii_null,
+    ascii_slash
+} from "core/ascii/const"
+
+import { root_path } from "../const"
+
+export enum Kind {
+    Stored,
+    Dependency
+}
+
+export type Input = {
+    kind: Kind,
+    owner: string,
+    path: string
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { owner, path } = in
+
+    const stored = in.kind == Kind.Stored
+
+    if (stored && path == root_path) {
+        return true
+    }
+
+    const depth = match {
+        stored || owner == root_path => 0,
+        _ => bytes.count(bytes.fromText(owner), ascii_slash) + 1
+    }
+
+    return loop({
+        i: 0,
+        start: 0,
+        depth,
+        valid: true
+    }, {
+        while: s => s.valid && s.i <= path.length,
+        next: s => {
+            if (s.i == path.length || path[s.i] == ascii_slash) {
+                const width = s.i - s.start
+                const dotted = width != 0 && path[s.start] == ascii_dot
+                const parent = width == 2 && dotted && path[s.start + 1] == ascii_dot
+                const current = width == 1 && dotted
+
+                if (parent) {
+                    if (stored || s.depth == 0) {
+                        s.valid = false
+                    } else {
+                        s.depth -= 1
+                    }
+                } else if (width == 0 || current) {
+                    s.valid = !stored
+                } else {
+                    s.depth += 1
+                }
+
+                s.start = s.i + 1
+            } else {
+                s.valid = match path[s.i] {
+                    ascii_backslash => false,
+                    ascii_colon => false,
+                    ascii_null => false,
+                    _ => true
+                }
+            }
+
+            s.i += 1
+        },
+        return: s => s.valid
+    })
+}

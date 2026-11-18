@@ -1,0 +1,49 @@
+import { major_part, minor_part } from "../const"
+import coreOrder from "../core_order"
+import { Operator, Order } from "../model"
+
+import type { Comparison } from "../model"
+
+export type Input = Comparison & {
+    component: u64
+}
+
+export type Output = bool?
+
+export default function (in: Input): Output {
+    const { bound, component } = in
+    const { major, minor, patch } = bound
+
+    const value = match component {
+        major_part => major,
+        minor_part => minor,
+        _ => patch
+    }
+
+    if (value == in.limit) {
+        return null
+    }
+
+    const order = coreOrder({
+        left: in.pick([
+            "major",
+            "minor",
+            "patch"
+        ]),
+        right: {
+            major: component == major_part ? major + 1 : major,
+            minor: match component {
+                major_part => 0,
+                minor_part => minor + 1,
+                _ => minor
+            },
+            patch: component > minor_part ? patch + 1 : 0
+        }
+    })
+
+    if (in.operator == Operator.Greater) {
+        return order == Order.Greater || (order == Order.Equal && !in.prerelease)
+    }
+
+    return order == Order.Less
+}

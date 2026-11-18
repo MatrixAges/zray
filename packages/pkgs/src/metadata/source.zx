@@ -1,0 +1,24 @@
+import { ascii_carriage_return, ascii_line_feed, ascii_null } from "core/ascii/const"
+
+export type Input = string
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop({
+        i: 0,
+        valid: in.length > 0
+    }, {
+        while: s => s.valid && s.i < in.length,
+        next: s => {
+            s.valid = match in[s.i] {
+                ascii_null => false,
+                ascii_carriage_return => false,
+                ascii_line_feed => false,
+                _ => true
+            }
+            s.i += 1
+        },
+        return: s => s.valid
+    })
+}

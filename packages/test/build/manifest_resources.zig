@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step {
+pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Dependency, pkgs: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step {
     const step = b.step("test-package-manifest-resources", "Validate manifest exports ownership serialization and allocation failures");
     const files = b.addWriteFiles();
     const root = files.add("root.zig", "pub const parse = @import(\"manifest.zig\").parse;\npub const write = @import(\"manifest/write.zig\").write;\n");
@@ -16,7 +16,7 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Depen
         .imports = &.{
             .{ .name = "cli_source", .module = cli.module("cli_source") },
             .{ .name = "compiler", .module = compiler.module("compiler") },
-            .{ .name = "pkgs", .module = b.dependency("pkgs", .{ .target = target, .optimize = optimize }).module("pkgs") },
+            .{ .name = "pkgs", .module = pkgs },
         },
     });
 

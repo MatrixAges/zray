@@ -18,7 +18,7 @@ pub const Identity = struct {
 };
 
 /// Fingerprints the compiler sources in a build step, so editing them leaves the build configuration cached.
-pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, compiler: *std.Build.Dependency) Identity {
+pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, compiler: *std.Build.Dependency, pkgs: *std.Build.Dependency) Identity {
     const tool = b.addExecutable(.{ .name = "cache-identity", .root_module = b.createModule(.{
         .root_source_file = b.path("build/cache_identity/digest.zig"),
         .target = b.graph.host,
@@ -38,9 +38,10 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
 
     source(run, "file", "std/modules.json", standard.path("modules.json"));
     source(run, "directory", "std/interfaces", standard.path("interfaces"));
+    source(run, "file", "pkgs/build/source.json", pkgs.path("build/source.json"));
 
     for ([_][]const u8{ "compiler", "core", "dsl", "lint", "genz", "pkgs", "napi" }) |name| {
-        const dependency = if (std.mem.eql(u8, name, "compiler")) compiler else if (std.mem.eql(u8, name, "lint"))
+        const dependency = if (std.mem.eql(u8, name, "compiler")) compiler else if (std.mem.eql(u8, name, "pkgs")) pkgs else if (std.mem.eql(u8, name, "lint"))
             b.dependency("lint", .{ .target = target, .optimize = optimize, .generated = compiler.namedLazyPath("generated") })
 
         else

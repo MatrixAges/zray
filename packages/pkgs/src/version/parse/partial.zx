@@ -1,0 +1,129 @@
+import {
+    ascii_asterisk,
+    ascii_dot,
+    ascii_lower_x,
+    ascii_minus,
+    ascii_plus
+} from "core/ascii/const"
+
+import { ascii_upper_x, major_part, patch_part } from "../const"
+import decimal from "./decimal"
+import suffix from "./suffix"
+
+import type { Partial as Output } from "../model"
+import type { Input } from "./decimal"
+
+export default function (in: Input): Output {
+    const { text, start, end, limit } = in
+
+    return loop({
+        i: start,
+        major: 0,
+        minor: 0,
+        patch: 0,
+        parts: 0,
+        count: 0,
+        pre_start: 0,
+        pre_end: 0,
+        valid: true,
+        done: false
+    }, {
+        while: s => s.valid && !s.done,
+        next: s => {
+            const first = s.i
+            const stop = loop(first, {
+                while: i => {
+                    const byte = i < end ? text[i] : ascii_dot
+
+                    return match byte {
+                        ascii_dot => false,
+                        ascii_minus => false,
+                        ascii_plus => false,
+                        _ => true
+                    }
+                },
+                next: i => {
+                    i += 1
+                }
+            })
+            const byte = first < stop ? text[first] : ascii_dot
+            const marker = match byte {
+                ascii_asterisk => true,
+                ascii_lower_x => true,
+                ascii_upper_x => true,
+                _ => false
+            }
+            const wildcard = stop - first == 1 && marker
+
+            if (s.count >= patch_part || first == stop) {
+                s.valid = false
+            } else if (!wildcard) {
+                const value = decimal({
+                    text,
+                    start: first,
+                    end: stop,
+                    limit
+                })
+
+                s.valid = s.parts == s.count && value != null
+
+                if (s.count == 0) {
+                    s.major = value ?? 0
+                } else if (s.count == major_part) {
+                    s.minor = value ?? 0
+                } else {
+                    s.patch = value ?? 0
+                }
+
+                s.parts += 1
+            }
+
+            s.count += 1
+            s.i = stop + 1
+            s.done = stop == end || text[stop] != ascii_dot
+
+            const has_suffix = stop < end && s.done
+
+            if (s.valid && has_suffix) {
+                s.valid = s.parts == patch_part
+                const pre = text[stop] == ascii_minus
+                const build = loop(stop + 1, {
+                    while: i => pre && i < end && text[i] != ascii_plus,
+                    next: i => {
+                        i += 1
+                    }
+                })
+
+                if (pre && s.valid) {
+                    s.pre_start = stop + 1
+                    s.pre_end = build
+                    s.valid = suffix({
+                        text,
+                        start: s.pre_start,
+                        end: build,
+                        limit,
+                        prerelease: true
+                    })
+                }
+
+                const has_build = !pre || build < end
+
+                if (s.valid && has_build) {
+                    const build_start = pre ? build + 1 : stop + 1
+                    s.valid = suffix({
+                        text,
+                        start: build_start,
+                        end,
+                        limit,
+                        prerelease: false
+                    })
+                }
+            }
+        },
+        return: s => s.omit([
+            "i",
+            "done",
+            "count"
+        ])
+    })
+}

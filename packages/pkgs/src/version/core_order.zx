@@ -1,0 +1,24 @@
+import { Order } from "./model"
+
+import type { Core } from "./model"
+
+export type Input = {
+    left: Core,
+    right: Core
+}
+
+export type Output = Order
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    return match {
+        left.major < right.major => Order.Less,
+        left.major > right.major => Order.Greater,
+        left.minor < right.minor => Order.Less,
+        left.minor > right.minor => Order.Greater,
+        left.patch < right.patch => Order.Less,
+        left.patch > right.patch => Order.Greater,
+        _ => Order.Equal
+    }
+}

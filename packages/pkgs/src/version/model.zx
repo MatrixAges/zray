@@ -1,0 +1,52 @@
+export type Span = {
+    start: u64,
+    end: u64
+}
+
+export type Text = Span & {
+    text: string
+}
+
+export type Core = {
+    major: u64,
+    minor: u64,
+    patch: u64
+}
+
+export type Request = Core & {
+    text: string,
+    pre: string,
+    prerelease: bool,
+    limit: u64
+}
+
+export type Clause = Request & Span
+
+export type Partial = Core & {
+    parts: u64,
+    pre_start: u64,
+    pre_end: u64,
+    valid: bool
+}
+
+export enum Order {
+    Less,
+    Equal,
+    Greater
+}
+
+export enum Operator {
+    Equal,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    Caret,
+    Tilde,
+    Invalid
+}
+
+export type Comparison = Request & {
+    bound: Partial,
+    operator: Operator
+}

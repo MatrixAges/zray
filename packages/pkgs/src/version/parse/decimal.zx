@@ -1,0 +1,49 @@
+import integers from "std:integer"
+import { ascii_digit_first, ascii_digit_last, decimal_radix } from "core/const"
+
+import type { Text } from "../model"
+
+export type Input = Text & {
+    limit: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { text, start, end, limit } = in
+
+    const leading_zero = end - start > 1 && text[start] == ascii_digit_first
+
+    if (start == end || leading_zero) {
+        return null
+    }
+
+    const cutoff = limit / decimal_radix
+    const remainder = limit % decimal_radix
+
+    return loop({
+        i: start,
+        value: 0,
+        valid: true
+    }, {
+        while: s => s.valid && s.i < end,
+        next: s => {
+            const byte = text[s.i]
+
+            if (byte < ascii_digit_first || byte > ascii_digit_last) {
+                s.valid = false
+            } else {
+                const digit = integers.widenByte(byte - ascii_digit_first)
+                const overflow = s.value == cutoff && digit > remainder
+                s.valid = s.value <= cutoff && !overflow
+
+                if (s.valid) {
+                    s.value = s.value * decimal_radix + digit
+                }
+            }
+
+            s.i += 1
+        },
+        return: s => s.valid ? s.value : null
+    })
+}

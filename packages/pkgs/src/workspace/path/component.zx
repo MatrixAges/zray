@@ -1,0 +1,59 @@
+import { ascii_dot, ascii_slash } from "core/ascii/const"
+
+export type Input = {
+    text: string,
+    end: u64,
+    skip: u64
+}
+
+export type Output = {
+    start: u64,
+    end: u64,
+    skip: u64
+}
+
+export default function (in: Input): Output {
+    const { text } = in
+
+    return loop({
+        start: in.end,
+        end: in.end,
+        skip: in.skip,
+        found: false
+    }, {
+        while: s => !s.found && s.start != 0,
+        next: s => {
+            const end = loop(s.start, {
+                while: i => i > 0 && text[i - 1] == ascii_slash,
+                next: i => {
+                    i -= 1
+                }
+            })
+            const start = loop(end, {
+                while: i => i > 0 && text[i - 1] != ascii_slash,
+                next: i => {
+                    i -= 1
+                }
+            })
+            const width = end - start
+            const dotted = width != 0 && text[start] == ascii_dot
+            const parent = width == 2 && dotted && text[start + 1] == ascii_dot
+            const current = width == 1 && dotted
+
+            s.start = start
+            s.end = start
+
+            if (parent) {
+                s.skip += 1
+            } else if (width != 0 && !current) {
+                if (s.skip > 0) {
+                    s.skip -= 1
+                } else {
+                    s.found = true
+                    s.end = end
+                }
+            }
+        },
+        return: s => s.omit(["found"])
+    })
+}

@@ -1,0 +1,27 @@
+import { ascii_dot } from "core/ascii/const"
+import { ascii_digit_first, ascii_digit_last } from "core/const"
+
+import type { Text } from "../model"
+
+export type Input = Text
+
+export type Output = {
+    end: u64,
+    numeric: bool
+}
+
+export default function (in: Input): Output {
+    return loop({
+        end: in.start,
+        numeric: true
+    }, {
+        while: s => s.end < in.end && in.text[s.end] != ascii_dot,
+        next: s => {
+            const byte = in.text[s.end]
+            const digit = byte >= ascii_digit_first && byte <= ascii_digit_last
+
+            s.numeric = s.numeric && digit
+            s.end += 1
+        }
+    })
+}

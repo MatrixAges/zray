@@ -19,20 +19,18 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
     var edge_count: usize = 0;
 
     for (lock.packages) |package| {
-        if (!@import("../name.zig").valid(package.name)) return error.InvalidPackageName;
+        if (!@import("../metadata.zig").validName(package.name)) return error.InvalidPackageName;
 
         _ = try std.SemanticVersion.parse(package.version);
 
         switch (package.source) {
             .workspace => |path| {
-                if (!validPath(path)) return error.InvalidLockWorkspacePath;
+                if (!@import("../workspace.zig").validPath("", path, .Stored)) return error.InvalidLockWorkspacePath;
                 if ((try paths.getOrPut(temporary, path)).found_existing) return error.DuplicateLockWorkspacePath;
                 if ((try names.getOrPut(temporary, package.name)).found_existing) return error.DuplicateLockWorkspaceName;
             },
             .archive => |source| {
-                if (source.archive.len == 0 or std.mem.indexOfAny(u8, source.archive, "\x00\r\n") != null) return error.InvalidArchiveSource;
-                if (source.sha256.len != 64) return error.InvalidArchiveDigest;
-                for (source.sha256) |byte| if (!std.ascii.isDigit(byte) and !(byte >= 'a' and byte <= 'f')) return error.InvalidArchiveDigest;
+                try @import("../metadata.zig").validateArchive(source.archive, source.sha256, true);
                 if ((try digests.getOrPut(temporary, source.sha256)).found_existing) return error.DuplicateLockArchive;
 
                 const identity = try std.fmt.allocPrint(temporary, "{s}@{s}", .{ package.name, package.version });
@@ -58,19 +56,6 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
     }
 
     for (states) |state| if (state != .done) return error.UnreachableLockPackage;
-}
-
-fn validPath(path: []const u8) bool {
-    if (std.mem.eql(u8, path, ".")) return true;
-    if (path.len == 0 or std.mem.indexOfAny(u8, path, "\\:\x00") != null) return false;
-
-    var parts = std.mem.splitScalar(u8, path, '/');
-
-    while (parts.next()) |part| {
-        if (part.len == 0 or std.mem.eql(u8, part, ".") or std.mem.eql(u8, part, "..")) return false;
-    }
-
-    return true;
 }
 
 fn visit(lock: Lock, states: []State, heights: []usize, index: usize, depth: usize) error{ CyclicPackageDependencies, PackageDependencyDepthExceeded }!void {

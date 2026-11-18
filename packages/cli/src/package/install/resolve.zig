@@ -39,12 +39,12 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, members: []const @impor
                 if (edge_count == Lock.maximum_dependencies) return error.TooManyLockDependencies;
 
                 edge_count += 1;
+                const spec = pkgs.workspace.parse(entry.name, entry.requirement);
 
-                const target = if (std.mem.startsWith(u8, entry.requirement, "workspace:"))
-                    try (Lock{ .format_version = 1, .packages = self.packages.items }).workspaceTarget(allocator, owner, entry.name, entry.requirement)
-
+                const target = if (spec == .external)
+                    try self.external(entry.name, entry.requirement)
                 else
-                    try self.external(entry.name, entry.requirement);
+                    try pkgs.workspace.find(spec, self.packages.items, owner);
                 try dependencies.append(allocator, .{ .name = entry.name, .requirement = entry.requirement, .development = kind == 1, .target = target });
             }
         }

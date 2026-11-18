@@ -1,0 +1,13 @@
+export const major_part: u64 = 1
+
+export const minor_part: u64 = 2
+
+export const patch_part: u64 = 3
+
+export const ascii_upper_x: u8 = 88
+
+export const ascii_caret: u8 = 94
+
+export const ascii_tilde: u8 = 126
+
+export const alternative: string = "||"

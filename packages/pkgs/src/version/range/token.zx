@@ -1,0 +1,44 @@
+import {
+    ascii_carriage_return,
+    ascii_line_feed,
+    ascii_space,
+    ascii_tab
+} from "core/ascii/const"
+
+import type { Span as Output, Text as Input } from "../model"
+
+export default function (in: Input): Output {
+    return loop({
+        i: in.start,
+        start: in.start,
+        reading: false,
+        done: false
+    }, {
+        while: s => !s.done && s.i < in.end,
+        next: s => {
+            const space = match in.text[s.i] {
+                ascii_space => true,
+                ascii_tab => true,
+                ascii_carriage_return => true,
+                ascii_line_feed => true,
+                _ => false
+            }
+
+            if (s.reading && space) {
+                s.done = true
+            } else {
+                s.i += 1
+
+                if (space) {
+                    s.start = s.i
+                } else {
+                    s.reading = true
+                }
+            }
+        },
+        return: s => ({
+            start: s.start,
+            end: s.i
+        })
+    })
+}

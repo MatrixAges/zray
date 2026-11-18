@@ -1,6 +1,6 @@
 const std = @import("std");
 const ranges = @import("version.zig");
-const name = @import("name.zig");
+const metadata = @import("metadata.zig");
 const Index = @This();
 pub const Release = struct { version: []const u8, archive: []const u8, sha256: []const u8 };
 pub const Package = struct { name: []const u8, versions: []const Release };
@@ -21,7 +21,7 @@ pub fn validate(self: Index) !void {
     if (self.format_version != 1) return error.UnsupportedIndexVersion;
 
     for (self.packages, 0..) |package, index| {
-        if (!name.valid(package.name)) return error.InvalidPackageName;
+        if (!metadata.validName(package.name)) return error.InvalidPackageName;
         if (package.versions.len == 0) return error.PackageHasNoVersions;
 
         for (self.packages[0..index]) |previous| {
@@ -31,9 +31,7 @@ pub fn validate(self: Index) !void {
         for (package.versions, 0..) |release, release_index| {
             const version = try std.SemanticVersion.parse(release.version);
 
-            if (release.archive.len == 0 or std.mem.indexOfAny(u8, release.archive, "\x00\r\n") != null) return error.InvalidArchiveSource;
-            if (release.sha256.len != 64) return error.InvalidArchiveDigest;
-            for (release.sha256) |byte| if (!std.ascii.isHex(byte)) return error.InvalidArchiveDigest;
+            try metadata.validateArchive(release.archive, release.sha256, false);
 
             for (package.versions[0..release_index]) |previous| {
                 if (version.order(try std.SemanticVersion.parse(previous.version)) == .eq) return error.DuplicatePackageVersion;

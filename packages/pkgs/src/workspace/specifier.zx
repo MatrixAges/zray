@@ -1,0 +1,76 @@
+import bytes from "std:bytes"
+import { ascii_asterisk, ascii_at } from "core/ascii/const"
+
+import { ascii_caret, ascii_tilde } from "../version/const"
+import { current_prefix, parent_prefix, scheme } from "./const"
+
+export enum Kind {
+    External,
+    Invalid,
+    Path,
+    Name,
+    Alias
+}
+
+export type Input = string
+
+export type Output = {
+    kind: Kind,
+    body: u64,
+    range: u64,
+    constrained: bool
+}
+
+export default function (in: Input): Output {
+    const text = bytes.fromText(in)
+    const body = bytes.fromText(scheme).length
+
+    if (!bytes.startsWithText(text, 0, scheme)) {
+        return {
+            kind: Kind.External,
+            body: 0,
+            range: 0,
+            constrained: false
+        }
+    }
+
+    const local = bytes.startsWithText(text, body, current_prefix) ||
+        bytes.startsWithText(text, body, parent_prefix)
+
+    if (local) {
+        return {
+            kind: Kind.Path,
+            body,
+            range: in.length,
+            constrained: false
+        }
+    }
+
+    const separator = bytes.lastIndexOfScalar(text, ascii_at)
+    const at = separator ?? in.length
+    const range = separator == null ? body : at + 1
+
+    const kind = match {
+        at == body && separator != null => Kind.Invalid,
+        separator != null => Kind.Alias,
+        _ => Kind.Name
+    }
+
+    const constrained = match in.length - range {
+        0 => false,
+        1 => match text[range] {
+            ascii_asterisk => false,
+            ascii_caret => false,
+            ascii_tilde => false,
+            _ => true
+        },
+        _ => true
+    }
+
+    return {
+        kind,
+        body,
+        range,
+        constrained
+    }
+}

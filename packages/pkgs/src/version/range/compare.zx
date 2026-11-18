@@ -1,0 +1,75 @@
+import { major_part, minor_part, patch_part } from "../const"
+import coreOrder from "../core_order"
+import { Operator, Order } from "../model"
+import preOrder from "../pre_order"
+import upper from "./upper"
+
+import type { Comparison as Input } from "../model"
+
+export type Output = bool?
+
+export default function (in: Input): Output {
+    const { bound, operator } = in
+
+    if (operator == Operator.Invalid || !bound.valid) {
+        return null
+    }
+
+    if (bound.parts == 0) {
+        return operator != Operator.Less && operator != Operator.Greater
+    }
+
+    const core = coreOrder({
+        left: in.pick([
+            "major",
+            "minor",
+            "patch"
+        ]),
+        right: bound.pick([
+            "major",
+            "minor",
+            "patch"
+        ])
+    })
+
+    const order = match {
+        core != Order.Equal => core,
+        _ => preOrder(in.omit(["operator"]))
+    }
+
+    const full = bound.parts == patch_part
+
+    const direct: bool? = match operator {
+        Operator.Less => full ? order == Order.Less : core == Order.Less,
+        Operator.GreaterEqual => order != Order.Less,
+        Operator.Equal => full ? order == Order.Equal : null,
+        Operator.Greater => full ? order == Order.Greater : null,
+        Operator.LessEqual => full ? order != Order.Greater : null,
+        _ => null
+    }
+
+    if (direct != null) {
+        return direct
+    }
+
+    const only_upper = operator == Operator.Greater || operator == Operator.LessEqual
+
+    if (!only_upper && order == Order.Less) {
+        return false
+    }
+
+    const limit = match operator {
+        Operator.Caret => match {
+            bound.major != 0 || bound.parts == major_part => major_part,
+            bound.minor != 0 || bound.parts == minor_part => minor_part,
+            _ => patch_part
+        },
+        Operator.Tilde => bound.parts == major_part ? major_part : minor_part,
+        _ => bound.parts
+    }
+
+    return upper({
+        ...in,
+        component: limit
+    })
+}

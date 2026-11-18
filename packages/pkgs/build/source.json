@@ -1,0 +1,57 @@
+{
+    "roots": [
+        {
+            "path": "version",
+            "prefix": "version/"
+        },
+        {
+            "path": "core",
+            "prefix": "core/"
+        },
+        {
+            "path": "workspace",
+            "prefix": "workspace/"
+        },
+        {
+            "path": "metadata",
+            "prefix": "metadata/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "version/matches.zx",
+            "name": "version_matches"
+        },
+        {
+            "path": "workspace/specifier.zx",
+            "name": "specifier"
+        },
+        {
+            "path": "workspace/path/valid.zx",
+            "name": "workspace_path"
+        },
+        {
+            "path": "workspace/path/equal.zx",
+            "name": "same_path"
+        },
+        {
+            "path": "metadata/name.zx",
+            "name": "package_name"
+        },
+        {
+            "path": "metadata/validate.rx",
+            "name": "archive_metadata"
+        }
+    ],
+    "packages": [
+        {
+            "specifier": "core/const",
+            "entry": "core/const.zx"
+        },
+        {
+            "specifier": "core/ascii/const",
+            "entry": "core/ascii/const.zx"
+        }
+    ],
+    "interfaces": []
+}

@@ -1,0 +1,11 @@
+export enum Status {
+    Valid,
+    InvalidArchiveSource,
+    InvalidArchiveDigest
+}
+
+export type Input = {
+    archive: string,
+    digest: string,
+    lowercase: bool
+}

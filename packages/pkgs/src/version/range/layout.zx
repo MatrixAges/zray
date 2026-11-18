@@ -1,0 +1,28 @@
+import { ascii_minus } from "core/ascii/const"
+
+import token from "./token"
+
+import type { Span, Text as Input } from "../model"
+
+export type Output = {
+    first: Span,
+    hyphen: bool,
+    separator_end: u64
+}
+
+export default function (in: Input): Output {
+    const first = token(in)
+
+    const second = token({
+        ...in,
+        start: first.end
+    })
+
+    const single = second.end - second.start == 1
+
+    return {
+        first,
+        hyphen: single && in.text[second.start] == ascii_minus,
+        separator_end: second.end
+    }
+}
