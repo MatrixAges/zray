@@ -10,7 +10,8 @@ const payload_lanes = 5;
 
 pub fn bind(loader: *Prepare.Loader, indexed: rx.IndexedFlow) Prepare.Loader.Error!Flow.Plan {
     const allocator = loader.allocator;
-    var state: State = .{ .loader = loader, .index = &indexed, .plan = try Flow.Builder.init(allocator, indexed.capacity) };
+    var state: State = .{ .loader = loader, .index = &indexed };
+    loader.plan = try Flow.Builder.init(allocator, indexed.capacity);
 
     try loader.calls.setCapacity(allocator, indexed.capacity.calls);
 
@@ -23,7 +24,7 @@ pub fn bind(loader: *Prepare.Loader, indexed: rx.IndexedFlow) Prepare.Loader.Err
         .parallel_tasks = indexed.parallel_tasks,
     };
 
-    const headers = state.plan.rows.slice();
+    const headers = loader.plan.rows.slice();
     const kinds = std.mem.sliceAsBytes(headers.items(.kind));
     const items = headers.items(.item);
     var counters: [payload_lanes]u32 = @splat(0);
@@ -65,7 +66,7 @@ pub fn bind(loader: *Prepare.Loader, indexed: rx.IndexedFlow) Prepare.Loader.Err
         indexed.capacity.selections,
     }));
 
-    return state.plan.finish(indexed.rootUnit());
+    return loader.plan.finish(indexed.rootUnit());
 }
 
 const Error = Prepare.Loader.Error;
@@ -73,28 +74,27 @@ const Error = Prepare.Loader.Error;
 pub const State = struct {
     loader: *Prepare.Loader,
     index: *const rx.IndexedFlow,
-    plan: Flow.Builder,
     fn node(self: *const State, slot: u64) *const rx.ast.Node {
         return &self.index.base[@intCast(slot)];
     }
-    pub fn call(self: *State, slot: u64, item: u32) Error!void {
-        const actual = try self.loader.call(self.node(slot).*);
+    pub fn call(self: *State, slot: u64, item: u32, previous_end: u32) Error!void {
+        const actual = try self.loader.call(self.node(slot).*, previous_end);
 
         std.debug.assert(actual == item);
     }
 
     pub fn result(self: *State, slot: u64, item: u32) void {
-        self.plan.results.items[item] = target.attribute(self.node(slot).*, "value");
+        self.loader.plan.results.items[item] = target.attribute(self.node(slot).*, "value");
     }
 
     pub fn taskResult(self: *State, slot: u64, item: u32) void {
-        self.plan.results.items[item] = target.attribute(self.node(slot).*, "out");
+        self.loader.plan.results.items[item] = target.attribute(self.node(slot).*, "out");
     }
 
     pub fn task(self: *State, slot: u64, item: u32, first: u32, count: u32, output: bool) void {
         const task_node = self.node(slot);
 
-        self.plan.tasks.items[item] = .{
+        self.loader.plan.tasks.items[item] = .{
             .node = task_node,
             .body = .{ .first = first, .count = count },
             .output = if (output) target.attribute(task_node.*, "out") else null,
@@ -102,7 +102,7 @@ pub const State = struct {
     }
 
     pub fn parallelTask(self: *State, slot: u64, item: u32, first: u32, count: u32, task_id: u64) void {
-        self.plan.tasks.items[item] = .{
+        self.loader.plan.tasks.items[item] = .{
             .id = @intCast(task_id),
             .node = self.node(slot),
             .body = .{ .first = first, .count = count },
@@ -110,14 +110,14 @@ pub const State = struct {
     }
 
     pub fn group(self: *State, item: u32, first: u32, count: u32) void {
-        self.plan.groups.items[item] = .{ .first = first, .count = count };
+        self.loader.plan.groups.items[item] = .{ .first = first, .count = count };
     }
 
     pub fn selection(self: *State, slot: u64, item: u32, conditional: bool, else_branch: bool) Error!void {
         const selection_node = self.node(slot);
         const subject = target.borrowAttribute(selection_node.*, "on").?;
         const cases = try @import("selection.zig").bind(self.loader.allocator, self.index, selection_node, subject, conditional, else_branch);
-        self.plan.selections.items[item] = .{ .subject = subject, .cases = cases };
+        self.loader.plan.selections.items[item] = .{ .subject = subject, .cases = cases };
     }
 
     pub fn taskReturns(self: *State, slot: u64) Error!void {

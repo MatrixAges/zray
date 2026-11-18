@@ -64,8 +64,8 @@ fn recordArgument(context: *const anyopaque) callconv(.c) Status {
     return Status.outcome(borrow(Invocation, context).record());
 }
 
-fn bindCall(context: *const anyopaque, slot: u64, item: u32) callconv(.c) Status {
-    return Status.outcome(borrow(Flow, context).call(slot, item));
+fn bindCall(context: *const anyopaque, slot: u64, item: u32, previous_end: u32) callconv(.c) Status {
+    return Status.outcome(borrow(Flow, context).call(slot, item, previous_end));
 }
 
 fn bindResult(context: *const anyopaque, slot: u64, item: u32) callconv(.c) void {

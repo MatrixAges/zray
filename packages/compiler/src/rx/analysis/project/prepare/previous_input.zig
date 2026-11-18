@@ -2,70 +2,48 @@ const std = @import("std");
 const zx = @import("zx");
 const rx = @import("rx");
 const Loader = @import("../prepare.zig").Loader;
-const Callee = @import("../prepare.zig").Callee;
-const Flow = @import("../flow.zig");
 const names = @import("../../result_name.zig");
 const void_type: zx.ir.TypeId = @fromBackingInt(@backingInt(zx.ir.Scalar.void));
-const Output = struct { name: []const u8, task: bool = false };
 
-pub fn bind(loader: *Loader, plan: Flow.Plan, unit: Flow.Unit) Loader.Error!void {
-    var previous: ?Output = null;
-    const items = plan.items[unit.first..][0..unit.count];
-    const kinds = plan.kinds[unit.first..][0..unit.count];
-
-    for (kinds, items) |kind, row| {
-        previous = switch (kind) {
-            .Call => try bindCall(loader, row, previous),
-            .Task => output: {
-                const task = &plan.tasks[row];
-
-                try bind(loader, plan, task.body);
-
-                break :output if (task.output != null) .{ .name = names.resolve(task.node.*).name, .task = true } else null;
-            },
-            .Selection => output: {
-                for (plan.selections[row].cases) |*branch| try bind(loader, plan, branch.body);
-
-                break :output null;
-            },
-            .Parallel => output: {
-                const group = plan.groups[row];
-                const first = group.first;
-                const end = first + group.count;
-
-                for (plan.kinds[first..end], plan.items[first..end]) |branch, item| {
-                    if (branch == .ParallelTask) try bind(loader, plan, plan.tasks[item].body);
-                }
-
-                break :output null;
-            },
-            .Result, .ParallelTask => null,
-        };
-    }
-}
-
-fn bindCall(loader: *Loader, index: u32, previous: ?Output) Loader.Error!?Output {
+pub fn bind(loader: *Loader, index: usize, previous: u32) Loader.Error!void {
     const calls = loader.calls.slice();
-    const node = &calls.items(.node)[index];
-    const slot = &calls.items(.input)[index];
-    const callee = calls.items(.callee)[index];
 
-    if (slot.* == null and acceptsInput(callee)) {
-        if (previous) |output| {
-            const attribute = try loader.allocator.create(rx.ast.Attribute);
-            const value = try std.mem.concat(loader.allocator, u8, &.{ if (output.task) "$ctx.task." else "$ctx.", output.name });
-            attribute.* = .{ .name = "in", .value = value, .kind = .expression, .location = node.location, .value_location = node.location };
-            slot.* = attribute;
+    if (calls.items(.input)[index] != null) return;
 
-            try loader.recordArgument(index, try loader.inputs.parse(attribute.*, loader.owner));
-        }
-    }
+    const callees = calls.items(.callee);
+    const callee = callees[index];
 
-    if (callee == .signature and callee.signature.output_type == void_type) return null;
+    if (callee == .signature and callee.signature.input_type == void_type) return;
 
-    return .{ .name = names.resolveCall(calls.items(.name_source)[index].*).name };
-}
+    const rows = loader.plan.rows.slice();
+    const item = rows.items(.item)[previous];
+    const kind = rows.items(.kind)[previous];
 
-fn acceptsInput(callee: Callee) bool {
-    return callee == .module or callee.signature.input_type != void_type;
+    const name = switch (kind) {
+        .Call => name: {
+            const producer = callees[item];
+
+            if (producer == .signature and producer.signature.output_type == void_type) return;
+
+            break :name names.resolveCall(calls.items(.name_source)[item].*).name;
+        },
+        .Task => name: {
+            const task = &loader.plan.tasks.items[item];
+
+            if (task.output == null) return;
+
+            break :name names.resolve(task.node.*).name;
+        },
+        else => return,
+    };
+
+    const location = calls.items(.node)[index].location;
+    const prefix: []const u8 = if (kind == .Task) "$ctx.task." else "$ctx.";
+    const value = try std.mem.concat(loader.allocator, u8, &.{ prefix, name });
+    const attribute = try loader.allocator.create(rx.ast.Attribute);
+    attribute.* = .{ .name = "in", .value = value, .kind = .expression, .location = location, .value_location = location };
+
+    calls.items(.input)[index] = attribute;
+
+    try loader.recordArgument(index, try loader.inputs.parse(attribute.*, loader.owner));
 }

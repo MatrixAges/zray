@@ -22,7 +22,7 @@ extern fn zxcRxPrepareAuthorizeCall(context: *const anyopaque) Status;
 extern fn zxcRxPrepareResolveCallee(context: *const anyopaque) Status;
 extern fn zxcRxPreparePublishCall(context: *const anyopaque) Status;
 extern fn zxcRxPrepareRecordArgument(context: *const anyopaque) Status;
-extern fn zxcRxPrepareBindCall(context: *const anyopaque, slot: u64, item: u32) Status;
+extern fn zxcRxPrepareBindCall(context: *const anyopaque, slot: u64, item: u32, previous_end: u32) Status;
 extern fn zxcRxPrepareBindResult(context: *const anyopaque, slot: u64, item: u32) void;
 extern fn zxcRxPrepareBindTaskResult(context: *const anyopaque, slot: u64, item: u32) void;
 extern fn zxcRxPrepareBindTask(context: *const anyopaque, slot: u64, item: u32, first: u32, count: u32, output: bool) void;
@@ -75,8 +75,8 @@ pub fn recordArgument(context: *const anyopaque) error{ OutOfMemory, InvalidFlow
     try zxcRxPrepareRecordArgument(context).check();
 }
 
-pub fn bindCall(context: *const anyopaque, slot: u64, item: u32) error{ OutOfMemory, InvalidFlow }!void {
-    try zxcRxPrepareBindCall(context, slot, item).check();
+pub fn bindCall(context: *const anyopaque, slot: u64, item: u32, previous_end: u32) error{ OutOfMemory, InvalidFlow }!void {
+    try zxcRxPrepareBindCall(context, slot, item, previous_end).check();
 }
 
 pub const bindResult = zxcRxPrepareBindResult;

@@ -37,6 +37,8 @@
                 fn="bind_call"
                 in={{
                     context: $in.context,
+                    flags: $ctx.read.flags,
+                    row: $ctx.publish.row,
                     slot: $ctx.publish.slot,
                     item: $ctx.publish.item
                 }}

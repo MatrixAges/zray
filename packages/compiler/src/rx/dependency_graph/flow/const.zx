@@ -28,6 +28,8 @@ export const task_has_output: u32 = 256
 
 export const if_has_else: u32 = 512
 
+export const previous_output: u32 = 1024
+
 export const parallel_tag: string = "Parallel"
 
 export const task_tag: string = "Task"

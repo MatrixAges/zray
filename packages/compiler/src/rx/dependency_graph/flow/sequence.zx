@@ -1,7 +1,16 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import { declaration, returns, terminates, unreachable } from "./const"
+import {
+    action_mask,
+    call_action,
+    declaration,
+    previous_output,
+    returns,
+    task_has_output,
+    terminates,
+    unreachable
+} from "./const"
 
 import type { Children } from "./model"
 
@@ -15,6 +24,7 @@ export default function (in: Input): Output {
     const summary = loop({
         row: in.head,
         following: 0,
+        following_call: false,
         has_return: false,
         ends: false
     }, {
@@ -28,17 +38,26 @@ export default function (in: Input): Output {
             if (integers.andBits(flags, integers.widen(declaration)) == 0) {
                 const stop = integers.andBits(flags, integers.widen(terminates)) != 0
 
+                const action = integers.andBits(flags, integers.widen(action_mask))
+                const call = action == integers.widen(call_action)
+                const output =
+                    integers.andBits(flags, integers.widen(task_has_output))
+                const feeds_call = state.following_call && (call || output != 0)
+
                 if (state.following == 0) {
                     state.ends = stop
-                } else if (stop) {
+                } else if (stop || feeds_call) {
                     const next = state.following - 1
-                    const previous = memory.readU32(view.facts, next)
-                    memory.writeU32(view.facts, next, previous + unreachable)
+                    const next_flags = memory.readU32(view.facts, next)
+                    const mark = stop ? unreachable : previous_output
+
+                    memory.writeU32(view.facts, next, next_flags + mark)
                 }
 
                 const yields = integers.andBits(flags, integers.widen(returns)) != 0
                 state.has_return = state.has_return || yields
                 state.following = slot + 1
+                state.following_call = call
             }
         }
     })

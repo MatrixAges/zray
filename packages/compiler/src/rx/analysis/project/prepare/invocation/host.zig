@@ -124,7 +124,6 @@ pub const State = struct {
             .callee = selected.callee,
         });
 
-        loader.omitted_inputs = loader.omitted_inputs or self.attributes.argument == null;
         loader.local_calls = loader.local_calls and (selected.kind == .Source or selected.kind == .NamedSource);
     }
 

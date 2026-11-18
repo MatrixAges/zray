@@ -26,7 +26,7 @@ export declare function publishCall(context: Invocation): void throws { InvalidF
 
 export declare function recordArgument(context: Invocation): void throws { InvalidFlow, OutOfMemory }
 
-export declare function bindCall(context: FlowTarget, slot: u64, item: u32): void throws { InvalidFlow, OutOfMemory }
+export declare function bindCall(context: FlowTarget, slot: u64, item: u32, previous_end: u32): void throws { InvalidFlow, OutOfMemory }
 
 export declare function bindResult(context: FlowTarget, slot: u64, item: u32): void
 

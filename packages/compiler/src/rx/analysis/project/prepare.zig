@@ -121,14 +121,13 @@ pub const Loader = struct {
     plan: Flow.Builder = .{},
     task_count: usize = 0,
     deferred_shortcut: bool = false,
-    omitted_inputs: bool = false,
     issue: ?target.Diagnostic = null,
     pub const Error = std.mem.Allocator.Error || error{InvalidFlow};
 
     fn shortcut(self: *Loader, node: rx.ast.Node) Error!Flow.Plan {
         const shorthand = @import("shorthand.zig");
         const invocation = shorthand.call(node);
-        const index = try self.call(invocation);
+        const index = try self.call(invocation, 0);
 
         std.debug.assert(index == shorthand.call_index);
 
@@ -185,7 +184,7 @@ pub const Loader = struct {
 
                     break :result .{ .Result = target.attribute(node.*, "value") };
                 },
-                .call => .{ .Call = try self.call(node.*) },
+                .call => .{ .Call = try self.call(node.*, if (cursor > region.first) cursor else 0) },
                 .task => task: {
                     const output = target.optionalAttribute(node.*, "out");
                     const body = try self.taskBody(node, output, false);
@@ -261,7 +260,7 @@ pub const Loader = struct {
             const action = seedAction(child.name);
 
             if (action == .call) {
-                const call_index = try self.call(child.*);
+                const call_index = try self.call(child.*, 0);
 
                 try self.plan.write(self.allocator, row, .{ .Call = call_index });
 
@@ -302,7 +301,7 @@ pub const Loader = struct {
 
         return body;
     }
-    pub fn call(self: *Loader, node: rx.ast.Node) Error!usize {
+    pub fn call(self: *Loader, node: rx.ast.Node, previous_end: u32) Error!usize {
         var state: @import("prepare/invocation/host.zig").State = .{
             .loader = self,
             .node = node,
@@ -310,6 +309,10 @@ pub const Loader = struct {
         };
 
         try state.bind();
+
+        if (previous_end != 0) {
+            try @import("prepare/previous_input.zig").bind(self, state.index, previous_end - 1);
+        }
 
         return state.index;
     }

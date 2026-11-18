@@ -1,11 +1,17 @@
+import integers from "std:integer"
 import native from "rx_prepare"
 
-import type { Position } from "./model"
+import { previous_output } from "../../../../dependency_graph/flow/const"
 
-export type Input = Position
+import type { Event, Layout, Position } from "./model"
+
+export type Input = Position & Event.Pick("flags") & Layout.Pick("row")
 
 export type Output = void
 
 export default function (in: Input): Output {
-    native.bindCall(in.context, in.slot, in.item)
+    const available = integers.andBits(in.flags, integers.widen(previous_output)) != 0
+    const previous_end = available ? in.row : 0
+
+    native.bindCall(in.context, in.slot, in.item, previous_end)
 }
