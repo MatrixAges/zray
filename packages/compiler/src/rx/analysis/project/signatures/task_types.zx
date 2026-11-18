@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Publication } from "./model"
+
+export type Input = Publication.Pick("bindings", "tasks") & {
+    first: u64,
+    end: u64,
+    binding_first: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { bindings, tasks, binding_first } = in
+
+    const completed = loop(in.first, {
+        while: row => row < in.end,
+        next: row => {
+            const offset = memory.readU32(tasks, row)
+            const type_id =
+                memory.readU32(bindings, binding_first + integers.widen(offset))
+            memory.writeU32(tasks, row, type_id)
+
+            row += 1
+        }
+    })
+}

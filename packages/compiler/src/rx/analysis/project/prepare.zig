@@ -86,16 +86,15 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
     return .{ .loaded = .{ .modules = plans, .local_calls = local_calls, .project = loader.project } };
 }
 
-pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signatures: []const @import("signatures.zig").Signature) std.mem.Allocator.Error!void {
+pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signatures: @import("signatures.zig").Table) std.mem.Allocator.Error!void {
     const shorthand = @import("shorthand.zig");
     var first: usize = 0;
 
     while (first < modules.len) {
         const row = shorthand.nextDeferred(modules, first) orelse break;
         const module = &modules[row];
-        const signature = &signatures[row];
         const index = shorthand.call_index;
-        const plan = try shorthand.lower(allocator, module.calls.items(.node)[index], index, signature.input_type, signature.output_type);
+        const plan = try shorthand.lower(allocator, module.calls.items(.node)[index], index, @fromBackingInt(signatures.inputs[row]), @fromBackingInt(signatures.outputs[row]));
 
         module.calls.items(.node)[index] = plan.node;
         module.calls.items(.input)[index] = plan.input;

@@ -1,4 +1,4 @@
-import type { ListColumn, ReadColumn } from "memory"
+import type { Ports } from "../../../signatures/model"
 import type { Ranges } from "../../../source_graph/source"
 
 export type Dependencies = {
@@ -20,12 +20,10 @@ export type Boundaries = {
     links_offset: u64
 }
 
-export type SignatureColumns = {
-    inputs: ReadColumn,
-    outputs: ReadColumn,
-    names: ReadColumn,
-    bindings: ListColumn,
-    tasks: ListColumn
+export type SignatureColumns = Ports & {
+    names: string[],
+    bindings: u8[],
+    tasks: u8[]
 }
 
 export type Signatures = {

@@ -43,27 +43,20 @@ pub fn root(self: *Self, sequence: Prepared.Unit) Error!u32 {
 
 pub fn finishTask(self: *Self, work: *const Prepared.Task, body: u32, count: usize) Error!Flow.Step {
     var step: Flow.Step = .{ .kind = .Task, .first = body };
-    var published: ?Module.Binding = null;
+    var published: ?Result = null;
 
     inline for (comptime Schedule.steps(.Task)) |action| {
         switch (action) {
             .Done, .CompileTaskBody => {},
             .CompileTaskOutput => if (work.output) |attribute| {
-                const binding = self.results.at(self.next_binding);
-
-                self.next_binding += 1;
-                step.value = try self.keep(try self.value(attribute, binding.type_id, false));
-
-                if (binding.type_id == frontend.types.scalarId(.void)) {
-                    step.output = .Evaluate;
-                } else {
-                    step.output = .Constant;
-                    step.name = binding.name;
-                    published = binding;
-                }
+                const result = self.takeResult();
+                step.value = try self.keep(try self.value(attribute, result.type_id, false));
+                step.output = if (result.name != null) .Constant else .Evaluate;
+                step.name = result.name;
+                published = result;
             },
             .RestoreBindings => self.bindings.len = count,
-            .PublishTask => if (published) |binding| try self.bindings.append(self.binding_allocator, .{ .name = binding.name, .type_id = binding.type_id }),
+            .PublishTask => if (published) |result| try result.publish(self.binding_allocator, &self.bindings),
             else => unreachable,
         }
     }
@@ -242,15 +235,41 @@ pub fn call(self: *Self, loaded: Module.Loaded, outputs: *frontend.expressions.B
     return self.appendCall(.{ .function_id = loaded.function.id, .callee = loaded.function.program, .store_initializers = loaded.function.store_initializers, .argument = argument, .input_omitted = input == null, .out = out, .getters = loaded.getters });
 }
 
-pub fn publishResult(self: *Self, outputs: *frontend.expressions.BindingStorage) std.mem.Allocator.Error!?[]const u8 {
-    const binding = self.results.at(self.next_binding);
+const Result = struct {
+    name: ?[]const u8,
+    type_id: zx.ir.TypeId,
+    fn publish(self: Result, allocator: std.mem.Allocator, outputs: *frontend.expressions.BindingStorage) std.mem.Allocator.Error!void {
+        const name = self.name orelse return;
+
+        try outputs.append(allocator, .{ .name = name, .type_id = self.type_id });
+    }
+};
+
+fn takeResult(self: *Self) Result {
+    const row = self.next_binding;
 
     self.next_binding += 1;
 
-    if (binding.type_id == frontend.types.scalarId(.void)) return null;
-    try outputs.append(self.binding_allocator, .{ .name = binding.name, .type_id = binding.type_id });
+    if (comptime @import("rx_options").generated_graph) {
+        const rule = @import("generated_rx_flow_result");
+        const input: std.meta.Child(rule.Input) = .{ .names = self.results.names, .types = @ptrCast(self.results.types), .row = row };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return binding.name;
+        return .{ .name = result.name, .type_id = @fromBackingInt(result.type_id) };
+    }
+
+    const binding = self.results.at(row);
+
+    return .{ .name = if (binding.type_id == frontend.types.scalarId(.void)) null else binding.name, .type_id = binding.type_id };
+}
+
+pub fn publishResult(self: *Self, outputs: *frontend.expressions.BindingStorage) std.mem.Allocator.Error!?[]const u8 {
+    const result = self.takeResult();
+
+    try result.publish(self.binding_allocator, outputs);
+
+    return result.name;
 }
 
 pub fn appendCall(self: *Self, invocation: Module.Call) std.mem.Allocator.Error!u32 {

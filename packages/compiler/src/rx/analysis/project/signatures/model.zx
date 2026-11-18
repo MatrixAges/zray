@@ -3,7 +3,6 @@ import type { Kind } from "../../inference/unification/model"
 
 export enum Stage {
     Bindings,
-    Tasks,
     Input,
     Output
 }
@@ -11,7 +10,6 @@ export enum Stage {
 export type Cursor = {
     module: u64,
     binding: u64,
-    task: u64,
     output: bool
 }
 
@@ -28,11 +26,6 @@ export type Ports = {
     task_ends: u64[]
 }
 
-export type Tasks = {
-    ids: u64[],
-    values: u32[]
-}
-
 export type Publication = {
     bindings: U32Buffer,
     tasks: U32Buffer,
@@ -43,7 +36,6 @@ export type Publication = {
 export type Input = {
     nodes: Nodes,
     ports: Ports,
-    tasks: Tasks,
     target: Publication,
     cursor: Cursor
 }

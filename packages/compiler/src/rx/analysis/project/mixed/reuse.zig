@@ -273,7 +273,7 @@ fn unchanged(self: *const Self, state: *const State, index: usize) bool {
     if (source == .rx) {
         const before = previous.derived.dependencies.sources.at(index);
 
-        if (before != .rx or !columns.same(previous.derived.resolved[before.rx], self.derived.resolved[source.rx])) return false;
+        if (before != .rx or !columns.same(previous.derived.resolved.at(before.rx), self.derived.resolved.at(source.rx))) return false;
     }
 
     return !self.reaches(state, index);

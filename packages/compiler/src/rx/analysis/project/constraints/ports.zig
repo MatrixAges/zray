@@ -11,8 +11,8 @@ const Row = struct {
     input: Graph.Id,
     output: Graph.Id,
     input_fixed: bool,
-    binding_end: usize = 0,
-    task_end: usize = 0,
+    binding_end: u64 = 0,
+    task_end: u64 = 0,
 };
 
 const Storage = std.MultiArrayList(Row);
@@ -21,7 +21,9 @@ pub const Slice = Storage.Slice;
 pub fn initialize(graph: *Graph, modules: []const Prepared.Module, source_map: SourceMap) zx.Error!Slice {
     var storage: Storage = .empty;
 
-    try storage.resize(graph.allocator, modules.len);
+    try storage.setCapacity(graph.types.allocator, modules.len);
+
+    storage.len = modules.len;
 
     var declarations = zx.Arena.init(graph.scratch);
 

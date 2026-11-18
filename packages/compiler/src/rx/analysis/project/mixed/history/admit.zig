@@ -17,8 +17,6 @@ pub const Borrowed = struct {
     current: std.meta.Child(@FieldType(ScanHistory, "current")),
     boundaries: std.meta.Child(@FieldType(ScanHistory, "boundaries")),
     previous_sources: std.meta.Child(@FieldType(ScanHistory, "previous_sources")),
-    earlier_signatures: SignatureColumns,
-    current_signatures: SignatureColumns,
     earlier_view: SignatureView,
     current_view: SignatureView,
     signatures: SignaturePair,
@@ -57,8 +55,6 @@ pub const Borrowed = struct {
                 .links_offset = @offsetOf(History.Checkpoint, "native_modules") / word,
             },
             .previous_sources = .{ .zx_count = previous.derived.dependencies.sources.zx_count, .rx_end = previous.derived.dependencies.sources.rx_end },
-            .earlier_signatures = undefined,
-            .current_signatures = undefined,
             .earlier_view = undefined,
             .current_view = undefined,
             .signatures = undefined,
@@ -66,13 +62,11 @@ pub const Borrowed = struct {
         };
 
         const earlier = &previous.derived;
-        const shared = self.previous_sources.zx_count == graph.sources.zx_count and earlier.resolved.ptr == current.resolved.ptr and earlier.resolved.len == current.resolved.len;
+        const shared = self.previous_sources.zx_count == graph.sources.zx_count and earlier.resolved.inputs.ptr == current.resolved.inputs.ptr and earlier.resolved.inputs.len == current.resolved.inputs.len;
 
         if (!shared) {
-            self.earlier_signatures = .borrow(earlier.resolved);
-            self.current_signatures = .borrow(current.resolved);
-            self.earlier_view = self.earlier_signatures.view();
-            self.current_view = self.current_signatures.view();
+            self.earlier_view = signatureColumns(&earlier.resolved);
+            self.current_view = signatureColumns(&current.resolved);
             self.signatures = .{ .earlier = &self.earlier_view, .current = &self.current_view };
         }
 
@@ -91,31 +85,17 @@ pub const Borrowed = struct {
 const SignaturePair = std.meta.Child(@typeInfo(@FieldType(ScanHistory, "signatures")).optional.child);
 const SignatureView = std.meta.Child(@FieldType(SignaturePair, "earlier"));
 
-const SignatureColumns = struct {
-    inputs: zx.memory.ReadColumn,
-    outputs: zx.memory.ReadColumn,
-    names: zx.memory.ReadColumn,
-    bindings: zx.memory.ListColumn,
-    tasks: zx.memory.ListColumn,
-    fn borrow(rows: []const Signature) SignatureColumns {
-        const memory = zx.memory;
-
-        return .{
-            .inputs = memory.borrowReadColumn(zx.ir.TypeId, "input_type", rows),
-            .outputs = memory.borrowReadColumn(zx.ir.TypeId, "output_type", rows),
-            .names = memory.borrowNestedColumn([]const []const u8, &.{ "bindings", "names" }, rows),
-            .bindings = memory.borrowSliceColumn(&.{ "bindings", "types" }, rows),
-            .tasks = memory.borrowSliceColumn(&.{"tasks"}, rows),
-        };
-    }
-    fn view(self: *const SignatureColumns) SignatureView {
-        var result: SignatureView = undefined;
-
-        inline for (@typeInfo(SignatureColumns).@"struct".field_names) |field| @field(result, field) = @ptrCast(&@field(self, field));
-
-        return result;
-    }
-};
+fn signatureColumns(table: *const @import("../../signatures.zig").Table) SignatureView {
+    return .{
+        .inputs = table.inputs,
+        .outputs = table.outputs,
+        .binding_ends = table.binding_ends,
+        .task_ends = table.task_ends,
+        .names = table.names,
+        .bindings = std.mem.sliceAsBytes(table.binding_types),
+        .tasks = std.mem.sliceAsBytes(table.task_types),
+    };
+}
 
 pub fn scan(state: *const State, history: *const ScanHistory, first: usize, end: usize) PrefixResult {
     const graph = &state.graph;
@@ -162,7 +142,7 @@ fn confirm(state: *const State, current: *const History.Frame, previous: *const 
 
     return switch (state.graph.sources.at(index)) {
         .zx => true,
-        .rx => |row| earlier == .rx and sameSignature(&previous.derived.resolved[earlier.rx], &current.resolved[row]),
+        .rx => |row| earlier == .rx and sameSignature(&previous.derived.resolved.at(earlier.rx), &current.resolved.at(row)),
         .store => |row| earlier == .store and sameStore(current, previous, row, earlier.store),
     };
 }

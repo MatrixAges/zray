@@ -44,7 +44,7 @@ pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: Sour
             .span_offset = source_map.base(index),
         };
 
-        var walker = Walker{ .expression = &expression, .module = module, .states = states, .output = output, .arguments = arguments.module(index), .requests = requests };
+        var walker = Walker{ .expression = &expression, .module = module, .states = states, .output = output, .arguments = arguments.module(index), .requests = requests, .binding_first = requests.bindings.len, .task_first = requests.tasks.items.len };
 
         if (module.deferred_shortcut) {
             const call = module.calls.get(@import("shorthand.zig").call_index);
@@ -56,7 +56,7 @@ pub fn collect(graph: *Graph, modules: []const Prepared.Module, source_map: Sour
 
         unused += @intFromBool(!fixed[index]);
         binding_ends[index] = requests.bindings.len;
-        task_ends[index] = requests.tasks.len;
+        task_ends[index] = requests.tasks.items.len;
     }
 
     scope.reset(0);
@@ -73,6 +73,8 @@ pub const Walker = struct {
     arguments: Inputs.Module,
     output: Graph.Id,
     requests: *Requests,
+    binding_first: usize,
+    task_first: usize,
     returned: bool = false,
     fn inferModule(self: *Walker, comptime form: Schedule.Form, fixed: *bool, shortcut: if (form == .ModuleShortcut) *const Prepared.Call else @TypeOf(null)) zx.Error!void {
         const expression = self.expression;
@@ -183,7 +185,7 @@ pub const Walker = struct {
                     output = try inferAttribute(expression, self.module.source.path, attribute, null);
                 },
                 .DefaultTaskOutput => if (!self.returned) try graph.unify(output.?, try graph.scalar(.void, span), span),
-                .RequestTaskOutput => try self.requests.tasks.append(graph.scratch, .{ .id = entry.id.?, .value = output.? }),
+                .RequestTaskOutput => try self.requests.recordTask(graph.types.allocator, self.task_first, entry.id.?, self.requests.bindings.len - self.binding_first),
                 .RestoreReturn => {
                     self.output = parent_output;
                     self.returned = parent_returned;

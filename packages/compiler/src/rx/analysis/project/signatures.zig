@@ -14,21 +14,42 @@ pub const Signature = struct {
     tasks: []const zx.ir.TypeId,
 };
 
-pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, resolver: *Graph.Resolver, ports: Ports, requests: Requests) zx.Error![]const Signature {
-    if (ports.len == 0) return &.{};
+pub const Table = struct {
+    inputs: []const u32 = &.{},
+    outputs: []const u32 = &.{},
+    binding_ends: []const u64 = &.{},
+    task_ends: []const u64 = &.{},
+    names: []const []const u8 = &.{},
+    binding_types: []const u32 = &.{},
+    task_types: []const u32 = &.{},
+    pub fn at(self: *const Table, row: usize) Signature {
+        const first: usize = if (row == 0) 0 else @intCast(self.binding_ends[row - 1]);
+        const end: usize = @intCast(self.binding_ends[row]);
+        const task_first: usize = if (row == 0) 0 else @intCast(self.task_ends[row - 1]);
+        const task_end: usize = @intCast(self.task_ends[row]);
 
-    const signatures = try allocator.alloc(Signature, ports.len);
-    const task_types = try allocator.alloc(u32, requests.tasks.len);
+        return .{
+            .input_type = @fromBackingInt(self.inputs[row]),
+            .output_type = @fromBackingInt(self.outputs[row]),
+            .bindings = .{ .names = self.names[first..end], .types = @ptrCast(self.binding_types[first..end]) },
+            .tasks = @ptrCast(self.task_types[task_first..task_end]),
+        };
+    }
+};
+
+pub fn resolve(graph: *Graph, resolver: *Graph.Resolver, ports: Ports, requests: Requests) zx.Error!Table {
+    if (ports.len == 0) return .{};
+
+    const task_types = requests.tasks.items;
     const bindings = requests.bindings.slice();
     const names = bindings.items(.name);
     const binding_types: []u32 = @ptrCast(bindings.items(.value));
-    const tasks = requests.tasks.slice();
     const inputs: []u32 = @ptrCast(ports.items(.input));
     const outputs: []u32 = @ptrCast(ports.items(.output));
     const binding_ends = ports.items(.binding_end);
     const task_ends = ports.items(.task_end);
 
-    if (comptime generated and @bitSizeOf(usize) == 64) {
+    if (comptime generated) {
         const Input = std.meta.Child(rule.Input);
         const rows = graph.nodes.slice();
         const parents = graph.parents();
@@ -42,13 +63,8 @@ pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, resolver: *Graph.Res
         const ranges: std.meta.Child(@FieldType(Input, "ports")) = .{
             .inputs = inputs,
             .outputs = outputs,
-            .binding_ends = @ptrCast(binding_ends),
-            .task_ends = @ptrCast(task_ends),
-        };
-
-        const task_requests: std.meta.Child(@FieldType(Input, "tasks")) = .{
-            .ids = @ptrCast(tasks.items(.id)),
-            .values = @ptrCast(tasks.items(.value)),
+            .binding_ends = binding_ends,
+            .task_ends = task_ends,
         };
 
         const target: std.meta.Child(@FieldType(Input, "target")) = .{
@@ -58,11 +74,11 @@ pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, resolver: *Graph.Res
             .outputs = @ptrCast(&outputs),
         };
 
-        var cursor: std.meta.Child(@FieldType(Input, "cursor")) = .{ .module = 0, .binding = 0, .task = 0, .output = false };
+        var cursor: std.meta.Child(@FieldType(Input, "cursor")) = .{ .module = 0, .binding = 0, .output = false };
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         while (true) {
-            const input: Input = .{ .nodes = &nodes, .ports = &ranges, .tasks = &task_requests, .target = &target, .cursor = &cursor };
+            const input: Input = .{ .nodes = &nodes, .ports = &ranges, .target = &target, .cursor = &cursor };
             const progress = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
             const unresolved = progress.unresolved orelse break;
             _ = try graph.resolve(@fromBackingInt(unresolved), resolver);
@@ -72,9 +88,12 @@ pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, resolver: *Graph.Res
         var binding_start: usize = 0;
         var task_start: usize = 0;
 
-        for (inputs, outputs, binding_ends, task_ends) |*input, *output, binding_end, task_end| {
+        for (inputs, outputs, binding_ends, task_ends) |*input, *output, raw_binding_end, raw_task_end| {
+            const binding_end: usize = @intCast(raw_binding_end);
+            const task_end: usize = @intCast(raw_task_end);
+
             for (binding_types[binding_start..binding_end]) |*binding| binding.* = @backingInt(try graph.resolve(@fromBackingInt(binding.*), resolver));
-            for (tasks.items(.id)[task_start..task_end], tasks.items(.value)[task_start..task_end]) |id, value| task_types[task_start + id] = @backingInt(try graph.resolve(value, resolver));
+            for (task_types[task_start..task_end]) |*task| task.* = binding_types[binding_start + task.*];
 
             input.* = @backingInt(try graph.resolve(@fromBackingInt(input.*), resolver));
             output.* = @backingInt(try graph.resolve(@fromBackingInt(output.*), resolver));
@@ -83,23 +102,13 @@ pub fn resolve(allocator: std.mem.Allocator, graph: *Graph, resolver: *Graph.Res
         }
     }
 
-    var binding_start: usize = 0;
-    var task_start: usize = 0;
-
-    for (signatures, inputs, outputs, binding_ends, task_ends) |*signature, input, output, binding_end, task_end| {
-        signature.* = .{
-            .input_type = @fromBackingInt(input),
-            .output_type = @fromBackingInt(output),
-            .bindings = .{
-                .names = names[binding_start..binding_end],
-                .types = @ptrCast(binding_types[binding_start..binding_end]),
-            },
-            .tasks = @ptrCast(task_types[task_start..task_end]),
-        };
-
-        binding_start = binding_end;
-        task_start = task_end;
-    }
-
-    return signatures;
+    return .{
+        .inputs = inputs,
+        .outputs = outputs,
+        .binding_ends = binding_ends,
+        .task_ends = task_ends,
+        .names = names,
+        .binding_types = binding_types,
+        .task_types = task_types,
+    };
 }

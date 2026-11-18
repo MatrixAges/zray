@@ -171,7 +171,7 @@ pub const Transaction = struct {
             _ = state.scratch.reset(.retain_capacity);
 
             break :ready try module.link(state, lowered.prepared, lowered.contract);
-        } else try module.compile(state, self.cache, self.sources, index, derived.loaded.modules[source], derived.resolved[source], self.arguments.module(source));
+        } else try module.compile(state, self.cache, self.sources, index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
 
         state.finished.set(index, linked.loaded);
 

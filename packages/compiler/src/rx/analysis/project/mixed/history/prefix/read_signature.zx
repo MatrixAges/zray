@@ -1,5 +1,7 @@
 import memory from "memory"
 
+import { type_id_bytes } from "./const"
+
 import type { Signature as Output } from "../signature"
 import type { SignatureColumns } from "./model"
 
@@ -11,11 +13,24 @@ export type Input = {
 export default function (in: Input): Output {
     const { columns, row } = in
 
+    const first = row == 0 ? 0 : columns.binding_ends[row - 1]
+    const task_first = row == 0 ? 0 : columns.task_ends[row - 1]
+    const count = columns.binding_ends[row] - first
+    const task_count = columns.task_ends[row] - task_first
+
     return {
-        input_type: memory.readColumnU32(columns.inputs, row),
-        output_type: memory.readColumnU32(columns.outputs, row),
-        bindings: memory.readTextListColumn(columns.names, row),
-        binding_types: memory.borrowListBytes(columns.bindings, row),
-        task_types: memory.borrowListBytes(columns.tasks, row)
+        input_type: columns.inputs[row],
+        output_type: columns.outputs[row],
+        bindings: memory.borrowStringRange(columns.names, first, count),
+        binding_types: memory.borrowU8Range(
+            columns.bindings,
+            first * type_id_bytes,
+            count * type_id_bytes
+        ),
+        task_types: memory.borrowU8Range(
+            columns.tasks,
+            task_first * type_id_bytes,
+            task_count * type_id_bytes
+        )
     }
 }

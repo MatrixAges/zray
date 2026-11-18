@@ -34,7 +34,6 @@ pub fn run(derivation: *Derivation) Error!void {
     defer state.workspace.deinit();
     defer state.pending.deinit();
     defer state.resolver.deinit(backing);
-    defer state.requests.deinit(backing);
 
     try state.execute();
 }
@@ -86,7 +85,7 @@ pub const State = struct {
     pub fn resolve(self: *State) Error!void {
         const derivation = self.derivation;
         const signatures = @import("../../signatures.zig");
-        derivation.frame.resolved = signatures.resolve(derivation.allocator, &self.graph, &self.resolver, self.ports, self.requests) catch |err| return self.report(err);
+        derivation.frame.resolved = signatures.resolve(&self.graph, &self.resolver, self.ports, self.requests) catch |err| return self.report(err);
         derivation.frame.types = self.graph.types.items.view();
     }
     fn report(self: *State, err: Error) Error {

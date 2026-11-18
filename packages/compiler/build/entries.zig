@@ -104,6 +104,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/contracts/render.zx", .name = "rx_args_render", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/location.zx", .name = "rx_args_location", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/contracts/validate.rx", .name = "rx_args_validate", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/flow_compile/result.zx", .name = "rx_flow_result", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/signatures/publish.zx", .name = "rx_signature_publish", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/history/inputs.zx", .name = "rx_history_inputs", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/history/source.zx", .name = "rx_history_source", .owner = .rx_analysis },

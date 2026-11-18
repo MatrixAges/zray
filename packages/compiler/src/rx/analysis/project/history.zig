@@ -28,7 +28,7 @@ pub const Frame = struct {
     loaded: @import("prepare.zig").Loaded,
     signatures: frontend.project.signature_project.Data,
     signature_indices: []const i64,
-    resolved: []const @import("signatures.zig").Signature,
+    resolved: @import("signatures.zig").Table,
     types: ir.TypeTable,
 };
 
