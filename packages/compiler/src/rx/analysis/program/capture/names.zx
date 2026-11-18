@@ -1,0 +1,25 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { environment_name } from "./const"
+
+import type { Names } from "./model"
+
+export type Input = Names
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeString(in.names, 0, environment_name)
+
+    const written = loop(0, {
+        while: row => row < in.positions.length,
+        next: row => {
+            const value = in.source[integers.widen(in.positions[row])]
+            memory.writeString(in.captured, row, value)
+            row += 1
+        }
+    })
+
+    memory.copyStrings(in.captured, memory.stringViews(in.captured))
+}

@@ -48,7 +48,7 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
         .shared_functions = parent.shared_functions,
         .verified_functions = parent.verified_functions,
         .output_type = output_type,
-        .loaded = parent.loaded,
+        .inputs = parent.inputs,
         .results = parent.results,
         .tasks = parent.tasks,
         .plan = parent.plan,
@@ -96,11 +96,9 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
                 call.argument.types = nested.types;
             },
             .ResolveCaptures => {
-                const positions = try captures.positions(temporary, children);
-
                 types.items = try nested.takeTypeStorage();
-                layout = try Layout.plan(temporary, children, positions, nested.bindings.items(.type_id));
-                selected = .{ .names = environment.names, .positions = positions, .types = layout.parameter_types };
+                layout = try Layout.plan(temporary, children, captures, nested.bindings.items(.type_id));
+                selected = .{ .names = environment.names, .positions = layout.positions, .types = layout.parameter_types };
 
                 input_type = types.tuple(selected.types) catch |err| {
                     if (err == error.OutOfMemory) return error.OutOfMemory;
@@ -159,7 +157,7 @@ pub fn compile(parent: *Flow, branch: *const @import("project/flow.zig").Task, o
                 if (try frontend.validateIrExtending(allocator, program, parent.verified_functions)) |issue| return failure(parent, node, issue);
             },
             .BuildCaptureArgument => {
-                argument = try Capture.argument(parent.metadataAllocator(), parent.owner, parent.types, environment_type, input_type, selected, layout, span);
+                argument = try Capture.argument(parent.metadataAllocator(), parent.owner, parent.types, environment_type, input_type, program.symbols.names, layout, span);
 
                 if (parent.captures) |outer| outer.observeMapped(argument.expressions.references, selected.positions);
             },

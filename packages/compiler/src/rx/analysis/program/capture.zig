@@ -27,11 +27,11 @@ pub fn bind(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, input_ty
     }
 }
 
-pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeTable, environment_type: ir.TypeId, input_type: ir.TypeId, captures: Parameters, layout: Layout, span: zx.Span) std.mem.Allocator.Error!ir.Program {
-    if (comptime generated) return @import("capture/source.zig").argument(allocator, owner, types, environment_type, input_type, captures, layout, span);
+pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeTable, environment_type: ir.TypeId, input_type: ir.TypeId, symbol_names: []const []const u8, layout: Layout, span: zx.Span) std.mem.Allocator.Error!ir.Program {
+    if (comptime generated) return @import("capture/source.zig").argument(allocator, owner, types, environment_type, input_type, symbol_names, layout, span);
 
     var builder = Builder{ .allocator = allocator, .types = types, .native_modules = .{} };
-    const count = std.math.cast(u32, captures.types.len) orelse return error.OutOfMemory;
+    const count = std.math.cast(u32, layout.parameter_types.len) orelse return error.OutOfMemory;
     const size = Counts{ .constants = count, .results = 1 };
 
     if (size.statements() > std.math.maxInt(u32)) return error.OutOfMemory;
@@ -48,13 +48,13 @@ pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeT
 
     const environment = try input(&builder, environment_type, span);
 
-    for (captures.positions, layout.source_types, 0..) |position, type_id, index| {
-        const binding: Binding = .{ .name = captures.names[position], .type_id = type_id };
+    for (layout.source_types, 0..) |type_id, index| {
+        const binding: Binding = .{ .name = symbol_names[index + 1], .type_id = type_id };
 
         _ = try bindOne(&builder, &writer, &cursor, environment, binding, @intCast(index), span);
     }
 
-    for (captures.types, layout.source_types, layout.elements, 1..) |parameter_type, type_id, element, symbol| {
+    for (layout.parameter_types, layout.source_types, layout.elements, 1..) |parameter_type, type_id, element, symbol| {
         const reference = try builder.seedExpression(.{ .type_id = type_id, .span = span, .value = .{ .reference = @fromBackingInt(@intCast(symbol)) } });
 
         if (reference != element) {

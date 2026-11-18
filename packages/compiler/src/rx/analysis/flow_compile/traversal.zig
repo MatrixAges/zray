@@ -83,7 +83,7 @@ pub const Host = struct {
 
         if (current.payload == .Parallel) {
             for (items) |item| {
-                const id = try compiler.call(compiler.loaded[item], &current.payload.Parallel.outputs);
+                const id = try compiler.call(item, &current.payload.Parallel.outputs);
 
                 try compiler.checkParallelCall(item, id);
             }
@@ -92,7 +92,7 @@ pub const Host = struct {
         }
 
         for (items, current.row(first)..) |item, row| {
-            const id = try compiler.call(compiler.loaded[item], &compiler.bindings);
+            const id = try compiler.call(item, &compiler.bindings);
 
             compiler.compiled.steps.set(row, .{ .kind = .Call, .first = id });
         }

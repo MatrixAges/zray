@@ -1,15 +1,34 @@
+const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const State = @import("state.zig");
 
+pub fn admitted(ids: []const ir.FunctionId, count: usize) bool {
+    if (ids.len == 0) return true;
+
+    if (comptime @import("rx_options").generated_graph) {
+        const rule = @import("generated_rx_callee_ids");
+        const input: std.meta.Child(rule.Input) = .{ .ids = @ptrCast(ids), .count = count };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    }
+
+    for (ids) |id| if (@backingInt(id) >= count) return false;
+
+    return true;
+}
+
 pub fn view(state: *State, id: ir.FunctionId, functions: ir.FunctionTable) State.Error!ir.Program {
     if (@backingInt(id) >= state.functions.count()) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "resolved function is outside the shared function table");
 
-    const function = state.functions.at(@backingInt(id));
+    return programView(state.allocator, state.functions.at(@backingInt(id)), id, functions, state.types.items.view(), state.native_modules.view());
+}
 
+pub fn programView(allocator: std.mem.Allocator, function: ir.Function, id: ir.FunctionId, functions: ir.FunctionTable, types: ir.TypeTable, native_modules: ir.NativeModuleTable) std.mem.Allocator.Error!ir.Program {
     var program = ir.Program{
         .file_name = function.file_name,
-        .types = state.types.items.view(),
+        .types = types,
         .input_type = function.input_type,
         .output_type = function.output_type,
         .output_ownership = function.output_ownership,
@@ -20,10 +39,10 @@ pub fn view(state: *State, id: ir.FunctionId, functions: ir.FunctionTable) State
         .stores = function.stores,
         .store_mode = function.store_mode,
         .functions = functions,
-        .native_modules = state.native_modules.view(),
+        .native_modules = native_modules,
     };
 
-    if (function.external != null) try @import("frontend").writeExternalEntry(state.allocator, &program, id);
+    if (function.external != null) try @import("frontend").writeExternalEntry(allocator, &program, id);
 
     return program;
 }

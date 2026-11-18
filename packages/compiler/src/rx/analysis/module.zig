@@ -53,14 +53,6 @@ pub const Result = struct {
     }
 };
 
-pub const Loaded = struct {
-    getters: []const @import("store.zig").Binding = &.{},
-    node: rx.ast.Node,
-    input: ?*const rx.ast.Attribute,
-    function: target.Function,
-    argument: ?*const frontend.ExpressionInput.Result = null,
-};
-
 pub const Binding = frontend.expressions.Binding;
 pub const Bindings = frontend.expressions.BindingColumns;
 

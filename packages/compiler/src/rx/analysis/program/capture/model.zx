@@ -28,17 +28,18 @@ export type Span = {
     end: u64
 }
 
-export type Captures = {
-    names: string[],
+export type Names = {
+    source: string[],
     positions: u32[],
-    types: u32[]
+    names: StringBuffer,
+    captured: StringBuffer
 }
 
 export type Prefix = {
-    symbols: Symbols,
+    symbols: Symbols.Omit("names"),
     expressions: Expressions,
     statements: Statements,
-    captures: Captures,
+    types: u32[],
     references: U32Buffer,
     targets: U32Buffer,
     indices: U32Buffer,
@@ -81,4 +82,9 @@ export type Argument = {
     prefix: Prefix,
     tuple: Tuple,
     result: Result
+}
+
+export type Binding = {
+    prefix: Prefix,
+    names: Names
 }

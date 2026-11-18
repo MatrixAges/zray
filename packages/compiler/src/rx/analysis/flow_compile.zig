@@ -25,7 +25,7 @@ native_modules: zx.ir.NativeModuleTable = .{},
 shared_functions: zx.ir.FunctionTable,
 verified_functions: zx.ir.FunctionTable = .{},
 output_type: zx.ir.TypeId,
-loaded: []const Module.Loaded,
+inputs: *const @import("module_compile.zig").Options,
 results: Module.Bindings,
 tasks: []const zx.ir.TypeId = &.{},
 plan: *const Prepared.Plan,
@@ -114,7 +114,7 @@ pub fn checkSelection(self: *Self, subject: *const zx.ir.Program, attribute: rx.
 pub fn checkParallelCall(self: *Self, index: u32, id: u32) Error!void {
     if (try frontend.isParallelSafe(self.allocator, self.calls.items[id].callee)) return;
 
-    const location = self.loaded[index].node.location;
+    const location = self.inputs.calls.items(.node)[index].location;
 
     self.issue = .{ .location = location, .issue = .{ .code = .unsupported, .span = .{ .start = location.offset, .end = location.offset }, .message = "Parallel branches require pure functions without Store capabilities or native external calls" } };
 
@@ -209,30 +209,35 @@ fn viewed(storage: zx.ir.TypeStorage, types: zx.ir.TypeTable) bool {
     return true;
 }
 
-pub fn call(self: *Self, loaded: Module.Loaded, outputs: *frontend.expressions.BindingStorage) Error!u32 {
+pub fn call(self: *Self, row: u32, outputs: *frontend.expressions.BindingStorage) Error!u32 {
     const count = self.bindings.len;
-    const input = loaded.input;
+    const options = self.inputs;
+    const id = options.ids[row];
+    const base = options.shared_functions;
+    const callee = try @import("project/mixed/function.zig").programView(self.metadataAllocator(), base.at(@backingInt(id)), id, base, options.types, options.native_modules);
+    const input = options.calls.items(.input)[row];
+    const getters = options.calls.items(.getters)[row];
     var argument: zx.ir.Program = undefined;
     var out: ?[]const u8 = undefined;
 
     inline for (comptime Schedule.steps(.Call)) |action| {
         switch (action) {
             .Done => {},
-            .BindGetters => try @import("store/bindings.zig").typed(&self.bindings, self.binding_allocator, loaded.getters),
+            .BindGetters => try @import("store/bindings.zig").typed(&self.bindings, self.binding_allocator, getters),
             .CompileArgument => argument = if (input) |attribute| value: {
-                const expected = loaded.function.program.input_type;
+                const expected = callee.input_type;
 
-                if (loaded.argument) |parsed| break :value try self.valueParsed(parsed, attribute.*, expected, self.retain_metadata);
+                if (@import("project/call_inputs.zig").input(options.arguments, row)) |parsed| break :value try self.valueParsed(parsed, attribute.*, expected, self.retain_metadata);
 
                 break :value try self.value(attribute.*, expected, self.retain_metadata);
-            } else try @import("call/unit.zig").create(self.metadataAllocator(), self.owner, self.types, loaded.node.location),
+            } else try @import("call/unit.zig").create(self.metadataAllocator(), self.owner, self.types, options.calls.items(.node)[row].location),
             .RestoreBindings => self.bindings.len = count,
             .PublishCall => out = try self.publishResult(outputs),
             else => unreachable,
         }
     }
 
-    return self.appendCall(.{ .function_id = loaded.function.id, .callee = loaded.function.program, .store_initializers = loaded.function.store_initializers, .argument = argument, .input_omitted = input == null, .out = out, .getters = loaded.getters });
+    return self.appendCall(.{ .function_id = id, .callee = callee, .store_initializers = options.store_initializers, .argument = argument, .input_omitted = input == null, .out = out, .getters = getters });
 }
 
 const Result = struct {

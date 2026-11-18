@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Capture" />
+
+    <Args in={Capture.Binding} out={void} />
+
+    <Call fn="prefix" in={$in.prefix} />
+    <Call fn="names" in={$in.names} />
+</Module>

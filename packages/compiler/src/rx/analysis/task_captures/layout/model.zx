@@ -1,18 +1,22 @@
+import type { U32Buffer } from "memory"
+
 export type Input = {
     types: u32[],
-    positions: u32[],
-    parameters: u32[]
+    parameters: u32[],
+    marked: bool[],
+    positions: U32Buffer,
+    count: u64
 }
 
-export type Rows = {
+export type Selection = {
+    positions: u32[],
+    first: u64,
+    contiguous: bool,
     optional_count: u64
 }
 
-export type Types = {
+export type Output = {
     source_types: u32[],
-    parameter_types: u32[]
-}
-
-export type Output = Types & {
-    rows: Rows
+    parameter_types: u32[],
+    optional_count: u64
 }

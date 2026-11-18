@@ -152,7 +152,7 @@ fn prepare(self: *Self, state: *State, cache: *frontend.project.ParseCache, sour
             const callees = @import("callees.zig");
             const ids = try callees.load(state, allocator, cache, sources, module);
 
-            return .{ .rx = .{ .prepared = try Rx.prepare(state, allocator, index, module, derived.resolved.at(source), ids, arguments.module(source), state.functions.view()) } };
+            return .{ .rx = .{ .prepared = try Rx.prepare(state, index, module, derived.resolved.at(source), ids, arguments.module(source), state.functions.view()) } };
         },
         .Skip, .MissingSignature => unreachable,
     }

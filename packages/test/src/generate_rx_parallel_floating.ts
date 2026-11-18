@@ -7,6 +7,7 @@ for (const width of [32, 64] as const) {
 
     for (const variant of ['direct', 'captured'] as const) {
         const rows = cases(width, variant)
+        const left = variant === 'captured' ? '$ctx.copy_values' : '$in.left'
 
         assert.equal(rows.length, 452)
         assert.equal(new Set(rows.map(row => row.id)).size, rows.length)
@@ -14,17 +15,38 @@ for (const width of [32, 64] as const) {
         writeOutput(
             `${base}/${variant}.rx`,
             `<Module>
-  <Call fn="marker" in={$in.marker} />
-${variant === 'captured' ? '  <Call fn="copy_values" in={$in.left} />\n' : ''}  <Parallel>
-    <Task name="left" out={{items: $ctx.copy_local, marker: $ctx.marker}}>
-      <Call fn="copy_local" in={${variant === 'captured' ? '$ctx.copy_values' : '$in.left'}} />
-    </Task>
-    <Task name="right">
-      <Call fn="copy_local" in={$in.right} />
-      <Return value={{items: $ctx.copy_local, marker: $ctx.marker}} />
-    </Task>
-  </Parallel>
-  <Return value={{left: $ctx.task.left, right: $ctx.task.right, captured: ${variant === 'captured' ? '$ctx.copy_values' : '$in.left'}}} />
+    <Call fn="marker" in={$in.marker} />
+${variant === 'captured' ? '    <Call fn="copy_values" in={$in.left} />\n' : ''}
+    <Parallel>
+        <Task
+            name="left"
+            out={{
+                items: $ctx.copy_local,
+                marker: $ctx.marker
+            }}
+        >
+            <Call fn="copy_local" in={${left}} />
+        </Task>
+
+        <Task name="right">
+            <Call fn="copy_local" in={$in.right} />
+
+            <Return
+                value={{
+                    items: $ctx.copy_local,
+                    marker: $ctx.marker
+                }}
+            />
+        </Task>
+    </Parallel>
+
+    <Return
+        value={{
+            left: $ctx.task.left,
+            right: $ctx.task.right,
+            captured: ${left}
+        }}
+    />
 </Module>
 `
         )

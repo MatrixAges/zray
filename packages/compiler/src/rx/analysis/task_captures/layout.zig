@@ -5,6 +5,7 @@ const Expressions = @import("frontend").expressions;
 const enabled = @import("rx_options").generated_graph;
 const Self = @This();
 
+positions: []const u32 = &.{},
 source_types: []const ir.TypeId = &.{},
 parameter_types: []const ir.TypeId = &.{},
 elements: []const ir.ExprId = &.{},
@@ -37,13 +38,28 @@ pub fn admits(types: ir.TypeTable, children: []const ir.TypeId) bool {
     return (zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable) == .None;
 }
 
-pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, positions: []const u32, parameters: []const ir.TypeId) std.mem.Allocator.Error!Self {
-    if (positions.len == 0) return .{};
-    if (positions.len > (std.math.maxInt(u32) - 1) / 3) return error.OutOfMemory;
-    if (comptime !enabled) return @import("layout/seed.zig").plan(allocator, types, positions, parameters);
+pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, captures: @import("../task_captures.zig"), parameters: []const ir.TypeId) std.mem.Allocator.Error!Self {
+    const count = types.len - captures.remaining;
+
+    if (count == 0) return .{};
+    if (count > (std.math.maxInt(u32) - 1) / 3) return error.OutOfMemory;
+
+    if (comptime !enabled) {
+        const positions = try captures.seedPositions(allocator);
+
+        return @import("layout/seed.zig").plan(allocator, types, positions, parameters);
+    }
 
     const rule = @import("generated_rx_task_capture_layout");
-    const input: std.meta.Child(rule.Input) = .{ .types = @ptrCast(types), .positions = positions, .parameters = @ptrCast(parameters) };
+    var positions: []u32 = &.{};
+
+    const input: std.meta.Child(rule.Input) = .{
+        .types = @ptrCast(types),
+        .parameters = @ptrCast(parameters),
+        .marked = captures.marked.items,
+        .positions = @ptrCast(&positions),
+        .count = count,
+    };
 
     const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
@@ -51,9 +67,10 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, positions: [
     };
 
     return .{
+        .positions = positions,
         .source_types = @ptrCast(result.source_types),
         .parameter_types = @ptrCast(result.parameter_types),
-        .optional_count = @intCast(result.rows.optional_count),
+        .optional_count = @intCast(result.optional_count),
     };
 }
 

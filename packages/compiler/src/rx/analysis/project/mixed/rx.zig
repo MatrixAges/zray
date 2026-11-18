@@ -16,7 +16,8 @@ pub const Prepared = struct {
     module: Loading.Module,
     signature: Signature,
     base: ir.FunctionTable,
-    calls: []const Module.Loaded,
+    ids: []const ir.FunctionId,
+    arguments: Inputs.Module,
     functions: usize,
     types: usize,
     native_modules: usize,
@@ -25,8 +26,12 @@ pub const Prepared = struct {
 
 pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, module: Loading.Module, signature: Signature, arguments: Inputs.Module) State.Error!Result {
     state.owner = index;
+    var buffer: [std.heap.page_size_min / 8]u8 = undefined;
+    var temporary = std.heap.BufferFirstAllocator.init(&buffer, state.scratch.child_allocator);
+    const ids = try @import("callees.zig").load(state, temporary.allocator(), cache, sources, module);
 
-    const ids = try @import("callees.zig").load(state, state.allocator, cache, sources, module);
+    defer temporary.allocator().free(ids);
+
     const entry = index == state.graph.entry;
 
     if (!entry) _ = state.scratch.reset(.retain_capacity);
@@ -35,7 +40,7 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
     const view = state.functions.view();
     // Only the entry retains its call metadata after linking may move the shared columns.
     const base = if (entry) try view.snapshot(allocator) else view;
-    const prepared = try prepare(state, allocator, index, module, signature, ids, arguments, base);
+    const prepared = try prepare(state, index, module, signature, ids, arguments, base);
     const result = try lower(state, allocator, prepared);
 
     if (result == .diagnostic) {
@@ -50,28 +55,10 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
 }
 
 /// Binds the calls of `module` to the functions `ids` names, over the shared tables as they stand.
-pub fn prepare(state: *State, allocator: std.mem.Allocator, index: usize, module: Loading.Module, signature: Signature, ids: []const ir.FunctionId, arguments: Inputs.Module, base: ir.FunctionTable) State.Error!Prepared {
-    const calls = try allocator.alloc(Module.Loaded, module.calls.len);
-    const nodes = module.calls.items(.node);
-    const inputs = module.calls.items(.input);
-    const getters = module.calls.items(.getters);
+pub fn prepare(state: *State, index: usize, module: Loading.Module, signature: Signature, ids: []const ir.FunctionId, arguments: Inputs.Module, base: ir.FunctionTable) State.Error!Prepared {
+    if (!@import("function.zig").admitted(ids, base.count())) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "resolved function is outside the shared function table");
 
-    for (nodes, inputs, getters, ids, calls, 0..) |node, input, grants, id, *loaded, position| {
-        loaded.* = .{
-            .node = node,
-            .input = input,
-            .getters = grants,
-            .argument = Inputs.input(arguments, position),
-            .function = .{
-                .id = id,
-                .program = try @import("function.zig").view(state, id, base),
-                .nominal_types = state.types.origins.items.view(),
-                .store_initializers = state.initializers.items,
-            },
-        };
-    }
-
-    return .{ .index = index, .module = module, .signature = signature, .base = base, .calls = calls, .functions = base.count(), .types = state.types.items.count(), .native_modules = state.native_modules.count(), .initializers = state.initializers.items.len };
+    return .{ .index = index, .module = module, .signature = signature, .base = base, .ids = ids, .arguments = arguments, .functions = base.count(), .types = state.types.items.count(), .native_modules = state.native_modules.count(), .initializers = state.initializers.items.len };
 }
 
 /// Lowers a prepared module against the shared tables, which it only reads, so modules that depend on none of each
@@ -80,7 +67,9 @@ pub fn lower(state: *const State, allocator: std.mem.Allocator, prepared: Prepar
     return @import("../../module_compile.zig").compile(allocator, state.scratch.child_allocator, .{
         .aliases = prepared.module.value_imports,
         .module = prepared.module.source,
-        .calls = prepared.calls,
+        .calls = prepared.module.calls,
+        .ids = prepared.ids,
+        .arguments = prepared.arguments,
         .plan = prepared.module.plan,
         .bindings = prepared.signature.bindings,
         .tasks = prepared.signature.tasks,

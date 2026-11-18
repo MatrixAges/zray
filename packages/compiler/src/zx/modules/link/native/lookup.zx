@@ -1,7 +1,7 @@
 import compatible from "core/native_module_table/compatible"
 import find from "core/native_module_table/find"
 
-import bounds from "./bounds"
+import bounds from "../bounds"
 import { Status } from "./model"
 
 import type { Binding, Modules } from "core/native_module_table/model"

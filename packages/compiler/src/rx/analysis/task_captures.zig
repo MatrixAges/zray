@@ -65,21 +65,8 @@ pub fn observeMapped(self: *Self, references: []const u32, mapping: ?[]const u32
     self.remaining = @intCast(result.remaining);
 }
 
-pub fn positions(self: Self, allocator: std.mem.Allocator, types: []const zx.ir.TypeId) std.mem.Allocator.Error![]const u32 {
-    const count = types.len - self.remaining;
-
-    if (count == 0) return &.{};
-
-    if (comptime enabled) {
-        const rule = @import("generated_rx_task_capture_positions");
-        const input: std.meta.Child(rule.Input) = .{ .marked = self.marked.items, .type_ids = @ptrCast(types[0..count]) };
-
-        return zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-            else => unreachable,
-        };
-    }
-
+pub fn seedPositions(self: Self, allocator: std.mem.Allocator) std.mem.Allocator.Error![]const u32 {
+    const count = self.marked.len - self.remaining;
     const selected = try allocator.alloc(u32, count);
     var written: usize = 0;
 

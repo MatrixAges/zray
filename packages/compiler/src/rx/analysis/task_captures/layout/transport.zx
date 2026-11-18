@@ -1,19 +1,23 @@
 import integers from "std:integer"
+import memory from "memory"
 
-import type { Input as Request, Types } from "./model"
+import type { Selection } from "./model"
 
-export type Input = Request
+export type Input = {
+    types: u32[],
+    selection: Selection
+}
 
-export type Output = Types
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const types = in.types
-    const parameters = in.parameters
+    const { types, selection } = in
 
-    return {
-        source_types:
-            in.positions.map(position => types[integers.widen(position)])[0],
-        parameter_types:
-            in.positions.map(position => parameters[integers.widen(position)])[0]
+    const positions = selection.positions
+
+    if (selection.contiguous) {
+        return memory.borrowU32Range(types, selection.first, positions.length)
     }
+
+    return positions.map(position => types[integers.widen(position)])[0]
 }

@@ -5,9 +5,10 @@ const Builder = @import("../builder.zig");
 const Writer = @import("../control/writer.zig");
 const Parameters = @import("../capture.zig").Parameters;
 const Layout = @import("../../task_captures/layout.zig");
-const prefix = @import("generated_rx_capture_prefix");
+const binding_rule = @import("generated_rx_capture_bind");
 const argument_rule = @import("generated_rx_capture_argument");
-const Prefix = std.meta.Child(prefix.Input);
+const Binding = std.meta.Child(binding_rule.Input);
+const Prefix = std.meta.Child(@FieldType(Binding, "prefix"));
 const ExpressionKind = std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds"));
 const StatementKind = std.meta.Elem(@FieldType(ir.ControlTable, "statement_kinds"));
 const Output = struct { input_type: ir.TypeId, parameters: []const ir.TypeId };
@@ -32,23 +33,24 @@ pub fn bind(builder: *Builder, writer: *Writer, cursor: *Writer.Cursor, input_ty
         builder.bindings.deinit(allocator);
     }
 
+    try allocate(allocator, &builder.symbols, &.{"names"}, count + 1);
     try reserve(builder, count, null);
     try allocate(allocator, builder, &.{"bindings"}, count);
 
     try write(false, builder, &writer.columns, .{
-        .captures = captures,
+        .types = captures.types,
         .input_type = input_type,
         .span = span,
         .statement = cursor.statement,
         .constant = cursor.counts.constants,
-    }, {});
+    }, captures);
 
     cursor.statement += @intCast(count);
     cursor.counts.constants += @intCast(count);
 }
 
-pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeTable, environment_type: ir.TypeId, input_type: ir.TypeId, captures: Parameters, layout: Layout, span: zx.Span) std.mem.Allocator.Error!ir.Program {
-    const count = captures.positions.len;
+pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeTable, environment_type: ir.TypeId, input_type: ir.TypeId, symbol_names: []const []const u8, layout: Layout, span: zx.Span) std.mem.Allocator.Error!ir.Program {
+    const count = layout.positions.len;
     var builder = Builder{ .allocator = allocator, .types = types, .native_modules = .{} };
     var control: ir.ControlStorage = .{};
     const body = try allocator.create(ir.ControlTable);
@@ -66,19 +68,23 @@ pub fn argument(allocator: std.mem.Allocator, owner: []const u8, types: ir.TypeT
     try allocate(allocator, &control, &.{ "block_first", "block_count", "results" }, 1);
 
     try write(true, &builder, &control, .{
-        .captures = .{ .names = captures.names, .positions = captures.positions, .types = layout.source_types },
+        .types = layout.source_types,
         .input_type = environment_type,
         .span = span,
-    }, .{ .input_type = input_type, .parameters = captures.types });
+    }, .{ .input_type = input_type, .parameters = layout.parameter_types });
 
     body.* = control.view();
+
+    var symbols = builder.symbols.view();
+
+    symbols.names = symbol_names[0 .. count + 1];
 
     return .{
         .file_name = owner,
         .types = types,
         .input_type = environment_type,
         .output_type = input_type,
-        .symbols = builder.symbols.view(),
+        .symbols = symbols,
         .expressions = builder.expressions.view(),
         .body = .{ .control = body, .root = @fromBackingInt(0) },
     };
@@ -88,7 +94,7 @@ fn reserve(builder: *Builder, count: usize, optional_count: ?usize) std.mem.Allo
     const allocator = builder.allocator;
     const expression_count = if (optional_count) |size| (count * 2) + size + 2 else count + 1;
 
-    try allocate(allocator, &builder.symbols, &.{ "names", "types", "span_start", "span_end", "ownership" }, count + 1);
+    try allocate(allocator, &builder.symbols, &.{ "types", "span_start", "span_end", "ownership" }, count + 1);
 
     @memset(builder.symbols.ownership.items, .Copy);
 
@@ -112,20 +118,19 @@ fn allocate(allocator: std.mem.Allocator, storage: anytype, comptime fields: []c
 }
 
 const Request = struct {
-    captures: Parameters,
+    types: []const ir.TypeId,
     input_type: ir.TypeId,
     span: zx.Span,
     statement: usize = 0,
     constant: usize = 0,
 };
 
-fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStorage, request: Request, output: if (is_argument) Output else void) std.mem.Allocator.Error!void {
+fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStorage, request: Request, output: if (is_argument) Output else Parameters) std.mem.Allocator.Error!void {
     const symbols = &builder.symbols;
     const expressions = &builder.expressions;
 
     const prefix_input: Prefix = .{
         .symbols = &.{
-            .names = @ptrCast(&symbols.names.items),
             .types = @ptrCast(&symbols.types.items),
             .starts = @ptrCast(&symbols.span_start.items),
             .ends = @ptrCast(&symbols.span_end.items),
@@ -143,11 +148,7 @@ fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStor
             .symbols = @ptrCast(&control.constant_symbols.items),
             .values = @ptrCast(&control.constant_values.items),
         },
-        .captures = &.{
-            .names = request.captures.names,
-            .positions = request.captures.positions,
-            .types = @ptrCast(request.captures.types),
-        },
+        .types = @ptrCast(request.types),
         .references = @ptrCast(&expressions.references.items),
         .targets = @ptrCast(&expressions.projection_targets.items),
         .indices = @ptrCast(&expressions.projection_indices.items),
@@ -168,7 +169,7 @@ fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStor
             .prefix = &prefix_input,
             .tuple = &.{
                 .expressions = prefix_input.expressions,
-                .source_types = prefix_input.captures.types,
+                .source_types = prefix_input.types,
                 .parameter_types = @ptrCast(output.parameters),
                 .references = prefix_input.references,
                 .optionals = @ptrCast(&expressions.optional_values.items),
@@ -186,23 +187,28 @@ fn write(comptime is_argument: bool, builder: *Builder, control: *ir.ControlStor
                 .results = @ptrCast(&control.results.items),
                 .block_first = @ptrCast(&control.block_first.items),
                 .block_count = @ptrCast(&control.block_count.items),
-                .count = request.captures.positions.len,
+                .count = request.types.len,
                 .result_kind = @backingInt(StatementKind.Result),
             },
         };
 
         zx.columns.invoke(argument_rule.executeValue, empty.allocator(), &input) catch unreachable;
     } else {
-        zx.columns.invoke(prefix.executeValue, empty.allocator(), &prefix_input) catch unreachable;
-    }
+        const captured = symbols.names.items[1..];
 
-    const names = symbols.names.items[1..];
-    var owned: usize = 0;
+        const input: Binding = .{
+            .prefix = &prefix_input,
+            .names = &.{
+                .source = output.names,
+                .positions = output.positions,
+                .names = @ptrCast(&symbols.names.items),
+                .captured = @ptrCast(&captured),
+            },
+        };
 
-    errdefer for (names[0..owned]) |name| builder.allocator.free(name);
-
-    for (names) |*name| {
-        name.* = try builder.allocator.dupe(u8, name.*);
-        owned += 1;
+        zx.columns.invoke(binding_rule.executeValue, builder.allocator, &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
     }
 }

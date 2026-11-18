@@ -15,7 +15,9 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
     const owner = state.owner;
     const ids = try allocator.alloc(ir.FunctionId, module.calls.len);
 
-    if (comptime !Prepared.batch_callees) return loadSeed(state, cache, sources, module.calls, ids);
+    errdefer allocator.free(ids);
+
+    if (comptime !Prepared.batch_callees) return try loadSeed(state, cache, sources, module.calls, ids);
     if (ids.len == 0) return ids;
 
     const rule = @import("generated_rx_mixed_callees");

@@ -3,20 +3,43 @@
 
     <Args in={Layout.Input} out={Layout.Output} />
 
-    <Call fn="transport" in={$in} />
+    <Call fn="../positions" in={$in} />
 
-    <Call
-        fn="rows"
-        in={{
-            source_types: $ctx.transport.source_types,
-            parameters: $ctx.transport.parameter_types
-        }}
-    />
+    <Task name="source" out={$ctx.transport}>
+        <Call
+            fn="transport"
+            in={{
+                types: $in.types,
+                selection: $ctx.positions
+            }}
+        />
+    </Task>
+
+    <If on={$ctx.positions.optional_count == 0}>
+        <Return
+            value={{
+                source_types: $ctx.task.source,
+                parameter_types: $ctx.task.source,
+                optional_count: $ctx.positions.optional_count
+            }}
+        />
+    </If>
+
+    <Task name="parameters" out={$ctx.transport}>
+        <Call
+            fn="transport"
+            in={{
+                types: $in.parameters,
+                selection: $ctx.positions
+            }}
+        />
+    </Task>
 
     <Return
         value={{
-            ...$ctx.transport,
-            rows: $ctx.rows
+            source_types: $ctx.task.source,
+            parameter_types: $ctx.task.parameters,
+            optional_count: $ctx.positions.optional_count
         }}
     />
 </Module>

@@ -1,7 +1,6 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import { environment_name } from "./const"
 import expression from "./expression"
 
 import type { Prefix } from "./model"
@@ -11,9 +10,8 @@ export type Input = Prefix
 export type Output = void
 
 export default function (in: Input): Output {
-    const { symbols, expressions, statements, captures, span, bindings } = in
+    const { symbols, expressions, statements, types, span, bindings } = in
 
-    memory.writeString(symbols.names, 0, environment_name)
     memory.writeU32(symbols.types, 0, in.input_type)
     memory.writeU64(symbols.starts, 0, span.start)
     memory.writeU64(symbols.ends, 0, span.end)
@@ -29,17 +27,15 @@ export default function (in: Input): Output {
     })
 
     const written = loop(0, {
-        while: row => row < captures.positions.length,
+        while: row => row < types.length,
         next: row => {
             const symbol = row + 1
             const id = integers.narrow(symbol)
             const payload = integers.narrow(row)
-            const type_id = captures.types[row]
-            const name = captures.names[integers.widen(captures.positions[row])]
+            const type_id = types[row]
             const statement = in.statement + row
             const constant = in.constant + row
 
-            memory.writeString(symbols.names, symbol, name)
             memory.writeU32(symbols.types, symbol, type_id)
             memory.writeU64(symbols.starts, symbol, span.start)
             memory.writeU64(symbols.ends, symbol, span.end)

@@ -20,7 +20,7 @@ pub fn plan(allocator: std.mem.Allocator, types: []const ir.TypeId, positions: [
         optional_count += @intFromBool(narrowed);
     }
 
-    return .{ .source_types = source_types, .parameter_types = parameter_types, .elements = elements, .optional_count = optional_count };
+    return .{ .positions = positions, .source_types = source_types, .parameter_types = parameter_types, .elements = elements, .optional_count = optional_count };
 }
 
 pub fn narrow(types: ir.TypeTable, bindings: Bindings, facts: []const []const u8, output: []ir.TypeId) void {
