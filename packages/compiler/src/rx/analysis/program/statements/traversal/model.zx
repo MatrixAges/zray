@@ -23,6 +23,13 @@ export enum Action {
     CloseCase
 }
 
+export enum Stage {
+    Done,
+    Emit,
+    Enter,
+    Leave
+}
+
 export type Shape = {
     steps: Steps,
     units: Units.Pick("firsts", "counts"),

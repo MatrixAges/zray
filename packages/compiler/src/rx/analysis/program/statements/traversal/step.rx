@@ -1,0 +1,57 @@
+<Module>
+    <Type from="driver_model" as="Driver" />
+    <Type from="model" as="Traversal" />
+
+    <Args in={Driver.Driver} out={u8?} />
+
+    <Call fn="inspect" in={$in} />
+
+    <Call module="advance" in={$ctx.inspect} />
+
+    <Call fn="stage" in={$ctx.advance.action} />
+
+    <Switch on={$ctx.stage}>
+        <Case value={Traversal.Stage.Done}>
+            <Return value={null} />
+        </Case>
+
+        <Case value={Traversal.Stage.Emit}>
+            <Call
+                fn="emit"
+                in={{
+                    context: $in.context,
+                    position: $ctx.inspect.position,
+                    ...$ctx.advance
+                }}
+            />
+
+            <Return value={$ctx.emit} />
+        </Case>
+
+        <Case value={Traversal.Stage.Enter}>
+            <Call
+                fn="enter"
+                in={{
+                    context: $in.context,
+                    position: $ctx.inspect.position,
+                    ...$ctx.advance
+                }}
+            />
+
+            <Return value={$ctx.enter} />
+        </Case>
+
+        <Case value={Traversal.Stage.Leave}>
+            <Call
+                fn="leave"
+                in={{
+                    context: $in.context,
+                    position: $ctx.inspect.position,
+                    ...$ctx.advance
+                }}
+            />
+
+            <Return value={$ctx.leave} />
+        </Case>
+    </Switch>
+</Module>

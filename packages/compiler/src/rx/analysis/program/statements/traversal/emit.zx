@@ -1,0 +1,31 @@
+import frames from "rx_statement_frame"
+
+import { invalid_module } from "./const"
+import { Action } from "./model"
+
+import type { Effect } from "./driver_model"
+
+export type Input = Effect
+
+export type Output = u8
+
+export default function (in: Input): Output {
+    const { context, action, position, next, first, count } = in
+
+    frames.seek(context, next)
+
+    if (action == Action.Parallel) {
+        if (first == null || count == null) {
+            return invalid_module
+        }
+
+        return frames.writeParallel(context, first, count)
+    }
+
+    return match action {
+        Action.Calls => frames.writeCalls(context, position, next),
+        Action.Return => frames.writeReturn(context, position, false),
+        Action.ReturnBorrowed => frames.writeReturn(context, position, true),
+        _ => invalid_module
+    }
+}

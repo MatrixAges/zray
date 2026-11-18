@@ -32,6 +32,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/artifact_bind_module", .entry = "zx/modules/link/artifact/bind.rx" },
     .{ .specifier = "compiler/artifact_dependency", .entry = "zx/modules/link/artifact/binding/dependency.rx" },
     .{ .specifier = "compiler/project_load_frame", .entry = "zx/modules/project/load/step.rx" },
+    .{ .specifier = "compiler/rx_statement_step", .entry = "rx/analysis/program/statements/traversal/step.rx" },
     .{ .specifier = "compiler/artifact_signature_publish", .entry = "zx/modules/link/signature/publication/publish.rx" },
     .{ .specifier = "compiler/artifact_named_item", .entry = "zx/modules/link/dependencies/item.rx" },
     .{ .specifier = "compiler/artifact_dependency_edge", .entry = "zx/modules/link/dependencies/check.rx" },

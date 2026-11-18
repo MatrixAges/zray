@@ -1,0 +1,32 @@
+import integers from "std:integer"
+import step from "compiler/rx_statement_step"
+import memory from "memory"
+
+import { advancing, done, status_slot } from "./const"
+
+import type { Driver } from "./driver_model"
+
+export type Input = Driver
+
+export type Output = u8
+
+export default function (in: Input): Output {
+    const running = integers.widenByte(advancing)
+
+    return loop(in, {
+        while: state => memory.readU64(state.cursor, status_slot) == running,
+        next: state => {
+            const status = step(state) ?? done
+
+            if (status != advancing) {
+                memory.writeU64(
+                    state.cursor,
+                    status_slot,
+                    integers.widenByte(status)
+                )
+            }
+        },
+        return: state =>
+            integers.narrowByte(memory.readU64(state.cursor, status_slot))
+    })
+}

@@ -6,22 +6,20 @@ const Flow = @import("../flow.zig");
 const Writer = @import("../control/writer.zig");
 const inlineValue = @import("../expression.zig").inlineValue;
 const generated = @import("rx_options").generated_graph;
-const rule = if (generated) @import("generated_rx_statement_traversal") else void;
-const Input = if (generated) std.meta.Child(rule.Input) else void;
-const Shape = if (generated) std.meta.Child(@FieldType(Input, "shape")) else void;
-const Region = if (generated) @FieldType(Input, "region") else @import("traversal/seed.zig").Region;
-const Event = if (generated) @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload else @import("traversal/seed.zig").Event;
+const driver = if (generated) @import("traversal/driver.zig") else void;
+const Shape = if (generated) driver.Shape else void;
+const Region = if (generated) driver.Region else @import("traversal/seed.zig").Region;
 const inline_depth = 4;
 
-const Cursor = struct {
+pub const Cursor = struct {
     position: usize,
     end: usize,
-    fn range(first: u32, count: u32) Cursor {
+    pub fn range(first: u32, count: u32) Cursor {
         return .{ .position = first, .end = @as(usize, first) + count };
     }
 };
 
-const Frame = struct {
+pub const Frame = struct {
     cursor: Cursor,
     // An inline unit borrows its enclosing block's writer by index across stack growth.
     block: ?usize = null,
@@ -56,9 +54,14 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
         .exhaustive = steps.items(.exhaustive),
     } else {};
 
+    const unit_columns: if (generated) std.meta.Child(@FieldType(Shape, "units")) else void = if (generated) .{
+        .firsts = units.items(.first),
+        .counts = units.items(.count),
+    } else {};
+
     const shape: Shape = if (generated) .{
         .steps = &step_columns,
-        .units = &.{ .firsts = units.items(.first), .counts = units.items(.count) },
+        .units = &unit_columns,
         .cases = cases.items(.body),
     } else {};
 
@@ -78,6 +81,8 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
         stack.deinit(temporary);
     }
 
+    if (comptime generated) return driver.run(self, &root, root_writer, &stack, temporary, &shape);
+
     while (true) {
         const frame = if (stack.items.len == 0) &root else &stack.items[stack.items.len - 1];
         const region = std.meta.activeTag(frame.scope);
@@ -85,21 +90,7 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
         const block = frame.block;
         const writer = if (block) |index| &stack.items[index].scope.Case.writer else root_writer;
 
-        const event = if (generated) decision: {
-            const input: Input = .{
-                .region = region,
-                .shape = &shape,
-                .position = position,
-                .end = frame.cursor.end,
-                .scope_step = frame.step,
-                .case_first = writer.counts.cases,
-                .borrow_root = self.retain_metadata,
-            };
-
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            break :decision rule.executeValue(empty.allocator(), &input) catch return error.InvalidModule;
-        } else @import("traversal/seed.zig").advance(flow, .{
+        const event = @import("traversal/seed.zig").advance(flow, .{
             .region = region,
             .position = position,
             .end = frame.cursor.end,

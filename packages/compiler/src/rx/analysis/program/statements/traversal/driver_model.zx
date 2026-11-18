@@ -1,0 +1,16 @@
+import type { U64Buffer } from "memory"
+import type { Context, Snapshot } from "rx_statement_frame"
+import type { Output as Event, Shape } from "./model"
+
+export type Driver = {
+    context: Context,
+    shape: Shape,
+    borrow_root: bool,
+    cursor: U64Buffer,
+    snapshot_target: Snapshot
+}
+
+export type Effect = Event & {
+    context: Context,
+    position: u64
+}
