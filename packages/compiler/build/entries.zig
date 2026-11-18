@@ -185,6 +185,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/link/source/declarations/publish.rx", .name = "source_link_declarations" },
     .{ .path = "zx/modules/link/source/initializer.zx", .name = "source_link_initializer" },
     .{ .path = "zx/modules/link/artifact/bind.rx", .name = "artifact_module_binding" },
+    .{ .path = "zx/modules/link/artifact/binding/batch.zx", .name = "artifact_dependency_binding" },
     .{ .path = "zx/modules/link/artifact/body/publish.rx", .name = "artifact_body_publication" },
     .{ .path = "zx/modules/link/result/publication/publish.rx", .name = "artifact_program_publication" },
     .{ .path = "zx/ir/compare/initializer/linked_action.zx", .name = "initializer_linked_action" },

@@ -56,7 +56,11 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 
     var builder: Builder = .{ .allocator = owned, .temporary = workspace, .modules = modules, .plan = plan, .type_mappings = mappings, .module_functions = function_ids };
 
-    for (plan.dependencies) |index| try linkDependency(&builder, @intCast(index), &module_scratch);
+    if (comptime @import("parser_options").generated_parser) {
+        try @import("link/artifact/binding/host.zig").batch(&builder, &module_scratch);
+    } else {
+        for (plan.dependencies) |index| try linkDependency(&builder, @intCast(index), &module_scratch);
+    }
 
     const function = try builder.module(plan.entry, true);
 
@@ -93,14 +97,11 @@ fn linkDependency(builder: *Builder, index: usize, scratch: *std.heap.ArenaAlloc
     const function = try builder.module(index, false);
 
     if (!scratch.reset(.retain_capacity)) return error.OutOfMemory;
+    if (builder.modules[index].stores.count() != 0) return error.InvalidModule;
 
-    if (comptime !@import("parser_options").generated_parser) {
-        if (builder.modules[index].stores.count() != 0) return error.InvalidModule;
+    if (function) |body| {
+        builder.module_functions[index] = @fromBackingInt(@intCast(builder.functions.count()));
 
-        if (function) |body| {
-            builder.module_functions[index] = @fromBackingInt(@intCast(builder.functions.count()));
-
-            try builder.functions.append(builder.allocator, body.body);
-        }
+        try builder.functions.append(builder.allocator, body.body);
     }
 }
