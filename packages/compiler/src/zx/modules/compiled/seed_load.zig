@@ -87,7 +87,7 @@ pub fn loadInto(allocator: std.mem.Allocator, library: model.Library, destinatio
             rebound.import_name = try identity.nativeName(allocator, library.instance, native.import_name);
         }
 
-        id.* = try @import("../link/native.zig").append(allocator, destination.native_modules, rebound, &nodes);
+        id.* = try @import("../link/native.zig").appendSeed(allocator, destination.native_modules, rebound, &nodes);
     }
 
     for (0..program.functions.count()) |function_row| {

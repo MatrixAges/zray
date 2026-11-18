@@ -17,7 +17,7 @@ pub fn link(temporary: std.mem.Allocator, modules: *ir.NativeModuleStorage, sour
     return @import("native/host.zig").link(temporary, allocator, modules, source, mapping, @ptrCast(nodes.types.mapped));
 }
 
-fn appendSeed(allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, value: ir.NativeModule, nodes: *Nodes) Error!ir.NativeModuleId {
+pub fn appendSeed(allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, value: ir.NativeModule, nodes: *Nodes) Error!ir.NativeModuleId {
     const names = try allocator.alloc([]const u8, value.types.count());
     const ids = try allocator.alloc(u32, value.types.count());
 
