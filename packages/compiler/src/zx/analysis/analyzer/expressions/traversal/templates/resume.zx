@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
-import row from "../../../../semantic/types/row"
 import next from "./next"
 
 import type { Work } from "../model"

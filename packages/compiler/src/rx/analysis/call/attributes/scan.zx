@@ -3,6 +3,7 @@ import memory from "memory"
 import {
     argument_attribute,
     function_attribute,
+    member_attribute,
     module_attribute,
     setter_attribute
 } from "./const"
@@ -12,6 +13,7 @@ import type { TextColumn } from "memory"
 export type Slots = {
     argument?: u64,
     function?: u64,
+    member?: u64,
     module?: u64,
     setter?: u64
 }
@@ -27,6 +29,7 @@ export default function (in: Input): Output {
     const slots: Slots = {
         argument: null,
         function: null,
+        member: null,
         module: null,
         setter: null
     }
@@ -48,6 +51,10 @@ export default function (in: Input): Output {
                 function_attribute => {
                     ...state.slots,
                     function: state.slots.function ?? row
+                },
+                member_attribute => {
+                    ...state.slots,
+                    member: state.slots.member ?? row
                 },
                 module_attribute => {
                     ...state.slots,

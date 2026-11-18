@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
-import row from "../../../../semantic/types/row"
 import items from "../../items"
 import intrinsic from "../utilities/enter"
 import { native_arity_message, tuple_arity_message, input_arity_message } from "./const"

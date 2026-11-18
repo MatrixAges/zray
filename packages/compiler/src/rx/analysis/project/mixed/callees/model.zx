@@ -3,7 +3,8 @@ import type { U32Buffer } from "memory"
 export enum TargetKind {
     Source,
     AuthorizedSource,
-    Compiled
+    Compiled,
+    NamedSource
 }
 
 export type Targets = {
@@ -24,7 +25,8 @@ export enum Action {
     MissingRX,
     MissingZX,
     NotExecutableRX,
-    NotExecutableZX
+    NotExecutableZX,
+    BindNamed
 }
 
 export type Pending = {

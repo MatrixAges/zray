@@ -75,6 +75,19 @@ pub const State = struct {
             .ambient_store = loader.project.context.stores.len != 0,
         });
 
+        if (self.attributes.member) |member| {
+            if (admission == .AuthorizedSource) return loader.fail(member.value_location, "capability", "a named Call cannot grant a Store setter");
+            if (admission != .Source) return loader.fail(member.value_location, "module", "export requires a named function from a ZX source module");
+
+            self.resolved = .{
+                .kind = .NamedSource,
+                .row = edge.target.source,
+                .callee = try loader.namedCallee(edge.target.source, member),
+            };
+
+            return;
+        }
+
         const callee = switch (admission) {
             .Source, .AuthorizedSource => try loader.sourceCallee(edge.target.source, edge.location, admission == .AuthorizedSource),
             .Compiled => try loader.compiledCallee(self.attributes.module.?.value_location, edge.target.compiled, self.capability.setter != null),
@@ -103,13 +116,13 @@ pub const State = struct {
             .setter = self.capability.setter,
             .getters = self.capability.getters,
             .input = self.attributes.argument,
-            .name_source = self.attributes.function orelse self.attributes.module.?,
+            .name_source = self.attributes.member orelse self.attributes.function orelse self.attributes.module.?,
             .target_kind = selected.kind,
             .target = selected.row,
             .callee = selected.callee,
         });
 
-        loader.local_calls = loader.local_calls and selected.kind == .Source;
+        loader.local_calls = loader.local_calls and (selected.kind == .Source or selected.kind == .NamedSource);
     }
 
     pub fn record(self: *State) Error!void {

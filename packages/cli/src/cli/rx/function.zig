@@ -38,15 +38,27 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
     const inputs = detected.sources;
     loaded.project.compiled_libraries = libraries.libraries.items;
 
-    const executable = try called(io, allocator, path, loaded.project.root_dir, modules);
+    const calls = try selectedCalls(io, allocator, path, loaded.project.root_dir, modules);
 
-    if (!executable or detected.has_rx) {
+    const default_call = for (calls) |call| {
+        if (call.member == null) break true;
+    } else false;
+
+    if (calls.len == 0 or detected.has_rx) {
         var signed = try compiler.project.analyzeSignaturesWithCache(allocator, inputs, &.{path}, loaded.project, &parse_cache);
 
         defer signed.deinit();
 
         if (signed.value == .diagnostic) return report(writer, inputs, signed.value.diagnostic);
-        if (!executable) return true;
+
+        for (signed.value.data.modules) |*module| {
+            if (!std.mem.eql(u8, module.path, path)) continue;
+            if (!try checkNamed(writer, calls, module.signature.members)) return false;
+
+            break;
+        }
+
+        if (!default_call) return true;
 
         for (signed.value.data.modules) |module| {
             if (!module.signature.has_deferred_source) continue;
@@ -75,7 +87,14 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
 
     if (analyzed.value == .diagnostic) return report(writer, inputs, analyzed.value.diagnostic);
 
-    if (analyzed.value.ir.type_only) {
+    for (analyzed.modules) |*module| {
+        if (!std.mem.eql(u8, module.path, path)) continue;
+        if (!try checkNamed(writer, calls, module.reexports.functions)) return false;
+
+        break;
+    }
+
+    if (default_call and analyzed.value.ir.type_only) {
         try writer.print("{s}: Call.fn requires an executable ZX module with a default function\n", .{path});
 
         return false;
@@ -93,7 +112,32 @@ fn report(writer: *std.Io.Writer, inputs: []const compiler.project.Source, issue
     return false;
 }
 
-fn called(io: std.Io, allocator: std.mem.Allocator, path: []const u8, root: []const u8, modules: []const @import("rx").ModuleSource) !bool {
+const Attribute = @import("rx").ast.Attribute;
+const Selection = struct { owner: []const u8, member: ?*const Attribute };
+
+fn checkNamed(writer: *std.Io.Writer, calls: []const Selection, members: anytype) !bool {
+    for (calls) |call| {
+        const selected = call.member orelse continue;
+
+        const found = for (members) |*member| {
+            if (!std.mem.eql(u8, member.name, selected.value)) continue;
+            if (comptime @hasField(@TypeOf(member.*), "id")) break member.id != null;
+
+            break member.kind == .callable and !member.has_store;
+        } else false;
+
+        if (found) continue;
+
+        try writer.print("{s}:{d}:{d}: module: ZX source does not export the selected callable function '{s}'\n", .{ call.owner, selected.value_location.line, selected.value_location.column, selected.value });
+
+        return false;
+    }
+
+    return true;
+}
+
+fn selectedCalls(io: std.Io, allocator: std.mem.Allocator, path: []const u8, root: []const u8, modules: []const @import("rx").ModuleSource) ![]const Selection {
+    var result: std.ArrayList(Selection) = .empty;
     var index = modules.len;
 
     while (index != 0) {
@@ -108,9 +152,13 @@ fn called(io: std.Io, allocator: std.mem.Allocator, path: []const u8, root: []co
             const candidate = try std.fs.path.resolve(allocator, &.{ root, relative });
             const resolved = try @import("../sources/module_path.zig").select(io, allocator, candidate, null);
 
-            if (std.mem.eql(u8, path, resolved)) return true;
+            if (std.mem.eql(u8, path, resolved)) {
+                const member = @import("rx_analysis").call.target.borrowAttribute(reference.node.*, "export");
+
+                try result.append(allocator, .{ .owner = module.path, .member = member });
+            }
         }
     }
 
-    return false;
+    return result.items;
 }

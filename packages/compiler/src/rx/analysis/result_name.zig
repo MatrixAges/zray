@@ -35,10 +35,12 @@ pub fn resolve(node: rx.ast.Node) Result {
         return .{ .name = attribute.value, .attribute = attribute };
     }
 
-    return resolveCall(target.optionalAttribute(node, "fn") orelse target.attribute(node, "module"));
+    return resolveCall(target.optionalAttribute(node, "export") orelse target.optionalAttribute(node, "fn") orelse target.attribute(node, "module"));
 }
 
 pub fn resolveCall(attribute: rx.ast.Attribute) Result {
+    if (std.mem.eql(u8, attribute.name, "export")) return .{ .name = attribute.value, .attribute = attribute };
+
     const name = if (comptime @import("rx_options").generated_graph) generated(attribute.value) else seed(attribute.value);
 
     return .{ .name = name, .attribute = attribute };

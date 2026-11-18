@@ -3,9 +3,9 @@ import { ValueKind } from "core/expression_table/append/model"
 import project from "core/expression_table/append/projection"
 import append from "core/expression_table/append/value"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
 import contains from "../../../../ir/canonical/refinement/facts/contains_value"
-import row from "../../../semantic/types/row"
 
 import type { Expressions } from "core/expression_table/model"
 import type { Tables } from "core/type_table/model"

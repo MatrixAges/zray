@@ -1,9 +1,9 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
 import contains from "../../../semantic/querying/contains"
-import row from "../../../semantic/types/row"
 
 import type { Span } from "../../../../frontend/lexer/token_model"
 import type { Prepared } from "../../model"

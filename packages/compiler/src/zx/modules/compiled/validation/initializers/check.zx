@@ -1,10 +1,10 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 import memory from "memory"
 
-import kind from "../../../../analysis/semantic/types/kind"
 import text from "../../../../ir/canonical/native/text"
 import { store_identity_prefix } from "../../const"
 import slots from "./slots"

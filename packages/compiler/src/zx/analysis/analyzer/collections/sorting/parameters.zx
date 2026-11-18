@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import { Ownership } from "core/symbol_table/model"
+import row from "core/type_table/row"
 
-import row from "../../../semantic/types/row"
 import reference from "../building/reference"
 import symbol from "../building/symbol"
 import { left_name, right_name, context_name } from "./const"

@@ -502,3 +502,5 @@
 {"time": "2026-11-17 14:14:02", "estimated": true, "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "核心还是加快自举进度  现在的迁移模式太慢了"}
 {"time": "2026-11-17", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "文件夹下的index.zx 禁止写模块，它只能用来barrel export，用于归集依赖，便于其他import的"}
 {"time": "2026-11-17", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "这个限制要写入lint"}
+{"time": "2026-11-17", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "而且我发现了大量只有一行实际代码的zx模块，明明无需设定为模块，直接引入函数进行调用的，禁止做成zx模块"}
+{"time": "2026-11-17", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "rx如果不支持就要添加支持特性"}

@@ -1,9 +1,9 @@
 import integers from "std:integer"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
 import { ExprKind } from "../../../../frontend/parser/expressions/state/model"
 import parseInteger from "../../../integer/parse"
-import row from "../../../semantic/types/row"
 import literal from "../../source/literal"
 import { NameKind } from "../../source/model"
 import readName from "../../source/name"

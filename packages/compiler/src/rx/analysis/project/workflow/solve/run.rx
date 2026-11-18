@@ -1,9 +1,9 @@
 <Module>
-    <Type from="input" as="Project" />
+    <Type from="../" as="Workflow" />
 
-    <Args in={Project.Input} out={void} />
+    <Args in={Workflow.Solver} out={void} />
 
-    <Call fn="collect" in={$in} />
-    <Call fn="finish" in={$in} />
-    <Call fn="resolve" in={$in} />
+    <Call fn="../" export="collectConstraints" in={$in} />
+    <Call fn="../" export="finishConstraints" in={$in} />
+    <Call fn="../" export="resolveConstraints" in={$in} />
 </Module>

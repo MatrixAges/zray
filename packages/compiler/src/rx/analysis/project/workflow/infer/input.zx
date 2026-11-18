@@ -1,3 +1,0 @@
-import type { Project } from "rx_project_workflow"
-
-export type Input = Project

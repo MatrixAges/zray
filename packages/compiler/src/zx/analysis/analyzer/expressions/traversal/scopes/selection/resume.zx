@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
-import row from "../../../../../semantic/types/row"
 import enter from "../../../../statements/scopes/enter"
 import label from "../../../../statements/selection/label"
 import { Phase, Action } from "../../model"

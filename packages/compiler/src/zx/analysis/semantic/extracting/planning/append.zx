@@ -1,7 +1,7 @@
 import integers from "std:integer"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import kind from "../../types/kind"
 import origin from "../origin"
 import { Status } from "./model"
 

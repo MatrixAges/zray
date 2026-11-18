@@ -1,6 +1,6 @@
 import integers from "std:integer"
+import row from "core/type_table/row"
 
-import row from "../../../../semantic/types/row"
 import { Phase, Action } from "../model"
 import intrinsic from "../utilities/next"
 import finish from "./finish"

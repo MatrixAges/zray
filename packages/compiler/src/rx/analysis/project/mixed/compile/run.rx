@@ -4,7 +4,7 @@
     <Args in={Mixed.Input} out={void} />
 
     <Call fn="walk" in={$in} />
-    <Call fn="materialize" in={$in} />
-    <Call fn="publish" in={$in} />
-    <Call fn="retain" in={$in} />
+    <Call fn="../../workflow/" export="materializeOutput" in={$in} />
+    <Call fn="../../workflow/" export="publishExports" in={$in} />
+    <Call fn="../../workflow/" export="retainHistory" in={$in} />
 </Module>

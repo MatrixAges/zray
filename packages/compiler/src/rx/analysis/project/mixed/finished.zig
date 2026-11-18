@@ -53,6 +53,16 @@ pub fn function(self: Self, index: usize) ?ir.FunctionId {
     return if (self.functions[index]) |id| @fromBackingInt(id) else null;
 }
 
+pub fn namedFunction(self: Self, index: usize, name: []const u8) ?ir.FunctionId {
+    if (!self.present[index]) return null;
+
+    for (self.surfaces[index].members) |*member| {
+        if (std.mem.eql(u8, member.name, name)) return member.id;
+    }
+
+    return null;
+}
+
 pub fn set(self: Self, index: usize, value: Loaded) void {
     const surface = &self.surfaces[index];
 

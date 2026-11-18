@@ -1,9 +1,9 @@
 import integers from "std:integer"
 import { type_id_u8, type_id_u64, type_id_string, type_id_void } from "core/const"
 import { CollectionKind } from "core/expression_table/kinds"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import kind from "../../../../analysis/semantic/types/kind"
 import { Numeric } from "./model"
 import numeric from "./numeric"
 import typed from "./typed"

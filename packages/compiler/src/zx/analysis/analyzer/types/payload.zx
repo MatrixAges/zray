@@ -1,6 +1,5 @@
 import { Kind } from "core/type_table/model"
-
-import row from "../../semantic/types/row"
+import row from "core/type_table/row"
 
 import type { Types } from "./model"
 

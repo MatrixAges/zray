@@ -3,8 +3,7 @@ import { SequenceKind } from "core/expression_table/append/model"
 import appendObject from "core/expression_table/append/object"
 import project from "core/expression_table/append/projection"
 import appendSequence from "core/expression_table/append/sequence"
-
-import row from "../../../semantic/types/row"
+import row from "core/type_table/row"
 
 import type { Result } from "../../expressions/model"
 import type { Prepared } from "../../model"

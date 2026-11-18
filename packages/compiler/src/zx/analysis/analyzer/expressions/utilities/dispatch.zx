@@ -1,8 +1,8 @@
 import integers from "std:integer"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
 import { Operation } from "../../../../modules/intrinsic/model"
-import row from "../../../semantic/types/row"
 import { type_code, array_message } from "./const"
 import list from "./list"
 import numeric from "./numeric"

@@ -1,9 +1,9 @@
 import integers from "std:integer"
 import { BinaryOperator } from "core/expression_table/kinds"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
 import { Operation } from "../../../../modules/intrinsic/model"
-import row from "../../../semantic/types/row"
 import binary from "../operators/binary"
 import boolean from "./building/boolean"
 import none from "./building/none"

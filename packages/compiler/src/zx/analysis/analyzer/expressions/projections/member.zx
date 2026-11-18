@@ -2,8 +2,7 @@ import integers from "std:integer"
 import { ValueKind } from "core/expression_table/append/model"
 import append from "core/expression_table/append/value"
 import member from "core/type_table/member"
-
-import row from "../../../semantic/types/row"
+import row from "core/type_table/row"
 
 import type { Span } from "../../../../frontend/lexer/token_model"
 import type { Name } from "../../../semantic/resolving/source/model"

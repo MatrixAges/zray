@@ -1,9 +1,9 @@
 import encoding from "std:encoding"
 import integers from "std:integer"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
 import contains from "../../semantic/querying/contains"
-import row from "../../semantic/types/row"
 import named from "../types/named"
 
 import type { StoreBindings } from "../context"

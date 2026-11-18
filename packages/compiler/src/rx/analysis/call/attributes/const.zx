@@ -2,6 +2,8 @@ export const argument_attribute: string = "in"
 
 export const function_attribute: string = "fn"
 
+export const member_attribute: string = "export"
+
 export const module_attribute: string = "module"
 
 export const setter_attribute: string = "setter"

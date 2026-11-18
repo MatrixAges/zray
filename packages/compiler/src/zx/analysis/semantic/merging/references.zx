@@ -1,8 +1,7 @@
 import integers from "std:integer"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 import memory from "memory"
-
-import kind from "../types/kind"
 
 import type { Table } from "core/type_table/model"
 import type { U32Buffer } from "memory"

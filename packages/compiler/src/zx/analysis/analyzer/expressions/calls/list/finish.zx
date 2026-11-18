@@ -3,8 +3,8 @@ import append from "core/expression_table/append/collection"
 import update from "core/expression_table/append/update"
 import { CollectionKind } from "core/expression_table/kinds"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
-import row from "../../../../semantic/types/row"
 import construct from "../../../types/construct"
 
 import type { Span } from "../../../../../frontend/lexer/token_model"

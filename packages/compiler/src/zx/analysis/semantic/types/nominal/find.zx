@@ -1,5 +1,6 @@
+import row from "core/type_table/row"
+
 import equal from "../equal"
-import row from "../row"
 import { Status } from "./model"
 
 import type { Tables } from "core/type_table/model"

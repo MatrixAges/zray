@@ -3,9 +3,9 @@ import append from "core/control_table/append/constant"
 import { ExpressionKind } from "core/expression_table/kinds"
 import { scalar_bool } from "core/type_table/const"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
 import bindPredicate from "../../../ir/canonical/refinement/bind"
-import row from "../../semantic/types/row"
 import bind from "../bindings/append"
 
 import type { Name } from "../../semantic/resolving/source/model"

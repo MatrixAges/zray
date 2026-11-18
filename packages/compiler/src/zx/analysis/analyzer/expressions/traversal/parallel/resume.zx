@@ -1,6 +1,6 @@
 import integers from "std:integer"
+import row from "core/type_table/row"
 
-import row from "../../../../semantic/types/row"
 import finish from "../../tasks/finish"
 import next from "./next"
 

@@ -1,8 +1,8 @@
 import integers from "std:integer"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
 import { Status } from "../../../analysis/semantic/extracting/planning/model"
-import kind from "../../../analysis/semantic/types/kind"
 import includeNative from "./native_include"
 
 import type { Modules } from "core/native_module_table/model"

@@ -1,9 +1,9 @@
 import integers from "std:integer"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 import memory from "memory"
 
 import delta from "../constructing/delta"
-import kind from "../types/kind"
 import candidate from "./candidate"
 import { Status } from "./model"
 import nominal from "./nominal"

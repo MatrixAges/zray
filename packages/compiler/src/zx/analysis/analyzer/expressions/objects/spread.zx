@@ -1,8 +1,8 @@
 import integers from "std:integer"
 import project from "core/expression_table/append/projection"
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
-import row from "../../../semantic/types/row"
 import replace from "./replace"
 
 import type { Span } from "../../../../frontend/lexer/token_model"

@@ -1,6 +1,6 @@
 import { Kind } from "core/type_table/model"
+import row from "core/type_table/row"
 
-import row from "../../../../semantic/types/row"
 import payload from "../../../types/payload"
 import next from "./next"
 

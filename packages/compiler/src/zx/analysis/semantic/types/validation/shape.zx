@@ -1,8 +1,7 @@
 import integers from "std:integer"
 import { kind_native_reference } from "core/type_table/const"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-
-import kind from "../kind"
 
 import type { Table } from "core/type_table/model"
 

@@ -1,3 +1,0 @@
-import type { Derivation } from "rx_project_workflow"
-
-export type Input = Derivation

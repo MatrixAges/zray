@@ -1,7 +1,6 @@
 import integers from "std:integer"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-
-import kind from "../../../analysis/semantic/types/kind"
 
 import type { Program } from "./model"
 

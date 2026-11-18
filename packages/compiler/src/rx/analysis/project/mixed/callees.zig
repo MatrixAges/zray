@@ -24,6 +24,7 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
     const targets = module.calls.items(.target);
     const nodes = module.calls.items(.node);
     const setters = module.calls.items(.setter);
+    const names = module.calls.items(.name_source);
 
     var request: Input = .{
         .calls = &.{ .kinds = kinds, .rows = @ptrCast(targets) },
@@ -50,6 +51,7 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
         ids[position] = switch (next.action) {
             .LoadLibrary => try loadLibrary(state, owner, target, location, setter != null),
             .CompileSetter => try compileSetter(state, cache, sources, owner, target, setter.?, location),
+            .BindNamed => state.finished.namedFunction(target, names[position].value) orelse return state.fail(names[position].value_location, "selected ZX export was not linked"),
             .MissingRX => return state.fail(location, missing_rx),
             .MissingZX => return state.fail(location, missing_zx),
             .NotExecutableRX => return state.fail(location, not_executable_rx),
@@ -85,7 +87,7 @@ fn compileSetter(state: *State, cache: *frontend.project.ParseCache, sources: []
 fn loadSeed(state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, calls: Prepared.Calls.Slice, ids: []ir.FunctionId) State.Error![]const ir.FunctionId {
     const owner = state.owner;
 
-    for (calls.items(.target_kind), calls.items(.target), calls.items(.node), calls.items(.setter), ids) |kind, target, node, setter, *id| {
+    for (calls.items(.target_kind), calls.items(.target), calls.items(.node), calls.items(.setter), calls.items(.name_source), ids) |kind, target, node, setter, name, *id| {
         const location = node.location;
 
         if (kind == .Compiled) {
@@ -103,6 +105,12 @@ fn loadSeed(state: *State, cache: *frontend.project.ParseCache, sources: []const
         }
 
         if (!state.finished.present[target]) return state.fail(location, if (is_rx) missing_rx else missing_zx);
+
+        if (kind == .NamedSource) {
+            id.* = state.finished.namedFunction(target, name.value) orelse return state.fail(name.value_location, "selected ZX export was not linked");
+
+            continue;
+        }
 
         id.* = state.finished.function(target) orelse return state.fail(location, if (is_rx) not_executable_rx else not_executable_zx);
     }

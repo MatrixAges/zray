@@ -1,22 +1,22 @@
 <Module>
-    <Type from="input" as="Project" />
+    <Type from="../" as="Workflow" />
 
-    <Args in={Project.Input} out={void} />
+    <Args in={Workflow.Project} out={void} />
 
-    <Call fn="normalize" in={$in} />
-    <Call fn="reuse" in={$in} />
+    <Call fn="../" export="normalizeSources" in={$in} />
+    <Call fn="../" export="reuseFrame" in={$in} />
 
-    <If on={!$ctx.reuse}>
-        <Call fn="derive" in={$in} />
+    <If on={!$ctx.reuseFrame}>
+        <Call fn="../" export="deriveFrame" in={$in} />
     </If>
 
-    <Call fn="compile" in={$in} />
+    <Call fn="../" export="compileBodies" in={$in} />
 
-    <If on={$ctx.reuse}>
-        <Call fn="retain" in={$in} />
+    <If on={$ctx.reuseFrame}>
+        <Call fn="../" export="retainStores" in={$in} />
 
         <Else>
-            <Call fn="publish" in={$in} />
+            <Call fn="../" export="publishStores" in={$in} />
         </Else>
     </If>
 </Module>

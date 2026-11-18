@@ -21,7 +21,7 @@ pub const Callee = union(enum) { module: usize, signature: frontend.project.sign
 pub const batch_callees = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const CalleeInput = if (batch_callees) std.meta.Child(@import("generated_rx_mixed_callees").Input) else void;
 const CalleeTargets = if (batch_callees) std.meta.Child(@FieldType(CalleeInput, "calls")) else void;
-pub const CalleeKind = if (batch_callees) std.meta.Child(@FieldType(CalleeTargets, "kinds")) else enum(u8) { Source, AuthorizedSource, Compiled };
+pub const CalleeKind = if (batch_callees) std.meta.Child(@FieldType(CalleeTargets, "kinds")) else enum(u8) { Source, AuthorizedSource, Compiled, NamedSource };
 
 pub const Call = struct {
     setter: ?target.Setter = null,
@@ -329,6 +329,22 @@ pub const Loader = struct {
             .TypeOnly => self.fail(location, "module", "Call.fn requires an executable ZX module with a default function"),
             .MissingStore => self.fail(location, "capability", "a Call.setter target must declare its second parameter as { store }"),
         };
+    }
+    pub fn namedCallee(self: *Loader, source: usize, selection: *const rx.ast.Attribute) Error!Callee {
+        const signature = switch (self.signatures.lookup(source)) {
+            .zx => |value| if (value) |resolved| resolved.module.signature else return self.fail(selection.value_location, "module", "source function signature is missing from the analyzed input set"),
+            else => return self.fail(selection.value_location, "module", "export requires a named function from a ZX source module"),
+        };
+
+        for (signature.members) |*member| {
+            if (!std.mem.eql(u8, member.name, selection.value)) continue;
+            if (member.has_store) return self.fail(selection.value_location, "capability", "a named Call cannot invoke a Store transaction");
+            if (member.kind != .callable) break;
+
+            return .{ .signature = member.ports };
+        }
+
+        return self.fail(selection.value_location, "module", "ZX source does not export the selected callable function");
     }
     pub fn compiledCallee(self: *Loader, location: rx.ast.Location, selected: frontend.project.compiled.Target, setter: bool) Error!Callee {
         const result = try self.libraries.bind(&self.project, .{

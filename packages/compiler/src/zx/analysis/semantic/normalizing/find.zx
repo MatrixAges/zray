@@ -1,8 +1,8 @@
 import integers from "std:integer"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
 import row from "../entries/row"
-import kind from "../types/kind"
 import { Status } from "../types/nominal/model"
 import equal from "./equal"
 import reference from "./reference"

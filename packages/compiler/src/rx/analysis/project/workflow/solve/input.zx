@@ -1,3 +1,0 @@
-import type { Solver } from "rx_project_workflow"
-
-export type Input = Solver

@@ -1,8 +1,7 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
 import { Kind } from "core/type_table/model"
-
-import row from "../../../semantic/types/row"
+import row from "core/type_table/row"
 
 import type { Diagnostic } from "../../../semantic/resolving/model"
 import type { Prepared } from "../../model"

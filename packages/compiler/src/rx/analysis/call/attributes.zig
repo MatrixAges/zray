@@ -5,9 +5,9 @@ const Self = @This();
 
 argument: ?*const rx.ast.Attribute = null,
 function: ?*const rx.ast.Attribute = null,
+member: ?*const rx.ast.Attribute = null,
 module: ?*const rx.ast.Attribute = null,
 setter: ?*const rx.ast.Attribute = null,
-
 pub fn scan(node: rx.ast.Node) Self {
     if (!@import("rx_options").generated_graph) return seed(node.attributes);
     if (node.attributes.len == 0) return .{};
@@ -23,6 +23,7 @@ pub fn scan(node: rx.ast.Node) Self {
     return .{
         .argument = at(attributes, slots.argument),
         .function = at(attributes, slots.function),
+        .member = at(attributes, slots.member),
         .module = at(attributes, slots.module),
         .setter = at(attributes, slots.setter),
     };
@@ -40,6 +41,8 @@ fn seed(attributes: []const rx.ast.Attribute) Self {
             found.argument = found.argument orelse attribute;
         } else if (std.mem.eql(u8, attribute.name, "fn")) {
             found.function = found.function orelse attribute;
+        } else if (std.mem.eql(u8, attribute.name, "export")) {
+            found.member = found.member orelse attribute;
         } else if (std.mem.eql(u8, attribute.name, "module")) {
             found.module = found.module orelse attribute;
         } else if (std.mem.eql(u8, attribute.name, "setter")) {

@@ -1,7 +1,7 @@
 import integers from "std:integer"
+import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import kind from "../../../analysis/semantic/types/kind"
 import bind from "../refinement/bind"
 import declare from "./declare"
 import { Declaration } from "./model"

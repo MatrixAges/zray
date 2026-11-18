@@ -1,21 +1,21 @@
 <Module>
-    <Type from="input" as="Project" />
+    <Type from="../" as="Workflow" />
 
-    <Args in={Project.Input} out={void} />
+    <Args in={Workflow.Derivation} out={void} />
 
-    <Call fn="modules" in={$in} />
-    <Call fn="graph" in={$in} />
-    <Call fn="ordered" in={$in} />
-    <Call fn="reuse" in={$in} />
+    <Call fn="../" export="prepareModules" in={$in} />
+    <Call fn="../" export="collectGraph" in={$in} />
+    <Call fn="../" export="orderSignatures" in={$in} />
+    <Call fn="../" export="reuseSignatures" in={$in} />
 
-    <If on={!$ctx.reuse}>
-        <Call fn="signatures" in={$in} />
+    <If on={!$ctx.reuseSignatures}>
+        <Call fn="../" export="loadSignatures" in={$in} />
     </If>
 
-    <Call fn="index_signatures" in={$in} />
-    <Call fn="stores" in={$in} />
-    <Call fn="prepare" in={$in} />
-    <Call fn="infer" in={$in} />
-    <Call fn="complete" in={$in} />
-    <Call fn="publish" in={$in} />
+    <Call fn="../" export="indexSignatures" in={$in} />
+    <Call fn="../" export="loadStoreRegistry" in={$in} />
+    <Call fn="../" export="prepareFlow" in={$in} />
+    <Call fn="../" export="solveFlow" in={$in} />
+    <Call fn="../" export="completeShortcuts" in={$in} />
+    <Call fn="../" export="publishFrame" in={$in} />
 </Module>
