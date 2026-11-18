@@ -28,6 +28,7 @@ export type Input = Scan & {
 
 export type Output = {
     position: u64,
+    following?: u64,
     index: u64,
     action: Action,
     prepared_next: u64,

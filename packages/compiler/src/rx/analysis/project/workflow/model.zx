@@ -1,0 +1,49 @@
+export enum Phase {
+    FreshProject,
+    RetainedProject,
+    Derive,
+    Solve,
+    Window,
+    Finish
+}
+
+export enum Step {
+    NormalizeSources,
+    DeriveFrame,
+    CompileBodies,
+    PublishStores,
+    RestoreFrame,
+    RetainStores,
+    PrepareModules,
+    CollectGraph,
+    OrderSignatures,
+    ReadSignatures,
+    IndexSignatures,
+    LoadStores,
+    PrepareFlow,
+    SolveFlow,
+    CompleteShortcuts,
+    PublishFrame,
+    CollectConstraints,
+    FinishConstraints,
+    ResolveConstraints,
+    PrepareWindow,
+    RestorePrefix,
+    DispatchBody,
+    RecordBody,
+    MaterializeOutput,
+    PublishExports,
+    RetainHistory
+}
+
+export enum Reuse {
+    Fresh,
+    Signatures,
+    Frame
+}
+
+export type History = {
+    previous: bool,
+    bodies_only: bool,
+    stores: u64
+}

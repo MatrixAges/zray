@@ -10,10 +10,10 @@ const source_graph = project.source_graph;
 const Frame = @import("../../history.zig").Frame;
 const Inputs = @import("../../call_inputs.zig");
 const entry_source = @import("../../entry.zig");
-const generated = @import("rx_options").generated_graph;
+const workflow = @import("../schedule.zig");
 const Error = zx.Error;
 
-pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *const project.Options, cache: *frontend.project.ParseCache, inputs: *Inputs, frame: *Frame, issue: *?target.Diagnostic) Error!void {
+pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *const project.Options, cache: *frontend.project.ParseCache, inputs: *Inputs, frame: *Frame, issue: *?target.Diagnostic, check_signatures: bool) Error!void {
     var state: State = .{
         .allocator = allocator,
         .backing = backing,
@@ -31,7 +31,19 @@ pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *c
     defer state.paths.deinit(backing);
     defer if (state.entries.len != 0) backing.free(state.entries);
 
-    try state.execute();
+    inline for (comptime workflow.steps(.Derive)) |step| switch (step) {
+        .PrepareModules => try state.modules(),
+        .CollectGraph => try state.graph(),
+        .OrderSignatures => state.entries = try source_graph.orderedRows(backing, &state.dependencies.?, .zx),
+        .ReadSignatures => try state.signatures(check_signatures),
+        .IndexSignatures => try state.index(),
+        .LoadStores => try state.stores(),
+        .PrepareFlow => try state.prepare(),
+        .SolveFlow => try @import("../solve/host.zig").run(&state),
+        .CompleteShortcuts => try preparation.completeShortcuts(allocator, state.prepared.?.modules, frame.resolved),
+        .PublishFrame => state.publish(),
+        else => unreachable,
+    };
 }
 
 pub const State = struct {
@@ -54,26 +66,7 @@ pub const State = struct {
     indexed: ?source_graph.Signatures = null,
     registered: ?registry.Data = null,
     prepared: ?preparation.Loaded = null,
-    fn execute(self: *State) Error!void {
-        if (comptime generated) {
-            const entry = @import("generated_rx_project_derive");
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            return entry.executeIn(empty.allocator(), @ptrCast(self));
-        }
-
-        try self.modules();
-        try self.graph();
-        try self.ordered();
-        if (!self.reuse()) try self.signatures();
-        try self.index();
-        try self.stores();
-        try self.prepare();
-        try self.infer();
-        try self.complete();
-        try self.publish();
-    }
-    pub fn modules(self: *State) Error!void {
+    fn modules(self: *State) Error!void {
         const options = self.options;
         const allocator = self.allocator;
         const items = try allocator.dupe(rx.ModuleSource, options.modules);
@@ -122,17 +115,11 @@ pub const State = struct {
 
         self.sources = items;
     }
-    pub fn graph(self: *State) Error!void {
+    fn graph(self: *State) Error!void {
         const options = self.options;
-        const roots = try self.backing.alloc([]const u8, options.exports.len);
 
-        defer self.backing.free(roots);
-
-        for (options.exports, roots) |exported, *path| path.* = exported.path;
-
-        const result = try source_graph.build(self.allocator, .{
+        const result = try source_graph.buildWithRoots(self.allocator, .{
             .entry = if (self.entry_index == null) options.entry else self.entry,
-            .additional_roots = roots,
             .include_rx_modules = true,
             .sources = options.sources,
             .modules = self.sources,
@@ -143,30 +130,25 @@ pub const State = struct {
             .scratch_allocator = self.backing,
             .registered_paths = &self.paths,
             .retain_source_dependencies = options.history != null,
-        });
+        }, options.exports);
 
         if (result.value == .diagnostic) return self.fail(result.value.diagnostic);
 
         self.dependencies = result.value.graph;
     }
 
-    pub fn ordered(self: *State) Error!void {
-        self.entries = try source_graph.orderedRows(self.backing, &self.dependencies.?, .zx);
-    }
+    fn signatures(self: *State, check_history: bool) Error!void {
+        if (check_history) {
+            const record = self.options.history.?;
 
-    pub fn reuse(self: *State) bool {
-        const record = self.options.history orelse return false;
+            if (record.signatures(self.options.sources, &self.dependencies.?, self.entries)) |earlier| {
+                record.signatures_reused = true;
+                self.signatures_data = earlier;
 
-        if (self.options.stores.len != 0) return false;
+                return;
+            }
+        }
 
-        const earlier = record.signatures(self.options.sources, &self.dependencies.?, self.entries) orelse return false;
-
-        record.signatures_reused = true;
-        self.signatures_data = earlier;
-
-        return true;
-    }
-    pub fn signatures(self: *State) Error!void {
         const result = try frontend.project.analyzePrefetchedSignatures(self.allocator, self.prefetched, self.entries, self.project_options, &self.paths);
 
         if (result.value == .diagnostic) {
@@ -185,7 +167,7 @@ pub const State = struct {
         self.signatures_data = result.value.data;
     }
 
-    pub fn index(self: *State) Error!void {
+    fn index(self: *State) Error!void {
         self.backing.free(self.entries);
 
         self.entries = &.{};
@@ -204,7 +186,7 @@ pub const State = struct {
         self.paths = .empty;
     }
 
-    pub fn stores(self: *State) Error!void {
+    fn stores(self: *State) Error!void {
         const dependencies = &self.dependencies.?;
         const edges = dependencies.modules.items(.dependencies)[dependencies.sources.rx_end..];
         const result = try registry.loadSignaturesIn(self.allocator, self.backing, self.options.stores, self.project_options.context, edges, self.indexed.?);
@@ -219,7 +201,7 @@ pub const State = struct {
         self.project_options.context = result.data.context;
     }
 
-    pub fn prepare(self: *State) Error!void {
+    fn prepare(self: *State) Error!void {
         const dependencies = &self.dependencies.?;
         const edges = dependencies.modules.items(.dependencies)[dependencies.sources.zx_count..dependencies.sources.rx_end];
         const result = try preparation.loadSignatures(self.allocator, self.backing, self.sources, edges, self.project_options, self.registered.?.definitions, self.indexed.?, self.inputs);
@@ -233,14 +215,7 @@ pub const State = struct {
         self.prepared = result.loaded;
     }
 
-    pub fn infer(self: *State) Error!void {
-        try @import("../solve/host.zig").run(self);
-    }
-    pub fn complete(self: *State) Error!void {
-        try preparation.completeShortcuts(self.allocator, self.prepared.?.modules, self.frame.resolved);
-    }
-
-    pub fn publish(self: *State) Error!void {
+    fn publish(self: *State) void {
         const dependencies = &self.dependencies.?;
         self.frame.stores = self.options.stores;
         self.frame.modules = self.sources;

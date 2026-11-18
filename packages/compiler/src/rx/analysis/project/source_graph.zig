@@ -29,16 +29,21 @@ pub const Options = struct {
 };
 
 pub fn build(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Error!Result {
+    return buildWithRoots(allocator, options, options.additional_roots);
+}
+
+/// Explicit roots may be path slices or the project's original export records.
+pub fn buildWithRoots(allocator: std.mem.Allocator, options: Options, roots: anytype) std.mem.Allocator.Error!Result {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
 
-    const value = try buildIn(arena.allocator(), options.scratch_allocator orelse allocator, options);
+    const value = try buildIn(arena.allocator(), options.scratch_allocator orelse allocator, options, roots);
 
     return .{ .arena = arena, .value = value };
 }
 
-fn buildIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Options) std.mem.Allocator.Error!model.Value {
+fn buildIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Options, explicit: anytype) std.mem.Allocator.Error!model.Value {
     std.debug.assert(options.prefetched == null or options.parse_cache != null);
 
     var storage: model.Modules = .empty;
@@ -71,7 +76,7 @@ fn buildIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Op
 
     const entry = paths.get(path) orelse return failure(allocator, path, root_location, "entry module is missing from the registered source set");
     const rx_roots = if (options.include_rx_modules) options.modules.len else 0;
-    const explicit_count = options.additional_roots.len;
+    const explicit_count = explicit.len;
     const additional_count = rx_roots + explicit_count;
     const roots = try allocator.alloc(u64, additional_count + options.stores.len + 1);
     roots[0] = entry;
@@ -83,7 +88,8 @@ fn buildIn(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: Op
     var scratch = std.heap.BufferFirstAllocator.init(&path_buffer, backing);
     const temporary_paths = scratch.allocator();
 
-    for (options.additional_roots, roots[1 + rx_roots ..][0..explicit_count]) |source_path, *root| {
+    for (explicit, roots[1 + rx_roots ..][0..explicit_count]) |item, *root| {
+        const source_path = if (@TypeOf(item) == []const u8) item else item.path;
         const resolved = try std.fs.path.resolve(temporary_paths, &.{ options.project.root_dir, source_path });
 
         defer temporary_paths.free(resolved);

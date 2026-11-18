@@ -1,9 +1,0 @@
-<Module>
-    <Type from="../" as="Workflow" />
-
-    <Args in={Workflow.Solver} out={void} />
-
-    <Call fn="../../workflow.collectConstraints" in={$in} />
-    <Call fn="../../workflow.finishConstraints" in={$in} />
-    <Call fn="../../workflow.resolveConstraints" in={$in} />
-</Module>

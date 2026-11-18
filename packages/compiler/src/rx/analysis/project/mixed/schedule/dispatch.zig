@@ -7,12 +7,15 @@ const generated = @import("rx_options").generated_graph and @bitSizeOf(usize) ==
 
 pub const Result = struct {
     position: usize,
+    following: usize,
     index: usize,
     action: Body.Action,
     prepared_row: ?usize = null,
 };
 
-pub fn next(state: *const State, first: usize, end: usize, keep_skipped: bool, positions: []const u64, cursor: *usize) Result {
+pub fn next(state: *const State, first: usize, end: usize, keep_skipped: bool, positions: []const u64, cursor: *usize) ?Result {
+    if (first == end) return null;
+
     const graph = &state.graph;
 
     if (comptime generated) {
@@ -33,11 +36,13 @@ pub fn next(state: *const State, first: usize, end: usize, keep_skipped: bool, p
 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const selected = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
-
         cursor.* = @intCast(selected.prepared_next);
+
+        const following = selected.following orelse return null;
 
         return .{
             .position = @intCast(selected.position),
+            .following = @intCast(following),
             .index = @intCast(selected.index),
             .action = @fromBackingInt(@backingInt(selected.action)),
             .prepared_row = if (selected.prepared_row) |row| @intCast(row) else null,
@@ -52,5 +57,5 @@ pub fn next(state: *const State, first: usize, end: usize, keep_skipped: bool, p
         else => null,
     };
 
-    return .{ .position = first, .index = index, .action = action, .prepared_row = prepared };
+    return .{ .position = first, .following = first + 1, .index = index, .action = action, .prepared_row = prepared };
 }

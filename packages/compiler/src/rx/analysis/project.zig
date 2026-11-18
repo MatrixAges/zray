@@ -8,11 +8,6 @@ const Inputs = @import("project/call_inputs.zig");
 const target = @import("call/target.zig");
 pub const source_graph = @import("project/source_graph.zig");
 pub const History = @import("project/history.zig").History;
-
-comptime {
-    if (@import("rx_options").generated_graph) _ = @import("project/workflow/effects.zig");
-}
-
 pub const ModuleDigest = @import("project/history.zig").Digest;
 
 pub const Options = struct {

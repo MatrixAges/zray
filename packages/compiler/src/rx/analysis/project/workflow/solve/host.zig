@@ -5,7 +5,7 @@ const Graph = @import("../../../inference/types.zig");
 const SourceMap = @import("../../../source_map.zig");
 const Constraints = @import("../../constraints.zig");
 const Requests = @import("../../signatures/requests.zig");
-const generated = @import("rx_options").generated_graph;
+const workflow = @import("../schedule.zig");
 const Error = zx.Error;
 
 pub fn run(derivation: *Derivation) Error!void {
@@ -35,10 +35,15 @@ pub fn run(derivation: *Derivation) Error!void {
     defer state.pending.deinit();
     defer state.resolver.deinit(backing);
 
-    try state.execute();
+    inline for (comptime workflow.steps(.Solve)) |step| switch (step) {
+        .CollectConstraints => try state.collect(),
+        .FinishConstraints => try state.finish(),
+        .ResolveConstraints => try state.resolve(),
+        else => unreachable,
+    };
 }
 
-pub const State = struct {
+const State = struct {
     derivation: *Derivation,
     source_map: SourceMap,
     workspace: zx.Arena,
@@ -48,19 +53,7 @@ pub const State = struct {
     resolver: Graph.Resolver = .{},
     requests: Requests = .{},
     ports: Constraints.Ports = undefined,
-    fn execute(self: *State) Error!void {
-        if (comptime generated) {
-            const entry = @import("generated_rx_project_solve");
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            return entry.executeIn(empty.allocator(), @ptrCast(self));
-        }
-
-        try self.collect();
-        try self.finish();
-        try self.resolve();
-    }
-    pub fn collect(self: *State) Error!void {
+    fn collect(self: *State) Error!void {
         const derivation = self.derivation;
         const loaded = &derivation.prepared.?;
 
@@ -73,8 +66,7 @@ pub const State = struct {
 
         self.ports = Constraints.collect(&self.graph, loaded.modules, self.source_map, derivation.inputs, &self.requests) catch |err| return self.report(err);
     }
-
-    pub fn finish(self: *State) Error!void {
+    fn finish(self: *State) Error!void {
         self.graph.finish(&self.resolver) catch |err| return self.report(err);
 
         self.graph.pending = undefined;
@@ -82,7 +74,7 @@ pub const State = struct {
         self.pending.reset(0);
     }
 
-    pub fn resolve(self: *State) Error!void {
+    fn resolve(self: *State) Error!void {
         const derivation = self.derivation;
         const signatures = @import("../../signatures.zig");
         derivation.frame.resolved = signatures.resolve(&self.graph, &self.resolver, self.ports, self.requests) catch |err| return self.report(err);

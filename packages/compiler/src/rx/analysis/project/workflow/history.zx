@@ -1,0 +1,16 @@
+import { Reuse } from "./model"
+
+import type { History } from "./model"
+
+export type Input = History
+
+export type Output = Reuse
+
+export default function (in: Input): Output {
+    return match {
+        !in.previous => Reuse.Fresh,
+        in.bodies_only => Reuse.Frame,
+        in.stores == 0 => Reuse.Signatures,
+        _ => Reuse.Fresh
+    }
+}

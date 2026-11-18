@@ -7,7 +7,7 @@ const Inputs = @import("../../call_inputs.zig");
 const target = @import("../../../call/target.zig");
 const Frame = @import("../../history.zig").Frame;
 const registry = @import("../../../store/registry.zig");
-const generated = @import("rx_options").generated_graph;
+const workflow = @import("../schedule.zig");
 const Error = zx.Error;
 
 pub const State = struct {
@@ -20,7 +20,12 @@ pub const State = struct {
     result: ?Module.Value = null,
     issue: ?target.Diagnostic = null,
     pub fn run(self: *State) std.mem.Allocator.Error!Module.Value {
-        self.execute() catch |err| switch (err) {
+        const history = self.options.history;
+        const reuse = workflow.select(if (history) |record| record.previous != null else false, if (history) |record| record.bodies_only else false, self.options.stores.len);
+
+        (switch (reuse) {
+            inline else => |mode| self.execute(mode),
+        }) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             error.InvalidSource => {
                 if (self.result) |result| return result;
@@ -31,23 +36,22 @@ pub const State = struct {
 
         return self.result.?;
     }
-    fn execute(self: *State) Error!void {
-        if (comptime generated) {
-            const entry = @import("generated_rx_project_infer");
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
+    fn execute(self: *State, comptime mode: workflow.Reuse) Error!void {
+        inline for (comptime workflow.steps(if (mode == .Frame) .RetainedProject else .FreshProject)) |step| switch (step) {
+            .NormalizeSources => try self.normalize(),
+            .RestoreFrame => self.frame = self.options.history.?.previous.?.derived,
+            .DeriveFrame => try @import("../derive/host.zig").run(self.allocator, self.backing, &self.options, self.cache, self.inputs, &self.frame, &self.issue, mode == .Signatures),
+            .CompileBodies => try self.compile(),
+            .RetainStores, .PublishStores => {
+                const contract = &self.result.?.contract;
 
-            return entry.executeIn(empty.allocator(), @ptrCast(self));
-        }
-
-        try self.normalize();
-
-        const reused = self.reuse();
-
-        if (!reused) try self.derive();
-        try self.compile();
-        if (reused) try self.retain() else try self.publish();
+                contract.store_definitions = try registry.publish(self.allocator, self.frame.definitions, contract, if (step == .RetainStores) .Retained else .Owned);
+            },
+            else => unreachable,
+        };
     }
-    pub fn normalize(self: *State) Error!void {
+
+    fn normalize(self: *State) Error!void {
         self.options.sources = switch (try frontend.project.prepareSources(self.allocator, self.options.sources, self.options.project)) {
             .sources => |items| items,
             .diagnostic => |issue| {
@@ -65,22 +69,7 @@ pub const State = struct {
             },
         };
     }
-
-    pub fn reuse(self: *State) bool {
-        const record = self.options.history orelse return false;
-
-        if (!record.bodies_only) return false;
-
-        const previous = if (record.previous) |*value| value else return false;
-
-        self.frame = previous.derived;
-
-        return true;
-    }
-    pub fn derive(self: *State) Error!void {
-        try @import("../derive/host.zig").run(self.allocator, self.backing, &self.options, self.cache, self.inputs, &self.frame, &self.issue);
-    }
-    pub fn compile(self: *State) Error!void {
+    fn compile(self: *State) Error!void {
         const result = try @import("../../mixed.zig").compile(self.allocator, self.backing, self.frame, self.options.modules, self.options.sources, self.options.exports, self.cache, self.options.history, self.inputs);
 
         if (result == .diagnostic) {
@@ -90,17 +79,5 @@ pub const State = struct {
         }
 
         self.result = result;
-    }
-
-    pub fn retain(self: *State) Error!void {
-        const contract = &self.result.?.contract;
-
-        contract.store_definitions = try registry.publish(self.allocator, self.frame.definitions, contract, .Retained);
-    }
-
-    pub fn publish(self: *State) Error!void {
-        const contract = &self.result.?.contract;
-
-        contract.store_definitions = try registry.publish(self.allocator, self.frame.definitions, contract, .Owned);
     }
 };

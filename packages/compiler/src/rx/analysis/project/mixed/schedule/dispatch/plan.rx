@@ -14,6 +14,17 @@
         ])}
     />
 
+    <If on={$ctx.scan.position == $in.end}>
+        <Return
+            value={{
+                position: $in.end,
+                index: $ctx.scan.index,
+                action: Body.Action.Skip,
+                prepared_next: $in.prepared_cursor
+            }}
+        />
+    </If>
+
     <Call
         module="../../body/admit"
         in={$ctx.scan.pick([
@@ -35,6 +46,7 @@
         <Return
             value={{
                 position: $ctx.scan.position,
+                following: $ctx.scan.position + 1,
                 index: $ctx.scan.index,
                 action: $ctx.admit,
                 prepared_next: $ctx.claim.cursor,
@@ -46,6 +58,7 @@
     <Return
         value={{
             position: $ctx.scan.position,
+            following: $ctx.scan.position + 1,
             index: $ctx.scan.index,
             action: $ctx.admit,
             prepared_next: $in.prepared_cursor,

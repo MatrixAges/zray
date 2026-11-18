@@ -24,13 +24,5 @@ pub fn steps(comptime form: Form) []const Step {
         .Call => &.{ .ScanCall, .ParseArgument, .AuthorizeCall, .ResolveCallee, .PublishCall, .RecordArgument, .BindPrevious },
     };
 
-    return &struct {
-        const order = blk: {
-            var storage: [@typeInfo(Step).@"enum".field_names.len * @sizeOf(Step)]u8 = undefined;
-            var scratch = std.heap.FixedBufferAllocator.init(&storage);
-            const sequence = rule.executeValue(scratch.allocator(), form) catch unreachable;
-
-            break :blk sequence[0..sequence.len].*;
-        };
-    }.order;
+    return @import("../sequence.zig").steps(rule, form);
 }

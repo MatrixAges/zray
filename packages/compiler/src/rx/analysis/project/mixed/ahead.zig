@@ -186,6 +186,6 @@ pub fn lowered(self: *const Self, state: *const State, selected: ?usize) ?Lowere
     return if (value == .body and Rx.current(state, lowering.prepared, value.body)) .{ .prepared = lowering.prepared, .body = value.body } else null;
 }
 
-pub fn next(self: *Self, state: *const State, first: usize, end: usize, keep_skipped: bool) @import("schedule/dispatch.zig").Result {
+pub fn next(self: *Self, state: *const State, first: usize, end: usize, keep_skipped: bool) ?@import("schedule/dispatch.zig").Result {
     return @import("schedule/dispatch.zig").next(state, first, end, keep_skipped, self.items.items(.position), &self.next_item);
 }

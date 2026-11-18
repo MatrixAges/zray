@@ -4,8 +4,6 @@ const memory_columns = "memory/columns";
 const lexical_path = "lexical_path";
 const artifact_view = "artifact_view";
 const artifact_view_dir = "zx/modules/link/artifact/binding/";
-const rx_project_workflow = "rx_project_workflow";
-const rx_project_workflow_dir = "rx/analysis/project/workflow/";
 
 pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, ordered: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, host: std.Build.LazyPath };
 
@@ -76,7 +74,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = declarations.columns_path, .module = memory_columns },
         .{ .path = b.fmt("{s}/zx/modules/path/lexical.d.zx", .{directories[0]}), .module = lexical_path },
         .{ .path = b.fmt("{s}/{s}view.d.zx", .{ directories[0], artifact_view_dir }), .module = artifact_view },
-        .{ .path = b.fmt("{s}/{s}native.d.zx", .{ directories[0], rx_project_workflow_dir }), .module = rx_project_workflow },
     };
 
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
@@ -133,7 +130,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             run.addFileInput(declarations.columns);
             run.addFileInput(roots[0].path(b, "zx/modules/path/lexical.d.zx"));
             run.addFileInput(roots[0].path(b, artifact_view_dir ++ "view.d.zx"));
-            run.addFileInput(roots[0].path(b, rx_project_workflow_dir ++ "native.d.zx"));
         }
 
         switch (set) {
@@ -264,7 +260,6 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     const abi = b.createModule(.{ .root_source_file = source.main.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
     const memory = b.dependency("core", .{ .target = target, .optimize = optimize }).module("memory");
     const view = b.createModule(.{ .root_source_file = b.path("src/" ++ artifact_view_dir ++ "view.zig"), .target = target, .optimize = optimize });
-    const workflow = b.createModule(.{ .root_source_file = b.path("src/" ++ rx_project_workflow_dir ++ "native.zig"), .target = target, .optimize = optimize });
 
     const standard = b.createModule(.{
         .root_source_file = b.dependency("zxc_std", .{}).path("src/root.zig"),
@@ -291,7 +286,6 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = memory_columns, .module = memory },
             .{ .name = lexical_path, .module = standard },
             .{ .name = artifact_view, .module = view },
-            .{ .name = rx_project_workflow, .module = workflow },
         },
     });
 
@@ -317,7 +311,6 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = memory_columns, .module = memory },
             .{ .name = lexical_path, .module = standard },
             .{ .name = artifact_view, .module = view },
-            .{ .name = rx_project_workflow, .module = workflow },
             .{ .name = "zxc_bridge", .module = bridge },
             .{ .name = "zxc_signatures", .module = signatures },
         };
@@ -338,7 +331,6 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
                 .{ .name = memory_columns, .module = memory },
                 .{ .name = lexical_path, .module = standard },
                 .{ .name = artifact_view, .module = view },
-                .{ .name = rx_project_workflow, .module = workflow },
             },
         }));
 
@@ -469,10 +461,8 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     run.addFileArg(b.path("build/partition/bridge.zig"));
 
     const view = b.path("src/" ++ artifact_view_dir ++ "view.zig");
-    const workflow = b.path("src/" ++ rx_project_workflow_dir ++ "native.zig");
 
     run.addFileArg(view);
-    run.addFileArg(workflow);
 
     const memory = b.dependency("core", .{}).path("src/memory");
 
@@ -493,13 +483,10 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     run.addArg(level);
     run.addPrefixedFileArg("-M" ++ artifact_view ++ "=", view);
     run.addArgs(stripped);
-    run.addArg(level);
-    run.addPrefixedFileArg("-M" ++ rx_project_workflow ++ "=", workflow);
-    run.addArgs(stripped);
     run.addArgs(&.{ level, "--dep", "zxc_abi", "-Mzxc_signatures=%generated%/signatures.zig", level });
     run.addPrefixedFileArg("-Mzxc_bridge=", b.path("build/partition/bridge.zig"));
     run.addArgs(stripped);
-    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "memory", "--dep", memory_columns ++ "=memory", "--dep", lexical_path ++ "=zxc_standard", "--dep", artifact_view, "--dep", rx_project_workflow, "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
+    run.addArgs(&.{ level, "--dep", "zxc_abi", "--dep", "zxc_standard", "--dep", "zxc_string", "--dep", "memory", "--dep", memory_columns ++ "=memory", "--dep", lexical_path ++ "=zxc_standard", "--dep", artifact_view, "--dep", "zxc_bridge", "--dep", "zxc_signatures", "-Mzxc_functions=%generated%/part_%index%/functions.zig" });
     run.addArgs(&.{ "--name", if (llvm) "zxc_partition_%index%" else "zxc_partition_%index%_self_hosted", "-femit-bin=%objects%/zxc_partition_%index%.o" });
 
     // The object directory persists across runs, so unchanged partitions keep their objects.
