@@ -27,6 +27,19 @@ export declare function writeFile(io, in: { path: string, data: u8[] }): void th
   SystemResources, Unexpected, WouldBlock
 } concurrent
 
+export declare function writeFileAtomic(io, in: {
+    path: u8[],
+    data: u8[],
+    make_path: bool
+}): void throws {
+    AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled, CrossDevice,
+    DeviceBusy, DirNotEmpty, DiskQuota, FileBusy, FileNotFound, FileTooBig,
+    HardwareFailure, InputOutput, InvalidPath, IsDir, LinkQuotaExceeded,
+    LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
+    NotOpenForWriting, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem,
+    SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+} concurrent
+
 export declare function writeText(io, in: { path: string, text: string }): void throws {
   AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled, DeviceBusy,
   DiskQuota, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput,

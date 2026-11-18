@@ -24,6 +24,17 @@ pub fn writeFile(io: std.Io, input: api.writeFile.Input) !void {
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = input.path, .data = input.data });
 }
 
+pub fn writeFileAtomic(io: std.Io, input: api.writeFileAtomic.Input) !void {
+    if (std.mem.indexOfScalar(u8, input.path, 0) != null) return error.InvalidPath;
+
+    var file = try std.Io.Dir.cwd().createFileAtomic(io, input.path, .{ .make_path = input.make_path, .replace = true });
+
+    defer file.deinit(io);
+
+    try file.file.writeStreamingAll(io, input.data);
+    try file.replace(io);
+}
+
 pub fn writeText(io: std.Io, input: api.writeText.Input) !void {
     try path.validate(input.path);
     if (!std.unicode.utf8ValidateSlice(input.text)) return error.InvalidUtf8;

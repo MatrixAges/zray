@@ -5,6 +5,12 @@ Zig 宿主可消费 `zxc_std` 模块，并按产物传入 `abi` 构建参数，�
 
 数值转换与解析可通过 `std:integer` 和 `std:float` 使用。这些函数无分配、无外部状态，支持并发调用。
 
+## 操作系统路径与参数
+
+`std:fs.writeFileAtomic({ path, data, make_path })` 在目标目录写完临时文件后原子替换目标。`path` 和 `data` 使用 `u8[]`，`make_path` 控制是否创建缺失的父目录。文本路径可用 `std:bytes.fromText` 转为字节视图。
+
+`std:child_process.spawnSyncBytes({ argv, max_stdout_bytes, max_stderr_bytes })` 使用调用方的参数数组，首项为可执行文件，其余项为参数。每项都是 `u8[]`，可传递操作系统支持的路径字节。参数中的 NUL 会报错。该接口继承当前目录和环境，返回的 stdout、stderr 以及退出状态与 `spawnSync` 相同。
+
 ## 整数宽度转换
 
 ```zx

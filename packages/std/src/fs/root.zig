@@ -8,6 +8,7 @@ pub const Stat = api.Stat;
 pub const readFile = files.readFile;
 pub const readText = files.readText;
 pub const writeFile = files.writeFile;
+pub const writeFileAtomic = files.writeFileAtomic;
 pub const writeText = files.writeText;
 pub const truncate = files.truncate;
 pub const mkdir = directories.mkdir;

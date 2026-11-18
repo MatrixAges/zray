@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+import fs from "std:fs"
+
+import { counterexample_suffix } from "./const"
+
+import type { Proof } from "./model"
+
+export type Input = Proof.Pick("path", "correctness")
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const path = `${in.path}${counterexample_suffix}`
+
+    const query = templateFile("./counterexample.tpl")
+
+    fs.writeFileAtomic({
+        path: bytes.fromText(path),
+        data: bytes.fromText(query),
+        make_path: true
+    })
+
+    return path
+}

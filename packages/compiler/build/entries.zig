@@ -433,6 +433,7 @@ pub const main = [_]Entry{
     .{ .path = "backends/verilog/layout/header.zx", .name = "verilog_header", .owner = .compiler },
     .{ .path = "backends/verilog/node/write.zx", .name = "verilog_node", .owner = .compiler },
     .{ .path = "backends/verilog/layout/finish.rx", .name = "verilog_finish", .owner = .compiler },
+    .{ .path = "verification/solver/check.rx", .name = "verification_solver", .owner = .compiler },
     .{ .path = "verification/query/build.rx", .name = "verification_query", .owner = .compiler },
     .{ .path = "library/envelope/layout.zx", .name = "library_envelope_layout", .owner = .compiler },
     .{ .path = "library/envelope/open.rx", .name = "library_envelope_open", .owner = .compiler },

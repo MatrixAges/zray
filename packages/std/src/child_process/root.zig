@@ -20,10 +20,6 @@ fn execute(allocator: std.mem.Allocator, io: std.Io, input: Options, bytes: ?[]c
 
     defer arguments.deinit();
 
-    const result = try allocator.create(api.spawnSync.OutputValue);
-
-    errdefer allocator.destroy(result);
-
     const options: std.process.RunOptions = .{
         .argv = arguments.argv,
         .cwd = if (input.cwd) |cwd| .{ .path = cwd } else .inherit,
@@ -31,6 +27,28 @@ fn execute(allocator: std.mem.Allocator, io: std.Io, input: Options, bytes: ?[]c
         .stdout_limit = .limited64(input.max_stdout_bytes),
         .stderr_limit = .limited64(input.max_stderr_bytes),
     };
+
+    return capture(allocator, io, options, bytes);
+}
+
+pub fn spawnSyncBytes(allocator: std.mem.Allocator, io: std.Io, input: api.ByteArguments) !Result {
+    if (input.argv.len == 0) return error.EmptyCommand;
+
+    for (input.argv) |argument| {
+        if (std.mem.indexOfScalar(u8, argument, 0) != null) return error.InvalidProcessArgument;
+    }
+
+    return capture(allocator, io, .{
+        .argv = input.argv,
+        .stdout_limit = .limited64(input.max_stdout_bytes),
+        .stderr_limit = .limited64(input.max_stderr_bytes),
+    }, null);
+}
+
+fn capture(allocator: std.mem.Allocator, io: std.Io, options: std.process.RunOptions, bytes: ?[]const u8) !Result {
+    const result = try allocator.create(api.spawnSync.OutputValue);
+
+    errdefer allocator.destroy(result);
 
     const captured = if (bytes) |data|
         try @import("run.zig").run(allocator, io, options, data)
@@ -40,7 +58,13 @@ fn execute(allocator: std.mem.Allocator, io: std.Io, input: Options, bytes: ?[]c
     errdefer allocator.free(captured.stdout);
     errdefer allocator.free(captured.stderr);
 
-    if (captured.stdout.len > input.max_stdout_bytes or captured.stderr.len > input.max_stderr_bytes) return error.StreamTooLong;
+    if (options.stdout_limit.toInt()) |limit| {
+        if (captured.stdout.len > limit) return error.StreamTooLong;
+    }
+
+    if (options.stderr_limit.toInt()) |limit| {
+        if (captured.stderr.len > limit) return error.StreamTooLong;
+    }
 
     result.* = .{
         .stdout = captured.stdout,

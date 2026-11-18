@@ -1,0 +1,84 @@
+<Module>
+    <Type from="model" as="Solver" />
+
+    <Args in={Solver.Proof} out={Solver.Report} />
+
+    <Call fn="paths" in={$in.path} />
+
+    <Call
+        fn="initialize"
+        in={{
+            proof: $in,
+            paths: $ctx.paths
+        }}
+    />
+
+    <Call fn="version" in={$in.solver} />
+
+    <Call
+        fn="save_response"
+        in={{
+            path: $ctx.paths.version,
+            result: $ctx.version
+        }}
+    />
+
+    <If on={!$ctx.save_response}>
+        <Return
+            value={{
+                verdict: Solver.Verdict.VersionFailed,
+                status: "",
+                model: []
+            }}
+        />
+    </If>
+
+    <Task name="conditions" out={$ctx.evaluate}>
+        <Call
+            module="evaluate"
+            in={{
+                solver: $in.solver,
+                path: $ctx.paths.feasibility,
+                record: $ctx.paths.conditions,
+                preconditions: true
+            }}
+        />
+    </Task>
+
+    <If on={$ctx.task.conditions.verdict != Solver.Verdict.Continue}>
+        <Return value={$ctx.task.conditions} />
+    </If>
+
+    <Call
+        module="evaluate"
+        in={{
+            solver: $in.solver,
+            path: $in.path,
+            record: $ctx.paths.result,
+            preconditions: false
+        }}
+    />
+
+    <If on={$ctx.evaluate.verdict == Solver.Verdict.Counterexample}>
+        <Call
+            module="counterexample"
+            in={{
+                ...$in.pick([
+                    "solver",
+                    "path",
+                    "correctness"
+                ]),
+                model: $ctx.paths.model
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.evaluate,
+                model: $ctx.counterexample
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.evaluate} />
+</Module>

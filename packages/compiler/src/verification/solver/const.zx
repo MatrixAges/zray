@@ -1,0 +1,25 @@
+export const sat: string = "sat"
+
+export const unsat: string = "unsat"
+
+export const unknown: string = "unknown"
+
+export const unproved: string = "not_proved"
+
+export const feasibility_suffix: string = ".preconditions.smt2"
+
+export const evidence_suffix: string = ".source.json"
+
+export const result_suffix: string = ".result.txt"
+
+export const model_suffix: string = ".model.txt"
+
+export const version_suffix: string = ".solver.txt"
+
+export const conditions_suffix: string = ".preconditions.result.txt"
+
+export const counterexample_suffix: string = ".counterexample.smt2"
+
+export const smt_mode: string = "-smt2"
+
+export const version_arg: string = "--version"

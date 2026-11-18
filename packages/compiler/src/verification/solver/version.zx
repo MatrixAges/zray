@@ -1,0 +1,20 @@
+import bytes from "std:bytes"
+import child from "std:child_process"
+import { max_u64 } from "core/const"
+
+import { version_arg } from "./const"
+
+import type { Result as Output } from "std:child_process"
+
+export type Input = string
+
+export default function (in: Input): Output {
+    return child.spawnSyncBytes({
+        argv: [
+            bytes.fromText(in),
+            bytes.fromText(version_arg)
+        ],
+        max_stdout_bytes: max_u64,
+        max_stderr_bytes: max_u64
+    })
+}

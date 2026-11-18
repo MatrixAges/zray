@@ -1,0 +1,44 @@
+export enum Verdict {
+    Continue,
+    Proved,
+    Counterexample,
+    Infeasible,
+    Unknown,
+    VersionFailed,
+    SolverFailed,
+    InvalidResponse
+}
+
+export type Report = {
+    verdict: Verdict,
+    status: string,
+    model: u8[]
+}
+
+export type Proof = {
+    solver: string,
+    path: string,
+    evidence: u8[],
+    feasibility: string,
+    correctness: string
+}
+
+export type Paths = {
+    feasibility: string,
+    source: string,
+    version: string,
+    result: string,
+    conditions: string,
+    model: string
+}
+
+export type Query = {
+    solver: string,
+    path: string,
+    record: string,
+    preconditions: bool
+}
+
+export type Counterexample = Proof.Pick("solver", "path", "correctness") & {
+    model: string
+}

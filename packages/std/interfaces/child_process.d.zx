@@ -19,6 +19,12 @@ export type Options = {
     max_stderr_bytes: u64
 }
 
+export type ByteArguments = {
+    argv: u8[][],
+    max_stdout_bytes: u64,
+    max_stderr_bytes: u64
+}
+
 export type InputOptions = {
     options: Options,
     input: u8[]
@@ -37,6 +43,20 @@ export declare function spawnSync(allocator, io, in: Options): Result throws {
   FileBusy, FileLocksUnsupported, FileNotFound, FileSystem, FileTooBig, InputOutput,
   InvalidBatchScriptArg, InvalidEnvironmentName, InvalidExe, InvalidName,
   InvalidProcessArgument, InvalidProcessGroupId, InvalidUserId, InvalidUtf8, InvalidWtf8,
+  IsDir, LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
+  NotOpenForReading, NotOpenForWriting, OperationUnsupported, OutOfMemory, Overflow,
+  PathAlreadyExists, PermissionDenied, PipeBusy, ProcessAlreadyExec,
+  ProcessFdQuotaExceeded, ReadOnlyFileSystem, ResourceLimitReached, SocketUnconnected,
+  StreamTooLong, SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Timeout, Unexpected,
+  UnrecognizedVolume, WouldBlock
+} concurrent
+
+export declare function spawnSyncBytes(allocator, io, in: ByteArguments): Result throws {
+  AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled,
+  ConcurrencyUnavailable, ConnectionResetByPeer, DeviceBusy, DiskQuota, EmptyCommand,
+  FileBusy, FileLocksUnsupported, FileNotFound, FileSystem, FileTooBig, InputOutput,
+  InvalidBatchScriptArg, InvalidExe, InvalidName,
+  InvalidProcessArgument, InvalidProcessGroupId, InvalidUserId, InvalidWtf8,
   IsDir, LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
   NotOpenForReading, NotOpenForWriting, OperationUnsupported, OutOfMemory, Overflow,
   PathAlreadyExists, PermissionDenied, PipeBusy, ProcessAlreadyExec,

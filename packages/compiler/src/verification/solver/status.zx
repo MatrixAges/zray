@@ -1,0 +1,36 @@
+import bytes from "std:bytes"
+
+import { sat, unsat, unknown } from "./const"
+import whitespace from "./whitespace"
+
+export type Input = u8[]
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const start = loop(0, {
+        while: i => i < in.length && whitespace(in[i]),
+        next: i => {
+            i += 1
+        }
+    })
+
+    const end = loop(in.length, {
+        while: i => i > start && whitespace(in[i - 1]),
+        next: i => {
+            i -= 1
+        }
+    })
+
+    const length = end - start
+
+    return match {
+        length == bytes.fromText(sat).length && bytes.startsWithText(in, start, sat) =>
+            sat,
+        length == bytes.fromText(unsat).length &&
+            bytes.startsWithText(in, start, unsat) => unsat,
+        length == bytes.fromText(unknown).length &&
+            bytes.startsWithText(in, start, unknown) => unknown,
+        _ => ""
+    }
+}

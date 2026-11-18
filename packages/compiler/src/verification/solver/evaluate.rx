@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Solver" />
+
+    <Args in={Solver.Query} out={Solver.Report} />
+
+    <Call
+        fn="run"
+        in={{
+            solver: $in.solver,
+            path: $in.path
+        }}
+    />
+
+    <Call
+        fn="classify"
+        in={{
+            result: $ctx.run,
+            preconditions: $in.preconditions
+        }}
+    />
+
+    <Call
+        fn="record"
+        in={{
+            path: $in.record,
+            status: $ctx.classify.status
+        }}
+    />
+
+    <Return value={$ctx.classify} />
+</Module>

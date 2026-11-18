@@ -1,0 +1,47 @@
+import bytes from "std:bytes"
+import fs from "std:fs"
+
+import { unproved } from "./const"
+
+import type { Proof, Paths } from "./model"
+
+export type Input = {
+    proof: Proof,
+    paths: Paths
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { proof, paths } = in
+
+    fs.writeFileAtomic({
+        path: bytes.fromText(proof.path),
+        data: bytes.fromText(proof.correctness),
+        make_path: true
+    })
+
+    fs.writeFileAtomic({
+        path: bytes.fromText(paths.feasibility),
+        data: bytes.fromText(proof.feasibility),
+        make_path: true
+    })
+
+    fs.writeFileAtomic({
+        path: bytes.fromText(paths.source),
+        data: proof.evidence,
+        make_path: true
+    })
+
+    fs.writeFileAtomic({
+        path: bytes.fromText(paths.result),
+        data: bytes.fromText(unproved),
+        make_path: true
+    })
+
+    fs.writeFileAtomic({
+        path: bytes.fromText(paths.model),
+        data: [],
+        make_path: true
+    })
+}

@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Solver" />
+
+    <Args in={Solver.Counterexample} out={u8[]} />
+
+    <Call
+        fn="model_query"
+        in={$in.pick([
+            "path",
+            "correctness"
+        ])}
+    />
+
+    <Call
+        fn="run"
+        in={{
+            solver: $in.solver,
+            path: $ctx.model_query
+        }}
+    />
+
+    <Call
+        fn="save_response"
+        in={{
+            path: $in.model,
+            result: $ctx.run
+        }}
+    />
+
+    <Return value={$ctx.run.stdout} />
+</Module>

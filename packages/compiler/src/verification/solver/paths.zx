@@ -1,0 +1,23 @@
+import {
+    feasibility_suffix,
+    evidence_suffix,
+    result_suffix,
+    model_suffix,
+    version_suffix,
+    conditions_suffix
+} from "./const"
+
+import type { Paths as Output } from "./model"
+
+export type Input = string
+
+export default function (in: Input): Output {
+    return {
+        feasibility: `${in}${feasibility_suffix}`,
+        source: `${in}${evidence_suffix}`,
+        version: `${in}${version_suffix}`,
+        result: `${in}${result_suffix}`,
+        conditions: `${in}${conditions_suffix}`,
+        model: `${in}${model_suffix}`
+    }
+}

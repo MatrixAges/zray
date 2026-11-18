@@ -1,0 +1,50 @@
+import { TerminationKind } from "std:child_process"
+
+import { sat, unsat } from "./const"
+import { Verdict } from "./model"
+import statusText from "./status"
+
+import type { Result } from "std:child_process"
+import type { Report as Output } from "./model"
+
+export type Input = {
+    result: Result,
+    preconditions: bool
+}
+
+export default function (in: Input): Output {
+    const { result, preconditions } = in
+
+    const exited = result.kind == TerminationKind.Exited
+
+    const failed = (
+        - !exited
+        - or result.code != 0
+        - or result.stderr.length != 0
+    )
+
+    if (failed) {
+        return {
+            verdict: Verdict.SolverFailed,
+            status: "",
+            model: []
+        }
+    }
+
+    const status = statusText(result.stdout)
+
+    const verdict = match {
+        status == "" => Verdict.InvalidResponse,
+        preconditions && status == sat => Verdict.Continue,
+        preconditions => Verdict.Infeasible,
+        status == unsat => Verdict.Proved,
+        status == sat => Verdict.Counterexample,
+        _ => Verdict.Unknown
+    }
+
+    return {
+        verdict,
+        status,
+        model: []
+    }
+}
