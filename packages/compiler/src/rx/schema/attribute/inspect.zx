@@ -1,0 +1,60 @@
+import bytes from "std:bytes"
+
+import hasContent from "../content/check"
+import {
+    name_attribute,
+    value_attribute
+} from "./const"
+import { Issue, Role } from "./model"
+import classify from "./role"
+
+import type { Attributes as Input, Finding as Output } from "./model"
+
+export default function (in: Input): Output {
+    const store_field = in.store_field
+
+    return loop({
+        row: 0,
+        issue: Issue.None,
+        index: 0,
+        invalid_kind: false
+    }, {
+        while: state => !state.invalid_kind && state.row < in.names.length,
+        next: state => {
+            const row = state.row
+            const name = in.names[row]
+            const expression = in.expressions[row]
+            const role = classify({
+                element: in.element,
+                attribute: name
+            })
+
+            const braced = role == Role.Type || role == Role.Expression
+            if (role != Role.Value && expression != braced) {
+                state.issue = braced ? Issue.Expression : Issue.Static
+                state.index = row
+                state.invalid_kind = true
+            } else {
+                const check_empty = match {
+                    store_field && name == value_attribute => false,
+                    store_field && name == name_attribute => true,
+                    state.issue != Issue.None => false,
+                    _ => expression || role != Role.Value
+                }
+
+                if (
+                    check_empty && !hasContent(bytes.fromText(in.values[row]))
+                ) {
+                    state.issue = store_field ? Issue.EmptyField : Issue.Empty
+                    state.index = row
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => ({
+            issue: state.issue,
+            index: state.index
+        })
+    })
+}

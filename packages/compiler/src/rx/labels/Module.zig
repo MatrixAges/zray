@@ -34,15 +34,9 @@ pub const Module = dsl.refineAlloc(ModuleBase, checkModule);
 fn checkModule(allocator: std.mem.Allocator, data: ModuleBase.Data, input: anytype, context: anytype, reporter: *dsl.Reporter) dsl.Error!void {
     const node = dsl.ast.view(input);
 
-    try checks.nonEmpty(node, reporter);
+    try checks.validate(.Module, data.attributes, node, reporter);
 
-    if (data.attributes.@"fn") |reference| {
-        if (node.childCount() != 0) return checks.fail(node, "fn", "Module.fn cannot be combined with child declarations or steps", reporter);
-        if (!@import("../paths.zig").isFunctionReference(reference)) return checks.fail(node, "fn", "Module.fn must reference a ZX source file", reporter);
-
-        return;
-    }
-
+    if (data.attributes.@"fn" != null) return;
     try @import("../schema/call/sequence.zig").check(node, context, reporter);
     if (comptime @import("rx_options").generated_rules) return @import("../schema/module/adapter.zig").check(allocator, data.children, node, reporter);
 

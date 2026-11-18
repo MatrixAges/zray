@@ -1,4 +1,4 @@
-import identifier from "../../result_name/identifier"
+import identifier from "../../../schema/identifier"
 import qualify from "../slot_name"
 
 export type Input = {

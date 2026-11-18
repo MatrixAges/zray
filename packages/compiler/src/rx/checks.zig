@@ -25,34 +25,6 @@ pub fn fail(input: anytype, key: []const u8, message: []const u8, reporter: *dsl
     });
 }
 
-pub fn nonEmpty(input: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    const node = dsl.ast.view(input);
-    const element = node.name();
-    var empty: ?dsl.ast.Attribute = null;
-
-    for (0..node.attributeCount()) |index| {
-        const item = node.schemaAttribute(index);
-        const selected = try @import("attribute_kind.zig").check(element, item, reporter);
-
-        if (empty != null or (item.kind == .string and selected == .Value)) continue;
-        if (!hasContent(item.value)) empty = item;
-    }
-
-    if (empty) |item| return reporter.fail(.{
-        .code = .context,
-        .location = item.value_location,
-        .element = element,
-        .attribute = item.name,
-        .message = "RX attribute must not be empty",
-    });
-}
-
-pub fn hasContent(value: []const u8) bool {
-    if (@import("rx_options").generated_rules) return @import("schema/scalar.zig").execute(@import("generated_attribute_content"), value);
-
-    return std.mem.trim(u8, value, " \t\r\n").len != 0;
-}
-
 pub fn attribute(input: anytype, name: []const u8) ?[]const u8 {
     return if (find(input, name)) |item| item.value else null;
 }
@@ -96,10 +68,12 @@ fn find(input: anytype, name: []const u8) ?dsl.ast.Attribute {
     return null;
 }
 
-pub fn nonEmptySchema(comptime Schema: type) type {
+pub const validate = @import("schema/attribute/adapter.zig").check;
+
+pub fn attributeSchema(comptime Schema: type, comptime policy: @import("schema/attribute/adapter.zig").Policy) type {
     return dsl.refine(Schema, struct {
-        fn check(_: Schema.Data, node: anytype, _: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-            try nonEmpty(node, reporter);
+        fn check(data: Schema.Data, node: anytype, _: anytype, reporter: *dsl.Reporter) dsl.Error!void {
+            try validate(policy, data.attributes, node, reporter);
         }
     }.check);
 }

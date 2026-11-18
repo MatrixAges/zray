@@ -4,7 +4,7 @@
     <Args in={Namespace.Declaration} out={Namespace.Binding} />
 
     <Call
-        fn="../../result_name/identifier"
+        fn="../../../schema/identifier"
         in={{
             name: $in.explicit ?? $in.fallback,
             allow_dollar: false

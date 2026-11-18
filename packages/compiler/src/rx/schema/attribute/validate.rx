@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Schema" />
+
+    <Args in={Schema.Input} out={Schema.Output} />
+
+    <Call fn="inspect" in={$in.attributes} />
+
+    <If
+        on={$ctx.inspect.issue != Schema.Issue.None ||
+            $in.reference.policy == Schema.Policy.Common}
+    >
+        <Return value={$ctx.inspect} />
+    </If>
+
+    <Call fn="reference" in={$in.reference} />
+
+    <Return
+        value={{
+            issue: $ctx.reference,
+            index: $ctx.inspect.index
+        }}
+    />
+</Module>

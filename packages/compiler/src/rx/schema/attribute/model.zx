@@ -4,3 +4,60 @@ export enum Role {
     Expression,
     Type
 }
+
+export enum Policy {
+    Common,
+    Module,
+    Call,
+    Import,
+    Type,
+    Field,
+    Route
+}
+
+export enum Issue {
+    None,
+    Expression,
+    Static,
+    Empty,
+    EmptyField,
+    CallTarget,
+    CallSetter,
+    CallModule,
+    ModuleChildren,
+    ModuleFunction,
+    ImportModule,
+    TypeSource,
+    TypeAlias,
+    FieldName,
+    RouteService
+}
+
+export type Attributes = {
+    element: string,
+    names: string[],
+    values: string[],
+    expressions: bool[],
+    store_field: bool
+}
+
+export type Reference = {
+    policy: Policy,
+    reference?: string,
+    identifier: string,
+    has_function: bool,
+    has_setter: bool,
+    has_children: bool
+}
+
+export type Input = {
+    attributes: Attributes,
+    reference: Reference
+}
+
+export type Finding = {
+    issue: Issue,
+    index: u64
+}
+
+export type Output = Finding

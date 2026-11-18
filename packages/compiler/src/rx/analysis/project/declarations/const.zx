@@ -13,7 +13,3 @@ export const output_attribute: string = "out"
 export const source_attribute: string = "from"
 
 export const alias_attribute: string = "as"
-
-export const name_attribute: string = "name"
-
-export const value_attribute: string = "value"

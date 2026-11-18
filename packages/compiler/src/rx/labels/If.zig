@@ -21,8 +21,7 @@ pub const If = dsl.refineAlloc(IfBase, checkIf);
 fn checkIf(allocator: std.mem.Allocator, data: IfBase.Data, input: anytype, _: anytype, reporter: *dsl.Reporter) dsl.Error!void {
     const node = dsl.ast.view(input);
 
-    try checks.nonEmpty(node, reporter);
-
+    try checks.validate(.Common, data.attributes, node, reporter);
     if (comptime @import("rx_options").generated_rules) return @import("../schema/selection/adapter.zig").checkIf(allocator, data.children, node, reporter);
 
     var children = node.children();

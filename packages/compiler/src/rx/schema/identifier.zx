@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import { ascii_dollar, ascii_dot } from "core/ascii/const"
 
-import validPath from "../../../zx/analysis/expression_program/bindings/path/valid"
+import validPath from "../../zx/analysis/expression_program/bindings/path/valid"
 
 export type Input = {
     name: string,

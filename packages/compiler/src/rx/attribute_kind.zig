@@ -1,5 +1,4 @@
 const std = @import("std");
-const dsl = @import("dsl");
 const Role = if (@import("rx_options").generated_rules) @import("generated_attribute_role").Output else enum { Static, Value, Expression, Type };
 
 pub fn typeValue(element: []const u8, attribute: []const u8) bool {
@@ -17,33 +16,7 @@ fn nativeValue(element: []const u8, attribute: []const u8) bool {
     return false;
 }
 
-pub fn validate(input: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    const node = dsl.ast.view(input);
-
-    for (0..node.attributeCount()) |index| {
-        _ = try check(node.name(), node.schemaAttribute(index), reporter);
-    }
-}
-
-pub fn check(element: []const u8, attribute: dsl.ast.Attribute, reporter: *dsl.Reporter) dsl.Error!Role {
-    const selected = role(element, attribute.name);
-
-    if (selected == .Value) return selected;
-
-    const expression = selected == .Expression or selected == .Type;
-
-    if ((attribute.kind == .expression) != expression) return reporter.fail(.{
-        .code = .invalid_attribute,
-        .location = attribute.value_location,
-        .element = element,
-        .attribute = attribute.name,
-        .message = if (expression) "This attribute requires a braced expression" else "This attribute requires a quoted static string",
-    });
-
-    return selected;
-}
-
-fn role(element: []const u8, attribute: []const u8) Role {
+pub fn role(element: []const u8, attribute: []const u8) Role {
     if (@import("rx_options").generated_rules) return @import("schema/scalar.zig").execute(@import("generated_attribute_role"), &.{ .element = element, .attribute = attribute });
     if (nativeValue(element, attribute)) return .Value;
     if (std.mem.eql(u8, element, "Field") and std.mem.eql(u8, attribute, "type")) return .Type;

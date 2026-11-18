@@ -14,7 +14,7 @@ pub const Switch = dsl.refineAlloc(SwitchBase, checkSwitch);
 fn checkSwitch(allocator: std.mem.Allocator, data: SwitchBase.Data, input: anytype, _: anytype, reporter: *dsl.Reporter) dsl.Error!void {
     const node = dsl.ast.view(input);
 
-    try checks.nonEmpty(node, reporter);
+    try checks.validate(.Common, data.attributes, node, reporter);
     if (comptime @import("rx_options").generated_rules) return @import("../schema/selection/adapter.zig").checkSwitch(allocator, data.children, node, reporter);
     try checks.uniqueChildren(node, "Case", "value", reporter);
 

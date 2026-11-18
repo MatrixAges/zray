@@ -11,3 +11,7 @@ export const from_attribute: string = "from"
 export const service_attribute: string = "service"
 
 export const output_attribute: string = "out"
+
+export const name_attribute: string = "name"
+
+export const value_attribute: string = "value"

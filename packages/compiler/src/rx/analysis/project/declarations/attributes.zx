@@ -1,12 +1,11 @@
 import memory from "memory"
 
+import { name_attribute, value_attribute } from "../../../schema/attribute/const"
 import {
     alias_attribute,
     input_attribute,
-    name_attribute,
     output_attribute,
-    source_attribute,
-    value_attribute
+    source_attribute
 } from "./const"
 import { Kind } from "./model"
 

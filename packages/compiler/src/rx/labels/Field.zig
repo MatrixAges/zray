@@ -1,6 +1,4 @@
-const std = @import("std");
 const dsl = @import("dsl");
-const frontend = @import("frontend");
 const checks = @import("../checks.zig");
 
 const FieldBase = dsl.element("Field", struct {
@@ -8,12 +6,4 @@ const FieldBase = dsl.element("Field", struct {
     type: []const u8,
 }, dsl.empty);
 
-pub const Field = dsl.refine(FieldBase, checkField);
-
-fn checkField(data: FieldBase.Data, node: anytype, _: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    try checks.nonEmpty(node, reporter);
-
-    if (!frontend.binding_path.valid(data.attributes.name) or std.mem.indexOfScalar(u8, data.attributes.name, '.') != null) {
-        return checks.fail(node, "name", "Field name must be one ZX identifier", reporter);
-    }
-}
+pub const Field = checks.attributeSchema(FieldBase, .Field);

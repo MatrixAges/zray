@@ -1,0 +1,66 @@
+import bytes from "std:bytes"
+
+import path from "../../path_kind/check"
+import { Kind } from "../../path_kind/model"
+import call from "../call/check"
+import { Issue as CallIssue } from "../call/model"
+import identifier from "../identifier"
+import { Issue, Policy } from "./model"
+
+import type { Reference as Input } from "./model"
+
+export type Output = Issue
+
+export default function (in: Input): Output {
+    const reference = in.reference
+
+    if (in.policy == Policy.Call) {
+        const target = call({
+            has_function: in.has_function,
+            has_module: reference != null,
+            has_setter: in.has_setter
+        })
+
+        switch (target) {
+            case CallIssue.Target:
+                return Issue.CallTarget
+            case CallIssue.Setter:
+                return Issue.CallSetter
+        }
+    }
+
+    if (reference != null) {
+        if (in.policy == Policy.Module && in.has_children) {
+            return Issue.ModuleChildren
+        }
+
+        const fn_path = in.policy == Policy.Type || in.policy == Policy.Module
+
+        const valid = path({
+            path: bytes.fromText(reference),
+            kind: fn_path ? Kind.FunctionReference : Kind.ModuleReference,
+            suffix: ""
+        })
+
+        if (!valid) {
+            return match in.policy {
+                Policy.Call => Issue.CallModule,
+                Policy.Module => Issue.ModuleFunction,
+                Policy.Type => Issue.TypeSource,
+                Policy.Route => Issue.RouteService,
+                _ => Issue.ImportModule
+            }
+        }
+    }
+
+    if (in.policy == Policy.Type || in.policy == Policy.Field) {
+        if (!identifier({
+            name: in.identifier,
+            allow_dollar: true
+        })) {
+            return in.policy == Policy.Type ? Issue.TypeAlias : Issue.FieldName
+        }
+    }
+
+    return Issue.None
+}
