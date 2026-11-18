@@ -33,11 +33,10 @@ pub fn fromPublication(path: []const u8, published: anytype, tables: Tables, exp
     };
 }
 
-pub fn materialize(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module: *const Model.Module, body: ?*const ir.Function, recursive: ?ir.FunctionId, tables: Tables, mapping: []const ir.TypeId) Model.Error!ir.Program {
+pub fn materialize(allocator: std.mem.Allocator, module: *const Model.Module, body: ?*const ir.Function, recursive: ?ir.FunctionId, tables: Tables, mapping: []const ir.TypeId) Model.Error!ir.Program {
     var assembled = try assemble(allocator, module, body, tables, mapping);
 
     if (recursive) |id| try @import("../../function_body.zig").entry(allocator, &assembled, id);
-    if (try @import("../../../ir/validate.zig").validate(temporary, assembled) != null) return error.InvalidIr;
 
     return assembled;
 }

@@ -17,3 +17,4 @@ pub const Error = @import("diagnostic.zig").Error;
 pub const Span = source.Span;
 pub const language_version = "0.1.0";
 pub const ir_version: u32 = 37;
+pub const staticSequence = @import("sequence.zig").steps;

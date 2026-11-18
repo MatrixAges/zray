@@ -1,6 +1,5 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const generated = @import("parser_options").generated_parser;
 const model = @import("../artifact/model.zig");
 const Nodes = @import("../artifact/nodes.zig");
 const native = @import("native.zig");
@@ -15,9 +14,7 @@ type_mappings: []const []const ir.TypeId,
 functions: ir.FunctionStorage = .{},
 native_modules: ir.NativeModuleStorage = .{},
 module_functions: []?ir.FunctionId,
-pub fn module(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.FunctionEntry {
-    if (comptime generated) return @import("artifact/binding/host.zig").bind(self, index, entry);
-
+pub fn moduleSeed(self: *Self, index: usize, comptime entry: bool) Error!?Nodes.FunctionEntry {
     const value = &self.modules[index];
     const admission = @import("artifact/admission/host.zig");
 

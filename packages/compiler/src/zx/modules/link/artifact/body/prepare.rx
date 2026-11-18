@@ -25,12 +25,10 @@
         <If on={!$ctx.structure}>
             <Return value={Body.Placement.Invalid} />
         </If>
+    </If>
 
-        <Else>
-            <If on={$ctx.place == Body.Placement.RejectStoreDependency}>
-                <Return value={Body.Placement.Invalid} />
-            </If>
-        </Else>
+    <If on={$ctx.place == Body.Placement.RejectStoreDependency}>
+        <Return value={Body.Placement.Invalid} />
     </If>
 
     <Return value={$ctx.place} />

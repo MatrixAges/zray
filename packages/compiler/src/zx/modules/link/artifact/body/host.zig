@@ -59,7 +59,6 @@ pub fn publish(nodes: *const Nodes, value: *const ir.Function, storage: *ir.Func
             .control = zx.columns.pointer(@FieldType(Empty, "control"), (ir.ControlBody{}).control),
             .stores = zx.columns.pointer(@FieldType(Empty, "stores"), &ir.FunctionStorage.empty_stores),
         },
-        .reject_store = placement == .RejectStoreDependency,
     };
 
     const result = (generated.executeState(nodes.allocator, if (indirect) &input else input) catch |err| switch (@as(anyerror, err)) {

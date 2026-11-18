@@ -232,7 +232,7 @@ pub fn run(temporary: std.mem.Allocator, request: *const Binding) Builder.Error!
     };
 
     return switch (status) {
-        .Absent, .Append, .Retain, .RejectStoreDependency => status,
+        .Absent, .Append, .Retain => status,
         .Invalid => error.InvalidModule,
         .Conflict => error.ConflictingInterface,
         .Full => error.OutOfMemory,

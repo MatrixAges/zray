@@ -51,7 +51,7 @@ pub fn select(previous: bool, bodies_only: bool, stores: usize) Reuse {
 }
 
 pub fn steps(comptime phase: Phase) []const Step {
-    if (comptime enabled) return @import("../sequence.zig").steps(schedule, phase);
+    if (comptime enabled) return @import("zx").staticSequence(schedule, phase);
 
     return switch (phase) {
         .FreshProject => &.{ .NormalizeSources, .DeriveFrame, .CompileBodies, .PublishStores },

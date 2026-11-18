@@ -9,7 +9,6 @@ export enum Status {
     Absent,
     Append,
     Retain,
-    RejectStoreDependency,
     Invalid,
     Conflict,
     Full

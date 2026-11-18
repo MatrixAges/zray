@@ -5,10 +5,6 @@
 
     <Call module="../../../artifact/materializing/own_function" in={$in.body} />
 
-    <If on={$in.reject_store}>
-        <Return value={null} />
-    </If>
-
     <If on={$ctx.own_function != null}>
         <If on={$in.tail != null}>
             <Call

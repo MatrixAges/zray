@@ -24,5 +24,5 @@ pub fn steps(comptime form: Form) []const Step {
         .Call => &.{ .ScanCall, .ParseArgument, .AuthorizeCall, .ResolveCallee, .PublishCall, .RecordArgument, .BindPrevious },
     };
 
-    return @import("../sequence.zig").steps(rule, form);
+    return @import("zx").staticSequence(rule, form);
 }

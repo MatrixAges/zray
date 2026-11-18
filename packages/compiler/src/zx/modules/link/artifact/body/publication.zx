@@ -21,8 +21,7 @@ export type Input = {
     columns: Columns,
     tail?: Tail,
     attributes: Attributes,
-    empty: Empty,
-    reject_store: bool
+    empty: Empty
 }
 
 export type Output = {

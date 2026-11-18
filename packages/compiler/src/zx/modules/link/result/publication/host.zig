@@ -18,7 +18,7 @@ const Expressions = std.meta.Child(@FieldType(Body, "expressions"));
 const Contracts = std.meta.Child(@FieldType(Body, "contracts"));
 const Registration = std.meta.Child(@typeInfo(@FieldType(Input, "registration")).optional.child);
 
-pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module: *const Model.Module, function: ?*const Nodes.FunctionEntry, tables: program.Tables, functions: *ir.FunctionStorage, mapping: []const ir.TypeId) Model.Error!ir.Program {
+pub fn finish(allocator: std.mem.Allocator, module: *const Model.Module, function: ?*const Nodes.FunctionEntry, tables: program.Tables, functions: *ir.FunctionStorage, mapping: []const ir.TypeId) Model.Error!ir.Program {
     const source_stores = zx.columns.columns(Store, module.stores);
     var surface: Surface(std.meta.Child(@FieldType(Input, "surface"))) = undefined;
 
@@ -96,9 +96,5 @@ pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module
         .native_modules = tables.native_modules,
     };
 
-    const assembled = program.fromPublication(published.path, published, linked_tables, surface.exports(), surface.constants());
-
-    if (try @import("../../../../ir/validate.zig").validate(temporary, assembled) != null) return error.InvalidIr;
-
-    return assembled;
+    return program.fromPublication(published.path, published, linked_tables, surface.exports(), surface.constants());
 }
