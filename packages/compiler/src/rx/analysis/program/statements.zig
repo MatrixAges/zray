@@ -20,7 +20,7 @@ plan: Plan,
 writer: *Writer,
 calls: []const Module.Call,
 retain_metadata: bool,
-pub fn finishTask(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cursor, step: Flow.Step, count: usize) Builder.Error!void {
+pub fn finishTask(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cursor, row: usize, count: usize) Builder.Error!void {
     const builder = self.builder;
     var value: ir.ExprId = undefined;
     var symbol: ir.SymbolId = undefined;
@@ -28,10 +28,10 @@ pub fn finishTask(self: *const Self, comptime form: Schedule.Form, cursor: *Writ
     inline for (comptime Schedule.steps(form)) |action| {
         switch (action) {
             .Done => {},
-            .EvaluateTaskOutput => value = try inlineValue(builder, step.value.?.*, false),
+            .EvaluateTaskOutput => value = try inlineValue(builder, self.flow.steps.items(.value)[row].?.*, false),
             .WriteEvaluation => self.writer.evaluate(cursor, value),
             .DefineTaskBinding => {
-                symbol = try builder.symbol(step.name.?, builder.expressionType(value), builder.expressionSpan(value));
+                symbol = try builder.symbol(self.flow.steps.items(.name)[row].?, builder.expressionType(value), builder.expressionSpan(value));
 
                 self.writer.constant(cursor, symbol, value);
             },

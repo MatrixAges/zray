@@ -1,72 +1,23 @@
 <Module>
-    <Type from="../../control/model" as="Control" />
     <Type from="model" as="Traversal" />
 
-    <Args in={Traversal.Input} out={Traversal.Output} />
+    <Args in={Traversal.Input} out={Traversal.Batch} />
 
-    <If on={$in.position == $in.end}>
-        <Call fn="finish" in={$in} />
+    <Call fn="call_end" in={$in} />
 
-        <Return value={$ctx.finish} />
-    </If>
+    <Call
+        module="step"
+        in={{
+            ...$in,
+            position: $ctx.call_end
+        }}
+    />
 
-    <If on={$in.region == Traversal.Region.Selection}>
-        <Call fn="open_case" in={$in} />
-
-        <Return value={$ctx.open_case} />
-    </If>
-
-    <Switch on={$in.shape.steps.kinds[$in.position]}>
-        <Case value={Control.Kind.Call}>
-            <Call fn="call_run" in={$in} />
-
-            <Return value={$ctx.call_run} />
-        </Case>
-
-        <Case value={Control.Kind.Parallel}>
-            <Return
-                value={{
-                    action: Traversal.Action.Parallel,
-                    next: $in.position + 1,
-                    first: $in.shape.steps.firsts[$in.position],
-                    count: $in.shape.steps.counts[$in.position]
-                }}
-            />
-        </Case>
-
-        <Case value={Control.Kind.Return}>
-            <If on={$in.region == Traversal.Region.Root && $in.borrow_root}>
-                <Return
-                    value={{
-                        action: Traversal.Action.ReturnBorrowed,
-                        next: $in.position + 1
-                    }}
-                />
-            </If>
-
-            <Return
-                value={{
-                    action: Traversal.Action.Return,
-                    next: $in.position + 1
-                }}
-            />
-        </Case>
-
-        <Case value={Control.Kind.Task}>
-            <Call fn="open_task" in={$in} />
-
-            <Return value={$ctx.open_task} />
-        </Case>
-
-        <Case value={Control.Kind.Selection}>
-            <Return
-                value={{
-                    action: Traversal.Action.OpenSelection,
-                    next: $in.position + 1,
-                    first: $in.shape.steps.firsts[$in.position],
-                    count: $in.shape.steps.counts[$in.position]
-                }}
-            />
-        </Case>
-    </Switch>
+    <Return
+        value={{
+            ...$ctx.step,
+            position: $ctx.call_end,
+            pop: $ctx.call_end == $in.end && $in.region != Traversal.Region.Root
+        }}
+    />
 </Module>

@@ -1,20 +1,22 @@
 import { Kind } from "../../control/model"
-import { Action } from "./model"
+import { Region } from "./model"
 
-import type { Input, Output } from "./model"
+import type { Input } from "./model"
+
+export type Output = u64
 
 export default function (in: Input): Output {
+    if (in.region == Region.Selection) {
+        return in.position
+    }
+
     const kinds = in.shape.steps.kinds
 
-    const next = loop(in.position + 1, {
+    return loop(in.position, {
         while: row => row < in.end && kinds[row] == Kind.Call,
         next: row => {
             row += 1
-        }
+        },
+        return: row => row
     })
-
-    return {
-        action: Action.Calls,
-        next
-    }
 }

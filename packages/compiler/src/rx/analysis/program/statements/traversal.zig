@@ -6,12 +6,13 @@ const Flow = @import("../flow.zig");
 const Writer = @import("../control/writer.zig");
 const inlineValue = @import("../expression.zig").inlineValue;
 const generated = @import("rx_options").generated_graph;
-const driver = if (generated) @import("traversal/driver.zig") else void;
-const Shape = if (generated) driver.Shape else void;
-const Region = if (generated) driver.Region else @import("traversal/seed.zig").Region;
+const rule = if (generated) @import("generated_rx_statement_advance") else void;
+const Input = if (generated) std.meta.Child(rule.Input) else @import("traversal/seed.zig").Input;
+const Shape = if (generated) std.meta.Child(@FieldType(Input, "shape")) else void;
+const Region = if (generated) @FieldType(Input, "region") else @import("traversal/seed.zig").Region;
 const inline_depth = 4;
 
-pub const Cursor = struct {
+const Cursor = struct {
     position: usize,
     end: usize,
     pub fn range(first: u32, count: u32) Cursor {
@@ -19,7 +20,7 @@ pub const Cursor = struct {
     }
 };
 
-pub const Frame = struct {
+const Frame = struct {
     cursor: Cursor,
     // An inline unit borrows its enclosing block's writer by index across stack growth.
     block: ?usize = null,
@@ -81,33 +82,36 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
         stack.deinit(temporary);
     }
 
-    if (comptime generated) return driver.run(self, &root, root_writer, &stack, temporary, &shape);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     while (true) {
         const frame = if (stack.items.len == 0) &root else &stack.items[stack.items.len - 1];
         const region = std.meta.activeTag(frame.scope);
-        const position = frame.cursor.position;
+        const first = frame.cursor.position;
         const block = frame.block;
         const writer = if (block) |index| &stack.items[index].scope.Case.writer else root_writer;
 
-        const event = @import("traversal/seed.zig").advance(flow, .{
+        const input: Input = .{
+            .shape = if (generated) &shape else {},
             .region = region,
-            .position = position,
+            .position = first,
             .end = frame.cursor.end,
             .scope_step = frame.step,
             .case_first = writer.counts.cases,
             .borrow_root = self.retain_metadata,
-        });
+        };
+
+        const event = if (comptime generated) zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch return error.InvalidModule else @import("traversal/seed.zig").advance(flow, input);
+        const position: usize = @intCast(event.position);
 
         frame.cursor.position = @intCast(event.next);
 
+        if (first < position) {
+            for (steps.items(.first)[first..position]) |call| try self.call(writer, &self.calls[call]);
+        }
+
         switch (event.action) {
             .Done => return,
-            .Calls => {
-                for (steps.items(.first)[position..frame.cursor.position]) |call| {
-                    try self.call(writer, &self.calls[call]);
-                }
-            },
             .Parallel => try self.parallel(writer, self.calls[event.first.?..][0..event.count.?]),
             .Return, .ReturnBorrowed => {
                 const program = steps.items(.value)[position].?;
@@ -146,23 +150,11 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
                     } },
                 });
             },
-            .CloseTask, .EvaluateTask, .BindTask => {
-                const step = steps.get(frame.step);
-                const bindings = frame.scope.Task;
-
-                switch (event.action) {
-                    .CloseTask => try self.finishTask(.Task, writer, step, bindings),
-                    .EvaluateTask => try self.finishTask(.TaskWithEvaluation, writer, step, bindings),
-                    .BindTask => try self.finishTask(.TaskWithBinding, writer, step, bindings),
-                    else => unreachable,
-                }
-
-                _ = stack.pop();
-            },
+            .CloseTask => try self.finishTask(.Task, writer, frame.step, frame.scope.Task),
+            .EvaluateTask => try self.finishTask(.TaskWithEvaluation, writer, frame.step, frame.scope.Task),
+            .BindTask => try self.finishTask(.TaskWithBinding, writer, frame.step, frame.scope.Task),
             .CloseSelection => {
                 self.writer.selection(writer, frame.scope.Selection, event.count.?, event.exhaustive.?);
-
-                _ = stack.pop();
             },
             .CloseCase => {
                 const branch = &frame.scope.Case;
@@ -171,9 +163,9 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
                 try self.writer.finishCase(writer, row.tag, self.plan.end(branch.unit), branch.target, branch.label);
 
                 builder.bindings.shrinkRetainingCapacity(branch.bindings);
-
-                _ = stack.pop();
             },
         }
+
+        if (event.pop) _ = stack.pop();
     }
 }

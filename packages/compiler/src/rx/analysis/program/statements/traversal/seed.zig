@@ -3,7 +3,6 @@ pub const Region = enum { Root, Task, Selection, Case };
 
 const Action = enum {
     Done,
-    Calls,
     Parallel,
     Return,
     ReturnBorrowed,
@@ -17,7 +16,8 @@ const Action = enum {
     CloseCase,
 };
 
-const Input = struct {
+pub const Input = struct {
+    shape: void,
     region: Region,
     position: usize,
     end: usize,
@@ -26,9 +26,11 @@ const Input = struct {
     borrow_root: bool,
 };
 
-pub const Event = struct {
+const Event = struct {
     action: Action,
     next: usize,
+    position: usize,
+    pop: bool = false,
     first: ?u32 = null,
     count: ?u32 = null,
     unit: ?u32 = null,
@@ -38,17 +40,22 @@ pub const Event = struct {
 
 pub fn advance(flow: *const Flow, in: Input) Event {
     const steps = flow.steps.slice();
-    const row = in.position;
+    const kinds = steps.items(.kind);
+    var row = in.position;
+
+    if (in.region != .Selection) {
+        while (row < in.end and kinds[row] == .Call) row += 1;
+    }
 
     if (row == in.end) return switch (in.region) {
-        .Root => .{ .action = .Done, .next = row },
+        .Root => .{ .action = .Done, .next = row, .position = row },
         .Task => .{ .action = switch (steps.items(.output)[in.scope_step]) {
             .None => .CloseTask,
             .Evaluate => .EvaluateTask,
             .Constant => .BindTask,
-        }, .next = row },
-        .Selection => .{ .action = .CloseSelection, .next = row, .count = steps.items(.count)[in.scope_step], .exhaustive = steps.items(.exhaustive)[in.scope_step] },
-        .Case => .{ .action = .CloseCase, .next = row },
+        }, .next = row, .position = row, .pop = true },
+        .Selection => .{ .action = .CloseSelection, .next = row, .position = row, .pop = true, .count = steps.items(.count)[in.scope_step], .exhaustive = steps.items(.exhaustive)[in.scope_step] },
+        .Case => .{ .action = .CloseCase, .next = row, .position = row, .pop = true },
     };
 
     const next = row + 1;
@@ -58,26 +65,18 @@ pub fn advance(flow: *const Flow, in: Input) Event {
         const unit = flow.units.get(child);
         const offset: u32 = @intCast(row - steps.items(.first)[in.scope_step]);
 
-        return .{ .action = .OpenCase, .next = next, .first = unit.first, .count = unit.count, .unit = child, .target = in.case_first + offset };
+        return .{ .action = .OpenCase, .next = next, .position = row, .first = unit.first, .count = unit.count, .unit = child, .target = in.case_first + offset };
     }
 
-    const kinds = steps.items(.kind);
-
     return switch (kinds[row]) {
-        .Call => calls: {
-            var end = next;
-
-            while (end < in.end and kinds[end] == .Call) : (end += 1) {}
-
-            break :calls .{ .action = .Calls, .next = end };
-        },
-        .Parallel => .{ .action = .Parallel, .next = next, .first = steps.items(.first)[row], .count = steps.items(.count)[row] },
-        .Return => .{ .action = if (in.region == .Root and in.borrow_root) .ReturnBorrowed else .Return, .next = next },
+        .Call => unreachable,
+        .Parallel => .{ .action = .Parallel, .next = next, .position = row, .first = steps.items(.first)[row], .count = steps.items(.count)[row] },
+        .Return => .{ .action = if (in.region == .Root and in.borrow_root) .ReturnBorrowed else .Return, .next = next, .position = row },
         .Task => task: {
             const unit = flow.units.get(steps.items(.first)[row]);
 
-            break :task .{ .action = .OpenTask, .next = next, .first = unit.first, .count = unit.count };
+            break :task .{ .action = .OpenTask, .next = next, .position = row, .first = unit.first, .count = unit.count };
         },
-        .Selection => .{ .action = .OpenSelection, .next = next, .first = steps.items(.first)[row], .count = steps.items(.count)[row] },
+        .Selection => .{ .action = .OpenSelection, .next = next, .position = row, .first = steps.items(.first)[row], .count = steps.items(.count)[row] },
     };
 }

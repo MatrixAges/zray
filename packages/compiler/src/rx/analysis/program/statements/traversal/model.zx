@@ -9,7 +9,6 @@ export enum Region {
 
 export enum Action {
     Done,
-    Calls,
     Parallel,
     Return,
     ReturnBorrowed,
@@ -21,13 +20,6 @@ export enum Action {
     BindTask,
     CloseSelection,
     CloseCase
-}
-
-export enum Stage {
-    Done,
-    Emit,
-    Enter,
-    Leave
 }
 
 export type Shape = {
@@ -54,4 +46,9 @@ export type Output = {
     unit?: u32,
     target?: u32,
     exhaustive?: bool
+}
+
+export type Batch = Output & {
+    position: u64,
+    pop: bool
 }
