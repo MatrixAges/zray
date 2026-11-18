@@ -1,6 +1,19 @@
 <Module>
     <Call module="ir/prepare" in={$in} />
-    <Call fn="runtime/initialize" in={{ program: $in, layout: $ctx.prepare.layout }} />
 
-    <Return value={{ prepared: $ctx.prepare, memory: $ctx.initialize.memory, snapshots: $ctx.initialize.snapshots }} />
+    <Call
+        fn="runtime/initialize"
+        in={{
+            program: $in,
+            layout: $ctx.prepare.layout
+        }}
+    />
+
+    <Return
+        value={{
+            prepared: $ctx.prepare,
+            memory: $ctx.initialize.memory,
+            snapshots: $ctx.initialize.snapshots
+        }}
+    />
 </Module>

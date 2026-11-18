@@ -1,4 +1,5 @@
 <Module>
-  <Call fn="context" in={$in}/>
-  <Return value={$ctx.context}/>
+    <Call fn="context" in={$in}/>
+
+    <Return value={$ctx.context}/>
 </Module>

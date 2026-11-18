@@ -1,7 +1,13 @@
 <Module>
     <Call fn="zx/analysis/semantic/resolving/initial" in={$in} />
 
-    <Call fn="zx/analysis/semantic/resolving/execute" in={{ state: $ctx.initial, initialize: $in.initialize }} />
+    <Call
+        fn="zx/analysis/semantic/resolving/execute"
+        in={{
+            state: $ctx.initial,
+            initialize: $in.initialize
+        }}
+    />
 
     <Return value={$ctx.execute} />
 </Module>

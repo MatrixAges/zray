@@ -5,8 +5,14 @@
         <Case value={true}>
             <Call fn="control/terminates" in={$in} />
 
-            <Return value={{ valid: true, returns: $ctx.terminates }} />
+            <Return
+                value={{
+                    valid: true,
+                    returns: $ctx.terminates
+                }}
+            />
         </Case>
+
         <Default>
             <Call fn="control/invalid" in={$in} />
 

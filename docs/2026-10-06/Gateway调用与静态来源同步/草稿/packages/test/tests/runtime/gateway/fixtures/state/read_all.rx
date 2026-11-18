@@ -1,6 +1,14 @@
 <Module>
-  <Store from="other" as="first"/>
-  <Store from="state" as="second"/>
-  <Call fn="read_pair" in={{primary: store.second.counter, secondary: store.first.counter}}/>
-  <Return value={$ctx.read_pair}/>
+    <Store from="other" as="first"/>
+    <Store from="state" as="second"/>
+
+    <Call
+        fn="read_pair"
+        in={{
+            primary: store.second.counter,
+            secondary: store.first.counter
+        }}
+    />
+
+    <Return value={$ctx.read_pair}/>
 </Module>

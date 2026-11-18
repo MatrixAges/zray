@@ -1,5 +1,14 @@
 <Module>
-  <Store from="other" as="inner"/>
-  <Call fn="advance" in={{increment: $in, state: store.inner.counter}} setter={[store.inner.counter]}/>
-  <Return value={$ctx.advance}/>
+    <Store from="other" as="inner"/>
+
+    <Call
+        fn="advance"
+        in={{
+            increment: $in,
+            state: store.inner.counter
+        }}
+        setter={[store.inner.counter]}
+    />
+
+    <Return value={$ctx.advance}/>
 </Module>

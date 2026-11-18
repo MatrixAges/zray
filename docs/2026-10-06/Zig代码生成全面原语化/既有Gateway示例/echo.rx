@@ -1,4 +1,5 @@
 <Module>
-  <Call fn="echo" in={$in} />
-  <Return value={$ctx.echo} />
+    <Call fn="echo" in={$in} />
+
+    <Return value={$ctx.echo} />
 </Module>

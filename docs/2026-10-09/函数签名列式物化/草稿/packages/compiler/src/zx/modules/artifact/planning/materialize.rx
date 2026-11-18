@@ -1,28 +1,75 @@
 <Module>
     <Call module="plan" in={$in} />
-    <Call fn="../../../analysis/semantic/extracting/planning/ready" in={$ctx.plan.state} />
+
+    <Call
+        fn="../../../analysis/semantic/extracting/planning/ready"
+        in={$ctx.plan.state}
+    />
 
     <Switch on={$ctx.ready}>
         <Case value={true}>
-            <Call module="../../../analysis/semantic/extracting/materializing/materialize" in={{ table: $in.request.table, origins: $in.request.origins, plan: $ctx.plan.state }} />
+            <Call
+                module="../../../analysis/semantic/extracting/materializing/materialize"
+                in={{
+                    table: $in.request.table,
+                    origins: $in.request.origins,
+                    plan: $ctx.plan.state
+                }}
+            />
 
-            <Call fn="../materializing/natives" in={{ modules: $in.modules, plan: $ctx.plan.natives, mapping: $ctx.plan.state.mapping }} />
+            <Call
+                fn="../materializing/natives"
+                in={{
+                    modules: $in.modules,
+                    plan: $ctx.plan.natives,
+                    mapping: $ctx.plan.state.mapping
+                }}
+            />
 
             <Switch on={$ctx.natives != null}>
                 <Case value={true}>
-                    <Call fn="../materializing/signatures" in={{ source: $in.declarations, plan: $ctx.plan.functions, types: $ctx.plan.state.mapping, natives: $ctx.plan.natives.mapping }} />
+                    <Call
+                        fn="../materializing/signatures"
+                        in={{
+                            source: $in.declarations,
+                            plan: $ctx.plan.functions,
+                            types: $ctx.plan.state.mapping,
+                            natives: $ctx.plan.natives.mapping
+                        }}
+                    />
 
-                    <Return value={{ plan: $ctx.plan, value: $ctx.materialize, natives: $ctx.natives, signatures: $ctx.signatures }} />
+                    <Return
+                        value={{
+                            plan: $ctx.plan,
+                            value: $ctx.materialize,
+                            natives: $ctx.natives,
+                            signatures: $ctx.signatures
+                        }}
+                    />
                 </Case>
 
                 <Default>
-                    <Return value={{ plan: $ctx.plan, value: null, natives: null, signatures: null }} />
+                    <Return
+                        value={{
+                            plan: $ctx.plan,
+                            value: null,
+                            natives: null,
+                            signatures: null
+                        }}
+                    />
                 </Default>
             </Switch>
         </Case>
 
         <Default>
-            <Return value={{ plan: $ctx.plan, value: null, natives: null, signatures: null }} />
+            <Return
+                value={{
+                    plan: $ctx.plan,
+                    value: null,
+                    natives: null,
+                    signatures: null
+                }}
+            />
         </Default>
     </Switch>
 </Module>

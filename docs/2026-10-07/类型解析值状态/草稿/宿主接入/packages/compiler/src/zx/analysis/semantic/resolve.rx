@@ -1,6 +1,13 @@
 <Module>
     <Call fn="resolving/initial" in={$in} />
-    <Call fn="resolving/execute" in={{ state: $ctx.initial, initialize: $in.initialize }} />
+
+    <Call
+        fn="resolving/execute"
+        in={{
+            state: $ctx.initial,
+            initialize: $in.initialize
+        }}
+    />
 
     <Return value={$ctx.execute} />
 </Module>

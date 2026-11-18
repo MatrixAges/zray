@@ -1,4 +1,5 @@
 <Module>
-  <Call fn="constant" in={$in} out="ctx.value"/>
-  <Return value={ctx.value}/>
+    <Call fn="constant" in={$in} out="ctx.value"/>
+
+    <Return value={ctx.value}/>
 </Module>

@@ -1,10 +1,23 @@
 <Module>
-  <Call module="bundle/snapshot" />
-  <Call module="other/snapshot_other_before" />
-  <Call module="same/advance" in={$in.left} />
-  <Call module="bundle/again" in={$in.right} />
-  <Call module="other/advance_other" in={$in.right} />
-  <Call module="same/snapshot_after" />
-  <Call module="other/snapshot_other_after" />
-  <Return value={{before: $ctx.snapshot, first: $ctx.advance, second: $ctx.again, after: $ctx.snapshot_after, other_before: $ctx.snapshot_other_before, other: $ctx.advance_other, other_after: $ctx.snapshot_other_after}} />
+    <Call module="bundle/snapshot" />
+    <Call module="other/snapshot_other_before" />
+
+    <Call module="same/advance" in={$in.left} />
+    <Call module="bundle/again" in={$in.right} />
+    <Call module="other/advance_other" in={$in.right} />
+
+    <Call module="same/snapshot_after" />
+    <Call module="other/snapshot_other_after" />
+
+    <Return
+        value={{
+            before: $ctx.snapshot,
+            first: $ctx.advance,
+            second: $ctx.again,
+            after: $ctx.snapshot_after,
+            other_before: $ctx.snapshot_other_before,
+            other: $ctx.advance_other,
+            other_after: $ctx.snapshot_other_after
+        }}
+    />
 </Module>

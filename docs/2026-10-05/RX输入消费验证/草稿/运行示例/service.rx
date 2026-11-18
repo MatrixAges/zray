@@ -1,7 +1,13 @@
 <Module>
-  <Parallel>
-    <Call service="left.rx" in={$in} out="left"/>
-    <Call service="right.rx" in={$in} out="right"/>
-  </Parallel>
-  <Return value={{left, right}}/>
+    <Parallel>
+        <Call service="left.rx" in={$in} out="left"/>
+        <Call service="right.rx" in={$in} out="right"/>
+    </Parallel>
+
+    <Return
+        value={{
+            left,
+            right
+        }}
+    />
 </Module>

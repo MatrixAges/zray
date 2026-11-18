@@ -1,4 +1,5 @@
 <Module>
-  <Call fn='optional_number' in={$in} out='ctx.value'/>
-  <Return value={ctx.value}/>
+    <Call fn='optional_number' in={$in} out='ctx.value'/>
+
+    <Return value={ctx.value}/>
 </Module>

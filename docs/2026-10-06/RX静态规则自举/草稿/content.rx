@@ -1,5 +1,5 @@
 <Module>
-  <Call fn="content" in={$in} />
+    <Call fn="content" in={$in} />
 
-  <Return value={$ctx.content} />
+    <Return value={$ctx.content} />
 </Module>

@@ -9,7 +9,12 @@
         </Case>
 
         <Default>
-            <Return value={{ state: $in.state, selected: $in.selected }} />
+            <Return
+                value={{
+                    state: $in.state,
+                    selected: $in.selected
+                }}
+            />
         </Default>
     </Switch>
 </Module>

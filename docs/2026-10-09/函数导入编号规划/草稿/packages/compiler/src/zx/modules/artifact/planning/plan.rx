@@ -1,13 +1,70 @@
 <Module>
-    <Call fn="native_initialize" in={{ specifiers: $in.modules.specifiers }} />
-    <Call fn="../../../analysis/semantic/extracting/planning/initialize" in={{ kinds: $in.request.table.kinds, scalar_count: $in.request.scalar_count }} />
-    <Call fn="../../../analysis/semantic/extracting/planning/roots" in={{ request: $in.request, state: $ctx.initialize }} />
-    <Call module="expand_native" in={{ request: $in.request, state: $ctx.roots, modules: $in.modules, natives: $ctx.native_initialize }} />
+    <Call
+        fn="native_initialize"
+        in={{
+            specifiers: $in.modules.specifiers
+        }}
+    />
 
-    <Call module="imports" in={{ request: $in.request, state: $ctx.expand_native.state, modules: $in.modules, natives: $ctx.expand_native.natives, type_imports: $in.type_imports, dependencies: $in.dependencies }} />
+    <Call
+        fn="../../../analysis/semantic/extracting/planning/initialize"
+        in={{
+            kinds: $in.request.table.kinds,
+            scalar_count: $in.request.scalar_count
+        }}
+    />
 
-    <Call fn="functions/initialize_functions" in={{ inputs: $in.signatures.inputs }} />
-    <Call module="function_imports" in={{ request: $in.request, modules: $in.modules, signatures: $in.signatures, imports: $in.function_imports, plan: { state: $ctx.imports.state, natives: $ctx.imports.natives, functions: $ctx.initialize_functions } }} />
+    <Call
+        fn="../../../analysis/semantic/extracting/planning/roots"
+        in={{
+            request: $in.request,
+            state: $ctx.initialize
+        }}
+    />
+
+    <Call
+        module="expand_native"
+        in={{
+            request: $in.request,
+            state: $ctx.roots,
+            modules: $in.modules,
+            natives: $ctx.native_initialize
+        }}
+    />
+
+    <Call
+        module="imports"
+        in={{
+            request: $in.request,
+            state: $ctx.expand_native.state,
+            modules: $in.modules,
+            natives: $ctx.expand_native.natives,
+            type_imports: $in.type_imports,
+            dependencies: $in.dependencies
+        }}
+    />
+
+    <Call
+        fn="functions/initialize_functions"
+        in={{
+            inputs: $in.signatures.inputs
+        }}
+    />
+
+    <Call
+        module="function_imports"
+        in={{
+            request: $in.request,
+            modules: $in.modules,
+            signatures: $in.signatures,
+            imports: $in.function_imports,
+            plan: {
+                state: $ctx.imports.state,
+                natives: $ctx.imports.natives,
+                functions: $ctx.initialize_functions
+            }
+        }}
+    />
 
     <Return value={$ctx.function_imports} />
 </Module>

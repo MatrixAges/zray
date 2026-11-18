@@ -2,8 +2,30 @@
     <Call fn="./references" in={$in} />
     <Call fn="../../ir/canonical/control/terminates" in={$in.control} />
     <Call fn="../loops/domains" in={$in} />
-    <Call fn="../layout/roots" in={{ program: $in, references: $ctx.references }} />
-    <Call fn="../layout/project" in={{ program: $in, references: $ctx.references, roots: $ctx.roots }} />
 
-    <Return value={{ references: $ctx.references, returns: $ctx.terminates, domains: $ctx.domains, layout: $ctx.project }} />
+    <Call
+        fn="../layout/roots"
+        in={{
+            program: $in,
+            references: $ctx.references
+        }}
+    />
+
+    <Call
+        fn="../layout/project"
+        in={{
+            program: $in,
+            references: $ctx.references,
+            roots: $ctx.roots
+        }}
+    />
+
+    <Return
+        value={{
+            references: $ctx.references,
+            returns: $ctx.terminates,
+            domains: $ctx.domains,
+            layout: $ctx.project
+        }}
+    />
 </Module>

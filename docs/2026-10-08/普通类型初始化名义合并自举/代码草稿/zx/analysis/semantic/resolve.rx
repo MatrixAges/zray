@@ -1,15 +1,40 @@
 <Module>
     <Call module="resolving/resolve" in={$in.request} />
 
-    <Switch on={$in.request.initialize && $in.shared && $ctx.resolve.diagnostic.message == ""}>
+    <Switch
+        on={$in.request.initialize && $in.shared && $ctx.resolve.diagnostic.message == ""}
+    >
         <Case value={true}>
-            <Call module="normalizing/normalize" in={{ base: $in.request.context.base, delta: $ctx.resolve.delta, cache: $ctx.resolve.cache, id: $ctx.resolve.id, origins: $in.origins, origin: $in.origin }} />
+            <Call
+                module="normalizing/normalize"
+                in={{
+                    base: $in.request.context.base,
+                    delta: $ctx.resolve.delta,
+                    cache: $ctx.resolve.cache,
+                    id: $ctx.resolve.id,
+                    origins: $in.origins,
+                    origin: $in.origin
+                }}
+            />
 
             <Return value={$ctx.normalize} />
         </Case>
 
         <Default>
-            <Return value={{ delta: $ctx.resolve.delta, cache: $ctx.resolve.cache, id: $ctx.resolve.id, diagnostic: $ctx.resolve.diagnostic, origins: { ids: [], kinds: [], owners: [], members: [] } }} />
+            <Return
+                value={{
+                    delta: $ctx.resolve.delta,
+                    cache: $ctx.resolve.cache,
+                    id: $ctx.resolve.id,
+                    diagnostic: $ctx.resolve.diagnostic,
+                    origins: {
+                        ids: [],
+                        kinds: [],
+                        owners: [],
+                        members: []
+                    }
+                }}
+            />
         </Default>
     </Switch>
 </Module>

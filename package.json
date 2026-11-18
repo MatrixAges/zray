@@ -24,7 +24,7 @@
     },
     "lint-staged": {
         "*.{zig,zon,zx}": "node scripts/format.mjs",
-        "packages/**/*.rx": "node scripts/format.mjs",
+        "*.rx": "node scripts/format.mjs",
         "*.{js,cjs,mjs,jsx,ts,cts,mts,tsx,json,jsonc,json5,yaml,yml,md,mdx,css,scss,less,html,vue,graphql,gql}": "prettier --write",
         ".prettierrc": "prettier --write"
     },

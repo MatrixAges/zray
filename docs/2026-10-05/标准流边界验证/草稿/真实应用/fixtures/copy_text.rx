@@ -1,5 +1,6 @@
 <Module>
-  <Call fn="read_text" in={$in} out="ctx.data"/>
-  <Call fn="write_stdout_text" in={ctx.data}/>
-  <Call fn="write_stderr_text" in={ctx.data}/>
+    <Call fn="read_text" in={$in} out="ctx.data"/>
+
+    <Call fn="write_stdout_text" in={ctx.data}/>
+    <Call fn="write_stderr_text" in={ctx.data}/>
 </Module>

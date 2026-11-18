@@ -1,5 +1,5 @@
 <Module>
-  <Call fn="role" in={$in} />
+    <Call fn="role" in={$in} />
 
-  <Return value={$ctx.role} />
+    <Return value={$ctx.role} />
 </Module>

@@ -1,5 +1,5 @@
 <Module>
-  <Call fn="classify" in={$in} />
+    <Call fn="classify" in={$in} />
 
-  <Return value={$ctx.classify} />
+    <Return value={$ctx.classify} />
 </Module>

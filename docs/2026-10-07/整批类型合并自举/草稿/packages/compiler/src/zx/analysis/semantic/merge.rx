@@ -1,5 +1,5 @@
 <Module>
-  <Call fn="merging/append" in={$in} />
+    <Call fn="merging/append" in={$in} />
 
-  <Return value={$ctx.append} />
+    <Return value={$ctx.append} />
 </Module>

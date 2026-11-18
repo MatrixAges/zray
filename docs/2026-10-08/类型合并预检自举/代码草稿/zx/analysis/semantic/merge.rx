@@ -1,10 +1,25 @@
 <Module>
     <Call fn="merging/table" in={$in.writer} />
-    <Call fn="merging/preflight/prefix" in={{ source: $in.source, target: $ctx.table, first: $in.first }} />
+
+    <Call
+        fn="merging/preflight/prefix"
+        in={{
+            source: $in.source,
+            target: $ctx.table,
+            first: $in.first
+        }}
+    />
 
     <Switch on={$ctx.prefix}>
         <Case value={true}>
-            <Call fn="merging/identity" in={{ writer: $in.writer, first: $in.first }} />
+            <Call
+                fn="merging/identity"
+                in={{
+                    writer: $in.writer,
+                    first: $in.first
+                }}
+            />
+
             <Call fn="merging/append" in={$in} />
 
             <Return value={$ctx.append} />

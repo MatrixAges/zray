@@ -23,10 +23,18 @@ const zig_patterns = [
     'legacy/tests/**/*.zig'
 ]
 
+function rxFiles(pattern) {
+    return execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', pattern], {
+        encoding: 'utf8',
+        maxBuffer: Infinity
+    })
+        .split('\0')
+        .filter(file => file && existsSync(file))
+}
+
 const files =
-    requested_files.length > 0
-        ? requested_files
-        : globSync([...(rx_only ? [] : zig_patterns), 'packages/*/{src,examples,tests,content}/**/*.rx'])
+    requested_files.length > 0 ? requested_files : [...(rx_only ? [] : globSync(zig_patterns)), ...rxFiles('*.rx')]
+const rx_fixtures = new Set(rxFiles(':(attr:-zxc-format)*.rx').map(file => resolve(file)))
 const local_zxc = resolve('zig-out', 'bin', process.platform === 'win32' ? 'zxc.exe' : 'zxc')
 const zxc = process.env.ZXC || (existsSync(local_zxc) ? local_zxc : 'zxc')
 let spacer
@@ -34,6 +42,7 @@ let spacer
 try {
     for (const file of files) {
         if (file.endsWith('.zx')) continue
+        if (file.endsWith('.rx') && rx_fixtures.has(resolve(file))) continue
 
         const source = await readFile(file, 'utf8')
         let text

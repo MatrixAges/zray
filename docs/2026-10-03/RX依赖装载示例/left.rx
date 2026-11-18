@@ -1,4 +1,5 @@
 <Module>
-  <Store from="state" as="state" />
-  <Call service="shared" in={$in} />
+    <Store from="state" as="state" />
+
+    <Call service="shared" in={$in} />
 </Module>

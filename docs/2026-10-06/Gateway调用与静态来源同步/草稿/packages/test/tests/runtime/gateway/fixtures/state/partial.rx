@@ -1,5 +1,6 @@
 <Module>
-  <Call module="advance" in={$in.increment}/>
-  <Call module="fail" in={$in}/>
-  <Return value={$ctx.fail}/>
+    <Call module="advance" in={$in.increment}/>
+    <Call module="fail" in={$in}/>
+
+    <Return value={$ctx.fail}/>
 </Module>

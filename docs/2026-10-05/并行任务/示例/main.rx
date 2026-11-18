@@ -1,27 +1,43 @@
 <Module>
-  <Parallel>
-    <Task name="number" out={{value: $ctx.identity}}>
-      <Call fn="identity" in={$in.value} />
-    </Task>
-    <Task name="flag">
-      <Switch on={$in.enabled}>
-        <Case value={true}>
-          <Parallel>
-            <Task name="flag" out={$ctx.invert}>
-              <Call fn="invert" in={$in.enabled} />
-            </Task>
+    <Parallel>
+        <Task
+            name="number"
+            out={{
+                value: $ctx.identity
+            }}
+        >
             <Call fn="identity" in={$in.value} />
-          </Parallel>
-          <Return value={$ctx.task.flag} />
-        </Case>
-        <Default>
-          <Return value={true} />
-        </Default>
-      </Switch>
-    </Task>
-    <Task name="discard">
-      <Call fn="identity" in={$in.value} />
-    </Task>
-  </Parallel>
-  <Return value={{value: $ctx.task.number.value, enabled: $ctx.task.flag}} />
+        </Task>
+
+        <Task name="flag">
+            <Switch on={$in.enabled}>
+                <Case value={true}>
+                    <Parallel>
+                        <Task name="flag" out={$ctx.invert}>
+                            <Call fn="invert" in={$in.enabled} />
+                        </Task>
+
+                        <Call fn="identity" in={$in.value} />
+                    </Parallel>
+
+                    <Return value={$ctx.task.flag} />
+                </Case>
+
+                <Default>
+                    <Return value={true} />
+                </Default>
+            </Switch>
+        </Task>
+
+        <Task name="discard">
+            <Call fn="identity" in={$in.value} />
+        </Task>
+    </Parallel>
+
+    <Return
+        value={{
+            value: $ctx.task.number.value,
+            enabled: $ctx.task.flag
+        }}
+    />
 </Module>

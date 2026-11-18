@@ -1,18 +1,48 @@
 <Module>
     <Call module="plan" in={$in} />
-    <Call fn="../../../analysis/semantic/extracting/planning/ready" in={$ctx.plan.state} />
+
+    <Call
+        fn="../../../analysis/semantic/extracting/planning/ready"
+        in={$ctx.plan.state}
+    />
 
     <Switch on={$ctx.ready}>
         <Case value={true}>
-            <Call module="../../../analysis/semantic/extracting/materializing/materialize" in={{ table: $in.request.table, origins: $in.request.origins, plan: $ctx.plan.state }} />
+            <Call
+                module="../../../analysis/semantic/extracting/materializing/materialize"
+                in={{
+                    table: $in.request.table,
+                    origins: $in.request.origins,
+                    plan: $ctx.plan.state
+                }}
+            />
 
-            <Call fn="../materializing/natives" in={{ modules: $in.modules, plan: $ctx.plan.natives, mapping: $ctx.plan.state.mapping }} />
+            <Call
+                fn="../materializing/natives"
+                in={{
+                    modules: $in.modules,
+                    plan: $ctx.plan.natives,
+                    mapping: $ctx.plan.state.mapping
+                }}
+            />
 
-            <Return value={{ plan: $ctx.plan, value: $ctx.materialize, natives: $ctx.natives }} />
+            <Return
+                value={{
+                    plan: $ctx.plan,
+                    value: $ctx.materialize,
+                    natives: $ctx.natives
+                }}
+            />
         </Case>
 
         <Default>
-            <Return value={{ plan: $ctx.plan, value: null, natives: null }} />
+            <Return
+                value={{
+                    plan: $ctx.plan,
+                    value: null,
+                    natives: null
+                }}
+            />
         </Default>
     </Switch>
 </Module>
