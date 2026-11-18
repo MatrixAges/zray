@@ -6,14 +6,15 @@ const taking = @import("generated_uniqueness_ahead_take");
 const resetting = @import("generated_uniqueness_ahead_reset");
 pub const Event = @FieldType(std.meta.Child(changing.Input), "event");
 
-pub fn scan(words: []u32, dirty: []bool, recursive: []const bool, indices: []const u64, first: usize, workers: usize) ?usize {
+pub fn scan(words: []u32, dirty: []bool, recursive: []const bool, indices: @import("../work/round.zig").Window, first: usize, workers: usize) ?usize {
     const flags = std.mem.sliceAsBytes(dirty);
 
     const input: std.meta.Child(scanning.Input) = .{
         .words = @ptrCast(&words),
         .dirty = @ptrCast(&flags),
         .recursive = recursive,
-        .indices = indices,
+        .indices = indices.first,
+        .wrapped = indices.second,
         .first = first,
         .workers = workers,
     };

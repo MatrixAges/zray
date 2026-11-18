@@ -6,10 +6,12 @@ fn cells(words: []u32) []std.atomic.Value(State) {
     return @ptrCast(words);
 }
 
-pub fn scan(words: []u32, dirty: []bool, recursive: []const bool, indices: []const u64, first: usize, workers: usize) ?usize {
-    const end = @min(indices.len, workers * 16);
+pub fn scan(words: []u32, dirty: []bool, recursive: []const bool, indices: @import("../work/round.zig").Window, first: usize, workers: usize) ?usize {
+    const end = @min(indices.first.len + indices.second.len, workers * 16);
 
-    for (indices[first..end], first..) |index, pos| {
+    for (first..end) |pos| {
+        const index = indices.at(pos);
+
         switch (cells(words)[index].load(.acquire)) {
             .idle => {},
             .ready, .held => if (!dirty[index]) continue,

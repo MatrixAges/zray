@@ -18,9 +18,9 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.queued);
 }
 
-pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, reset: bool, clear: bool) std.mem.Allocator.Error!u64 {
-    if (reset) summaries.reset(program.*, known);
-    if (clear) summaries.clear();
+pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!u64 {
+    if (phase == .Settle) summaries.reset(program.*, known);
+    if (phase == .Demand and exhausted) summaries.clear();
     try self.fill(program);
 
     return 64 * @as(u64, self.queued.len);
@@ -102,16 +102,36 @@ pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
     return index;
 }
 
-pub fn takeSettlement(self: *Self, budget: *u64) std.mem.Allocator.Error!Round.Visit {
+fn take(self: *Self, phase: Round.Phase, budget: *u64) std.mem.Allocator.Error!Round.Visit {
     const index = try self.pop() orelse return .done;
 
-    if (budget.* == 0) return .exhausted;
+    if (phase == .Settle) {
+        if (budget.* == 0) return .exhausted;
 
-    budget.* -= 1;
+        budget.* -= 1;
+    }
 
     return .{ .body = index };
 }
 
-pub fn pending(self: *const Self) []const u64 {
-    return self.queue.items[self.head..];
+fn pending(self: *const Self) Round.Window {
+    return .{ .first = self.queue.items[self.head..] };
+}
+
+pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, progress: *Round.Progress) std.mem.Allocator.Error!Round.Claim {
+    if (previous) |result| {
+        const callers = frame.callers[result.body];
+
+        if (phase == .Settle) {
+            try self.publish(.{ .program = frame.program, .outputs = frame.outputs, .dirty = frame.dirty, .changed = result.changed, .callers = callers, .body = result.body, .levels = result.levels });
+        } else {
+            try self.notify(frame.dirty, frame.program.*, result.changed, callers, result.body);
+        }
+
+        progress.grew = progress.grew or result.grew;
+    }
+
+    const queued = self.pending();
+
+    return .{ .visit = try self.take(phase, &progress.budget), .pending = queued };
 }

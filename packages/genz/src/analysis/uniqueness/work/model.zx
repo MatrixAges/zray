@@ -1,10 +1,10 @@
-import type { U8Buffer } from "memory"
+import type { U8Buffer, U64Buffer } from "memory"
 
 export type State = {
-    buffer: u64[],
-    queued: bool[],
-    head: u64,
-    tail: u64
+    slots: U64Buffer,
+    queued: U8Buffer,
+    positions: U64Buffer,
+    capacity: u64
 }
 
 export type Fill = {
@@ -16,11 +16,6 @@ export type Fill = {
 export type Push = {
     state: State,
     index: u64
-}
-
-export type Popped = {
-    state: State,
-    index?: u64
 }
 
 export type Enqueue = {

@@ -3,12 +3,11 @@ import integers from "std:integer"
 import merge from "../../function/updates/merge"
 import enqueue from "../enqueue"
 
-import type { State } from "../model"
 import type { Settlement } from "./model"
 
 export type Input = Settlement.Omit("changed", "type_only", "native_modules")
 
-export type Output = State
+export type Output = void
 
 export default function (in: Input): Output {
     const { state, body, levels, outputs, dirty, callers } = in
@@ -21,13 +20,11 @@ export default function (in: Input): Output {
         joining: false
     })
 
-    if (weakened == 0) {
-        return state
+    if (weakened != 0) {
+        enqueue({
+            state,
+            dirty,
+            indices: callers
+        })
     }
-
-    return enqueue({
-        state,
-        dirty,
-        indices: callers
-    })
 }

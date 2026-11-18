@@ -1,27 +1,25 @@
 import invalidate from "./invalidate"
 
-import type { Enqueue, State } from "./model"
+import type { Enqueue } from "./model"
 
 export type Input = Enqueue
 
-export type Output = State
+export type Output = void
 
 export default function (in: Input): Output {
     const { dirty, indices } = in
 
-    return loop({
-        state: in.state,
-        index: 0
-    }, {
-        while: current => current.index < indices.length,
-        next: current => {
-            current.state = invalidate({
-                state: current.state,
+    const start: u64 = 0
+
+    const filled = loop(start, {
+        while: index => index < indices.length,
+        next: index => {
+            invalidate({
+                state: in.state,
                 dirty,
-                index: indices[current.index]
+                index: indices[index]
             })
-            current.index += 1
-        },
-        return: current => current.state
+            index += 1
+        }
     })
 }

@@ -4,19 +4,16 @@ import { dirty_flag } from "./const"
 import push from "./push"
 
 import type { U8Buffer } from "memory"
-import type { Push, State } from "./model"
+import type { Push } from "./model"
 
 export type Input = Push & {
     dirty: U8Buffer
 }
 
-export type Output = State
+export type Output = void
 
 export default function (in: Input): Output {
     memory.writeU8(in.dirty, in.index, dirty_flag)
 
-    return push({
-        state: in.state,
-        index: in.index
-    })
+    push(in.omit(["dirty"]))
 }

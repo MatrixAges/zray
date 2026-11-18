@@ -1,27 +1,46 @@
-import pop from "../pop"
+import memory from "memory"
 
-import type { Take, Visit } from "./model"
+import { Phase } from "../../program/model"
+import { clear_flag, count_slot, head_slot } from "../const"
 
-export type Input = Take
-
-export type Output = Visit
+import type { Take as Input, Visit as Output } from "./model"
 
 export default function (in: Input): Output {
-    const popped = pop(in.state)
+    const { state, budget } = in
 
-    if (popped.index == null || in.budget == 0) {
+    const head = memory.readU64(state.positions, head_slot)
+    const count = memory.readU64(state.positions, count_slot)
+
+    if (count == 0) {
         return {
-            state: popped.state,
-            budget: in.budget,
+            budget,
             body: null,
-            exhausted: popped.index != null
+            exhausted: false,
+            first: head,
+            prefix: 0,
+            suffix: 0
         }
     }
 
+    const available = state.capacity - head
+    const prefix = count < available ? count : available
+    const index = memory.readU64(state.slots, head)
+    const next = head + 1
+    const first = next == state.capacity ? 0 : next
+
+    memory.writeU8(state.queued, index, clear_flag)
+    memory.writeU64(state.positions, head_slot, first)
+    memory.writeU64(state.positions, count_slot, count - 1)
+
+    const limited = in.phase == Phase.Settle
+    const exhausted = limited && budget == 0
+
     return {
-        state: popped.state,
-        budget: in.budget - 1,
-        body: popped.index,
-        exhausted: false
+        budget: limited && !exhausted ? budget - 1 : budget,
+        body: exhausted ? null : index,
+        exhausted,
+        first: head,
+        prefix,
+        suffix: count - prefix
     }
 }

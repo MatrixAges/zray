@@ -1,8 +1,17 @@
-import type { Context, PlanTarget } from "uniqueness_program"
+export enum Phase {
+    Start,
+    Replay,
+    Settle,
+    Demand,
+    Plan,
+    Commit,
+    Done
+}
 
 export type Input = {
-    context: Context,
-    target: PlanTarget,
+    phase: Phase,
     following: bool,
+    reused: bool,
+    grew: bool,
     recording: bool
 }

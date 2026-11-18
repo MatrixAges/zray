@@ -1,17 +1,43 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Input} out={void} />
+    <Args in={Program.Input} out={Program.Phase} />
 
-    <Call fn="replay" in={$in} />
+    <Switch on={$in.phase}>
+        <Case value={Program.Phase.Start}>
+            <If on={$in.following}>
+                <Return value={Program.Phase.Replay} />
+            </If>
 
-    <If on={!$ctx.replay}>
-        <Call fn="open" in={$in.context} />
-        <Call fn="converge" in={$in.context} />
-        <Call fn="plans" in={$in} />
+            <Return value={Program.Phase.Settle} />
+        </Case>
 
-        <If on={$in.recording}>
-            <Call fn="commit" in={$in.context} />
-        </If>
-    </If>
+        <Case value={Program.Phase.Replay}>
+            <If on={$in.reused}>
+                <Return value={Program.Phase.Done} />
+            </If>
+
+            <Return value={Program.Phase.Settle} />
+        </Case>
+
+        <Case value={Program.Phase.Settle}>
+            <Return value={Program.Phase.Demand} />
+        </Case>
+
+        <Case value={Program.Phase.Demand}>
+            <If on={$in.grew}>
+                <Return value={Program.Phase.Settle} />
+            </If>
+
+            <Return value={Program.Phase.Plan} />
+        </Case>
+
+        <Case value={Program.Phase.Plan}>
+            <If on={$in.recording}>
+                <Return value={Program.Phase.Commit} />
+            </If>
+        </Case>
+    </Switch>
+
+    <Return value={Program.Phase.Done} />
 </Module>

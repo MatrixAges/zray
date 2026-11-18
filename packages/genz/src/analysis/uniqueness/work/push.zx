@@ -1,18 +1,21 @@
-import type { Push as Input, State as Output } from "./model"
+import memory from "memory"
+
+import { clear_flag, count_slot, head_slot, queued_flag } from "./const"
+
+import type { Push as Input } from "./model"
+
+export type Output = void
 
 export default function (in: Input): Output {
-    if (in.state.queued[in.index]) {
-        return in.state
-    }
+    const { state, index } = in
 
-    return {
-        ...in.state,
-        buffer: match {
-            in.state.tail < in.state.buffer.length =>
-                in.state.buffer.with(in.state.tail, in.index),
-            _ => in.state.buffer.push(in.index)[0]
-        },
-        queued: in.state.queued.with(in.index, true),
-        tail: in.state.tail + 1
+    if (memory.readU8(state.queued, index) == clear_flag) {
+        const count = memory.readU64(state.positions, count_slot)
+        const tail = memory.readU64(state.positions, head_slot) + count
+        const slot = tail < state.capacity ? tail : tail - state.capacity
+
+        memory.writeU64(state.slots, slot, index)
+        memory.writeU8(state.queued, index, queued_flag)
+        memory.writeU64(state.positions, count_slot, count + 1)
     }
 }

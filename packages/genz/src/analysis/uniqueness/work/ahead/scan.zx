@@ -7,6 +7,7 @@ import type { Buffers } from "./model"
 export type Input = Buffers & {
     recursive: bool[],
     indices: u64[],
+    wrapped: u64[],
     first: u64,
     workers: u64
 }
@@ -15,7 +16,8 @@ export type Output = u64?
 
 export default function (in: Input): Output {
     const width = in.workers * requests_per_worker
-    const end = width < in.indices.length ? width : in.indices.length
+    const length = in.indices.length + in.wrapped.length
+    const end = width < length ? width : length
 
     return loop({
         pos: in.first,
@@ -23,7 +25,10 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.found && state.pos < end,
         next: state => {
-            const index = in.indices[state.pos]
+            const index = match {
+                state.pos < in.indices.length => in.indices[state.pos],
+                _ => in.wrapped[state.pos - in.indices.length]
+            }
             const status = memory.loadU32Acquire(in.words, index)
             const eligible = match status {
                 idle => true,

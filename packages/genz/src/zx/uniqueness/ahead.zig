@@ -70,15 +70,15 @@ pub fn finish(self: *Self) void {
 
 /// Queues the bodies of `indices` that have no analysis ahead or one that a summary change made stale, skipping those
 /// whose result the memo already holds.
-pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: []const u64) std.mem.Allocator.Error!void {
+pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: @import("work/round.zig").Window) std.mem.Allocator.Error!void {
     const workers = self.pool.count();
 
-    if (workers == 0 or indices.len == 0) return;
+    if (workers == 0 or indices.first.len == 0) return;
 
     var first: usize = 0;
 
     while (Schedule.scan(self.states, self.dirty, self.recursive, indices, first, workers)) |pos| {
-        const index: usize = @intCast(indices[pos]);
+        const index: usize = @intCast(indices.at(pos));
 
         first = pos + 1;
 

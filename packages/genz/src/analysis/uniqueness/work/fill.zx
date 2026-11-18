@@ -1,0 +1,38 @@
+import memory from "memory"
+
+import { clear_flag, count_slot, head_slot, queued_flag } from "./const"
+
+import type { Fill as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const queue = in.state
+
+    const count = loop({
+        body: 0,
+        tail: 0
+    }, {
+        while: row => row.body < queue.capacity,
+        next: row => {
+            const body = row.body
+            const active = match {
+                body < in.native_modules.length => in.native_modules[body] == null,
+                _ => !in.type_only
+            }
+
+            memory.writeU8(queue.queued, body, active ? queued_flag : clear_flag)
+
+            if (active) {
+                memory.writeU64(queue.slots, row.tail, body)
+                row.tail += 1
+            }
+
+            row.body += 1
+        },
+        return: row => row.tail
+    })
+
+    memory.writeU64(queue.positions, head_slot, 0)
+    memory.writeU64(queue.positions, count_slot, count)
+}

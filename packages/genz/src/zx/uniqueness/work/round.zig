@@ -1,6 +1,22 @@
 const ir = @import("zx").ir;
 const Level = @import("../level.zig").Level;
+
+pub const Phase = if (@import("genz_options").generated_analysis)
+    @FieldType(@import("std").meta.Child(@import("generated_uniqueness_program").Input), "phase")
+
+else
+    enum { Start, Replay, Settle, Demand, Plan, Commit, Done };
+
+pub const Outcome = struct { exhausted: bool = false, grew: bool = false };
 pub const Visit = union(enum) { done, exhausted, body: usize };
+
+pub const Window = struct {
+    first: []const u64,
+    second: []const u64 = &.{},
+    pub fn at(self: Window, position: usize) u64 {
+        return if (position < self.first.len) self.first[position] else self.second[position - self.first.len];
+    }
+};
 
 pub const Settlement = struct {
     program: *const ir.Program,
@@ -11,3 +27,20 @@ pub const Settlement = struct {
     body: usize,
     levels: []const Level,
 };
+
+pub const Frame = struct {
+    program: *const ir.Program,
+    outputs: [][]Level,
+    dirty: []bool,
+    callers: []const []const u64,
+};
+
+pub const Feedback = struct {
+    body: usize,
+    changed: []const u64,
+    levels: []const Level = &.{},
+    grew: bool = false,
+};
+
+pub const Progress = struct { budget: u64, grew: bool = false };
+pub const Claim = struct { visit: Visit, pending: Window };

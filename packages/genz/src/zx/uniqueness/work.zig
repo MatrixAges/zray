@@ -1,133 +1,98 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Round = @import("work/round.zig");
 const Summaries = @import("summaries.zig");
 const SummaryState = @import("summaries/lifecycle.zig");
-const creating = @import("generated_uniqueness_work_create");
 const preparing = @import("generated_uniqueness_prepare_round");
-const taking = @import("generated_uniqueness_take_settlement");
-const publishing = @import("generated_uniqueness_publish_settlement");
-const popping = @import("generated_uniqueness_work_pop");
-const notifying = @import("generated_uniqueness_work_notify");
-const State = @typeInfo(@typeInfo(@TypeOf(creating.executeState)).@"fn".return_type.?).error_union.payload;
+const advancing = @import("generated_uniqueness_work_advance");
+const Queue = std.meta.Child(@FieldType(std.meta.Child(advancing.Input), "state"));
 const Self = @This();
 
-arena: std.heap.ArenaAllocator,
-state: State,
+allocator: std.mem.Allocator,
+slots: []u64,
+queued: []u8,
+positions: []u64,
 pub fn init(allocator: std.mem.Allocator, size: usize) std.mem.Allocator.Error!Self {
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    const slots = try allocator.alloc(u64, size);
 
-    errdefer arena.deinit();
+    errdefer allocator.free(slots);
 
-    const state = creating.executeState(arena.allocator(), size) catch |err| return failure(err);
+    const queued = try allocator.alloc(u8, size);
 
-    return .{ .arena = arena, .state = state };
+    errdefer allocator.free(queued);
+
+    return .{ .allocator = allocator, .slots = slots, .queued = queued, .positions = try allocator.alloc(u64, 2) };
 }
 
 pub fn deinit(self: *Self) void {
-    self.arena.deinit();
+    self.allocator.free(self.positions);
+    self.allocator.free(self.queued);
+    self.allocator.free(self.slots);
 }
 
-pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, reset: bool, clear: bool) std.mem.Allocator.Error!u64 {
-    const Parameter = @typeInfo(@TypeOf(preparing.executeState)).@"fn".param_types[1].?;
-    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const Queue = std.meta.Child(@FieldType(Input, "queue"));
-
-    const queue: Queue = .{
-        .state = self.state,
-        .native_modules = .{ .items = program.functions.native_modules, .storage = .plain },
-        .type_only = program.type_only,
+fn queue(self: *const Self) Queue {
+    return .{
+        .slots = @ptrCast(&self.slots),
+        .queued = @ptrCast(&self.queued),
+        .positions = @ptrCast(&self.positions),
+        .capacity = self.slots.len,
     };
+}
 
-    // The preceding round has drained its readers, so this entry may reset the backing cells.
+pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!u64 {
     const state = SummaryState.Borrowed.init(summaries);
     const facts = state.input(.Reset, program.functions.native_modules, known);
-    const input: Input = .{ .queue = &queue, .facts = &facts, .reset = reset, .clear = clear };
-    const output = preparing.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
 
-    self.state = output.state;
-
-    return output.budget;
-}
-
-pub fn publish(self: *Self, settlement: Round.Settlement) std.mem.Allocator.Error!void {
-    comptime std.debug.assert(@sizeOf(std.meta.Elem(@TypeOf(settlement.levels))) == @sizeOf(u8));
-
-    const Parameter = @typeInfo(@TypeOf(publishing.executeState)).@"fn".param_types[1].?;
-    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const target = dirtyBytes(settlement.dirty);
-    const program = settlement.program;
-
-    const input: Input = .{
-        .state = self.state,
-        .dirty = @ptrCast(&target),
-        .changed = .{ .items = settlement.changed, .storage = .plain },
-        .native_modules = .{ .items = program.functions.native_modules, .storage = .plain },
-        .callers = .{ .items = settlement.callers, .storage = .plain },
-        .type_only = program.type_only,
-        .body = settlement.body,
-        .outputs = @ptrCast(&settlement.outputs),
-        .levels = .{ .items = std.mem.sliceAsBytes(settlement.levels), .storage = .plain },
+    const input: std.meta.Child(preparing.Input) = .{
+        .queue = &.{ .state = &self.queue(), .native_modules = program.functions.native_modules, .type_only = program.type_only },
+        .facts = &facts,
+        .phase = phase,
+        .exhausted = exhausted,
     };
 
-    self.state = publishing.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+    return invoke(preparing, &input);
 }
 
-pub fn notify(self: *Self, dirty: []bool, program: ir.Program, changed: []const u64, callers: []const u64, demand_body: ?usize) std.mem.Allocator.Error!void {
-    if (changed.len == 0) return;
+pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, progress: *Round.Progress) std.mem.Allocator.Error!Round.Claim {
+    const flags = std.mem.sliceAsBytes(frame.dirty);
+    const feedback = previous orelse Round.Feedback{ .body = 0, .changed = &.{} };
 
-    const Rule = @TypeOf(notifying.executeState);
-    const Parameter = @typeInfo(Rule).@"fn".param_types[1].?;
-    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const target = dirtyBytes(dirty);
-
-    const input: Input = .{
-        .state = self.state,
-        .dirty = @ptrCast(&target),
-        .changed = .{ .items = changed, .storage = .plain },
-        .native_modules = .{ .items = program.functions.native_modules, .storage = .plain },
-        .type_only = program.type_only,
-        .callers = .{ .items = callers, .storage = .plain },
-        .demand_body = demand_body,
+    const input: std.meta.Child(advancing.Input) = .{
+        .state = &self.queue(),
+        .phase = phase,
+        .budget = progress.budget,
+        .grew = progress.grew,
+        .outputs = @ptrCast(&frame.outputs),
+        .native_modules = frame.program.functions.native_modules,
+        .type_only = frame.program.type_only,
+        .dirty = @ptrCast(&flags),
+        .callers = frame.callers,
+        .previous = &.{
+            .present = previous != null,
+            .body = feedback.body,
+            .changed = feedback.changed,
+            .levels = std.mem.sliceAsBytes(feedback.levels),
+            .grew = feedback.grew,
+        },
     };
 
-    self.state = notifying.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+    const output = try invoke(advancing, &input);
+    progress.* = .{ .budget = output.budget, .grew = output.grew };
+
+    const first: usize = @intCast(output.first);
+
+    return .{
+        .visit = if (output.body) |body| .{ .body = @intCast(body) } else if (output.exhausted) .exhausted else .done,
+        .pending = .{ .first = self.slots[first..][0..@intCast(output.prefix)], .second = self.slots[0..@intCast(output.suffix)] },
+    };
 }
 
-fn dirtyBytes(dirty: []bool) []u8 {
-    comptime std.debug.assert(@sizeOf(bool) == @sizeOf(u8));
+inline fn invoke(comptime entry: type, input: entry.Input) std.mem.Allocator.Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return std.mem.sliceAsBytes(dirty);
-}
-
-pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
-    const output = popping.executeState(self.arena.allocator(), self.state) catch |err| return failure(err);
-
-    self.state = output.state;
-
-    return if (output.index) |index| @intCast(index) else null;
-}
-
-pub fn takeSettlement(self: *Self, budget: *u64) std.mem.Allocator.Error!Round.Visit {
-    const output = taking.executeState(self.arena.allocator(), .{ .state = self.state, .budget = budget.* }) catch |err| return failure(err);
-
-    self.state = output.state;
-    budget.* = output.budget;
-
-    if (output.body) |body| return .{ .body = @intCast(body) };
-
-    return if (output.exhausted) .exhausted else .done;
-}
-
-pub fn pending(self: *const Self) []const u64 {
-    const start: usize = @intCast(self.state.head);
-    const end: usize = @intCast(self.state.tail);
-
-    return self.state.buffer.items[start..end];
-}
-
-fn failure(err: anyerror) std.mem.Allocator.Error {
-    if (err == error.OutOfMemory) return error.OutOfMemory;
-
-    std.debug.panic("work state failed: {s}", .{@errorName(err)});
+    return zx.columns.invoke(entry.executeValue, empty.allocator(), input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => std.debug.panic("ownership queue failed: {s}", .{@errorName(err)}),
+    };
 }

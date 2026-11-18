@@ -1,8 +1,7 @@
 <Module>
     <Type from="model" as="Round" />
-    <Type from="../model" as="Work" />
 
-    <Args in={Round.Settlement} out={Work.State} />
+    <Args in={Round.Settlement} out={void} />
 
     <Call
         fn="../notify"
@@ -19,19 +18,11 @@
     <If on={$in.body < $in.native_modules.length}>
         <Call
             fn="publish_output"
-            in={{
-                ...$in.omit([
-                    "changed",
-                    "type_only",
-                    "native_modules",
-                    "state"
-                ]),
-                state: $ctx.notify
-            }}
+            in={$in.omit([
+                "changed",
+                "type_only",
+                "native_modules"
+            ])}
         />
-
-        <Return value={$ctx.publish_output} />
     </If>
-
-    <Return value={$ctx.notify} />
 </Module>

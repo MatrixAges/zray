@@ -1,13 +1,14 @@
 <Module>
     <Type from="model" as="Round" />
+    <Type from="../../program/model" as="Program" />
 
-    <Args in={Round.Input} out={Round.Output} />
+    <Args in={Round.Input} out={u64} />
 
-    <If on={$in.reset}>
+    <If on={$in.phase == Program.Phase.Settle}>
         <Call fn="../../summaries/reset" in={$in.facts} />
     </If>
 
-    <If on={$in.clear}>
+    <If on={$in.phase == Program.Phase.Demand && $in.exhausted}>
         <Call
             fn="../../summaries/clear"
             in={{
@@ -17,14 +18,8 @@
         />
     </If>
 
-    <Call module="../fill" in={$in.queue} />
+    <Call fn="../fill" in={$in.queue} />
+    <Call fn="budget" in={$in.queue.state.capacity} />
 
-    <Call fn="budget" in={$ctx.fill.queued.length} />
-
-    <Return
-        value={{
-            state: $ctx.fill,
-            budget: $ctx.budget
-        }}
-    />
+    <Return value={$ctx.budget} />
 </Module>

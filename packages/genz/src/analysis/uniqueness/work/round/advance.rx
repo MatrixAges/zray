@@ -1,0 +1,66 @@
+<Module>
+    <Type from="model" as="Round" />
+    <Type from="../../program/model" as="Program" />
+
+    <Args in={Round.Advance} out={Round.Step} />
+
+    <If on={$in.previous.present}>
+        <Switch on={$in.phase}>
+            <Case value={Program.Phase.Settle}>
+                <Call
+                    module="publish"
+                    in={{
+                        ...$in.pick([
+                            "state",
+                            "dirty",
+                            "native_modules",
+                            "type_only",
+                            "outputs"
+                        ]),
+                        ...$in.previous.pick([
+                            "body",
+                            "levels",
+                            "changed"
+                        ]),
+                        callers: $in.callers[$in.previous.body]
+                    }}
+                />
+            </Case>
+
+            <Case value={Program.Phase.Demand}>
+                <If on={$in.previous.changed.length != 0}>
+                    <Call
+                        fn="../notify"
+                        in={{
+                            ...$in.pick([
+                                "state",
+                                "dirty",
+                                "native_modules",
+                                "type_only"
+                            ]),
+                            changed: $in.previous.changed,
+                            callers: $in.callers[$in.previous.body],
+                            demand_body: $in.previous.body
+                        }}
+                    />
+                </If>
+            </Case>
+        </Switch>
+    </If>
+
+    <Call
+        fn="take"
+        in={$in.pick([
+            "state",
+            "phase",
+            "budget"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$ctx.take,
+            grew: $in.grew || $in.previous.grew
+        }}
+    />
+</Module>

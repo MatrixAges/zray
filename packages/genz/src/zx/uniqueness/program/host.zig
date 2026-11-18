@@ -7,6 +7,10 @@ const Topology = @import("../topology.zig");
 const Replay = @import("../trace.zig").Replay;
 const generated = @import("genz_options").generated_analysis;
 const Error = std.mem.Allocator.Error;
+const visits = @import("visits.zig");
+const driver = if (generated) @import("generated_uniqueness_program") else void;
+const Round = @import("../work/round.zig");
+const Phase = Round.Phase;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -34,29 +38,52 @@ pub const Context = struct {
             if (self.pool) |*pool| pool.deinit();
         }
 
-        if (comptime !generated) return self.runSeed();
+        var result = analysis.Result{ .functions = &.{}, .entry = .{ .flags = &.{} } };
+        var phase: Phase = .Start;
+        var reused = false;
+        var outcome: Round.Outcome = .{};
 
-        const driver = @import("generated_uniqueness_program");
-        const Input = std.meta.Child(driver.Input);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        var result: analysis.Result = .{ .functions = &.{}, .entry = .{ .flags = &.{} } };
+        while (true) {
+            phase = self.next(phase, reused, outcome.grew);
 
-        const input: Input = .{
-            .context = @ptrCast(self),
-            .target = @ptrCast(&result),
-            .following = self.replay.trace != null,
-            .recording = self.replay.recording != null,
-        };
+            switch (phase) {
+                .Start => unreachable,
+                .Replay => {
+                    if (try analysis.shortcut(self.allocator, self.workspace, self.temporary, self.program.*, self.slots, self.summaries, self.units, self.memo, self.replay)) |found| {
+                        result = found;
+                        reused = true;
+                    }
+                },
+                .Settle => {
+                    if (self.rounds == null) try self.open();
 
-        driver.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => unreachable,
-        };
-
-        return result;
+                    outcome = try self.visitRound(.Settle, false, &result);
+                },
+                .Demand => outcome = try self.visitRound(.Demand, outcome.exhausted, &result),
+                .Plan => outcome = try self.visitRound(.Plan, false, &result),
+                .Commit => try self.commit(),
+                .Done => return result,
+            }
+        }
     }
-    fn reuse(self: *Context) Error!?analysis.Result {
-        return analysis.shortcut(self.allocator, self.workspace, self.temporary, self.program.*, self.slots, self.summaries, self.units, self.memo, self.replay);
+
+    fn next(self: *const Context, phase: Phase, reused: bool, grew: bool) Phase {
+        const following = self.replay.trace != null;
+        const recording = self.replay.recording != null;
+
+        if (!generated) return switch (phase) {
+            .Start => if (following) .Replay else .Settle,
+            .Replay => if (reused) .Done else .Settle,
+            .Settle => .Demand,
+            .Demand => if (grew) .Settle else .Plan,
+            .Plan => if (recording) .Commit else .Done,
+            .Commit, .Done => .Done,
+        };
+
+        const input: std.meta.Child(driver.Input) = .{ .phase = phase, .following = following, .reused = reused, .grew = grew, .recording = recording };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return @import("zx").columns.invoke(driver.executeValue, empty.allocator(), &input) catch unreachable;
     }
     fn open(self: *Context) Error!void {
         self.pool = try Pool.init(self.temporary, self.concurrent);
@@ -69,27 +96,67 @@ pub const Context = struct {
             .ahead = ahead,
         };
     }
-    fn prepare(self: *Context, reset: bool, clear: bool) Error!u64 {
+
+    fn visitRound(self: *Context, comptime phase: Phase, exhausted: bool, result: *analysis.Result) Error!Round.Outcome {
+        const kind: analysis.Memo.Kind = comptime switch (phase) {
+            .Settle => .settled,
+            .Demand => .demanded,
+            .Plan => .planned,
+            else => unreachable,
+        };
+
         const rounds = &self.rounds.?;
+        const budget = try rounds.work.prepare(self.program, self.summaries, rounds.reverse.known, phase, exhausted);
+        var round = std.heap.ArenaAllocator.init(self.workspace);
 
-        return rounds.work.prepare(self.program, self.summaries, rounds.reverse.known, reset, clear);
+        defer round.deinit();
+        rounds.ahead.begin(kind);
+        defer rounds.ahead.finish();
+
+        const plans = if (kind == .planned) try self.allocator.alloc(analysis.Plan, self.program.functions.count()) else {};
+
+        if (kind == .planned) {
+            @memset(plans, .{ .flags = &.{} });
+
+            result.functions = plans;
+        }
+
+        const frame = Round.Frame{
+            .program = self.program,
+            .outputs = self.summaries.output,
+            .dirty = rounds.ahead.dirty,
+            .callers = rounds.reverse.callers,
+        };
+
+        var progress = Round.Progress{ .budget = budget };
+        var feedback: ?Round.Feedback = null;
+
+        while (true) {
+            const claim = try rounds.work.advance(phase, &frame, feedback, &progress);
+
+            if (self.replay.trace == null) try rounds.ahead.request(kind, self.memo, claim.pending);
+
+            const index = switch (claim.visit) {
+                .done => return .{ .grew = progress.grew },
+                .exhausted => return .{ .exhausted = true },
+                .body => |index| index,
+            };
+
+            // The previous visit's changed rows are borrowed until advance has published them.
+            if (kind != .planned) _ = round.reset(.retain_capacity);
+
+            switch (kind) {
+                .settled => feedback = try visits.settle(self, &round, index),
+                .demanded => feedback = try visits.demand(self, &round, index),
+                .planned => {
+                    const plan = try visits.plan(self, &round, index);
+
+                    if (index == plans.len) result.entry = plan else plans[index] = plan;
+                },
+            }
+        }
     }
-    fn settle(self: *Context, budget: u64) Error!bool {
-        const rounds = &self.rounds.?;
 
-        return analysis.settle(self.workspace, &rounds.work, self.program.*, self.slots, self.summaries, self.units, rounds.reverse.callers, self.memo, self.replay, &rounds.ahead, budget);
-    }
-    fn demand(self: *Context) Error!bool {
-        const rounds = &self.rounds.?;
-
-        return analysis.demand(self.workspace, &rounds.work, self.program.*, self.slots, self.summaries, self.units, rounds.reverse.callers, self.memo, self.replay, &rounds.ahead);
-    }
-
-    fn plans(self: *Context) Error!analysis.Result {
-        const rounds = &self.rounds.?;
-
-        return analysis.publishPlans(self.allocator, self.workspace, self.temporary, self.program.*, self.slots, self.summaries, self.units, &rounds.work, self.memo, self.replay, &rounds.ahead);
-    }
     fn commit(self: *Context) Error!void {
         const trace = try self.replay.finish();
 
@@ -97,96 +164,4 @@ pub const Context = struct {
 
         self.memo.trace = trace;
     }
-
-    fn runSeed(self: *Context) Error!analysis.Result {
-        if (self.replay.trace != null) {
-            if (try self.reuse()) |result| return result;
-        }
-
-        try self.open();
-
-        while (true) {
-            const budget = try self.prepare(true, false);
-            const exhausted = try self.settle(budget);
-            _ = try self.prepare(false, exhausted);
-
-            if (!try self.demand()) break;
-        }
-
-        _ = try self.prepare(false, false);
-
-        const result = try self.plans();
-
-        if (self.replay.recording != null) try self.commit();
-
-        return result;
-    }
 };
-
-const Native = struct {
-    fn context(handle: *anyopaque) *Context {
-        return @ptrCast(@alignCast(handle));
-    }
-
-    fn result(target: *anyopaque) *analysis.Result {
-        return @ptrCast(@alignCast(target));
-    }
-
-    fn replay(handle: *anyopaque, target: *anyopaque, reused: *bool) callconv(.c) bool {
-        const plan = context(handle).reuse() catch return false;
-
-        if (plan) |value| result(target).* = value;
-
-        reused.* = plan != null;
-
-        return true;
-    }
-
-    fn open(handle: *anyopaque) callconv(.c) bool {
-        context(handle).open() catch return false;
-
-        return true;
-    }
-
-    fn prepare(handle: *anyopaque, reset: bool, clear: bool, budget: *u64) callconv(.c) bool {
-        budget.* = context(handle).prepare(reset, clear) catch return false;
-
-        return true;
-    }
-
-    fn settle(handle: *anyopaque, budget: u64, exhausted: *bool) callconv(.c) bool {
-        exhausted.* = context(handle).settle(budget) catch return false;
-
-        return true;
-    }
-
-    fn demand(handle: *anyopaque, changed: *bool) callconv(.c) bool {
-        changed.* = context(handle).demand() catch return false;
-
-        return true;
-    }
-
-    fn plans(handle: *anyopaque, target: *anyopaque) callconv(.c) bool {
-        result(target).* = context(handle).plans() catch return false;
-
-        return true;
-    }
-
-    fn commit(handle: *anyopaque) callconv(.c) bool {
-        context(handle).commit() catch return false;
-
-        return true;
-    }
-};
-
-comptime {
-    if (generated) {
-        @export(&Native.replay, .{ .name = "zxcUniquenessReplay" });
-        @export(&Native.open, .{ .name = "zxcUniquenessOpen" });
-        @export(&Native.prepare, .{ .name = "zxcUniquenessPrepare" });
-        @export(&Native.settle, .{ .name = "zxcUniquenessSettle" });
-        @export(&Native.demand, .{ .name = "zxcUniquenessDemand" });
-        @export(&Native.plans, .{ .name = "zxcUniquenessPlans" });
-        @export(&Native.commit, .{ .name = "zxcUniquenessCommit" });
-    }
-}
