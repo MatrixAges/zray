@@ -1,0 +1,40 @@
+import type { Targets } from "../../growth/output"
+import type { Mark } from "../demand/model"
+import type { Growth, Knowledge, Read } from "../levels/model"
+import type { Contribution } from "../summary/model"
+import type { ContributionTarget, MarkTarget, ReadTarget } from "./columns"
+
+export type Reads = {
+    before: Read[],
+    after: Read[],
+    target: ReadTarget
+}
+
+export type Contributions = {
+    passed: Contribution[],
+    target: ContributionTarget
+}
+
+export type Marks = {
+    marks: Mark[],
+    target: MarkTarget
+}
+
+export type Settlement = {
+    passed: Contribution[],
+    levels: Knowledge[],
+    reads: Read[],
+    contributions: ContributionTarget,
+    read_target?: ReadTarget
+}
+
+export type Demand = {
+    marks: Mark[],
+    before: Read[],
+    after: Read[],
+    normalized: Growth[],
+    renewed: Growth[],
+    mark_target: MarkTarget,
+    read_target?: ReadTarget,
+    growth?: Targets
+}

@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Demand} out={void} />
+
+    <Call
+        fn="marks"
+        in={{
+            marks: $in.marks,
+            target: $in.mark_target
+        }}
+    />
+
+    <If on={$in.read_target != null}>
+        <Call
+            fn="reads"
+            in={{
+                before: $in.before,
+                after: $in.after,
+                target: $in.read_target
+            }}
+        />
+    </If>
+
+    <If on={$in.growth != null}>
+        <Call
+            module="../demand/snapshot/publish"
+            in={{
+                normalized: $in.normalized,
+                renewed: $in.renewed,
+                targets: $in.growth
+            }}
+        />
+    </If>
+</Module>

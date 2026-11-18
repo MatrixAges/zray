@@ -1,10 +1,10 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
+import encode from "../levels/encode"
 import query from "../levels/query"
 import publish from "./publish"
 
-import type { Knowledge } from "../levels/model"
 import type {
     ArgumentStage as Input,
     Contributed as Output,
@@ -13,7 +13,7 @@ import type {
 
 export default function (in: Input): Output {
     const passed: Contribution[] = []
-    const changed: u32[] = []
+    const changed: u64[] = []
 
     const loop_initial = {
         known: in.working.known,
@@ -36,7 +36,7 @@ export default function (in: Input): Output {
             const callee = expressions.call_functions[payload]
             const count =
                 bytes.atomicRowLength(readonly_source.inputs, integers.widen(callee))
-            const levels: Knowledge[] = []
+            const levels: u8[] = []
 
             const row_initial = {
                 known: state.known,
@@ -72,7 +72,7 @@ export default function (in: Input): Output {
 
                     current.known = result.known
                     current.reads = result.reads
-                    current.levels = current.levels.push(result.value)[0]
+                    current.levels = current.levels.push(encode(result.value))[0]
 
                     if (!row_scope.source.deferred) {
                         current.changed = publish({
@@ -93,7 +93,7 @@ export default function (in: Input): Output {
             state.changed = row.changed
             state.passed = state.passed.push({
                 callee,
-                levels: row.levels
+                guarantees: row.levels
             })[0]
 
             state.index += 1

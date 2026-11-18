@@ -137,15 +137,16 @@ fn keyed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: S
 /// Records the analysis of the state `getSettled` digested into `key`.
 pub fn putSettled(self: *Self, key: Digest, passed: []const Function.Contribution, output: []const Level) std.mem.Allocator.Error!Settled {
     const allocator = self.arena.allocator();
-    const owned = try allocator.alloc(Function.Contribution, passed.len);
 
-    for (passed, owned) |contribution, *target| target.* = .{ .callee = contribution.callee, .levels = try allocator.dupe(Level, contribution.levels) };
+    return self.putOwnedSettled(key, try Function.copyContributions(allocator, passed), try allocator.dupe(Level, output));
+}
 
-    const value = Settled{ .passed = owned, .output = try allocator.dupe(Level, output) };
+pub fn putOwnedSettled(self: *Self, key: Digest, passed: []const Function.Contribution, output: []const Level) std.mem.Allocator.Error!Settled {
+    const value = Settled{ .passed = passed, .output = output };
+
+    try self.settled.put(self.arena.allocator(), key, value);
 
     self.changed = true;
-
-    try self.settled.put(allocator, key, value);
 
     return value;
 }
@@ -158,19 +159,23 @@ pub fn getDemanded(self: *Self, summaries: *const Summaries, state: State) std.m
 
 /// Records the demand pass of the state `getDemanded` digested into `key`, with the growth copies it left.
 pub fn putDemanded(self: *Self, key: Digest, marks: []const Function.Mark, records: *const Growth.Store, grew: bool) std.mem.Allocator.Error!Demanded {
+    return self.putOwnedDemanded(key, try self.arena.allocator().dupe(Function.Mark, marks), records, grew);
+}
+
+pub fn putOwnedDemanded(self: *Self, key: Digest, marks: []const Function.Mark, records: *const Growth.Store, grew: bool) std.mem.Allocator.Error!Demanded {
     const allocator = self.arena.allocator();
     const growth = if (generated_encoding) records.* else try records.capture(allocator);
 
     const value = Demanded{
-        .marks = try allocator.dupe(Function.Mark, marks),
+        .marks = marks,
         .normalized = growth.normalized,
         .renewed = growth.renewed,
         .grew = grew,
     };
 
-    self.changed = true;
-
     try self.demanded.put(allocator, key, value);
+
+    self.changed = true;
 
     return value;
 }

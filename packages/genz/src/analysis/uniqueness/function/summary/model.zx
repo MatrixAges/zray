@@ -39,14 +39,14 @@ export type ArgumentStage = {
 
 export type Contribution = {
     callee: u32,
-    levels: Knowledge[]
+    guarantees: u8[]
 }
 
 export type Contributed = {
     known: Knowledge[],
     reads: Read[],
     passed: Contribution[],
-    changed: u32[]
+    changed: u64[]
 }
 
 export type Settlement = {
@@ -62,6 +62,6 @@ export type Settlement = {
 export type Settled = {
     state: State,
     passed: Contribution[],
-    changed: u32[],
+    changed: u64[],
     levels: Knowledge[]
 }

@@ -1,0 +1,30 @@
+import columns from "memory/columns"
+
+import record from "./contribution"
+
+import type { Contributions as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { passed, target } = in
+
+    columns.allocateRows(target.storage, passed.length)
+
+    const first: u64 = 0
+
+    const written = loop(first, {
+        while: index => index < passed.length,
+        next: index => {
+            const row = passed[index]
+
+            record({
+                target: target.columns,
+                index,
+                callee: row.callee,
+                levels: row.guarantees
+            })
+            index += 1
+        }
+    })
+}

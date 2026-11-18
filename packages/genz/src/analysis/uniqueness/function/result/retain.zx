@@ -1,0 +1,36 @@
+import columns from "memory/columns"
+
+import record from "./contribution"
+
+import type { Contribution } from "../../replay/ordered/model"
+import type { ContributionTarget } from "./columns"
+
+export type Input = {
+    source: Contribution[],
+    target: ContributionTarget
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target } = in
+
+    columns.allocateRows(target.storage, source.length)
+
+    const first: u64 = 0
+
+    const retained = loop(first, {
+        while: index => index < source.length,
+        next: index => {
+            const row = source[index]
+
+            record({
+                target: target.columns,
+                index,
+                callee: row.callee,
+                levels: row.levels
+            })
+            index += 1
+        }
+    })
+}

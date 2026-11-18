@@ -30,7 +30,7 @@ export type Working = {
     reads: Read[],
     seen: Seen,
     marks: Mark[],
-    changed: u32[],
+    changed: u64[],
     grew: bool
 }
 

@@ -179,38 +179,28 @@ fn Task(comptime kind: Memo.Kind) type {
             const scratch = worker.scratch.allocator();
             const keep = worker.kept.allocator();
             const lasting = worker.lasting.allocator();
-            var changed: std.ArrayList(u64) = .empty;
-            var reads: std.ArrayList(Function.Read) = .empty;
 
             switch (kind) {
                 .settled => {
-                    var analysis = try unit.initialize(scratch, lasting, ahead.functions, ahead.slots, summaries, null, &reads);
-                    var passed: std.ArrayList(Function.Contribution) = .empty;
-                    const output = try keep.alloc(Level, if (index < summaries.output.len) summaries.output[index].len else 0);
+                    var analysis = try unit.initialize(scratch, lasting, ahead.functions, ahead.slots, summaries, null, true);
+
                     analysis.deferred = true;
+                    const result = try analysis.settle(keep, if (index < summaries.output.len) summaries.output[index].len else 0);
 
-                    try analysis.settle(&changed, &passed, output);
-
-                    const contributions = try keep.alloc(Function.Contribution, passed.items.len);
-
-                    for (passed.items, contributions) |contribution, *target| target.* = .{ .callee = contribution.callee, .levels = try keep.dupe(Level, contribution.levels) };
-
-                    return .{ .passed = contributions, .output = output, .reads = try keep.dupe(Function.Read, reads.items) };
+                    return .{ .passed = result.passed, .output = result.output, .reads = result.reads };
                 },
                 .demanded => {
                     // The growth copies a demand pass leaves are its own; the body's stay as they were until its visit.
                     const generated = @import("genz_options").generated_analysis;
                     var growth = if (generated) unit.growth else try unit.growth.clone(scratch);
-                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, &growth, &reads);
-                    var marked: std.ArrayList(Function.Mark) = .empty;
+                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, &growth, true);
                     analysis.deferred = true;
+                    const result = try analysis.demand(keep);
 
-                    try analysis.demand(keep, &changed, &marked);
-
-                    return .{ .marks = try keep.dupe(Function.Mark, marked.items), .grew = analysis.grew, .growth = if (generated) growth else try growth.capture(keep), .reads = try keep.dupe(Function.Read, reads.items) };
+                    return .{ .marks = result.marks, .grew = analysis.grew, .growth = if (generated) growth else try growth.capture(keep), .reads = result.reads };
                 },
                 .planned => {
-                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, null, null);
+                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, null, false);
 
                     return analysis.plan(keep);
                 },

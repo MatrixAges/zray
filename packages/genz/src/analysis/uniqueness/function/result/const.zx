@@ -1,0 +1,7 @@
+export const input_guarantee_table: u8 = 0
+
+export const output_guarantee_table: u8 = 1
+
+export const input_demand_table: u8 = 2
+
+export const output_demand_table: u8 = 3

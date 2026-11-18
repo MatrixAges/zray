@@ -5,53 +5,38 @@ import decode from "../levels/decode"
 
 import type { AtomicRows } from "std:bytes"
 
-export type Layout = {
-    stride: u64,
-    table_offset: u64,
-    function_offset: u64,
-    slot_offset: u64,
-    value_offset: u64,
-    little_endian: bool
+export type Record = {
+    table: u8,
+    function: u32,
+    slot: u32,
+    value: u8
 }
 
 export type Input = {
-    reads: u8[],
-    tables: AtomicRows[],
-    layout: Layout
+    reads: Record[],
+    tables: AtomicRows[]
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
     return loop({
-        offset: 0,
+        index: 0,
         same: true
     }, {
-        while: state => state.same && state.offset < in.reads.length,
+        while: state => state.same && state.index < in.reads.length,
         next: state => {
-            const layout = in.layout
-            const table = in.reads[state.offset + layout.table_offset]
-            const function_index = bytes.readU32(
-                in.reads,
-                state.offset + layout.function_offset,
-                layout.little_endian
-            )
-            const slot = bytes.readU32(
-                in.reads,
-                state.offset + layout.slot_offset,
-                layout.little_endian
-            )
-            const previous = in.reads[state.offset + layout.value_offset]
+            const read = in.reads[state.index]
             const current = bytes.loadAtomicCell(
                 in.tables[integers.widenByte(
-                    table
+                    read.table
                 )],
-                integers.widen(function_index),
-                integers.widen(slot)
+                integers.widen(read.function),
+                integers.widen(read.slot)
             )
 
-            state.same = decode(current) == decode(previous)
-            state.offset += layout.stride
+            state.same = decode(current) == decode(read.value)
+            state.index += 1
         },
         return: state => state.same
     })

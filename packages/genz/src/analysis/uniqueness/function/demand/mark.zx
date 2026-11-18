@@ -60,6 +60,6 @@ export default function (in: Input): Output {
 
     return {
         ...working,
-        changed: working.changed.push(in.mark.function_index)[0]
+        changed: working.changed.push(row)[0]
     }
 }

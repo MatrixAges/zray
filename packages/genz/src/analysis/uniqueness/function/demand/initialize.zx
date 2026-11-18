@@ -5,7 +5,7 @@ export default function (in: Input): Output {
     const known: Knowledge[] = []
     const reads: Read[] = []
     const marks: Mark[] = []
-    const changed: u32[] = []
+    const changed: u64[] = []
     const keys: u64[] = []
 
     return {

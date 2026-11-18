@@ -39,14 +39,14 @@ pub const Unit = struct {
         return .{ .identity = self.identity, .index = index, .input = self.unit.input, .callees = self.callees, .growth = &self.growth };
     }
     /// The passes over the body are built on first use in `lasting`, which outlives every later analysis.
-    pub fn analyze(self: *Unit, allocator: std.mem.Allocator, lasting: std.mem.Allocator, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, growth: ?*Growth.Store, reads: ?*std.ArrayList(Function.Read)) std.mem.Allocator.Error!Function {
-        var analysis = try self.initialize(allocator, lasting, functions, slots, summaries, growth, reads);
+    pub fn analyze(self: *Unit, allocator: std.mem.Allocator, lasting: std.mem.Allocator, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, growth: ?*Growth.Store, record_reads: bool) std.mem.Allocator.Error!Function {
+        var analysis = try self.initialize(allocator, lasting, functions, slots, summaries, growth, record_reads);
 
         try analysis.close();
 
         return analysis;
     }
-    pub fn initialize(self: *Unit, allocator: std.mem.Allocator, lasting: std.mem.Allocator, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, growth: ?*Growth.Store, reads: ?*std.ArrayList(Function.Read)) std.mem.Allocator.Error!Function {
+    pub fn initialize(self: *Unit, allocator: std.mem.Allocator, lasting: std.mem.Allocator, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, growth: ?*Growth.Store, record_reads: bool) std.mem.Allocator.Error!Function {
         if (self.passes == null) {
             const order = try Order.create(lasting, allocator, self.unit.symbols, self.unit.expressions, self.body);
 
@@ -62,7 +62,7 @@ pub const Unit = struct {
 
         if (growth) |copies| unit.growth = copies;
 
-        return Function.initialize(allocator, functions, unit, &passes.order, &passes.sites, slots, summaries, reads);
+        return Function.initialize(allocator, functions, unit, &passes.order, &passes.sites, slots, summaries, record_reads);
     }
 };
 
@@ -163,21 +163,20 @@ pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocat
     const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), &.{}, false);
 
     if (generated) {
-        var function = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, null);
+        var function = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, false);
 
         return @import("function/entry.zig").analyze(&function, allocator);
     }
 
     while (true) {
-        var changed: std.ArrayList(u64) = .empty;
-        var analysis = try unit.analyze(temporary, temporary, program.functions, slots, summaries, null, null);
-        var marked: std.ArrayList(Function.Mark) = .empty;
+        var analysis = try unit.analyze(temporary, temporary, program.functions, slots, summaries, null, false);
 
-        try analysis.demand(temporary, &changed, &marked);
+        _ = try analysis.demand(temporary);
+
         if (!analysis.grew) break;
     }
 
-    var analysis = try unit.analyze(temporary, temporary, program.functions, slots, summaries, null, null);
+    var analysis = try unit.analyze(temporary, temporary, program.functions, slots, summaries, null, false);
 
     return analysis.plan(allocator);
 }
@@ -226,7 +225,7 @@ pub fn publishPlans(allocator: std.mem.Allocator, workspace: std.mem.Allocator, 
         const built = if (recalled) |found| found.plan() else if (early) |found| try found.copy(plan_owner) else fresh: {
             _ = plan_round.reset(.retain_capacity);
 
-            var analysis = try unit.analyze(plan_round.allocator(), temporary, program.functions, slots, summaries, null, null);
+            var analysis = try unit.analyze(plan_round.allocator(), temporary, program.functions, slots, summaries, null, false);
 
             break :fresh try analysis.plan(plan_owner);
         };
@@ -280,16 +279,11 @@ pub fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, sl
 
             break :replayed settled;
         } else analyzed: {
-            const output = try round.allocator().alloc(Level, if (index == count) 0 else summaries.output[index].len);
-            var passed: std.ArrayList(Function.Contribution) = .empty;
-            var modified: std.ArrayList(u64) = .empty;
-            var analysis = try unit.initialize(round.allocator(), ahead.kept(), program.functions, slots, summaries, null, null);
+            var analysis = try unit.initialize(round.allocator(), ahead.kept(), program.functions, slots, summaries, null, false);
+            const result = try analysis.settle(memo.arena.allocator(), if (index == count) 0 else summaries.output[index].len);
+            changed = result.changed;
 
-            try analysis.settle(&modified, &passed, output);
-
-            changed = modified.items;
-
-            break :analyzed try memo.putSettled(memo.key, passed.items, output);
+            break :analyzed try memo.putOwnedSettled(memo.key, result.passed, result.output);
         };
 
         try replay.met(.settled, index, settled, memo);
@@ -346,15 +340,11 @@ pub fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, sl
 
             break :ahead try memo.putDemanded(memo.key, found.marks, &unit.growth, found.grew);
         } else analyzed: {
-            var marked: std.ArrayList(Function.Mark) = .empty;
-            var modified: std.ArrayList(u64) = .empty;
-            var analysis = try unit.analyze(round.allocator(), ahead.kept(), program.functions, slots, summaries, null, null);
+            var analysis = try unit.analyze(round.allocator(), ahead.kept(), program.functions, slots, summaries, null, false);
+            const result = try analysis.demand(memo.arena.allocator());
+            changed = result.changed;
 
-            try analysis.demand(memo.arena.allocator(), &modified, &marked);
-
-            changed = modified.items;
-
-            break :analyzed try memo.putDemanded(memo.key, marked.items, &unit.growth, analysis.grew);
+            break :analyzed try memo.putOwnedDemanded(memo.key, result.marks, &unit.growth, analysis.grew);
         };
 
         try replay.met(.demanded, index, demanded, memo);
@@ -446,26 +436,22 @@ fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, lasting: std.
 
     if (!try Memo.restore(kind, temporary, state, summaries, index, unit.callees, growth)) return null;
 
-    var changed: std.ArrayList(u64) = .empty;
-    var analysis = try unit.initialize(temporary, lasting, program.functions, slots, summaries, growth, null);
+    var analysis = try unit.initialize(temporary, lasting, program.functions, slots, summaries, growth, false);
 
     switch (kind) {
         .settled => {
-            var passed: std.ArrayList(Function.Contribution) = .empty;
-            const output = try temporary.alloc(Level, if (index < summaries.output.len) summaries.output[index].len else 0);
+            const result = try analysis.settle(memo.arena.allocator(), if (index < summaries.output.len) summaries.output[index].len else 0);
 
-            try analysis.settle(&changed, &passed, output);
-
-            return try memo.putSettled(memo.key, passed.items, output);
+            return try memo.putOwnedSettled(memo.key, result.passed, result.output);
         },
         .demanded => {
-            var marked: std.ArrayList(Function.Mark) = .empty;
-
             try analysis.close();
-            try analysis.demand(memo.arena.allocator(), &changed, &marked);
+
+            const result = try analysis.demand(memo.arena.allocator());
+
             if (generated and !analysis.grew) growth.* = try growth.copy(memo.arena.allocator());
 
-            return try memo.putDemanded(memo.key, marked.items, growth, analysis.grew);
+            return try memo.putOwnedDemanded(memo.key, result.marks, growth, analysis.grew);
         },
         .planned => {
             try analysis.close();

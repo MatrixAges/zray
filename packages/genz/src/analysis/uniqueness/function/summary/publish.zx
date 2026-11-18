@@ -13,10 +13,10 @@ export type Input = {
     callee: u32,
     slot: u64,
     value: Knowledge,
-    changed: u32[]
+    changed: u64[]
 }
 
-export type Output = u32[]
+export type Output = u64[]
 
 export default function (in: Input): Output {
     const row = integers.widen(in.callee)
@@ -33,5 +33,5 @@ export default function (in: Input): Output {
 
     bytes.storeAtomicCell(in.inputs, row, in.slot, encode(next))
 
-    return in.changed.push(in.callee)[0]
+    return in.changed.push(row)[0]
 }

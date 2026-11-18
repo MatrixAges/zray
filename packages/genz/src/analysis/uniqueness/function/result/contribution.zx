@@ -1,0 +1,22 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { ContributionColumns } from "./columns"
+
+export type Input = {
+    target: ContributionColumns,
+    index: u64,
+    callee: u32,
+    levels: u8[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, index, callee, levels } = in
+
+    const owned = bytes.readU8s(levels, 0, levels.length)
+
+    memory.writeColumnU32(target.callees, index, callee)
+    memory.writeColumnBytes(target.levels, index, owned)
+}

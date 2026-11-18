@@ -1,6 +1,5 @@
-import type { WriteColumn } from "memory"
+import type { ContributionTarget, MarkTarget } from "../../../function/result/columns"
 import type {
-    Storage,
     Target as GrowthTarget,
     Targets as GrowthTargets
 } from "../../../growth/output"
@@ -11,26 +10,6 @@ export type Input = Cursor
 
 export type Rows = Input & {
     count: u32
-}
-
-export type ContributionColumns = {
-    callees: WriteColumn,
-    levels: WriteColumn
-}
-
-export type MarkColumns = {
-    output: WriteColumn,
-    functions: WriteColumn,
-    slots: WriteColumn,
-    wants: WriteColumn
-}
-
-export type ContributionTarget = Storage & {
-    columns: ContributionColumns
-}
-
-export type MarkTarget = Storage & {
-    columns: MarkColumns
 }
 
 export type Contributions = Rows & {

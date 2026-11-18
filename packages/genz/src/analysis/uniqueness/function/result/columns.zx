@@ -1,0 +1,33 @@
+import type { WriteColumn } from "memory"
+import type { Storage } from "../../growth/output"
+
+export type ContributionColumns = {
+    callees: WriteColumn,
+    levels: WriteColumn
+}
+
+export type MarkColumns = {
+    output: WriteColumn,
+    functions: WriteColumn,
+    slots: WriteColumn,
+    wants: WriteColumn
+}
+
+export type ContributionTarget = Storage & {
+    columns: ContributionColumns
+}
+
+export type MarkTarget = Storage & {
+    columns: MarkColumns
+}
+
+export type ReadColumns = {
+    tables: WriteColumn,
+    functions: WriteColumn,
+    slots: WriteColumn,
+    levels: WriteColumn
+}
+
+export type ReadTarget = Storage & {
+    columns: ReadColumns
+}

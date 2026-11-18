@@ -1,0 +1,49 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import encode from "../levels/encode"
+import { Table } from "../levels/model"
+import {
+    input_guarantee_table,
+    output_guarantee_table,
+    input_demand_table,
+    output_demand_table
+} from "./const"
+
+import type { Reads as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { before, after, target } = in
+    const { tables, functions, slots, levels } = target.columns
+
+    const count = before.length + after.length
+
+    columns.allocateRows(target.storage, count)
+
+    const first: u64 = 0
+
+    const written = loop(first, {
+        while: index => index < count,
+        next: index => {
+            const row = match {
+                index < before.length => before[index],
+                _ => after[index - before.length]
+            }
+
+            const table = match row.table {
+                Table.Input => input_guarantee_table,
+                Table.Output => output_guarantee_table,
+                Table.Inputs => input_demand_table,
+                _ => output_demand_table
+            }
+
+            memory.writeColumnU8(tables, index, table)
+            memory.writeColumnU32(functions, index, row.function_index)
+            memory.writeColumnU32(slots, index, row.slot)
+            memory.writeColumnU8(levels, index, encode(row.value))
+            index += 1
+        }
+    })
+}

@@ -82,18 +82,18 @@ grew: bool = false,
 /// Records contributions and demands without meeting them into the summaries, which other bodies of the same round
 /// read; the round applies them once every body ran.
 deferred: bool = false,
-
 /// Every summary level the analysis read, when given: an analysis that reads the same levels again reaches the same
 /// result, so the list tells whether a result still holds without analyzing the body again.
-reads: ?*std.ArrayList(Read) = null,
+record_reads: bool,
+reads: if (generated_analysis) void else std.ArrayList(Read) = if (generated_analysis) {} else .empty,
 /// Set when recording a read ran out of memory. Levels recurse deeply and only that record allocates, so they return
 /// plain levels and each public step reports the failure once it returns.
 failed: bool = false,
 evaluation: if (generated_analysis) ?Evaluator.State else void = if (generated_analysis) null else {},
-pub fn initialize(allocator: std.mem.Allocator, functions: ir.FunctionTable, unit: Unit, order: *const Order, sites: *Sites, slots: Slots, summaries: *Summaries, reads: ?*std.ArrayList(Read)) std.mem.Allocator.Error!Self {
+pub fn initialize(allocator: std.mem.Allocator, functions: ir.FunctionTable, unit: Unit, order: *const Order, sites: *Sites, slots: Slots, summaries: *Summaries, record_reads: bool) std.mem.Allocator.Error!Self {
     const levels: []Known = if (generated_analysis) &.{} else try allocator.alloc(Known, sites.slot_first[sites.slot_first.len - 1] - sites.slot_first[unit.symbols.count()]);
 
-    return .{ .allocator = allocator, .functions = functions, .expressions = unit.expressions, .order = order, .sites = sites, .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .growth = unit.growth, .operations = unit.operations, .rows = unit.rows, .levels = levels, .reads = reads };
+    return .{ .allocator = allocator, .functions = functions, .expressions = unit.expressions, .order = order, .sites = sites, .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .growth = unit.growth, .operations = unit.operations, .rows = unit.rows, .levels = levels, .record_reads = record_reads };
 }
 
 pub fn close(self: *Self) std.mem.Allocator.Error!void {
@@ -141,11 +141,47 @@ fn settled(self: Self) std.mem.Allocator.Error!void {
     if (self.failed) return error.OutOfMemory;
 }
 
-pub fn settle(self: *Self, changed: *std.ArrayList(u64), passed: *std.ArrayList(Contribution), values: []Level) std.mem.Allocator.Error!void {
-    if (generated_analysis) return Summary.settle(self, changed, passed, values);
+pub const Settlement = struct {
+    passed: []const Contribution,
+    output: []const Level,
+    changed: []const u64,
+    reads: []const Read,
+};
+
+pub const Demand = struct {
+    marks: []const Mark,
+    changed: []const u64,
+    reads: []const Read,
+};
+
+/// Retained results go to owner. Worklist notifications last for this analysis.
+pub fn settle(self: *Self, owner: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Settlement {
+    if (generated_analysis) return Summary.settle(self, owner, count);
+
+    var changed: std.ArrayList(u64) = .empty;
+    var passed: std.ArrayList(Contribution) = .empty;
+    const values = try owner.alloc(Level, count);
+
     try self.close();
-    try self.arguments(changed, passed);
+    try self.arguments(&changed, &passed);
     try self.output(values);
+
+    return .{
+        .changed = changed.items,
+        .passed = try copyContributions(owner, passed.items),
+        .output = values,
+        .reads = try owner.dupe(Read, self.reads.items),
+    };
+}
+
+pub fn copyContributions(owner: std.mem.Allocator, passed: []const Contribution) std.mem.Allocator.Error![]const Contribution {
+    if (generated_analysis) return Summary.retain(owner, passed);
+
+    const values = try owner.alloc(Contribution, passed.len);
+
+    for (passed, values) |item, *target| target.* = .{ .callee = item.callee, .levels = try owner.dupe(Level, item.levels) };
+
+    return values;
 }
 
 /// The output slots every return guarantees.
@@ -209,7 +245,7 @@ pub fn unchanged(summaries: *const Summaries, reads: []const Read) bool {
 fn read(self: *Self, table: Table, function: usize, values: []const Level, slot: u32) Level {
     const value = Level.load(&values[slot]);
 
-    if (self.reads) |list| list.append(self.allocator, .{ .table = table, .function = @intCast(function), .slot = slot, .value = value }) catch {
+    if (self.record_reads) self.reads.append(self.allocator, .{ .table = table, .function = @intCast(function), .slot = slot, .value = value }) catch {
         self.failed = true;
     };
 
@@ -596,11 +632,15 @@ fn prefix(self: Self, operation: anytype) bool {
 /// where a plain or shared list enters, through inputs to the callers and through outputs to the callees. A loop's
 /// initial state, a plain input or an opaque producer then gets one growth copy there, so the updates that follow work
 /// in place instead of copying on every step. Lists the functions whose demand grew.
-pub fn demand(self: *Self, owner: std.mem.Allocator, changed: *std.ArrayList(u64), marked: *std.ArrayList(Mark)) std.mem.Allocator.Error!void {
-    if (generated_analysis) return @import("function/demand.zig").analyze(self, owner, changed, marked);
+pub fn demand(self: *Self, owner: std.mem.Allocator) std.mem.Allocator.Error!Demand {
+    if (generated_analysis) return @import("function/demand.zig").analyze(self, owner);
 
-    self.changed = changed;
-    self.marked = marked;
+    var changed: std.ArrayList(u64) = .empty;
+    var marked: std.ArrayList(Mark) = .empty;
+    self.changed = &changed;
+    self.marked = &marked;
+    defer self.changed = null;
+    defer self.marked = null;
 
     self.traced.clearRetainingCapacity();
 
@@ -649,9 +689,7 @@ pub fn demand(self: *Self, owner: std.mem.Allocator, changed: *std.ArrayList(u64
         }
     }
 
-    const function = self.function orelse return self.settled();
-
-    for (0..self.summaries.outputs[function].len) |slot| {
+    if (self.function) |function| for (0..self.summaries.outputs[function].len) |slot| {
         const want = self.read(.outputs, function, self.summaries.outputs[function], @intCast(slot));
 
         if (want == Level.none) continue;
@@ -663,9 +701,15 @@ pub fn demand(self: *Self, owner: std.mem.Allocator, changed: *std.ArrayList(u64
             .repeat = true,
             .wanted = want,
         });
-    }
+    };
 
-    return self.settled();
+    try self.settled();
+
+    return .{
+        .marks = try owner.dupe(Mark, marked.items),
+        .changed = changed.items,
+        .reads = try owner.dupe(Read, self.reads.items),
+    };
 }
 
 const TraceRequest = struct {

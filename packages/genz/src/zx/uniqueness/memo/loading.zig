@@ -2,7 +2,6 @@ const std = @import("std");
 const columns = @import("zx").columns;
 const rows = @import("../row_output.zig");
 const Memo = @import("../memo.zig");
-const Function = @import("../function.zig");
 const disk = @import("disk.zig");
 const Error = std.mem.Allocator.Error;
 
@@ -38,7 +37,7 @@ fn Row(comptime T: type) type {
 fn settled(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Settled) {
     const entry = @import("generated_uniqueness_memo_load_settlement");
     const Input = std.meta.Child(entry.Input);
-    var passed: rows.Output(Input, "passed", Function.Contribution, .{ .callees = &.{"callee"}, .levels = &.{"levels"} }) = undefined;
+    var passed: rows.Contributions(Input, "passed") = undefined;
 
     passed.init();
 
@@ -59,14 +58,7 @@ fn settled(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!R
 fn demanded(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Demanded) {
     const entry = @import("generated_uniqueness_memo_load_demand");
     const Input = std.meta.Child(entry.Input);
-
-    var marks: rows.Output(Input, "marks", Function.Mark, .{
-        .output = &.{"output"},
-        .functions = &.{"function"},
-        .slots = &.{"slot"},
-        .wants = &.{"want"},
-    }) = undefined;
-
+    var marks: rows.Marks(Input, "marks") = undefined;
     var normalized: rows.Normalized(Input) = undefined;
     var renewed: rows.Renewed(Input) = undefined;
 

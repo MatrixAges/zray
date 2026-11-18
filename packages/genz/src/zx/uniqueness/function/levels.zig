@@ -7,7 +7,6 @@ const Input = @typeInfo(@TypeOf(closing.executeValue)).@"fn".param_types[1].?;
 const Context = @FieldType(Input, "context");
 const Result = @typeInfo(@TypeOf(closing.executeValue)).@"fn".return_type.?;
 pub const State = @typeInfo(Result).error_union.payload;
-const Knowledge = std.meta.Child(@FieldType(State, "known"));
 const Growth = std.meta.Child(std.meta.Child(@FieldType(Context, "normalized")));
 
 pub fn close(function: *Function) std.mem.Allocator.Error!void {
@@ -21,18 +20,6 @@ pub fn close(function: *Function) std.mem.Allocator.Error!void {
     };
 
     function.evaluation = state;
-
-    try publish(function);
-}
-
-pub fn level(value: Knowledge) Level {
-    return @bitCast(@as(u3, @intCast(@backingInt(value))));
-}
-
-pub fn publish(function: *Function) std.mem.Allocator.Error!void {
-    if (function.reads) |reads| for (function.evaluation.?.reads) |entry| {
-        try reads.append(function.allocator, .{ .table = @fromBackingInt(@backingInt(entry.table)), .function = entry.function_index, .slot = entry.slot, .value = level(entry.value) });
-    };
 }
 
 pub const Borrowed = struct {
@@ -79,7 +66,7 @@ pub const Borrowed = struct {
             .input = @ptrCast(function.input),
             .output = @ptrCast(function.summaries.output),
             .function_index = @intCast(function.function orelse std.math.maxInt(u32)),
-            .record = function.reads != null,
+            .record = function.record_reads,
         };
 
         self.descriptor = .{

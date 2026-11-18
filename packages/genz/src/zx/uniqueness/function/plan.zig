@@ -31,8 +31,6 @@ pub fn build(function: *Function, allocator: std.mem.Allocator) std.mem.Allocato
     function.evaluation.?.known = facts.known;
     function.evaluation.?.reads = facts.reads;
 
-    try levels.publish(function);
-
     return result;
 }
 

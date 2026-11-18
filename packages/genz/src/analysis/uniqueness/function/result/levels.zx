@@ -1,0 +1,11 @@
+import encode from "../levels/encode"
+
+import type { Knowledge } from "../levels/model"
+
+export type Input = Knowledge[]
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    return in.map(value => encode(value))[0]
+}

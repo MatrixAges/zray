@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Settlement} out={u8[]} />
+
+    <Call
+        fn="contributions"
+        in={{
+            passed: $in.passed,
+            target: $in.contributions
+        }}
+    />
+
+    <If on={$in.read_target != null}>
+        <Call
+            fn="reads"
+            in={{
+                before: [],
+                after: $in.reads,
+                target: $in.read_target
+            }}
+        />
+    </If>
+
+    <Call fn="levels" in={$in.levels} />
+
+    <Return value={$ctx.levels} />
+</Module>
