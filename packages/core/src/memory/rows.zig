@@ -85,6 +85,20 @@ pub inline fn borrowIndirectText(comptime field: []const u8, comptime text: []co
     return .{ .pointers = borrowColumn(Optional, field, items), .text_offset = @offsetOf(target.child, text) };
 }
 
+pub inline fn borrowReferencedText(comptime field: []const u8, items: anytype) IndirectTextColumn {
+    const Pointer = std.meta.Child(@TypeOf(items));
+    const info = @typeInfo(Pointer).pointer;
+
+    comptime {
+        if (info.size != .one or info.attrs.@"allowzero" or @FieldType(info.child, field) != []const u8) @compileError("Expected references to rows with a text field");
+    }
+
+    return .{
+        .pointers = .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf(Pointer), .offset = 0 },
+        .text_offset = @offsetOf(info.child, field),
+    };
+}
+
 pub inline fn borrowColumn(comptime T: type, comptime field: []const u8, items: anytype) ReadColumn {
     return borrowNested(T, &.{field}, items);
 }
@@ -119,7 +133,11 @@ pub inline fn borrowList(comptime T: type, comptime field: []const u8, comptime 
 }
 
 pub inline fn borrowNestedList(comptime T: type, comptime field: []const u8, comptime members: []const []const u8, items: anytype) ListColumn {
-    const List = @FieldType(std.meta.Child(@TypeOf(items)), field);
+    return borrowListPath(T, &.{field}, members, items);
+}
+
+pub inline fn borrowListPath(comptime T: type, comptime fields: []const []const u8, comptime members: []const []const u8, items: anytype) ListColumn {
+    const List = comptime fieldLayout(std.meta.Child(@TypeOf(items)), fields).type;
     const Row = std.meta.Child(List);
     const layout = comptime fieldLayout(Row, members);
 
@@ -133,7 +151,7 @@ pub inline fn borrowNestedList(comptime T: type, comptime field: []const u8, com
         }
     }
 
-    return .{ .lists = borrowColumn(List, field, items), .stride = @sizeOf(Row), .offset = layout.offset };
+    return .{ .lists = borrowNested(List, fields, items), .stride = @sizeOf(Row), .offset = layout.offset };
 }
 
 pub fn bindSliceColumns(comptime View: type, comptime group: []const u8, items: anytype) [@typeInfo(View).@"struct".field_names.len]ReadColumn {

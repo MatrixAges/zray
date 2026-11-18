@@ -172,33 +172,23 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
     var callee = analyzed.value.ir;
 
     if (selected.named) {
-        for (analyzed.modules) |*module| {
-            if (!std.mem.eql(u8, module.path, entry_path)) continue;
+        const id = @import("named.zig").linked(analyzed.modules, entry_path, member.?) orelse
+            return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "module", .message = "ZX source does not export the selected callable function" });
 
-            for (module.reexports.functions) |*item| {
-                if (!std.mem.eql(u8, item.name, member.?)) continue;
+        const function = callee.functions.at(@backingInt(id));
 
-                const id = item.id orelse break;
-                const function = callee.functions.at(@backingInt(id));
+        if (function.stores.count() != 0) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "capability", .message = "a named Call cannot invoke a Store transaction" });
 
-                if (function.stores.count() != 0) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "capability", .message = "a named Call cannot invoke a Store transaction" });
+        callee = try @import("compiled_wrapper.zig").build(allocator, .{
+            .file_name = path,
+            .offset = target.value_location.offset,
+            .id = id,
+            .types = callee.types,
+            .functions = callee.functions,
+            .native_modules = callee.native_modules,
+        });
 
-                callee = try @import("compiled_wrapper.zig").build(allocator, .{
-                    .file_name = path,
-                    .offset = target.value_location.offset,
-                    .id = id,
-                    .types = callee.types,
-                    .functions = callee.functions,
-                    .native_modules = callee.native_modules,
-                });
-
-                return .{ .function = .{ .id = id, .program = callee, .nominal_types = analyzed.nominal_types, .store_initializers = analyzed.store_initializers } };
-            }
-
-            break;
-        }
-
-        return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "module", .message = "ZX source does not export the selected callable function" });
+        return .{ .function = .{ .id = id, .program = callee, .nominal_types = analyzed.nominal_types, .store_initializers = analyzed.store_initializers } };
     }
 
     if (callee.type_only) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "module", .message = "Call.fn requires an executable ZX module with a default function" });

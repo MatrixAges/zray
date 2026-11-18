@@ -2,6 +2,7 @@ const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
 const expression = @import("expression.zig");
+pub const named = @import("call/named.zig");
 pub const target = @import("call/target.zig");
 
 pub const Options = struct {

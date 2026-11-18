@@ -1,0 +1,41 @@
+import memory from "memory"
+
+import available from "./available"
+
+import type { Requests as Input, Check as Output } from "./model"
+
+export default function (in: Input): Output {
+    const rejected: u64? = null
+
+    return loop({
+        index: 0,
+        default_call: false,
+        rejected
+    }, {
+        while: state => state.index < in.count && state.rejected == null,
+        next: state => {
+            const name = memory.readOptionalTextColumn(in.calls, state.index)
+
+            if (name == null) {
+                state.default_call = true
+            } else {
+                const accepted = available({
+                    names: in.names,
+                    signature: in.signature,
+                    ids: in.ids,
+                    name
+                })
+
+                if (!accepted) {
+                    state.rejected = state.index
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => ({
+            rejected: state.rejected,
+            default_call: state.default_call
+        })
+    })
+}

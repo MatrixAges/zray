@@ -26,10 +26,13 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
     const nodes = module.calls.items(.node);
     const setters = module.calls.items(.setter);
     const names = module.calls.items(.name_source);
+    const references = zx.memory.borrowReferencedTextColumn("value", names);
+    const members = @import("../../call/named.zig").MemberColumns.borrow(&.{"members"}, state.finished.surfaces);
+    const Published = std.meta.Child(@FieldType(Input, "published"));
 
     var request: Input = .{
-        .calls = &.{ .kinds = kinds, .rows = @ptrCast(targets) },
-        .published = &.{ .present = state.finished.present, .functions = state.finished.functions },
+        .calls = &.{ .kinds = kinds, .rows = @ptrCast(targets), .references = @ptrCast(&references) },
+        .published = &.{ .present = state.finished.present, .functions = state.finished.functions, .members = &members.view(std.meta.Child(@FieldType(Published, "members"))) },
         .zx_count = graph.sources.zx_count,
         .rx_end = graph.sources.rx_end,
         .ids = @ptrCast(&ids),
@@ -52,7 +55,7 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
         ids[position] = switch (next.action) {
             .LoadLibrary => try loadLibrary(state, owner, target, location, setter != null),
             .CompileSetter => try compileSetter(state, cache, sources, owner, target, setter.?, location),
-            .BindNamed => state.finished.namedFunction(target, result_name.resolveCall(names[position].*).name) orelse return state.fail(names[position].value_location, "selected ZX export was not linked"),
+            .MissingMember => return state.fail(names[position].value_location, "selected ZX export was not linked"),
             .MissingRX => return state.fail(location, missing_rx),
             .MissingZX => return state.fail(location, missing_zx),
             .NotExecutableRX => return state.fail(location, not_executable_rx),

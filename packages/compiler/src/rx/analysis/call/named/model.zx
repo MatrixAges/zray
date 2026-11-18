@@ -1,0 +1,43 @@
+import type { ListColumn, ReadColumn } from "memory"
+import type { PublicNames } from "../../../../zx/modules/binding/model"
+
+export type Members = {
+    names: ListColumn,
+    ids: ListColumn
+}
+
+export type Record = {
+    paths: PublicNames,
+    path: string,
+    members: Members,
+    name: string
+}
+
+export type SignatureFacts = {
+    kinds: ReadColumn,
+    stores: ReadColumn,
+    callable: u8
+}
+
+export type Signature = SignatureFacts & {
+    names: PublicNames,
+    name: string
+}
+
+export type Selection = {
+    row?: u64,
+    has_store: bool
+}
+
+export type Requests = {
+    calls: ReadColumn,
+    count: u64,
+    names: PublicNames,
+    signature?: SignatureFacts,
+    ids?: ReadColumn
+}
+
+export type Check = {
+    rejected?: u64,
+    default_call: bool
+}

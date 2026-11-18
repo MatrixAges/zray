@@ -39,23 +39,20 @@ pub fn resolve(node: rx.ast.Node) Result {
 }
 
 pub fn resolveCall(attribute: rx.ast.Attribute) Result {
-    const name = if (comptime @import("rx_options").generated_graph) generated(attribute.value) else seed(attribute.value);
+    const function_target = std.mem.eql(u8, attribute.name, "fn");
 
-    const binding = if (std.mem.eql(u8, attribute.name, "fn"))
-        @import("frontend").project.module_path.callMember(name) orelse name
+    if (comptime @import("rx_options").generated_graph) {
+        const rule = @import("generated_rx_result_name");
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const name = rule.executeValue(empty.allocator(), .{ .reference = attribute.value, .function_target = function_target }) catch unreachable;
 
-    else
-        name;
+        return .{ .name = name, .attribute = attribute };
+    }
 
-    return .{ .name = binding, .attribute = attribute };
-}
+    const file = seed(attribute.value);
+    const name = if (function_target) @import("frontend").project.module_path.callMember(file) orelse file else file;
 
-fn generated(value: []const u8) []const u8 {
-    const rule = @import("generated_rx_result_name_range");
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const range = rule.executeValue(empty.allocator(), value) catch unreachable;
-
-    return value[@intCast(range.start)..@intCast(range.end)];
+    return .{ .name = name, .attribute = attribute };
 }
 
 fn seed(value: []const u8) []const u8 {

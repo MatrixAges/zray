@@ -351,16 +351,13 @@ pub const Loader = struct {
         };
 
         const name = @import("../result_name.zig").resolveCall(selection.*).name;
+        const selected = @import("../call/named.zig").signature(signature.members, name);
 
-        for (signature.members) |*member| {
-            if (!std.mem.eql(u8, member.name, name)) continue;
-            if (member.has_store) return self.fail(selection.value_location, "capability", "a named Call cannot invoke a Store transaction");
-            if (member.kind != .callable) break;
+        if (selected.has_store) return self.fail(selection.value_location, "capability", "a named Call cannot invoke a Store transaction");
 
-            return .{ .signature = member.ports };
-        }
+        const row = selected.row orelse return self.fail(selection.value_location, "module", "ZX source does not export the selected callable function");
 
-        return self.fail(selection.value_location, "module", "ZX source does not export the selected callable function");
+        return .{ .signature = signature.members[@intCast(row)].ports };
     }
     pub fn compiledCallee(self: *Loader, location: rx.ast.Location, selected: frontend.project.compiled.Target, setter: bool) Error!Callee {
         const result = try self.libraries.bind(&self.project, .{

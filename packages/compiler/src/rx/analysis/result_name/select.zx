@@ -1,0 +1,26 @@
+import encoding from "std:encoding"
+
+import memberStart from "../../../zx/modules/path/call_member"
+import range from "./range"
+
+export type Input = {
+    reference: string,
+    function_target: bool
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { reference, function_target } = in
+    const { start, end } = range(reference)
+
+    const file = encoding.sliceBytes(reference, start, end)
+
+    if (!function_target) {
+        return file
+    }
+
+    const member = memberStart(file)
+
+    return member == null ? file : encoding.sliceBytes(reference, start + member, end)
+}

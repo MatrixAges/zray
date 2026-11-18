@@ -36,11 +36,8 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
     };
 
     const inputs = detected.sources;
-    loaded.project.compiled_libraries = libraries.libraries.items;
 
-    const default_call = for (calls) |call| {
-        if (call.member == null) break true;
-    } else false;
+    loaded.project.compiled_libraries = libraries.libraries.items;
 
     if (calls.len == 0 or detected.has_rx) {
         var signed = try compiler.project.analyzeSignaturesWithCache(allocator, inputs, &.{path}, loaded.project, &parse_cache);
@@ -49,14 +46,10 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
 
         if (signed.value == .diagnostic) return report(writer, inputs, signed.value.diagnostic);
 
-        for (signed.value.data.modules) |*module| {
-            if (!std.mem.eql(u8, module.path, path)) continue;
-            if (!try checkNamed(writer, calls, module.signature.members)) return false;
+        const checked = @import("rx_analysis").call.named.inspect(calls, signed.value.data.modules, path);
 
-            break;
-        }
-
-        if (!default_call) return true;
+        if (checked.rejected) |index| return rejectNamed(writer, calls[@intCast(index)]);
+        if (!checked.default_call) return true;
 
         for (signed.value.data.modules) |module| {
             if (!module.signature.has_deferred_source) continue;
@@ -85,14 +78,11 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
 
     if (analyzed.value == .diagnostic) return report(writer, inputs, analyzed.value.diagnostic);
 
-    for (analyzed.modules) |*module| {
-        if (!std.mem.eql(u8, module.path, path)) continue;
-        if (!try checkNamed(writer, calls, module.reexports.functions)) return false;
+    const checked = @import("rx_analysis").call.named.inspect(calls, analyzed.modules, path);
 
-        break;
-    }
+    if (checked.rejected) |index| return rejectNamed(writer, calls[@intCast(index)]);
 
-    if (default_call and analyzed.value.ir.type_only) {
+    if (checked.default_call and analyzed.value.ir.type_only) {
         try writer.print("{s}: Call.fn requires an executable ZX module with a default function\n", .{path});
 
         return false;
@@ -112,25 +102,10 @@ fn report(writer: *std.Io.Writer, inputs: []const compiler.project.Source, issue
 
 pub const Selection = struct { owner: []const u8, location: @import("rx").ast.Location, member: ?[]const u8 };
 
-fn checkNamed(writer: *std.Io.Writer, calls: []const Selection, members: anytype) !bool {
-    for (calls) |call| {
-        const selected = call.member orelse continue;
+fn rejectNamed(writer: *std.Io.Writer, call: Selection) !bool {
+    try writer.print("{s}:{d}:{d}: module: ZX source does not export the selected callable function '{s}'\n", .{ call.owner, call.location.line, call.location.column, call.member.? });
 
-        const found = for (members) |*member| {
-            if (!std.mem.eql(u8, member.name, selected)) continue;
-            if (comptime @hasField(@TypeOf(member.*), "id")) break member.id != null;
-
-            break member.kind == .callable and !member.has_store;
-        } else false;
-
-        if (found) continue;
-
-        try writer.print("{s}:{d}:{d}: module: ZX source does not export the selected callable function '{s}'\n", .{ call.owner, call.location.line, call.location.column, selected });
-
-        return false;
-    }
-
-    return true;
+    return false;
 }
 
 pub fn indexCalls(allocator: std.mem.Allocator, graph: *const @import("rx_analysis").project.source_graph.Graph, modules: []const @import("rx").ModuleSource, calls: []std.ArrayList(Selection)) !void {

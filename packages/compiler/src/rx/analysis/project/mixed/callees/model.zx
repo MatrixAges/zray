@@ -1,4 +1,6 @@
 import type { U32Buffer } from "memory"
+import type { IndirectTextColumn } from "memory/columns"
+import type { Members } from "../../../call/named/model"
 
 export enum TargetKind {
     Source,
@@ -9,10 +11,12 @@ export enum TargetKind {
 
 export type Targets = {
     kinds: TargetKind[],
+    references: IndirectTextColumn,
     rows: u64[]
 }
 
 export type Published = {
+    members: Members,
     present: bool[],
     functions: (u32?)[]
 }
@@ -26,7 +30,7 @@ export enum Action {
     MissingZX,
     NotExecutableRX,
     NotExecutableZX,
-    BindNamed
+    MissingMember
 }
 
 export type Pending = {

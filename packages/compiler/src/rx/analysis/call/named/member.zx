@@ -1,0 +1,31 @@
+import memory from "memory"
+
+import type { Members } from "./model"
+
+export type Input = {
+    members: Members,
+    module: u64,
+    name: string
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { members, module, name } = in
+
+    const end = memory.listLength(members.names, module)
+
+    const row = loop(0, {
+        while: index =>
+            index < end && memory.readListText(members.names, module, index) != name,
+        next: index => {
+            index += 1
+        }
+    })
+
+    if (row == end) {
+        return null
+    }
+
+    return memory.readListOptionalU32(members.ids, module, row)
+}

@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Named" />
+
+    <Args in={Named.Record} out={u32?} />
+
+    <Call
+        fn="../../../../zx/modules/binding/public_position"
+        in={{
+            names: $in.paths,
+            name: $in.path
+        }}
+    />
+
+    <If on={$ctx.public_position == null}>
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="member"
+        in={{
+            members: $in.members,
+            module: $ctx.public_position ?? 0,
+            name: $in.name
+        }}
+    />
+
+    <Return value={$ctx.member} />
+</Module>

@@ -56,11 +56,7 @@ pub fn function(self: Self, index: usize) ?ir.FunctionId {
 pub fn namedFunction(self: Self, index: usize, name: []const u8) ?ir.FunctionId {
     if (!self.present[index]) return null;
 
-    for (self.surfaces[index].members) |*member| {
-        if (std.mem.eql(u8, member.name, name)) return member.id;
-    }
-
-    return null;
+    return @import("../../call/named.zig").memberId(self.surfaces[index].members, name);
 }
 
 pub fn set(self: Self, index: usize, value: Loaded) void {

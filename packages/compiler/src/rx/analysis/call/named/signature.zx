@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import publicPosition from "../../../../zx/modules/binding/public_position"
+
+import type { Signature as Input, Selection as Output } from "./model"
+
+export default function (in: Input): Output {
+    const row = publicPosition({
+        names: in.names,
+        name: in.name
+    })
+
+    if (row == null) {
+        return {
+            row,
+            has_store: false
+        }
+    }
+
+    const has_store = memory.readColumnBool(in.stores, row)
+    const callable = memory.readColumnU8(in.kinds, row) == in.callable
+
+    return {
+        row: callable ? row : null,
+        has_store
+    }
+}

@@ -21,7 +21,8 @@ export default function (in: Input): Output {
         next: state => {
             const position = state.position
             const result = lookup({
-                kind: calls.kinds[position],
+                calls,
+                position,
                 target: calls.rows[position],
                 zx_count,
                 rx_end,
