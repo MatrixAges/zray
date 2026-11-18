@@ -4,6 +4,8 @@ export type Derivation = opaque
 
 export type Solver = opaque
 
+export type Mixed = opaque
+
 export declare function normalizeSources(context: Project): void throws { InvalidSource, OutOfMemory }
 
 export declare function reuseFrame(context: Project): bool
@@ -43,3 +45,25 @@ export declare function collectConstraints(context: Solver): void throws { Inval
 export declare function finishConstraints(context: Solver): void throws { InvalidSource, OutOfMemory }
 
 export declare function resolveConstraints(context: Solver): void throws { InvalidSource, OutOfMemory }
+
+export declare function ready(context: Mixed): bool
+
+export declare function prepareWindow(context: Mixed): void throws { InvalidSource, OutOfMemory }
+
+export declare function restorePrefix(context: Mixed): bool throws { InvalidSource, OutOfMemory }
+
+export declare function dispatchBody(context: Mixed): u8
+
+export declare function rejectBody(context: Mixed): void throws { InvalidSource, OutOfMemory }
+
+export declare function analyzeBody(context: Mixed): void throws { InvalidSource, OutOfMemory }
+
+export declare function lowerBody(context: Mixed): void throws { InvalidSource, OutOfMemory }
+
+export declare function recordBody(context: Mixed): void
+
+export declare function materializeOutput(context: Mixed): void throws { InvalidSource, OutOfMemory }
+
+export declare function publishExports(context: Mixed): void throws { InvalidSource, OutOfMemory }
+
+export declare function retainHistory(context: Mixed): void

@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Mixed" />
+
+    <Args in={Mixed.Input} out={bool} />
+
+    <Call fn="ready" in={$in} />
+
+    <If on={!$ctx.ready}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="prepare" in={$in} />
+    <Call fn="restore" in={$in} />
+
+    <If on={$ctx.restore}>
+        <Return value={true} />
+    </If>
+
+    <Call fn="dispatch" in={$in} />
+
+    <Switch on={$ctx.dispatch}>
+        <Case value={Mixed.Action.NextWindow}>
+            <Return value={true} />
+        </Case>
+
+        <Case value={Mixed.Action.MissingSignature}>
+            <Call fn="reject" in={$in} />
+        </Case>
+
+        <Case value={Mixed.Action.AnalyzeZX}>
+            <Call fn="analyze" in={$in} />
+        </Case>
+
+        <Case value={Mixed.Action.LowerRX}>
+            <Call fn="lower" in={$in} />
+        </Case>
+    </Switch>
+
+    <Call fn="record" in={$in} />
+
+    <Return value={true} />
+</Module>

@@ -109,7 +109,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/mixed/body/admit.rx", .name = "rx_mixed_body_admit", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/body/accept.zx", .name = "rx_mixed_body_accept", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/body/link/plan.rx", .name = "rx_mixed_body_link", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/mixed/compile/plan.rx", .name = "rx_mixed_compile", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/mixed/compile/run.rx", .name = "rx_mixed_compile", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/schedule/window.zx", .name = "rx_mixed_window", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/schedule/claim.zx", .name = "rx_mixed_claim", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/schedule/dispatch/plan.rx", .name = "rx_mixed_dispatch", .owner = .rx_analysis },

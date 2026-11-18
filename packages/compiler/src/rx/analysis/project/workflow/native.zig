@@ -74,3 +74,48 @@ pub const publishFrame = Checked(zxcRxProjectPublishFrame).run;
 pub const collectConstraints = Checked(zxcRxProjectCollectConstraints).run;
 pub const finishConstraints = Checked(zxcRxProjectFinishConstraints).run;
 pub const resolveConstraints = Checked(zxcRxProjectResolveConstraints).run;
+
+extern fn zxcRxMixedReady(context: *anyopaque) bool;
+extern fn zxcRxMixedPrepareWindow(context: *anyopaque) Status;
+extern fn zxcRxMixedRestorePrefix(context: *anyopaque) Status;
+extern fn zxcRxMixedDispatchBody(context: *anyopaque) u8;
+extern fn zxcRxMixedRejectBody(context: *anyopaque) Status;
+extern fn zxcRxMixedAnalyzeBody(context: *anyopaque) Status;
+extern fn zxcRxMixedLowerBody(context: *anyopaque) Status;
+extern fn zxcRxMixedRecordBody(context: *anyopaque) void;
+extern fn zxcRxMixedMaterializeOutput(context: *anyopaque) Status;
+extern fn zxcRxMixedPublishExports(context: *anyopaque) Status;
+extern fn zxcRxMixedRetainHistory(context: *anyopaque) void;
+
+pub fn ready(context: *const anyopaque) bool {
+    return zxcRxMixedReady(@constCast(context));
+}
+
+pub const prepareWindow = Checked(zxcRxMixedPrepareWindow).run;
+
+pub fn restorePrefix(context: *const anyopaque) Error!bool {
+    const outcome = zxcRxMixedRestorePrefix(@constCast(context));
+
+    try outcome.check();
+
+    return outcome == .yes;
+}
+
+pub fn dispatchBody(context: *const anyopaque) u8 {
+    return zxcRxMixedDispatchBody(@constCast(context));
+}
+
+pub const rejectBody = Checked(zxcRxMixedRejectBody).run;
+pub const analyzeBody = Checked(zxcRxMixedAnalyzeBody).run;
+pub const lowerBody = Checked(zxcRxMixedLowerBody).run;
+
+pub fn recordBody(context: *const anyopaque) void {
+    zxcRxMixedRecordBody(@constCast(context));
+}
+
+pub const materializeOutput = Checked(zxcRxMixedMaterializeOutput).run;
+pub const publishExports = Checked(zxcRxMixedPublishExports).run;
+
+pub fn retainHistory(context: *const anyopaque) void {
+    zxcRxMixedRetainHistory(@constCast(context));
+}

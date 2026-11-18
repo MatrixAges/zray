@@ -1,0 +1,10 @@
+<Module>
+    <Type from="model" as="Mixed" />
+
+    <Args in={Mixed.Input} out={void} />
+
+    <Call fn="walk" in={$in} />
+    <Call fn="materialize" in={$in} />
+    <Call fn="publish" in={$in} />
+    <Call fn="retain" in={$in} />
+</Module>

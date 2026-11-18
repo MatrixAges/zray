@@ -1,0 +1,7 @@
+export const missing_signature: u8 = 1
+
+export const analyze_zx: u8 = 2
+
+export const lower_rx: u8 = 3
+
+export const next_window: u8 = 4

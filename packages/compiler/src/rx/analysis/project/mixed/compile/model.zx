@@ -1,17 +1,11 @@
-export enum Form {
-    Window,
-    Output
-}
+import type { Mixed } from "rx_project_workflow"
 
-export enum Step {
-    PrepareWindow,
-    RestorePrefix,
-    NextBody,
-    LinkBody,
-    RecordBoundary,
-    ResolveEntry,
-    BuildEntryProgram,
-    PublishContract,
-    PublishExports,
-    RetainHistory
+export type Input = Mixed
+
+export enum Action {
+    Skip,
+    MissingSignature,
+    AnalyzeZX,
+    LowerRX,
+    NextWindow
 }
