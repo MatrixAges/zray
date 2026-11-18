@@ -147,6 +147,12 @@ export declare function copyU32s(
     source: u32[]
 ): void throws { IndexOutOfBounds }
 
+export declare function copyU32sAt(
+    target: U32Buffer,
+    offset: u64,
+    source: u32[]
+): void throws { IndexOutOfBounds }
+
 export declare function copyStringViews(
     target: StringBuffer,
     source: string[]

@@ -32,11 +32,11 @@ pub const Unit = struct {
     growth: Growth.Store,
     callees: []const u32,
     recursive: bool,
-    identity: [32]u8 = @splat(0),
+    identity: *const Trace.Digest = &@as(Trace.Digest, @splat(0)),
     const Passes = struct { order: Order, sites: Sites };
 
     pub fn state(self: *const Unit, index: usize) Memo.State {
-        return .{ .identity = self.identity, .index = index, .input = self.unit.input, .callees = self.callees, .growth = &self.growth };
+        return .{ .identity = self.identity.*, .index = index, .input = self.unit.input, .callees = self.callees, .growth = &self.growth };
     }
     /// The passes over the body are built on first use in `lasting`, which outlives every later analysis.
     pub fn analyze(self: *Unit, allocator: std.mem.Allocator, lasting: std.mem.Allocator, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, growth: ?*Growth.Store, record_reads: bool) std.mem.Allocator.Error!Function {
@@ -106,11 +106,20 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     units[count] = if (program.type_only) null else try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), topology.callees[count], topology.recursive[count]);
 
-    const shared = if (memo.persistent) Identity.program(program, basis) else @as([32]u8, @splat(0));
+    var replay = Trace.Replay{ .allocator = temporary };
 
-    if (memo.persistent) identify(shared, basis.contents, units);
+    if (memo.persistent) {
+        const shared = Identity.program(program, basis);
+        const identities = try temporary.alloc(Trace.Digest, units.len);
 
-    var replay = try follow(temporary, memo, shared, exported, units);
+        identify(shared, basis.contents, units, identities);
+
+        if (memo.record_trace) {
+            const previous = if (memo.trace) |*trace| trace else null;
+            const key = Identity.combine(&shared, std.mem.sliceAsBytes(exported));
+            replay = try .init(temporary, memo.arena.child_allocator, previous, key, identities, topology.callees);
+        }
+    }
 
     defer replay.deinit();
 
@@ -367,35 +376,28 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
 
     const Replacement = struct { body: usize, value: Memo.Planned };
     var replacements: std.ArrayList(Replacement) = .empty;
-    var first: usize = 0;
+    var cursor: @import("replay/shortcut.zig") = .{};
 
     while (true) {
-        const selected = @import("replay/shortcut.zig").next(&program, trace.planned.starts, replay.changed, first);
+        cursor = cursor.next(&program, trace, replay.changed);
 
-        switch (selected.action) {
+        switch (cursor.phase) {
+            .start => unreachable,
             .done => break,
             .reject => return undo(summaries, units, replay.changed),
-            .revisit => {},
-        }
+            inline .settled, .demanded, .planned => |phase| {
+                const kind = comptime @field(Memo.Kind, @tagName(phase));
+                const visit = @field(trace, @tagName(phase)).entries[cursor.visit];
 
-        const index = selected.body;
-        const unit = units[index].?;
-
-        first = index + 1;
-
-        inline for (.{ Memo.Kind.settled, Memo.Kind.demanded }) |kind| {
-            for (trace.of(kind, index)) |visit| {
                 _ = scratch.reset(.retain_capacity);
-                const value = try revisit(kind, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, visit.state) orelse return undo(summaries, units, replay.changed);
 
-                if (!try Trace.agree(kind, scratch.allocator(), visit.value, value)) return undo(summaries, units, replay.changed);
-            }
+                const value = try revisit(kind, scratch.allocator(), temporary, program, slots, summaries, units[cursor.body].?, cursor.body, memo, visit.state) orelse return undo(summaries, units, replay.changed);
+
+                if (kind == .planned) {
+                    try replacements.append(temporary, .{ .body = cursor.body, .value = value });
+                } else if (!try Trace.agree(kind, scratch.allocator(), visit.value, value)) return undo(summaries, units, replay.changed);
+            },
         }
-
-        _ = scratch.reset(.retain_capacity);
-        const value = try revisit(.planned, scratch.allocator(), temporary, program, slots, summaries, unit, index, memo, trace.of(.planned, index)[0].state) orelse return undo(summaries, units, replay.changed);
-
-        try replacements.append(temporary, .{ .body = index, .value = value });
     }
 
     const count = program.functions.count();
@@ -428,7 +430,7 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
 
 /// The result body `index` reaches in a recorded state: the memo's when it has one, or a new analysis in that state.
 fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, lasting: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, unit: *Unit, index: usize, memo: *Memo, state: []const u8) std.mem.Allocator.Error!?Memo.Result(kind) {
-    if (memo.findReplay(kind, &unit.identity, state)) |value| return value;
+    if (memo.findReplay(kind, unit.identity, state)) |value| return value;
 
     const generated = @import("genz_options").generated_analysis;
     var restored: Growth.Store = undefined;
@@ -474,28 +476,6 @@ fn undo(summaries: *Summaries, units: []const ?*Unit, changed: []const bool) ?Re
     return null;
 }
 
-/// The replay of the memo's last analysis, which this one follows when it ran for the same program shape and exports.
-fn follow(allocator: std.mem.Allocator, memo: *const Memo, shared: [32]u8, exported: []const ir.FunctionId, units: []const ?*Unit) std.mem.Allocator.Error!Trace.Replay {
-    if (!memo.persistent) return .{ .allocator = allocator };
-
-    const identities = try allocator.alloc(Trace.Digest, units.len);
-    const calls = try allocator.alloc([]const u32, units.len);
-
-    for (units, identities, calls) |entry, *identity, *called| {
-        identity.* = if (entry) |unit| unit.identity else @splat(0);
-        called.* = if (entry) |unit| unit.callees else &.{};
-    }
-
-    var hash = @import("zx").Sha256.init(.{});
-
-    hash.update(&shared);
-    hash.update(std.mem.sliceAsBytes(exported));
-
-    const previous = if (memo.trace) |*trace| trace else null;
-
-    return .init(allocator, memo.arena.child_allocator, previous, hash.finalResult(), identities, calls);
-}
-
 fn prepare(allocator: std.mem.Allocator, unit: Function.Unit, body: ir.Block, called: []const u32, recursive: bool) std.mem.Allocator.Error!*Unit {
     const result = try allocator.create(Unit);
     result.* = .{ .unit = unit, .body = body, .growth = Growth.init(allocator), .callees = called, .recursive = recursive };
@@ -506,11 +486,12 @@ fn prepare(allocator: std.mem.Allocator, unit: Function.Unit, body: ir.Block, ca
 
 /// Gives every body its identity, from the content the basis hashed where it did; bodies hash independently, so all
 /// cores share the work.
-fn identify(shared: [32]u8, contents: []const [32]u8, units: []const ?*Unit) void {
+fn identify(shared: [32]u8, contents: []const [32]u8, units: []const ?*Unit, identities: []Trace.Digest) void {
     const Hashing = struct {
         shared: [32]u8,
         contents: []const [32]u8,
         units: []const ?*Unit,
+        identities: []Trace.Digest,
         next: std.atomic.Value(usize) = .init(0),
         fn run(work: *@This(), _: usize) void {
             while (true) {
@@ -518,14 +499,23 @@ fn identify(shared: [32]u8, contents: []const [32]u8, units: []const ?*Unit) voi
 
                 if (index >= work.units.len) return;
 
-                const unit = work.units[index] orelse continue;
+                const target = &work.identities[index];
+
+                const unit = work.units[index] orelse {
+                    target.* = @splat(0);
+
+                    continue;
+                };
+
                 const content = if (index < work.contents.len) work.contents[index] else Identity.content(unit.unit.symbols, unit.unit.expressions, unit.body, unit.unit.input_type, unit.unit.output_type);
-                unit.identity = Identity.body(work.shared, content);
+
+                target.* = Identity.combine(&work.shared, &content);
+                unit.identity = target;
             }
         }
     };
 
-    var work = Hashing{ .shared = shared, .contents = contents, .units = units };
+    var work = Hashing{ .shared = shared, .contents = contents, .units = units, .identities = identities };
 
     @import("zx").parallel.spread(Hashing, &work, Hashing.run, units.len);
 }

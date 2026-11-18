@@ -78,7 +78,7 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
     defer if (loaded) |*value| value.deinit();
 
-    const memo = if (loaded) |*value| value else if (keeps_memo) try memos.kept(cache.?) else null;
+    const memo = if (loaded) |*value| value else if (keeps_memo) try cache.?.keepMemo() else null;
     const Analysis = @import("genz").zx.modules.Analysis;
 
     var analysis = if (concurrent_analysis)

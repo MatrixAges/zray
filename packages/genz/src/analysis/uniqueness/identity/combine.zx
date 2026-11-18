@@ -1,0 +1,17 @@
+import crypto from "std:crypto"
+
+import type { Sha256State } from "std:crypto"
+
+export type Input = {
+    hash: Sha256State,
+    shared: u8[],
+    suffix: u8[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    crypto.resetSha256(in.hash)
+    crypto.updateSha256(in.hash, in.shared)
+    crypto.updateSha256(in.hash, in.suffix)
+}

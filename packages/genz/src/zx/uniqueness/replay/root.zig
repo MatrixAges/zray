@@ -14,15 +14,20 @@ allocator: std.mem.Allocator,
 state: State,
 pub fn init(allocator: std.mem.Allocator, previous: anytype, key: [32]u8, identities: []const [32]u8, callees: []const []const u32) std.mem.Allocator.Error!Self {
     var descriptor: Previous = undefined;
+    var calls: std.meta.Child(@FieldType(Previous, "callees")) = undefined;
 
-    if (previous) |value| descriptor = .{
-        .key = &value.key,
-        .identities = std.mem.sliceAsBytes(value.identities),
-        .callees = value.callees,
-        .settled = value.settled.starts,
-        .demanded = value.demanded.starts,
-        .planned = value.planned.starts,
-    };
+    if (previous) |value| {
+        calls = .{ .starts = value.callees.starts, .edges = value.callees.edges };
+
+        descriptor = .{
+            .key = &value.key,
+            .identities = std.mem.sliceAsBytes(value.identities),
+            .callees = &calls,
+            .settled = value.settled.starts,
+            .demanded = value.demanded.starts,
+            .planned = value.planned.starts,
+        };
+    }
 
     const input: Creation = .{
         .previous = if (previous != null) (if (indirect_previous) &descriptor else descriptor) else null,

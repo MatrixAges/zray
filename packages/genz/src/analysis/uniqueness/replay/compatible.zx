@@ -1,38 +1,39 @@
+import memory from "memory"
+
+import equal from "./ordered/integers"
+
 import type { Build as Input } from "./model"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    if (in.source.previous == null) {
+    const previous = in.source.previous
+
+    if (previous == null) {
         return false
     }
 
+    const calls = previous.callees
+
     return loop({
         index: 0,
-        child: 0,
         valid: true
     }, {
-        while: state => state.valid &&
-            state.index < in.source.callees.length,
+        while: state => state.valid && state.index < in.changed.length,
         next: state => {
-            const previous = in.source.previous
+            const index = state.index
 
-            if (previous != null && in.changed[state.index]) {
-                const left = previous.callees[state.index]
-                const right = in.source.callees[state.index]
+            if (in.changed[index]) {
+                const first = calls.starts[index]
+                const count = calls.starts[index + 1] - first
 
-                if (left.length != right.length) {
-                    state.valid = false
-                } else if (state.child < left.length) {
-                    state.valid = left[state.child] == right[state.child]
-                    state.child += 1
-                } else {
-                    state.index += 1
-                    state.child = 0
-                }
-            } else {
-                state.index += 1
+                state.valid = equal({
+                    left: memory.borrowU32Range(calls.edges, first, count),
+                    right: in.source.callees[index]
+                })
             }
+
+            state.index += 1
         },
         return: state => state.valid
     })

@@ -1,5 +1,6 @@
 const std = @import("std");
 const Memo = @import("memo.zig");
+const Graph = @import("replay/graph.zig");
 const Group = @import("replay/group.zig");
 const Self = @This();
 const Control = if (@import("genz_options").generated_analysis) @import("replay/root.zig") else @import("replay/seed.zig");
@@ -14,7 +15,7 @@ arena: std.heap.ArenaAllocator,
 /// The program shape and exported functions the analysis ran for.
 key: Digest,
 identities: []Digest,
-callees: []const []const u32,
+callees: Graph.Storage,
 settled: Visits(Memo.Settled),
 demanded: Visits(Memo.Demanded),
 planned: Visits(Memo.Planned),
@@ -125,15 +126,12 @@ pub const Replay = struct {
     pub fn finish(self: *Replay) std.mem.Allocator.Error!Self {
         const arena = &self.recording.?;
         const allocator = arena.allocator();
-        const callees = try allocator.alloc([]const u32, self.callees.len);
-
-        for (callees, self.callees) |*target, source| target.* = try allocator.dupe(u32, source);
 
         var result: Self = .{
             .arena = undefined,
             .key = self.key,
             .identities = try allocator.dupe(Digest, self.identities),
-            .callees = callees,
+            .callees = try Graph.capture(allocator, self.callees),
             .settled = try group(Memo.Settled, allocator, self.identities.len, self.settled),
             .demanded = try group(Memo.Demanded, allocator, self.identities.len, self.demanded),
             .planned = try group(Memo.Planned, allocator, self.identities.len, self.planned),

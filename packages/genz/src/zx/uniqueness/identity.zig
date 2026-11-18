@@ -78,16 +78,27 @@ pub fn contents(allocator: std.mem.Allocator, value: ir.Program) std.mem.Allocat
     return work.result;
 }
 
-/// A body of `digest` within `shared`, the digest of its program shape.
-pub fn body(shared: [32]u8, digest: [32]u8) [32]u8 {
-    var hash = Hash.init(.{});
-    var result: [32]u8 = undefined;
+/// Combines the program digest with a body digest or the raw exported function IDs.
+pub fn combine(shared: *const [32]u8, suffix: []const u8) [32]u8 {
+    var hash: Hash = undefined;
 
-    hash.update(&shared);
-    hash.update(&digest);
-    hash.final(&result);
+    if (@import("genz_options").generated_analysis) {
+        const zx = @import("zx");
+        const entry = @import("generated_uniqueness_identity_combine");
+        const Input = std.meta.Child(entry.Input);
+        const storage = zx.Sha256State{ .value = &hash };
+        const input: Input = .{ .hash = @ptrCast(&storage), .shared = shared, .suffix = suffix };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return result;
+        zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+    } else {
+        hash = .init(.{});
+
+        hash.update(shared);
+        hash.update(suffix);
+    }
+
+    return hash.finalResult();
 }
 
 fn finish(self: *Self) [32]u8 {

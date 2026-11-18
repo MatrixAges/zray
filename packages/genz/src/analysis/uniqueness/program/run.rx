@@ -10,7 +10,7 @@
         <Call fn="converge" in={$in.context} />
         <Call fn="plans" in={$in} />
 
-        <If on={$in.persistent}>
+        <If on={$in.recording}>
             <Call fn="commit" in={$in.context} />
         </If>
     </If>

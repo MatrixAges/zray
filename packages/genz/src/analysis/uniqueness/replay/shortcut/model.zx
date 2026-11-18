@@ -1,0 +1,30 @@
+export enum Phase {
+    Start,
+    Settled,
+    Demanded,
+    Planned,
+    Done,
+    Reject
+}
+
+export type Cursor = {
+    body: u64,
+    phase: Phase,
+    visit: u64
+}
+
+export type Visits = {
+    settled: u32[],
+    demanded: u32[],
+    planned: u32[]
+}
+
+export type Scan = {
+    native_modules: u32?[],
+    type_only: bool,
+    planned: u32[],
+    changed: bool[],
+    cursor: Cursor
+}
+
+export type Input = Scan & Visits

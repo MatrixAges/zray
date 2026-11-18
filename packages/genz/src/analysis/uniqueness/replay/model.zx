@@ -1,3 +1,5 @@
+import type { Graph } from "./graph/model"
+
 export enum Kind {
     Settled,
     Demanded,
@@ -7,7 +9,7 @@ export enum Kind {
 export type Previous = {
     key: u8[],
     identities: u8[],
-    callees: u32[][],
+    callees: Graph,
     settled: u32[],
     demanded: u32[],
     planned: u32[]

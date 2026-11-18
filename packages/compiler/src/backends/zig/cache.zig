@@ -256,6 +256,19 @@ fn writeAllInto(storage: Storage, writing: *Writing) void {
 
 const writers = 8;
 
+/// Holds disk-backed analyses until flushMemo. A resident caller also keeps the visit trace for its next request.
+pub fn keepMemo(self: *Self) std.mem.Allocator.Error!?*Memo {
+    if (self.memo == null) {
+        self.memo = try @import("uniqueness_memo.zig").load(self.allocator, self);
+
+        if (self.memo) |*memo| memo.record_trace = true;
+    }
+
+    self.keeps_memo = true;
+
+    return if (self.memo) |*memo| memo else null;
+}
+
 /// Writes the memo this cache keeps to storage, so later generations in other processes reuse it.
 pub fn flushMemo(self: *Self) std.mem.Allocator.Error!void {
     if (self.memo) |*memo| try @import("uniqueness_memo.zig").save(self.allocator, self, memo);

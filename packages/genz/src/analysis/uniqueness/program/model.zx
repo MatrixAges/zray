@@ -4,5 +4,5 @@ export type Input = {
     context: Context,
     target: PlanTarget,
     following: bool,
-    persistent: bool
+    recording: bool
 }

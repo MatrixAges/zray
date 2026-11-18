@@ -45,7 +45,7 @@ pub const Context = struct {
             .context = @ptrCast(self),
             .target = @ptrCast(&result),
             .following = self.replay.trace != null,
-            .persistent = self.memo.persistent,
+            .recording = self.replay.recording != null,
         };
 
         driver.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
@@ -117,7 +117,7 @@ pub const Context = struct {
 
         const result = try self.plans();
 
-        if (self.memo.persistent) try self.commit();
+        if (self.replay.recording != null) try self.commit();
 
         return result;
     }

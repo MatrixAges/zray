@@ -1,0 +1,45 @@
+import integers from "std:integer"
+
+import { Phase } from "./model"
+
+import type { Cursor, Visits } from "./model"
+
+export type Input = Visits & {
+    cursor: Cursor
+}
+
+export type Output = Cursor
+
+export default function (in: Input): Output {
+    const { body, phase, visit } = in.cursor
+
+    if (phase != Phase.Demanded) {
+        const first = integers.widen(in.settled[body])
+        const index = phase == Phase.Settled ? visit + 1 : first
+
+        if (index < integers.widen(in.settled[body + 1])) {
+            return {
+                body,
+                phase: Phase.Settled,
+                visit: index
+            }
+        }
+    }
+
+    const first = integers.widen(in.demanded[body])
+    const index = phase == Phase.Demanded ? visit + 1 : first
+
+    if (index < integers.widen(in.demanded[body + 1])) {
+        return {
+            body,
+            phase: Phase.Demanded,
+            visit: index
+        }
+    }
+
+    return {
+        body,
+        phase: Phase.Planned,
+        visit: integers.widen(in.planned[body])
+    }
+}

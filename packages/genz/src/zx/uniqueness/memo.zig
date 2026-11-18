@@ -60,12 +60,14 @@ encoding: if (generated_encoding) Encoding else void,
 state_end: usize = 0,
 /// Whether bodies carry content identities, as records that outlive this program need.
 persistent: bool,
+/// A later analysis in this process can replay the exact visit sequence. Disk records alone need no trace.
+record_trace: bool,
 /// Whether this run added records; `stale` reports whether it also left loaded ones unused.
 changed: bool = false,
 /// The visits of the last analysis, which the next analysis of the same program follows; it is not saved.
 trace: ?Trace = null,
 pub fn init(backing: std.mem.Allocator, persistent: bool) Self {
-    return .{ .arena = .init(backing), .persistent = persistent, .encoding = if (generated_encoding) Encoding.init() else {} };
+    return .{ .arena = .init(backing), .persistent = persistent, .record_trace = persistent, .encoding = if (generated_encoding) Encoding.init() else {} };
 }
 
 pub fn deinit(self: *Self) void {

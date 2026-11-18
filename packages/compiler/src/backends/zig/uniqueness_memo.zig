@@ -19,6 +19,8 @@ pub fn load(allocator: std.mem.Allocator, cache: ?*Cache) std.mem.Allocator.Erro
     const storage = (cache orelse return null).storage orelse return null;
     var memo = Memo.init(allocator, true);
 
+    memo.record_trace = false;
+
     errdefer memo.deinit();
 
     const bytes = storage.read(allocator, key) catch |err| switch (err) {
@@ -31,13 +33,6 @@ pub fn load(allocator: std.mem.Allocator, cache: ?*Cache) std.mem.Allocator.Erro
     try memo.load(bytes);
 
     return memo;
-}
-
-/// The memo a cache keeps across generations, read from storage the first time; null when the cache does not persist.
-pub fn kept(cache: *Cache) std.mem.Allocator.Error!?*Memo {
-    if (cache.memo == null) cache.memo = try load(cache.allocator, cache);
-
-    return if (cache.memo) |*memo| memo else null;
 }
 
 /// Keeps the analyses this build used for the next one; a failed write only costs that build its reuse.

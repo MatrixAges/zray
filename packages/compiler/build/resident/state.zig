@@ -87,8 +87,13 @@ pub fn generationCache(self: *Self, io: std.Io, path: []const u8) !*compiler.zig
 
     errdefer self.gpa.free(owned);
 
-    self.generation = .{ .path = owned, .cache = try compiler.zig.GenerationCache.initPersistent(self.gpa, io, path, self.digest) };
-    self.generation.?.cache.keeps_memo = true;
+    var cache = try compiler.zig.GenerationCache.initPersistent(self.gpa, io, path, self.digest);
+
+    errdefer cache.deinit();
+
+    if (try cache.keepMemo()) |memo| memo.record_trace = self.request != null;
+
+    self.generation = .{ .path = owned, .cache = cache };
 
     return &self.generation.?.cache;
 }
