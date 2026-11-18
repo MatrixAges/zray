@@ -1,0 +1,43 @@
+import { flag_entry, flag_private, flag_version } from "./const"
+
+export type Input = string[]
+
+export type Output = {
+    valid: bool,
+    private: bool,
+    version: u64,
+    entry: u64,
+    cursor: u64
+}
+
+export default function (in: Input): Output {
+    return loop({
+        valid: in.length >= 2,
+        private: false,
+        version: 0,
+        entry: 0,
+        cursor: 2
+    }, {
+        while: state => state.valid && state.cursor < in.length,
+        next: state => {
+            const option = in[state.cursor]
+
+            state.cursor += 1
+            switch (option) {
+                case flag_private:
+                    state.valid = !state.private
+                    state.private = true
+                case flag_entry:
+                    state.valid = state.entry == 0 && state.cursor < in.length
+                    state.entry = state.cursor
+                    state.cursor += 1
+                case flag_version:
+                    state.valid = state.version == 0 && state.cursor < in.length
+                    state.version = state.cursor
+                    state.cursor += 1
+                default:
+                    state.valid = false
+            }
+        }
+    })
+}

@@ -1,0 +1,33 @@
+import type { Head as Input, State as Output } from "./model"
+
+export default function (in: Input): Output {
+    return {
+        valid: in.valid,
+        command: in.command,
+        input: in.index,
+        cursor: in.index + 1,
+        tail: 0,
+        max_lines: null,
+        run: false,
+        check: false,
+        write: false,
+        workspace: false,
+        semantic: false,
+        no_cache: false,
+        cache_stats: false,
+        watch: false,
+        clocked: false,
+        kind: 0,
+        output: 0,
+        project: 0,
+        mode: 0,
+        node_library: 0,
+        host: 0,
+        result: 0,
+        solver: 0,
+        assembly: 0,
+        target: 0,
+        cpu: 0,
+        optimize: 0
+    }
+}

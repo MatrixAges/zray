@@ -63,32 +63,15 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, o
 }
 
 fn options(args: []const []const u8) !Manifest {
-    if (args.len < 2) return error.InvalidArguments;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const state = @import("cli_arguments").package_init.executeValue(empty.allocator(), args) catch unreachable;
 
-    var data = Manifest{ .name = args[1], .version = "0.1.0" };
-    var version_set = false;
-    var index: usize = 2;
+    if (!state.valid) return error.InvalidArguments;
 
-    while (index < args.len) : (index += 1) {
-        const option = args[index];
-
-        if (std.mem.eql(u8, option, "--private")) {
-            if (data.private) return error.InvalidArguments;
-
-            data.private = true;
-        } else if (std.mem.eql(u8, option, "--version")) {
-            if (version_set or index + 1 == args.len) return error.InvalidArguments;
-
-            index += 1;
-            data.version = args[index];
-            version_set = true;
-        } else if (std.mem.eql(u8, option, "--entry")) {
-            if (data.entry != null or index + 1 == args.len) return error.InvalidArguments;
-
-            index += 1;
-            data.entry = args[index];
-        } else return error.InvalidArguments;
-    }
-
-    return data;
+    return .{
+        .name = args[1],
+        .version = if (state.version == 0) "0.1.0" else args[@intCast(state.version)],
+        .entry = if (state.entry == 0) null else args[@intCast(state.entry)],
+        .private = state.private,
+    };
 }

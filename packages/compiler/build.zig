@@ -17,6 +17,7 @@ pub fn build(b: *std.Build) void {
     const generated_debug = b.option(bool, "generated-debug", "Keep debug information in generated bootstrap modules (slower and heavier zxc compiles)") orelse false;
     const generated_strip: ?bool = if (generated_debug) null else true;
 
+    b.addNamedLazyPath("source_generator", if (stage0.len == 0) generator.getEmittedBin() else .{ .cwd_relative = stage0 });
     b.addNamedLazyPath("generated", parser_source.main);
 
     const lint = b.dependency("lint", .{

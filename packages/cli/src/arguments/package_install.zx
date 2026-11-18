@@ -1,0 +1,65 @@
+import bytes from "std:bytes"
+
+import { flag_frozen, flag_index, flag_offline, option_prefix } from "./const"
+
+export type Input = string[]
+
+export type Output = {
+    valid: bool,
+    offline: bool,
+    frozen: bool,
+    path?: string,
+    index?: string,
+    cursor: u64
+}
+
+export default function (in: Input): Output {
+    const initial: Output = {
+        valid: true,
+        offline: false,
+        frozen: false,
+        path: null,
+        index: null,
+        cursor: 0
+    }
+
+    return loop(initial, {
+        while: state => state.valid && state.cursor < in.length,
+        next: state => {
+            const arg = in[state.cursor]
+
+            state.cursor += 1
+            switch (arg) {
+                case flag_offline:
+                    state.valid = !state.offline
+                    state.offline = true
+                case flag_frozen:
+                    state.valid = !state.frozen
+                    state.frozen = true
+                case flag_index:
+                    if (state.index != null || state.cursor == in.length) {
+                        state.valid = false
+                    } else {
+                        const value = in[state.cursor]
+
+                        state.valid = value.length > 0 && !bytes.startsWithText(
+                            bytes.fromText(value),
+                            0,
+                            option_prefix
+                        )
+                        state.index = value
+                        state.cursor += 1
+                    }
+                default:
+                    const positional = arg.length > 0 && !bytes.startsWithText(
+                        bytes.fromText(arg),
+                        0,
+                        option_prefix
+                    )
+
+                    state.valid = state.path == null && positional
+                    state.path = arg
+            }
+        }
+    })
+}

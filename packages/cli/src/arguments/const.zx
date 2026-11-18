@@ -1,0 +1,73 @@
+export const command_format: string = "fmt"
+
+export const command_lint: string = "lint"
+
+export const command_build: string = "build"
+
+export const command_verify: string = "verify"
+
+export const command_hardware: string = "fpga"
+
+export const flag_tail: string = "--"
+
+export const flag_run: string = "--run"
+
+export const flag_check: string = "--check"
+
+export const flag_write: string = "--write"
+
+export const flag_workspace: string = "--workspace"
+
+export const flag_semantic: string = "--semantic"
+
+export const flag_max_lines: string = "--max-lines"
+
+export const flag_kind: string = "--kind"
+
+export const flag_output: string = "--out"
+
+export const flag_project: string = "--project"
+
+export const flag_no_cache: string = "--no-cache"
+
+export const flag_cache_stats: string = "--cache-stats"
+
+export const flag_watch: string = "--watch"
+
+export const flag_clocked: string = "--clocked"
+
+export const flag_mode: string = "--mode"
+
+export const flag_node_library: string = "--node-lib"
+
+export const flag_host: string = "--host"
+
+export const flag_result: string = "--result"
+
+export const flag_solver: string = "--solver"
+
+export const flag_assembly: string = "--asm"
+
+export const flag_target: string = "--target"
+
+export const flag_cpu: string = "--cpu"
+
+export const flag_optimize: string = "--optimize"
+
+export const option_prefix: string = "--"
+
+export const mode_lib: string = "lib"
+
+export const host_node: string = "node"
+
+export const flag_offline: string = "--offline"
+
+export const flag_frozen: string = "--frozen-lockfile"
+
+export const flag_index: string = "--index"
+
+export const flag_private: string = "--private"
+
+export const flag_version: string = "--version"
+
+export const flag_entry: string = "--entry"

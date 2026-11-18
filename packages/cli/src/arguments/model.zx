@@ -1,0 +1,49 @@
+export enum Command {
+    Compile,
+    Format,
+    Lint,
+    Build,
+    Verify,
+    Hardware
+}
+
+export type Head = {
+    command: Command,
+    index: u64,
+    valid: bool
+}
+
+export type Request = {
+    args: string[],
+    maximum: u64
+}
+
+export type State = {
+    valid: bool,
+    command: Command,
+    input: u64,
+    cursor: u64,
+    tail: u64,
+    max_lines?: u64,
+    run: bool,
+    check: bool,
+    write: bool,
+    workspace: bool,
+    semantic: bool,
+    no_cache: bool,
+    cache_stats: bool,
+    watch: bool,
+    clocked: bool,
+    kind: u64,
+    output: u64,
+    project: u64,
+    mode: u64,
+    node_library: u64,
+    host: u64,
+    result: u64,
+    solver: u64,
+    assembly: u64,
+    target: u64,
+    cpu: u64,
+    optimize: u64
+}

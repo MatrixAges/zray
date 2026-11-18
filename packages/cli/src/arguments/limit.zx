@@ -1,0 +1,67 @@
+import integers from "std:integer"
+import { ascii_minus, ascii_plus } from "core/ascii/const"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_underscore,
+    decimal_radix
+} from "core/const"
+
+export type Input = {
+    text: string,
+    maximum: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { text, maximum } = in
+
+    if (text.length == 0) {
+        return null
+    }
+
+    const negative = text[0] == ascii_minus
+    const first = negative || text[0] == ascii_plus ? 1 : 0
+
+    if (first == text.length || text[first] == ascii_underscore) {
+        return null
+    }
+
+    if (text[text.length - 1] == ascii_underscore) {
+        return null
+    }
+
+    const cutoff = maximum / decimal_radix
+    const last = maximum % decimal_radix
+
+    return loop({
+        index: first,
+        value: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < text.length,
+        next: state => {
+            const byte = text[state.index]
+
+            if (byte != ascii_underscore) {
+                if (byte < ascii_digit_first || byte > ascii_digit_last) {
+                    state.valid = false
+                } else {
+                    const digit = integers.widenByte(byte - ascii_digit_first)
+                    const fits = state.value < cutoff ||
+                        (state.value == cutoff && digit <= last)
+
+                    state.valid = fits && (!negative || digit == 0)
+
+                    if (state.valid) {
+                        state.value = state.value * decimal_radix + digit
+                    }
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state.valid ? state.value : null
+    })
+}

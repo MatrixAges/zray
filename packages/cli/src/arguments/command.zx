@@ -1,0 +1,23 @@
+import {
+    command_format,
+    command_lint,
+    command_build,
+    command_verify,
+    command_hardware
+} from "./const"
+import { Command } from "./model"
+
+export type Input = string
+
+export type Output = Command
+
+export default function (in: Input): Output {
+    return match in {
+        command_format => Command.Format,
+        command_lint => Command.Lint,
+        command_build => Command.Build,
+        command_verify => Command.Verify,
+        command_hardware => Command.Hardware,
+        _ => Command.Compile
+    }
+}

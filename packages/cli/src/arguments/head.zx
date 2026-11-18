@@ -1,0 +1,26 @@
+import bytes from "std:bytes"
+
+import command from "./command"
+import { option_prefix } from "./const"
+import { Command } from "./model"
+
+import type { Head as Output } from "./model"
+
+export type Input = string[]
+
+export default function (in: Input): Output {
+    const kind = in.length == 0 ? Command.Compile : command(in[0])
+    const index = kind == Command.Compile ? 0 : 1
+
+    const valid = index < in.length && !bytes.startsWithText(
+        bytes.fromText(in[index]),
+        0,
+        option_prefix
+    )
+
+    return {
+        command: kind,
+        index,
+        valid
+    }
+}

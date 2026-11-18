@@ -1,0 +1,144 @@
+import {
+    flag_tail,
+    flag_run,
+    flag_check,
+    flag_write,
+    flag_workspace,
+    flag_semantic,
+    flag_max_lines,
+    flag_kind,
+    flag_output,
+    flag_project,
+    flag_no_cache,
+    flag_cache_stats,
+    flag_watch,
+    flag_clocked,
+    flag_mode,
+    flag_node_library,
+    flag_host,
+    flag_result,
+    flag_solver,
+    flag_assembly,
+    flag_target,
+    flag_cpu,
+    flag_optimize
+} from "./const"
+import initial from "./initial"
+import limit from "./limit"
+
+import type { Head, Request, State as Output } from "./model"
+
+export type Input = Request & {
+    head: Head
+}
+
+export default function (in: Input): Output {
+    const { args } = in
+
+    return loop(initial(in.head), {
+        while: state => state.valid && state.cursor < args.length,
+        next: state => {
+            const option = args[state.cursor]
+
+            state.cursor += 1
+            const next = state.cursor
+
+            switch (option) {
+                case flag_tail:
+                    state.valid = state.run
+                    state.tail = next
+                    state.cursor = args.length
+                case flag_run:
+                    state.valid = !state.run
+                    state.run = true
+                case flag_check:
+                    state.valid = !state.check
+                    state.check = true
+                case flag_write:
+                    state.valid = !state.write
+                    state.write = true
+                case flag_workspace:
+                    state.valid = !state.workspace
+                    state.workspace = true
+                case flag_semantic:
+                    state.valid = !state.semantic
+                    state.semantic = true
+                case flag_no_cache:
+                    state.valid = !state.no_cache
+                    state.no_cache = true
+                case flag_cache_stats:
+                    state.valid = !state.cache_stats
+                    state.cache_stats = true
+                case flag_watch:
+                    state.valid = !state.watch
+                    state.watch = true
+                case flag_clocked:
+                    state.valid = !state.clocked
+                    state.clocked = true
+                case flag_max_lines:
+                    if (next < args.length) {
+                        state.max_lines = limit({
+                            text: args[next],
+                            maximum: in.maximum
+                        })
+
+                        state.valid = state.max_lines != null
+                    } else {
+                        state.valid = false
+                    }
+
+                    state.cursor += 1
+                case flag_kind:
+                    state.valid = next < args.length && state.kind == 0
+                    state.kind = next
+                    state.cursor += 1
+                case flag_output:
+                    state.valid = next < args.length && state.output == 0
+                    state.output = next
+                    state.cursor += 1
+                case flag_project:
+                    state.valid = next < args.length && state.project == 0
+                    state.project = next
+                    state.cursor += 1
+                case flag_mode:
+                    state.valid = next < args.length && state.mode == 0
+                    state.mode = next
+                    state.cursor += 1
+                case flag_node_library:
+                    state.valid = next < args.length && state.node_library == 0
+                    state.node_library = next
+                    state.cursor += 1
+                case flag_host:
+                    state.valid = next < args.length && state.host == 0
+                    state.host = next
+                    state.cursor += 1
+                case flag_result:
+                    state.valid = next < args.length && state.result == 0
+                    state.result = next
+                    state.cursor += 1
+                case flag_solver:
+                    state.valid = next < args.length && state.solver == 0
+                    state.solver = next
+                    state.cursor += 1
+                case flag_assembly:
+                    state.valid = next < args.length && state.assembly == 0
+                    state.assembly = next
+                    state.cursor += 1
+                case flag_target:
+                    state.valid = next < args.length && state.target == 0
+                    state.target = next
+                    state.cursor += 1
+                case flag_cpu:
+                    state.valid = next < args.length && state.cpu == 0
+                    state.cpu = next
+                    state.cursor += 1
+                case flag_optimize:
+                    state.valid = next < args.length && state.optimize == 0
+                    state.optimize = next
+                    state.cursor += 1
+                default:
+                    state.valid = false
+            }
+        }
+    })
+}

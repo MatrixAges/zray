@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Arguments" />
+
+    <Args in={Arguments.Request} out={Arguments.State} />
+
+    <Call fn="head" in={$in.args} />
+
+    <Call
+        fn="scan"
+        in={{
+            ...$in,
+            head: $ctx.head
+        }}
+    />
+
+    <Call
+        fn="valid"
+        in={{
+            args: $in.args,
+            state: $ctx.scan
+        }}
+    />
+
+    <Return
+        value={{
+            ...$ctx.scan,
+            valid: $ctx.valid
+        }}
+    />
+</Module>
