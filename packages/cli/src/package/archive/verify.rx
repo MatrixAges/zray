@@ -1,0 +1,22 @@
+<Module>
+    <Type from="envelope" as="Gzip" />
+    <Type from="tar/model" as="Tar" />
+
+    <Args
+        in={{
+            gzip: Gzip.Input,
+            tar: Tar.Request
+        }}
+        out={Tar.Status}
+    />
+
+    <Call fn="envelope" in={$in.gzip} />
+
+    <If on={$ctx.envelope != Tar.Status.Valid}>
+        <Return value={$ctx.envelope} />
+    </If>
+
+    <Call fn="tar/validate" in={$in.tar} />
+
+    <Return value={$ctx.validate} />
+</Module>

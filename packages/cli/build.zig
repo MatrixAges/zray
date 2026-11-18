@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .strip = if (optimize == .safe) true else null,
         .imports = &.{
-            .{ .name = "cli_arguments", .module = @import("build/arguments.zig").create(b, compiler, target, optimize) },
+            .{ .name = "cli_source", .module = @import("build/source.zig").create(b, compiler, target, optimize) },
             .{ .name = "rx", .module = compiler.module("rx") },
             .{ .name = "rx_analysis", .module = compiler.module("rx_analysis") },
             .{ .name = "lint", .module = compiler.module("lint") },

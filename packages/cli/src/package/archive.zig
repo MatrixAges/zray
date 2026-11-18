@@ -15,8 +15,9 @@ pub const Result = struct {
 pub const maximum_archive = 128 * 1024 * 1024;
 pub const maximum_unpacked = 512 * 1024 * 1024;
 pub const maximum_entries = 65536;
+const Verified = struct { source: []const u8 };
 
-pub fn extract(io: std.Io, allocator: std.mem.Allocator, source: []const u8, expected: [32]u8, directory: std.Io.Dir) !Result {
+pub fn verify(source: []const u8, expected: [32]u8) !Verified {
     if (source.len > maximum_archive) return error.PackageArchiveTooLarge;
 
     var digest: [32]u8 = undefined;
@@ -25,11 +26,17 @@ pub fn extract(io: std.Io, allocator: std.mem.Allocator, source: []const u8, exp
 
     if (!std.mem.eql(u8, &digest, &expected)) return error.PackageArchiveChecksumMismatch;
 
-    const unpacked = try @import("archive/gzip.zig").decode(allocator, source, maximum_unpacked);
+    return .{ .source = source };
+}
+
+pub fn extract(io: std.Io, allocator: std.mem.Allocator, source: []const u8, expected: [32]u8, directory: std.Io.Dir) !Result {
+    return unpack(io, allocator, try verify(source, expected), directory);
+}
+
+pub fn unpack(io: std.Io, allocator: std.mem.Allocator, verified: Verified, directory: std.Io.Dir) !Result {
+    const unpacked = try @import("archive/decode.zig").decode(allocator, verified.source, maximum_unpacked, maximum_entries);
 
     defer allocator.free(unpacked);
-
-    try @import("archive/header.zig").validate(unpacked, maximum_entries);
 
     var arena = std.heap.ArenaAllocator.init(allocator);
 

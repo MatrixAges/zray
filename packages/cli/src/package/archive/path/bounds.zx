@@ -1,0 +1,54 @@
+import { ascii_dot, ascii_slash } from "core/ascii/const"
+
+export type Input = {
+    name: string,
+    directory: bool
+}
+
+export type Output = {
+    start: u64,
+    end: u64
+}
+
+export type Result = Output & {
+    valid: bool
+}
+
+export default function (in: Input): Output {
+    const { name } = in
+
+    const start = loop(0, {
+        while: i => i + 1 < name.length && name[i] == ascii_dot &&
+            name[i + 1] == ascii_slash,
+        next: i => {
+            i += 2
+        }
+    })
+
+    const end = loop(name.length, {
+        while: i => in.directory && i > start && name[i - 1] == ascii_slash,
+        next: i => {
+            i -= 1
+        }
+    })
+
+    const one = end == start + 1
+
+    const root_directory = (
+        - in.directory
+        - and one
+        - and name[start] == ascii_dot
+    )
+
+    if (root_directory) {
+        return {
+            start,
+            end: start
+        }
+    }
+
+    return {
+        start,
+        end
+    }
+}

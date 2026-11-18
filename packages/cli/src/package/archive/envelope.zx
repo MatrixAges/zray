@@ -1,0 +1,25 @@
+import { Status } from "./tar/model"
+
+export type Input = {
+    expected_crc: u32,
+    actual_crc: u32,
+    expected_size: u32,
+    actual_size: u32,
+    consumed: u64,
+    compressed_size: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const checksum = in.expected_crc == in.actual_crc
+    const length = in.expected_size == in.actual_size
+
+    if (!checksum || !length) {
+        return Status.InvalidPackageGzipChecksum
+    }
+
+    const complete = in.consumed == in.compressed_size
+
+    return complete ? Status.Valid : Status.TrailingPackageGzipData
+}

@@ -793,6 +793,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    archive_module.addImport("cli_source", cli_dependency.module("cli_source"));
+
     for ([_][]const u8{ "content", "structure", "paths" }) |name| {
         const archive_tests = b.addTest(.{
             .root_module = b.createModule(.{
@@ -879,6 +881,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{.{ .name = "pkgs", .module = pkgs.module("pkgs") }},
     });
+
+    store_module.addImport("cli_source", cli_dependency.module("cli_source"));
 
     const archive_data = b.createModule(.{
         .root_source_file = b.path("tests/package_archive/data.zig"),

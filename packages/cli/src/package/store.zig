@@ -36,14 +36,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, release: pkgs.Index.Rel
 
     defer allocator.free(bytes);
 
-    if (bytes.len > archive.maximum_archive) return error.PackageArchiveTooLarge;
-
-    var actual: [32]u8 = undefined;
-
-    std.crypto.hash.sha2.Sha256.hash(bytes, &actual, .{});
-
-    if (!std.mem.eql(u8, &actual, &digest)) return error.PackageArchiveChecksumMismatch;
-
+    const verified = try archive.verify(bytes, digest);
     var random: [16]u8 = undefined;
 
     std.Io.random(io, &random);
@@ -66,7 +59,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, release: pkgs.Index.Rel
 
         defer package.close(io);
 
-        var result = try archive.extract(io, allocator, bytes, digest, package);
+        var result = try archive.unpack(io, allocator, verified, package);
 
         defer result.deinit();
 

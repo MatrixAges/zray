@@ -8,7 +8,7 @@ offline: bool = false,
 frozen: bool = false,
 pub fn parse(args: []const []const u8) !Options {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const state = @import("cli_arguments").package_install.executeValue(empty.allocator(), args) catch unreachable;
+    const state = @import("cli_source").package_install.executeValue(empty.allocator(), args) catch unreachable;
 
     if (!state.valid) return error.InvalidArguments;
 

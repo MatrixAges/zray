@@ -51,6 +51,12 @@ pub fn count(haystack: []const u8, needle: u8) u64 {
     return std.mem.countScalar(u8, haystack, needle);
 }
 
+pub fn allEqual(source: []const u8, start: u64, end: u64, value: u8) error{IndexOutOfBounds}!bool {
+    if (start > end or end > source.len) return error.IndexOutOfBounds;
+
+    return std.mem.allEqual(u8, source[@intCast(start)..@intCast(end)], value);
+}
+
 pub fn indexOfScalar(haystack: []const u8, start: u64, needle: u8) ?u64 {
     if (start >= haystack.len) return null;
 

@@ -1,0 +1,93 @@
+import bytes from "std:bytes"
+import { ascii_null } from "core/ascii/const"
+
+import {
+    block_size,
+    end_marker_size,
+    long_name_entry,
+    size_offset,
+    type_offset
+} from "./const"
+import entry from "./entry"
+import { Status } from "./model"
+import size from "./size"
+
+import type { Cursor, Request as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { source } = in
+
+    const initial: Cursor = {
+        offset: 0,
+        entries: 0,
+        long_name: false,
+        status: Status.Next
+    }
+
+    return loop(initial, {
+        while: s => s.status == Status.Next,
+        next: s => {
+            const offset = s.offset
+            const remaining = source.length - offset
+
+            if (remaining == 0) {
+                s.status = Status.InvalidPackageTarEnd
+            } else if (remaining < block_size) {
+                s.status = Status.TruncatedPackageTar
+            } else {
+                const payload = offset + block_size
+                const empty =
+                    source[offset] == ascii_null &&
+                    bytes.allEqual(source, offset, payload, ascii_null)
+
+                if (empty) {
+                    const short = remaining < end_marker_size
+                    const unaligned = source.length % block_size != 0
+                    const incomplete = s.long_name || short || unaligned
+
+                    if (incomplete) {
+                        s.status = Status.InvalidPackageTarEnd
+                    } else {
+                        const clean =
+                            bytes.allEqual(source, payload, source.length, ascii_null)
+
+                        s.status = clean ? Status.Valid : Status.TrailingPackageTarData
+                    }
+                } else if (s.entries == in.maximum_entries) {
+                    s.status = Status.TooManyPackageEntries
+                } else {
+                    const decoded = size({
+                        source,
+                        start: offset + size_offset
+                    })
+                    const length = decoded ?? 0
+                    const padding = (block_size - length % block_size) % block_size
+                    const available = source.length - payload
+
+                    if (decoded == null) {
+                        s.status = Status.InvalidPackageTarSize
+                    } else if (length > available || padding > available - length) {
+                        s.status = Status.TruncatedPackageTar
+                    } else {
+                        const kind = source[offset + type_offset]
+
+                        s.status = entry({
+                            source,
+                            payload,
+                            length,
+                            kind,
+                            long_name: s.long_name,
+                            maximum_name: in.maximum_name
+                        })
+                        s.long_name = kind == long_name_entry
+                        s.entries += 1
+                        s.offset = payload + length + padding
+                    }
+                }
+            }
+        },
+        return: s => s.status
+    })
+}

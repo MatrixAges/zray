@@ -1,0 +1,48 @@
+{
+    "roots": [
+        {
+            "path": "arguments"
+        },
+        {
+            "path": "core",
+            "prefix": "core/"
+        },
+        {
+            "path": "archive",
+            "prefix": "package/archive/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "parse.rx",
+            "name": "arguments"
+        },
+        {
+            "path": "package_init.zx",
+            "name": "package_init"
+        },
+        {
+            "path": "package_install.zx",
+            "name": "package_install"
+        },
+        {
+            "path": "package/archive/verify.rx",
+            "name": "archive_verify"
+        },
+        {
+            "path": "package/archive/path/normalize.rx",
+            "name": "archive_path"
+        }
+    ],
+    "packages": [
+        {
+            "specifier": "core/const",
+            "entry": "core/const.zx"
+        },
+        {
+            "specifier": "core/ascii/const",
+            "entry": "core/ascii/const.zx"
+        }
+    ],
+    "interfaces": []
+}

@@ -1,0 +1,94 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import { ascii_minus, ascii_null, ascii_plus, ascii_space } from "core/ascii/const"
+import { ascii_digit_first, ascii_underscore } from "core/const"
+
+import {
+    binary_marker,
+    binary_prefix,
+    word_bytes,
+    octal_last,
+    octal_radix,
+    size_width,
+    word_base
+} from "./const"
+
+export type Input = {
+    source: u8[],
+    start: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { source, start } = in
+
+    if (source[start] == binary_marker) {
+        if (bytes.readU32(source, start, false) != binary_prefix) {
+            return null
+        }
+
+        const high = integers.widen(bytes.readU32(source, start + word_bytes, false))
+
+        const low =
+            integers.widen(bytes.readU32(source, start + word_bytes * 2, false))
+
+        return high * word_base + low
+    }
+
+    const end = start + size_width
+
+    const first = loop(start, {
+        while: i =>
+            i < end && (source[i] == ascii_space || source[i] == ascii_null),
+        next: i => {
+            i += 1
+        }
+    })
+
+    if (first == end) {
+        return 0
+    }
+
+    const last = loop(end, {
+        while: i => source[i - 1] == ascii_space || source[i - 1] == ascii_null,
+        next: i => {
+            i -= 1
+        }
+    })
+
+    const negative = source[first] == ascii_minus
+    const digits = negative || source[first] == ascii_plus ? first + 1 : first
+
+    if (digits == last || source[digits] == ascii_underscore) {
+        return null
+    }
+
+    if (source[last - 1] == ascii_underscore) {
+        return null
+    }
+
+    return loop({
+        i: digits,
+        value: 0,
+        valid: true
+    }, {
+        while: s => s.valid && s.i < last,
+        next: s => {
+            const byte = source[s.i]
+
+            if (byte != ascii_underscore) {
+                s.valid = byte >= ascii_digit_first && byte <= octal_last
+
+                if (s.valid) {
+                    s.value =
+                        s.value * octal_radix +
+                        integers.widenByte(byte - ascii_digit_first)
+                }
+            }
+
+            s.i += 1
+        },
+        return: s => s.valid && (!negative || s.value == 0) ? s.value : null
+    })
+}

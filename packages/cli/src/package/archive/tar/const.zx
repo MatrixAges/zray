@@ -1,0 +1,27 @@
+export const block_size: u64 = 512
+
+export const end_marker_size: u64 = 1024
+
+export const size_offset: u64 = 124
+
+export const size_width: u64 = 12
+
+export const type_offset: u64 = 156
+
+export const binary_marker: u8 = 128
+
+export const binary_prefix: u32 = 2147483648
+
+export const word_bytes: u64 = 4
+
+export const octal_last: u8 = 55
+
+export const octal_radix: u64 = 8
+
+export const word_base: u64 = 4294967296
+
+export const regular_file: u8 = 48
+
+export const directory_entry: u8 = 53
+
+export const long_name_entry: u8 = 76

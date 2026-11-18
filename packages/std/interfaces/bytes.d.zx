@@ -123,3 +123,10 @@ export declare function fillAtomicRow(
     row: u64,
     value: u8
 ): void throws { IndexOutOfBounds }
+
+export declare function allEqual(
+    source: u8[],
+    start: u64,
+    end: u64,
+    value: u8
+): bool throws { IndexOutOfBounds } concurrent

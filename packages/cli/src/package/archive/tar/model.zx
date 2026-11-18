@@ -1,0 +1,27 @@
+export enum Status {
+    Next,
+    Valid,
+    InvalidPackageGzipChecksum,
+    TrailingPackageGzipData,
+    TruncatedPackageTar,
+    InvalidPackageTarEnd,
+    TrailingPackageTarData,
+    TooManyPackageEntries,
+    InvalidPackageTarSize,
+    InvalidPackageDirectory,
+    InvalidPackageLongName,
+    UnsupportedPackageTarEntry
+}
+
+export type Request = {
+    source: u8[],
+    maximum_entries: u64,
+    maximum_name: u64
+}
+
+export type Cursor = {
+    offset: u64,
+    entries: u64,
+    long_name: bool,
+    status: Status
+}

@@ -1,0 +1,58 @@
+import {
+    ascii_backslash,
+    ascii_carriage_return,
+    ascii_colon,
+    ascii_dot,
+    ascii_line_feed,
+    ascii_null,
+    ascii_slash
+} from "core/ascii/const"
+
+import type { Input as Path, Output as Bounds } from "./bounds"
+
+export type Input = Path & Bounds
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { name, start, end } = in
+
+    if (name.length > 0 && name[0] == ascii_slash) {
+        return false
+    }
+
+    if (start == end) {
+        return in.directory
+    }
+
+    return loop({
+        i: start,
+        component: start,
+        valid: true
+    }, {
+        while: s => s.valid && s.i <= end,
+        next: s => {
+            if (s.i == end || name[s.i] == ascii_slash) {
+                const length = s.i - s.component
+                const one_dot = length == 1 && name[s.component] == ascii_dot
+                const two_dots = length == 2 && name[s.component] == ascii_dot &&
+                    name[s.component + 1] == ascii_dot
+
+                s.valid = length != 0 && !one_dot && !two_dots
+                s.component = s.i + 1
+            } else {
+                s.valid = match name[s.i] {
+                    ascii_backslash => false,
+                    ascii_colon => false,
+                    ascii_null => false,
+                    ascii_carriage_return => false,
+                    ascii_line_feed => false,
+                    _ => true
+                }
+            }
+
+            s.i += 1
+        },
+        return: s => s.valid
+    })
+}

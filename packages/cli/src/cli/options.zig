@@ -34,7 +34,7 @@ pub const Options = struct {
 
 pub fn parse(args: []const []const u8) error{InvalidArguments}!Options {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const state = @import("cli_arguments").arguments.executeValue(empty.allocator(), &.{ .args = args, .maximum = std.math.maxInt(usize) }) catch unreachable;
+    const state = @import("cli_source").arguments.executeValue(empty.allocator(), &.{ .args = args, .maximum = std.math.maxInt(usize) }) catch unreachable;
 
     if (!state.valid) return error.InvalidArguments;
 

@@ -64,7 +64,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, o
 
 fn options(args: []const []const u8) !Manifest {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const state = @import("cli_arguments").package_init.executeValue(empty.allocator(), args) catch unreachable;
+    const state = @import("cli_source").package_init.executeValue(empty.allocator(), args) catch unreachable;
 
     if (!state.valid) return error.InvalidArguments;
 

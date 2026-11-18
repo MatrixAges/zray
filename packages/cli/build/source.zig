@@ -3,27 +3,26 @@ const std = @import("std");
 pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
     const core = b.dependency("core", .{ .target = target, .optimize = optimize });
     const files = b.addWriteFiles();
-    const sources = b.path("src/arguments");
-
-    _ = files.addCopyDirectory(sources, "arguments", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/arguments"), "arguments", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/archive"), "archive", .{ .include_extensions = &.{ ".rx", ".zx" } });
 
     for ([_][]const u8{ "const.zx", "ascii/const.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
     }
 
-    const run = std.Build.Step.Run.create(b, "generate CLI argument parsers");
+    const run = std.Build.Step.Run.create(b, "generate CLI source modules");
 
     run.addFileArg2(compiler.namedLazyPath("source_generator"), .{ .make_absolute = true });
     run.setCwd(files.getDirectory());
     run.setEnvironmentVariable("ZXC_RESIDENT_GENERATOR", "0");
     run.addArg("--manifest");
-    run.addFileArg2(files.addCopyFile(b.path("build/arguments.json"), "manifest.json"), .{ .make_absolute = true });
+    run.addFileArg2(files.addCopyFile(b.path("build/source.json"), "manifest.json"), .{ .make_absolute = true });
 
-    const generated = run.addOutputDirectoryArg("arguments");
+    const generated = run.addOutputDirectoryArg("cli");
 
-    run.addDirectoryArg2(std.Build.LazyPath.cache_root.path(b, "cli-argument-functions"), .{ .make_absolute = true });
+    run.addDirectoryArg2(std.Build.LazyPath.cache_root.path(b, "cli-functions"), .{ .make_absolute = true });
 
-    return b.createModule(.{
+    return b.addModule("cli_source", .{
         .root_source_file = generated.path(b, "root.zig"),
         .target = target,
         .optimize = optimize,

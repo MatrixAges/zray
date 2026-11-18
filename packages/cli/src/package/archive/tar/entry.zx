@@ -1,0 +1,45 @@
+import bytes from "std:bytes"
+import { ascii_null } from "core/ascii/const"
+
+import { directory_entry, long_name_entry, regular_file } from "./const"
+import { Status } from "./model"
+
+export type Input = {
+    source: u8[],
+    payload: u64,
+    length: u64,
+    kind: u8,
+    long_name: bool,
+    maximum_name: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { kind, length, payload, source } = in
+
+    if (kind != long_name_entry) {
+        return match kind {
+            ascii_null => Status.Next,
+            regular_file => Status.Next,
+            directory_entry => length == 0 ? Status.Next : Status.InvalidPackageDirectory,
+            _ => Status.UnsupportedPackageTarEntry
+        }
+    }
+
+    const bad_length = length == 0 || length > in.maximum_name
+
+    if (in.long_name || bad_length) {
+        return Status.InvalidPackageLongName
+    }
+
+    const last = payload + length - 1
+
+    if (source[last] != ascii_null) {
+        return Status.InvalidPackageLongName
+    }
+
+    const terminator = bytes.indexOfScalar(source, payload, ascii_null)
+
+    return terminator == last ? Status.Next : Status.InvalidPackageLongName
+}
