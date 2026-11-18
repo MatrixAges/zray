@@ -8,7 +8,6 @@ const Identity = @import("identity.zig");
 const Trace = @import("trace.zig");
 pub const Memo = @import("memo.zig");
 const Sites = @import("sites.zig");
-const Pool = @import("pool.zig");
 const Ahead = @import("ahead.zig");
 const Round = @import("work/round.zig");
 const Topology = @import("topology.zig");
@@ -115,98 +114,22 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer replay.deinit();
 
-    var event: Round.Event = .Start;
+    var state: @import("program/host.zig").Context = .{
+        .allocator = allocator,
+        .workspace = workspace,
+        .temporary = temporary,
+        .program = &program,
+        .slots = slots,
+        .summaries = &summaries,
+        .units = units,
+        .callees = topology.callees,
+        .exported = exported,
+        .memo = memo,
+        .replay = &replay,
+        .concurrent = concurrent,
+    };
 
-    if (Round.next(event, replay.trace != null, memo.persistent) == .Replay) {
-        const reused = try shortcut(allocator, workspace, temporary, program, slots, &summaries, units, memo, &replay);
-
-        event = if (reused == null) .ReplayRejected else .ReplayAccepted;
-
-        if (Round.next(event, false, memo.persistent) == .Finished) return reused.?;
-    }
-
-    var pool = try Pool.init(temporary, concurrent);
-
-    defer pool.deinit();
-
-    var ahead = try Ahead.init(temporary, &pool, program.functions, slots, &summaries, units);
-    const reverse = try Topology.build(temporary, topology.callees, exported);
-    const callers = reverse.callers;
-    const known = reverse.known;
-    var work = try Work.init(workspace, count + 1);
-
-    defer work.deinit();
-
-    var round = try work.advance(&program, &summaries, known, event);
-
-    while (round.phase != .Planned) {
-        const outcome: Round.Event = switch (round.phase) {
-            .Settled => try settle(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead, round.budget),
-            .Demanded => try demand(workspace, &work, program, slots, &summaries, units, callers, memo, &replay, &ahead),
-            .Replay, .Planned, .CommitTrace, .Finished => unreachable,
-        };
-
-        round = try work.advance(&program, &summaries, known, outcome);
-    }
-
-    ahead.begin(.planned);
-    defer ahead.finish();
-
-    var plan_round = std.heap.ArenaAllocator.init(workspace);
-
-    defer plan_round.deinit();
-
-    const plan_owner = if (memo.persistent) memo.arena.allocator() else allocator;
-    const plans = try allocator.alloc(Plan, count);
-    var entry_plan = Plan{ .flags = &.{} };
-
-    for (units, 0..) |entry, index| {
-        const unit = entry orelse {
-            if (index < count) plans[index] = .{ .flags = &.{} };
-
-            continue;
-        };
-
-        try lookAhead(.planned, &work, memo, &replay, &ahead);
-
-        _ = try work.pop();
-
-        const recalled = if (memo.persistent)
-            (try replay.recall(.planned, index)) orelse try memo.getPlanned(&summaries, unit.state(index))
-
-        else
-            null;
-
-        const early = try ahead.take(.planned, index);
-
-        const built = if (recalled) |found| found.plan() else if (early) |found| try found.copy(plan_owner) else fresh: {
-            _ = plan_round.reset(.retain_capacity);
-
-            var analysis = try unit.analyze(plan_round.allocator(), temporary, program.functions, slots, &summaries, null, null);
-
-            break :fresh try analysis.plan(plan_owner);
-        };
-
-        const plan = if (memo.persistent) stored: {
-            const record = recalled orelse try memo.putOwnedPlan(memo.key, built);
-
-            try replay.met(.planned, index, record, memo);
-
-            break :stored try built.copy(allocator);
-        } else built;
-
-        if (index < count) plans[index] = plan else entry_plan = plan;
-    }
-
-    if (Round.next(.PlansPublished, false, memo.persistent) == .CommitTrace) {
-        const trace = try replay.finish();
-
-        if (memo.trace) |*previous| previous.deinit();
-
-        memo.trace = trace;
-    }
-
-    return .{ .functions = plans, .entry = entry_plan };
+    return state.run();
 }
 
 /// The plan of an entry body analyzed on its own, as a host entry into functions planned for another program: no
@@ -259,7 +182,7 @@ pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocat
     return analysis.plan(allocator);
 }
 
-const Work = if (@import("genz_options").generated_analysis) @import("work.zig") else @import("work/seed.zig");
+pub const Work = if (@import("genz_options").generated_analysis) @import("work.zig") else @import("work/seed.zig");
 
 /// Queues for analysis ahead the bodies at the front of the queue, unless the worklist follows a trace, whose visits
 /// are recalled instead of analyzed.
@@ -268,9 +191,63 @@ fn lookAhead(comptime kind: Memo.Kind, work: *const Work, memo: *Memo, replay: *
     try ahead.request(kind, memo, work.window(ahead.width()));
 }
 
+pub fn publishPlans(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, work: *Work, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!Result {
+    ahead.begin(.planned);
+    defer ahead.finish();
+
+    var plan_round = std.heap.ArenaAllocator.init(workspace);
+
+    defer plan_round.deinit();
+
+    const count = program.functions.count();
+    const plan_owner = if (memo.persistent) memo.arena.allocator() else allocator;
+    const plans = try allocator.alloc(Plan, count);
+    var entry_plan = Plan{ .flags = &.{} };
+
+    for (units, 0..) |entry, index| {
+        const unit = entry orelse {
+            if (index < count) plans[index] = .{ .flags = &.{} };
+
+            continue;
+        };
+
+        try lookAhead(.planned, work, memo, replay, ahead);
+
+        _ = try work.pop();
+
+        const recalled = if (memo.persistent)
+            (try replay.recall(.planned, index)) orelse try memo.getPlanned(summaries, unit.state(index))
+
+        else
+            null;
+
+        const early = try ahead.take(.planned, index);
+
+        const built = if (recalled) |found| found.plan() else if (early) |found| try found.copy(plan_owner) else fresh: {
+            _ = plan_round.reset(.retain_capacity);
+
+            var analysis = try unit.analyze(plan_round.allocator(), temporary, program.functions, slots, summaries, null, null);
+
+            break :fresh try analysis.plan(plan_owner);
+        };
+
+        const plan = if (memo.persistent) stored: {
+            const record = recalled orelse try memo.putOwnedPlan(memo.key, built);
+
+            try replay.met(.planned, index, record, memo);
+
+            break :stored try built.copy(allocator);
+        } else built;
+
+        if (index < count) plans[index] = plan else entry_plan = plan;
+    }
+
+    return .{ .functions = plans, .entry = entry_plan };
+}
+
 /// The greatest fixpoint of the summaries for the current growth copies, or no facts if it does not settle in time. A
 /// body is analyzed again only when a callee output it reads or its own input weakened.
-fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead, budget: u64) std.mem.Allocator.Error!Round.Event {
+pub fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead, budget: u64) std.mem.Allocator.Error!bool {
     const count = program.functions.count();
     var round = std.heap.ArenaAllocator.init(workspace);
 
@@ -285,8 +262,8 @@ fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         try lookAhead(.settled, work, memo, replay, ahead);
 
         const index = switch (try work.takeSettlement(&remaining)) {
-            .done => return .Settled,
-            .exhausted => return .Exhausted,
+            .done => return false,
+            .exhausted => return true,
             .body => |index| index,
         };
 
@@ -330,7 +307,7 @@ fn settle(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
 }
 
 /// Spreads the growth-copy demand until no input, output or copy is newly demanded; reports whether copies were added.
-fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!Round.Event {
+pub fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, callers: []const []const u64, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!bool {
     var round = std.heap.ArenaAllocator.init(workspace);
 
     defer round.deinit();
@@ -385,14 +362,14 @@ fn demand(workspace: std.mem.Allocator, work: *Work, program: ir.Program, slots:
         try work.notify(ahead.dirty, program, changed, callers[index], index);
     }
 
-    return if (added) .DemandGrew else .DemandStable;
+    return added;
 }
 
 /// The plans of an analysis that takes the path of the trace it follows, known without walking it: every changed body,
 /// analyzed again in each state the trace met it in, settles and demands as recorded, so every other body meets what
 /// it met before. Only the plans of the changed bodies are new. Null, with the summaries and growth copies as they
 /// were, when a changed body differs.
-fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, memo: *Memo, replay: *const Trace.Replay) std.mem.Allocator.Error!?Result {
+pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, memo: *Memo, replay: *const Trace.Replay) std.mem.Allocator.Error!?Result {
     const trace = &memo.trace.?;
     var scratch = std.heap.ArenaAllocator.init(workspace);
 

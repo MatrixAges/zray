@@ -1,0 +1,9 @@
+import program from "uniqueness_program"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return in.following && program.replay(in.context, in.target)
+}

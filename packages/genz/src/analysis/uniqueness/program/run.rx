@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Program" />
+
+    <Args in={Program.Input} out={void} />
+
+    <Call fn="replay" in={$in} />
+
+    <If on={!$ctx.replay}>
+        <Call fn="open" in={$in.context} />
+        <Call fn="converge" in={$in.context} />
+        <Call fn="plans" in={$in} />
+
+        <If on={$in.persistent}>
+            <Call fn="commit" in={$in.context} />
+        </If>
+    </If>
+</Module>

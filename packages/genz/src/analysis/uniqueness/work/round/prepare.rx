@@ -3,20 +3,11 @@
 
     <Args in={Round.Input} out={Round.Output} />
 
-    <Call
-        module="phase"
-        in={{
-            event: $in.event,
-            following: false,
-            persistent: false
-        }}
-    />
-
-    <If on={$ctx.phase == Round.Phase.Settled}>
+    <If on={$in.reset}>
         <Call fn="../../summaries/reset" in={$in.facts} />
     </If>
 
-    <If on={$in.event == Round.Event.Exhausted}>
+    <If on={$in.clear}>
         <Call
             fn="../../summaries/clear"
             in={{
@@ -33,7 +24,6 @@
     <Return
         value={{
             state: $ctx.fill,
-            phase: $ctx.phase,
             budget: $ctx.budget
         }}
     />

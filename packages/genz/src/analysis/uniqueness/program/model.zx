@@ -1,0 +1,8 @@
+import type { Context, PlanTarget } from "uniqueness_program"
+
+export type Input = {
+    context: Context,
+    target: PlanTarget,
+    following: bool,
+    persistent: bool
+}

@@ -1,0 +1,23 @@
+import program from "uniqueness_program"
+
+import type { Context } from "uniqueness_program"
+
+export type Input = Context
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const converged = loop({
+        changed: true
+    }, {
+        while: state => state.changed,
+        next: state => {
+            const budget = program.prepare(in, true, false)
+            const exhausted = program.settle(in, budget)
+
+            const demand_budget = program.prepare(in, false, exhausted)
+
+            state.changed = program.demand(in)
+        }
+    })
+}

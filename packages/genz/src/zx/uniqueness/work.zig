@@ -28,7 +28,7 @@ pub fn deinit(self: *Self) void {
     self.arena.deinit();
 }
 
-pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, event: Round.Event) std.mem.Allocator.Error!Round.Step {
+pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, reset: bool, clear: bool) std.mem.Allocator.Error!u64 {
     const Parameter = @typeInfo(@TypeOf(preparing.executeState)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
     const Queue = std.meta.Child(@FieldType(Input, "queue"));
@@ -42,12 +42,12 @@ pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summar
     // The preceding round has drained its readers, so this entry may reset the backing cells.
     const state = SummaryState.Borrowed.init(summaries);
     const facts = state.input(.Reset, program.functions.native_modules, known);
-    const input: Input = .{ .queue = &queue, .facts = &facts, .event = event };
+    const input: Input = .{ .queue = &queue, .facts = &facts, .reset = reset, .clear = clear };
     const output = preparing.executeState(self.arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
 
     self.state = output.state;
 
-    return .{ .phase = output.phase, .budget = output.budget };
+    return output.budget;
 }
 
 pub fn publish(self: *Self, settlement: Round.Settlement) std.mem.Allocator.Error!void {

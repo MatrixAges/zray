@@ -1,0 +1,11 @@
+import program from "uniqueness_program"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const budget = program.prepare(in.context, false, false)
+
+    program.plans(in.context, in.target)
+}

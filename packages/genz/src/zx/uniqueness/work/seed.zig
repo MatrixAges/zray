@@ -18,14 +18,12 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.queued);
 }
 
-pub fn advance(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, event: Round.Event) std.mem.Allocator.Error!Round.Step {
-    const phase = Round.next(event, false, false);
-
-    if (phase == .Settled) summaries.reset(program.*, known);
-    if (event == .Exhausted) summaries.clear();
+pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, reset: bool, clear: bool) std.mem.Allocator.Error!u64 {
+    if (reset) summaries.reset(program.*, known);
+    if (clear) summaries.clear();
     try self.fill(program);
 
-    return .{ .phase = phase, .budget = 64 * @as(u64, self.queued.len) };
+    return 64 * @as(u64, self.queued.len);
 }
 
 fn fill(self: *Self, program: *const ir.Program) std.mem.Allocator.Error!void {
