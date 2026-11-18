@@ -1,0 +1,23 @@
+<Module>
+    <Type from="query" as="Query" />
+
+    <Args in={Query.Input} out={Query.Output} />
+
+    <If on={$in.mode == Query.Mode.Guard}>
+        <Call
+            fn="guard"
+            in={$in.pick([
+                "graph",
+                "known",
+                "parents",
+                "value"
+            ])}
+        />
+
+        <Return value={$ctx.guard} />
+    </If>
+
+    <Call fn="lookup" in={$in} />
+
+    <Return value={$ctx.lookup} />
+</Module>

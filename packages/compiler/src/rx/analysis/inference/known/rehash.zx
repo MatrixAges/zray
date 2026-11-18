@@ -1,0 +1,52 @@
+import integers from "std:integer"
+import { free, used_flag } from "core/integer/map/const"
+import find from "core/integer/map/find"
+import memory from "memory"
+
+import writeSlot from "./write_slot"
+
+import type { State as Table } from "core/integer/map/model"
+import type { Storage } from "./model"
+
+export type Input = Table.Pick("metadata", "keys") & {
+    previous: Table,
+    storage: Storage
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { previous, metadata, keys, storage } = in
+
+    memory.fillByteRange(storage.metadata, 0, metadata.length, free)
+
+    const rehashed = loop({
+        index: 0,
+        moved: 0
+    }, {
+        while: state => state.moved < previous.count,
+        next: state => {
+            const i = state.index
+
+            if (integers.widenByte(previous.metadata[i]) >= used_flag) {
+                const type_id = previous.keys[i]
+                const position = find({
+                    metadata,
+                    keys,
+                    key: type_id
+                })
+
+                writeSlot({
+                    storage,
+                    position,
+                    node: previous.values[i],
+                    type_id
+                })
+
+                state.moved += 1
+            }
+
+            state.index += 1
+        }
+    })
+}

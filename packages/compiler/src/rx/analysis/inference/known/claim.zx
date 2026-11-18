@@ -1,0 +1,82 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import { capacity_growth, initial_capacity } from "core/integer/map/const"
+import probe from "core/integer/map/find"
+
+import { Action } from "./model"
+import publish from "./publish"
+
+import type { Output as Progress, Registry } from "./model"
+
+export type Input = Registry & {
+    type_id: u32,
+    end: u64,
+    grow_index: bool
+}
+
+export type Output = Progress.Pick("action", "capacity", "value") & {
+    added: bool
+}
+
+export default function (in: Input): Output {
+    const capacity = in.table.metadata.length
+
+    const reserve: Output = {
+        action: Action.Reserve,
+        capacity,
+        value: 0,
+        added: false
+    }
+
+    if (capacity == 0) {
+        return {
+            ...reserve,
+            capacity: initial_capacity
+        }
+    }
+
+    const position = probe({
+        metadata: in.table.metadata,
+        keys: in.table.keys,
+        key: in.type_id
+    })
+
+    if (position.found) {
+        return {
+            ...reserve,
+            action: Action.Scan,
+            value: in.table.values[position.slot]
+        }
+    }
+
+    if (in.end > integers.widen(max_u32)) {
+        return {
+            ...reserve,
+            action: Action.Overflow
+        }
+    }
+
+    if (in.grow_index || in.end == in.nodes.capacity) {
+        return {
+            ...reserve,
+            capacity: in.grow_index ? capacity * capacity_growth : capacity
+        }
+    }
+
+    const node = integers.narrow(in.end)
+
+    publish({
+        storage: in.storage,
+        nodes: in.nodes,
+        type_id: in.type_id,
+        node,
+        position
+    })
+
+    return {
+        action: Action.Scan,
+        capacity,
+        value: node,
+        added: true
+    }
+}

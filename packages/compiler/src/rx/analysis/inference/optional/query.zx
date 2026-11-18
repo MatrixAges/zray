@@ -1,0 +1,30 @@
+import type { State as Known } from "core/integer/map/model"
+import type { U32Buffer } from "memory"
+import type { Graph } from "./model"
+import type { Action } from "./payload"
+
+export enum Mode {
+    Guard,
+    Hint,
+    Payload
+}
+
+export type Guard = {
+    graph: Graph,
+    known: Known,
+    parents: U32Buffer,
+    value: u32
+}
+
+export type Input = Guard & {
+    allowed: u16?[],
+    mode: Mode,
+    remaining?: u64
+}
+
+export type Output = {
+    action: Action,
+    value?: u32,
+    root: u32,
+    remaining: u64
+}

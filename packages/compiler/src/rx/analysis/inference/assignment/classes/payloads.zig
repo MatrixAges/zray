@@ -65,9 +65,10 @@ fn scan(graph: *Graph, allocator: std.mem.Allocator, start: usize, limit: usize)
             .Scan => return payloads,
             .Register => {
                 const span = rows.items(.span)[result.origin];
+                const registered = try @import("../../known.zig").registerPayload(graph, result.source, result.remaining.?, span);
 
-                source = @backingInt(try graph.known(@fromBackingInt(result.source), span));
-                remaining = result.remaining;
+                source = @backingInt(registered.node);
+                remaining = registered.remaining;
             },
             .Depth => return graph.reporter.fail(.unsupported, rows.items(.span)[result.origin], "type inference nesting exceeds 256 levels"),
         }

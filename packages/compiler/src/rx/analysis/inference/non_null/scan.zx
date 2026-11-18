@@ -1,9 +1,8 @@
 import integers from "std:integer"
 
 import representative from "../forest/borrowed_root"
-import find from "../known/find"
-import { Route as WalkRoute } from "../optional/model"
-import walk from "../optional/walk"
+import guard from "../optional/guard"
+import { Action as QueryAction } from "../optional/payload"
 import { Kind } from "../unification/model"
 
 import type { State as Known } from "core/integer/map/model"
@@ -38,26 +37,17 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.next
             const source = state.sources[index]
-            const result = walk({
+            const result = guard({
                 graph: state.graph,
+                known: state.known,
                 parents: state.parents,
-                value: source,
-                root: source,
-                remaining: 1,
-                route: WalkRoute.Boundary
+                value: source
             })
+            const operand = result.value
 
-            if (result.route != WalkRoute.Open) {
-                const operand = match result.route {
-                    WalkRoute.Declared => find({
-                        known: state.known,
-                        type_id: result.value
-                    }),
-                    _ => result.value
-                }
-
-                if (operand == null) {
-                    state.value = result.value
+            if (operand != null) {
+                if (result.action == QueryAction.Register) {
+                    state.value = operand
                     state.action = Action.Register
                 } else {
                     const left = representative({

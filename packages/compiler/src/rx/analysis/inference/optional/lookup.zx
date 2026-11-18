@@ -1,0 +1,40 @@
+import integers from "std:integer"
+import { max_nesting_depth, max_u64 } from "core/const"
+
+import payload from "./payload"
+import { Action } from "./payload"
+import { Mode } from "./query"
+
+import type { Input, Output } from "./query"
+
+export default function (in: Input): Output {
+    const hint = in.mode == Mode.Hint
+    const limit = hint ? max_u64 : max_nesting_depth
+
+    const result = payload({
+        ...in.pick([
+            "graph",
+            "parents",
+            "known",
+            "value"
+        ]),
+        remaining: in.remaining ?? limit
+    })
+
+    const { action, root, remaining } = result
+
+    const value: u32? = match {
+        action != Action.Ready => result.value,
+        !hint => root,
+        !result.open => result.value,
+        in.allowed[integers.widen(root)] != null => result.value,
+        _ => null
+    }
+
+    return {
+        action,
+        root,
+        remaining,
+        value
+    }
+}

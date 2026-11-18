@@ -1,29 +1,35 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
+const Nodes = @import("nodes.zig");
 const enabled = @import("rx_options").generated_graph;
-const writing = if (enabled) @import("generated_rx_known_put") else void;
-
-const State = if (enabled)
-    @typeInfo(@typeInfo(@TypeOf(writing.executeState)).@"fn".return_type.?).error_union.payload
-
-else
-    std.AutoHashMapUnmanaged(zx.ir.TypeId, Graph.Id);
-
 const Self = @This();
+const Buckets = std.MultiArrayList(struct { metadata: u8, keys: u32, values: u32 });
 
-state: State = if (enabled) .{
-    .count = 0,
-    .metadata = .{ .items = &.{}, .storage = .plain },
-    .keys = .{ .items = &.{}, .storage = .plain },
-    .values = .{ .items = &.{}, .storage = .plain },
-} else .empty,
+const State = if (enabled) struct {
+    buckets: Buckets.Slice = .empty,
+    count: u64 = 0,
+} else std.AutoHashMapUnmanaged(zx.ir.TypeId, Graph.Id);
+
+const Writable = struct {
+    metadata: []u8,
+    keys: []u32,
+    values: []u32,
+    fn from(rows: Buckets.Slice) Writable {
+        return .{ .metadata = rows.items(.metadata), .keys = rows.items(.keys), .values = rows.items(.values) };
+    }
+    fn borrow(self: *const Writable, comptime Storage: type) Storage {
+        return .{ .metadata = @ptrCast(&self.metadata), .keys = @ptrCast(&self.keys), .values = @ptrCast(&self.values) };
+    }
+};
+
+state: State = if (enabled) .{} else .empty,
 pub fn borrow(self: *const Self, comptime Table: type) Table {
     return .{
         .count = self.state.count,
-        .metadata = self.state.metadata.items,
-        .keys = self.state.keys.items,
-        .values = self.state.values.items,
+        .metadata = self.state.buckets.items(.metadata),
+        .keys = self.state.buckets.items(.keys),
+        .values = self.state.buckets.items(.values),
     };
 }
 
@@ -31,75 +37,132 @@ pub fn get(self: *const Self, type_id: zx.ir.TypeId) ?Graph.Id {
     if (!enabled) return self.state.get(type_id);
     if (self.state.count == 0) return null;
 
-    const querying = @import("generated_rx_known_lookup");
-    const Input = std.meta.Child(querying.Input);
+    const rule = @import("generated_rx_known_lookup");
+    const Input = std.meta.Child(rule.Input);
 
     const input: Input = .{
-        .count = self.state.count,
-        .metadata = self.state.metadata.items,
-        .keys = self.state.keys.items,
-        .key = @backingInt(type_id),
+        .known = &self.borrow(std.meta.Child(@FieldType(Input, "known"))),
+        .type_id = @backingInt(type_id),
     };
 
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    const slot = zx.columns.invoke(querying.executeValue, scratch.allocator(), &input) catch unreachable;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const node = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return @fromBackingInt(self.state.values.items[slot orelse return null]);
+    return @fromBackingInt(node orelse return null);
 }
 
 pub fn intern(graph: *Graph, type_id: zx.ir.TypeId, span: zx.Span) zx.Error!Graph.Id {
-    try check(graph, type_id, span);
-    if (graph.pending.known_types.get(type_id)) |id| return id;
+    if (@backingInt(type_id) >= graph.types.items.count()) return invalid(graph, span);
+    if (graph.pending.known_types.get(type_id)) |node| return node;
+    if (comptime enabled) return (try register(graph, &.{@backingInt(type_id)}, null, span)).node;
 
-    return insert(graph, type_id, span);
+    const node = try graph.add(.{ .known = type_id }, span);
+
+    errdefer graph.nodes.len -= 1;
+
+    try graph.pending.known_types.state.put(graph.pending.allocator, type_id, node);
+
+    return node;
 }
 
 pub fn registerMembers(graph: *Graph, types: []const u32, span: zx.Span) zx.Error!void {
-    const missing = @import("generated_rx_known_missing");
-    const Input = std.meta.Child(missing.Input);
-    const Table = std.meta.Child(@FieldType(Input, "known"));
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    var first: usize = 0;
+    if (types.len != 0) _ = try register(graph, types, null, span);
+}
 
-    while (first < types.len) {
-        const table = graph.pending.known_types.borrow(Table);
-        const input: Input = .{ .known = &table, .types = types, .first = first };
-        const next = zx.columns.invoke(missing.executeValue, scratch.allocator(), &input) catch unreachable;
-        const position = next orelse return;
-        const type_id: zx.ir.TypeId = @fromBackingInt(types[@intCast(position)]);
+const Registration = struct { node: Graph.Id, remaining: u64 };
 
-        try check(graph, type_id, span);
+pub fn registerPayload(graph: *Graph, type_id: u32, remaining: u64, span: zx.Span) zx.Error!Registration {
+    return register(graph, &.{type_id}, remaining, span);
+}
 
-        _ = try insert(graph, type_id, span);
-        first = @intCast(position + 1);
+fn register(graph: *Graph, members: []const u32, budget: ?u64, span: zx.Span) zx.Error!Registration {
+    const table = &graph.pending.known_types;
+    const rule = @import("generated_rx_known_register");
+    const Input = std.meta.Child(rule.Input);
+    const Row = std.meta.Child(@FieldType(Input, "nodes"));
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var next: u64 = 0;
+    var type_id = members[0];
+    var remaining = budget;
+
+    while (true) {
+        const first = graph.nodes.len;
+        var rows = graph.nodes.slice();
+        rows.len = graph.nodes.capacity;
+        const columns = Nodes.writable(rows);
+        const parents = rows.items(.parent);
+        const storage = Writable.from(table.state.buckets);
+
+        const input: Input = .{
+            .table = &table.borrow(std.meta.Child(@FieldType(Input, "table"))),
+            .storage = &storage.borrow(std.meta.Child(@FieldType(Input, "storage"))),
+            .nodes = &.{ .parents = @ptrCast(&parents), .columns = &columns.borrow(std.meta.Child(@FieldType(Row, "columns"))), .capacity = rows.len, .known_kind = @backingInt(Nodes.Kind.Known) },
+            .members = members,
+            .types = &.{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items },
+            .type_id = type_id,
+            .remaining = remaining,
+            .next = next,
+            .end = first,
+        };
+
+        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        if (result.end != first) {
+            rows.len = @intCast(result.end);
+
+            const reservation: Nodes.Reservation = .{ .rows = rows, .first = first };
+
+            reservation.publish(graph, span);
+
+            table.state.count += rows.len - first;
+        }
+
+        switch (result.action) {
+            .Scan => return .{ .node = @fromBackingInt(result.value), .remaining = result.remaining orelse 0 },
+            .Invalid => return invalid(graph, span),
+            .Overflow => return error.OutOfMemory,
+            .Reserve => {
+                if (graph.nodes.len == graph.nodes.capacity) _ = try Nodes.reserve(graph, 1);
+                if (result.capacity != table.state.buckets.len) try table.grow(graph.pending.allocator, result.capacity);
+
+                next = result.next;
+                type_id = result.type_id;
+                remaining = result.remaining;
+            },
+        }
     }
 }
 
-fn check(graph: *const Graph, type_id: zx.ir.TypeId, span: zx.Span) zx.Error!void {
-    if (@backingInt(type_id) >= graph.types.items.count()) return graph.reporter.fail(.contract, span, "inference type is outside the shared table");
-}
+fn grow(self: *Self, allocator: std.mem.Allocator, capacity: u64) std.mem.Allocator.Error!void {
+    const rule = @import("generated_rx_known_rehash");
+    const Input = std.meta.Child(rule.Input);
+    const size = std.math.cast(u32, capacity) orelse return error.OutOfMemory;
 
-fn insert(graph: *Graph, type_id: zx.ir.TypeId, span: zx.Span) zx.Error!Graph.Id {
-    const id = try graph.add(.{ .known = type_id }, span);
+    if (size > std.math.maxInt(usize) / Buckets.capacityInBytes(1)) return error.OutOfMemory;
 
-    graph.pending.known_types.put(graph.pending.allocator, type_id, id) catch |err| {
-        graph.nodes.len -= 1;
+    var fresh: Buckets = .empty;
 
-        return err;
+    try fresh.setCapacity(allocator, size);
+
+    fresh.len = size;
+    const rows = fresh.toOwnedSlice();
+    const storage = Writable.from(rows);
+
+    const input: Input = .{
+        .previous = &self.borrow(std.meta.Child(@FieldType(Input, "previous"))),
+        .metadata = storage.metadata,
+        .keys = storage.keys,
+        .storage = &storage.borrow(std.meta.Child(@FieldType(Input, "storage"))),
     };
 
-    return id;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    self.state.buckets.deinit(allocator);
+
+    self.state.buckets = rows;
 }
 
-fn put(self: *Self, allocator: std.mem.Allocator, type_id: zx.ir.TypeId, node: Graph.Id) std.mem.Allocator.Error!void {
-    if (!enabled) return self.state.put(allocator, type_id, node);
-
-    const Parameter = @typeInfo(@TypeOf(writing.executeState)).@"fn".param_types[1].?;
-    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const input: Input = .{ .state = self.state, .key = @backingInt(type_id), .value = @backingInt(node) };
-
-    self.state = writing.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+fn invalid(graph: *Graph, span: zx.Span) zx.Error {
+    return graph.reporter.fail(.contract, span, "inference type is outside the shared table");
 }

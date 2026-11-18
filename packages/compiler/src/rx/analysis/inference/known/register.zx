@@ -1,0 +1,69 @@
+import integers from "std:integer"
+import { load_denominator, load_numerator } from "core/integer/map/const"
+import { kind_optional } from "core/type_table/const"
+
+import claim from "./claim"
+import { Action } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const capacity = in.table.metadata.length
+    const limit = capacity * load_numerator / load_denominator
+    const zero: u32 = 0
+
+    return loop({
+        ...in.pick([
+            "next",
+            "end",
+            "type_id",
+            "remaining"
+        ]),
+        capacity,
+        value: zero,
+        action: Action.Scan
+    }, {
+        while: state => state.action == Action.Scan && state.next < in.members.length,
+        next: state => {
+            const index = integers.widen(state.type_id)
+            if (index >= in.types.kinds.length) {
+                state.action = Action.Invalid
+            } else {
+                const count = in.table.count + (state.end - in.end)
+                const entry = claim({
+                    ...in.pick([
+                        "table",
+                        "storage",
+                        "nodes"
+                    ]),
+                    end: state.end,
+                    type_id: state.type_id,
+                    grow_index: count == limit
+                })
+
+                state.action = entry.action
+                state.capacity = entry.capacity
+
+                if (entry.action == Action.Scan) {
+                    state.value = entry.value
+                    if (entry.added) {
+                        state.end += 1
+                    }
+
+                    const budget = state.remaining ?? 0
+                    const follow = entry.added && budget != 0
+                    if (follow && in.types.kinds[index] == kind_optional) {
+                        state.type_id = in.types.children[index]
+                        state.remaining = budget - 1
+                    } else {
+                        state.next += 1
+                        if (state.next < in.members.length) {
+                            state.type_id = in.members[state.next]
+                        }
+                    }
+                }
+            }
+        },
+        return: state => state
+    })
+}

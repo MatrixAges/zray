@@ -1,54 +1,27 @@
 const std = @import("std");
 const zx = @import("zx");
 const Graph = @import("types.zig");
+const seed = @import("optional/seed.zig");
 const enabled = @import("rx_options").generated_graph;
-const walk_rule = if (enabled) @import("generated_rx_optional_walk") else void;
-const View = if (enabled) std.meta.Child(@FieldType(std.meta.Child(walk_rule.Input), "graph")) else void;
-const Route = if (enabled) @FieldType(std.meta.Child(walk_rule.Output), "route") else enum { Boundary, Stable, Open, Declared };
-const Types = if (enabled) std.meta.Child(@FieldType(View, "types")) else void;
-const optional_tag = @backingInt(std.meta.Tag(zx.ir.Type).optional);
-const nesting_limit = 256;
-
-const Step = struct {
-    value: u32,
-    root: Graph.Id,
-    remaining: u64,
-    route: Route = .Boundary,
-};
+const rule = if (enabled) @import("generated_rx_optional_query") else void;
 
 pub fn guarded(graph: *Graph, source: Graph.Id, span: zx.Span) zx.Error!?Graph.Id {
-    const step = walk(graph, source, 1);
-
-    return switch (step.route) {
-        .Open => null,
-        .Stable, .Boundary => @fromBackingInt(step.value),
-        .Declared => try graph.known(@fromBackingInt(step.value), span),
-    };
+    return if (enabled) query(.Guard, graph, source, span) else seed.guarded(graph, source, span);
 }
 
 pub fn hint(graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
-    if (comptime enabled) return sourceHint(graph, source);
-
-    var value = source;
-
-    while (true) {
-        const step = walk(graph, value, std.math.maxInt(u64));
-
-        switch (step.route) {
-            .Stable => return @fromBackingInt(step.value),
-            .Open => return if (graph.nodes.items(.allowed)[@backingInt(step.root)] != null) @fromBackingInt(step.value) else null,
-            .Declared => value = try register(graph, step),
-            .Boundary => unreachable,
-        }
-    }
+    return if (enabled) query(.Hint, graph, source, null) else seed.hint(graph, source);
 }
 
-fn sourceHint(graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
-    const rule = @import("generated_rx_optional_hint");
+pub fn payload(graph: *Graph, source: Graph.Id) zx.Error!Graph.Id {
+    return if (enabled) (try query(.Payload, graph, source, null)).? else seed.payload(graph, source);
+}
+
+fn query(comptime mode: @FieldType(std.meta.Child(rule.Input), "mode"), graph: *Graph, source: Graph.Id, guard_span: ?zx.Span) zx.Error!?Graph.Id {
     const Input = std.meta.Child(rule.Input);
-    const Known = std.meta.Child(@FieldType(Input, "known"));
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     var value = source;
+    var remaining: ?u64 = null;
 
     while (true) {
         const rows = graph.nodes.slice();
@@ -56,107 +29,30 @@ fn sourceHint(graph: *Graph, source: Graph.Id) zx.Error!?Graph.Id {
         const types = &graph.types.items;
 
         const input: Input = .{
+            .mode = mode,
             .graph = &.{ .kinds = rows.items(.kind), .arguments = rows.items(.argument), .types = &.{ .kinds = types.kinds.items, .children = types.first.items } },
-            .known = &graph.pending.known_types.borrow(Known),
-            .allowed = rows.items(.allowed),
+            .known = &graph.pending.known_types.borrow(std.meta.Child(@FieldType(Input, "known"))),
             .parents = @ptrCast(&parents),
+            .allowed = rows.items(.allowed),
             .value = @backingInt(value),
-            .remaining = std.math.maxInt(u64),
+            .remaining = remaining,
         };
 
         const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
         switch (result.action) {
-            .Ready => return if (result.hint) |id| @fromBackingInt(id) else null,
-            .Register => value = try graph.known(@fromBackingInt(result.value), rows.items(.span)[result.root]),
-            .Continue, .Depth => unreachable,
+            .Ready => return if (result.value) |id| @fromBackingInt(id) else null,
+            .Register => {
+                const span = guard_span orelse rows.items(.span)[result.root];
+                const registered = try @import("known.zig").registerPayload(graph, result.value.?, result.remaining, span);
+
+                if (mode == .Guard) return registered.node;
+
+                value = registered.node;
+                remaining = registered.remaining;
+            },
+            .Depth => return graph.reporter.fail(.unsupported, rows.items(.span)[result.root], "type inference nesting exceeds 256 levels"),
+            .Continue => unreachable,
         }
     }
-}
-
-pub fn payload(graph: *Graph, source: Graph.Id) zx.Error!Graph.Id {
-    var value = source;
-    var remaining: u64 = nesting_limit;
-
-    while (true) {
-        const step = walk(graph, value, remaining);
-
-        switch (step.route) {
-            .Stable, .Open => return step.root,
-            .Declared => {
-                value = try register(graph, step);
-                remaining = step.remaining;
-            },
-            .Boundary => {
-                const root = graph.root(@fromBackingInt(step.value));
-
-                return graph.reporter.fail(.unsupported, graph.nodes.items(.span)[@backingInt(root)], "type inference nesting exceeds 256 levels");
-            },
-        }
-    }
-}
-
-fn walk(graph: *const Graph, source: Graph.Id, remaining: u64) Step {
-    if (!enabled) return seedWalk(graph, source, remaining);
-
-    const rows = graph.nodes.slice();
-    const types: Types = .{ .kinds = graph.types.items.kinds.items, .children = graph.types.items.first.items };
-    const view: View = .{ .kinds = rows.items(.kind), .arguments = rows.items(.argument), .types = &types };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const parents = graph.parents();
-
-    const result = walk_rule.executeState(empty.allocator(), .{
-        .graph = &view,
-        .parents = @ptrCast(&parents),
-        .value = @backingInt(source),
-        .root = @backingInt(source),
-        .remaining = remaining,
-        .route = .Boundary,
-    }) catch unreachable;
-
-    return .{ .value = result.value, .root = @fromBackingInt(result.root), .remaining = result.remaining, .route = result.route };
-}
-
-fn register(graph: *Graph, step: Step) zx.Error!Graph.Id {
-    return graph.known(@fromBackingInt(step.value), graph.nodes.items(.span)[@backingInt(step.root)]);
-}
-
-fn seedWalk(graph: *const Graph, source: Graph.Id, remaining: u64) Step {
-    var step: Step = .{ .value = @backingInt(source), .root = source, .remaining = remaining };
-
-    while (step.remaining != 0) {
-        step.root = graph.root(@fromBackingInt(step.value));
-
-        switch (graph.shapeAt(@backingInt(step.root))) {
-            .optional => |child| {
-                step.value = @backingInt(child);
-                step.remaining -= 1;
-            },
-            .known => |declared| {
-                const value = graph.types.get(declared);
-
-                if (value == .optional) {
-                    step.value = @backingInt(value.optional);
-                    step.remaining -= 1;
-                    step.route = .Declared;
-                } else {
-                    step.route = .Stable;
-                }
-
-                return step;
-            },
-            .unknown => {
-                step.route = .Open;
-
-                return step;
-            },
-            else => {
-                step.route = .Stable;
-
-                return step;
-            },
-        }
-    }
-
-    return step;
 }

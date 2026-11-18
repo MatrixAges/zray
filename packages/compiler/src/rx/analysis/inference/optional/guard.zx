@@ -1,0 +1,40 @@
+import find from "../known/find"
+import { Route } from "./model"
+import { Action } from "./payload"
+import walk from "./walk"
+
+import type { Guard as Input, Output } from "./query"
+
+export default function (in: Input): Output {
+    const step = walk({
+        graph: in.graph,
+        parents: in.parents,
+        value: in.value,
+        root: in.value,
+        remaining: 1,
+        route: Route.Boundary
+    })
+
+    const { root, remaining } = step
+
+    if (step.route == Route.Declared) {
+        const node = find({
+            known: in.known,
+            type_id: step.value
+        })
+
+        return {
+            action: node == null ? Action.Register : Action.Ready,
+            value: node ?? step.value,
+            root,
+            remaining
+        }
+    }
+
+    return {
+        action: Action.Ready,
+        value: step.route == Route.Open ? null : step.value,
+        root,
+        remaining
+    }
+}

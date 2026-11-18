@@ -143,9 +143,11 @@ pub fn propagate(self: Self, graph: *Graph) zx.Error!void {
         switch (result.action) {
             .Scan => return,
             .Register => {
-                value = @backingInt(try graph.known(@fromBackingInt(result.value), nodes.items(.span)[result.root]));
+                const registered = try @import("../known.zig").registerPayload(graph, result.value, result.remaining, nodes.items(.span)[result.root]);
+
+                value = @backingInt(registered.node);
                 other = result.other;
-                remaining = result.remaining;
+                remaining = registered.remaining;
             },
             .Depth => return graph.reporter.fail(.unsupported, nodes.items(.span)[result.root], "type inference nesting exceeds 256 levels"),
             .Merge => {

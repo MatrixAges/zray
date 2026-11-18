@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import publish from "../unification/commit/publish_shape"
+import writeSlot from "./write_slot"
+
+import type { Nodes } from "./model"
+import type { Input as Slot } from "./write_slot"
+
+export type Input = Slot & {
+    nodes: Nodes
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, nodes, node, type_id, position } = in
+
+    memory.writeU32(nodes.parents, integers.widen(node), node)
+
+    publish({
+        parent: node,
+        columns: nodes.columns,
+        shape: {
+            kind: nodes.known_kind,
+            argument: type_id,
+            members: []
+        }
+    })
+
+    writeSlot({
+        storage,
+        position,
+        node,
+        type_id
+    })
+}
