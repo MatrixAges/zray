@@ -1,5 +1,5 @@
 import assignment from "../../../ast/body/assignment"
-import index from "../../../ast/context/index"
+import index from "../../../ast/context/subscript"
 
 import type { State as Input, State as Output } from "./model"
 

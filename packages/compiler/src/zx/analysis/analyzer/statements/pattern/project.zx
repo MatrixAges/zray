@@ -4,7 +4,7 @@ import { scalar_u64 } from "core/type_table/const"
 
 import { PatternKind } from "../../../../frontend/parser/body/model"
 import field from "../../expressions/projections/field"
-import index from "../../expressions/projections/index"
+import index from "../../expressions/projections/subscript"
 import { NameKind } from "../../source/model"
 import readName from "../../source/name"
 

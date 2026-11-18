@@ -7,9 +7,9 @@
     <Call fn="last" in={$ctx.initialize} />
     <Call fn="permissions" in={$ctx.last} />
     <Call fn="remaining" in={$ctx.permissions} />
-    <Call fn="index" in={$ctx.remaining} />
+    <Call fn="read_slot" in={$ctx.remaining} />
 
-    <Call module="read" in={$ctx.index} />
+    <Call module="read" in={$ctx.read_slot} />
 
     <Call fn="nonempty" in={$ctx.read} />
 

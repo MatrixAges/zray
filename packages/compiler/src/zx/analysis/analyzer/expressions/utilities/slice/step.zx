@@ -5,7 +5,7 @@ import object from "../../../collections/building/object"
 import push from "../../../collections/building/push"
 import reference from "../../../collections/building/reference"
 import binary from "../../operators/binary"
-import index from "../../projections/index"
+import index from "../../projections/subscript"
 import fields from "../building/fields"
 import { field_source, field_index, field_end, field_result } from "../const"
 

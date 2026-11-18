@@ -104,7 +104,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "core/expression_table/append/conditional", .entry = "core/expression_table/append/conditional.zx" },
     .{ .specifier = "core/expression_table/append/empty", .entry = "core/expression_table/append/empty.zx" },
     .{ .specifier = "core/expression_table/append/float", .entry = "core/expression_table/append/float.zx" },
-    .{ .specifier = "core/expression_table/append/index", .entry = "core/expression_table/append/index.zx" },
+    .{ .specifier = "core/expression_table/append/subscript", .entry = "core/expression_table/append/subscript.zx" },
     .{ .specifier = "core/expression_table/append/integer", .entry = "core/expression_table/append/integer.zx" },
     .{ .specifier = "core/expression_table/append/iteration", .entry = "core/expression_table/append/iteration.zx" },
     .{ .specifier = "core/expression_table/append/match", .entry = "core/expression_table/append/match.zx" },

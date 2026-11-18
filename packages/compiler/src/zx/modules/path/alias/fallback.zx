@@ -2,7 +2,7 @@ import bytes from "std:bytes"
 import encoding from "std:encoding"
 
 import { module_extension } from "../const"
-import index from "../index"
+import index from "../directory_entry"
 import find from "./find"
 
 import type { Input as Lookup, Output as Selection } from "./model"

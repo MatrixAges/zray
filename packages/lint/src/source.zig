@@ -10,6 +10,35 @@ pub const Input = struct {
     program: zx.ast.Program,
 };
 
+pub fn checkBarrel(view: anytype, has_store: bool) ?zx.Diagnostic {
+    for (0..view.importCount()) |index| {
+        const item = view.importAt(index);
+
+        if (!item.exported) return barrelIssue(item.span);
+    }
+
+    if (view.declarationCount() != 0) return barrelIssue(view.declarationAt(0).span);
+    if (view.constantCount() != 0) return barrelIssue(view.constantAt(0).span);
+
+    if (view.hasBody()) {
+        const start = view.functionStart();
+
+        return barrelIssue(.{ .start = start, .end = start });
+    }
+
+    if (has_store) return barrelIssue(.{ .start = 0, .end = 0 });
+
+    return null;
+}
+
+fn barrelIssue(span: zx.Span) zx.Diagnostic {
+    return .{
+        .code = .style,
+        .span = span,
+        .message = "index.zx may only re-export from other modules; move declarations to a named ZX file",
+    };
+}
+
 pub fn check(allocator: std.mem.Allocator, input: Input) std.mem.Allocator.Error!?zx.Diagnostic {
     return checkView(allocator, input.source, input.comments, Header.Native{ .program = input.program }, input.program.contracts, input.program.body);
 }

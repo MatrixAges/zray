@@ -1,6 +1,6 @@
 import integers from "std:integer"
-import append from "core/expression_table/append/index"
 import project from "core/expression_table/append/projection"
+import append from "core/expression_table/append/subscript"
 import { ExpressionKind } from "core/expression_table/kinds"
 import { Kind } from "core/type_table/model"
 

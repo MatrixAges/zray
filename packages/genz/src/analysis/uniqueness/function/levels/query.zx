@@ -1,5 +1,5 @@
-import index from "./index"
 import { Knowledge } from "./model"
+import index from "./slot_index"
 import visit from "./visit"
 
 import type { Input, Output } from "./model"

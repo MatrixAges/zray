@@ -5,7 +5,7 @@ import makeBuiltin from "../../../ast/context/builtin"
 import makeDereference from "../../../ast/context/dereference"
 import makeField from "../../../ast/context/field"
 import makeIdentifier from "../../../ast/context/identifier"
-import makeIndex from "../../../ast/context/index"
+import makeIndex from "../../../ast/context/subscript"
 import makeText from "../../../ast/context/text"
 import makeBinding from "../../../ast/statements/builder/binding"
 import {

@@ -13,7 +13,7 @@ import {
 import isNamed from "../abi/named"
 import abiSpan from "../abi/span"
 import decide from "./decide"
-import indexEntries from "./index"
+import indexEntries from "./index_entries"
 import lookup from "./lookup"
 import { Action } from "./model"
 

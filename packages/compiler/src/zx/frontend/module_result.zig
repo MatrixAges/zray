@@ -71,6 +71,17 @@ pub const Result = union(enum) {
             .indexed => |result| if (indexed_enabled) .{ .has_store = result.output.has_store, .function_start = @intCast(result.output.function_start) } else unreachable,
         };
     }
+
+    pub fn checkBarrel(self: *const Self) ?zx.Diagnostic {
+        return switch (self.*) {
+            .native => |result| block: {
+                const program = result.value.parsed.ast;
+
+                break :block lint.source.checkBarrel(zx.syntax.header.Native{ .program = program }, program.has_store);
+            },
+            .indexed => |*result| if (indexed_enabled) lint.source.checkBarrel(result.header(), result.output.has_store) else unreachable,
+        };
+    }
     pub fn check(self: *const Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!?zx.Diagnostic {
         if (self.diagnostic()) |issue| return issue;
 

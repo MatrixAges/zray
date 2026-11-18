@@ -3,7 +3,7 @@
 
     <Args in={Bindings.Input} out={Bindings.Output} />
 
-    <Call fn="../../store_initializers/index" in={$in.initializers} />
+    <Call fn="../../store_initializers/index_slots" in={$in.initializers} />
     <Call fn="initialize" in={$in} />
     <Call fn="members" in={$ctx.initialize} />
     <Call fn="publish" in={$ctx.members} />

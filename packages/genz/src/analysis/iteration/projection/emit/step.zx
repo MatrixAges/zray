@@ -1,7 +1,7 @@
 import { Operation } from "../model"
 import field from "./field"
-import index from "./index"
 import length from "./length"
+import index from "./subscript"
 
 import type { Step as Input, State as Output } from "../model"
 

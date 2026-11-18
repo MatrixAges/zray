@@ -1,10 +1,10 @@
 import integers from "std:integer"
 
 import complete from "./complete"
-import index from "./index"
 import meet from "./meet"
 import { Knowledge } from "./model"
 import read from "./read"
+import index from "./slot_index"
 import resolve from "./visit/resolve"
 import rightNode from "./visit/right_node"
 

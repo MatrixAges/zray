@@ -116,14 +116,20 @@ test "extensionless imports resolve directory index modules" {
 
     var result = try compiler.project.analyze(std.testing.allocator, &.{
         .{ .path = "main.zx", .source = source },
-        .{ .path = "helper/index.zx", .source = f.helper },
+        .{ .path = "helper/index.zx", .source = "export { default } from \"./increment\"\n" },
+        .{ .path = "helper/increment.zx", .source = f.helper },
     }, .{ .entry = "main.zx", .root_dir = "/project" });
 
     defer result.deinit();
 
     try std.testing.expect(result.value == .ir);
     try std.testing.expectEqual(@as(usize, 1), result.value.ir.functions.count());
-    try std.testing.expectEqualStrings("/project/helper/index.zx", result.modules[0].path);
+
+    for (result.modules) |module| {
+        if (std.mem.eql(u8, module.path, "/project/helper/index.zx")) return;
+    }
+
+    return error.MissingBarrel;
 }
 
 test "normalized extensionless paths cannot hide cycles through unused imports" {

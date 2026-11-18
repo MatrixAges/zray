@@ -1,4 +1,4 @@
-import construct from "../expressions/index"
+import construct from "../expressions/subscript"
 
 import type { State, Node } from "./model"
 

@@ -12,7 +12,7 @@
         <Call fn="signatures" in={$in} />
     </If>
 
-    <Call fn="index" in={$in} />
+    <Call fn="index_signatures" in={$in} />
     <Call fn="stores" in={$in} />
     <Call fn="prepare" in={$in} />
     <Call fn="infer" in={$in} />

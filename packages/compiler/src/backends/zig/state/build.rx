@@ -3,7 +3,7 @@
 
     <Args in={Plan.Input} out={Plan.Output} />
 
-    <Call fn="../store_initializers/index" in={$in.initializers} />
+    <Call fn="../store_initializers/index_slots" in={$in.initializers} />
     <Call fn="initialize" in={$in} />
     <Call fn="bindings" in={$ctx.initialize} />
 

@@ -7,8 +7,8 @@ import conditional from "../../../../../ast/context/conditional"
 import dereference from "../../../../../ast/context/dereference"
 import field from "../../../../../ast/context/field"
 import identifier from "../../../../../ast/context/identifier"
-import index from "../../../../../ast/context/index"
 import integer from "../../../../../ast/context/integer"
+import index from "../../../../../ast/context/subscript"
 import forLoop from "../../../../../ast/statements/for_loop"
 import {
     ExpressionsBinaryOperator

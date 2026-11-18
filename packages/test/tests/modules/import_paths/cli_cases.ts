@@ -93,8 +93,12 @@ export default function (in: Input): Output {
         outcome: { diagnostic: suffix_diagnostic }
     })),
     {
-        name: 'resolve directory index module',
-        files: { 'app/main.zx': mainSource(['./helper']), 'app/helper/index.zx': helper },
+        name: 'resolve directory barrel re-export',
+        files: {
+            'app/main.zx': mainSource(['./helper']),
+            'app/helper/index.zx': 'export { default } from "./increment"\n',
+            'app/helper/increment.zx': helper
+        },
         outcome: { increment: 1 }
     },
     {

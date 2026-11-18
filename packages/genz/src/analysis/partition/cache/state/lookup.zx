@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import { ascii_line_feed, ascii_space } from "core/ascii/const"
 
-import index from "./index"
+import index from "./parse_index"
 
 import type { Lookup as Input } from "./model"
 

@@ -22,7 +22,7 @@
     </If>
 
     <Call
-        fn="index"
+        fn="signature_index"
         in={$in.pick([
             "owner",
             "indices"
@@ -32,7 +32,7 @@
     <Return
         value={{
             ...$ctx.source,
-            signature: $ctx.index
+            signature: $ctx.signature_index
         }}
     />
 </Module>

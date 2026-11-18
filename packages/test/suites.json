@@ -1800,7 +1800,7 @@
         },
         {
             "name": "coalesce-values-number-index",
-            "path": "language/expressions/coalesce/values/number/index",
+            "path": "language/expressions/coalesce/values/number/subscript",
             "kind": "control"
         },
         {
@@ -1815,7 +1815,7 @@
         },
         {
             "name": "coalesce-values-boolean-index",
-            "path": "language/expressions/coalesce/values/boolean/index",
+            "path": "language/expressions/coalesce/values/boolean/subscript",
             "kind": "control"
         },
         {
@@ -1830,7 +1830,7 @@
         },
         {
             "name": "coalesce-values-string-index",
-            "path": "language/expressions/coalesce/values/string/index",
+            "path": "language/expressions/coalesce/values/string/subscript",
             "kind": "control"
         },
         {

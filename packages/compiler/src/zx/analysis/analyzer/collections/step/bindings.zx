@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import appendIndex from "core/expression_table/append/index"
+import appendIndex from "core/expression_table/append/subscript"
 import { TransformKind } from "core/expression_table/kinds"
 import { Ownership } from "core/symbol_table/model"
 

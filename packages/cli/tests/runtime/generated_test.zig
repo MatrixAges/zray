@@ -4,7 +4,7 @@ const transforms = @import("transforms");
 const optional = @import("optional");
 const enums = @import("enums");
 const spread = @import("spread");
-const indexed = @import("index");
+const indexed = @import("subscript");
 
 test "runtime: explicit ownership operations preserve caller input" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);

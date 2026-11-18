@@ -1,6 +1,6 @@
 import assignment from "../../../ast/body/assignment"
 import builtin from "../../../ast/context/builtin"
-import index from "../../../ast/context/index"
+import index from "../../../ast/context/subscript"
 import { ExpressionsBuiltinName } from "../../../printer/model/expressions"
 
 import type { Candidate, Input as Source, Written as Output } from "./model"

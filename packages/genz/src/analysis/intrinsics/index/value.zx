@@ -1,5 +1,5 @@
 import builtin from "../../../ast/context/builtin"
-import index from "../../../ast/context/index"
+import index from "../../../ast/context/subscript"
 import { ExpressionsBuiltinName } from "../../../printer/model/expressions"
 
 import type { Projection as Input, State as Output } from "./model"

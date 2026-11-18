@@ -94,6 +94,10 @@ pub fn checkSource(allocator: std.mem.Allocator, source: []const u8, file_name: 
 
     defer parsed.deinit();
 
+    if (std.mem.eql(u8, std.fs.path.basename(file_name), "index.zx") and parsed.diagnostic() == null) {
+        if (parsed.checkBarrel()) |issue| return issue;
+    }
+
     if (try parsed.check(allocator)) |issue| return try issue.clone(allocator);
 
     return null;

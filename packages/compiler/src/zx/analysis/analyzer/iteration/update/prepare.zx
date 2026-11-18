@@ -1,6 +1,6 @@
 import integers from "std:integer"
-import appendIndex from "core/expression_table/append/index"
 import project from "core/expression_table/append/projection"
+import appendIndex from "core/expression_table/append/subscript"
 import { ExpressionKind } from "core/expression_table/kinds"
 
 import temporary from "../../statements/scopes/temporary"

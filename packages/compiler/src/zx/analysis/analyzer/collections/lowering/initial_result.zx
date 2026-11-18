@@ -1,6 +1,6 @@
-import index from "core/expression_table/append/index"
 import { SequenceKind } from "core/expression_table/append/model"
 import append from "core/expression_table/append/sequence"
+import index from "core/expression_table/append/subscript"
 import { TransformKind } from "core/expression_table/kinds"
 
 import boolean from "../../expressions/boolean"
