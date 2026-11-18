@@ -1,0 +1,103 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { finished, visiting, workspace_root } from "./const"
+import { Status } from "./model"
+
+import type { Input, Result } from "./model"
+
+export type Output = Result & {
+    completed: u64
+}
+
+export default function (in: Input): Output {
+    const { marks, heights, nodes, cursors, ranked, targets } = in
+
+    return loop({
+        root: 0,
+        depth: 0,
+        completed: 0,
+        status: Status.Valid,
+        owner: 0
+    }, {
+        while: s => {
+            const more = s.root < in.count || s.depth != 0
+
+            return more && s.status == Status.Valid
+        },
+        next: s => {
+            if (s.depth == 0) {
+                const row = s.root
+                const mark = memory.readU8(marks, row)
+                s.root += 1
+
+                if (mark == workspace_root) {
+                    memory.writeU8(marks, row, visiting)
+                    memory.writeU64(nodes, 0, row)
+                    memory.writeU64(cursors, 0, 0)
+                    s.depth = 1
+                }
+            } else {
+                const frame = s.depth - 1
+                const owner = memory.readU64(nodes, frame)
+                const edge = memory.readU64(cursors, frame)
+                const length = memory.listLength(targets, owner)
+
+                if (edge == length) {
+                    memory.writeU8(marks, owner, finished)
+                    s.completed += 1
+                    s.depth = frame
+
+                    if (ranked && frame != 0) {
+                        const parent = memory.readU64(nodes, frame - 1)
+                        const height = memory.readU8(heights, owner)
+
+                        if (height >= memory.readU8(heights, parent)) {
+                            memory.writeU8(heights, parent, height + 1)
+                        }
+                    }
+                } else {
+                    const target = memory.readListIndex(targets, owner, edge)
+                    const mark = memory.readU8(marks, target)
+                    const revisit = mark == finished
+                    const check_depth = ranked || !revisit
+
+                    if (mark == visiting) {
+                        s.status = Status.CyclicPackageDependencies
+                        s.owner = target
+                    } else if (check_depth && s.depth >= in.limit) {
+                        s.status = Status.PackageDependencyDepthExceeded
+                        s.owner = target
+                    } else if (revisit) {
+                        memory.writeU64(cursors, frame, edge + 1)
+
+                        if (ranked) {
+                            const height = memory.readU8(heights, target)
+                            const rank = memory.readU8(heights, owner)
+
+                            if (
+                                s.depth + integers.widenByte(height) >= in.limit
+                            ) {
+                                s.status = Status.PackageDependencyDepthExceeded
+                                s.owner = target
+                            } else if (height >= rank) {
+                                memory.writeU8(heights, owner, height + 1)
+                            }
+                        }
+                    } else {
+                        memory.writeU64(cursors, frame, edge + 1)
+
+                        memory.writeU8(marks, target, visiting)
+                        memory.writeU64(nodes, s.depth, target)
+                        memory.writeU64(cursors, s.depth, 0)
+                        s.depth += 1
+                    }
+                }
+            }
+        },
+        return: s => s.omit([
+            "root",
+            "depth"
+        ])
+    })
+}

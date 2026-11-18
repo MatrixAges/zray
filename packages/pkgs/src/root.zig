@@ -3,3 +3,4 @@ pub const Lock = @import("lock.zig");
 pub const version = @import("version.zig");
 pub const validName = @import("metadata.zig").validName;
 pub const workspace = @import("workspace.zig");
+pub const graph = @import("graph.zig");

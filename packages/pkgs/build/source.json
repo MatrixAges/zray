@@ -15,6 +15,18 @@
         {
             "path": "metadata",
             "prefix": "metadata/"
+        },
+        {
+            "path": "graph",
+            "prefix": "graph/"
+        },
+        {
+            "path": "registry",
+            "prefix": "registry/"
+        },
+        {
+            "path": "memory",
+            "prefix": "memory/"
         }
     ],
     "entries": [
@@ -41,6 +53,18 @@
         {
             "path": "metadata/validate.rx",
             "name": "archive_metadata"
+        },
+        {
+            "path": "graph/check.rx",
+            "name": "dependency_graph"
+        },
+        {
+            "path": "registry/validate.zx",
+            "name": "index_validate"
+        },
+        {
+            "path": "registry/select.rx",
+            "name": "index_select"
         }
     ],
     "packages": [
@@ -53,5 +77,10 @@
             "entry": "core/ascii/const.zx"
         }
     ],
-    "interfaces": []
+    "interfaces": [
+        {
+            "path": "memory/index.d.zx",
+            "module": "memory"
+        }
+    ]
 }

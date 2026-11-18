@@ -1,0 +1,78 @@
+import memory from "memory"
+
+import { Status as ArchiveStatus } from "../metadata/archive"
+import archive from "../metadata/validate.rx"
+import { ParseStatus } from "../version/model"
+import parse from "../version/parse/partial"
+import identity from "./identity"
+import { Status } from "./model"
+
+import type { Validation } from "./model"
+
+export type Input = Validation.Omit("names", "count", "format") & {
+    row: u64,
+    length: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { versions, row, length, limit } = in
+
+    return loop({
+        i: 0,
+        status: Status.Valid
+    }, {
+        while: s => s.status == Status.Valid && s.i < length,
+        next: s => {
+            const text = memory.readListText(versions, row, s.i)
+            const parsed = parse({
+                text,
+                start: 0,
+                end: text.length,
+                limit,
+                release: true
+            })
+
+            if (parsed.status != ParseStatus.Valid) {
+                s.status = match parsed.status {
+                    ParseStatus.Overflow => Status.Overflow,
+                    _ => Status.InvalidVersion
+                }
+            } else {
+                const source = archive({
+                    archive: memory.readListText(in.archives, row, s.i),
+                    digest: memory.readListText(in.digests, row, s.i),
+                    lowercase: false
+                })
+
+                s.status = match source {
+                    ArchiveStatus.InvalidArchiveSource => Status.InvalidArchiveSource,
+                    ArchiveStatus.InvalidArchiveDigest => Status.InvalidArchiveDigest,
+                    _ => Status.Valid
+                }
+
+                if (s.status == Status.Valid) {
+                    const last = s.i
+                    const duplicate = loop(0, {
+                        while: i => i < last && !identity({
+                            left: text,
+                            right: memory.readListText(versions, row, i)
+                        }),
+                        next: i => {
+                            i += 1
+                        },
+                        return: i => i < last
+                    })
+
+                    if (duplicate) {
+                        s.status = Status.DuplicatePackageVersion
+                    }
+                }
+            }
+
+            s.i += 1
+        },
+        return: s => s.status
+    })
+}

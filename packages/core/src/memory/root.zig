@@ -138,6 +138,7 @@ pub const listLength = rows.listLength;
 pub const readListText = rows.readListText;
 pub const readListOptionalText = rows.readListOptionalText;
 pub const borrowListBytes = rows.borrowListBytes;
+pub const readListIndex = rows.readListIndex;
 pub const readListU32 = rows.readListU32;
 pub const readListOptionalU32 = rows.readListOptionalU32;
 pub const readListOptionalU8 = rows.readListOptionalU8;
@@ -172,6 +173,7 @@ pub const readScalarText = scalar_column.readText;
 pub const copyScalar = scalar_column.copy;
 pub const copyScalarAt = scalar_column.copyAt;
 pub const writeScalarText = scalar_column.writeText;
+pub const borrowTextRange = borrowU8Range;
 
 pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {
     return borrowRange(u8, source, first, count);

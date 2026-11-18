@@ -22,11 +22,17 @@ export type Request = Core & {
 
 export type Clause = Request & Span
 
+export enum ParseStatus {
+    Valid,
+    InvalidVersion,
+    Overflow
+}
+
 export type Partial = Core & {
     parts: u64,
     pre_start: u64,
     pre_end: u64,
-    valid: bool
+    status: ParseStatus
 }
 
 export enum Order {

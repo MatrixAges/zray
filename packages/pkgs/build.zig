@@ -10,13 +10,15 @@ pub fn build(b: *std.Build) void {
     const core = b.dependency("core", .{ .target = target, .optimize = optimize });
     const files = b.addWriteFiles();
 
-    for ([_][]const u8{ "version", "workspace", "metadata" }) |dir| {
+    for ([_][]const u8{ "version", "workspace", "metadata", "graph", "registry" }) |dir| {
         _ = files.addCopyDirectory(b.path(b.fmt("src/{s}", .{dir})), dir, .{ .include_extensions = &.{ ".zx", ".rx" } });
     }
 
     for ([_][]const u8{ "const.zx", "ascii/const.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
     }
+
+    _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
 
     const run = std.Build.Step.Run.create(b, "generate package dependency rules");
 
@@ -36,6 +38,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
+            .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "zxc_standard", .module = compiler.module(if (share_standard) "generated_standard" else "standard") },
         },
     });
@@ -44,7 +47,10 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "pkgs_source", .module = rules }},
+        .imports = &.{
+            .{ .name = "pkgs_source", .module = rules },
+            .{ .name = "memory", .module = core.module("memory") },
+        },
     });
 
     b.installArtifact(b.addLibrary(.{ .name = "zxc_pkgs", .root_module = module }));

@@ -8,15 +8,16 @@ import {
     ascii_upper_last
 } from "core/const"
 
+import { ParseStatus } from "../model"
 import decimal from "./decimal"
 
 import type { Input as Digits } from "./decimal"
 
-export type Input = Digits & {
+export type Input = Digits.Omit("separators") & {
     prerelease: bool
 }
 
-export type Output = bool
+export type Output = ParseStatus
 
 export default function (in: Input): Output {
     const { text, start, end, limit, prerelease } = in
@@ -25,22 +26,23 @@ export default function (in: Input): Output {
         i: start,
         first: start,
         numeric: true,
-        valid: true
+        status: ParseStatus.Valid
     }, {
-        while: s => s.valid && s.i <= end,
+        while: s => s.status == ParseStatus.Valid && s.i <= end,
         next: s => {
             if (s.i == end || text[s.i] == ascii_dot) {
-                s.valid = s.i != s.first
-
                 const numeric_pre = prerelease && s.numeric
 
-                if (s.valid && numeric_pre) {
-                    s.valid = decimal({
+                if (s.i == s.first) {
+                    s.status = ParseStatus.InvalidVersion
+                } else if (numeric_pre) {
+                    s.status = decimal({
                         text,
                         start: s.first,
                         end: s.i,
-                        limit
-                    }) != null
+                        limit,
+                        separators: false
+                    }).status
                 }
 
                 s.first = s.i + 1
@@ -52,12 +54,13 @@ export default function (in: Input): Output {
                 const upper = byte >= ascii_upper_first && byte <= ascii_upper_last
                 const letter = lower || upper
 
-                s.valid = digit || letter || byte == ascii_minus
+                const valid = digit || letter || byte == ascii_minus
+                s.status = valid ? ParseStatus.Valid : ParseStatus.InvalidVersion
                 s.numeric = s.numeric && digit
             }
 
             s.i += 1
         },
-        return: s => s.valid
+        return: s => s.status
     })
 }

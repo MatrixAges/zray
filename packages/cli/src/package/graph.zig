@@ -3,7 +3,6 @@ const Inputs = @import("../cli/watch/inputs.zig");
 const workspace = @import("workspace.zig");
 const Manifest = @import("manifest/model.zig").Manifest;
 const pkgs = @import("pkgs");
-const State = enum { fresh, visiting, done };
 pub const Dependency = struct { name: []const u8, target: usize, development: bool };
 pub const Package = struct { path: []const u8, manifest: Manifest, dependencies: []const Dependency = &.{} };
 
@@ -86,11 +85,15 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) !voi
         package.dependencies = try dependencies.toOwnedSlice(allocator);
     }
 
-    const states = try allocator.alloc(State, result.packages.len);
+    const graph = try pkgs.graph.check(allocator, result.packages, .workspace);
+    const owner: usize = @intCast(graph.owner);
 
-    @memset(states, .fresh);
-
-    for (result.packages, 0..) |_, index| try visit(result, states, index, 0);
+    switch (graph.status) {
+        .Valid => {},
+        .CyclicPackageDependencies => return fail(result, owner, result.packages[owner].manifest.name, "package dependencies must be acyclic"),
+        .PackageDependencyDepthExceeded => return fail(result, owner, result.packages[owner].manifest.name, "package dependency depth exceeds 256"),
+        .UnreachableLockPackage => unreachable,
+    }
 }
 
 fn dependency(result: *Result, owner: usize, name: []const u8, requirement: []const u8) !usize {
@@ -118,18 +121,6 @@ fn dependency(result: *Result, owner: usize, name: []const u8, requirement: []co
     }
 
     return fail(result, owner, name, "workspace dependency has no matching local package");
-}
-
-fn visit(result: *Result, states: []State, index: usize, depth: usize) error{ OutOfMemory, InvalidPackageGraph }!void {
-    if (states[index] == .done) return;
-    if (states[index] == .visiting) return fail(result, index, result.packages[index].manifest.name, "package dependencies must be acyclic");
-    if (depth >= 256) return fail(result, index, result.packages[index].manifest.name, "package dependency depth exceeds 256");
-
-    states[index] = .visiting;
-
-    for (result.packages[index].dependencies) |edge| try visit(result, states, edge.target, depth + 1);
-
-    states[index] = .done;
 }
 
 fn fail(result: *Result, owner: usize, name: []const u8, message: []const u8) error{ OutOfMemory, InvalidPackageGraph } {

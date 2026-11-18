@@ -1,0 +1,17 @@
+import memory from "memory"
+
+import type { Query } from "./model"
+
+export type Input = Query.Pick("name", "names", "count")
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    return loop(0, {
+        while: i => i < in.count && memory.readTextColumn(in.names, i) != in.name,
+        next: i => {
+            i += 1
+        },
+        return: i => i < in.count ? i : null
+    })
+}

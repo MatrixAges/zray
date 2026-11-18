@@ -306,6 +306,12 @@ pub inline fn borrowListBytes(source: *const anyopaque, index: u64) error{IndexO
     return if (column.count == 0) &.{} else column.bytes[column.offset..];
 }
 
+pub inline fn readListIndex(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!u64 {
+    const column = try listColumn(source, index);
+
+    return try readColumn(usize, &column, member);
+}
+
 pub inline fn readListU32(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!u32 {
     const column = try listColumn(source, index);
 

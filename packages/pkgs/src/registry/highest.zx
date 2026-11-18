@@ -1,0 +1,115 @@
+import memory from "memory"
+
+import order from "../version/core_order"
+import matches from "../version/matches"
+import { Order, ParseStatus } from "../version/model"
+import parse from "../version/parse/partial"
+import preOrder from "../version/pre_order"
+import { Status } from "./model"
+
+import type { Query, Selection as Output } from "./model"
+
+export type Input = Query.Pick("range", "versions", "limit") & {
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { range, versions, limit, row } = in
+
+    const length = memory.listLength(versions, row)
+
+    return loop({
+        i: 0,
+        release: 0,
+        major: 0,
+        minor: 0,
+        patch: 0,
+        pre: "",
+        found: false,
+        status: Status.Valid
+    }, {
+        while: s => s.i < length && s.status == Status.Valid,
+        next: s => {
+            const text = memory.readListText(versions, row, s.i)
+            const value = parse({
+                text,
+                start: 0,
+                end: text.length,
+                limit,
+                release: true
+            })
+
+            if (value.status != ParseStatus.Valid) {
+                s.status = match value.status {
+                    ParseStatus.Overflow => Status.Overflow,
+                    _ => Status.InvalidVersion
+                }
+            } else {
+                const core = value.pick([
+                    "major",
+                    "minor",
+                    "patch"
+                ])
+                const pre =
+                    memory.borrowTextRange(
+                        text,
+                        value.pre_start,
+                        value.pre_end - value.pre_start
+                    )
+                const prerelease = pre.length > 0
+                const accepted = matches({
+                    ...core,
+                    text: range,
+                    pre,
+                    prerelease,
+                    limit
+                })
+
+                if (accepted == null) {
+                    s.status = Status.InvalidRange
+                } else if (accepted ?? false) {
+                    const rank = match {
+                        !s.found => Order.Greater,
+                        _ => order({
+                            left: core,
+                            right: s.pick([
+                                "major",
+                                "minor",
+                                "patch"
+                            ])
+                        })
+                    }
+                    const higher = match rank {
+                        Order.Equal => preOrder({
+                            text: s.pre,
+                            start: 0,
+                            end: s.pre.length,
+                            pre,
+                            prerelease
+                        }) == Order.Greater,
+                        _ => rank == Order.Greater
+                    }
+
+                    if (higher) {
+                        s.major = core.major
+                        s.minor = core.minor
+                        s.patch = core.patch
+                        s.pre = pre
+                        s.found = true
+                        s.release = s.i
+                    }
+                }
+            }
+
+            s.i += 1
+        },
+        return: s => ({
+            ...s.pick([
+                "status",
+                "release",
+                "found"
+            ]),
+            package: row
+        })
+    })
+}

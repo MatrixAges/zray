@@ -1,0 +1,24 @@
+import type { ListColumn, U8Buffer, U64Buffer } from "memory"
+
+export enum Status {
+    Valid,
+    CyclicPackageDependencies,
+    PackageDependencyDepthExceeded,
+    UnreachableLockPackage
+}
+
+export type Input = {
+    targets: ListColumn,
+    count: u64,
+    limit: u64,
+    ranked: bool,
+    marks: U8Buffer,
+    heights: U8Buffer,
+    nodes: U64Buffer,
+    cursors: U64Buffer
+}
+
+export type Result = {
+    status: Status,
+    owner: u64
+}

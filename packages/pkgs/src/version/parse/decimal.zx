@@ -1,21 +1,38 @@
 import integers from "std:integer"
-import { ascii_digit_first, ascii_digit_last, decimal_radix } from "core/const"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_underscore,
+    decimal_radix
+} from "core/const"
+
+import { ParseStatus } from "../model"
 
 import type { Text } from "../model"
 
 export type Input = Text & {
-    limit: u64
+    limit: u64,
+    separators: bool
 }
 
-export type Output = u64?
+export type Output = {
+    value: u64,
+    status: ParseStatus
+}
 
 export default function (in: Input): Output {
-    const { text, start, end, limit } = in
+    const { text, start, end, limit, separators } = in
 
     const leading_zero = end - start > 1 && text[start] == ascii_digit_first
 
-    if (start == end || leading_zero) {
-        return null
+    const bad_end = end > start && text[end - 1] == ascii_underscore
+    const invalid = start == end || leading_zero || bad_end
+
+    if (invalid || text[start] == ascii_underscore) {
+        return {
+            value: 0,
+            status: ParseStatus.InvalidVersion
+        }
     }
 
     const cutoff = limit / decimal_radix
@@ -24,26 +41,28 @@ export default function (in: Input): Output {
     return loop({
         i: start,
         value: 0,
-        valid: true
+        status: ParseStatus.Valid
     }, {
-        while: s => s.valid && s.i < end,
+        while: s => s.status == ParseStatus.Valid && s.i < end,
         next: s => {
             const byte = text[s.i]
+            const digit = byte >= ascii_digit_first && byte <= ascii_digit_last
 
-            if (byte < ascii_digit_first || byte > ascii_digit_last) {
-                s.valid = false
-            } else {
-                const digit = integers.widenByte(byte - ascii_digit_first)
-                const overflow = s.value == cutoff && digit > remainder
-                s.valid = s.value <= cutoff && !overflow
+            if (digit) {
+                const value = integers.widenByte(byte - ascii_digit_first)
+                const overflow = s.value == cutoff && value > remainder
 
-                if (s.valid) {
-                    s.value = s.value * decimal_radix + digit
+                if (s.value > cutoff || overflow) {
+                    s.status = ParseStatus.Overflow
+                } else {
+                    s.value = s.value * decimal_radix + value
                 }
+            } else if (!separators || byte != ascii_underscore) {
+                s.status = ParseStatus.InvalidVersion
             }
 
             s.i += 1
         },
-        return: s => s.valid ? s.value : null
+        return: s => s.omit(["i"])
     })
 }

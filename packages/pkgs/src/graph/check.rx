@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Graph" />
+
+    <Args in={Graph.Input} out={Graph.Result} />
+
+    <Call fn="walk" in={$in} />
+
+    <If on={$ctx.walk.status != Graph.Status.Valid}>
+        <Return value={$ctx.walk.omit(["completed"])} />
+    </If>
+
+    <If on={$ctx.walk.completed != $in.count}>
+        <Return
+            value={{
+                status: Graph.Status.UnreachableLockPackage,
+                owner: 0
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.walk.omit(["completed"])} />
+</Module>

@@ -1,0 +1,38 @@
+import { ascii_plus } from "core/ascii/const"
+import { ascii_underscore } from "core/const"
+
+export type Input = {
+    left: string,
+    right: string
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    return loop({
+        a: 0,
+        b: 0,
+        equal: true,
+        done: false
+    }, {
+        while: s => s.equal && !s.done,
+        next: s => {
+            const a = s.a < left.length ? left[s.a] : ascii_plus
+            const b = s.b < right.length ? right[s.b] : ascii_plus
+
+            if (a == ascii_underscore) {
+                s.a += 1
+            } else if (b == ascii_underscore) {
+                s.b += 1
+            } else {
+                s.equal = a == b
+                s.done = a == ascii_plus
+                s.a += 1
+                s.b += 1
+            }
+        },
+        return: s => s.equal
+    })
+}

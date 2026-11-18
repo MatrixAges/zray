@@ -1,6 +1,6 @@
 const std = @import("std");
-const ranges = @import("version.zig");
-const metadata = @import("metadata.zig");
+const memory = @import("memory");
+const rules = @import("pkgs_source");
 const Index = @This();
 pub const Release = struct { version: []const u8, archive: []const u8, sha256: []const u8 };
 pub const Package = struct { name: []const u8, versions: []const Release };
@@ -18,45 +18,56 @@ pub fn parse(allocator: std.mem.Allocator, source: []const u8) !std.json.Parsed(
 }
 
 pub fn validate(self: Index) !void {
-    if (self.format_version != 1) return error.UnsupportedIndexVersion;
+    const names = memory.borrowTextColumn("name", self.packages);
+    const versions = memory.borrowListColumn([]const u8, "versions", "version", self.packages);
+    const archives = memory.borrowListColumn([]const u8, "versions", "archive", self.packages);
+    const digests = memory.borrowListColumn([]const u8, "versions", "sha256", self.packages);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    for (self.packages, 0..) |package, index| {
-        if (!metadata.validName(package.name)) return error.InvalidPackageName;
-        if (package.versions.len == 0) return error.PackageHasNoVersions;
+    const status = rules.index_validate.executeIn(empty.allocator(), &.{
+        .format = self.format_version,
+        .count = self.packages.len,
+        .limit = std.math.maxInt(usize),
+        .names = @ptrCast(&names),
+        .versions = @ptrCast(&versions),
+        .archives = @ptrCast(&archives),
+        .digests = @ptrCast(&digests),
+    }) catch unreachable;
 
-        for (self.packages[0..index]) |previous| {
-            if (std.mem.eql(u8, previous.name, package.name)) return error.DuplicatePackage;
-        }
-
-        for (package.versions, 0..) |release, release_index| {
-            const version = try std.SemanticVersion.parse(release.version);
-
-            try metadata.validateArchive(release.archive, release.sha256, false);
-
-            for (package.versions[0..release_index]) |previous| {
-                if (version.order(try std.SemanticVersion.parse(previous.version)) == .eq) return error.DuplicatePackageVersion;
-            }
-        }
+    switch (status) {
+        .Valid => {},
+        .UnsupportedIndexVersion => return error.UnsupportedIndexVersion,
+        .InvalidPackageName => return error.InvalidPackageName,
+        .PackageHasNoVersions => return error.PackageHasNoVersions,
+        .DuplicatePackage => return error.DuplicatePackage,
+        .DuplicatePackageVersion => return error.DuplicatePackageVersion,
+        .InvalidArchiveSource => return error.InvalidArchiveSource,
+        .InvalidArchiveDigest => return error.InvalidArchiveDigest,
+        .InvalidVersion => return error.InvalidVersion,
+        .Overflow => return error.Overflow,
+        .InvalidRange => unreachable,
     }
 }
 
 pub fn select(self: Index, package_name: []const u8, requirement: []const u8) !?Release {
-    _ = try ranges.matches(requirement, .{ .major = 0, .minor = 0, .patch = 0 });
+    const names = memory.borrowTextColumn("name", self.packages);
+    const versions = memory.borrowListColumn([]const u8, "versions", "version", self.packages);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    for (self.packages) |package| {
-        if (!std.mem.eql(u8, package.name, package_name)) continue;
+    const chosen = rules.index_select.executeValue(empty.allocator(), &.{
+        .name = package_name,
+        .range = requirement,
+        .count = self.packages.len,
+        .limit = std.math.maxInt(usize),
+        .names = @ptrCast(&names),
+        .versions = @ptrCast(&versions),
+    }) catch unreachable;
 
-        var selected: ?Release = null;
-
-        for (package.versions) |release| {
-            const version = try std.SemanticVersion.parse(release.version);
-
-            if (!try ranges.matches(requirement, version)) continue;
-            if (selected == null or version.order(try std.SemanticVersion.parse(selected.?.version)) == .gt) selected = release;
-        }
-
-        return selected;
+    switch (chosen.status) {
+        .Valid => return if (chosen.found) self.packages[@intCast(chosen.package)].versions[@intCast(chosen.release)] else null,
+        .InvalidRange => return error.InvalidRange,
+        .InvalidVersion => return error.InvalidVersion,
+        .Overflow => return error.Overflow,
+        else => unreachable,
     }
-
-    return null;
 }

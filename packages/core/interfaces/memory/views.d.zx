@@ -98,6 +98,12 @@ export declare function growU32Scratch(
     precise: bool
 ): void throws { OutOfMemory }
 
+export declare function borrowTextRange(
+    source: string,
+    first: u64,
+    count: u64
+): string throws { IndexOutOfBounds } concurrent
+
 export declare function borrowU8Range(
     source: u8[],
     first: u64,
@@ -224,6 +230,12 @@ export declare function borrowListBytes(
     source: ListColumn,
     index: u64
 ): u8[] throws { IndexOutOfBounds }
+
+export declare function readListIndex(
+    source: ListColumn,
+    index: u64,
+    member: u64
+): u64 throws { IndexOutOfBounds }
 
 export declare function readListU32(
     source: ListColumn,

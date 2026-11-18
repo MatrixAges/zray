@@ -1,0 +1,46 @@
+import type { ListColumn, TextColumn } from "memory"
+
+export type Catalog = {
+    names: TextColumn,
+    versions: ListColumn,
+    count: u64,
+    limit: u64
+}
+
+export type Validation = Catalog & {
+    archives: ListColumn,
+    digests: ListColumn,
+    format: u32
+}
+
+export enum Status {
+    Valid,
+    InvalidVersion,
+    Overflow,
+    InvalidRange,
+    UnsupportedIndexVersion,
+    InvalidPackageName,
+    PackageHasNoVersions,
+    DuplicatePackage,
+    DuplicatePackageVersion,
+    InvalidArchiveSource,
+    InvalidArchiveDigest
+}
+
+export type Selection = {
+    status: Status,
+    package: u64,
+    release: u64,
+    found: bool
+}
+
+export type Query = Catalog & {
+    name: string,
+    range: string
+}
+
+export type Package = Validation.Omit("format", "count") & {
+    name: string,
+    row: u64,
+    length: u64
+}

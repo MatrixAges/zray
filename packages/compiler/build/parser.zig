@@ -33,6 +33,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const manifest = @import("generation_manifest.zig");
     const declarations = @import("memory_interfaces.zig").create(b, core_dependency, manifests.getDirectory(), directories[2]);
 
+    b.addNamedLazyPath("memory_interface", declarations.index);
+
     const manifest_roots = [_]manifest.Root{
         .{ .path = directories[0] },
         .{ .path = directories[1], .prefix = "lint/" },

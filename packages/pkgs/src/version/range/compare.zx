@@ -1,6 +1,6 @@
 import { major_part, minor_part, patch_part } from "../const"
 import coreOrder from "../core_order"
-import { Operator, Order } from "../model"
+import { Operator, Order, ParseStatus } from "../model"
 import preOrder from "../pre_order"
 import upper from "./upper"
 
@@ -11,7 +11,7 @@ export type Output = bool?
 export default function (in: Input): Output {
     const { bound, operator } = in
 
-    if (operator == Operator.Invalid || !bound.valid) {
+    if (operator == Operator.Invalid || bound.status != ParseStatus.Valid) {
         return null
     }
 
@@ -34,7 +34,13 @@ export default function (in: Input): Output {
 
     const order = match {
         core != Order.Equal => core,
-        _ => preOrder(in.omit(["operator"]))
+        _ => preOrder({
+            text: in.text,
+            pre: in.pre,
+            prerelease: in.prerelease,
+            start: bound.pre_start,
+            end: bound.pre_end
+        })
     }
 
     const full = bound.parts == patch_part

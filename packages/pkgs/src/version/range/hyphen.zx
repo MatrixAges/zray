@@ -35,13 +35,15 @@ export default function (in: Input): Output {
     const left = partial({
         text,
         ...in.first,
-        limit
+        limit,
+        release: false
     })
 
     const right = partial({
         text,
         ...last,
-        limit
+        limit,
+        release: false
     })
 
     const request = in.omit([

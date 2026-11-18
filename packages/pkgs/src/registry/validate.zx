@@ -1,0 +1,36 @@
+import memory from "memory"
+
+import { format_version } from "./const"
+import { Status } from "./model"
+import validatePackage from "./package.rx"
+
+import type { Validation as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    if (in.format != format_version) {
+        return Status.UnsupportedIndexVersion
+    }
+
+    return loop({
+        row: 0,
+        status: Status.Valid
+    }, {
+        while: s => s.status == Status.Valid && s.row < in.count,
+        next: s => {
+            const row = s.row
+            s.status = validatePackage({
+                ...in.omit([
+                    "format",
+                    "count"
+                ]),
+                name: memory.readTextColumn(in.names, row),
+                row,
+                length: memory.listLength(in.versions, row)
+            })
+            s.row += 1
+        },
+        return: s => s.status
+    })
+}

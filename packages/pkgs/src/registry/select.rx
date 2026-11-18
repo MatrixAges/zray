@@ -1,0 +1,63 @@
+<Module>
+    <Type from="model" as="Index" />
+
+    <Args in={Index.Query} out={Index.Selection} />
+
+    <Call
+        fn="../version/matches"
+        in={{
+            text: $in.range,
+            major: 0,
+            minor: 0,
+            patch: 0,
+            pre: "",
+            prerelease: false,
+            limit: $in.limit
+        }}
+    />
+
+    <If on={$ctx.matches == null}>
+        <Return
+            value={{
+                status: Index.Status.InvalidRange,
+                found: false,
+                package: 0,
+                release: 0
+            }}
+        />
+    </If>
+
+    <Call
+        fn="find"
+        in={$in.pick([
+            "name",
+            "names",
+            "count"
+        ])}
+    />
+
+    <If on={$ctx.find == null}>
+        <Return
+            value={{
+                status: Index.Status.Valid,
+                found: false,
+                package: 0,
+                release: 0
+            }}
+        />
+    </If>
+
+    <Call
+        fn="highest"
+        in={{
+            ...$in.pick([
+                "versions",
+                "range",
+                "limit"
+            ]),
+            row: $ctx.find ?? 0
+        }}
+    />
+
+    <Return value={$ctx.highest} />
+</Module>

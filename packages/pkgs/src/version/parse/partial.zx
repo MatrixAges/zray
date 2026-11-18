@@ -7,11 +7,16 @@ import {
 } from "core/ascii/const"
 
 import { ascii_upper_x, major_part, patch_part } from "../const"
+import { ParseStatus } from "../model"
 import decimal from "./decimal"
 import suffix from "./suffix"
 
 import type { Partial as Output } from "../model"
-import type { Input } from "./decimal"
+import type { Input as Digits } from "./decimal"
+
+export type Input = Digits.Omit("separators") & {
+    release: bool
+}
 
 export default function (in: Input): Output {
     const { text, start, end, limit } = in
@@ -25,10 +30,10 @@ export default function (in: Input): Output {
         count: 0,
         pre_start: 0,
         pre_end: 0,
-        valid: true,
+        status: ParseStatus.Valid,
         done: false
     }, {
-        while: s => s.valid && !s.done,
+        while: s => s.status == ParseStatus.Valid && !s.done,
         next: s => {
             const first = s.i
             const stop = loop(first, {
@@ -55,24 +60,27 @@ export default function (in: Input): Output {
             }
             const wildcard = stop - first == 1 && marker
 
-            if (s.count >= patch_part || first == stop) {
-                s.valid = false
+            const missing = first == stop || (in.release && wildcard)
+
+            if (s.count >= patch_part || missing) {
+                s.status = ParseStatus.InvalidVersion
             } else if (!wildcard) {
                 const value = decimal({
                     text,
                     start: first,
                     end: stop,
-                    limit
+                    limit,
+                    separators: in.release
                 })
 
-                s.valid = s.parts == s.count && value != null
+                s.status = s.parts == s.count ? value.status : ParseStatus.InvalidVersion
 
                 if (s.count == 0) {
-                    s.major = value ?? 0
+                    s.major = value.value
                 } else if (s.count == major_part) {
-                    s.minor = value ?? 0
+                    s.minor = value.value
                 } else {
-                    s.patch = value ?? 0
+                    s.patch = value.value
                 }
 
                 s.parts += 1
@@ -84,8 +92,14 @@ export default function (in: Input): Output {
 
             const has_suffix = stop < end && s.done
 
-            if (s.valid && has_suffix) {
-                s.valid = s.parts == patch_part
+            const complete = in.release || has_suffix
+            const needs_part = complete && s.done && s.parts != patch_part
+
+            if (s.status == ParseStatus.Valid && needs_part) {
+                s.status = ParseStatus.InvalidVersion
+            }
+
+            if (s.status == ParseStatus.Valid && has_suffix) {
                 const pre = text[stop] == ascii_minus
                 const build = loop(stop + 1, {
                     while: i => pre && i < end && text[i] != ascii_plus,
@@ -94,10 +108,10 @@ export default function (in: Input): Output {
                     }
                 })
 
-                if (pre && s.valid) {
+                if (pre) {
                     s.pre_start = stop + 1
                     s.pre_end = build
-                    s.valid = suffix({
+                    s.status = suffix({
                         text,
                         start: s.pre_start,
                         end: build,
@@ -108,9 +122,9 @@ export default function (in: Input): Output {
 
                 const has_build = !pre || build < end
 
-                if (s.valid && has_build) {
+                if (s.status == ParseStatus.Valid && has_build) {
                     const build_start = pre ? build + 1 : stop + 1
-                    s.valid = suffix({
+                    s.status = suffix({
                         text,
                         start: build_start,
                         end,

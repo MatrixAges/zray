@@ -1,6 +1,5 @@
 const std = @import("std");
 const Lock = @import("../lock.zig");
-const State = enum { fresh, visiting, done };
 
 pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
     if (lock.format_version != 1) return error.UnsupportedLockVersion;
@@ -46,36 +45,12 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
 
     for (lock.packages) |package| try @import("edges.zig").validate(lock, temporary, package);
 
-    const states = try temporary.alloc(State, lock.packages.len);
-    const heights = try temporary.alloc(usize, lock.packages.len);
+    const graph = try @import("../graph.zig").check(temporary, lock.packages, .lock);
 
-    @memset(states, .fresh);
-
-    for (lock.packages, 0..) |package, index| {
-        if (package.source == .workspace) try visit(lock, states, heights, index, 0);
+    switch (graph.status) {
+        .Valid => {},
+        .CyclicPackageDependencies => return error.CyclicPackageDependencies,
+        .PackageDependencyDepthExceeded => return error.PackageDependencyDepthExceeded,
+        .UnreachableLockPackage => return error.UnreachableLockPackage,
     }
-
-    for (states) |state| if (state != .done) return error.UnreachableLockPackage;
-}
-
-fn visit(lock: Lock, states: []State, heights: []usize, index: usize, depth: usize) error{ CyclicPackageDependencies, PackageDependencyDepthExceeded }!void {
-    if (states[index] == .visiting) return error.CyclicPackageDependencies;
-    if (depth >= 256) return error.PackageDependencyDepthExceeded;
-
-    if (states[index] == .done) {
-        if (depth + heights[index] >= 256) return error.PackageDependencyDepthExceeded;
-
-        return;
-    }
-
-    states[index] = .visiting;
-    heights[index] = 0;
-
-    for (lock.packages[index].dependencies) |edge| {
-        try visit(lock, states, heights, edge.target, depth + 1);
-
-        heights[index] = @max(heights[index], heights[edge.target] + 1);
-    }
-
-    states[index] = .done;
 }
