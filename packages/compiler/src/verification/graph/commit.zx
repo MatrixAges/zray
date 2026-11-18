@@ -1,0 +1,30 @@
+import rebuild from "core/bytes/index/rebuild"
+import probe from "core/bytes/index/slot"
+import memory from "memory"
+
+import type { Commit as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { keys, key, buckets, capacity } = in
+
+    if (in.resized) {
+        const count = rebuild({
+            keys,
+            buckets,
+            capacity
+        })
+
+        const located = probe({
+            keys,
+            buckets,
+            capacity,
+            key
+        })
+
+        memory.writeU64(buckets, located.slot, count + 1)
+    } else {
+        memory.writeU64(buckets, in.position, keys.length + 1)
+    }
+}

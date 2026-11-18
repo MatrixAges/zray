@@ -1,0 +1,14 @@
+import probe from "core/bytes/index/slot"
+
+import type { Input, Output } from "core/bytes/index/slot"
+
+export default function (in: Input): Output {
+    if (in.capacity == 0) {
+        return {
+            slot: 0,
+            entry: 0
+        }
+    }
+
+    return probe(in)
+}

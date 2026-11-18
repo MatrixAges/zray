@@ -1,0 +1,23 @@
+import {
+    initial_capacity,
+    capacity_growth,
+    load_numerator,
+    load_denominator
+} from "core/bytes/index/const"
+
+export type Input = {
+    count: u64,
+    capacity: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in.capacity == 0) {
+        return initial_capacity
+    }
+
+    const limit = in.capacity * load_numerator / load_denominator
+
+    return in.count < limit ? in.capacity : in.capacity * capacity_growth
+}

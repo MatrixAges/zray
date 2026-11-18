@@ -1,0 +1,23 @@
+export const max_steps: u64 = 1000000
+
+export const max_definitions: u64 = 100000
+
+export const max_call_depth: u64 = 128
+
+export const step_limit_message: string =
+    "symbolic execution exceeds 1000000 evaluation steps"
+
+export const definition_limit_message: string =
+    "symbolic graph exceeds 100000 definitions"
+
+export const call_limit_message: string = "verification call depth exceeds 128"
+
+export const store_call_message: string = "verification does not model Store calls"
+
+export const external_call_message: string =
+    "verification requires a ZX body for each executed call; external semantics are not modeled"
+
+export const recursive_call_message: string =
+    "symbolic execution does not support recursive functions"
+
+export const declaration_end: string = ")\n"

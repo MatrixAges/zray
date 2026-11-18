@@ -1,0 +1,10 @@
+<Module>
+    <Type from="model" as="Graph" />
+
+    <Args in={Graph.Publication} out={Graph.Identity} />
+
+    <Call fn="identity" in={$in.origin} />
+    <Call fn="commit" in={$in.index} />
+
+    <Return value={$ctx.identity} />
+</Module>

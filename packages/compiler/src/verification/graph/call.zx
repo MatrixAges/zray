@@ -1,0 +1,29 @@
+import {
+    max_call_depth,
+    store_call_message,
+    external_call_message,
+    recursive_call_message,
+    call_limit_message
+} from "./const"
+import recursive from "./recursion"
+
+import type { Input as Calls } from "./recursion"
+
+export type Input = {
+    calls: Calls,
+    stores: u64,
+    external: bool,
+    depth: u64
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    return match {
+        in.stores != 0 => store_call_message,
+        in.external => external_call_message,
+        recursive(in.calls) => recursive_call_message,
+        in.depth >= max_call_depth => call_limit_message,
+        _ => null
+    }
+}

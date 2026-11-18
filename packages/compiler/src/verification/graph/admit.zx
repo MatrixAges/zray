@@ -1,0 +1,55 @@
+import { ascii_open_paren } from "core/ascii/const"
+
+import capacity from "./capacity"
+import { max_definitions } from "./const"
+import locate from "./locate"
+import { Action } from "./model"
+
+import type { Lookup as Input, Selection as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { key } = in
+
+    if (key.length == 0 || key[0] != ascii_open_paren) {
+        return {
+            action: Action.Atom,
+            position: 0,
+            capacity: in.capacity
+        }
+    }
+
+    const located = locate(in.omit([
+        "widths",
+        "width"
+    ]))
+
+    if (located.entry != 0) {
+        const position = located.entry - 1
+        const same = in.widths[position] == in.width
+
+        return {
+            action: same ? Action.Reuse : Action.WidthMismatch,
+            position,
+            capacity: in.capacity
+        }
+    }
+
+    const count = in.keys.length
+
+    if (count >= max_definitions) {
+        return {
+            action: Action.Limit,
+            position: 0,
+            capacity: in.capacity
+        }
+    }
+
+    return {
+        action: Action.Append,
+        position: located.slot,
+        capacity: capacity({
+            count,
+            capacity: in.capacity
+        })
+    }
+}

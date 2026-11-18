@@ -6,6 +6,7 @@ const Expressions = @import("expressions.zig");
 const Value = terms.Value;
 const Self = @This();
 const Graph = @import("graph.zig");
+const declaration_buffer_size = 4 * 1024;
 
 allocator: std.mem.Allocator,
 program: ir.Program,
@@ -23,7 +24,7 @@ const Return = struct { path: []const u8, value: Value };
 
 pub const Input = struct { symbol: []const u8, path: []const u8, type_id: ir.TypeId };
 pub const Query = struct { feasibility: []const u8, correctness: []const u8, inputs: []const Input };
-pub const Model = struct { inputs: []const Input, output: terms.Evaluation, definitions: []const Graph.Definition };
+pub const Model = struct { inputs: []const Input, output: terms.Evaluation, definitions: Graph.Definitions.Slice };
 
 pub fn model(self: *Self) zx.Error!Model {
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "symbolic execution requires a pure executable function without Store capabilities");
@@ -32,10 +33,10 @@ pub fn model(self: *Self) zx.Error!Model {
 
     const output = try self.call();
 
-    return .{ .inputs = self.inputs.items, .output = output, .definitions = self.graph.?.definitions.items };
+    return .{ .inputs = self.inputs.items, .output = output, .definitions = self.graph.?.definitions.slice() };
 }
 
-pub fn generate(self: *Self) zx.Error!Query {
+pub fn generate(self: *Self, scratch: std.mem.Allocator) zx.Error!Query {
     try self.ensureGraph();
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification requires an executable pure function without Store capabilities");
 
@@ -70,10 +71,19 @@ pub fn generate(self: *Self) zx.Error!Query {
     const query_module = if (@import("parser_options").generated_parser) @import("generated_verification_query") else @import("query/seed.zig");
     const Request = @typeInfo(@TypeOf(query_module.executeValue)).@"fn".param_types[1].?;
     const Record = if (@typeInfo(Request) == .pointer) @typeInfo(Request).pointer.child else Request;
+    var buffer: [declaration_buffer_size]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch);
+    const graph = self.graph.?;
+    const capacity = @max(buffer.len, graph.declaration_payload_bytes);
+    var definitions = try std.Io.Writer.Allocating.initCapacity(memory.allocator(), capacity);
+
+    defer definitions.deinit();
+
+    try graph.writeDeclarations(&definitions.writer);
 
     const input: Record = .{
         .declarations = self.declarations.items,
-        .definitions = try self.graph.?.declarations(),
+        .definitions = definitions.written(),
         .violations = self.violations.items,
         .precondition = precondition,
     };

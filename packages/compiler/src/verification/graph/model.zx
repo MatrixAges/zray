@@ -1,0 +1,41 @@
+import type { Input as Slot } from "core/bytes/index/slot"
+
+export type Lookup = Slot & {
+    widths: u16[],
+    width: u16
+}
+
+export enum Action {
+    Atom,
+    Reuse,
+    Append,
+    WidthMismatch,
+    Limit
+}
+
+export type Selection = {
+    action: Action,
+    position: u64,
+    capacity: u64
+}
+
+export type Commit = Slot & {
+    resized: bool,
+    position: u64
+}
+
+export type Identity = {
+    name: string,
+    file: string
+}
+
+export type Origin = {
+    count: u64,
+    file: string,
+    previous?: string
+}
+
+export type Publication = {
+    origin: Origin,
+    index: Commit
+}

@@ -55,9 +55,10 @@ fn build(allocator: std.mem.Allocator, program: zx.ir.Program, model: Conditions
         port.* = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = kind.signed, .node = id };
     }
 
-    for (model.definitions) |definition| {
-        terms.origin = .{ .file_name = definition.origin.file_name, .span = definition.origin.span };
+    for (0..model.definitions.len) |row| {
+        const definition = model.definitions.get(row);
 
+        terms.origin = .{ .file_name = definition.origin.file_name, .span = definition.origin.span };
         const id = try terms.parse(definition.expression);
         const sort = ir.Sort{ .width = if (definition.width == 0) 1 else definition.width, .boolean = definition.width == 0 };
 

@@ -23,7 +23,7 @@ pub fn generate(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Al
     var reporter: zx.Reporter = .{};
     var conditions = Conditions{ .allocator = arena.allocator(), .program = program, .reporter = &reporter };
 
-    const query = conditions.generate() catch |err| {
+    const query = conditions.generate(allocator) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return .{ .arena = arena, .value = .{ .diagnostic = reporter.diagnostic orelse .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid symbolic value shape" } } };

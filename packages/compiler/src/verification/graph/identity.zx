@@ -1,0 +1,22 @@
+import strings from "zig:string"
+
+import type { Origin as Input, Identity as Output } from "./model"
+
+export default function (in: Input): Output {
+    const name = templateFile("./templates/name.tpl")
+    const previous = in.previous
+
+    if (previous != null) {
+        if (previous == in.file) {
+            return {
+                name,
+                file: previous
+            }
+        }
+    }
+
+    return {
+        name,
+        file: strings.copy(in.file)
+    }
+}
