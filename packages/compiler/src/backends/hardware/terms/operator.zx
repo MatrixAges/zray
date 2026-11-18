@@ -1,0 +1,46 @@
+import bytes from "std:bytes"
+import { ascii_open_paren } from "core/ascii/const"
+import { ascii_underscore } from "core/const"
+
+import { smt_not, smt_negate, smt_select } from "./const"
+import { Form } from "./model"
+
+import type { Token, Head as Output } from "./model"
+
+export type Input = {
+    head: Output,
+    token: Token
+}
+
+export default function (in: Input): Output {
+    const {head, token} = in
+    const { start, text } = token
+
+    const length = text.length
+
+    const form = match {
+        length == 0 => Form.Invalid,
+        text[0] == ascii_open_paren => Form.Indexed,
+        length == 1 && text[0] == ascii_underscore => Form.Constant,
+        bytes.equals(text, bytes.fromText(smt_not)) => Form.Invert,
+        bytes.equals(text, bytes.fromText(smt_negate)) => Form.Negate,
+        bytes.equals(text, bytes.fromText(smt_select)) => Form.Select,
+        _ => Form.Binary
+    }
+
+    const arity: u8 = match form {
+        Form.Invert => 1,
+        Form.Negate => 1,
+        Form.Select => 3,
+        Form.Binary => 2,
+        _ => 0
+    }
+
+    return {
+        ...head,
+        form,
+        arity,
+        operator_start: start,
+        next: start + length
+    }
+}

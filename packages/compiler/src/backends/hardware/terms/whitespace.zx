@@ -1,0 +1,11 @@
+import { ascii_space, ascii_tab, ascii_carriage_return } from "core/ascii/const"
+
+export type Input = u8
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const control = in >= ascii_tab && in <= ascii_carriage_return
+
+    return in == ascii_space || control
+}

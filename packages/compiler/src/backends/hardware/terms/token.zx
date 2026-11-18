@@ -1,0 +1,29 @@
+import { ascii_open_paren, ascii_close_paren } from "core/ascii/const"
+import memory from "memory"
+
+import delimiter from "./delimiter"
+import skip from "./skip"
+
+import type { Cursor as Input, Token as Output } from "./model"
+
+export default function (in: Input): Output {
+    const source = in.source
+    const start = skip(in)
+
+    const end = match {
+        start == source.length => start,
+        source[start] == ascii_open_paren => start + 1,
+        source[start] == ascii_close_paren => start + 1,
+        _ => loop(start + 1, {
+            while: i => i < source.length && !delimiter(source[i]),
+            next: i => {
+                i += 1
+            }
+        })
+    }
+
+    return {
+        start,
+        text: memory.borrowU8Range(source, start, end - start)
+    }
+}

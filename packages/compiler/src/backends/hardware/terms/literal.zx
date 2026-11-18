@@ -1,0 +1,84 @@
+import bytes from "std:bytes"
+import ints from "std:integer"
+import memory from "memory"
+
+import { maximum_bit_width, literal_bit_width } from "../const"
+import boundary from "./boundary"
+import { bitvector_prefix } from "./const"
+import decimal from "./decimal"
+import { Form } from "./model"
+import token from "./token"
+
+import type { ReadHead as Input, Head as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { head, source } = in
+
+    const invalid = {
+        ...head,
+        form: Form.Invalid
+    }
+
+    const word = token({
+        source,
+        offset: head.next
+    })
+
+    const prefix = bytes.fromText(bitvector_prefix)
+    const length = word.text.length
+
+    if (length <= prefix.length || !bytes.startsWith(word.text, 0, prefix)) {
+        return invalid
+    }
+
+    const value =
+        decimal(
+            memory.borrowU8Range(
+                word.text,
+                prefix.length,
+                length - prefix.length
+            )
+        )
+
+    if (value == null) {
+        return invalid
+    }
+
+    const size = token({
+        source,
+        offset: word.start + length
+    })
+
+    const width = decimal(size.text)
+
+    if (width == null) {
+        return invalid
+    }
+
+    if (width == 0 || width > ints.widenShort(maximum_bit_width)) {
+        return invalid
+    }
+
+    const small = width < ints.widenShort(literal_bit_width)
+
+    if (small && value >= ints.bitMask(width)) {
+        return invalid
+    }
+
+    const next = boundary({
+        source,
+        offset: size.start + size.text.length,
+        closing: true
+    })
+
+    if (next == null) {
+        return invalid
+    }
+
+    return {
+        ...head,
+        next,
+        value,
+        bits: width
+    }
+}

@@ -1,0 +1,16 @@
+import whitespace from "./whitespace"
+
+import type { Cursor as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { source, offset } = in
+
+    return loop(offset, {
+        while: i => i < source.length && whitespace(source[i]),
+        next: i => {
+            i += 1
+        }
+    })
+}

@@ -3,7 +3,7 @@ import memory from "memory"
 
 import { Result } from "../binary/model"
 import derive from "../binary/result"
-import { maximum_bit_width, literal_bit_width } from "./const"
+import { maximum_bit_width, literal_bit_width } from "../const"
 import { Kind } from "./model"
 import sameSort from "./same_sort"
 

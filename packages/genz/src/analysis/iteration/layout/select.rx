@@ -37,7 +37,7 @@
         <Return value={Layout.Action.CheckShallow} />
     </If>
 
-    <If on={$in.mode == Layout.Mode.Value}>
+    <If on={$in.mode == Layout.Mode.Value && $in.aggregate}>
         <If
             on={$ctx.representation != Layout.Action.State &&
                 $ctx.representation != Layout.Action.Stack}

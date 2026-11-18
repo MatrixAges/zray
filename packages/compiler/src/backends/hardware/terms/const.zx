@@ -1,0 +1,7 @@
+export const bitvector_prefix: string = "bv"
+
+export const smt_not: string = "not"
+
+export const smt_negate: string = "bvneg"
+
+export const smt_select: string = "ite"

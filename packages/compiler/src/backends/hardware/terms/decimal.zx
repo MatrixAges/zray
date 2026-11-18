@@ -1,0 +1,69 @@
+import ints from "std:integer"
+import { ascii_plus, ascii_minus } from "core/ascii/const"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_underscore,
+    decimal_radix,
+    max_u64
+} from "core/const"
+
+export type Input = u8[]
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const source = in
+    const end = source.length
+
+    if (end == 0) {
+        return null
+    }
+
+    const negative = source[0] == ascii_minus
+    const sign = negative || source[0] == ascii_plus
+    const first = sign ? 1 : 0
+
+    if (first == end) {
+        return null
+    }
+
+    if (source[first] == ascii_underscore || source[end - 1] == ascii_underscore) {
+        return null
+    }
+
+    const parsed = loop({
+        at: first,
+        value: 0,
+        valid: true
+    }, {
+        while: state => state.at < end && state.valid,
+        next: state => {
+            const byte = source[state.at]
+            state.at += 1
+
+            if (byte != ascii_underscore) {
+                if (byte < ascii_digit_first || byte > ascii_digit_last) {
+                    state.valid = false
+                } else {
+                    const digit = ints.widenByte(byte - ascii_digit_first)
+                    const limit = (max_u64 - digit) / decimal_radix
+
+                    if (state.value > limit) {
+                        state.valid = false
+                    } else {
+                        state.value = state.value * decimal_radix + digit
+                    }
+                }
+            }
+        }
+    })
+
+    const fits = !negative || parsed.value == 0
+
+    if (!parsed.valid || !fits) {
+        return null
+    }
+
+    return parsed.value
+}

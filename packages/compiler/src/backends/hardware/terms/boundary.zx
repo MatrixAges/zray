@@ -1,0 +1,26 @@
+import { ascii_close_paren } from "core/ascii/const"
+
+import skip from "./skip"
+
+import type { Cursor } from "./model"
+
+export type Input = Cursor & {
+    closing: bool
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const at = skip(in.omit(["closing"]))
+    const source = in.source
+
+    if (!in.closing) {
+        return at == source.length ? at : null
+    }
+
+    if (at == source.length || source[at] != ascii_close_paren) {
+        return null
+    }
+
+    return at + 1
+}

@@ -18,7 +18,7 @@ pub fn choose(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, 
     const selected_state = !deep and !abi_state and self.state_plan.represented(self.program, type_id) and (self.state_active or forwarded != null or local_calls);
     const stack = !deep and (selected_state or forwarded != null or ((local_calls or try layout.shallow(self.allocator, self.program, iteration)) and layout.aggregate(self, type_id)));
 
-    if (mode == .value and !stack) return .{ .representation = .dereference };
+    if (mode == .value and !stack and layout.aggregate(self, type_id)) return .{ .representation = .dereference };
     if (mode == .consume and ((!stack and !deep) or forwarded != null)) return .{ .representation = .reject };
     if (consumer) |selected| if (!deep and !consumers.projection(self.program, selected.result, selected.symbol)) return .{ .representation = .reject };
 

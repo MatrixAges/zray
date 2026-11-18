@@ -1,0 +1,66 @@
+import { Result } from "../binary/model"
+import result from "../binary/result"
+import { maximum_bit_width } from "../const"
+import { Form } from "./model"
+
+import type { Sort as Output } from "../binary/model"
+import type { Operation as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { form, left, right, third, extra } = in
+
+    const invalid: Output = {
+        width: 0,
+        boolean: false
+    }
+
+    const boolean: Output = {
+        width: 1,
+        boolean: true
+    }
+
+    if (form == Form.SignExtend || form == Form.ZeroExtend) {
+        if (left.boolean || extra > maximum_bit_width) {
+            return invalid
+        }
+
+        const width = left.width + extra
+
+        if (width > maximum_bit_width) {
+            return invalid
+        }
+
+        return {
+            width,
+            boolean: false
+        }
+    }
+
+    if (form == Form.Invert || form == Form.Negate) {
+        if (left.boolean != (form == Form.Invert)) {
+            return invalid
+        }
+
+        return left
+    }
+
+    if (form == Form.Select) {
+        const same = right.width == third.width && right.boolean == third.boolean
+
+        if (!left.boolean || !same) {
+            return invalid
+        }
+
+        return right
+    }
+
+    return match result({
+        family: in.family,
+        left,
+        right
+    }) {
+        Result.Boolean => boolean,
+        Result.Operand => left,
+        _ => invalid
+    }
+}

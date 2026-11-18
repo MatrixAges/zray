@@ -1,0 +1,77 @@
+import bytes from "std:bytes"
+import ints from "std:integer"
+import { ascii_underscore, max_u16 } from "core/const"
+
+import { sign_extension, zero_extension } from "../../../verification/scalar/const"
+import boundary from "./boundary"
+import decimal from "./decimal"
+import { Form } from "./model"
+import token from "./token"
+
+import type { ReadHead as Input, Head as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { source, head } = in
+
+    const invalid = {
+        ...head,
+        form: Form.Invalid
+    }
+
+    const marker = token({
+        source,
+        offset: head.next
+    })
+
+    if (marker.text.length != 1 || marker.text[0] != ascii_underscore) {
+        return invalid
+    }
+
+    const name = token({
+        source,
+        offset: marker.start + 1
+    })
+
+    const form = match {
+        bytes.equals(name.text, bytes.fromText(sign_extension)) => Form.SignExtend,
+        bytes.equals(name.text, bytes.fromText(zero_extension)) => Form.ZeroExtend,
+        _ => Form.Invalid
+    }
+
+    if (form == Form.Invalid) {
+        return invalid
+    }
+
+    const amount = token({
+        source,
+        offset: name.start + name.text.length
+    })
+
+    const extra = decimal(amount.text)
+
+    if (extra == null) {
+        return invalid
+    }
+
+    if (extra > ints.widenShort(max_u16)) {
+        return invalid
+    }
+
+    const next = boundary({
+        source,
+        offset: amount.start + amount.text.length,
+        closing: true
+    })
+
+    if (next == null) {
+        return invalid
+    }
+
+    return {
+        ...head,
+        form,
+        next,
+        bits: extra,
+        arity: 1
+    }
+}
