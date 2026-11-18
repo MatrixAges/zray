@@ -1,27 +1,25 @@
-import type { U64Buffer, U8Buffer } from "memory"
-import type { Header, Project } from "project_frame"
-import type { Frame } from "./model"
+export enum Event {
+    Enter,
+    Advance
+}
 
-export type Walk = {
-    project: Project,
+export enum Action {
+    Resume,
+    Visit,
+    Open,
+    PublishSignature,
+    PublishBody
+}
+
+export type Cursor = {
+    event: Event,
     row: u64,
-    signature: bool,
-    marks: U8Buffer,
-    cursor: U64Buffer,
-    header: U64Buffer,
-    header_target: Header
+    count: u64,
+    child?: u64,
+    signature: bool
 }
 
-export type Run = Walk.Omit("row", "marks") & {
-    start: Frame
-}
-
-export type Step = {
-    project: Project,
-    completed?: u64,
-    signature: bool,
-    marks: U8Buffer,
-    header: U64Buffer,
-    header_target: Header,
-    import_cursor: U64Buffer
+export type Command = {
+    action: Action,
+    row: u64
 }

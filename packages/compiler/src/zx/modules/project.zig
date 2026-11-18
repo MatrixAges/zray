@@ -39,17 +39,6 @@ pub const Package = package_scope.Package;
 pub const PackageScope = package_scope.Scope;
 pub const specifier = @import("specifier.zig");
 
-comptime {
-    if (generated_parser) {
-        @export(&Project.FrameAccess.open, .{ .name = "zxcProjectFrameOpen" });
-        @export(&Project.FrameAccess.snapshot, .{ .name = "zxcProjectFrameSnapshot" });
-        @export(&Project.FrameAccess.resumeImport, .{ .name = "zxcProjectFrameResume" });
-        @export(&Project.FrameAccess.visit, .{ .name = "zxcProjectFrameVisit" });
-        @export(&Project.FrameAccess.publish, .{ .name = "zxcProjectFramePublish" });
-        @export(&Project.FrameAccess.close, .{ .name = "zxcProjectFrameClose" });
-    }
-}
-
 pub const Options = struct {
     source_index: ?*const source_index.Map = null,
     native_interfaces: []const NativeInterface = &.{},
@@ -167,21 +156,6 @@ const Project = struct {
     fn loadFrames(self: *Project, index: usize, comptime phase: Loading.Phase) zx.Error!void {
         const frames = &self.load_frames;
 
-        if (comptime generated_parser) {
-            var context: FrameAccess = .{
-                .project = self,
-                .paths = std.heap.ArenaAllocator.init(self.arena.child_allocator),
-            };
-
-            defer context.paths.deinit();
-
-            return switch (try Loading.run(&context, self.load_states, index, frames.items.len, phase)) {
-                .Skip, .Push => {},
-                .Cycle => self.dependencyCycle(),
-                .Depth => self.dependencyDepth(),
-            };
-        }
-
         switch (Loading.admit(self.load_states, index, frames.items.len)) {
             .Skip => return,
             .Cycle => return self.dependencyCycle(),
@@ -189,126 +163,23 @@ const Project = struct {
             .Push => try self.pushFrame(index),
         }
 
+        var paths = std.heap.ArenaAllocator.init(self.arena.child_allocator);
+
+        defer paths.deinit();
+
         var completed: ?usize = null;
 
         while (frames.items.len != 0) {
-            const frame = self.activeFrame();
+            const frame = &frames.items[frames.items.len - 1];
             self.current_source = frame.index;
 
-            const dependency = switch (frame.parsed.result.*) {
-                .native => |result| try self.loadInput(frame, Input.Native{ .value = result.value.parsed }, phase, completed),
-                .indexed => |*result| if (ParseCache.indexed_enabled) try self.loadInput(frame, Input.Indexed{ .value = result }, phase, completed) else unreachable,
+            completed = switch (frame.parsed.result.*) {
+                .native => |result| try self.loadInput(frame, Input.Native{ .value = result.value.parsed }, phase, completed, &paths),
+                .indexed => |*result| if (ParseCache.indexed_enabled) try self.loadInput(frame, Input.Indexed{ .value = result }, phase, completed, &paths) else unreachable,
             };
-
-            if (dependency) |child| {
-                completed = null;
-
-                try self.pushFrame(child);
-            } else {
-                completed = Loading.complete(self.load_states, frame.index, frames.items.len);
-                _ = self.closeFrame();
-            }
         }
     }
 
-    fn activeFrame(self: *Project) *LoadFrame {
-        return &self.load_frames.items[self.load_frames.items.len - 1];
-    }
-    fn closeFrame(self: *Project) bool {
-        self.activeFrame().deinitScratch(self.arena.child_allocator);
-
-        _ = self.load_frames.pop();
-
-        return self.load_frames.items.len != 0;
-    }
-    fn publishFrame(self: *Project, frame: *LoadFrame, input: anytype, signature: bool) zx.Error!void {
-        if (signature) return self.finishSignature(frame, input);
-
-        try self.finishInput(frame, input);
-    }
-    const FrameAccess = struct {
-        project: *Project,
-        paths: std.heap.ArenaAllocator,
-        const Status = enum(u8) {
-            ready,
-            descend,
-            invalid_source,
-            out_of_memory,
-            fn failure(err: zx.Error) Status {
-                return switch (err) {
-                    error.InvalidSource => .invalid_source,
-                    error.OutOfMemory => .out_of_memory,
-                };
-            }
-        };
-        fn at(handle: *const anyopaque) *@This() {
-            return @ptrCast(@alignCast(@constCast(handle)));
-        }
-        fn open(handle: *const anyopaque, row: u64) callconv(.c) Status {
-            const context = at(handle);
-
-            _ = context.paths.reset(.free_all);
-
-            context.project.pushFrame(@intCast(row)) catch |err| return .failure(err);
-
-            return .ready;
-        }
-        fn snapshot(handle: *const anyopaque, target: *[4]u64) callconv(.c) void {
-            const project = at(handle).project;
-            const frame = project.activeFrame();
-            project.current_source = frame.index;
-
-            const count = switch (frame.parsed.result.*) {
-                .native => |result| (Input.Native{ .value = result.value.parsed }).header().importCount(),
-                .indexed => |*result| if (ParseCache.indexed_enabled) (Input.Indexed{ .value = result }).header().importCount() else unreachable,
-            };
-
-            target.* = .{ frame.index, count, frame.suspended_import, project.load_frames.items.len };
-        }
-        fn resumeImport(handle: *const anyopaque, row: u64, child: u64, signature: bool) callconv(.c) Status {
-            const project = at(handle).project;
-            const frame = project.activeFrame();
-            const phase: Loading.Phase = if (signature) .signature else .body;
-
-            (switch (frame.parsed.result.*) {
-                .native => |result| project.resumeImport(frame, (Input.Native{ .value = result.value.parsed }).header(), @intCast(row), @intCast(child), phase),
-                .indexed => |*result| if (ParseCache.indexed_enabled) project.resumeImport(frame, (Input.Indexed{ .value = result }).header(), @intCast(row), @intCast(child), phase) else unreachable,
-            }) catch |err| return .failure(err);
-
-            return .ready;
-        }
-        fn visit(handle: *const anyopaque, row: u64, signature: bool, child: *u64) callconv(.c) Status {
-            const context = at(handle);
-            const project = context.project;
-            const frame = project.activeFrame();
-            const phase: Loading.Phase = if (signature) .signature else .body;
-
-            const next = switch (frame.parsed.result.*) {
-                .native => |result| project.visitImport(frame, (Input.Native{ .value = result.value.parsed }).header(), @intCast(row), phase, &context.paths),
-                .indexed => |*result| if (ParseCache.indexed_enabled) project.visitImport(frame, (Input.Indexed{ .value = result }).header(), @intCast(row), phase, &context.paths) else unreachable,
-            } catch |err| return .failure(err);
-
-            child.* = next orelse return .ready;
-
-            return .descend;
-        }
-        fn publish(handle: *const anyopaque, signature: bool) callconv(.c) Status {
-            const context = at(handle);
-            const project = context.project;
-            const frame = project.activeFrame();
-            _ = context.paths.reset(.free_all);
-
-            (switch (frame.parsed.result.*) {
-                .native => |result| project.publishFrame(frame, Input.Native{ .value = result.value.parsed }, signature),
-                .indexed => |*result| if (ParseCache.indexed_enabled) project.publishFrame(frame, Input.Indexed{ .value = result }, signature) else unreachable,
-            }) catch |err| return .failure(err);
-
-            return .ready;
-        }
-        fn close(handle: *const anyopaque) callconv(.c) bool {
-            return at(handle).project.closeFrame();
-        }
-    };
     fn deinitScratch(self: *Project) void {
         const allocator = self.arena.child_allocator;
 
@@ -350,30 +221,47 @@ const Project = struct {
     fn dependencyDepth(self: *Project) zx.Error {
         return self.reporter.fail(.module, .{ .start = 0, .end = 0 }, "module dependency depth exceeds 256");
     }
-    fn loadInput(self: *Project, frame: *LoadFrame, input: anytype, phase: Loading.Phase, completed: ?usize) zx.Error!?usize {
+    fn loadInput(self: *Project, frame: *LoadFrame, input: anytype, comptime phase: Loading.Phase, completed: ?usize, paths: *std.heap.ArenaAllocator) zx.Error!?usize {
         const header = input.header();
         const count = header.importCount();
-        var paths = std.heap.ArenaAllocator.init(self.arena.child_allocator);
+        var command = Loading.step(.Enter, @intCast(frame.suspended_import), count, completed, phase);
 
-        defer paths.deinit();
+        while (true) {
+            const row: usize = @intCast(command.row);
 
-        const first = if (completed) |child| first: {
-            const row: usize = @intCast(frame.suspended_import);
+            const child = switch (command.action) {
+                .Resume => resumed: {
+                    try self.resumeImport(frame, header, row, completed.?, phase);
 
-            try self.resumeImport(frame, header, row, child, phase);
+                    break :resumed null;
+                },
+                .Visit => try self.visitImport(frame, header, row, phase, paths),
+                .Open => {
+                    _ = paths.reset(.free_all);
 
-            break :first row + 1;
-        } else 0;
+                    try self.pushFrame(row);
 
-        for (first..count) |row| {
-            if (try self.visitImport(frame, header, row, phase, &paths)) |child| return child;
+                    return null;
+                },
+                .PublishSignature, .PublishBody => {
+                    _ = paths.reset(.free_all);
+
+                    if (command.action == .PublishSignature) {
+                        try self.finishSignature(frame, input);
+                    } else try self.finishInput(frame, input);
+
+                    const parent = Loading.complete(self.load_states, frame.index, self.load_frames.items.len);
+
+                    frame.deinitScratch(self.arena.child_allocator);
+
+                    _ = self.load_frames.pop();
+
+                    return parent;
+                },
+            };
+
+            command = Loading.step(.Advance, row, count, child, phase);
         }
-
-        if (phase == .signature) {
-            try self.finishSignature(frame, input);
-        } else try self.finishInput(frame, input);
-
-        return null;
     }
     fn resumeImport(self: *Project, frame: *LoadFrame, header: anytype, row: usize, child: usize, phase: Loading.Phase) zx.Error!void {
         const item = import_view.get(header, row);
@@ -569,7 +457,7 @@ const Project = struct {
         try import_binding.publishTypes(self.allocator, selected, imported.exports, imported.constant_exports, aliases, constants);
         if (!item.exported) return;
 
-        if (comptime @import("parser_options").generated_parser) return Signature.publishReexports(self.allocator, self.arena.child_allocator, .{
+        if (comptime generated_parser) return Signature.publishReexports(self.allocator, self.arena.child_allocator, .{
             .signatures = imported.signatures,
             .bindings = members,
             .stores = self.functions.stores.items,
@@ -601,7 +489,7 @@ const Project = struct {
         const native = frame.export_functions.items;
         const members = try self.allocator.alloc(Signature.Member, own + forwarded.len + native.len);
 
-        if (comptime @import("parser_options").generated_parser) {
+        if (comptime generated_parser) {
             try Signature.publishMembers(self.allocator, signature, self.functions.stores.items, forwarded, native, members);
         } else {
             if (own != 0) members[0] = .{ .name = "", .kind = .callable, .ports = signature.ports, .has_store = signature.has_store };
@@ -770,7 +658,7 @@ const Project = struct {
     fn indexUnits(self: *Project) std.mem.Allocator.Error!bool {
         self.unit_indices = try source_index.Map.init(self.arena.child_allocator, self.units.len);
 
-        if (comptime @import("parser_options").generated_parser) {
+        if (comptime generated_parser) {
             for (self.units, self.unit_indices.keys) |*unit, *key| key.* = unit.path;
 
             return self.unit_indices.firstDuplicate(self.units.len) == null;
@@ -808,7 +696,7 @@ const Project = struct {
 
             const native_index = @backingInt(module_id);
 
-            const members = if (comptime @import("parser_options").generated_parser) published: {
+            const members = if (comptime generated_parser) published: {
                 try @import("link/signature/publication/host.zig").finalizeNative(self.allocator, &self.native_modules, &self.functions, module_id, loaded, entry.namespace);
 
                 self.verified.functions = 0;
@@ -857,7 +745,7 @@ const Project = struct {
         const local = item.nameAt(0).text;
         var namespace: ?[]const u8 = null;
 
-        if (comptime @import("parser_options").generated_parser) {
+        if (comptime generated_parser) {
             const plan = try Interface.legacyPlan(self.bindingAllocator(), registry, first, item.path, local);
 
             for (plan.rows, plan.names) |row, name| {

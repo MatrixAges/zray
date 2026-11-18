@@ -3,21 +3,3 @@ export const max_dependency_depth: u64 = 256
 export const visiting: u8 = 1
 
 export const done: u8 = 2
-
-export const frame_row_slot: u64 = 0
-
-export const frame_import_count_slot: u64 = 1
-
-export const frame_suspended_slot: u64 = 2
-
-export const frame_depth_slot: u64 = 3
-
-export const completed_slot: u64 = 0
-
-export const active_slot: u64 = 1
-
-export const import_slot: u64 = 2
-
-export const active: u64 = 1
-
-export const inactive: u64 = 0

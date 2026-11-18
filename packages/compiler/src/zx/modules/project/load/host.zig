@@ -8,7 +8,7 @@ const Claims = @import("imports/host.zig");
 const enabled = @import("parser_options").generated_parser;
 pub const State = enum(u8) { Fresh, Visiting, Done };
 pub const Phase = enum { body, signature };
-const Admission = if (enabled) @import("generated_project_load_frames").Output else enum { Push, Skip, Cycle, Depth };
+const Admission = if (enabled) @import("generated_project_load_admit").Output else enum { Push, Skip, Cycle, Depth };
 const SourceAction = if (enabled) @FieldType(Result(@import("generated_project_load_source")), "action") else enum { Descend, Bind, DeferSignature, SkipSignature, RejectRx, Missing, Cycle, Depth };
 
 fn Result(comptime module: type) type {
@@ -120,30 +120,37 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
     } };
 }
 
-pub fn run(project: *anyopaque, state_column: []State, row: usize, depth: usize, phase: Phase) zx.Error!Admission {
-    const generated = @import("generated_project_load_frames");
-    const Input = std.meta.Child(generated.Input);
-    const marks = std.mem.sliceAsBytes(state_column);
-    var cursor_words: [3]u64 = undefined;
-    var header_words: [4]u64 = undefined;
-    const cursor: []u64 = &cursor_words;
-    const header: []u64 = &header_words;
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+const Step = if (enabled) @import("generated_project_load_step") else void;
+const Event = if (enabled) @FieldType(std.meta.Child(Step.Input), "event") else enum { Enter, Advance };
+const SeedCommand = struct { action: enum { Resume, Visit, Open, PublishSignature, PublishBody }, row: u64 };
+const Command = if (enabled) Result(Step) else SeedCommand;
 
-    const request: Input = .{
-        .project = @ptrCast(project),
-        .start = &.{ .states = marks, .marks = @ptrCast(&marks), .row = row, .depth = depth },
-        .signature = phase == .signature,
-        .cursor = @ptrCast(&cursor),
-        .header = @ptrCast(&header),
-        .header_target = @ptrCast(&header),
-    };
+pub fn step(event: Event, row: usize, count: usize, child: ?usize, comptime phase: Phase) Command {
+    if (comptime enabled) {
+        const input: std.meta.Child(Step.Input) = .{
+            .event = event,
+            .row = row,
+            .count = count,
+            .child = if (child) |index| index else null,
+            .signature = phase == .signature,
+        };
 
-    return generated.executeIn(empty.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
-        error.InvalidSource => error.InvalidSource,
-        error.OutOfMemory => error.OutOfMemory,
-        else => unreachable,
-    };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return zx.columns.invoke(Step.executeValue, empty.allocator(), &input) catch unreachable;
+    }
+
+    if (child) |index| {
+        if (event == .Enter) return .{ .action = .Resume, .row = row };
+
+        return .{ .action = .Open, .row = index };
+    }
+
+    const next = if (event == .Enter) 0 else row + 1;
+
+    if (next < count) return .{ .action = .Visit, .row = next };
+
+    return .{ .action = if (phase == .signature) .PublishSignature else .PublishBody, .row = next };
 }
 
 pub fn states(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error![]State {
@@ -155,6 +162,15 @@ pub fn states(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Erro
 }
 
 pub fn admit(state_column: []State, row: usize, depth: usize) Admission {
+    if (comptime enabled) {
+        const rule = @import("generated_project_load_admit");
+        const marks = std.mem.sliceAsBytes(state_column);
+        const input: std.meta.Child(rule.Input) = .{ .states = marks, .marks = @ptrCast(&marks), .row = row, .depth = depth };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    }
+
     return switch (state_column[row]) {
         .Done => .Skip,
         .Visiting => .Cycle,
@@ -169,6 +185,16 @@ pub fn admit(state_column: []State, row: usize, depth: usize) Admission {
 }
 
 pub fn complete(state_column: []State, row: usize, depth: usize) ?usize {
+    if (comptime enabled) {
+        const rule = @import("generated_project_load_complete");
+        const marks = std.mem.sliceAsBytes(state_column);
+        const input: std.meta.Child(rule.Input) = .{ .marks = @ptrCast(&marks), .row = row, .depth = depth };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const parent = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        return if (parent) |index| @intCast(index) else null;
+    }
+
     state_column[row] = .Done;
 
     return if (depth > 1) row else null;
