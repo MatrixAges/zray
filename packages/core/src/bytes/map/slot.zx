@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+import ints from "std:integer"
+
+import type { Read } from "./model"
+
+export type Input = Read.Pick("keys") & {
+    key: string
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { keys, key } = in
+
+    const hash = bytes.hash(bytes.fromText(key))
+    const mask = keys.length - 1
+
+    return loop({
+        slot: ints.andBits(hash, mask),
+        done: false
+    }, {
+        while: cursor => !cursor.done,
+        next: cursor => {
+            const previous = keys[cursor.slot]
+            if (previous == null || previous == key) {
+                cursor.done = true
+            } else {
+                cursor.slot = ints.andBits(cursor.slot + 1, mask)
+            }
+        },
+        return: cursor => cursor.slot
+    })
+}

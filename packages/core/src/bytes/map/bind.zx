@@ -1,0 +1,18 @@
+import place from "./place"
+import slot from "./slot"
+
+import type { Bind as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const position = slot({
+        keys: in.current.keys,
+        key: in.key
+    })
+
+    return place({
+        ...in,
+        slot: position
+    })
+}

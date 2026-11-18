@@ -1,0 +1,38 @@
+import ints from "std:integer"
+
+import {
+    initial_capacity,
+    capacity_growth,
+    load_numerator,
+    load_denominator
+} from "../index/const"
+
+export type Input = u32
+
+export type Output = {
+    capacity: u64,
+    limit: u64
+}
+
+export default function (in: Input): Output {
+    if (in == 0) {
+        return {
+            capacity: 0,
+            limit: 0
+        }
+    }
+
+    const count = ints.widen(in)
+
+    const capacity = loop(initial_capacity, {
+        while: size => count > size * load_numerator / load_denominator,
+        next: size => {
+            size = size * capacity_growth
+        }
+    })
+
+    return {
+        capacity,
+        limit: capacity * load_numerator / load_denominator
+    }
+}

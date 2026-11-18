@@ -1,0 +1,34 @@
+import ints from "std:integer"
+import bind from "core/bytes/map/bind"
+import memory from "memory"
+
+import type { Inputs as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const zero: u32 = 0
+
+    return loop({
+        row: 0,
+        count: zero
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const row = state.row
+            const inserted = bind({
+                current: in.current,
+                target: in.target,
+                key: memory.readTextColumn(in.names, row),
+                value: ints.narrow(row)
+            })
+
+            if (inserted) {
+                state.count += 1
+            }
+
+            state.row += 1
+        },
+        return: state => state.count
+    })
+}

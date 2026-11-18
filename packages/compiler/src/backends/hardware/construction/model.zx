@@ -1,0 +1,13 @@
+import type { Table, Bind } from "core/bytes/map/model"
+import type { TextColumn } from "memory"
+import type { Sort } from "../binary/model"
+
+export type Inputs = Table & {
+    names: TextColumn,
+    count: u64
+}
+
+export type Definition = Bind & {
+    width: u16,
+    sort: Sort
+}

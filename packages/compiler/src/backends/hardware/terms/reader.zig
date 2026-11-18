@@ -29,7 +29,7 @@ fn term(self: *Self, depth: usize) Terms.Error!ir.Id {
     if (depth >= limits.maximum_depth) return error.InvalidHardwareTerm;
 
     const cursor: std.meta.Child(read.Input) = .{ .source = self.source, .offset = self.offset };
-    const head = zx.columns.invoke(read.executeValue, self.tables.scratch, &cursor) catch |err| return parseError(err);
+    const head = zx.columns.invoke(read.executeValue, self.tables.scratch, &cursor) catch |err| return Terms.fromSourceError(err);
 
     self.offset = @intCast(head.next);
 
@@ -38,8 +38,9 @@ fn term(self: *Self, depth: usize) Terms.Error!ir.Id {
         .Open, .Indexed => unreachable,
         .Name, .True, .False => node: {
             const key = self.source[@intCast(head.start)..self.offset];
+            const binding = try self.tables.variables.find(self.tables.scratch, key);
 
-            if (self.tables.variables.get(key)) |id| return id;
+            if (binding.value) |id| return @fromBackingInt(id);
             if (head.form == .Name) return error.InvalidHardwareTerm;
 
             break :node .{ .sort = .{ .width = 1, .boolean = true }, .value = .{ .constant = @intFromBool(head.form == .True) } };
@@ -92,14 +93,7 @@ fn application(self: *Self, head: Head, depth: usize) Terms.Error!ir.Node {
 
 fn finish(self: *Self, closing: bool) Terms.Error!void {
     const input: std.meta.Child(boundary.Input) = .{ .source = self.source, .offset = self.offset, .closing = closing };
-    const next = zx.columns.invoke(boundary.executeValue, self.tables.scratch, &input) catch |err| return parseError(err);
+    const next = zx.columns.invoke(boundary.executeValue, self.tables.scratch, &input) catch |err| return Terms.fromSourceError(err);
 
     self.offset = @intCast(next orelse return error.InvalidHardwareTerm);
-}
-
-fn parseError(err: error{ OutOfMemory, IndexOutOfBounds, IntegerOverflow }) Terms.Error {
-    return switch (err) {
-        error.OutOfMemory => error.OutOfMemory,
-        error.IndexOutOfBounds, error.IntegerOverflow => error.InvalidHardwareTerm,
-    };
 }

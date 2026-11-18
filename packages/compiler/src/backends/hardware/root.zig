@@ -4,6 +4,8 @@ const Conditions = @import("../../verification/conditions.zig");
 const port_paths = @import("../../verification/ports.zig");
 const values = @import("../../verification/terms.zig");
 const Terms = @import("terms.zig");
+const generated = @import("parser_options").generated_parser;
+const bindings = @import("construction/bindings.zig");
 const scratch_buffer_size = 32 * 1024;
 pub const ir = @import("ir.zig");
 pub const validate = @import("validate.zig").validate;
@@ -70,10 +72,12 @@ fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, program: zx.i
         const sort = kind.sort;
         const id = try terms.add(.{ .sort = sort, .value = .{ .input = index } });
 
-        terms.variables.putAssumeCapacity(input.symbol, id);
+        if (comptime !generated) terms.variables.putAssumeCapacity(input.symbol, id);
 
         port.* = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = kind.signed, .node = id };
     }
+
+    if (comptime generated) try bindings.bindInputs(&terms, model.inputs);
 
     var origin_file: ?[]const u8 = null;
 
@@ -84,13 +88,17 @@ fn build(allocator: std.mem.Allocator, scratch: std.mem.Allocator, program: zx.i
             origin_file = try allocator.dupe(u8, definition.origin.file_name);
 
         terms.origin = .{ .file_name = origin_file.?, .span = definition.origin.span };
-
         const id = try terms.parse(definition.expression);
-        const sort = ir.Sort{ .width = if (definition.width == 0) 1 else definition.width, .boolean = definition.width == 0 };
 
-        if (!sort.equal(terms.nodes.items[@backingInt(id)].sort)) return error.InvalidHardwareTerm;
+        if (comptime generated) {
+            try bindings.publish(&terms, definition.name, definition.width, id);
+        } else {
+            const sort = ir.Sort{ .width = if (definition.width == 0) 1 else definition.width, .boolean = definition.width == 0 };
 
-        terms.variables.putAssumeCapacity(definition.name, id);
+            if (!sort.equal(terms.nodes.items[@backingInt(id)].sort)) return error.InvalidHardwareTerm;
+
+            terms.variables.putAssumeCapacity(definition.name, id);
+        }
     }
 
     terms.origin = null;

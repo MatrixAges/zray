@@ -1,0 +1,23 @@
+import memory from "memory"
+
+import type { Bind } from "./model"
+
+export type Input = Bind & {
+    slot: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { current, target, key, slot, value } = in
+
+    const fresh = current.keys[slot] == null
+
+    if (fresh) {
+        memory.writeOptionalString(target.keys, slot, key)
+    }
+
+    memory.writeU32(target.values, slot, value)
+
+    return fresh
+}

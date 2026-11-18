@@ -1,0 +1,43 @@
+import slot from "./slot"
+
+import type { Read } from "./model"
+
+export type Input = Read & {
+    key: string,
+    full: bool
+}
+
+export type Output = {
+    position: u64,
+    value?: u32,
+    grow: bool
+}
+
+export default function (in: Input): Output {
+    if (in.keys.length == 0) {
+        return {
+            position: 0,
+            value: null,
+            grow: true
+        }
+    }
+
+    const position = slot({
+        keys: in.keys,
+        key: in.key
+    })
+
+    if (in.keys[position] == null) {
+        return {
+            position,
+            value: null,
+            grow: in.full
+        }
+    }
+
+    return {
+        position,
+        value: in.values[position],
+        grow: false
+    }
+}
