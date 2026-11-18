@@ -1,0 +1,45 @@
+export const smt_true: string = "true"
+
+export const smt_false: string = "false"
+
+export const smt_bvadd: string = "bvadd"
+
+export const smt_bvsub: string = "bvsub"
+
+export const smt_bvmul: string = "bvmul"
+
+export const smt_bvudiv: string = "bvudiv"
+
+export const smt_bvsdiv: string = "bvsdiv"
+
+export const smt_bvurem: string = "bvurem"
+
+export const smt_bvsrem: string = "bvsrem"
+
+export const smt_bvult: string = "bvult"
+
+export const smt_bvslt: string = "bvslt"
+
+export const smt_bvule: string = "bvule"
+
+export const smt_bvsle: string = "bvsle"
+
+export const smt_bvugt: string = "bvugt"
+
+export const smt_bvsgt: string = "bvsgt"
+
+export const smt_bvuge: string = "bvuge"
+
+export const smt_bvsge: string = "bvsge"
+
+export const sign_extension: string = "sign_extend"
+
+export const zero_extension: string = "zero_extend"
+
+export const bits_byte: u64 = 8
+
+export const bits_short: u64 = 16
+
+export const bits_word: u64 = 32
+
+export const bits_long: u64 = 64

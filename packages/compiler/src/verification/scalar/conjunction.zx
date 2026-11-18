@@ -1,0 +1,19 @@
+import { smt_true, smt_false } from "./const"
+
+export type Input = {
+    left: string,
+    right: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    return match {
+        left == smt_false || right == smt_false => smt_false,
+        left == smt_true => right,
+        right == smt_true => left,
+        _ => templateFile("./templates/and.tpl")
+    }
+}

@@ -1,0 +1,27 @@
+import { BinaryOperator } from "core/expression_table/kinds"
+
+import conjunction from "./conjunction"
+
+import type { Binary, Result } from "./model"
+
+export type Input = Binary
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    const a = in.left.value
+    const b = in.right.value
+
+    const value = match in.operator {
+        BinaryOperator.Equal => templateFile("./templates/equal.tpl"),
+        _ => templateFile("./templates/not_equal.tpl")
+    }
+
+    return {
+        value,
+        safe: conjunction({
+            left: in.left.safe,
+            right: in.right.safe
+        })
+    }
+}

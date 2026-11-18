@@ -1,0 +1,41 @@
+import { BinaryOperator } from "core/expression_table/kinds"
+
+import {
+    smt_bvadd,
+    smt_bvsub,
+    smt_bvmul,
+    smt_bvudiv,
+    smt_bvsdiv,
+    smt_bvurem,
+    smt_bvsrem,
+    smt_bvult,
+    smt_bvslt,
+    smt_bvule,
+    smt_bvsle,
+    smt_bvugt,
+    smt_bvsgt,
+    smt_bvuge,
+    smt_bvsge
+} from "./const"
+
+import type { Binary } from "./model"
+
+export type Input = Binary
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { operator, signed } = in
+
+    return match operator {
+        BinaryOperator.Add => smt_bvadd,
+        BinaryOperator.Subtract => smt_bvsub,
+        BinaryOperator.Multiply => smt_bvmul,
+        BinaryOperator.Divide => signed ? smt_bvsdiv : smt_bvudiv,
+        BinaryOperator.Remainder => signed ? smt_bvsrem : smt_bvurem,
+        BinaryOperator.Less => signed ? smt_bvslt : smt_bvult,
+        BinaryOperator.LessEqual => signed ? smt_bvsle : smt_bvule,
+        BinaryOperator.Greater => signed ? smt_bvsgt : smt_bvugt,
+        _ => signed ? smt_bvsge : smt_bvuge
+    }
+}

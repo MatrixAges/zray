@@ -1,0 +1,1 @@
+(bvneg ${operand})

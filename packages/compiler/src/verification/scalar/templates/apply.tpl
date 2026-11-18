@@ -1,0 +1,1 @@
+(${in.name} ${in.left.value} ${in.right.value})

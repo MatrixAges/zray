@@ -1,0 +1,106 @@
+<Module>
+    <Type from="model" as="Scalar" />
+
+    <Args in={Scalar.Binary} out={Scalar.Result} />
+
+    <Call fn="family" in={$in} />
+
+    <Switch on={$ctx.family}>
+        <Case value={Scalar.Family.Unsupported}>
+            <Return
+                value={{
+                    value: null,
+                    safe: $in.left.safe
+                }}
+            />
+        </Case>
+
+        <Case value={Scalar.Family.Logical}>
+            <Call fn="logical" in={$in} />
+
+            <Return value={$ctx.logical} />
+        </Case>
+
+        <Case value={Scalar.Family.Equality}>
+            <Call fn="equality" in={$in} />
+
+            <Return value={$ctx.equality} />
+        </Case>
+    </Switch>
+
+    <Call fn="operation" in={$in} />
+
+    <Call
+        fn="apply"
+        in={{
+            left: $in.left,
+            right: $in.right,
+            name: $ctx.operation
+        }}
+    />
+
+    <Task name="operands" out={$ctx.conjunction}>
+        <Call
+            fn="conjunction"
+            in={{
+                left: $in.left.safe,
+                right: $in.right.safe
+            }}
+        />
+    </Task>
+
+    <Switch on={$ctx.family}>
+        <Case value={Scalar.Family.Arithmetic}>
+            <Call
+                fn="overflow"
+                in={{
+                    ...$in,
+                    value: $ctx.apply,
+                    name: $ctx.operation,
+                    safe: $ctx.task.operands
+                }}
+            />
+
+            <Call
+                fn="conjunction"
+                in={{
+                    left: $ctx.task.operands,
+                    right: $ctx.overflow
+                }}
+            />
+
+            <Return
+                value={{
+                    value: $ctx.apply,
+                    safe: $ctx.conjunction
+                }}
+            />
+        </Case>
+
+        <Case value={Scalar.Family.Division}>
+            <Call
+                fn="divide"
+                in={{
+                    ...$in,
+                    value: $ctx.apply,
+                    name: $ctx.operation,
+                    safe: $ctx.task.operands
+                }}
+            />
+
+            <Return
+                value={{
+                    value: $ctx.apply,
+                    safe: $ctx.divide
+                }}
+            />
+        </Case>
+    </Switch>
+
+    <Return
+        value={{
+            value: $ctx.apply,
+            safe: $ctx.task.operands
+        }}
+    />
+</Module>

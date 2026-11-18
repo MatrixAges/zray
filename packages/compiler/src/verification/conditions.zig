@@ -78,7 +78,7 @@ pub fn generate(self: *Self) zx.Error!Query {
         .precondition = precondition,
     };
 
-    const query = try query_module.executeValue(self.allocator, if (Record == Request) input else &(try self.allocator.dupe(Record, &.{input}))[0]);
+    const query = try query_module.executeValue(self.allocator, if (Record == Request) input else &input);
 
     return .{
         .feasibility = query.feasibility,
@@ -105,7 +105,8 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8) zx.Error!Value {
 
     if (target == .scalar and target.scalar == .void) return .{ .fields = &.{} };
 
-    const sort = if (terms.integer(target)) |integer| try std.fmt.allocPrint(self.allocator, "(_ BitVec {d})", .{integer.width}) else if (target == .enumeration) try std.fmt.allocPrint(self.allocator, "(_ BitVec {d})", .{terms.enumWidth(target)}) else if (target == .scalar and target.scalar == .bool) "Bool" else return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification currently supports boolean, enum and fixed-width integer inputs with static objects or tuples");
+    const width = terms.symbolicWidth(target) orelse return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification currently supports boolean, enum and fixed-width integer inputs with static objects or tuples");
+    const sort = if (width == 0) "Bool" else try std.fmt.allocPrint(self.allocator, "(_ BitVec {d})", .{width});
     const name = try std.fmt.allocPrint(self.allocator, "input_{d}", .{self.next_input});
 
     self.next_input += 1;
@@ -113,7 +114,7 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8) zx.Error!Value {
     try self.declarations.append(self.allocator, try std.fmt.allocPrint(self.allocator, "(declare-fun {s} () {s})", .{ name, sort }));
 
     if (target == .enumeration) {
-        const maximum = try terms.constant(self.allocator, target.enumeration.members.len - 1, terms.enumWidth(target));
+        const maximum = try terms.constant(self.allocator, target.enumeration.members.len - 1, width);
 
         try self.declarations.append(self.allocator, try std.fmt.allocPrint(self.allocator, "(assert (bvule {s} {s}))", .{ name, maximum }));
     }

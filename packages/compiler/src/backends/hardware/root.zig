@@ -46,12 +46,13 @@ fn build(allocator: std.mem.Allocator, program: zx.ir.Program, model: Conditions
     const inputs = try allocator.alloc(ir.Port, model.inputs.len);
 
     for (model.inputs, inputs, 0..) |input, *port, index| {
-        const sort = try sortOf(program.typeOf(input.type_id));
+        const kind = try portType(program.typeOf(input.type_id));
+        const sort = kind.sort;
         const id = try terms.add(.{ .sort = sort, .value = .{ .input = index } });
 
         try terms.variables.put(allocator, input.symbol, id);
 
-        port.* = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = signed(program.typeOf(input.type_id)), .node = id };
+        port.* = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = kind.signed, .node = id };
     }
 
     for (model.definitions) |definition| {
@@ -97,23 +98,20 @@ fn flatten(terms: *Terms, program: zx.ir.Program, type_id: zx.ir.TypeId, value: 
     if (target == .scalar and target.scalar == .void) return;
     if (value != .scalar) return error.InvalidHardwareTerm;
 
-    const sort = try sortOf(target);
+    const kind = try portType(target);
+    const sort = kind.sort;
     const id = try terms.parse(value.scalar);
 
     if (!sort.equal(terms.nodes.items[@intFromEnum(id)].sort)) return error.InvalidHardwareTerm;
 
-    try ports.append(terms.allocator, .{ .name = try std.fmt.allocPrint(terms.allocator, "output_{d}", .{ports.items.len}), .path = path, .sort = sort, .signed = signed(target), .node = id });
+    try ports.append(terms.allocator, .{ .name = try std.fmt.allocPrint(terms.allocator, "output_{d}", .{ports.items.len}), .path = path, .sort = sort, .signed = kind.signed, .node = id });
 }
 
-fn sortOf(target: zx.ir.Type) !ir.Sort {
-    if (values.integer(target)) |integer| return .{ .width = integer.width };
-    if (target == .scalar and target.scalar == .bool) return .{ .width = 1, .boolean = true };
+fn portType(target: zx.ir.Type) !struct { sort: ir.Sort, signed: bool } {
+    if (values.integer(target)) |integer| return .{ .sort = .{ .width = integer.width }, .signed = integer.signed };
+    if (target == .scalar and target.scalar == .bool) return .{ .sort = .{ .width = 1, .boolean = true }, .signed = false };
 
     return error.InvalidHardwareTerm;
-}
-
-fn signed(target: zx.ir.Type) bool {
-    return if (values.integer(target)) |integer| integer.signed else false;
 }
 
 fn diagnostic(message: []const u8) zx.Diagnostic {

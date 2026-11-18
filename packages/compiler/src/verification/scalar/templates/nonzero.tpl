@@ -1,0 +1,1 @@
+(not (= ${in.right.value} (_ bv0 ${in.width})))

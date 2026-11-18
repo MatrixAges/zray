@@ -1,0 +1,43 @@
+import { BinaryOperator } from "core/expression_table/kinds"
+
+export type Operand = {
+    value: string,
+    safe: string
+}
+
+export type Numeric = {
+    width: u64,
+    signed: bool
+}
+
+export type Binary = Numeric & {
+    operator: BinaryOperator,
+    left: Operand,
+    right: Operand,
+    comparable: bool
+}
+
+export type Unary = Numeric.Pick("width") & {
+    operand: Operand,
+    invert: bool
+}
+
+export type Result = {
+    value?: string,
+    safe: string
+}
+
+export enum Family {
+    Logical,
+    Equality,
+    Arithmetic,
+    Division,
+    Comparison,
+    Unsupported
+}
+
+export type Operation = Binary & {
+    name: string,
+    value: string,
+    safe: string
+}

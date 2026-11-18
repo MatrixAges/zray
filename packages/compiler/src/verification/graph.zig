@@ -54,7 +54,7 @@ pub fn value(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, input: 
 
     if (target == .scalar and target.scalar == .void) return input;
 
-    const width = if (terms.integer(target)) |integer| integer.width else if (target == .enumeration) terms.enumWidth(target) else if (target == .scalar and target.scalar == .bool) 0 else return self.reporter.fail(.unsupported, span, "symbolic graph requires boolean, enum or fixed-width integer values");
+    const width = terms.symbolicWidth(target) orelse return self.reporter.fail(.unsupported, span, "symbolic graph requires boolean, enum or fixed-width integer values");
 
     return .{ .scalar = try self.bind(input.scalar, width, .{ .file_name = program.file_name, .span = span }) };
 }

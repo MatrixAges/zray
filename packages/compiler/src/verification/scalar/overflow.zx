@@ -1,0 +1,16 @@
+import { BinaryOperator } from "core/expression_table/kinds"
+
+import { sign_extension, zero_extension } from "./const"
+
+import type { Operation } from "./model"
+
+export type Input = Operation
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const extend = in.signed ? sign_extension : zero_extension
+    const extra = in.operator == BinaryOperator.Multiply ? in.width : 1
+
+    return templateFile("./templates/overflow.tpl")
+}

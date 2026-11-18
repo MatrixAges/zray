@@ -1,0 +1,31 @@
+import integers from "std:integer"
+import { BinaryOperator } from "core/expression_table/kinds"
+
+import conjunction from "./conjunction"
+
+import type { Operation } from "./model"
+
+export type Input = Operation
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const nonzero = templateFile("./templates/nonzero.tpl")
+
+    const safe = conjunction({
+        left: in.safe,
+        right: nonzero
+    })
+
+    if (!in.signed || in.operator != BinaryOperator.Divide) {
+        return safe
+    }
+
+    const minimum = integers.bitMask(in.width - 1)
+    const fits = templateFile("./templates/division.tpl")
+
+    return conjunction({
+        left: safe,
+        right: fits
+    })
+}

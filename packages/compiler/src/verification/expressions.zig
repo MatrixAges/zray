@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const terms = @import("terms.zig");
+const scalar = @import("scalar.zig");
 const Value = terms.Value;
 const Evaluation = terms.Evaluation;
 const Self = @This();
@@ -66,16 +67,19 @@ fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
         },
         .unary => |operation| {
             const operand = try self.evaluate(operation.operand);
+            const target = self.program.typeOf(expression.type_id);
+            const value = try scalar.unary(self.allocator, operation.operator == .not, target, operand);
 
-            if (operation.operator == .not) return .{ .value = .{ .scalar = try terms.unary(self.allocator, "not", operand.value.scalar) }, .safe = operand.safe };
-
-            const target = terms.integer(self.program.typeOf(expression.type_id)) orelse return self.unsupported(expression);
-            const minimum = try terms.constant(self.allocator, @as(u64, 1) << @intCast(target.width - 1), target.width);
-            const safe = try terms.unary(self.allocator, "not", try terms.binary(self.allocator, "=", operand.value.scalar, minimum));
-
-            return .{ .value = .{ .scalar = try terms.unary(self.allocator, "bvneg", operand.value.scalar) }, .safe = try terms.binary(self.allocator, "and", operand.safe, safe) };
+            return value orelse self.unsupported(expression);
         },
-        .binary => return self.binary(expression),
+        .binary => |operation| {
+            const left = try self.evaluate(operation.left);
+            const right = try self.evaluate(operation.right);
+            const target = self.program.typeOf(self.program.expression(operation.left).type_id);
+            const value = try scalar.binary(self.allocator, &self.program.expressions, id, operation.operator, target, left, right);
+
+            return value orelse self.unsupported(expression);
+        },
         .call => return @import("calls.zig").evaluate(self, expression),
         .conditional => |choice| {
             const condition = try self.evaluate(choice.condition);
@@ -144,74 +148,6 @@ fn evaluateRaw(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
         },
         else => return self.unsupported(expression),
     }
-}
-
-fn binary(self: *Self, expression: ir.ExpressionRow) zx.Error!Evaluation {
-    const operation = expression.value.binary;
-    const left = try self.evaluate(operation.left);
-    const right = try self.evaluate(operation.right);
-    const a = left.value.scalar;
-    const b = right.value.scalar;
-    const target = self.program.typeOf(self.program.expression(operation.left).type_id);
-    var safe = try terms.binary(self.allocator, "and", left.safe, right.safe);
-
-    if (operation.operator == .logical_and or operation.operator == .logical_or) {
-        const conjunction = operation.operator == .logical_and;
-
-        safe = try terms.binary(self.allocator, "and", left.safe, try terms.choose(self.allocator, a, if (conjunction) right.safe else "true", if (conjunction) "true" else right.safe));
-
-        return .{ .value = .{ .scalar = try terms.binary(self.allocator, if (conjunction) "and" else "or", a, b) }, .safe = safe };
-    }
-
-    if (operation.operator == .equal or operation.operator == .not_equal) {
-        if (terms.integer(target) == null and target != .enumeration and !(target == .scalar and target.scalar == .bool)) return self.unsupported(expression);
-
-        const equal = try terms.binary(self.allocator, "=", a, b);
-
-        return .{ .value = .{ .scalar = if (operation.operator == .equal) equal else try terms.unary(self.allocator, "not", equal) }, .safe = safe };
-    }
-
-    const integer = terms.integer(target) orelse return self.unsupported(expression);
-
-    const operator: []const u8 = switch (operation.operator) {
-        .add => "bvadd",
-        .subtract => "bvsub",
-        .multiply => "bvmul",
-        .divide => if (integer.signed) "bvsdiv" else "bvudiv",
-        .remainder => if (integer.signed) "bvsrem" else "bvurem",
-        .less => if (integer.signed) "bvslt" else "bvult",
-        .less_equal => if (integer.signed) "bvsle" else "bvule",
-        .greater => if (integer.signed) "bvsgt" else "bvugt",
-        .greater_equal => if (integer.signed) "bvsge" else "bvuge",
-        else => return self.unsupported(expression),
-    };
-
-    const value = try terms.binary(self.allocator, operator, a, b);
-
-    switch (operation.operator) {
-        .add, .subtract, .multiply => {
-            const extra: u16 = if (operation.operator == .multiply) integer.width else 1;
-            const extension = try std.fmt.allocPrint(self.allocator, "(_ {s} {d})", .{ if (integer.signed) "sign_extend" else "zero_extend", extra });
-            const wide = try terms.binary(self.allocator, operator, try terms.unary(self.allocator, extension, a), try terms.unary(self.allocator, extension, b));
-            const fits = try terms.binary(self.allocator, "=", wide, try terms.unary(self.allocator, extension, value));
-            safe = try terms.binary(self.allocator, "and", safe, fits);
-        },
-        .divide, .remainder => {
-            const zero = try terms.constant(self.allocator, 0, integer.width);
-
-            safe = try terms.binary(self.allocator, "and", safe, try terms.unary(self.allocator, "not", try terms.binary(self.allocator, "=", b, zero)));
-
-            if (integer.signed and operation.operator == .divide) {
-                const minimum = try terms.constant(self.allocator, @as(u64, 1) << @intCast(integer.width - 1), integer.width);
-                const minus_one = try terms.unary(self.allocator, "bvneg", try terms.constant(self.allocator, 1, integer.width));
-                const overflow = try terms.binary(self.allocator, "and", try terms.binary(self.allocator, "=", a, minimum), try terms.binary(self.allocator, "=", b, minus_one));
-                safe = try terms.binary(self.allocator, "and", safe, try terms.unary(self.allocator, "not", overflow));
-            }
-        },
-        else => {},
-    }
-
-    return .{ .value = .{ .scalar = value }, .safe = safe };
 }
 
 fn unsupported(self: *Self, expression: ir.ExpressionRow) zx.Error {

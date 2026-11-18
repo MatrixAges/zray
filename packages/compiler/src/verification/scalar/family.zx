@@ -1,0 +1,33 @@
+import { BinaryOperator } from "core/expression_table/kinds"
+
+import { Family } from "./model"
+
+import type { Binary } from "./model"
+
+export type Input = Binary
+
+export type Output = Family
+
+export default function (in: Input): Output {
+    const { operator, width, comparable } = in
+
+    const family = match operator {
+        BinaryOperator.LogicalAnd => Family.Logical,
+        BinaryOperator.LogicalOr => Family.Logical,
+        BinaryOperator.Equal => Family.Equality,
+        BinaryOperator.NotEqual => Family.Equality,
+        BinaryOperator.Add => Family.Arithmetic,
+        BinaryOperator.Subtract => Family.Arithmetic,
+        BinaryOperator.Multiply => Family.Arithmetic,
+        BinaryOperator.Divide => Family.Division,
+        BinaryOperator.Remainder => Family.Division,
+        BinaryOperator.Coalesce => Family.Unsupported,
+        _ => Family.Comparison
+    }
+
+    return match family {
+        Family.Equality => comparable ? family : Family.Unsupported,
+        Family.Logical => family,
+        _ => width == 0 ? Family.Unsupported : family
+    }
+}

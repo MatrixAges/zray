@@ -1,0 +1,1 @@
+(not (= ${operand} (_ bv${minimum} ${in.width})))

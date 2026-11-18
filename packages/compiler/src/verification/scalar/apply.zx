@@ -1,0 +1,11 @@
+import type { Binary } from "./model"
+
+export type Input = Binary.Pick("left", "right") & {
+    name: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return templateFile("./templates/apply.tpl")
+}

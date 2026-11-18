@@ -1,0 +1,1 @@
+(= (${in.name} ((_ ${extend} ${extra}) ${in.left.value}) ((_ ${extend} ${extra}) ${in.right.value})) ((_ ${extend} ${extra}) ${in.value}))

@@ -1,0 +1,1 @@
+(not (and (= ${in.left.value} (_ bv${minimum} ${in.width})) (= ${in.right.value} (bvneg (_ bv1 ${in.width})))))
