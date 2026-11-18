@@ -16,7 +16,7 @@ pub const Context = struct {
     slots: analysis.Slots,
     summaries: *analysis.Summaries,
     units: []const ?*analysis.Unit,
-    callees: []const []const u32,
+    calls: Topology.Calls,
     exported: []const ir.FunctionId,
     memo: *analysis.Memo,
     replay: *Replay,
@@ -60,8 +60,8 @@ pub const Context = struct {
     }
     fn open(self: *Context) Error!void {
         self.pool = try Pool.init(self.temporary, self.concurrent);
-        const ahead = try Ahead.init(self.temporary, &self.pool.?, self.program.functions, self.slots, self.summaries, self.units);
-        const reverse = try Topology.build(self.temporary, self.callees, self.exported);
+        const ahead = try Ahead.init(self.temporary, &self.pool.?, self.program.functions, self.slots, self.summaries, self.units, self.calls.recursive);
+        const reverse = try Topology.build(self.temporary, self.calls.callees, self.exported);
 
         self.rounds = .{
             .work = try analysis.Work.init(self.workspace, self.units.len),

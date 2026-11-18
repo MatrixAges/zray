@@ -1,0 +1,27 @@
+import type { U32Buffer, U8Buffer } from "memory"
+
+export type Buffers = {
+    words: U32Buffer,
+    dirty: U8Buffer
+}
+
+export type Slot = {
+    words: U32Buffer,
+    index: u64
+}
+
+export enum Event {
+    Queue,
+    Hold,
+    Withdraw,
+    Claim,
+    Complete,
+    Fail
+}
+
+export enum Result {
+    Pending,
+    Missing,
+    Ready,
+    Failed
+}

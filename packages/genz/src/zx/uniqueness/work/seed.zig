@@ -112,6 +112,6 @@ pub fn takeSettlement(self: *Self, budget: *u64) std.mem.Allocator.Error!Round.V
     return .{ .body = index };
 }
 
-pub fn window(self: *const Self, size: usize) []const u64 {
-    return self.queue.items[self.head..@min(self.queue.items.len, self.head + size)];
+pub fn pending(self: *const Self) []const u64 {
+    return self.queue.items[self.head..];
 }

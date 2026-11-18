@@ -1,4 +1,11 @@
 const std = @import("std");
+const atomic = @import("atomic.zig");
+pub const loadU32Acquire = atomic.loadU32Acquire;
+pub const storeU32Release = atomic.storeU32Release;
+pub const compareExchangeU32Acquire = atomic.compareExchangeU32Acquire;
+pub const exchangeU32Release = atomic.exchangeU32Release;
+pub const waitU32 = atomic.waitU32;
+pub const wakeOneU32 = atomic.wakeOneU32;
 const column_set = @import("column_set.zig");
 pub const ByteWriter = @import("byte_writer.zig");
 pub const appendByte = ByteWriter.appendByte;
@@ -389,6 +396,10 @@ inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T
     if (index >= buffer.len) return error.IndexOutOfBounds;
 
     buffer.*[@intCast(index)] = value;
+}
+
+pub inline fn readU8(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u8 {
+    return read(u8, target, index);
 }
 
 pub inline fn readU32(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u32 {

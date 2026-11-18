@@ -8,6 +8,7 @@ const Pool = @import("pool.zig");
 const Slots = @import("slots.zig");
 const Summaries = @import("summaries.zig");
 const Unit = @import("root.zig").Unit;
+const Schedule = if (@import("genz_options").generated_analysis) @import("ahead/schedule.zig") else @import("ahead/seed.zig");
 const Self = @This();
 
 /// Body analyses run ahead of the worklist on background threads. The worklist visits one body at a time, and a visit
@@ -22,40 +23,22 @@ slots: Slots,
 summaries: *Summaries,
 units: []const ?*Unit,
 /// Where each body's analysis ahead stands; a background thread owns the body while it runs.
-states: []std.atomic.Value(State),
+states: []u32,
+recursive: []const bool,
 /// Bodies whose summaries changed since their analysis ahead was requested, so that it is likely stale.
 dirty: []bool,
 settled: []Settled,
 demanded: []Demanded,
 planned: []Function.Plan,
 pub const Settled = struct { passed: []const Function.Contribution, output: []const Level, reads: []const Function.Read };
+
 pub const Demanded = struct { marks: []const Function.Mark, grew: bool, growth: Growth.Rows, reads: []const Function.Read };
 
-const State = enum(u32) {
-    idle,
-    queued,
-    running,
-    waiting,
-    ready,
-    failed,
-    held,
-    fn publish(state: *std.atomic.Value(State), next: State) void {
-        if (state.swap(next, .release) == .waiting) {
-            std.Io.Threaded.global_single_threaded.io().futexWake(State, &state.raw, 1);
-        }
-    }
-};
-
-/// Queued bodies looked at ahead per thread: enough to keep the threads busy while the worklist waits on a chain of
-/// changes, few enough that a weakened summary wastes little.
-const per_thread = 16;
-
-pub fn init(allocator: std.mem.Allocator, pool: *Pool, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, units: []const ?*Unit) std.mem.Allocator.Error!Self {
-    const states = try allocator.alloc(std.atomic.Value(State), units.len);
+pub fn init(allocator: std.mem.Allocator, pool: *Pool, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, units: []const ?*Unit, recursive: []const bool) std.mem.Allocator.Error!Self {
+    const states = try allocator.alloc(u32, units.len);
     const dirty = try allocator.alloc(bool, units.len);
 
-    @memset(states, .init(.idle));
-    @memset(dirty, false);
+    Schedule.reset(states, dirty);
 
     return .{
         .pool = pool,
@@ -64,6 +47,7 @@ pub fn init(allocator: std.mem.Allocator, pool: *Pool, functions: ir.FunctionTab
         .summaries = summaries,
         .units = units,
         .states = states,
+        .recursive = recursive,
         .dirty = dirty,
         .settled = try allocator.alloc(Settled, units.len),
         .demanded = try allocator.alloc(Demanded, units.len),
@@ -81,69 +65,43 @@ pub fn begin(self: *Self, comptime kind: Memo.Kind) void {
 pub fn finish(self: *Self) void {
     self.pool.drain();
     self.pool.forget();
-    @memset(self.states, .init(.idle));
-    @memset(self.dirty, false);
-}
-
-/// How many queued bodies are looked at ahead.
-pub fn width(self: *const Self) usize {
-    return self.pool.count() * per_thread;
+    Schedule.reset(self.states, self.dirty);
 }
 
 /// Queues the bodies of `indices` that have no analysis ahead or one that a summary change made stale, skipping those
 /// whose result the memo already holds.
 pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: []const u64) std.mem.Allocator.Error!void {
-    for (indices) |value| {
-        const index: usize = @intCast(value);
-        const state = &self.states[index];
+    const workers = self.pool.count();
 
-        switch (state.load(.monotonic)) {
-            .idle => {},
-            .ready, .held => if (!self.dirty[index]) continue,
-            .queued => {
-                self.dirty[index] = false;
+    if (workers == 0 or indices.len == 0) return;
 
-                continue;
-            },
-            .running, .waiting, .failed => continue,
-        }
+    var first: usize = 0;
 
-        if (self.units[index].?.recursive) continue;
+    while (Schedule.scan(self.states, self.dirty, self.recursive, indices, first, workers)) |pos| {
+        const index: usize = @intCast(indices[pos]);
 
-        self.dirty[index] = false;
+        first = pos + 1;
 
         if ((kind != .planned or memo.persistent) and try memo.holds(kind, self.summaries, self.units[index].?.state(index))) {
-            state.store(.held, .monotonic);
+            _ = Schedule.transition(self.states, index, .Hold);
 
             continue;
         }
 
-        state.store(.queued, .monotonic);
+        _ = Schedule.transition(self.states, index, .Queue);
 
-        if (!self.pool.submit(@intCast(index))) return state.store(.idle, .monotonic);
+        if (!self.pool.submit(@intCast(index))) {
+            // An older ring entry can claim the new reservation before submit observes a full ring.
+            _ = Schedule.transition(self.states, index, .Withdraw);
+
+            return;
+        }
     }
 }
 
 /// The result analyzed ahead for body `index` if every level it read still holds; waits while it is analyzed.
 pub fn take(self: *Self, comptime kind: Memo.Kind, index: usize) std.mem.Allocator.Error!?Found(kind) {
-    const state = &self.states[index];
-
-    self.dirty[index] = false;
-
-    defer state.store(.idle, .monotonic);
-
-    while (true) {
-        switch (state.load(.acquire)) {
-            .idle, .held => return null,
-            .queued => if (state.cmpxchgWeak(.queued, .idle, .monotonic, .monotonic) == null) return null,
-            .running => {
-                _ = state.cmpxchgStrong(.running, .waiting, .monotonic, .monotonic);
-            },
-            .waiting => std.Io.Threaded.global_single_threaded.io().futexWaitUncancelable(State, &state.raw, .waiting),
-            .ready => break,
-            .failed => return error.OutOfMemory,
-        }
-    }
+    if (self.pool.count() == 0 or !try Schedule.take(self.states, self.dirty, index)) return null;
 
     const found = @field(self, @tagName(kind))[index];
 
@@ -166,12 +124,15 @@ fn Found(comptime kind: Memo.Kind) type {
 fn Task(comptime kind: Memo.Kind) type {
     return struct {
         fn run(self: *Self, worker: *Pool.Worker, index: u32) void {
-            const state = &self.states[index];
+            if (!Schedule.transition(self.states, index, .Claim)) return;
 
-            if (state.cmpxchgStrong(.queued, .running, .acquire, .monotonic) != null) return;
+            @field(self, @tagName(kind))[index] = analyze(self, worker, index) catch {
+                _ = Schedule.transition(self.states, index, .Fail);
 
-            @field(self, @tagName(kind))[index] = analyze(self, worker, index) catch return State.publish(state, .failed);
-            State.publish(state, .ready);
+                return;
+            };
+
+            _ = Schedule.transition(self.states, index, .Complete);
         }
         fn analyze(ahead: *Self, worker: *Pool.Worker, index: usize) std.mem.Allocator.Error!Found(kind) {
             const unit = ahead.units[index].?;

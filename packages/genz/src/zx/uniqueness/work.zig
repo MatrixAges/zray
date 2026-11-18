@@ -119,11 +119,11 @@ pub fn takeSettlement(self: *Self, budget: *u64) std.mem.Allocator.Error!Round.V
     return if (output.exhausted) .exhausted else .done;
 }
 
-pub fn window(self: *const Self, size: usize) []const u64 {
+pub fn pending(self: *const Self) []const u64 {
     const start: usize = @intCast(self.state.head);
     const end: usize = @intCast(self.state.tail);
 
-    return self.state.buffer.items[start..@min(end, start + size)];
+    return self.state.buffer.items[start..end];
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

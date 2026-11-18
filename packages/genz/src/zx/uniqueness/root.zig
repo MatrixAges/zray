@@ -31,7 +31,6 @@ pub const Unit = struct {
     passes: ?Passes = null,
     growth: Growth.Store,
     callees: []const u32,
-    recursive: bool,
     identity: *const Trace.Digest = &@as(Trace.Digest, @splat(0)),
     const Passes = struct { order: Order, sites: Sites };
 
@@ -101,10 +100,10 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
     for (0..count) |index| {
         const function = program.functions.at(index);
 
-        units[index] = if (function.external != null) null else try prepare(temporary, .{ .symbols = function.symbols, .expressions = function.expressions, .input_type = function.input_type, .output_type = function.output_type, .input = summaries.input[index], .function = index, .growth = undefined }, function.body.block(), topology.callees[index], topology.recursive[index]);
+        units[index] = if (function.external != null) null else try prepare(temporary, .{ .symbols = function.symbols, .expressions = function.expressions, .input_type = function.input_type, .output_type = function.output_type, .input = summaries.input[index], .function = index, .growth = undefined }, function.body.block(), topology.callees[index]);
     }
 
-    units[count] = if (program.type_only) null else try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), topology.callees[count], topology.recursive[count]);
+    units[count] = if (program.type_only) null else try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), topology.callees[count]);
 
     var replay = Trace.Replay{ .allocator = temporary };
 
@@ -131,7 +130,7 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
         .slots = slots,
         .summaries = &summaries,
         .units = units,
-        .callees = topology.callees,
+        .calls = topology,
         .exported = exported,
         .memo = memo,
         .replay = &replay,
@@ -169,7 +168,7 @@ pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     if (!generated) summaries.clearWants();
 
-    const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), &.{}, false);
+    const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), &.{});
 
     if (generated) {
         var function = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, false);
@@ -196,7 +195,7 @@ pub const Work = if (@import("genz_options").generated_analysis) @import("work.z
 /// are recalled instead of analyzed.
 fn lookAhead(comptime kind: Memo.Kind, work: *const Work, memo: *Memo, replay: *const Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!void {
     if (replay.trace != null) return;
-    try ahead.request(kind, memo, work.window(ahead.width()));
+    try ahead.request(kind, memo, work.pending());
 }
 
 pub fn publishPlans(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary: std.mem.Allocator, program: ir.Program, slots: Slots, summaries: *Summaries, units: []const ?*Unit, work: *Work, memo: *Memo, replay: *Trace.Replay, ahead: *Ahead) std.mem.Allocator.Error!Result {
@@ -212,16 +211,13 @@ pub fn publishPlans(allocator: std.mem.Allocator, workspace: std.mem.Allocator, 
     const plans = try allocator.alloc(Plan, count);
     var entry_plan = Plan{ .flags = &.{} };
 
-    for (units, 0..) |entry, index| {
-        const unit = entry orelse {
-            if (index < count) plans[index] = .{ .flags = &.{} };
+    @memset(plans, .{ .flags = &.{} });
 
-            continue;
-        };
-
+    while (true) {
         try lookAhead(.planned, work, memo, replay, ahead);
 
-        _ = try work.pop();
+        const index = try work.pop() orelse break;
+        const unit = units[index].?;
 
         const recalled = if (memo.persistent)
             (try replay.recall(.planned, index)) orelse try memo.getPlanned(summaries, unit.state(index))
@@ -476,9 +472,9 @@ fn undo(summaries: *Summaries, units: []const ?*Unit, changed: []const bool) ?Re
     return null;
 }
 
-fn prepare(allocator: std.mem.Allocator, unit: Function.Unit, body: ir.Block, called: []const u32, recursive: bool) std.mem.Allocator.Error!*Unit {
+fn prepare(allocator: std.mem.Allocator, unit: Function.Unit, body: ir.Block, called: []const u32) std.mem.Allocator.Error!*Unit {
     const result = try allocator.create(Unit);
-    result.* = .{ .unit = unit, .body = body, .growth = Growth.init(allocator), .callees = called, .recursive = recursive };
+    result.* = .{ .unit = unit, .body = body, .growth = Growth.init(allocator), .callees = called };
     result.unit.growth = &result.growth;
 
     return result;

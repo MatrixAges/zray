@@ -1,0 +1,47 @@
+import memory from "memory"
+
+import { clean, held, idle, queued, ready, requests_per_worker } from "./const"
+
+import type { Buffers } from "./model"
+
+export type Input = Buffers & {
+    recursive: bool[],
+    indices: u64[],
+    first: u64,
+    workers: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const width = in.workers * requests_per_worker
+    const end = width < in.indices.length ? width : in.indices.length
+
+    return loop({
+        pos: in.first,
+        found: false
+    }, {
+        while: state => !state.found && state.pos < end,
+        next: state => {
+            const index = in.indices[state.pos]
+            const status = memory.loadU32Acquire(in.words, index)
+            const eligible = match status {
+                idle => true,
+                ready => memory.readU8(in.dirty, index) != clean,
+                held => memory.readU8(in.dirty, index) != clean,
+                _ => false
+            }
+
+            state.found = eligible && !in.recursive[index]
+
+            if (state.found || status == queued) {
+                memory.writeU8(in.dirty, index, clean)
+            }
+
+            if (!state.found) {
+                state.pos += 1
+            }
+        },
+        return: state => state.found ? state.pos : null
+    })
+}
