@@ -1,8 +1,12 @@
 import bytes from "std:bytes"
 import { ascii_backslash, ascii_dot, ascii_slash } from "core/ascii/const"
 
-import { module_extension, rx_extension } from "../../../zx/modules/path/const"
-import { native_suffix, native_suffix_length, short_suffix_length } from "./const"
+import {
+    module_extension,
+    native_extension,
+    rx_extension
+} from "../../../zx/modules/path/const"
+import { native_suffix_length, short_suffix_length } from "./const"
 
 export type Input = string
 
@@ -43,7 +47,7 @@ export default function (in: Input): Output {
                 dot,
                 module_extension
             ) || bytes.startsWithText(source, dot, rx_extension),
-            native_suffix_length => bytes.startsWithText(source, dot, native_suffix),
+            native_suffix_length => bytes.startsWithText(source, dot, native_extension),
             _ => false
         }
 

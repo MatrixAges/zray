@@ -3,20 +3,20 @@
 
     <Args in={Workflow.Project} out={void} />
 
-    <Call fn="../" export="normalizeSources" in={$in} />
-    <Call fn="../" export="reuseFrame" in={$in} />
+    <Call fn="../../workflow.normalizeSources" in={$in} />
+    <Call fn="../../workflow.reuseFrame" in={$in} />
 
     <If on={!$ctx.reuseFrame}>
-        <Call fn="../" export="deriveFrame" in={$in} />
+        <Call fn="../../workflow.deriveFrame" in={$in} />
     </If>
 
-    <Call fn="../" export="compileBodies" in={$in} />
+    <Call fn="../../workflow.compileBodies" in={$in} />
 
     <If on={$ctx.reuseFrame}>
-        <Call fn="../" export="retainStores" in={$in} />
+        <Call fn="../../workflow.retainStores" in={$in} />
 
         <Else>
-            <Call fn="../" export="publishStores" in={$in} />
+            <Call fn="../../workflow.publishStores" in={$in} />
         </Else>
     </If>
 </Module>

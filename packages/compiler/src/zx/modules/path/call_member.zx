@@ -1,0 +1,45 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import { ascii_dot } from "core/ascii/const"
+
+import {
+    current_directory,
+    module_extension,
+    native_extension,
+    parent_directory,
+    rx_extension
+} from "./const"
+
+export type Input = string
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const name = bytes.fromText(in)
+    const dot = bytes.lastIndexOfScalar(name, ascii_dot) ?? name.length
+
+    if (dot == 0 || dot >= name.length) {
+        return null
+    }
+
+    const start = dot + 1
+
+    if (start == name.length) {
+        return null
+    }
+
+    const owner = encoding.sliceBytes(in, 0, dot)
+
+    if (owner == current_directory || owner == parent_directory) {
+        return null
+    }
+
+    const suffix = encoding.sliceBytes(in, dot, name.length)
+
+    return match suffix {
+        module_extension => null,
+        rx_extension => null,
+        native_extension => null,
+        _ => start
+    }
+}

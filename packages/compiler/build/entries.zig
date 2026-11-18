@@ -285,6 +285,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/specifier/classify.rx", .name = "specifier" },
     .{ .path = "zx/modules/path/load.rx", .name = "module_path" },
     .{ .path = "zx/modules/path/alias/select.rx", .name = "project_source_alias" },
+    .{ .path = "zx/modules/path/call_member.zx", .name = "module_call_member" },
     .{ .path = "zx/modules/path/directory.zx", .name = "module_directory" },
     .{ .path = "zx/modules/project/target/classify.rx", .name = "project_import_route" },
     .{ .path = "zx/modules/project/target/file.rx", .name = "project_file_target" },

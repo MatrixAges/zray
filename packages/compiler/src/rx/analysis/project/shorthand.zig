@@ -90,7 +90,7 @@ fn describe(allocator: std.mem.Allocator, node: rx.ast.Node, input_type: zx.ir.T
     if (comptime enabled) {
         return rule.executeValue(allocator, &.{
             .ports = &.{ .input_type = @backingInt(input_type), .output_type = @backingInt(output_type) },
-            .function_path = node.attributes[0].value,
+            .function_name = @import("../result_name.zig").resolve(node).name,
         }) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
             else => unreachable,

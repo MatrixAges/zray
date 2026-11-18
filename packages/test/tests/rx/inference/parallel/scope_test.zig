@@ -34,17 +34,15 @@ test "RX parallel reports conflicting middle output before unrelated final outpu
     });
 }
 
-test "RX parallel rejects dotted result name after valid name" {
+test "RX parallel binds a dotted file by its final name after valid name" {
     try h.run(.{
-        .source = "<Module><Parallel><Call fn='number' in={1}/><Call fn='number.child' in={2}/></Parallel><Return value={1}/></Module>",
-        .expected = .{ .marker = "number.child", .message = "result name must be one identifier" },
+        .source = "<Module><Parallel><Call fn='number' in={1}/><Call fn='number.child' in={2}/></Parallel><Return value={$ctx.number + $ctx.child}/></Module>",
     });
 }
 
-test "RX parallel rejects dotted result name before valid name" {
+test "RX parallel binds a dotted file by its final name before valid name" {
     try h.run(.{
-        .source = "<Module><Parallel><Call fn='number.child' in={1}/><Call fn='number' in={2}/></Parallel><Return value={1}/></Module>",
-        .expected = .{ .marker = "number.child", .message = "result name must be one identifier" },
+        .source = "<Module><Parallel><Call fn='number.child' in={1}/><Call fn='number' in={2}/></Parallel><Return value={$ctx.number + $ctx.child}/></Module>",
     });
 }
 

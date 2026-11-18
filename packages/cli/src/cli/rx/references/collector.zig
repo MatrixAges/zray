@@ -50,6 +50,14 @@ pub fn local(self: *Self, path: []const u8, _: rx.ast.Location, _: Reference) Er
     try self.queue.append(self.allocator, absolute);
 }
 
+pub fn qualified(self: *Self, path: []const u8, member: []const u8, location: rx.ast.Location) Error!void {
+    const temporary = self.temporary.allocator();
+    const candidate = try std.fs.path.resolve(temporary, &.{ self.options.root_dir, path });
+    const selected = try @import("../../sources/module_path.zig").qualified(self.io, temporary, candidate, member, self.inputs);
+
+    try self.local(selected.path, location, .call);
+}
+
 pub fn store(self: *Self, path: []const u8, location: rx.ast.Location, _: []const u8) Error!void {
     return self.local(path, location, .dependency);
 }

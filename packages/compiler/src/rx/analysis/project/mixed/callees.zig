@@ -4,6 +4,7 @@ const frontend = @import("frontend");
 const zx = @import("zx");
 const ir = zx.ir;
 const State = @import("state.zig");
+const result_name = @import("../../result_name.zig");
 const Prepared = @import("../prepare.zig");
 const missing_rx = "RX call target has not been lowered";
 const missing_zx = "source call target has not been analyzed in its required context";
@@ -51,7 +52,7 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
         ids[position] = switch (next.action) {
             .LoadLibrary => try loadLibrary(state, owner, target, location, setter != null),
             .CompileSetter => try compileSetter(state, cache, sources, owner, target, setter.?, location),
-            .BindNamed => state.finished.namedFunction(target, names[position].value) orelse return state.fail(names[position].value_location, "selected ZX export was not linked"),
+            .BindNamed => state.finished.namedFunction(target, result_name.resolveCall(names[position].*).name) orelse return state.fail(names[position].value_location, "selected ZX export was not linked"),
             .MissingRX => return state.fail(location, missing_rx),
             .MissingZX => return state.fail(location, missing_zx),
             .NotExecutableRX => return state.fail(location, not_executable_rx),
@@ -107,7 +108,7 @@ fn loadSeed(state: *State, cache: *frontend.project.ParseCache, sources: []const
         if (!state.finished.present[target]) return state.fail(location, if (is_rx) missing_rx else missing_zx);
 
         if (kind == .NamedSource) {
-            id.* = state.finished.namedFunction(target, name.value) orelse return state.fail(name.value_location, "selected ZX export was not linked");
+            id.* = state.finished.namedFunction(target, result_name.resolveCall(name.*).name) orelse return state.fail(name.value_location, "selected ZX export was not linked");
 
             continue;
         }

@@ -3,14 +3,14 @@
 
     <Args in={Mixed.Input} out={bool} />
 
-    <Call fn="../../workflow/" export="ready" in={$in} />
+    <Call fn="../../workflow.ready" in={$in} />
 
     <If on={!$ctx.ready}>
         <Return value={false} />
     </If>
 
-    <Call fn="../../workflow/" export="prepareWindow" in={$in} />
-    <Call fn="../../workflow/" export="restorePrefix" in={$in} />
+    <Call fn="../../workflow.prepareWindow" in={$in} />
+    <Call fn="../../workflow.restorePrefix" in={$in} />
 
     <If on={$ctx.restorePrefix}>
         <Return value={true} />
@@ -24,19 +24,19 @@
         </Case>
 
         <Case value={Mixed.Action.MissingSignature}>
-            <Call fn="../../workflow/" export="rejectBody" in={$in} />
+            <Call fn="../../workflow.rejectBody" in={$in} />
         </Case>
 
         <Case value={Mixed.Action.AnalyzeZX}>
-            <Call fn="../../workflow/" export="analyzeBody" in={$in} />
+            <Call fn="../../workflow.analyzeBody" in={$in} />
         </Case>
 
         <Case value={Mixed.Action.LowerRX}>
-            <Call fn="../../workflow/" export="lowerBody" in={$in} />
+            <Call fn="../../workflow.lowerBody" in={$in} />
         </Case>
     </Switch>
 
-    <Call fn="../../workflow/" export="recordBody" in={$in} />
+    <Call fn="../../workflow.recordBody" in={$in} />
 
     <Return value={true} />
 </Module>

@@ -68,9 +68,6 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
 
     const fields = @import("attributes.zig").scan(options.call);
     const target = fields.module orelse fields.function.?;
-
-    if (fields.member != null and options.setter != null) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "capability", .message = "a named Call cannot grant a Store setter" });
-
     var project = options.project;
 
     if (project.source_index == null) project.source_index = try frontend.project.source_index.buildIn(allocator, options.sources, project.root_dir);
@@ -110,7 +107,17 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
     };
 
     const absolute = try std.fs.path.resolve(allocator, &.{ project.root_dir, candidate });
-    const path = try frontend.project.selectSource(allocator, absolute, project);
+    const member = if (fields.function != null) frontend.project.module_path.callMember(target.value) else null;
+
+    const selected: frontend.project.module_path.CallSource = if (member) |name|
+        try frontend.project.module_path.selectQualified(allocator, absolute, name, frontend.project.source_index.Known{ .paths = project.source_index.? })
+
+    else
+        .{ .path = try frontend.project.selectSource(allocator, absolute, project), .named = false };
+
+    const path = selected.path;
+
+    if (selected.named and options.setter != null) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "capability", .message = "a named Call cannot grant a Store setter" });
 
     project.entry = path;
 
@@ -164,21 +171,21 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
 
     var callee = analyzed.value.ir;
 
-    if (fields.member) |selection| {
+    if (selected.named) {
         for (analyzed.modules) |*module| {
             if (!std.mem.eql(u8, module.path, entry_path)) continue;
 
-            for (module.reexports.functions) |*member| {
-                if (!std.mem.eql(u8, member.name, selection.value)) continue;
+            for (module.reexports.functions) |*item| {
+                if (!std.mem.eql(u8, item.name, member.?)) continue;
 
-                const id = member.id orelse break;
+                const id = item.id orelse break;
                 const function = callee.functions.at(@backingInt(id));
 
-                if (function.stores.count() != 0) return failure(allocator, .{ .path = options.owner, .location = selection.value_location, .code = "capability", .message = "a named Call cannot invoke a Store transaction" });
+                if (function.stores.count() != 0) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "capability", .message = "a named Call cannot invoke a Store transaction" });
 
                 callee = try @import("compiled_wrapper.zig").build(allocator, .{
                     .file_name = path,
-                    .offset = selection.value_location.offset,
+                    .offset = target.value_location.offset,
                     .id = id,
                     .types = callee.types,
                     .functions = callee.functions,
@@ -191,7 +198,7 @@ fn loadIn(allocator: std.mem.Allocator, options: Options) std.mem.Allocator.Erro
             break;
         }
 
-        return failure(allocator, .{ .path = options.owner, .location = selection.value_location, .code = "module", .message = "ZX source does not export the selected callable function" });
+        return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "module", .message = "ZX source does not export the selected callable function" });
     }
 
     if (callee.type_only) return failure(allocator, .{ .path = options.owner, .location = target.value_location, .code = "module", .message = "Call.fn requires an executable ZX module with a default function" });

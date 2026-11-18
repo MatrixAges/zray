@@ -104,6 +104,27 @@ pub fn local(self: *Self, path: []const u8, location: rx.ast.Location, reference
 
     defer if (resolved.path.ptr != absolute.ptr) temporary.free(resolved.path);
 
+    return self.localSelected(resolved, location, reference);
+}
+
+pub fn qualified(self: *Self, path: []const u8, member: []const u8, location: rx.ast.Location) Error!void {
+    const temporary = self.temporary.allocator();
+    const absolute = try std.fs.path.resolve(temporary, &.{ self.options.root_dir, path });
+
+    defer temporary.free(absolute);
+
+    var row: ?usize = null;
+    const known = project.source_index.Known{ .paths = self.options.source_index.?, .matched_row = &row };
+    const selected = try project.module_path.selectQualified(temporary, absolute, member, known);
+
+    defer if (selected.path.ptr != absolute.ptr) temporary.free(selected.path);
+
+    try self.localSelected(.{ .path = selected.path, .row = row }, location, .call);
+
+    self.edges.items[self.edges.items.len - 1].named = selected.named;
+}
+
+fn localSelected(self: *Self, resolved: project.SourceSelection, location: rx.ast.Location, reference: model.Reference) Error!void {
     if (comptime generated) {
         return self.admit(resolved.path, location, reference, resolved.row, null);
     }

@@ -4,20 +4,20 @@ test "RX result binding duplicate" {
     try h.run(.{ .source = "<Module><Call fn='number' in={$in}/><Call fn='number' in={$in}/></Module>", .code = "name" });
 }
 
-test "RX result binding rejects dotted name after valid name" {
-    try h.run(.{ .source = "<Module><Call fn='number' in={$in}/><Call fn='a.b.zx' in={$in}/></Module>", .code = "name" });
+test "RX result binding binds the final filename segment after an ordinary call" {
+    try h.run(.{ .source = "<Module><Call fn='number' in={$in}/><Call fn='a.b.zx' in={$in}/></Module>", .input = .u64, .calls = 2, .outs = &.{ "$ctx.number", "$ctx.b" } });
 }
 
-test "RX result binding rejects dotted name before valid name" {
-    try h.run(.{ .source = "<Module><Call fn='a.b.zx' in={$in}/><Call fn='number' in={$in}/></Module>", .code = "name" });
+test "RX result binding binds the final filename segment before an ordinary call" {
+    try h.run(.{ .source = "<Module><Call fn='a.b.zx' in={$in}/><Call fn='number' in={$in}/></Module>", .input = .u64, .calls = 2, .outs = &.{ "$ctx.b", "$ctx.number" } });
 }
 
 test "RX result binding keeps input separate from context result" {
     try h.run(.{ .source = "<Module><Call fn='number' in={$in}/><Return value={$ctx.number + $in}/></Module>", .input = .u64, .output = .u64, .calls = 1, .returned = true, .outs = &.{"$ctx.number"} });
 }
 
-test "RX result binding rejects dotted input-like name" {
-    try h.run(.{ .source = "<Module><Call fn='$in.child.zx' in={$in}/></Module>", .code = "name" });
+test "RX result binding keeps input-like file prefixes outside the result namespace" {
+    try h.run(.{ .source = "<Module><Call fn='$in.child.zx' in={$in}/></Module>", .input = .u64, .calls = 1, .outs = &.{ "$ctx.child" } });
 }
 
 test "RX result binding rejects empty path segment" {

@@ -66,7 +66,7 @@ fn reference(collector: anytype, owner: []const u8, directory: []const u8, path:
             .first = @intCast(planned.first.?),
             .duplicate = planned.duplicate,
         }),
-        .Source => try collector.local(path.*[0..@intCast(planned.length)], value.value_location, role),
+        .Source => try local(collector, path.*[0..@intCast(planned.length)], selection),
         .Store => try collector.store(path.*[0..@intCast(planned.length)], value.value_location, owner),
         .Invalid => return invalidPath(collector, value.value_location),
         .NeedSpace => unreachable,
@@ -110,7 +110,19 @@ fn referenceSeed(collector: anytype, owner: []const u8, selection: dependency.En
     defer temporary.free(resolved);
 
     if (selection.target == .Store) return collector.store(resolved, value.value_location, owner);
-    try collector.local(resolved, value.value_location, role);
+    try local(collector, resolved, selection);
+}
+
+pub fn local(collector: anytype, path: []const u8, entry: dependency.Entry) @TypeOf(collector.*).Error!void {
+    const attribute = entry.attribute.?;
+
+    if (entry.role == .Call and entry.target == .Function) {
+        if (project.module_path.callMember(attribute.value)) |member| {
+            return collector.qualified(path, member, attribute.value_location);
+        }
+    }
+
+    try collector.local(path, attribute.value_location, Reference.fromXml(entry.role));
 }
 
 fn invalidPath(collector: anytype, location: rx.ast.Location) @TypeOf(collector.*).Error {

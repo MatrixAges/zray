@@ -115,7 +115,7 @@ const Columns = struct {
                 .first = @intCast(self.packages[index]),
                 .duplicate = self.duplicates[index] != 0,
             }),
-            .source => try collector.local(self.pathAt(path, index), value.value_location, role),
+            .source => try @import("../rx_edges.zig").local(collector, self.pathAt(path, index), entry.*),
             .store => try collector.store(self.pathAt(path, index), value.value_location, owner),
             .invalid => return collector.fail(value.value_location, "source dependency escapes the project root or is not a valid module path"),
             .missing => unreachable,

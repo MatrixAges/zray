@@ -4,7 +4,7 @@ const zx = @import("zx");
 const project = @import("../project.zig");
 const sources = @import("../sources.zig");
 
-pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, source: []const u8, config_path: ?[]const u8, modules: []const @import("rx").ModuleSource, writer: *std.Io.Writer) !bool {
+pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, source: []const u8, config_path: ?[]const u8, modules: []const @import("rx").ModuleSource, calls: []const Selection, writer: *std.Io.Writer) !bool {
     var loaded = project.load(io, allocator, path, config_path) catch |err| {
         if (err == error.OutOfMemory) return err;
 
@@ -37,8 +37,6 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
 
     const inputs = detected.sources;
     loaded.project.compiled_libraries = libraries.libraries.items;
-
-    const calls = try selectedCalls(io, allocator, path, loaded.project.root_dir, modules);
 
     const default_call = for (calls) |call| {
         if (call.member == null) break true;
@@ -112,15 +110,14 @@ fn report(writer: *std.Io.Writer, inputs: []const compiler.project.Source, issue
     return false;
 }
 
-const Attribute = @import("rx").ast.Attribute;
-const Selection = struct { owner: []const u8, member: ?*const Attribute };
+pub const Selection = struct { owner: []const u8, location: @import("rx").ast.Location, member: ?[]const u8 };
 
 fn checkNamed(writer: *std.Io.Writer, calls: []const Selection, members: anytype) !bool {
     for (calls) |call| {
         const selected = call.member orelse continue;
 
         const found = for (members) |*member| {
-            if (!std.mem.eql(u8, member.name, selected.value)) continue;
+            if (!std.mem.eql(u8, member.name, selected)) continue;
             if (comptime @hasField(@TypeOf(member.*), "id")) break member.id != null;
 
             break member.kind == .callable and !member.has_store;
@@ -128,7 +125,7 @@ fn checkNamed(writer: *std.Io.Writer, calls: []const Selection, members: anytype
 
         if (found) continue;
 
-        try writer.print("{s}:{d}:{d}: module: ZX source does not export the selected callable function '{s}'\n", .{ call.owner, selected.value_location.line, selected.value_location.column, selected.value });
+        try writer.print("{s}:{d}:{d}: module: ZX source does not export the selected callable function '{s}'\n", .{ call.owner, call.location.line, call.location.column, selected });
 
         return false;
     }
@@ -136,29 +133,28 @@ fn checkNamed(writer: *std.Io.Writer, calls: []const Selection, members: anytype
     return true;
 }
 
-fn selectedCalls(io: std.Io, allocator: std.mem.Allocator, path: []const u8, root: []const u8, modules: []const @import("rx").ModuleSource) ![]const Selection {
-    var result: std.ArrayList(Selection) = .empty;
-    var index = modules.len;
+pub fn indexCalls(allocator: std.mem.Allocator, graph: *const @import("rx_analysis").project.source_graph.Graph, modules: []const @import("rx").ModuleSource, calls: []std.ArrayList(Selection)) !void {
+    const edges = graph.modules.items(.dependencies);
 
-    while (index != 0) {
-        index -= 1;
-        const module = &modules[index];
+    for (modules, edges[graph.sources.zx_count..graph.sources.rx_end]) |module, dependencies| {
+        var references = module.indexedReferences() orelse unreachable;
 
-        for (module.indexedReferences() orelse unreachable) |reference| {
-            if (reference.role != .Call or reference.target != .Function) continue;
+        for (dependencies) |edge| {
+            if (edge.reference != .call) continue;
 
-            const attribute = reference.attribute orelse unreachable;
-            const relative = try @import("rx").resolveFunctionPath(allocator, module.path, attribute.value);
-            const candidate = try std.fs.path.resolve(allocator, &.{ root, relative });
-            const resolved = try @import("../sources/module_path.zig").select(io, allocator, candidate, null);
+            const entry = while (references.len != 0) {
+                const last = references[references.len - 1];
+                references = references[0 .. references.len - 1];
 
-            if (std.mem.eql(u8, path, resolved)) {
-                const member = @import("rx_analysis").call.target.borrowAttribute(reference.node.*, "export");
+                if (last.role == .Call) break last;
+            } else unreachable;
 
-                try result.append(allocator, .{ .owner = module.path, .member = member });
-            }
+            if (entry.target != .Function) continue;
+
+            const attribute = entry.attribute.?;
+            const member = if (edge.named) compiler.project.module_path.callMember(attribute.value).? else null;
+
+            try calls[edge.target.source].append(allocator, .{ .owner = module.path, .location = attribute.value_location, .member = member });
         }
     }
-
-    return result.items;
 }

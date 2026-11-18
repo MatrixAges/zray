@@ -3,7 +3,7 @@
 
     <Args in={Workflow.Solver} out={void} />
 
-    <Call fn="../" export="collectConstraints" in={$in} />
-    <Call fn="../" export="finishConstraints" in={$in} />
-    <Call fn="../" export="resolveConstraints" in={$in} />
+    <Call fn="../../workflow.collectConstraints" in={$in} />
+    <Call fn="../../workflow.finishConstraints" in={$in} />
+    <Call fn="../../workflow.resolveConstraints" in={$in} />
 </Module>

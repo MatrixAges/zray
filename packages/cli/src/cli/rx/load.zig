@@ -1,5 +1,6 @@
 const std = @import("std");
 const rx = @import("rx");
+const functions_check = @import("function.zig");
 const collection = @import("collection.zig");
 
 pub fn load(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, entry: []const u8, config_path: ?[]const u8, writer: *std.Io.Writer) !?collection.Result {
@@ -35,6 +36,16 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator
     else
         owner;
 
+    const calls = try allocator.alloc(std.ArrayList(functions_check.Selection), functions.len);
+
+    @memset(calls, .empty);
+
+    defer {
+        for (calls) |*rows| rows.deinit(allocator);
+
+        allocator.free(calls);
+    }
+
     if (graph_entry) |selected| {
         const zx_sources = try allocator.alloc(@import("compiler").project.Source, functions.len);
         const roots = try allocator.alloc([]const u8, loaded.data.modules.len);
@@ -61,6 +72,8 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator
 
             return null;
         }
+
+        try functions_check.indexCalls(allocator, &graph.value.graph, loaded.data.modules, calls);
     }
 
     if (!try @import("store_types.zig").validate(io, allocator, loaded.data, functions, project.project, writer)) return null;
@@ -72,10 +85,10 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator
 
         const temporary = scratch.allocator();
 
-        for (functions) |function| {
+        for (functions, calls) |function, selections| {
             const path = try std.fs.path.resolve(temporary, &.{ root, function.path });
 
-            if (!try @import("function.zig").validate(io, temporary, path, function.source, config_path, loaded.data.modules, writer)) return null;
+            if (!try functions_check.validate(io, temporary, path, function.source, config_path, loaded.data.modules, selections.items, writer)) return null;
 
             _ = scratch.reset(.retain_capacity);
         }

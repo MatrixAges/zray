@@ -347,11 +347,13 @@ pub const Loader = struct {
     pub fn namedCallee(self: *Loader, source: usize, selection: *const rx.ast.Attribute) Error!Callee {
         const signature = switch (self.signatures.lookup(source)) {
             .zx => |value| if (value) |resolved| resolved.module.signature else return self.fail(selection.value_location, "module", "source function signature is missing from the analyzed input set"),
-            else => return self.fail(selection.value_location, "module", "export requires a named function from a ZX source module"),
+            else => return self.fail(selection.value_location, "module", "a qualified Call.fn requires a ZX source module"),
         };
 
+        const name = @import("../result_name.zig").resolveCall(selection.*).name;
+
         for (signature.members) |*member| {
-            if (!std.mem.eql(u8, member.name, selection.value)) continue;
+            if (!std.mem.eql(u8, member.name, name)) continue;
             if (member.has_store) return self.fail(selection.value_location, "capability", "a named Call cannot invoke a Store transaction");
             if (member.kind != .callable) break;
 

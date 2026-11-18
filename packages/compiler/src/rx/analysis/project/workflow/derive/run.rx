@@ -3,19 +3,19 @@
 
     <Args in={Workflow.Derivation} out={void} />
 
-    <Call fn="../" export="prepareModules" in={$in} />
-    <Call fn="../" export="collectGraph" in={$in} />
-    <Call fn="../" export="orderSignatures" in={$in} />
-    <Call fn="../" export="reuseSignatures" in={$in} />
+    <Call fn="../../workflow.prepareModules" in={$in} />
+    <Call fn="../../workflow.collectGraph" in={$in} />
+    <Call fn="../../workflow.orderSignatures" in={$in} />
+    <Call fn="../../workflow.reuseSignatures" in={$in} />
 
     <If on={!$ctx.reuseSignatures}>
-        <Call fn="../" export="loadSignatures" in={$in} />
+        <Call fn="../../workflow.loadSignatures" in={$in} />
     </If>
 
-    <Call fn="../" export="indexSignatures" in={$in} />
-    <Call fn="../" export="loadStoreRegistry" in={$in} />
-    <Call fn="../" export="prepareFlow" in={$in} />
-    <Call fn="../" export="solveFlow" in={$in} />
-    <Call fn="../" export="completeShortcuts" in={$in} />
-    <Call fn="../" export="publishFrame" in={$in} />
+    <Call fn="../../workflow.indexSignatures" in={$in} />
+    <Call fn="../../workflow.loadStoreRegistry" in={$in} />
+    <Call fn="../../workflow.prepareFlow" in={$in} />
+    <Call fn="../../workflow.solveFlow" in={$in} />
+    <Call fn="../../workflow.completeShortcuts" in={$in} />
+    <Call fn="../../workflow.publishFrame" in={$in} />
 </Module>

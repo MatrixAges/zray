@@ -7,7 +7,7 @@ const names = [_]Name{
     .{ .name = "alpha_x", .valid = true },
     .{ .name = "alphabet", .valid = true },
     .{ .name = "beta", .valid = true },
-    .{ .name = "alpha.x", .valid = false },
+    .{ .name = "alpha.x", .valid = true },
     .{ .name = "1x", .valid = false },
     .{ .name = "task", .valid = false },
 };

@@ -21,6 +21,10 @@ pub fn select(io: std.Io, allocator: std.mem.Allocator, candidate: []const u8, i
     return compiler.project.module_path.select(allocator, candidate, Known{ .io = io, .inputs = inputs });
 }
 
+pub fn qualified(io: std.Io, allocator: std.mem.Allocator, candidate: []const u8, member: []const u8, inputs: ?*Inputs) !compiler.project.module_path.CallSource {
+    return compiler.project.module_path.selectQualified(allocator, candidate, member, Known{ .io = io, .inputs = inputs });
+}
+
 pub fn entry(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs) ![]const u8 {
     if (compiler.project.module_path.directoryReference(path)) return compiler.project.module_path.directory(allocator, path);
     if (std.fs.path.extension(path).len != 0) return path;

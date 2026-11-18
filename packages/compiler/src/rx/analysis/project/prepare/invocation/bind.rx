@@ -1,12 +1,12 @@
 <Module>
-    <Type from="input" as="Binding" />
+    <Type from="../" as="Binding" />
 
-    <Args in={Binding.Input} out={void} />
+    <Args in={Binding.Invocation} out={void} />
 
-    <Call fn="scan" in={$in} />
-    <Call fn="argument" in={$in} />
-    <Call fn="authorize" in={$in} />
-    <Call fn="resolve" in={$in} />
-    <Call fn="publish" in={$in} />
-    <Call fn="record" in={$in} />
+    <Call fn="../../prepare.scanCall" in={$in} />
+    <Call fn="../../prepare.parseArgument" in={$in} />
+    <Call fn="../../prepare.authorizeCall" in={$in} />
+    <Call fn="../../prepare.resolveCallee" in={$in} />
+    <Call fn="../../prepare.publishCall" in={$in} />
+    <Call fn="../../prepare.recordArgument" in={$in} />
 </Module>

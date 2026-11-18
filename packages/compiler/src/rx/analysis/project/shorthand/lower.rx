@@ -6,7 +6,7 @@
     <Call fn="route" in={$in.ports} />
 
     <If on={$ctx.route.returns_value}>
-        <Call fn="result" in={$in.function_path} />
+        <Call fn="result" in={$in.function_name} />
 
         <Return
             value={{

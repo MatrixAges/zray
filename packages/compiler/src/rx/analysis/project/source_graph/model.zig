@@ -37,6 +37,7 @@ pub const Edge = struct {
     /// Byte offset only for ZX edges, fully resolved for XML edges.
     location: rx.ast.Location,
     reference: Reference = .dependency,
+    named: bool = false,
     pub fn locate(self: Edge, source: []const u8) rx.ast.Location {
         return @import("position.zig").locate(self.location, source);
     }

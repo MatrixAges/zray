@@ -20,12 +20,12 @@ test "RX Store-like result name is isolated in context" {
     try h.run(.{ .source = "<Module><Store from='state' as='jobs'/><Call fn='store' in={1}/><Call fn='read' in={$ctx.store + store.jobs.counter.value}/><Return value={$ctx.read}/></Module>", .slots = 1 });
 }
 
-test "RX Store result rejects dotted filename segments" {
-    try h.run(.{ .source = "<Module><Store from='state' as='jobs'/><Call fn='store.jobs.zx' in={1}/></Module>", .code = "name", .marker = "store.jobs" });
+test "RX Store result binds the filename suffix alongside the Store alias" {
+    try h.run(.{ .source = "<Module><Store from='state' as='jobs'/><Call fn='store.jobs.zx' in={1}/><Call fn='read' in={$ctx.jobs + store.jobs.counter.value}/><Return value={$ctx.read}/></Module>", .slots = 1 });
 }
 
-test "RX Store result rejects multiple dotted filename segments" {
-    try h.run(.{ .source = "<Module><Store from='state' as='jobs'/><Call fn='store.jobs.counter.zx' in={1}/></Module>", .code = "name", .marker = "store.jobs.counter" });
+test "RX Store result keeps a multi-dot filename separate from Store access" {
+    try h.run(.{ .source = "<Module><Store from='state' as='jobs'/><Call fn='store.jobs.counter.zx' in={1}/><Call fn='read' in={$ctx.counter + store.jobs.counter.value}/><Return value={$ctx.read}/></Module>", .slots = 1 });
 }
 
 test "RX Store result allows similar namespace prefix" {

@@ -2,7 +2,7 @@ import type { Input as Ports } from "./route"
 
 export type Input = {
     ports: Ports,
-    function_path: string
+    function_name: string
 }
 
 export type Output = {

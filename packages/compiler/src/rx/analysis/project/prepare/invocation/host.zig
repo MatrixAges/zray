@@ -75,9 +75,11 @@ pub const State = struct {
             .ambient_store = loader.project.context.stores.len != 0,
         });
 
-        if (self.attributes.member) |member| {
+        if (edge.named) {
+            const member = self.attributes.function.?;
+
             if (admission == .AuthorizedSource) return loader.fail(member.value_location, "capability", "a named Call cannot grant a Store setter");
-            if (admission != .Source) return loader.fail(member.value_location, "module", "export requires a named function from a ZX source module");
+            if (admission != .Source) return loader.fail(member.value_location, "module", "a qualified Call.fn requires a ZX source module");
 
             self.resolved = .{
                 .kind = .NamedSource,
@@ -116,7 +118,7 @@ pub const State = struct {
             .setter = self.capability.setter,
             .getters = self.capability.getters,
             .input = self.attributes.argument,
-            .name_source = self.attributes.member orelse self.attributes.function orelse self.attributes.module.?,
+            .name_source = self.attributes.function orelse self.attributes.module.?,
             .target_kind = selected.kind,
             .target = selected.row,
             .callee = selected.callee,

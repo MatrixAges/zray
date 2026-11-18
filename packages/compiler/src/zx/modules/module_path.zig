@@ -23,6 +23,58 @@ pub fn select(allocator: std.mem.Allocator, candidate: []const u8, known: anytyp
     return candidate;
 }
 
+pub fn callMember(reference: []const u8) ?[]const u8 {
+    const name = std.fs.path.basename(reference);
+    const dot = std.mem.lastIndexOfScalar(u8, name, '.') orelse return null;
+
+    if (std.mem.endsWith(u8, reference, "/")) return null;
+
+    if (comptime generated) {
+        const rule = @import("generated_module_call_member");
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const start = rule.executeValue(empty.allocator(), name) catch unreachable;
+
+        return if (start) |offset| name[@intCast(offset)..] else null;
+    }
+
+    if (dot == 0 or dot + 1 == name.len) return null;
+    if (std.mem.eql(u8, name[0..dot], ".") or std.mem.eql(u8, name[0..dot], "..")) return null;
+
+    for ([_][]const u8{ ".zx", ".rx", ".zig" }) |suffix| {
+        if (std.mem.eql(u8, name[dot..], suffix)) return null;
+    }
+
+    return name[dot + 1 ..];
+}
+
+pub const CallSource = struct { path: []const u8, named: bool };
+
+/// The candidate is the normalized file path for the complete dotted spelling.
+pub fn selectQualified(allocator: std.mem.Allocator, candidate: []const u8, member: []const u8, known: anytype) !CallSource {
+    if (try known.has(candidate)) return .{ .path = candidate, .named = false };
+
+    const indexed = try index(allocator, candidate);
+
+    {
+        errdefer allocator.free(indexed);
+
+        if (try known.has(indexed)) return .{ .path = indexed, .named = false };
+    }
+
+    allocator.free(indexed);
+
+    const end = candidate.len - ".zx".len - member.len - 1;
+    const owner = try std.mem.concat(allocator, u8, &.{ candidate[0..end], ".zx" });
+
+    errdefer allocator.free(owner);
+
+    const path = try select(allocator, owner, known);
+
+    if (path.ptr != owner.ptr) allocator.free(owner);
+
+    return .{ .path = path, .named = true };
+}
+
 pub fn directoryReference(path: []const u8) bool {
     const name = std.fs.path.basename(path);
 

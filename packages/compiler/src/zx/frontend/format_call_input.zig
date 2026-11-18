@@ -23,9 +23,9 @@ pub fn of(node: anytype) ?Output {
     }
 
     if (!std.mem.eql(u8, node.name(), "Call")) return null;
-    if (find(node, "export")) |name| return valid(name, "$ctx.");
 
-    const path = find(node, "fn") orelse find(node, "module") orelse return null;
+    const function = find(node, "fn");
+    const path = function orelse find(node, "module") orelse return null;
     const slash = std.mem.lastIndexOfAny(u8, path, "/\\");
     var name = path[if (slash) |index| index + 1 else 0..];
 
@@ -36,6 +36,8 @@ pub fn of(node: anytype) ?Output {
 
         break;
     }
+
+    if (function != null) name = @import("../modules/module_path.zig").callMember(name) orelse name;
 
     return valid(name, "$ctx.");
 }
