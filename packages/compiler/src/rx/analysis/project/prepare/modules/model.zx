@@ -1,0 +1,11 @@
+import type { Context } from "rx_prepare"
+
+export type Input = {
+    context: Context,
+    count: u64
+}
+
+export type Module = {
+    context: Context,
+    row: u64
+}

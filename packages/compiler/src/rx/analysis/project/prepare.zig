@@ -11,13 +11,13 @@ const Action = rx.IndexedFlow.Operation;
 const zx = @import("zx");
 const Graph = @import("source_graph/model.zig");
 const Signatures = @import("references/signatures.zig");
-const Attributes = @import("../call/attributes.zig");
-const TypeImports = @import("type_imports.zig");
-const Schedule = @import("prepare/schedule.zig");
-const StoreCall = @import("../store/call.zig");
-const availability = @import("../call/availability.zig");
 const generated = @import("rx_options").generated_graph;
-const Callee = union(enum) { module: usize, signature: frontend.project.signature_project.Ports };
+
+comptime {
+    if (generated) _ = @import("prepare/effects.zig");
+}
+
+pub const Callee = union(enum) { module: usize, signature: frontend.project.signature_project.Ports };
 pub const batch_callees = generated and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
 const CalleeInput = if (batch_callees) std.meta.Child(@import("generated_rx_mixed_callees").Input) else void;
 const CalleeTargets = if (batch_callees) std.meta.Child(@FieldType(CalleeInput, "calls")) else void;
@@ -67,62 +67,21 @@ pub fn loadSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, 
 
     defer store_memory.deinit();
 
-    for (modules, registered, plans, 0..) |source, edges, *plan, index| {
-        var flow: Flow.Plan = undefined;
-        var imports: TypeImports.Imports = undefined;
+    var state: @import("prepare/modules/host.zig").State = .{
+        .loader = &loader,
+        .store_memory = &store_memory,
+        .modules = modules,
+        .registered = registered,
+        .definitions = definitions,
+        .plans = plans,
+        .local_calls = local_calls,
+    };
 
-        inline for (comptime Schedule.steps(.Module)) |step| {
-            switch (step) {
-                .Done => {},
-                .BeginModule => {
-                    if (definitions.len != 0 and !store_memory.reset(.retain_capacity)) return error.OutOfMemory;
+    state.load() catch |err| {
+        if (err == error.OutOfMemory) return error.OutOfMemory;
 
-                    loader.owner = source.path;
-                    loader.references = .{ .edges = edges };
-                    loader.calls = .empty;
-                    loader.local_calls = true;
-                    loader.arguments = .empty;
-                    loader.plan = .{};
-                    loader.task_count = 0;
-                    loader.deferred_shortcut = false;
-                },
-                .ResolveStores => {
-                    const result = try StoreReferences.resolve(allocator, store_memory.allocator(), source, edges, signatures.graph.sources, definitions);
-
-                    if (result == .diagnostic) return .{ .diagnostic = result.diagnostic };
-
-                    loader.stores = result.scope;
-                },
-                .PrepareFlow => flow = loader.moduleBody(source) catch |err| {
-                    if (err == error.OutOfMemory) return error.OutOfMemory;
-
-                    return .{ .diagnostic = loader.issue.? };
-                },
-                .ImportTypes => {
-                    const result = try TypeImports.collect(allocator, allocator, source, edges, signatures, loader.project.context.types.kinds);
-
-                    if (result == .diagnostic) return .{ .diagnostic = result.diagnostic };
-
-                    imports = result.imports;
-                },
-                .PublishModule => {
-                    try inputs.publish(modules.len, index, loader.arguments.items);
-
-                    plan.* = .{
-                        .source = source,
-                        .deferred_shortcut = loader.deferred_shortcut,
-                        .calls = loader.calls.slice(),
-                        .plan = flow,
-                        .type_imports = imports.types,
-                        .value_imports = imports.values,
-                    };
-
-                    local_calls[index] = loader.local_calls;
-                },
-                else => unreachable,
-            }
-        }
-    }
+        return .{ .diagnostic = state.loader.issue.? };
+    };
 
     return .{ .loaded = .{ .modules = plans, .local_calls = local_calls, .project = loader.project } };
 }
@@ -146,7 +105,7 @@ pub fn completeShortcuts(allocator: std.mem.Allocator, modules: []Module, signat
     }
 }
 
-const Loader = struct {
+pub const Loader = struct {
     allocator: std.mem.Allocator,
     backing: std.mem.Allocator,
     project: frontend.project.Options,
@@ -190,7 +149,7 @@ const Loader = struct {
 
         return plan.flow;
     }
-    fn moduleBody(self: *Loader, source: rx.ModuleSource) Error!Flow.Plan {
+    pub fn moduleBody(self: *Loader, source: rx.ModuleSource) Error!Flow.Plan {
         const node = source.node;
 
         if (target.optionalAttribute(node, "fn") != null) return self.shortcut(node);
@@ -343,91 +302,17 @@ const Loader = struct {
         return body;
     }
     pub fn call(self: *Loader, node: rx.ast.Node) Error!usize {
-        const index = self.calls.len;
-        var attributes: Attributes = undefined;
-        var input: ?*const frontend.ExpressionInput.Result = undefined;
-        var capability: StoreCall.Authorization = undefined;
-        var kind: CalleeKind = undefined;
-        var row: usize = undefined;
-        var callee: Callee = undefined;
+        var state: @import("prepare/invocation/host.zig").State = .{
+            .loader = self,
+            .node = node,
+            .index = self.calls.len,
+        };
 
-        inline for (comptime Schedule.steps(.Call)) |step| {
-            switch (step) {
-                .Done => {},
-                .ScanAttributes => attributes = Attributes.scan(node),
-                .ParseArgument => input = if (attributes.argument) |attribute| try self.inputs.parse(attribute.*, self.owner) else null,
-                .Authorize => {
-                    const authorized = try StoreCall.analyze(self.allocator, self.backing, self.owner, attributes, self.stores, input);
+        try state.bind();
 
-                    if (authorized == .diagnostic) {
-                        self.issue = authorized.diagnostic;
-
-                        return error.InvalidFlow;
-                    }
-
-                    capability = authorized.authorized;
-                },
-                .ResolveCallee => {
-                    const selected = self.references.next(.call);
-                    const edge = selected.edge;
-
-                    const admission = availability.check(.{
-                        .target = switch (edge.target) {
-                            .source => .Source,
-                            .compiled => .Compiled,
-                            .native => .Native,
-                        },
-                        .declared_setter = attributes.setter != null,
-                        .setter = capability.setter != null,
-                        .ambient_store = self.project.context.stores.len != 0,
-                    });
-
-                    callee = switch (admission) {
-                        .Source, .AuthorizedSource => try self.sourceCallee(edge.target.source, edge.location, admission == .AuthorizedSource),
-                        .Compiled => try self.compiledCallee(attributes.module.?.value_location, edge.target.compiled, capability.setter != null),
-                        .Native => return self.fail(edge.location, "module", "native and standard imports must use the interface registry"),
-                        .Denied => return self.fail(node.location, "capability", "Store calls require explicit per-call authorization from module declarations"),
-                    };
-
-                    kind = switch (admission) {
-                        .Source => .Source,
-                        .AuthorizedSource => .AuthorizedSource,
-                        .Compiled => .Compiled,
-                        .Native, .Denied => unreachable,
-                    };
-
-                    row = if (edge.target == .source) edge.target.source else selected.row;
-                },
-                .PublishCall => {
-                    try self.calls.append(self.allocator, .{
-                        .node = node,
-                        .setter = capability.setter,
-                        .getters = capability.getters,
-                        .input = attributes.argument,
-                        .name_source = attributes.function orelse attributes.module.?,
-                        .target_kind = kind,
-                        .target = row,
-                        .callee = callee,
-                    });
-
-                    self.local_calls = self.local_calls and kind == .Source;
-                },
-                .RecordArgument => if (input) |parsed| {
-                    const first = self.arguments.items.len;
-
-                    try self.arguments.resize(self.inputs.arena.allocator(), index + 1);
-
-                    @memset(self.arguments.items[first..index], null);
-
-                    self.arguments.items[index] = parsed;
-                },
-                else => unreachable,
-            }
-        }
-
-        return index;
+        return state.index;
     }
-    fn sourceCallee(self: *Loader, source: usize, location: rx.ast.Location, setter: bool) Error!Callee {
+    pub fn sourceCallee(self: *Loader, source: usize, location: rx.ast.Location, setter: bool) Error!Callee {
         const resolved = switch (self.signatures.lookup(source)) {
             .rx => |index| return .{ .module = index },
             .store => return self.fail(location, "module", "Call.module target is not registered"),
@@ -445,7 +330,7 @@ const Loader = struct {
             .MissingStore => self.fail(location, "capability", "a Call.setter target must declare its second parameter as { store }"),
         };
     }
-    fn compiledCallee(self: *Loader, location: rx.ast.Location, selected: frontend.project.compiled.Target, setter: bool) Error!Callee {
+    pub fn compiledCallee(self: *Loader, location: rx.ast.Location, selected: frontend.project.compiled.Target, setter: bool) Error!Callee {
         const result = try self.libraries.bind(&self.project, .{
             .owner = self.owner,
             .location = location,

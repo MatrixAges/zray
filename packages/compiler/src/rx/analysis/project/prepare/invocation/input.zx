@@ -1,0 +1,3 @@
+import type { Invocation } from "rx_prepare"
+
+export type Input = Invocation

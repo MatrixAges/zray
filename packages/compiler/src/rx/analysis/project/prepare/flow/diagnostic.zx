@@ -1,0 +1,20 @@
+import native from "rx_prepare"
+
+import { Route } from "./model"
+
+import type { Diagnostic } from "./model"
+
+export type Input = Diagnostic
+
+export type Output = void
+
+export default function (in: Input): Output {
+    switch (in.route) {
+        case Route.TaskReturns:
+            native.taskReturns(in.context, in.slot)
+        case Route.Unreachable:
+            native.unreachableStep(in.context, in.slot)
+        default:
+            native.unsupportedStep(in.context, in.slot)
+    }
+}

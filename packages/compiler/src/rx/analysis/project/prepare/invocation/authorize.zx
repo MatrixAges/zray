@@ -1,0 +1,9 @@
+import native from "rx_prepare"
+
+import type { Input } from "./input"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    native.authorizeCall(in)
+}

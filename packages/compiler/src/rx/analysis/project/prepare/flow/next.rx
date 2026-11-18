@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Flow" />
 
-    <Args in={Flow.Input} out={Flow.Output} />
+    <Args in={Flow.Step} out={u64} />
 
     <Call
         fn="read"
@@ -12,21 +12,7 @@
     />
 
     <If on={!$ctx.read.ready}>
-        <Return
-            value={{
-                remaining: 0,
-                slot: 0,
-                route: Flow.Route.Done,
-                row: 0,
-                first: 0,
-                count: 0,
-                task_id: null,
-                task_output: false,
-                else_branch: false,
-                item: 0,
-                implicit_item: null
-            }}
-        />
+        <Return value={0} />
     </If>
 
     <Call
@@ -45,5 +31,92 @@
         }}
     />
 
-    <Return value={$ctx.publish} />
+    <Switch on={$ctx.publish.route}>
+        <Case value={Flow.Route.Call}>
+            <Call
+                fn="bind_call"
+                in={{
+                    context: $in.context,
+                    slot: $ctx.publish.slot,
+                    item: $ctx.publish.item
+                }}
+            />
+        </Case>
+
+        <Case value={Flow.Route.Result}>
+            <Call
+                fn="bind_result"
+                in={{
+                    context: $in.context,
+                    slot: $ctx.publish.slot,
+                    item: $ctx.publish.item
+                }}
+            />
+        </Case>
+
+        <Case value={Flow.Route.Task}>
+            <Call
+                fn="bind_task"
+                in={{
+                    context: $in.context,
+                    ...$ctx.publish
+                }}
+            />
+        </Case>
+
+        <Case value={Flow.Route.ParallelTask}>
+            <Call
+                fn="bind_task"
+                in={{
+                    context: $in.context,
+                    ...$ctx.publish
+                }}
+            />
+        </Case>
+
+        <Case value={Flow.Route.Parallel}>
+            <Call
+                fn="bind_group"
+                in={{
+                    context: $in.context,
+                    item: $ctx.publish.item,
+                    first: $ctx.publish.first,
+                    count: $ctx.publish.count
+                }}
+            />
+        </Case>
+
+        <Case value={Flow.Route.Switch}>
+            <Call
+                fn="bind_selection"
+                in={{
+                    context: $in.context,
+                    ...$ctx.publish
+                }}
+            />
+        </Case>
+
+        <Case value={Flow.Route.If}>
+            <Call
+                fn="bind_selection"
+                in={{
+                    context: $in.context,
+                    ...$ctx.publish
+                }}
+            />
+        </Case>
+
+        <Default>
+            <Call
+                fn="diagnostic"
+                in={{
+                    context: $in.context,
+                    slot: $ctx.publish.slot,
+                    route: $ctx.publish.route
+                }}
+            />
+        </Default>
+    </Switch>
+
+    <Return value={$ctx.publish.remaining} />
 </Module>

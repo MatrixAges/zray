@@ -1,0 +1,25 @@
+import native from "rx_prepare"
+
+import { Route } from "./model"
+
+import type { TaskBinding } from "./model"
+
+export type Input = TaskBinding
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { context, slot, item, first, count } = in
+
+    if (in.route == Route.ParallelTask) {
+        if (in.implicit_item != null) {
+            native.bindTaskResult(context, slot, in.implicit_item)
+        }
+
+        if (in.task_id != null) {
+            native.bindParallelTask(context, slot, item, first, count, in.task_id)
+        }
+    } else {
+        native.bindTask(context, slot, item, first, count, in.task_output)
+    }
+}

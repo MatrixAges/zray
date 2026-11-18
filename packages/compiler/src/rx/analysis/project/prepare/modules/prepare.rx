@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Preparation" />
+
+    <Args in={Preparation.Module} out={void} />
+
+    <Call fn="begin" in={$in} />
+    <Call fn="stores" in={$in.context} />
+    <Call fn="body" in={$in.context} />
+    <Call fn="types" in={$in.context} />
+    <Call fn="publish" in={$in.context} />
+</Module>

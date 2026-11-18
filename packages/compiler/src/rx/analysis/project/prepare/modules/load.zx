@@ -1,0 +1,23 @@
+import prepare from "compiler/rx_prepare_module"
+
+import type { Input as Request } from "./model"
+
+export type Input = Request
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const prepared = loop({
+        row: 0
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            prepare({
+                context: in.context,
+                row: state.row
+            })
+
+            state.row += 1
+        }
+    })
+}

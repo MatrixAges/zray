@@ -1,0 +1,12 @@
+<Module>
+    <Type from="input" as="Binding" />
+
+    <Args in={Binding.Input} out={void} />
+
+    <Call fn="scan" in={$in} />
+    <Call fn="argument" in={$in} />
+    <Call fn="authorize" in={$in} />
+    <Call fn="resolve" in={$in} />
+    <Call fn="publish" in={$in} />
+    <Call fn="record" in={$in} />
+</Module>
