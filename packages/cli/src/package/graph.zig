@@ -112,7 +112,10 @@ fn dependency(result: *Result, owner: usize, name: []const u8, requirement: []co
         if (!matches) continue;
 
         if (spec == .named) if (spec.named.range) |range| {
-            const accepted = pkgs.version.matches(range, try std.SemanticVersion.parse(package.manifest.version)) catch return fail(result, owner, name, "invalid workspace version range");
+            const accepted = pkgs.version.accepts(range, package.manifest.version) catch |err| switch (err) {
+                error.InvalidRange => return fail(result, owner, name, "invalid workspace version range"),
+                else => |cause| return cause,
+            };
 
             if (!accepted) return fail(result, owner, name, "workspace package version does not satisfy the dependency range");
         };

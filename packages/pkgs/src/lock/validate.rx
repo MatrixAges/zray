@@ -1,0 +1,51 @@
+<Module>
+    <Type from="model" as="Lock" />
+    <Type from="../graph/model" as="Graph" />
+
+    <Args in={Lock.Input} out={Lock.Status} />
+
+    <Call
+        fn="packages"
+        in={$in.omit(["graph"])}
+    />
+
+    <If on={$ctx.packages.status != Lock.Status.Valid}>
+        <Return value={$ctx.packages.status} />
+    </If>
+
+    <Call
+        fn="dependencies"
+        in={{
+            ...$in.pick([
+                "packages",
+                "edges",
+                "table"
+            ]),
+            largest: $ctx.packages.largest
+        }}
+    />
+
+    <If on={$ctx.dependencies != Lock.Status.Valid}>
+        <Return value={$ctx.dependencies} />
+    </If>
+
+    <Call module="../graph/check" in={$in.graph} />
+
+    <Switch on={$ctx.check.status}>
+        <Case value={Graph.Status.CyclicPackageDependencies}>
+            <Return value={Lock.Status.CyclicPackageDependencies} />
+        </Case>
+
+        <Case value={Graph.Status.PackageDependencyDepthExceeded}>
+            <Return value={Lock.Status.PackageDependencyDepthExceeded} />
+        </Case>
+
+        <Case value={Graph.Status.UnreachableLockPackage}>
+            <Return value={Lock.Status.UnreachableLockPackage} />
+        </Case>
+
+        <Default>
+            <Return value={Lock.Status.Valid} />
+        </Default>
+    </Switch>
+</Module>

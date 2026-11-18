@@ -10,11 +10,11 @@ pub fn build(b: *std.Build) void {
     const core = b.dependency("core", .{ .target = target, .optimize = optimize });
     const files = b.addWriteFiles();
 
-    for ([_][]const u8{ "version", "workspace", "metadata", "graph", "registry" }) |dir| {
+    for ([_][]const u8{ "version", "workspace", "metadata", "graph", "registry", "lock" }) |dir| {
         _ = files.addCopyDirectory(b.path(b.fmt("src/{s}", .{dir})), dir, .{ .include_extensions = &.{ ".zx", ".rx" } });
     }
 
-    for ([_][]const u8{ "const.zx", "ascii/const.zx" }) |file| {
+    for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/map/capacity.zx", "bytes/index/const.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
     }
 

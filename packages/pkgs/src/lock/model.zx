@@ -1,0 +1,61 @@
+import type { ListColumn, TextColumn, U8Buffer, U32Buffer, U32Scratch } from "memory"
+import type { Input as Graph } from "../graph/model"
+
+export enum Status {
+    Valid,
+    UnsupportedLockVersion,
+    InvalidLockPackageCount,
+    MissingLockWorkspaceRoot,
+    InvalidPackageName,
+    InvalidVersion,
+    Overflow,
+    InvalidLockWorkspacePath,
+    DuplicateLockWorkspacePath,
+    DuplicateLockWorkspaceName,
+    InvalidArchiveSource,
+    InvalidArchiveDigest,
+    DuplicateLockArchive,
+    DuplicateLockPackage,
+    TooManyLockDependencies,
+    DuplicateLockDependency,
+    InvalidLockTarget,
+    ArchiveHasDevelopmentDependency,
+    InvalidLockWorkspaceTarget,
+    InvalidLockArchiveTarget,
+    InvalidRange,
+    LockVersionMismatch,
+    CyclicPackageDependencies,
+    PackageDependencyDepthExceeded,
+    UnreachableLockPackage
+}
+
+export type Packages = {
+    names: TextColumn,
+    versions: TextColumn,
+    paths: TextColumn,
+    archives: TextColumn,
+    digests: TextColumn,
+    flags: U8Buffer,
+    count: u64,
+    limit: u64
+}
+
+export type Dependencies = {
+    targets: ListColumn,
+    edge_names: ListColumn,
+    requirements: ListColumn,
+    development: ListColumn
+}
+
+export type Table = {
+    slots: U32Buffer,
+    scratch: U32Scratch
+}
+
+export type Input = {
+    packages: Packages,
+    edges: Dependencies,
+    graph: Graph,
+    table: Table,
+    maximum_edges: u64
+}

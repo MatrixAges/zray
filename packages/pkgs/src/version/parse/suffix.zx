@@ -9,9 +9,9 @@ import {
 } from "core/const"
 
 import { ParseStatus } from "../model"
-import decimal from "./decimal"
+import component from "./component"
 
-import type { Input as Digits } from "./decimal"
+import type { Input as Digits } from "./component"
 
 export type Input = Digits.Omit("separators") & {
     prerelease: bool
@@ -36,7 +36,7 @@ export default function (in: Input): Output {
                 if (s.i == s.first) {
                     s.status = ParseStatus.InvalidVersion
                 } else if (numeric_pre) {
-                    s.status = decimal({
+                    s.status = component({
                         text,
                         start: s.first,
                         end: s.i,

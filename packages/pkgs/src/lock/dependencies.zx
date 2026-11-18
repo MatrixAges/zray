@@ -1,0 +1,45 @@
+import integers from "std:integer"
+import capacityFor from "core/bytes/map/capacity"
+import memory from "memory"
+
+import owner from "./dependency/owner"
+import { Status } from "./model"
+
+import type { Input as Lock } from "./model"
+
+export type Input = Lock.Pick("packages", "edges", "table") & {
+    largest: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { largest, packages, table, edges } = in
+
+    if (largest == 0) {
+        return Status.Valid
+    }
+
+    if (largest > 1) {
+        const capacity = capacityFor(integers.narrow(largest)).capacity
+
+        memory.growU32Scratch(table.scratch, capacity, true)
+    }
+
+    return loop({
+        row: 0,
+        status: Status.Valid
+    }, {
+        while: s => s.row < packages.count && s.status == Status.Valid,
+        next: s => {
+            s.status = owner({
+                packages,
+                members: table.slots,
+                edges,
+                row: s.row
+            })
+            s.row += 1
+        },
+        return: s => s.status
+    })
+}

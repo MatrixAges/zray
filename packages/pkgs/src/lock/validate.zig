@@ -1,54 +1,102 @@
 const std = @import("std");
+const memory = @import("memory");
+const rules = @import("pkgs_source");
 const Lock = @import("../lock.zig");
+const graph = @import("../graph.zig");
 
 pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
-    if (lock.format_version != 1) return error.UnsupportedLockVersion;
-    if (lock.packages.len == 0 or lock.packages.len > Lock.maximum_packages) return error.InvalidLockPackageCount;
-    if (lock.packages[0].source != .workspace or !std.mem.eql(u8, lock.packages[0].source.workspace, ".")) return error.MissingLockWorkspaceRoot;
+    const packages = lock.packages;
+    const root = if (packages.len != 0 and packages[0].source == .workspace) packages[0].source.workspace else null;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    try checkStatus(rules.lock_header.executeIn(empty.allocator(), &.{
+        .format = lock.format_version,
+        .count = packages.len,
+        .maximum = Lock.maximum_packages,
+        .root = root,
+    }) catch unreachable);
 
-    defer arena.deinit();
+    const storage = try allocator.alloc(u8, 2 * packages.len);
 
-    const temporary = arena.allocator();
-    var identities: std.StringHashMapUnmanaged(void) = .empty;
-    var paths: std.StringHashMapUnmanaged(void) = .empty;
-    var names: std.StringHashMapUnmanaged(void) = .empty;
-    var digests: std.StringHashMapUnmanaged(void) = .empty;
-    var edge_count: usize = 0;
+    defer allocator.free(storage);
 
-    for (lock.packages) |package| {
-        if (!@import("../metadata.zig").validName(package.name)) return error.InvalidPackageName;
+    const marks = storage[0..packages.len];
+    const heights = storage[packages.len..];
 
-        _ = try std.SemanticVersion.parse(package.version);
+    graph.prepare(storage, packages, .lock);
 
-        switch (package.source) {
-            .workspace => |path| {
-                if (!@import("../workspace.zig").validPath("", path, .Stored)) return error.InvalidLockWorkspacePath;
-                if ((try paths.getOrPut(temporary, path)).found_existing) return error.DuplicateLockWorkspacePath;
-                if ((try names.getOrPut(temporary, package.name)).found_existing) return error.DuplicateLockWorkspaceName;
-            },
-            .archive => |source| {
-                try @import("../metadata.zig").validateArchive(source.archive, source.sha256, true);
-                if ((try digests.getOrPut(temporary, source.sha256)).found_existing) return error.DuplicateLockArchive;
+    var sample: Lock.Package = undefined;
+    sample.source = .{ .workspace = undefined };
+    const paths = memory.borrowProjectedText(packages, &sample, &sample.source.workspace);
+    sample.source = .{ .archive = undefined };
 
-                const identity = try std.fmt.allocPrint(temporary, "{s}@{s}", .{ package.name, package.version });
+    const archives = memory.borrowProjectedText(packages, &sample, &sample.source.archive.archive);
+    const digests = memory.borrowProjectedText(packages, &sample, &sample.source.archive.sha256);
+    const names = memory.borrowTextColumn("name", packages);
+    const versions = memory.borrowTextColumn("version", packages);
+    const targets = memory.borrowListColumn(usize, "dependencies", "target", packages);
+    const edge_names = memory.borrowListColumn([]const u8, "dependencies", "name", packages);
+    const requirements = memory.borrowListColumn([]const u8, "dependencies", "requirement", packages);
+    const development = memory.borrowListColumn(bool, "dependencies", "development", packages);
+    var table: memory.U32Scratch = .{ .allocator = allocator };
 
-                if ((try identities.getOrPut(temporary, identity)).found_existing) return error.DuplicateLockPackage;
-            },
-        }
+    defer table.deinit();
 
-        if (package.dependencies.len > Lock.maximum_dependencies - edge_count) return error.TooManyLockDependencies;
+    var frames: graph.Frames = .{};
+    const traversal = frames.input(&targets, &marks, &heights, true);
 
-        edge_count += package.dependencies.len;
-    }
+    const result = rules.lock_validate.executeIn(empty.allocator(), &.{
+        .packages = &.{
+            .names = @ptrCast(&names),
+            .versions = @ptrCast(&versions),
+            .paths = @ptrCast(&paths),
+            .archives = @ptrCast(&archives),
+            .digests = @ptrCast(&digests),
+            .flags = @ptrCast(&marks),
+            .count = packages.len,
+            .limit = std.math.maxInt(usize),
+        },
+        .edges = &.{
+            .targets = @ptrCast(&targets),
+            .edge_names = @ptrCast(&edge_names),
+            .requirements = @ptrCast(&requirements),
+            .development = @ptrCast(&development),
+        },
+        .graph = &traversal,
+        .table = &.{ .slots = @ptrCast(&table.items), .scratch = @ptrCast(&table) },
+        .maximum_edges = Lock.maximum_dependencies,
+    }) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    for (lock.packages) |package| try @import("edges.zig").validate(lock, temporary, package);
+    try checkStatus(result);
+}
 
-    const graph = try @import("../graph.zig").check(temporary, lock.packages, .lock);
-
-    switch (graph.status) {
+fn checkStatus(status: rules.lock_header.Output) !void {
+    switch (status) {
         .Valid => {},
+        .UnsupportedLockVersion => return error.UnsupportedLockVersion,
+        .InvalidLockPackageCount => return error.InvalidLockPackageCount,
+        .MissingLockWorkspaceRoot => return error.MissingLockWorkspaceRoot,
+        .InvalidPackageName => return error.InvalidPackageName,
+        .InvalidVersion => return error.InvalidVersion,
+        .Overflow => return error.Overflow,
+        .InvalidLockWorkspacePath => return error.InvalidLockWorkspacePath,
+        .DuplicateLockWorkspacePath => return error.DuplicateLockWorkspacePath,
+        .DuplicateLockWorkspaceName => return error.DuplicateLockWorkspaceName,
+        .InvalidArchiveSource => return error.InvalidArchiveSource,
+        .InvalidArchiveDigest => return error.InvalidArchiveDigest,
+        .DuplicateLockArchive => return error.DuplicateLockArchive,
+        .DuplicateLockPackage => return error.DuplicateLockPackage,
+        .TooManyLockDependencies => return error.TooManyLockDependencies,
+        .DuplicateLockDependency => return error.DuplicateLockDependency,
+        .InvalidLockTarget => return error.InvalidLockTarget,
+        .ArchiveHasDevelopmentDependency => return error.ArchiveHasDevelopmentDependency,
+        .InvalidLockWorkspaceTarget => return error.InvalidLockWorkspaceTarget,
+        .InvalidLockArchiveTarget => return error.InvalidLockArchiveTarget,
+        .InvalidRange => return error.InvalidRange,
+        .LockVersionMismatch => return error.LockVersionMismatch,
         .CyclicPackageDependencies => return error.CyclicPackageDependencies,
         .PackageDependencyDepthExceeded => return error.PackageDependencyDepthExceeded,
         .UnreachableLockPackage => return error.UnreachableLockPackage,

@@ -1,0 +1,83 @@
+import integers from "std:integer"
+import capacityFor from "core/bytes/map/capacity"
+import memory from "memory"
+
+import validName from "../metadata/name"
+import { ParseStatus } from "../version/model"
+import parse from "../version/parse/partial"
+import identity from "./identity/package"
+import { Status } from "./model"
+
+import type { Input as Lock } from "./model"
+
+export type Input = Lock.Pick("packages", "table", "edges", "maximum_edges")
+
+export type Output = {
+    status: Status,
+    largest: u64
+}
+
+export default function (in: Input): Output {
+    const { packages, table, maximum_edges } = in
+    const { names, versions, count, limit } = packages
+
+    const capacity = capacityFor(integers.narrow(count)).capacity
+
+    memory.growU32Scratch(table.scratch, capacity * 2, true)
+    memory.clearU32Buffer(table.slots, capacity * 2)
+
+    return loop({
+        row: 0,
+        total: 0,
+        largest: 0,
+        status: Status.Valid
+    }, {
+        while: s => s.row < count && s.status == Status.Valid,
+        next: s => {
+            const row = s.row
+
+            if (!validName(memory.readTextColumn(names, row))) {
+                s.status = Status.InvalidPackageName
+            } else {
+                const text = memory.readTextColumn(versions, row)
+                const parsed = parse({
+                    text,
+                    start: 0,
+                    end: text.length,
+                    limit,
+                    release: true
+                })
+
+                s.status = match parsed.status {
+                    ParseStatus.InvalidVersion => Status.InvalidVersion,
+                    ParseStatus.Overflow => Status.Overflow,
+                    _ => identity({
+                        packages,
+                        row,
+                        slots: table.slots,
+                        capacity
+                    })
+                }
+            }
+
+            if (s.status == Status.Valid) {
+                const length = memory.listLength(in.edges.targets, row)
+
+                if (length > maximum_edges - s.total) {
+                    s.status = Status.TooManyLockDependencies
+                } else {
+                    s.total += length
+                    if (length > s.largest) {
+                        s.largest = length
+                    }
+                }
+            }
+
+            s.row += 1
+        },
+        return: s => s.pick([
+            "status",
+            "largest"
+        ])
+    })
+}

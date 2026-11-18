@@ -1,0 +1,72 @@
+import integers from "std:integer"
+import capacityFor from "core/bytes/map/capacity"
+import memory from "memory"
+
+import { workspace_root } from "../../graph/const"
+import validName from "../../metadata/name"
+import { Status } from "../model"
+import claim from "./claim"
+import checkTarget from "./target"
+
+import type { U32Buffer } from "memory"
+import type { Input as Lock } from "../model"
+
+export type Input = Lock.Pick("packages", "edges") & {
+    row: u64,
+    members: U32Buffer
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { row, packages, edges, members } = in
+    const { targets, edge_names, requirements, development } = edges
+
+    const length = memory.listLength(targets, row)
+    const capacity = capacityFor(integers.narrow(length)).capacity
+    const local = memory.readU8(packages.flags, row) == workspace_root
+
+    if (length > 1) {
+        memory.clearU32Buffer(members, capacity)
+    }
+
+    return loop({
+        edge: 0,
+        status: Status.Valid
+    }, {
+        while: s => s.edge < length && s.status == Status.Valid,
+        next: s => {
+            const edge = s.edge
+            const name = memory.readListText(edge_names, row, edge)
+            const target = memory.readListIndex(targets, row, edge)
+
+            if (!validName(name)) {
+                s.status = Status.InvalidPackageName
+            } else if (length > 1 && !claim({
+                names: edge_names,
+                name,
+                row,
+                edge,
+                slots: members,
+                mask: capacity - 1
+            })) {
+                s.status = Status.DuplicateLockDependency
+            } else if (target >= packages.count) {
+                s.status = Status.InvalidLockTarget
+            } else if (!local && memory.readListBool(development, row, edge)) {
+                s.status = Status.ArchiveHasDevelopmentDependency
+            } else {
+                s.status = checkTarget({
+                    packages,
+                    row,
+                    target,
+                    name,
+                    requirement: memory.readListText(requirements, row, edge)
+                })
+            }
+
+            s.edge += 1
+        },
+        return: s => s.status
+    })
+}

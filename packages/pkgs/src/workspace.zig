@@ -50,7 +50,7 @@ pub fn matches(spec: Specifier, owner: []const u8, target: Lock.Package) !bool {
             if (!std.mem.eql(u8, named.name, target.name)) return false;
 
             if (named.range) |range| {
-                if (!try @import("version.zig").matches(range, try std.SemanticVersion.parse(target.version))) return error.LockVersionMismatch;
+                if (!try @import("version.zig").accepts(range, target.version)) return error.LockVersionMismatch;
             }
 
             return true;

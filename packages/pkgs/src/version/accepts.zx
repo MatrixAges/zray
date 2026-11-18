@@ -1,0 +1,64 @@
+import memory from "memory"
+
+import matches from "./matches"
+import { ParseStatus } from "./model"
+import parse from "./parse/partial"
+
+export enum Decision {
+    Accepted,
+    Rejected,
+    InvalidRange,
+    InvalidVersion,
+    Overflow
+}
+
+export type Input = {
+    version: string,
+    range: string,
+    limit: u64
+}
+
+export type Output = Decision
+
+export default function (in: Input): Output {
+    const { version, range, limit } = in
+
+    const parsed = parse({
+        text: version,
+        start: 0,
+        end: version.length,
+        limit,
+        release: true
+    })
+
+    if (parsed.status != ParseStatus.Valid) {
+        return match parsed.status {
+            ParseStatus.Overflow => Decision.Overflow,
+            _ => Decision.InvalidVersion
+        }
+    }
+
+    const pre = memory.borrowTextRange(
+        version,
+        parsed.pre_start,
+        parsed.pre_end - parsed.pre_start
+    )
+
+    const accepted = matches({
+        ...parsed.pick([
+            "major",
+            "minor",
+            "patch"
+        ]),
+        text: range,
+        pre,
+        prerelease: pre.length != 0,
+        limit
+    })
+
+    if (accepted == null) {
+        return Decision.InvalidRange
+    }
+
+    return (accepted ?? false) ? Decision.Accepted : Decision.Rejected
+}

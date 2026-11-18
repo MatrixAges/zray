@@ -1,0 +1,102 @@
+import integers from "std:integer"
+import {
+    ascii_asterisk,
+    ascii_dot,
+    ascii_lower_x,
+    ascii_minus,
+    ascii_plus
+} from "core/ascii/const"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_underscore,
+    decimal_radix
+} from "core/const"
+
+import { ascii_upper_x } from "../const"
+import { ParseStatus } from "../model"
+
+import type { Text } from "../model"
+
+export type Input = Text & {
+    limit: u64,
+    separators: bool
+}
+
+export type Output = {
+    stop: u64,
+    value: u64,
+    wildcard: bool,
+    status: ParseStatus
+}
+
+export default function (in: Input): Output {
+    const { text, start, end, limit, separators } = in
+
+    const first = start < end ? text[start] : ascii_dot
+
+    const marker = match first {
+        ascii_asterisk => true,
+        ascii_lower_x => true,
+        ascii_upper_x => true,
+        _ => false
+    }
+
+    const cutoff = limit / decimal_radix
+    const remainder = limit % decimal_radix
+
+    return loop({
+        stop: start,
+        value: 0,
+        status: ParseStatus.Valid
+    }, {
+        while: s => {
+            const byte = s.stop < end ? text[s.stop] : ascii_dot
+            return match byte {
+                ascii_dot => false,
+                ascii_minus => false,
+                ascii_plus => false,
+                _ => true
+            }
+        },
+        next: s => {
+            const byte = text[s.stop]
+
+            if (s.status == ParseStatus.Valid) {
+                const digit = byte >= ascii_digit_first && byte <= ascii_digit_last
+                if (digit) {
+                    const value = integers.widenByte(byte - ascii_digit_first)
+                    const overflow = s.value == cutoff && value > remainder
+                    if (s.value > cutoff || overflow) {
+                        s.status = ParseStatus.Overflow
+                    } else {
+                        s.value = s.value * decimal_radix + value
+                    }
+                } else if (!separators || byte != ascii_underscore) {
+                    s.status = ParseStatus.InvalidVersion
+                }
+            }
+
+            s.stop += 1
+        },
+        return: s => {
+            const width = s.stop - start
+            const wildcard = width == 1 && marker
+            const zero = width > 1 && first == ascii_digit_first
+            const trailing = width > 0 && text[s.stop - 1] == ascii_underscore
+            const bad = width == 0 || first == ascii_underscore
+            const status = match {
+                wildcard && !separators => ParseStatus.Valid,
+                bad || zero || trailing => ParseStatus.InvalidVersion,
+                _ => s.status
+            }
+
+            return {
+                stop: s.stop,
+                value: s.value,
+                wildcard,
+                status
+            }
+        }
+    })
+}

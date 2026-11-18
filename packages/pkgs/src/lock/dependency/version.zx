@@ -1,0 +1,17 @@
+import { Decision } from "../../version/accepts"
+import accepts from "../../version/accepts"
+import { Status } from "../model"
+
+import type { Input } from "../../version/accepts"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    return match accepts(in) {
+        Decision.Accepted => Status.Valid,
+        Decision.Rejected => Status.LockVersionMismatch,
+        Decision.InvalidRange => Status.InvalidRange,
+        Decision.Overflow => Status.Overflow,
+        _ => Status.InvalidVersion
+    }
+}

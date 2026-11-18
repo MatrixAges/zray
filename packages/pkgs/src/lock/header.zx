@@ -1,0 +1,21 @@
+import { root_path } from "../workspace/const"
+import { format_version } from "./const"
+import { Status } from "./model"
+
+export type Input = {
+    format: u32,
+    count: u64,
+    maximum: u64,
+    root?: string
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    return match {
+        in.format != format_version => Status.UnsupportedLockVersion,
+        in.count == 0 || in.count > in.maximum => Status.InvalidLockPackageCount,
+        in.root != root_path => Status.MissingLockWorkspaceRoot,
+        _ => Status.Valid
+    }
+}

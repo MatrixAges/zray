@@ -65,6 +65,16 @@ pub inline fn borrowText(comptime field: []const u8, items: anytype) TextColumn 
     return borrowColumn([]const u8, field, items);
 }
 
+// The selected field may be inside a tagged union. Read it only on rows with the same active tag.
+pub inline fn borrowProjectedText(items: anytype, sample: *const std.meta.Child(@TypeOf(items)), field: *const []const u8) TextColumn {
+    const offset = @intFromPtr(field) - @intFromPtr(sample);
+    const stride = @sizeOf(std.meta.Child(@TypeOf(items)));
+
+    std.debug.assert(offset + @sizeOf([]const u8) <= stride);
+
+    return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = stride, .offset = offset };
+}
+
 pub inline fn borrowTextSlice(items: []const []const u8) TextColumn {
     return .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf([]const u8), .offset = 0 };
 }
@@ -304,6 +314,12 @@ pub inline fn borrowListBytes(source: *const anyopaque, index: u64) error{IndexO
     const column = try listColumn(source, index);
 
     return if (column.count == 0) &.{} else column.bytes[column.offset..];
+}
+
+pub inline fn readListBool(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!bool {
+    const column = try listColumn(source, index);
+
+    return readColumn(bool, &column, member);
 }
 
 pub inline fn readListIndex(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!u64 {

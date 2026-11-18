@@ -1,18 +1,12 @@
-import {
-    ascii_asterisk,
-    ascii_dot,
-    ascii_lower_x,
-    ascii_minus,
-    ascii_plus
-} from "core/ascii/const"
+import { ascii_dot, ascii_minus, ascii_plus } from "core/ascii/const"
 
-import { ascii_upper_x, major_part, patch_part } from "../const"
+import { major_part, patch_part } from "../const"
 import { ParseStatus } from "../model"
-import decimal from "./decimal"
+import component from "./component"
 import suffix from "./suffix"
 
 import type { Partial as Output } from "../model"
-import type { Input as Digits } from "./decimal"
+import type { Input as Digits } from "./component"
 
 export type Input = Digits.Omit("separators") & {
     release: bool
@@ -36,43 +30,22 @@ export default function (in: Input): Output {
         while: s => s.status == ParseStatus.Valid && !s.done,
         next: s => {
             const first = s.i
-            const stop = loop(first, {
-                while: i => {
-                    const byte = i < end ? text[i] : ascii_dot
-
-                    return match byte {
-                        ascii_dot => false,
-                        ascii_minus => false,
-                        ascii_plus => false,
-                        _ => true
-                    }
-                },
-                next: i => {
-                    i += 1
-                }
+            const value = component({
+                text,
+                start: first,
+                end,
+                limit,
+                separators: in.release
             })
-            const byte = first < stop ? text[first] : ascii_dot
-            const marker = match byte {
-                ascii_asterisk => true,
-                ascii_lower_x => true,
-                ascii_upper_x => true,
-                _ => false
-            }
-            const wildcard = stop - first == 1 && marker
+            const stop = value.stop
 
-            const missing = first == stop || (in.release && wildcard)
-
-            if (s.count >= patch_part || missing) {
-                s.status = ParseStatus.InvalidVersion
-            } else if (!wildcard) {
-                const value = decimal({
-                    text,
-                    start: first,
-                    end: stop,
-                    limit,
-                    separators: in.release
-                })
-
+            if (s.count >= patch_part || value.status != ParseStatus.Valid) {
+                s.status = match {
+                    s.count >= patch_part => ParseStatus.InvalidVersion,
+                    s.parts != s.count => ParseStatus.InvalidVersion,
+                    _ => value.status
+                }
+            } else if (!value.wildcard) {
                 s.status = s.parts == s.count ? value.status : ParseStatus.InvalidVersion
 
                 if (s.count == 0) {

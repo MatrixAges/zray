@@ -1,0 +1,86 @@
+import memory from "memory"
+
+import { workspace_root } from "../../graph/const"
+import { Status as Archive } from "../../metadata/archive"
+import validateArchive from "../../metadata/validate.rx"
+import { Kind } from "../../workspace/path/valid"
+import validPath from "../../workspace/path/valid"
+import { Status } from "../model"
+import claim from "./claim"
+
+import type { U32Buffer } from "memory"
+import type { Packages } from "../model"
+
+export type Input = {
+    packages: Packages,
+    row: u64,
+    slots: U32Buffer,
+    capacity: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { packages, row, slots, capacity } = in
+    const { paths, names, archives, digests, versions, flags } = packages
+
+    const local = memory.readU8(flags, row) == workspace_root
+
+    const shared = {
+        row,
+        slots,
+        versions,
+        flags,
+        capacity
+    }
+
+    if (local) {
+        const valid = validPath({
+            owner: "",
+            path: memory.readTextColumn(paths, row),
+            kind: Kind.Stored
+        })
+
+        if (!valid) {
+            return Status.InvalidLockWorkspacePath
+        }
+    } else {
+        const archive = validateArchive({
+            archive: memory.readTextColumn(archives, row),
+            digest: memory.readTextColumn(digests, row),
+            lowercase: true
+        })
+
+        if (archive == Archive.InvalidArchiveSource) {
+            return Status.InvalidArchiveSource
+        }
+
+        if (archive == Archive.InvalidArchiveDigest) {
+            return Status.InvalidArchiveDigest
+        }
+    }
+
+    const unique = claim({
+        ...shared,
+        keys: local ? paths : digests,
+        compound: false,
+        offset: 0
+    })
+
+    if (!unique) {
+        return local ? Status.DuplicateLockWorkspacePath : Status.DuplicateLockArchive
+    }
+
+    const named = claim({
+        ...shared,
+        keys: names,
+        compound: !local,
+        offset: capacity
+    })
+
+    if (!named) {
+        return local ? Status.DuplicateLockWorkspaceName : Status.DuplicateLockPackage
+    }
+
+    return Status.Valid
+}

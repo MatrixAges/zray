@@ -11,8 +11,8 @@ const Result = struct {
 
 pub fn create(b: *std.Build, core: *std.Build.Dependency, manifests: LazyPath, source_root: []const u8) Result {
     const files = b.addWriteFiles();
-    const index = files.add("index.d.zx", join(b, core, "views.d.zx", "buffer_values.d.zx"));
-    const columns = files.add("columns.d.zx", join(b, core, "column_sets.d.zx", "column_values.d.zx"));
+    const index = files.add("index.d.zx", join(b, core, &.{ "views.d.zx", "row_reads.d.zx", "buffer_values.d.zx" }));
+    const columns = files.add("columns.d.zx", join(b, core, &.{ "column_sets.d.zx", "column_values.d.zx" }));
     const prefix = b.fmt("{s}/memory/", .{source_root});
 
     const tool = b.addExecutable(.{
@@ -39,8 +39,12 @@ pub fn create(b: *std.Build, core: *std.Build.Dependency, manifests: LazyPath, s
     };
 }
 
-fn join(b: *std.Build, core: *std.Build.Dependency, first: []const u8, second: []const u8) []const u8 {
-    return std.mem.concat(b.allocator, u8, &.{ read(b, core, first), "\n", read(b, core, second) }) catch @panic("out of memory");
+fn join(b: *std.Build, core: *std.Build.Dependency, comptime names: []const []const u8) []const u8 {
+    var parts: [names.len][]const u8 = undefined;
+
+    for (names, &parts) |name, *part| part.* = read(b, core, name);
+
+    return std.mem.join(b.allocator, "\n", &parts) catch @panic("out of memory");
 }
 
 fn read(b: *std.Build, core: *std.Build.Dependency, name: []const u8) []const u8 {

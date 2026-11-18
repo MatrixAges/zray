@@ -1,0 +1,104 @@
+import memory from "memory"
+
+import { workspace_root } from "../../graph/const"
+import equalPath from "../../workspace/path/equal"
+import { Kind as Path } from "../../workspace/path/valid"
+import validPath from "../../workspace/path/valid"
+import { Kind } from "../../workspace/specifier"
+import parse from "../../workspace/specifier"
+import { Status } from "../model"
+import checkVersion from "./version"
+
+import type { Packages } from "../model"
+
+export type Input = {
+    packages: Packages,
+    row: u64,
+    target: u64,
+    name: string,
+    requirement: string
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { packages, row, target, name, requirement } = in
+    const { flags, names, paths, versions, limit } = packages
+
+    const spec = parse(requirement)
+    const local = memory.readU8(flags, target) == workspace_root
+
+    if (spec.kind == Kind.External) {
+        if (local || name != memory.readTextColumn(names, target)) {
+            return Status.InvalidLockArchiveTarget
+        }
+
+        return checkVersion({
+            version: memory.readTextColumn(versions, target),
+            range: requirement,
+            limit
+        })
+    }
+
+    if (!local || memory.readU8(flags, row) != workspace_root) {
+        return Status.InvalidLockWorkspaceTarget
+    }
+
+    if (spec.kind == Kind.Invalid) {
+        return Status.InvalidLockWorkspaceTarget
+    }
+
+    if (spec.kind == Kind.Path) {
+        const owner = memory.readTextColumn(paths, row)
+
+        const path =
+            memory.borrowTextRange(
+                requirement,
+                spec.body,
+                requirement.length - spec.body
+            )
+
+        const valid = validPath({
+            owner,
+            path,
+            kind: Path.Dependency
+        })
+
+        if (!valid) {
+            return Status.InvalidLockWorkspacePath
+        }
+
+        const same = equalPath({
+            owner,
+            path,
+            target: memory.readTextColumn(paths, target)
+        })
+
+        return same ? Status.Valid : Status.InvalidLockWorkspaceTarget
+    }
+
+    const wanted = match spec.kind {
+        Kind.Alias =>
+            memory.borrowTextRange(requirement, spec.body, spec.range - spec.body - 1),
+        _ => name
+    }
+
+    if (wanted != memory.readTextColumn(names, target)) {
+        return Status.InvalidLockWorkspaceTarget
+    }
+
+    if (spec.constrained) {
+        return checkVersion({
+            version: memory.readTextColumn(versions, target),
+            range:
+                memory.borrowTextRange(
+                    requirement,
+                    spec.range,
+                    requirement.length - spec.range
+                ),
+            limit
+        })
+    }
+
+    return Status.Valid
+}
