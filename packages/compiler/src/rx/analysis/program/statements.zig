@@ -116,7 +116,7 @@ fn lowerCall(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cu
                 if (comptime generated) {
                     try @import("store/bind.zig").write(builder, slots, stores);
                 } else {
-                    for (stores, 0..) |*mapped, index| mapped.* = try builder.store(slots.at(index));
+                    for (stores, 0..) |*mapped, index| mapped.* = try builder.seedStore(slots.at(index));
                 }
             },
             .ImportCallee => function = try builder.importFunction(invocation.callee, invocation.callee_suffix, invocation.store_initializers, invocation.function_id),
@@ -138,9 +138,12 @@ fn lowerCall(self: *const Self, comptime form: Schedule.Form, cursor: *Writer.Cu
 fn bindGetters(self: *const Self, cursor: *Writer.Cursor, getters: @FieldType(Module.Call, "getters"), location: zx.Span) Builder.Error!void {
     const builder = self.builder;
 
+    if (getters.len == 0) return;
+    if (comptime generated) return @import("linking/store_get/host.zig").publish(builder, self.writer, cursor, getters, location);
+
     for (getters) |getter| {
-        const slot = try builder.store(getter.readSlot());
-        const snapshot = try direct.storeGet(builder, slot, getter.type_id, location);
+        const slot = try builder.seedStore(getter.readSlot());
+        const snapshot = try builder.seedExpression(.{ .type_id = getter.type_id, .span = location, .value = .{ .store_get = slot } });
         const symbol = try builder.symbol(getter.name, getter.type_id, location);
 
         self.writer.constant(cursor, symbol, snapshot);

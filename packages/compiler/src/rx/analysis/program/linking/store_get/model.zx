@@ -1,7 +1,39 @@
-import type { Input as Row } from "../write_header"
-import type { Input as Slot } from "./slot"
+import type { U8Buffer, U32Buffer } from "memory"
+import type { Getters } from "../../../store/bindings/model"
+import type {
+    Expressions as Headers,
+    Span,
+    Symbols as SymbolColumns
+} from "../../capture/model"
+import type { Header as Statement } from "../../control/write/header"
 
-export type Input = {
-    row: Row,
-    store: Slot
+export type Expressions = {
+    header: Headers,
+    first_payload: u32,
+    kind: u8
+}
+
+export type Symbols = SymbolColumns & {
+    ownership: U8Buffer,
+    copy_tag: u8
+}
+
+export type Constants = {
+    header: Statement,
+    symbols: U32Buffer,
+    values: U32Buffer,
+    bindings: U32Buffer,
+    first_symbol: u32,
+    first_expression: u32
+}
+
+export type Snapshot = {
+    getters: Getters,
+    span: Span
+}
+
+export type Input = Snapshot & {
+    expressions: Expressions,
+    symbols: Symbols,
+    constants: Constants
 }

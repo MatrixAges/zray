@@ -14,7 +14,7 @@ pub const Cursor = extern struct {
     pub fn init(first: Counts) Cursor {
         return .{ .counts = first, .statement = @intCast(first.statements()) };
     }
-    fn cells(self: *Cursor) []u32 {
+    pub fn cells(self: *Cursor) []u32 {
         return @as(*[@sizeOf(Cursor) / @sizeOf(u32)]u32, @ptrCast(self));
     }
 };
@@ -265,7 +265,7 @@ pub fn selection(self: *Self, cursor: *Cursor, subject: ir.ExprId, count: usize,
     }
 }
 
-fn headerView(self: *const Self, comptime Header: type, cursor: *const []u32, kind: Kind) Header {
+pub fn headerView(self: *const Self, comptime Header: type, cursor: *const []u32, kind: Kind) Header {
     comptime {
         if (@sizeOf(Kind) != @sizeOf(u8) or @sizeOf(bool) != @sizeOf(u8)) @compileError("control tags and flags must occupy one byte");
     }

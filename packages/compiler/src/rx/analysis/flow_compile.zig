@@ -225,9 +225,7 @@ pub fn call(self: *Self, loaded: Module.Loaded, outputs: *frontend.expressions.B
     inline for (comptime Schedule.steps(.Call)) |action| {
         switch (action) {
             .Done => {},
-            .BindGetters => for (loaded.getters) |getter| {
-                try self.bindings.append(self.binding_allocator, .{ .name = getter.name, .type_id = getter.type_id });
-            },
+            .BindGetters => try @import("store/bindings.zig").typed(&self.bindings, self.binding_allocator, loaded.getters),
             .CompileArgument => argument = if (input) |attribute| value: {
                 const expected = loaded.function.program.input_type;
 

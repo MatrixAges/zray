@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import merge from "./merge"
+import { Status } from "./model"
+
+import type { Input as Merge } from "./merge"
+import type { Input as Bind } from "./model"
+
+export type Input = Merge & Bind.Pick("permissions", "mapping") & {
+    index: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const resolved = merge(in.pick([
+        "registered",
+        "slot"
+    ]))
+
+    const row = resolved.row
+
+    if (row == null) {
+        return Status.Append
+    }
+
+    if (!resolved.compatible) {
+        return Status.Conflict
+    }
+
+    memory.writeU8(in.permissions.readable, row, resolved.readable ? 1 : 0)
+    memory.writeU8(in.permissions.writable, row, resolved.writable ? 1 : 0)
+    memory.writeU32(in.mapping, in.index, integers.narrow(row))
+
+    return Status.Ready
+}

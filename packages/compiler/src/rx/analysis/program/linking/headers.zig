@@ -11,13 +11,13 @@ pub const Tail = struct {
     starts: []u64,
     ends: []u64,
     payloads: []u32,
-    pub fn init(storage: *ir.ExpressionStorage) Tail {
+    pub fn init(storage: *ir.ExpressionStorage, count: usize) Tail {
         return .{
-            .kinds = std.mem.sliceAsBytes(storage.kinds.unusedCapacitySlice()[0..1]),
-            .types = storage.types.unusedCapacitySlice()[0..1],
-            .starts = storage.span_start.unusedCapacitySlice()[0..1],
-            .ends = storage.span_end.unusedCapacitySlice()[0..1],
-            .payloads = storage.payloads.unusedCapacitySlice()[0..1],
+            .kinds = std.mem.sliceAsBytes(storage.kinds.unusedCapacitySlice()[0..count]),
+            .types = storage.types.unusedCapacitySlice()[0..count],
+            .starts = storage.span_start.unusedCapacitySlice()[0..count],
+            .ends = storage.span_end.unusedCapacitySlice()[0..count],
+            .payloads = storage.payloads.unusedCapacitySlice()[0..count],
         };
     }
     pub fn view(self: *const Tail, comptime Target: type) Target {

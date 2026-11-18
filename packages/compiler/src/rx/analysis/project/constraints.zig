@@ -229,9 +229,7 @@ pub const Walker = struct {
                 .PublishGetters => {
                     expression.attribute = attribute.?.*;
 
-                    for (invocation.getters) |getter| {
-                        try expression.bindings.append(expression.scope, .{ .name = getter.name, .value = try graph.known(getter.type_id, span) });
-                    }
+                    try @import("../store/bindings.zig").infer(graph, &expression.bindings, expression.scope, invocation.getters, span);
                 },
                 .InferArgument => _ = if (Inputs.input(self.arguments, index)) |parsed|
                     try inferParsedAttribute(expression, parsed, attribute.?.*, input)

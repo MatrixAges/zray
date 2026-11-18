@@ -1,0 +1,27 @@
+import strings from "std:string"
+import memory from "memory"
+
+import type { Input as Publication } from "./model"
+
+export type Input = Publication.Omit("expressions", "constants")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { getters, symbols } = in
+
+    const written = loop(0, {
+        while: row => row < getters.count,
+        next: row => {
+            const name = memory.readTextColumn(getters.names, row)
+            const type_id = memory.readColumnU32(getters.types, row)
+
+            memory.writeString(symbols.names, row, strings.copy(name))
+            memory.writeU32(symbols.types, row, type_id)
+            memory.writeU64(symbols.starts, row, in.span.start)
+            memory.writeU64(symbols.ends, row, in.span.end)
+            memory.writeU8(symbols.ownership, row, symbols.copy_tag)
+            row += 1
+        }
+    })
+}

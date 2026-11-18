@@ -1,0 +1,7 @@
+import type { ReadColumn, TextColumn } from "memory"
+
+export type Getters = {
+    names: TextColumn,
+    types: ReadColumn,
+    count: u64
+}

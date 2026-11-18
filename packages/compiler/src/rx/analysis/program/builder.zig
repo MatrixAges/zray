@@ -116,28 +116,6 @@ fn linkFailure(err: anyerror) Error {
     return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidModule;
 }
 
-pub fn store(self: *Self, value: ir.StoreSlot) Error!u32 {
-    if (self.stores.count() != 0) {
-        if (comptime @import("rx_options").generated_graph) {
-            const incoming: ir.StoreTable = .{
-                .paths = &.{value.path},
-                .types = &.{@backingInt(value.type_id)},
-                .handles = &.{value.handle},
-                .readable = &.{value.readable},
-                .writable = &.{value.writable},
-            };
-
-            var row: [1]u32 = undefined;
-
-            try @import("store/bind.zig").write(self, incoming, &row);
-
-            return row[0];
-        } else if (try self.mergeStoreSeed(value)) |row| return row;
-    }
-
-    return self.appendStore(value);
-}
-
 pub fn appendStore(self: *Self, value: ir.StoreSlot) std.mem.Allocator.Error!u32 {
     const id: u32 = @intCast(self.stores.count());
 
@@ -146,7 +124,7 @@ pub fn appendStore(self: *Self, value: ir.StoreSlot) std.mem.Allocator.Error!u32
     return id;
 }
 
-fn mergeStoreSeed(self: *Self, value: ir.StoreSlot) Error!?u32 {
+pub fn seedStore(self: *Self, value: ir.StoreSlot) Error!u32 {
     for (0..self.stores.count()) |index| {
         const slot = self.stores.at(index);
 
@@ -159,7 +137,7 @@ fn mergeStoreSeed(self: *Self, value: ir.StoreSlot) Error!?u32 {
         return @intCast(index);
     }
 
-    return null;
+    return self.appendStore(value);
 }
 
 fn lookupFunction(self: *const Self, id: ir.FunctionId) ir.Function {

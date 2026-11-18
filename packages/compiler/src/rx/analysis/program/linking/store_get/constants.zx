@@ -1,0 +1,32 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import binding from "../../control/write/binding"
+
+import type { Constants } from "./model"
+
+export type Input = Constants & {
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const offset = integers.narrow(row)
+            const symbol = in.first_symbol + offset
+
+            binding({
+                header: in.header,
+                symbols: in.symbols,
+                values: in.values,
+                symbol,
+                value: in.first_expression + offset
+            })
+            memory.writeU32(in.bindings, row, symbol)
+            row += 1
+        }
+    })
+}

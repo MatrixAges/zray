@@ -3,6 +3,27 @@
 
     <Args in={StoreGet.Input} out={void} />
 
-    <Call fn="slot" in={$in.store} />
-    <Call fn="../write_header" in={$in.row} />
+    <Call
+        fn="expressions"
+        in={$in.omit([
+            "symbols",
+            "constants"
+        ])}
+    />
+
+    <Call
+        fn="symbols"
+        in={$in.omit([
+            "expressions",
+            "constants"
+        ])}
+    />
+
+    <Call
+        fn="constants"
+        in={{
+            ...$in.constants,
+            count: $in.getters.count
+        }}
+    />
 </Module>
