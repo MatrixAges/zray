@@ -2,8 +2,7 @@ const std = @import("std");
 const Inputs = @import("../cli/watch/inputs.zig");
 const manifest = @import("manifest.zig");
 const Manifest = @import("manifest/model.zig").Manifest;
-const Pattern = @import("workspace/pattern.zig");
-const directory = @import("workspace/directory.zig");
+const rules = @import("cli_source");
 pub const Package = struct { path: []const u8, manifest: Manifest };
 
 pub const Result = struct {
@@ -50,16 +49,14 @@ fn collect(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) ![]c
 
     if (workspace.packages.len == 0) return try packages.toOwnedSlice(allocator);
 
-    const patterns = try allocator.alloc(Pattern, workspace.packages.len);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const patterns = workspace.packages;
+    const invalid = rules.workspace_invalid_pattern.executeValue(empty.allocator(), patterns) catch unreachable;
 
-    for (workspace.packages, patterns) |text, *pattern| {
-        pattern.* = Pattern.parse(allocator, text) catch |err| {
-            if (err == error.OutOfMemory) return err;
+    if (invalid) |index| {
+        result.diagnostic = try std.fmt.allocPrint(allocator, "{s}: unsupported workspace pattern: {s}", .{ path, patterns[@intCast(index)] });
 
-            result.diagnostic = try std.fmt.allocPrint(allocator, "{s}: unsupported workspace pattern: {s}", .{ path, text });
-
-            return error.InvalidWorkspace;
-        };
+        return error.InvalidWorkspace;
     }
 
     if (inputs) |observed| try observed.add(io, root_path);
@@ -79,22 +76,12 @@ fn collect(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) ![]c
     var paths: std.ArrayList([]const u8) = .empty;
 
     while (try walker.next(io)) |entry| {
-        if (entry.kind != .directory or directory.ignored(entry.basename)) continue;
+        if (entry.kind != .directory) continue;
 
-        var included = false;
-        var excluded = false;
-        var descendants = false;
+        const decision = rules.workspace_directory.executeValue(empty.allocator(), &.{ .patterns = patterns, .path = entry.path, .name = entry.basename }) catch unreachable;
 
-        for (patterns) |pattern| {
-            const match = try pattern.inspect(allocator, entry.path);
-
-            if (!pattern.exclude) descendants = descendants or match.descendants;
-            if (!match.matched) continue;
-            if (pattern.exclude) excluded = true else included = true;
-        }
-
-        if (included and !excluded) try paths.append(allocator, try allocator.dupe(u8, entry.path));
-        if (!descendants) continue;
+        if (decision.included) try paths.append(allocator, try allocator.dupe(u8, entry.path));
+        if (!decision.descendants) continue;
 
         if (inputs) |observed| {
             const child = try std.fs.path.join(allocator, &.{ root_path, entry.path });

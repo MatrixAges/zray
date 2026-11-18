@@ -1,0 +1,51 @@
+import { ascii_dot, ascii_minus, ascii_slash } from "core/ascii/const"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_lower_first,
+    ascii_lower_last,
+    ascii_underscore,
+    ascii_upper_first,
+    ascii_upper_last
+} from "core/const"
+
+export type Input = string
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (in.length == 0 || in[0] != ascii_dot) {
+        return false
+    }
+
+    if (in.length == 1) {
+        return true
+    }
+
+    if (in.length == 2 || in[1] != ascii_slash) {
+        return false
+    }
+
+    return loop({
+        i: 2,
+        valid: true
+    }, {
+        while: s => s.valid && s.i < in.length,
+        next: s => {
+            const byte = in[s.i]
+
+            if (byte == ascii_slash) {
+                s.valid = s.i + 1 < in.length && in[s.i - 1] != ascii_slash
+            } else {
+                const digit = byte >= ascii_digit_first && byte <= ascii_digit_last
+                const upper = byte >= ascii_upper_first && byte <= ascii_upper_last
+                const lower = byte >= ascii_lower_first && byte <= ascii_lower_last
+                const word = digit || upper || lower
+                s.valid = word || byte == ascii_underscore || byte == ascii_minus
+            }
+
+            s.i += 1
+        },
+        return: s => s.valid
+    })
+}

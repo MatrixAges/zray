@@ -29,12 +29,10 @@ pub fn digest(io: std.Io, allocator: std.mem.Allocator, path: []const u8) ![32]u
     return hash.finalResult();
 }
 
-pub fn ignored(name: []const u8) bool {
-    for ([_][]const u8{ ".git", ".zxc", ".zig-cache", "zig-out", "zig-pkg", "node_modules" }) |value| {
-        if (std.mem.eql(u8, name, value)) return true;
-    }
+fn ignored(name: []const u8) bool {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return false;
+    return @import("cli_source").workspace_ignored.executeValue(empty.allocator(), name) catch unreachable;
 }
 
 fn lessThan(_: void, left: []const u8, right: []const u8) bool {

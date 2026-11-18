@@ -1,0 +1,15 @@
+export const git_directory: string = ".git"
+
+export const zxc_directory: string = ".zxc"
+
+export const zig_cache: string = ".zig-cache"
+
+export const zig_output: string = "zig-out"
+
+export const zig_packages: string = "zig-pkg"
+
+export const node_modules: string = "node_modules"
+
+export const zx_extension: string = ".zx"
+
+export const rx_extension: string = ".rx"

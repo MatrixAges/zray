@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Path" />
+
+    <Args in={Path.Request} out={bool} />
+
+    <If on={$in.kind == Path.Kind.Export}>
+        <Call fn="exported" in={$in.text} />
+
+        <Return value={$ctx.exported} />
+    </If>
+
+    <If on={$in.kind == Path.Kind.Entry}>
+        <Call fn="extension" in={$in.text} />
+
+        <If on={!$ctx.extension}>
+            <Return value={false} />
+        </If>
+    </If>
+
+    <Call fn="relative" in={$in} />
+
+    <Return value={$ctx.relative} />
+</Module>

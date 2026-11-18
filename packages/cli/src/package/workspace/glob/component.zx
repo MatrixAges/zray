@@ -1,0 +1,44 @@
+import { ascii_backslash, ascii_dot, ascii_null, ascii_slash } from "core/ascii/const"
+
+import type { Span as Output } from "./model"
+
+export type Input = {
+    text: string,
+    from: u64,
+    pattern: bool
+}
+
+export default function (in: Input): Output {
+    const { text, pattern } = in
+
+    const start = loop(in.from, {
+        while: i => {
+            const byte = i < text.length ? text[i] : ascii_null
+            const separator =
+                byte == ascii_slash || (!pattern && byte == ascii_backslash)
+            const dot = pattern && byte == ascii_dot
+            const boundary = i + 1 >= text.length || text[i + 1] == ascii_slash
+
+            return separator || (dot && boundary)
+        },
+        next: i => {
+            i += 1
+        }
+    })
+
+    const end = loop(start, {
+        while: i => {
+            const byte = i < text.length ? text[i] : ascii_slash
+
+            return byte != ascii_slash && (pattern || byte != ascii_backslash)
+        },
+        next: i => {
+            i += 1
+        }
+    })
+
+    return {
+        start,
+        end
+    }
+}

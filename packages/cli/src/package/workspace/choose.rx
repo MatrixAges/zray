@@ -1,0 +1,25 @@
+<Module>
+    <Type from="glob/model" as="Glob" />
+
+    <Args
+        in={Glob.Input & {
+            name: string
+        }}
+        out={Glob.Decision}
+    />
+
+    <Call fn="ignored" in={$in.name} />
+
+    <If on={$ctx.ignored}>
+        <Return
+            value={{
+                included: false,
+                descendants: false
+            }}
+        />
+    </If>
+
+    <Call fn="glob/select" in={$in.omit(["name"])} />
+
+    <Return value={$ctx.select} />
+</Module>

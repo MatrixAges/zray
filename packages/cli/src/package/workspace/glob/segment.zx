@@ -1,0 +1,57 @@
+import { ascii_asterisk, ascii_question } from "core/ascii/const"
+
+import type { Span } from "./model"
+
+export type Input = {
+    pattern: string,
+    path: string,
+    rule: Span,
+    part: Span
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { rule, part, pattern, path } = in
+
+    return loop({
+        p: rule.start,
+        t: part.start,
+        star: 0,
+        retry: part.start,
+        matched: true
+    }, {
+        while: s => s.matched && s.t < part.end,
+        next: s => {
+            const available = s.p < rule.end
+            const literal =
+                available &&
+                (pattern[s.p] == ascii_question || pattern[s.p] == path[s.t])
+
+            if (literal) {
+                s.p += 1
+                s.t += 1
+            } else if (available && pattern[s.p] == ascii_asterisk) {
+                s.p += 1
+                s.star = s.p
+                s.retry = s.t
+            } else if (s.star != 0) {
+                s.retry += 1
+                s.t = s.retry
+                s.p = s.star
+            } else {
+                s.matched = false
+            }
+        },
+        return: s => {
+            const stop = loop(s.p, {
+                while: p => p < rule.end && pattern[p] == ascii_asterisk,
+                next: p => {
+                    p += 1
+                }
+            })
+
+            return s.matched && stop == rule.end
+        }
+    })
+}

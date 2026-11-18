@@ -15,7 +15,7 @@ pub fn decode(decoder: *Decoder, node: *const c.yaml_node_t) Decoder.Error![]con
         const value = decoder.node(entry.value);
         const path = try decoder.scalar(key);
 
-        if (!valid(path)) return decoder.fail(key, "export paths must be . or ./ followed by explicit module path segments");
+        if (!Decoder.validPath(path, .Export)) return decoder.fail(key, "export paths must be . or ./ followed by explicit module path segments");
 
         if (value.type == c.YAML_MAPPING_NODE) {
             const fields = try decoder.mapping(value);
@@ -29,27 +29,10 @@ pub fn decode(decoder: *Decoder, node: *const c.yaml_node_t) Decoder.Error![]con
 
         const source = try decoder.scalar(value);
 
-        if (!Decoder.relativePath(source)) return decoder.fail(value, "export implementation must stay inside the package");
+        if (!Decoder.validPath(source, .Relative)) return decoder.fail(value, "export implementation must stay inside the package");
 
         item.* = .{ .path = path, .source = source };
     }
 
     return result;
-}
-
-fn valid(path: []const u8) bool {
-    if (std.mem.eql(u8, path, ".")) return true;
-    if (!std.mem.startsWith(u8, path, "./")) return false;
-
-    var segments = std.mem.splitScalar(u8, path[2..], '/');
-
-    while (segments.next()) |segment| {
-        if (segment.len == 0) return false;
-
-        for (segment) |byte| {
-            if (!std.ascii.isAlphanumeric(byte) and byte != '_' and byte != '-') return false;
-        }
-    }
-
-    return true;
 }

@@ -1,0 +1,38 @@
+import { ascii_bang } from "core/ascii/const"
+
+import inspect from "./inspect"
+
+import type { Input, Decision as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { path, patterns } = in
+
+    return loop({
+        i: 0,
+        included: false,
+        excluded: false,
+        descendants: false
+    }, {
+        while: s => s.i < patterns.length,
+        next: s => {
+            const pattern = patterns[s.i]
+            const result = inspect({
+                pattern,
+                path
+            })
+
+            if (pattern[0] == ascii_bang) {
+                s.excluded = s.excluded || result.matched
+            } else {
+                s.included = s.included || result.matched
+                s.descendants = s.descendants || result.descendants
+            }
+
+            s.i += 1
+        },
+        return: s => ({
+            included: s.included && !s.excluded,
+            descendants: s.descendants
+        })
+    })
+}

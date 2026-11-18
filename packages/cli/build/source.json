@@ -10,6 +10,10 @@
         {
             "path": "archive",
             "prefix": "package/archive/"
+        },
+        {
+            "path": "workspace",
+            "prefix": "package/workspace/"
         }
     ],
     "entries": [
@@ -32,6 +36,22 @@
         {
             "path": "package/archive/path/normalize.rx",
             "name": "archive_path"
+        },
+        {
+            "path": "package/workspace/glob/invalid.zx",
+            "name": "workspace_invalid_pattern"
+        },
+        {
+            "path": "package/workspace/choose.rx",
+            "name": "workspace_directory"
+        },
+        {
+            "path": "package/workspace/ignored.zx",
+            "name": "workspace_ignored"
+        },
+        {
+            "path": "package/workspace/paths/validate.rx",
+            "name": "manifest_path"
         }
     ],
     "packages": [

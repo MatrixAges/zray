@@ -1,0 +1,54 @@
+import {
+    ascii_backslash,
+    ascii_bang,
+    ascii_colon,
+    ascii_dot,
+    ascii_null,
+    ascii_slash
+} from "core/ascii/const"
+
+import { Kind } from "./model"
+
+import type { Request as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { text } = in
+
+    const workspace = in.kind == Kind.Workspace
+    const negated = workspace && text.length > 0 && text[0] == ascii_bang
+    const start = negated ? 1 : 0
+
+    if (start == text.length || text[start] == ascii_slash) {
+        return false
+    }
+
+    return loop({
+        i: start,
+        first: start,
+        valid: true
+    }, {
+        while: s => s.valid && s.i <= text.length,
+        next: s => {
+            if (s.i == text.length || text[s.i] == ascii_slash) {
+                const pair = s.i - s.first == 2
+                const parent = pair && text[s.first] == ascii_dot &&
+                    text[s.first + 1] == ascii_dot
+
+                s.valid = !parent
+                s.first = s.i + 1
+            } else {
+                s.valid = match text[s.i] {
+                    ascii_backslash => false,
+                    ascii_colon => false,
+                    ascii_null => false,
+                    _ => true
+                }
+            }
+
+            s.i += 1
+        },
+        return: s => s.valid
+    })
+}

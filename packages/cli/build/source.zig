@@ -5,6 +5,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     const files = b.addWriteFiles();
     _ = files.addCopyDirectory(b.path("src/arguments"), "arguments", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/package/archive"), "archive", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/workspace"), "workspace", .{ .include_extensions = &.{ ".rx", ".zx" } });
 
     for ([_][]const u8{ "const.zx", "ascii/const.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));

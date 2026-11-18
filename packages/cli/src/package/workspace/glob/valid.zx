@@ -1,0 +1,58 @@
+import {
+    ascii_asterisk,
+    ascii_bang,
+    ascii_close_brace,
+    ascii_close_bracket,
+    ascii_close_paren,
+    ascii_open_brace,
+    ascii_open_bracket,
+    ascii_open_paren,
+    ascii_slash
+} from "core/ascii/const"
+
+export type Input = string
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const first = in.length > 0 && in[0] == ascii_bang ? 1 : 0
+
+    return loop({
+        i: first,
+        start: first,
+        valid: in.length > 0
+    }, {
+        while: s => s.valid && s.i < in.length,
+        next: s => {
+            const byte = in[s.i]
+            switch (byte) {
+                case ascii_slash:
+                    s.start = s.i + 1
+                case ascii_asterisk:
+                    const next = s.i + 1
+
+                    if (next < in.length && in[next] == ascii_asterisk) {
+                        const end = next + 1
+                        const whole = end == in.length || in[end] == ascii_slash
+
+                        s.valid = s.i == s.start && whole
+                        s.i = next
+                    }
+                default:
+                    s.valid = match byte {
+                        ascii_bang => false,
+                        ascii_open_paren => false,
+                        ascii_close_paren => false,
+                        ascii_open_brace => false,
+                        ascii_close_brace => false,
+                        ascii_open_bracket => false,
+                        ascii_close_bracket => false,
+                        _ => true
+                    }
+            }
+
+            s.i += 1
+        },
+        return: s => s.valid
+    })
+}

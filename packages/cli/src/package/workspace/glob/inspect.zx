@@ -1,0 +1,87 @@
+import { ascii_asterisk, ascii_bang } from "core/ascii/const"
+
+import component from "./component"
+import segment from "./segment"
+
+import type { Match as Output } from "./model"
+
+export type Input = {
+    pattern: string,
+    path: string
+}
+
+export default function (in: Input): Output {
+    const { pattern, path } = in
+
+    const excluded = pattern.length > 0 && pattern[0] == ascii_bang
+
+    return loop({
+        p: excluded ? 1 : 0,
+        t: 0,
+        anchor: 0,
+        retry: 0,
+        done: false,
+        matched: false,
+        descendants: false
+    }, {
+        while: s => !s.done,
+        next: s => {
+            const rule = component({
+                text: pattern,
+                from: s.p,
+                pattern: true
+            })
+            const part = component({
+                text: path,
+                from: s.t,
+                pattern: false
+            })
+            const globstar =
+                rule.end - rule.start == 2 && pattern[rule.start] == ascii_asterisk &&
+                pattern[rule.start + 1] == ascii_asterisk
+
+            if (globstar) {
+                s.anchor = rule.end
+                s.retry = part.start
+                s.p = rule.end
+
+                if (rule.end == pattern.length) {
+                    s.matched = true
+                    s.descendants = true
+                    s.done = true
+                }
+            } else if (part.start == part.end) {
+                s.matched = rule.start == rule.end
+                s.descendants = s.anchor != 0 || !s.matched
+                s.done = true
+            } else {
+                const consume = rule.start != rule.end && segment({
+                    pattern,
+                    path,
+                    rule,
+                    part
+                })
+
+                if (consume) {
+                    s.p = rule.end
+                    s.t = part.end
+                } else if (s.anchor != 0) {
+                    const retry = component({
+                        text: path,
+                        from: s.retry,
+                        pattern: false
+                    })
+                    s.retry = retry.end
+                    s.t = retry.end
+                    s.p = s.anchor
+                } else {
+                    s.done = true
+                }
+            }
+        },
+        return: s => ({
+            matched: s.matched,
+            descendants: s.descendants
+        })
+    })
+}

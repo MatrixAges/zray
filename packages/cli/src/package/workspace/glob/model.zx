@@ -1,0 +1,19 @@
+export type Span = {
+    start: u64,
+    end: u64
+}
+
+export type Input = {
+    patterns: string[],
+    path: string
+}
+
+export type Decision = {
+    included: bool,
+    descendants: bool
+}
+
+export type Match = {
+    matched: bool,
+    descendants: bool
+}

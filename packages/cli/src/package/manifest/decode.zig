@@ -1,4 +1,5 @@
 const std = @import("std");
+const path_rule = @import("cli_source").manifest_path;
 const c = @import("yaml.zig").c;
 const model = @import("model.zig");
 const Decoder = @This();
@@ -23,13 +24,13 @@ pub fn decode(self: *Decoder, root: *const c.yaml_node_t) Error!model.Manifest {
         } else if (std.mem.eql(u8, key, "entry")) {
             result.entry = try self.scalar(value);
 
-            if ((!std.mem.endsWith(u8, result.entry.?, ".zx") and !std.mem.endsWith(u8, result.entry.?, ".rx")) or !relativePath(result.entry.?)) {
+            if (!validPath(result.entry.?, .Entry)) {
                 return self.fail(value, "entry must be a package-relative .zx or .rx file path");
             }
         } else if (std.mem.eql(u8, key, "library")) {
             result.library = try self.scalar(value);
 
-            if (!relativePath(result.library.?)) return self.fail(value, "library must be a package-relative artifact path");
+            if (!validPath(result.library.?, .Relative)) return self.fail(value, "library must be a package-relative artifact path");
         } else if (std.mem.eql(u8, key, "exports")) {
             result.exports = try @import("exports.zig").decode(self, value);
         } else if (std.mem.eql(u8, key, "private")) {
@@ -91,9 +92,8 @@ fn workspace(self: *Decoder, value: *const c.yaml_node_t) Error!model.Workspace 
             const item = self.node(items.start[index]);
 
             path.* = try self.scalar(item);
-            const pattern = if (path.*[0] == '!') path.*[1..] else path.*;
 
-            if (!relativePath(pattern)) return self.fail(item, "workspace package patterns must stay inside the workspace");
+            if (!validPath(path.*, .Workspace)) return self.fail(item, "workspace package patterns must stay inside the workspace");
         }
 
         packages = paths;
@@ -185,14 +185,8 @@ pub fn fail(self: *Decoder, value: *const c.yaml_node_t, message: []const u8) Er
     return error.InvalidManifest;
 }
 
-pub fn relativePath(path: []const u8) bool {
-    if (path.len == 0 or path[0] == '/' or std.mem.indexOfAny(u8, path, "\\:\x00") != null) return false;
+pub fn validPath(text: []const u8, kind: @FieldType(@typeInfo(path_rule.Input).pointer.child, "kind")) bool {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    var parts = std.mem.splitScalar(u8, path, '/');
-
-    while (parts.next()) |part| {
-        if (std.mem.eql(u8, part, "..")) return false;
-    }
-
-    return true;
+    return path_rule.executeValue(empty.allocator(), &.{ .text = text, .kind = kind }) catch unreachable;
 }

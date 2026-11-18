@@ -1,0 +1,15 @@
+import valid from "./valid"
+
+export type Input = string[]
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    return loop(0, {
+        while: i => i < in.length && valid(in[i]),
+        next: i => {
+            i += 1
+        },
+        return: i => i < in.length ? i : null
+    })
+}

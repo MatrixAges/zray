@@ -1,0 +1,11 @@
+export enum Kind {
+    Entry,
+    Relative,
+    Workspace,
+    Export
+}
+
+export type Request = {
+    text: string,
+    kind: Kind
+}
