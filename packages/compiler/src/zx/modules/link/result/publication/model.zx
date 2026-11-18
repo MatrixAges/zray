@@ -1,13 +1,44 @@
+import type { Contracts } from "core/contract_table/model"
+import type { Control } from "core/control_table/model"
+import type { Expressions } from "core/expression_table/model"
+import type { StoreMode } from "core/function_table/complete"
 import type { Stores } from "core/store_table/model"
-import type { Symbols } from "core/symbol_table/model"
+import type { Ownership, Symbols } from "core/symbol_table/model"
+import type { FunctionRow } from "memory/columns"
 import type { Input as ArtifactSurface } from "../../../artifact/surface/model"
 import type { Output as Wrapper } from "../../../forward_entry/model"
+import type { Destination } from "../../signature/publication/model"
 
 export type Forward = {
     symbols: Symbols,
     input_type: u32,
     output_type: u32,
     function_id: u32
+}
+
+export type Registration = {
+    destination: Destination,
+    row: FunctionRow
+}
+
+export type Ports = {
+    input_type: u32,
+    output_type: u32,
+    ownership: Ownership,
+    store_mode: StoreMode
+}
+
+export type Body = {
+    symbols: Symbols,
+    expressions: Expressions,
+    control?: Control,
+    root?: u32,
+    contracts: Contracts
+}
+
+export type Entry = {
+    ports: Ports,
+    body: Body
 }
 
 export type Surface = {
@@ -17,7 +48,9 @@ export type Surface = {
 }
 
 export type Input = Surface & {
-    store_source: Stores
+    store_source: Stores,
+    registration?: Registration,
+    entry?: Entry
 }
 
 export type Published = {
@@ -25,6 +58,17 @@ export type Published = {
     wrapper?: Wrapper
 }
 
-export type Output = Published & {
+export type Selection = {
+    entry?: Entry,
+    wrapper?: Wrapper
+}
+
+export type Unit = {
+    ports: Ports,
+    body?: Body
+}
+
+export type Output = Unit & {
+    path: string,
     stores: Stores
 }

@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Selection} out={Result.Unit} />
+
+    <If on={$in.entry != null}>
+        <If on={$in.wrapper != null}>
+            <Return
+                value={{
+                    ports: $in.entry.ports,
+                    body: {
+                        symbols: $in.wrapper.symbols,
+                        expressions: $in.wrapper.expressions,
+                        control: $in.wrapper.control,
+                        root: $in.wrapper.root,
+                        contracts: $in.wrapper.contracts
+                    }
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                ports: $in.entry.ports,
+                body: $in.entry.body
+            }}
+        />
+    </If>
+
+    <Call fn="empty" in={{}} />
+
+    <Return value={$ctx.empty} />
+</Module>

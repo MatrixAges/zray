@@ -1,0 +1,21 @@
+import { StoreMode } from "core/function_table/complete"
+import { Ownership } from "core/symbol_table/model"
+import { scalar_void } from "core/type_table/const"
+
+import type { Unit } from "./model"
+
+export type Input = {}
+
+export type Output = Unit
+
+export default function (in: Input): Output {
+    return {
+        ports: {
+            input_type: scalar_void,
+            output_type: scalar_void,
+            ownership: Ownership.Borrowed,
+            store_mode: StoreMode.transaction
+        },
+        body: null
+    }
+}
