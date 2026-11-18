@@ -1,0 +1,11 @@
+import frame from "project_frame"
+
+import type { Project } from "project_frame"
+
+export type Input = Project
+
+export type Output = void
+
+export default function (in: Input): Output {
+    frame.publishBody(in)
+}

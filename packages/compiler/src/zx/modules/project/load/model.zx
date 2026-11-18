@@ -72,8 +72,6 @@ export type TargetRoute = {
 export type Import = {
     target: Target,
     claim?: Claim,
-    row: u64,
-    count: u64,
     exported: bool,
     signature: bool
 }
@@ -83,21 +81,4 @@ export type ImportRoute = TargetRoute & {
     next?: u64
     exported: bool
     record: bool
-}
-
-export enum Publication {
-    Signature,
-    Body
-}
-
-export type Scan = {
-    count: u64,
-    suspended?: u64,
-    signature: bool
-}
-
-export type FrameScan = {
-    first?: u64,
-    previous?: u64,
-    publication: Publication
 }

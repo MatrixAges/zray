@@ -1,0 +1,27 @@
+import type { U64Buffer, U8Buffer } from "memory"
+import type { Header, Project } from "project_frame"
+import type { Frame } from "./model"
+
+export type Walk = {
+    project: Project,
+    row: u64,
+    signature: bool,
+    marks: U8Buffer,
+    cursor: U64Buffer,
+    header: U64Buffer,
+    header_target: Header
+}
+
+export type Run = Walk.Omit("row", "marks") & {
+    start: Frame
+}
+
+export type Step = {
+    project: Project,
+    completed?: u64,
+    signature: bool,
+    marks: U8Buffer,
+    header: U64Buffer,
+    header_target: Header,
+    import_cursor: U64Buffer
+}

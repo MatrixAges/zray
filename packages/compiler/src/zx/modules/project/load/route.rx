@@ -24,7 +24,6 @@
     <Return
         value={{
             ...$ctx.target,
-            next: $in.row + 1 < $in.count ? $in.row + 1 : null,
             exported: $in.exported,
             record: !$in.signature
         }}

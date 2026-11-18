@@ -8,7 +8,7 @@ const Claims = @import("imports/host.zig");
 const enabled = @import("parser_options").generated_parser;
 pub const State = enum(u8) { Fresh, Visiting, Done };
 pub const Phase = enum { body, signature };
-const Admission = if (enabled) Result(@import("generated_project_load_admission")) else enum { Push, Skip, Cycle, Depth };
+const Admission = if (enabled) @import("generated_project_load_frames").Output else enum { Push, Skip, Cycle, Depth };
 const SourceAction = if (enabled) @FieldType(Result(@import("generated_project_load_source")), "action") else enum { Descend, Bind, DeferSignature, SkipSignature, RejectRx, Missing, Cycle, Depth };
 
 fn Result(comptime module: type) type {
@@ -19,14 +19,13 @@ const Route = union(enum) { target: Target.Route, interface: Interface.Route };
 
 const ImportPlan = struct {
     route: Route,
-    next: ?usize,
     exported: bool,
     record: bool,
 };
 
 const ImportResult = union(enum) { selected: ImportPlan, duplicate: zx.ast.Name };
 
-pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const interface.Native, scoped: []const interface.Native, externals: []const interface.External, item: anytype, count: usize, phase: Phase) std.mem.Allocator.Error!ImportResult {
+pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const interface.Native, scoped: []const interface.Native, externals: []const interface.External, item: anytype, phase: Phase) std.mem.Allocator.Error!ImportResult {
     const indexed = enabled and @hasField(@TypeOf(item.header), "storage");
 
     if (comptime !indexed) {
@@ -80,8 +79,6 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
                 },
             },
             .claim = if (claim) |*view| view else null,
-            .row = item.index,
-            .count = count,
             .exported = item.exported,
             .signature = phase == .signature,
         };
@@ -100,7 +97,6 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
 
         return .{ .selected = .{
             .route = selected,
-            .next = if (result.next) |row| @intCast(row) else null,
             .exported = result.exported,
             .record = result.record,
         } };
@@ -119,42 +115,34 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
 
     return .{ .selected = .{
         .route = selected,
-        .next = if (item.index + 1 < count) item.index + 1 else null,
         .exported = item.exported,
         .record = phase == .body,
     } };
 }
 
-const Publication = if (enabled) @FieldType(Result(@import("generated_project_load_scan")), "publication") else enum { Signature, Body };
-const FrameScan = struct { first: ?usize, previous: ?usize, publication: Publication };
+pub fn run(project: *anyopaque, state_column: []State, row: usize, depth: usize, phase: Phase) zx.Error!Admission {
+    const generated = @import("generated_project_load_frames");
+    const Input = std.meta.Child(generated.Input);
+    const marks = std.mem.sliceAsBytes(state_column);
+    var cursor_words: [3]u64 = undefined;
+    var header_words: [4]u64 = undefined;
+    const cursor: []u64 = &cursor_words;
+    const header: []u64 = &header_words;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-pub fn scan(count: usize, suspended: ?u64, phase: Phase) FrameScan {
-    if (comptime enabled) {
-        const generated = @import("generated_project_load_scan");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const request: Input = .{
+        .project = @ptrCast(project),
+        .start = &.{ .states = marks, .marks = @ptrCast(&marks), .row = row, .depth = depth },
+        .signature = phase == .signature,
+        .cursor = @ptrCast(&cursor),
+        .header = @ptrCast(&header),
+        .header_target = @ptrCast(&header),
+    };
 
-        const input: std.meta.Child(generated.Input) = .{
-            .count = count,
-            .suspended = suspended,
-            .signature = phase == .signature,
-        };
-
-        const result = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-
-        return .{
-            .first = if (result.first) |row| @intCast(row) else null,
-            .previous = if (result.previous) |row| @intCast(row) else null,
-            .publication = result.publication,
-        };
-    }
-
-    const previous: ?usize = if (suspended) |row| @intCast(row) else null;
-    const first = if (previous) |row| row + 1 else 0;
-
-    return .{
-        .first = if (first < count) first else null,
-        .previous = previous,
-        .publication = if (phase == .signature) .Signature else .Body,
+    return generated.executeIn(empty.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
+        error.InvalidSource => error.InvalidSource,
+        error.OutOfMemory => error.OutOfMemory,
+        else => unreachable,
     };
 }
 
@@ -167,21 +155,6 @@ pub fn states(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Erro
 }
 
 pub fn admit(state_column: []State, row: usize, depth: usize) Admission {
-    if (comptime enabled) {
-        const generated = @import("generated_project_load_admission");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const marks = std.mem.sliceAsBytes(state_column);
-
-        const input: std.meta.Child(generated.Input) = .{
-            .states = marks,
-            .marks = @ptrCast(&marks),
-            .row = row,
-            .depth = depth,
-        };
-
-        return zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-    }
-
     return switch (state_column[row]) {
         .Done => .Skip,
         .Visiting => .Cycle,
@@ -196,22 +169,6 @@ pub fn admit(state_column: []State, row: usize, depth: usize) Admission {
 }
 
 pub fn complete(state_column: []State, row: usize, depth: usize) ?usize {
-    if (comptime enabled) {
-        const generated = @import("generated_project_load_completion");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const marks = std.mem.sliceAsBytes(state_column);
-
-        const input: std.meta.Child(generated.Input) = .{
-            .marks = @ptrCast(&marks),
-            .row = row,
-            .depth = depth,
-        };
-
-        const completed = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;
-
-        return if (completed) |child| @intCast(child) else null;
-    }
-
     state_column[row] = .Done;
 
     return if (depth > 1) row else null;

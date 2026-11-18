@@ -1,0 +1,61 @@
+<Module>
+    <Type from="driver_model" as="Driver" />
+
+    <Args in={Driver.Step} out={u64?} />
+
+    <Call
+        fn="snapshot"
+        in={$in.pick([
+            "project",
+            "header",
+            "header_target",
+            "completed"
+        ])}
+    />
+
+    <If on={$in.completed != null}>
+        <Call
+            fn="resume"
+            in={{
+                project: $in.project,
+                row: $ctx.snapshot.suspended,
+                child: $in.completed,
+                signature: $in.signature
+            }}
+        />
+    </If>
+
+    <Call
+        fn="imports/walk"
+        in={{
+            project: $in.project,
+            cursor: $in.import_cursor,
+            first: $ctx.snapshot.first,
+            count: $ctx.snapshot.count,
+            signature: $in.signature
+        }}
+    />
+
+    <If on={$ctx.walk != null}>
+        <Return value={$ctx.walk} />
+    </If>
+
+    <If on={$in.signature}>
+        <Call fn="publish_signature" in={$in.project} />
+
+        <Else>
+            <Call fn="publish_body" in={$in.project} />
+        </Else>
+    </If>
+
+    <Call
+        fn="complete"
+        in={{
+            marks: $in.marks,
+            row: $ctx.snapshot.row,
+            depth: $ctx.snapshot.depth
+        }}
+    />
+
+    <Return value={null} />
+</Module>

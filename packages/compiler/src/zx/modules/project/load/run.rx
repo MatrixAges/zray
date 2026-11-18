@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Load" />
+    <Type from="driver_model" as="Driver" />
+
+    <Args in={Driver.Run} out={Load.Admission} />
+
+    <Call fn="admit" in={$in.start} />
+
+    <If on={$ctx.admit == Load.Admission.Push}>
+        <Call
+            fn="walk"
+            in={{
+                ...$in.omit(["start"]),
+                row: $in.start.row,
+                marks: $in.start.marks
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.admit} />
+</Module>

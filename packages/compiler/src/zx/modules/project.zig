@@ -16,6 +16,7 @@ const ModuleRecord = @import("module_record.zig");
 const CachePublication = @import("semantic_cache/publication.zig");
 const Input = @import("module_input.zig");
 const Loading = @import("project/load/host.zig");
+const generated_parser = @import("parser_options").generated_parser;
 const Interface = @import("project/interface/host.zig");
 const State = @import("project/state/host.zig");
 const Target = @import("project/target/host.zig");
@@ -37,6 +38,17 @@ pub const package_scope = @import("package_scope.zig");
 pub const Package = package_scope.Package;
 pub const PackageScope = package_scope.Scope;
 pub const specifier = @import("specifier.zig");
+
+comptime {
+    if (generated_parser) {
+        @export(&Project.FrameAccess.open, .{ .name = "zxcProjectFrameOpen" });
+        @export(&Project.FrameAccess.snapshot, .{ .name = "zxcProjectFrameSnapshot" });
+        @export(&Project.FrameAccess.resumeImport, .{ .name = "zxcProjectFrameResume" });
+        @export(&Project.FrameAccess.visit, .{ .name = "zxcProjectFrameVisit" });
+        @export(&Project.FrameAccess.publish, .{ .name = "zxcProjectFramePublish" });
+        @export(&Project.FrameAccess.close, .{ .name = "zxcProjectFrameClose" });
+    }
+}
 
 pub const Options = struct {
     source_index: ?*const source_index.Map = null,
@@ -155,6 +167,21 @@ const Project = struct {
     fn loadFrames(self: *Project, index: usize, comptime phase: Loading.Phase) zx.Error!void {
         const frames = &self.load_frames;
 
+        if (comptime generated_parser) {
+            var context: FrameAccess = .{
+                .project = self,
+                .paths = std.heap.ArenaAllocator.init(self.arena.child_allocator),
+            };
+
+            defer context.paths.deinit();
+
+            return switch (try Loading.run(&context, self.load_states, index, frames.items.len, phase)) {
+                .Skip, .Push => {},
+                .Cycle => self.dependencyCycle(),
+                .Depth => self.dependencyDepth(),
+            };
+        }
+
         switch (Loading.admit(self.load_states, index, frames.items.len)) {
             .Skip => return,
             .Cycle => return self.dependencyCycle(),
@@ -165,7 +192,7 @@ const Project = struct {
         var completed: ?usize = null;
 
         while (frames.items.len != 0) {
-            const frame = &frames.items[frames.items.len - 1];
+            const frame = self.activeFrame();
             self.current_source = frame.index;
 
             const dependency = switch (frame.parsed.result.*) {
@@ -179,14 +206,109 @@ const Project = struct {
                 try self.pushFrame(child);
             } else {
                 completed = Loading.complete(self.load_states, frame.index, frames.items.len);
-
-                frame.deinitScratch(self.arena.child_allocator);
-
-                _ = frames.pop();
+                _ = self.closeFrame();
             }
         }
     }
 
+    fn activeFrame(self: *Project) *LoadFrame {
+        return &self.load_frames.items[self.load_frames.items.len - 1];
+    }
+    fn closeFrame(self: *Project) bool {
+        self.activeFrame().deinitScratch(self.arena.child_allocator);
+
+        _ = self.load_frames.pop();
+
+        return self.load_frames.items.len != 0;
+    }
+    fn publishFrame(self: *Project, frame: *LoadFrame, input: anytype, signature: bool) zx.Error!void {
+        if (signature) return self.finishSignature(frame, input);
+
+        try self.finishInput(frame, input);
+    }
+    const FrameAccess = struct {
+        project: *Project,
+        paths: std.heap.ArenaAllocator,
+        const Status = enum(u8) {
+            ready,
+            descend,
+            invalid_source,
+            out_of_memory,
+            fn failure(err: zx.Error) Status {
+                return switch (err) {
+                    error.InvalidSource => .invalid_source,
+                    error.OutOfMemory => .out_of_memory,
+                };
+            }
+        };
+        fn at(handle: *const anyopaque) *@This() {
+            return @ptrCast(@alignCast(@constCast(handle)));
+        }
+        fn open(handle: *const anyopaque, row: u64) callconv(.c) Status {
+            const context = at(handle);
+
+            _ = context.paths.reset(.free_all);
+
+            context.project.pushFrame(@intCast(row)) catch |err| return .failure(err);
+
+            return .ready;
+        }
+        fn snapshot(handle: *const anyopaque, target: *[4]u64) callconv(.c) void {
+            const project = at(handle).project;
+            const frame = project.activeFrame();
+            project.current_source = frame.index;
+
+            const count = switch (frame.parsed.result.*) {
+                .native => |result| (Input.Native{ .value = result.value.parsed }).header().importCount(),
+                .indexed => |*result| if (ParseCache.indexed_enabled) (Input.Indexed{ .value = result }).header().importCount() else unreachable,
+            };
+
+            target.* = .{ frame.index, count, frame.suspended_import, project.load_frames.items.len };
+        }
+        fn resumeImport(handle: *const anyopaque, row: u64, child: u64, signature: bool) callconv(.c) Status {
+            const project = at(handle).project;
+            const frame = project.activeFrame();
+            const phase: Loading.Phase = if (signature) .signature else .body;
+
+            (switch (frame.parsed.result.*) {
+                .native => |result| project.resumeImport(frame, (Input.Native{ .value = result.value.parsed }).header(), @intCast(row), @intCast(child), phase),
+                .indexed => |*result| if (ParseCache.indexed_enabled) project.resumeImport(frame, (Input.Indexed{ .value = result }).header(), @intCast(row), @intCast(child), phase) else unreachable,
+            }) catch |err| return .failure(err);
+
+            return .ready;
+        }
+        fn visit(handle: *const anyopaque, row: u64, signature: bool, child: *u64) callconv(.c) Status {
+            const context = at(handle);
+            const project = context.project;
+            const frame = project.activeFrame();
+            const phase: Loading.Phase = if (signature) .signature else .body;
+
+            const next = switch (frame.parsed.result.*) {
+                .native => |result| project.visitImport(frame, (Input.Native{ .value = result.value.parsed }).header(), @intCast(row), phase, &context.paths),
+                .indexed => |*result| if (ParseCache.indexed_enabled) project.visitImport(frame, (Input.Indexed{ .value = result }).header(), @intCast(row), phase, &context.paths) else unreachable,
+            } catch |err| return .failure(err);
+
+            child.* = next orelse return .ready;
+
+            return .descend;
+        }
+        fn publish(handle: *const anyopaque, signature: bool) callconv(.c) Status {
+            const context = at(handle);
+            const project = context.project;
+            const frame = project.activeFrame();
+            _ = context.paths.reset(.free_all);
+
+            (switch (frame.parsed.result.*) {
+                .native => |result| project.publishFrame(frame, Input.Native{ .value = result.value.parsed }, signature),
+                .indexed => |*result| if (ParseCache.indexed_enabled) project.publishFrame(frame, Input.Indexed{ .value = result }, signature) else unreachable,
+            }) catch |err| return .failure(err);
+
+            return .ready;
+        }
+        fn close(handle: *const anyopaque) callconv(.c) bool {
+            return at(handle).project.closeFrame();
+        }
+    };
     fn deinitScratch(self: *Project) void {
         const allocator = self.arena.child_allocator;
 
@@ -229,141 +351,141 @@ const Project = struct {
         return self.reporter.fail(.module, .{ .start = 0, .end = 0 }, "module dependency depth exceeds 256");
     }
     fn loadInput(self: *Project, frame: *LoadFrame, input: anytype, phase: Loading.Phase, completed: ?usize) zx.Error!?usize {
-        const index = frame.index;
-        const unit = &self.units[index];
         const header = input.header();
-        const import_count = header.importCount();
-        const aliases = &frame.aliases;
-        const imports = &frame.imports;
-        const constants = &frame.constant_imports;
+        const count = header.importCount();
         var paths = std.heap.ArenaAllocator.init(self.arena.child_allocator);
 
         defer paths.deinit();
 
-        const scan = Loading.scan(import_count, if (completed != null) frame.suspended_import else null, phase);
+        const first = if (completed) |child| first: {
+            const row: usize = @intCast(frame.suspended_import);
 
-        if (scan.previous) |previous| {
-            const item = @import("import_view.zig").get(header, previous);
-            const child = completed.?;
-            const loaded = &self.units[child];
+            try self.resumeImport(frame, header, row, child, phase);
 
-            std.debug.assert(self.load_states[child] == .Done);
+            break :first row + 1;
+        } else 0;
 
-            try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
+        for (first..count) |row| {
+            if (try self.visitImport(frame, header, row, phase, &paths)) |child| return child;
         }
 
-        var next = scan.first;
+        if (phase == .signature) {
+            try self.finishSignature(frame, input);
+        } else try self.finishInput(frame, input);
 
-        while (next) |import_row| {
-            const item = @import("import_view.zig").get(header, import_row);
-            const scope = frame.packageScope(self.options.package_scopes, unit.path);
-            const scoped = scope.nativeInterfaces(self.options.native_interfaces);
-            const externals = scope.externals(self.options.externals);
+        return null;
+    }
+    fn resumeImport(self: *Project, frame: *LoadFrame, header: anytype, row: usize, child: usize, phase: Loading.Phase) zx.Error!void {
+        const item = import_view.get(header, row);
+        const loaded = &self.units[child];
 
-            const plan = switch (try Loading.route(self.arena.child_allocator, &frame.imported_names, self.options.internal_modules, scoped, externals, item, import_count, phase)) {
-                .duplicate => |name| return self.reporter.fail(.name, name.span, "duplicate import binding"),
-                .selected => |selected| selected,
-            };
+        std.debug.assert(self.load_states[child] == .Done);
 
-            next = plan.next;
+        try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
+    }
+    fn visitImport(self: *Project, frame: *LoadFrame, header: anytype, import_row: usize, phase: Loading.Phase, paths: *std.heap.ArenaAllocator) zx.Error!?usize {
+        const unit = &self.units[frame.index];
+        const item = @import("import_view.zig").get(header, import_row);
+        const scope = frame.packageScope(self.options.package_scopes, unit.path);
+        const scoped = scope.nativeInterfaces(self.options.native_interfaces);
+        const externals = scope.externals(self.options.externals);
 
-            const selected_aliases = if (plan.exported) &frame.export_aliases else aliases;
-            const selected_imports = if (plan.exported) &frame.export_functions else imports;
-            const selected_constants = if (plan.exported) &frame.export_constants else constants;
-            var path_buffer: [512]u8 = undefined;
-            var path_memory = std.heap.BufferFirstAllocator.init(&path_buffer, paths.allocator());
+        const plan = switch (try Loading.route(self.arena.child_allocator, &frame.imported_names, self.options.internal_modules, scoped, externals, item, phase)) {
+            .duplicate => |name| return self.reporter.fail(.name, name.span, "duplicate import binding"),
+            .selected => |selected| selected,
+        };
 
-            const resolved: Target.Resolved = target_block: {
-                const target = switch (plan.route) {
-                    .target => |target| target,
-                    .interface => |resolved| {
-                        switch (resolved) {
-                            .native => |entry| {
-                                try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
-                                if (plan.record) try self.rememberImport(frame, item, .native, entry.key());
-                            },
-                            .legacy => |first| {
-                                try self.importExternal(externals, first, item, imports);
-                                if (plan.record) try self.rememberImport(frame, item, .external, null);
-                            },
-                            .duplicate => return self.reporter.fail(.module, item.span, "duplicate native interface module"),
-                            .conflict => return self.reporter.fail(.module, item.span, "native declarations conflict with legacy external signatures"),
-                            .invalid_legacy => return self.reporter.fail(.module, item.span, "external interfaces require a default function import"),
-                            .missing_legacy => return self.reporter.fail(.capability, item.span, "this module has no registered pure interfaces"),
-                        }
+        const selected_aliases = if (plan.exported) &frame.export_aliases else &frame.aliases;
+        const selected_imports = if (plan.exported) &frame.export_functions else &frame.imports;
+        const selected_constants = if (plan.exported) &frame.export_constants else &frame.constant_imports;
+        var path_buffer: [512]u8 = undefined;
+        var path_memory = std.heap.BufferFirstAllocator.init(&path_buffer, paths.allocator());
 
-                        continue;
-                    },
-                };
-
-                switch (target) {
-                    .Invalid => return self.reporter.fail(.module, item.span, "invalid or unknown import specifier"),
-                    .Intrinsic => {
-                        try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
-                            .target = .native,
-                            .types = self.types.view(),
-                            .exports = &.{},
-                            .members = &@import("intrinsic.zig").exports,
-                        }, self.reporter, selected_aliases, selected_imports, selected_constants);
-
-                        if (plan.record) try self.rememberImport(frame, item, .intrinsic, null);
-
-                        continue;
-                    },
-                    .Interface => unreachable,
-                    .File, .Package => {
-                        const scratch = path_memory.allocator();
-
-                        break :target_block try Target.resolveIndexed(.{ .source = scratch, .compiled = scratch }, unit.path, item.path, target, self.options, scope, null, self.reporter, item.span);
-                    },
-                }
-            };
-
-            defer _ = paths.reset(.retain_capacity);
-
-            switch (resolved.target) {
-                .source => |path| {
-                    const source_plan = Loading.source(self.options.source_index.?, self.load_states, .{
-                        .path = path,
-                        .phase = phase,
-                        .function_import = item.kind == .function,
-                        .exported = item.exported,
-                        .depth = self.load_frames.items.len,
-                        .row = resolved.source_row,
-                        .import_row = import_row,
-                        .cursor = &frame.suspended_import,
-                    });
-
-                    switch (source_plan.action) {
-                        .SkipSignature => continue,
-                        .DeferSignature => {
-                            const retained = try self.allocator.dupe(u8, path);
-
-                            try self.bindSignature(frame, item, .{ .exports = &.{}, .signatures = &.{.{ .name = "", .kind = .deferred, .source = retained }} });
+        const resolved: Target.Resolved = target_block: {
+            const target = switch (plan.route) {
+                .target => |target| target,
+                .interface => |resolved| {
+                    switch (resolved) {
+                        .native => |entry| {
+                            try self.importNative(entry.*, item, selected_imports, selected_aliases, selected_constants);
+                            if (plan.record) try self.rememberImport(frame, item, .native, entry.key());
                         },
-                        .RejectRx => return self.reporter.fail(.module, item.span, "ZX package entry must be a .zx source file"),
-                        .Missing => return self.reporter.fail(.module, item.span, "import target is missing from the source set"),
-                        .Cycle => return self.dependencyCycle(),
-                        .Depth => return self.dependencyDepth(),
-                        .Descend => return source_plan.index,
-                        .Bind => {
-                            const loaded = &self.units[source_plan.index.?];
-
-                            try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
+                        .legacy => |first| {
+                            try self.importExternal(externals, first, item, &frame.imports);
+                            if (plan.record) try self.rememberImport(frame, item, .external, null);
                         },
+                        .duplicate => return self.reporter.fail(.module, item.span, "duplicate native interface module"),
+                        .conflict => return self.reporter.fail(.module, item.span, "native declarations conflict with legacy external signatures"),
+                        .invalid_legacy => return self.reporter.fail(.module, item.span, "external interfaces require a default function import"),
+                        .missing_legacy => return self.reporter.fail(.capability, item.span, "this module has no registered pure interfaces"),
                     }
-                },
-                .compiled => |value| {
-                    const imported = try self.loadCompiled(value, item.span);
 
-                    try self.bindResolved(frame, item, phase, imported, .{ .compiled = value });
+                    return null;
+                },
+            };
+
+            switch (target) {
+                .Invalid => return self.reporter.fail(.module, item.span, "invalid or unknown import specifier"),
+                .Intrinsic => {
+                    try import_binding.apply(self.allocator, self.bindingAllocator(), item, .{
+                        .target = .native,
+                        .types = self.types.view(),
+                        .exports = &.{},
+                        .members = &@import("intrinsic.zig").exports,
+                    }, self.reporter, selected_aliases, selected_imports, selected_constants);
+
+                    if (plan.record) try self.rememberImport(frame, item, .intrinsic, null);
+
+                    return null;
+                },
+                .Interface => unreachable,
+                .File, .Package => {
+                    const scratch = path_memory.allocator();
+
+                    break :target_block try Target.resolveIndexed(.{ .source = scratch, .compiled = scratch }, unit.path, item.path, target, self.options, scope, null, self.reporter, item.span);
                 },
             }
-        }
+        };
 
-        switch (scan.publication) {
-            .Signature => try self.finishSignature(frame, input),
-            .Body => try self.finishInput(frame, input),
+        defer _ = paths.reset(.retain_capacity);
+
+        switch (resolved.target) {
+            .source => |path| {
+                const source_plan = Loading.source(self.options.source_index.?, self.load_states, .{
+                    .path = path,
+                    .phase = phase,
+                    .function_import = item.kind == .function,
+                    .exported = item.exported,
+                    .depth = self.load_frames.items.len,
+                    .row = resolved.source_row,
+                    .import_row = import_row,
+                    .cursor = &frame.suspended_import,
+                });
+
+                switch (source_plan.action) {
+                    .SkipSignature => return null,
+                    .DeferSignature => {
+                        const retained = try self.allocator.dupe(u8, path);
+
+                        try self.bindSignature(frame, item, .{ .exports = &.{}, .signatures = &.{.{ .name = "", .kind = .deferred, .source = retained }} });
+                    },
+                    .RejectRx => return self.reporter.fail(.module, item.span, "ZX package entry must be a .zx source file"),
+                    .Missing => return self.reporter.fail(.module, item.span, "import target is missing from the source set"),
+                    .Cycle => return self.dependencyCycle(),
+                    .Depth => return self.dependencyDepth(),
+                    .Descend => return source_plan.index,
+                    .Bind => {
+                        const loaded = &self.units[source_plan.index.?];
+
+                        try self.bindResolved(frame, item, phase, importedSource(loaded, phase), .{ .source = loaded.path });
+                    },
+                }
+            },
+            .compiled => |value| {
+                const imported = try self.loadCompiled(value, item.span);
+
+                try self.bindResolved(frame, item, phase, imported, .{ .compiled = value });
+            },
         }
 
         return null;
