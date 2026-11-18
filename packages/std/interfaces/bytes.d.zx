@@ -68,6 +68,8 @@ export declare function lessThan(left: u8[], right: u8[]): bool concurrent
 
 export declare function hash(in: u8[]): u64 concurrent
 
+export declare function hashSeeded(seed: u64, value: u8[]): u64 concurrent
+
 export declare function readU32(
     in: u8[],
     offset: u64,

@@ -45,11 +45,23 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
     }
 
     const argument = try self.evaluate(invocation.argument);
-    const argument_key = try std.json.Stringify.valueAlloc(self.allocator, argument.value, .{});
-    const key = try std.fmt.allocPrint(self.allocator, "{d}:{s}", .{ @backingInt(invocation.function), argument_key });
+    const cached = try self.graph.calls.lookup(self.allocator, @backingInt(invocation.function), argument.value);
 
-    if (self.graph.calls.get(key)) |result| return .{ .value = result.value, .safe = try terms.connect(self.allocator, .And, argument.safe, result.safe) };
+    const callee = switch (cached) {
+        .hit => |result| result,
+        .miss => |key| blk: {
+            const result = try execute(self, function, argument.value);
 
+            try self.graph.calls.publish(self.allocator, key, result);
+
+            break :blk result;
+        },
+    };
+
+    return .{ .value = callee.value, .safe = try terms.connect(self.allocator, .And, argument.safe, callee.safe) };
+}
+
+fn execute(self: *Expressions, function: ir.Function, input: terms.Value) zx.Error!terms.Evaluation {
     var program = self.program;
 
     program.input_type = function.input_type;
@@ -65,14 +77,10 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
         .allocator = self.allocator,
         .program = program,
         .reporter = self.reporter,
-        .input = argument.value,
+        .input = input,
         .graph = self.graph,
         .call_depth = self.call_depth + 1,
     };
 
-    const result = try conditions.call();
-
-    try self.graph.calls.put(self.allocator, key, result);
-
-    return .{ .value = result.value, .safe = try terms.connect(self.allocator, .And, argument.safe, result.safe) };
+    return conditions.call();
 }

@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import type { Key as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { target, terms } = in
+
+    return loop({
+        index: 0,
+        digest: integers.hash32(target)
+    }, {
+        while: state => state.index < terms.length,
+        next: state => {
+            const term = bytes.fromText(terms[state.index])
+
+            state.digest = bytes.hashSeeded(state.digest, term)
+            state.index += 1
+        },
+        return: state => state.digest
+    })
+}

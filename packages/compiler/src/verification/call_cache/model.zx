@@ -1,0 +1,4 @@
+export type Key = {
+    target: u32,
+    terms: string[]
+}

@@ -415,6 +415,8 @@ pub const main = [_]Entry{
     .{ .path = "verification/graph/const.zx", .name = "verification_graph_constants", .owner = .compiler },
     .{ .path = "verification/graph/admit.zx", .name = "verification_graph_admit", .owner = .compiler },
     .{ .path = "verification/graph/publish.rx", .name = "verification_graph_publish", .owner = .compiler },
+    .{ .path = "verification/call_cache/digest.zx", .name = "verification_call_digest", .owner = .compiler },
+    .{ .path = "verification/call_cache/equal.zx", .name = "verification_call_equal", .owner = .compiler },
     .{ .path = "verification/graph/call.zx", .name = "verification_graph_call", .owner = .compiler },
     .{ .path = "verification/graph/declarations.zx", .name = "verification_graph_declarations", .owner = .compiler },
     .{ .path = "verification/predicate/connect.zx", .name = "verification_connect", .owner = .compiler },

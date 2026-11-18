@@ -18,7 +18,7 @@ reporter: *zx.Reporter,
 definitions: Definitions = .empty,
 declaration_payload_bytes: usize = 0,
 index: if (generated) []u64 else std.StringHashMapUnmanaged(usize) = if (generated) &.{} else .empty,
-calls: std.StringHashMapUnmanaged(terms.Evaluation) = .empty,
+calls: @import("call_cache.zig").Cache = .{},
 steps: usize = 0,
 pub fn step(self: *Self, span: zx.Span) zx.Error!void {
     if (self.steps >= limits.max_steps) return self.reporter.fail(.unsupported, span, limits.step_limit_message);

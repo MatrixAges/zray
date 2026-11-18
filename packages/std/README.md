@@ -85,6 +85,7 @@ import bytes from "std:bytes"
 
 `std:bytes` 直接扫描或比较借用切片，不分配内存、不做字符编码校验，支持并发调用。
 `hash(bytes)` 返回 seed 为 0 的 Wyhash 64 位值，可用于内存哈希索引。
+`hashSeeded(seed, bytes)` 使用指定的起始值，可将多个独立字段按顺序组成同一个索引键。
 
 ## 借用 SHA-256 状态
 
