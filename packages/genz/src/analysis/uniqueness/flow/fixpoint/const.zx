@@ -1,0 +1,3 @@
+export const queued: u8 = 1
+
+export const unlisted: u8 = 0

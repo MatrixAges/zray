@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Order" />
+
+    <Args in={Order.Traversal} out={Order.Trace} />
+
+    <Call fn="initial" in={$in.source} />
+
+    <Call
+        fn="walk"
+        in={{
+            ...$in,
+            state: $ctx.initial
+        }}
+    />
+
+    <Return value={$ctx.walk} />
+</Module>

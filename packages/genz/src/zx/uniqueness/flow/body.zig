@@ -1,36 +1,46 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const Order = @import("../order.zig");
 const Slots = @import("../slots.zig");
-const generated = @import("generated_uniqueness_flow_prepare");
+const generated = @import("generated_uniqueness_flow_facts");
 const Input = std.meta.Child(generated.Input);
-pub const Prepared = std.meta.Child(generated.Output);
+const Facts = std.meta.Child(generated.Output);
 const Self = @This();
 
-function: ir.Function,
-order: Order,
-prepared: Prepared,
-pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, function: ir.Function, slots: Slots) std.mem.Allocator.Error!Self {
-    const input = Input{
-        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), &function.expressions),
-        .counts = slots.counts,
-        .symbols = function.symbols.count(),
-    };
+seen: []const bool,
+definitions: std.meta.Child(@FieldType(Facts, "definitions")),
+results: []const u32,
+prepared: std.meta.Child(@FieldType(Facts, "prepared")),
+pub fn source(comptime Target: type, function: *const ir.Function) Target {
+    const block = function.body.block();
 
-    const prepared = generated.executeIn(workspace, &input) catch |err| switch (err) {
+    return .{
+        .expressions = zx.columns.pointer(@FieldType(Target, "expressions"), &function.expressions),
+        .control = zx.columns.pointer(@FieldType(Target, "control"), block.control),
+        .symbols = function.symbols.count(),
+        .first = @intCast(block.first),
+        .count = @intCast(block.len),
+    };
+}
+
+/// A worklist can revisit a function after its preparation arena has been reset.
+pub fn keep(owner: std.mem.Allocator, temporary: std.mem.Allocator, function: *const ir.Function, slots: Slots) std.mem.Allocator.Error!Self {
+    const order = source(std.meta.Child(@FieldType(Input, "source")), function);
+    const input: Input = .{ .source = &order, .counts = slots.counts };
+
+    const facts = generated.executeIn(temporary, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
     return .{
-        .function = function,
-        .order = try Order.create(allocator, workspace, function.symbols, function.expressions, function.body.block()),
-        .prepared = .{
-            .first = try allocator.dupe(u32, prepared.first),
-            .elements = try allocator.dupe(u32, prepared.elements),
-            .objects = try allocator.dupe(u32, prepared.objects),
-            .object_first = try allocator.dupe(u64, prepared.object_first),
-        },
+        .seen = try owner.dupe(bool, facts.seen),
+        .definitions = try zx.columns.copyScalarColumns(owner, facts.definitions),
+        .results = try owner.dupe(u32, facts.results),
+        .prepared = try zx.columns.copyScalarColumns(owner, facts.prepared),
     };
+}
+
+pub fn view(self: *const Self) Facts {
+    return .{ .seen = self.seen, .definitions = &self.definitions, .results = self.results, .prepared = &self.prepared };
 }

@@ -3,9 +3,10 @@ import { max_u32 } from "core/const"
 
 import alternatives from "./alternatives"
 import expression from "./expression"
-import { Action, Definition, Role } from "./model"
+import { Action, Definition } from "./model"
 import push from "./push"
 import statement from "./statement"
+import arm from "./walk/arm"
 import parts from "./walk/parts"
 import repetition from "./walk/repetition"
 import scope from "./walk/scope"
@@ -14,7 +15,9 @@ import type { Walk as Input, Node, Trace as Output } from "./model"
 
 export default function (in: Input): Output {
     const source = in.source
-    const returns = in.returns
+
+    const { returns, detailed } = in
+
     const completed: Node[] = []
 
     const result = loop({
@@ -76,13 +79,15 @@ export default function (in: Input): Output {
                 case Action.Operand:
                     const child = integers.widen(second)
 
-                    current.edges = current.edges.push({
-                        parent: first,
-                        child: second,
-                        role,
-                        index: third,
-                        region: current.active_region
-                    })[0]
+                    if (detailed) {
+                        current.edges = current.edges.push({
+                            parent: first,
+                            child: second,
+                            role,
+                            index: third,
+                            region: current.active_region
+                        })[0]
+                    }
 
                     if (!current.seen[child]) {
                         const time = current.clock
@@ -90,16 +95,19 @@ export default function (in: Input): Output {
                         current.seen[child] = true
                         current.clock += 1
 
-                        const pending = push({
-                            stack: current.stack,
-                            event: {
-                                action: Action.Finish,
-                                first: second,
-                                second: time,
-                                third: current.active_region,
-                                fourth: current.active_loop
-                            }
-                        })
+                        const pending = match {
+                            detailed => push({
+                                stack: current.stack,
+                                event: {
+                                    action: Action.Finish,
+                                    first: second,
+                                    second: time,
+                                    third: current.active_region,
+                                    fourth: current.active_loop
+                                }
+                            }),
+                            _ => current.stack
+                        }
 
                         current.stack = expression({
                             table,
@@ -150,46 +158,35 @@ export default function (in: Input): Output {
                     })
 
                 case Action.BlockArm:
-                    const region =
-                        integers.narrow(current.regions.length)
-                    const parent = current.active_region
-                    const repeated = push({
-                        stack: current.stack,
-                        event: {
-                            action: Action.RestoreRegion,
-                            first: parent
-                        }
-                    })
                     const block = action == Action.BlockArm
                     const target = integers.widen(fourth)
+                    const parent = current.active_region
 
-                    current.regions = current.regions.push({
-                        parent,
-                        fork: second,
-                        arm: third,
-                        depth: current.regions[integers.widen(parent)].depth + 1,
-                        returns: block && returns[target]
-                    })[0]
-                    current.active_region = region
-                    current.stack = match {
-                        block => push({
-                            stack: repeated,
+                    if (detailed) {
+                        current.active_region = integers.narrow(current.regions.length)
+                        current.regions = current.regions.push({
+                            parent,
+                            fork: second,
+                            arm: third,
+                            depth: current.regions[integers.widen(
+                                parent
+                            )].depth + 1,
+                            returns: block && returns[target]
+                        })[0]
+                        current.stack = push({
+                            stack: current.stack,
                             event: {
-                                action: Action.Block,
-                                first: control.block_first[target],
-                                second: control.block_count[target]
-                            }
-                        }),
-                        _ => push({
-                            stack: repeated,
-                            event: {
-                                action: Action.Operand,
-                                first,
-                                second: fourth,
-                                role: Role.flow
+                                action: Action.RestoreRegion,
+                                first: parent
                             }
                         })
                     }
+
+                    current.stack = arm({
+                        stack: current.stack,
+                        control,
+                        event
+                    })
 
                 case Action.Branch:
                     current.forks += 1
@@ -222,6 +219,7 @@ export default function (in: Input): Output {
     })
 
     return {
+        seen: result.seen,
         completed: result.completed,
         graph: {
             regions: result.regions,

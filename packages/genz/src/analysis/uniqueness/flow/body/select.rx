@@ -1,0 +1,13 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Selection} out={Flow.Facts} />
+
+    <If on={$in.facts != null}>
+        <Return value={$in.facts} />
+    </If>
+
+    <Call module="build" in={$in.omit(["facts"])} />
+
+    <Return value={$ctx.build} />
+</Module>

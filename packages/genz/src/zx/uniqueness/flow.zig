@@ -38,7 +38,9 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
         } else null;
 
         try self.layered(program, slots, found, remembered);
-    } else try self.settle(temporary, workspace, program, slots);
+    } else if (generated_analysis) {
+        try @import("flow/fixpoint.zig").settle(self, temporary, workspace, program.functions, slots);
+    } else try self.settleSeed(temporary, workspace, program, slots);
 
     return self;
 }
@@ -173,6 +175,12 @@ const Layer = struct {
 
         if (held.len == 0) return;
 
+        if (generated_analysis) {
+            _ = try walker.walk.?.visit(index, &function, null);
+
+            return;
+        }
+
         defer _ = walker.bodies.reset(.retain_capacity);
         const body = try Body.create(walker.bodies.allocator(), walker.bodies.allocator(), function, self.slots);
         const walk = &walker.walk.?;
@@ -182,7 +190,7 @@ const Layer = struct {
 };
 
 /// Settles summaries over a call graph with cycles: a body is walked again whenever a callee's summary grows.
-fn settle(self: Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, slots: Slots) std.mem.Allocator.Error!void {
+fn settleSeed(self: Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, slots: Slots) std.mem.Allocator.Error!void {
     var building = std.heap.ArenaAllocator.init(workspace);
 
     defer building.deinit();

@@ -1,0 +1,39 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { queued, unlisted } from "./const"
+
+import type { Advance as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const changed = in.changed
+
+    if (changed == null) {
+        return in.count
+    }
+
+    const body = integers.widen(changed)
+    const end = in.first[body + 1]
+
+    return loop({
+        count: in.count,
+        position: in.first[body]
+    }, {
+        while: state => state.position < end,
+        next: state => {
+            const caller = in.items[state.position]
+            const index = integers.widen(caller)
+
+            if (memory.readU8(in.queued, index) == unlisted) {
+                memory.writeU8(in.queued, index, queued)
+                memory.writeU32(in.indices, state.count, caller)
+                state.count += 1
+            }
+
+            state.position += 1
+        },
+        return: state => state.count
+    })
+}

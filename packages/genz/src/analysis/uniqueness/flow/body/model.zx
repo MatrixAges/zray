@@ -1,4 +1,5 @@
 import type { Expressions } from "core/expression_table/model"
+import type { Input as Order } from "../../order/model"
 import type { Definitions } from "../../order/plan"
 import type { Layout } from "../../slots/model"
 
@@ -15,16 +16,29 @@ export type Preparation = {
     symbols: u64
 }
 
-export type Body = {
-    expressions: Expressions,
+export type DefinitionColumns = Definitions.Omit("repeated")
+
+export type Facts = {
+    seen: bool[],
+    definitions: DefinitionColumns,
+    results: u32[],
+    prepared: Prepared
+}
+
+export type Build = {
+    source: Order,
+    counts: u32[]
+}
+
+export type Environment = {
     type_kinds: u8[],
     type_first: u32[],
     layout: Layout,
-    counts: u32[],
-    time: u32[],
-    definitions: Definitions,
-    results: u32[],
-    prepared: Prepared
+    counts: u32[]
+}
+
+export type Body = Facts & Environment & {
+    expressions: Expressions
 }
 
 export type Summary = {
@@ -40,6 +54,16 @@ export type Input = {
     text_held: bool[][],
     written: bool[][],
     current: Summary
+}
+
+export type Selection = Build & {
+    facts?: Facts
+}
+
+export type Visit = Input.Omit("body") & {
+    source: Order,
+    environment: Environment,
+    facts?: Facts
 }
 
 export type Output = Summary & {

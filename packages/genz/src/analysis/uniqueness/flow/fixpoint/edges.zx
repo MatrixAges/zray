@@ -1,0 +1,33 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { unlisted } from "./const"
+import row from "./row"
+
+import type { Edges as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    loop({
+        source: in,
+        body: in.expressions.length
+    }, {
+        while: state => state.body != 0,
+        next: state => {
+            state.body -= 1
+
+            const { expressions, queued, first, items, fill } = state.source
+
+            if (memory.readU8(queued, state.body) != unlisted) {
+                row({
+                    table: expressions[state.body],
+                    caller: integers.narrow(state.body),
+                    first,
+                    items,
+                    fill
+                })
+            }
+        }
+    })
+}

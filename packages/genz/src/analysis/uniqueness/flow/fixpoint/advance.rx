@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Advance} out={Flow.Visit} />
+
+    <Call fn="requeue" in={$in} />
+
+    <Call
+        fn="take"
+        in={{
+            indices: $in.indices,
+            queued: $in.queued,
+            count: $ctx.requeue
+        }}
+    />
+
+    <Return value={$ctx.take} />
+</Module>

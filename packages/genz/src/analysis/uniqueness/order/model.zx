@@ -88,6 +88,7 @@ export type Graph = {
 }
 
 export type Trace = {
+    seen: bool[],
     completed: Node[],
     graph: Graph
 }
@@ -133,8 +134,12 @@ export type Input = {
     count: u32
 }
 
-export type Walk = {
+export type Traversal = {
     source: Input,
     returns: bool[],
+    detailed: bool
+}
+
+export type Walk = Traversal & {
     state: State
 }

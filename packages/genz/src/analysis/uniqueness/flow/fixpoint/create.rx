@@ -1,0 +1,53 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Input} out={u64} />
+
+    <Call
+        fn="seed"
+        in={$in.pick([
+            "indices",
+            "queued",
+            "native_modules",
+            "held"
+        ])}
+    />
+
+    <Call
+        fn="edges"
+        in={{
+            ...$in.pick([
+                "expressions",
+                "queued",
+                "first",
+                "items"
+            ]),
+            fill: false
+        }}
+    />
+
+    <Call
+        fn="allocate"
+        in={{
+            owner: $in.owner,
+            first: $in.first,
+            count: $in.expressions.length,
+            items: $in.items
+        }}
+    />
+
+    <Call
+        fn="edges"
+        in={{
+            ...$in.pick([
+                "expressions",
+                "queued",
+                "first",
+                "items"
+            ]),
+            fill: true
+        }}
+    />
+
+    <Return value={$ctx.seed} />
+</Module>

@@ -1,0 +1,42 @@
+import integers from "std:integer"
+
+import { Action, Role } from "../model"
+import push from "../push"
+
+import type { Control } from "core/control_table/model"
+import type { Frame, Stack } from "../model"
+
+export type Input = {
+    stack: Stack,
+    control: Control,
+    event: Frame
+}
+
+export type Output = Stack
+
+export default function (in: Input): Output {
+    const { event, control, stack } = in
+
+    const target = integers.widen(event.fourth)
+
+    if (event.action == Action.BlockArm) {
+        return push({
+            stack,
+            event: {
+                action: Action.Block,
+                first: control.block_first[target],
+                second: control.block_count[target]
+            }
+        })
+    }
+
+    return push({
+        stack,
+        event: {
+            action: Action.Operand,
+            first: event.first,
+            second: event.fourth,
+            role: Role.flow
+        }
+    })
+}

@@ -1,0 +1,38 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { queued, unlisted } from "./const"
+
+import type { Input as Program } from "./model"
+
+export type Input = Program.Pick("indices", "queued", "native_modules", "held")
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop({
+        remaining: in.native_modules.length,
+        count: 0
+    }, {
+        while: state => state.remaining != 0,
+        next: state => {
+            state.remaining -= 1
+
+            const body = state.remaining
+            const active =
+                in.native_modules[body] == null && in.held[body].length != 0
+            const membership = active ? queued : unlisted
+            memory.writeU8(in.queued, body, membership)
+
+            if (active) {
+                memory.writeU32(
+                    in.indices,
+                    state.count,
+                    integers.narrow(state.remaining)
+                )
+                state.count += 1
+            }
+        },
+        return: state => state.count
+    })
+}

@@ -1,0 +1,12 @@
+import type { Defined } from "../../order/model"
+import type { DefinitionColumns as Output } from "./model"
+
+export type Input = Defined[]
+
+export default function (in: Input): Output {
+    return {
+        kind: in.map(row => row.kind)[0],
+        value: in.map(row => row.value)[0],
+        index: in.map(row => row.index)[0]
+    }
+}

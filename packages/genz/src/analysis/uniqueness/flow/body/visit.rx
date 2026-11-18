@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Visit} out={Flow.Output} />
+
+    <Call
+        module="select"
+        in={{
+            source: $in.source,
+            counts: $in.environment.counts,
+            facts: $in.facts
+        }}
+    />
+
+    <Call
+        module="analyze"
+        in={{
+            ...$in.omit([
+                "environment",
+                "source",
+                "facts"
+            ]),
+            body: {
+                ...$ctx.select,
+                ...$in.environment,
+                expressions: $in.source.expressions
+            }
+        }}
+    />
+
+    <Return value={$ctx.analyze} />
+</Module>

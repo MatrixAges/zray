@@ -1,0 +1,29 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { unlisted } from "./const"
+
+import type { Stack, Visit as Output } from "./model"
+
+export type Input = Stack & {
+    count: u64
+}
+
+export default function (in: Input): Output {
+    if (in.count == 0) {
+        return {
+            count: 0,
+            index: null
+        }
+    }
+
+    const count = in.count - 1
+    const index = memory.readU32(in.indices, count)
+
+    memory.writeU8(in.queued, integers.widen(index), unlisted)
+
+    return {
+        count,
+        index
+    }
+}

@@ -33,7 +33,7 @@ pub fn build(allocator: std.mem.Allocator, workspace: std.mem.Allocator, symbols
         else => unreachable,
     };
 
-    const definitions = try ownColumns(allocator, output.graph.definitions);
+    const definitions = try columns.copyScalarColumns(allocator, output.graph.definitions);
 
     comptime {
         std.debug.assert(@typeInfo(ir.ExprId).@"enum".tag_type == u32);
@@ -44,9 +44,9 @@ pub fn build(allocator: std.mem.Allocator, workspace: std.mem.Allocator, symbols
     }
 
     return .{
-        .nodes = try ownColumns(allocator, output.nodes),
-        .regions = try ownColumns(allocator, output.graph.regions),
-        .edges = try ownColumns(allocator, output.graph.edges),
+        .nodes = try columns.copyScalarColumns(allocator, output.nodes),
+        .regions = try columns.copyScalarColumns(allocator, output.graph.regions),
+        .edges = try columns.copyScalarColumns(allocator, output.graph.edges),
         .definitions = definitions,
         .def_loop = definitions.repeated,
         .results = @ptrCast(try allocator.dupe(u32, output.graph.results)),
@@ -55,24 +55,6 @@ pub fn build(allocator: std.mem.Allocator, workspace: std.mem.Allocator, symbols
         .concurrent = try allocator.dupe(bool, output.graph.repeated.concurrent),
         .seed = {},
     };
-}
-
-fn ownColumns(allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!std.meta.Child(@TypeOf(source)) {
-    const Table = std.meta.Child(@TypeOf(source));
-    var result: Table = undefined;
-
-    inline for (@typeInfo(Table).@"struct".field_names) |name| {
-        const Item = std.meta.Child(@FieldType(Table, name));
-
-        comptime switch (@typeInfo(Item)) {
-            .int, .bool, .@"enum" => {},
-            else => @compileError("Order columns must contain scalar metadata"),
-        };
-
-        @field(result, name) = try allocator.dupe(Item, @field(source.*, name));
-    }
-
-    return result;
 }
 
 pub fn apart(regions: *const Regions, left: u32, left_time: u32, right: u32, right_time: u32) bool {

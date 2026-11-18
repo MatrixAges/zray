@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Build} out={Flow.Facts} />
+
+    <Call
+        module="../../order/traverse"
+        in={{
+            source: $in.source,
+            returns: [],
+            detailed: false
+        }}
+    />
+
+    <Call fn="definitions" in={$ctx.traverse.graph.definitions} />
+
+    <Call
+        module="prepare"
+        in={{
+            expressions: $in.source.expressions,
+            symbols: $in.source.symbols,
+            counts: $in.counts
+        }}
+    />
+
+    <Return
+        value={{
+            seen: $ctx.traverse.seen,
+            definitions: $ctx.definitions,
+            results: $ctx.traverse.graph.results,
+            prepared: $ctx.prepare
+        }}
+    />
+</Module>

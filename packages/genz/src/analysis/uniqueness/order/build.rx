@@ -5,14 +5,13 @@
     <Args in={Order.Input} out={Published.Plan} />
 
     <Call fn="../../../../core/control_table/terminates" in={$in.control} />
-    <Call fn="initial" in={$in} />
 
     <Call
-        fn="walk"
+        module="traverse"
         in={{
             source: $in,
             returns: $ctx.terminates,
-            state: $ctx.initial
+            detailed: true
         }}
     />
 
@@ -20,11 +19,11 @@
         fn="nodes"
         in={{
             kinds: $in.expressions.kinds,
-            values: $ctx.walk.completed
+            values: $ctx.traverse.completed
         }}
     />
 
-    <Call fn="publish" in={$ctx.walk.graph} />
+    <Call fn="publish" in={$ctx.traverse.graph} />
 
     <Return
         value={{

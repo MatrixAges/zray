@@ -37,6 +37,24 @@ pub fn columns(comptime Target: type, value: anytype) Target {
     return result;
 }
 
+pub fn copyScalarColumns(allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!std.meta.Child(@TypeOf(source)) {
+    const Table = std.meta.Child(@TypeOf(source));
+    var result: Table = undefined;
+
+    inline for (@typeInfo(Table).@"struct".field_names) |name| {
+        const Item = std.meta.Child(@FieldType(Table, name));
+
+        comptime switch (@typeInfo(Item)) {
+            .int, .bool, .@"enum" => {},
+            else => @compileError("Expected scalar column elements"),
+        };
+
+        @field(result, name) = try allocator.dupe(Item, @field(source.*, name));
+    }
+
+    return result;
+}
+
 pub fn slice(comptime Target: type, source: anytype) Target {
     @setEvalBranchQuota(100_000);
 

@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import type { Input as Program } from "./model"
+
+export type Input = Program.Pick("first", "items", "owner") & {
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const total = loop({
+        row: 0,
+        total: 0
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            state.total += memory.readU64(in.first, state.row)
+            memory.writeU64(in.first, state.row, state.total)
+            state.row += 1
+        },
+        return: state => state.total
+    })
+
+    memory.writeU64(in.first, in.count, total)
+    memory.allocateU32Buffer(in.owner, in.items, total)
+}
