@@ -1,5 +1,5 @@
 import type { AtomicRows } from "std:bytes"
-import type { Context, Knowledge, Read, State } from "../levels/model"
+import type { Context, Knowledge, Read } from "../levels/model"
 
 export type Working = {
     known: Knowledge[],
@@ -60,7 +60,7 @@ export type Settlement = {
 }
 
 export type Settled = {
-    state: State,
+    reads: Read[],
     passed: Contribution[],
     changed: u64[],
     levels: Knowledge[]

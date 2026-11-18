@@ -53,3 +53,7 @@ export type Published = {
     renewals: Renewals
     transfers: u64[]
 }
+
+export type Visit = Input.Omit("state")
+
+export type Decisions = Output.Pick("flags", "keys", "writable", "needed")

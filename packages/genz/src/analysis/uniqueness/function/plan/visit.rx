@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Plan" />
+
+    <Args in={Plan.Visit} out={Plan.Decisions} />
+
+    <Call
+        module="../levels/close"
+        in={$in.pick([
+            "context",
+            "repeated"
+        ])}
+    />
+
+    <Call
+        module="plan"
+        in={{
+            ...$in,
+            state: $ctx.close.pick([
+                "known",
+                "carried"
+            ])
+        }}
+    />
+
+    <Return
+        value={$ctx.plan.pick([
+            "flags",
+            "keys",
+            "writable",
+            "needed"
+        ])}
+    />
+</Module>

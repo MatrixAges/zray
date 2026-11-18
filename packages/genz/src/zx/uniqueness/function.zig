@@ -2,14 +2,20 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Level = @import("level.zig").Level;
 const Growth = @import("growth.zig");
-const Order = @import("order.zig");
-const Sites = @import("sites.zig");
+const Order = @import("order/seed.zig");
+const Sites = @import("sites/seed.zig");
 const Slots = @import("slots.zig");
 const Summaries = @import("summaries.zig");
 const Self = @This();
 const generated_analysis = @import("genz_options").generated_analysis;
-const Evaluator = if (generated_analysis) @import("function/levels.zig") else void;
 const Summary = if (generated_analysis) @import("function/summary.zig") else void;
+
+pub const Passes = if (generated_analysis) @import("function/prepared.zig").Facts else struct {
+    order: Order,
+    sites: Sites,
+    operations: []const ir.ExprId,
+    rows: []const ir.ExpressionRow,
+};
 
 /// Levels of the list slots of one function body, given what its callers and callees guarantee: loop state reaches its
 /// greatest fixpoint, a reference keeps `unique` only while its value is used linearly, and a read inside a task or
@@ -22,15 +28,9 @@ pub const Unit = struct {
     input: []const Level,
     function: ?usize,
     growth: *Growth.Store,
-    /// The reached calls and list updates in expression order, the only nodes the passes over a body act on.
-    operations: []const ir.ExprId = &.{},
-    /// Every expression row read once up front: the passes revisit each node once per list slot.
-    rows: []const ir.ExpressionRow = &.{},
 };
 
 pub fn readRows(allocator: std.mem.Allocator, expressions: ir.ExpressionTable) std.mem.Allocator.Error![]const ir.ExpressionRow {
-    if (generated_analysis) return &.{};
-
     const result = try allocator.alloc(ir.ExpressionRow, expressions.count());
 
     for (result, 0..) |*target, index| target.* = expressions.at(index);
@@ -39,8 +39,6 @@ pub fn readRows(allocator: std.mem.Allocator, expressions: ir.ExpressionTable) s
 }
 
 pub fn collectOperations(allocator: std.mem.Allocator, order: *const Order, expressions: ir.ExpressionTable) std.mem.Allocator.Error![]const ir.ExprId {
-    if (generated_analysis) return @import("function/operations.zig").collect(allocator, order, expressions);
-
     var result: std.ArrayList(ir.ExprId) = .empty;
 
     for (0..expressions.count()) |index| {
@@ -63,8 +61,10 @@ pub fn collectOperations(allocator: std.mem.Allocator, order: *const Order, expr
 allocator: std.mem.Allocator,
 functions: ir.FunctionTable,
 expressions: ir.ExpressionTable,
-order: *const Order,
-sites: *Sites,
+order: if (generated_analysis) void else *const Order,
+sites: if (generated_analysis) void else *Sites,
+facts: if (generated_analysis) *const Passes else void,
+symbol_count: usize,
 slots: Slots,
 summaries: *Summaries,
 input: []const Level,
@@ -89,17 +89,14 @@ reads: if (generated_analysis) void else std.ArrayList(Read) = if (generated_ana
 /// Set when recording a read ran out of memory. Levels recurse deeply and only that record allocates, so they return
 /// plain levels and each public step reports the failure once it returns.
 failed: bool = false,
-evaluation: if (generated_analysis) ?Evaluator.State else void = if (generated_analysis) null else {},
-pub fn initialize(allocator: std.mem.Allocator, functions: ir.FunctionTable, unit: Unit, order: *const Order, sites: *Sites, slots: Slots, summaries: *Summaries, record_reads: bool) std.mem.Allocator.Error!Self {
-    const levels: []Known = if (generated_analysis) &.{} else try allocator.alloc(Known, sites.slot_first[sites.slot_first.len - 1] - sites.slot_first[unit.symbols.count()]);
+pub fn initialize(allocator: std.mem.Allocator, functions: ir.FunctionTable, unit: Unit, passes: *Passes, slots: Slots, summaries: *Summaries, record_reads: bool) std.mem.Allocator.Error!Self {
+    const levels: []Known = if (generated_analysis) &.{} else try allocator.alloc(Known, passes.sites.slot_first[passes.sites.slot_first.len - 1] - passes.sites.slot_first[unit.symbols.count()]);
 
-    return .{ .allocator = allocator, .functions = functions, .expressions = unit.expressions, .order = order, .sites = sites, .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .growth = unit.growth, .operations = unit.operations, .rows = unit.rows, .levels = levels, .record_reads = record_reads };
+    return .{ .allocator = allocator, .functions = functions, .expressions = unit.expressions, .order = if (generated_analysis) {} else &passes.order, .sites = if (generated_analysis) {} else &passes.sites, .facts = if (generated_analysis) passes else {}, .symbol_count = unit.symbols.count(), .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .growth = unit.growth, .operations = if (generated_analysis) @ptrCast(passes.operations) else passes.operations, .rows = if (generated_analysis) &.{} else passes.rows, .levels = levels, .record_reads = record_reads };
 }
 
-pub fn close(self: *Self) std.mem.Allocator.Error!void {
-    if (generated_analysis) return Evaluator.close(self);
-
-    for (self.order.repeated) |id| {
+fn close(self: *Self) std.mem.Allocator.Error!void {
+    for (self.order.repeated.items) |id| {
         const state = self.carriedState(id) orelse continue;
         const values = try self.allocator.alloc(Level, self.slots.count(self.row(id).type_id));
 
@@ -186,9 +183,9 @@ pub fn copyContributions(owner: std.mem.Allocator, passed: []const Contribution)
 
 /// The output slots every return guarantees.
 fn output(self: *Self, values: []Level) std.mem.Allocator.Error!void {
-    @memset(values, if (self.order.results.len == 0) .none else .all);
+    @memset(values, if (self.order.results.items.len == 0) .none else .all);
 
-    for (self.order.results) |result| {
+    for (self.order.results.items) |result| {
         for (values, 0..) |*value, slot| value.* = value.meet(self.level(result, @intCast(slot)));
     }
 
@@ -371,6 +368,7 @@ pub const Plan = struct {
 
 pub fn plan(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!Plan {
     if (generated_analysis) return @import("function/plan.zig").build(self, allocator);
+    try self.close();
 
     const values = try allocator.alloc(Flags, self.expressions.count());
 
@@ -634,6 +632,7 @@ fn prefix(self: Self, operation: anytype) bool {
 /// in place instead of copying on every step. Lists the functions whose demand grew.
 pub fn demand(self: *Self, owner: std.mem.Allocator) std.mem.Allocator.Error!Demand {
     if (generated_analysis) return @import("function/demand.zig").analyze(self, owner);
+    try self.close();
 
     var changed: std.ArrayList(u64) = .empty;
     var marked: std.ArrayList(Mark) = .empty;
@@ -694,7 +693,7 @@ pub fn demand(self: *Self, owner: std.mem.Allocator) std.mem.Allocator.Error!Dem
 
         if (want == Level.none) continue;
 
-        for (self.order.results) |result| try self.trace(.{
+        for (self.order.results.items) |result| try self.trace(.{
             .id = result,
             .slot = @intCast(slot),
             .outer = null,

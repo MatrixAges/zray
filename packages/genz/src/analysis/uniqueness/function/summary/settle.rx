@@ -46,11 +46,7 @@
 
         <Return
             value={{
-                state: {
-                    known: $ctx.contributions.known,
-                    carried: $ctx.close.carried,
-                    reads: $ctx.contributions.reads
-                },
+                reads: $ctx.contributions.reads,
                 ...$ctx.contributions.pick([
                     "passed",
                     "changed"
@@ -80,11 +76,7 @@
 
             <Return
                 value={{
-                    state: {
-                        known: $ctx.outputs.known,
-                        carried: $ctx.close.carried,
-                        reads: $ctx.outputs.reads
-                    },
+                    reads: $ctx.outputs.reads,
                     ...$ctx.contributions.pick([
                         "passed",
                         "changed"

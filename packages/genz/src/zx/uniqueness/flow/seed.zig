@@ -1,6 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const Order = @import("../order.zig");
+const Order = @import("../order/seed.zig");
 const Slots = @import("../slots.zig");
 const Flow = @import("../flow.zig");
 
@@ -11,7 +11,7 @@ pub const Body = struct {
     elements: std.AutoHashMapUnmanaged(ir.SymbolId, ir.ExprId),
     /// Where the list slots of each expression start in one dense numbering of every expression slot of the body.
     first: []u32,
-    pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, function: ir.Function, slots: Slots) std.mem.Allocator.Error!Body {
+    pub fn create(allocator: std.mem.Allocator, function: ir.Function, slots: Slots) std.mem.Allocator.Error!Body {
         var elements: std.AutoHashMapUnmanaged(ir.SymbolId, ir.ExprId) = .empty;
         const count = function.expressions.count();
         const first = try allocator.alloc(u32, count + 1);
@@ -36,7 +36,7 @@ pub const Body = struct {
             }
         }
 
-        return .{ .function = function, .order = try Order.create(allocator, workspace, function.symbols, function.expressions, function.body.block()), .elements = elements, .first = first };
+        return .{ .function = function, .order = try Order.create(allocator, function.symbols, function.expressions, function.body.block()), .elements = elements, .first = first };
     }
 };
 
@@ -78,7 +78,7 @@ pub const Walk = struct {
     /// Marks the input slots the output may hold; whether any was new.
     fn held(self: *Walk, body: *const Body, reached: []bool) std.mem.Allocator.Error!bool {
         try self.begin(body, true);
-        for (body.order.results) |result| try self.whole(result);
+        for (body.order.results.items) |result| try self.whole(result);
 
         return self.finish(reached);
     }

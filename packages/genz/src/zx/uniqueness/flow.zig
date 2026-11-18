@@ -1,6 +1,5 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const Order = @import("order.zig");
 const Slots = @import("slots.zig");
 const Memo = @import("memo.zig");
 const Self = @This();
@@ -40,7 +39,7 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
         try self.layered(program, slots, found, remembered);
     } else if (generated_analysis) {
         try @import("flow/fixpoint.zig").settle(self, temporary, workspace, program.functions, slots);
-    } else try self.settleSeed(temporary, workspace, program, slots);
+    } else try self.settleSeed(temporary, program, slots);
 
     return self;
 }
@@ -182,7 +181,7 @@ const Layer = struct {
         }
 
         defer _ = walker.bodies.reset(.retain_capacity);
-        const body = try Body.create(walker.bodies.allocator(), walker.bodies.allocator(), function, self.slots);
+        const body = try Body.create(walker.bodies.allocator(), function, self.slots);
         const walk = &walker.walk.?;
 
         _ = try walk.analyze(index, &body, held, text_held, written);
@@ -190,11 +189,7 @@ const Layer = struct {
 };
 
 /// Settles summaries over a call graph with cycles: a body is walked again whenever a callee's summary grows.
-fn settleSeed(self: Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, slots: Slots) std.mem.Allocator.Error!void {
-    var building = std.heap.ArenaAllocator.init(workspace);
-
-    defer building.deinit();
-
+fn settleSeed(self: Self, allocator: std.mem.Allocator, program: ir.Program, slots: Slots) std.mem.Allocator.Error!void {
     const count = program.functions.count();
     const bodies = try allocator.alloc(?Body, count);
     const callers = try allocator.alloc(std.ArrayList(u32), count);
@@ -202,10 +197,9 @@ fn settleSeed(self: Self, allocator: std.mem.Allocator, workspace: std.mem.Alloc
     for (callers) |*list| list.* = .empty;
 
     for (0..count) |index| {
-        defer _ = building.reset(.retain_capacity);
         const function = program.functions.at(index);
 
-        bodies[index] = if (function.external == null and self.held[index].len != 0) try Body.create(allocator, building.allocator(), function, slots) else null;
+        bodies[index] = if (function.external == null and self.held[index].len != 0) try Body.create(allocator, function, slots) else null;
 
         if (bodies[index] == null) continue;
 

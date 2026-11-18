@@ -1,7 +1,7 @@
 const std = @import("std");
 const Seed = @import("seed.zig");
-const Role = @import("../order.zig").Role;
-const none = @import("../order.zig").none;
+const Role = @import("../order/seed.zig").Role;
+const none = @import("../order/seed.zig").none;
 const Site = Seed.Site;
 
 pub fn normalize(allocator: std.mem.Allocator, source: *Seed) std.mem.Allocator.Error!void {

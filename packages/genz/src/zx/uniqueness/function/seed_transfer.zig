@@ -1,7 +1,7 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const Function = @import("../function.zig");
-const Sites = @import("../sites.zig");
+const Sites = @import("../sites/seed.zig");
 
 /// The initial seed's equivalent of analysis/uniqueness/function/transfer; generated builds use that Source plan.
 pub fn build(function: *Function, allocator: std.mem.Allocator, flags: []const Function.Flags) std.mem.Allocator.Error![]const u64 {
@@ -32,7 +32,7 @@ pub fn build(function: *Function, allocator: std.mem.Allocator, flags: []const F
         selected[@backingInt(target)] = true;
     }
 
-    for (function.order.repeated) |id| switch (function.rows[@backingInt(id)].value) {
+    for (function.order.repeated.items) |id| switch (function.rows[@backingInt(id)].value) {
         .iteration => |iteration| {
             selected[@backingInt(iteration.initial)] = true;
             selected[@backingInt(iteration.body)] = true;
@@ -40,7 +40,7 @@ pub fn build(function: *Function, allocator: std.mem.Allocator, flags: []const F
         else => {},
     };
 
-    for (function.order.results) |id| selected[@backingInt(id)] = true;
+    for (function.order.results.items) |id| selected[@backingInt(id)] = true;
 
     const first = function.sites.slot_first[function.sites.symbols.count()..];
     const count: usize = first[first.len - 1] - first[0];

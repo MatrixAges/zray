@@ -65,3 +65,15 @@ export type Continuation = {
     working: Working,
     request?: Request
 }
+
+export type Visit = {
+    context: Context,
+    repeated: u32[],
+    source: Source.Omit("carried")
+}
+
+export type Demanded = Context.Pick("normalized", "renewed") &
+    Output.Pick("marks", "changed", "grew") & {
+        before: Read[],
+        after: Read[]
+    }

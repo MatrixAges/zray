@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Function" />
+
+    <Args in={Function.Input} out={Function.Output} />
+
+    <Task name="order" out={$ctx.build}>
+        <Call module="../../order/build" in={$in.source} />
+    </Task>
+
+    <Call
+        module="../../sites/build"
+        in={{
+            ...$in.omit(["source"]),
+            expressions: $in.source.expressions,
+            nodes: $ctx.task.order.nodes,
+            regions: $ctx.task.order.graph.regions,
+            edges: $ctx.task.order.graph.edges,
+            def_loop: $ctx.task.order.graph.definitions.repeated
+        }}
+    />
+
+    <Call
+        fn="operations"
+        in={{
+            expressions: $in.source.expressions,
+            time: $ctx.task.order.nodes.time
+        }}
+    />
+
+    <Return
+        value={{
+            ...$ctx.task.order.graph.omit(["edges"]),
+            nodes: $ctx.task.order.nodes,
+            usage: $ctx.build,
+            operations: $ctx.operations
+        }}
+    />
+</Module>

@@ -1,13 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
 const Function = @import("../function.zig");
-const levels = @import("levels.zig");
+const Context = @import("context.zig");
 const plan = @import("plan.zig");
 const generated = @import("generated_uniqueness_function_entry");
 const Input = std.meta.Child(generated.Input);
 
 pub fn analyze(function: *Function, allocator: std.mem.Allocator) std.mem.Allocator.Error!Function.Plan {
-    var borrowed: levels.Borrowed = undefined;
+    var borrowed: Context = undefined;
 
     try borrowed.init(function);
 
@@ -20,10 +20,10 @@ pub fn analyze(function: *Function, allocator: std.mem.Allocator) std.mem.Alloca
     const input: Input = .{
         .context = zx.columns.pointer(@FieldType(Input, "context"), context),
         .types = &types,
-        .time = function.order.nodes.time,
+        .time = function.facts.nodes.time,
         .operations = @ptrCast(function.operations),
-        .repeated = @ptrCast(function.order.repeated),
-        .results = @ptrCast(function.order.results),
+        .repeated = function.facts.repeated.owner,
+        .results = function.facts.results,
         .inputs = @ptrCast(&summaries.inputs),
         .outputs = @ptrCast(&summaries.outputs),
         .native_modules = function.functions.native_modules,

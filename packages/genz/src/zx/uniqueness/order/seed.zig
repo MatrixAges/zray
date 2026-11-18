@@ -309,3 +309,43 @@ fn alternative(self: *Self, parent: u32, fork_id: u32, index: u32, child: ir.Exp
 
     try self.operand(parent, child, .flow);
 }
+
+pub fn definition(self: *const Self, symbol: ir.SymbolId) Def {
+    return self.defs[@backingInt(symbol)];
+}
+
+pub fn edge(self: *const Self, index: usize) Edge {
+    return self.edges.items[index];
+}
+
+pub fn edgeCount(self: *const Self) usize {
+    return self.edges.items.len;
+}
+
+pub fn edgeChild(self: *const Self, index: usize) u32 {
+    return @backingInt(self.edges.items[index].child);
+}
+
+pub fn timeAt(self: *const Self, index: usize) u32 {
+    return self.time[index];
+}
+
+pub fn finishAt(self: *const Self, index: usize) u32 {
+    return self.finish[index];
+}
+
+pub fn loopAt(self: *const Self, index: usize) u32 {
+    return self.loop[index];
+}
+
+pub fn defLoopAt(self: *const Self, index: usize) u32 {
+    return self.def_loop[index];
+}
+
+pub fn regionDepth(self: *const Self, index: u32) u32 {
+    return self.regions.items[index].depth;
+}
+
+pub fn regionParent(self: *const Self, index: u32) u32 {
+    return self.regions.items[index].parent;
+}

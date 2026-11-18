@@ -154,14 +154,15 @@ fn Task(comptime kind: Memo.Kind) type {
                     // The growth copies a demand pass leaves are its own; the body's stay as they were until its visit.
                     const generated = @import("genz_options").generated_analysis;
                     var growth = if (generated) unit.growth else try unit.growth.clone(scratch);
-                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, &growth, true);
+                    var analysis = try unit.initialize(scratch, lasting, ahead.functions, ahead.slots, summaries, &growth, true);
+
                     analysis.deferred = true;
                     const result = try analysis.demand(keep);
 
                     return .{ .marks = result.marks, .grew = analysis.grew, .growth = if (generated) growth else try growth.capture(keep), .reads = result.reads };
                 },
                 .planned => {
-                    var analysis = try unit.analyze(scratch, lasting, ahead.functions, ahead.slots, summaries, null, false);
+                    var analysis = try unit.initialize(scratch, lasting, ahead.functions, ahead.slots, summaries, null, false);
 
                     return analysis.plan(keep);
                 },

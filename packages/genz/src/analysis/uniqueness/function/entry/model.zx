@@ -2,9 +2,9 @@ import type { AtomicRows } from "std:bytes"
 import type { EntryReset } from "../../summaries/model"
 import type { Source } from "../demand/model"
 import type { Context } from "../levels/model"
-import type { Input as Plan, Output as Facts, Snapshot } from "../plan/model"
+import type { Decisions, Snapshot, Visit } from "../plan/model"
 
-export type Input = Plan.Omit("state") & {
+export type Input = Visit & {
     inputs: AtomicRows,
     outputs: AtomicRows,
     native_modules: u32?[],
@@ -25,4 +25,4 @@ export type Solved = {
     state: Snapshot
 }
 
-export type Output = Facts.Pick("flags", "keys", "writable", "needed")
+export type Output = Decisions

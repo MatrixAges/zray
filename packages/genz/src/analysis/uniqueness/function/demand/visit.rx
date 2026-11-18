@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Demand" />
+
+    <Args in={Demand.Visit} out={Demand.Demanded} />
+
+    <Call
+        module="../levels/close"
+        in={$in.pick([
+            "context",
+            "repeated"
+        ])}
+    />
+
+    <Call
+        module="analyze"
+        in={{
+            context: $in.context,
+            known: $ctx.close.known,
+            source: {
+                ...$in.source,
+                carried: $ctx.close.carried
+            }
+        }}
+    />
+
+    <Return
+        value={{
+            ...$ctx.analyze.pick([
+                "marks",
+                "changed",
+                "grew"
+            ]),
+            ...$ctx.analyze.context.pick([
+                "normalized",
+                "renewed"
+            ]),
+            before: $ctx.close.reads,
+            after: $ctx.analyze.reads
+        }}
+    />
+</Module>

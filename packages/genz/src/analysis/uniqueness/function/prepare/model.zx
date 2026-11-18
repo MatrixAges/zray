@@ -1,0 +1,14 @@
+import type { Input as Order } from "../../order/model"
+import type { Graph, Nodes } from "../../order/plan"
+import type { Facts, Input as Sites } from "../../sites/model"
+
+export type Input =
+    Sites.Pick("symbols", "counts", "layout", "held", "written", "effects") & {
+        source: Order
+    }
+
+export type Output = Graph.Omit("edges") & {
+    nodes: Nodes,
+    usage: Facts,
+    operations: u32[]
+}

@@ -1,6 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const Order = @import("../order.zig");
+const Order = @import("../order/seed.zig");
 const Slots = @import("../slots.zig");
 const Summaries = @import("../summaries.zig");
 const Self = @This();
