@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Model = @import("../../artifact/model.zig");
 const Nodes = @import("../../artifact/nodes.zig");
 
@@ -8,6 +9,29 @@ pub const Tables = struct {
     functions: ir.FunctionTable,
     native_modules: ir.NativeModuleTable,
 };
+
+pub fn fromPublication(path: []const u8, published: anytype, tables: Tables, exports: []const ir.Export, constants: []const ir.Constant) ir.Program {
+    const payload = published.body;
+
+    return .{
+        .file_name = path,
+        .types = tables.types,
+        .input_type = @fromBackingInt(published.ports.input_type),
+        .output_type = @fromBackingInt(published.ports.output_type),
+        .output_ownership = @fromBackingInt(@intCast(@backingInt(published.ports.ownership))),
+        .symbols = if (payload) |value| zx.columns.view(ir.SymbolTable, value.symbols) else .{},
+        .expressions = if (payload) |value| zx.columns.view(ir.ExpressionTable, value.expressions) else .{},
+        .body = if (payload) |value| Nodes.controlBody(if (value.root) |id| @fromBackingInt(id) else null, value.control) else .{},
+        .contracts = if (payload) |value| zx.columns.view(ir.ContractTable, value.contracts) else .{},
+        .exports = exports,
+        .constant_exports = constants,
+        .functions = tables.functions,
+        .native_modules = tables.native_modules,
+        .stores = zx.columns.view(ir.StoreTable, published.stores),
+        .store_mode = @fromBackingInt(@intCast(@backingInt(published.ports.store_mode))),
+        .type_only = payload == null,
+    };
+}
 
 pub fn materialize(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module: *const Model.Module, body: ?*const ir.Function, recursive: ?ir.FunctionId, tables: Tables, mapping: []const ir.TypeId) Model.Error!ir.Program {
     var assembled = try assemble(allocator, module, body, tables, mapping);

@@ -4,12 +4,7 @@
     <Args in={Result.Input} out={Result.Output?} />
 
     <If on={$in.registration != null}>
-        <Call
-            fn="../../signature/publication/reserve"
-            in={$in.registration.destination}
-        />
-
-        <Call fn="append" in={$in.registration} />
+        <Call module="register" in={$in.registration} />
     </If>
 
     <Call

@@ -29,11 +29,19 @@
     <Call module="../../../artifact/materializing/optional_control" in={$in.control} />
     <Call module="../../../artifact/surface/own" in={$in.surface} />
 
+    <Call
+        fn="entry"
+        in={{
+            body: $ctx.optional_body,
+            control: $ctx.optional_control,
+            attributes: $in.attributes
+        }}
+    />
+
     <Return
         value={{
-            body: $ctx.optional_body,
-            stores: $ctx.stores,
-            control: $ctx.optional_control
+            ...$ctx.entry,
+            stores: $ctx.stores
         }}
     />
 </Module>

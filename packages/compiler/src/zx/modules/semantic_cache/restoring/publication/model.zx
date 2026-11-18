@@ -1,21 +1,30 @@
 import type { Control } from "core/control_table/model"
+import type { StoreMode } from "core/function_table/complete"
 import type { Stores } from "core/store_table/model"
-import type {
-    FunctionInput,
-    FunctionOutput
-} from "../../../artifact/remapping/model"
+import type { Ownership } from "core/symbol_table/model"
+import type { FunctionInput } from "../../../artifact/remapping/model"
 import type { Input as Surface } from "../../../artifact/surface/model"
+import type { Unit } from "../../../link/result/publication/model"
+
+export type Attributes = {
+    ownership: Ownership,
+    store_mode: StoreMode,
+    root?: u32
+}
 
 export type Input = {
     body?: FunctionInput,
     control?: Control,
+    attributes?: Attributes,
     stores: Stores,
     reuse_store_types: bool,
     surface: Surface
 }
 
-export type Plan = {
-    body?: FunctionOutput,
-    control?: Control,
+export type Entry = Unit & {
+    recursive?: u32
+}
+
+export type Plan = Entry & {
     stores: Stores
 }

@@ -63,13 +63,16 @@ fn restoreChecked(module: *const model.Module, current: Current, decoded: bool) 
     const backup: Backup = .{
         .types = current.types.view(),
         .origins = current.origins.items.view().count(),
+        .functions = current.functions.count(),
         .payload = if (generated) current.payloads.checkpoint() else {},
     };
 
-    var staged_entry = false;
-
     errdefer {
-        if (staged_entry) _ = current.functions.pop(payload);
+        if (current.functions.count() != backup.functions) {
+            if (comptime generated) {
+                current.functions.retainPrefix(backup.functions);
+            } else _ = current.functions.pop(payload);
+        }
 
         current.types.retainColumns(backup.types);
         current.origins.items.retainPrefix(backup.origins);
@@ -86,19 +89,14 @@ fn restoreChecked(module: *const model.Module, current: Current, decoded: bool) 
         .native_modules = current.native_modules,
     };
 
-    var publication = try materialize(module, &current, binding, payload, tables, structure);
-    const program = &publication.restored.program;
+    var restored = try materialize(module, &current, binding, payload, tables, structure);
+    const program = &restored.program;
 
-    if (publication.restored.recursive != null) {
+    if (!generated and restored.recursive != null) {
         const entry = @import("../function_body.zig").value(program.*);
 
-        if (comptime generated) {
-            try current.functions.reserve(allocator, 1);
+        try current.functions.append(allocator, entry);
 
-            current.functions.appendOwnedAssumeCapacity(entry, publication.descriptors.?);
-        } else try current.functions.append(allocator, entry);
-
-        staged_entry = true;
         program.functions = current.functions.view();
     }
 
@@ -108,12 +106,13 @@ fn restoreChecked(module: *const model.Module, current: Current, decoded: bool) 
         current.verified.* = verified orelse return error.InvalidIr;
     } else if (try Validate.validateProjectPrefix(temporary, program.*, current.verified.*) != null) return error.InvalidIr;
 
-    return publication.restored;
+    return restored;
 }
 
 const Backup = struct {
     types: ir.TypeTable,
     origins: usize,
+    functions: usize,
     payload: if (generated) zx.Arena.Checkpoint else void,
 };
 
@@ -168,10 +167,9 @@ fn rebind(module: *const model.Module, current: *const Current, temporary: std.m
 }
 
 const publication_host = @import("restoring/publication/host.zig");
-const Publication = publication_host.Publication;
 const Tables = @import("../link/result/host.zig").Tables;
 
-fn materialize(module: *const model.Module, current: *const Current, binding: Bound, payload: std.mem.Allocator, tables: Tables, structure: Nodes.Structure) Error!Publication {
+fn materialize(module: *const model.Module, current: *const Current, binding: Bound, payload: std.mem.Allocator, tables: Tables, structure: Nodes.Structure) Error!Restored {
     var nodes = Nodes{
         .allocator = payload,
         .types = .{ .mapped = binding.mapping },
@@ -179,17 +177,19 @@ fn materialize(module: *const model.Module, current: *const Current, binding: Bo
         .native_modules = .{ .indexed = binding.natives },
     };
 
-    if (comptime generated) return publication_host.materialize(&nodes, module, current.path, tables, binding.entry, structure);
+    if (comptime generated) return publication_host.materialize(&nodes, module, .{
+        .allocator = current.allocator,
+        .functions = current.functions,
+        .tables = tables,
+        .path = current.path,
+    }, binding.entry, structure);
 
     const function = if (module.function) |value| try nodes.functionEntry(value, binding.entry, structure) else null;
     const body = if (function) |*value| &value.body else null;
     const program = try @import("../link/result/host.zig").assemble(current.allocator, module, body, tables, binding.mapping);
 
     return .{
-        .restored = .{
-            .program = program,
-            .recursive = if (function) |value| value.recursive else null,
-        },
-        .descriptors = null,
+        .program = program,
+        .recursive = if (function) |value| value.recursive else null,
     };
 }

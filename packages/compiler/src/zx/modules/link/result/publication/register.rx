@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Registration} out={void} />
+
+    <Call fn="../../signature/publication/reserve" in={$in.destination} />
+    <Call fn="append" in={$in} />
+</Module>

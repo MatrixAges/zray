@@ -384,6 +384,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/semantic_cache/restoring/transaction.rx", .name = "semantic_restore_transaction" },
     .{ .path = "zx/modules/semantic_cache/restoring/preflight/check.rx", .name = "semantic_restore_preflight" },
     .{ .path = "zx/modules/semantic_cache/restoring/publication/plan.rx", .name = "semantic_restore_publication" },
+    .{ .path = "zx/modules/link/result/publication/register.rx", .name = "artifact_entry_registration" },
     .{ .path = "zx/modules/semantic_cache/envelope/layout.zx", .name = "semantic_cache_layout" },
     .{ .path = "zx/modules/semantic_cache/state/version.zx", .name = "semantic_cache_entry_version" },
     .{ .path = "zx/modules/semantic_cache/discovery/batch.rx", .name = "semantic_cache_discovery" },

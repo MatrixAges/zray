@@ -1,0 +1,41 @@
+import empty from "../../../link/result/publication/empty"
+
+import type { Control } from "core/control_table/model"
+import type { FunctionOutput } from "../../../artifact/remapping/model"
+import type { Attributes, Entry } from "./model"
+
+export type Input = {
+    body?: FunctionOutput,
+    control?: Control,
+    attributes?: Attributes
+}
+
+export type Output = Entry
+
+export default function (in: Input): Output {
+    const { body, control, attributes } = in
+
+    if (body == null || attributes == null) {
+        return {
+            ...empty({}),
+            recursive: null
+        }
+    }
+
+    return {
+        ports: {
+            input_type: body.ports.input,
+            output_type: body.ports.output,
+            ownership: attributes.ownership,
+            store_mode: attributes.store_mode
+        },
+        body: {
+            symbols: body.symbols,
+            expressions: body.expressions,
+            contracts: body.contracts,
+            control,
+            root: attributes.root
+        },
+        recursive: body.recursive
+    }
+}

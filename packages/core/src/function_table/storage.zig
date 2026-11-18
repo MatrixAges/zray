@@ -207,6 +207,15 @@ pub fn pop(self: *Self, allocator: std.mem.Allocator) ?ir.Function {
     return value;
 }
 
+/// Discards columns whose owned descriptors are released with their allocation domain.
+pub fn retainPrefix(self: *Self, retained: usize) void {
+    std.debug.assert(retained <= self.count());
+
+    inline for (@typeInfo(Self).@"struct".field_names) |name| {
+        @field(self, name).shrinkRetainingCapacity(retained);
+    }
+}
+
 fn descriptor(allocator: std.mem.Allocator, value: anytype) std.mem.Allocator.Error!*const @TypeOf(value) {
     const result = try allocator.create(@TypeOf(value));
 
