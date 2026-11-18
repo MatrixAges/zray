@@ -1,8 +1,10 @@
 import memory from "memory"
 
-import matches from "../reference/name"
-import { check_task_event, task_tag } from "./const"
-import taskOutput from "./layout/task"
+import { output_attribute } from "../../schema/attribute/const"
+import { task_tag } from "../../schema/execution/const"
+import hasAttribute from "../../syntax/document/has_attribute"
+import matches from "../../syntax/document/name_matches"
+import { check_task_event } from "./const"
 
 import type { U32Buffer, U64Buffer } from "memory"
 import type { Attribute, Node } from "../../syntax/document/model"
@@ -31,10 +33,11 @@ export default function (in: Input): Output {
         return in.cursor
     }
 
-    const output = taskOutput({
+    const output = hasAttribute({
         source: in.source,
         attributes: in.attributes,
-        node: in.node
+        node: in.node,
+        name: output_attribute
     })
 
     memory.writeU32(in.facts, in.slot, output ? 1 : 0)

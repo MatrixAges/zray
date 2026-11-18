@@ -5,7 +5,7 @@ import {
     function_attribute,
     module_attribute,
     setter_attribute
-} from "./const"
+} from "../../../schema/attribute/const"
 
 import type { TextColumn } from "memory"
 

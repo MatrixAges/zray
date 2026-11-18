@@ -1,6 +1,0 @@
-# Preserve the original and expected text for historical RX formatter comparisons.
-docs/2026-10-05/RX格式化/原始示例/*.rx -zxc-format
-docs/2026-10-05/RX格式化/格式化示例/*.rx -zxc-format
-
-# Parser benchmarks reproduce fixed byte streams, including rejected nesting depths.
-docs/2026-10-06/自举性能修复/测量/*.rx -zxc-format

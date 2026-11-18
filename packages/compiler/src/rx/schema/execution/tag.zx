@@ -1,3 +1,4 @@
+import { call_tag, parallel_tag, task_tag } from "./const"
 import { Tag } from "./model"
 
 export type Input = string
@@ -11,9 +12,9 @@ export default function (in: Input): Output {
         "Args" => Tag.Args,
         "Store" => Tag.Store,
         "Import" => Tag.Import,
-        "Call" => Tag.Call,
-        "Task" => Tag.Task,
-        "Parallel" => Tag.Parallel,
+        call_tag => Tag.Call,
+        task_tag => Tag.Task,
+        parallel_tag => Tag.Parallel,
         "Switch" => Tag.Switch,
         "If" => Tag.If,
         "Else" => Tag.Else,

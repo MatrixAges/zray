@@ -26,6 +26,11 @@ pub const Source = struct {
 
         return references.graphForNode(index, &self.node);
     }
+    pub fn callSequence(self: *const Source) ?references.Sequence {
+        const index = self.references orelse return null;
+
+        return references.sequenceForNode(index, &self.node);
+    }
     pub fn indexedFlow(self: *const Source) ?IndexedFlow {
         const index = self.references orelse return null;
 
@@ -152,9 +157,9 @@ fn decode(comptime Item: type, data: []Item, normalized: [][]const u8, allocator
         normalized[index] = path;
 
         if (Item == Module) {
-            data[index] = .{ .path = path, .data = try flow.Module.decode(allocator, source.node, reporter, {}) };
+            data[index] = .{ .path = path, .data = try flow.Module.decode(allocator, source.node, reporter, source.callSequence()) };
         } else if (!hasSchema(&source)) {
-            _ = try flow.Module.decode(schemas, source.node, reporter, {});
+            _ = try flow.Module.decode(schemas, source.node, reporter, source.callSequence());
         }
     }
 

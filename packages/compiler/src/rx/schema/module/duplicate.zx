@@ -1,0 +1,60 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import claim from "core/bytes/index/claim"
+
+import type { Index } from "core/bytes/index/model"
+import type { Input as Declarations, Tag } from "./model"
+
+export type Input = {
+    declarations: Declarations,
+    tag: Tag
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const names: Index = {
+        keys: [],
+        values: [],
+        buckets: []
+    }
+
+    const absent: u64? = null
+
+    return loop({
+        row: 0,
+        first: absent,
+        duplicate: absent,
+        names
+    }, {
+        while: state =>
+            state.duplicate == null && state.row < in.declarations.tags.length,
+        next: state => {
+            const first = state.first
+
+            if (in.declarations.tags[state.row] == in.tag) {
+                const name = in.declarations.names[state.row]
+                if (first == null) {
+                    state.first = state.row
+                } else if (in.declarations.names[first] == name) {
+                    state.duplicate = in.declarations.children[state.row]
+                } else {
+                    const entered = claim({
+                        index: state.names,
+                        key: bytes.fromText(name),
+                        value: integers.narrow(state.row)
+                    })
+
+                    state.names = entered.index
+
+                    if (entered.previous != null) {
+                        state.duplicate = in.declarations.children[state.row]
+                    }
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.duplicate
+    })
+}

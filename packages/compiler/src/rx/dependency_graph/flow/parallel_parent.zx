@@ -1,7 +1,7 @@
 import memory from "memory"
 
-import name from "../reference/name"
-import { parallel_tag } from "./const"
+import { parallel_tag } from "../../schema/execution/const"
+import name from "../../syntax/document/name_matches"
 
 import type { U64Buffer } from "memory"
 import type { Node } from "../../syntax/document/model"

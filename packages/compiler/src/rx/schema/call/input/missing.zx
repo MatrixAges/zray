@@ -1,0 +1,74 @@
+import hasAttribute from "../../../syntax/document/has_attribute"
+import matches from "../../../syntax/document/name_matches"
+import {
+    argument_attribute,
+    function_attribute,
+    output_attribute
+} from "../../attribute/const"
+import { call_tag, parallel_tag, task_tag } from "../../execution/const"
+
+import type { Attribute, Node } from "../../../syntax/document/model"
+
+export type Document = {
+    source: u8[],
+    nodes: Node[],
+    attributes: Attribute[]
+}
+
+export type Input = Document & {
+    parent: Node,
+    call: Node
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { source, attributes, call } = in
+
+    if (hasAttribute({
+        source,
+        attributes,
+        node: call,
+        name: argument_attribute
+    })) {
+        return false
+    }
+
+    if (call.previous_sibling != 0 && !matches({
+        source,
+        ...in.parent.name,
+        name: parallel_tag
+    })) {
+        const previous = in.nodes[call.previous_sibling - 1]
+
+        if (matches({
+            source,
+            ...previous.name,
+            name: call_tag
+        })) {
+            return false
+        }
+
+        const task = matches({
+            source,
+            ...previous.name,
+            name: task_tag
+        })
+
+        if (task && hasAttribute({
+            source,
+            attributes,
+            node: previous,
+            name: output_attribute
+        })) {
+            return false
+        }
+    }
+
+    return hasAttribute({
+        source,
+        attributes,
+        node: call,
+        name: function_attribute
+    })
+}

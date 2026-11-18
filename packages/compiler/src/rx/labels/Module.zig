@@ -31,7 +31,7 @@ const ModuleBase = dsl.element("Module", struct {
 
 pub const Module = dsl.refineAlloc(ModuleBase, checkModule);
 
-fn checkModule(allocator: std.mem.Allocator, data: ModuleBase.Data, input: anytype, _: anytype, reporter: *dsl.Reporter) dsl.Error!void {
+fn checkModule(allocator: std.mem.Allocator, data: ModuleBase.Data, input: anytype, context: anytype, reporter: *dsl.Reporter) dsl.Error!void {
     const node = dsl.ast.view(input);
 
     try checks.nonEmpty(node, reporter);
@@ -43,7 +43,7 @@ fn checkModule(allocator: std.mem.Allocator, data: ModuleBase.Data, input: anyty
         return;
     }
 
-    try @import("../schema/call/sequence.zig").check(node, reporter);
+    try @import("../schema/call/sequence.zig").check(node, context, reporter);
     if (comptime @import("rx_options").generated_rules) return @import("../schema/module/adapter.zig").check(allocator, data.children, node, reporter);
 
     return checkSeed(input, reporter);

@@ -1,5 +1,7 @@
 import fixed from "core/bytes/index/fixed"
 
+import { Branch } from "./model"
+
 import type { Input } from "./model"
 
 export type Output = u64?
@@ -13,10 +15,11 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < in.keys.length && state.duplicate == null,
         next: state => {
-            const expression = in.braced[state.index]
+            const branch = in.branches[state.index]
+            const expression = branch == Branch.ExpressionCase
             const capacity = expression ? in.expression_capacity : in.string_capacity
 
-            if (capacity != 0) {
+            if (branch != Branch.Default && capacity != 0) {
                 const buckets = expression ? in.expression_buckets : in.string_buckets
 
                 const previous = fixed({

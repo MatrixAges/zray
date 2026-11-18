@@ -30,12 +30,6 @@ export const if_has_else: u32 = 512
 
 export const previous_output: u32 = 1024
 
-export const parallel_tag: string = "Parallel"
-
-export const task_tag: string = "Task"
-
-export const task_output_attribute: string = "out"
-
 export const event_stride: u64 = 4294967296
 
 export const check_task_phase: u64 = 1

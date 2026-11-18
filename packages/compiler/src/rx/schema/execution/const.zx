@@ -1,0 +1,5 @@
+export const call_tag: string = "Call"
+
+export const task_tag: string = "Task"
+
+export const parallel_tag: string = "Parallel"

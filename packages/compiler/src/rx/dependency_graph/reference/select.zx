@@ -1,4 +1,4 @@
-import name from "./name"
+import name from "../../syntax/document/name_matches"
 import target from "./target"
 
 import type { Tag } from "../../schema/execution/model"

@@ -18,6 +18,7 @@ const Storage = struct {
     root: *const ast.Node,
     entries: []const Entry,
     graph_references: usize,
+    missing_input: ?*const ast.Node,
     attributes: []const ast.Attribute,
     flow: []const Fact,
     unit_firsts: []const u32,
@@ -126,6 +127,14 @@ pub fn graphForNode(index: *const Index, node: *const ast.Node) ?GraphReferences
     return .{ .entries = storage.entries, .count = storage.graph_references };
 }
 
+pub const Sequence = struct { missing: ?*const ast.Node };
+
+pub fn sequenceForNode(index: *const Index, node: *const ast.Node) ?Sequence {
+    const storage: *const Storage = @ptrCast(@alignCast(index));
+
+    return if (ast.sameStorage(node, storage.root)) .{ .missing = storage.missing_input } else null;
+}
+
 pub fn root(index: *const Index) *const ast.Node {
     const storage: *const Storage = @ptrCast(@alignCast(index));
 
@@ -229,6 +238,7 @@ pub fn build(comptime scan: anytype, allocator: std.mem.Allocator, temporary: st
         .root = &nodes[0],
         .entries = entries,
         .graph_references = @intCast(result.graph_references),
+        .missing_input = if (result.missing_input) |row| &nodes[@intCast(slots[@intCast(row)])] else null,
         .attributes = attributes,
         .flow = @ptrCast(facts),
         .unit_firsts = unit_firsts,

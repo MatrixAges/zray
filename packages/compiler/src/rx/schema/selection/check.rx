@@ -3,31 +3,20 @@
 
     <Args in={Selection.Input} out={Selection.Output} />
 
-    <If on={$in.kind == Selection.Kind.If}>
-        <Call fn="if_layout" in={$in} />
+    <If on={$in.kind == Selection.Kind.Switch}>
+        <Call fn="duplicate" in={$in} />
 
-        <Return value={$ctx.if_layout} />
+        <If on={$ctx.duplicate != null}>
+            <Return
+                value={{
+                    issue: Selection.Issue.DuplicateCase,
+                    index: $ctx.duplicate
+                }}
+            />
+        </If>
     </If>
 
-    <Call fn="duplicate" in={$in} />
+    <Call fn="layout" in={$in.branches} />
 
-    <If on={$ctx.duplicate != null}>
-        <Return
-            value={{
-                issue: Selection.Issue.DuplicateCase,
-                index: $ctx.duplicate
-            }}
-        />
-    </If>
-
-    <If on={$in.second_default != null}>
-        <Return
-            value={{
-                issue: Selection.Issue.DuplicateDefault,
-                index: $in.second_default
-            }}
-        />
-    </If>
-
-    <Return value={null} />
+    <Return value={$ctx.layout} />
 </Module>

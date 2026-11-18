@@ -5,3 +5,9 @@ export const function_attribute: string = "fn"
 export const module_attribute: string = "module"
 
 export const setter_attribute: string = "setter"
+
+export const from_attribute: string = "from"
+
+export const service_attribute: string = "service"
+
+export const output_attribute: string = "out"

@@ -3,6 +3,7 @@ import encoding from "std:encoding"
 import integers from "std:integer"
 import memory from "memory"
 
+import missingInput from "../../schema/call/input/missing"
 import { Tag } from "../../schema/execution/model"
 import classify from "../../schema/execution/tag"
 import bodyEvent from "../flow/body_event"
@@ -13,38 +14,7 @@ import taskExit from "../flow/task_exit"
 import unit from "../flow/unit"
 import select from "./select"
 
-import type { U32Buffer, U64Buffer } from "memory"
-import type { Attribute, Node } from "../../syntax/document/model"
-import type { Reference } from "./model"
-
-export type Input = {
-    source: string,
-    nodes: Node[],
-    attributes: Attribute[],
-    root: u64,
-    parents: U64Buffer,
-    slots: u64[],
-    facts: U32Buffer,
-    unit_firsts: U32Buffer,
-    unit_counts: U32Buffer,
-    step_rows: U32Buffer,
-    events: U64Buffer,
-    project_flow: bool
-}
-
-export type Output = {
-    references: Reference[],
-    graph_references: u64,
-    parallel_tasks: u64,
-    steps: u64,
-    calls: u64,
-    results: u64,
-    tasks: u64,
-    groups: u64,
-    selections: u64,
-    events: u64,
-    source_extent: u64
-}
+import type { Reference, Scan as Input, Scanned as Output } from "./model"
 
 export default function (in: Input): Output {
     const parents = in.parents
@@ -63,6 +33,7 @@ export default function (in: Input): Output {
     }
 
     const references: Reference[] = []
+    const missing_input: u64? = null
 
     return loop({
         next: in.root + 1,
@@ -79,6 +50,7 @@ export default function (in: Input): Output {
         events: 0,
         source_extent: 0,
         graph_references: 0,
+        missing_input,
         references
     }, {
         while: state => state.next != 0,
@@ -183,6 +155,18 @@ export default function (in: Input): Output {
 
                     if (tag == Tag.Call) {
                         state.calls += 1
+
+                        const parent = memory.readU64(parents, state.depth - 1) - 1
+
+                        if (missingInput({
+                            source,
+                            nodes: view.nodes,
+                            attributes: in.attributes,
+                            parent: view.nodes[parent],
+                            call: node
+                        })) {
+                            state.missing_input = row
+                        }
                     } else if (tag == Tag.Return) {
                         state.results += 1
                     } else if (tag == Tag.Task) {
@@ -231,6 +215,7 @@ export default function (in: Input): Output {
             groups: state.groups,
             selections: state.selections,
             events: state.events,
+            missing_input: state.missing_input,
             source_extent: state.source_extent
         })
     })

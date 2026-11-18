@@ -507,3 +507,5 @@
 {"time": "2026-11-17", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "同一层级的Call可以省略 in（省略的情况下，in默认来自于上一个节点的输出）\n实现这个特性 并能通过lint格式化时自动省略掉来自于上一个节点的输出in属性申明"}
 {"time": "2026-11-17", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "rx通过call fn module.*（优先匹配文件名，没匹配到文件名称就去那模块名称去匹配模块提供的函数） 来调用指定模块，无需export字段"}
 {"time": "2026-11-17", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "省略in，怎么没看到你lint格式化所有代码然后提交"}
+{"time": "2026-11-18 01:50:09", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "docs中的rx zx无需格式化 格式化应该忽略其中的代码"}
+{"time": "2026-11-18 01:50:09", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "已经格式化的不用恢复"}

@@ -1,0 +1,63 @@
+import matches from "../../../syntax/document/name_matches"
+import { call_tag } from "../../execution/const"
+import missing from "./missing"
+
+import type { Document } from "./missing"
+
+export type Input = Document & {
+    start: u64,
+    end: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { source, nodes, attributes } = in
+
+    const absent: u64? = null
+
+    return loop({
+        row: in.start,
+        finding: absent
+    }, {
+        while: state => state.row < in.end,
+        next: state => {
+            const parent = in.nodes[state.row]
+
+            state.finding = loop({
+                head: parent.children,
+                finding: state.finding
+            }, {
+                while: branch => branch.head != 0,
+                next: branch => {
+                    const row = branch.head - 1
+                    const child = in.nodes[row]
+
+                    branch.head = child.previous_sibling
+
+                    const earlier = branch.finding == null || row < branch.finding
+
+                    if (earlier && matches({
+                        source: in.source,
+                        ...child.name,
+                        name: call_tag
+                    })) {
+                        if (missing({
+                            source,
+                            nodes,
+                            attributes,
+                            parent,
+                            call: child
+                        })) {
+                            branch.finding = row
+                        }
+                    }
+                },
+                return: branch => branch.finding
+            })
+
+            state.row += 1
+        },
+        return: state => state.finding
+    })
+}

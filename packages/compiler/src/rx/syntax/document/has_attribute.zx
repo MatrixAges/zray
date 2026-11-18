@@ -1,12 +1,12 @@
-import matches from "../../reference/name"
-import { task_output_attribute } from "../const"
+import matches from "./name_matches"
 
-import type { Attribute, Node } from "../../../syntax/document/model"
+import type { Attribute, Node } from "./model"
 
 export type Input = {
     source: u8[],
     attributes: Attribute[],
-    node: Node
+    node: Node,
+    name: string
 }
 
 export type Output = bool
@@ -28,7 +28,7 @@ export default function (in: Input): Output {
                 source,
                 start: name.start,
                 end: name.end,
-                name: task_output_attribute
+                name: in.name
             })
             state.row += 1
         },

@@ -3,25 +3,27 @@ const dsl = @import("dsl");
 const checks = @import("../../checks.zig");
 const rule = @import("generated_rx_selection_schema");
 const Input = std.meta.Child(rule.Input);
+const Branch = std.meta.Child(@FieldType(Input, "branches"));
 const RuleResult = std.meta.Child(rule.Output);
 const RuleFinding = if (@typeInfo(RuleResult) == .pointer) std.meta.Child(RuleResult) else RuleResult;
 const Finding = struct { issue: @FieldType(RuleFinding, "issue"), index: usize };
 const table_load_ratio = 2;
 
 pub fn checkIf(allocator: std.mem.Allocator, children: anytype, node: anytype, reporter: *dsl.Reporter) dsl.Error!void {
-    const first = for (children, 0..) |child, index| {
-        if (child == .@"else") break index;
-    } else return;
+    var buffer: [256]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    const branches = try scratch.allocator().alloc(Branch, children.len);
+
+    defer scratch.allocator().free(branches);
+
+    for (children, branches) |child, *branch| branch.* = if (child == .@"else") .Else else .Step;
 
     var empty: []u64 = &.{};
 
     const finding = try run(allocator, &.{
         .kind = .If,
-        .count = children.len,
-        .first_else = first,
-        .second_default = null,
+        .branches = branches,
         .keys = &.{},
-        .braced = &.{},
         .string_buckets = @ptrCast(&empty),
         .expression_buckets = @ptrCast(&empty),
         .string_capacity = 0,
@@ -67,22 +69,6 @@ pub fn repeatedDefault(input: anytype, reporter: *dsl.Reporter) dsl.Error {
 fn findSwitch(allocator: std.mem.Allocator, children: anytype, input: anytype) std.mem.Allocator.Error!?Finding {
     if (children.len < 2) return null;
 
-    var case_count: usize = 0;
-    var seen_default = false;
-    var second_default: ?usize = null;
-
-    for (children, 0..) |child, index| {
-        if (child == .case) {
-            case_count += 1;
-        } else if (!seen_default) {
-            seen_default = true;
-        } else if (second_default == null) {
-            second_default = index;
-        }
-    }
-
-    if (case_count < 2 and second_default == null) return null;
-
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [512]u8 align(@alignOf(u64)) = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
@@ -90,56 +76,47 @@ fn findSwitch(allocator: std.mem.Allocator, children: anytype, input: anytype) s
     defer arena.deinit();
 
     const temporary = scratch.allocator();
-    const keys = try temporary.alloc([]const u8, if (case_count > 1) case_count else 0);
-    const braced = try temporary.alloc(bool, keys.len);
-    var expression_count: usize = 0;
+    const keys = try temporary.alloc([]const u8, children.len);
+    const branches = try temporary.alloc(Branch, children.len);
+    var nodes = dsl.ast.view(input).children();
+    var strings_count: usize = 0;
+    var expressions_count: usize = 0;
 
-    if (keys.len != 0) {
-        const node = dsl.ast.view(input);
-        var nodes = node.children();
-        var index: usize = 0;
+    for (children, branches, keys) |child, *branch, *key| {
+        const element = nodes.next().?;
 
-        for (children) |child| {
-            const element = nodes.next().?;
+        if (child == .default) {
+            branch.* = .Default;
+            key.* = "";
 
-            if (child != .case) continue;
+            continue;
+        }
 
-            const attribute = dsl.ast.view(element).schemaAttribute(0);
-            keys[index] = attribute.value;
-            braced[index] = attribute.kind == .expression;
-            expression_count += @intFromBool(braced[index]);
-            index += 1;
+        const attribute = dsl.ast.view(element).schemaAttribute(0);
+
+        key.* = attribute.value;
+
+        if (attribute.kind == .expression) {
+            branch.* = .ExpressionCase;
+            expressions_count += 1;
+        } else {
+            branch.* = .TextCase;
+            strings_count += 1;
         }
     }
 
-    const strings = try buckets(temporary, keys.len - expression_count);
-    const expressions = try buckets(temporary, expression_count);
+    const strings = try buckets(temporary, strings_count);
+    const expressions = try buckets(temporary, expressions_count);
 
-    const finding = try run(temporary, &.{
+    return run(temporary, &.{
         .kind = .Switch,
-        .count = children.len,
-        .first_else = null,
-        .second_default = second_default,
+        .branches = branches,
         .keys = keys,
-        .braced = braced,
         .string_buckets = @ptrCast(&strings),
         .expression_buckets = @ptrCast(&expressions),
         .string_capacity = strings.len,
         .expression_capacity = expressions.len,
-    }) orelse return null;
-
-    if (finding.issue != .DuplicateCase) return finding;
-
-    var ordinal: usize = 0;
-
-    for (children, 0..) |child, index| {
-        if (child != .case) continue;
-        if (ordinal == finding.index) return .{ .issue = finding.issue, .index = index };
-
-        ordinal += 1;
-    }
-
-    unreachable;
+    });
 }
 
 fn buckets(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error![]u64 {

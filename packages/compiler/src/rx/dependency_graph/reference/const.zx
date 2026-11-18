@@ -1,7 +1,0 @@
-export const attribute_from: string = "from"
-
-export const attribute_module: string = "module"
-
-export const attribute_fn: string = "fn"
-
-export const attribute_service: string = "service"

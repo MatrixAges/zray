@@ -45,15 +45,15 @@ pub const markModuleSchema = modules.markSchema;
 pub const IndexedXml = @import("frontend").IndexedXml;
 
 pub fn validate(allocator: std.mem.Allocator, file_name: []const u8, node: ast.Node) std.mem.Allocator.Error!Result {
-    return dsl.validate(File, allocator, node, file_name);
+    return validateView(allocator, file_name, node);
 }
 
 pub fn validateView(allocator: std.mem.Allocator, file_name: []const u8, node: anytype) std.mem.Allocator.Error!Result {
-    return dsl.validateView(File, allocator, node, file_name);
+    return dsl.validateView(File, allocator, node, File.Context{ .path = file_name });
 }
 
 pub fn validateSource(allocator: std.mem.Allocator, source: *ModuleSource) std.mem.Allocator.Error!Result {
-    const result = try validate(allocator, source.path, source.node);
+    const result = try dsl.validate(File, allocator, source.node, File.Context{ .path = source.path, .sequence = source.callSequence() });
 
     if (result.value == .data and result.value.data == .module) modules.markIndexedSchema(source);
 
@@ -62,10 +62,11 @@ pub fn validateSource(allocator: std.mem.Allocator, source: *ModuleSource) std.m
 
 const File = struct {
     pub const Data = Document.Data;
+    const Context = struct { path: []const u8, sequence: ?@import("frontend").xml_references.Sequence = null };
 
-    pub fn decode(allocator: std.mem.Allocator, input: anytype, reporter: *dsl.Reporter, file_name: []const u8) dsl.Error!Data {
+    pub fn decode(allocator: std.mem.Allocator, input: anytype, reporter: *dsl.Reporter, context: Context) dsl.Error!Data {
         const node = dsl.ast.view(input);
-        const basename = std.fs.path.basename(file_name);
+        const basename = std.fs.path.basename(context.path);
 
         const expected: []const u8 = switch (@import("schema/file/adapter.zig").classify(basename)) {
             .App => return reporter.fail(.{
@@ -93,6 +94,6 @@ const File = struct {
             .message = "Root element does not match the RX file kind",
         });
 
-        return Document.decode(allocator, input, reporter, {});
+        return Document.decode(allocator, input, reporter, context.sequence);
     }
 };

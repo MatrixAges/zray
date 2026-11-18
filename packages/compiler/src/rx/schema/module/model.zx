@@ -1,8 +1,7 @@
 export enum Tag {
     Type,
     Args,
-    Store,
-    Step
+    Store
 }
 
 export enum Issue {
@@ -14,9 +13,8 @@ export enum Issue {
 
 export type Input = {
     tags: Tag[],
-    aliases: string[],
-    stores: string[],
-    check_store_aliases: bool
+    names: string[],
+    children: u64[]
 }
 
 export type Finding = {

@@ -5,6 +5,14 @@ export enum Kind {
     Switch
 }
 
+export enum Branch {
+    Step,
+    Else,
+    Default,
+    TextCase,
+    ExpressionCase
+}
+
 export enum Issue {
     DuplicateCase,
     DuplicateDefault,
@@ -13,11 +21,8 @@ export enum Issue {
 
 export type Input = {
     kind: Kind,
-    count: u64,
-    first_else?: u64,
-    second_default?: u64,
+    branches: Branch[],
     keys: u8[][],
-    braced: bool[],
     string_buckets: U64Buffer,
     expression_buckets: U64Buffer,
     string_capacity: u64,

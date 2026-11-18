@@ -69,6 +69,32 @@ pub const Node = struct {
     index: usize,
     pub const Child = Node;
 
+    pub fn missingCall(self: Node) ?ast.Location {
+        const document = self.document;
+        const tree = document.syntax.tree;
+        var first: usize = 0;
+
+        if (self.index != document.syntax.control.result) {
+            first = self.index;
+
+            while (document.first[first] != 0) first = @intCast(document.first[first] - 1);
+        }
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const rule = @import("generated_xml_call_sequence");
+
+        const input: std.meta.Child(rule.Input) = .{
+            .source = document.source,
+            .nodes = tree.nodes,
+            .attributes = tree.attributes,
+            .start = first,
+            .end = self.index + 1,
+        };
+
+        const index = (rule.executeValue(empty.allocator(), &input) catch unreachable) orelse return null;
+
+        return adapter.location(tree.nodes[@intCast(index)].location);
+    }
     fn row(self: Node) Row {
         return self.document.syntax.tree.nodes[self.index];
     }

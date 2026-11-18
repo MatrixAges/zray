@@ -3,13 +3,19 @@
 
     <Args in={Schema.Input} out={Schema.Output} />
 
-    <Call fn="../unique" in={$in.aliases} />
+    <Call
+        fn="duplicate"
+        in={{
+            declarations: $in,
+            tag: Schema.Tag.Type
+        }}
+    />
 
-    <If on={$ctx.unique != null}>
+    <If on={$ctx.duplicate != null}>
         <Return
             value={{
                 issue: Schema.Issue.DuplicateType,
-                index: $ctx.unique
+                index: $ctx.duplicate
             }}
         />
     </If>
