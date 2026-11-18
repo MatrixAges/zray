@@ -1,0 +1,20 @@
+import type { WriteColumn } from "memory"
+import type { RowBuffer } from "memory/columns"
+
+export type Storage = {
+    storage: RowBuffer
+}
+
+export type Columns = {
+    keys: WriteColumn,
+    wants: WriteColumn
+}
+
+export type Target = Storage & {
+    columns: Columns
+}
+
+export type Targets = {
+    normalized: Target,
+    renewed: Target
+}

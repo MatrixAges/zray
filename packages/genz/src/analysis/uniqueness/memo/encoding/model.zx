@@ -1,3 +1,5 @@
+import type { Normalized, Renewed } from "../../replay/ordered/model"
+
 export type State = {
     buffer: u8[],
     end: u64,
@@ -47,15 +49,8 @@ export type Word = {
     value: u64
 }
 
-export type Record = {
-    key: u64,
-    level: u8
-}
-
-export type Entries = {
-    state: State,
-    records: Record[],
-    wide: bool
+export type GrowthLevel = Integer & {
+    want: u8
 }
 
 export type Key = {
@@ -68,8 +63,8 @@ export type Key = {
     called_outputs: u8[][],
     own_output_wants: u8[],
     called_input_wants: u8[][],
-    normalized: Record[],
-    renewed: Record[]
+    normalized: Normalized[],
+    renewed: Renewed[]
 }
 
 export type Facts = {

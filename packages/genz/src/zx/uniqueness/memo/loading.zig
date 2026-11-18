@@ -1,6 +1,6 @@
 const std = @import("std");
 const columns = @import("zx").columns;
-const borrowColumn = @import("zx").memory.borrowWriteColumn;
+const rows = @import("../row_output.zig");
 const Memo = @import("../memo.zig");
 const Function = @import("../function.zig");
 const disk = @import("disk.zig");
@@ -9,23 +9,21 @@ const Error = std.mem.Allocator.Error;
 pub fn load(memo: *Memo, source: []const u8) Error!void {
     const layout = (try disk.inspect(memo.arena.child_allocator, source)) orelse return;
     const allocator = memo.arena.allocator();
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const memory = empty.allocator();
 
-    try section(allocator, memory, source, layout.settled_start, layout.settled_count, &memo.settled, settled);
-    try section(allocator, memory, source, layout.demanded_start, layout.demanded_count, &memo.demanded, demanded);
-    try section(allocator, memory, source, layout.planned_start, layout.planned_count, &memo.planned, planned);
-    try section(allocator, memory, source, layout.flowed_start, layout.flowed_count, &memo.flowed, flowed);
+    try section(allocator, source, layout.settled_start, layout.settled_count, &memo.settled, settled);
+    try section(allocator, source, layout.demanded_start, layout.demanded_count, &memo.demanded, demanded);
+    try section(allocator, source, layout.planned_start, layout.planned_count, &memo.planned, planned);
+    try section(allocator, source, layout.flowed_start, layout.flowed_count, &memo.flowed, flowed);
 }
 
-fn section(allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64, count: u32, map: anytype, comptime materialize: anytype) Error!void {
+fn section(allocator: std.mem.Allocator, source: []const u8, start: u64, count: u32, map: anytype, comptime materialize: anytype) Error!void {
     try map.ensureUnusedCapacity(allocator, count);
 
     var at = start;
 
     for (0..count) |_| {
         const key = source[@intCast(at)..][0..@sizeOf(Memo.Digest)].*;
-        const row = try materialize(allocator, memory, source, at + @sizeOf(Memo.Digest));
+        const row = try materialize(allocator, source, at + @sizeOf(Memo.Digest));
 
         map.putAssumeCapacity(key, row.value);
 
@@ -37,69 +35,62 @@ fn Row(comptime T: type) type {
     return struct { value: T, end: u64 };
 }
 
-fn settled(allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Settled) {
-    const shape = try decode(@import("generated_uniqueness_memo_disk_settled"), memory, .{ .source = source, .start = start, .trusted = true }) orelse unreachable;
-    const passed = try allocator.alloc(Function.Contribution, shape.passed_count);
-    const callees = borrowColumn(u32, "callee", passed);
-    const levels = borrowColumn([]const u8, "levels", passed);
+fn settled(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Settled) {
     const entry = @import("generated_uniqueness_memo_load_settlement");
     const Input = std.meta.Child(entry.Input);
-    const layout = columns.view(std.meta.Child(@FieldType(Input, "shape")), shape);
+    var passed: rows.Output(Input, "passed", Function.Contribution, .{ .callees = &.{"callee"}, .levels = &.{"levels"} }) = undefined;
+
+    passed.init();
 
     const input: Input = .{
         .source = source,
-        .shape = &layout,
-        .callees = @ptrCast(&callees),
-        .levels = @ptrCast(&levels),
+        .start = start,
+        .passed = &.{ .storage = @ptrCast(&passed.buffer), .columns = &passed.view },
     };
 
-    const output = try decode(entry, allocator, input);
+    const row = try decode(entry, allocator, input) orelse unreachable;
 
     return .{
-        .value = .{ .passed = passed, .output = @ptrCast(output), .used = false },
-        .end = shape.end,
+        .value = .{ .passed = passed.rows(), .output = @ptrCast(row.output), .used = false },
+        .end = row.end,
     };
 }
 
-fn demanded(allocator: std.mem.Allocator, memory: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Demanded) {
-    const shape = try decode(@import("generated_uniqueness_memo_disk_demanded"), memory, .{ .source = source, .start = start, .trusted = true }) orelse unreachable;
-    const marks = try allocator.alloc(Function.Mark, shape.marks_count);
-    const normalized = try allocator.alloc(Memo.Normalized, shape.normalized_count);
-    const renewed = try allocator.alloc(Memo.Renewed, shape.renewed_count);
-    const output = borrowColumn(u8, "output", marks);
-    const functions = borrowColumn(u32, "function", marks);
-    const slots = borrowColumn(u32, "slot", marks);
-    const mark_wants = borrowColumn(u8, "want", marks);
-    const normalized_ids = borrowColumn(u32, "id", normalized);
-    const normalized_wants = borrowColumn(u8, "want", normalized);
-    const renewed_keys = borrowColumn(u64, "key", renewed);
-    const renewed_wants = borrowColumn(u8, "want", renewed);
+fn demanded(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Demanded) {
     const entry = @import("generated_uniqueness_memo_load_demand");
     const Input = std.meta.Child(entry.Input);
-    const layout = columns.view(std.meta.Child(@FieldType(Input, "shape")), shape);
+
+    var marks: rows.Output(Input, "marks", Function.Mark, .{
+        .output = &.{"output"},
+        .functions = &.{"function"},
+        .slots = &.{"slot"},
+        .wants = &.{"want"},
+    }) = undefined;
+
+    var normalized: rows.Normalized(Input) = undefined;
+    var renewed: rows.Renewed(Input) = undefined;
+
+    marks.init();
+    normalized.init();
+    renewed.init();
 
     const input: Input = .{
         .source = source,
-        .shape = &layout,
-        .output = @ptrCast(&output),
-        .functions = @ptrCast(&functions),
-        .slots = @ptrCast(&slots),
-        .marks = @ptrCast(&mark_wants),
-        .normalized_ids = @ptrCast(&normalized_ids),
-        .normalized_wants = @ptrCast(&normalized_wants),
-        .renewed_keys = @ptrCast(&renewed_keys),
-        .renewed_wants = @ptrCast(&renewed_wants),
+        .start = start,
+        .marks = &.{ .storage = @ptrCast(&marks.buffer), .columns = &marks.view },
+        .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
+        .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
     };
 
-    try decode(entry, memory, input);
+    const row = try decode(entry, allocator, input) orelse unreachable;
 
     return .{
-        .value = .{ .marks = marks, .normalized = normalized, .renewed = renewed, .grew = shape.grew, .used = false },
-        .end = shape.end,
+        .value = .{ .marks = marks.rows(), .normalized = normalized.rows(), .renewed = renewed.rows(), .grew = row.grew, .used = false },
+        .end = row.end,
     };
 }
 
-fn planned(allocator: std.mem.Allocator, _: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Planned) {
+fn planned(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Planned) {
     const row = try decode(@import("generated_uniqueness_memo_load_plan"), allocator, .{ .source = source, .start = start }) orelse unreachable;
 
     return .{
@@ -114,7 +105,7 @@ fn planned(allocator: std.mem.Allocator, _: std.mem.Allocator, source: []const u
     };
 }
 
-fn flowed(allocator: std.mem.Allocator, _: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Flowed) {
+fn flowed(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Flowed) {
     const row = try decode(@import("generated_uniqueness_memo_load_flow"), allocator, .{ .source = source, .start = start }) orelse unreachable;
 
     return .{

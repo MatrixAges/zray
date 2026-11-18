@@ -444,7 +444,7 @@ fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, lasting: std.
     var restored: Growth.Store = undefined;
     const growth = if (generated) &restored else &unit.growth;
 
-    if (!try Memo.restore(kind, memo.arena.child_allocator, temporary, state, summaries, index, unit.callees, growth)) return null;
+    if (!try Memo.restore(kind, temporary, state, summaries, index, unit.callees, growth)) return null;
 
     var changed: std.ArrayList(u64) = .empty;
     var analysis = try unit.initialize(temporary, lasting, program.functions, slots, summaries, growth, null);

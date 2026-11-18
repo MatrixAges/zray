@@ -1,40 +1,55 @@
 <Module>
     <Type from="model" as="Load" />
 
-    <Args in={Load.Demand} out={void} />
+    <Args in={Load.Demand} out={Load.DemandResult?} />
 
     <Call
-        fn="marks"
+        fn="../demanded"
         in={{
             source: $in.source,
-            start: $in.shape.marks_start,
-            count: $in.shape.marks_count,
-            output: $in.output,
-            functions: $in.functions,
-            slots: $in.slots,
-            wants: $in.marks
+            start: $in.start,
+            trusted: true
         }}
     />
 
-    <Call
-        fn="normalized"
-        in={{
-            source: $in.source,
-            start: $in.shape.normalized_start,
-            count: $in.shape.normalized_count,
-            keys: $in.normalized_ids,
-            wants: $in.normalized_wants
-        }}
-    />
+    <If on={$ctx.demanded != null}>
+        <Call
+            fn="marks"
+            in={{
+                source: $in.source,
+                start: $ctx.demanded.marks_start,
+                count: $ctx.demanded.marks_count,
+                target: $in.marks
+            }}
+        />
 
-    <Call
-        fn="renewed"
-        in={{
-            source: $in.source,
-            start: $in.shape.renewed_start,
-            count: $in.shape.renewed_count,
-            keys: $in.renewed_keys,
-            wants: $in.renewed_wants
-        }}
-    />
+        <Call
+            fn="normalized"
+            in={{
+                source: $in.source,
+                start: $ctx.demanded.normalized_start,
+                count: $ctx.demanded.normalized_count,
+                target: $in.normalized
+            }}
+        />
+
+        <Call
+            fn="renewed"
+            in={{
+                source: $in.source,
+                start: $ctx.demanded.renewed_start,
+                count: $ctx.demanded.renewed_count,
+                target: $in.renewed
+            }}
+        />
+
+        <Return
+            value={{
+                end: $ctx.demanded.end,
+                grew: $ctx.demanded.grew
+            }}
+        />
+    </If>
+
+    <Return value={null} />
 </Module>

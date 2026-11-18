@@ -1,0 +1,23 @@
+import integers from "std:integer"
+
+import { level_modulus } from "../../replay/ordered/const"
+import { level_width } from "./const"
+import integer from "./integer"
+
+import type { GrowthLevel as Input, State as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { state, value, width, want } = in
+
+    const key = integer({
+        state,
+        value,
+        width
+    })
+
+    return integer({
+        state: key,
+        value: integers.widenByte(want % level_modulus),
+        width: level_width
+    })
+}

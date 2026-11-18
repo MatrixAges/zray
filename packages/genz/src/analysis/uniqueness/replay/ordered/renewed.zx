@@ -1,4 +1,4 @@
-import { sort_less, sort_equal, sort_greater } from "./const"
+import ordered from "./order_renewed"
 import equal from "./renewed_equal"
 
 import type { Input, Output } from "./renewed_equal"
@@ -12,24 +12,8 @@ export default function (in: Input): Output {
         return true
     }
 
-    const return_input = {
-        left: in.left.sort(
-            (left, right) =>
-                match {
-                    left.key < right.key => sort_less,
-                    left.key == right.key => sort_equal,
-                    _ => sort_greater
-                }
-        )[0],
-        right: in.right.sort(
-            (left, right) =>
-                match {
-                    left.key < right.key => sort_less,
-                    left.key == right.key => sort_equal,
-                    _ => sort_greater
-                }
-        )[0]
-    }
-
-    return equal(return_input)
+    return equal({
+        left: ordered(in.left),
+        right: ordered(in.right)
+    })
 }

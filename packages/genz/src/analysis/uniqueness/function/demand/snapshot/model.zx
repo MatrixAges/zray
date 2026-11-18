@@ -1,20 +1,14 @@
-import type { WriteColumn } from "memory"
+import type { Target, Targets } from "../../../growth/output"
 import type { Growth } from "../../levels/model"
-
-export type Columns = {
-    keys: WriteColumn,
-    wants: WriteColumn
-}
 
 export type Input = {
     normalized: Growth[],
     renewed: Growth[],
-    normalized_target: Columns,
-    renewed_target: Columns
+    targets: Targets
 }
 
 export type Write = {
     rows: Growth[],
-    target: Columns,
+    target: Target,
     wide: bool
 }

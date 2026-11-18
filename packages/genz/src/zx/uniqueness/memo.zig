@@ -52,7 +52,7 @@ demanded: std.AutoHashMapUnmanaged(Digest, Demanded) = .empty,
 planned: std.AutoHashMapUnmanaged(Digest, Planned) = .empty,
 flowed: std.AutoHashMapUnmanaged(Digest, Flowed) = .empty,
 key: Digest = undefined,
-order: std.ArrayList(Record) = .empty,
+order: if (generated_encoding) void else std.ArrayList(Record) = if (generated_encoding) {} else .empty,
 /// The bytes the next key digests, gathered so they are hashed in one call.
 encoded: std.ArrayList(u8) = .empty,
 encoding: if (generated_encoding) Encoding else void,
@@ -127,7 +127,7 @@ pub fn holds(self: *Self, comptime kind: Kind, summaries: *const Summaries, stat
 /// Sets `key` to the digest of what a body of `kind` reads in `state`.
 fn keyed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
     if (generated_encoding)
-        try self.encodeKey(kind, summaries, state)
+        try self.encoding.key(self.arena.allocator(), kind, summaries, &state)
     else
         try self.encodeSeed(kind, summaries, state);
 
@@ -218,21 +218,6 @@ fn use(comptime Value: type, map: *std.AutoHashMapUnmanaged(Digest, Value), key:
     return entry.*;
 }
 
-fn encodeKey(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
-    const allocator = self.arena.allocator();
-    const normalized = state.growth.normalized;
-    const renewed = state.growth.renewed;
-
-    try self.order.resize(allocator, normalized.len + renewed.len);
-
-    const split = self.order.items[0..normalized.len];
-    const tail = self.order.items[normalized.len..];
-
-    for (normalized, split) |entry, *row| row.* = .{ .key = @backingInt(entry.id), .level = entry.want };
-    for (renewed, tail) |entry, *row| row.* = .{ .key = entry.key, .level = entry.want };
-    try self.encoding.key(allocator, kind, summaries, &state, split, tail);
-}
-
 fn encodeSeed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
     self.encoded.clearRetainingCapacity();
 
@@ -318,8 +303,8 @@ fn encodedBytes(self: *const Self) []const u8 {
 
 /// Writes a state `lastState` returned for a lookup of `kind` back into the summaries and growth copies of body `index`,
 /// so the body can be analyzed in it again; false when the bytes do not describe a state of this body.
-pub fn restore(comptime kind: Kind, backing: std.mem.Allocator, owner: std.mem.Allocator, state: []const u8, summaries: *Summaries, index: usize, callees: []const u32, growth: *Growth.Store) std.mem.Allocator.Error!bool {
-    if (generated_encoding) return @import("memo/restore.zig").apply(backing, owner, state, summaries, index, callees, kind == .demanded, growth);
+pub fn restore(comptime kind: Kind, owner: std.mem.Allocator, state: []const u8, summaries: *Summaries, index: usize, callees: []const u32, growth: *Growth.Store) std.mem.Allocator.Error!bool {
+    if (generated_encoding) return @import("memo/restore.zig").apply(owner, state, summaries, index, callees, kind == .demanded, growth);
 
     var reader: std.Io.Reader = .fixed(state);
 

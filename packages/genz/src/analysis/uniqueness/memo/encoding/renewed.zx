@@ -1,0 +1,40 @@
+import ordered from "../../replay/ordered/order_renewed"
+import { renewal_key_width } from "./const"
+import record from "./record"
+import word from "./word"
+
+import type { Renewed } from "../../replay/ordered/model"
+import type { State as Output } from "./model"
+
+export type Input = {
+    state: Output,
+    records: Renewed[]
+}
+
+export default function (in: Input): Output {
+    const rows = ordered(in.records)
+
+    const state = word({
+        state: in.state,
+        value: rows.length
+    })
+
+    return loop({
+        state,
+        index: 0
+    }, {
+        while: current => current.index < rows.length,
+        next: current => {
+            const row = rows[current.index]
+
+            current.state = record({
+                state: current.state,
+                value: row.key,
+                width: renewal_key_width,
+                want: row.want
+            })
+            current.index += 1
+        },
+        return: current => current.state
+    })
+}

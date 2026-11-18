@@ -25,33 +25,27 @@
         />
     </Task>
 
-    <Task name="normalized" out={$ctx.entries}>
-        <Call
-            module="entries"
-            in={{
-                state: $ctx.task.summary,
-                records: $in.normalized,
-                wide: false
-            }}
-        />
-    </Task>
+    <Call
+        fn="normalized"
+        in={{
+            state: $ctx.task.summary,
+            records: $in.normalized
+        }}
+    />
 
-    <Task name="renewed" out={$ctx.entries}>
-        <Call
-            module="entries"
-            in={{
-                state: $ctx.task.normalized,
-                records: $in.renewed,
-                wide: true
-            }}
-        />
-    </Task>
+    <Call
+        fn="renewed"
+        in={{
+            state: $ctx.normalized,
+            records: $in.renewed
+        }}
+    />
 
     <If on={$in.kind == Encoding.Kind.Demanded}>
         <Call
             fn="facts"
             in={{
-                state: $ctx.task.renewed,
+                state: $ctx.renewed,
                 callees: $in.callees,
                 rows: $in.called_input_wants,
                 own: $in.own_output_wants,
@@ -73,7 +67,7 @@
     <Call
         module="finish"
         in={{
-            state: $ctx.task.renewed,
+            state: $ctx.renewed,
             kind: $in.kind
         }}
     />

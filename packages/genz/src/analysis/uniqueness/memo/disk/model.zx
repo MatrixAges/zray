@@ -48,14 +48,17 @@ export type Settled = {
     output_end: u64
 }
 
-export type Demanded = {
-    end: u64,
-    marks_start: u64,
-    marks_count: u32,
+export type GrowthLayout = {
     normalized_start: u64,
     normalized_count: u32,
     renewed_start: u64,
-    renewed_count: u32,
+    renewed_count: u32
+}
+
+export type Demanded = GrowthLayout & {
+    end: u64,
+    marks_start: u64,
+    marks_count: u32,
     grew: bool
 }
 

@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import { renewed_width } from "../const"
 import entry from "../rows/renewed"
@@ -9,9 +10,13 @@ import type { Growth as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { source, start, keys, wants } = in
+    const { source, start, target } = in
+    const { keys, wants } = target.columns
 
     const count = integers.widen(in.count)
+
+    columns.allocateRows(target.storage, count)
+
     const first: u64 = 0
 
     const written = loop(first, {

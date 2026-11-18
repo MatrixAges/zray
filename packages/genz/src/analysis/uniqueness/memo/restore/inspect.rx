@@ -48,7 +48,7 @@
         />
     </Task>
 
-    <If on={!$ctx.task.normalized.valid}>
+    <If on={$ctx.task.normalized.end == 0}>
         <Return value={null} />
     </If>
 
@@ -63,7 +63,7 @@
         />
     </Task>
 
-    <If on={!$ctx.task.renewed.valid}>
+    <If on={$ctx.task.renewed.end == 0}>
         <Return value={null} />
     </If>
 
@@ -98,8 +98,11 @@
     <Return
         value={{
             facts_start: $ctx.header.end,
-            normalized: $ctx.task.normalized,
-            renewed: $ctx.task.renewed
+            wants_start: $ctx.task.renewed.end,
+            normalized_start: $ctx.task.normalized.start,
+            normalized_count: $ctx.task.normalized.count,
+            renewed_start: $ctx.task.renewed.start,
+            renewed_count: $ctx.task.renewed.count
         }}
     />
 </Module>

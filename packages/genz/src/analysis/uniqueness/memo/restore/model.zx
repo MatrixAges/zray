@@ -1,4 +1,6 @@
 import type { AtomicRows } from "std:bytes"
+import type { Targets as GrowthTargets } from "../../growth/output"
+import type { GrowthLayout } from "../disk/model"
 
 export type Input = {
     source: u8[],
@@ -16,17 +18,9 @@ export type Cursor = {
     valid: bool
 }
 
-export type Entries = {
-    keys: u64[],
-    levels: u8[],
-    end: u64,
-    valid: bool
-}
-
-export type Decoded = {
+export type Decoded = GrowthLayout & {
     facts_start: u64,
-    normalized: Entries,
-    renewed: Entries
+    wants_start: u64
 }
 
 export type Output = Decoded?
@@ -35,4 +29,8 @@ export type Publication = {
     input: Input,
     facts_start: u64,
     wants_start: u64
+}
+
+export type Restore = GrowthTargets & {
+    state: Input
 }

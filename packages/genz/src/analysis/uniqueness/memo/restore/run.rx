@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Restore" />
+
+    <Args in={Restore.Restore} out={bool} />
+
+    <Call module="inspect" in={$in.state} />
+
+    <If on={$ctx.inspect != null}>
+        <Call
+            fn="../disk/load/normalized"
+            in={{
+                source: $in.state.source,
+                start: $ctx.inspect.normalized_start,
+                count: $ctx.inspect.normalized_count,
+                target: $in.normalized
+            }}
+        />
+
+        <Call
+            fn="../disk/load/renewed"
+            in={{
+                source: $in.state.source,
+                start: $ctx.inspect.renewed_start,
+                count: $ctx.inspect.renewed_count,
+                target: $in.renewed
+            }}
+        />
+
+        <Call
+            module="publish"
+            in={{
+                input: $in.state,
+                facts_start: $ctx.inspect.facts_start,
+                wants_start: $ctx.inspect.wants_start
+            }}
+        />
+
+        <Return value={true} />
+    </If>
+
+    <Return value={false} />
+</Module>

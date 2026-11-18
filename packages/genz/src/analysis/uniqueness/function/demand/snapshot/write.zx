@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import encode from "../../levels/encode"
 
@@ -10,6 +11,10 @@ export type Output = void
 export default function (in: Input): Output {
     const { rows, target, wide } = in
 
+    const { keys, wants } = target.columns
+
+    columns.allocateRows(target.storage, rows.length)
+
     const first: u64 = 0
 
     const written = loop(first, {
@@ -18,16 +23,16 @@ export default function (in: Input): Output {
             const row = rows[index]
 
             if (wide) {
-                memory.writeColumnU64(target.keys, index, row.key)
+                memory.writeColumnU64(keys, index, row.key)
             } else {
                 memory.writeColumnU32(
-                    target.keys,
+                    keys,
                     index,
                     integers.narrow(row.key)
                 )
             }
 
-            memory.writeColumnU8(target.wants, index, encode(row.value))
+            memory.writeColumnU8(wants, index, encode(row.value))
             index += 1
         }
     })

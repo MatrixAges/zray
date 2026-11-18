@@ -2,62 +2,41 @@ const std = @import("std");
 const zx = @import("zx");
 const Growth = @import("../growth.zig");
 const Summaries = @import("../summaries.zig");
-const inspecting = @import("generated_uniqueness_memo_restore_inspect");
-const publishing = @import("generated_uniqueness_memo_restore_publish");
-const Input = std.meta.Child(inspecting.Input);
-const Publication = std.meta.Child(publishing.Input);
+const rows = @import("../row_output.zig");
+const restore = @import("generated_uniqueness_memo_restore");
+const Input = std.meta.Child(restore.Input);
 
-pub fn apply(backing: std.mem.Allocator, owner: std.mem.Allocator, source: []const u8, summaries: *Summaries, body: usize, callees: []const u32, demanded: bool, growth: *Growth.Rows) std.mem.Allocator.Error!bool {
-    var scratch = std.heap.ArenaAllocator.init(backing);
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+pub fn apply(owner: std.mem.Allocator, source: []const u8, summaries: *Summaries, body: usize, callees: []const u32, demanded: bool, growth: *Growth.Rows) std.mem.Allocator.Error!bool {
+    var normalized: rows.Normalized(Input) = undefined;
+    var renewed: rows.Renewed(Input) = undefined;
 
-    defer scratch.deinit();
+    normalized.init();
+    renewed.init();
+    errdefer owner.free(normalized.rows());
+    errdefer owner.free(renewed.rows());
 
     const input: Input = .{
-        .source = source,
-        .body = body,
-        .callees = callees,
-        .demanded = demanded,
-        .input = @ptrCast(&summaries.input),
-        .output = @ptrCast(&summaries.output),
-        .inputs = @ptrCast(&summaries.inputs),
-        .outputs = @ptrCast(&summaries.outputs),
+        .state = &.{
+            .source = source,
+            .body = body,
+            .callees = callees,
+            .demanded = demanded,
+            .input = @ptrCast(&summaries.input),
+            .output = @ptrCast(&summaries.output),
+            .inputs = @ptrCast(&summaries.inputs),
+            .outputs = @ptrCast(&summaries.outputs),
+        },
+        .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
+        .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
     };
 
-    const decoded = (zx.columns.invoke(inspecting.executeValue, memory.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const valid = zx.columns.invoke(restore.executeValue, owner, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         error.IndexOutOfBounds, error.IntegerOverflow, error.Overflow => return false,
-        else => std.debug.panic("memo state inspection failed: {s}", .{@errorName(err)}),
-    }) orelse return false;
-
-    const normalized = try owner.alloc(Growth.Normalized, decoded.normalized.keys.len);
-
-    errdefer owner.free(normalized);
-
-    const renewed = try owner.alloc(Growth.Renewed, decoded.renewed.keys.len);
-
-    for (normalized, decoded.normalized.keys, decoded.normalized.levels) |*entry, key, level| {
-        entry.* = .{ .id = @fromBackingInt(@intCast(key)), .want = @bitCast(@as(u3, @intCast(level))) };
-    }
-
-    for (renewed, decoded.renewed.keys, decoded.renewed.levels) |*entry, key, level| {
-        entry.* = .{ .key = key, .want = @bitCast(@as(u3, @intCast(level))) };
-    }
-
-    const publication: Publication = .{
-        .input = zx.columns.pointer(@FieldType(Publication, "input"), &input),
-        .facts_start = decoded.facts_start,
-        .wants_start = decoded.renewed.end,
+        else => std.debug.panic("memo state restoration failed: {s}", .{@errorName(err)}),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    if (valid) growth.* = .{ .normalized = normalized.rows(), .renewed = renewed.rows() };
 
-    zx.columns.invoke(publishing.executeValue, empty.allocator(), &publication) catch |err| {
-        std.debug.panic("validated memo state could not be published: {s}", .{@errorName(err)});
-    };
-
-    growth.* = .{ .normalized = normalized, .renewed = renewed };
-
-    return true;
+    return valid;
 }

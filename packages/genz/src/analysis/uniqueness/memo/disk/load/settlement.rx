@@ -1,27 +1,44 @@
 <Module>
     <Type from="model" as="Load" />
 
-    <Args in={Load.Settlement} out={u8[]} />
+    <Args in={Load.Settlement} out={Load.SettlementResult?} />
 
     <Call
-        fn="contributions"
+        fn="../settled"
         in={{
             source: $in.source,
-            start: $in.shape.passed_start,
-            count: $in.shape.passed_count,
-            callees: $in.callees,
-            levels: $in.levels
+            start: $in.start,
+            trusted: true
         }}
     />
 
-    <Call
-        fn="payload"
-        in={{
-            source: $in.source,
-            start: $in.shape.output_start,
-            end: $in.shape.output_end
-        }}
-    />
+    <If on={$ctx.settled != null}>
+        <Call
+            fn="contributions"
+            in={{
+                source: $in.source,
+                start: $ctx.settled.passed_start,
+                count: $ctx.settled.passed_count,
+                target: $in.passed
+            }}
+        />
 
-    <Return value={$ctx.payload} />
+        <Call
+            fn="payload"
+            in={{
+                source: $in.source,
+                start: $ctx.settled.output_start,
+                end: $ctx.settled.output_end
+            }}
+        />
+
+        <Return
+            value={{
+                end: $ctx.settled.end,
+                output: $ctx.payload
+            }}
+        />
+    </If>
+
+    <Return value={null} />
 </Module>

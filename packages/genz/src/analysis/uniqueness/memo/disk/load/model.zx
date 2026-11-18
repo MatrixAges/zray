@@ -1,6 +1,10 @@
 import type { WriteColumn } from "memory"
+import type {
+    Storage,
+    Target as GrowthTarget,
+    Targets as GrowthTargets
+} from "../../../growth/output"
 import type { Planned } from "../../../replay/ordered/model"
-import type { Demanded, Settled } from "../model"
 import type { Input as Cursor } from "../rows/model"
 
 export type Input = Cursor
@@ -9,41 +13,54 @@ export type Rows = Input & {
     count: u32
 }
 
-export type Contributions = Rows & {
+export type ContributionColumns = {
     callees: WriteColumn,
     levels: WriteColumn
+}
+
+export type MarkColumns = {
+    output: WriteColumn,
+    functions: WriteColumn,
+    slots: WriteColumn,
+    wants: WriteColumn
+}
+
+export type ContributionTarget = Storage & {
+    columns: ContributionColumns
+}
+
+export type MarkTarget = Storage & {
+    columns: MarkColumns
+}
+
+export type Contributions = Rows & {
+    target: ContributionTarget
 }
 
 export type Marks = Rows & {
-    output: WriteColumn,
-    functions: WriteColumn,
-    slots: WriteColumn,
-    wants: WriteColumn
+    target: MarkTarget
 }
 
 export type Growth = Rows & {
-    keys: WriteColumn,
-    wants: WriteColumn
+    target: GrowthTarget
 }
 
-export type Settlement = {
-    source: u8[],
-    shape: Settled,
-    callees: WriteColumn,
-    levels: WriteColumn
+export type Settlement = Input & {
+    passed: ContributionTarget
 }
 
-export type Demand = {
-    source: u8[],
-    shape: Demanded,
-    output: WriteColumn,
-    functions: WriteColumn,
-    slots: WriteColumn,
-    marks: WriteColumn,
-    normalized_ids: WriteColumn,
-    normalized_wants: WriteColumn,
-    renewed_keys: WriteColumn,
-    renewed_wants: WriteColumn
+export type Demand = Input & GrowthTargets & {
+    marks: MarkTarget
+}
+
+export type SettlementResult = {
+    end: u64,
+    output: u8[]
+}
+
+export type DemandResult = {
+    end: u64,
+    grew: bool
 }
 
 export type Plan = Planned & {

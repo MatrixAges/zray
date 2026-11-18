@@ -11,6 +11,8 @@ const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) el
 const Self = @This();
 
 state: State,
+normalized: std.ArrayList(Memo.Normalized) = .empty,
+renewed: std.ArrayList(Memo.Renewed) = .empty,
 pub fn init() Self {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     const state = creating.executeState(empty.allocator(), {}) catch unreachable;
@@ -18,11 +20,10 @@ pub fn init() Self {
     return .{ .state = state };
 }
 
-pub fn key(self: *Self, allocator: std.mem.Allocator, comptime kind: Memo.Kind, summaries: *const Summaries, body: *const Memo.State, normalized: anytype, renewed: @TypeOf(normalized)) std.mem.Allocator.Error!void {
+pub fn key(self: *Self, allocator: std.mem.Allocator, comptime kind: Memo.Kind, summaries: *const Summaries, body: *const Memo.State) std.mem.Allocator.Error!void {
     comptime std.debug.assert(@sizeOf(Level) == @sizeOf(u8) and @alignOf(Level) == @alignOf(u8));
 
     const output_wants: []const Level = if (kind == .demanded and body.index < summaries.outputs.len) summaries.outputs[body.index] else &.{};
-    const Growth = @FieldType(Input, "normalized");
 
     const input: Input = .{
         .state = self.state,
@@ -34,8 +35,8 @@ pub fn key(self: *Self, allocator: std.mem.Allocator, comptime kind: Memo.Kind, 
         .called_outputs = .{ .items = @ptrCast(summaries.output), .storage = .plain },
         .own_output_wants = .{ .items = std.mem.sliceAsBytes(output_wants), .storage = .plain },
         .called_input_wants = .{ .items = if (kind == .demanded) @ptrCast(summaries.inputs) else &.{}, .storage = .plain },
-        .normalized = growth(Growth, normalized),
-        .renewed = growth(Growth, renewed),
+        .normalized = try growth(@FieldType(Input, "normalized"), &self.normalized, allocator, body.growth.normalized),
+        .renewed = try growth(@FieldType(Input, "renewed"), &self.renewed, allocator, body.growth.renewed),
     };
 
     self.state = encoding.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
@@ -49,10 +50,16 @@ pub fn bytes(self: *const Self) []const u8 {
     return self.state.buffer.items[0..@intCast(self.state.end)];
 }
 
-fn growth(comptime Target: type, rows: anytype) Target {
-    const values = columns.storage.view(@FieldType(Target, "items"), @as([]const std.meta.Child(@TypeOf(rows)), rows));
+/// Longer lists need writable storage for canonical ordering. The analysis retains its original order.
+fn growth(comptime Target: type, scratch: anytype, allocator: std.mem.Allocator, rows: anytype) std.mem.Allocator.Error!Target {
+    const Items = @FieldType(Target, "items");
 
-    return .{ .items = values, .storage = .owned };
+    if (rows.len < 2) return .{ .items = columns.storage.view(Items, rows), .storage = .plain };
+    try scratch.resize(allocator, rows.len);
+
+    @memcpy(scratch.items, rows);
+
+    return .{ .items = columns.storage.view(Items, @as(@TypeOf(rows), scratch.items)), .storage = .owned };
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import { false_byte, true_byte, mark_width } from "../const"
 import mark from "../rows/mark"
@@ -9,9 +10,13 @@ import type { Marks as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { source, start, output, functions, slots, wants } = in
+    const { source, start, target } = in
+    const { output, functions, slots, wants } = target.columns
 
     const count = integers.widen(in.count)
+
+    columns.allocateRows(target.storage, count)
+
     const first: u64 = 0
 
     const written = loop(first, {
