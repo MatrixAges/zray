@@ -17,6 +17,7 @@ pub fn lower(self: *Lower, items: []const ir.ExprId, values: []const node.Expres
 
     const input = Input{
         .types = &types,
+        .expression_kinds = view.slice(@FieldType(Input, "expression_kinds"), self.program.expressions.kinds),
         .expression_types = view.slice(@FieldType(Input, "expression_types"), self.program.expressions.types),
         .items = view.slice(@FieldType(Input, "items"), items),
         .values = view.slice(@FieldType(Input, "values"), values),

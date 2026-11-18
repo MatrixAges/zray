@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Circuit" />
+
+    <Args in={Circuit.Module} out={void} />
+
+    <Call fn="assignments" in={$in} />
+
+    <If on={$in.clocked}>
+        <Call
+            module="clocked"
+            in={$in.pick([
+                "writer",
+                "inputs",
+                "outputs"
+            ])}
+        />
+    </If>
+</Module>

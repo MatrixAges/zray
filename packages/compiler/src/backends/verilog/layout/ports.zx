@@ -1,0 +1,30 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import { range_separator, port_end } from "./const"
+
+import type { Declaration as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { ports, prefix, writer } = in
+
+    const declared = loop(0, {
+        while: row => row < ports.count,
+        next: row => {
+            const width = integers.widenShort(memory.readColumnU16(ports.widths, row))
+            bytes.write(writer, bytes.fromText(prefix))
+            bytes.writeDecimalU64(writer, width - 1)
+            bytes.write(writer, bytes.fromText(range_separator))
+            bytes.write(
+                writer,
+                bytes.fromText(memory.readTextColumn(ports.names, row))
+            )
+            bytes.write(writer, bytes.fromText(port_end))
+
+            row += 1
+        }
+    })
+}

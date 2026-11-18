@@ -1,0 +1,55 @@
+export const wire_width: string = "wire ["
+
+export const wire_index: string = ":0] n_"
+
+export const wire_assign: string = ";\nassign n_"
+
+export const expression_start: string = " = "
+
+export const decimal_literal: string = "'d"
+
+export const wire_name: string = "n_"
+
+export const choice_yes: string = " ? n_"
+
+export const choice_no: string = " : n_"
+
+export const invert_wire: string = "!n_"
+
+export const negate_wire: string = "-n_"
+
+export const replicate: string = "{{"
+
+export const replicate_wire: string = "{n_"
+
+export const bit_select: string = "["
+
+export const replicate_end: string = "]}}, n_"
+
+export const concat_end: string = "}"
+
+export const concat_start: string = "{"
+
+export const zero_prefix: string = "'d0, n_"
+
+export const signed_concat: string = "$signed({n_"
+
+export const sign_repeat: string = "], n_"
+
+export const remainder_join: string = "}) % $signed({n_"
+
+export const signed_end: string = "})"
+
+export const signed_wire: string = "$signed(n_"
+
+export const signed_operator: string = ") "
+
+export const signed_right: string = " $signed(n_"
+
+export const close_paren: string = ")"
+
+export const space: string = " "
+
+export const right_wire: string = " n_"
+
+export const wire_end: string = ";\n\n"

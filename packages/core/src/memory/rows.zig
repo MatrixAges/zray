@@ -246,6 +246,10 @@ pub inline fn readColumnI32(source: *const anyopaque, index: u64) error{IndexOut
     return readColumn(i32, source, index);
 }
 
+pub inline fn readColumnU16(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u16 {
+    return readColumn(u16, source, index);
+}
+
 pub inline fn readColumnU32(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u32 {
     return readColumn(u32, source, index);
 }

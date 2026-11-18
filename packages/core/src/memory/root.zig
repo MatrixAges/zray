@@ -129,6 +129,7 @@ pub const readOptionalIndirectTextColumn = rows.readOptionalIndirectText;
 pub const readColumnU8 = rows.readColumnU8;
 pub const readColumnBool = rows.readColumnBool;
 pub const readColumnI32 = rows.readColumnI32;
+pub const readColumnU16 = rows.readColumnU16;
 pub const readColumnU32 = rows.readColumnU32;
 pub const readColumnU64 = rows.readColumnU64;
 pub const readColumnOptionalU32 = rows.readColumnOptionalU32;

@@ -1,0 +1,63 @@
+import type { ReadColumn, TextColumn } from "memory"
+import type { Family, Rendering } from "../binary/model"
+
+export enum Kind {
+    Input,
+    Constant,
+    Invert,
+    Negate,
+    Binary,
+    Select,
+    Extend
+}
+
+export type Node = {
+    kind: Kind,
+    width: u16,
+    boolean: bool,
+    first: u64,
+    second: u64,
+    third: u64,
+    extra: u16,
+    signed: bool,
+    family: Family,
+    rendering: Rendering,
+    token: string
+}
+
+export type Sorts = {
+    widths: ReadColumn,
+    booleans: ReadColumn
+}
+
+export type Ports = Sorts & {
+    count: u64,
+    names: TextColumn,
+    nodes: ReadColumn,
+    signed: ReadColumn
+}
+
+export type Graph = {
+    sorts: Sorts,
+    count: u64,
+    inputs: Ports,
+    outputs: Ports,
+    safe: u64
+}
+
+export type Check = {
+    graph: Graph,
+    index: u64,
+    node: Node
+}
+
+export type Endpoints = {
+    graph: Graph,
+    input_nodes: u64
+}
+
+export type Bank = {
+    graph: Graph,
+    ports: Ports,
+    output: bool
+}

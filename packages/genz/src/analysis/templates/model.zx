@@ -1,3 +1,4 @@
+import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Table } from "core/type_table/model"
 import type { State as Context, Variables } from "../../ast/context/model"
 import type { Capture } from "../../ast/expressions/fallible"
@@ -8,6 +9,7 @@ import type { Columns as Statements } from "../../ast/statements/model"
 export type Input = {
     types: Table,
     expression_types: u32[],
+    expression_kinds: ExpressionKind[],
     items: u32[],
     values: u32[],
     capture?: Capture,

@@ -1,0 +1,16 @@
+import memory from "memory"
+
+import type { Endpoints as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { graph, input_nodes } = in
+    const { safe, count, sorts } = graph
+
+    if (input_nodes != graph.inputs.count || safe >= count) {
+        return false
+    }
+
+    return memory.readColumnBool(sorts.booleans, safe)
+}

@@ -1,0 +1,26 @@
+import bytes from "std:bytes"
+
+import { Kind } from "../../hardware/graph/model"
+import binary from "./binary"
+import { wire_end } from "./const"
+import declaration from "./declaration"
+import extend from "./extend"
+import scalar from "./scalar"
+
+import type { Wire as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    declaration(in)
+
+    if (in.node.kind == Kind.Binary) {
+        binary(in)
+    } else if (in.node.kind == Kind.Extend) {
+        extend(in)
+    } else {
+        scalar(in)
+    }
+
+    bytes.write(in.writer, bytes.fromText(wire_end))
+}

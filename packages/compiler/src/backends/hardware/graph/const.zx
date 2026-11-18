@@ -1,0 +1,3 @@
+export const maximum_bit_width: u16 = 256
+
+export const literal_bit_width: u16 = 64

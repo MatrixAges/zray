@@ -1,5 +1,5 @@
 const std = @import("std");
-const ir = @import("../hardware/ir.zig");
+const ir = @import("../../hardware/ir.zig");
 
 pub fn write(writer: *std.Io.Writer, module: ir.Module, node: ir.Node) std.Io.Writer.Error!void {
     switch (node.value) {
@@ -21,7 +21,7 @@ pub fn write(writer: *std.Io.Writer, module: ir.Module, node: ir.Node) std.Io.Wr
         .binary => |binary| {
             const left = @intFromEnum(binary.left);
             const right = @intFromEnum(binary.right);
-            const traits = @import("../hardware/binary.zig").traits(binary.operator);
+            const traits = @import("../../hardware/binary.zig").traits(binary.operator);
             const token = traits.token;
 
             if (traits.rendering == .SignedRemainder) {

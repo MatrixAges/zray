@@ -1,0 +1,49 @@
+export const core_header: string = "`default_nettype none\n\nmodule zxc_core(\n"
+
+export const kernel_header: string = "`default_nettype none\n\nmodule zxc_kernel(\n"
+
+export const wire_input: string = "    input wire ["
+
+export const wire_output: string = "    output wire ["
+
+export const reg_output: string = "    output reg ["
+
+export const range_separator: string = ":0] "
+
+export const port_end: string = ",\n"
+
+export const core_fault: string = "    output wire fault\n);\n\n"
+
+export const end_file: string = "`default_nettype wire\n"
+
+export const wire_range: string = "wire ["
+
+export const core_range: string = ":0] core_"
+
+export const statement_end: string = ";\n"
+
+export const port_binding: string = "    ."
+
+export const core_binding: string = "(core_"
+
+export const binding_end: string = "),\n"
+
+export const open_paren: string = "("
+
+export const assign_start: string = "assign "
+
+export const node_assignment: string = " = n_"
+
+export const fault_assignment: string = "assign fault = !n_"
+
+export const end_core: string = ";\n\nendmodule\n\n"
+
+export const reset_indent: string = "        "
+
+export const capture_indent: string = "            "
+
+export const reset_assignment: string = " <= "
+
+export const zero_literal: string = "'d0;\n"
+
+export const capture_assignment: string = " <= core_"

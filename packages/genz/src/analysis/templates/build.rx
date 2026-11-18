@@ -5,7 +5,14 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call fn="format" />
+    <Call fn="literal" />
+
+    <If on={$ctx.literal != null}>
+        <Return value={$ctx.literal} />
+    </If>
+
+    <Call fn="format" in={$ctx.initialize} />
+
     <Call fn="concat" />
 
     <Return value={$ctx.concat} />

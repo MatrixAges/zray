@@ -5,6 +5,9 @@ const Lower = @import("../lower.zig");
 const intrinsic = @import("../intrinsics.zig");
 
 pub fn lower(self: *Lower, items: []const ir.ExprId, values: []const node.ExpressionId) Lower.Error!node.ExpressionId {
+    if (items.len == 0) return self.builder.string("");
+    if (items.len == 1 and self.program.expression(items[0]).value == .string) return values[0];
+
     const strings = try self.allocator.alloc(node.ExpressionId, items.len);
     var buffers: std.ArrayList(node.Statement) = .empty;
 

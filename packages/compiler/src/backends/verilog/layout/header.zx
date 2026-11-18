@@ -1,0 +1,30 @@
+import bytes from "std:bytes"
+
+import { core_header, kernel_header, wire_input, wire_output, core_fault } from "./const"
+import ports from "./ports"
+
+import type { Module as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, inputs, outputs, clocked } = in
+
+    const header = clocked ? core_header : kernel_header
+
+    bytes.write(writer, bytes.fromText(header))
+
+    ports({
+        writer,
+        ports: inputs,
+        prefix: wire_input
+    })
+
+    ports({
+        writer,
+        ports: outputs,
+        prefix: wire_output
+    })
+
+    bytes.write(writer, bytes.fromText(core_fault))
+}

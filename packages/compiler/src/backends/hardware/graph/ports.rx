@@ -1,0 +1,37 @@
+<Module>
+    <Type from="model" as="Circuit" />
+
+    <Args in={Circuit.Endpoints} out={bool} />
+
+    <Call fn="safe" in={$in} />
+
+    <If on={!$ctx.safe}>
+        <Return value={false} />
+    </If>
+
+    <Task name="inputs" out={$ctx.bank}>
+        <Call
+            fn="bank"
+            in={{
+                graph: $in.graph,
+                ports: $in.graph.inputs,
+                output: false
+            }}
+        />
+    </Task>
+
+    <If on={!$ctx.task.inputs}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="bank"
+        in={{
+            graph: $in.graph,
+            ports: $in.graph.outputs,
+            output: true
+        }}
+    />
+
+    <Return value={$ctx.bank} />
+</Module>

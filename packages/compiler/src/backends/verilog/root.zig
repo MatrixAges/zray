@@ -2,30 +2,65 @@ const std = @import("std");
 const ir = @import("../hardware/ir.zig");
 
 pub fn emit(allocator: std.mem.Allocator, module: ir.Module, clocked: bool) ![]u8 {
-    if (!@import("../hardware/validate.zig").validate(module)) return error.InvalidHardwareIr;
+    if (comptime !@import("parser_options").generated_parser) {
+        if (!@import("../hardware/validate.zig").validate(module)) return error.InvalidHardwareIr;
 
-    var output: std.Io.Writer.Allocating = .init(allocator);
+        return @import("seed/root.zig").emit(allocator, module, clocked);
+    }
+
+    const View = @import("../hardware/graph/view.zig");
+    var view: View = undefined;
+
+    view.init(module);
+
+    if (!view.validate(module.nodes)) return error.InvalidHardwareIr;
+
+    var temporary = std.heap.ArenaAllocator.init(allocator);
+
+    defer temporary.deinit();
+
+    const capacity = @import("generated_verilog_capacity");
+
+    const lower_bound = try capacity.executeValue(temporary.allocator(), &.{
+        .nodes = module.nodes.len,
+        .inputs = module.inputs.len,
+        .outputs = module.outputs.len,
+        .clocked = clocked,
+    });
+
+    const initial_size = std.math.cast(usize, lower_bound) orelse return error.OutOfMemory;
+    var output = try std.Io.Writer.Allocating.initCapacity(allocator, initial_size);
 
     errdefer output.deinit();
 
-    const writer = &output.writer;
+    const header = @import("generated_verilog_header");
+    const write = @import("generated_verilog_node");
+    const finish = @import("generated_verilog_finish");
 
-    try writer.writeAll("`default_nettype none\n\n");
-    try writer.print("module {s}(\n", .{if (clocked) "zxc_core" else "zxc_kernel"});
-    for (module.inputs) |port| try writer.print("    input wire [{d}:0] {s},\n", .{ port.sort.width - 1, port.name });
-    for (module.outputs) |port| try writer.print("    output wire [{d}:0] {s},\n", .{ port.sort.width - 1, port.name });
-    try writer.writeAll("    output wire fault\n);\n\n");
+    const frame: std.meta.Child(header.Input) = .{
+        .writer = @ptrCast(&output.writer),
+        .inputs = &view.inputs,
+        .outputs = &view.outputs,
+        .safe = view.graph.safe,
+        .clocked = clocked,
+    };
 
-    for (module.nodes, 0..) |node, index| {
-        try writer.print("wire [{d}:0] n_{d};\nassign n_{d} = ", .{ node.sort.width - 1, index, index });
-        try @import("expressions.zig").write(writer, module, node);
-        try writer.writeAll(";\n\n");
+    header.executeValue(temporary.allocator(), &frame) catch |err| return writerError(err);
+
+    for (module.nodes, 0..) |*node, index| {
+        const row = View.project(node);
+
+        write.executeValue(temporary.allocator(), &.{ .writer = frame.writer, .index = index, .node = &row, .widths = view.sorts.widths, .input_names = view.inputs.names }) catch |err| return writerError(err);
     }
 
-    for (module.outputs) |port| try writer.print("assign {s} = n_{d};\n", .{ port.name, @intFromEnum(port.node) });
-    try writer.print("assign fault = !n_{d};\n\nendmodule\n\n", .{@intFromEnum(module.safe)});
-    if (clocked) try @import("clocked.zig").write(writer, module);
-    try writer.writeAll("`default_nettype wire\n");
+    finish.executeValue(temporary.allocator(), &frame) catch |err| return writerError(err);
 
     return output.toOwnedSlice();
+}
+
+fn writerError(err: error{ IndexOutOfBounds, OutOfMemory }) error{WriteFailed} {
+    return switch (err) {
+        error.OutOfMemory => error.WriteFailed,
+        error.IndexOutOfBounds => unreachable,
+    };
 }

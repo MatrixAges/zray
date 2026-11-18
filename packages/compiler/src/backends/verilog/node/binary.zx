@@ -1,0 +1,70 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import { Rendering } from "../../hardware/binary/model"
+import {
+    wire_name,
+    bit_select,
+    signed_concat,
+    sign_repeat,
+    remainder_join,
+    signed_end,
+    signed_wire,
+    signed_operator,
+    signed_right,
+    close_paren,
+    space,
+    right_wire
+} from "./const"
+
+import type { Wire as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, node } = in
+
+    const left = node.first
+    const right = node.second
+
+    if (node.rendering == Rendering.SignedRemainder) {
+        const width = memory.readColumnU16(in.widths, left)
+        const high = integers.widenShort(width) - 1
+
+        bytes.write(writer, bytes.fromText(signed_concat))
+        bytes.writeDecimalU64(writer, left)
+        bytes.write(writer, bytes.fromText(bit_select))
+        bytes.writeDecimalU64(writer, high)
+        bytes.write(writer, bytes.fromText(sign_repeat))
+        bytes.writeDecimalU64(writer, left)
+        bytes.write(writer, bytes.fromText(remainder_join))
+        bytes.writeDecimalU64(writer, right)
+        bytes.write(writer, bytes.fromText(bit_select))
+        bytes.writeDecimalU64(writer, high)
+        bytes.write(writer, bytes.fromText(sign_repeat))
+        bytes.writeDecimalU64(writer, right)
+        bytes.write(writer, bytes.fromText(signed_end))
+
+        return
+    }
+
+    if (node.rendering == Rendering.Signed) {
+        bytes.write(writer, bytes.fromText(signed_wire))
+        bytes.writeDecimalU64(writer, left)
+        bytes.write(writer, bytes.fromText(signed_operator))
+        bytes.write(writer, bytes.fromText(node.token))
+        bytes.write(writer, bytes.fromText(signed_right))
+        bytes.writeDecimalU64(writer, right)
+        bytes.write(writer, bytes.fromText(close_paren))
+
+        return
+    }
+
+    bytes.write(writer, bytes.fromText(wire_name))
+    bytes.writeDecimalU64(writer, left)
+    bytes.write(writer, bytes.fromText(space))
+    bytes.write(writer, bytes.fromText(node.token))
+    bytes.write(writer, bytes.fromText(right_wire))
+    bytes.writeDecimalU64(writer, right)
+}

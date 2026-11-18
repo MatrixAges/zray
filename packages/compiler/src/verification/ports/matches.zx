@@ -1,0 +1,42 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import { ascii_digit_first, decimal_radix } from "core/const"
+
+import { input_prefix, output_prefix } from "./const"
+
+import type { Input as Name } from "./name"
+
+export type Input = Name & {
+    text: string
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const prefix = in.output ? output_prefix : input_prefix
+    const start = bytes.fromText(prefix).length
+    const text = bytes.fromText(in.text)
+
+    if (text.length <= start || !bytes.startsWithText(text, 0, prefix)) {
+        return false
+    }
+
+    const zero = integers.widenByte(ascii_digit_first)
+
+    return loop({
+        end: text.length,
+        remaining: in.index,
+        valid: true
+    }, {
+        while: state => state.valid && state.end > start,
+        next: state => {
+            state.end -= 1
+            const digit = zero + state.remaining % decimal_radix
+            const byte = integers.widenByte(text[state.end])
+            state.remaining = state.remaining / decimal_radix
+            const finished = state.remaining == 0
+            state.valid = byte == digit && finished == (state.end == start)
+        },
+        return: state => state.valid
+    })
+}

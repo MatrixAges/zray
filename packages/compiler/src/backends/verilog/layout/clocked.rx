@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Circuit" />
+
+    <Args in={Circuit.Interface} out={void} />
+
+    <Call fn="kernel" in={$in} />
+    <Call fn="connections" in={$in} />
+    <Call fn="registers" in={$in} />
+</Module>

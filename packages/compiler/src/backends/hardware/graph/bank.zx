@@ -1,0 +1,45 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import matches from "../../../verification/ports/matches"
+import sameSort from "./same_sort"
+
+import type { Bank as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { ports, graph, output } = in
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < ports.count,
+        next: state => {
+            const index = state.index
+            const boolean = memory.readColumnBool(ports.booleans, index)
+            const signed = memory.readColumnBool(ports.signed, index)
+            const name = memory.readTextColumn(ports.names, index)
+
+            state.valid = !(signed && boolean) && matches({
+                text: name,
+                index,
+                output
+            })
+
+            if (state.valid && output) {
+                const id = integers.widen(memory.readColumnU32(ports.nodes, index))
+                state.valid = id < graph.count && sameSort({
+                    sorts: graph.sorts,
+                    index: id,
+                    width: memory.readColumnU16(ports.widths, index),
+                    boolean
+                })
+            }
+
+            state.index += 1
+        },
+        return: state => state.valid
+    })
+}

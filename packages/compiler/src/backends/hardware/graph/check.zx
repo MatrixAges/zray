@@ -1,0 +1,115 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { Result } from "../binary/model"
+import derive from "../binary/result"
+import { maximum_bit_width, literal_bit_width } from "./const"
+import { Kind } from "./model"
+import sameSort from "./same_sort"
+
+import type { Check as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { graph, index, node } = in
+    const { width, boolean, kind, first } = node
+    const { sorts, inputs } = graph
+
+    const invalid_width = width == 0 || width > maximum_bit_width
+
+    const invalid_boolean = boolean && width != 1
+
+    if (invalid_width || invalid_boolean) {
+        return false
+    }
+
+    if (kind == Kind.Input) {
+        if (first >= inputs.count) {
+            return false
+        }
+
+        const referenced = memory.readColumnU32(inputs.nodes, first)
+
+        return integers.widen(referenced) == index &&
+            sameSort({
+                sorts: inputs.pick([
+                    "widths",
+                    "booleans"
+                ]),
+                index: first,
+                width,
+                boolean
+            })
+    }
+
+    if (kind == Kind.Constant) {
+        return width >= literal_bit_width ||
+            first < integers.bitMask(integers.widenShort(width))
+    }
+
+    if (first >= index) {
+        return false
+    }
+
+    const left_width = memory.readColumnU16(sorts.widths, first)
+    const left_bool = memory.readColumnBool(sorts.booleans, first)
+
+    if (kind == Kind.Extend) {
+        const extra = node.extra
+
+        if (left_bool || boolean) {
+            return false
+        }
+
+        return extra <= maximum_bit_width && width == left_width + extra
+    }
+
+    if (kind == Kind.Invert || kind == Kind.Negate) {
+        const same = left_width == width && left_bool == boolean
+
+        return same && boolean == (kind == Kind.Invert)
+    }
+
+    const second = node.second
+
+    if (second >= index) {
+        return false
+    }
+
+    const right_width = memory.readColumnU16(sorts.widths, second)
+    const right_bool = memory.readColumnBool(sorts.booleans, second)
+
+    if (kind == Kind.Select) {
+        if (!left_bool || node.third >= index) {
+            return false
+        }
+
+        const same = right_width == width && right_bool == boolean
+
+        return same && sameSort({
+            sorts,
+            index: node.third,
+            width,
+            boolean
+        })
+    }
+
+    const result = derive({
+        family: node.family,
+        left: {
+            width: left_width,
+            boolean: left_bool
+        },
+        right: {
+            width: right_width,
+            boolean: right_bool
+        }
+    })
+
+    return match result {
+        Result.Invalid => false,
+        Result.Boolean => boolean && width == 1,
+        _ => left_width == width && left_bool == boolean
+    }
+}

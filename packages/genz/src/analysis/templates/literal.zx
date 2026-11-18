@@ -1,0 +1,49 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import text from "../../ast/context/text"
+import { ExpressionsKind } from "../../printer/model/expressions"
+
+import type { Output as Template, State as Input } from "./model"
+
+export type Output = Template?
+
+export default function (in: Input): Output {
+    const { items, values, expression_kinds } = in.source
+
+    if (items.length > 1) {
+        return null
+    }
+
+    if (
+        items.length == 1 &&
+            expression_kinds[integers.widen(items[0])] != ExpressionKind.String
+    ) {
+        return null
+    }
+
+    const value = match {
+        items.length == 0 => text({
+            state: in.context,
+            kind: ExpressionsKind.String,
+            value: []
+        }),
+        _ => {
+            state: in.context,
+            id: values[0]
+        }
+    }
+
+    return {
+        ...value.state.pick([
+            "expressions",
+            "forms",
+            "statements",
+            "variables",
+            "serial",
+            "valid"
+        ]),
+        root: value.id,
+        uses_allocator: false
+    }
+}

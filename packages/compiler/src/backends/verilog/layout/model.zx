@@ -1,0 +1,19 @@
+import type { Writer } from "std:bytes"
+import type { Ports } from "../../hardware/graph/model"
+
+export type Interface = {
+    writer: Writer,
+    inputs: Ports,
+    outputs: Ports
+}
+
+export type Module = Interface & {
+    clocked: bool,
+    safe: u64
+}
+
+export type Declaration = {
+    writer: Writer,
+    ports: Ports,
+    prefix: string
+}

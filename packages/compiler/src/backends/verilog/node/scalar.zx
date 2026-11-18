@@ -1,0 +1,54 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import { Kind } from "../../hardware/graph/model"
+import {
+    invert_wire,
+    negate_wire,
+    decimal_literal,
+    wire_name,
+    choice_yes,
+    choice_no
+} from "./const"
+
+import type { Wire as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, node } = in
+
+    if (node.kind == Kind.Input) {
+        bytes.write(
+            writer,
+            bytes.fromText(memory.readTextColumn(in.input_names, node.first))
+        )
+
+        return
+    }
+
+    if (node.kind == Kind.Constant) {
+        bytes.writeDecimalU64(writer, integers.widenShort(node.width))
+        bytes.write(writer, bytes.fromText(decimal_literal))
+        bytes.writeDecimalU64(writer, node.first)
+
+        return
+    }
+
+    if (node.kind == Kind.Select) {
+        bytes.write(writer, bytes.fromText(wire_name))
+        bytes.writeDecimalU64(writer, node.first)
+        bytes.write(writer, bytes.fromText(choice_yes))
+        bytes.writeDecimalU64(writer, node.second)
+        bytes.write(writer, bytes.fromText(choice_no))
+        bytes.writeDecimalU64(writer, node.third)
+
+        return
+    }
+
+    const prefix = node.kind == Kind.Invert ? invert_wire : negate_wire
+
+    bytes.write(writer, bytes.fromText(prefix))
+    bytes.writeDecimalU64(writer, node.first)
+}

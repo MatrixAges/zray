@@ -176,6 +176,11 @@ export declare function readColumnI32(
     index: u64
 ): i32 throws { IndexOutOfBounds }
 
+export declare function readColumnU16(
+    source: ReadColumn,
+    index: u64
+): u16 throws { IndexOutOfBounds }
+
 export declare function readColumnU32(
     source: ReadColumn,
     index: u64

@@ -1,0 +1,17 @@
+import memory from "memory"
+
+import type { Sorts } from "./model"
+
+export type Input = {
+    sorts: Sorts,
+    index: u64,
+    width: u16,
+    boolean: bool
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return memory.readColumnU16(in.sorts.widths, in.index) == in.width &&
+        memory.readColumnBool(in.sorts.booleans, in.index) == in.boolean
+}

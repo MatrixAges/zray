@@ -1,5 +1,5 @@
 const std = @import("std");
-const ir = @import("../hardware/ir.zig");
+const ir = @import("../../hardware/ir.zig");
 
 pub fn write(writer: *std.Io.Writer, module: ir.Module) std.Io.Writer.Error!void {
     try writer.writeAll("module zxc_kernel(\n    input wire clk,\n    input wire reset,\n    input wire input_valid,\n    output wire input_ready,\n    output reg output_valid,\n    input wire output_ready,\n");

@@ -1,0 +1,68 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import {
+    reset_indent,
+    reset_assignment,
+    zero_literal,
+    capture_indent,
+    capture_assignment,
+    statement_end,
+    end_file
+} from "./const"
+
+import type { Interface as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { outputs, writer } = in
+
+    bytes.write(writer, bytes.fromText(templateFile("./templates/always.tpl")))
+
+    const cleared = loop(0, {
+        while: row => row < outputs.count,
+        next: row => {
+            bytes.write(writer, bytes.fromText(reset_indent))
+            bytes.write(
+                writer,
+                bytes.fromText(memory.readTextColumn(outputs.names, row))
+            )
+            bytes.write(writer, bytes.fromText(reset_assignment))
+            bytes.writeDecimalU64(
+                writer,
+                integers.widenShort(memory.readColumnU16(
+                    outputs.widths,
+                    row
+                ))
+            )
+            bytes.write(writer, bytes.fromText(zero_literal))
+
+            row += 1
+        }
+    })
+
+    bytes.write(writer, bytes.fromText(templateFile("./templates/accept.tpl")))
+
+    const latched = loop(0, {
+        while: row => row < outputs.count,
+        next: row => {
+            const name = memory.readTextColumn(outputs.names, row)
+            bytes.write(writer, bytes.fromText(capture_indent))
+            bytes.write(writer, bytes.fromText(name))
+            bytes.write(writer, bytes.fromText(capture_assignment))
+            bytes.write(writer, bytes.fromText(name))
+            bytes.write(writer, bytes.fromText(statement_end))
+
+            row += 1
+        }
+    })
+
+    bytes.write(
+        writer,
+        bytes.fromText(templateFile("./templates/end_registers.tpl"))
+    )
+
+    bytes.write(writer, bytes.fromText(end_file))
+}
