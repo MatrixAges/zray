@@ -34,7 +34,6 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/project_load_frame", .entry = "zx/modules/project/load/step.rx" },
     .{ .specifier = "compiler/rx_statement_step", .entry = "rx/analysis/program/statements/traversal/step.rx" },
     .{ .specifier = "compiler/rx_mixed_step", .entry = "rx/analysis/project/mixed/compile/step.rx" },
-    .{ .specifier = "compiler/rx_prepared_flow_step", .entry = "rx/analysis/project/flow/driver/step.rx" },
     .{ .specifier = "compiler/rx_prepare_module", .entry = "rx/analysis/project/prepare/modules/prepare.rx" },
     .{ .specifier = "compiler/rx_prepare_event", .entry = "rx/analysis/project/prepare/flow/next.rx" },
     .{ .specifier = "compiler/artifact_signature_publish", .entry = "zx/modules/link/signature/publication/publish.rx" },

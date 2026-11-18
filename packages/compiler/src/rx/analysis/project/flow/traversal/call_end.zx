@@ -1,0 +1,21 @@
+import { Kind, Region } from "./model"
+
+import type { Input as Frame } from "./model"
+
+export type Input = Frame
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in.region == Region.Selection) {
+        return in.first
+    }
+
+    return loop(in.first, {
+        while: row => row < in.end && in.kinds[row] == Kind.Call,
+        next: row => {
+            row += 1
+        },
+        return: row => row
+    })
+}

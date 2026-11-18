@@ -49,10 +49,8 @@ const Frame = struct {
 };
 
 const Walker = @import("../constraints.zig").Walker;
-const driver = @import("../flow/driver/host.zig");
-const generated = @import("rx_options").generated_graph;
 
-pub const Host = struct {
+const Host = struct {
     walker: *Walker,
     root: Frame,
     stack: std.ArrayList(Frame) = .empty,
@@ -70,22 +68,21 @@ pub const Host = struct {
         self.stack.items.len = last;
     }
 
-    pub fn calls(self: *Host, current: *Frame, first: usize, next: usize) zx.Error!void {
+    pub fn calls(self: *Host, current: *Frame, _: usize, items: []const u32) zx.Error!void {
         const walker = self.walker;
         const outputs = if (current.payload == .Parallel) &current.payload.Parallel else &walker.expression.bindings;
 
-        for (walker.module.plan.items[first..next]) |item| try walker.call(item, outputs);
+        for (items) |item| try walker.call(item, outputs);
     }
-    pub fn result(self: *Host, _: *Frame, first: usize, _: usize) zx.Error!void {
+    pub fn result(self: *Host, _: *Frame, _: usize, item: u32) zx.Error!void {
         const walker = self.walker;
         const plan = &walker.module.plan;
 
-        try walker.inferReturn(plan.results[plan.items[first]]);
+        try walker.inferReturn(plan.results[item]);
     }
-    pub fn task(self: *Host, _: *Frame, first: usize, _: usize, parallel_task: bool) zx.Error!void {
+    pub fn task(self: *Host, _: *Frame, _: usize, item: u32, parallel_task: bool) zx.Error!void {
         const walker = self.walker;
         const plan = &walker.module.plan;
-        const item = plan.items[first];
         const target = &plan.tasks[item];
         const saved: Task = .{ .item = item, .bindings = walker.expression.bindings.len, .output = walker.output, .returned = walker.returned };
         const child = try self.stack.addOne(self.memory);
@@ -97,15 +94,15 @@ pub const Host = struct {
 
         if (parallel_task) try walker.enterParallelTask(target);
     }
-    pub fn parallel(self: *Host, _: *Frame, first: usize, _: usize) zx.Error!void {
+    pub fn parallel(self: *Host, _: *Frame, _: usize, item: u32) zx.Error!void {
         const plan = &self.walker.module.plan;
         const child = try self.stack.addOne(self.memory);
-        child.* = .{ .cursor = Cursor.body(plan.groups[plan.items[first]]), .payload = .{ .Parallel = .empty } };
+        child.* = .{ .cursor = Cursor.body(plan.groups[item]), .payload = .{ .Parallel = .empty } };
     }
-    pub fn selection(self: *Host, _: *Frame, first: usize, _: usize) zx.Error!void {
+    pub fn selection(self: *Host, _: *Frame, _: usize, item: u32) zx.Error!void {
         const walker = self.walker;
         const plan = &walker.module.plan;
-        const selected = &plan.selections[plan.items[first]];
+        const selected = &plan.selections[item];
         const owner = walker.module.source.path;
         const scope = walker.expression.scope;
         var parsed = try @import("../../attribute.zig").parseBorrowed(scope, selected.subject.*, owner);
@@ -122,7 +119,7 @@ pub const Host = struct {
             .labels = .{ .allocator = scope, .owner = owner },
         } } };
     }
-    pub fn openCase(self: *Host, current: *Frame, first: usize, _: usize) zx.Error!void {
+    pub fn openCase(self: *Host, current: *Frame, first: usize) zx.Error!void {
         const walker = self.walker;
         const selected = &current.payload.Selection;
         const bindings = walker.expression.bindings.len;
@@ -174,13 +171,5 @@ pub fn run(walker: *Walker, body: Flow.Unit) zx.Error!void {
         state.stack.deinit(state.memory);
     }
 
-    if (comptime generated) {
-        return driver.run(&state, &walker.module.plan, false) catch |err| switch (err) {
-            error.OutOfMemory => error.OutOfMemory,
-            error.InvalidSource => error.InvalidSource,
-            error.InvalidFlow => unreachable,
-        };
-    }
-
-    try driver.seed(&state, &walker.module.plan);
+    try traversal.run(&state, &walker.module.plan);
 }

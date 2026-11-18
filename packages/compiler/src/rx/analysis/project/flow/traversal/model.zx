@@ -1,4 +1,11 @@
-import type { Kind } from "../run"
+export enum Kind {
+    Call,
+    Result,
+    Task,
+    Parallel,
+    Selection,
+    ParallelTask
+}
 
 export enum Region {
     Root,
@@ -11,7 +18,6 @@ export enum Region {
 
 export enum Action {
     Done,
-    Calls,
     Return,
     OpenTask,
     OpenParallelTask,
@@ -36,5 +42,7 @@ export type Input = {
 export type Output = {
     action: Action,
     next: u64,
-    items: u32[]
+    item: u32,
+    position: u64,
+    pop: bool
 }

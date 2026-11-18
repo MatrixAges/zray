@@ -56,10 +56,7 @@ const Frame = struct {
     }
 };
 
-const driver = @import("../project/flow/driver/host.zig");
-const generated = @import("rx_options").generated_graph;
-
-pub const Host = struct {
+const Host = struct {
     compiler: *Compiler,
     root: Frame,
     stack: std.ArrayList(Frame) = .empty,
@@ -77,9 +74,8 @@ pub const Host = struct {
         self.stack.items.len = last;
     }
 
-    pub fn calls(self: *Host, current: *Frame, first: usize, next: usize) Compiler.Error!void {
+    pub fn calls(self: *Host, current: *Frame, first: usize, items: []const u32) Compiler.Error!void {
         const compiler = self.compiler;
-        const items = compiler.plan.items[first..next];
 
         if (current.payload == .Parallel) {
             for (items) |item| {
@@ -98,20 +94,20 @@ pub const Host = struct {
         }
     }
 
-    pub fn result(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+    pub fn result(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
         const compiler = self.compiler;
         const plan = compiler.plan;
         const publish = current.payload == .Root and compiler.retain_metadata;
-        const value = try compiler.keep(try compiler.value(plan.results[plan.items[first]], compiler.output_type, publish));
+        const value = try compiler.keep(try compiler.value(plan.results[item], compiler.output_type, publish));
 
         compiler.compiled.steps.set(current.row(first), .{ .kind = .Return, .value = value });
 
         if (publish) compiler.root_return = value;
     }
-    pub fn task(self: *Host, current: *Frame, first: usize, _: usize, parallel_task: bool) Compiler.Error!void {
+
+    pub fn task(self: *Host, current: *Frame, first: usize, item: u32, parallel_task: bool) Compiler.Error!void {
         const compiler = self.compiler;
         const plan = compiler.plan;
-        const item = plan.items[first];
 
         if (parallel_task) {
             _ = try @import("../parallel_task.zig").compile(compiler, &plan.tasks[item], &current.payload.Parallel.outputs);
@@ -129,10 +125,10 @@ pub const Host = struct {
         } };
     }
 
-    pub fn parallel(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+    pub fn parallel(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
         const compiler = self.compiler;
         const plan = compiler.plan;
-        const branches = plan.groups[plan.items[first]];
+        const branches = plan.groups[item];
         const destination = current.row(first);
         const first_call = try Flow.index(compiler.calls.items.len);
         const child = try self.stack.addOne(self.memory);
@@ -142,10 +138,9 @@ pub const Host = struct {
         } };
     }
 
-    pub fn selection(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+    pub fn selection(self: *Host, current: *Frame, first: usize, item: u32) Compiler.Error!void {
         const compiler = self.compiler;
         const plan = compiler.plan;
-        const item = plan.items[first];
         const selected = &plan.selections[item];
         const destination = current.row(first);
         var parsed = try @import("../attribute.zig").parseBorrowed(compiler.scratch, selected.subject.*, compiler.owner);
@@ -162,7 +157,7 @@ pub const Host = struct {
         } };
     }
 
-    pub fn openCase(self: *Host, current: *Frame, first: usize, _: usize) Compiler.Error!void {
+    pub fn openCase(self: *Host, current: *Frame, first: usize) Compiler.Error!void {
         const compiler = self.compiler;
         const selected = &current.payload.Selection;
         const case = &compiler.plan.selections[selected.item].cases[first];
@@ -244,15 +239,7 @@ pub fn run(compiler: *Compiler, body: Prepared.Unit) Compiler.Error!u32 {
         state.stack.deinit(state.memory);
     }
 
-    if (comptime generated) {
-        driver.run(&state, compiler.plan, true) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.InvalidFlow => return error.InvalidFlow,
-            error.InvalidSource => unreachable,
-        };
-    } else {
-        try driver.seed(&state, compiler.plan);
-    }
+    try traversal.run(&state, compiler.plan);
 
     return state.root.body.close(compiler, true);
 }

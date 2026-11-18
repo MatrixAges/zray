@@ -3,14 +3,18 @@
 
     <Args in={Traversal.Input} out={Traversal.Output} />
 
-    <If on={$in.first == $in.end}>
+    <Call fn="call_end" in={$in} />
+
+    <If on={$ctx.call_end == $in.end}>
         <Call fn="finish" in={$in.region} />
 
         <Return
             value={{
                 action: $ctx.finish,
-                next: $in.first,
-                items: []
+                next: $in.end,
+                item: 0,
+                position: $ctx.call_end,
+                pop: $in.region != Traversal.Region.Root
             }}
         />
     </If>
@@ -20,19 +24,22 @@
             value={{
                 action: Traversal.Action.OpenCase,
                 next: $in.first + 1,
-                items: []
+                item: 0,
+                position: $in.first,
+                pop: false
             }}
         />
     </If>
 
-    <Call fn="../run" in={$in.omit(["region"])} />
-    <Call fn="action" in={$ctx.run.kind} />
+    <Call fn="action" in={$in.kinds[$ctx.call_end]} />
 
     <Return
         value={{
             action: $ctx.action,
-            next: $in.first + $ctx.run.items.length,
-            items: $ctx.run.items
+            next: $ctx.call_end + 1,
+            item: $in.items[$ctx.call_end],
+            position: $ctx.call_end,
+            pop: false
         }}
     />
 </Module>
