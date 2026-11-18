@@ -54,3 +54,55 @@ pub fn check(allocator: std.mem.Allocator, packages: anytype, comptime mode: Mod
 
     return traversal.executeValue(empty.allocator(), &input) catch unreachable;
 }
+
+const assembly = @import("pkgs_source").workspace_graph;
+const AssemblyResult = @typeInfo(@TypeOf(assembly.executeValue(undefined, undefined))).error_union.payload;
+
+pub fn assemble(allocator: std.mem.Allocator, root: []const u8, packages: anytype, edges: anytype, capacity: u64) error{OutOfMemory}!AssemblyResult {
+    const manifests = @import("workspace/manifest.zig").Manifests.borrow(&.{"manifest"}, packages);
+    const paths = memory.borrowTextColumn("path", packages);
+    const keys = memory.borrowTextColumn("name", edges);
+    const names = memory.borrowWriteColumn([]const u8, "name", edges);
+    const targets = memory.borrowWriteColumn(usize, "target", edges);
+    const development = memory.borrowWriteColumn(bool, "development", edges);
+    const adjacency = memory.borrowListColumn(usize, "dependencies", "target", packages);
+    var temporary: std.heap.ArenaAllocator = .init(allocator);
+
+    defer temporary.deinit();
+
+    const scratch = temporary.allocator();
+    const buckets = try scratch.alloc(u64, @intCast(capacity));
+
+    @memset(buckets, 0);
+
+    const marks = try scratch.alloc(u8, packages.len);
+
+    @memset(marks, 1);
+
+    const heights = marks[marks.len..];
+
+    const portable_root = if (comptime std.fs.path.sep == '/') root else path: {
+        const native = try std.fs.path.resolve(scratch, &.{root});
+
+        std.mem.replaceScalar(u8, native, std.fs.path.sep, '/');
+
+        break :path native;
+    };
+
+    var frames: Frames = .{};
+    const traversal_input = frames.input(&adjacency, &marks, &heights, false);
+
+    return assembly.executeValue(scratch, &.{
+        .manifests = &manifests.input(),
+        .paths = @ptrCast(&paths),
+        .root = portable_root,
+        .count = packages.len,
+        .limit = std.math.maxInt(usize),
+        .index = &.{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&buckets), .capacity = capacity },
+        .output = &.{ .names = @ptrCast(&names), .targets = @ptrCast(&targets), .development = @ptrCast(&development) },
+        .graph = &traversal_input,
+    }) catch |err| switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        else => unreachable,
+    };
+}

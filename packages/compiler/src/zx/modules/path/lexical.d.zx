@@ -5,6 +5,13 @@ export declare function resolvePathParts(
     parts: string[]
 ): string throws { OutOfMemory } concurrent
 
+export declare function resolvePortablePath(
+    allocator,
+    base: string,
+    directory: string,
+    path: string
+): string throws { OutOfMemory } concurrent
+
 export declare function resolvePathSuffix(
     allocator,
     base: string,

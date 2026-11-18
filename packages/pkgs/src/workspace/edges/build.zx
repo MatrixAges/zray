@@ -1,0 +1,35 @@
+import { Status } from "./model"
+import visit from "./owner"
+
+import type { Build, Result } from "./model"
+
+export type Input = Build
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    return loop({
+        owner: 0,
+        start: 0,
+        edge: 0,
+        status: Status.Valid
+    }, {
+        while: s => s.owner < in.count && s.status == Status.Valid,
+        next: s => {
+            const result = visit({
+                ...in,
+                row: s.owner,
+                start: s.start
+            })
+            s.status = result.status
+
+            if (s.status == Status.Valid) {
+                s.start += result.edge
+                s.owner += 1
+            } else {
+                s.edge = result.edge
+            }
+        },
+        return: s => s.omit(["start"])
+    })
+}

@@ -1,0 +1,64 @@
+import lexical from "lexical_path"
+import memory from "memory"
+
+import { Kind } from "../specifier"
+import { Key } from "../target/model"
+
+import type { Output as Specifier } from "../specifier"
+import type { Query } from "../target/model"
+import type { Members } from "./model"
+
+export type Request = Members & {
+    owner: string,
+    name: string,
+    requirement: string
+}
+
+export type Input = Request & {
+    spec: Specifier
+}
+
+export type Output = Query
+
+export default function (in: Input): Output {
+    const { requirement, spec, name, owner, root } = in
+
+    if (spec.kind == Kind.Path) {
+        const path =
+            memory.borrowTextRange(
+                requirement,
+                spec.body,
+                requirement.length - spec.body
+            )
+
+        return {
+            kind: Key.HostPath,
+            value: lexical.resolvePortablePath(root, owner, path),
+            owner: root,
+            range: null
+        }
+    }
+
+    const value = match spec.kind {
+        Kind.Alias =>
+            memory.borrowTextRange(requirement, spec.body, spec.range - spec.body - 1),
+        _ => name
+    }
+
+    const range: string? = match {
+        spec.constrained =>
+            memory.borrowTextRange(
+                requirement,
+                spec.range,
+                requirement.length - spec.range
+            ),
+        _ => null
+    }
+
+    return {
+        kind: Key.Name,
+        value,
+        owner,
+        range
+    }
+}

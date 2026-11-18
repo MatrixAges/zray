@@ -6,28 +6,42 @@ const LockRows = @import("lock_rows.zig");
 const Pair = std.meta.Child(rules.manifest_matches.Input);
 const Location = @typeInfo(@TypeOf(rules.first_external.executeValue(undefined, undefined))).error_union.payload;
 
-pub fn firstExternal(members: anytype) ?Location {
+pub fn inspect(members: anytype) Location {
     const production = memory.borrowListPath([]const u8, &.{ "manifest", "dependencies" }, &.{"requirement"}, members);
     const development = memory.borrowListPath([]const u8, &.{ "manifest", "dev_dependencies" }, &.{"requirement"}, members);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const found = rules.first_external.executeValue(empty.allocator(), &.{
+    return rules.first_external.executeValue(empty.allocator(), &.{
         .count = members.len,
         .production = @ptrCast(&production),
         .development = @ptrCast(&development),
     }) catch unreachable;
-
-    return if (found.found) found else null;
 }
 
-const Manifests = struct {
+pub fn firstExternal(members: anytype) ?Location {
+    const location = inspect(members);
+
+    return if (location.found) location else null;
+}
+
+fn handles(comptime T: type, columns: anytype) T {
+    var result: T = undefined;
+
+    inline for (@typeInfo(T).@"struct".field_names) |name| {
+        @field(result, name) = @ptrCast(&@field(columns.*, name));
+    }
+
+    return result;
+}
+
+pub const Manifests = struct {
     names: memory.TextColumn,
     versions: memory.TextColumn,
     production_names: memory.ListColumn,
     production_requirements: memory.ListColumn,
     development_names: memory.ListColumn,
     development_requirements: memory.ListColumn,
-    fn borrow(comptime prefix: []const []const u8, rows: anytype) Manifests {
+    pub fn borrow(comptime prefix: []const []const u8, rows: anytype) Manifests {
         const production = prefix ++ &[_][]const u8{"dependencies"};
         const development = prefix ++ &[_][]const u8{"dev_dependencies"};
 
@@ -41,15 +55,8 @@ const Manifests = struct {
         };
     }
 
-    fn input(self: *const Manifests) std.meta.Child(@FieldType(Pair, "manifests")) {
-        return .{
-            .names = @ptrCast(&self.names),
-            .versions = @ptrCast(&self.versions),
-            .production_names = @ptrCast(&self.production_names),
-            .production_requirements = @ptrCast(&self.production_requirements),
-            .development_names = @ptrCast(&self.development_names),
-            .development_requirements = @ptrCast(&self.development_requirements),
-        };
+    pub fn input(self: *const Manifests) std.meta.Child(@FieldType(Pair, "manifests")) {
+        return handles(std.meta.Child(@FieldType(Pair, "manifests")), self);
     }
 };
 
@@ -69,14 +76,8 @@ const Locked = struct {
         };
     }
 
-    fn input(self: *const Locked) std.meta.Child(@FieldType(Pair, "locked")) {
-        return .{
-            .names = @ptrCast(&self.names),
-            .versions = @ptrCast(&self.versions),
-            .edge_names = @ptrCast(&self.edge_names),
-            .requirements = @ptrCast(&self.requirements),
-            .kinds = @ptrCast(&self.kinds),
-        };
+    pub fn input(self: *const Locked) std.meta.Child(@FieldType(Pair, "locked")) {
+        return handles(std.meta.Child(@FieldType(Pair, "locked")), self);
     }
 };
 

@@ -3,6 +3,14 @@ const syntax = @import("syntax.zig");
 const Allocator = std.mem.Allocator;
 const path_stack_capacity = 512;
 
+pub fn resolvePortable(allocator: Allocator, base: []const u8, directory: []const u8, leaf: []const u8) Allocator.Error![]u8 {
+    const path = try std.fs.path.resolve(allocator, &.{ base, directory, leaf });
+
+    if (comptime std.fs.path.sep != '/') std.mem.replaceScalar(u8, path, std.fs.path.sep, '/');
+
+    return path;
+}
+
 pub fn resolveSuffix(allocator: Allocator, base: []const u8, spelling: []const u8, suffix: []const u8) Allocator.Error![]u8 {
     var buffer: [path_stack_capacity]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, allocator);

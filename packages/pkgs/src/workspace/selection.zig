@@ -46,7 +46,7 @@ pub const Members = struct {
     fn search(self: *const Members, kind: Key, value: []const u8, owner: []const u8, range: ?[]const u8, local: []const u8) !?usize {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        const selected = rule.executeValue(empty.allocator(), &.{
+        const selected = rule.executeValue(empty.allocator(), .{
             .count = self.count,
             .names = @ptrCast(&self.names),
             .paths = @ptrCast(&self.paths),

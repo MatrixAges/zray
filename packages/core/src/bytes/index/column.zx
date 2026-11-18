@@ -13,7 +13,8 @@ export type Table = {
 
 export type Input = Table & {
     key: string,
-    insert?: u64
+    insert?: u64,
+    first?: u64
 }
 
 export type Output = u64?
@@ -21,6 +22,8 @@ export type Output = u64?
 export default function (in: Input): Output {
     const { keys, buckets, key, insert } = in
 
+    // Start each group beyond every stored row. Keep first fixed within the group.
+    const first = in.first ?? 0
     const mask = in.capacity - 1
     const missing: u64? = null
 
@@ -33,7 +36,7 @@ export default function (in: Input): Output {
         next: state => {
             const entry = memory.readU64(buckets, state.slot)
 
-            if (entry == 0) {
+            if (entry <= first) {
                 if (insert != null) {
                     memory.writeU64(buckets, state.slot, insert + 1)
                 }

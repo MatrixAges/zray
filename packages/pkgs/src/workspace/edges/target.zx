@@ -1,0 +1,55 @@
+import { Kind } from "../specifier"
+import parse from "../specifier"
+import { Status as Selection } from "../target/model"
+import select from "../target/select.rx"
+import { Status } from "./model"
+import query from "./query"
+
+import type { Request } from "./query"
+
+export type Input = Request
+
+export type Output = {
+    status: Status,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const spec = parse(in.requirement)
+
+    if (spec.kind == Kind.Invalid) {
+        return {
+            status: Status.InvalidSpecifier,
+            row: 0
+        }
+    }
+
+    const selected = select({
+        ...query({
+            ...in,
+            spec
+        }),
+        names: in.manifests.names,
+        versions: in.manifests.versions,
+        ...in.pick([
+            "paths",
+            "count",
+            "limit"
+        ]),
+        local: []
+    })
+
+    const status = match selected.status {
+        Selection.Found => Status.Valid,
+        Selection.Missing => Status.Missing,
+        Selection.InvalidRange => Status.InvalidRange,
+        Selection.InvalidVersion => Status.InvalidVersion,
+        Selection.Overflow => Status.Overflow,
+        _ => Status.LockVersionMismatch
+    }
+
+    return {
+        status,
+        row: selected.row
+    }
+}

@@ -128,6 +128,18 @@ export declare function writeColumnU64(
     value: u64
 ): void throws { IndexOutOfBounds }
 
+export declare function writeColumnIndex(
+    target: WriteColumn,
+    index: u64,
+    value: u64
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnBool(
+    target: WriteColumn,
+    index: u64,
+    value: bool
+): void throws { IndexOutOfBounds }
+
 export declare function writeColumnBytes(
     target: WriteColumn,
     index: u64,

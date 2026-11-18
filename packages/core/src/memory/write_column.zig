@@ -136,6 +136,14 @@ pub inline fn writeU64(target: *const anyopaque, index: u64, value: u64) IndexEr
     return write(u64, target, index, value);
 }
 
+pub inline fn writeIndex(target: *const anyopaque, index: u64, value: u64) IndexError!void {
+    return write(usize, target, index, std.math.cast(usize, value) orelse return error.IndexOutOfBounds);
+}
+
+pub inline fn writeBool(target: *const anyopaque, index: u64, value: bool) IndexError!void {
+    return write(bool, target, index, value);
+}
+
 pub inline fn writeBytes(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
     return write([]const u8, target, index, value);
 }

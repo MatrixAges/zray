@@ -14,11 +14,12 @@ pub fn build(b: *std.Build) void {
         _ = files.addCopyDirectory(b.path(b.fmt("src/{s}", .{dir})), dir, .{ .include_extensions = &.{ ".zx", ".rx" } });
     }
 
-    for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/map/capacity.zx", "bytes/index/const.zx", "bytes/index/sorted_text.zx" }) |file| {
+    for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/map/capacity.zx", "bytes/index/const.zx", "bytes/index/column.zx", "bytes/index/sorted_text.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
     }
 
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
+    _ = files.addCopyFile(compiler.path("src/zx/modules/path/lexical.d.zx"), "memory/lexical.d.zx");
 
     const run = std.Build.Step.Run.create(b, "generate package dependency rules");
 
@@ -32,6 +33,8 @@ pub fn build(b: *std.Build) void {
 
     run.addDirectoryArg2(std.Build.LazyPath.cache_root.path(b, "pkgs-functions"), .{ .make_absolute = true });
 
+    const standard = compiler.module(if (share_standard) "generated_standard" else "standard");
+
     const rules = b.createModule(.{
         .root_source_file = generated.path(b, "root.zig"),
         .target = target,
@@ -39,7 +42,8 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
             .{ .name = "memory", .module = core.module("memory") },
-            .{ .name = "zxc_standard", .module = compiler.module(if (share_standard) "generated_standard" else "standard") },
+            .{ .name = "zxc_standard", .module = standard },
+            .{ .name = "lexical_path", .module = standard },
         },
     });
 

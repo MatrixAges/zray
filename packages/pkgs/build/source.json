@@ -101,6 +101,10 @@
         {
             "path": "workspace/manifest/compare.zx",
             "name": "workspace_compare"
+        },
+        {
+            "path": "workspace/edges/assemble.rx",
+            "name": "workspace_graph"
         }
     ],
     "packages": [
@@ -119,12 +123,24 @@
         {
             "specifier": "core/bytes/index/sorted_text",
             "entry": "core/bytes/index/sorted_text.zx"
+        },
+        {
+            "specifier": "core/bytes/index/const",
+            "entry": "core/bytes/index/const.zx"
+        },
+        {
+            "specifier": "core/bytes/index/column",
+            "entry": "core/bytes/index/column.zx"
         }
     ],
     "interfaces": [
         {
             "path": "memory/index.d.zx",
             "module": "memory"
+        },
+        {
+            "path": "memory/lexical.d.zx",
+            "module": "lexical_path"
         }
     ]
 }

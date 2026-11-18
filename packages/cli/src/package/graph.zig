@@ -47,7 +47,9 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) !voi
 
     result.root = try std.Io.Dir.cwd().realPathFileAlloc(io, std.fs.path.dirname(path) orelse ".", allocator);
 
-    if (pkgs.workspace.manifest.firstExternal(discovered.packages)) |location| {
+    const location = pkgs.workspace.manifest.inspect(discovered.packages);
+
+    if (location.found) {
         const package = discovered.packages[@intCast(location.row)];
         const entries = if (location.development) package.manifest.dev_dependencies else package.manifest.dependencies;
 
@@ -61,69 +63,43 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) !voi
     }
 
     result.packages = try allocator.alloc(Package, discovered.packages.len);
+    const edges = try allocator.alloc(Dependency, @intCast(location.total));
+    var offset: usize = 0;
 
-    for (discovered.packages, result.packages) |source, *package| package.* = .{ .path = source.path, .manifest = source.manifest };
-
-    const candidates = pkgs.workspace.Members.manifests(discovered.packages);
-
-    const root = if (comptime std.fs.path.sep == '/') result.root else root: {
-        const native = try std.fs.path.resolve(allocator, &.{result.root});
-
-        std.mem.replaceScalar(u8, native, std.fs.path.sep, '/');
-
-        break :root native;
-    };
-
-    for (result.packages, 0..) |*package, owner| {
-        var dependencies: std.ArrayList(Dependency) = .empty;
-
-        for ([_][]const @import("manifest/model.zig").Dependency{ package.manifest.dependencies, package.manifest.dev_dependencies }, 0..) |entries, kind| {
-            for (entries) |entry| {
-                for (dependencies.items) |previous| {
-                    if (std.mem.eql(u8, previous.name, entry.name)) return fail(result, owner, entry.name, "dependency appears in both dependencies and dev_dependencies");
-                }
-
-                const target = try dependency(result, &candidates, root, owner, entry.name, entry.requirement);
-
-                try dependencies.append(allocator, .{ .name = entry.name, .target = target, .development = kind == 1 });
-            }
-        }
-
-        package.dependencies = try dependencies.toOwnedSlice(allocator);
+    for (discovered.packages, result.packages) |source, *package| {
+        const length = source.manifest.dependencies.len + source.manifest.dev_dependencies.len;
+        package.* = .{ .path = source.path, .manifest = source.manifest, .dependencies = edges[offset..][0..length] };
+        offset += length;
     }
 
-    const graph = try pkgs.graph.check(allocator, result.packages, .workspace);
+    const graph = try pkgs.graph.assemble(result.arena.child_allocator, result.root, result.packages, edges, location.capacity);
+
+    if (graph.status == .Valid) return;
+
     const owner: usize = @intCast(graph.owner);
+    const data = result.packages[owner].manifest;
 
     switch (graph.status) {
-        .Valid => {},
-        .CyclicPackageDependencies => return fail(result, owner, result.packages[owner].manifest.name, "package dependencies must be acyclic"),
-        .PackageDependencyDepthExceeded => return fail(result, owner, result.packages[owner].manifest.name, "package dependency depth exceeds 256"),
-        .UnreachableLockPackage => unreachable,
-    }
-}
-
-fn dependency(result: *Result, candidates: *const pkgs.workspace.Members, root: []const u8, owner: usize, name: []const u8, requirement: []const u8) !usize {
-    const spec = pkgs.workspace.parse(name, requirement);
-
-    switch (spec) {
-        .external => return fail(result, owner, name, "external dependency is not installed; run zxc pkg install"),
-        .invalid => return fail(result, owner, name, "workspace alias requires a package name and version range"),
-        .path => |path| {
-            const absolute = try std.fs.path.resolve(result.arena.allocator(), &.{ result.root, result.packages[owner].path, path });
-
-            if (comptime std.fs.path.sep != '/') std.mem.replaceScalar(u8, absolute, std.fs.path.sep, '/');
-            if (candidates.absolute(root, absolute)) |target| return target;
-        },
-        .named => return candidates.select(spec, result.packages[owner].path) catch |err| switch (err) {
-            error.InvalidLockWorkspaceTarget => return fail(result, owner, name, "workspace dependency has no matching local package"),
-            error.InvalidRange => return fail(result, owner, name, "invalid workspace version range"),
-            error.LockVersionMismatch => return fail(result, owner, name, "workspace package version does not satisfy the dependency range"),
-            else => |cause| return cause,
-        },
+        .CyclicPackageDependencies => return fail(result, owner, data.name, "package dependencies must be acyclic"),
+        .PackageDependencyDepthExceeded => return fail(result, owner, data.name, "package dependency depth exceeds 256"),
+        else => {},
     }
 
-    return fail(result, owner, name, "workspace dependency has no matching local package");
+    for (result.packages[owner..]) |*package| package.dependencies = &.{};
+
+    const edge: usize = @intCast(graph.edge);
+    const name = if (edge < data.dependencies.len) data.dependencies[edge].name else data.dev_dependencies[edge - data.dependencies.len].name;
+
+    return switch (graph.status) {
+        .Duplicate => fail(result, owner, name, "dependency appears in both dependencies and dev_dependencies"),
+        .InvalidSpecifier => fail(result, owner, name, "workspace alias requires a package name and version range"),
+        .Missing => fail(result, owner, name, "workspace dependency has no matching local package"),
+        .InvalidRange => fail(result, owner, name, "invalid workspace version range"),
+        .LockVersionMismatch => fail(result, owner, name, "workspace package version does not satisfy the dependency range"),
+        .InvalidVersion => error.InvalidVersion,
+        .Overflow => error.Overflow,
+        .Valid, .CyclicPackageDependencies, .PackageDependencyDepthExceeded => unreachable,
+    };
 }
 
 fn fail(result: *Result, owner: usize, name: []const u8, message: []const u8) error{ OutOfMemory, InvalidPackageGraph } {

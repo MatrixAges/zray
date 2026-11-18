@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import { bucket_ratio, capacity_growth } from "core/bytes/index/const"
 import memory from "memory"
 
 import { scheme } from "../const"
@@ -15,6 +16,8 @@ export type Output = {
     row: u64,
     edge: u64,
     development: bool,
+    total: u64,
+    capacity: u64,
     found: bool
 }
 
@@ -23,6 +26,8 @@ export default function (in: Input): Output {
         row: 0,
         edge: 0,
         development: false,
+        total: 0,
+        capacity: 0,
         found: false
     }, {
         while: s => s.row < in.count && !s.found,
@@ -31,7 +36,20 @@ export default function (in: Input): Output {
             const length = memory.listLength(column, s.row)
 
             if (s.edge == length) {
+                s.total += length
+
                 if (s.development) {
+                    const degree = length + memory.listLength(in.production, s.row)
+
+                    if (degree > 1 && degree * bucket_ratio > s.capacity) {
+                        s.capacity = loop(1, {
+                            while: n => n < degree * bucket_ratio,
+                            next: n => {
+                                n = n * capacity_growth
+                            }
+                        })
+                    }
+
                     s.row += 1
                 }
 
