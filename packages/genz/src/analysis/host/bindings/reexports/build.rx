@@ -4,7 +4,8 @@
     <Args in={Reexports.Input} out={Reexports.Output} />
 
     <Call fn="entry" in={$in} />
-    <Call fn="members" in={$ctx.entry} />
+
+    <Call fn="members" />
 
     <Return value={$ctx.members} />
 </Module>

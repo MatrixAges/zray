@@ -5,7 +5,8 @@
     <Args in={Exports.Input} out={Module.Output} />
 
     <Call fn="declared" in={$in} />
-    <Call fn="effects" in={$ctx.declared} />
+
+    <Call fn="effects" />
 
     <Return value={$ctx.effects} />
 </Module>

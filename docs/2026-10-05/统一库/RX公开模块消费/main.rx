@@ -1,6 +1,7 @@
 <Module>
-  <Call module="arithmetic/increment" in={$in} />
-  <Call module="arithmetic/multiply" in={$ctx.increment} />
+    <Call module="arithmetic/increment" in={$in} />
 
-  <Return value={$ctx.multiply} />
+    <Call module="arithmetic/multiply" />
+
+    <Return value={$ctx.multiply} />
 </Module>

@@ -12,7 +12,7 @@
             }}
         />
 
-        <Call module="../../state/elements/apply" in={$ctx.element} />
+        <Call module="../../state/elements/apply" />
 
         <Call
             fn="join"

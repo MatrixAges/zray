@@ -20,10 +20,11 @@
     </If>
 
     <Call fn="guard" in={$in} />
-    <Call fn="owners" in={$ctx.guard} />
-    <Call fn="keep" in={$ctx.owners} />
-    <Call fn="unlink" in={$ctx.keep} />
-    <Call fn="finish" in={$ctx.unlink} />
+
+    <Call fn="owners" />
+    <Call fn="keep" />
+    <Call fn="unlink" />
+    <Call fn="finish" />
 
     <Call
         fn="../method"

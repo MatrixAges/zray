@@ -5,7 +5,8 @@
 
     <If on={$in.source.changes != null}>
         <Call fn="bind_changes" in={$in} />
-        <Call fn="write_changes" in={$ctx.bind_changes} />
+
+        <Call fn="write_changes" />
 
         <Return value={$ctx.write_changes} />
 

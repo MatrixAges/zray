@@ -8,7 +8,8 @@
     </If>
 
     <Call fn="collect" in={$in} />
-    <Call fn="order" in={$ctx.collect} />
+
+    <Call fn="order" />
 
     <Return value={$ctx.order} />
 </Module>

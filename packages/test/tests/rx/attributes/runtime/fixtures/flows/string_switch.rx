@@ -1,8 +1,10 @@
 <Module>
-  <Call fn="../functions/text" in={$in}/>
-  <Switch on={$ctx.text}>
-    <Case value="$in"><Return value="literal-input"/></Case>
-    <Case value="hello"><Return value="hello"/></Case>
-    <Default><Return value="other"/></Default>
-  </Switch>
+    <Call fn="../functions/text" in={$in}/>
+
+    <Switch on={$ctx.text}>
+        <Case value="$in"><Return value="literal-input"/></Case>
+        <Case value="hello"><Return value="hello"/></Case>
+
+        <Default><Return value="other"/></Default>
+    </Switch>
 </Module>

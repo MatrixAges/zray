@@ -1,7 +1,7 @@
 <Module>
     <Call module="carts/load" in={$in.cart_id} />
 
-    <Call fn="quote" in={$ctx.load} />
+    <Call fn="quote" />
 
     <Call
         module="orders/create"

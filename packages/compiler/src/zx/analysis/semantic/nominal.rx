@@ -4,7 +4,8 @@
     <Args in={Find.Input} out={u64} />
 
     <Call fn="types/nominal/find" in={$in} />
-    <Call fn="types/nominal/encode" in={$ctx.find} />
+
+    <Call fn="types/nominal/encode" />
 
     <Return value={$ctx.encode} />
 </Module>

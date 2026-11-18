@@ -35,7 +35,7 @@
         }}
     />
 
-    <Call module="../../analysis/semantic/resolving/initialize" in={$ctx.initial} />
+    <Call module="../../analysis/semantic/resolving/initialize" />
 
     <If on={$ctx.initialize.diagnostic.message == ""}>
         <Call

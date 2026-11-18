@@ -4,19 +4,22 @@
     <Args in={Normalize.Input} out={Normalize.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="prepare" in={$ctx.initialize} />
-    <Call fn="copy" in={$ctx.prepare} />
+
+    <Call fn="prepare" />
+    <Call fn="copy" />
 
     <If on={$in.selected}>
         <Call fn="select" in={$ctx.copy} />
-        <Call fn="record" in={$ctx.select} />
-        <Call fn="publish" in={$ctx.record} />
+
+        <Call fn="record" />
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
     </If>
 
     <Call fn="copied" in={$ctx.copy} />
-    <Call fn="publish" in={$ctx.copied} />
+
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

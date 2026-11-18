@@ -23,7 +23,7 @@
         in={$in.omit(["span"])}
     />
 
-    <Call fn="statements/traversal/advance" in={$ctx.initial} />
+    <Call fn="statements/traversal/advance" />
 
     <Call
         fn="statements/traversal/finish"

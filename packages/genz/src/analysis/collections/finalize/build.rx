@@ -15,14 +15,14 @@
             }}
         />
 
-        <Call fn="../../construction/publish" in={$ctx.layout} />
+        <Call fn="../../construction/publish" />
 
         <Return value={$ctx.publish} />
     </If>
 
     <Call module="../../construction/apply" in={$ctx.initialize} />
 
-    <Call fn="../../construction/publish" in={$ctx.apply} />
+    <Call fn="../../construction/publish" />
 
     <Return value={$ctx.publish} />
 </Module>

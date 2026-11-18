@@ -1,4 +1,5 @@
 <Module>
-  <Call fn="../functions/number" in={$in}/>
-  <Return value={/* } < & */ $in}/>
+    <Call fn="../functions/number" in={$in}/>
+
+    <Return value={/* } < & */ $in}/>
 </Module>

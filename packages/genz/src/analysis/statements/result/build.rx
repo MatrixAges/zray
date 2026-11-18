@@ -13,14 +13,16 @@
 
     <If on={$in.value != null}>
         <Call fn="save" in={$ctx.initialize} />
-        <Call fn="commit" in={$ctx.save} />
-        <Call fn="finish" in={$ctx.commit} />
+
+        <Call fn="commit" />
+        <Call fn="finish" />
 
         <Return value={$ctx.finish} />
     </If>
 
     <Call fn="commit" in={$ctx.initialize} />
-    <Call fn="finish" in={$ctx.commit} />
+
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

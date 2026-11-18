@@ -4,8 +4,9 @@
     <Args in={Storage.Input} out={Storage.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="items" in={$ctx.initialize} />
-    <Call fn="structure" in={$ctx.items} />
+
+    <Call fn="items" />
+    <Call fn="structure" />
 
     <Return value={$ctx.structure} />
 </Module>

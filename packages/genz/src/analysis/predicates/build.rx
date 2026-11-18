@@ -4,8 +4,9 @@
     <Args in={Predicate.Input} out={Predicate.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="decision" in={$ctx.initialize} />
-    <Call fn="finish" in={$ctx.decision} />
+
+    <Call fn="decision" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

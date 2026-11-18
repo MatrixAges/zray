@@ -1,5 +1,11 @@
 <Module>
-  <Call module="relay" in={$in} />
-  <Call module="relay/again" in={$in} />
-  <Return value={{first: $ctx.relay, second: $ctx.again}} />
+    <Call module="relay" in={$in} />
+    <Call module="relay/again" in={$in} />
+
+    <Return
+        value={{
+            first: $ctx.relay,
+            second: $ctx.again
+        }}
+    />
 </Module>

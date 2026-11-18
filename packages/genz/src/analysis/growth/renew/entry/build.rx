@@ -5,7 +5,8 @@
     <Args in={Renew.Input} out={Growth.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="execute" in={$ctx.initialize} />
+
+    <Call fn="execute" />
 
     <Call
         fn="../publish"

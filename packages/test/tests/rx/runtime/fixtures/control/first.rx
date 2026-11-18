@@ -1,14 +1,17 @@
 <Module>
-  <Call fn="./helper.zx" in={$in.value} />
-  <Task name="choose">
-    <Switch on={$in.enabled}>
-      <Default>
-        <Return value={$ctx.helper} />
-      </Default>
-      <Case value={true}>
-        <Call module="./leaf.rx" in={$ctx.helper} />
-        <Return value={$ctx.leaf + 10} />
-      </Case>
-    </Switch>
-  </Task>
+    <Call fn="./helper.zx" in={$in.value} />
+
+    <Task name="choose">
+        <Switch on={$in.enabled}>
+            <Default>
+                <Return value={$ctx.helper} />
+            </Default>
+
+            <Case value={true}>
+                <Call module="./leaf.rx" in={$ctx.helper} />
+
+                <Return value={$ctx.leaf + 10} />
+            </Case>
+        </Switch>
+    </Task>
 </Module>

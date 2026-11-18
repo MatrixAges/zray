@@ -44,7 +44,7 @@
         }}
     />
 
-    <Call module="module/exports" in={$ctx.body} />
+    <Call module="module/exports" />
 
     <Call
         module="module/contracts"
@@ -62,7 +62,7 @@
         }}
     />
 
-    <Call fn="module/publish" in={$ctx.ownership} />
+    <Call fn="module/publish" />
 
     <Return value={$ctx.publish} />
 </Module>

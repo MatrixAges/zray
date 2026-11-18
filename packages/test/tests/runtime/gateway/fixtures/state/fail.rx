@@ -1,5 +1,15 @@
 <Module>
-  <Store from="state" as="inner"/>
-  <Call fn="fail" in={{increment: $in.increment, index: $in.index, state: store.inner.counter}} setter={[store.inner.counter]}/>
-  <Return value={$ctx.fail}/>
+    <Store from="state" as="inner"/>
+
+    <Call
+        fn="fail"
+        in={{
+            increment: $in.increment,
+            index: $in.index,
+            state: store.inner.counter
+        }}
+        setter={[store.inner.counter]}
+    />
+
+    <Return value={$ctx.fail}/>
 </Module>

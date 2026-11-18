@@ -5,9 +5,9 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call module="apply" in={$ctx.initialize} />
+    <Call module="apply" />
 
-    <Call fn="publish" in={$ctx.apply} />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

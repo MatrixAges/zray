@@ -4,5 +4,6 @@
     <Args in={Initialize.Input} out={void} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="walk" in={$ctx.initialize} />
+
+    <Call fn="walk" />
 </Module>

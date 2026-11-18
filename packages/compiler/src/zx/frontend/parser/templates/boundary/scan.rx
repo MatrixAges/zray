@@ -16,8 +16,8 @@
             }}
         />
 
-        <Call fn="flush" in={$ctx.bytes} />
-        <Call fn="finish" in={$ctx.flush} />
+        <Call fn="flush" />
+        <Call fn="finish" />
 
         <If on={$ctx.finish.lexer.diagnostic.message == ""}>
             <Call fn="publish" in={$ctx.finish} />

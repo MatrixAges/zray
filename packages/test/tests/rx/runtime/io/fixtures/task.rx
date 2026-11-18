@@ -1,6 +1,7 @@
 <Module>
-  <Task name="files">
-    <Call module="leaf" in={$in} />
-    <Return value={$ctx.leaf} />
-  </Task>
+    <Task name="files">
+        <Call module="leaf" in={$in} />
+
+        <Return value={$ctx.leaf} />
+    </Task>
 </Module>

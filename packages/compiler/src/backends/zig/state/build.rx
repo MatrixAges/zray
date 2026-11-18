@@ -5,7 +5,8 @@
 
     <Call fn="../store_initializers/index_slots" in={$in.initializers} />
     <Call fn="initialize" in={$in} />
-    <Call fn="bindings" in={$ctx.initialize} />
+
+    <Call fn="bindings" />
 
     <If on={$ctx.bindings.result.status != Plan.Status.Ready}>
         <Return value={$ctx.bindings.result} />

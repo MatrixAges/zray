@@ -4,14 +4,15 @@
     <Args in={Cli.Input} out={Cli.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="prelude" in={$ctx.initialize} />
 
-    <Call module="lifecycle" in={$ctx.prelude} />
+    <Call fn="prelude" />
 
-    <Call fn="input/empty" in={$ctx.lifecycle} />
-    <Call fn="input/json" in={$ctx.empty} />
-    <Call fn="input/select" in={$ctx.json} />
-    <Call fn="execution/execute" in={$ctx.select} />
+    <Call module="lifecycle" />
+
+    <Call fn="input/empty" />
+    <Call fn="input/json" />
+    <Call fn="input/select" />
+    <Call fn="execution/execute" />
 
     <Call
         module="output/build"
@@ -22,8 +23,8 @@
         }}
     />
 
-    <Call fn="finish" in={$ctx.build} />
-    <Call fn="publish" in={$ctx.finish} />
+    <Call fn="finish" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

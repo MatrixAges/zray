@@ -1,12 +1,60 @@
 <Module>
-  <Store from="left" as="left" />
-  <Store from="right" as="right" />
+    <Store from="left" as="left" />
+    <Store from="right" as="right" />
 
-  <Call fn="read_pair" in={{first: store.left.counter.value, second: store.left.counter.value}} />
-  <Call fn="write_pair" in={{first: store.left.counter.value, second: store.left.counter.value, increment: $in}} setter={[store.right.counter]} />
-  <Call fn="read_pair_after" in={{first: store.right.counter.value, second: store.right.counter.value}} />
-  <Call fn="write_pair_overlap" in={{first: store.right.counter.value, second: store.right.counter.value, increment: $in}} setter={[store.right.counter]} />
-  <Call fn="write_pair_only" in={{first: $in, second: $in, increment: $in}} setter={[store.right.counter]} />
+    <Call
+        fn="read_pair"
+        in={{
+            first: store.left.counter.value,
+            second: store.left.counter.value
+        }}
+    />
 
-  <Return value={{before: $ctx.read_pair, written: $ctx.write_pair, after: $ctx.read_pair_after, overlap: $ctx.write_pair_overlap, only: $ctx.write_pair_only}} />
+    <Call
+        fn="write_pair"
+        in={{
+            first: store.left.counter.value,
+            second: store.left.counter.value,
+            increment: $in
+        }}
+        setter={[store.right.counter]}
+    />
+
+    <Call
+        fn="read_pair_after"
+        in={{
+            first: store.right.counter.value,
+            second: store.right.counter.value
+        }}
+    />
+
+    <Call
+        fn="write_pair_overlap"
+        in={{
+            first: store.right.counter.value,
+            second: store.right.counter.value,
+            increment: $in
+        }}
+        setter={[store.right.counter]}
+    />
+
+    <Call
+        fn="write_pair_only"
+        in={{
+            first: $in,
+            second: $in,
+            increment: $in
+        }}
+        setter={[store.right.counter]}
+    />
+
+    <Return
+        value={{
+            before: $ctx.read_pair,
+            written: $ctx.write_pair,
+            after: $ctx.read_pair_after,
+            overlap: $ctx.write_pair_overlap,
+            only: $ctx.write_pair_only
+        }}
+    />
 </Module>

@@ -4,7 +4,8 @@
     <Args in={Index.Input} out={Index.Output} />
 
     <Call fn="bind" in={$in} />
-    <Call fn="check" in={$ctx.bind} />
+
+    <Call fn="check" />
 
     <Call
         fn="../guard/failure"
@@ -22,7 +23,7 @@
         }}
     />
 
-    <Call fn="finish" in={$ctx.value} />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

@@ -18,8 +18,9 @@
     </If>
 
     <Call fn="suffixes" in={$ctx.scan} />
-    <Call fn="measure" in={$ctx.suffixes} />
-    <Call fn="breaks" in={$ctx.measure} />
+
+    <Call fn="measure" />
+    <Call fn="breaks" />
 
     <Return value={$ctx.breaks} />
 </Module>

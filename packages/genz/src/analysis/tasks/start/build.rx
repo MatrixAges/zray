@@ -4,7 +4,8 @@
     <Args in={Start.Input} out={Start.Output} />
 
     <Call fn="arguments" in={$in} />
-    <Call fn="invoke" in={$ctx.arguments} />
+
+    <Call fn="invoke" />
 
     <Return value={$ctx.invoke} />
 </Module>

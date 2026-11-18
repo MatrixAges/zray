@@ -4,8 +4,9 @@
     <Args in={Buffer.Prepare} out={Buffer.Preparation} />
 
     <Call fn="prepare/project" in={$in} />
-    <Call fn="prepare/branches" in={$ctx.project} />
-    <Call fn="prepare/finish" in={$ctx.branches} />
+
+    <Call fn="prepare/branches" />
+    <Call fn="prepare/finish" />
 
     <Return value={$ctx.finish} />
 </Module>

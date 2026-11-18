@@ -1,18 +1,28 @@
 <Module>
-  <Call fn="map_values" in={$in} />
-  <Parallel>
-    <Task name="result">
-      <Parallel>
-        <Task name="local_left">
-          <Return value={$ctx.map_values} />
+    <Call fn="map_values" in={$in} />
+
+    <Parallel>
+        <Task name="result">
+            <Parallel>
+                <Task name="local_left">
+                    <Return value={$ctx.map_values} />
+                </Task>
+
+                <Task name="local_right">
+                    <Call fn="map_values_local" in={$ctx.map_values} />
+
+                    <Return value={$ctx.map_values_local} />
+                </Task>
+            </Parallel>
+
+            <Return
+                value={{
+                    left: $ctx.task.local_left,
+                    right: $ctx.task.local_right
+                }}
+            />
         </Task>
-        <Task name="local_right">
-          <Call fn="map_values_local" in={$ctx.map_values} />
-          <Return value={$ctx.map_values_local} />
-        </Task>
-      </Parallel>
-      <Return value={{left: $ctx.task.local_left, right: $ctx.task.local_right}} />
-    </Task>
-  </Parallel>
-  <Return value={$ctx.task.result} />
+    </Parallel>
+
+    <Return value={$ctx.task.result} />
 </Module>

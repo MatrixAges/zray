@@ -6,8 +6,9 @@
 
     <If on={$in.analysis.state.diagnostic.message == ""}>
         <Call fn="evaluate/request" in={$in} />
-        <Call fn="../analyzer/expressions/traversal/initial" in={$ctx.request} />
-        <Call fn="../analyzer/expressions/traversal/advance" in={$ctx.initial} />
+
+        <Call fn="../analyzer/expressions/traversal/initial" />
+        <Call fn="../analyzer/expressions/traversal/advance" />
 
         <Return
             value={{

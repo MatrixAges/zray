@@ -4,11 +4,13 @@
     <Args in={List.Input} out={List.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="value" in={$ctx.initialize} />
+
+    <Call fn="value" />
 
     <If on={$in.construct}>
         <Call fn="record" in={$ctx.value} />
-        <Call fn="publish" in={$ctx.record} />
+
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
     </If>

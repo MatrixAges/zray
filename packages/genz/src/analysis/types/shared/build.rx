@@ -4,7 +4,8 @@
     <Args in={Query.BuildRequest} out={Query.Built} />
 
     <Call fn="plan" in={$in.source} />
-    <Call fn="construct" in={$ctx.plan} />
+
+    <Call fn="construct" />
 
     <If on={$ctx.construct.valid}>
         <Call

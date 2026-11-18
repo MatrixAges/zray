@@ -1,4 +1,5 @@
 <Module>
-  <Call module="select" in={$in} />
-  <Return value={$ctx.select} />
+    <Call module="select" in={$in} />
+
+    <Return value={$ctx.select} />
 </Module>

@@ -47,8 +47,8 @@
         }}
     />
 
-    <Call fn="../../../analyzer/expressions/traversal/initial" in={$ctx.request} />
-    <Call fn="../../../analyzer/expressions/traversal/advance" in={$ctx.initial} />
+    <Call fn="../../../analyzer/expressions/traversal/initial" />
+    <Call fn="../../../analyzer/expressions/traversal/advance" />
 
     <If on={$ctx.advance.state.diagnostic.message != ""}>
         <Return

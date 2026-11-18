@@ -7,7 +7,8 @@
 
     <If on={$in.policy == Lifecycle.Policy.Independent}>
         <Call fn="disable" in={$ctx.checked} />
-        <Call fn="applied" in={$ctx.disable} />
+
+        <Call fn="applied" />
 
         <Return value={$ctx.applied} />
     </If>

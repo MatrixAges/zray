@@ -5,7 +5,7 @@
 
     <Call fn="request" in={$in.omit(["workspace"])} />
 
-    <Call module="../normalize" in={$ctx.request} />
+    <Call module="../normalize" />
 
     <If on={!$ctx.normalize.valid}>
         <Return

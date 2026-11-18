@@ -4,11 +4,12 @@
     <Args in={Adapter.Input} out={Adapter.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="context" in={$ctx.initialize} />
-    <Call fn="patch" in={$ctx.context} />
-    <Call fn="commit" in={$ctx.patch} />
-    <Call fn="begin" in={$ctx.commit} />
-    <Call fn="finish" in={$ctx.begin} />
+
+    <Call fn="context" />
+    <Call fn="patch" />
+    <Call fn="commit" />
+    <Call fn="begin" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

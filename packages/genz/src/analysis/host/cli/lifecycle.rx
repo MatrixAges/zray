@@ -17,10 +17,10 @@
                 }}
             />
 
-            <Call fn="state/initialize" in={$ctx.defer} />
+            <Call fn="state/initialize" />
         </Task>
 
-        <Call fn="state/request" in={$ctx.task.state} />
+        <Call fn="state/request" />
 
         <Call
             fn="state/defer"
@@ -30,13 +30,14 @@
             }}
         />
 
-        <Call fn="allocator" in={$ctx.defer} />
+        <Call fn="allocator" />
 
         <Return value={$ctx.allocator} />
 
         <Else>
             <Call fn="allocator" in={$in} />
-            <Call fn="arguments" in={$ctx.allocator} />
+
+            <Call fn="arguments" />
 
             <Return value={$ctx.arguments} />
         </Else>

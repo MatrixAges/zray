@@ -1,18 +1,28 @@
 <Module>
-  <Parallel>
-    <Task name="result">
-      <Parallel>
-        <Task name="local_left">
-          <Call fn="copy_values" in={$in} />
-          <Return value={$ctx.copy_values} />
+    <Parallel>
+        <Task name="result">
+            <Parallel>
+                <Task name="local_left">
+                    <Call fn="copy_values" in={$in} />
+
+                    <Return value={$ctx.copy_values} />
+                </Task>
+
+                <Task name="local_right">
+                    <Call fn="copy_values" in={$in} />
+
+                    <Return value={$ctx.copy_values} />
+                </Task>
+            </Parallel>
+
+            <Return
+                value={{
+                    left: $ctx.task.local_left,
+                    right: $ctx.task.local_right
+                }}
+            />
         </Task>
-        <Task name="local_right">
-          <Call fn="copy_values" in={$in} />
-          <Return value={$ctx.copy_values} />
-        </Task>
-      </Parallel>
-      <Return value={{left: $ctx.task.local_left, right: $ctx.task.local_right}} />
-    </Task>
-  </Parallel>
-  <Return value={$ctx.task.result} />
+    </Parallel>
+
+    <Return value={$ctx.task.result} />
 </Module>

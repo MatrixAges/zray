@@ -1,6 +1,9 @@
 <Module>
-  <Call fn='increment' in={$in}/>
-  <Call module='./bridge.rx' in={$ctx.increment}/>
-  <Call fn='multiply' in={$ctx.bridge}/>
-  <Return value={$ctx.multiply}/>
+    <Call fn='increment' in={$in}/>
+
+    <Call module='./bridge.rx'/>
+
+    <Call fn='multiply'/>
+
+    <Return value={$ctx.multiply}/>
 </Module>

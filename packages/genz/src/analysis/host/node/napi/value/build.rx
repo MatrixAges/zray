@@ -4,14 +4,15 @@
     <Args in={Value.Input} out={Value.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="check" in={$ctx.initialize} />
-    <Call fn="fail" in={$ctx.check} />
-    <Call fn="kind" in={$ctx.fail} />
-    <Call fn="length" in={$ctx.kind} />
-    <Call fn="size" in={$ctx.length} />
-    <Call fn="allocate" in={$ctx.size} />
-    <Call fn="string" in={$ctx.allocate} />
-    <Call fn="publish" in={$ctx.string} />
+
+    <Call fn="check" />
+    <Call fn="fail" />
+    <Call fn="kind" />
+    <Call fn="length" />
+    <Call fn="size" />
+    <Call fn="allocate" />
+    <Call fn="string" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

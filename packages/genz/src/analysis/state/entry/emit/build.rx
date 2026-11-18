@@ -6,15 +6,17 @@
 
     <If on={$in.conversion != null}>
         <Call fn="convert" in={$in} />
-        <Call fn="finish" in={$ctx.convert} />
-        <Call fn="publish" in={$ctx.finish} />
+
+        <Call fn="finish" />
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
     </If>
 
     <Call fn="initialize" in={$in} />
-    <Call fn="finish" in={$ctx.initialize} />
-    <Call fn="publish" in={$ctx.finish} />
+
+    <Call fn="finish" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

@@ -60,7 +60,7 @@
         }}
     />
 
-    <Call fn="status" in={$ctx.walk} />
+    <Call fn="status" />
 
     <If on={$ctx.status == LinkGraph.Status.Ready}>
         <Call

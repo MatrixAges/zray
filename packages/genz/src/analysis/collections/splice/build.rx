@@ -4,22 +4,25 @@
     <Args in={Splice.Input} out={Splice.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="bounds" in={$ctx.initialize} />
-    <Call fn="ranges" in={$ctx.bounds} />
 
-    <Call module="prepare" in={$ctx.ranges} />
+    <Call fn="bounds" />
+    <Call fn="ranges" />
+
+    <Call module="prepare" />
 
     <If on={$in.removed_only}>
         <Call fn="project" in={$ctx.prepare} />
-        <Call fn="publish" in={$ctx.project} />
+
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
     </If>
 
     <Call fn="allocate" in={$ctx.prepare} />
-    <Call fn="copies" in={$ctx.allocate} />
-    <Call fn="result" in={$ctx.copies} />
-    <Call fn="publish" in={$ctx.result} />
+
+    <Call fn="copies" />
+    <Call fn="result" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

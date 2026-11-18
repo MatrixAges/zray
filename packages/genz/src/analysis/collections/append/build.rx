@@ -4,13 +4,14 @@
     <Args in={Append.Input} out={Append.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="count" in={$ctx.initialize} />
 
-    <Call module="memory" in={$ctx.count} />
-    <Call module="write" in={$ctx.memory} />
-    <Call module="qualify" in={$ctx.write} />
+    <Call fn="count" />
 
-    <Call fn="publish" in={$ctx.qualify} />
+    <Call module="memory" />
+    <Call module="write" />
+    <Call module="qualify" />
+
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

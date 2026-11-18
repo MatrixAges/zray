@@ -5,7 +5,7 @@
 
     <Call module="../../frontend/parser/program" in={$in.bytes} />
 
-    <Call fn="declaration_only" in={$ctx.program} />
+    <Call fn="declaration_only" />
 
     <If on={$ctx.declaration_only}>
         <Call
@@ -24,7 +24,7 @@
             }}
         />
 
-        <Call fn="publish" in={$ctx.implementation} />
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
 

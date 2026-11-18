@@ -1,6 +1,7 @@
 <Module>
     <Call fn="factories/create" in={$in} />
-    <Call fn="steps/patch" in={$ctx.create} />
+
+    <Call fn="steps/patch" />
 
     <Return
         value={{

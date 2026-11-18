@@ -38,7 +38,6 @@
 
             <Call
                 module="../../../../ownership/check"
-                in={$ctx.ownership_request}
             />
 
             <Call

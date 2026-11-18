@@ -84,7 +84,8 @@
 
         <Else>
             <Call fn="loading/merge_status" in={$ctx.types.status} />
-            <Call fn="empty" in={$ctx.merge_status} />
+
+            <Call fn="empty" />
 
             <Return value={$ctx.empty} />
         </Else>

@@ -5,7 +5,8 @@
     <Args in={Model.List} out={Expressions.Result} />
 
     <Call fn="slice/bounds" in={$in} />
-    <Call fn="slice/initial" in={$ctx.bounds} />
+
+    <Call fn="slice/initial" />
 
     <Call
         fn="../../collections/lowering/parameters"

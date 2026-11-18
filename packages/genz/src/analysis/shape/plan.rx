@@ -4,7 +4,8 @@
     <Args in={Shape.Request} out={Shape.Plan} />
 
     <Call fn="initial" in={$in} />
-    <Call fn="walk" in={$ctx.initial} />
+
+    <Call fn="walk" />
 
     <Return value={$ctx.walk} />
 </Module>

@@ -4,7 +4,8 @@
     <Args in={State.Shape} out={State.Storage} />
 
     <Call fn="layout" in={$in} />
-    <Call fn="allocate" in={$ctx.layout} />
+
+    <Call fn="allocate" />
 
     <Return value={$ctx.allocate} />
 </Module>

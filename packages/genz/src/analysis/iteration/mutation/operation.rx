@@ -4,31 +4,35 @@
     <Args in={Mutation.Input} out={Mutation.State} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="project" in={$ctx.initialize} />
+
+    <Call fn="project" />
 
     <Switch on={$in.mode}>
         <Case value={Mutation.Mode.Update}>
             <Call fn="bounds" in={$ctx.project} />
-            <Call fn="value" in={$ctx.bounds} />
-            <Call fn="prepare" in={$ctx.value} />
-            <Call fn="update" in={$ctx.prepare} />
+
+            <Call fn="value" />
+            <Call fn="prepare" />
+            <Call fn="update" />
 
             <Return value={$ctx.update} />
         </Case>
 
         <Case value={Mutation.Mode.Push}>
             <Call fn="value" in={$ctx.project} />
-            <Call fn="overflow" in={$ctx.value} />
-            <Call fn="prepare" in={$ctx.overflow} />
-            <Call fn="append" in={$ctx.prepare} />
-            <Call fn="cast" in={$ctx.append} />
+
+            <Call fn="overflow" />
+            <Call fn="prepare" />
+            <Call fn="append" />
+            <Call fn="cast" />
 
             <Return value={$ctx.cast} />
         </Case>
 
         <Case value={Mutation.Mode.Pop}>
             <Call fn="pop" in={$ctx.project} />
-            <Call fn="cast" in={$ctx.pop} />
+
+            <Call fn="cast" />
 
             <Return value={$ctx.cast} />
         </Case>

@@ -1,6 +1,14 @@
 <Module>
-  <Store from="left" as="left" />
-  <Store from="right" as="right" />
-  <Call fn="read_pair" in={{first: store.left.counter.value, second: store.right.counter.value}} />
-  <Return value={$ctx.read_pair} />
+    <Store from="left" as="left" />
+    <Store from="right" as="right" />
+
+    <Call
+        fn="read_pair"
+        in={{
+            first: store.left.counter.value,
+            second: store.right.counter.value
+        }}
+    />
+
+    <Return value={$ctx.read_pair} />
 </Module>

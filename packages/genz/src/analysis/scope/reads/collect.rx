@@ -4,7 +4,8 @@
     <Args in={Reads.Input} out={Reads.Last} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="scan" in={$ctx.initialize} />
+
+    <Call fn="scan" />
 
     <Return value={$ctx.scan} />
 </Module>

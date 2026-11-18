@@ -1,5 +1,7 @@
 <Module>
-  <Call fn='number' in={$in}/>
-  <Call module='./bridge.rx' in={$ctx.number}/>
-  <Return value={$ctx.bridge}/>
+    <Call fn='number' in={$in}/>
+
+    <Call module='./bridge.rx'/>
+
+    <Return value={$ctx.bridge}/>
 </Module>

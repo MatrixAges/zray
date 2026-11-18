@@ -15,7 +15,7 @@
     <If on={$ctx.outlined}>
         <Call fn="name_input" in={$in} />
 
-        <Call module="../../helper/name/build" in={$ctx.name_input} />
+        <Call module="../../helper/name/build" />
 
         <Return
             value={{

@@ -16,7 +16,8 @@
     </If>
 
     <Call fn="allocate" in={$in} />
-    <Call fn="copy" in={$ctx.allocate} />
+
+    <Call fn="copy" />
 
     <Return value={$ctx.copy} />
 </Module>

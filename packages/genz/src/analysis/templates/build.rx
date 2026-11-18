@@ -4,8 +4,9 @@
     <Args in={Template.Input} out={Template.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="format" in={$ctx.initialize} />
-    <Call fn="concat" in={$ctx.format} />
+
+    <Call fn="format" />
+    <Call fn="concat" />
 
     <Return value={$ctx.concat} />
 </Module>

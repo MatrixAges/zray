@@ -35,7 +35,7 @@
             }}
         />
 
-        <Call module="../helper/flow/build" in={$ctx.helper_input} />
+        <Call module="../helper/flow/build" />
 
         <Call
             fn="publish"
@@ -59,7 +59,7 @@
             }}
         />
 
-        <Call module="../clear/build" in={$ctx.clear_input} />
+        <Call module="../clear/build" />
 
         <Call
             fn="inline"

@@ -1,9 +1,29 @@
 <Module>
-  <Store from="right" as="right" />
-  <Store from="left" as="left" />
+    <Store from="right" as="right" />
+    <Store from="left" as="left" />
 
-  <Call fn="read_pair" in={{first: store.right.counter.value, second: store.left.counter.value}} />
-  <Call fn="write_left_pair" in={{first: store.right.counter.value, second: store.right.counter.value, increment: $in}} setter={[store.left.counter]} />
+    <Call
+        fn="read_pair"
+        in={{
+            first: store.right.counter.value,
+            second: store.left.counter.value
+        }}
+    />
 
-  <Return value={{initial: $ctx.read_pair, written: $ctx.write_left_pair}} />
+    <Call
+        fn="write_left_pair"
+        in={{
+            first: store.right.counter.value,
+            second: store.right.counter.value,
+            increment: $in
+        }}
+        setter={[store.left.counter]}
+    />
+
+    <Return
+        value={{
+            initial: $ctx.read_pair,
+            written: $ctx.write_left_pair
+        }}
+    />
 </Module>

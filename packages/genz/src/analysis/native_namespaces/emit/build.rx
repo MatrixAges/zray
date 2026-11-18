@@ -4,9 +4,10 @@
     <Args in={Emit.Input} out={Emit.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="signatures" in={$ctx.initialize} />
-    <Call fn="members" in={$ctx.signatures} />
-    <Call fn="layouts" in={$ctx.members} />
+
+    <Call fn="signatures" />
+    <Call fn="members" />
+    <Call fn="layouts" />
 
     <Task name="native" out={$ctx.publish}>
         <Call

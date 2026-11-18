@@ -4,9 +4,10 @@
     <Args in={Result.Input} out={Result.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="bind" in={$ctx.initialize} />
-    <Call fn="members" in={$ctx.bind} />
-    <Call fn="publish" in={$ctx.members} />
+
+    <Call fn="bind" />
+    <Call fn="members" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

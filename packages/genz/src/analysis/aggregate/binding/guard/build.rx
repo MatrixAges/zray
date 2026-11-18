@@ -4,7 +4,8 @@
     <Args in={Guard.Input} out={Guard.Output} />
 
     <Call fn="prepare" in={$in} />
-    <Call fn="../finish" in={$ctx.prepare} />
+
+    <Call fn="../finish" />
 
     <Call
         fn="publish"

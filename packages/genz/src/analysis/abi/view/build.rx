@@ -5,7 +5,7 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call module="prefix" in={$ctx.initialize} />
+    <Call module="prefix" />
 
     <Task name="native" out={$ctx.namespace}>
         <Call
@@ -27,7 +27,7 @@
         />
     </Task>
 
-    <Call fn="finish" in={$ctx.task.layouts} />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

@@ -4,11 +4,13 @@
     <Args in={Reserve.State} out={Reserve.State} />
 
     <Call fn="prepare" in={$in} />
-    <Call fn="copy" in={$ctx.prepare} />
+
+    <Call fn="copy" />
 
     <If on={$in.source.flag}>
         <Call fn="extend" in={$ctx.copy} />
-        <Call fn="select" in={$ctx.extend} />
+
+        <Call fn="select" />
 
         <Return value={$ctx.select} />
     </If>

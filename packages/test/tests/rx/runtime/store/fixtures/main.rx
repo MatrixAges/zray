@@ -1,9 +1,16 @@
 <Module>
-  <Store from="state" as="outer" />
-  <Call module="advance" in={$in} />
-  <Call module="advance_next" in={$in} />
-  <Call fn="read" in={store.outer.counter.value} />
+    <Store from="state" as="outer" />
 
-  <Return value={{first: $ctx.advance, second: $ctx.advance_next, current: $ctx.read}} />
+    <Call module="advance" in={$in} />
+    <Call module="advance_next" in={$in} />
 
+    <Call fn="read" in={store.outer.counter.value} />
+
+    <Return
+        value={{
+            first: $ctx.advance,
+            second: $ctx.advance_next,
+            current: $ctx.read
+        }}
+    />
 </Module>

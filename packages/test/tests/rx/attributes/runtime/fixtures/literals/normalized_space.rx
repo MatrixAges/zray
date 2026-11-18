@@ -1,6 +1,8 @@
 <Module>
-  <Return value="a
+    <Return
+        value="a
 b
 c
-d	e"/>
+d	e"
+    />
 </Module>

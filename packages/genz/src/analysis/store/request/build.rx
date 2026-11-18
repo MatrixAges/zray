@@ -18,17 +18,17 @@
         }}
     />
 
-    <Call fn="factory/shared" in={$ctx.prepare} />
-    <Call fn="factory/retained" in={$ctx.shared} />
-    <Call fn="factory/slots" in={$ctx.retained} />
-    <Call fn="factory/create" in={$ctx.slots} />
+    <Call fn="factory/shared" />
+    <Call fn="factory/retained" />
+    <Call fn="factory/slots" />
+    <Call fn="factory/create" />
 
-    <Call module="execute/execute" in={$ctx.create} />
-    <Call module="deinitialize/deinitialize" in={$ctx.execute} />
-    <Call module="commit/commit" in={$ctx.deinitialize} />
+    <Call module="execute/execute" />
+    <Call module="deinitialize/deinitialize" />
+    <Call module="commit/commit" />
 
-    <Call fn="container" in={$ctx.commit} />
-    <Call fn="publish" in={$ctx.container} />
+    <Call fn="container" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

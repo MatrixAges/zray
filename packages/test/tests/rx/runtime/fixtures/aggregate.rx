@@ -1,5 +1,12 @@
 <Module>
-  <Call fn="map_values" in={$in} />
-  <Call fn="sum_values" in={$ctx.map_values} />
-  <Return value={{items: $ctx.map_values, total: $ctx.sum_values}} />
+    <Call fn="map_values" in={$in} />
+
+    <Call fn="sum_values" />
+
+    <Return
+        value={{
+            items: $ctx.map_values,
+            total: $ctx.sum_values
+        }}
+    />
 </Module>

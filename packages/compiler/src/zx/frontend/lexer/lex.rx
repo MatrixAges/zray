@@ -5,7 +5,7 @@
 
     <Call module="scan" in={$in} />
 
-    <Call fn="legacy" in={$ctx.scan} />
+    <Call fn="legacy" />
 
     <Return value={$ctx.legacy} />
 </Module>

@@ -4,13 +4,14 @@
     <Args in={Context.Input} out={Context.Published} />
 
     <Call fn="../../tree/initialize_ast" in={$in} />
-    <Call fn="prelude" in={$ctx.initialize_ast} />
-    <Call fn="fields" in={$ctx.prelude} />
-    <Call fn="retain" in={$ctx.fields} />
-    <Call fn="release" in={$ctx.retain} />
-    <Call fn="close" in={$ctx.release} />
-    <Call fn="cleanup" in={$ctx.close} />
-    <Call fn="publish" in={$ctx.cleanup} />
+
+    <Call fn="prelude" />
+    <Call fn="fields" />
+    <Call fn="retain" />
+    <Call fn="release" />
+    <Call fn="close" />
+    <Call fn="cleanup" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

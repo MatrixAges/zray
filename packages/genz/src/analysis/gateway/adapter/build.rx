@@ -8,11 +8,12 @@
 
         <Else>
             <Call fn="prepare" in={$in} />
-            <Call fn="slots" in={$ctx.prepare} />
-            <Call fn="initialize" in={$ctx.slots} />
-            <Call fn="commit" in={$ctx.initialize} />
-            <Call fn="container" in={$ctx.commit} />
-            <Call fn="publish" in={$ctx.container} />
+
+            <Call fn="slots" />
+            <Call fn="initialize" />
+            <Call fn="commit" />
+            <Call fn="container" />
+            <Call fn="publish" />
 
             <Return value={$ctx.publish} />
         </Else>

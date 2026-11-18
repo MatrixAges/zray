@@ -1,5 +1,7 @@
 <Module>
-  <Call fn="map_values" in={$in} />
-  <Call fn="pop_values" in={$ctx.map_values} />
-  <Return value={$ctx.pop_values} />
+    <Call fn="map_values" in={$in} />
+
+    <Call fn="pop_values" />
+
+    <Return value={$ctx.pop_values} />
 </Module>

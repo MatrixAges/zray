@@ -1,4 +1,5 @@
 <Module>
-  <Call module='./bridge.rx' in={$in.choose ? $in.left : $in.right}/>
-  <Return value={$ctx.bridge + 1}/>
+    <Call module='./bridge.rx' in={$in.choose ? $in.left : $in.right}/>
+
+    <Return value={$ctx.bridge + 1}/>
 </Module>

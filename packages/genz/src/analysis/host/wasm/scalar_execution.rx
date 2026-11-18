@@ -4,9 +4,10 @@
     <Args in={Wasm.State} out={Wasm.State} />
 
     <Call fn="scalar_begin" in={$in} />
-    <Call fn="scalar_prepare" in={$ctx.scalar_begin} />
-    <Call fn="scalar_application" in={$ctx.scalar_prepare} />
-    <Call fn="scalar_finish" in={$ctx.scalar_application} />
+
+    <Call fn="scalar_prepare" />
+    <Call fn="scalar_application" />
+    <Call fn="scalar_finish" />
 
     <Return value={$ctx.scalar_finish} />
 </Module>

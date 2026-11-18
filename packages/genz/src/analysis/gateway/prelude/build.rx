@@ -4,10 +4,11 @@
     <Args in={Prelude.Input} out={Prelude.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="imports" in={$ctx.initialize} />
-    <Call fn="configuration" in={$ctx.imports} />
-    <Call fn="services" in={$ctx.configuration} />
-    <Call fn="publish" in={$ctx.services} />
+
+    <Call fn="imports" />
+    <Call fn="configuration" />
+    <Call fn="services" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

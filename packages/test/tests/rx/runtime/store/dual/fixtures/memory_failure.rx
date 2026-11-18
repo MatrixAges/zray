@@ -1,8 +1,28 @@
 <Module>
-  <Store from="right" as="inner" />
+    <Store from="right" as="inner" />
 
-  <Call module="write_left" in={{increment: $in.increment, index: $in.left_index}} />
-  <Call fn="advance_failure" in={{increment: $in.increment, index: $in.right_index, state: store.inner.counter}} setter={[store.inner.counter]} />
+    <Call
+        module="write_left"
+        in={{
+            increment: $in.increment,
+            index: $in.left_index
+        }}
+    />
 
-  <Return value={{first: $ctx.write_left, second: $ctx.advance_failure}} />
+    <Call
+        fn="advance_failure"
+        in={{
+            increment: $in.increment,
+            index: $in.right_index,
+            state: store.inner.counter
+        }}
+        setter={[store.inner.counter]}
+    />
+
+    <Return
+        value={{
+            first: $ctx.write_left,
+            second: $ctx.advance_failure
+        }}
+    />
 </Module>

@@ -11,7 +11,7 @@
         <Default>
             <Call fn="discard_allocator" in={$in} />
 
-            <Call module="read_primitive" in={$ctx.discard_allocator} />
+            <Call module="read_primitive" />
 
             <Return value={$ctx.read_primitive} />
         </Default>

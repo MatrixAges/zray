@@ -5,20 +5,20 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call module="storage" in={$ctx.initialize} />
-    <Call module="allocation" in={$ctx.storage} />
+    <Call module="storage" />
+    <Call module="allocation" />
 
-    <Call fn="json_execute" in={$ctx.allocation} />
-    <Call fn="result_ptr" in={$ctx.json_execute} />
-    <Call fn="result_len" in={$ctx.result_ptr} />
-    <Call fn="reset" in={$ctx.result_len} />
-    <Call fn="deinit" in={$ctx.reset} />
+    <Call fn="json_execute" />
+    <Call fn="result_ptr" />
+    <Call fn="result_len" />
+    <Call fn="reset" />
+    <Call fn="deinit" />
 
-    <Call module="prepare" in={$ctx.deinit} />
-    <Call module="json" in={$ctx.prepare} />
-    <Call module="scalar" in={$ctx.json} />
+    <Call module="prepare" />
+    <Call module="json" />
+    <Call module="scalar" />
 
-    <Call fn="publish" in={$ctx.scalar} />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

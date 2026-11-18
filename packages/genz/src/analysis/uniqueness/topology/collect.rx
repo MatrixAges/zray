@@ -4,7 +4,8 @@
     <Args in={Graph.Bodies} out={Graph.Calls} />
 
     <Call fn="collect" in={$in} />
-    <Call fn="recursive" in={$ctx.collect} />
+
+    <Call fn="recursive" />
 
     <Return
         value={{

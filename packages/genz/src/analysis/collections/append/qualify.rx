@@ -5,7 +5,8 @@
 
     <If on={$in.source.selected}>
         <Call fn="exclusive" in={$in} />
-        <Call fn="owned" in={$ctx.exclusive} />
+
+        <Call fn="owned" />
 
         <Return value={$ctx.owned} />
     </If>

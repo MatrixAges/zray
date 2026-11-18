@@ -6,7 +6,8 @@
 
     <Call fn="../self_binding" in={$in} />
     <Call fn="prepare" in={$ctx.self_binding.state} />
-    <Call fn="cancellation" in={$ctx.prepare} />
+
+    <Call fn="cancellation" />
 
     <Call
         fn="release_completed"

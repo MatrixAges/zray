@@ -14,7 +14,7 @@
         }}
     />
 
-    <Call module="updates" in={$ctx.variable} />
+    <Call module="updates" />
 
     <Call
         fn="finish"

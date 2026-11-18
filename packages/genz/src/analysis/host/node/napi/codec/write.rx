@@ -34,14 +34,16 @@
 
         <Case value={Codec.Kind.Object}>
             <Call fn="write_record" in={$in} />
-            <Call fn="fields" in={$ctx.write_record} />
+
+            <Call fn="fields" />
 
             <Return value={$ctx.fields} />
         </Case>
 
         <Case value={Codec.Kind.Tuple}>
             <Call fn="write_record" in={$in} />
-            <Call fn="fields" in={$ctx.write_record} />
+
+            <Call fn="fields" />
 
             <Return value={$ctx.fields} />
         </Case>

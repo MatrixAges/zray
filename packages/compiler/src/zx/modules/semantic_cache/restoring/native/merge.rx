@@ -61,7 +61,8 @@
 
         <Else>
             <Call fn="merge_status" in={$ctx.types.status} />
-            <Call fn="failed" in={$ctx.merge_status} />
+
+            <Call fn="failed" />
 
             <Return value={$ctx.failed} />
         </Else>

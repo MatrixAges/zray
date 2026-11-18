@@ -9,10 +9,10 @@
 
     <Call fn="prepare" in={$in} />
 
-    <Call module="io" in={$ctx.prepare} />
-    <Call module="process" in={$ctx.io} />
+    <Call module="io" />
+    <Call module="process" />
 
-    <Call fn="finish" in={$ctx.process} />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

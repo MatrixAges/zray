@@ -4,8 +4,9 @@
     <Args in={Update.Write} out={Update.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="write" in={$ctx.initialize} />
-    <Call fn="publish" in={$ctx.write} />
+
+    <Call fn="write" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

@@ -4,9 +4,10 @@
     <Args in={Layout.Input} out={Layout.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="fields" in={$ctx.initialize} />
-    <Call fn="origin" in={$ctx.fields} />
-    <Call fn="finish" in={$ctx.origin} />
+
+    <Call fn="fields" />
+    <Call fn="origin" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

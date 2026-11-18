@@ -10,7 +10,7 @@
     <If on={$in.forward != null}>
         <Call fn="forward" in={$in.forward} />
 
-        <Call module="../../../forward_entry/build" in={$ctx.forward} />
+        <Call module="../../../forward_entry/build" />
 
         <Return
             value={{

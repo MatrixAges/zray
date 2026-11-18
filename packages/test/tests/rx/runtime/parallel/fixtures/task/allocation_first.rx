@@ -1,12 +1,15 @@
 <Module>
-  <Parallel>
-    <Task name="values">
-      <Call fn="map_values" in={$in.values} />
-      <Return value={$ctx.map_values} />
-    </Task>
-    <Task name="check">
-      <Call fn="first" in={$in.missing} />
-    </Task>
-  </Parallel>
-  <Return value={$ctx.task.values} />
+    <Parallel>
+        <Task name="values">
+            <Call fn="map_values" in={$in.values} />
+
+            <Return value={$ctx.map_values} />
+        </Task>
+
+        <Task name="check">
+            <Call fn="first" in={$in.missing} />
+        </Task>
+    </Parallel>
+
+    <Return value={$ctx.task.values} />
 </Module>

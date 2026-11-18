@@ -4,12 +4,13 @@
     <Args in={Value.State} out={Value.State} />
 
     <Call fn="check" in={$in} />
-    <Call fn="fail" in={$ctx.check} />
-    <Call fn="kind" in={$ctx.fail} />
-    <Call fn="length" in={$ctx.kind} />
-    <Call fn="size" in={$ctx.length} />
-    <Call fn="allocate" in={$ctx.size} />
-    <Call fn="string" in={$ctx.allocate} />
+
+    <Call fn="fail" />
+    <Call fn="kind" />
+    <Call fn="length" />
+    <Call fn="size" />
+    <Call fn="allocate" />
+    <Call fn="string" />
 
     <Return value={$ctx.string} />
 </Module>

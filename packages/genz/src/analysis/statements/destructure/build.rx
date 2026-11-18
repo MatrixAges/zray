@@ -4,11 +4,13 @@
     <Args in={Destructure.Input} out={Destructure.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="project_items" in={$ctx.initialize} />
+
+    <Call fn="project_items" />
 
     <If on={!$ctx.project_items.bound}>
         <Call fn="discard" in={$ctx.project_items} />
-        <Call fn="finish" in={$ctx.discard} />
+
+        <Call fn="finish" />
 
         <Return value={$ctx.finish} />
     </If>

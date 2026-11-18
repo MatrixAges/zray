@@ -10,7 +10,8 @@
     </If>
 
     <Call fn="counts" in={$ctx.depths} />
-    <Call fn="offsets" in={$ctx.counts} />
+
+    <Call fn="offsets" />
 
     <Call
         fn="ordering"

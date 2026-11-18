@@ -5,10 +5,10 @@
 
     <Call fn="safety" in={$in} />
 
-    <Call module="resource" in={$ctx.safety} />
+    <Call module="resource" />
 
-    <Call fn="unused" in={$ctx.resource} />
-    <Call fn="finish" in={$ctx.unused} />
+    <Call fn="unused" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

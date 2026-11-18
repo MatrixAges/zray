@@ -4,7 +4,8 @@
     <Args in={Definitions.Input} out={Definitions.Output} />
 
     <Call fn="keys" in={$in} />
-    <Call fn="construct" in={$ctx.keys} />
+
+    <Call fn="construct" />
 
     <Call
         fn="fields"

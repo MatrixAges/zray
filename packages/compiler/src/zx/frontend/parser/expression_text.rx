@@ -14,7 +14,7 @@
         }}
     />
 
-    <Call fn="expressions/finish" in={$ctx.expression} />
+    <Call fn="expressions/finish" />
 
     <Return value={$ctx.finish} />
 </Module>

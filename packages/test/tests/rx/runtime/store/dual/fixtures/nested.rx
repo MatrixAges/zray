@@ -1,8 +1,14 @@
 <Module>
-  <Store from="left" as="left" />
+    <Store from="left" as="left" />
 
-  <Call fn="snapshot" in={store.left.counter} />
-  <Call module="permuted" in={$in} />
+    <Call fn="snapshot" in={store.left.counter} />
 
-  <Return value={{before: $ctx.snapshot, child: $ctx.permuted}} />
+    <Call module="permuted" in={$in} />
+
+    <Return
+        value={{
+            before: $ctx.snapshot,
+            child: $ctx.permuted
+        }}
+    />
 </Module>

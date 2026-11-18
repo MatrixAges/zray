@@ -4,8 +4,9 @@
     <Args in={Imports.Input} out={Imports.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="prelude" in={$ctx.initialize} />
-    <Call fn="modules" in={$ctx.prelude} />
+
+    <Call fn="prelude" />
+    <Call fn="modules" />
 
     <Call
         fn="../../ast/declarations/constants"

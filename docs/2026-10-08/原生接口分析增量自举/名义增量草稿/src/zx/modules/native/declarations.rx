@@ -1,11 +1,30 @@
 <Module>
-    <Call fn="../../analysis/semantic/resolving/initial" in={{ context: $in, initialize: true, named: false, name: { text: "", start: 0, end: 0 }, reference: { enumeration: false, index: 0 } }} />
+    <Call
+        fn="../../analysis/semantic/resolving/initial"
+        in={{
+            context: $in,
+            initialize: true,
+            named: false,
+            name: {
+                text: "",
+                start: 0,
+                end: 0
+            },
+            reference: {
+                enumeration: false,
+                index: 0
+            }
+        }}
+    />
 
-    <Call module="../../analysis/semantic/resolving/initialize" in={$ctx.initial} />
+    <Call module="../../analysis/semantic/resolving/initialize" />
 
     <Switch on={$ctx.initialize.diagnostic.message == ""}>
         <Case value={true}>
-            <Call fn="../../analysis/semantic/resolving/declarations" in={$ctx.initialize} />
+            <Call
+                fn="../../analysis/semantic/resolving/declarations"
+                in={$ctx.initialize}
+            />
 
             <Return value={$ctx.declarations} />
         </Case>

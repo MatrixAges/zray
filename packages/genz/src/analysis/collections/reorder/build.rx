@@ -5,18 +5,20 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call module="memory" in={$ctx.initialize} />
+    <Call module="memory" />
 
     <If on={$in.slice}>
         <Call fn="owned" in={$ctx.memory} />
-        <Call fn="publish" in={$ctx.owned} />
+
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
     </If>
 
     <Call fn="mutate" in={$ctx.memory} />
-    <Call fn="owned" in={$ctx.mutate} />
-    <Call fn="publish" in={$ctx.owned} />
+
+    <Call fn="owned" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

@@ -30,7 +30,7 @@
             }}
         />
 
-        <Call module="../../analysis/semantic/resolve" in={$ctx.request} />
+        <Call module="../../analysis/semantic/resolve" />
 
         <Call
             fn="signature/initialized"
@@ -52,7 +52,7 @@
                 }}
             />
 
-            <Call module="../../analysis/semantic/resolve" in={$ctx.request} />
+            <Call module="../../analysis/semantic/resolve" />
 
             <Call
                 fn="signature/port"
@@ -74,7 +74,7 @@
                 }}
             />
 
-            <Call module="../../analysis/semantic/resolve" in={$ctx.request} />
+            <Call module="../../analysis/semantic/resolve" />
 
             <Call
                 fn="signature/port"

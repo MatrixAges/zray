@@ -1,18 +1,19 @@
 <Module>
     <Call fn="cleanup" in={$in} />
-    <Call fn="bindings" in={$ctx.cleanup} />
-    <Call fn="registered" in={$ctx.bindings} />
-    <Call fn="finalize" in={$ctx.registered} />
-    <Call fn="callback" in={$ctx.finalize} />
-    <Call fn="arguments" in={$ctx.callback} />
-    <Call fn="arity" in={$ctx.arguments} />
-    <Call fn="context" in={$ctx.arity} />
-    <Call fn="guard_context" in={$ctx.context} />
+
+    <Call fn="bindings" />
+    <Call fn="registered" />
+    <Call fn="finalize" />
+    <Call fn="callback" />
+    <Call fn="arguments" />
+    <Call fn="arity" />
+    <Call fn="context" />
+    <Call fn="guard_context" />
 
     <If on={$in.tree.ast.stateful}>
         <Call fn="pending" in={$ctx.guard_context} />
 
-        <Call module="execution" in={$ctx.pending} />
+        <Call module="execution" />
 
         <Return value={$ctx.execution} />
 

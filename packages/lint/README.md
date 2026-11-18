@@ -107,3 +107,5 @@ export default function (in: Input): Output {
 `naming`（`src/naming/check.rx`）、`length`（`src/length/check.rx`）、`indentation_line`（`src/indentation/line/line.rx`）、`spacing_boundary`（`src/spacing/boundary/boundary.rx`）、`rx_bounds`（`src/rx/bounds/resolve.rx`）与 `import_order`（`src/imports/order/compare.rx`）共 6 组规则已由统一 RX/ZX 模块实现。编译器类型表校验通过普通 ZX 模块引用复用命名规则，Zig API 静态调用生成代码并在栈上 `FixedBufferAllocator` 内完成执行，无临时堆分配。
 
 构建编排由 compiler 提供共享生成目录（`generated` LazyPath 参数）并按 `entries.zig` 中 `.owner = .lint` 条目自动挂载；其他仓库调用者使用 compiler 导出的 lint 模块。lint 不依赖 compiler 包。只有最初的生成宿主显式设置 `seed = true`，使用 `bootstrap/*.zig`；正式构建缺少生成输入时直接报错，不自动退回 seed。其余依赖 AST 递归与配置解析的 lint 规则仍待迁移，不能据此宣称整个 lint 已完成自举。
+
+从仓库根目录运行 `pnpm format:rx` 可格式化包内 RX 源码、示例和测试输入，`pnpm format:rx --check` 仅检查差异。提交钩子对暂存的包内 RX 调用同一个格式化器。命令优先使用 `ZXC` 指定的可执行文件，其次使用 `zig-out/bin/zxc` 或 PATH 中的 `zxc`。

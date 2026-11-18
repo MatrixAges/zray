@@ -4,7 +4,8 @@
     <Args in={Cli.OutputInput} out={Cli.State} />
 
     <Call fn="open" in={$in.state} />
-    <Call fn="validation" in={$ctx.open} />
+
+    <Call fn="validation" />
 
     <Call
         fn="../../json_output/check"
@@ -35,10 +36,10 @@
         }}
     />
 
-    <Call fn="writer" in={$ctx.validated} />
-    <Call fn="write" in={$ctx.writer} />
-    <Call fn="flush" in={$ctx.write} />
-    <Call fn="finish" in={$ctx.flush} />
+    <Call fn="writer" />
+    <Call fn="write" />
+    <Call fn="flush" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

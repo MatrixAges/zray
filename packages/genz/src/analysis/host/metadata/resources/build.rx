@@ -5,10 +5,11 @@
     <Args in={Resources.Input} out={Ast.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="archives" in={$ctx.initialize} />
-    <Call fn="options" in={$ctx.archives} />
-    <Call fn="format" in={$ctx.options} />
-    <Call fn="../publish" in={$ctx.format} />
+
+    <Call fn="archives" />
+    <Call fn="options" />
+    <Call fn="format" />
+    <Call fn="../publish" />
 
     <Return value={$ctx.publish} />
 </Module>

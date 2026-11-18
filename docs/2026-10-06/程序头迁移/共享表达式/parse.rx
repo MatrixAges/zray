@@ -1,7 +1,10 @@
 <Module>
-  <Call module="../../../../packages/compiler/src/zx/frontend/parser/prepare" in={$in} />
+    <Call
+        module="../../../../packages/compiler/src/zx/frontend/parser/prepare"
+        in={$in}
+    />
 
-  <Call fn="parse" in={$ctx.prepare} />
+    <Call fn="parse" />
 
-  <Return value={$ctx.parse} />
+    <Return value={$ctx.parse} />
 </Module>

@@ -5,7 +5,8 @@
     <Args in={Initial.Input} out={Walk.Output} />
 
     <Call fn="contracts/initial" in={$in} />
-    <Call fn="contracts/walk" in={$ctx.initial} />
+
+    <Call fn="contracts/walk" />
 
     <Return value={$ctx.walk} />
 </Module>

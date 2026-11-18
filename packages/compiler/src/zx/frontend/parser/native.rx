@@ -5,8 +5,9 @@
 
     <Call module="../lexer/scan" in={$in} />
 
-    <Call fn="native/parse" in={$ctx.scan} />
-    <Call fn="native/diagnostic" in={$ctx.parse} />
+    <Call fn="native/parse" />
+    <Call fn="native/diagnostic" />
+
     <Call fn="types/order" in={$ctx.parse.declarations.types.tree} />
 
     <Return

@@ -1,7 +1,13 @@
 <Module>
-  <Parallel>
-    <Call module="left.rx" in={$in}/>
-    <Call module="right.rx" in={$in}/>
-  </Parallel>
-  <Return value={{left: $ctx.left, right: $ctx.right}}/>
+    <Parallel>
+        <Call module="left.rx" in={$in}/>
+        <Call module="right.rx" in={$in}/>
+    </Parallel>
+
+    <Return
+        value={{
+            left: $ctx.left,
+            right: $ctx.right
+        }}
+    />
 </Module>

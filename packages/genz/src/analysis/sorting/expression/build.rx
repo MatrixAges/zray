@@ -4,13 +4,14 @@
     <Args in={Sorting.Input} out={Sorting.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="errors" in={$ctx.initialize} />
-    <Call fn="failure" in={$ctx.errors} />
-    <Call fn="values" in={$ctx.failure} />
-    <Call fn="context" in={$ctx.values} />
-    <Call fn="invoke" in={$ctx.context} />
-    <Call fn="headered" in={$ctx.invoke} />
-    <Call fn="finish" in={$ctx.headered} />
+
+    <Call fn="errors" />
+    <Call fn="failure" />
+    <Call fn="values" />
+    <Call fn="context" />
+    <Call fn="invoke" />
+    <Call fn="headered" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

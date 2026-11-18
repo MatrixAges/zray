@@ -46,7 +46,7 @@
         }}
     />
 
-    <Call module="finish" in={$ctx.evaluate} />
+    <Call module="finish" />
 
     <Call
         module="ownership"
@@ -55,7 +55,7 @@
         }}
     />
 
-    <Call fn="publish" in={$ctx.ownership} />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

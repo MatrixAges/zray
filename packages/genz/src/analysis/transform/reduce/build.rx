@@ -4,11 +4,13 @@
     <Args in={Reduce.Input} out={Reduce.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="accumulator" in={$ctx.initialize} />
+
+    <Call fn="accumulator" />
 
     <If on={$in.entered_count != 0}>
         <Call fn="guard" in={$ctx.accumulator} />
-        <Call fn="finish" in={$ctx.guard} />
+
+        <Call fn="finish" />
 
         <Return value={$ctx.finish} />
     </If>

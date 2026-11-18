@@ -5,7 +5,7 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call module="buffer" in={$ctx.initialize} />
+    <Call module="buffer" />
 
     <Call
         fn="write"
@@ -17,7 +17,8 @@
 
     <If on={$in.selected}>
         <Call fn="owned" in={$ctx.write} />
-        <Call fn="publish" in={$ctx.owned} />
+
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
     </If>

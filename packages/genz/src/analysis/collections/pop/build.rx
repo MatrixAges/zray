@@ -4,18 +4,19 @@
     <Args in={Pop.Input} out={Pop.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="last" in={$ctx.initialize} />
-    <Call fn="permissions" in={$ctx.last} />
-    <Call fn="remaining" in={$ctx.permissions} />
-    <Call fn="read_slot" in={$ctx.remaining} />
 
-    <Call module="read" in={$ctx.read_slot} />
+    <Call fn="last" />
+    <Call fn="permissions" />
+    <Call fn="remaining" />
+    <Call fn="read_slot" />
 
-    <Call fn="nonempty" in={$ctx.read} />
+    <Call module="read" />
 
-    <Call module="reclaim" in={$ctx.nonempty} />
+    <Call fn="nonempty" />
 
-    <Call fn="publish" in={$ctx.reclaim} />
+    <Call module="reclaim" />
+
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

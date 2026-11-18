@@ -1,4 +1,5 @@
 <Module>
-  <Call module='./leaf.rx' in={$in}/>
-  <Return value={$ctx.leaf * 3}/>
+    <Call module='./leaf.rx' in={$in}/>
+
+    <Return value={$ctx.leaf * 3}/>
 </Module>

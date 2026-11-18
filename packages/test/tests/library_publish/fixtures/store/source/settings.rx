@@ -1,5 +1,7 @@
 <Module>
-  <Store from="state" as="reader" />
-  <Call fn="settings" in={store.reader.settings} />
-  <Return value={$ctx.settings} />
+    <Store from="state" as="reader" />
+
+    <Call fn="settings" in={store.reader.settings} />
+
+    <Return value={$ctx.settings} />
 </Module>

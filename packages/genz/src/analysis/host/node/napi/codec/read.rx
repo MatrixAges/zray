@@ -16,7 +16,8 @@
 
         <Case value={Codec.Kind.ErrorSet}>
             <Call fn="error_name" in={$in} />
-            <Call fn="error_members" in={$ctx.error_name} />
+
+            <Call fn="error_members" />
 
             <Return value={$ctx.error_members} />
         </Case>
@@ -35,16 +36,18 @@
 
         <Case value={Codec.Kind.Object}>
             <Call fn="read_record" in={$in} />
-            <Call fn="fields" in={$ctx.read_record} />
-            <Call fn="return_result" in={$ctx.fields} />
+
+            <Call fn="fields" />
+            <Call fn="return_result" />
 
             <Return value={$ctx.return_result} />
         </Case>
 
         <Case value={Codec.Kind.Tuple}>
             <Call fn="read_record" in={$in} />
-            <Call fn="fields" in={$ctx.read_record} />
-            <Call fn="return_result" in={$ctx.fields} />
+
+            <Call fn="fields" />
+            <Call fn="return_result" />
 
             <Return value={$ctx.return_result} />
         </Case>

@@ -5,11 +5,12 @@
 
     <Call module="prepare" in={$in} />
 
-    <Call fn="program/imports" in={$ctx.prepare} />
-    <Call fn="program/declarations" in={$ctx.imports} />
-    <Call fn="program/header" in={$ctx.declarations} />
-    <Call fn="program/body" in={$ctx.header} />
-    <Call fn="program/diagnostic" in={$ctx.body} />
+    <Call fn="program/imports" />
+    <Call fn="program/declarations" />
+    <Call fn="program/header" />
+    <Call fn="program/body" />
+    <Call fn="program/diagnostic" />
+
     <Call fn="types/order" in={$ctx.body.body.expression.types.tree} />
 
     <Return

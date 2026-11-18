@@ -1,4 +1,5 @@
 <Module>
-  <Call module="leaf" in={$in} />
-  <Return value={$ctx.leaf} />
+    <Call module="leaf" in={$in} />
+
+    <Return value={$ctx.leaf} />
 </Module>

@@ -6,7 +6,7 @@
 
     <Call fn="observe" in={$in} />
 
-    <Call module="../traversal/advance" in={$ctx.observe} />
+    <Call module="../traversal/advance" />
 
     <Switch on={$ctx.advance.action}>
         <Case value={Traversal.Action.Done}>

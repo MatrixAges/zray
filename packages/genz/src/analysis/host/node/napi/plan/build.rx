@@ -4,11 +4,13 @@
     <Args in={Plan.Input} out={Plan.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="input" in={$ctx.initialize} />
+
+    <Call fn="input" />
 
     <If on={$ctx.input.supported}>
         <Call fn="output" in={$ctx.input} />
-        <Call fn="publish" in={$ctx.output} />
+
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
 

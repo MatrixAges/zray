@@ -1,7 +1,13 @@
 <Module>
-  <Parallel>
-    <Call fn="copy_values" in={$in} />
-    <Call fn="copy_values_right" in={$in} />
-  </Parallel>
-  <Return value={{left: $ctx.copy_values, right: $ctx.copy_values_right}} />
+    <Parallel>
+        <Call fn="copy_values" in={$in} />
+        <Call fn="copy_values_right" in={$in} />
+    </Parallel>
+
+    <Return
+        value={{
+            left: $ctx.copy_values,
+            right: $ctx.copy_values_right
+        }}
+    />
 </Module>

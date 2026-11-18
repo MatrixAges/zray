@@ -13,9 +13,9 @@
         }}
     />
 
-    <Call fn="types" in={$ctx.group} />
-    <Call fn="functions" in={$ctx.types} />
-    <Call fn="finish" in={$ctx.functions} />
+    <Call fn="types" />
+    <Call fn="functions" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

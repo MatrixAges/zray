@@ -5,8 +5,9 @@
     <Args in={Reference.Input} out={Construction.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="action" in={$ctx.initialize} />
-    <Call fn="publish" in={$ctx.action} />
+
+    <Call fn="action" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

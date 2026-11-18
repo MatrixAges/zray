@@ -4,9 +4,10 @@
     <Args in={Worker.Input} out={Worker.Output} />
 
     <Call fn="fields" in={$in} />
-    <Call fn="body" in={$ctx.fields} />
-    <Call fn="method" in={$ctx.body} />
-    <Call fn="finish" in={$ctx.method} />
+
+    <Call fn="body" />
+    <Call fn="method" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

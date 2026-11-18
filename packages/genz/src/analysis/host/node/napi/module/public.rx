@@ -25,7 +25,7 @@
         />
     </Task>
 
-    <Call fn="../codec/publish" in={$ctx.task.write} />
+    <Call fn="../codec/publish" />
 
     <Return value={$ctx.publish} />
 </Module>

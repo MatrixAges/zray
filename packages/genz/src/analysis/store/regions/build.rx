@@ -18,10 +18,10 @@
         }}
     />
 
-    <Call module="deinitialize/deinitialize" in={$ctx.prepare} />
-    <Call module="release/retired" in={$ctx.deinitialize} />
+    <Call module="deinitialize/deinitialize" />
+    <Call module="release/retired" />
 
-    <Call fn="publish" in={$ctx.retired} />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

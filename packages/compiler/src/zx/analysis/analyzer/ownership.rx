@@ -6,7 +6,7 @@
 
     <Call fn="ownership/request" in={$in} />
 
-    <Call module="../../ownership/check" in={$ctx.request} />
+    <Call module="../../ownership/check" />
 
     <Call
         fn="ownership/finish"

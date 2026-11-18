@@ -6,7 +6,7 @@
 
     <Call fn="declarations/request" in={$in} />
 
-    <Call module="../semantic/resolve" in={$ctx.request} />
+    <Call module="../semantic/resolve" />
 
     <Return
         value={{

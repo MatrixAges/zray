@@ -21,9 +21,9 @@
 
     <Call fn="imports" in={$ctx.initialize} />
 
-    <Call module="helpers" in={$ctx.imports} />
+    <Call module="helpers" />
 
-    <Call fn="types" in={$ctx.helpers} />
+    <Call fn="types" />
 
     <If on={$ctx.types.codec.supported}>
         <Call module="public" in={$ctx.types} />

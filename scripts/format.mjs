@@ -1,47 +1,64 @@
-import { globSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, globSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { createSpacer } from 'gpu-code-spacer'
 
 const args = process.argv.slice(2)
 const check_only = args.includes('--check')
-const requested_files = args.filter(arg => arg !== '--check')
+const rx_only = args.includes('--rx')
+const requested_files = args.filter(arg => arg !== '--check' && arg !== '--rx')
+
+const zig_patterns = [
+    'build.zig',
+    'build.zig.zon',
+    'packages/*/build.zig',
+    'packages/*/build.zig.zon',
+    'packages/*/src/**/*.zig',
+    'packages/*/examples/**/*.zig',
+    'packages/*/tests/**/*.zig',
+    'legacy/build.zig',
+    'legacy/build.zig.zon',
+    'legacy/src/**/*.zig',
+    'legacy/tests/**/*.zig'
+]
 
 const files =
-	requested_files.length > 0
-		? requested_files
-		: globSync([
-				'build.zig',
-				'build.zig.zon',
-				'packages/*/build.zig',
-				'packages/*/build.zig.zon',
-				'packages/*/src/**/*.zig',
-				'packages/*/examples/**/*.zig',
-				'packages/*/tests/**/*.zig',
-				'legacy/build.zig',
-				'legacy/build.zig.zon',
-				'legacy/src/**/*.zig',
-				'legacy/tests/**/*.zig'
-			])
-
-const spacer = await createSpacer()
+    requested_files.length > 0
+        ? requested_files
+        : globSync([...(rx_only ? [] : zig_patterns), 'packages/*/{src,examples,tests,content}/**/*.rx'])
+const local_zxc = resolve('zig-out', 'bin', process.platform === 'win32' ? 'zxc.exe' : 'zxc')
+const zxc = process.env.ZXC || (existsSync(local_zxc) ? local_zxc : 'zxc')
+let spacer
 
 try {
-	for (const file of files) {
-		if (file.endsWith('.zx') || file.endsWith('.rx')) continue
+    for (const file of files) {
+        if (file.endsWith('.zx')) continue
 
-		const source = await readFile(file, 'utf8')
-		const { text } = await spacer.format(source)
+        const source = await readFile(file, 'utf8')
+        let text
 
-		if (text === source) continue
+        if (file.endsWith('.rx')) {
+            text = execFileSync(zxc, ['fmt', file], {
+                encoding: 'utf8',
+                maxBuffer: Infinity,
+                stdio: ['ignore', 'pipe', 'inherit']
+            })
+        } else {
+            spacer ??= await createSpacer()
+            text = (await spacer.format(source)).text
+        }
 
-		console.log(file)
+        if (text === source) continue
 
-		if (check_only) {
-			process.exitCode = 1
-		} else {
-			await writeFile(file, text)
-		}
-	}
+        console.log(file)
+
+        if (check_only) {
+            process.exitCode = 1
+        } else {
+            await writeFile(file, text)
+        }
+    }
 } finally {
-	await spacer.destroy()
+    await spacer?.destroy()
 }

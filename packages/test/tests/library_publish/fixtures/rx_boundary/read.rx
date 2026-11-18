@@ -1,4 +1,5 @@
 <Module>
-  <Call module="bundle/read" />
-  <Return value={$ctx.read} />
+    <Call module="bundle/read" />
+
+    <Return value={$ctx.read} />
 </Module>

@@ -5,11 +5,12 @@
     <Args in={Operation.Input} out={Allocator.State} />
 
     <Call fn="parameters" in={$in} />
-    <Call fn="call" in={$ctx.parameters} />
-    <Call fn="cast" in={$ctx.call} />
-    <Call fn="locks" in={$ctx.cast} />
-    <Call fn="body" in={$ctx.locks} />
-    <Call fn="finish" in={$ctx.body} />
+
+    <Call fn="call" />
+    <Call fn="cast" />
+    <Call fn="locks" />
+    <Call fn="body" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

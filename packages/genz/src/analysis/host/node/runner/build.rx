@@ -4,16 +4,17 @@
     <Args in={Runner.Args} out={Runner.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="prelude" in={$ctx.initialize} />
-    <Call fn="capability" in={$ctx.prelude} />
-    <Call fn="version" in={$ctx.capability} />
-    <Call fn="entry" in={$ctx.version} />
-    <Call fn="allocate" in={$ctx.entry} />
+
+    <Call fn="prelude" />
+    <Call fn="capability" />
+    <Call fn="version" />
+    <Call fn="entry" />
+    <Call fn="allocate" />
 
     <If on={$in.stateful}>
         <Call fn="state" in={$ctx.allocate} />
 
-        <Call module="registered" in={$ctx.state} />
+        <Call module="registered" />
 
         <Return value={$ctx.registered} />
 

@@ -4,21 +4,24 @@
     <Args in={Literal.Input} out={Literal.Value} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="bindings" in={$ctx.initialize} />
+
+    <Call fn="bindings" />
 
     <Switch on={$in.mode}>
         <Case value={Literal.Mode.Object}>
             <Call fn="object" in={$ctx.bindings} />
-            <Call fn="discard" in={$ctx.object} />
-            <Call fn="finish" in={$ctx.discard} />
+
+            <Call fn="discard" />
+            <Call fn="finish" />
 
             <Return value={$ctx.finish} />
         </Case>
 
         <Case value={Literal.Mode.Tuple}>
             <Call fn="tuple" in={$ctx.bindings} />
-            <Call fn="cast" in={$ctx.tuple} />
-            <Call fn="finish" in={$ctx.cast} />
+
+            <Call fn="cast" />
+            <Call fn="finish" />
 
             <Return value={$ctx.finish} />
         </Case>
@@ -28,14 +31,16 @@
 
             <If on={$in.bindings.references.length != 0}>
                 <Call fn="duplicate" in={$ctx.array} />
-                <Call fn="cast" in={$ctx.duplicate} />
-                <Call fn="finish" in={$ctx.cast} />
+
+                <Call fn="cast" />
+                <Call fn="finish" />
 
                 <Return value={$ctx.finish} />
             </If>
 
             <Call fn="cast" in={$ctx.array} />
-            <Call fn="finish" in={$ctx.cast} />
+
+            <Call fn="finish" />
 
             <Return value={$ctx.finish} />
         </Case>

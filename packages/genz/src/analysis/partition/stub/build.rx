@@ -5,9 +5,10 @@
     <Args in={Stub.Input} out={Root.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="bindings" in={$ctx.initialize} />
-    <Call fn="variants" in={$ctx.bindings} />
-    <Call fn="publish" in={$ctx.variants} />
+
+    <Call fn="bindings" />
+    <Call fn="variants" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

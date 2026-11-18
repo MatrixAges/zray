@@ -4,7 +4,8 @@
     <Args in={Aliases.Input} out={Aliases.Output} />
 
     <Call fn="candidates" in={$in} />
-    <Call fn="unique" in={$ctx.candidates} />
+
+    <Call fn="unique" />
 
     <Return value={$ctx.unique} />
 </Module>

@@ -20,7 +20,8 @@
     </If>
 
     <Call fn="structure" in={$in} />
-    <Call fn="walk" in={$ctx.structure} />
+
+    <Call fn="walk" />
 
     <Call
         fn="../method"

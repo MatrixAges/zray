@@ -4,21 +4,22 @@
     <Args in={Invoke.Input} out={Invoke.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="symbols" in={$ctx.initialize} />
-    <Call fn="types" in={$ctx.symbols} />
-    <Call fn="input/read_body" in={$ctx.types} />
-    <Call fn="input/empty_input" in={$ctx.read_body} />
-    <Call fn="input/parse_input" in={$ctx.empty_input} />
-    <Call fn="input/select_input" in={$ctx.parse_input} />
-    <Call fn="execution/arguments" in={$ctx.select_input} />
 
-    <Call module="execution/context_choice" in={$ctx.arguments} />
+    <Call fn="symbols" />
+    <Call fn="types" />
+    <Call fn="input/read_body" />
+    <Call fn="input/empty_input" />
+    <Call fn="input/parse_input" />
+    <Call fn="input/select_input" />
+    <Call fn="execution/arguments" />
 
-    <Call fn="execution/runtime_arguments" in={$ctx.context_choice} />
-    <Call fn="execution/execute" in={$ctx.runtime_arguments} />
-    <Call fn="response/encoded" in={$ctx.execute} />
-    <Call fn="response/failure" in={$ctx.encoded} />
-    <Call fn="response/validation" in={$ctx.failure} />
+    <Call module="execution/context_choice" />
+
+    <Call fn="execution/runtime_arguments" />
+    <Call fn="execution/execute" />
+    <Call fn="response/encoded" />
+    <Call fn="response/failure" />
+    <Call fn="response/validation" />
 
     <Call
         fn="../../host/json_output/check"
@@ -49,9 +50,9 @@
         }}
     />
 
-    <Call fn="response/respond" in={$ctx.validated} />
-    <Call fn="finish" in={$ctx.respond} />
-    <Call fn="publish" in={$ctx.finish} />
+    <Call fn="response/respond" />
+    <Call fn="finish" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

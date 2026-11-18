@@ -5,9 +5,10 @@
     <Args in={Exports.Input} out={Root.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="bindings" in={$ctx.initialize} />
-    <Call fn="entries" in={$ctx.bindings} />
-    <Call fn="publish" in={$ctx.entries} />
+
+    <Call fn="bindings" />
+    <Call fn="entries" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

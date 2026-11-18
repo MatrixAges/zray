@@ -14,7 +14,7 @@
     >
         <Call fn="ownership/request" in={$in.analysis} />
 
-        <Call module="../../ownership/check" in={$ctx.request} />
+        <Call module="../../ownership/check" />
 
         <Call
             fn="../analyzer/ownership/finish"

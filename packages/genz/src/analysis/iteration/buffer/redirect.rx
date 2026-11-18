@@ -4,8 +4,9 @@
     <Args in={Buffer.Redirect} out={Buffer.Output} />
 
     <Call fn="redirect/project" in={$in} />
-    <Call fn="redirect/select" in={$ctx.project} />
-    <Call fn="redirect/finish" in={$ctx.select} />
+
+    <Call fn="redirect/select" />
+    <Call fn="redirect/finish" />
 
     <Return value={$ctx.finish} />
 </Module>

@@ -4,19 +4,20 @@
     <Args in={Task.Input} out={Task.Output} />
 
     <Call fn="../../tree/initialize" in={$in} />
-    <Call fn="prelude" in={$ctx.initialize} />
-    <Call fn="fields" in={$ctx.prelude} />
-    <Call fn="destroy" in={$ctx.fields} />
-    <Call fn="start" in={$ctx.destroy} />
-    <Call fn="execute" in={$ctx.start} />
+
+    <Call fn="prelude" />
+    <Call fn="fields" />
+    <Call fn="destroy" />
+    <Call fn="start" />
+    <Call fn="execute" />
 
     <Task name="completion" out={$ctx.build}>
         <Call module="complete/build" in={$ctx.execute} />
     </Task>
 
-    <Call module="settle/build" in={$ctx.task.completion} />
+    <Call module="settle/build" />
 
-    <Call fn="publish" in={$ctx.build} />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

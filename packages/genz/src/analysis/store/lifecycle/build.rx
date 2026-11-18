@@ -18,16 +18,16 @@
         }}
     />
 
-    <Call fn="initialize" in={$ctx.prepare} />
-    <Call fn="count" in={$ctx.initialize} />
-    <Call fn="multiple" in={$ctx.count} />
-    <Call fn="permissions" in={$ctx.multiple} />
-    <Call fn="validated" in={$ctx.permissions} />
-    <Call fn="apply" in={$ctx.validated} />
+    <Call fn="initialize" />
+    <Call fn="count" />
+    <Call fn="multiple" />
+    <Call fn="permissions" />
+    <Call fn="validated" />
+    <Call fn="apply" />
 
-    <Call module="commit/build" in={$ctx.apply} />
+    <Call module="commit/build" />
 
-    <Call fn="publish" in={$ctx.build} />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

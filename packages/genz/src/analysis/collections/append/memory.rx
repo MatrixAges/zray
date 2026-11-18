@@ -15,7 +15,7 @@
             }}
         />
 
-        <Call module="../../growth/apply" in={$ctx.request} />
+        <Call module="../../growth/apply" />
 
         <Call
             fn="merge"
@@ -42,9 +42,9 @@
                 }}
             />
 
-            <Call fn="../../growth/reserve/state" in={$ctx.request} />
+            <Call fn="../../growth/reserve/state" />
 
-            <Call module="../../growth/reserve/apply" in={$ctx.state} />
+            <Call module="../../growth/reserve/apply" />
 
             <Call
                 fn="../../growth/bind"
@@ -79,7 +79,7 @@
         }}
     />
 
-    <Call module="../../growth/apply" in={$ctx.request} />
+    <Call module="../../growth/apply" />
 
     <Call
         fn="merge"

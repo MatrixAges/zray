@@ -5,7 +5,7 @@
 
     <Call fn="surface" in={$in} />
 
-    <Call module="build" in={$ctx.surface} />
+    <Call module="build" />
 
     <Return value={$ctx.build} />
 </Module>

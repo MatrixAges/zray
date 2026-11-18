@@ -4,8 +4,9 @@
     <Args in={Worker.Input} out={Worker.Output} />
 
     <Call fn="return_type" in={$in} />
-    <Call fn="method" in={$ctx.return_type} />
-    <Call fn="finish" in={$ctx.method} />
+
+    <Call fn="method" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

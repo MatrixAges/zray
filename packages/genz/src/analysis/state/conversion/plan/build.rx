@@ -4,7 +4,8 @@
     <Args in={Conversion.Input} out={Conversion.Plan} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="append" in={$ctx.initialize} />
+
+    <Call fn="append" />
 
     <Return value={$ctx.append} />
 </Module>

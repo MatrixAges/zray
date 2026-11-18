@@ -27,7 +27,7 @@
 
         <Call module="../../clear/plan" in={$in.source} />
 
-        <Call fn="layouts" in={$ctx.plan} />
+        <Call fn="layouts" />
 
         <If on={!$ctx.layouts.valid}>
             <Call fn="failed" in={$in.serial} />
@@ -45,7 +45,7 @@
             }}
         />
 
-        <Call module="../../clear/build" in={$ctx.clear_input} />
+        <Call module="../../clear/build" />
 
         <If on={!$ctx.build.valid}>
             <Call fn="failed" in={$in.serial} />
@@ -80,7 +80,7 @@
             }}
         />
 
-        <Call fn="../invoke" in={$ctx.invoke_input} />
+        <Call fn="../invoke" />
 
         <Call
             fn="created"

@@ -16,7 +16,8 @@
     </If>
 
     <Call fn="null_fields" in={$in} />
-    <Call fn="pending_object" in={$ctx.null_fields} />
+
+    <Call fn="pending_object" />
 
     <Call
         fn="../../control/writes"

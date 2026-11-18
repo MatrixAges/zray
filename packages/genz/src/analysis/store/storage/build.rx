@@ -18,13 +18,13 @@
         }}
     />
 
-    <Call fn="imports" in={$ctx.prepare} />
-    <Call fn="initials" in={$ctx.imports} />
-    <Call fn="shared" in={$ctx.initials} />
-    <Call fn="region" in={$ctx.shared} />
-    <Call fn="retained" in={$ctx.region} />
-    <Call fn="slots" in={$ctx.retained} />
-    <Call fn="publish" in={$ctx.slots} />
+    <Call fn="imports" />
+    <Call fn="initials" />
+    <Call fn="shared" />
+    <Call fn="region" />
+    <Call fn="retained" />
+    <Call fn="slots" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

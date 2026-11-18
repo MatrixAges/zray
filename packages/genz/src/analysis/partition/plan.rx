@@ -4,7 +4,8 @@
     <Args in={Partition.Graph} out={Partition.Plan} />
 
     <Call fn="closures" in={$in} />
-    <Call fn="order" in={$ctx.closures} />
+
+    <Call fn="order" />
 
     <Call
         fn="capacity"

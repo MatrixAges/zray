@@ -7,13 +7,15 @@
 
     <If on={$in.selected}>
         <Call fn="selection" in={$ctx.initialize} />
-        <Call fn="finish" in={$ctx.selection} />
+
+        <Call fn="finish" />
 
         <Return value={$ctx.finish} />
     </If>
 
     <Call fn="chain" in={$ctx.initialize} />
-    <Call fn="finish" in={$ctx.chain} />
+
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

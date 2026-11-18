@@ -1,5 +1,7 @@
 <Module>
-  <Store from="state" as="reader" />
-  <Call fn="snapshot" in={store.reader.counter} />
-  <Return value={$ctx.snapshot} />
+    <Store from="state" as="reader" />
+
+    <Call fn="snapshot" in={store.reader.counter} />
+
+    <Return value={$ctx.snapshot} />
 </Module>

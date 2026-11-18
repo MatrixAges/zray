@@ -1,4 +1,10 @@
 <Module>
-  <Call fn="../functions/number" in={$in}/>
-  <Return value={[$in, $in + 1]}/>
+    <Call fn="../functions/number" in={$in}/>
+
+    <Return
+        value={[
+            $in,
+            $in + 1
+        ]}
+    />
 </Module>

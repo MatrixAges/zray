@@ -24,8 +24,8 @@
             }}
         />
 
-        <Call fn="../../expressions/traversal/advance" in={$ctx.expression} />
-        <Call fn="check" in={$ctx.advance} />
+        <Call fn="../../expressions/traversal/advance" />
+        <Call fn="check" />
 
         <Return value={$ctx.check} />
 

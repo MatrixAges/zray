@@ -14,7 +14,7 @@
             }}
         />
 
-        <Call module="../codec/extend" in={$ctx.select} />
+        <Call module="../codec/extend" />
 
         <Return value={$ctx.extend} />
 

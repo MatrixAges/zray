@@ -1,7 +1,19 @@
 <Module>
-  <Store from="state" as="inner"/>
-  <Call fn="copy" in={$in.history}/>
-  <Call fn="consume" in={$ctx.copy}/>
-  <Call fn="replace" in={{value: $in.value, history: $ctx.consume, label: $in.label}} setter={[store.inner.counter]}/>
-  <Return value={$ctx.replace}/>
+    <Store from="state" as="inner"/>
+
+    <Call fn="copy" in={$in.history}/>
+
+    <Call fn="consume"/>
+
+    <Call
+        fn="replace"
+        in={{
+            value: $in.value,
+            history: $ctx.consume,
+            label: $in.label
+        }}
+        setter={[store.inner.counter]}
+    />
+
+    <Return value={$ctx.replace}/>
 </Module>

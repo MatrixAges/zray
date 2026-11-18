@@ -2,8 +2,8 @@
     <If on={$in.byte_child}>
         <Call fn="typed_guard" in={$in} />
 
-        <Call module="typed_bytes" in={$ctx.typed_guard} />
-        <Call module="list" in={$ctx.typed_bytes} />
+        <Call module="typed_bytes" />
+        <Call module="list" />
 
         <Return value={$ctx.list} />
 

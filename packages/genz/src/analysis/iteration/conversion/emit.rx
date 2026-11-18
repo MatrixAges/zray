@@ -13,7 +13,7 @@
         }}
     />
 
-    <Call fn="emit/publish" in={$ctx.walk} />
+    <Call fn="emit/publish" />
 
     <Return value={$ctx.publish} />
 </Module>

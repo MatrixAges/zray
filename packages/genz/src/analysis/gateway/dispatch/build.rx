@@ -4,16 +4,17 @@
     <Args in={Dispatch.Input} out={Dispatch.Output} />
 
     <Call fn="prepare" in={$in} />
-    <Call fn="symbols" in={$ctx.prepare} />
-    <Call fn="types" in={$ctx.symbols} />
-    <Call fn="guard" in={$ctx.types} />
 
-    <Call module="paths" in={$ctx.guard} />
+    <Call fn="symbols" />
+    <Call fn="types" />
+    <Call fn="guard" />
 
-    <Call fn="routes" in={$ctx.paths} />
-    <Call fn="missing" in={$ctx.routes} />
-    <Call fn="finish" in={$ctx.missing} />
-    <Call fn="publish" in={$ctx.finish} />
+    <Call module="paths" />
+
+    <Call fn="routes" />
+    <Call fn="missing" />
+    <Call fn="finish" />
+    <Call fn="publish" />
 
     <Return value={$ctx.publish} />
 </Module>

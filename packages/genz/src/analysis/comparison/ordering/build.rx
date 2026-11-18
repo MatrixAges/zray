@@ -5,9 +5,9 @@
 
     <Call fn="initialize" in={$in} />
 
-    <Call module="guard" in={$ctx.initialize} />
+    <Call module="guard" />
 
-    <Call fn="compare" in={$ctx.guard} />
+    <Call fn="compare" />
 
     <Call
         fn="finish"

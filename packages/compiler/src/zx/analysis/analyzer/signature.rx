@@ -17,7 +17,7 @@
                 }}
             />
 
-            <Call module="../semantic/resolve" in={$ctx.request} />
+            <Call module="../semantic/resolve" />
         </Task>
 
         <If on={$ctx.task.input.diagnostic.message == ""}>
@@ -35,7 +35,7 @@
                     }}
                 />
 
-                <Call module="../semantic/resolve" in={$ctx.request} />
+                <Call module="../semantic/resolve" />
             </Task>
 
             <Return

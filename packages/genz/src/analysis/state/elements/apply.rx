@@ -8,19 +8,22 @@
 
         <If on={$in.source.choice.stored}>
             <Call fn="stored" in={$ctx.bind} />
-            <Call fn="finish" in={$ctx.stored} />
+
+            <Call fn="finish" />
 
             <Return value={$ctx.finish} />
         </If>
 
         <Call fn="convert" in={$ctx.bind} />
-        <Call fn="finish" in={$ctx.convert} />
+
+        <Call fn="finish" />
 
         <Return value={$ctx.finish} />
     </If>
 
     <Call fn="convert" in={$in} />
-    <Call fn="finish" in={$ctx.convert} />
+
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

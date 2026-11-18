@@ -22,7 +22,7 @@
         }}
     />
 
-    <Call fn="../../aggregate/binding/finish" in={$ctx.block_input} />
+    <Call fn="../../aggregate/binding/finish" />
 
     <Return
         value={{

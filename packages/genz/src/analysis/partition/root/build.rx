@@ -4,12 +4,14 @@
     <Args in={Root.Input} out={Root.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="modules" in={$ctx.initialize} />
-    <Call fn="assemble" in={$ctx.modules} />
+
+    <Call fn="modules" />
+    <Call fn="assemble" />
 
     <If on={$in.panic_handler}>
         <Call fn="panic" in={$ctx.assemble} />
-        <Call fn="publish" in={$ctx.panic} />
+
+        <Call fn="publish" />
 
         <Return value={$ctx.publish} />
     </If>

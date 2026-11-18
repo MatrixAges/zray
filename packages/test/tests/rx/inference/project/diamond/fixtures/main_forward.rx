@@ -1,7 +1,14 @@
 <Module>
-  <Call fn='number' in={$in.number}/>
-  <Call fn='optional' in={$in.maybe}/>
-  <Call module='./left.rx' in={$ctx.number}/>
-  <Call module='./right.rx' in={$ctx.optional}/>
-  <Return value={{ left: $ctx.left, right: $ctx.right }}/>
+    <Call fn='number' in={$in.number}/>
+    <Call fn='optional' in={$in.maybe}/>
+
+    <Call module='./left.rx' in={$ctx.number}/>
+    <Call module='./right.rx' in={$ctx.optional}/>
+
+    <Return
+        value={{
+            left: $ctx.left,
+            right: $ctx.right
+        }}
+    />
 </Module>

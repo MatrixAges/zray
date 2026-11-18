@@ -5,7 +5,8 @@
     <Args in={Update.Bounds} out={Guard.Output} />
 
     <Call fn="check" in={$in} />
-    <Call fn="../../intrinsics/guard/publish" in={$ctx.check} />
+
+    <Call fn="../../intrinsics/guard/publish" />
 
     <Return value={$ctx.publish} />
 </Module>

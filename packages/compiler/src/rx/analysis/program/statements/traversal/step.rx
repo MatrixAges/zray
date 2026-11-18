@@ -6,7 +6,7 @@
 
     <Call fn="inspect" in={$in} />
 
-    <Call module="advance" in={$ctx.inspect} />
+    <Call module="advance" />
 
     <Call fn="stage" in={$ctx.advance.action} />
 

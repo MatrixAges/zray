@@ -4,10 +4,11 @@
     <Args in={Allocator.Input} out={Allocator.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="operations" in={$ctx.initialize} />
-    <Call fn="getter_value" in={$ctx.operations} />
-    <Call fn="getter" in={$ctx.getter_value} />
-    <Call fn="finish" in={$ctx.getter} />
+
+    <Call fn="operations" />
+    <Call fn="getter_value" />
+    <Call fn="getter" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

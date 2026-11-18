@@ -5,10 +5,11 @@
     <Args in={Catalog.Input} out={Ast.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="schema" in={$ctx.initialize} />
-    <Call fn="entries" in={$ctx.schema} />
-    <Call fn="collection" in={$ctx.entries} />
-    <Call fn="../publish" in={$ctx.collection} />
+
+    <Call fn="schema" />
+    <Call fn="entries" />
+    <Call fn="collection" />
+    <Call fn="../publish" />
 
     <Return value={$ctx.publish} />
 </Module>

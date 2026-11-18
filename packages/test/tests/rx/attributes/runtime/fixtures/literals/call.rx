@@ -1,4 +1,5 @@
 <Module>
-  <Call fn="../functions/text" in="$in"/>
-  <Return value={$ctx.text}/>
+    <Call fn="../functions/text" in="$in"/>
+
+    <Return value={$ctx.text}/>
 </Module>

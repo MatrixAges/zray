@@ -26,8 +26,8 @@
         }}
     />
 
-    <Call fn="construct" in={$ctx.initialize} />
-    <Call fn="roots" in={$ctx.construct} />
+    <Call fn="construct" />
+    <Call fn="roots" />
 
     <Call
         fn="../../../ast/declarations/constants"

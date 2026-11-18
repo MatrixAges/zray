@@ -23,7 +23,7 @@
             }}
         />
 
-        <Call fn="plan" in={$ctx.initialize} />
+        <Call fn="plan" />
 
         <Return value={$ctx.plan} />
 

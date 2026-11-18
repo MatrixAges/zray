@@ -1,6 +1,16 @@
 <Module>
-  <Store from="state" as="shared"/>
-  <Call fn="select" in={$in}/>
-  <Call fn="advance" in={{increment: $ctx.select, state: store.shared.counter}} setter={[store.shared.counter]}/>
-  <Return value={$ctx.advance}/>
+    <Store from="state" as="shared"/>
+
+    <Call fn="select" in={$in}/>
+
+    <Call
+        fn="advance"
+        in={{
+            increment: $ctx.select,
+            state: store.shared.counter
+        }}
+        setter={[store.shared.counter]}
+    />
+
+    <Return value={$ctx.advance}/>
 </Module>

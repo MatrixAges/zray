@@ -4,7 +4,8 @@
     <Args in={Abi.BuildRequest} out={Abi.Built} />
 
     <Call fn="dependencies" in={$in.source} />
-    <Call fn="construct" in={$ctx.dependencies} />
+
+    <Call fn="construct" />
 
     <If on={$ctx.construct.valid}>
         <Call

@@ -1,5 +1,7 @@
 <Module>
-  <Call fn="make" in={$in} />
-  <Call fn="pop_values" in={$ctx.make} />
-  <Return value={$ctx.pop_values} />
+    <Call fn="make" in={$in} />
+
+    <Call fn="pop_values" />
+
+    <Return value={$ctx.pop_values} />
 </Module>

@@ -1,7 +1,15 @@
 <Module>
-  <Store from="left" as="inner" />
+    <Store from="left" as="inner" />
 
-  <Call fn="advance_failure" in={{increment: $in.increment, index: $in.index, state: store.inner.counter}} setter={[store.inner.counter]} />
+    <Call
+        fn="advance_failure"
+        in={{
+            increment: $in.increment,
+            index: $in.index,
+            state: store.inner.counter
+        }}
+        setter={[store.inner.counter]}
+    />
 
-  <Return value={$ctx.advance_failure} />
+    <Return value={$ctx.advance_failure} />
 </Module>

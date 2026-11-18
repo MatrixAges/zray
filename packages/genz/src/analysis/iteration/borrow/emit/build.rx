@@ -4,9 +4,10 @@
     <Args in={Borrow.Input} out={Borrow.Output} />
 
     <Call fn="initialize" in={$in} />
-    <Call fn="prepare" in={$ctx.initialize} />
-    <Call fn="construct" in={$ctx.prepare} />
-    <Call fn="finish" in={$ctx.construct} />
+
+    <Call fn="prepare" />
+    <Call fn="construct" />
+    <Call fn="finish" />
 
     <Return value={$ctx.finish} />
 </Module>

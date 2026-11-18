@@ -38,7 +38,7 @@
         }}
     />
 
-    <Call module="decide" in={$ctx.rows} />
+    <Call module="decide" />
 
     <Call
         fn="application/project"
