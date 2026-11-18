@@ -1,0 +1,35 @@
+<Module>
+    <Type from="lookup" as="Lookup" />
+    <Type from="model" as="Scope" />
+
+    <Args in={Lookup.Request} out={Scope.Reference} />
+
+    <Call fn="lookup" in={$in.omit(["candidates"])} />
+
+    <If on={$ctx.lookup.second != null}>
+        <Call
+            fn="candidates"
+            in={{
+                ...$in.pick([
+                    "topology",
+                    "active",
+                    "name",
+                    "candidates"
+                ]),
+                first: $ctx.lookup.first ?? 0,
+                second: $ctx.lookup.second ?? 0,
+                start: $ctx.lookup.next
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$ctx.lookup.pick([
+                "implicit_input",
+                "refined"
+            ]),
+            value: $ctx.lookup.first
+        }}
+    />
+</Module>

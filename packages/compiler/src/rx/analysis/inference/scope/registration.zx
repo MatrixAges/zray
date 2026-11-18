@@ -1,0 +1,39 @@
+import type { StringBuffer, U32Buffer } from "memory"
+import type { Spans } from "../assignment/registration/model"
+import type { Topology } from "../bindings/model"
+import type { Active } from "./model"
+
+export enum Action {
+    Scan,
+    Publish,
+    Reserve,
+    Conflict
+}
+
+export type Storage = {
+    left: U32Buffer,
+    right: U32Buffer,
+    spans: Spans,
+    messages: StringBuffer,
+    message: string,
+    capacity: u64
+}
+
+export type Cursor = {
+    row: u64,
+    next: u64,
+    count: u64
+}
+
+export type Input = Cursor & {
+    topology: Topology,
+    active: Active,
+    incoming: Active,
+    storage: Storage,
+    published: u64,
+    parallel: bool
+}
+
+export type Output = Cursor & {
+    action: Action
+}

@@ -2,37 +2,26 @@ import memory from "memory"
 
 import { Operator } from "../../../zx/frontend/parser/expressions/prepare/model"
 import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
+import admit from "./admit"
+import { Action } from "./model"
 
-import type { U64Buffer } from "memory"
-import type { ExprNode } from "../../../zx/frontend/parser/expressions/state/model"
-
-export type Facts = {
-    first?: u64,
-    rest: u64[]
-}
-
-export type Input = {
-    nodes: ExprNode[],
-    condition: u64,
-    truth: bool,
-    pending: U64Buffer
-}
-
-export type Output = Facts
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const first: u64? = null
-    const rest: u64[] = []
-
     return loop({
-        condition: in.condition,
-        truth: in.truth,
-        depth: 0,
-        active: true,
-        first,
-        rest
+        ...in.pick([
+            "condition",
+            "truth",
+            "depth",
+            "active"
+        ]),
+        node: 0,
+        start: 0,
+        length: 0,
+        written: 0,
+        action: Action.Scan
     }, {
-        while: state => state.active,
+        while: state => state.active && state.action == Action.Scan,
         next: state => {
             const node = in.nodes[state.condition]
             const negate = node.kind == ExprKind.Unary && !node.flag
@@ -55,24 +44,31 @@ export default function (in: Input): Output {
                 const confirms = binary && (equality || inequality)
 
                 if (confirms) {
-                    const fact: u64? = match {
+                    const value: u64? = match {
                         in.nodes[node.first].kind == ExprKind.Null => node.second,
                         in.nodes[node.second].kind == ExprKind.Null => node.first,
                         _ => null
                     }
 
-                    if (fact != null) {
-                        const kind = in.nodes[fact].kind
+                    if (value != null) {
+                        const fact = admit({
+                            ...in.pick([
+                                "source",
+                                "nodes",
+                                "names",
+                                "implicit_input",
+                                "target",
+                                "capacity"
+                            ]),
+                            node: value,
+                            written: state.written
+                        })
 
-                        if (
-                            kind == ExprKind.Identifier || kind == ExprKind.Field
-                        ) {
-                            if (state.first == null) {
-                                state.first = fact
-                            } else {
-                                state.rest = state.rest.push(fact)[0]
-                            }
-                        }
+                        state.action = fact.action
+                        state.node = fact.node
+                        state.start = fact.start
+                        state.length = fact.length
+                        state.written = fact.written
                     }
                 }
 
@@ -89,9 +85,6 @@ export default function (in: Input): Output {
                 }
             }
         },
-        return: state => ({
-            first: state.first,
-            rest: state.rest
-        })
+        return: state => state
     })
 }

@@ -1,0 +1,60 @@
+import { Collision } from "../bindings/model"
+import collision from "./collision"
+import deferPair from "./defer_pair"
+import { Action } from "./registration"
+
+import type { Input, Output } from "./registration"
+
+export default function (in: Input): Output {
+    const { topology, active, incoming, storage } = in
+
+    return loop({
+        ...in.pick([
+            "row",
+            "next",
+            "count"
+        ]),
+        action: Action.Scan
+    }, {
+        while: state => state.action == Action.Scan && state.row < incoming.names.length,
+        next: state => {
+            const row = state.row
+            const right = incoming.values[row]
+            const pair = collision({
+                topology,
+                active,
+                name: incoming.names[row],
+                value: right,
+                start: state.next,
+                end: in.parallel ? row : active.names.length
+            })
+
+            if (pair.action == Collision.Ignore) {
+                state.row += 1
+                state.next = 0
+            } else {
+                state.next = pair.next - 1
+                state.action = match {
+                    row > in.published => Action.Publish,
+                    pair.action == Collision.Conflict => Action.Conflict,
+                    state.count == storage.capacity => Action.Reserve,
+                    _ => Action.Scan
+                }
+
+                if (state.action == Action.Scan) {
+                    deferPair({
+                        storage,
+                        row,
+                        count: state.count,
+                        left: pair.left,
+                        right
+                    })
+
+                    state.next = pair.next
+                    state.count += 1
+                }
+            }
+        },
+        return: state => state
+    })
+}

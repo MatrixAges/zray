@@ -1,13 +1,16 @@
 import contains from "../../../../zx/analysis/semantic/resolving/contains"
-import { Status } from "../bindings/model"
-import inspect from "../bindings/node"
+import candidate from "./candidate"
 import { implicit_input_name } from "./const"
 
-import type { Query } from "./model"
+import type { Candidates, Query } from "./model"
 
 export type Input = Query & {
     facts: string[],
     identifier: bool
+}
+
+export type Request = Input & {
+    candidates: Candidates
 }
 
 export type Output = {
@@ -34,19 +37,18 @@ export default function (in: Input): Output {
             const row = state.next
             state.next += 1
 
-            if (active.names[row] == name) {
-                const value = active.values[row]
-                const status = inspect({
-                    topology,
-                    value
-                })
+            const value = candidate({
+                topology,
+                active,
+                name,
+                row
+            })
 
-                if (status != Status.Void) {
-                    if (state.first == null) {
-                        state.first = value
-                    } else {
-                        state.second = value
-                    }
+            if (value != null) {
+                if (state.first == null) {
+                    state.first = value
+                } else {
+                    state.second = value
                 }
             }
         },

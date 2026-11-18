@@ -1,3 +1,4 @@
+import type { ColumnLengths, U32Buffer, U32Scratch } from "memory"
 import type { Topology } from "../bindings/model"
 
 export type Active = {
@@ -10,4 +11,16 @@ export type Query = {
     active: Active,
     name: string,
     start: u64
+}
+
+export type Reference = {
+    value?: u32,
+    implicit_input: bool,
+    refined: bool
+}
+
+export type Candidates = {
+    scratch: U32Scratch,
+    values: U32Buffer,
+    lengths: ColumnLengths
 }

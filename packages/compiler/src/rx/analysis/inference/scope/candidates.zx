@@ -1,46 +1,57 @@
 import memory from "memory"
 
-import { Status } from "../bindings/model"
-import inspect from "../bindings/node"
+import candidate from "./candidate"
+import { initial_candidate_capacity } from "./const"
 
-import type { U32Buffer } from "memory"
-import type { Query } from "./model"
+import type { Candidates, Query } from "./model"
 
 export type Input = Query & {
-    target: U32Buffer,
-    capacity: u64
+    candidates: Candidates,
+    first: u32,
+    second: u32
 }
 
-export type Output = {
-    next: u64,
-    count: u64
-}
+export type Output = void
 
 export default function (in: Input): Output {
-    const active = in.active
-    const topology = in.topology
+    const { scratch, values, lengths } = in.candidates
 
-    return loop({
+    const visible = in.active.names.length
+
+    const capacity = match {
+        visible < initial_candidate_capacity => visible,
+        _ => initial_candidate_capacity
+    }
+
+    memory.growU32Scratch(scratch, capacity, true)
+    memory.writeU32(values, 0, in.first)
+    memory.writeU32(values, 1, in.second)
+    memory.publishColumnLengths(lengths, 2)
+
+    const collected = loop({
         next: in.start,
-        count: 0
+        count: 2
     }, {
-        while: state => state.next < active.names.length && state.count < in.capacity,
+        while: state => state.next < visible,
         next: state => {
-            const row = state.next
-            state.next += 1
+            const value = candidate({
+                topology: in.topology,
+                active: in.active,
+                name: in.name,
+                row: state.next
+            })
 
-            if (active.names[row] == in.name) {
-                const value = active.values[row]
-                const status = inspect({
-                    topology,
-                    value
-                })
-
-                if (status != Status.Void) {
-                    memory.writeU32(in.target, state.count, value)
-                    state.count += 1
+            if (value != null) {
+                if (state.count == memory.u32BufferLength(values)) {
+                    memory.growU32Scratch(scratch, state.count + 1, false)
                 }
+
+                memory.writeU32(values, state.count, value)
+                memory.publishColumnLengths(lengths, 1)
+                state.count += 1
             }
+
+            state.next += 1
         }
     })
 }

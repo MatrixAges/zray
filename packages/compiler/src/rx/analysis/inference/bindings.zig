@@ -38,6 +38,8 @@ pub fn distinct(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, m
 pub fn lookup(graph: *Graph, candidates: []const Graph.Id, span: zx.Span) zx.Error!Graph.Id {
     const value = try graph.add(.unknown, span);
 
+    errdefer graph.nodes.len -= 1;
+
     try graph.pending.binding_lookups.append(graph.pending.allocator, .{ .candidates = candidates, .value = value, .span = span });
 
     return value;

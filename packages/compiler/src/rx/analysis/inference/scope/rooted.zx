@@ -1,25 +1,24 @@
 import bytes from "std:bytes"
-import { ascii_dot } from "core/ascii/const"
 
-import overlaps from "../../../../zx/analysis/expression_program/bindings/path/overlaps"
 import { implicit_input_name } from "./const"
+import startsAtRoot from "./path_root"
 
 export type Input = {
     names: string[],
-    path: string,
+    path: u8[],
     implicit_input: bool
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const path = bytes.fromText(in.path)
+    const path = in.path
     const names = in.names
 
     if (in.implicit_input) {
-        const input_path = overlaps({
-            left: implicit_input_name,
-            right: in.path
+        const input_path = startsAtRoot({
+            root: bytes.fromText(implicit_input_name),
+            path
         })
 
         if (input_path) {
@@ -35,12 +34,10 @@ export default function (in: Input): Output {
         next: state => {
             const root = bytes.fromText(names[state.row])
 
-            if (root.length == path.length) {
-                state.found = bytes.equals(path, root)
-            } else if (root.length < path.length) {
-                state.found =
-                    path[root.length] == ascii_dot && bytes.startsWith(path, 0, root)
-            }
+            state.found = startsAtRoot({
+                path,
+                root
+            })
 
             state.row += 1
         },

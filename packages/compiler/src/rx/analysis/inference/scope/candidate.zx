@@ -1,0 +1,25 @@
+import { Status } from "../bindings/model"
+import inspect from "../bindings/node"
+
+import type { Query } from "./model"
+
+export type Input = Query.Omit("start") & {
+    row: u64
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    if (in.active.names[in.row] != in.name) {
+        return null
+    }
+
+    const value = in.active.values[in.row]
+
+    const status = inspect({
+        topology: in.topology,
+        value
+    })
+
+    return status == Status.Void ? null : value
+}

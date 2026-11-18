@@ -1,3 +1,26 @@
+export declare function readRowName(
+    source: NamedRows,
+    index: u64
+): string throws { IndexOutOfBounds }
+
+export declare function readRowId(
+    source: NamedRows,
+    index: u64
+): u32 throws { IndexOutOfBounds }
+
+export declare function writeNamedRow(
+    target: NamedRowBuffer,
+    index: u64,
+    name: string,
+    id: u32
+): void throws { IndexOutOfBounds }
+
+export declare function allocateNamedRows(
+    allocator,
+    target: NamedRowBuffer,
+    count: u64
+): void throws { OutOfMemory }
+
 export declare function readU32(
     target: U32Buffer,
     index: u64
@@ -83,6 +106,12 @@ export declare function initializeU32ListSlot(
     index: u64,
     shape: U32Buffer?
 ): U32Buffer throws { IndexOutOfBounds }
+
+export declare function writeU8List(
+    target: U8ListBuffer,
+    index: u64,
+    value: u8[]
+): void throws { IndexOutOfBounds }
 
 export declare function writeU32List(
     target: U32ListBuffer,

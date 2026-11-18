@@ -65,33 +65,52 @@ fn assumeIndexed(allocator: std.mem.Allocator, source: []const u8, nodes: fronte
     const node = nodes[@intCast(index)];
 
     if (node.kind != .Binary and node.kind != .Unary) return;
+    if (scope.bindings.len == 0 and !scope.implicit_input) return;
 
-    var arena = std.heap.ArenaAllocator.init(allocator);
-    var buffer: [std.heap.page_size_min / 16]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-    var pending_buffer: [inline_pending]u64 = undefined;
+    var inline_stack: [inline_pending]u64 = undefined;
+    const limit: usize = @intCast(node.depth);
+    const pending = if (limit <= inline_stack.len) inline_stack[0..limit] else try allocator.alloc(u64, limit);
 
-    defer arena.deinit();
+    defer if (limit > inline_stack.len) allocator.free(pending);
 
-    const depth: usize = @intCast(node.depth);
-    const pending = if (depth <= pending_buffer.len) pending_buffer[0..depth] else try arena.allocator().alloc(u64, depth);
+    const rule = @import("generated_rx_condition_plan");
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var current = index;
+    var truth = present;
+    var depth: u64 = 0;
 
-    const facts = @import("generated_rx_condition_plan").executeValue(scratch.allocator(), &.{
-        .nodes = nodes,
-        .condition = index,
-        .truth = present,
-        .pending = @ptrCast(&pending),
-    }) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-        error.IndexOutOfBounds => unreachable,
-    };
+    while (true) {
+        const tail = scope.facts.unusedCapacitySlice();
 
-    if (facts.first) |first| {
-        if (try frontend.binding_path.indexedView(scope.allocator, source, nodes, first)) |path| try scope.publish(path);
-    }
+        const input: std.meta.Child(rule.Input) = .{
+            .source = source,
+            .nodes = nodes,
+            .names = scope.bindings,
+            .implicit_input = scope.implicit_input,
+            .target = @ptrCast(&tail),
+            .capacity = tail.len,
+            .pending = @ptrCast(&pending),
+            .condition = current,
+            .truth = truth,
+            .depth = depth,
+            .active = true,
+        };
 
-    for (facts.rest) |fact| {
-        if (try frontend.binding_path.indexedView(scope.allocator, source, nodes, fact)) |path| try scope.publish(path);
+        const step = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+
+        scope.facts.items.len += @intCast(step.written);
+
+        switch (step.action) {
+            .Scan => return,
+            .Borrow => try scope.facts.append(scope.allocator, source[@intCast(step.start)..][0..@intCast(step.length)]),
+            .Render => try scope.publish(try frontend.binding_path.renderIndexed(scope.allocator, source, nodes, step.node, step.length)),
+        }
+
+        if (!step.active) return;
+
+        current = step.condition;
+        truth = step.truth;
+        depth = step.depth;
     }
 }
 

@@ -1,0 +1,74 @@
+import memory from "memory"
+
+import layout from "../../../zx/analysis/binding_path/layout"
+import { ExprKind } from "../../../zx/frontend/parser/expressions/state/model"
+import rooted from "../inference/scope/rooted"
+import { Action } from "./model"
+
+import type { Fact as Output, Scope } from "./model"
+
+export type Input = Scope & {
+    node: u64,
+    written: u64
+}
+
+export default function (in: Input): Output {
+    const { node, written } = in
+
+    const skip: Output = {
+        node,
+        written,
+        start: 0,
+        length: 0,
+        action: Action.Scan
+    }
+
+    const kind = in.nodes[node].kind
+
+    if (kind != ExprKind.Identifier && kind != ExprKind.Field) {
+        return skip
+    }
+
+    const path = layout({
+        nodes: in.nodes,
+        node
+    })
+
+    if (path == null) {
+        return skip
+    }
+
+    if (!path.contiguous) {
+        return {
+            ...skip,
+            action: Action.Render,
+            length: path.length
+        }
+    }
+
+    const view = memory.borrowU8Range(in.source, path.start, path.length)
+
+    if (!rooted({
+        names: in.names,
+        implicit_input: in.implicit_input,
+        path: view
+    })) {
+        return skip
+    }
+
+    if (written == in.capacity) {
+        return {
+            ...skip,
+            action: Action.Borrow,
+            start: path.start,
+            length: path.length
+        }
+    }
+
+    memory.writeU8List(in.target, written, view)
+
+    return {
+        ...skip,
+        written: written + 1
+    }
+}

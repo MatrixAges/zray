@@ -6,6 +6,7 @@ export type U64Buffer = opaque
 export type OptionalU32Buffer = opaque
 export type StringBuffer = opaque
 export type OptionalStringBuffer = opaque
+export type U8ListBuffer = opaque
 export type U32ListBuffer = opaque
 export type StringListBuffer = opaque
 export type NamedRows = opaque
@@ -230,26 +231,3 @@ export declare function readListOptionalU32(
     index: u64,
     member: u64
 ): u32? throws { IndexOutOfBounds }
-
-export declare function readRowName(
-    source: NamedRows,
-    index: u64
-): string throws { IndexOutOfBounds }
-
-export declare function readRowId(
-    source: NamedRows,
-    index: u64
-): u32 throws { IndexOutOfBounds }
-
-export declare function writeNamedRow(
-    target: NamedRowBuffer,
-    index: u64,
-    name: string,
-    id: u32
-): void throws { IndexOutOfBounds }
-
-export declare function allocateNamedRows(
-    allocator,
-    target: NamedRowBuffer,
-    count: u64
-): void throws { OutOfMemory }

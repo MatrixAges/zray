@@ -1,3 +1,4 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import { kind_enumeration } from "core/type_table/const"
 import member from "core/type_table/member"
@@ -23,7 +24,7 @@ export type Output = {
 export default function (in: Input): Output {
     if (rooted({
         names: in.bindings,
-        path: in.owner,
+        path: bytes.fromText(in.owner),
         implicit_input: true
     })) {
         return {

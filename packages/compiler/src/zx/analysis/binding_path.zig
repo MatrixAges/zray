@@ -100,19 +100,28 @@ pub fn indexedView(allocator: std.mem.Allocator, source: []const u8, nodes: Inde
     if (node.kind != .Field) return null;
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const layout = (layout_rule.executeValue(empty.allocator(), &.{ .nodes = nodes, .node = index }) catch unreachable) orelse return null;
+    const input: std.meta.Child(layout_rule.Input) = .{ .nodes = nodes, .node = index };
+    const layout = (zx.columns.invoke(layout_rule.executeValue, empty.allocator(), &input) catch unreachable) orelse return null;
 
     if (layout.contiguous) return .{ .text = source[@intCast(layout.start)..][0..@intCast(layout.length)] };
 
-    const text = try allocator.alloc(u8, @intCast(layout.length));
+    return try renderIndexed(allocator, source, nodes, index, layout.length);
+}
 
-    @import("generated_binding_path_write").executeValue(empty.allocator(), &.{
+pub fn renderIndexed(allocator: std.mem.Allocator, source: []const u8, nodes: IndexedNodes, index: u64, length: u64) std.mem.Allocator.Error!Path {
+    const text = try allocator.alloc(u8, @intCast(length));
+    const rule = @import("generated_binding_path_write");
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    const input: std.meta.Child(rule.Input) = .{
         .source = source,
         .nodes = nodes,
         .node = index,
-        .length = layout.length,
+        .length = length,
         .target = @ptrCast(&text),
-    }) catch unreachable;
+    };
+
+    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
     return .{ .text = text, .allocated = true };
 }

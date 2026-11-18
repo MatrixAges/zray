@@ -1,0 +1,32 @@
+import memory from "memory"
+
+import type { Storage } from "./registration"
+
+export type Input = {
+    storage: Storage,
+    count: u64,
+    row: u64,
+    left: u32,
+    right: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { storage, count, row, left, right } = in
+
+    const spans = storage.spans
+    const first = row * spans.width
+
+    memory.writeU32(storage.left, count, left)
+    memory.writeU32(storage.right, count, right)
+    memory.writeString(storage.messages, count, storage.message)
+
+    const copied = memory.copyBytes(
+        spans.target,
+        count * spans.width,
+        spans.source,
+        first,
+        first + spans.width
+    )
+}

@@ -1,0 +1,21 @@
+import bytes from "std:bytes"
+import { ascii_dot } from "core/ascii/const"
+
+export type Input = {
+    path: u8[],
+    root: u8[]
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { path, root } = in
+
+    if (root.length == path.length) {
+        return bytes.equals(path, root)
+    }
+
+    return root.length < path.length &&
+        path[root.length] == ascii_dot &&
+        bytes.startsWith(path, 0, root)
+}

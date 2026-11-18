@@ -340,6 +340,10 @@ pub inline fn initializeU32ListSlot(target: *const anyopaque, index: u64, shape:
     return @ptrCast(slot);
 }
 
+pub inline fn writeU8List(target: *const anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
+    return write([]const u8, target, index, value);
+}
+
 pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const u32) error{IndexOutOfBounds}!void {
     return write([]const u32, target, index, value);
 }
