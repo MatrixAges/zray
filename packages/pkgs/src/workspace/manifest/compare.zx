@@ -1,0 +1,56 @@
+import memory from "memory"
+
+import matches from "./matches.rx"
+import member from "./member"
+
+import type { TextColumn } from "memory"
+import type { Input as Lookup } from "./member"
+import type { Pair } from "./model"
+
+export type Input = Pair.Pick("manifests", "locked") & Lookup.Omit("path") & {
+    locked_paths: TextColumn,
+    local: u8[],
+    length: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { manifests, locked, paths, count, local, length } = in
+
+    return loop({
+        row: 0,
+        ordinal: in.ordinal,
+        valid: true
+    }, {
+        while: s => s.valid && s.row < length,
+        next: s => {
+            const row = s.row
+            if (local.length == 0 || local[row] != 0) {
+                const position = member({
+                    paths,
+                    count,
+                    ordinal: s.ordinal,
+                    path: memory.readTextColumn(in.locked_paths, row)
+                })
+
+                if (position == null) {
+                    s.valid = false
+                } else {
+                    s.valid = matches({
+                        manifests,
+                        locked,
+                        member: position ?? 0,
+                        package: row,
+                        archive: false,
+                        has_workspace: false
+                    })
+                    s.ordinal += 1
+                }
+            }
+
+            s.row += 1
+        },
+        return: s => s.valid ? s.ordinal : null
+    })
+}

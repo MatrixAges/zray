@@ -1,0 +1,37 @@
+import memory from "memory"
+
+import type { Pair as Input } from "./model"
+
+export type Output = {
+    production: u64,
+    total: u64,
+    valid: bool
+}
+
+export default function (in: Input): Output {
+    const { manifests, locked, member, package, archive } = in
+
+    const same_name = memory.readTextColumn(manifests.names, member) ==
+        memory.readTextColumn(locked.names, package)
+
+    const same_version = memory.readTextColumn(manifests.versions, member) ==
+        memory.readTextColumn(locked.versions, package)
+
+    const allowed = !archive || !in.has_workspace
+    const production = memory.listLength(manifests.production_names, member)
+
+    const development = match {
+        archive => 0,
+        _ => memory.listLength(manifests.development_names, member)
+    }
+
+    const total = production + development
+    const same_count = total == memory.listLength(locked.edge_names, package)
+    const identity = same_name && same_version
+
+    return {
+        production,
+        total,
+        valid: identity && allowed && same_count
+    }
+}

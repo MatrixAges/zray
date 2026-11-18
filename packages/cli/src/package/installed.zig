@@ -11,6 +11,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, root: []const u8, members:
 
     const paths = try files.installed(io, allocator, root, loaded, inputs);
     const packages = try allocator.alloc(graph.Package, loaded.lock.packages.len);
+    var ordinal: usize = 0;
 
     for (loaded.lock.packages, packages, 0..) |locked, *package, index| {
         const path = switch (locked.source) {
@@ -40,14 +41,17 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, root: []const u8, members:
         };
 
         const data = if (locked.source == .workspace) local: {
-            for (members) |member| {
-                if (std.mem.eql(u8, member.path, locked.source.workspace)) break :local member.manifest;
-            }
+            const row = @import("pkgs").workspace.manifest.memberAt(members, ordinal, locked.source.workspace) orelse return error.LockFileOutdated;
+            ordinal += 1;
 
-            return error.LockFileOutdated;
-        } else try model.read(io, allocator, path, inputs);
+            break :local members[row].manifest;
+        } else archive: {
+            const data = try model.read(io, allocator, path, inputs);
 
-        if (!model.matches(data, locked)) return error.InstalledManifestDoesNotMatchLock;
+            if (!model.matches(data, locked)) return error.InstalledManifestDoesNotMatchLock;
+
+            break :archive data;
+        };
 
         const dependencies = try allocator.alloc(graph.Dependency, locked.dependencies.len);
 

@@ -58,16 +58,6 @@ pub fn matches(spec: Specifier, owner: []const u8, target: Lock.Package) !bool {
     }
 }
 
-pub fn find(spec: Specifier, packages: []const Lock.Package, owner: usize) !usize {
-    if (owner >= packages.len or packages[owner].source != .workspace) return error.InvalidLockWorkspaceTarget;
-
-    const path = packages[owner].source.workspace;
-
-    try checkOwner(spec, path);
-
-    for (packages, 0..) |package, index| {
-        if (package.source == .workspace and try matches(spec, path, package)) return index;
-    }
-
-    return error.InvalidLockWorkspaceTarget;
-}
+pub const Members = @import("workspace/selection.zig").Members;
+pub const find = @import("workspace/selection.zig").find;
+pub const manifest = @import("workspace/manifest.zig");

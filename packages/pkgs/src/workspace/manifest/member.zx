@@ -1,0 +1,39 @@
+import sorted from "core/bytes/index/sorted_text"
+import memory from "memory"
+
+import find from "../../registry/find"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    paths: TextColumn,
+    count: u64,
+    ordinal: u64,
+    path: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { paths, count, ordinal, path } = in
+
+    if (ordinal < count && memory.readTextColumn(paths, ordinal) == path) {
+        return ordinal
+    }
+
+    const position = sorted({
+        path,
+        count,
+        paths
+    })
+
+    if (position != null) {
+        return position
+    }
+
+    return find({
+        names: paths,
+        name: path,
+        count
+    })
+}

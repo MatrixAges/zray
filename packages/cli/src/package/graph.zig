@@ -47,25 +47,32 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) !voi
 
     result.root = try std.Io.Dir.cwd().realPathFileAlloc(io, std.fs.path.dirname(path) orelse ".", allocator);
 
-    for (discovered.packages) |package| {
-        for ([_][]const @import("manifest/model.zig").Dependency{ package.manifest.dependencies, package.manifest.dev_dependencies }) |entries| {
-            for (entries) |entry| {
-                if (pkgs.workspace.parse(entry.name, entry.requirement) != .external) continue;
+    if (pkgs.workspace.manifest.firstExternal(discovered.packages)) |location| {
+        const package = discovered.packages[@intCast(location.row)];
+        const entries = if (location.development) package.manifest.dev_dependencies else package.manifest.dependencies;
 
-                result.packages = @import("installed.zig").load(io, allocator, result.root, discovered.packages, inputs) catch |err| {
-                    if (err == error.PackagesNotInstalled) result.diagnostic = try std.fmt.allocPrint(allocator, "{s}/pkg.yaml: dependency {s}: external dependency is not installed; run zxc pkg install", .{ package.path, entry.name });
+        result.packages = @import("installed.zig").load(io, allocator, result.root, discovered.packages, inputs) catch |err| {
+            if (err == error.PackagesNotInstalled) result.diagnostic = try std.fmt.allocPrint(allocator, "{s}/pkg.yaml: dependency {s}: external dependency is not installed; run zxc pkg install", .{ package.path, entries[@intCast(location.edge)].name });
 
-                    return err;
-                };
+            return err;
+        };
 
-                return;
-            }
-        }
+        return;
     }
 
     result.packages = try allocator.alloc(Package, discovered.packages.len);
 
     for (discovered.packages, result.packages) |source, *package| package.* = .{ .path = source.path, .manifest = source.manifest };
+
+    const candidates = pkgs.workspace.Members.manifests(discovered.packages);
+
+    const root = if (comptime std.fs.path.sep == '/') result.root else root: {
+        const native = try std.fs.path.resolve(allocator, &.{result.root});
+
+        std.mem.replaceScalar(u8, native, std.fs.path.sep, '/');
+
+        break :root native;
+    };
 
     for (result.packages, 0..) |*package, owner| {
         var dependencies: std.ArrayList(Dependency) = .empty;
@@ -76,7 +83,7 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) !voi
                     if (std.mem.eql(u8, previous.name, entry.name)) return fail(result, owner, entry.name, "dependency appears in both dependencies and dev_dependencies");
                 }
 
-                const target = try dependency(result, owner, entry.name, entry.requirement);
+                const target = try dependency(result, &candidates, root, owner, entry.name, entry.requirement);
 
                 try dependencies.append(allocator, .{ .name = entry.name, .target = target, .development = kind == 1 });
             }
@@ -96,31 +103,24 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) !voi
     }
 }
 
-fn dependency(result: *Result, owner: usize, name: []const u8, requirement: []const u8) !usize {
+fn dependency(result: *Result, candidates: *const pkgs.workspace.Members, root: []const u8, owner: usize, name: []const u8, requirement: []const u8) !usize {
     const spec = pkgs.workspace.parse(name, requirement);
 
-    const target_path = switch (spec) {
+    switch (spec) {
         .external => return fail(result, owner, name, "external dependency is not installed; run zxc pkg install"),
         .invalid => return fail(result, owner, name, "workspace alias requires a package name and version range"),
-        .path => |text| try std.fs.path.resolve(result.arena.allocator(), &.{ result.root, result.packages[owner].path, text }),
-        .named => null,
-    };
+        .path => |path| {
+            const absolute = try std.fs.path.resolve(result.arena.allocator(), &.{ result.root, result.packages[owner].path, path });
 
-    for (result.packages, 0..) |package, index| {
-        const matches = if (target_path) |path| std.mem.eql(u8, path, try std.fs.path.resolve(result.arena.allocator(), &.{ result.root, package.path })) else std.mem.eql(u8, package.manifest.name, spec.named.name);
-
-        if (!matches) continue;
-
-        if (spec == .named) if (spec.named.range) |range| {
-            const accepted = pkgs.version.accepts(range, package.manifest.version) catch |err| switch (err) {
-                error.InvalidRange => return fail(result, owner, name, "invalid workspace version range"),
-                else => |cause| return cause,
-            };
-
-            if (!accepted) return fail(result, owner, name, "workspace package version does not satisfy the dependency range");
-        };
-
-        return index;
+            if (comptime std.fs.path.sep != '/') std.mem.replaceScalar(u8, absolute, std.fs.path.sep, '/');
+            if (candidates.absolute(root, absolute)) |target| return target;
+        },
+        .named => return candidates.select(spec, result.packages[owner].path) catch |err| switch (err) {
+            error.InvalidLockWorkspaceTarget => return fail(result, owner, name, "workspace dependency has no matching local package"),
+            error.InvalidRange => return fail(result, owner, name, "invalid workspace version range"),
+            error.LockVersionMismatch => return fail(result, owner, name, "workspace package version does not satisfy the dependency range"),
+            else => |cause| return cause,
+        },
     }
 
     return fail(result, owner, name, "workspace dependency has no matching local package");

@@ -1,0 +1,28 @@
+import type { ListColumn, TextColumn } from "memory"
+
+export type Identity = {
+    names: TextColumn,
+    versions: TextColumn
+}
+
+export type Manifests = Identity & {
+    production_names: ListColumn,
+    production_requirements: ListColumn,
+    development_names: ListColumn,
+    development_requirements: ListColumn
+}
+
+export type Locked = Identity & {
+    edge_names: ListColumn,
+    requirements: ListColumn,
+    kinds: ListColumn
+}
+
+export type Pair = {
+    manifests: Manifests,
+    locked: Locked,
+    member: u64,
+    package: u64,
+    archive: bool,
+    has_workspace: bool
+}

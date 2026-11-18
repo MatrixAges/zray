@@ -1,0 +1,52 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { scheme } from "../const"
+
+import type { ListColumn } from "memory"
+
+export type Input = {
+    production: ListColumn,
+    development: ListColumn,
+    count: u64
+}
+
+export type Output = {
+    row: u64,
+    edge: u64,
+    development: bool,
+    found: bool
+}
+
+export default function (in: Input): Output {
+    return loop({
+        row: 0,
+        edge: 0,
+        development: false,
+        found: false
+    }, {
+        while: s => s.row < in.count && !s.found,
+        next: s => {
+            const column = s.development ? in.development : in.production
+            const length = memory.listLength(column, s.row)
+
+            if (s.edge == length) {
+                if (s.development) {
+                    s.row += 1
+                }
+
+                s.development = !s.development
+                s.edge = 0
+            } else {
+                const item = memory.readListText(column, s.row, s.edge)
+                const local = bytes.startsWithText(bytes.fromText(item), 0, scheme)
+
+                if (local) {
+                    s.edge += 1
+                } else {
+                    s.found = true
+                }
+            }
+        }
+    })
+}

@@ -26,6 +26,7 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, members: []const @impor
         try self.paths.append(allocator, try std.Io.Dir.cwd().realPathFileAlloc(io, path, allocator));
     }
 
+    const candidates = pkgs.workspace.Members.manifests(members);
     var owner: usize = 0;
     var edge_count: usize = 0;
 
@@ -39,12 +40,18 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, members: []const @impor
                 if (edge_count == Lock.maximum_dependencies) return error.TooManyLockDependencies;
 
                 edge_count += 1;
+
                 const spec = pkgs.workspace.parse(entry.name, entry.requirement);
 
-                const target = if (spec == .external)
-                    try self.external(entry.name, entry.requirement)
-                else
-                    try pkgs.workspace.find(spec, self.packages.items, owner);
+                const target = switch (spec) {
+                    .external => try self.external(entry.name, entry.requirement),
+                    else => local: {
+                        if (owner >= members.len) return error.InvalidLockWorkspaceTarget;
+
+                        break :local try candidates.select(spec, members[owner].path);
+                    },
+                };
+
                 try dependencies.append(allocator, .{ .name = entry.name, .requirement = entry.requirement, .development = kind == 1, .target = target });
             }
         }

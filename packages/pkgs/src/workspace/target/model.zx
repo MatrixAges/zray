@@ -1,0 +1,40 @@
+import type { TextColumn } from "memory"
+
+export enum Key {
+    Name,
+    RelativePath,
+    HostPath
+}
+
+export enum Status {
+    Found,
+    Missing,
+    LockVersionMismatch,
+    InvalidVersion,
+    InvalidRange,
+    Overflow
+}
+
+export type Query = {
+    kind: Key,
+    value: string,
+    owner: string,
+    range?: string
+}
+
+export type Rows = {
+    names: TextColumn,
+    paths: TextColumn,
+    versions: TextColumn,
+    count: u64,
+    local: u8[]
+}
+
+export type Input = Rows & Query & {
+    limit: u64
+}
+
+export type Result = {
+    status: Status,
+    row: u64
+}

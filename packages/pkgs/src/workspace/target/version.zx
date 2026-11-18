@@ -1,0 +1,32 @@
+import memory from "memory"
+
+import { Decision } from "../../version/accepts"
+import accepts from "../../version/accepts"
+import { Status } from "./model"
+
+import type { Input as Selection } from "./model"
+
+export type Input = Selection.Pick("versions", "limit") & {
+    row: u64,
+    range: string
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const decision = accepts({
+        version: memory.readTextColumn(in.versions, in.row),
+        ...in.pick([
+            "limit",
+            "range"
+        ])
+    })
+
+    return match decision {
+        Decision.Accepted => Status.Found,
+        Decision.Rejected => Status.LockVersionMismatch,
+        Decision.InvalidRange => Status.InvalidRange,
+        Decision.Overflow => Status.Overflow,
+        _ => Status.InvalidVersion
+    }
+}

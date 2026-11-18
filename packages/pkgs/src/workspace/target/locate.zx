@@ -1,0 +1,56 @@
+import { ascii_slash } from "core/ascii/const"
+import memory from "memory"
+
+import find from "../../registry/find"
+import samePath from "../path/equal"
+import { Key } from "./model"
+
+import type { Input as Selection } from "./model"
+
+export type Input = Selection.Omit("versions", "range", "limit")
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { kind, paths, value, owner, local, count } = in
+
+    const keys = kind == Key.Name ? in.names : paths
+
+    if (local.length == 0 && kind == Key.Name) {
+        return find({
+            names: keys,
+            name: value,
+            count
+        })
+    }
+
+    return loop({
+        row: 0,
+        found: false
+    }, {
+        while: s => s.row < count && !s.found,
+        next: s => {
+            if (local.length == 0 || local[s.row] != 0) {
+                const key = memory.readTextColumn(keys, s.row)
+                s.found = match kind {
+                    Key.RelativePath => samePath({
+                        owner,
+                        path: value,
+                        target: key
+                    }),
+                    Key.HostPath => samePath({
+                        owner: key.length > 0 && key[0] == ascii_slash ? "" : owner,
+                        path: key,
+                        target: value
+                    }),
+                    _ => key == value
+                }
+            }
+
+            if (!s.found) {
+                s.row += 1
+            }
+        },
+        return: s => s.found ? s.row : null
+    })
+}

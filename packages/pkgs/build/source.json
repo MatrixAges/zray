@@ -81,6 +81,26 @@
         {
             "path": "version/accepts.zx",
             "name": "version_accepts"
+        },
+        {
+            "path": "workspace/target/select.rx",
+            "name": "workspace_select"
+        },
+        {
+            "path": "workspace/manifest/matches.rx",
+            "name": "manifest_matches"
+        },
+        {
+            "path": "workspace/manifest/external.zx",
+            "name": "first_external"
+        },
+        {
+            "path": "workspace/manifest/member.zx",
+            "name": "workspace_member"
+        },
+        {
+            "path": "workspace/manifest/compare.zx",
+            "name": "workspace_compare"
         }
     ],
     "packages": [
@@ -95,6 +115,10 @@
         {
             "specifier": "core/bytes/map/capacity",
             "entry": "core/bytes/map/capacity.zx"
+        },
+        {
+            "specifier": "core/bytes/index/sorted_text",
+            "entry": "core/bytes/index/sorted_text.zx"
         }
     ],
     "interfaces": [

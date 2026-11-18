@@ -1,0 +1,57 @@
+import memory from "memory"
+
+import type { Output as Header } from "./header"
+import type { Pair } from "./model"
+
+export type Input = Pair.Omit("archive", "has_workspace") & Header.Omit("valid")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { production, total, manifests, locked, member, package } = in
+    const { edge_names, requirements, kinds } = locked
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: s => s.valid && s.row < total,
+        next: s => {
+            const row = s.row
+            const dev = row >= production
+            const names = dev ? manifests.development_names : manifests.production_names
+            const specs = match {
+                dev => manifests.development_requirements,
+                _ => manifests.production_requirements
+            }
+            const index = dev ? row - production : row
+            const name = memory.readListText(names, member, index)
+            const ordered =
+                memory.readListText(edge_names, package, row) == name
+            const position = match {
+                ordered => row,
+                _ => loop(0, {
+                    while: i =>
+                        i < total &&
+                        memory.readListText(edge_names, package, i) != name,
+                    next: i => {
+                        i += 1
+                    }
+                })
+            }
+
+            if (position == total) {
+                s.valid = false
+            } else {
+                const wanted = memory.readListText(specs, member, index)
+                const requirement =
+                    memory.readListText(requirements, package, position)
+                const same_kind = memory.readListBool(kinds, package, position) == dev
+                s.valid = requirement == wanted && same_kind
+            }
+
+            s.row += 1
+        },
+        return: s => s.valid
+    })
+}
