@@ -57,8 +57,8 @@ pub fn run(module: *const Artifact.Module, current: *const Current, temporary: s
             }, entry, if (decoded) .validated else .unchecked);
         },
         .Verify => {
-            const verified = try @import("../../../ir/canonical/validation/host.zig").verify(temporary, &restored.program, current.verified.*);
-            current.verified.* = verified orelse return error.InvalidIr;
+            const validation = try @import("../../../ir/canonical/validation/host.zig").verify(temporary, &restored.program, current.verified.*) orelse return error.InvalidIr;
+            current.verified.* = validation.verified;
         },
     };
 

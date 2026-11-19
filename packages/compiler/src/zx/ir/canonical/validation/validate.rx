@@ -1,12 +1,12 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.Program} out={bool} />
+    <Args in={Model.Program} out={bool?} />
 
     <Call fn="structure/header" in={$in} />
 
     <If on={!$ctx.header}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <Call
@@ -21,13 +21,13 @@
     />
 
     <If on={!$ctx.validate_types}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <Call module="structure" in={$in} />
 
     <If on={!$ctx.structure}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <If on={$in.context.verified_native && $in.context.verified_types != null}>
@@ -43,7 +43,7 @@
         />
 
         <If on={!$ctx.owners}>
-            <Return value={false} />
+            <Return value={null} />
         </If>
 
         <Else>
@@ -56,7 +56,7 @@
             />
 
             <If on={!$ctx.native_modules_check}>
-                <Return value={false} />
+                <Return value={null} />
             </If>
         </Else>
     </If>

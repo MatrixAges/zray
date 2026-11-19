@@ -11,7 +11,7 @@
 
     <Call module="../../ir/canonical/validation/validate" in={$in.graph.program} />
 
-    <If on={!$ctx.validate}>
+    <If on={$ctx.validate == null}>
         <Return value={false} />
     </If>
 

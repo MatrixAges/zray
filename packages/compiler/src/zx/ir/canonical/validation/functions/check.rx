@@ -1,7 +1,7 @@
 <Module>
     <Type from="forward" as="Forward" />
 
-    <Args in={Forward.Input} out={bool} />
+    <Args in={Forward.Input} out={bool?} />
 
     <Call fn="forward" in={$in} />
 
@@ -10,7 +10,7 @@
             <Call fn="external_body" in={$in} />
 
             <If on={!$ctx.external_body}>
-                <Return value={false} />
+                <Return value={null} />
             </If>
 
             <Call
@@ -31,7 +31,11 @@
                 }}
             />
 
-            <Return value={$ctx.check} />
+            <If on={$ctx.check}>
+                <Return value={true} />
+            </If>
+
+            <Return value={null} />
 
             <Else>
                 <Call
@@ -55,7 +59,7 @@
         </If>
 
         <Else>
-            <Return value={false} />
+            <Return value={null} />
         </Else>
     </If>
 </Module>

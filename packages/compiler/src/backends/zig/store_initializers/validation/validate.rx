@@ -5,7 +5,7 @@
 
     <Call module="../../../../zx/ir/canonical/validation/validate" in={$in} />
 
-    <If on={!$ctx.validate}>
+    <If on={$ctx.validate == null}>
         <Return value={false} />
     </If>
 

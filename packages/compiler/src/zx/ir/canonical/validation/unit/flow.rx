@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.Request} out={bool} />
+    <Args in={Model.Request} out={bool?} />
 
     <Call
         module="../../scopes_check"
@@ -51,12 +51,12 @@
             <Return value={$ctx.ownership_result} />
 
             <Else>
-                <Return value={false} />
+                <Return value={null} />
             </Else>
         </If>
 
         <Else>
-            <Return value={false} />
+            <Return value={null} />
         </Else>
     </If>
 </Module>

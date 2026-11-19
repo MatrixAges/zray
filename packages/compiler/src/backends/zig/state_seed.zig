@@ -22,7 +22,7 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     const imports = try allocator.alloc([]const u8, objects.len + 1);
     imports[0] = "application";
 
-    const independent = try frontend.storesOwnValues(allocator, program);
+    const independent = try frontend.storesOwnValues(bundle.arena.child_allocator, program);
 
     for (objects, 0..) |*object, index| {
         const slot = program.stores.at(index);

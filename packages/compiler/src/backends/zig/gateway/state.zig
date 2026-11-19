@@ -20,7 +20,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     if (comptime !@import("parser_options").generated_parser) return @import("state_seed.zig").create(allocator, library, bundle);
     if (library.exports.len != bundle.public_modules.len) return error.InvalidModule;
 
-    const independent = try @import("frontend").storesOwnValues(allocator, library.program);
+    const independent = try @import("frontend").storesOwnValues(bundle.arena.child_allocator, library.program);
     const identities = try names.create(allocator, bundle.arena.child_allocator, library.program, library.nominal_types);
     const entry = @import("generated_gateway_bindings");
     const Input = std.meta.Child(entry.Input);

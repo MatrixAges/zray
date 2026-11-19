@@ -5,7 +5,13 @@ const generated = @import("generated_ir_validation");
 const Storage = @import("input.zig").Storage(std.meta.Child(generated.Input));
 const Verified = @import("../../validate.zig").Verified;
 
-pub fn verify(allocator: std.mem.Allocator, program: *const ir.Program, verified: Verified) std.mem.Allocator.Error!?Verified {
+pub const Result = struct {
+    verified: Verified,
+    /// Present only when validation checked all function bodies.
+    stores_owned: ?bool,
+};
+
+pub fn verify(allocator: std.mem.Allocator, program: *const ir.Program, verified: Verified) std.mem.Allocator.Error!?Result {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -24,8 +30,11 @@ pub fn verify(allocator: std.mem.Allocator, program: *const ir.Program, verified
     const result = output orelse return null;
 
     return .{
-        .functions = @intCast(result.functions),
-        .types = zx.columns.view(@import("type_prefix.zig"), result.types),
-        .native = result.native,
+        .verified = .{
+            .functions = @intCast(result.functions),
+            .types = zx.columns.view(@import("type_prefix.zig"), result.types),
+            .native = result.native,
+        },
+        .stores_owned = result.stores_owned,
     };
 }

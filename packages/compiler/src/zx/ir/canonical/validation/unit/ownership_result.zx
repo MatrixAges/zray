@@ -7,12 +7,15 @@ export type Input = {
     declared: Ownership
 }
 
-export type Output = bool
+export type Output = bool?
 
 export default function (in: Input): Output {
     if (in.outcome.message != "") {
-        return false
+        return null
     }
 
-    return in.declared == Ownership.Borrowed || in.declared == in.outcome.ownership
+    const conservative = in.declared == Ownership.Borrowed
+    const matches = in.declared == in.outcome.ownership
+
+    return conservative || matches ? in.outcome.stores_owned : null
 }

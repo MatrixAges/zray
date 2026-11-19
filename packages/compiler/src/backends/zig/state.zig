@@ -23,7 +23,7 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     const program = options.analysis.value.ir;
     const allocator = bundle.arena.allocator();
     const shared = try names.create(allocator, bundle.arena.child_allocator, program, options.analysis.nominal_types);
-    const independent = try frontend.storesOwnValues(allocator, program);
+    const independent = try frontend.storesOwnValues(bundle.arena.child_allocator, program);
     const entry = @import("generated_state_bindings");
     const Input = std.meta.Child(entry.Input);
     const Stores = std.meta.Child(@FieldType(Input, "stores"));

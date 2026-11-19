@@ -8,7 +8,7 @@
     <If on={$in.validation != null}>
         <Call module="../../../../ir/canonical/validation/validate" in={$in.validation} />
 
-        <If on={!$ctx.validate}>
+        <If on={$ctx.validate == null}>
             <Return value={Source.Status.InvalidIr} />
         </If>
 

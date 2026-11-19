@@ -6,8 +6,14 @@
 
     <Call module="validate" in={$in} />
 
-    <If on={$ctx.validate}>
-        <Call fn="prefix" in={$in.context} />
+    <If on={$ctx.validate != null}>
+        <Call
+            fn="prefix"
+            in={{
+                context: $in.context,
+                stores_owned: $ctx.validate == true
+            }}
+        />
 
         <Return value={$ctx.prefix} />
     </If>

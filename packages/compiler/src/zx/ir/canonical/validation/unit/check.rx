@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.Request} out={bool} />
+    <Args in={Model.Request} out={bool?} />
 
     <Call
         module="../../stores_check"
@@ -20,7 +20,11 @@
             <If on={$in.unit.type_only}>
                 <Call fn="type_only" in={$in.unit} />
 
-                <Return value={$ctx.type_only} />
+                <If on={$ctx.type_only}>
+                    <Return value={true} />
+                </If>
+
+                <Return value={null} />
 
                 <Else>
                     <Call module="body" in={$in} />
@@ -30,12 +34,12 @@
             </If>
 
             <Else>
-                <Return value={false} />
+                <Return value={null} />
             </Else>
         </If>
 
         <Else>
-            <Return value={false} />
+            <Return value={null} />
         </Else>
     </If>
 </Module>

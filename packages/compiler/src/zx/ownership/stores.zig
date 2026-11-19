@@ -4,6 +4,12 @@ const ir = zx.ir;
 const ownership = @import("check.zig");
 
 pub fn check(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!bool {
+    if (comptime @import("parser_options").generated_parser) {
+        const validated = try @import("../ir/canonical/validation/host.zig").verify(allocator, &program, .{}) orelse return false;
+
+        return validated.stores_owned.?;
+    }
+
     if (try @import("../ir/validate.zig").validate(allocator, program) != null) return false;
     if (!try independent(allocator, program)) return false;
 
