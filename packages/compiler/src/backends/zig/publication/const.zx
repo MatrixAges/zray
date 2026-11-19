@@ -1,0 +1,3 @@
+export const public_prefix: string = "public_"
+
+export const store_prefix: string = "zxc_store_initial_"

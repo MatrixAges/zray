@@ -1,39 +1,54 @@
 import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
 
+import { Mode } from "./model"
 import needed from "./needed"
 
-import type { State as Input, Output } from "./model"
+import type { Input as Selection, Selected as Output } from "./model"
+
+export type Input = Selection.Pick("candidates", "search")
 
 export default function (in: Input): Output {
+    const { candidates, search } = in
+
+    const selected: u64[] = []
+
+    if (search.mode == Mode.Empty) {
+        return {
+            valid: true,
+            indices: selected
+        }
+    }
+
     return loop({
-        index: 0,
-        result: in.result
+        row: 0,
+        valid: true,
+        indices: selected
     }, {
-        while: current => current.result.valid &&
-            current.index < in.source.initializers.length,
-        next: current => {
-            const initial = in.source.initializers[current.index]
+        while: state => state.valid && state.row < candidates.count,
+        next: state => {
+            const row = state.row
 
             if (needed({
-                paths: in.source.paths,
-                identity: initial.identity
+                ...search,
+                identity: memory.readTextColumn(candidates.keys, row)
             })) {
-                const function_index = integers.widen(initial.function)
+                const function_id = columns.readColumnU32(candidates.functions, row)
+                const index = integers.widen(function_id)
+                const modules = candidates.native_modules
 
-                if (function_index >= in.source.function_count) {
-                    current.result.valid = false
+                if (
+                    index >= candidates.function_count || modules[index] != null
+                ) {
+                    state.valid = false
                 } else {
-                    if (in.source.native_modules[function_index] != null) {
-                        current.result.valid = false
-                    } else {
-                        current.result.indices =
-                            current.result.indices.push(current.index)[0]
-                    }
+                    state.indices = state.indices.push(row)[0]
                 }
             }
 
-            current.index += 1
+            state.row += 1
         },
-        return: current => current.result
+        return: state => state.omit(["row"])
     })
 }

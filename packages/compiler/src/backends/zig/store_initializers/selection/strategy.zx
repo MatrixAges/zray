@@ -1,0 +1,38 @@
+import { linear_lookup_limit } from "./const"
+import { Mode } from "./model"
+
+import type { Counts as Input, Strategy as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { initializers, paths } = in
+
+    if (initializers == 0 || paths == 0) {
+        return {
+            mode: Mode.Empty,
+            indexed: 0,
+            marks: 0
+        }
+    }
+
+    if (paths <= linear_lookup_limit || initializers <= linear_lookup_limit) {
+        return {
+            mode: Mode.Scan,
+            indexed: 0,
+            marks: 0
+        }
+    }
+
+    if (paths <= initializers) {
+        return {
+            mode: Mode.Paths,
+            indexed: paths,
+            marks: 0
+        }
+    }
+
+    return {
+        mode: Mode.Candidates,
+        indexed: initializers,
+        marks: initializers
+    }
+}

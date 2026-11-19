@@ -16,12 +16,7 @@ pub fn createBacked(allocator: std.mem.Allocator, backing: std.mem.Allocator, li
 
     for (library.store_initializers, files, entries) |initial, *file, *entry| {
         const function = library.program.functions.at(@backingInt(initial.function));
-        var digest: [32]u8 = undefined;
-
-        @import("zx").Sha256.hash(initial.identity, &digest, .{});
-        const module_name = try std.fmt.allocPrint(allocator, "zxc_store_initial_{s}", .{std.fmt.bytesToHex(digest, .lower)});
         var program = library.program;
-        program.file_name = module_name;
         program.type_only = false;
         program.input_type = function.input_type;
         program.output_type = function.output_type;
@@ -32,24 +27,9 @@ pub fn createBacked(allocator: std.mem.Allocator, backing: std.mem.Allocator, li
         program.contracts = function.contracts;
         program.stores = .{};
         program.exports = &.{};
-
-        var scratch = std.heap.ArenaAllocator.init(backing);
-
-        defer scratch.deinit();
-
-        const prepared = try @import("genz").zx.prepareWithWorkspace(scratch.allocator(), backing, program);
-        var batch = try modules.Batch.create(backing, prepared, names, cache);
-
-        defer batch.deinit();
-
-        file.* = .{ .name = module_name, .source = try batch.emit(allocator, .entry), .imports = &.{} };
-
-        entry.* = .{
-            .identity = try allocator.dupe(u8, initial.identity),
-            .schema_version = initial.schema_version,
-            .module_name = module_name,
-            .type_name = names.types[@backingInt(function.output_type)],
-        };
+        const published = try @import("publication/initializer.zig").emit(allocator, backing, initial.identity, initial.schema_version, &program, names, cache);
+        file.* = published.file;
+        entry.* = published.entry;
     }
 
     return .{ .files = files, .entries = entries };

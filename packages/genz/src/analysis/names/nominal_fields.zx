@@ -12,7 +12,7 @@ import {
     external_tag
 } from "./const"
 
-import type { Input as Source } from "./model"
+import type { TypeSource as Source } from "./model"
 
 export type Input = {
     source: Source,

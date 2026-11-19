@@ -3,16 +3,41 @@
 
     <Args in={Selection.Input} out={Selection.Output} />
 
+    <If on={$in.indexed != 0}>
+        <Call
+            fn="../index_slots"
+            in={{
+                ...$in.search.index,
+                count: $in.indexed
+            }}
+        />
+    </If>
+
+    <If on={$in.search.mode == Selection.Mode.Candidates}>
+        <Call
+            fn="mark"
+            in={{
+                ...$in.search.omit(["mode"]),
+                count: $in.indexed
+            }}
+        />
+    </If>
+
     <Call
         fn="select"
+        in={$in.pick([
+            "candidates",
+            "search"
+        ])}
+    />
+
+    <Call
+        fn="layout"
         in={{
-            source: $in,
-            result: {
-                valid: true,
-                indices: []
-            }
+            sources: $in.sources,
+            selected: $ctx.select
         }}
     />
 
-    <Return value={$ctx.select} />
+    <Return value={$ctx.layout} />
 </Module>

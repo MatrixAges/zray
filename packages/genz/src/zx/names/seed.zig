@@ -11,6 +11,56 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, origins: anytyp
 }
 
 pub fn createWith(allocator: std.mem.Allocator, program: ir.Program, origins: anytype, known: ?Capabilities) Error!Names {
+    const type_names = try typeNamesIn(allocator, program, origins);
+    const functions = try allocator.alloc([]const u8, program.functions.count());
+    const io_functions = if (known) |facts| facts.io else try @import("../io.zig").functions(allocator, program);
+
+    defer if (known == null) allocator.free(io_functions);
+
+    const process_functions = if (known) |facts| facts.process else try @import("../capabilities.zig").functions(allocator, program, .process);
+
+    defer if (known == null) allocator.free(process_functions);
+
+    for (0..program.functions.count(), functions, io_functions, process_functions) |function_row, *name, needs_io, needs_process| {
+        const function = program.functions.at(function_row);
+        var hash = Hash.init(.{});
+
+        field(&hash, "zxc.zig.function.v1");
+        field(&hash, function.file_name);
+
+        if (needs_io) field(&hash, "std.Io");
+        if (needs_process) field(&hash, "std.process.Init.Minimal");
+
+        if (function.external) |external| {
+            const module = program.native_modules.at(@backingInt(external.module));
+
+            field(&hash, "native");
+            field(&hash, module.specifier);
+            field(&hash, module.import_name);
+            field(&hash, external.exportName());
+
+            for (external.member) |member| field(&hash, member);
+        } else field(&hash, "source");
+
+        var digest: [32]u8 = undefined;
+
+        hash.final(&digest);
+
+        name.* = try std.fmt.allocPrint(allocator, "zxc_module_{s}", .{std.fmt.bytesToHex(digest, .lower)});
+    }
+
+    return .{ .types = type_names, .functions = functions };
+}
+
+fn field(hash: *Hash, bytes: []const u8) void {
+    var length: [8]u8 = undefined;
+
+    std.mem.writeInt(u64, &length, @intCast(bytes.len), .little);
+    hash.update(&length);
+    hash.update(bytes);
+}
+
+pub fn typeNamesIn(allocator: std.mem.Allocator, program: ir.Program, origins: anytype) Error![]const []const u8 {
     if (!origins.hasValidShape()) return error.InvalidNominalOrigin;
 
     const type_names = try allocator.alloc([]const u8, program.types.count());
@@ -85,50 +135,5 @@ pub fn createWith(allocator: std.mem.Allocator, program: ir.Program, origins: an
         type_names[index] = try std.fmt.allocPrint(allocator, "zx_type_{s}", .{std.fmt.bytesToHex(digests[index], .lower)});
     }
 
-    const functions = try allocator.alloc([]const u8, program.functions.count());
-    const io_functions = if (known) |facts| facts.io else try @import("../io.zig").functions(allocator, program);
-
-    defer if (known == null) allocator.free(io_functions);
-
-    const process_functions = if (known) |facts| facts.process else try @import("../capabilities.zig").functions(allocator, program, .process);
-
-    defer if (known == null) allocator.free(process_functions);
-
-    for (0..program.functions.count(), functions, io_functions, process_functions) |function_row, *name, needs_io, needs_process| {
-        const function = program.functions.at(function_row);
-        var hash = Hash.init(.{});
-
-        field(&hash, "zxc.zig.function.v1");
-        field(&hash, function.file_name);
-
-        if (needs_io) field(&hash, "std.Io");
-        if (needs_process) field(&hash, "std.process.Init.Minimal");
-
-        if (function.external) |external| {
-            const module = program.native_modules.at(@backingInt(external.module));
-
-            field(&hash, "native");
-            field(&hash, module.specifier);
-            field(&hash, module.import_name);
-            field(&hash, external.exportName());
-
-            for (external.member) |member| field(&hash, member);
-        } else field(&hash, "source");
-
-        var digest: [32]u8 = undefined;
-
-        hash.final(&digest);
-
-        name.* = try std.fmt.allocPrint(allocator, "zxc_module_{s}", .{std.fmt.bytesToHex(digest, .lower)});
-    }
-
-    return .{ .types = type_names, .functions = functions };
-}
-
-fn field(hash: *Hash, bytes: []const u8) void {
-    var length: [8]u8 = undefined;
-
-    std.mem.writeInt(u64, &length, @intCast(bytes.len), .little);
-    hash.update(&length);
-    hash.update(bytes);
+    return type_names;
 }

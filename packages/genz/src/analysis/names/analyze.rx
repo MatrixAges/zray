@@ -3,31 +3,19 @@
 
     <Args in={Names.Input} out={Names.Output} />
 
-    <Call fn="validate" in={$in} />
-
-    <If on={!$ctx.validate.valid}>
-        <Return
-            value={{
-                status: Names.Status.InvalidOrigin,
-                types: [],
-                functions: []
-            }}
-        />
-    </If>
-
     <Call
-        fn="types"
-        in={{
-            source: $in,
-            positions: $ctx.validate.positions
-        }}
+        module="type_names"
+        in={$in.pick([
+            "types",
+            "modules",
+            "origins"
+        ])}
     />
 
-    <If on={!$ctx.types.valid}>
+    <If on={$ctx.type_names.status != Names.Status.Valid}>
         <Return
             value={{
-                status: Names.Status.MissingOrigin,
-                types: [],
+                ...$ctx.type_names,
                 functions: []
             }}
         />
@@ -45,8 +33,7 @@
 
     <Return
         value={{
-            status: Names.Status.Valid,
-            types: $ctx.types.names,
+            ...$ctx.type_names,
             functions: $ctx.functions
         }}
     />

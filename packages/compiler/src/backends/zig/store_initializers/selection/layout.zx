@@ -1,0 +1,53 @@
+import { Status } from "./model"
+
+import type { Sources, Selected, Output } from "./model"
+
+export type Input = {
+    sources: Sources,
+    selected: Selected
+}
+
+export default function (in: Input): Output {
+    const { sources, selected } = in
+    const { owned, borrowed, files, maximum } = sources
+
+    const failed = {
+        status: Status.Overflow,
+        indices: selected.indices,
+        source_end: 0,
+        count: 0,
+        file_count: 0
+    }
+
+    if (!selected.valid) {
+        return {
+            ...failed,
+            status: Status.Invalid
+        }
+    }
+
+    if (owned > maximum - borrowed) {
+        return failed
+    }
+
+    const source_end = owned + borrowed
+    const linked = selected.indices.length
+
+    if (linked > maximum - source_end) {
+        return failed
+    }
+
+    const count = source_end + linked
+
+    if (files > maximum - count) {
+        return failed
+    }
+
+    return {
+        status: Status.Ready,
+        indices: selected.indices,
+        source_end,
+        count,
+        file_count: files + count
+    }
+}

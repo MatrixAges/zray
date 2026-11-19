@@ -1,0 +1,14 @@
+export enum Kind {
+    Public,
+    Store
+}
+
+export type Input = {
+    kind: Kind,
+    identity: string
+}
+
+export type Output = {
+    prefix: string,
+    digest: string
+}

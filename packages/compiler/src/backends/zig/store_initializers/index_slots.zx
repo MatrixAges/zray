@@ -1,7 +1,11 @@
 import exchange from "core/bytes/index/column"
 import memory from "memory"
 
-import type { Initializers as Input } from "./model"
+import type { Table } from "core/bytes/index/column"
+
+export type Input = Table & {
+    count: u64
+}
 
 export type Output = void
 

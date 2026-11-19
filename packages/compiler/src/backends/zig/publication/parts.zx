@@ -1,0 +1,15 @@
+import { public_prefix, store_prefix } from "./const"
+import { Kind } from "./model"
+
+import type { Input as Name, Output } from "./model"
+
+export type Input = Name.Pick("kind") & Output.Pick("digest")
+
+export default function (in: Input): Output {
+    const { kind, digest } = in
+
+    return {
+        prefix: kind == Kind.Store ? store_prefix : public_prefix,
+        digest
+    }
+}

@@ -66,7 +66,7 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     }
 
     for (initializers.items) |initial| {
-        var program = initial.program;
+        const program = initial.program;
 
         if (program.type_only or program.functions.count() != 0 or program.stores.count() != 0 or program.contracts.count() != 0) return error.InvalidInitializer;
         if (try frontend.validateIr(allocator, program) != null) return error.InvalidInitializer;
@@ -78,21 +78,15 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
         if (own.types.len != shared.types.len) return error.InvalidInitializer;
         for (own.types, shared.types) |left, right| if (!std.mem.eql(u8, left, right)) return error.InvalidInitializer;
 
-        const identity = try allocator.dupe(u8, initial.identity);
-        const found = try identities.getOrPut(allocator, identity);
+        const found = try identities.getOrPut(allocator, initial.identity);
 
         if (found.found_existing) return error.DuplicateInitializer;
 
         found.value_ptr.* = program.output_type;
-        var digest: [32]u8 = undefined;
+        const published = try @import("publication/initializer.zig").emit(allocator, bundle.arena.child_allocator, initial.identity, initial.schema_version, &program, .{ .types = shared.types, .functions = &.{} }, options.cache);
 
-        @import("zx").Sha256.hash(identity, &digest, .{});
-        const module_name = try std.fmt.allocPrint(allocator, "zxc_store_initial_{s}", .{std.fmt.bytesToHex(digest, .lower)});
-        program.file_name = module_name;
-        const source = try modules.emit(allocator, program, .{ .types = shared.types, .functions = &.{} }, .entry, options.cache);
-
-        try files.append(allocator, .{ .name = module_name, .source = source, .imports = &.{} });
-        try metadata.append(allocator, .{ .identity = identity, .schema_version = initial.schema_version, .module_name = module_name, .type_name = shared.types[@backingInt(program.output_type)] });
+        try files.append(allocator, published.file);
+        try metadata.append(allocator, published.entry);
     }
 
     for (0..application.stores.count()) |store_index| {

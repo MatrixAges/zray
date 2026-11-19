@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Names" />
+
+    <Args in={Names.TypeSource} out={Names.TypeNames} />
+
+    <Call fn="validate" in={$in} />
+
+    <If on={!$ctx.validate.valid}>
+        <Return
+            value={{
+                status: Names.Status.InvalidOrigin,
+                types: []
+            }}
+        />
+    </If>
+
+    <Call
+        fn="types"
+        in={{
+            source: $in,
+            positions: $ctx.validate.positions
+        }}
+    />
+
+    <If on={!$ctx.types.valid}>
+        <Return
+            value={{
+                status: Names.Status.MissingOrigin,
+                types: []
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            status: Names.Status.Valid,
+            types: $ctx.types.names
+        }}
+    />
+</Module>

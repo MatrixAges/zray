@@ -15,14 +15,17 @@ export type Capabilities = {
     process: bool[]
 }
 
-export type Input = {
+export type TypeSource = {
     types: Table,
+    modules: Modules,
+    origins: Origins
+}
+
+export type Input = TypeSource & {
     functions: Functions,
     files: string[],
     native_members: string[][],
     native_exports: string?[],
-    modules: Modules,
-    origins: Origins,
     known: bool,
     io: bool[],
     process: bool[]
@@ -39,3 +42,5 @@ export type Output = {
     types: string[],
     functions: string[]
 }
+
+export type TypeNames = Output.Pick("status", "types")

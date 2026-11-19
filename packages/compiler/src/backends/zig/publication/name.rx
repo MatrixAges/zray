@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Name" />
+
+    <Args in={Name.Input} out={Name.Output} />
+
+    <Call
+        fn="../../../zx/artifact_codec/digest"
+        in={{
+            source: $in.identity,
+            start: 0
+        }}
+    />
+
+    <Call
+        fn="parts"
+        in={{
+            kind: $in.kind,
+            digest: $ctx.digest
+        }}
+    />
+
+    <Return value={$ctx.parts} />
+</Module>

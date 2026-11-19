@@ -88,13 +88,20 @@ pub fn createCached(allocator: std.mem.Allocator, analysis: *const Analysis, cac
 }
 
 pub fn emit(allocator: std.mem.Allocator, program: @import("zx").ir.Program, identities: generating.Names, unit: fingerprint.Unit, cache: ?*Cache) Error![]const u8 {
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    return emitBacked(allocator, allocator, program, identities, unit, cache);
+}
 
-    defer arena.deinit();
+pub fn emitBacked(output: std.mem.Allocator, backing: std.mem.Allocator, program: @import("zx").ir.Program, identities: generating.Names, unit: fingerprint.Unit, cache: ?*Cache) Error![]const u8 {
+    var scratch = std.heap.ArenaAllocator.init(backing);
 
-    const prepared = try @import("genz").zx.prepareWithWorkspace(arena.allocator(), allocator, program);
+    defer scratch.deinit();
 
-    return emitPrepared(allocator, prepared, identities, unit, cache);
+    const prepared = try @import("genz").zx.prepareWithWorkspace(scratch.allocator(), backing, program);
+    var batch = try Batch.create(backing, prepared, identities, cache);
+
+    defer batch.deinit();
+
+    return batch.emit(output, unit);
 }
 
 pub fn emitPrepared(allocator: std.mem.Allocator, program: @import("zx").ir.Program, identities: generating.Names, unit: fingerprint.Unit, cache: ?*Cache) Error![]const u8 {

@@ -130,10 +130,6 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
         const member_end: usize = @intCast(end);
         const members = publication.members[member_first..member_end];
         const member_ids = publication.member_ids[member_first..member_end];
-        var digest: [32]u8 = undefined;
-
-        @import("zx").Sha256.hash(exported.name, &digest, .{});
-
         public_batch.* = batch;
         public_batch.program = view;
         public_batch.public_members = members;
@@ -145,9 +141,10 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
         try public_batch.analysis.value.reentry(owned, allocator, view, if (entry_summaries) |*shared| shared else null);
 
         const imports = try references.imports(owned, allocator, view.expressions, view.contracts, identities.functions, member_ids);
+        const published = try @import("publication/identity.zig").create(owned, .Public, exported.name);
 
         public_module.* = .{
-            .name = try owned.dupe(u8, exported.name),
+            .name = published.identity,
             .value_entry = public_batch.analysis.value.hasValueEntry(),
             .state_entry = public_batch.analysis.value.hasStateEntry(view),
             .allocator_entry = public_batch.analysis.value.hasAllocatorEntry(),
@@ -155,7 +152,7 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
                 view.exports.len == 0 and exported.members.len == 0,
             .requirements = .{ .io = public_batch.analysis.value.entry_flags.io, .process = public_batch.analysis.value.entry_flags.process },
             .file = .{
-                .name = try std.fmt.allocPrint(owned, "public_{s}", .{std.fmt.bytesToHex(digest, .lower)}),
+                .name = published.module,
                 .source = &.{},
                 .imports = imports,
             },

@@ -2,7 +2,7 @@ const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
 const modules = @import("modules.zig");
-const names = @import("names.zig");
+const names = @import("genz").zx.names;
 pub const Initializer = frontend.project.SourceStoreInitializer;
 
 pub const Options = struct {
@@ -20,39 +20,23 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
 
     const allocator = bundle.arena.allocator();
     const application = &options.analysis.value.ir;
-    const shared = try names.create(allocator, bundle.arena.child_allocator, application.*, options.analysis.nominal_types);
+    const shared_types = try names.createTypes(allocator, bundle.arena.child_allocator, application, options.analysis.nominal_types);
     var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
 
     defer scratch.deinit();
 
     var identities = try @import("store_initializers/registry.zig").create(scratch.allocator());
-    const entry = @import("generated_store_initializer_selection");
-    const Input = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
-
-    const input: Input = .{
-        .initializers = zx.columns.storage.view(@FieldType(Input, "initializers"), options.analysis.store_initializers),
-        .paths = application.stores.paths,
-        .function_count = application.functions.count(),
-        .native_modules = application.functions.native_modules,
-        .zx_origin = null,
-    };
-
-    const selection = entry.executeValue(scratch.allocator(), input) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    if (!selection.valid) return error.InvalidInitializer;
-
-    const source_count = std.math.add(usize, options.initializers.len, options.borrowed_initializers.len) catch return error.OutOfMemory;
-    const count = std.math.add(usize, source_count, selection.indices.len) catch return error.OutOfMemory;
-    const file_count = std.math.add(usize, bundle.modules.len, count) catch return error.OutOfMemory;
-    var files = try std.ArrayList(modules.File).initCapacity(allocator, file_count);
+    const selection = try @import("store_initializers/selection.zig").plan(scratch.allocator(), application, options.analysis.store_initializers, options.initializers.len, options.borrowed_initializers.len, bundle.modules.len);
+    const count: usize = @intCast(selection.count);
+    var files = try std.ArrayList(modules.File).initCapacity(allocator, @intCast(selection.file_count));
     var metadata = try std.ArrayList(modules.StoreInitializer).initCapacity(allocator, count);
 
     files.appendSliceAssumeCapacity(bundle.modules);
 
     const validation = @import("store_initializers/validation.zig");
+    var name_workspace = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
+
+    defer name_workspace.deinit();
 
     for (0..count) |row| {
         var linked_source: Initializer = undefined;
@@ -60,35 +44,28 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
         const initial = if (row < options.initializers.len)
             options.initializers[row].borrow()
 
-        else if (row < source_count)
+        else if (row < selection.source_end)
             options.borrowed_initializers[row - options.initializers.len]
         else linked_row: {
-            linked_source = linked(application, options.analysis.store_initializers[selection.indices[row - source_count]]);
+            linked_source = linked(application, options.analysis.store_initializers[selection.indices[row - @as(usize, @intCast(selection.source_end))]]);
 
             break :linked_row linked_source.borrow();
         };
 
         if (!try validation.validate(bundle.arena.child_allocator, initial.program, .allowed)) return error.InvalidInitializer;
 
-        const own = try names.create(allocator, bundle.arena.child_allocator, initial.program.*, options.analysis.nominal_types);
+        const actual = try names.typeNamesIn(name_workspace.allocator(), initial.program, options.analysis.nominal_types);
 
-        if (!validation.compatible(own.types, shared.types)) return error.InvalidInitializer;
+        if (!validation.compatible(actual, shared_types)) return error.InvalidInitializer;
 
-        const identity = try allocator.dupe(u8, initial.identity);
+        _ = name_workspace.reset(.retain_capacity);
 
-        try identities.register(identity, initial.program.output_type);
+        try identities.register(initial.identity, initial.program.output_type);
 
-        var digest: [32]u8 = undefined;
+        const published = try @import("publication/initializer.zig").emit(allocator, bundle.arena.child_allocator, initial.identity, initial.schema_version, initial.program, .{ .types = shared_types, .functions = &.{} }, options.cache);
 
-        zx.Sha256.hash(identity, &digest, .{});
-
-        const module_name = try std.fmt.allocPrint(allocator, "zxc_store_initial_{s}", .{std.fmt.bytesToHex(digest, .lower)});
-        var program = initial.program.*;
-        program.file_name = module_name;
-        const source = try modules.emit(allocator, program, .{ .types = shared.types, .functions = &.{} }, .entry, options.cache);
-
-        files.appendAssumeCapacity(.{ .name = module_name, .source = source, .imports = &.{} });
-        metadata.appendAssumeCapacity(.{ .identity = identity, .schema_version = initial.schema_version, .module_name = module_name, .type_name = shared.types[@backingInt(program.output_type)] });
+        files.appendAssumeCapacity(published.file);
+        metadata.appendAssumeCapacity(published.entry);
     }
 
     try identities.validate(&application.stores);
