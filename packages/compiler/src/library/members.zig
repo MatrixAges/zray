@@ -5,62 +5,90 @@ const Member = frontend.project.FunctionImport;
 const Nodes = frontend.ArtifactNodes;
 const Error = frontend.project.artifact.Error;
 const generated = @import("parser_options").generated_parser;
+const memory = @import("zx").memory;
+const Field = enum { name, intrinsic, id, input_type, output_type };
 
-pub fn complete(owned: std.mem.Allocator, temporary: std.mem.Allocator, analysis: *const frontend.AnalysisResult, entry_path: []const u8, nodes: *Nodes) Error![]const Member {
-    var result: std.ArrayList(Member) = .empty;
+const column_names = std.enums.EnumArray(Field, []const u8).init(.{
+    .name = "names", .intrinsic = "intrinsics", .id = "ids", .input_type = "inputs", .output_type = "outputs",
+});
 
-    try append(owned, temporary, &result, analysis.public_functions, false, nodes);
+pub fn complete(owned: std.mem.Allocator, analysis: *const frontend.AnalysisResult, entry_path: []const u8, nodes: *Nodes) Error![]const Member {
+    if (!generated) {
+        var result: std.ArrayList(Member) = .empty;
 
-    for (analysis.modules) |record| {
-        if (!std.mem.eql(u8, record.path, entry_path)) continue;
-        try append(owned, temporary, &result, record.reexports.functions, true, nodes);
+        try appendSeed(owned, &result, analysis.public_functions, false, nodes);
+
+        for (analysis.modules) |record| {
+            if (std.mem.eql(u8, record.path, entry_path)) try appendSeed(owned, &result, record.reexports.functions, true, nodes);
+        }
+
+        return result.items;
     }
 
-    return result.items;
-}
+    const rule = @import("generated_library_public_members");
+    const Input = std.meta.Child(rule.Input);
+    const Publication = std.meta.Child(@FieldType(Input, "public_members"));
+    const Source = std.meta.Child(@FieldType(Publication, "source"));
+    const Target = std.meta.Child(@FieldType(Publication, "target"));
 
-fn append(owned: std.mem.Allocator, temporary: std.mem.Allocator, result: *std.ArrayList(Member), source: []const Member, barrel: bool, nodes: *Nodes) Error!void {
-    if (source.len == 0) return;
-    if (!generated) return appendSeed(owned, result, source, barrel, nodes);
+    var output: memory.RowOutput(Member, Target, .{
+        .names = &.{"name"}, .intrinsics = &.{"intrinsic"}, .ids = &.{"id"},
+        .inputs = &.{"input_type"}, .outputs = &.{"output_type"}, .namespaces = &.{"namespace"},
+    }) = undefined;
 
-    const entry = @import("generated_library_public_members");
-    const Input = std.meta.Child(entry.Input);
-    const Source = std.meta.Child(@FieldType(Input, "source"));
-    const mapping = nodes.types.mapped;
-    const functions = nodes.functions.range;
-    var arena = std.heap.ArenaAllocator.init(temporary);
-    var buffer: [1024]u8 = undefined;
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    output.init();
 
-    defer arena.deinit();
+    const public = analysis.public_functions;
+    var direct: std.enums.EnumArray(Field, memory.ReadColumn) = undefined;
+    var lists: std.enums.EnumArray(Field, memory.ListColumn) = undefined;
+    var projected: std.enums.EnumArray(Field, memory.ReadColumn) = undefined;
+    var source: Source = undefined;
+    var members: std.meta.Child(@FieldType(Input, "members")) = undefined;
 
-    const memory = scratch.allocator();
-    const members = columns.columns(Source, try frontend.functionImportColumns(memory, source));
+    inline for (std.enums.values(Field)) |field| {
+        const name = @tagName(field);
+        const column = comptime column_names.get(field);
+        const Scalar = switch (field) { .name => []const u8, .intrinsic => ?u8, else => ?u32 };
+
+        direct.set(field, switch (field) {
+            .name => memory.borrowTextColumn(name, public),
+            .intrinsic => memory.borrowOptionalU8Column(name, public),
+            else => memory.borrowOptionalU32Column(name, public),
+        });
+
+        lists.set(field, memory.borrowListPath(Scalar, &.{ "reexports", "functions" }, &.{name}, analysis.modules));
+        @field(source, column) = @ptrCast(direct.getPtr(field));
+        @field(members, column) = @ptrCast(projected.getPtr(field));
+    }
+
+    source.count = public.len;
+
+    const paths = memory.borrowTextColumn("path", analysis.modules);
+    const projection: memory.ListProjection = .{ .sources = &lists.values, .target = &projected.values };
+    const range = nodes.functions.range;
 
     const input: Input = .{
-        .source = &members,
-        .mapping = @as([*]const u32, @ptrCast(mapping.ptr))[0..mapping.len],
-        .first = functions.first,
-        .function_count = functions.count,
-        .barrel = barrel,
+        .public_members = &.{
+            .source = &source,
+            .target = &output.view,
+            .type_ids = @ptrCast(nodes.types.mapped),
+            .functions = &.{ .kind = .Range, .dense = &.{}, .sparse = &.{}, .planned = &.{}, .first = range.first, .prefix = range.prefix, .count = range.count },
+            .entry = null,
+            .first = 0,
+            .anonymous = .Keep,
+        },
+        .records = &.{ .paths = @ptrCast(&paths), .names = @ptrCast(lists.getPtr(.name)), .intrinsics = @ptrCast(lists.getPtr(.intrinsic)), .count = analysis.modules.len, .entry_path = entry_path },
+        .storage = @ptrCast(&output.buffer),
+        .members = &members,
+        .projection = @ptrCast(&projection),
     };
 
-    const output = (columns.invoke(entry.executeValue, memory, &input) catch |err| switch (@as(anyerror, err)) {
+    const valid = columns.invoke(rule.executeValue, owned, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
-    }) orelse return error.InvalidModule;
+    };
 
-    try result.ensureUnusedCapacity(owned, output.names.len);
-
-    for (output.names, 0..) |name, index| {
-        result.appendAssumeCapacity(.{
-            .name = try owned.dupe(u8, name),
-            .id = if (output.ids[index]) |id| @fromBackingInt(id) else null,
-            .input_type = if (output.input_types[index]) |id| @fromBackingInt(id) else null,
-            .output_type = if (output.output_types[index]) |id| @fromBackingInt(id) else null,
-            .intrinsic = if (output.intrinsics[index]) |operation| @fromBackingInt(@intCast(@backingInt(operation))) else null,
-        });
-    }
+    return if (valid) output.rows() else error.InvalidModule;
 }
 
 fn appendSeed(owned: std.mem.Allocator, result: *std.ArrayList(Member), source: []const Member, barrel: bool, nodes: *Nodes) Error!void {

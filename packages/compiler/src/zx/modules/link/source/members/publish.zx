@@ -3,6 +3,7 @@ import memory from "memory"
 import columns from "memory/columns"
 
 import map from "../member"
+import { Anonymous } from "./model"
 
 import type { Input, Result } from "./model"
 
@@ -13,7 +14,7 @@ export default function (in: Input): Output {
 
     return loop({
         row: 0,
-        written: 0,
+        written: in.first,
         entry: in.entry,
         valid: true
     }, {
@@ -22,56 +23,65 @@ export default function (in: Input): Output {
             const index = state.row
             const intrinsic = memory.readColumnOptionalU8(source.intrinsics, index)
 
-            const member = map({
-                name: memory.readTextColumn(source.names, index),
-                id: memory.readColumnOptionalU32(source.ids, index),
-                input_type: memory.readColumnOptionalU32(source.inputs, index),
-                output_type: memory.readColumnOptionalU32(source.outputs, index),
-                intrinsic: intrinsic != null,
-                type_ids,
-                functions
-            })
-
-            if (member == null) {
-                state.valid = false
-            } else if (member.entry) {
-                state.valid = state.entry == null
-                state.entry = member.id
-            } else {
-                memory.writeColumnBytes(
-                    target.names,
-                    state.written,
-                    bytes.fromText(member.name)
-                )
-                columns.writeColumnOptionalU32(
-                    target.ids,
-                    state.written,
-                    member.id
-                )
-                columns.writeColumnOptionalU32(
-                    target.inputs,
-                    state.written,
-                    member.input_type
-                )
-                columns.writeColumnOptionalU32(
-                    target.outputs,
-                    state.written,
-                    member.output_type
-                )
-                columns.writeColumnOptionalU8(
-                    target.intrinsics,
-                    state.written,
-                    intrinsic
-                )
-                columns.writeColumnOptionalText(
-                    target.namespaces,
-                    state.written,
-                    null
-                )
-                state.written += 1
-            }
-
+            const name = memory.readTextColumn(source.names, index)
             state.row += 1
+
+            const keep = (
+                - in.anonymous != Anonymous.Skip
+                - or name != ""
+                - or intrinsic != null
+            )
+
+            if (keep) {
+                const member = map({
+                    name,
+                    id: memory.readColumnOptionalU32(source.ids, index),
+                    input_type: memory.readColumnOptionalU32(source.inputs, index),
+                    output_type: memory.readColumnOptionalU32(source.outputs, index),
+                    intrinsic: intrinsic != null,
+                    type_ids,
+                    functions
+                })
+
+                if (member == null) {
+                    state.valid = false
+                } else if (in.anonymous == Anonymous.Entry && member.entry) {
+                    state.valid = state.entry == null
+                    state.entry = member.id
+                } else {
+                    memory.writeColumnBytes(
+                        target.names,
+                        state.written,
+                        bytes.fromText(member.name)
+                    )
+                    columns.writeColumnOptionalU32(
+                        target.ids,
+                        state.written,
+                        member.id
+                    )
+                    columns.writeColumnOptionalU32(
+                        target.inputs,
+                        state.written,
+                        member.input_type
+                    )
+                    columns.writeColumnOptionalU32(
+                        target.outputs,
+                        state.written,
+                        member.output_type
+                    )
+                    columns.writeColumnOptionalU8(
+                        target.intrinsics,
+                        state.written,
+                        intrinsic
+                    )
+                    columns.writeColumnOptionalText(
+                        target.namespaces,
+                        state.written,
+                        null
+                    )
+                    state.written += 1
+                }
+            }
         },
         return: state => match {
             state.valid => {

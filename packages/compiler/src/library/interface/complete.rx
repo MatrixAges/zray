@@ -1,43 +1,27 @@
 <Module>
     <Type from="model" as="Interface" />
 
-    <Args in={Interface.Input} out={Interface.Output} />
+    <Args in={Interface.Input} out={Interface.Status} />
 
-    <Call
-        fn="../../zx/modules/compiled/loading/remap/ids"
-        in={{
-            values: $in.ids,
-            mapping: $in.mapping
-        }}
-    />
+    <Call fn="ports" in={$in.omit(["target"])} />
 
-    <If on={$in.executable}>
+    <If on={$ctx.ports.count != 0}>
         <Call
-            fn="ports"
+            fn="../../zx/modules/artifact/surface/allocate_exports"
             in={{
-                names: $in.names,
-                ids: $ctx.ids,
-                input_type: $in.input_type,
-                output_type: $in.output_type
+                target: $in.target,
+                count: $ctx.ports.count
             }}
         />
 
-        <Return
-            value={{
-                ids: $ctx.ids,
+        <Call
+            fn="publish"
+            in={{
+                ...$in.omit(["executable"]),
                 ports: $ctx.ports
             }}
         />
     </If>
 
-    <Return
-        value={{
-            ids: $ctx.ids,
-            ports: {
-                compatible: true,
-                input_name: null,
-                output_name: null
-            }
-        }}
-    />
+    <Return value={$ctx.ports.status} />
 </Module>

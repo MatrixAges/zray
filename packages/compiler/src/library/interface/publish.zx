@@ -1,0 +1,44 @@
+import integers from "std:integer"
+import strings from "std:string"
+import memory from "memory"
+
+import {
+    input_type_name,
+    output_type_name
+} from "../../zx/modules/compiled/const"
+
+import type { Input as Interface, Ports } from "./model"
+
+export type Input = Interface.Omit("executable") & {
+    ports: Ports
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target, count, mapping, ports } = in
+
+    const end = loop(0, {
+        while: row => row < count,
+        next: row => {
+            const name = strings.copy(memory.readRowName(source, row))
+            const id = mapping[integers.widen(memory.readRowId(source, row))]
+
+            memory.writeNamedRow(target, row, name, id)
+            row += 1
+        }
+    })
+
+    if (ports.add_input) {
+        memory.writeNamedRow(target, end, input_type_name, in.input_type)
+    }
+
+    if (ports.add_output) {
+        memory.writeNamedRow(
+            target,
+            ports.count - 1,
+            output_type_name,
+            in.output_type
+        )
+    }
+}

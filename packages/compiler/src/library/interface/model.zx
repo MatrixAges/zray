@@ -1,19 +1,24 @@
+import type { NamedRows, NamedRowBuffer } from "memory"
+
 export type Input = {
-    names: string[],
-    ids: u32[],
+    source: NamedRows,
+    count: u64,
+    target: NamedRowBuffer,
     mapping: u32[],
     input_type: u32,
     output_type: u32,
     executable: bool
 }
 
-export type Ports = {
-    compatible: bool,
-    input_name?: string,
-    output_name?: string
+export enum Status {
+    Valid,
+    InvalidModule,
+    ConflictingInterface
 }
 
-export type Output = {
-    ids: u32[],
-    ports: Ports
+export type Ports = {
+    status: Status,
+    count: u64,
+    add_input: bool,
+    add_output: bool
 }

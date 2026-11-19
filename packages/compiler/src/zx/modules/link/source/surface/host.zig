@@ -80,6 +80,8 @@ pub fn publish(input: *const Source.Input, storage: *const ir.FunctionStorage, n
     member_output.init();
 
     const members: Members = .{
+        .anonymous = .Entry,
+        .first = 0,
         .source = &.{
             .names = @ptrCast(&names),
             .intrinsics = @ptrCast(&intrinsics),

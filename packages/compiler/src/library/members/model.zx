@@ -1,11 +1,32 @@
-import type { Imports } from "../../zx/modules/function_import"
+import type { ListColumn, TextColumn } from "memory"
+import type {
+    ListProjection,
+    RowBuffer,
+    ListColumn as OptionalList
+} from "memory/columns"
+import type {
+    Input as Publication,
+    Source
+} from "../../zx/modules/link/source/members/model"
 
-export type Input = {
-    source: Imports,
-    mapping: u32[],
-    first: u64,
-    function_count: u64,
-    barrel: bool
+export type Records = {
+    paths: TextColumn,
+    names: ListColumn,
+    intrinsics: OptionalList,
+    count: u64,
+    entry_path: string
 }
 
-export type Output = Imports?
+export type Range = {
+    first: u64,
+    end: u64,
+    count: u64
+}
+
+export type Input = {
+    public_members: Publication,
+    records: Records,
+    projection: ListProjection,
+    members: Source.Omit("count"),
+    storage: RowBuffer
+}

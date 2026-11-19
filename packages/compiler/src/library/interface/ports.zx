@@ -1,43 +1,61 @@
+import integers from "std:integer"
+import memory from "memory"
+
 import {
     input_type_name,
     output_type_name
 } from "../../zx/modules/compiled/const"
+import { Status } from "./model"
 
-import type { Ports as Output } from "./model"
+import type { Input as Interface, Ports as Output } from "./model"
 
-export type Input = {
-    names: string[],
-    ids: u32[],
-    input_type: u32,
-    output_type: u32
-}
+export type Input = Interface.Omit("target")
 
 export default function (in: Input): Output {
-    return loop({
-        index: 0,
-        compatible: true,
-        has_input: false,
-        has_output: false
-    }, {
-        while: current => current.compatible && current.index < in.names.length,
-        next: current => {
-            const id = in.ids[current.index]
-            const name = in.names[current.index]
+    const { source, count, mapping, executable, input_type, output_type } = in
 
-            if (name == input_type_name) {
-                current.has_input = true
-                current.compatible = id == in.input_type
-            } else if (name == output_type_name) {
-                current.has_output = true
-                current.compatible = id == in.output_type
+    return loop({
+        row: 0,
+        status: Status.Valid,
+        add_input: executable,
+        add_output: executable
+    }, {
+        while: state => state.row < count && state.status != Status.InvalidModule,
+        next: state => {
+            const id = integers.widen(memory.readRowId(source, state.row))
+
+            if (id >= mapping.length) {
+                state.status = Status.InvalidModule
+            } else if (executable) {
+                const name = memory.readRowName(source, state.row)
+                const mapped = mapping[id]
+
+                if (name == input_type_name) {
+                    state.add_input = false
+
+                    if (mapped != input_type) {
+                        state.status = Status.ConflictingInterface
+                    }
+                } else if (name == output_type_name) {
+                    state.add_output = false
+
+                    if (mapped != output_type) {
+                        state.status = Status.ConflictingInterface
+                    }
+                }
             }
 
-            current.index += 1
+            state.row += 1
         },
-        return: current => ({
-            compatible: current.compatible,
-            input_name: current.has_input ? null : input_type_name,
-            output_name: current.has_output ? null : output_type_name
+        return: state => ({
+            status: state.status,
+            count: match {
+                state.status == Status.Valid =>
+                    count + (state.add_input ? 1 : 0) + (state.add_output ? 1 : 0),
+                _ => 0
+            },
+            add_input: state.add_input,
+            add_output: state.add_output
         })
     })
 }

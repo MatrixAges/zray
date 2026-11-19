@@ -1,0 +1,54 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import { Anonymous } from "../../zx/modules/link/source/members/model"
+import publish from "../../zx/modules/link/source/members/publish"
+
+import type { Input as Library, Range } from "./model"
+
+export type Input = Library.Omit("storage") & {
+    selected: Range,
+    first: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { records, members, selected, public_members } = in
+
+    return loop({
+        row: selected.first,
+        written: in.first,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < selected.end,
+        next: state => {
+            const row = state.row
+
+            if (
+                memory.readTextColumn(records.paths, row) == records.entry_path
+            ) {
+                columns.projectListColumns(in.projection, row)
+
+                const result = publish({
+                    ...public_members,
+                    first: state.written,
+                    anonymous: Anonymous.Skip,
+                    source: {
+                        ...members,
+                        count: memory.listLength(records.names, row)
+                    }
+                })
+
+                if (result == null) {
+                    state.valid = false
+                } else {
+                    state.written = result.written
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

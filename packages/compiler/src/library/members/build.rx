@@ -1,36 +1,32 @@
 <Module>
     <Type from="model" as="Members" />
 
-    <Args in={Members.Input} out={Members.Output} />
+    <Args in={Members.Input} out={bool} />
+
+    <Call fn="select" in={$in.records} />
 
     <Call
-        fn="select"
-        in={$in.pick([
-            "source",
-            "barrel"
-        ])}
-    />
-
-    <Call
-        fn="bounds"
+        fn="../../zx/modules/artifact/surface/allocate_rows"
         in={{
-            ids: $ctx.select.ids,
-            count: $in.function_count
+            storage: $in.storage,
+            count: $in.public_members.source.count + $ctx.select.count
         }}
     />
 
-    <If on={!$ctx.bounds}>
-        <Return value={null} />
+    <Call fn="../../zx/modules/link/source/members/publish" in={$in.public_members} />
+
+    <If on={$ctx.publish != null}>
+        <Call
+            fn="reexports"
+            in={{
+                ...$in.omit(["storage"]),
+                selected: $ctx.select,
+                first: $ctx.publish.written
+            }}
+        />
+
+        <Return value={$ctx.reexports} />
     </If>
 
-    <Call
-        fn="../../zx/modules/compiled/loading/members"
-        in={{
-            source: $ctx.select,
-            mapping: $in.mapping,
-            first: $in.first
-        }}
-    />
-
-    <Return value={$ctx.members} />
+    <Return value={false} />
 </Module>

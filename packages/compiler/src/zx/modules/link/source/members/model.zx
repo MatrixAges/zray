@@ -23,7 +23,15 @@ export type Target = {
     namespaces: OptionalColumn
 }
 
+export enum Anonymous {
+    Entry,
+    Keep,
+    Skip
+}
+
 export type Input = {
+    anonymous: Anonymous,
+    first: u64,
     source: Source,
     target: Target,
     entry?: u32,
