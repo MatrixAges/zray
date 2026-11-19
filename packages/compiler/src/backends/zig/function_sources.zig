@@ -134,7 +134,7 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
 
     try spread(Search, &search, arenas[0..@min(arenas.len, jobs.count())]);
 
-    const plan = try @import("function_sources_plan.zig").create(temporary, search.fetched);
+    const plan = try @import("function_sources_plan.zig").create(temporary, search.fetched, cache.storage != null);
 
     // Copy borrowed cache bytes before record can replace and release cache entries.
     if (comptime generated) {
@@ -143,14 +143,46 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
         try @import("function_sources_seed.zig").restore(owned, search.fetched, plan, sources, arenas);
     }
 
-    for (plan.records.first..plan.records.end) |position| {
-        const found = search.lookups[position];
-        _ = try cache.record(found.name, found.key, &search.fetched[position]);
+    if (comptime generated) {
+        try recordSearch(cache, &search, plan);
+    } else {
+        try recordFetched(cache, search.lookups, search.fetched);
     }
 
     try produce(owned, temporary, jobs, plan.pending, search.lookups, arenas, sources);
 
     return sources;
+}
+
+fn recordSearch(cache: *Cache, search: *Search, plan: @import("function_sources_plan.zig").Plan) std.mem.Allocator.Error!void {
+    // The first disk adoption joins a pending writer, which can replace the last I/O error.
+    if (cache.writer != null and plan.stored.len != 0 and plan.last_failure != null) {
+        return recordFetched(cache, search.lookups, search.fetched);
+    }
+
+    var remaining = plan.stored.len;
+
+    while (remaining != 0) {
+        remaining -= 1;
+        const index: usize = @intCast(plan.stored[remaining]);
+        const found = search.lookups[index];
+
+        _ = cache.record(found.name, found.key, &search.fetched[index]) catch |err| {
+            recordFetched(cache, search.lookups[0..index], search.fetched[0..index]) catch unreachable;
+
+            return err;
+        };
+    }
+
+    cache.reused += plan.reused.len - plan.stored.len;
+    cache.discarded += plan.discarded;
+    cache.io_errors += plan.failures;
+
+    if (plan.last_failure) |index| cache.last_io_error = search.fetched[index].failure.?;
+}
+
+fn recordFetched(cache: *Cache, lookups: []const Batch.Lookup, results: []Cache.Fetched) std.mem.Allocator.Error!void {
+    for (lookups, results) |found, *fetched| _ = try cache.record(found.name, found.key, fetched);
 }
 
 fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: Jobs, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {

@@ -220,38 +220,63 @@ fn writeAllInto(storage: Storage, writing: *Writing) void {
         storage: Storage,
         items: []const Unwritten,
         next: std.atomic.Value(usize) = .init(0),
-        written: std.atomic.Value(usize) = .init(0),
-        io_errors: std.atomic.Value(usize) = .init(0),
+        written: [writers]u64 = @splat(0),
+        failures: [writers]u64 = @splat(0),
         last_io_error: std.atomic.Value(u16) = .init(0),
-        fn run(records: *@This(), _: usize) void {
+        fn run(records: *@This(), participant: usize) void {
+            var written_count: u64 = 0;
+            var failed_count: u64 = 0;
+
             while (true) {
                 const index = records.next.fetchAdd(1, .monotonic);
 
-                if (index >= records.items.len) return;
+                if (index >= records.items.len) break;
 
                 const item = records.items[index];
 
                 const written = records.storage.write(std.heap.smp_allocator, item.key, item.source) catch |err| {
-                    _ = records.io_errors.fetchAdd(1, .monotonic);
+                    failed_count += 1;
 
                     records.last_io_error.store(@intFromError(err), .monotonic);
 
                     continue;
                 };
 
-                if (written) _ = records.written.fetchAdd(1, .monotonic);
+                if (written) written_count += 1;
             }
+
+            records.written[participant] = written_count;
+            records.failures[participant] = failed_count;
         }
     };
 
     const items = writing.queue.items;
     var records = Records{ .storage = storage, .items = items };
+    const participants = @min(writers, items.len);
 
-    @import("zx").parallel.spread(Records, &records, Records.run, @min(writers, items.len));
-    writing.written += records.written.load(.monotonic);
-    writing.io_errors += records.io_errors.load(.monotonic);
+    @import("zx").parallel.spread(Records, &records, Records.run, participants);
+
+    collectWrites(writing, records.written[0..participants], records.failures[0..participants]);
 
     if (records.last_io_error.load(.monotonic) != 0) writing.last_io_error = @errorFromInt(records.last_io_error.load(.monotonic));
+}
+
+fn collectWrites(writing: *Writing, written: []const u64, failures: []const u64) void {
+    if (comptime !@import("parser_options").generated_parser) {
+        for (written, failures) |count, errors| {
+            writing.written += @intCast(count);
+            writing.io_errors += @intCast(errors);
+        }
+
+        return;
+    }
+
+    const summary = @import("generated_generation_cache_write_results");
+    const input: std.meta.Child(summary.Input) = .{ .written = written, .failures = failures };
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const totals = @import("zx").columns.invoke(summary.executeValue, fixed.allocator(), &input) catch unreachable;
+    writing.written += @intCast(totals.written);
+    writing.io_errors += @intCast(totals.failures);
 }
 
 const writers = 8;

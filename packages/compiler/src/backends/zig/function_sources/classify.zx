@@ -1,63 +1,74 @@
 import memory from "memory"
 
-import type { Input, Output } from "./model"
+import type { Disk, Input, Output } from "./model"
 
 export default function (in: Input): Output {
     const { lookup } = in
 
-    const first: u64? = null
+    const disk: Disk? = match {
+        lookup != null => lookup.disk,
+        _ => null
+    }
+
+    const first_failure: u64? = null
 
     return loop({
         index: 0,
         reused: 0,
         pending: 0,
         size: 0,
-        record_first: first,
-        record_end: 0
+        stored: 0,
+        discarded: 0,
+        failures: 0,
+        last_failure: first_failure
     }, {
-        while: current => current.index < in.count,
-        next: current => {
-            const { index } = current
+        while: state => state.index < in.count,
+        next: state => {
+            const { index } = state
             const source = memory.readOptionalTextColumn(in.sources, index)
-
-            if (lookup != null) {
-                const recordable =
-                    source != null ||
-                    memory.readColumnU8(lookup.kinds, index) != lookup.absent
-
-                if (recordable) {
-                    if (current.record_first == null) {
-                        current.record_first = index
-                    }
-
-                    current.record_end = index + 1
-                }
-            }
 
             if (source == null) {
                 if (lookup != null) {
-                    memory.writeU64(lookup.pending, current.pending, index)
+                    memory.writeU64(lookup.pending, state.pending, index)
                 }
 
-                current.pending += 1
+                state.pending += 1
             } else {
                 if (lookup != null) {
-                    memory.writeU64(lookup.reused, current.reused, index)
+                    memory.writeU64(lookup.reused, state.reused, index)
                 }
 
-                memory.writeU64(in.offsets, current.reused, current.size)
-                current.reused += 1
-                current.size += source.length
+                memory.writeU64(in.offsets, state.reused, state.size)
+                state.reused += 1
+                state.size += source.length
             }
 
-            current.index += 1
+            if (disk != null) {
+                const kind = memory.readColumnU8(disk.kinds, index)
+
+                if (kind == disk.stored && lookup != null) {
+                    state.stored += 1
+                    const tail = in.count - state.stored
+
+                    memory.writeU64(lookup.pending, tail, index)
+                } else if (kind == disk.invalid) {
+                    state.discarded += 1
+                } else if (kind == disk.failed) {
+                    state.failures += 1
+                    state.last_failure = index
+                }
+            }
+
+            state.index += 1
         },
-        return: current => {
-            reused: current.reused,
-            pending: current.pending,
-            size: current.size,
-            record_first: current.record_first,
-            record_end: current.record_end
-        }
+        return: state => ({
+            reused: state.reused,
+            pending: state.pending,
+            size: state.size,
+            stored: state.stored,
+            discarded: state.discarded,
+            failures: state.failures,
+            last_failure: state.last_failure
+        })
     })
 }

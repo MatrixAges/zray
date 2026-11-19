@@ -1,0 +1,30 @@
+export type Input = {
+    written: u64[],
+    failures: u64[]
+}
+
+export type Output = {
+    written: u64,
+    failures: u64
+}
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        written: 0,
+        failures: 0
+    }, {
+        while: state => state.index < in.written.length,
+        next: state => {
+            const { index } = state
+
+            state.written += in.written[index]
+            state.failures += in.failures[index]
+            state.index += 1
+        },
+        return: state => ({
+            written: state.written,
+            failures: state.failures
+        })
+    })
+}

@@ -1,8 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const printer = @import("../../printer/module.zig");
-const Alias = @import("../abi_view.zig").Alias;
 const generated = @import("generated_abi_view");
+const Input = std.meta.Child(generated.Input);
+pub const Alias = std.meta.Child(std.meta.Child(@FieldType(Input, "aliases")));
 
 pub fn render(allocator: std.mem.Allocator, type_names: []const []const u8, aliases: []const Alias, imported: bool) std.mem.Allocator.Error![]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -14,8 +15,6 @@ pub fn render(allocator: std.mem.Allocator, type_names: []const []const u8, alia
 
     return print(allocator, temporary, type_names, borrowed, imported);
 }
-
-const Input = std.meta.Child(generated.Input);
 
 pub fn renderBorrowed(allocator: std.mem.Allocator, type_names: []const []const u8, aliases: anytype, imported: bool) std.mem.Allocator.Error![]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);

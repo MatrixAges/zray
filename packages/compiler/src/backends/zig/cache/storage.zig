@@ -2,15 +2,18 @@ const std = @import("std");
 const Self = @This();
 const envelope = @import("envelope.zig");
 const stack_capacity = 256;
+const path_capacity = 512;
 
 io: std.Io,
 directory: []const u8,
 compiler_hex: [64]u8,
 pub fn read(self: Self, allocator: std.mem.Allocator, key: [32]u8) !?[]u8 {
     const key_hex = std.fmt.bytesToHex(key, .lower);
-    const path = try self.filePath(allocator, &key_hex);
+    var path_buffer: [path_capacity]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&path_buffer, allocator);
+    const path = try self.filePath(scratch.allocator(), &key_hex);
 
-    defer allocator.free(path);
+    defer scratch.allocator().free(path);
 
     const file = std.Io.Dir.cwd().openFile(self.io, path, .{}) catch |err| switch (err) {
         error.FileNotFound => return null,
@@ -63,9 +66,11 @@ pub fn write(self: Self, allocator: std.mem.Allocator, key: [32]u8, source: []co
         self.seedHeader(&buffer, &key_hex, source.len, false);
 
     const header_bytes = (header orelse return false).bytes;
-    const path = try self.filePath(allocator, &key_hex);
+    var path_buffer: [path_capacity]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&path_buffer, allocator);
+    const path = try self.filePath(scratch.allocator(), &key_hex);
 
-    defer allocator.free(path);
+    defer scratch.allocator().free(path);
 
     const directory = std.Io.Dir.cwd();
 
@@ -80,8 +85,13 @@ pub fn write(self: Self, allocator: std.mem.Allocator, key: [32]u8, source: []co
 
     defer file.close(self.io);
 
-    try file.writeStreamingAll(self.io, header_bytes);
-    try file.writeStreamingAll(self.io, source);
+    const written = try file.writeStreaming(self.io, header_bytes, &.{source}, 1);
+
+    if (written < header_bytes.len) try file.writeStreamingAll(self.io, header_bytes[written..]);
+
+    const payload_written = written -| header_bytes.len;
+
+    try file.writeStreamingAll(self.io, source[payload_written..]);
 
     return true;
 }
@@ -106,5 +116,22 @@ fn seedHeader(self: *const Self, buffer: []u8, key: []const u8, size: u64, readi
 }
 
 fn filePath(self: Self, allocator: std.mem.Allocator, key: []const u8) std.mem.Allocator.Error![]u8 {
-    return std.fmt.allocPrint(allocator, "{s}/{s}.cache", .{ self.directory, key });
+    if (comptime !@import("parser_options").generated_parser) return std.fmt.allocPrint(allocator, "{s}/{s}.cache", .{ self.directory, key });
+
+    const path = @import("generated_generation_cache_path");
+    const constants = @import("generated_generation_cache_constants").@"zx.constants";
+    const suffix = 1 + constants.cache_suffix.len;
+    const prefix = std.math.add(usize, self.directory.len, key.len) catch return error.OutOfMemory;
+    const length = std.math.add(usize, prefix, suffix) catch return error.OutOfMemory;
+    const buffer = try allocator.alloc(u8, length);
+
+    errdefer allocator.free(buffer);
+
+    var writer: std.Io.Writer = .fixed(buffer);
+    const input: std.meta.Child(path.Input) = .{ .writer = @ptrCast(&writer), .directory = self.directory, .key = key };
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    try @import("zx").columns.invoke(path.executeValue, fixed.allocator(), &input);
+
+    return buffer;
 }

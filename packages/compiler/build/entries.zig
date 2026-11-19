@@ -472,6 +472,8 @@ pub const main = [_]Entry{
     .{ .path = "inputs/fingerprint/text.zx", .name = "input_text_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/output_header.zx", .name = "input_output_fingerprint", .owner = .compiler },
     .{ .path = "inputs/fingerprint/snapshot.zx", .name = "input_snapshot_fingerprint", .owner = .compiler },
+    .{ .path = "backends/zig/cache/envelope/path.zx", .name = "generation_cache_path", .owner = .compiler },
+    .{ .path = "backends/zig/cache/write_results.zx", .name = "generation_cache_write_results", .owner = .compiler },
     .{ .path = "backends/zig/cache/envelope/frame.rx", .name = "generation_cache_envelope", .owner = .compiler },
     .{ .path = "backends/zig/cache/envelope/const.zx", .name = "generation_cache_constants", .owner = .compiler },
     .{ .path = "backends/zig/cache/envelope/layout.zx", .name = "generation_cache_layout", .owner = .compiler },

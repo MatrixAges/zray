@@ -11,10 +11,13 @@ pub const Plan = struct {
     pending: []const u64,
     offsets: []const u64,
     size: usize,
-    records: struct { first: usize, end: usize },
+    stored: []const u64 = &.{},
+    discarded: usize = 0,
+    failures: usize = 0,
+    last_failure: ?usize = null,
 };
 
-pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched) std.mem.Allocator.Error!Plan {
+pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, persistent: bool) std.mem.Allocator.Error!Plan {
     if (comptime !@import("parser_options").generated_parser) return @import("function_sources_seed.zig").create(allocator, fetched);
 
     const count = fetched.len;
@@ -25,10 +28,17 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched) std.
     const offsets = rows[count * 2 ..];
     const sources = zx.memory.borrowReadColumn(?[]const u8, "source", fetched);
     const kinds = zx.memory.borrowReadColumn(Cache.Fetched.Kind, "kind", fetched);
+    const Disk = std.meta.Child(@typeInfo(@FieldType(Lookup, "disk")).optional.child);
+
+    const disk: Disk = .{
+        .kinds = @ptrCast(&kinds),
+        .stored = @backingInt(Cache.Fetched.Kind.stored),
+        .invalid = @backingInt(Cache.Fetched.Kind.invalid),
+        .failed = @backingInt(Cache.Fetched.Kind.failed),
+    };
 
     const lookup: Lookup = .{
-        .kinds = @ptrCast(&kinds),
-        .absent = @backingInt(Cache.Fetched.Kind.absent),
+        .disk = if (persistent) &disk else null,
         .reused = @ptrCast(&reused),
         .pending = @ptrCast(&pending),
     };
@@ -41,7 +51,10 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched) std.
         .pending = pending[0..@intCast(output.pending)],
         .offsets = offsets[0..hits],
         .size = std.math.cast(usize, output.size) orelse return error.OutOfMemory,
-        .records = .{ .first = @intCast(output.record_first orelse 0), .end = @intCast(output.record_end) },
+        .stored = pending[count - @as(usize, @intCast(output.stored)) ..],
+        .discarded = @intCast(output.discarded),
+        .failures = @intCast(output.failures),
+        .last_failure = if (output.last_failure) |index| @intCast(index) else null,
     };
 }
 

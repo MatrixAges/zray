@@ -1,8 +1,14 @@
 import type { ReadColumn, StringBuffer, U8Buffer, U64Buffer } from "memory"
 
-export type Lookup = {
+export type Disk = {
     kinds: ReadColumn,
-    absent: u8,
+    stored: u8,
+    invalid: u8,
+    failed: u8
+}
+
+export type Lookup = {
+    disk?: Disk,
     reused: U64Buffer,
     pending: U64Buffer
 }
@@ -18,8 +24,10 @@ export type Output = {
     reused: u64,
     pending: u64,
     size: u64,
-    record_first?: u64,
-    record_end: u64
+    stored: u64,
+    discarded: u64,
+    failures: u64,
+    last_failure?: u64
 }
 
 export type Copy = {
