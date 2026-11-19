@@ -167,18 +167,9 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
     for (entry_roots, public_batches) |*entry, *public_batch| entry.* = &public_batch.program;
 
-    const needed = try references.discover(workspace, allocator, program.functions, entry_roots, publication.member_ids);
-    const units = try modules.functionUnitsWith(workspace, needed, publication.regular);
-    const Job = @import("function_sources.zig").Job;
-    const jobs = try workspace.alloc(Job, public_batches.len + 1 + units.len);
-
-    for (jobs[0..public_batches.len], public_batches) |*job, *public_batch| job.* = .{ .batch = public_batch, .unit = .entry };
-
-    jobs[public_batches.len] = .{ .batch = &batch, .unit = .types };
-
-    for (jobs[public_batches.len + 1 ..], units) |*job, unit| job.* = .{ .batch = &batch, .unit = unit };
-
-    const generated = try @import("function_sources.zig").createJobs(owned, allocator, jobs);
+    const graph = try references.plan(workspace, allocator, program.functions, entry_roots, publication.member_ids);
+    const units = try @import("function_units.zig").create(workspace, graph, publication.regular);
+    const generated = try @import("function_sources.zig").createJobs(owned, .{ .batch = &batch, .entries = public_batches, .types = true, .functions = units });
 
     for (public_modules, generated[0..public_batches.len]) |*public_module, source| public_module.file.source = source;
 
@@ -198,7 +189,7 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
         .arena = arena,
         .public_modules = public_modules,
         .types = type_source,
-        .signatures = if (options.signatures) try @import("genz").zx.modules.signatures(owned, batch.backing, program, identities, batch.analysis.value, units) else null,
+        .signatures = if (options.signatures) try @import("genz").zx.modules.functionSignatures(owned, batch.backing, program, identities, batch.analysis.value, units) else null,
         .modules = files,
         .type_names = type_names,
         .native_modules = native_modules,

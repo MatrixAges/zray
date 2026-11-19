@@ -1,71 +1,42 @@
 import integers from "std:integer"
-import { ExpressionKind } from "core/expression_table/kinds"
 
-import type { Imports } from "./model"
-
-export type Input = Imports
+import type { Imports as Input } from "./model"
 
 export type Output = string[]
 
 export default function (in: Input): Output {
-    const names: string[] = []
+    const { body, members, names } = in
 
-    const collected = loop({
-        body: in.body,
-        names: in.names,
-        values: names,
-        table: 0
-    }, {
-        while: current => current.table <= current.body.contracts.expressions.length,
-        next: current => {
-            const expressions = match {
-                current.table == 0 => current.body.expressions,
-                _ => current.body.contracts.expressions[current.table - 1]
-            }
-
-            current.values = loop({
-                expressions,
-                names: current.names,
-                values: current.values,
-                index: 0
-            }, {
-                while: items => items.index < items.expressions.kinds.length,
-                next: items => {
-                    if (
-                        items.expressions.kinds[items.index] == ExpressionKind.Call
-                    ) {
-                        const callee_input = integers.widen(
-                            items.expressions.payloads[items.index]
-                        )
-
-                        const callee =
-                            integers.widen(
-                                items.expressions.call_functions[callee_input]
-                            )
-
-                        items.values = items.values.push(items.names[callee])[0]
-                    }
-
-                    items.index += 1
-                },
-                return: state => state.values
-            })
-            current.table += 1
-        }
-    })
+    const contracts = body.contracts.expressions
+    const empty: string[] = []
 
     return loop({
-        members: in.members,
-        names: in.names,
-        values: collected.values,
-        index: 0
+        table: 0,
+        values: empty
     }, {
-        while: current => current.index < current.members.length,
-        next: current => {
-            const member = integers.widen(current.members[current.index])
+        while: state => state.table <= contracts.length + 1,
+        next: state => {
+            const ids = match {
+                state.table == 0 => body.expressions.call_functions,
+                state.table <= contracts.length =>
+                    contracts[state.table - 1].call_functions,
+                _ => members
+            }
 
-            current.values = current.values.push(current.names[member])[0]
-            current.index += 1
+            state.values = loop({
+                row: 0,
+                values: state.values
+            }, {
+                while: items => items.row < ids.length,
+                next: items => {
+                    const id = integers.widen(ids[items.row])
+
+                    items.values = items.values.push(names[id])[0]
+                    items.row += 1
+                },
+                return: items => items.values
+            })
+            state.table += 1
         },
         return: state => state.values
     })

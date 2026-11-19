@@ -1,0 +1,1 @@
+export const reachable: u8 = 1

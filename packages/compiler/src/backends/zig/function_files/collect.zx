@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
-import get from "core/bytes/index/fixed"
+import integers from "std:integer"
+import probe from "core/bytes/index/slot"
 import memory from "memory"
 
 import type { Input, Output } from "./model"
@@ -10,24 +11,27 @@ export default function (in: Input): Output {
         count: 0,
         index: 0
     }, {
-        while: current => current.valid && current.index < in.keys.length,
+        while: current => current.valid && current.index < in.sources.length,
         next: current => {
             const { index } = current
-            const found = get({
+            const id = memory.readColumnU32(in.ids, index)
+            const found = probe({
                 ...in.pick([
                     "keys",
                     "buckets",
                     "capacity"
                 ]),
-                key: in.keys[index],
-                insert: index
+                rows: in.ids,
+                key: in.keys[integers.widen(id)]
             })
 
-            if (found == null) {
+            if (found.entry == 0) {
+                memory.writeU64(in.buckets, found.slot, index + 1)
                 memory.writeU64(in.selected, current.count, index)
                 current.count += 1
             } else {
-                current.valid = bytes.equals(in.sources[found], in.sources[index])
+                current.valid =
+                    bytes.equals(in.sources[found.entry - 1], in.sources[index])
             }
 
             current.index += 1

@@ -13,17 +13,24 @@ pub fn reachable(allocator: std.mem.Allocator, workspace: std.mem.Allocator, pro
 }
 
 pub fn discover(allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: ir.FunctionTable, roots: []const *const ir.Program, members: []const ir.FunctionId) std.mem.Allocator.Error![]const bool {
+    return (try plan(allocator, workspace, functions, roots, members)).needed;
+}
+
+pub const Reachability = struct { needed: []const bool, count: usize };
+
+pub fn plan(allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: ir.FunctionTable, roots: []const *const ir.Program, members: []const ir.FunctionId) std.mem.Allocator.Error!Reachability {
+    const needed = try allocator.alloc(bool, functions.count());
+
+    errdefer allocator.free(needed);
+
     if (!@import("genz_options").generated_analysis) {
-        const needed = try allocator.alloc(bool, functions.count());
-
         @memset(needed, false);
-
         for (roots) |program| seed.markRoot(needed, program.*);
         for (members) |id| needed[@backingInt(id)] = true;
 
         seed.close(needed, functions);
 
-        return needed;
+        return .{ .needed = needed, .count = std.mem.countScalar(bool, needed, true) };
     }
 
     const generated = @import("generated_reference_graph");
@@ -47,18 +54,23 @@ pub fn discover(allocator: std.mem.Allocator, workspace: std.mem.Allocator, func
         .contracts = zx.columns.slice(@FieldType(Functions, "contracts"), functions.contracts),
     };
 
+    comptime std.debug.assert(@sizeOf(bool) == 1);
+
+    const flags = std.mem.sliceAsBytes(needed);
+
     const input = Input{
+        .needed = @ptrCast(&flags),
         .functions = &table,
         .roots = try bodies.finish(temporary),
         .members = @as([*]const u32, @ptrCast(members.ptr))[0..members.len],
     };
 
-    const output = generated.executeIn(temporary, &input) catch |err| switch (err) {
+    const count = zx.columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return allocator.dupe(bool, output);
+    return .{ .needed = needed, .count = @intCast(count) };
 }
 
 pub fn imports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, expressions: ir.ExpressionTable, contracts: ir.ContractTable, names: []const []const u8, members: []const ir.FunctionId) std.mem.Allocator.Error![]const []const u8 {

@@ -1,7 +1,8 @@
 import type { Table } from "core/bytes/index/fixed"
-import type { U64Buffer } from "memory"
+import type { ReadColumn, U64Buffer } from "memory"
 
 export type Input = Table & {
+    ids: ReadColumn,
     sources: u8[][],
     selected: U64Buffer
 }

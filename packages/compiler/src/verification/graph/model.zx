@@ -1,4 +1,4 @@
-import type { Input as Slot } from "core/bytes/index/slot"
+import type { Lookup as Slot } from "core/bytes/index/slot"
 
 export type Lookup = Slot & {
     widths: u16[],

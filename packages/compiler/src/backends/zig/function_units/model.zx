@@ -1,0 +1,21 @@
+import type { ReadColumn, WriteColumn } from "memory"
+import type { RowBuffer } from "memory/columns"
+
+export type Target = {
+    ids: WriteColumn,
+    regular: WriteColumn
+}
+
+export type Input = {
+    needed: bool[],
+    count: u64,
+    regular: u8[],
+    storage: RowBuffer,
+    target: Target
+}
+
+export type View = {
+    ids: ReadColumn,
+    regular: ReadColumn,
+    count: u64
+}

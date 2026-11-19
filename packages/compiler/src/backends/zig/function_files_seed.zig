@@ -6,7 +6,7 @@ const modules = @import("modules.zig");
 const File = modules.File;
 const Error = modules.Error;
 
-pub fn create(owned: std.mem.Allocator, batch: *const Batch, units: []generating.Unit, sources: [][]const u8, roots: []const []const u8) Error![]const File {
+pub fn create(owned: std.mem.Allocator, batch: *const Batch, units: []generating.FunctionUnit, sources: [][]const u8, roots: []const []const u8) Error![]const File {
     const program = batch.program;
     const identities = batch.names;
     var files: std.ArrayList(File) = .empty;
@@ -15,11 +15,7 @@ pub fn create(owned: std.mem.Allocator, batch: *const Batch, units: []generating
     try @import("regular_calls.zig").complete(owned, batch, roots, units, sources);
 
     for (units, sources) |unit, source| {
-        const index = @backingInt(switch (unit) {
-            .function, .regular => |id| id,
-            else => unreachable,
-        });
-
+        const index = @backingInt(unit.id);
         const function = program.functions.at(index);
 
         const file = File{

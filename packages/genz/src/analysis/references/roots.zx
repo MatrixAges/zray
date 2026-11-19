@@ -1,39 +1,32 @@
-import integers from "std:integer"
+import memory from "memory"
 
 import mark from "./mark"
+import markIds from "./mark_ids"
 
 import type { Input } from "./model"
 
-export type Output = bool[]
+export type Output = u64
 
 export default function (in: Input): Output {
-    const marked = loop({
-        members: in.members,
-        needed: in.functions.expressions.map(body => false)[0],
-        index: 0
-    }, {
-        while: current => current.index < current.members.length,
-        next: current => {
-            current.needed[integers.widen(
-                current.members[current.index]
-            )] = true
-            current.index += 1
-        }
-    })
+    const { needed, members, roots } = in
+
+    memory.fillByteRange(needed, 0, in.functions.expressions.length, 0)
 
     return loop({
-        roots: in.roots,
-        needed: marked.needed,
-        index: 0
+        row: 0,
+        count: markIds({
+            ids: members,
+            needed
+        })
     }, {
-        while: current => current.index < current.roots.length,
-        next: current => {
-            current.needed = mark({
-                body: current.roots[current.index],
-                needed: current.needed
+        while: state => state.row < roots.length,
+        next: state => {
+            state.count += mark({
+                body: roots[state.row],
+                needed
             })
-            current.index += 1
+            state.row += 1
         },
-        return: state => state.needed
+        return: state => state.count
     })
 }

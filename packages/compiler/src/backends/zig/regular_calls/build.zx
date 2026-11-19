@@ -15,26 +15,28 @@ export default function (in: Input): Output {
         position: 0,
         count: 0
     }, {
-        while: current => current.position < units.length,
+        while: current => current.position < units.count,
         next: current => {
-            const id = units[current.position]
-
-            if (id != null && values[integers.widen(id)]) {
-                const index = integers.widen(id)
-                const group = find({
-                    keys,
-                    buckets,
-                    capacity,
-                    key: keys[index],
-                    insert: index
-                })
-
-                memory.writeU64(groups, current.position, group ?? index)
-                memory.writeU64(pending, current.count, current.position)
-                current.count += 1
-            }
-
+            const row = current.position
             current.position += 1
+
+            if (!memory.readColumnBool(units.regular, row)) {
+                const index = integers.widen(memory.readColumnU32(units.ids, row))
+
+                if (values[index]) {
+                    const group = find({
+                        keys,
+                        buckets,
+                        capacity,
+                        key: keys[index],
+                        insert: index
+                    })
+
+                    memory.writeU64(groups, row, group ?? index)
+                    memory.writeU64(pending, current.count, row)
+                    current.count += 1
+                }
+            }
         },
         return: current => current.count
     })

@@ -1,5 +1,6 @@
 import type { Contracts } from "core/contract_table/model"
 import type { Expressions } from "core/expression_table/model"
+import type { U8Buffer } from "memory"
 
 export type Body = {
     expressions: Expressions,
@@ -14,6 +15,7 @@ export type Functions = {
 export type Input = {
     functions: Functions,
     roots: Body[],
+    needed: U8Buffer,
     members: u32[]
 }
 

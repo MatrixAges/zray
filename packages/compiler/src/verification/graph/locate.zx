@@ -1,6 +1,6 @@
 import probe from "core/bytes/index/slot"
 
-import type { Input, Output } from "core/bytes/index/slot"
+import type { Lookup as Input, Output } from "core/bytes/index/slot"
 
 export default function (in: Input): Output {
     if (in.capacity == 0) {
@@ -10,5 +10,8 @@ export default function (in: Input): Output {
         }
     }
 
-    return probe(in)
+    return probe({
+        ...in,
+        rows: null
+    })
 }

@@ -10,7 +10,7 @@ const needle = "\")).call(";
 
 /// Gives `call` to every value function in `units` that `roots` or the files reach through it, regenerating those
 /// files until every `call` they reach exists; `sources` are the files of `units` and are updated in place.
-pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, units: []generating.Unit, sources: [][]const u8) generating.Error!void {
+pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, units: []generating.FunctionUnit, sources: [][]const u8) generating.Error!void {
     var scratch = std.heap.ArenaAllocator.init(batch.backing);
 
     defer scratch.deinit();
@@ -22,8 +22,8 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
     @memset(wanted, false);
 
-    for (units) |unit| if (unit == .function and values[@backingInt(unit.function)]) {
-        try modules.put(temporary, batch.names.functions[@backingInt(unit.function)], @backingInt(unit.function));
+    for (units) |unit| if (!unit.regular and values[@backingInt(unit.id)]) {
+        try modules.put(temporary, batch.names.functions[@backingInt(unit.id)], @backingInt(unit.id));
     };
 
     if (modules.count() == 0) return;
@@ -35,24 +35,22 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
         try function_sources.spread(Scan, &scan, try arenas(temporary, scanned.len));
 
-        var added: std.ArrayList(generating.Unit) = .empty;
-        var positions: std.ArrayList(usize) = .empty;
+        var positions: std.ArrayList(u64) = .empty;
 
-        for (units, 0..) |*unit, position| if (unit.* == .function and values[@backingInt(unit.function)]) {
-            const id = unit.function;
+        for (units, 0..) |*unit, position| if (!unit.regular and values[@backingInt(unit.id)]) {
+            const id = unit.id;
             const representative = modules.get(batch.names.functions[@backingInt(id)]).?;
 
             if (!wanted[representative]) continue;
 
-            unit.* = .{ .regular = id };
+            unit.regular = true;
 
-            try added.append(temporary, unit.*);
             try positions.append(temporary, position);
         };
 
-        if (added.items.len == 0) return;
+        if (positions.items.len == 0) return;
 
-        const regenerated = try function_sources.create(owned, batch, added.items);
+        const regenerated = try function_sources.createJobs(owned, .{ .batch = batch, .functions = units, .positions = positions.items });
 
         for (positions.items, regenerated) |position, source| sources[position] = source;
 

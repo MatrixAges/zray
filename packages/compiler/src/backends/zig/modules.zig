@@ -69,10 +69,13 @@ pub fn createCached(allocator: std.mem.Allocator, analysis: *const Analysis, cac
     defer batch.deinit();
 
     const identities = batch.names;
-    const needed = try references.reachable(owned, allocator, program);
+    const graph = try references.plan(allocator, allocator, program.functions, &.{&program}, &.{});
+
+    defer allocator.free(graph.needed);
+
     const entry = File{ .name = "application", .source = try batch.emit(owned, .entry), .imports = try references.imports(owned, allocator, program.expressions, program.contracts, identities.functions, &.{}) };
     const native_modules = try nativeModules(owned, program);
-    const modules = try functionFilesAnalyzed(owned, &batch, needed, &.{entry.source}, native_modules.import_names);
+    const modules = try functionFilesPlanned(owned, &batch, graph, &.{entry.source}, native_modules.import_names);
     const type_source = try batch.emit(owned, .types);
     const type_names = try typeNamesAnalyzed(owned, batch.backing, program, identities, batch.analysis.value.value.state);
 
@@ -114,39 +117,21 @@ pub fn emitPrepared(allocator: std.mem.Allocator, program: @import("zx").ir.Prog
 
 /// The files of the `needed` functions; `roots` are the other generated sources that call into them.
 pub fn functionFilesAnalyzed(owned: std.mem.Allocator, batch: *const Batch, needed: []const bool, roots: []const []const u8, native_names: []const []const u8) Error![]const File {
-    const units = try functionUnits(owned, needed);
-    const sources = try @import("function_sources.zig").create(owned, batch, units);
+    return functionFilesPlanned(owned, batch, .{ .needed = needed, .count = std.mem.countScalar(bool, needed, true) }, roots, native_names);
+}
+
+fn functionFilesPlanned(owned: std.mem.Allocator, batch: *const Batch, graph: references.Reachability, roots: []const []const u8, native_names: []const []const u8) Error![]const File {
+    const units = try @import("function_units.zig").create(batch.backing, graph, &.{});
+
+    defer batch.backing.free(units);
+
+    const sources = try @import("function_sources.zig").createJobs(owned, .{ .batch = batch, .functions = units });
 
     return functionFilesFrom(owned, batch, units, sources, roots, native_names);
 }
 
-/// The units of the `needed` functions.
-pub fn functionUnits(owned: std.mem.Allocator, needed: []const bool) std.mem.Allocator.Error![]generating.Unit {
-    return functionUnitsWith(owned, needed, &.{});
-}
-
-pub fn functionUnitsWith(owned: std.mem.Allocator, needed: []const bool, regular: []const u8) std.mem.Allocator.Error![]generating.Unit {
-    var units: std.ArrayList(generating.Unit) = .empty;
-
-    for (needed, 0..) |wanted, index| {
-        if (!wanted) continue;
-
-        const id: @import("zx").ir.FunctionId = @fromBackingInt(@intCast(index));
-
-        const unit: generating.Unit = if (regular.len != 0 and regular[index] != 0)
-            .{ .regular = id }
-
-        else
-            .{ .function = id };
-
-        try units.append(owned, unit);
-    }
-
-    return units.toOwnedSlice(owned);
-}
-
 /// The files of function `units` from their generated `sources`, once the `roots` that call them are known.
-pub fn functionFilesFrom(owned: std.mem.Allocator, batch: *const Batch, units: []generating.Unit, sources: [][]const u8, roots: []const []const u8, native_names: []const []const u8) Error![]const File {
+pub fn functionFilesFrom(owned: std.mem.Allocator, batch: *const Batch, units: []generating.FunctionUnit, sources: [][]const u8, roots: []const []const u8, native_names: []const []const u8) Error![]const File {
     if (comptime !@import("parser_options").generated_parser) return @import("function_files_seed.zig").create(owned, batch, units, sources, roots);
     try @import("regular_calls.zig").complete(owned, batch, roots, units, sources);
 
@@ -161,7 +146,7 @@ pub fn functionFilesFrom(owned: std.mem.Allocator, batch: *const Batch, units: [
 
     for (selected, files) |position, *file| {
         const row: usize = @intCast(position);
-        const index = registry.id(units[row]);
+        const index = @backingInt(units[row].id);
 
         file.* = .{
             .name = names_for_files[index],

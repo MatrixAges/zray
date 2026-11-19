@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { needed, regular, target, count } = in
+
+    columns.allocateRows(in.storage, count)
+
+    if (count == 0) {
+        return
+    }
+
+    const written = loop({
+        index: 0,
+        row: 0
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const { index, row } = state
+
+            if (needed[index]) {
+                const marked = regular.length != 0 && regular[index] != 0
+
+                memory.writeColumnU32(target.ids, row, integers.narrow(index))
+                memory.writeColumnBool(target.regular, row, marked)
+                state.row += 1
+            }
+
+            state.index += 1
+        }
+    })
+}

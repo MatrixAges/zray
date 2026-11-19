@@ -20,6 +20,7 @@ export default function (in: Input): Output {
             const wanted = bytes.loadAtomicCell(in.wanted, 0, group)
 
             if (wanted == marked) {
+                memory.writeColumnBool(in.regular, position, true)
                 memory.writeU64(in.positions, current.ready, position)
                 current.ready += 1
             } else {

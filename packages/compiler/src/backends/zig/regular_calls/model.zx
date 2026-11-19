@@ -1,6 +1,7 @@
 import type { AtomicRows } from "std:bytes"
 import type { Table } from "core/bytes/index/fixed"
-import type { StringBuffer, U64Buffer } from "memory"
+import type { StringBuffer, U64Buffer, WriteColumn } from "memory"
+import type { View } from "../function_units/model"
 
 export type Candidates = {
     pending: U64Buffer,
@@ -10,7 +11,7 @@ export type Candidates = {
 export type Indexed = {
     table: Table,
     candidates: Candidates,
-    units: u32?[],
+    units: View,
     values: bool[]
 }
 
@@ -24,6 +25,7 @@ export type Selection = {
     candidates: Candidates,
     wanted: AtomicRows,
     count: u64,
+    regular: WriteColumn,
     positions: U64Buffer
 }
 

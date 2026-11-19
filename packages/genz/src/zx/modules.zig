@@ -8,6 +8,15 @@ pub const Names = struct { types: []const []const u8, functions: []const []const
 /// `function` is one function's file; a value function's file holds only its value variant. `regular` is the same file
 /// with the pointer-ABI `call` as well, for value functions some caller reaches through it.
 pub const Unit = union(enum) { entry, function: ir.FunctionId, types, regular: ir.FunctionId };
+
+pub const FunctionUnit = struct {
+    id: ir.FunctionId,
+    regular: bool,
+    pub fn unit(self: FunctionUnit) Unit {
+        return if (self.regular) .{ .regular = self.id } else .{ .function = self.id };
+    }
+};
+
 pub const abi_view = @import("abi_view.zig");
 pub const typeNames = @import("types/export_names.zig").build;
 pub const Error = std.mem.Allocator.Error || error{ InvalidNames, InvalidFunction };
@@ -17,6 +26,14 @@ pub const TypeScratch = @import("types/scratch.zig");
 /// Function types for separately compiled files. Bodies are deliberately absent: importing a type
 /// must not pull the owning function and its dependency graph into another compilation unit.
 pub fn signatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, units: []const Unit) Error![]u8 {
+    return signatureFiles(allocator, backing, program, names, facts, units);
+}
+
+pub fn functionSignatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, units: []const FunctionUnit) Error![]u8 {
+    return signatureFiles(allocator, backing, program, names, facts, units);
+}
+
+fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, units: anytype) Error![]u8 {
     var arena = std.heap.ArenaAllocator.init(backing);
 
     defer arena.deinit();
@@ -29,7 +46,9 @@ pub fn signatures(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
     try output.append(temporary, .{ .constant = .{ .name = "std", .value = try lower.builtin(.import, &.{try lower.builder.string("std")}) } });
     try @import("types.zig").lower(&lower, &output, false);
 
-    for (units) |unit| {
+    for (units) |item| {
+        const unit = if (@TypeOf(item) == FunctionUnit) item.unit() else item;
+
         const id = switch (unit) {
             .function, .regular => |id| id,
             else => continue,

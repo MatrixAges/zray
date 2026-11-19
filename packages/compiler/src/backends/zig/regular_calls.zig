@@ -12,7 +12,7 @@ const ScanInput = std.meta.Child(scanning.Input);
 const Table = std.meta.Child(@FieldType(BuildInput, "table"));
 const Candidates = std.meta.Child(@FieldType(BuildInput, "candidates"));
 
-pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, units: []generating.Unit, sources: [][]const u8) generating.Error!void {
+pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, units: []generating.FunctionUnit, sources: [][]const u8) generating.Error!void {
     if (comptime !@import("parser_options").generated_parser) return @import("regular_calls_seed.zig").complete(owned, batch, roots, units, sources);
     if (units.len == 0) return;
 
@@ -22,10 +22,9 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
     const temporary = scratch.allocator();
     const values = batch.analysis.value.value.values;
-    const ids = try temporary.alloc(?u32, units.len);
-
-    for (units, ids) |unit, *id| id.* = if (unit == .function) @backingInt(unit.function) else null;
-
+    const ids = zx.memory.borrowReadColumn(zx.ir.FunctionId, "id", units);
+    const regular = zx.memory.borrowReadColumn(bool, "regular", units);
+    const flags = zx.memory.borrowWriteColumn(bool, "regular", units);
     const minimum = std.math.mul(usize, units.len, 2) catch return error.OutOfMemory;
     const capacity = std.math.ceilPowerOfTwo(usize, minimum) catch return error.OutOfMemory;
     const buckets = try temporary.alloc(u64, capacity);
@@ -36,7 +35,7 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
     const table: Table = .{ .keys = batch.names.functions, .capacity = capacity, .buckets = @ptrCast(&buckets) };
     const candidates: Candidates = .{ .pending = @ptrCast(&pending), .groups = @ptrCast(&groups) };
-    const input: BuildInput = .{ .table = &table, .candidates = &candidates, .units = ids, .values = values };
+    const input: BuildInput = .{ .table = &table, .candidates = &candidates, .units = &.{ .ids = @ptrCast(&ids), .regular = @ptrCast(&regular), .count = units.len }, .values = values };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     const fixed = empty.allocator();
     var count = zx.columns.invoke(indexing.executeValue, fixed, &input) catch |err| return failure(err);
@@ -45,7 +44,6 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
     const wanted = try temporary.alloc(u8, values.len);
     const positions = try temporary.alloc(u64, @intCast(count));
-    const additional = try temporary.alloc(generating.Unit, @intCast(count));
 
     @memset(wanted, 0);
 
@@ -59,21 +57,13 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
         try scan.run();
 
-        const request: std.meta.Child(selection.Input) = .{ .candidates = &candidates, .wanted = @ptrCast(&cells), .count = count, .positions = @ptrCast(&positions) };
+        const request: std.meta.Child(selection.Input) = .{ .candidates = &candidates, .wanted = @ptrCast(&cells), .count = count, .regular = @ptrCast(&flags), .positions = @ptrCast(&positions) };
         const selected = zx.columns.invoke(selection.executeValue, fixed, &request) catch |err| return failure(err);
 
         if (selected.ready == 0) return;
 
         const ready = positions[0..@intCast(selected.ready)];
-        const added = additional[0..ready.len];
-
-        for (ready, added) |position, *unit| {
-            const target = &units[@intCast(position)];
-            unit.* = .{ .regular = target.function };
-            target.* = unit.*;
-        }
-
-        const regenerated = try function_sources.create(owned, batch, added);
+        const regenerated = try function_sources.createJobs(owned, .{ .batch = batch, .functions = units, .positions = ready });
         const publish: std.meta.Child(publication.Input) = .{ .positions = ready, .sources = regenerated, .target = @ptrCast(&sources) };
 
         zx.columns.invoke(publication.executeValue, fixed, &publish) catch |err| return failure(err);
