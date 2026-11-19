@@ -114,6 +114,7 @@ pub const borrowOptionalU32Column = rows.borrowOptionalU32;
 pub const borrowOptionalU8Column = rows.borrowOptionalU8;
 pub const borrowListPath = rows.borrowListPath;
 pub const borrowReferencedTextColumn = rows.borrowReferencedText;
+pub const borrowReferencedTextPath = rows.borrowReferencedTextPath;
 pub const borrowListColumn = rows.borrowList;
 pub const borrowNestedListColumn = rows.borrowNestedList;
 pub const borrowSliceColumn = rows.borrowSliceColumn;

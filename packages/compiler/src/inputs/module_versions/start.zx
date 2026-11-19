@@ -1,0 +1,27 @@
+import bytes from "std:bytes"
+import columns from "memory/columns"
+
+import type { Cursor as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const path = bytes.fromText(in.path)
+
+    return loop({
+        first: in.first,
+        done: false
+    }, {
+        while: state => !state.done && state.first < in.prior.count,
+        next: state => {
+            const name = columns.readIndirectTextColumn(in.prior.paths, state.first)
+
+            if (bytes.lessThan(bytes.fromText(name), path)) {
+                state.first += 1
+            } else {
+                state.done = true
+            }
+        },
+        return: state => state.first
+    })
+}

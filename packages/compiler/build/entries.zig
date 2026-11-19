@@ -463,6 +463,7 @@ pub const main = [_]Entry{
     input_snapshot,
     .{ .path = "inputs/snapshot/observed/reuse.rx", .name = "input_snapshot_observed", .owner = .compiler },
     .{ .path = "inputs/snapshot/resident.zx", .name = "input_resident_reuse", .owner = .compiler },
+    .{ .path = "inputs/module_versions/select.zx", .name = "input_module_versions", .owner = .compiler },
     .{ .path = "inputs/parsed/same.zx", .name = "input_parsed_same", .owner = .compiler },
     .{ .path = "inputs/collection/kind.zx", .name = "input_file_kind", .owner = .compiler },
     .{ .path = "inputs/collection/qualify.zx", .name = "input_logical_path", .owner = .compiler },

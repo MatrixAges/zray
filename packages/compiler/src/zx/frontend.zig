@@ -37,6 +37,7 @@ pub const isParallelSafeWithSuffix = @import("ir/parallel.zig").programPureWithS
 pub const analyzeWithContext = @import("analysis/analyze.zig").analyzeWithContext;
 pub const Context = @import("analysis/analyze.zig").Context;
 pub const project = @import("modules/project.zig");
+pub const SourceIndex = @import("modules/source_index/growing.zig").Map;
 pub const types = @import("analysis/types.zig");
 pub const commitTypeConstruction = @import("analysis/semantic/construction.zig").commit;
 pub const type_views = @import("type_views");

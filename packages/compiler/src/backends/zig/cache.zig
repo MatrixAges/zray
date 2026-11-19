@@ -4,9 +4,10 @@ const Self = @This();
 const Owner = enum { cache, shared };
 const Entry = struct { key: [32]u8, source: []u8, pending: ?usize = null, owner: Owner = .cache };
 const Memo = @import("genz").zx.function_analysis.Uniqueness.Memo;
+const Index = @import("frontend").SourceIndex(Entry);
 
 allocator: std.mem.Allocator,
-entries: @import("zx").bytes.Map(Entry) = .empty,
+entries: Index = .empty,
 storage: ?Storage = null,
 generated: usize = 0,
 reused: usize = 0,
@@ -47,11 +48,9 @@ pub fn deinit(self: *Self) void {
     self.flush();
     self.unwritten.deinit(self.allocator);
 
-    var iterator = self.entries.iterator();
-
-    while (iterator.next()) |entry| {
-        self.allocator.free(entry.key_ptr.*);
-        self.sourceAllocator(entry.value_ptr.owner).free(entry.value_ptr.source);
+    for (self.entries.keys.items, self.entries.values.items) |name, entry| {
+        self.allocator.free(name);
+        self.sourceAllocator(entry.owner).free(entry.source);
     }
 
     self.entries.deinit(self.allocator);
@@ -81,7 +80,7 @@ pub const Fetched = struct {
 
 /// A parallel search uses the shared allocator for disk buffers. Cache metadata stays on the caller's allocator.
 pub fn fetch(self: *const Self, name: []const u8, key: [32]u8, owner: Owner) std.mem.Allocator.Error!Fetched {
-    if (self.entries.get(name)) |entry| {
+    if (self.entries.getPtr(name)) |entry| {
         if (std.mem.eql(u8, &entry.key, &key)) return .{ .source = entry.source, .kind = .held };
     }
 
@@ -302,8 +301,12 @@ pub fn flushMemo(self: *Self) std.mem.Allocator.Error!void {
 fn store(self: *Self, name: []const u8, value: Entry) std.mem.Allocator.Error!void {
     self.finishWriting();
 
-    if (self.entries.getPtr(name)) |entry| {
-        if (self.pendingWrite(entry.*)) |item| {
+    const found = self.entries.position(name);
+
+    if (found.row) |row| {
+        const entry = &self.entries.values.items[row];
+
+        if (self.pendingWrite(entry)) |item| {
             item.retired = true;
         } else {
             self.sourceAllocator(entry.owner).free(entry.source);
@@ -314,14 +317,13 @@ fn store(self: *Self, name: []const u8, value: Entry) std.mem.Allocator.Error!vo
         return;
     }
 
+    const slot = if (try self.entries.reserve(self.allocator)) self.entries.position(name).slot else found.slot;
     const owned_name = try self.allocator.dupe(u8, name);
 
-    errdefer self.allocator.free(owned_name);
-
-    try self.entries.put(self.allocator, owned_name, value);
+    self.entries.append(slot, owned_name, value);
 }
 
-fn pendingWrite(self: *Self, entry: Entry) ?*Unwritten {
+fn pendingWrite(self: *Self, entry: *const Entry) ?*Unwritten {
     const index = entry.pending orelse return null;
 
     if (index >= self.unwritten.items.len) return null;

@@ -10,7 +10,7 @@ const snapshot = compiler.input_snapshot;
 const Self = @This();
 
 gpa: std.mem.Allocator,
-entries: bytes.Map(Entry) = .empty,
+entries: compiler.SourceIndex(Entry) = .empty,
 replaced: std.ArrayList([]u8) = .empty,
 transient: std.ArrayList(Transient) = .empty,
 retained_bytes: usize = 0,
@@ -35,11 +35,9 @@ pub fn deinit(self: *Self) void {
     self.replaced.deinit(self.gpa);
     self.transient.deinit(self.gpa);
 
-    var entries = self.entries.iterator();
-
-    while (entries.next()) |entry| {
-        self.gpa.free(entry.key_ptr.*);
-        self.gpa.free(entry.value_ptr.text);
+    for (self.entries.keys.items, self.entries.values.items) |key, entry| {
+        self.gpa.free(key);
+        self.gpa.free(entry.text);
     }
 
     self.entries.deinit(self.gpa);
@@ -47,10 +45,17 @@ pub fn deinit(self: *Self) void {
 
 /// The contents of `path` in `directory`, keyed by `key`, which names the file across requests.
 pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, borrowable: bool) ![]const u8 {
-    if (try self.unchanged(io, directory, path, key, null)) |text| {
-        if (borrowable) self.entries.getPtr(key).?.borrowable = true;
+    const found = self.entries.position(key);
+    const previous = if (found.row) |row| &self.entries.values.items[row] else null;
 
-        return text;
+    if (previous) |entry| {
+        const observed = metadata(try directory.statFile(io, path, .{}));
+
+        if (snapshot.residentReuse(entry.metadata, observed, entry.read)) {
+            entry.borrowable = entry.borrowable or borrowable;
+
+            return entry.text;
+        }
     }
 
     const started = std.Io.Timestamp.now(io, .real).nanoseconds;
@@ -65,37 +70,33 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
 
     if (try file.readPositionalAll(io, text, 0) != text.len) return error.FileChanged;
 
-    const found = try self.entries.getOrPut(self.gpa, key);
     var observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text, .borrowable = borrowable };
 
-    if (found.found_existing) {
-        const previous = found.value_ptr;
-
-        if (bytes.equal(previous.text, text)) {
+    if (previous) |entry| {
+        if (bytes.equal(entry.text, text)) {
             self.gpa.free(text);
 
-            observed.text = previous.text;
-            observed.digest = previous.digest;
-            observed.borrowable = observed.borrowable or previous.borrowable;
-            observed.retained = previous.retained;
-            previous.* = observed;
+            observed.text = entry.text;
+            observed.digest = entry.digest;
+            observed.borrowable = observed.borrowable or entry.borrowable;
+            observed.retained = entry.retained;
+            entry.* = observed;
 
             return observed.text;
         }
 
-        if (previous.retained) try self.replaced.ensureUnusedCapacity(self.gpa, self.transient.items.len + 1);
-        try self.transient.append(self.gpa, .{ .text = previous.text, .borrowable = previous.borrowable, .retained = previous.retained });
+        if (entry.retained) try self.replaced.ensureUnusedCapacity(self.gpa, self.transient.items.len + 1);
+        try self.transient.append(self.gpa, .{ .text = entry.text, .borrowable = entry.borrowable, .retained = entry.retained });
 
-        self.active_bytes -= previous.text.len;
+        self.active_bytes -= entry.text.len;
+        entry.* = observed;
     } else {
-        found.key_ptr.* = self.gpa.dupe(u8, key) catch |err| {
-            self.entries.removeByPtr(found.key_ptr);
+        const slot = if (try self.entries.reserve(self.gpa)) self.entries.position(key).slot else found.slot;
+        const owned_key = try self.gpa.dupe(u8, key);
 
-            return err;
-        };
+        self.entries.append(slot, owned_key, observed);
     }
 
-    found.value_ptr.* = observed;
     self.active_bytes += text.len;
 
     return text;
@@ -104,7 +105,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
 /// The text kept for `key` while the metadata of `path` in `directory` vouches for it: `known` when the listing of
 /// `directory` gave it, otherwise read here. It only looks, so several threads may ask at once while none reads.
 pub fn unchanged(self: *const Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, known: ?Metadata) !?[]const u8 {
-    const entry = self.entries.get(key) orelse return null;
+    const entry = self.entries.getPtr(key) orelse return null;
     const found = known orelse metadata(try directory.statFile(io, path, .{}));
 
     return if (snapshot.residentReuse(entry.metadata, found, entry.read)) entry.text else null;
@@ -117,7 +118,7 @@ pub fn metadata(stat: std.Io.File.Stat) Metadata {
 pub const Version = struct { metadata: Metadata, read: i96 };
 
 pub fn version(self: *const Self, key: []const u8) ?Version {
-    const entry = self.entries.get(key) orelse return null;
+    const entry = self.entries.getPtr(key) orelse return null;
 
     return .{ .metadata = entry.metadata, .read = entry.read };
 }
@@ -148,9 +149,7 @@ pub fn release(self: *Self) void {
 
     self.retained_bytes = 0;
 
-    var entries = self.entries.valueIterator();
-
-    while (entries.next()) |entry| entry.retained = false;
+    for (self.entries.values.items) |*entry| entry.retained = false;
 }
 
 pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
@@ -161,9 +160,7 @@ pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
 }
 
 pub fn keepAnalysis(self: *Self) void {
-    var entries = self.entries.valueIterator();
-
-    while (entries.next()) |entry| entry.retained = entry.borrowable;
+    for (self.entries.values.items) |*entry| entry.retained = entry.borrowable;
 
     self.retire(true);
 }

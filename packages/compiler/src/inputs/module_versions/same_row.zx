@@ -1,0 +1,16 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Comparison as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { prior, current, index, row } = in
+
+    const old_path = columns.readIndirectTextColumn(prior.paths, index)
+    const new_path = memory.readTextColumn(current.paths, row)
+
+    return old_path == new_path && columns.readIndirectTextColumn(prior.texts, index)
+    == memory.readTextColumn(current.texts, row)
+}

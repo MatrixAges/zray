@@ -1,6 +1,8 @@
 const std = @import("std");
 const rx = @import("rx");
-const bytes = @import("compiler").bytes;
+const compiler = @import("compiler");
+const bytes = compiler.bytes;
+const selection = compiler.resident_modules;
 const Self = @This();
 
 const Version = struct {
@@ -38,7 +40,7 @@ pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSo
     const before = if (self.current) |batch| batch.versions else &.{};
 
     if (self.current) |batch| {
-        if (before.len == sources.len and bytes.equal(&batch.packages, &packages) and same(before, sources)) {
+        if (before.len == sources.len and bytes.equal(&batch.packages, &packages) and selection.select(before, sources, null)) {
             for (before, inputs, sources) |version, *input, source| input.* = view(version, source, true);
 
             self.reused += before.len;
@@ -55,17 +57,22 @@ pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSo
 
     errdefer self.gpa.free(next);
 
+    const positions: []u64 = if (before.len == 0) &.{} else try self.gpa.alloc(u64, sources.len);
+
+    defer self.gpa.free(positions);
+
+    if (positions.len != 0 and !selection.select(before, sources, positions)) unreachable;
+
     var initialized: usize = 0;
-    var first: usize = 0;
 
     errdefer for (next[0..initialized]) |version| self.releaseVersion(version);
 
-    for (sources, inputs, next) |source, *input, *version| {
-        const old = find(before, &first, source.path);
-        const reused = old != null and bytes.equal(old.?.parsed.xml.source, source.source);
+    for (sources, inputs, next, 0..) |source, *input, *version, row| {
+        const position = if (positions.len != 0) positions[row] else 0;
+        const reused = position != 0;
 
         if (reused) {
-            version.* = old.?;
+            version.* = before[@intCast(position - 1)];
             version.*.readers += 1;
             self.reused += 1;
         } else {
@@ -179,26 +186,4 @@ fn view(version: *const Version, source: rx.TextSource, schema: bool) rx.ModuleS
     if (schema) rx.markModuleSchema(&input, node);
 
     return input;
-}
-
-fn find(versions: []const *Version, first: *usize, path: []const u8) ?*Version {
-    while (first.* < versions.len) {
-        const version = versions[first.*];
-
-        switch (std.mem.order(u8, version.path, path)) {
-            .lt => first.* += 1,
-            .eq => return version,
-            .gt => return null,
-        }
-    }
-
-    return null;
-}
-
-fn same(versions: []const *Version, sources: []const rx.TextSource) bool {
-    for (versions, sources) |version, source| {
-        if (!bytes.equal(version.path, source.path) or !bytes.equal(version.parsed.xml.source, source.source)) return false;
-    }
-
-    return true;
 }

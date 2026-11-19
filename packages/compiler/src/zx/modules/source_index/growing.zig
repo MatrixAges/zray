@@ -13,18 +13,29 @@ pub fn Map(comptime Value: type) type {
         values: std.ArrayList(Value) = .empty,
         buckets: []u64 = &.{},
         pub const Slot = struct { position: usize, existing: ?Value = null };
+        pub const Position = struct { slot: usize, row: ?usize = null };
 
         pub fn get(self: *const Self, path: []const u8) ?Value {
             return self.probe(path).existing;
         }
         pub fn probe(self: *const Self, path: []const u8) Slot {
-            if (self.buckets.len == 0) return .{ .position = 0 };
+            const found = self.position(path);
+
+            return .{ .position = found.slot, .existing = if (found.row) |row| self.values.items[row] else null };
+        }
+        pub fn getPtr(self: *const Self, path: []const u8) ?*Value {
+            const row = self.position(path).row orelse return null;
+
+            return &self.values.items[row];
+        }
+        pub fn position(self: *const Self, path: []const u8) Position {
+            if (self.buckets.len == 0) return .{ .slot = 0 };
 
             const located = self.locate(path);
 
             return .{
-                .position = located.slot,
-                .existing = if (located.entry != 0) self.values.items[@intCast(located.entry - 1)] else null,
+                .slot = located.slot,
+                .row = if (located.entry != 0) @intCast(located.entry - 1) else null,
             };
         }
         fn locate(self: *const Self, path: []const u8) Located {

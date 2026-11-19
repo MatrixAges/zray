@@ -1,0 +1,35 @@
+import type { TextColumn, U64Buffer } from "memory"
+import type { IndirectTextColumn } from "memory/columns"
+
+export type Prior = {
+    paths: IndirectTextColumn,
+    texts: IndirectTextColumn,
+    count: u64
+}
+
+export type Current = {
+    paths: TextColumn,
+    texts: TextColumn,
+    count: u64
+}
+
+export type Input = {
+    prior: Prior,
+    current: Current,
+    positions?: U64Buffer
+}
+
+export type Output = bool
+
+export type Cursor = {
+    prior: Prior,
+    first: u64,
+    path: string
+}
+
+export type Snapshot = Input.Omit("positions")
+
+export type Comparison = Snapshot & {
+    index: u64,
+    row: u64
+}

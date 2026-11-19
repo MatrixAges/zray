@@ -96,16 +96,21 @@ pub inline fn borrowIndirectText(comptime field: []const u8, comptime text: []co
 }
 
 pub inline fn borrowReferencedText(comptime field: []const u8, items: anytype) IndirectTextColumn {
+    return borrowReferencedTextPath(&.{field}, items);
+}
+
+pub inline fn borrowReferencedTextPath(comptime fields: []const []const u8, items: anytype) IndirectTextColumn {
     const Pointer = std.meta.Child(@TypeOf(items));
     const info = @typeInfo(Pointer).pointer;
+    const layout = comptime fieldLayout(info.child, fields);
 
     comptime {
-        if (info.size != .one or info.attrs.@"allowzero" or @FieldType(info.child, field) != []const u8) @compileError("Expected references to rows with a text field");
+        if (info.size != .one or info.attrs.@"allowzero" or layout.type != []const u8) @compileError("Expected references to rows with a text field");
     }
 
     return .{
         .pointers = .{ .bytes = std.mem.sliceAsBytes(items), .count = items.len, .stride = @sizeOf(Pointer), .offset = 0 },
-        .text_offset = @offsetOf(info.child, field),
+        .text_offset = layout.offset,
     };
 }
 
