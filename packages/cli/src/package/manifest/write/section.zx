@@ -1,0 +1,19 @@
+import output from "manifest_output"
+
+import { line_end, section_end } from "./const"
+
+import type { Writer } from "./model"
+
+export type Input = Writer & {
+    key: string
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, key } = in
+
+    output.raw(writer, line_end)
+    output.raw(writer, key)
+    output.raw(writer, section_end)
+}

@@ -18,6 +18,7 @@ export type Arena = opaque
 export type TextColumn = opaque
 export type ReadColumn = opaque
 export type ListColumn = opaque
+export type OptionalListColumn = opaque
 export type WriteColumn = opaque
 export type ColumnRanges = opaque
 export type ColumnLengths = opaque

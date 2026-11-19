@@ -29,6 +29,8 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    host.addImport("manifest_output", b.modules.get("manifest_output").?);
+
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 
     const yaml_scanner = b.createModule(.{

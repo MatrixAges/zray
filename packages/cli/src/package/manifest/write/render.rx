@@ -1,0 +1,83 @@
+<Module>
+    <Type from="model" as="Manifest" />
+
+    <Args in={Manifest.Input} out={void} />
+
+    <Call
+        fn="identity"
+        in={{
+            writer: $in.writer,
+            identity: $in.identity
+        }}
+    />
+
+    <Call
+        fn="exports"
+        in={{
+            writer: $in.writer,
+            exports: $in.exports
+        }}
+    />
+
+    <Call
+        fn="visibility"
+        in={{
+            writer: $in.writer,
+            private: $in.private,
+            has_exports: $in.exports.count != 0
+        }}
+    />
+
+    <Call
+        fn="dependency_sections"
+        in={{
+            writer: $in.writer,
+            dependencies: $in.dependencies,
+            dev_dependencies: $in.dev_dependencies
+        }}
+    />
+
+    <Call
+        fn="workspace"
+        in={{
+            writer: $in.writer,
+            packages: $in.workspace
+        }}
+    />
+
+    <Call
+        fn="interfaces"
+        in={{
+            writer: $in.writer,
+            rows: $in.interfaces
+        }}
+    />
+
+    <Call
+        fn="externals"
+        in={{
+            writer: $in.writer,
+            rows: $in.externals,
+            implementations: $in.implementations
+        }}
+    />
+
+    <Call
+        fn="modules"
+        in={{
+            writer: $in.writer,
+            rows: $in.modules,
+            aliases: $in.aliases
+        }}
+    />
+
+    <Call
+        fn="paths"
+        in={{
+            writer: $in.writer,
+            libraries: $in.libraries,
+            include_paths: $in.include_paths,
+            library_paths: $in.library_paths
+        }}
+    />
+</Module>

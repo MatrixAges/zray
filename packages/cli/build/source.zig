@@ -32,6 +32,12 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
 
     run.addDirectoryArg2(std.Build.LazyPath.cache_root.path(b, "cli-functions"), .{ .make_absolute = true });
 
+    const manifest_output = b.addModule("manifest_output", .{
+        .root_source_file = b.path("src/package/manifest/write/output.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     return b.addModule("cli_source", .{
         .root_source_file = generated.path(b, "root.zig"),
         .target = target,
@@ -42,6 +48,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
             .{ .name = "zxc_string", .module = compiler.module("generated_string") },
             .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "memory/columns", .module = core.module("memory") },
+            .{ .name = "manifest_output", .module = manifest_output },
         },
     });
 }

@@ -1,73 +1,87 @@
 const std = @import("std");
 const model = @import("model.zig");
+const memory = @import("zx").memory;
+const Output = @import("manifest_output");
+const rule = @import("cli_source").manifest_write;
+const Input = std.meta.Child(rule.Input);
 
-pub fn write(output: *std.Io.Writer, data: model.Manifest) std.Io.Writer.Error!void {
-    try field(output, "name", data.name);
-    try field(output, "version", data.version);
-    if (data.entry) |entry| try field(output, "entry", entry);
-    if (data.library) |library| try field(output, "library", library);
+pub fn write(target: *std.Io.Writer, data: model.Manifest) std.Io.Writer.Error!void {
+    var output: Output = .{ .target = target };
+    const exports = columns("exports", &.{}, data.exports);
+    const dependencies = columns("dependencies", &.{}, data.dependencies);
+    const dev_dependencies = columns("dev_dependencies", &.{}, data.dev_dependencies);
+    const interfaces = columns("interfaces", &.{}, data.native_interfaces);
+    const externals = columns("externals", &.{}, data.externals);
+    const implementations = columns("implementations", &.{"implementation"}, data.externals);
+    const modules = columns("modules", &.{}, data.native_modules);
+    const names = memory.borrowOptionalListColumn("abi_aliases", "name", data.native_modules);
+    const specifiers = memory.borrowOptionalListColumn("abi_aliases", "specifier", data.native_modules);
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-    if (data.exports.len != 0) {
-        try output.writeAll("\nexports:\n");
+    rule.executeValue(scratch.allocator(), &Input{
+        .writer = @ptrCast(&output),
+        .identity = &.{
+            .name = data.name,
+            .version = data.version,
+            .entry = data.entry,
+            .library = data.library,
+        },
+        .exports = &exports.view(),
+        .private = data.private,
+        .dependencies = &dependencies.view(),
+        .dev_dependencies = &dev_dependencies.view(),
+        .workspace = if (data.workspace) |workspace| workspace.packages else null,
+        .interfaces = &interfaces.view(),
+        .externals = &externals.view(),
+        .implementations = &implementations.view(),
+        .modules = &modules.view(),
+        .aliases = &.{
+            .name = @ptrCast(&names),
+            .specifier = @ptrCast(&specifiers),
+        },
+        .libraries = data.libraries,
+        .include_paths = data.include_paths,
+        .library_paths = data.library_paths,
+    }) catch |err| switch (err) {
+        error.WriteFailed => return error.WriteFailed,
+        else => unreachable,
+    };
+}
 
-        for (data.exports) |item| {
-            try output.writeAll("  ");
+fn columns(comptime name: []const u8, comptime prefix: []const []const u8, rows: anytype) Columns(std.meta.Child(@FieldType(Input, name))) {
+    return .init(prefix, rows);
+}
 
-            if (item.module) |module| {
-                try output.print("{s}:\n    ", .{item.path});
-                try field(output, "module", module);
-            } else try field(output, item.path, item.source);
+fn Columns(comptime View: type) type {
+    const names = @typeInfo(View).@"struct".field_names;
+
+    return struct {
+        const Self = @This();
+
+        storage: [names.len]memory.ReadColumn = undefined,
+        count: usize,
+        fn init(comptime prefix: []const []const u8, rows: anytype) Self {
+            var self: Self = .{ .count = rows.len };
+
+            inline for (names, &self.storage) |name, *column| {
+                if (comptime !std.mem.eql(u8, name, "count")) {
+                    const path = comptime prefix[0..prefix.len].* ++ [1][]const u8{name};
+                    const field = comptime memory.columnFieldLayout(std.meta.Child(@TypeOf(rows)), &path);
+
+                    column.* = memory.borrowNestedColumn(field.type, &path, rows);
+                }
+            }
+
+            return self;
         }
-    }
+        fn view(self: *const Self) View {
+            var result: View = undefined;
 
-    if (data.private) {
-        if (data.exports.len != 0) try output.writeByte('\n');
-        try output.writeAll("private: true\n");
-    }
+            inline for (names, &self.storage) |name, *column| {
+                @field(result, name) = if (comptime std.mem.eql(u8, name, "count")) self.count else @ptrCast(column);
+            }
 
-    try dependencies(output, "dependencies", data.dependencies);
-    try dependencies(output, "dev_dependencies", data.dev_dependencies);
-
-    if (data.workspace) |workspace| {
-        try output.writeAll("\nworkspace:\n  packages: ");
-        try std.json.Stringify.value(workspace.packages, .{}, output);
-        try output.writeByte('\n');
-    }
-
-    try records(output, "native_interfaces", data.native_interfaces);
-    try records(output, "externals", data.externals);
-    try records(output, "native_modules", data.native_modules);
-    try records(output, "libraries", data.libraries);
-    try records(output, "include_paths", data.include_paths);
-    try records(output, "library_paths", data.library_paths);
-}
-
-fn field(output: *std.Io.Writer, key: []const u8, value: []const u8) std.Io.Writer.Error!void {
-    try output.print("{s}: ", .{key});
-    try std.json.Stringify.value(value, .{}, output);
-    try output.writeByte('\n');
-}
-
-fn dependencies(output: *std.Io.Writer, key: []const u8, values: []const model.Dependency) std.Io.Writer.Error!void {
-    if (values.len == 0) return;
-    try output.print("\n{s}:\n", .{key});
-
-    for (values) |value| {
-        try output.writeAll("  ");
-        try std.json.Stringify.value(value.name, .{}, output);
-        try output.writeAll(": ");
-        try std.json.Stringify.value(value.requirement, .{}, output);
-        try output.writeByte('\n');
-    }
-}
-
-fn records(output: *std.Io.Writer, key: []const u8, values: anytype) std.Io.Writer.Error!void {
-    if (values.len == 0) return;
-    try output.print("\n{s}:\n", .{key});
-
-    for (values) |value| {
-        try output.writeAll("  - ");
-        try std.json.Stringify.value(value, .{ .emit_null_optional_fields = false }, output);
-        try output.writeByte('\n');
-    }
+            return result;
+        }
+    };
 }

@@ -192,6 +192,20 @@ pub fn readSliceRow(source: *const anyopaque, buffer: *const anyopaque, shape: a
     return output;
 }
 
+pub inline fn borrowOptionalList(comptime field: []const u8, comptime member: []const u8, items: anytype) ListColumn {
+    const Optional = @FieldType(std.meta.Child(@TypeOf(items)), field);
+    const Slice = @typeInfo(Optional).optional.child;
+    const Row = std.meta.Child(Slice);
+
+    comptime if (@typeInfo(Slice).pointer.size != .slice or @FieldType(Row, member) != []const u8) @compileError("Expected an optional slice with a text member");
+
+    return .{
+        .lists = borrowColumn(Optional, field, items),
+        .stride = @sizeOf(Row),
+        .offset = @offsetOf(Row, member),
+    };
+}
+
 pub inline fn borrowSliceColumn(comptime fields: []const []const u8, items: anytype) ListColumn {
     const layout = comptime fieldLayout(std.meta.Child(@TypeOf(items)), fields);
     const List = layout.type;
@@ -236,6 +250,10 @@ pub inline fn readOptionalText(source: *const anyopaque, index: u64) error{Index
 
 pub inline fn readTextList(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const []const u8 {
     return readColumn([]const []const u8, source, index);
+}
+
+pub inline fn readOptionalTextList(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?[]const []const u8 {
+    return readColumn(?[]const []const u8, source, index);
 }
 
 pub inline fn readIndirectText(source: *const anyopaque, index: u64) error{ IndexOutOfBounds, MissingField }![]const u8 {
@@ -329,6 +347,20 @@ pub inline fn listLength(source: *const anyopaque, index: u64) error{IndexOutOfB
     return (try readColumn([]const u8, &column.lists, index)).len;
 }
 
+pub inline fn optionalListLength(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?u64 {
+    const column: *const ListColumn = @ptrCast(@alignCast(source));
+    const list = try readColumn(?[]const u8, &column.lists, index) orelse return null;
+
+    return list.len;
+}
+
+pub inline fn readOptionalTextListItem(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}![]const u8 {
+    const column: *const ListColumn = @ptrCast(@alignCast(source));
+    const list = try readColumn(?[]const u8, &column.lists, index) orelse return error.IndexOutOfBounds;
+
+    return readColumn([]const u8, &listItems(column, list), member);
+}
+
 pub inline fn readListText(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}![]const u8 {
     const column = try listColumn(source, index);
 
@@ -393,6 +425,10 @@ inline fn listColumn(source: *const anyopaque, index: u64) error{IndexOutOfBound
     const column: *const ListColumn = @ptrCast(@alignCast(source));
     const list = try readColumn([]const u8, &column.lists, index);
 
+    return listItems(column, list);
+}
+
+inline fn listItems(column: *const ListColumn, list: []const u8) ReadColumn {
     return .{
         .bytes = list.ptr[0 .. list.len * column.stride],
         .count = list.len,

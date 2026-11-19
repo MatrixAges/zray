@@ -1,0 +1,48 @@
+import output from "manifest_output"
+import memory from "memory"
+
+import { abi_aliases_key, name_key, specifier_key } from "../schema/const"
+
+import type { AbiAliases, Writer } from "./model"
+
+export type Input = Writer & {
+    aliases: AbiAliases,
+    row: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, aliases, row } = in
+
+    const count = memory.optionalListLength(aliases.name, row)
+
+    if (count == null) {
+        return
+    }
+
+    output.member(writer, abi_aliases_key)
+    output.beginArray(writer)
+
+    const written = loop(0, {
+        while: index => index < count,
+        next: index => {
+            output.beginObject(writer)
+            output.textField(
+                writer,
+                name_key,
+                memory.readOptionalTextListItem(aliases.name, row, index)
+            )
+            output.textField(
+                writer,
+                specifier_key,
+                memory.readOptionalTextListItem(aliases.specifier, row, index)
+            )
+            output.endObject(writer)
+
+            index += 1
+        }
+    })
+
+    output.endArray(writer)
+}

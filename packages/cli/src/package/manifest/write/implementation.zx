@@ -1,0 +1,74 @@
+import output from "manifest_output"
+import memory from "memory"
+
+import {
+    allocator_argument_key,
+    concurrent_key,
+    errors_key,
+    expand_tuple_key,
+    fallible_key,
+    implementation_key,
+    io_argument_key,
+    member_key,
+    module_key,
+    process_argument_key
+} from "../schema/const"
+
+import type { Implementations, Writer } from "./model"
+
+export type Input = Writer & {
+    rows: Implementations,
+    row: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, rows, row } = in
+
+    output.member(writer, implementation_key)
+    output.beginObject(writer)
+
+    output.textField(writer, module_key, memory.readTextColumn(rows.module, row))
+    output.textField(writer, member_key, memory.readTextColumn(rows.member, row))
+
+    output.boolField(
+        writer,
+        allocator_argument_key,
+        memory.readColumnBool(rows.allocator_argument, row)
+    )
+
+    output.boolField(
+        writer,
+        io_argument_key,
+        memory.readColumnBool(rows.io_argument, row)
+    )
+
+    output.boolField(
+        writer,
+        process_argument_key,
+        memory.readColumnBool(rows.process_argument, row)
+    )
+
+    output.boolField(
+        writer,
+        expand_tuple_key,
+        memory.readColumnBool(rows.expand_tuple, row)
+    )
+
+    output.boolField(writer, fallible_key, memory.readColumnBool(rows.fallible, row))
+
+    const errors = memory.readOptionalTextListColumn(rows.errors, row)
+
+    if (errors != null) {
+        output.stringsField(writer, errors_key, errors)
+    }
+
+    output.boolField(
+        writer,
+        concurrent_key,
+        memory.readColumnBool(rows.concurrent, row)
+    )
+
+    output.endObject(writer)
+}

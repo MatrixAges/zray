@@ -1,0 +1,58 @@
+import output from "manifest_output"
+import memory from "memory"
+
+import { exports_key, module_key } from "../schema/const"
+import { indent, nested_indent, section_end } from "./const"
+import field from "./field"
+import section from "./section"
+
+import type { Exports, Writer } from "./model"
+
+export type Input = Writer & {
+    exports: Exports
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, exports } = in
+
+    if (exports.count == 0) {
+        return
+    }
+
+    section({
+        writer,
+        key: exports_key
+    })
+
+    const written = loop(0, {
+        while: row => row < exports.count,
+        next: row => {
+            const path = memory.readTextColumn(exports.path, row)
+            const module = memory.readOptionalTextColumn(exports.module, row)
+
+            output.raw(writer, indent)
+
+            if (module != null) {
+                output.raw(writer, path)
+                output.raw(writer, section_end)
+                output.raw(writer, nested_indent)
+
+                field({
+                    writer,
+                    key: module_key,
+                    text: module
+                })
+            } else {
+                field({
+                    writer,
+                    key: path,
+                    text: memory.readTextColumn(exports.source, row)
+                })
+            }
+
+            row += 1
+        }
+    })
+}

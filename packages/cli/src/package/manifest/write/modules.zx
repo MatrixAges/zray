@@ -1,0 +1,91 @@
+import output from "manifest_output"
+import memory from "memory"
+
+import {
+    bundle_files_key,
+    dependencies_key,
+    header_key,
+    include_paths_key,
+    name_key,
+    native_modules_key,
+    path_key
+} from "../schema/const"
+import aliasField from "./aliases"
+import { line_end, list_item } from "./const"
+import section from "./section"
+
+import type { AbiAliases, NativeModules, Writer } from "./model"
+
+export type Input = Writer & {
+    rows: NativeModules,
+    aliases: AbiAliases
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, rows, aliases } = in
+
+    if (rows.count == 0) {
+        return
+    }
+
+    section({
+        writer,
+        key: native_modules_key
+    })
+
+    const written = loop(0, {
+        while: row => row < rows.count,
+        next: row => {
+            output.raw(writer, list_item)
+            output.beginRecord(writer)
+
+            output.textField(
+                writer,
+                name_key,
+                memory.readTextColumn(rows.name, row)
+            )
+
+            const path = memory.readOptionalTextColumn(rows.path, row)
+            const header = memory.readOptionalTextColumn(rows.header, row)
+
+            if (path != null) {
+                output.textField(writer, path_key, path)
+            }
+
+            if (header != null) {
+                output.textField(writer, header_key, header)
+            }
+
+            output.stringsField(
+                writer,
+                dependencies_key,
+                memory.readTextListColumn(rows.dependencies, row)
+            )
+            output.stringsField(
+                writer,
+                bundle_files_key,
+                memory.readTextListColumn(rows.bundle_files, row)
+            )
+
+            const include_paths =
+                memory.readOptionalTextListColumn(rows.include_paths, row)
+
+            if (include_paths != null) {
+                output.stringsField(writer, include_paths_key, include_paths)
+            }
+
+            aliasField({
+                writer,
+                aliases,
+                row
+            })
+
+            output.endObject(writer)
+            output.raw(writer, line_end)
+
+            row += 1
+        }
+    })
+}

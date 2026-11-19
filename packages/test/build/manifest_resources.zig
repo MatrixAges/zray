@@ -15,6 +15,7 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Depen
         .optimize = optimize,
         .imports = &.{
             .{ .name = "cli_source", .module = cli.module("cli_source") },
+            .{ .name = "manifest_output", .module = cli.module("manifest_output") },
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "zx", .module = compiler.module("compiler").import_table.get("zx").? },
             .{ .name = "pkgs", .module = pkgs },

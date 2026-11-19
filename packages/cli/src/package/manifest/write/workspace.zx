@@ -1,0 +1,32 @@
+import output from "manifest_output"
+
+import { packages_key, workspace_key } from "../schema/const"
+import { field_separator, indent, line_end } from "./const"
+import section from "./section"
+
+import type { Writer } from "./model"
+
+export type Input = Writer & {
+    packages?: string[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, packages } = in
+
+    if (packages == null) {
+        return
+    }
+
+    section({
+        writer,
+        key: workspace_key
+    })
+
+    output.raw(writer, indent)
+    output.raw(writer, packages_key)
+    output.raw(writer, field_separator)
+    output.strings(writer, packages)
+    output.raw(writer, line_end)
+}

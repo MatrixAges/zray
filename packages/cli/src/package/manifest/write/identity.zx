@@ -1,0 +1,43 @@
+import { entry_key, library_key, name_key, version_key } from "../schema/const"
+import field from "./field"
+
+import type { Identity, Writer } from "./model"
+
+export type Input = Writer & {
+    identity: Identity
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, identity } = in
+    const { name, version, entry, library } = identity
+
+    field({
+        writer,
+        key: name_key,
+        text: name
+    })
+
+    field({
+        writer,
+        key: version_key,
+        text: version
+    })
+
+    if (entry != null) {
+        field({
+            writer,
+            key: entry_key,
+            text: entry
+        })
+    }
+
+    if (library != null) {
+        field({
+            writer,
+            key: library_key,
+            text: library
+        })
+    }
+}

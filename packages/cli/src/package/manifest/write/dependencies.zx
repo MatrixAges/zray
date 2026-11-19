@@ -1,0 +1,40 @@
+import output from "manifest_output"
+import memory from "memory"
+
+import { field_separator, indent, line_end } from "./const"
+import section from "./section"
+
+import type { Dependencies, Writer } from "./model"
+
+export type Input = Writer & {
+    key: string,
+    rows: Dependencies
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, key, rows } = in
+
+    if (rows.count == 0) {
+        return
+    }
+
+    section({
+        writer,
+        key
+    })
+
+    const written = loop(0, {
+        while: row => row < rows.count,
+        next: row => {
+            output.raw(writer, indent)
+            output.quoted(writer, memory.readTextColumn(rows.name, row))
+            output.raw(writer, field_separator)
+            output.quoted(writer, memory.readTextColumn(rows.requirement, row))
+            output.raw(writer, line_end)
+
+            row += 1
+        }
+    })
+}

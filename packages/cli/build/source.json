@@ -130,6 +130,10 @@
             "name": "manifest_layout"
         },
         {
+            "path": "package/manifest/write/render.rx",
+            "name": "manifest_write"
+        },
+        {
             "path": "native_sources/references/classify.rx",
             "name": "native_reference"
         },
@@ -288,6 +292,10 @@
         {
             "path": "package_manifest/layout/scanner.d.zx",
             "module": "manifest_yaml_scanner"
+        },
+        {
+            "path": "package_manifest/write/output.d.zx",
+            "module": "manifest_output"
         }
     ]
 }

@@ -1,0 +1,85 @@
+import type { OutputWriter } from "manifest_output"
+import type { OptionalListColumn, ReadColumn, TextColumn } from "memory"
+
+export type Identity = {
+    name: string,
+    version: string,
+    entry?: string,
+    library?: string
+}
+
+export type Exports = {
+    path: TextColumn,
+    source: TextColumn,
+    module: ReadColumn,
+    count: u64
+}
+
+export type Dependencies = {
+    name: TextColumn,
+    requirement: TextColumn,
+    count: u64
+}
+
+export type Interfaces = {
+    specifier: TextColumn,
+    path: TextColumn,
+    module: TextColumn,
+    namespace: ReadColumn,
+    count: u64
+}
+
+export type Externals = {
+    specifier: TextColumn,
+    export_name: ReadColumn,
+    signature: TextColumn,
+    count: u64
+}
+
+export type Implementations = {
+    module: TextColumn,
+    member: TextColumn,
+    allocator_argument: ReadColumn,
+    io_argument: ReadColumn,
+    process_argument: ReadColumn,
+    expand_tuple: ReadColumn,
+    fallible: ReadColumn,
+    errors: ReadColumn,
+    concurrent: ReadColumn
+}
+
+export type NativeModules = {
+    name: TextColumn,
+    path: ReadColumn,
+    header: ReadColumn,
+    dependencies: ReadColumn,
+    bundle_files: ReadColumn,
+    include_paths: ReadColumn,
+    count: u64
+}
+
+export type AbiAliases = {
+    name: OptionalListColumn,
+    specifier: OptionalListColumn
+}
+
+export type Writer = {
+    writer: OutputWriter
+}
+
+export type Input = Writer & {
+    identity: Identity,
+    exports: Exports,
+    private: bool,
+    dependencies: Dependencies,
+    dev_dependencies: Dependencies,
+    workspace?: string[],
+    interfaces: Interfaces,
+    externals: Externals,
+    implementations: Implementations,
+    modules: NativeModules,
+    aliases: AbiAliases,
+    libraries: string[],
+    include_paths: string[],
+    library_paths: string[]
+}

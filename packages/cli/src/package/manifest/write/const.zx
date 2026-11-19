@@ -1,0 +1,11 @@
+export const field_separator: string = ": "
+
+export const section_end: string = ":\n"
+
+export const line_end: string = "\n"
+
+export const indent: string = "  "
+
+export const nested_indent: string = "    "
+
+export const list_item: string = "  - "

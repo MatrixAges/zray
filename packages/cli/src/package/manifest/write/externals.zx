@@ -1,0 +1,71 @@
+import output from "manifest_output"
+import memory from "memory"
+
+import {
+    export_name_key,
+    externals_key,
+    signature_key,
+    specifier_key
+} from "../schema/const"
+import { line_end, list_item } from "./const"
+import implementation from "./implementation"
+import section from "./section"
+
+import type { Externals, Implementations, Writer } from "./model"
+
+export type Input = Writer & {
+    rows: Externals,
+    implementations: Implementations
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, rows, implementations } = in
+
+    if (rows.count == 0) {
+        return
+    }
+
+    section({
+        writer,
+        key: externals_key
+    })
+
+    const written = loop(0, {
+        while: row => row < rows.count,
+        next: row => {
+            output.raw(writer, list_item)
+            output.beginRecord(writer)
+
+            output.textField(
+                writer,
+                specifier_key,
+                memory.readTextColumn(rows.specifier, row)
+            )
+
+            const export_name = memory.readOptionalTextColumn(rows.export_name, row)
+
+            if (export_name != null) {
+                output.textField(writer, export_name_key, export_name)
+            }
+
+            output.textField(
+                writer,
+                signature_key,
+                memory.readTextColumn(rows.signature, row)
+            )
+
+            implementation({
+                writer,
+                rows: implementations,
+                row
+            })
+
+            output.endObject(writer)
+            output.raw(writer, line_end)
+
+            row += 1
+        }
+    })
+}

@@ -1,0 +1,34 @@
+import { include_paths_key, libraries_key, library_paths_key } from "../schema/const"
+import list from "./list"
+
+import type { Writer } from "./model"
+
+export type Input = Writer & {
+    libraries: string[],
+    include_paths: string[],
+    library_paths: string[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, libraries, include_paths, library_paths } = in
+
+    list({
+        writer,
+        key: libraries_key,
+        values: libraries
+    })
+
+    list({
+        writer,
+        key: include_paths_key,
+        values: include_paths
+    })
+
+    list({
+        writer,
+        key: library_paths_key,
+        values: library_paths
+    })
+}

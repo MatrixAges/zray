@@ -1,0 +1,37 @@
+export type OutputWriter = opaque
+
+export declare function raw(writer: OutputWriter, text: string): void throws { WriteFailed }
+
+export declare function quoted(writer: OutputWriter, value: string): void throws { WriteFailed }
+
+export declare function strings(writer: OutputWriter, values: string[]): void throws { WriteFailed }
+
+export declare function beginRecord(writer: OutputWriter): void throws { WriteFailed }
+
+export declare function beginObject(writer: OutputWriter): void throws { WriteFailed }
+
+export declare function endObject(writer: OutputWriter): void throws { WriteFailed }
+
+export declare function beginArray(writer: OutputWriter): void throws { WriteFailed }
+
+export declare function endArray(writer: OutputWriter): void throws { WriteFailed }
+
+export declare function member(writer: OutputWriter, key: string): void throws { WriteFailed }
+
+export declare function textField(
+    writer: OutputWriter,
+    key: string,
+    value: string
+): void throws { WriteFailed }
+
+export declare function boolField(
+    writer: OutputWriter,
+    key: string,
+    value: bool
+): void throws { WriteFailed }
+
+export declare function stringsField(
+    writer: OutputWriter,
+    key: string,
+    values: string[]
+): void throws { WriteFailed }

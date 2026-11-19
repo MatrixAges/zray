@@ -1,0 +1,67 @@
+import output from "manifest_output"
+import memory from "memory"
+
+import {
+    module_key,
+    namespace_key,
+    native_interfaces_key,
+    path_key,
+    specifier_key
+} from "../schema/const"
+import { line_end, list_item } from "./const"
+import section from "./section"
+
+import type { Interfaces, Writer } from "./model"
+
+export type Input = Writer & {
+    rows: Interfaces
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, rows } = in
+
+    if (rows.count == 0) {
+        return
+    }
+
+    section({
+        writer,
+        key: native_interfaces_key
+    })
+
+    const written = loop(0, {
+        while: row => row < rows.count,
+        next: row => {
+            output.raw(writer, list_item)
+            output.beginRecord(writer)
+
+            output.textField(
+                writer,
+                specifier_key,
+                memory.readTextColumn(rows.specifier, row)
+            )
+            output.textField(
+                writer,
+                path_key,
+                memory.readTextColumn(rows.path, row)
+            )
+            output.textField(
+                writer,
+                module_key,
+                memory.readTextColumn(rows.module, row)
+            )
+            output.stringsField(
+                writer,
+                namespace_key,
+                memory.readTextListColumn(rows.namespace, row)
+            )
+
+            output.endObject(writer)
+            output.raw(writer, line_end)
+
+            row += 1
+        }
+    })
+}

@@ -1,0 +1,37 @@
+import output from "manifest_output"
+
+import { line_end, list_item } from "./const"
+import section from "./section"
+
+import type { Writer } from "./model"
+
+export type Input = Writer & {
+    key: string,
+    values: string[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, key, values } = in
+
+    if (values.length == 0) {
+        return
+    }
+
+    section({
+        writer,
+        key
+    })
+
+    const written = loop(0, {
+        while: index => index < values.length,
+        next: index => {
+            output.raw(writer, list_item)
+            output.quoted(writer, values[index])
+            output.raw(writer, line_end)
+
+            index += 1
+        }
+    })
+}
