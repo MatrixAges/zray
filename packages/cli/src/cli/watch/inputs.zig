@@ -111,14 +111,6 @@ pub fn observed(self: *const Self, allocator: std.mem.Allocator) !Snapshot {
     return .{ .arena = arena, .entries = entries, .consistent = self.consistent };
 }
 
-pub fn current(self: *const Self, io: std.Io, allocator: std.mem.Allocator) !Snapshot {
-    var observed_snapshot = try self.observed(allocator);
-
-    defer observed_snapshot.deinit();
-
-    return observed_snapshot.refresh(io, allocator);
-}
-
 fn lessThan(_: void, left: Snapshot.Entry, right: Snapshot.Entry) bool {
     return std.mem.lessThan(u8, left.path, right.path);
 }

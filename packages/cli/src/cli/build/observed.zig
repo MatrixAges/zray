@@ -100,11 +100,7 @@ pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inpu
 
     defer observed.deinit();
 
-    var current = try inputs.current(io, allocator);
-
-    defer current.deinit();
-
-    if (!observed.same(current)) return false;
+    if (!try observed.unchanged(io, allocator)) return false;
     if (self.bindings) |files| try files.publish(io);
     if (self.assembly) |path| try std.Io.Dir.cwd().copyFile(path, .cwd(), options.assembly.?, io, .{ .make_path = true });
     try std.Io.Dir.cwd().copyFile(self.binary.?, .cwd(), options.output.?, io, .{ .make_path = true });

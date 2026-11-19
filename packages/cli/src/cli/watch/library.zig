@@ -13,11 +13,7 @@ pub fn publish(io: std.Io, allocator: std.mem.Allocator, staging: []const u8, ou
         if (!std.fs.path.isAbsolute(relative) and !std.mem.eql(u8, relative, "..") and !std.mem.startsWith(u8, relative, ".." ++ std.fs.path.sep_str)) return error.OutputOverlapsInput;
     }
 
-    var current = try inputs.current(io, allocator);
-
-    defer current.deinit();
-
-    if (!observed.same(current)) return false;
+    if (!try observed.unchanged(io, allocator)) return false;
 
     const retired = try @import("../library_resources.zig").retiredFromStaging(io, allocator, destination, staging, inputs);
     var directory = try std.Io.Dir.openDirAbsolute(io, staging, .{ .iterate = true });
