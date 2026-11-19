@@ -110,6 +110,21 @@ pub fn release(self: *const Self, options: *const Options) void {
     }
 }
 
+pub fn request(self: *const Self, comptime Input: type, delta: @FieldType(Input, "delta"), origins: @FieldType(Input, "origins")) Input {
+    return .{
+        .delta = delta,
+        .origins = origins,
+        .target = self.target.target,
+        .nominal = self.target.nominal,
+        .offsets = self.target.offsets,
+        .base_labels = self.target.base_labels,
+        .text_mode = self.target.text_mode,
+        .progress = self.target.progress,
+        .destination = self.target.destination,
+        .payload = self.target.payload,
+    };
+}
+
 pub fn offsets(target: *const ir.TypeStorage) Offsets {
     // Reservation validates the column lengths before they are used.
     return .{

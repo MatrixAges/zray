@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Install" />
+
+    <Args in={Install.Request} out={void} />
+
+    <Call
+        module="../../../../analysis/semantic/merging/publication/write"
+        in={$in.types}
+    />
+
+    <Call fn="types_written" in={$in.types.progress} />
+
+    <If on={$in.natives.source.specifiers.length != 0}>
+        <Call
+            module="../../../link/native/publication/publish"
+            in={{
+                ...$in.natives,
+                rows: null
+            }}
+        />
+    </If>
+
+    <If on={$in.functions.count != 0}>
+        <Call fn="../functions/reserve" in={$in.functions} />
+    </If>
+</Module>

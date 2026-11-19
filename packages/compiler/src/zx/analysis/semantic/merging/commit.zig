@@ -99,8 +99,6 @@ fn write(
         };
     }
 
-    const types = ir.TypeTable.borrow(Table, table);
-
     const nominal: Bindings = .{
         .ids = bindings.ids,
         .kinds = bindings.kinds,
@@ -108,18 +106,8 @@ fn write(
         .members = bindings.members,
     };
 
-    const input: Input = .{
-        .delta = &types,
-        .origins = &nominal,
-        .target = publication.target,
-        .nominal = publication.nominal,
-        .offsets = publication.offsets,
-        .base_labels = publication.base_labels,
-        .text_mode = publication.text_mode,
-        .progress = publication.progress,
-        .destination = publication.destination,
-        .payload = publication.payload,
-    };
+    const types = ir.TypeTable.borrow(Table, table);
+    const input = view.request(Input, &types, &nominal);
 
     rule.executeIn(options.payload, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,

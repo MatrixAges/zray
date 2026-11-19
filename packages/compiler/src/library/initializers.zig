@@ -42,7 +42,7 @@ pub fn source(self: *Self, initial: model.Initializer.Borrowed, origins: @FieldT
     var nodes = frontend.ArtifactNodes{ .allocator = self.allocator, .types = .{ .mapped = mapping }, .functions = .{ .indexed = &.{} }, .native_modules = .{ .indexed = &.{} } };
     const id: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
 
-    try self.functions.append(self.allocator, try nodes.function(candidate));
+    try nodes.appendFunction(self.functions, &candidate, self.scratch);
     try self.registry.merge(self.allocator, &.{.{ .identity = initial.identity, .schema_version = initial.schema_version, .function = id }}, .{ .count = self.functions.count() }, &.{ .local = self.functions }, true);
 }
 

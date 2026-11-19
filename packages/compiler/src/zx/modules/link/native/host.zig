@@ -43,21 +43,11 @@ pub const View = struct {
     }
 };
 
-pub fn append(temporary: std.mem.Allocator, allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, source: ir.NativeModuleTable, types: []const u32) std.mem.Allocator.Error!void {
-    if (source.count() == 0) return;
-
-    publish(temporary, allocator, modules, source, types, null) catch return error.OutOfMemory;
-}
-
 pub fn link(temporary: std.mem.Allocator, allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, source: ir.NativeModuleTable, mapping: []?ir.NativeModuleId, types: []const u32) Error!void {
-    return publish(temporary, allocator, modules, source, types, mapping);
-}
-
-fn publish(temporary: std.mem.Allocator, allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, source: ir.NativeModuleTable, types: []const u32, mapping: ?[]?ir.NativeModuleId) Error!void {
     var view: View = undefined;
-    var target: []?ir.NativeModuleId = mapping orelse &.{};
+    var target = mapping;
 
-    view.init(&allocator, modules, source, types, if (mapping != null) &target else null);
+    view.init(&allocator, modules, source, types, &target);
 
     const failure = rule.executeIn(temporary, &view.input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,

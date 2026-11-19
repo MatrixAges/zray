@@ -15,11 +15,10 @@ pub const Context = struct {
     instance: []const u8,
 };
 
-pub fn append(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, source: ir.FunctionTable, context: Context) Error!void {
+pub fn appendReserved(allocator: std.mem.Allocator, functions: *ir.FunctionStorage, source: ir.FunctionTable, context: Context) Error!void {
     const count = source.count();
 
     if (count == 0) return;
-    try functions.reserve(allocator, count);
 
     const tails = functions.reservedTail(count);
     var completed: [1]u64 = .{0};

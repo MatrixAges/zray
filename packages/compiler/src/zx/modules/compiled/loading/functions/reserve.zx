@@ -1,0 +1,26 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import columns from "memory/columns"
+
+import type { ColumnAllocator, ColumnSet, FunctionRow } from "memory/columns"
+
+export type Input = {
+    storage: ColumnSet,
+    resource: ColumnAllocator,
+    shape?: FunctionRow,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { resource, storage, shape, count } = in
+
+    columns.reserveColumnSet(
+        resource,
+        storage,
+        shape,
+        count,
+        integers.widen(max_u32)
+    )
+}
