@@ -32,8 +32,6 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
 
     defer cache.deinit();
 
-    var dependencies: std.ArrayList([]const u8) = .empty;
-
     const emitted = try compiler.emitLibraryVerified(allocator, .{
         .io = context.io,
         .sources = sources.items,
@@ -42,7 +40,6 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
         .solver = context.options.solver,
         .verification_allocator = @import("../verify.zig").workspace_allocator,
         .writer = context.stderr,
-        .dependencies = &dependencies,
     }, &library);
 
     var bundle = switch (emitted) {
@@ -65,7 +62,7 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
 
     if (analyzed.legacy_single) publication.config.exports = &.{};
 
-    const native_project = try @import("../standard.zig").resolve(allocator, publication, dependencies.items, toolchain.standard);
+    const native_project = try @import("../standard.zig").resolve(allocator, publication, bundle.native_modules.import_names, toolchain.standard, &.{});
     var random: [16]u8 = undefined;
 
     std.Io.random(context.io, &random);

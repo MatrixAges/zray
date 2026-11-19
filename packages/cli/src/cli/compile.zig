@@ -161,8 +161,7 @@ pub fn run(raw_context: Context) !Status {
 
     defer generation_cache.deinit();
 
-    var dependencies: std.ArrayList([]const u8) = .empty;
-    const compile_options = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = sources, .project = project, .parse_cache = if (options.cache) null else &semantic_cache.parse_cache, .semantic_cache = if (options.cache) &semantic_cache else null, .generation_cache = if (options.native and options.cache) &generation_cache else null, .solver = options.solver, .verification_allocator = @import("verify.zig").workspace_allocator, .writer = stderr, .dependencies = &dependencies, .type_output = if (options.output != null) &type_output.writer else null };
+    const compile_options = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = sources, .project = project, .parse_cache = if (options.cache) null else &semantic_cache.parse_cache, .semantic_cache = if (options.cache) &semantic_cache else null, .generation_cache = if (options.native and options.cache) &generation_cache else null, .solver = options.solver, .verification_allocator = @import("verify.zig").workspace_allocator, .writer = stderr, .type_output = if (options.output != null) &type_output.writer else null };
 
     const result: compiler.Result = if (options.native) generated: {
         const compiled = try compiler.compileProjectModulesVerified(allocator, compile_options);
@@ -205,16 +204,13 @@ pub fn run(raw_context: Context) !Status {
                     return .failed;
                 };
 
-                const native_project = try @import("standard.zig").resolve(allocator, loaded, dependencies.items, toolchain.standard);
-
-                for (native_project.config.native_modules) |native| {
-                    for (module_bundle.?.modules) |module| if (std.mem.eql(u8, native.name, module.name)) return error.ConflictingModuleName;
-                }
+                const bundle = module_bundle.?;
+                const native_project = try @import("standard.zig").resolve(allocator, loaded, bundle.native_modules.import_names, toolchain.standard, bundle.modules);
 
                 if (context.watch) |attempt| {
                     try attempt.prepareBackend(context.io);
 
-                    var observed = try @import("build.zig").runObserved(context.io, allocator, module_bundle.?, options, native_project, toolchain, context.environment, attempt.inputs);
+                    var observed = try @import("build.zig").runObserved(context.io, allocator, bundle, options, native_project, toolchain, context.environment, attempt.inputs);
 
                     defer observed.deinit();
 
@@ -224,7 +220,7 @@ pub fn run(raw_context: Context) !Status {
                     if (!observed.response.succeeded) return .backend_failed;
                     if (!observed.response.inputs_complete) return error.IncompleteBackendInputs;
                     if (!try observed.publish(context.io, allocator, attempt.inputs, options)) return .retry;
-                } else if (!try @import("build.zig").run(context.io, allocator, module_bundle.?, options, native_project, toolchain, context.environment)) return .failed;
+                } else if (!try @import("build.zig").run(context.io, allocator, bundle, options, native_project, toolchain, context.environment)) return .failed;
             } else if (options.check) {
                 if (!std.mem.eql(u8, source, text)) {
                     try stderr.print("{s}: {s}\n", .{ input_path, @import("lint").source.formatting_required });

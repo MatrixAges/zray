@@ -28,6 +28,10 @@
             "prefix": "command/"
         },
         {
+            "path": "standard",
+            "prefix": "standard/"
+        },
+        {
             "path": "memory",
             "prefix": "memory/"
         }
@@ -156,6 +160,10 @@
         {
             "path": "command/scope/locate.zx",
             "name": "native_module_lookup"
+        },
+        {
+            "path": "standard/plan.rx",
+            "name": "standard_linkage"
         }
     ],
     "packages": [
@@ -166,6 +174,10 @@
         {
             "specifier": "core/ascii/const",
             "entry": "core/ascii/const.zx"
+        },
+        {
+            "specifier": "cli/native_module_lookup",
+            "entry": "command/scope/locate.zx"
         }
     ],
     "interfaces": [

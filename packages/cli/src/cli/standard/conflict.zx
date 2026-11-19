@@ -1,0 +1,47 @@
+import memory from "memory"
+
+import existing from "./existing"
+import { Status } from "./model"
+
+import type { Input as Linkage, Plan } from "./model"
+
+export type Input = Linkage.Pick("configured", "generated") & {
+    plan: Plan
+}
+
+export type Output = Plan
+
+export default function (in: Input): Output {
+    const { configured, generated, plan } = in
+    const { additions } = plan
+
+    if (configured.count == 0 && additions.length == 0) {
+        return plan
+    }
+
+    const status = loop({
+        index: 0,
+        status: Status.Selected
+    }, {
+        while: state => state.index < generated.count && state.status == Status.Selected,
+        next: state => {
+            const name = memory.readTextColumn(generated.names, state.index)
+
+            if (existing({
+                configured,
+                additions,
+                name
+            })) {
+                state.status = Status.ConflictingModuleName
+            }
+
+            state.index += 1
+        },
+        return: state => state.status
+    })
+
+    return {
+        ...plan,
+        status
+    }
+}

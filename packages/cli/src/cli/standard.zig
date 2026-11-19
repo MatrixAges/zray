@@ -1,59 +1,53 @@
 const std = @import("std");
 const compiler = @import("compiler");
+const zx = @import("zx");
 const project = @import("project.zig");
-const bytes_backend = "zxc.std.bytes";
+const linkage = @import("cli_source").standard_linkage;
 
-const backends = [_]struct { name: []const u8, path: []const u8 }{
-    .{ .name = "sha256_backend", .path = "src/crypto/sha256.zig" },
-    .{ .name = bytes_backend, .path = "src/bytes/fast.zig" },
-};
+pub fn resolve(allocator: std.mem.Allocator, loaded: project.Loaded, required: []const []const u8, standard_root: []const u8, generated: []const compiler.zig.ModuleFile) !project.Loaded {
+    const standard = compiler.project.standard;
+    const configured = loaded.config.native_modules;
+    const catalog_names = zx.memory.borrowTextColumn("module", standard);
+    const catalog_paths = zx.memory.borrowTextColumn("implementation_path", standard);
+    const configured_names = zx.memory.borrowTextColumn("name", configured);
+    const generated_names = zx.memory.borrowTextColumn("name", generated);
 
-const standard_dependencies: []const []const u8 = &.{ backends[0].name, "bytes_backend=" ++ bytes_backend };
+    const input: std.meta.Child(linkage.Input) = .{
+        .catalog = &.{
+            .names = @ptrCast(&catalog_names),
+            .paths = @ptrCast(&catalog_paths),
+            .count = standard.len,
+        },
+        .configured = &.{ .names = @ptrCast(&configured_names), .count = configured.len },
+        .generated = &.{ .names = @ptrCast(&generated_names), .count = generated.len },
+        .required = required,
+    };
 
-pub fn resolve(allocator: std.mem.Allocator, loaded: project.Loaded, dependencies: []const []const u8, standard_root: []const u8) !project.Loaded {
-    var modules: std.ArrayList(project.NativeModule) = .empty;
+    const plan = try zx.columns.invoke(linkage.executeValue, allocator, &input);
 
-    try modules.appendSlice(allocator, loaded.config.native_modules);
+    switch (plan.status) {
+        .Selected => {},
+        .ReservedNativeModule => return error.ReservedNativeModule,
+        .ConflictingModuleName => return error.ConflictingModuleName,
+    }
 
-    for (compiler.project.standard) |standard| {
-        var required = false;
+    if (plan.additions.len == 0) return loaded;
 
-        for (dependencies) |dependency| {
-            if (std.mem.eql(u8, dependency, standard.module)) required = true;
-        }
+    const modules = try allocator.alloc(project.NativeModule, configured.len + plan.additions.len);
 
-        for (modules.items) |module| {
-            if (std.mem.eql(u8, module.name, standard.module)) required = false;
-        }
+    @memcpy(modules[0..configured.len], configured);
 
-        if (!required) continue;
-
-        const path = try std.fs.path.resolve(allocator, &.{ standard_root, standard.implementation_path });
-        const needs_backends = std.mem.eql(u8, standard.module, "zxc_standard");
-        const backend_dependencies: []const []const u8 = if (needs_backends) standard_dependencies else &.{};
-
-        if (needs_backends) {
-            for (backends) |backend| {
-                for (modules.items) |module| {
-                    if (std.mem.eql(u8, module.name, backend.name)) return error.ReservedNativeModule;
-                }
-            }
-        }
-
-        try modules.append(allocator, .{ .name = standard.module, .path = path, .dependencies = backend_dependencies });
-
-        if (needs_backends) {
-            for (backends) |backend| {
-                const source = try std.fs.path.resolve(allocator, &.{ standard_root, backend.path });
-
-                try modules.append(allocator, .{ .name = backend.name, .path = source });
-            }
-        }
+    for (modules[configured.len..], plan.additions) |*module, addition| {
+        module.* = .{
+            .name = addition.name,
+            .path = try std.fs.path.resolve(allocator, &.{ standard_root, addition.path }),
+            .dependencies = addition.dependencies,
+        };
     }
 
     var result = loaded;
 
-    result.config.native_modules = modules.items;
+    result.config.native_modules = modules;
 
     return result;
 }

@@ -51,12 +51,11 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     defer cache.deinit();
 
-    var dependencies: std.ArrayList([]const u8) = .empty;
     var type_output: std.Io.Writer.Allocating = .init(allocator);
 
     defer type_output.deinit();
 
-    const configuration = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = prepared.sources, .project = loaded.project, .generation_cache = if (options.native and options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../verify.zig").workspace_allocator, .writer = writer, .dependencies = &dependencies, .type_output = if (options.output != null) &type_output.writer else null };
+    const configuration = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = prepared.sources, .project = loaded.project, .generation_cache = if (options.native and options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../verify.zig").workspace_allocator, .writer = writer, .type_output = if (options.output != null) &type_output.writer else null };
 
     if (!options.native) {
         const emitted = try compiler.emitProgramVerified(allocator, configuration, &prepared.analysis);
@@ -91,12 +90,8 @@ pub fn run(context: Compile.Context) !Compile.Status {
     try @import("../generation_cache.zig").report(&cache, options, writer);
 
     const toolchain = @import("../toolchain.zig").resolve(context.io, allocator, context.environment) catch |err| return failure(context, err);
-    const project = try @import("../standard.zig").resolve(allocator, loaded, dependencies.items, toolchain.standard);
     const bundle = generated.bundle;
-
-    for (project.config.native_modules) |native| {
-        for (bundle.modules) |module| if (std.mem.eql(u8, native.name, module.name)) return error.ConflictingModuleName;
-    }
+    const project = try @import("../standard.zig").resolve(allocator, loaded, bundle.native_modules.import_names, toolchain.standard, bundle.modules);
 
     if (context.watch) |attempt| {
         try attempt.prepareBackend(context.io);

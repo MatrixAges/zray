@@ -1,0 +1,11 @@
+export const standard_module: string = "zxc_standard"
+
+export const sha256_backend: string = "sha256_backend"
+
+export const sha256_path: string = "src/crypto/sha256.zig"
+
+export const bytes_backend: string = "zxc.std.bytes"
+
+export const bytes_path: string = "src/bytes/fast.zig"
+
+export const bytes_dependency: string = "bytes_backend=zxc.std.bytes"

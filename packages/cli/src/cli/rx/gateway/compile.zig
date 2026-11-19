@@ -31,14 +31,12 @@ pub fn run(context: Compile.Context, loaded: Loaded) !Compile.Status {
 
     defer cache.deinit();
 
-    var dependencies: std.ArrayList([]const u8) = .empty;
-
     var bundle = if (linked) |*library| blk: {
         var sources: std.ArrayList(compiler.project.Source) = .empty;
 
         for (analyzed.services.?.modules) |module| try sources.appendSlice(allocator, module.sources);
 
-        var emitted = try compiler.emitLibraryVerified(allocator, .{ .io = context.io, .sources = sources.items, .project = loaded.project, .generation_cache = if (options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../../verify.zig").workspace_allocator, .writer = writer, .dependencies = &dependencies }, library);
+        var emitted = try compiler.emitLibraryVerified(allocator, .{ .io = context.io, .sources = sources.items, .project = loaded.project, .generation_cache = if (options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../../verify.zig").workspace_allocator, .writer = writer }, library);
 
         if (emitted == .diagnostic) {
             defer emitted.diagnostic.deinit();
@@ -62,11 +60,7 @@ pub fn run(context: Compile.Context, loaded: Loaded) !Compile.Status {
     try @import("../../generation_cache.zig").report(&cache, options, writer);
 
     const toolchain = try @import("../../toolchain.zig").resolve(context.io, allocator, context.environment);
-    const project = try @import("../../standard.zig").resolve(allocator, loaded, dependencies.items, toolchain.standard);
-
-    for (project.config.native_modules) |native| {
-        for (bundle.modules) |module| if (std.mem.eql(u8, native.name, module.name)) return error.ConflictingModuleName;
-    }
+    const project = try @import("../../standard.zig").resolve(allocator, loaded, bundle.native_modules.import_names, toolchain.standard, bundle.modules);
 
     if (context.watch) |attempt| {
         try attempt.prepareBackend(context.io);

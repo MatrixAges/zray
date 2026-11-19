@@ -1,0 +1,109 @@
+import memory from "memory"
+
+import {
+    bytes_backend,
+    bytes_dependency,
+    bytes_path,
+    sha256_backend,
+    sha256_path,
+    standard_module
+} from "./const"
+import existing from "./existing"
+import { Status } from "./model"
+
+import type { Addition, Input as Linkage, Plan as Output } from "./model"
+
+export type Input = Linkage.Omit("generated")
+
+export default function (in: Input): Output {
+    const { catalog, configured, required } = in
+
+    const additions: Addition[] = []
+
+    if (required.length == 0) {
+        return {
+            status: Status.Selected,
+            additions
+        }
+    }
+
+    return loop({
+        index: 0,
+        plan: {
+            status: Status.Selected,
+            additions
+        }
+    }, {
+        while: state =>
+            state.index < catalog.count && state.plan.status == Status.Selected,
+        next: state => {
+            const name = memory.readTextColumn(catalog.names, state.index)
+
+            const required_root = loop({
+                index: 0,
+                found: false
+            }, {
+                while: demand => demand.index < required.length && !demand.found,
+                next: demand => {
+                    demand.found = required[demand.index] == name
+                    demand.index += 1
+                },
+                return: demand => demand.found
+            })
+
+            if (required_root && !existing({
+                configured,
+                additions: state.plan.additions,
+                name
+            })) {
+                const path = memory.readTextColumn(catalog.paths, state.index)
+
+                if (name == standard_module) {
+                    const reserved = existing({
+                        configured,
+                        additions: state.plan.additions,
+                        name: sha256_backend
+                    }) || existing({
+                        configured,
+                        additions: state.plan.additions,
+                        name: bytes_backend
+                    })
+
+                    if (reserved) {
+                        state.plan.status = Status.ReservedNativeModule
+                    } else {
+                        state.plan.additions = state.plan.additions.push({
+                            name,
+                            path,
+                            dependencies: [
+                                sha256_backend,
+                                bytes_dependency
+                            ]
+                        })[0]
+
+                        state.plan.additions = state.plan.additions.push({
+                            name: sha256_backend,
+                            path: sha256_path,
+                            dependencies: []
+                        })[0]
+
+                        state.plan.additions = state.plan.additions.push({
+                            name: bytes_backend,
+                            path: bytes_path,
+                            dependencies: []
+                        })[0]
+                    }
+                } else {
+                    state.plan.additions = state.plan.additions.push({
+                        name,
+                        path,
+                        dependencies: []
+                    })[0]
+                }
+            }
+
+            state.index += 1
+        },
+        return: state => state.plan
+    })
+}

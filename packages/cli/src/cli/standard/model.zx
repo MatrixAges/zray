@@ -1,0 +1,34 @@
+import type { TextColumn } from "memory"
+
+export type Names = {
+    names: TextColumn,
+    count: u64
+}
+
+export type Catalog = Names & {
+    paths: TextColumn
+}
+
+export type Input = {
+    catalog: Catalog,
+    required: string[],
+    configured: Names,
+    generated: Names
+}
+
+export type Addition = {
+    name: string,
+    path: string,
+    dependencies: string[]
+}
+
+export enum Status {
+    Selected,
+    ReservedNativeModule,
+    ConflictingModuleName
+}
+
+export type Plan = {
+    status: Status,
+    additions: Addition[]
+}

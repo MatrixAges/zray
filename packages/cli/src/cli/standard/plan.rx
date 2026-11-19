@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Linkage" />
+
+    <Args in={Linkage.Input} out={Linkage.Plan} />
+
+    <Call fn="select" in={$in.omit(["generated"])} />
+
+    <If on={$ctx.select.status != Linkage.Status.Selected || $in.generated.count == 0}>
+        <Return value={$ctx.select} />
+    </If>
+
+    <Call
+        fn="conflict"
+        in={{
+            configured: $in.configured,
+            generated: $in.generated,
+            plan: $ctx.select
+        }}
+    />
+
+    <Return value={$ctx.conflict} />
+</Module>

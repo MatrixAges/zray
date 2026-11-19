@@ -9,6 +9,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(b.path("src/cli/native_sources"), "native_sources", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/library"), "library", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/build/command"), "command", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/standard"), "standard", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
 
     for ([_][]const u8{ "const.zx", "ascii/const.zx" }) |file| {
