@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import { Status } from "./verify"
+import verify from "./verify"
+
+import type { Input as Archive } from "./model"
+
+export type Input = Archive.Pick("names", "versions", "name", "version") & {
+    row: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { names, versions, row } = in
+
+    return verify({
+        name: memory.readTextColumn(names, row),
+        version: memory.readTextColumn(versions, row),
+        expected_name: in.name,
+        expected_version: in.version,
+        has_workspace: false
+    }) == Status.Valid
+}

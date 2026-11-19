@@ -1,0 +1,78 @@
+<Module>
+    <Type from="model" as="Archive" />
+
+    <Args in={Archive.Input} out={Archive.Result} />
+
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "digests",
+            "buckets",
+            "scratch",
+            "capacity",
+            "indexed",
+            "count"
+        ])}
+    />
+
+    <Call
+        fn="probe"
+        in={{
+            ...$in.pick([
+                "digests",
+                "buckets",
+                "digest"
+            ]),
+            capacity: $ctx.publish
+        }}
+    />
+
+    <If on={$ctx.probe.entry != 0}>
+        <Call
+            fn="identity"
+            in={{
+                ...$in.pick([
+                    "names",
+                    "versions",
+                    "name",
+                    "version"
+                ]),
+                row: $ctx.probe.entry - 1
+            }}
+        />
+
+        <If on={!$ctx.identity}>
+            <Return
+                value={{
+                    action: Archive.Action.PackageArchiveIdentityMismatch,
+                    row: 0
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                action: Archive.Action.Existing,
+                row: $in.first + $ctx.probe.entry - 1
+            }}
+        />
+    </If>
+
+    <If on={$in.first + $in.count == $in.maximum}>
+        <Return
+            value={{
+                action: Archive.Action.InvalidLockPackageCount,
+                row: 0
+            }}
+        />
+    </If>
+
+    <Call fn="transport" in={$in.archive} />
+
+    <Return
+        value={{
+            action: $ctx.transport,
+            row: $in.first + $in.count
+        }}
+    />
+</Module>

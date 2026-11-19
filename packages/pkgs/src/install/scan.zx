@@ -1,0 +1,85 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import { Kind } from "../workspace/specifier"
+import parse from "../workspace/specifier"
+import local from "./local"
+import { Status } from "./model"
+
+import type { Scan } from "./model"
+
+export type Input = Scan
+
+export type Output = {
+    cursor: u64,
+    status: Status,
+    name: string,
+    range: string
+}
+
+export default function (in: Input): Output {
+    const { production, development, remaining } = in
+    const { names, requirements, targets } = in.columns
+
+    const count = production.count + (in.owner == null ? 0 : development.count)
+
+    if (in.allocate) {
+        const capacity = count < remaining ? count : remaining
+
+        columns.allocateRows(in.storage, capacity)
+    }
+
+    return loop({
+        cursor: in.cursor,
+        status: Status.Done,
+        name: "",
+        range: ""
+    }, {
+        while: s => s.cursor < count && s.status == Status.Done,
+        next: s => {
+            const edge = s.cursor
+            if (edge == remaining) {
+                s.status = Status.TooManyLockDependencies
+            } else {
+                const dev = edge >= production.count
+                const entries = dev ? development : production
+                const row = dev ? edge - production.count : edge
+                const name = memory.readTextColumn(entries.names, row)
+                const range = memory.readTextColumn(entries.requirements, row)
+                const spec = parse(range)
+
+                memory.writeColumnBytes(names, edge, bytes.fromText(name))
+                memory.writeColumnBytes(
+                    requirements,
+                    edge,
+                    bytes.fromText(range)
+                )
+                memory.writeColumnBool(in.columns.development, edge, dev)
+
+                if (spec.kind == Kind.External) {
+                    s.status = Status.Archive
+                    s.name = name
+                    s.range = range
+                } else {
+                    const result = local({
+                        ...in.pick([
+                            "owner",
+                            "members",
+                            "limit"
+                        ]),
+                        name,
+                        requirement: range,
+                        spec
+                    })
+                    s.status = result.status
+                    if (result.status == Status.Done) {
+                        memory.writeColumnIndex(targets, edge, result.row)
+                    }
+                }
+
+                s.cursor += 1
+            }
+        }
+    })
+}

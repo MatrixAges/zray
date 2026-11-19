@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
     const core = b.dependency("core", .{ .target = target, .optimize = optimize });
     const files = b.addWriteFiles();
 
-    for ([_][]const u8{ "version", "workspace", "metadata", "graph", "registry", "lock" }) |dir| {
+    for ([_][]const u8{ "version", "workspace", "metadata", "graph", "registry", "lock", "install" }) |dir| {
         _ = files.addCopyDirectory(b.path(b.fmt("src/{s}", .{dir})), dir, .{ .include_extensions = &.{ ".zx", ".rx" } });
     }
 
@@ -19,6 +19,7 @@ pub fn build(b: *std.Build) void {
     }
 
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
+    _ = files.addCopyFile(compiler.namedLazyPath("memory_columns_interface"), "memory/columns.d.zx");
     _ = files.addCopyFile(compiler.path("src/zx/modules/path/lexical.d.zx"), "memory/lexical.d.zx");
 
     const run = std.Build.Step.Run.create(b, "generate package dependency rules");
@@ -43,6 +44,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
             .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "zxc_standard", .module = standard },
+            .{ .name = "memory/columns", .module = core.module("memory") },
             .{ .name = "lexical_path", .module = standard },
         },
     });

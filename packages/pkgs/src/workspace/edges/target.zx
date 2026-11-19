@@ -1,13 +1,14 @@
 import { Kind } from "../specifier"
 import parse from "../specifier"
 import { Status as Selection } from "../target/model"
+import query from "../target/query"
 import select from "../target/select.rx"
 import { Status } from "./model"
-import query from "./query"
 
-import type { Request } from "./query"
+import type { Request } from "../target/query"
+import type { Members } from "./model"
 
-export type Input = Request
+export type Input = Members & Request
 
 export type Output = {
     status: Status,
@@ -26,7 +27,12 @@ export default function (in: Input): Output {
 
     const selected = select({
         ...query({
-            ...in,
+            ...in.pick([
+                "name",
+                "owner",
+                "root",
+                "requirement"
+            ]),
             spec
         }),
         names: in.manifests.names,

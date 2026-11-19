@@ -2,19 +2,19 @@ import lexical from "lexical_path"
 import memory from "memory"
 
 import { Kind } from "../specifier"
-import { Key } from "../target/model"
+import { Key } from "./model"
 
 import type { Output as Specifier } from "../specifier"
-import type { Query } from "../target/model"
-import type { Members } from "./model"
+import type { Query } from "./model"
 
-export type Request = Members & {
+export type Request = {
     owner: string,
     name: string,
     requirement: string
 }
 
 export type Input = Request & {
+    root?: string,
     spec: Specifier
 }
 
@@ -31,10 +31,21 @@ export default function (in: Input): Output {
                 requirement.length - spec.body
             )
 
+        if (root == null) {
+            return {
+                kind: Key.RelativePath,
+                value: path,
+                owner,
+                range: null
+            }
+        }
+
+        const base = root ?? ""
+
         return {
             kind: Key.HostPath,
-            value: lexical.resolvePortablePath(root, owner, path),
-            owner: root,
+            value: lexical.resolvePortablePath(base, owner, path),
+            owner: base,
             range: null
         }
     }

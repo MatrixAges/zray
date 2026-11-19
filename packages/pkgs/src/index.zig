@@ -54,7 +54,7 @@ pub fn select(self: Index, package_name: []const u8, requirement: []const u8) !?
     const versions = memory.borrowListColumn([]const u8, "versions", "version", self.packages);
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const chosen = rules.index_select.executeValue(empty.allocator(), &.{
+    const chosen = rules.index_select.executeValue(empty.allocator(), .{
         .name = package_name,
         .range = requirement,
         .count = self.packages.len,

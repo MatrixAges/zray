@@ -1,0 +1,25 @@
+export enum Status {
+    Valid,
+    PackageArchiveIdentityMismatch,
+    ArchiveContainsWorkspace
+}
+
+export type Input = {
+    name: string,
+    version: string,
+    expected_name: string,
+    expected_version: string,
+    has_workspace: bool
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const matches = in.name == in.expected_name && in.version == in.expected_version
+
+    return match {
+        !matches => Status.PackageArchiveIdentityMismatch,
+        in.has_workspace => Status.ArchiveContainsWorkspace,
+        _ => Status.Valid
+    }
+}

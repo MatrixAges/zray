@@ -1,0 +1,71 @@
+import { Kind as Path } from "../workspace/path/valid"
+import validPath from "../workspace/path/valid"
+import { Kind } from "../workspace/specifier"
+import { Status as Selected } from "../workspace/target/model"
+import query from "../workspace/target/query"
+import select from "../workspace/target/select.rx"
+import { Status } from "./model"
+
+import type { Output as Specifier } from "../workspace/specifier"
+import type { Request } from "../workspace/target/query"
+import type { Scan } from "./model"
+
+export type Input = Scan.Pick("owner", "members", "limit") & Request.Omit("owner") & {
+    spec: Specifier
+}
+
+export type Output = {
+    status: Status,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    if (in.owner == null || in.spec.kind == Kind.Invalid) {
+        return {
+            status: Status.InvalidLockWorkspaceTarget,
+            row: 0
+        }
+    }
+
+    const owner = in.owner ?? ""
+
+    const target = query({
+        ...in.pick([
+            "name",
+            "requirement",
+            "spec"
+        ]),
+        owner
+    })
+
+    if (in.spec.kind == Kind.Path && !validPath({
+        owner,
+        path: target.value,
+        kind: Path.Dependency
+    })) {
+        return {
+            status: Status.InvalidLockWorkspacePath,
+            row: 0
+        }
+    }
+
+    const selected = select({
+        ...in.members,
+        ...target,
+        limit: in.limit
+    })
+
+    const status = match selected.status {
+        Selected.Found => Status.Done,
+        Selected.Missing => Status.InvalidLockWorkspaceTarget,
+        Selected.InvalidVersion => Status.InvalidVersion,
+        Selected.InvalidRange => Status.InvalidRange,
+        Selected.Overflow => Status.Overflow,
+        _ => Status.LockVersionMismatch
+    }
+
+    return {
+        status,
+        row: selected.row
+    }
+}

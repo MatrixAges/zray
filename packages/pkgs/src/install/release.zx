@@ -1,0 +1,26 @@
+import { Status as Registry } from "../registry/model"
+import { Status } from "./model"
+
+import type { Selection } from "../registry/model"
+import type { Result } from "./model"
+
+export type Input = Selection & Result.Pick("cursor")
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    const status = match in.status {
+        Registry.Valid => in.found ? Status.Archive : Status.PackageVersionNotFound,
+        Registry.InvalidRange => Status.InvalidRange,
+        Registry.Overflow => Status.Overflow,
+        _ => Status.InvalidVersion
+    }
+
+    return {
+        ...in.omit([
+            "status",
+            "found"
+        ]),
+        status
+    }
+}

@@ -1,0 +1,54 @@
+import type { TextColumn, WriteColumn } from "memory"
+import type { RowBuffer } from "memory/columns"
+import type { Catalog } from "../registry/model"
+import type { Rows } from "../workspace/target/model"
+
+export enum Status {
+    Done,
+    Archive,
+    InvalidLockWorkspaceTarget,
+    InvalidLockWorkspacePath,
+    LockVersionMismatch,
+    InvalidRange,
+    InvalidVersion,
+    Overflow,
+    TooManyLockDependencies,
+    PackageVersionNotFound
+}
+
+export type Entries = {
+    names: TextColumn,
+    requirements: TextColumn,
+    count: u64
+}
+
+export type Columns = {
+    names: WriteColumn,
+    requirements: WriteColumn,
+    targets: WriteColumn,
+    development: WriteColumn
+}
+
+export type Scan = {
+    production: Entries,
+    development: Entries,
+    owner?: string,
+    members: Rows,
+    columns: Columns,
+    storage: RowBuffer,
+    cursor: u64,
+    allocate: bool,
+    remaining: u64,
+    limit: u64
+}
+
+export type Input = Scan & {
+    catalog: Catalog
+}
+
+export type Result = {
+    status: Status,
+    cursor: u64,
+    package: u64,
+    release: u64
+}

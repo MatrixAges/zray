@@ -1,0 +1,37 @@
+import type { TextColumn, U32Buffer, U32Scratch } from "memory"
+
+export enum Action {
+    Existing,
+    Local,
+    Remote,
+    PackageArchiveIdentityMismatch,
+    InvalidLockPackageCount
+}
+
+export type Identity = {
+    name: string,
+    version: string
+}
+
+export type Table = {
+    digests: TextColumn,
+    buckets: U32Buffer
+}
+
+export type Input = Identity & Table & {
+    names: TextColumn,
+    versions: TextColumn,
+    scratch: U32Scratch,
+    capacity: u64,
+    indexed: u64,
+    digest: string,
+    archive: string,
+    first: u64,
+    count: u64,
+    maximum: u64
+}
+
+export type Result = {
+    action: Action,
+    row: u64
+}

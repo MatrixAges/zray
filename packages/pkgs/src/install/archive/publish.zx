@@ -1,0 +1,51 @@
+import integers from "std:integer"
+import { load_denominator, load_numerator } from "core/bytes/index/const"
+import capacityFor from "core/bytes/map/capacity"
+import memory from "memory"
+
+import probe from "./probe"
+
+import type { Input as Archive } from "./model"
+
+export type Input =
+    Archive.Pick("digests", "buckets", "scratch", "count", "indexed", "capacity")
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { count, capacity, indexed, buckets, digests } = in
+
+    if (count == indexed) {
+        return capacity
+    }
+
+    const grow = count > capacity * load_numerator / load_denominator
+
+    const size = match {
+        grow => capacityFor(integers.narrow(count)).capacity,
+        _ => capacity
+    }
+
+    if (grow) {
+        memory.growU32Scratch(in.scratch, size, true)
+        memory.clearU32Buffer(buckets, size)
+    }
+
+    const first = grow ? 0 : indexed
+
+    const position = loop(first, {
+        while: i => i < count,
+        next: i => {
+            const location = probe({
+                buckets,
+                digests,
+                digest: memory.readTextColumn(digests, i),
+                capacity: size
+            })
+            memory.writeU32(buckets, location.slot, integers.narrow(i + 1))
+            i += 1
+        }
+    })
+
+    return size
+}

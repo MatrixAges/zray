@@ -34,6 +34,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const declarations = @import("memory_interfaces.zig").create(b, core_dependency, manifests.getDirectory(), directories[2]);
 
     b.addNamedLazyPath("memory_interface", declarations.index);
+    b.addNamedLazyPath("memory_columns_interface", declarations.columns);
 
     const manifest_roots = [_]manifest.Root{
         .{ .path = directories[0] },

@@ -2,7 +2,7 @@ const std = @import("std");
 const maximum = @import("../archive.zig").maximum_archive;
 
 pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: []const u8) ![]u8 {
-    if (!std.mem.startsWith(u8, source, "https://") and !std.mem.startsWith(u8, source, "http://")) {
+    if (try @import("pkgs").install.archiveTransport(allocator, source) == .Local) {
         const path = try std.fs.path.resolve(allocator, &.{ base, source });
 
         defer allocator.free(path);

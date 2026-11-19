@@ -1,0 +1,17 @@
+import bytes from "std:bytes"
+
+import { http_scheme, https_scheme } from "./const"
+import { Action } from "./model"
+
+export type Input = string
+
+export type Output = Action
+
+export default function (in: Input): Output {
+    const text = bytes.fromText(in)
+
+    const remote = bytes.startsWithText(text, 0, http_scheme) ||
+        bytes.startsWithText(text, 0, https_scheme)
+
+    return remote ? Action.Remote : Action.Local
+}

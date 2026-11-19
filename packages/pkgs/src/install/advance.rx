@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Install" />
+
+    <Args in={Install.Input} out={Install.Result} />
+
+    <Call fn="scan" in={$in.omit(["catalog"])} />
+
+    <If on={$ctx.scan.status == Install.Status.Archive}>
+        <Call
+            module="../registry/select"
+            in={{
+                ...$in.catalog,
+                ...$ctx.scan.pick([
+                    "name",
+                    "range"
+                ])
+            }}
+        />
+
+        <Call
+            fn="release"
+            in={{
+                ...$ctx.select,
+                cursor: $ctx.scan.cursor
+            }}
+        />
+
+        <Return value={$ctx.release} />
+    </If>
+
+    <Return
+        value={{
+            ...$ctx.scan.pick([
+                "status",
+                "cursor"
+            ]),
+            package: 0,
+            release: 0
+        }}
+    />
+</Module>

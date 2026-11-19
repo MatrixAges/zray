@@ -31,6 +31,10 @@
         {
             "path": "lock",
             "prefix": "lock/"
+        },
+        {
+            "path": "install",
+            "prefix": "install/"
         }
     ],
     "entries": [
@@ -105,6 +109,22 @@
         {
             "path": "workspace/edges/assemble.rx",
             "name": "workspace_graph"
+        },
+        {
+            "path": "install/advance.rx",
+            "name": "install_advance"
+        },
+        {
+            "path": "install/archive/plan.rx",
+            "name": "install_archive"
+        },
+        {
+            "path": "install/archive/verify.zx",
+            "name": "install_identity"
+        },
+        {
+            "path": "install/archive/transport.zx",
+            "name": "archive_transport"
         }
     ],
     "packages": [
@@ -141,6 +161,10 @@
         {
             "path": "memory/lexical.d.zx",
             "module": "lexical_path"
+        },
+        {
+            "path": "memory/columns.d.zx",
+            "module": "memory/columns"
         }
     ]
 }
