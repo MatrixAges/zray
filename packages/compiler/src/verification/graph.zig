@@ -160,8 +160,10 @@ pub fn select(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, condit
     return .{ .fields = fields };
 }
 
-pub fn writeDeclarations(self: *Self, output: *std.Io.Writer) zx.Error!void {
-    const rows = self.definitions.slice();
+pub fn writeDeclarations(self: *Self, output: *std.Io.Writer, start: usize, end: usize) zx.Error!void {
+    if (start == end) return;
+
+    const rows = self.definitions.slice().subslice(start, end - start);
 
     if (comptime generated) {
         const rule = @import("generated_verification_graph_declarations");

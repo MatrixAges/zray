@@ -56,6 +56,8 @@ pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.m
         precondition = try self.conjunction(precondition, try self.conjunction(evaluated.safe, evaluated.value.scalar));
     }
 
+    // Terms only refer to earlier definitions. The body cannot add dependencies to the precondition.
+    const precondition_count = self.graph.?.definitions.len;
     const environment = try self.scratch.allocator().alloc(?Value, self.program.symbols.count());
 
     @memset(environment, null);
@@ -79,13 +81,18 @@ pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.m
 
     defer definitions.deinit();
 
-    try graph.writeDeclarations(&definitions.writer);
+    try graph.writeDeclarations(&definitions.writer, 0, precondition_count);
+
+    const precondition_bytes = definitions.written().len;
+
+    try graph.writeDeclarations(&definitions.writer, precondition_count, graph.definitions.len);
 
     const input: Record = .{
         .declarations = self.declarations.items,
         .definitions = definitions.written(),
         .violations = self.violations.items,
         .precondition = precondition,
+        .precondition_definitions = definitions.written()[0..precondition_bytes],
     };
 
     const query = try query_module.executeValue(result_allocator, if (Record == Request) input else &input);

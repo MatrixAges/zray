@@ -4,6 +4,7 @@
             declarations: string[],
             definitions: string,
             precondition: string,
+            precondition_definitions: string,
             violations: string[]
         }}
         out={{
@@ -21,7 +22,7 @@
             fn="statement"
             in={{
                 declarations: $ctx.declarations,
-                definitions: $in.definitions,
+                definitions: $in.precondition_definitions,
                 predicate: $in.precondition
             }}
         />
