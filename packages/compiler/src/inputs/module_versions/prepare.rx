@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Batch" />
+
+    <Args in={Batch.Input} out={Batch.Output} />
+
+    <Call fn="prefix" in={$in.probe} />
+
+    <If on={!$ctx.prefix.whole && $in.probe.prior.count != 0}>
+        <Call
+            fn="suffix"
+            in={{
+                snapshot: $in.probe.pick([
+                    "prior",
+                    "current"
+                ]),
+                target: $in.target,
+                prefix: $ctx.prefix.prefix
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.prefix} />
+</Module>

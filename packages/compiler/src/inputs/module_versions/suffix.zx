@@ -1,26 +1,28 @@
 import memory from "memory"
+import columns from "memory/columns"
 
-import same from "./same"
 import sameRow from "./same_row"
 import start from "./start"
 
-import type { Input, Output } from "./model"
+import type { Snapshot, Target } from "./model"
 
-export type { Input, Output } from "./model"
+export type Input = {
+    snapshot: Snapshot,
+    target: Target,
+    prefix: u64
+}
+
+export type Output = void
 
 export default function (in: Input): Output {
-    const { prior, current, positions } = in
+    const { prior, current } = in.snapshot
+    const { prefix, target } = in
 
-    if (positions == null) {
-        return same({
-            prior,
-            current
-        })
-    }
+    columns.allocateRows(target.buffer, current.count - prefix)
 
-    return loop({
-        row: 0,
-        first: 0
+    const selected = loop({
+        row: prefix,
+        first: prefix == 0 ? 0 : prefix - 1
     }, {
         while: state => state.row < current.count,
         next: state => {
@@ -45,9 +47,8 @@ export default function (in: Input): Output {
                 _ => 0
             }
 
-            memory.writeU64(positions, row, position)
+            memory.writeColumnU64(target.rows, row - prefix, position)
             state.row += 1
-        },
-        return: state => state.row == current.count
+        }
     })
 }

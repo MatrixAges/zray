@@ -1,13 +1,13 @@
 const std = @import("std");
 const rx = @import("rx");
 const compiler = @import("compiler");
-const bytes = compiler.bytes;
 const selection = compiler.resident_modules;
 const Self = @This();
 
 const Version = struct {
     path: []const u8,
     parsed: rx.IndexedXml,
+    capacity: usize,
     readers: usize = 1,
 };
 
@@ -38,15 +38,19 @@ pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSo
 
     const inputs = try owner.alloc(rx.ModuleSource, sources.len);
     const before = if (self.current) |batch| batch.versions else &.{};
+    const previous_packages = if (self.current) |batch| &batch.packages else null;
+    var scratch = std.heap.ArenaAllocator.init(self.gpa);
 
-    if (self.current) |batch| {
-        if (before.len == sources.len and bytes.equal(&batch.packages, &packages) and selection.select(before, sources, null)) {
-            for (before, inputs, sources) |version, *input, source| input.* = view(version, source, true);
+    defer scratch.deinit();
 
-            self.reused += before.len;
+    const plan = try selection.prepare(scratch.allocator(), before, sources, previous_packages, &packages);
 
-            return inputs;
-        }
+    if (plan.whole) {
+        for (before, inputs, sources) |version, *input, source| input.* = view(version, source, true);
+
+        self.reused += before.len;
+
+        return inputs;
     }
 
     const batch = try self.gpa.create(Batch);
@@ -57,18 +61,12 @@ pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSo
 
     errdefer self.gpa.free(next);
 
-    const positions: []u64 = if (before.len == 0) &.{} else try self.gpa.alloc(u64, sources.len);
-
-    defer self.gpa.free(positions);
-
-    if (positions.len != 0 and !selection.select(before, sources, positions)) unreachable;
-
     var initialized: usize = 0;
 
     errdefer for (next[0..initialized]) |version| self.releaseVersion(version);
 
     for (sources, inputs, next, 0..) |source, *input, *version, row| {
-        const position = if (positions.len != 0) positions[row] else 0;
+        const position = plan.at(row);
         const reused = position != 0;
 
         if (reused) {
@@ -103,35 +101,37 @@ pub fn prepare(self: *Self, owner: std.mem.Allocator, sources: []const rx.TextSo
 }
 
 pub fn publish(self: *Self) *Batch {
-    if (self.pending) |batch| {
-        if (self.current) |old| self.release(old);
+    self.change(.Publish, null);
 
-        self.current = batch;
-        self.pending = null;
-    }
-
-    const batch = self.current.?;
-
-    batch.readers += 1;
-
-    return batch;
+    return self.current.?;
 }
 
 pub fn discard(self: *Self) void {
-    if (self.pending) |batch| self.release(batch);
-
-    self.pending = null;
+    self.change(.Discard, null);
 }
 
 /// Restores the successful batch after the inputs return to an earlier analysis revision.
 pub fn restore(self: *Self, batch: *Batch) void {
-    self.discard();
+    self.change(.Restore, batch);
+}
 
-    if (self.current == batch) return;
-    if (self.current) |current| self.release(current);
+fn change(self: *Self, operation: selection.Operation, previous: ?*Batch) void {
+    const current = self.current;
+    const pending = self.pending;
+    const plan = selection.transition(operation, pending != null, current == previous);
 
-    batch.readers += 1;
-    self.current = batch;
+    const next = switch (plan.next) {
+        .Current => current,
+        .Pending => pending,
+        .Previous => previous,
+    };
+
+    if (plan.drop_pending) self.release(pending.?);
+    if (plan.drop_current) if (current) |batch| self.release(batch);
+    if (plan.retain) next.?.readers += 1;
+
+    self.pending = null;
+    self.current = next;
 }
 
 pub fn release(self: *Self, batch: *Batch) void {
@@ -150,7 +150,7 @@ fn releaseVersion(self: *Self, version: *Version) void {
     if (version.readers != 0) return;
 
     self.versions -= 1;
-    self.capacity -= version.parsed.xml.arena.queryCapacity();
+    self.capacity -= version.capacity;
 
     version.parsed.xml.deinit();
     self.gpa.destroy(version);
@@ -166,9 +166,9 @@ fn parse(self: *Self, source: rx.TextSource) !*Version {
     const path = try parsed.xml.arena.allocator().dupe(u8, source.path);
     const version = try self.gpa.create(Version);
 
-    version.* = .{ .path = path, .parsed = parsed };
+    version.* = .{ .path = path, .parsed = parsed, .capacity = parsed.xml.arena.queryCapacity() };
     self.versions += 1;
-    self.capacity += parsed.xml.arena.queryCapacity();
+    self.capacity += version.capacity;
 
     return version;
 }

@@ -1,0 +1,44 @@
+export enum Operation {
+    Publish,
+    Discard,
+    Restore
+}
+
+export enum Slot {
+    Current,
+    Pending,
+    Previous
+}
+
+export type Input = {
+    operation: Operation,
+    pending: bool,
+    already_current: bool
+}
+
+export type Output = {
+    next: Slot,
+    drop_current: bool,
+    drop_pending: bool,
+    retain: bool
+}
+
+export default function (in: Input): Output {
+    if (in.operation == Operation.Publish) {
+        return {
+            next: in.pending ? Slot.Pending : Slot.Current,
+            drop_current: in.pending,
+            drop_pending: false,
+            retain: true
+        }
+    }
+
+    const restore = in.operation == Operation.Restore && !in.already_current
+
+    return {
+        next: restore ? Slot.Previous : Slot.Current,
+        drop_current: restore,
+        drop_pending: in.pending,
+        retain: restore
+    }
+}

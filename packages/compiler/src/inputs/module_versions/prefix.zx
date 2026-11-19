@@ -1,0 +1,50 @@
+import bytes from "std:bytes"
+
+import sameRow from "./same_row"
+
+import type { Probe as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { prior, current, before, packages } = in
+
+    if (before == null) {
+        return {
+            whole: false,
+            prefix: 0
+        }
+    }
+
+    const same_packages = bytes.equals(before, packages)
+
+    if (!same_packages || prior.count != current.count) {
+        return {
+            whole: false,
+            prefix: 0
+        }
+    }
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < current.count,
+        next: state => {
+            const row = state.row
+
+            state.valid = sameRow({
+                prior,
+                current,
+                index: row,
+                row
+            })
+
+            if (state.valid) {
+                state.row += 1
+            }
+        },
+        return: state => ({
+            whole: state.valid,
+            prefix: state.row
+        })
+    })
+}

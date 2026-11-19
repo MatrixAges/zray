@@ -1,5 +1,5 @@
-import type { TextColumn, U64Buffer } from "memory"
-import type { IndirectTextColumn } from "memory/columns"
+import type { TextColumn, WriteColumn } from "memory"
+import type { IndirectTextColumn, RowBuffer } from "memory/columns"
 
 export type Prior = {
     paths: IndirectTextColumn,
@@ -13,21 +13,36 @@ export type Current = {
     count: u64
 }
 
-export type Input = {
+export type Snapshot = {
     prior: Prior,
-    current: Current,
-    positions?: U64Buffer
+    current: Current
 }
 
-export type Output = bool
+export type Probe = Snapshot & {
+    before?: u8[],
+    packages: u8[]
+}
+
+export type Target = {
+    buffer: RowBuffer,
+    rows: WriteColumn
+}
+
+export type Input = {
+    probe: Probe,
+    target: Target
+}
+
+export type Output = {
+    whole: bool,
+    prefix: u64
+}
 
 export type Cursor = {
     prior: Prior,
     first: u64,
     path: string
 }
-
-export type Snapshot = Input.Omit("positions")
 
 export type Comparison = Snapshot & {
     index: u64,

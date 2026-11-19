@@ -1,44 +1,74 @@
 const std = @import("std");
 const zx = @import("zx");
+const memory = zx.memory;
+const generated = @import("parser_options").generated_parser;
+const seed = @import("module_versions/seed.zig");
+pub const Position = struct { previous: u64 };
 
-pub fn select(before: anytype, sources: anytype, positions: ?[]u64) bool {
-    if (comptime !@import("parser_options").generated_parser) return seed(before, sources, positions);
+pub const Plan = struct {
+    whole: bool,
+    prefix: usize,
+    tail: []const Position,
+    pub fn at(self: Plan, row: usize) u64 {
+        if (row < self.prefix) return row + 1;
+
+        return if (self.tail.len == 0) 0 else self.tail[row - self.prefix].previous;
+    }
+};
+
+pub fn prepare(allocator: std.mem.Allocator, before: anytype, sources: anytype, previous_packages: ?*const [32]u8, packages: *const [32]u8) !Plan {
+    if (comptime !generated) return seed.prepare(allocator, before, sources, previous_packages, packages);
 
     const rule = @import("generated_input_module_versions");
-    const previous_paths = zx.memory.borrowReferencedTextColumn("path", before);
-    const previous_texts = zx.memory.borrowReferencedTextPath(&.{ "parsed", "xml", "source" }, before);
-    const paths = zx.memory.borrowTextColumn("path", sources);
-    const texts = zx.memory.borrowTextColumn("source", sources);
+    const Input = std.meta.Child(rule.Input);
+    const Target = std.meta.Child(@FieldType(Input, "target"));
+    const previous_paths = memory.borrowReferencedTextColumn("path", before);
+    const previous_texts = memory.borrowReferencedTextPath(&.{ "parsed", "xml", "source" }, before);
+    const paths = memory.borrowTextColumn("path", sources);
+    const texts = memory.borrowTextColumn("source", sources);
+    var positions: memory.RowOutput(Position, struct { rows: @FieldType(Target, "rows") }, .{ .rows = &.{"previous"} }) = undefined;
 
-    const input: std.meta.Child(rule.Input) = .{
-        .prior = &.{ .paths = @ptrCast(&previous_paths), .texts = @ptrCast(&previous_texts), .count = before.len },
-        .current = &.{ .paths = @ptrCast(&paths), .texts = @ptrCast(&texts), .count = sources.len },
-        .positions = if (positions) |*rows| @ptrCast(rows) else null,
+    positions.init();
+
+    const input: Input = .{
+        .probe = &.{
+            .prior = &.{ .paths = @ptrCast(&previous_paths), .texts = @ptrCast(&previous_texts), .count = before.len },
+            .current = &.{ .paths = @ptrCast(&paths), .texts = @ptrCast(&texts), .count = sources.len },
+            .before = if (previous_packages) |hash| hash else null,
+            .packages = packages,
+        },
+        .target = &.{ .buffer = @ptrCast(&positions.buffer), .rows = positions.view.rows },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = try zx.columns.invoke(rule.executeValue, allocator, &input);
 
-    return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    return .{ .whole = result.whole, .prefix = @intCast(result.prefix), .tail = positions.rows() };
 }
 
-fn seed(before: anytype, sources: anytype, positions: ?[]u64) bool {
-    if (positions) |rows| {
-        var first: usize = 0;
+pub const Operation = enum { Publish, Discard, Restore };
+pub const Slot = enum { Current, Pending, Previous };
+pub const Transition = struct { next: Slot, drop_current: bool, drop_pending: bool, retain: bool };
 
-        for (sources, rows) |source, *row| {
-            while (first < before.len and std.mem.order(u8, before[first].path, source.path) == .lt) first += 1;
+pub fn transition(operation: Operation, pending: bool, already_current: bool) Transition {
+    if (comptime !generated) return seed.transition(operation, pending, already_current);
 
-            row.* = if (first < before.len and zx.bytes.equal(before[first].path, source.path) and zx.bytes.equal(before[first].parsed.xml.source, source.source)) first + 1 else 0;
-        }
+    const rule = @import("generated_input_module_transition");
+    const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
 
-        return true;
-    }
+    const input: Input = .{
+        .operation = @fromBackingInt(@intCast(@backingInt(operation))),
+        .pending = pending,
+        .already_current = already_current,
+    };
 
-    if (before.len != sources.len) return false;
+    var memory_buffer: [128]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&memory_buffer);
+    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
 
-    for (before, sources) |previous, source| {
-        if (!zx.bytes.equal(previous.path, source.path) or !zx.bytes.equal(previous.parsed.xml.source, source.source)) return false;
-    }
-
-    return true;
+    return .{
+        .next = @fromBackingInt(@intCast(@backingInt(result.next))),
+        .drop_current = result.drop_current,
+        .drop_pending = result.drop_pending,
+        .retain = result.retain,
+    };
 }
