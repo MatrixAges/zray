@@ -1,0 +1,3 @@
+export const inventory_name: string = "library.json"
+
+export const inventory_limit: u64 = 16 * 1024 * 1024

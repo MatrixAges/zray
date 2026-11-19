@@ -18,6 +18,10 @@
         {
             "path": "native_sources",
             "prefix": "native_sources/"
+        },
+        {
+            "path": "library",
+            "prefix": "library/"
         }
     ],
     "entries": [
@@ -92,6 +96,26 @@
         {
             "path": "native_sources/inventory/version.zx",
             "name": "library_inventory_version"
+        },
+        {
+            "path": "library/retirement/select.rx",
+            "name": "library_retirement_select"
+        },
+        {
+            "path": "library/retirement/inspect.zx",
+            "name": "library_retirement_inspect"
+        },
+        {
+            "path": "library/retirement/verify.zx",
+            "name": "library_retirement_verify"
+        },
+        {
+            "path": "library/publication/item.zx",
+            "name": "library_publication_item"
+        },
+        {
+            "path": "library/publication/const.zx",
+            "name": "library_publication_constants"
         }
     ],
     "packages": [

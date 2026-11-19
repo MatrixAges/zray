@@ -2,98 +2,125 @@ const std = @import("std");
 const Inputs = @import("watch/inputs.zig");
 const inventory = @import("library/inventory.zig");
 const path_rules = @import("native_sources/path.zig");
+const rules = @import("cli_source");
+const columns = @import("zx").columns;
 
-pub fn retiredFromStaging(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, staging: []const u8, inputs: *Inputs) ![]const []const u8 {
-    var next = try inventory.read(io, allocator, staging) orelse return error.MissingLibraryInventory;
-
-    defer next.deinit();
-
-    return retired(io, allocator, directory, next.value.managed_files orelse next.value.bundled_files, inputs);
-}
-
-pub fn retired(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, current: anytype, inputs: ?*Inputs) ![]const []const u8 {
-    var previous = try inventory.read(io, allocator, directory) orelse return &.{};
+pub fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, directory: []const u8, current: []const inventory.File, inputs: *Inputs) ![]const []const u8 {
+    var previous = try inventory.read(io, backing, directory) orelse return &.{};
 
     defer previous.deinit();
 
-    const root = try std.fs.path.resolve(allocator, &.{directory});
-    const physical_root = try std.Io.Dir.cwd().realPathFileAlloc(io, root, allocator);
+    var planning = std.heap.ArenaAllocator.init(backing);
+
+    defer planning.deinit();
+
+    const memory = planning.allocator();
+    const root = try std.fs.path.resolve(memory, &.{directory});
+    const physical_root = try std.Io.Dir.cwd().realPathFileAlloc(io, root, memory);
+    const targets = try Targets.init(memory, root, current);
     var retired_paths: std.ArrayList([]const u8) = .empty;
+    var row = std.heap.ArenaAllocator.init(backing);
 
-    for (previous.value.managed_files orelse previous.value.bundled_files) |resource| {
-        const path = try std.fs.path.resolve(allocator, &.{ root, resource.path });
-        const relative = try std.fs.path.relative(allocator, root, null, root, path);
-        const portable = try allocator.dupe(u8, relative);
+    defer row.deinit();
 
-        defer allocator.free(portable);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const workspace = row.allocator();
+    const owned = previous.value.managed_files;
+    const files = owned orelse previous.value.bundled_files;
 
-        if (std.fs.path.sep == '\\') for (portable) |*byte| if (byte.* == '\\') {
-            byte.* = '/';
-        };
+    for (files) |resource| {
+        defer _ = row.reset(.retain_capacity);
+        const path = try std.fs.path.resolve(workspace, &.{ root, resource.path });
+        const relative = try std.fs.path.relative(workspace, root, null, root, path);
 
-        if (!inventory.valid(portable, previous.value.managed_files == null)) return error.InvalidLibraryInventory;
+        inventory.makePortable(relative);
 
-        var retained = false;
+        const selection = columns.invoke(rules.library_retirement_select.executeValue, empty.allocator(), &.{
+            .path = @as([]const u8, relative),
+            .absolute = std.fs.path.isAbsolute(relative),
+            .native_only = owned == null,
+            .retained = targets.names.contains(path),
+        }) catch unreachable;
 
-        for (current) |file| {
-            const target = try std.fs.path.resolve(allocator, &.{ root, file.path });
-
-            if (std.mem.eql(u8, path, target)) retained = true;
+        switch (selection) {
+            .Retain => continue,
+            .Invalid => return error.InvalidLibraryInventory,
+            .Inspect => {},
         }
 
-        if (retained) continue;
+        const file_kind = try kind(io, path);
 
-        const stat = std.Io.Dir.cwd().statFile(io, path, .{ .follow_symlinks = false }) catch |err| switch (err) {
-            error.FileNotFound => continue,
-            else => return err,
-        };
+        switch (rules.library_retirement_inspect.executeValue(empty.allocator(), file_kind) catch unreachable) {
+            .Skip => continue,
+            .Modified => return error.LibraryResourceModified,
+            .Resolve => {},
+        }
 
-        if (stat.kind != .file) return error.LibraryResourceModified;
-
-        const physical = try std.Io.Dir.cwd().realPathFileAlloc(io, path, allocator);
-        const physical_relative = try std.fs.path.relative(allocator, physical_root, null, physical_root, physical);
+        const physical = try std.Io.Dir.cwd().realPathFileAlloc(io, path, workspace);
+        const physical_relative = try std.fs.path.relative(workspace, physical_root, null, physical_root, physical);
 
         if (!path_rules.within(physical_relative)) return error.LibraryResourceOutsideOutput;
+        if (try targets.includesPhysical(io, physical)) continue;
 
-        for (current) |file| {
-            const target = try std.fs.path.resolve(allocator, &.{ root, file.path });
+        _ = try @import("watch/output.zig").check(io, workspace, inputs, path);
 
-            const target_stat = std.Io.Dir.cwd().statFile(io, target, .{ .follow_symlinks = false }) catch |err| switch (err) {
-                error.FileNotFound => continue,
-                else => return err,
-            };
+        const hash = try inventory.digest(io, .cwd(), path);
+        const hex = std.fmt.bytesToHex(hash, .lower);
 
-            if (target_stat.kind != .file) continue;
+        const confirmed = columns.invoke(rules.library_retirement_verify.executeValue, empty.allocator(), &.{
+            .actual = @as([]const u8, &hex),
+            .expected = resource.sha256,
+        }) catch unreachable;
 
-            const target_physical = try std.Io.Dir.cwd().realPathFileAlloc(io, target, allocator);
+        if (!confirmed) return error.LibraryResourceModified;
 
-            if (std.mem.eql(u8, physical, target_physical)) retained = true;
-        }
-
-        if (retained) continue;
-
-        if (inputs) |observed| {
-            const output = try @import("watch/output.zig").check(io, allocator, observed, path);
-
-            allocator.free(output);
-        }
-
-        const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .unlimited);
-
-        defer allocator.free(bytes);
-
-        var digest: [32]u8 = undefined;
-
-        std.crypto.hash.sha2.Sha256.hash(bytes, &digest, .{});
-
-        const hex = std.fmt.bytesToHex(digest, .lower);
-
-        if (!std.ascii.eqlIgnoreCase(&hex, resource.sha256)) return error.LibraryResourceModified;
-        try retired_paths.append(allocator, path);
+        try retired_paths.append(allocator, try allocator.dupe(u8, path));
     }
 
     return retired_paths.items;
 }
+
+fn kind(io: std.Io, path: []const u8) !rules.library_retirement_inspect.Input {
+    const stat = std.Io.Dir.cwd().statFile(io, path, .{ .follow_symlinks = false }) catch |err| switch (err) {
+        error.FileNotFound => return .Missing,
+        else => return err,
+    };
+
+    return if (stat.kind == .file) .Regular else .Other;
+}
+
+const Targets = struct {
+    paths: []const []const u8,
+    names: std.StringHashMapUnmanaged(void),
+    fn init(allocator: std.mem.Allocator, root: []const u8, current: []const inventory.File) !Targets {
+        const paths = try allocator.alloc([]const u8, current.len);
+        var names: std.StringHashMapUnmanaged(void) = .empty;
+
+        try names.ensureTotalCapacity(allocator, @intCast(current.len));
+
+        for (paths, current) |*path, file| {
+            path.* = try std.fs.path.resolve(allocator, &.{ root, file.path });
+
+            names.putAssumeCapacity(path.*, {});
+        }
+
+        return .{ .paths = paths, .names = names };
+    }
+    fn includesPhysical(self: Targets, io: std.Io, physical: []const u8) !bool {
+        var retained = false;
+        var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+
+        for (self.paths) |target| {
+            if (try kind(io, target) != .Regular) continue;
+
+            const length = try std.Io.Dir.cwd().realPathFile(io, target, &buffer);
+
+            if (std.mem.eql(u8, physical, buffer[0..length])) retained = true;
+        }
+
+        return retained;
+    }
+};
 
 pub fn remove(io: std.Io, paths: []const []const u8) !void {
     for (paths) |path| {

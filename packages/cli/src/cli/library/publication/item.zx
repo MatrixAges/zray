@@ -1,0 +1,20 @@
+import { inventory_name } from "./const"
+
+export type Input = {
+    path: string,
+    regular: bool
+}
+
+export enum Output {
+    Ignore,
+    Content,
+    Inventory
+}
+
+export default function (in: Input): Output {
+    if (!in.regular) {
+        return Output.Ignore
+    }
+
+    return in.path == inventory_name ? Output.Inventory : Output.Content
+}

@@ -77,9 +77,9 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
 
     defer std.Io.Dir.cwd().deleteTree(context.io, staging) catch {};
 
-    try @import("publish.zig").write(context.io, allocator, staging, &library, bundle, native_project, inputs);
+    const managed = try @import("publish.zig").write(context.io, allocator, staging, &library, bundle, native_project, inputs);
 
-    if (!try @import("../watch/library.zig").publish(context.io, allocator, staging, context.options.output.?, inputs)) {
+    if (!try @import("../watch/library.zig").publish(context.io, context.backing, staging, context.options.output.?, managed, inputs)) {
         if (context.watch != null) return .retry;
 
         return error.LibraryInputsChanged;

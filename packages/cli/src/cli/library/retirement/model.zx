@@ -1,0 +1,23 @@
+import type { Input as InventoryPath } from "../../native_sources/inventory/model"
+
+export type Input = InventoryPath & {
+    retained: bool
+}
+
+export enum Selection {
+    Invalid,
+    Retain,
+    Inspect
+}
+
+export enum Kind {
+    Missing,
+    Regular,
+    Other
+}
+
+export enum Inspection {
+    Skip,
+    Resolve,
+    Modified
+}

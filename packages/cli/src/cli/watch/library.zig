@@ -1,21 +1,31 @@
 const std = @import("std");
 const Inputs = @import("inputs.zig");
+const inventory = @import("../library/inventory.zig");
+const retirement = @import("../library_resources.zig");
+const paths = @import("../native_sources/path.zig");
+const item = @import("cli_source").library_publication_item;
+const columns = @import("zx").columns;
 
-pub fn publish(io: std.Io, allocator: std.mem.Allocator, staging: []const u8, output: []const u8, inputs: *Inputs) !bool {
+pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, output: []const u8, managed: []const inventory.File, inputs: *Inputs) !bool {
+    var arena = std.heap.ArenaAllocator.init(backing);
+
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
     const destination = try std.fs.path.resolve(allocator, &.{ inputs.cwd, output });
-    var observed = try inputs.observed(allocator);
+    var observed = try inputs.observed(backing);
 
     defer observed.deinit();
 
     for (observed.entries) |entry| {
         const relative = try std.fs.path.relative(allocator, destination, null, destination, entry.path);
 
-        if (!std.fs.path.isAbsolute(relative) and !std.mem.eql(u8, relative, "..") and !std.mem.startsWith(u8, relative, ".." ++ std.fs.path.sep_str)) return error.OutputOverlapsInput;
+        if (paths.within(relative)) return error.OutputOverlapsInput;
     }
 
-    if (!try observed.unchanged(io, allocator)) return false;
+    if (!try observed.unchanged(io, backing)) return false;
 
-    const retired = try @import("../library_resources.zig").retiredFromStaging(io, allocator, destination, staging, inputs);
+    const retired = try retirement.retired(io, allocator, backing, destination, managed, inputs);
     var directory = try std.Io.Dir.openDirAbsolute(io, staging, .{ .iterate = true });
 
     defer directory.close(io);
@@ -24,29 +34,40 @@ pub fn publish(io: std.Io, allocator: std.mem.Allocator, staging: []const u8, ou
 
     defer walker.deinit();
 
-    var paths: std.ArrayList([]const u8) = .empty;
+    var files: std.ArrayList([]const u8) = .empty;
+    var manifest = false;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     while (try walker.next(io)) |entry| {
-        if (entry.kind != .file) continue;
+        const role = columns.invoke(item.executeValue, empty.allocator(), &.{
+            .path = @as([]const u8, entry.path),
+            .regular = entry.kind == .file,
+        }) catch unreachable;
+
+        if (role == .Ignore) continue;
 
         const target = try std.fs.path.join(allocator, &.{ destination, entry.path });
         const physical = try @import("output.zig").check(io, allocator, inputs, target);
 
         allocator.free(physical);
 
-        try paths.append(allocator, try allocator.dupe(u8, entry.path));
+        if (role == .Inventory) {
+            manifest = true;
+        } else {
+            try files.append(allocator, try allocator.dupe(u8, entry.path));
+        }
     }
 
-    for (paths.items) |path| {
-        if (std.mem.eql(u8, path, "library.json")) continue;
+    if (!manifest) return error.MissingLibraryInventory;
 
+    for (files.items) |path| {
         const target = try std.fs.path.join(allocator, &.{ destination, path });
 
         try directory.copyFile(path, .cwd(), target, io, .{ .make_path = true });
     }
 
-    try @import("../library_resources.zig").remove(io, retired);
-    try directory.copyFile("library.json", .cwd(), try std.fs.path.join(allocator, &.{ destination, "library.json" }), io, .{ .make_path = true });
+    try retirement.remove(io, retired);
+    try directory.copyFile(inventory.name, .cwd(), try std.fs.path.join(allocator, &.{ destination, inventory.name }), io, .{ .make_path = true });
 
     return true;
 }

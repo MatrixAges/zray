@@ -4,8 +4,9 @@ const Loaded = @import("../project.zig").Loaded;
 const Inputs = @import("../watch/inputs.zig");
 const artifacts = @import("../artifacts.zig");
 const config_writer = @import("../library_config.zig");
+const inventory = @import("inventory.zig");
 
-pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, library: *const compiler.library.Result, bundle: compiler.zig.LibraryBundle, loaded: Loaded, inputs: ?*Inputs) !void {
+pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, library: *const compiler.library.Result, bundle: compiler.zig.LibraryBundle, loaded: Loaded, inputs: ?*Inputs) ![]const inventory.File {
     const abi = try @import("../abi.zig").createLibrary(allocator, bundle, loaded);
     var resources_input = loaded;
 
@@ -60,7 +61,9 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, li
 
     try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, "build.zig" }), build_source);
 
-    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, "library.json" }), try std.json.Stringify.valueAlloc(allocator, .{
+    const managed = try inventory.collect(io, allocator, directory);
+
+    const metadata = try std.json.Stringify.valueAlloc(allocator, .{
         .format_version = 2,
         .library = config.library,
         .ir_version = @import("zx").ir_version,
@@ -68,9 +71,14 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, li
         .store_initializers = bundle.store_initializers,
         .native_sources_bundled = resources.bundled_files.len != 0,
         .bundled_files = resources.bundled_files,
-        .managed_files = try @import("inventory.zig").collect(io, allocator, directory),
+        .managed_files = managed,
         .native_dependencies = resources.dependencies,
         .generated_modules = generated.items,
         .external_build_requirements = .{ .libraries = config.libraries, .include_paths = resources.external_includes, .library_paths = config.library_paths },
-    }, .{ .whitespace = .indent_2 }));
+    }, .{ .whitespace = .indent_2 });
+
+    if (metadata.len >= inventory.limit) return error.StreamTooLong;
+    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, inventory.name }), metadata);
+
+    return managed;
 }
