@@ -10,6 +10,9 @@ pub fn render(allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
     const builder = try Builder.init(arena.allocator());
     const io = try builder.path(&.{ "init", "io" });
     const gpa = try builder.path(&.{ "init", "gpa" });
+    const host_arena = try builder.identifier("arena");
+    const init_arena = try builder.call(try builder.path(&.{ "std", "heap", "ArenaAllocator", "init" }), &.{gpa});
+    const arena_address = try builder.expression(.{ .address_of = host_arena });
     const state = try builder.identifier("state");
     const err = try builder.identifier("err");
     const address = try builder.call(try builder.path(&.{ "std", "Io", "net", "IpAddress", "parseLiteral" }), &.{try builder.path(&.{ "application", "listen" })});
@@ -29,7 +32,9 @@ pub fn render(allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
             .{ .constant = .{ .name = "address", .value = try builder.expression(.{ .try_value = address }) } },
             .{ .variable = .{ .name = "listener", .value = try builder.expression(.{ .try_value = listen }) } },
             .{ .defer_expression = try builder.call(try builder.path(&.{ "listener", "deinit" }), &.{io}) },
-            .{ .variable = .{ .name = "state", .value = try builder.expression(.{ .object = .{ .type_expr = try builder.path(&.{ "application", "State" }), .fields = try builder.allocator.dupe(node.Field, &.{.{ .name = "arena", .value = try builder.path(&.{ "init", "arena" }) }}) } }) } },
+            .{ .variable = .{ .name = "arena", .value = init_arena } },
+            .{ .defer_expression = try builder.call(try builder.field(host_arena, "deinit"), &.{}) },
+            .{ .variable = .{ .name = "state", .value = try builder.expression(.{ .object = .{ .type_expr = try builder.path(&.{ "application", "State" }), .fields = try builder.allocator.dupe(node.Field, &.{.{ .name = "arena", .value = arena_address }}) } }) } },
             .{ .defer_expression = try builder.call(try builder.path(&.{ "state", "deinit" }), &.{}) },
             .{ .expression = try builder.expression(.{ .try_value = try builder.call(try builder.path(&.{ "state", "initialize" }), &.{}) }) },
             .{ .constant = .{ .name = "head_buffer", .value = try builder.expression(.{ .try_value = try builder.call(try builder.field(gpa, "alloc"), &.{ try builder.expression(.{ .primitive = .u8 }), try builder.path(&.{ "application", "max_header_bytes" }) }) }) } },

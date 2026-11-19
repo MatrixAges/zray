@@ -1,0 +1,50 @@
+import { arena_allocator_name, heap_name } from "../../store/storage/const"
+import binding from "./binding"
+import call from "./call"
+import { arena_name, deinit_name, gpa_name, init_name, std_name } from "./const"
+import defer from "./defer"
+import path from "./path"
+
+import type { State as Input, State as Output } from "./model"
+
+export default function (in: Input): Output {
+    const allocator = path({
+        state: in,
+        path: [
+            init_name,
+            gpa_name
+        ]
+    })
+
+    const arena = binding({
+        node: call({
+            state: allocator.state,
+            path: [
+                std_name,
+                heap_name,
+                arena_allocator_name,
+                init_name
+            ],
+            arguments: [allocator.id],
+            fallible: false
+        }),
+        name: arena_name,
+        mutable: true
+    })
+
+    const release = call({
+        state: arena,
+        path: [
+            arena_name,
+            deinit_name
+        ],
+        arguments: [],
+        fallible: false
+    })
+
+    return defer({
+        state: release.state,
+        value: release.id,
+        discard_error: false
+    })
+}

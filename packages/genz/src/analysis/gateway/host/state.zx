@@ -1,7 +1,7 @@
+import address from "../../../ast/context/address"
 import binding from "./binding"
 import call from "./call"
 import {
-    init_name,
     arena_name,
     application_name,
     state_type_name,
@@ -19,14 +19,19 @@ import type { State as Input, State as Output } from "./model"
 export default function (in: Input): Output {
     const arena = path({
         state: in,
-        path: [
-            init_name,
-            arena_name
-        ]
+        path: [arena_name]
+    })
+
+    const arena_ref = address({
+        state: arena.state.context,
+        value: arena.id
     })
 
     const state_type = path({
-        state: arena.state,
+        state: {
+            ...arena.state,
+            context: arena_ref.state
+        },
         path: [
             application_name,
             state_type_name
@@ -36,7 +41,7 @@ export default function (in: Input): Output {
     const initial = object({
         state: state_type.state,
         name: arena_name,
-        value: arena.id,
+        value: arena_ref.id,
         type_expr: state_type.id
     })
 

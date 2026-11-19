@@ -10,6 +10,7 @@
     <Call fn="result_types" />
     <Call fn="imports" />
     <Call fn="listen" />
+    <Call fn="arena" />
     <Call fn="state" />
     <Call fn="buffer" />
     <Call fn="accept" />
