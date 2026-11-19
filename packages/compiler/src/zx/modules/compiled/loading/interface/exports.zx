@@ -1,78 +1,49 @@
-import integers from "std:integer"
+import bytes from "std:bytes"
 import strings from "std:string"
+import writeRow from "compiler/compiled_interface_row"
 import memory from "memory"
+import columns from "memory/columns"
 
-import scope from "../../identity/scope"
-import constants from "./constants"
-import members from "./members"
-import referencesFromNames from "./references"
-import types from "./types"
+import type { ExportRequest as Input } from "./model"
 
-import type { Export, ExportRequest, Reference, Surface } from "./model"
-
-export type Input = ExportRequest
-
-export type Output = Surface
+export type Output = void
 
 export default function (in: Input): Output {
-    const { source, selection, mapping, first, instance } = in
+    const { exports, selection, buffers, targets } = in
 
-    const exports: Export[] = []
-    const count = selection == null ? source.count : selection.rows.length
+    const count = selection == null ? exports.count : selection.aliases.length
+    const names = selection == null ? exports.names : selection.names
+    const common = in.omit(["selection"])
 
-    const mapped = loop({
-        index: 0,
-        exports
-    }, {
-        while: current => current.index < count,
-        next: current => {
-            const index = current.index
-            const row = selection == null ? index : selection.rows[index]
-            const id = memory.readColumnOptionalU32(source.functions, row)
-            const entry: Export = {
-                path: scope({
-                    instance,
-                    value: memory.readTextColumn(source.paths, row)
-                }),
-                function: match {
-                    id == null => null,
-                    _ => integers.narrow(first + integers.widen(id))
-                },
-                types: types({
-                    names: source.type_names,
-                    ids: source.type_ids,
+    columns.allocateRows(buffers.exports, count)
+
+    const published = loop(0, {
+        while: output => output < count,
+        next: output => {
+            const selected = selection == null ? output : selection.aliases[output]
+            const first = selection == null ? output : selection.first[selected]
+
+            if (first == output) {
+                const row = selection == null ? output : selection.rows[selected]
+
+                writeRow({
+                    ...common,
                     row,
-                    mapping
-                }),
-                members: members({
-                    source: source.members,
-                    row,
-                    mapping,
-                    first
-                }),
-                constants: constants({
-                    source: source.constants[row],
-                    mapping
+                    output
                 })
+            } else {
+                columns.copyRow(buffers.exports, first, output)
             }
 
-            current.exports = current.exports.push(entry)[0]
-            current.index += 1
-        },
-        return: state => state.exports
+            const name = strings.copy(memory.readTextColumn(names, output))
+
+            memory.writeColumnBytes(
+                targets.exports.names,
+                output,
+                bytes.fromText(name)
+            )
+
+            output += 1
+        }
     })
-
-    const references: Reference[] = match {
-        selection == null => referencesFromNames(source),
-        _ => selection.aliases.map((row, index) => {
-            name: strings.copy(memory.readTextColumn(selection.names, index)),
-            row,
-            first: selection.first[row]
-        })[0]
-    }
-
-    return {
-        exports: mapped,
-        references
-    }
 }

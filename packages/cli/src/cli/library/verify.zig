@@ -5,7 +5,7 @@ const Loaded = @import("../project.zig").Loaded;
 const Inputs = @import("../watch/inputs.zig");
 
 pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.Status {
-    var analyzed = (try @import("analyze.zig").run(context.allocator, .{ .io = context.io, .loaded = loaded, .writer = context.stderr, .inputs = inputs })) orelse return .failed;
+    var analyzed = (try @import("analyze.zig").run(context.allocator, .{ .io = context.io, .backing = context.backing, .loaded = loaded, .writer = context.stderr, .inputs = inputs })) orelse return .failed;
 
     defer analyzed.deinit();
 

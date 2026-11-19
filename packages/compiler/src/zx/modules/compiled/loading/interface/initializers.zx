@@ -1,44 +1,52 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import store from "../../identity/store"
 
+import type { RowBuffer } from "memory/columns"
 import type { Initializers } from "../../model"
-import type { Initializer } from "./model"
+import type { InitializerFields } from "./model"
 
 export type Input = {
     source: Initializers,
     first: u64,
-    instance: string
+    instance: string,
+    buffer: RowBuffer,
+    target: InitializerFields
 }
 
-export type Output = Initializer[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const { source, first, instance } = in
+    const { source, first, instance, target } = in
 
-    const rows: Initializer[] = []
+    columns.allocateRows(in.buffer, source.count)
 
-    return loop({
-        index: 0,
-        rows
-    }, {
-        while: state => state.index < source.count,
-        next: state => {
-            const index = state.index
-            const value = memory.readTextColumn(source.identities, index)
-            const id = memory.readColumnU32(source.functions, index)
+    const published = loop(0, {
+        while: row => row < source.count,
+        next: row => {
+            const identity = store({
+                instance,
+                value: memory.readTextColumn(source.identities, row)
+            })
+            const version = memory.readColumnU32(source.versions, row)
+            const id = memory.readColumnU32(source.functions, row)
 
-            state.rows = state.rows.push({
-                identity: store({
-                    instance,
-                    value
-                }),
-                schema_version: memory.readColumnU32(source.versions, index),
-                function: integers.narrow(first + integers.widen(id))
-            })[0]
-            state.index += 1
-        },
-        return: state => state.rows
+            memory.writeColumnBytes(
+                target.identities,
+                row,
+                bytes.fromText(identity)
+            )
+            memory.writeColumnU32(target.versions, row, version)
+            memory.writeColumnU32(
+                target.functions,
+                row,
+                integers.narrow(first + integers.widen(id))
+            )
+
+            row += 1
+        }
     })
 }

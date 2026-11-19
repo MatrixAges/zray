@@ -1,56 +1,51 @@
-import type { ExpressionKind } from "core/expression_table/kinds"
+import type { WriteColumn } from "memory"
+import type { RowBuffer, WriteColumn as Cell } from "memory/columns"
+import type { Target as ConstantFields } from "../../../artifact/surface/constants"
 import type { Exports, Initializers, SelectionPlan } from "../../model"
 
-export type Type = {
-    name: string,
-    type_id: u32
+export type ExportFields = {
+    names: WriteColumn,
+    paths: WriteColumn,
+    functions: Cell,
+    types: Cell,
+    members: Cell,
+    constants: Cell
 }
 
-export type Member = {
-    name: string,
-    id?: u32,
-    input_type?: u32,
-    output_type?: u32,
-    intrinsic?: u8
+export type TypeFields = {
+    names: WriteColumn,
+    ids: WriteColumn
 }
 
-export type Constant = {
-    name: string,
-    type_id: u32,
-    kind: ExpressionKind,
-    integer: u64,
-    negative: bool,
-    floating: f64,
-    text: string,
-    boolean: bool,
-    enumeration: u32
+export type MemberFields = {
+    names: WriteColumn,
+    namespaces: Cell,
+    ids: Cell,
+    inputs: Cell,
+    outputs: Cell,
+    intrinsics: Cell
 }
 
-export type Export = {
-    path: string,
-    function?: u32,
-    types: Type[],
-    members: Member[],
-    constants: Constant[]
+export type InitializerFields = {
+    identities: WriteColumn,
+    versions: WriteColumn,
+    functions: WriteColumn
 }
 
-export type Reference = {
-    name: string,
-    row: u64,
-    first: u64
+export type Buffers = {
+    exports: RowBuffer,
+    types: RowBuffer,
+    members: RowBuffer,
+    constants: RowBuffer,
+    initializers: RowBuffer
 }
 
-export type Surface = {
-    exports: Export[],
-    references: Reference[]
-}
-
-export type ExportRequest = {
-    source: Exports,
-    selection?: SelectionPlan,
-    mapping: u32[],
-    first: u64,
-    instance: string
+export type Targets = {
+    exports: ExportFields,
+    types: TypeFields,
+    members: MemberFields,
+    constants: ConstantFields,
+    initializers: InitializerFields
 }
 
 export type Request = {
@@ -59,16 +54,14 @@ export type Request = {
     selection?: SelectionPlan,
     mapping: u32[],
     first: u64,
-    instance: string
+    instance: string,
+    buffers: Buffers,
+    targets: Targets
 }
 
-export type Initializer = {
-    identity: string,
-    schema_version: u32,
-    function: u32
-}
+export type ExportRequest = Request.Omit("initializers")
 
-export type Output = {
-    surface: Surface,
-    initializers: Initializer[]
+export type Row = ExportRequest.Omit("selection") & {
+    row: u64,
+    output: u64
 }

@@ -1,38 +1,47 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import strings from "std:string"
 import memory from "memory"
+import columns from "memory/columns"
 
 import type { ListColumn } from "memory"
-import type { Type } from "./model"
+import type { RowBuffer, WriteColumn } from "memory/columns"
+import type { TypeFields } from "./model"
 
 export type Input = {
     names: ListColumn,
     ids: ListColumn,
     row: u64,
-    mapping: u32[]
+    output: u64,
+    mapping: u32[],
+    column: WriteColumn,
+    buffer: RowBuffer,
+    target: TypeFields
 }
 
-export type Output = Type[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const length = memory.listLength(in.names, in.row)
-    const values: Type[] = []
+    const { names, ids, row, mapping, target } = in
 
-    return loop({
-        index: 0,
-        values
-    }, {
-        while: state => state.index < length,
-        next: state => {
-            const name = memory.readListText(in.names, in.row, state.index)
-            const id = memory.readListU32(in.ids, in.row, state.index)
+    const count = memory.listLength(names, row)
 
-            state.values = state.values.push({
-                name: strings.copy(name),
-                type_id: in.mapping[integers.widen(id)]
-            })[0]
-            state.index += 1
-        },
-        return: state => state.values
+    columns.allocateRowList(in.column, in.output, in.buffer, count)
+
+    const published = loop(0, {
+        while: index => index < count,
+        next: index => {
+            const name = strings.copy(memory.readListText(names, row, index))
+            const id = memory.readListU32(ids, row, index)
+
+            memory.writeColumnBytes(target.names, index, bytes.fromText(name))
+            memory.writeColumnU32(
+                target.ids,
+                index,
+                mapping[integers.widen(id)]
+            )
+
+            index += 1
+        }
     })
 }

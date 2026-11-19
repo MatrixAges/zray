@@ -88,6 +88,28 @@ pub fn allocateRows(allocator: std.mem.Allocator, target: *const anyopaque, coun
     }
 }
 
+/// Publishes a newly allocated list in a slice field of its owning row.
+pub fn allocateRowList(allocator: std.mem.Allocator, column: *const anyopaque, index: u64, target: *const anyopaque, count: u64) (std.mem.Allocator.Error || IndexError)!void {
+    const output: *RowBuffer = @ptrCast(@alignCast(@constCast(target)));
+
+    output.bytes = &.{};
+
+    try allocateRows(allocator, target, count);
+    try write([]const u8, column, index, output.bytes.ptr[0..@intCast(count)]);
+}
+
+pub fn copyRow(target: *const anyopaque, source: u64, destination: u64) IndexError!void {
+    const output: *const RowBuffer = @ptrCast(@alignCast(target));
+    const count = output.bytes.len / output.stride;
+
+    if (source >= count or destination >= count or source == destination) return error.IndexOutOfBounds;
+
+    const first = @as(usize, @intCast(source)) * output.stride;
+    const next = @as(usize, @intCast(destination)) * output.stride;
+
+    @memcpy(output.bytes[next..][0..output.stride], output.bytes[first..][0..output.stride]);
+}
+
 pub fn copyRowPrefix(target: *const anyopaque, source: []const u8, count: u64) IndexError!void {
     const output: *const RowBuffer = @ptrCast(@alignCast(target));
     const length = std.math.cast(usize, count) orelse return error.IndexOutOfBounds;

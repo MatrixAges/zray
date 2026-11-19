@@ -57,7 +57,14 @@ pub const Result = struct {
     }
 };
 
-pub const Options = struct { io: std.Io, loaded: Loaded, writer: *std.Io.Writer, inputs: ?*Inputs = null, preserve_zig_entry: bool = false };
+pub const Options = struct {
+    io: std.Io,
+    backing: std.mem.Allocator,
+    loaded: Loaded,
+    writer: *std.Io.Writer,
+    inputs: ?*Inputs = null,
+    preserve_zig_entry: bool = false,
+};
 
 pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     if (options.loaded.config.exports.len == 0) return error.MissingPublicModules;

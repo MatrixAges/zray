@@ -1,0 +1,64 @@
+<Module>
+    <Type from="model" as="Interface" />
+
+    <Args in={Interface.Row} out={void} />
+
+    <Call
+        fn="write_header"
+        in={$in.pick([
+            "exports",
+            "targets",
+            "first",
+            "instance",
+            "row",
+            "output"
+        ])}
+    />
+
+    <Call
+        fn="types"
+        in={{
+            ...$in.pick([
+                "row",
+                "output",
+                "mapping"
+            ]),
+            names: $in.exports.type_names,
+            ids: $in.exports.type_ids,
+            column: $in.targets.exports.types,
+            buffer: $in.buffers.types,
+            target: $in.targets.types
+        }}
+    />
+
+    <Call
+        fn="members"
+        in={{
+            ...$in.pick([
+                "row",
+                "output",
+                "mapping",
+                "first"
+            ]),
+            source: $in.exports.members,
+            column: $in.targets.exports.members,
+            buffer: $in.buffers.members,
+            target: $in.targets.members
+        }}
+    />
+
+    <Call
+        fn="constants"
+        in={{
+            ...$in.pick([
+                "row",
+                "output",
+                "mapping"
+            ]),
+            source: $in.exports.constants,
+            column: $in.targets.exports.constants,
+            buffer: $in.buffers.constants,
+            target: $in.targets.constants
+        }}
+    />
+</Module>

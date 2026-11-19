@@ -1,35 +1,52 @@
-import integers from "std:integer"
-import strings from "std:string"
-import { ExpressionKind } from "core/expression_table/kinds"
+import memory from "memory"
+import columns from "memory/columns"
 
-import type { Values } from "core/constant/model"
-import type { Constant } from "./model"
+import { Kind } from "../../../artifact/remapping/model"
+import publish from "../../../artifact/surface/constants"
+
+import type { RowBuffer, WriteColumn } from "memory/columns"
+import type { Target } from "../../../artifact/surface/constants"
+import type { Constants } from "../../model"
 
 export type Input = {
-    source?: Values,
-    mapping: u32[]
+    source: Constants,
+    row: u64,
+    output: u64,
+    mapping: u32[],
+    column: WriteColumn,
+    buffer: RowBuffer,
+    target: Target
 }
 
-export type Output = Constant[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const { source, mapping } = in
+    const { source } = in
 
-    if (source == null) {
-        return []
+    const count = memory.listLength(source.names, in.row)
+
+    columns.allocateRowList(in.column, in.output, in.buffer, count)
+
+    if (count == 0) {
+        return
     }
 
-    return source.values.map((value, index) => {
-        const text = match value.kind {
-            ExpressionKind.String => strings.copy(value.text),
-            _ => value.text
-        }
+    columns.projectListColumns(source.projection, in.row)
 
-        return {
-            ...value,
-            name: strings.copy(source.names[index]),
-            type_id: mapping[integers.widen(value.type_id)],
-            text
+    publish({
+        source: {
+            ...source.rows,
+            count
+        },
+        target: in.target,
+        types: {
+            kind: Kind.Dense,
+            dense: in.mapping,
+            sparse: [],
+            planned: [],
+            first: 0,
+            prefix: 0,
+            count: in.mapping.length
         }
-    })[0]
+    })
 }

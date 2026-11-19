@@ -60,7 +60,7 @@ fn execute(context: Compile.Context) !Compile.Status {
         loaded.config.exports = &fallback;
     }
 
-    var analyzed = (try @import("../library/analyze.zig").run(context.allocator, .{ .io = context.io, .loaded = loaded, .writer = context.stderr })) orelse return .failed;
+    var analyzed = (try @import("../library/analyze.zig").run(context.allocator, .{ .io = context.io, .backing = context.backing, .loaded = loaded, .writer = context.stderr })) orelse return .failed;
 
     defer analyzed.deinit();
 

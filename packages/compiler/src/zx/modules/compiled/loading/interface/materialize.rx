@@ -1,32 +1,18 @@
 <Module>
     <Type from="model" as="Interface" />
 
-    <Args in={Interface.Request} out={Interface.Output} />
+    <Args in={Interface.Request} out={void} />
 
-    <Call
-        fn="exports"
-        in={{
-            source: $in.exports,
-            selection: $in.selection,
-            mapping: $in.mapping,
-            first: $in.first,
-            instance: $in.instance
-        }}
-    />
+    <Call fn="exports" in={$in.omit(["initializers"])} />
 
     <Call
         fn="initializers"
         in={{
             source: $in.initializers,
             first: $in.first,
-            instance: $in.instance
-        }}
-    />
-
-    <Return
-        value={{
-            surface: $ctx.exports,
-            initializers: $ctx.initializers
+            instance: $in.instance,
+            buffer: $in.buffers.initializers,
+            target: $in.targets.initializers
         }}
     />
 </Module>

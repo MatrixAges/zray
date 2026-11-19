@@ -10,6 +10,20 @@ export declare function allocateRowsWithAllocator(
     count: u64
 ): void throws { OutOfMemory }
 
+export declare function allocateRowList(
+    allocator,
+    column: WriteColumn,
+    index: u64,
+    target: RowBuffer,
+    count: u64
+): void throws { OutOfMemory, IndexOutOfBounds }
+
+export declare function copyRow(
+    target: RowBuffer,
+    source: u64,
+    destination: u64
+): void throws { IndexOutOfBounds }
+
 export declare function copyRowPrefix(
     target: RowBuffer,
     source: u8[],

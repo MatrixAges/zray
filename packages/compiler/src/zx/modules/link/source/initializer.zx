@@ -3,7 +3,7 @@ import strings from "std:string"
 import remap from "../../artifact/remapping/id"
 
 import type { Mapping } from "../../artifact/remapping/model"
-import type { Initializer } from "../../compiled/loading/interface/model"
+import type { Initializer } from "../../compiled/model"
 
 export type Input = {
     source: Initializer,

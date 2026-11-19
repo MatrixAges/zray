@@ -1,7 +1,8 @@
 import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
-import validConstants from "../../../../analysis/constants/valid"
+import validConstants from "../../../../analysis/constants/validation/rows"
 import text from "../../../../ir/canonical/native/text"
 import members from "./members"
 import types from "./types"
@@ -39,23 +40,33 @@ export default function (in: Input): Output {
         }
     }
 
-    if (!validConstants({
-        constants: exports.constants[in.index],
-        types: {
-            base: in.graph.program.context.table,
-            delta: {
-                kinds: [],
-                first: [],
-                second: [],
-                labels: [],
-                children: [],
-                field_types: [],
-                field_names: [],
-                names: []
+    const constants = exports.constants
+    const count = memory.listLength(constants.names, in.index)
+
+    if (count != 0) {
+        columns.projectListColumns(constants.projection, in.index)
+
+        if (!validConstants({
+            constants: {
+                ...constants.rows,
+                count
+            },
+            types: {
+                base: in.graph.program.context.table,
+                delta: {
+                    kinds: [],
+                    first: [],
+                    second: [],
+                    labels: [],
+                    children: [],
+                    field_types: [],
+                    field_names: [],
+                    names: []
+                }
             }
+        })) {
+            return false
         }
-    })) {
-        return false
     }
 
     return members({
@@ -63,7 +74,8 @@ export default function (in: Input): Output {
         type_names: exports.type_names,
         type_count,
         row: in.index,
-        constants: exports.constants[in.index],
+        constant_names: constants.names,
+        constant_count: count,
         functions
     }) && types({
         names: exports.type_names,

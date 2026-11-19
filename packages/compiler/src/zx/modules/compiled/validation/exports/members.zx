@@ -5,7 +5,6 @@ import columns from "memory/columns"
 import text from "../../../../ir/canonical/native/text"
 import unique from "../unique"
 
-import type { Values } from "core/constant/model"
 import type { Complete } from "core/function_table/complete"
 import type { ListColumn } from "memory"
 import type { Members } from "../../model"
@@ -15,7 +14,8 @@ export type Input = {
     type_names: ListColumn,
     type_count: u64,
     row: u64,
-    constants?: Values,
+    constant_names: ListColumn,
+    constant_count: u64,
     functions: Complete
 }
 
@@ -26,9 +26,7 @@ export default function (in: Input): Output {
 
     const count = memory.listLength(members.names, row)
 
-    const constants = in.constants
-    const constant_count = constants == null ? 0 : constants.names.length
-    const total = in.type_count + count + constant_count
+    const total = in.type_count + count + in.constant_count
 
     if (total > 1) {
         const names: string[] = []
@@ -46,9 +44,11 @@ export default function (in: Input): Output {
                         memory.readListText(in.type_names, in.row, index),
                     index < in.type_count + count =>
                         memory.readListText(members.names, row, index - in.type_count),
-                    constants != null =>
-                        constants.names[index - in.type_count - count],
-                    _ => ""
+                    _ => memory.readListText(
+                        in.constant_names,
+                        row,
+                        index - in.type_count - count
+                    )
                 }
 
                 state.names = state.names.push(name)[0]

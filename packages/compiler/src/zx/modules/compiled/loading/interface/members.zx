@@ -1,52 +1,63 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import strings from "std:string"
 import memory from "memory"
 import columns from "memory/columns"
 
+import type { RowBuffer, WriteColumn } from "memory/columns"
 import type { Members } from "../../model"
-import type { Member } from "./model"
+import type { MemberFields } from "./model"
 
 export type Input = {
     source: Members,
     row: u64,
+    output: u64,
     mapping: u32[],
-    first: u64
+    first: u64,
+    column: WriteColumn,
+    buffer: RowBuffer,
+    target: MemberFields
 }
 
-export type Output = Member[]
+export type Output = void
 
 export default function (in: Input): Output {
-    const { source, row, mapping, first } = in
+    const { source, row, mapping, first, target } = in
 
     const count = memory.listLength(source.names, row)
-    const members: Member[] = []
 
-    return loop({
-        index: 0,
-        members
-    }, {
-        while: state => state.index < count,
-        next: state => {
-            const index = state.index
-            const name = memory.readListText(source.names, row, index)
+    columns.allocateRowList(in.column, in.output, in.buffer, count)
+
+    const published = loop(0, {
+        while: index => index < count,
+        next: index => {
+            const name = strings.copy(memory.readListText(source.names, row, index))
             const id = memory.readListOptionalU32(source.ids, row, index)
             const input = memory.readListOptionalU32(source.inputs, row, index)
             const output = memory.readListOptionalU32(source.outputs, row, index)
+            const intrinsic = columns.readListOptionalU8(source.intrinsics, row, index)
 
-            const member: Member = {
-                name: strings.copy(name),
-                id: match {
-                    id == null => null,
-                    _ => integers.narrow(first + integers.widen(id))
-                },
-                input_type: input == null ? null : mapping[integers.widen(input)],
-                output_type: output == null ? null : mapping[integers.widen(output)],
-                intrinsic: columns.readListOptionalU8(source.intrinsics, row, index)
+            const function_id: u32? = match {
+                id == null => null,
+                _ => integers.narrow(first + integers.widen(id))
             }
 
-            state.members = state.members.push(member)[0]
-            state.index += 1
-        },
-        return: state => state.members
+            memory.writeColumnBytes(target.names, index, bytes.fromText(name))
+            columns.writeColumnOptionalText(target.namespaces, index, null)
+            columns.writeColumnOptionalU32(target.ids, index, function_id)
+            columns.writeColumnOptionalU32(
+                target.inputs,
+                index,
+                input == null ? null : mapping[integers.widen(input)]
+            )
+            columns.writeColumnOptionalU32(
+                target.outputs,
+                index,
+                output == null ? null : mapping[integers.widen(output)]
+            )
+            columns.writeColumnOptionalU8(target.intrinsics, index, intrinsic)
+
+            index += 1
+        }
     })
 }

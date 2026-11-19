@@ -7,13 +7,11 @@ export type Input = Graph
 export type Output = bool
 
 export default function (in: Input): Output {
-    const public_interface = publication({
+    return publication({
         type_only: in.program.unit.type_only,
         export_count: in.program.exports.length,
         constant_exports: in.program.constant_exports != null,
         store_count: in.program.unit.body.stores.paths.length,
         public_count: in.exports.count
     })
-
-    return public_interface && in.exports.constants.length == in.exports.count
 }

@@ -31,8 +31,7 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
 
     self.origins = Origins.Table.borrow(@TypeOf(self.origins), graph.nominal_types);
 
-    try self.exports.init(allocator, graph.exports);
-
+    self.exports.init(graph.exports);
     self.initializers.init(graph.store_initializers);
 
     self.types = ir.TypeTable.borrow(@TypeOf(self.types), if (destination) |target| target.types.view() else .{});

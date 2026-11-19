@@ -1,13 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
+const memory = zx.memory;
 const model = @import("../../compiled.zig");
 const Input = @import("input.zig");
-const FunctionImport = @import("../../function_import.zig");
-const literal = @import("../../../analysis/constants/input.zig");
 const Plan = std.meta.Child(@import("generated_compiled_library").Output);
 const generated = @import("generated_compiled_interface");
 const Request = std.meta.Child(generated.Input);
+const Targets = std.meta.Child(@FieldType(Request, "targets"));
 
 pub const Interface = struct {
     exports: []const model.Export = &.{},
@@ -16,6 +16,35 @@ pub const Interface = struct {
 
 pub fn materialize(allocator: std.mem.Allocator, input: *const Input, plan: *const Plan, first: usize) (std.mem.Allocator.Error || error{InvalidModule})!Interface {
     if (input.exports.input.count == 0 and input.initializers.input.count == 0) return .{};
+
+    var exports: memory.RowOutput(model.Export, Field("exports"), .{
+        .names = &.{"name"},
+        .paths = &.{"path"},
+        .functions = &.{"function"},
+        .types = &.{"types"},
+        .members = &.{"members"},
+        .constants = &.{"constants"},
+    }) = undefined;
+
+    var types: memory.RowOutput(ir.Export, Field("types"), .{ .names = &.{"name"}, .ids = &.{"type_id"} }) = undefined;
+
+    var members: memory.RowOutput(@import("../../function_import.zig"), Field("members"), .{
+        .names = &.{"name"},
+        .namespaces = &.{"namespace"},
+        .ids = &.{"id"},
+        .inputs = &.{"input_type"},
+        .outputs = &.{"output_type"},
+        .intrinsics = &.{"intrinsic"},
+    }) = undefined;
+
+    var constants: memory.RowOutput(ir.Constant, Field("constants"), .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} }) = undefined;
+    var initializers: memory.RowOutput(model.StoreInitializer, Field("initializers"), .{ .identities = &.{"identity"}, .versions = &.{"schema_version"}, .functions = &.{"function"} }) = undefined;
+
+    exports.init();
+    types.init();
+    members.init();
+    constants.init();
+    initializers.init();
 
     const Exports = std.meta.Child(@FieldType(Request, "exports"));
     const Initializers = std.meta.Child(@FieldType(Request, "initializers"));
@@ -31,71 +60,30 @@ pub fn materialize(allocator: std.mem.Allocator, input: *const Input, plan: *con
         .first = first,
         .mapping = plan.functions.types,
         .instance = input.input.instance,
+        .buffers = &.{
+            .exports = @ptrCast(&exports.buffer),
+            .types = @ptrCast(&types.buffer),
+            .members = @ptrCast(&members.buffer),
+            .constants = @ptrCast(&constants.buffer),
+            .initializers = @ptrCast(&initializers.buffer),
+        },
+        .targets = &.{
+            .exports = &exports.view,
+            .types = &types.view,
+            .members = &members.view,
+            .constants = &constants.view,
+            .initializers = &initializers.view,
+        },
     };
 
-    const owned = zx.columns.invoke(generated.executeValue, allocator, &request) catch |err| switch (@as(anyerror, err)) {
+    zx.columns.invoke(generated.executeValue, allocator, &request) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    const references = owned.surface.references;
-    const exports = try allocator.alloc(model.Export, references.len);
-
-    for (references, exports, 0..) |reference, *exported, index| {
-        const original: usize = @intCast(reference.first);
-
-        exported.* = if (original == index)
-            try exportRow(allocator, reference.name, owned.surface.exports[@intCast(reference.row)])
-
-        else
-            exports[original];
-
-        exported.name = reference.name;
-    }
-
-    const initializers = try allocator.alloc(model.StoreInitializer, owned.initializers.len);
-
-    for (owned.initializers, initializers) |source, *target| {
-        target.* = .{
-            .identity = source.identity,
-            .schema_version = source.schema_version,
-            .function = @fromBackingInt(source.function),
-        };
-    }
-
-    return .{ .exports = exports, .initializers = initializers };
+    return .{ .exports = exports.rows(), .initializers = initializers.rows() };
 }
 
-fn exportRow(allocator: std.mem.Allocator, name: []const u8, source: anytype) std.mem.Allocator.Error!model.Export {
-    const types = try allocator.alloc(ir.Export, source.types.len);
-    const members = try allocator.alloc(FunctionImport, source.members.len);
-    const constants = try allocator.alloc(ir.Constant, source.constants.len);
-
-    for (source.types, types) |value, *target| target.* = .{
-        .name = value.name,
-        .type_id = @fromBackingInt(value.type_id),
-    };
-
-    for (source.members, members) |value, *target| target.* = .{
-        .name = value.name,
-        .id = if (value.id) |id| @fromBackingInt(id) else null,
-        .input_type = if (value.input_type) |id| @fromBackingInt(id) else null,
-        .output_type = if (value.output_type) |id| @fromBackingInt(id) else null,
-        .intrinsic = if (value.intrinsic) |operation| @fromBackingInt(operation) else null,
-    };
-
-    for (source.constants, constants) |value, *target| target.* = .{
-        .name = value.name,
-        .type_id = @fromBackingInt(value.type_id),
-        .value = literal.view(value),
-    };
-
-    return .{
-        .name = name,
-        .path = source.path,
-        .function = if (source.function) |id| @fromBackingInt(id) else null,
-        .types = types,
-        .members = members,
-        .constants = constants,
-    };
+fn Field(comptime name: []const u8) type {
+    return std.meta.Child(@FieldType(Targets, name));
 }

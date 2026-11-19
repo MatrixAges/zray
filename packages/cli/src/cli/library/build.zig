@@ -15,7 +15,7 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
 
     if (loaded.config.exports.len == 0) configured.config.exports = &fallback;
 
-    var analyzed = (try @import("analyze.zig").run(allocator, .{ .io = context.io, .loaded = configured, .writer = context.stderr, .inputs = inputs, .preserve_zig_entry = true })) orelse return .failed;
+    var analyzed = (try @import("analyze.zig").run(allocator, .{ .io = context.io, .backing = context.backing, .loaded = configured, .writer = context.stderr, .inputs = inputs, .preserve_zig_entry = true })) orelse return .failed;
 
     defer analyzed.deinit();
 

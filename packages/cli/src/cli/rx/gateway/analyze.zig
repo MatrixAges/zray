@@ -67,7 +67,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     var configured = options.loaded;
 
     configured.config.exports = exports;
-    const prepared = if (exports.len == 0) null else (try services.run(allocator, .{ .io = options.io, .loaded = configured, .writer = options.writer, .inputs = options.inputs })) orelse return null;
+    const prepared = if (exports.len == 0) null else (try services.run(allocator, .{ .io = options.io, .backing = allocator, .loaded = configured, .writer = options.writer, .inputs = options.inputs })) orelse return null;
 
     transferred = true;
 

@@ -1,9 +1,9 @@
-import type { Values } from "core/constant/model"
+import type { Rows } from "core/constant/rows"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
 import type { ListColumn, ReadColumn, TextColumn, U32Buffer } from "memory"
-import type { ListColumn as ByteList } from "memory/columns"
+import type { ListColumn as ByteList, ListProjection } from "memory/columns"
 import type { Program } from "../../ir/canonical/validation/model"
 import type { Mapping as FunctionMapping } from "./loading/functions/model"
 
@@ -14,8 +14,14 @@ export type Exports = {
     functions: ReadColumn,
     type_names: ListColumn,
     type_ids: ListColumn,
-    constants: Values?[],
+    constants: Constants,
     members: Members
+}
+
+export type Constants = {
+    names: ListColumn,
+    projection: ListProjection,
+    rows: Rows.Omit("count")
 }
 
 export type Members = {
@@ -32,6 +38,12 @@ export type Initializers = {
     identities: TextColumn,
     versions: ReadColumn,
     functions: ReadColumn
+}
+
+export type Initializer = {
+    identity: string,
+    schema_version: u32,
+    function: u32
 }
 
 export type Selection = {

@@ -4,6 +4,8 @@ const memory = zx.memory;
 const Export = @import("../../../compiled.zig").Export;
 
 pub fn View(comptime Target: type) type {
+    const Constants = std.meta.Child(@FieldType(Target, "constants"));
+
     return struct {
         names: memory.TextColumn,
         paths: memory.TextColumn,
@@ -17,19 +19,13 @@ pub fn View(comptime Target: type) type {
         member_inputs: memory.ListColumn,
         member_outputs: memory.ListColumn,
         member_intrinsics: memory.ListColumn,
+        constant_lists: [3]memory.ListColumn,
+        constant_rows: [3]memory.ReadColumn,
+        constant_projection: memory.ListProjection,
+        constant_columns: std.meta.Child(@FieldType(Constants, "rows")),
+        constants: Constants,
         input: Target,
-        pub fn init(self: *@This(), allocator: std.mem.Allocator, exports: []const Export) std.mem.Allocator.Error!void {
-            const Optional = std.meta.Child(@FieldType(Target, "constants"));
-            const Item = @typeInfo(Optional).optional.child;
-            const Values = if (@typeInfo(Item) == .pointer) std.meta.Child(Item) else Item;
-            const constants = try allocator.alloc(Optional, exports.len);
-
-            for (exports, constants) |exported, *constant| {
-                const values = try @import("../../../../analysis/constants/input.zig").marshal(Values, allocator, exported.constants);
-
-                constant.* = if (values) |value| if (@typeInfo(Item) == .pointer) value else value.* else null;
-            }
-
+        pub fn init(self: *@This(), exports: []const Export) void {
             self.names = memory.borrowTextColumn("name", exports);
             self.paths = memory.borrowTextColumn("path", exports);
             self.functions = memory.borrowOptionalU32Column("function", exports);
@@ -54,6 +50,26 @@ pub fn View(comptime Target: type) type {
                 .intrinsics = @ptrCast(&self.member_intrinsics),
             };
 
+            self.constant_lists = .{
+                memory.borrowListColumn([]const u8, "constants", "name", exports),
+                memory.borrowListColumn(zx.ir.TypeId, "constants", "type_id", exports),
+                memory.borrowListColumn(zx.ir.ConstantValue, "constants", "value", exports),
+            };
+
+            self.constant_projection = .{ .sources = &self.constant_lists, .target = &self.constant_rows };
+
+            self.constant_columns = .{
+                .names = @ptrCast(&self.constant_rows[0]),
+                .types = @ptrCast(&self.constant_rows[1]),
+                .values = @ptrCast(&self.constant_rows[2]),
+            };
+
+            self.constants = .{
+                .names = @ptrCast(&self.constant_lists[0]),
+                .projection = @ptrCast(&self.constant_projection),
+                .rows = &self.constant_columns,
+            };
+
             self.input = .{
                 .count = exports.len,
                 .names = @ptrCast(&self.names),
@@ -62,7 +78,7 @@ pub fn View(comptime Target: type) type {
                 .type_names = @ptrCast(&self.type_names),
                 .type_ids = @ptrCast(&self.type_ids),
                 .members = &self.members,
-                .constants = constants,
+                .constants = &self.constants,
             };
         }
     };

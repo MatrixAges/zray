@@ -175,6 +175,8 @@ pub const WriteColumn = column.Column;
 pub const RowBuffer = column.RowBuffer;
 pub const RowOutput = column.RowOutput;
 pub const allocateRows = column.allocateRows;
+pub const allocateRowList = column.allocateRowList;
+pub const copyRow = column.copyRow;
 
 pub inline fn allocateRowsWithAllocator(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     return column.allocateRows(column_set.borrowAllocator(resource), target, count);

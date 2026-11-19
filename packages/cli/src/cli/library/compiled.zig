@@ -19,11 +19,15 @@ pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.R
     if (options.inputs) |inputs| try inputs.add(options.io, path);
     try @import("../../package/source.zig").validateWithInputs(options.io, owned, path, project.package_scopes, options.inputs);
 
-    const bytes = try std.Io.Dir.cwd().readFileAlloc(options.io, path, owned, .limited(64 * 1024 * 1024));
+    var decoded = payload: {
+        const bytes = try std.Io.Dir.cwd().readFileAlloc(options.io, path, options.backing, .limited(64 * 1024 * 1024));
 
-    if (options.inputs) |inputs| try inputs.record(options.io, path, bytes);
+        defer options.backing.free(bytes);
 
-    var decoded = try compiler.library.codec.decode(owned, bytes);
+        if (options.inputs) |inputs| try inputs.record(options.io, path, bytes);
+
+        break :payload try compiler.library.codec.decode(options.backing, bytes);
+    };
 
     defer decoded.deinit();
 
