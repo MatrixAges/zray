@@ -1,0 +1,23 @@
+import type { Writer } from "std:bytes"
+
+export type Counts = {
+    entries: u64,
+    analyzed: u64,
+    reused: u64,
+    bodies_only: bool,
+    files: u64,
+    generated: u64,
+    cached: u64
+}
+
+export type Durations = {
+    infer: u64,
+    emit: u64,
+    write: u64
+}
+
+export type Report = {
+    out: Writer,
+    counts: Counts,
+    durations: Durations
+}

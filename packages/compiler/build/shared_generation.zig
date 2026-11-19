@@ -3,6 +3,7 @@ const compiler = @import("compiler");
 const analysis = @import("rx_analysis");
 const Entry = @import("entries.zig").Entry;
 const Resident = @import("resident/state.zig");
+const publication = compiler.input_generation;
 
 const Inputs = struct {
     modules: []const @import("rx").ModuleSource,
@@ -24,10 +25,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, r
     const roots = try allocator.alloc([]const u8, entries.len);
     const exports = try allocator.alloc(analysis.project.Export, entries.len);
 
-    for (entries, roots, exports) |entry, *root, *exported| {
-        root.* = entry.path;
-        exported.* = .{ .name = entry.name, .path = entry.path };
-    }
+    publication.entries(entries, roots, exports);
 
     const project = compiler.project.Options{
         .entry = "",
@@ -113,16 +111,17 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, r
 
     try resident.keepAnalysis(analyzed.arena);
 
-    return std.fmt.allocPrint(allocator, "bootstrap: {d} entries, {d} modules analyzed, {d} reused{s}, {d} function files, {d} generated, {d} reused; infer {d}ms, emit {d}ms, write {d}ms\n", .{
-        entries.len,
-        modules_analyzed,
-        modules_reused,
-        if (frame_reused) " (bodies only)" else "",
-        bundle.modules.len,
-        cache.generated - generated,
-        cache.reused - reused,
-        @divTrunc(started.durationTo(inferred).nanoseconds, std.time.ns_per_ms),
-        @divTrunc(inferred.durationTo(emitted).nanoseconds, std.time.ns_per_ms),
-        @divTrunc(emitted.durationTo(written).nanoseconds, std.time.ns_per_ms),
+    return publication.report(allocator, .{
+        .entries = entries.len,
+        .analyzed = modules_analyzed,
+        .reused = modules_reused,
+        .bodies_only = frame_reused,
+        .files = bundle.modules.len,
+        .generated = cache.generated - generated,
+        .cached = cache.reused - reused,
+    }, .{
+        .infer = @intCast(started.durationTo(inferred).toMilliseconds()),
+        .emit = @intCast(inferred.durationTo(emitted).toMilliseconds()),
+        .write = @intCast(emitted.durationTo(written).toMilliseconds()),
     });
 }

@@ -1,0 +1,31 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import { hexadecimal_radix } from "core/const"
+import { hexadecimal_digits } from "genz/const"
+
+import type { Writer } from "std:bytes"
+
+export type Input = {
+    out: Writer,
+    digest: u8[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const digits = bytes.fromText(hexadecimal_digits)
+
+    const { out, digest } = in
+
+    const written = loop(0, {
+        while: index => index < digest.length,
+        next: index => {
+            const value = integers.widenByte(digest[index])
+
+            bytes.writeByte(out, digits[value / hexadecimal_radix])
+            bytes.writeByte(out, digits[value % hexadecimal_radix])
+
+            index += 1
+        }
+    })
+}

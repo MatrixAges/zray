@@ -25,7 +25,14 @@ pub const Hash = struct {
     }
 };
 
-pub fn frame(hash: *Hash, generator: *const Digest, manifest: []const u8, texts: bool, modules: anytype, interfaces: anytype) void {
+pub const Frame = struct { content: Digest, shape: Digest };
+
+pub fn frame(generator: *const Digest, manifest: []const u8, modules: anytype, interfaces: anytype) Frame {
+    var content_buffer: [1024]u8 = undefined;
+    var shape_buffer: [1024]u8 = undefined;
+    var content = Hash.init(&content_buffer);
+    var shape = Hash.init(&shape_buffer);
+
     if (comptime generated) {
         const rule = @import("generated_input_frame_fingerprint");
         const Module = std.meta.Child(@TypeOf(modules));
@@ -36,23 +43,28 @@ pub fn frame(hash: *Hash, generator: *const Digest, manifest: []const u8, texts:
         comptime std.debug.assert(@FieldType(Module, "digest") == Digest);
 
         rule.executeValue(empty.allocator(), &.{
-            .out = @ptrCast(hash.out()),
+            .writers = &.{ .frame = @ptrCast(content.out()), .shape = @ptrCast(shape.out()) },
             .generator = generator,
             .manifest = manifest,
-            .texts = texts,
             .modules = &.{
                 .paths = @ptrCast(&paths),
                 .count = modules.len,
-                .digests = if (texts) std.mem.sliceAsBytes(modules) else &.{},
+                .digests = std.mem.sliceAsBytes(modules),
                 .offset = @offsetOf(Module, "digest"),
                 .stride = @sizeOf(Module),
             },
-            .interfaces = &.{ .first = @ptrCast(&sources), .second = null, .count = interfaces.len },
+            .interfaces = @ptrCast(&sources),
+            .interface_count = interfaces.len,
         }) catch unreachable;
-
-        return;
+    } else {
+        frameSeed(&content, generator, manifest, true, modules, interfaces);
+        frameSeed(&shape, generator, manifest, false, modules, interfaces);
     }
 
+    return .{ .content = content.finish(), .shape = shape.finish() };
+}
+
+fn frameSeed(hash: *Hash, generator: *const Digest, manifest: []const u8, texts: bool, modules: anytype, interfaces: anytype) void {
     hash.state.hasher.update(generator);
     field(&hash.state.hasher, if (texts) "frame" else "shape");
     field(&hash.state.hasher, manifest);
@@ -72,8 +84,9 @@ pub fn files(hash: *Hash, records: anytype, digests: []const Digest) void {
         const rule = @import("generated_input_file_fingerprint");
         const paths = memory.borrowTextColumn("path", records);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
 
-        rule.executeValue(empty.allocator(), .{
+        const input: Input = .{
             .out = @ptrCast(hash.out()),
             .rows = &.{
                 .paths = @ptrCast(&paths),
@@ -82,7 +95,9 @@ pub fn files(hash: *Hash, records: anytype, digests: []const Digest) void {
                 .offset = 0,
                 .stride = @sizeOf(Digest),
             },
-        }) catch unreachable;
+        };
+
+        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
         return;
     }
@@ -102,11 +117,14 @@ pub fn packages(records: anytype) Digest {
         const specifiers = memory.borrowTextColumn("specifier", records);
         const entries = memory.borrowTextColumn("entry", records);
         var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
 
-        rule.executeValue(empty.allocator(), .{
+        const input: Input = .{
             .out = @ptrCast(hash.out()),
             .rows = &.{ .first = @ptrCast(&specifiers), .second = @ptrCast(&entries), .count = records.len },
-        }) catch unreachable;
+        };
+
+        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
     } else {
         for (records) |record| {
             field(&hash.state.hasher, record.specifier);

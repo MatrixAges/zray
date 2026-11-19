@@ -1,0 +1,46 @@
+import bytes from "std:bytes"
+
+import {
+    entries_prefix,
+    entries_suffix,
+    analyzed_suffix,
+    reuse_suffix,
+    bodies_only_suffix,
+    files_prefix,
+    files_suffix,
+    generated_suffix
+} from "../const"
+
+import type { Writer } from "std:bytes"
+import type { Counts } from "./model"
+
+export type Input = {
+    out: Writer,
+    counts: Counts
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { out, counts } = in
+
+    bytes.write(out, bytes.fromText(entries_prefix))
+    bytes.writeDecimalU64(out, counts.entries)
+    bytes.write(out, bytes.fromText(entries_suffix))
+    bytes.writeDecimalU64(out, counts.analyzed)
+    bytes.write(out, bytes.fromText(analyzed_suffix))
+    bytes.writeDecimalU64(out, counts.reused)
+    bytes.write(out, bytes.fromText(reuse_suffix))
+
+    if (counts.bodies_only) {
+        bytes.write(out, bytes.fromText(bodies_only_suffix))
+    }
+
+    bytes.write(out, bytes.fromText(files_prefix))
+    bytes.writeDecimalU64(out, counts.files)
+    bytes.write(out, bytes.fromText(files_suffix))
+    bytes.writeDecimalU64(out, counts.generated)
+    bytes.write(out, bytes.fromText(generated_suffix))
+    bytes.writeDecimalU64(out, counts.cached)
+    bytes.write(out, bytes.fromText(reuse_suffix))
+}

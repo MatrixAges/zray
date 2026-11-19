@@ -15,11 +15,16 @@ export type Text = {
     count: u64
 }
 
+export type Writers = {
+    frame: Writer,
+    shape: Writer
+}
+
 export type Frame = {
-    out: Writer,
+    writers: Writers,
     generator: u8[],
     manifest: string,
-    texts: bool,
     modules: Records,
-    interfaces: Text
+    interfaces: TextColumn,
+    interface_count: u64
 }

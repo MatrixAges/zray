@@ -7,6 +7,7 @@ const Resident = @import("resident/state.zig");
 const Files = @import("resident/files.zig");
 const InputSnapshot = @import("input_snapshot.zig");
 const fingerprint = compiler.input_fingerprint;
+const publication = compiler.input_generation;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -50,9 +51,10 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
     const owned = resident.inputAllocator(allocator);
     const snapshot = if (request.write) try InputSnapshot.prepare(io, allocator, owned, &resident.files, resident.digest, project, manifest_source, partitions, request.cache) else null;
+    const recorded = if (request.write) try std.fs.path.join(allocator, &.{ output, publication.stamp_name }) else null;
 
     if (snapshot) |prepared| if (prepared.fingerprint) |digest| {
-        if (try current(io, allocator, output, digest)) return "";
+        if (try current(io, recorded.?, &digest)) return "";
     };
 
     var documents: std.ArrayList(collection.Document) = .empty;
@@ -73,25 +75,21 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
     for (inputs.modules, rx_digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
 
-    const frame = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces.bindings, true);
-    const inputs_digest = outputDigest(&frame, partitions, inputs.sources, inputs.templates, &resident.files);
+    const frame = fingerprint.frame(&resident.digest, manifest_source, rx_digests, interfaces.bindings);
+    const inputs_digest = if (recorded != null) outputDigest(&frame.content, partitions, inputs.sources, inputs.templates, &resident.files) else null;
 
-    // An output directory reused across runs already holds the result when nothing it depends on changed.
-    if (request.write and interfaces.failure == null and try current(io, allocator, output, inputs_digest)) {
-        if (snapshot) |prepared| prepared.save(io, &resident.files, inputs_digest) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => {},
+    if (recorded) |path| {
+        if (interfaces.failure == null and try current(io, path, &inputs_digest.?)) {
+            try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest.?);
+
+            return "";
+        }
+
+        std.Io.Dir.cwd().deleteFile(io, path) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => return err,
         };
-
-        return "";
     }
-
-    const recorded = try std.fs.path.join(allocator, &.{ output, shared_output.fingerprint_name });
-
-    if (request.write) std.Io.Dir.cwd().deleteFile(io, recorded) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => return err,
-    };
 
     const prepared_sources = switch (try compiler.project.prepareSources(owned, inputs.sources, .{ .entry = "" })) {
         .sources => |items| items,
@@ -112,34 +110,24 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         .interfaces = interfaces.bindings[0..interfaces.external],
         .internal_modules = interfaces.bindings[interfaces.external..],
         .packages = packages,
-        .frame = frame,
-        .shape = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces.bindings, false),
+        .frame = frame.content,
+        .shape = frame.shape,
         .rx_digests = rx_digests,
     }, if (request.write) output else null, request.cache, partitions);
 
-    if (request.write) {
-        try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = recorded, .data = &std.fmt.bytesToHex(inputs_digest, .lower) });
-
-        if (snapshot) |prepared| prepared.save(io, &resident.files, inputs_digest) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => {},
-        };
+    if (recorded) |path| {
+        try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = &publication.stamp(&inputs_digest.?) });
+        try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest.?);
     }
 
     return summary;
 }
 
-const shared_output = @import("shared_output.zig");
-
-/// Everything a generation reads besides the ZX sources; RX sources enter by their digests, or by their paths alone for
-/// the shape an analysis reuses RX modules within.
-fn frameDigest(generator: *const fingerprint.Digest, manifest_source: []const u8, modules: []const analysis.project.ModuleDigest, interfaces: []const compiler.project.NativeInterface, texts: bool) fingerprint.Digest {
-    var buffer: [1024]u8 = undefined;
-    var hash = fingerprint.Hash.init(&buffer);
-
-    fingerprint.frame(&hash, generator, manifest_source, texts, modules, interfaces);
-
-    return hash.finish();
+fn saveSnapshot(snapshot: InputSnapshot, io: std.Io, files: *Files, digest: fingerprint.Digest) !void {
+    snapshot.save(io, files, digest) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => {},
+    };
 }
 
 /// The frame and raw ZX/template inputs; a matching output needs no template expansion or RX parsing.
@@ -171,13 +159,13 @@ fn writeDigests(hash: *fingerprint.Hash, files: *Files, inputs: anytype) void {
     }
 }
 
-fn current(io: std.Io, allocator: std.mem.Allocator, output: []const u8, digest: [32]u8) !bool {
-    const path = try std.fs.path.join(allocator, &.{ output, shared_output.fingerprint_name });
+fn current(io: std.Io, path: []const u8, digest: *const fingerprint.Digest) !bool {
+    var buffer: [publication.stamp_width + 1]u8 = undefined;
 
-    const recorded = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(65)) catch |err| switch (err) {
-        error.FileNotFound, error.StreamTooLong => return false,
+    const recorded = std.Io.Dir.cwd().readFile(io, path, &buffer) catch |err| switch (err) {
+        error.FileNotFound => return false,
         else => return err,
     };
 
-    return std.mem.eql(u8, recorded, &std.fmt.bytesToHex(digest, .lower));
+    return recorded.len == publication.stamp_width and std.mem.eql(u8, recorded, &publication.stamp(digest));
 }

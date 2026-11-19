@@ -1,0 +1,35 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { digest_width } from "./const"
+import writeText from "./text_pair"
+
+import type { Records, Writers } from "./model"
+
+export type Input = {
+    writers: Writers,
+    rows: Records
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows, writers } = in
+
+    const written = loop(0, {
+        while: position => position < rows.count,
+        next: position => {
+            writeText({
+                writers,
+                text: memory.readTextColumn(rows.paths, position)
+            })
+
+            const start = rows.offset + position * rows.stride
+            const digest = memory.borrowU8Range(rows.digests, start, digest_width)
+
+            bytes.write(writers.frame, digest)
+
+            position += 1
+        }
+    })
+}

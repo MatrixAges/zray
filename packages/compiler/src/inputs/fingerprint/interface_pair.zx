@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import writeText from "./text_pair"
+
+import type { TextColumn } from "memory"
+import type { Writers } from "./model"
+
+export type Input = {
+    writers: Writers,
+    sources: TextColumn,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop(0, {
+        while: position => position < in.count,
+        next: position => {
+            writeText({
+                writers: in.writers,
+                text: memory.readTextColumn(in.sources, position)
+            })
+
+            position += 1
+        }
+    })
+}

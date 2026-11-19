@@ -6,26 +6,26 @@
     <Call
         fn="frame_header"
         in={{
-            out: $in.out,
+            writers: $in.writers,
             generator: $in.generator,
-            manifest: $in.manifest,
-            texts: $in.texts
+            manifest: $in.manifest
         }}
     />
 
     <Call
-        fn="files"
+        fn="module_pair"
         in={{
-            out: $in.out,
+            writers: $in.writers,
             rows: $in.modules
         }}
     />
 
     <Call
-        fn="text"
+        fn="interface_pair"
         in={{
-            out: $in.out,
-            rows: $in.interfaces
+            writers: $in.writers,
+            sources: $in.interfaces,
+            count: $in.interface_count
         }}
     />
 </Module>

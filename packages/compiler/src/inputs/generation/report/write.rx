@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Report" />
+
+    <Args in={Report.Report} out={void} />
+
+    <Call
+        fn="counts"
+        in={{
+            out: $in.out,
+            counts: $in.counts
+        }}
+    />
+
+    <Call
+        fn="durations"
+        in={{
+            out: $in.out,
+            durations: $in.durations
+        }}
+    />
+</Module>

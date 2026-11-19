@@ -58,7 +58,6 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
     try mirror(io, allocator, workspace, output, files.items);
 }
 
-pub const fingerprint_name = ".zxc-inputs";
 const file_manifest = @import("partition/file_manifest.zig");
 const manifest_name = file_manifest.name;
 
@@ -134,7 +133,7 @@ fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator
             defer walker.deinit();
 
             while (try walker.next(io)) |entry| {
-                if (entry.kind != .file or !wanted.shouldRemove(entry.path, fingerprint_name, true)) continue;
+                if (entry.kind != .file or !wanted.shouldRemove(entry.path, compiler.input_generation.stamp_name, true)) continue;
                 try stale.append(allocator, try allocator.dupe(u8, entry.path));
             }
 
