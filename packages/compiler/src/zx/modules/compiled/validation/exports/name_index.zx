@@ -7,14 +7,22 @@ export type Input = Table & {
     count: u64
 }
 
-export type Output = void
+export type Output = bool
 
 export default function (in: Input): Output {
     const { names, buckets, capacity, count } = in
 
-    const indexed = loop(0, {
-        while: row => row < count,
-        next: row => {
+    if (count < 2) {
+        return true
+    }
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < count,
+        next: state => {
+            const row = state.row
             const found = slot({
                 names,
                 buckets,
@@ -22,10 +30,13 @@ export default function (in: Input): Output {
                 name: memory.readTextColumn(names, row)
             })
 
-            // Library validation has already accepted the export names.
-            memory.writeU64(buckets, found.slot, row + 1)
+            state.valid = found.entry == 0
 
-            row += 1
-        }
+            if (state.valid) {
+                memory.writeU64(buckets, found.slot, row + 1)
+                state.row += 1
+            }
+        },
+        return: state => state.valid
     })
 }

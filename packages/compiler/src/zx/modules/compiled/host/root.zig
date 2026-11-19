@@ -5,6 +5,13 @@ const Destination = load_model.Destination;
 const generated = @import("generated_compiled_library");
 const Input = @import("input.zig");
 
+const Options = struct {
+    seed: bool = false,
+    selected: ?[]const model.PublicReference = null,
+    call_scratch: ?load_model.CallScratch = null,
+    export_buckets: ?[]u64 = null,
+};
+
 pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options, call_scratch: ?load_model.CallScratch) !model.Loaded {
     var types = try @import("../../../analysis/type_table.zig").storage(allocator, options.types);
     var origins = try @import("../../nominal_origins.zig").copy(allocator, options.nominal_types);
@@ -14,22 +21,30 @@ pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options, ca
         .origins = &origins,
         .functions = options.functions,
         .native_modules = options.native_modules,
-    }, true, options.selected, call_scratch);
+    }, .{ .seed = true, .selected = options.selected, .call_scratch = call_scratch });
 }
 
-pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: Destination) !model.Loaded {
-    return loadPrepared(allocator, library, destination, false, null, null);
+pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: Destination, export_buckets: ?[]u64) !model.Loaded {
+    return loadPrepared(allocator, library, destination, .{ .export_buckets = export_buckets });
 }
 
-fn loadPrepared(allocator: std.mem.Allocator, library: model.Library, destination: Destination, seed: bool, selected: ?[]const model.PublicReference, call_scratch: ?load_model.CallScratch) !model.Loaded {
-    var arena = std.heap.ArenaAllocator.init(if (call_scratch) |scratch| scratch.temporary else allocator);
+fn loadPrepared(allocator: std.mem.Allocator, library: model.Library, destination: Destination, options: Options) !model.Loaded {
+    var arena = std.heap.ArenaAllocator.init(if (options.call_scratch) |scratch| scratch.temporary else allocator);
 
     defer arena.deinit();
 
     const graph = model.Graph{ .program = library.program, .exports = library.exports, .nominal_types = library.nominal_types, .store_initializers = library.store_initializers };
     var input: Input = undefined;
 
-    try input.init(arena.allocator(), &graph, library.instance, library.artifact, destination, seed, selected);
+    try input.init(arena.allocator(), &graph, library.instance, library.artifact, destination, options.seed, options.selected);
+
+    var index: std.meta.Child(@typeInfo(@FieldType(@TypeOf(input.input), "export_index")).optional.child) = undefined;
+    const export_buckets = options.export_buckets;
+
+    if (export_buckets) |*buckets| {
+        index = .{ .buckets = @ptrCast(buckets), .capacity = buckets.len };
+        input.input.export_index = &index;
+    }
 
     const result = generated.execute(&arena, &input.input) catch |err| switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
@@ -49,5 +64,5 @@ fn loadPrepared(allocator: std.mem.Allocator, library: model.Library, destinatio
         else => unreachable,
     }
 
-    return @import("publish.zig").apply(allocator, arena.allocator(), &input, &library, result, destination, call_scratch);
+    return @import("publish.zig").apply(allocator, arena.allocator(), &input, &library, result, destination, options.call_scratch);
 }

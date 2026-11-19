@@ -1,15 +1,15 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.Graph} out={bool} />
+    <Args in={Model.Validation} out={bool} />
 
-    <Call fn="validation/header" in={$in} />
+    <Call fn="validation/header" in={$in.graph} />
 
     <If on={!$ctx.header}>
         <Return value={false} />
     </If>
 
-    <Call module="../../ir/canonical/validation/validate" in={$in.program} />
+    <Call module="../../ir/canonical/validation/validate" in={$in.graph.program} />
 
     <If on={!$ctx.validate}>
         <Return value={false} />
@@ -24,7 +24,7 @@
     <Call
         fn="validation/stores"
         in={{
-            tables: $in.program.context.functions.stores
+            tables: $in.graph.program.context.functions.stores
         }}
     />
 

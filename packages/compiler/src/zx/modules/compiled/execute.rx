@@ -31,7 +31,13 @@
         <Return value={$ctx.empty} />
     </If>
 
-    <Call module="validate" in={$in.graph} />
+    <Call
+        module="validate"
+        in={$in.pick([
+            "graph",
+            "export_index"
+        ])}
+    />
 
     <If on={!$ctx.validate}>
         <Call fn="empty" in={1} />

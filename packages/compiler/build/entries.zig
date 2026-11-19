@@ -314,7 +314,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/module_record/names/alias.zx", .name = "module_record_alias" },
     .{ .path = "zx/modules/module_record/names/own.zx", .name = "module_record_names" },
     .{ .path = "zx/modules/compiled/resolution/resolve.rx", .name = "compiled_import_resolution" },
-    .{ .path = "zx/modules/compiled/imports/select.rx", .name = "compiled_import_select" },
+    .{ .path = "zx/modules/compiled/imports/find.zx", .name = "compiled_import_find" },
     .{ .path = "zx/modules/project/state/open.rx", .name = "project_state_open" },
     .{ .path = "zx/modules/project/publication/plan.rx", .name = "project_body_publish" },
     .{ .path = "zx/modules/project/publication/finalize.rx", .name = "project_entry_publish" },

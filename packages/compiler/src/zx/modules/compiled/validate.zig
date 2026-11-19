@@ -15,13 +15,14 @@ pub fn validate(allocator: std.mem.Allocator, library: model.Graph) Error!void {
 
     const temporary = scratch.allocator();
     const rule = @import("generated_compiled_validation");
-    var graph: View(std.meta.Child(rule.Input)) = undefined;
+    const Input = std.meta.Child(rule.Input);
+    var graph: View(std.meta.Child(@FieldType(Input, "graph"))) = undefined;
 
     graph.init(temporary, &library);
 
-    const input: *const @TypeOf(graph.input) = &graph.input;
+    const input: Input = .{ .graph = &graph.input, .export_index = null };
 
-    const accepted = zx.columns.invoke(rule.executeValue, temporary, input) catch |err| switch (@as(anyerror, err)) {
+    const accepted = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return error.InvalidLibrary,
     };

@@ -1,0 +1,28 @@
+<Module>
+    <Type from="../../model" as="Model" />
+
+    <Args in={Model.Validation} out={bool} />
+
+    <If on={$in.export_index != null}>
+        <Call
+            fn="name_index"
+            in={{
+                names: $in.graph.exports.names,
+                count: $in.graph.exports.count,
+                ...$in.export_index
+            }}
+        />
+
+        <Return value={$ctx.name_index} />
+    </If>
+
+    <Call
+        fn="../unique_column"
+        in={$in.graph.exports.pick([
+            "names",
+            "count"
+        ])}
+    />
+
+    <Return value={$ctx.unique_column} />
+</Module>

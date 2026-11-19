@@ -29,7 +29,12 @@
         <Return value={Linked.Status.InvalidLibrary} />
     </If>
 
-    <Call module="../surface" in={$in.graph} />
+    <Call
+        module="../surface"
+        in={{
+            graph: $in.graph
+        }}
+    />
 
     <If on={!$ctx.surface}>
         <Return value={Linked.Status.InvalidLibrary} />

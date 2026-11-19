@@ -49,6 +49,7 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
 
     self.input = .{
         .graph = &self.graph.input,
+        .export_index = null,
         .instance = instance,
         .artifact = artifact,
         .seed = seed,
