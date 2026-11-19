@@ -1,0 +1,55 @@
+import memory from "memory"
+
+import {
+    argument_separator,
+    compiler_argument,
+    generated_argument,
+    objects_argument,
+    count_argument,
+    first_input_argument
+} from "./const"
+
+export type Input = string[]
+
+export type Request = {
+    zig: string,
+    generated: string,
+    objects: string,
+    count: string,
+    inputs: string[],
+    arguments: string[]
+}
+
+export type Output = Request?
+
+export default function (in: Input): Output {
+    const separator = loop(0, {
+        while: index => index < in.length && in[index] != argument_separator,
+        next: index => {
+            index += 1
+        }
+    })
+
+    if (separator == in.length || separator < first_input_argument) {
+        return null
+    }
+
+    const arguments_start = separator + 1
+
+    return {
+        zig: in[compiler_argument],
+        generated: in[generated_argument],
+        objects: in[objects_argument],
+        count: in[count_argument],
+        inputs: memory.borrowStringRange(
+            in,
+            first_input_argument,
+            separator - first_input_argument
+        ),
+        arguments: memory.borrowStringRange(
+            in,
+            arguments_start,
+            in.length - arguments_start
+        )
+    }
+}

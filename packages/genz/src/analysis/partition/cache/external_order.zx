@@ -1,0 +1,21 @@
+import bytes from "std:bytes"
+
+import {
+    sort_equal,
+    sort_greater,
+    sort_less
+} from "../../uniqueness/replay/ordered/const"
+
+export type Input = string[]
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    return in.sort(
+        (left, right) => match {
+            left == right => sort_equal,
+            bytes.lessThan(bytes.fromText(left), bytes.fromText(right)) => sort_less,
+            _ => sort_greater
+        }
+    )[0]
+}

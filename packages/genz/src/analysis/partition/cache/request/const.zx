@@ -1,0 +1,17 @@
+export const argument_separator: string = "--"
+
+export const compiler_argument: u64 = 1
+
+export const generated_argument: u64 = 2
+
+export const objects_argument: u64 = 3
+
+export const count_argument: u64 = 4
+
+export const first_input_argument: u64 = 5
+
+export const object_name_prefix: string = "zxc_partition_"
+
+export const object_name_suffix: string = ".o"
+
+export const object_separator: string = "/"

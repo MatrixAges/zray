@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="State" />
+
+    <Args in={State.ScheduleInput} out={State.Schedule} />
+
+    <Call module="check" in={$in.state} />
+
+    <If on={$ctx.check.length == 0}>
+        <Return
+            value={{
+                pending: $ctx.check,
+                arguments: {
+                    values: [],
+                    indexed: []
+                },
+                invalidate: false
+            }}
+        />
+    </If>
+
+    <Call fn="../arguments/prepare" in={$in.options} />
+
+    <Return
+        value={{
+            pending: $ctx.check,
+            arguments: $ctx.prepare,
+            invalidate: $in.state.previous.length != 0
+        }}
+    />
+</Module>

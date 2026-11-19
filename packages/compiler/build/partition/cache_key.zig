@@ -2,7 +2,8 @@ const std = @import("std");
 const rules = @import("partition_rules");
 const Io = std.Io;
 const Blake3 = std.crypto.hash.Blake3;
-pub const Digest = [Blake3.digest_length]u8;
+const Digest = [Blake3.digest_length]u8;
+const Encoded = @TypeOf(std.fmt.bytesToHex(@as(Digest, @splat(0)), .lower));
 const HashWriter = Io.Writer.Hashing(Blake3);
 const buffer_size = 16 * 1024;
 const Listed = @import("file_manifest.zig").Listed;
@@ -40,7 +41,7 @@ pub const Shared = struct {
     }
 };
 
-fn inputPath(io: Io, allocator: std.mem.Allocator, hash: *HashWriter, path: []const u8) !void {
+fn inputPath(io: Io, workspace: std.mem.Allocator, hash: *HashWriter, path: []const u8) !void {
     const cwd = Io.Dir.cwd();
 
     if ((try cwd.statFile(io, path, .{})).kind == .file) return file(io, cwd, hash, path);
@@ -49,6 +50,11 @@ fn inputPath(io: Io, allocator: std.mem.Allocator, hash: *HashWriter, path: []co
 
     defer directory.close(io);
 
+    var scratch = std.heap.ArenaAllocator.init(workspace);
+
+    defer scratch.deinit();
+
+    const allocator = scratch.allocator();
     var walker = try directory.walk(allocator);
 
     defer walker.deinit();
@@ -57,9 +63,11 @@ fn inputPath(io: Io, allocator: std.mem.Allocator, hash: *HashWriter, path: []co
 
     while (try walker.next(io)) |entry| if (entry.kind == .file) try paths.append(allocator, try allocator.dupe(u8, entry.path));
 
-    std.mem.sort([]const u8, paths.items, {}, lessThan);
+    const ordered = try rules.partition_cache_external_order.executeValue(allocator, paths.items);
+
     external(hash, path, null);
-    for (paths.items) |child| try file(io, directory, hash, child);
+
+    for (ordered) |child| try file(io, directory, hash, child);
 }
 
 fn file(io: Io, directory: Io.Dir, hash: *HashWriter, path: []const u8) !void {
@@ -95,13 +103,20 @@ fn external(hash: *HashWriter, path: []const u8, size: ?u64) void {
     rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(&hash.writer), .path = path, .size = size }) catch unreachable;
 }
 
-pub fn partitions(allocator: std.mem.Allocator, shared: Blake3, manifest: Listed, ordered: Members, offsets: []const u64) ![]Digest {
-    const digests = try allocator.alloc(Digest, offsets.len - 1);
+pub fn partitions(allocator: std.mem.Allocator, shared: Blake3, manifest: Listed, ordered: Members, offsets: []const u64) ![]const []const u8 {
+    const names = try allocator.alloc(Encoded, offsets.len - 1);
+    const hex = try allocator.alloc([]const u8, names.len);
 
-    for (digests, offsets[0..digests.len], offsets[1..]) |*digest, start, end|
-        members(shared, manifest, ordered[@intCast(start)..@intCast(end)], digest);
+    for (names, hex, offsets[0..names.len], offsets[1..]) |*name, *key, start, end| {
+        var digest: Digest = undefined;
 
-    return digests;
+        members(shared, manifest, ordered[@intCast(start)..@intCast(end)], &digest);
+
+        name.* = std.fmt.bytesToHex(digest, .lower);
+        key.* = name;
+    }
+
+    return hex;
 }
 
 fn members(shared: Blake3, manifest: Listed, group: Members, digest: *Digest) void {
@@ -119,8 +134,4 @@ fn members(shared: Blake3, manifest: Listed, group: Members, digest: *Digest) vo
 
     stream.writer.flush() catch unreachable;
     stream.hasher.final(digest);
-}
-
-fn lessThan(_: void, left: []const u8, right: []const u8) bool {
-    return std.mem.lessThan(u8, left, right);
 }

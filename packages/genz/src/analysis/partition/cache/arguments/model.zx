@@ -1,0 +1,10 @@
+export type Input = {
+    arguments: string[],
+    generated: string,
+    objects: string
+}
+
+export type Prepared = {
+    values: string[],
+    indexed: u32[]
+}

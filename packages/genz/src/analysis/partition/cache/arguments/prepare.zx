@@ -1,22 +1,37 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
 import strings from "std:string"
 
-import { generated_marker, objects_marker } from "./const"
+import { generated_marker, objects_marker, index_marker } from "./const"
 
-export type Input = {
-    arguments: string[],
-    generated: string,
-    objects: string
-}
-
-export type Output = string[]
+import type { Input, Prepared as Output } from "./model"
 
 export default function (in: Input): Output {
-    return in.arguments.map(
-        argument => {
+    const values: string[] = []
+    const indexed: u32[] = []
+
+    return loop({
+        values,
+        indexed,
+        index: 0
+    }, {
+        while: state => state.index < in.arguments.length,
+        next: state => {
+            const argument = in.arguments[state.index]
             const generated =
                 strings.replaceAll(argument, generated_marker, in.generated)
+            const expanded = strings.replaceAll(generated, objects_marker, in.objects)
+            const marker =
+                bytes.indexOfText(bytes.fromText(expanded), 0, index_marker)
 
-            return strings.replaceAll(generated, objects_marker, in.objects)
-        }
-    )[0]
+            state.values = state.values.push(expanded)[0]
+
+            if (marker != null) {
+                state.indexed = state.indexed.push(integers.narrow(state.index))[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.omit(["index"])
+    })
 }

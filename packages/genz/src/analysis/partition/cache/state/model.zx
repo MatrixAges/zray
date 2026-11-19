@@ -1,5 +1,6 @@
 import type { Writer } from "std:bytes"
 import type { U8Buffer } from "memory"
+import type { Input as Options, Prepared as Arguments } from "../arguments/model"
 
 export type Lookup = {
     previous: u8[],
@@ -15,4 +16,15 @@ export type Publish = {
     out: Writer,
     digests: u8[][],
     valid: bool[]
+}
+
+export type ScheduleInput = {
+    state: Build,
+    options: Options
+}
+
+export type Schedule = {
+    pending: u32[],
+    arguments: Arguments,
+    invalidate: bool
 }

@@ -1,0 +1,27 @@
+import { object_name_prefix, object_name_suffix, object_separator } from "./const"
+
+export type Input = {
+    objects: string,
+    count: u64
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const prefix = `${in.objects}${object_separator}${object_name_prefix}`
+    const paths: string[] = []
+
+    return loop({
+        paths,
+        index: 0
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            const path = `${prefix}${state.index}${object_name_suffix}`
+
+            state.paths = state.paths.push(path)[0]
+            state.index += 1
+        },
+        return: state => state.paths
+    })
+}
