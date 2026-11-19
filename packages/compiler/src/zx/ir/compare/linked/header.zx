@@ -1,0 +1,47 @@
+import { StoreMode } from "core/function_table/complete"
+
+import type {
+    Header as Output,
+    Native
+} from "../../../../library/initializers/compare/model"
+import type { Headers } from "./model"
+
+export type Input = {
+    headers: Headers,
+    row: u64,
+    version: u32
+}
+
+export default function (in: Input): Output {
+    const { headers, row, version } = in
+
+    const module_id = headers.native_modules[row]
+
+    const native: Native? = match {
+        module_id != null => {
+            module_id,
+            member: headers.native_members[row],
+            export_name: headers.native_exports[row],
+            allocator: headers.native_allocators[row],
+            io: headers.native_io[row],
+            process: headers.native_process[row],
+            tuple: headers.native_tuples[row],
+            fallible: headers.native_fallible[row],
+            concurrent: headers.native_concurrent[row],
+            input: headers.native_inputs[row],
+            errors: headers.native_errors[row]
+        },
+        _ => null
+    }
+
+    return {
+        version,
+        name: headers.files[row],
+        transaction: headers.store_modes[row] == StoreMode.transaction,
+        ownership: headers.ownership[row],
+        input_type: headers.input_types[row],
+        output_type: headers.output_types[row],
+        root: headers.roots[row],
+        native
+    }
+}

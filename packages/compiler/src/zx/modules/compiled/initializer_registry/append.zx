@@ -9,40 +9,39 @@ import columns from "memory/columns"
 
 import type { Cursor as Output, Input as Registry, Selection } from "./model"
 
-export type Input = {
+export type Input = Output & {
     registry: Registry,
-    cursor: Output,
     identity: string,
     version: u32,
     selected: Selection
 }
 
 export default function (in: Input): Output {
-    const { registry, cursor, identity, version, selected } = in
+    const { registry, identity, version, selected } = in
     const { buckets, published, target } = registry
 
-    const index = cursor.count
+    const index = in.count
 
     const space = match {
-        index == cursor.space => columns.growRows(registry.growth, index),
-        _ => cursor.space
+        index == in.space => columns.growRows(registry.growth, index),
+        _ => in.space
     }
 
     const capacity = match {
-        index == cursor.limit => refresh({
+        index == in.limit => refresh({
             keys: published.identity,
             buckets,
             scratch: registry.scratch,
-            capacity: cursor.capacity,
+            capacity: in.capacity,
             indexed: index,
             count: index,
             required: index + 1
         }),
-        _ => cursor.capacity
+        _ => in.capacity
     }
 
     const slot = match {
-        capacity == cursor.capacity => selected.slot,
+        capacity == in.capacity => selected.slot,
         _ => probe({
             keys: published.identity,
             buckets,

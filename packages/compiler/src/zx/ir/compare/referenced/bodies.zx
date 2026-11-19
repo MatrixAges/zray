@@ -54,8 +54,9 @@ export default function (in: Input): Output {
                 while: item => item.equal && item.index < tables.length,
                 next: item => {
                     item.equal = table({
-                        tables: tables[item.index],
-                        row
+                        ...tables[item.index],
+                        left_row: row,
+                        right_row: row
                     })
                     item.index += 1
                 },
@@ -64,8 +65,9 @@ export default function (in: Input): Output {
 
             if (state.equal) {
                 state.equal = contracts({
-                    contracts: in.contracts,
-                    row
+                    ...in.contracts,
+                    left_row: row,
+                    right_row: row
                 })
             }
 

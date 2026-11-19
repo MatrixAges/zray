@@ -1,0 +1,63 @@
+import equalHeader from "../../../../library/initializers/compare/header"
+import equalNative from "../../../../library/initializers/compare/native"
+import compareBodies from "./bodies"
+import readHeader from "./header"
+
+import type { RowIndices } from "../referenced/model"
+import type { Functions } from "./model"
+
+export type Input = RowIndices & {
+    functions: Functions,
+    version: u32
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { functions, version } = in
+    const { prefix, local } = functions
+
+    const count = prefix.headers.files.length
+    const left_prefix = in.left_row < count
+    const right_prefix = in.right_row < count
+    const left = left_prefix ? prefix : local
+    const right = right_prefix ? prefix : local
+    const left_row = left_prefix ? in.left_row : in.left_row - count
+    const right_row = right_prefix ? in.right_row : in.right_row - count
+
+    const a = readHeader({
+        headers: left.headers,
+        row: left_row,
+        version
+    })
+
+    const b = readHeader({
+        headers: right.headers,
+        row: right_row,
+        version
+    })
+
+    if (!equalHeader({
+        left: a,
+        right: b,
+        mapping: null
+    })) {
+        return false
+    }
+
+    if (!equalNative({
+        left: a.native,
+        right: b.native
+    })) {
+        return false
+    }
+
+    return compareBodies({
+        left,
+        right,
+        left_row,
+        right_row,
+        columns: functions.columns,
+        contract_layout: functions.contract_layout
+    })
+}

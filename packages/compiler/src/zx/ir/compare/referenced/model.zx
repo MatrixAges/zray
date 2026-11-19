@@ -19,6 +19,11 @@ export type Pair = {
     right: ReferenceRows
 }
 
+export type RowIndices = {
+    left_row: u64,
+    right_row: u64
+}
+
 export type Table = Pair & {
     columns: Column[]
 }

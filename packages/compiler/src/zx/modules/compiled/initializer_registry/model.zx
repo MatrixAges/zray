@@ -1,5 +1,6 @@
 import type { U32Buffer, U32Scratch, U64Buffer } from "memory"
 import type { RowGrowth } from "memory/columns"
+import type { Functions } from "../../../ir/compare/linked/model"
 import type { Source, Target } from "../../link/source/initializers/model"
 
 export enum Action {
@@ -12,7 +13,6 @@ export enum Action {
 
 export enum Status {
     Done,
-    Compare,
     Conflict,
     InvalidModule
 }
@@ -33,8 +33,8 @@ export type Input = {
     scratch: U32Scratch,
     capacity: u64,
     range: Range,
+    functions: Functions,
     own: bool,
-    start: u64,
     end: u64,
     count: u64,
     space: u64,
@@ -43,18 +43,12 @@ export type Input = {
 
 export type Selection = {
     action: Action,
-    previous: u64,
+    previous: u32,
     slot: u64,
     function: u32
 }
 
-export type Output = {
-    status: Status,
-    next: u64,
-    count: u64,
-    previous: u64,
-    function: u32
-}
+export type Output = Status
 
 export type Cursor = {
     count: u64,

@@ -117,9 +117,12 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
         @field(published, name) = @ptrCast(&reads[index]);
     }
 
-    var start: u64 = 0;
     var progress = [_]u64{self.rows.items.len};
     const published_count: []u64 = &progress;
+    const FunctionView = @import("../../ir/compare/linked/host.zig").View(std.meta.Child(@FieldType(Input, "functions")));
+    var function_view: FunctionView = undefined;
+
+    function_view.init(functions.prefix, functions.local);
 
     defer {
         const rows = target.rows();
@@ -128,37 +131,32 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
         self.rows.capacity = rows.len;
     }
 
-    while (true) {
-        const input: Input = .{
-            .source = &source,
-            .published = &published,
-            .target = &target.view,
-            .growth = @ptrCast(&growth),
-            .range = &.{ .first = range.first, .count = range.count, .prefix = range.prefix, .available = available },
-            .buckets = @ptrCast(&self.buckets.items),
-            .scratch = @ptrCast(&self.buckets),
-            .capacity = self.buckets.items.len,
-            .count = progress[0],
-            .space = target.buffer.bytes.len / @sizeOf(Entry),
-            .start = start,
-            .end = values.len,
-            .own = own,
-            .progress = @ptrCast(&published_count),
-        };
+    const input: Input = .{
+        .source = &source,
+        .published = &published,
+        .target = &target.view,
+        .growth = @ptrCast(&growth),
+        .range = &.{ .first = range.first, .count = range.count, .prefix = range.prefix, .available = available },
+        .functions = &function_view.input,
+        .buckets = @ptrCast(&self.buckets.items),
+        .scratch = @ptrCast(&self.buckets),
+        .capacity = self.buckets.items.len,
+        .count = progress[0],
+        .space = target.buffer.bytes.len / @sizeOf(Entry),
+        .end = values.len,
+        .own = own,
+        .progress = @ptrCast(&published_count),
+    };
 
-        const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
+    const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
 
-        start = result.next;
-
-        switch (result.status) {
-            .Done => return,
-            .Compare => if (!functions.compare(target.rows()[@intCast(result.previous)], @fromBackingInt(result.function))) return error.ConflictingInitializer,
-            .Conflict => return error.ConflictingInitializer,
-            .InvalidModule => return error.InvalidModule,
-        }
+    switch (result) {
+        .Done => return,
+        .Conflict => return error.ConflictingInitializer,
+        .InvalidModule => return error.InvalidModule,
     }
 }
 

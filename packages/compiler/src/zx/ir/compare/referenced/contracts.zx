@@ -2,32 +2,28 @@ import memory from "memory/columns"
 
 import compare from "./table"
 
-import type { Contracts } from "./model"
+import type { Contracts, RowIndices } from "./model"
 
-export type Input = {
-    contracts: Contracts,
-    row: u64
-}
+export type Input = RowIndices & Contracts
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { contracts, row } = in
-    const { left, right, layout } = contracts
+    const { left, right, layout, left_row, right_row } = in
 
-    if (memory.sameReferenceRow(left, right, row)) {
+    if (memory.sameReferenceRow(left, right, left_row, right_row)) {
         return true
     }
 
     const symbols = {
-        left: memory.readNestedReferenceRows(left, row, layout.symbols),
-        right: memory.readNestedReferenceRows(right, row, layout.symbols),
+        left: memory.readNestedReferenceRows(left, left_row, layout.symbols),
+        right: memory.readNestedReferenceRows(right, right_row, layout.symbols),
         columns: layout.symbol_columns
     }
 
     const expressions = {
-        left: memory.readNestedReferenceRows(left, row, layout.expressions),
-        right: memory.readNestedReferenceRows(right, row, layout.expressions),
+        left: memory.readNestedReferenceRows(left, left_row, layout.expressions),
+        right: memory.readNestedReferenceRows(right, right_row, layout.expressions),
         columns: layout.expression_columns
     }
 
@@ -53,14 +49,16 @@ export default function (in: Input): Output {
         while: state => state.equal && state.row < count,
         next: state => {
             state.equal = compare({
-                tables: symbols,
-                row: state.row
+                ...symbols,
+                left_row: state.row,
+                right_row: state.row
             })
 
             if (state.equal) {
                 state.equal = compare({
-                    tables: expressions,
-                    row: state.row
+                    ...expressions,
+                    left_row: state.row,
+                    right_row: state.row
                 })
             }
 

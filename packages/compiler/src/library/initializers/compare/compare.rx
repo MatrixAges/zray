@@ -37,8 +37,9 @@
         <Call
             fn="../../../zx/ir/compare/referenced/contracts"
             in={{
-                contracts: $in.contracts,
-                row: 0
+                ...$in.contracts,
+                left_row: 0,
+                right_row: 0
             }}
         />
 

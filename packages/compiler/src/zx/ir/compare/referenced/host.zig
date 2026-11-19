@@ -8,7 +8,7 @@ const Input = std.meta.Child(bodies_entry.Input);
 const Table = std.meta.Child(std.meta.Elem(@FieldType(Input, "tables")));
 const Column = std.meta.Child(std.meta.Elem(@FieldType(Table, "columns")));
 
-const groups = .{
+pub const groups = .{
     .{ ir.StoreTable, "stores" },
     .{ ir.SymbolTable, "symbols" },
     .{ ir.ExpressionTable, "expressions" },
@@ -66,6 +66,11 @@ pub fn ContractView(comptime Contracts: type) type {
 
 fn contractView(comptime Contracts: type, left: *const memory.ReferenceRows, right: *const memory.ReferenceRows) Contracts {
     const Layout = std.meta.Child(@FieldType(Contracts, "layout"));
+
+    return .{ .left = @ptrCast(left), .right = @ptrCast(right), .layout = contractLayout(Layout) };
+}
+
+pub fn contractLayout(comptime Layout: type) *const Layout {
     const Spec = std.meta.Child(std.meta.Elem(@FieldType(Layout, "symbol_columns")));
 
     const Definition = struct {
@@ -77,5 +82,5 @@ fn contractView(comptime Contracts: type, left: *const memory.ReferenceRows, rig
         };
     };
 
-    return .{ .left = @ptrCast(left), .right = @ptrCast(right), .layout = &Definition.layout };
+    return &Definition.layout;
 }

@@ -14,8 +14,8 @@ pub inline fn count(source: *const anyopaque) u64 {
     return rows(source).len;
 }
 
-pub inline fn same(left: *const anyopaque, right: *const anyopaque, row: u64) IndexError!bool {
-    return try at(left, row) == try at(right, row);
+pub inline fn same(left: *const anyopaque, right: *const anyopaque, left_row: u64, right_row: u64) IndexError!bool {
+    return try at(left, left_row) == try at(right, right_row);
 }
 
 pub inline fn range(source: *const anyopaque, first: u64, end: u64) IndexError![]const u8 {

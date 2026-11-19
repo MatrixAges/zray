@@ -1,7 +1,9 @@
+import integers from "std:integer"
 import { load_numerator, load_denominator } from "core/bytes/index/const"
 import memory from "memory"
 import columns from "memory/columns"
 
+import compare from "../../../ir/compare/linked/compare"
 import append from "./append"
 import { Action, Status } from "./model"
 import select from "./select"
@@ -11,19 +13,13 @@ import type { Input, Output } from "./model"
 export default function (in: Input): Output {
     const { source, published, buckets, range } = in
 
-    const zero: u32 = 0
-
     return loop({
-        cursor: {
-            count: in.count,
-            space: in.space,
-            capacity: in.capacity,
-            limit: in.capacity * load_numerator / load_denominator
-        },
-        next: in.start,
-        status: Status.Done,
-        previous: 0,
-        function: zero
+        count: in.count,
+        space: in.space,
+        capacity: in.capacity,
+        limit: in.capacity * load_numerator / load_denominator,
+        next: 0,
+        status: Status.Done
     }, {
         while: state => state.status == Status.Done && state.next < in.end,
         next: state => {
@@ -35,40 +31,49 @@ export default function (in: Input): Output {
                 published,
                 buckets,
                 range,
-                capacity: state.cursor.capacity,
+                capacity: state.capacity,
                 identity,
                 version,
                 id: columns.readColumnU32(source.function, row)
             })
 
             if (selected.action == Action.Append) {
-                state.cursor = append({
+                const cursor = append({
                     registry: in,
-                    cursor: state.cursor,
+                    count: state.count,
+                    space: state.space,
+                    capacity: state.capacity,
+                    limit: state.limit,
                     identity,
                     version,
                     selected
                 })
+
+                state.count = cursor.count
+                state.space = cursor.space
+                state.capacity = cursor.capacity
+                state.limit = cursor.limit
+            } else if (selected.action == Action.Compare) {
+                const equivalent = compare({
+                    functions: in.functions,
+                    left_row: integers.widen(selected.previous),
+                    right_row: integers.widen(selected.function),
+                    version
+                })
+
+                if (!equivalent) {
+                    state.status = Status.Conflict
+                }
             } else {
                 state.status = match selected.action {
-                    Action.Compare => Status.Compare,
                     Action.Conflict => Status.Conflict,
                     Action.InvalidModule => Status.InvalidModule,
                     _ => Status.Done
                 }
-
-                state.previous = selected.previous
-                state.function = selected.function
             }
 
             state.next += 1
         },
-        return: state => ({
-            status: state.status,
-            next: state.next,
-            count: state.cursor.count,
-            previous: state.previous,
-            function: state.function
-        })
+        return: state => state.status
     })
 }
