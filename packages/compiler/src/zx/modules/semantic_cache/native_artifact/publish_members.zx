@@ -1,9 +1,10 @@
-import signature from "../../artifact/materializing/publication/signature"
+import memory from "memory/columns"
+
+import signature from "../../link/signature/publication/signature_row"
 import bind from "../../native/publication/binding"
 import declaration from "../../native/publication/declaration"
 import own from "../../native/publication/record"
 
-import type { Table } from "core/signature_table/model"
 import type { Owner } from "../../native/publication/model"
 import type { Publish } from "./model"
 
@@ -11,14 +12,13 @@ export type Input = Publish.Pick("members", "signature_target", "binding_target"
     owner: Owner
 }
 
-export type Output = Table
+export type Output = void
 
 export default function (in: Input): Output {
-    const { members, owner, binding_target } = in
+    const { members, owner, binding_target, signature_target } = in
 
-    return loop({
-        row: 0,
-        signatures: in.signature_target
+    const written = loop({
+        row: 0
     }, {
         while: state => state.row < members.length,
         next: state => {
@@ -29,12 +29,12 @@ export default function (in: Input): Output {
                 owner
             })
 
-            state.signatures = signature({
-                columns: state.signatures,
-                signature: record.signature,
-                flags: record.flags,
-                row
-            })
+            const fields = signature(record.pick([
+                "signature",
+                "flags"
+            ]))
+
+            memory.appendSignatureColumnSet(signature_target, fields)
 
             bind({
                 target: binding_target,
@@ -46,7 +46,6 @@ export default function (in: Input): Output {
             })
 
             state.row += 1
-        },
-        return: state => state.signatures
+        }
     })
 }

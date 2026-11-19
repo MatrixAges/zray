@@ -1,21 +1,20 @@
-import { StoreMode } from "core/function_table/complete"
+import memory from "memory/columns"
 
-import write from "../../artifact/materializing/publication/write"
+import complete from "../../link/signature/publication/function_row"
+import signature from "../../link/signature/publication/signature_row"
 import bind from "./binding"
 import own from "./record"
 import read from "./row"
 
-import type { Columns } from "../../artifact/materializing/publication/model"
 import type { Input } from "./model"
 
-export type Output = Columns
+export type Output = void
 
 export default function (in: Input): Output {
-    const { rows, owner, empty, members, first } = in
+    const { rows, owner, empty, members, first, functions } = in
 
-    return loop({
-        row: 0,
-        functions: in.functions
+    const written = loop({
+        row: 0
     }, {
         while: state => state.row < rows.count,
         next: state => {
@@ -28,24 +27,16 @@ export default function (in: Input): Output {
                 source,
                 owner
             })
-
-            state.functions = write({
-                columns: state.functions,
-                function: {
-                    ...record.signature,
-                    symbols: empty.symbols,
-                    expressions: empty.expressions,
-                    contracts: empty.contracts,
-                    control: empty.control,
-                    store_table: empty.stores
-                },
-                attributes: {
-                    ...record.flags,
-                    store_mode: StoreMode.transaction,
-                    root: null
-                },
-                row
+            const fields = signature(record.pick([
+                "signature",
+                "flags"
+            ]))
+            const value = complete({
+                signature: fields,
+                empty
             })
+
+            memory.writeFunctionTail(functions, value, row)
 
             bind({
                 target: members,
@@ -57,7 +48,6 @@ export default function (in: Input): Output {
             })
 
             state.row += 1
-        },
-        return: state => state.functions
+        }
     })
 }

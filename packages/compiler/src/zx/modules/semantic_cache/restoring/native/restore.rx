@@ -5,7 +5,21 @@
 
     <Args in={Restore.Input} out={Failed.Output} />
 
-    <If on={!$in.admitted}>
+    <If on={$in.admission != null}>
+        <Call
+            module="admit"
+            in={{
+                request: $in.validation.request,
+                imports: $in.admission
+            }}
+        />
+
+        <If on={!$ctx.admit}>
+            <Call fn="failed" in={Result.Status.InvalidModule} />
+
+            <Return value={$ctx.failed} />
+        </If>
+
         <Call module="validate" in={$in.validation} />
 
         <If on={!$ctx.validate}>

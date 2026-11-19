@@ -1,0 +1,39 @@
+import ownership from "../ownership"
+
+import type { SignatureRow as Output } from "memory/columns"
+import type { Output as External } from "../../../artifact/materializing/copy_external"
+import type { Flags, Signature } from "../../../artifact/materializing/publication/model"
+
+export type Input = {
+    signature: Signature,
+    flags: Flags
+}
+
+export default function (in: Input): Output {
+    const { signature, flags } = in
+
+    const external: External = signature.external ?? {
+        members: [],
+        errors: null,
+        export_name: null,
+        parameters: null
+    }
+
+    return {
+        files: signature.file,
+        input_types: signature.ports.input,
+        output_types: signature.ports.output,
+        ownership: ownership(flags.ownership),
+        native_inputs: external.parameters,
+        native_modules: signature.ports.native_module,
+        native_members: external.members,
+        native_exports: external.export_name,
+        native_allocators: flags.allocator_argument,
+        native_io: flags.io_argument,
+        native_process: flags.process_argument,
+        native_tuples: flags.expand_tuple,
+        native_fallible: flags.fallible,
+        native_errors: external.errors,
+        native_concurrent: flags.concurrent
+    }
+}

@@ -3,14 +3,17 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Artifact = @import("../../artifact/model.zig");
 const Native = @import("../../interface.zig").Native;
+const FunctionImport = @import("../../function_import.zig");
 const Current = @import("../native_restore.zig").Current;
 const Origins = @import("../../nominal_origins.zig");
 const borrow = @import("../../../ir/canonical/borrow.zig");
 const names = @import("../../../ir/canonical/validation/names/view.zig");
 const Input = std.meta.Child(@import("generated_native_restore").Input);
 const Validation = std.meta.Child(@FieldType(Input, "validation"));
-pub const Request = std.meta.Child(@FieldType(Validation, "request"));
-const Published = std.meta.Child(@FieldType(Input, "published"));
+const Request = std.meta.Child(@FieldType(Validation, "request"));
+const Mapping = std.meta.Child(@FieldType(Input, "mapping"));
+const Admission = std.meta.Child(@typeInfo(@FieldType(Input, "admission")).optional.child);
+const Ports = std.meta.Child(@FieldType(Admission, "ports"));
 const Self = @This();
 
 signatures: std.meta.Child(@FieldType(Request, "signatures")),
@@ -27,9 +30,15 @@ validation: Validation,
 type_ids: []u32,
 input_ids: []u32,
 output_ids: []u32,
-published: Published,
+storage: []u32,
+mapping: Mapping,
+ports: FunctionImport.Readable,
+binding_names: zx.memory.TextColumn,
+namespaces: zx.memory.ReadColumn,
+port_rows: Ports,
+admission: Admission,
 input: Input,
-pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool) std.mem.Allocator.Error!void {
+pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool) void {
     self.signatures = borrow.columns(@TypeOf(self.signatures), artifact.functions);
     self.modules = borrow.columns(@TypeOf(self.modules), artifact.native_modules);
     self.origins = Origins.Table.borrow(@TypeOf(self.origins), artifact.nominal_types);
@@ -37,15 +46,6 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact
     self.types = ir.TypeTable.borrow(@TypeOf(self.types), artifact.types);
     self.base = ir.TypeTable.borrow(@TypeOf(self.base), current.types.view());
     self.base_origins = Origins.Table.borrow(@TypeOf(self.base_origins), current.origins.items.view());
-    const type_count = artifact.types.count();
-    const member_count = artifact.functions.count();
-    const ports = std.math.mul(usize, member_count, 2) catch return error.OutOfMemory;
-    const count = std.math.add(usize, type_count, ports) catch return error.OutOfMemory;
-    const ids = try allocator.alloc(u32, count);
-
-    self.type_ids = ids[0..type_count];
-    self.input_ids = ids[type_count..][0..member_count];
-    self.output_ids = ids[type_count + member_count ..][0..member_count];
     self.export_rows = names.borrow(artifact.exports);
     self.exports = names.view(@TypeOf(self.exports), &self.export_rows);
 
@@ -72,19 +72,37 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact
         .maximum_count = std.math.maxInt(u32),
     };
 
-    self.published = .{
+    self.storage = &.{};
+    self.type_ids = &.{};
+    self.input_ids = &.{};
+    self.output_ids = &.{};
+
+    self.mapping = .{
+        .storage = @ptrCast(&self.storage),
+        .types = @ptrCast(&self.type_ids),
         .inputs = @ptrCast(&self.input_ids),
         .outputs = @ptrCast(&self.output_ids),
     };
+
+    if (!admitted) {
+        self.ports = FunctionImport.Readable.borrowRows(artifact.function_imports);
+        self.binding_names = zx.memory.borrowTextColumn("name", artifact.function_imports);
+        self.namespaces = zx.memory.borrowReadColumn(?[]const u8, "namespace", artifact.function_imports);
+        self.port_rows = self.ports.view(Ports);
+
+        self.admission = .{
+            .ports = &self.port_rows,
+            .names = @ptrCast(&self.binding_names),
+            .namespaces = @ptrCast(&self.namespaces),
+        };
+    }
 
     self.input = .{
         .validation = &self.validation,
         .origin_names = artifact.nominal_types.names,
         .base = &self.base,
         .base_origins = &self.base_origins,
-        .type_ids = self.type_ids,
-        .type_mapping = @ptrCast(&self.type_ids),
-        .published = &self.published,
-        .admitted = admitted,
+        .mapping = &self.mapping,
+        .admission = if (admitted) null else &self.admission,
     };
 }

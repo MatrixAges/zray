@@ -1,18 +1,9 @@
-import type { Contracts } from "core/contract_table/model"
-import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/signature_table/model"
-import type { Symbols } from "core/symbol_table/model"
+import type { ColumnSet, FunctionRow } from "memory/columns"
 import type { Input as External } from "../../artifact/materializing/copy_external"
-import type { Columns, Flags } from "../../artifact/materializing/publication/model"
-import type { Empty } from "../../artifact/materializing/publication/source_model"
+import type { Flags } from "../../artifact/materializing/publication/model"
 import type { Target } from "../../artifact/surface/bindings"
-
-export type EmptyBody = Empty & {
-    symbols: Symbols,
-    expressions: Expressions,
-    contracts: Contracts
-}
-
+import type { OpaqueBody } from "../../link/signature/publication/model"
 import type { Member } from "../interface/members"
 
 export type Cache = {
@@ -45,13 +36,11 @@ export type Row = {
 export type Input = {
     rows: Rows,
     owner: Owner,
-    functions: Columns,
+    functions: ColumnSet,
+    function_shape?: FunctionRow,
     members: Target,
     first: u64,
-    empty: EmptyBody
+    empty: OpaqueBody
 }
 
-export type Output = {
-    functions: Columns,
-    namespace: string[]
-}
+export type Output = string[]

@@ -89,6 +89,20 @@ export declare function allocateOptionalU32Buffer(
     clear: bool
 ): void throws { OutOfMemory }
 
+export declare function allocateOptionalU32WithAllocator(
+    resource: Allocator,
+    target: OptionalU32Buffer,
+    count: u64,
+    clear: bool
+): void throws { OutOfMemory }
+
+export declare function bindU32Range(
+    source: U32Buffer,
+    target: U32Buffer,
+    first: u64,
+    count: u64
+): void throws { IndexOutOfBounds }
+
 export declare function writeString(
     target: StringBuffer,
     index: u64,

@@ -86,6 +86,12 @@ export declare function refreshOptionalU32View(
     source: OptionalU32Buffer
 ): void
 
+export declare function borrowOptionalU32Range(
+    source: u32?[],
+    first: u64,
+    count: u64
+): u32?[] throws { IndexOutOfBounds } concurrent
+
 export declare function u32BufferLength(source: U32Buffer): u64
 
 export declare function clearU32Buffer(

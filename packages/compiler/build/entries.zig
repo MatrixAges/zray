@@ -398,7 +398,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/compiled/validation/stores.zx", .name = "compiled_stores", .owner = .compiler },
     .{ .path = "zx/modules/semantic_cache/native_artifact/create.rx", .name = "native_artifact" },
     .{ .path = "zx/modules/semantic_cache/native_artifact/publish.rx", .name = "native_artifact_publication" },
-    .{ .path = "zx/modules/semantic_cache/restoring/native/admit.rx", .name = "native_cache_admission" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/restore.rx", .name = "native_restore" },
     .{ .path = "zx/modules/semantic_cache/restoring/transaction.rx", .name = "semantic_restore_transaction" },
     .{ .path = "zx/modules/semantic_cache/restoring/preflight/check.rx", .name = "semantic_restore_preflight" },

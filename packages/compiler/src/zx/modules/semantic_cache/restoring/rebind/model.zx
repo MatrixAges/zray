@@ -1,4 +1,4 @@
-import type { OptionalU32Buffer } from "memory"
+import type { Allocator, OptionalU32Buffer, U32Buffer } from "memory"
 import type { Aliases, Bindings, Signatures } from "../functions/model"
 import type { Input as Modules } from "../modules"
 
@@ -27,4 +27,34 @@ export type Input = {
     members: Bindings,
     signatures: Signatures,
     entry: Entry
+}
+
+export type Source = {
+    aliases: Aliases.Omit("types"),
+    modules: Modules.Pick("previous", "current"),
+    bindings: Bindings.Pick("previous", "current"),
+    members: Bindings.Pick("previous", "current"),
+    signatures: Signatures.Pick("previous", "current"),
+    has_body: bool,
+    linked_count: u64
+}
+
+export type MappingBuffers = {
+    allocator: Allocator,
+    types: U32Buffer,
+    functions: OptionalU32Buffer,
+    modules: OptionalU32Buffer
+}
+
+export type Reservation = MappingBuffers & {
+    type_count: u64,
+    function_count: u64,
+    module_count: u64,
+    has_body: bool
+}
+
+export type Mappings = {
+    types: u32[],
+    functions: u32?[],
+    modules: u32?[]
 }

@@ -14,7 +14,7 @@ const Nominal = std.meta.Child(@FieldType(Merge, "origins"));
 const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "current_constants")).optional.child);
 const scalar_rows = type_table.scalar_rows;
 
-pub fn prepare(scratch: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, maps: rebind.Maps, decoded: bool) Artifact.Error!rebind.Prepared {
+pub fn prepare(scratch: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, maps: *rebind.Maps, decoded: bool) Artifact.Error!rebind.Prepared {
     const current_types = current.types.view();
     const source = ir.TypeTable.borrow(Table, module.types);
     const destination = ir.TypeTable.borrow(Table, current_types);
@@ -39,7 +39,6 @@ pub fn prepare(scratch: std.mem.Allocator, module: *const Artifact.Module, curre
         .current_constants = try marshal(Constants, scratch, current.constant_imports),
         .cached_constants = try marshal(Constants, scratch, module.constant_imports),
         .cached_exports = if (decoded) null else try marshal(Constants, scratch, module.constant_exports),
-        .type_ids = maps.types,
         .scalar_count = scalar_rows.count(),
         .maximum_count = std.math.maxInt(u32),
         .decoded = decoded,

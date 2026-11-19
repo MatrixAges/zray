@@ -1,8 +1,8 @@
 import type { Modules } from "core/native_module_table/model"
-import type { Table as Signatures } from "core/signature_table/model"
 import type { Table as Types } from "core/type_table/model"
 import type { Bindings as Origins } from "core/type_table/nominal"
 import type { NamedRowBuffer } from "memory"
+import type { ColumnSet, SignatureRow } from "memory/columns"
 import type { Diagnostic } from "../../../frontend/lexer/model"
 import type { Target as MemberRows } from "../../artifact/surface/bindings"
 import type { Export } from "../../native/interface/exports"
@@ -45,7 +45,8 @@ export type Publish = {
     origins: Origins,
     exports: Export[],
     members: Member[],
-    signature_target: Signatures,
+    signature_target: ColumnSet,
+    signature_shape?: SignatureRow,
     binding_target: MemberRows,
     export_target: NamedRowBuffer
 }
@@ -53,6 +54,5 @@ export type Publish = {
 export type Published = {
     path: string,
     origins: OwnedOrigins,
-    signatures: Signatures,
     modules: Modules
 }

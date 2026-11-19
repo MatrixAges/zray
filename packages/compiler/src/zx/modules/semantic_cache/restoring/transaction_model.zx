@@ -1,9 +1,10 @@
-import type { Input as Rebind, Result } from "./rebind/model"
+import type { MappingBuffers, Source as Rebind, Result } from "./rebind/model"
 import type { Input as TypeRequest, Plan } from "./types/model"
 
 export type Input = {
-    types: TypeRequest,
-    rebind: Rebind
+    types: TypeRequest.Omit("type_ids"),
+    rebind: Rebind,
+    buffers: MappingBuffers
 }
 
 export type Output = Result & {

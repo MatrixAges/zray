@@ -13,10 +13,5 @@
         }}
     />
 
-    <Return
-        value={{
-            functions: $ctx.batch,
-            namespace: $ctx.owner.namespace
-        }}
-    />
+    <Return value={$ctx.owner.namespace} />
 </Module>

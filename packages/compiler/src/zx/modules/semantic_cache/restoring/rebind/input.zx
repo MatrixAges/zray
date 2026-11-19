@@ -1,0 +1,52 @@
+import type { Input as Output, MappingBuffers, Mappings, Source } from "./model"
+
+export type Input = {
+    source: Source,
+    buffers: MappingBuffers,
+    mappings: Mappings
+}
+
+export default function (in: Input): Output {
+    const { source, buffers, mappings } = in
+    const { types, functions, modules } = mappings
+
+    const current_count = source.linked_count
+
+    return {
+        aliases: {
+            ...source.aliases,
+            types
+        },
+        modules: {
+            ...source.modules,
+            types,
+            target: buffers.modules
+        },
+        bindings: {
+            ...source.bindings,
+            types,
+            mapping: functions,
+            target: buffers.functions,
+            current_count
+        },
+        members: {
+            ...source.members,
+            types,
+            mapping: functions,
+            target: buffers.functions,
+            current_count
+        },
+        signatures: {
+            ...source.signatures,
+            types,
+            functions,
+            modules
+        },
+        entry: {
+            has_body: source.has_body,
+            local_count: functions.length,
+            linked_count: current_count,
+            target: buffers.functions
+        }
+    }
+}

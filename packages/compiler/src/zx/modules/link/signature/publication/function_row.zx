@@ -1,0 +1,24 @@
+import { ColumnStoreMode } from "memory/columns"
+
+import type { FunctionRow as Output, SignatureRow } from "memory/columns"
+import type { OpaqueBody } from "./model"
+
+export type Input = {
+    signature: SignatureRow,
+    empty: OpaqueBody
+}
+
+export default function (in: Input): Output {
+    const { signature, empty } = in
+
+    return {
+        ...signature,
+        store_modes: ColumnStoreMode.transaction,
+        contracts: empty.contracts,
+        symbols: empty.symbols,
+        expressions: empty.expressions,
+        control: empty.control,
+        roots: null,
+        stores: empty.stores
+    }
+}

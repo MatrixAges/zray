@@ -124,6 +124,25 @@ const Bound = struct {
 };
 
 fn rebind(module: *const model.Module, current: *const Current, temporary: std.mem.Allocator, payload: std.mem.Allocator, decoded: bool) Error!Bound {
+    if (comptime generated) {
+        const types = @import("restoring/types/host.zig");
+        var maps: @import("restoring/rebind/host.zig").Maps = .{ .allocator = temporary };
+        var workspace = zx.Arena.init(temporary);
+
+        defer workspace.deinit();
+
+        const plan = try types.prepare(workspace.allocator(), module, current, &maps, decoded);
+
+        try types.commit(current, payload, plan.types);
+
+        return .{
+            .mapping = @ptrCast(maps.types),
+            .functions = maps.functions,
+            .natives = maps.natives,
+            .entry = plan.entry,
+        };
+    }
+
     const allocator = current.allocator;
     const function_mapping = try temporary.alloc(?ir.FunctionId, module.functions.count() + @intFromBool(module.function != null));
     const native_mapping = try temporary.alloc(?ir.NativeModuleId, module.native_modules.count());
@@ -131,38 +150,15 @@ fn rebind(module: *const model.Module, current: *const Current, temporary: std.m
     @memset(function_mapping, null);
     @memset(native_mapping, null);
 
-    const prepared: struct { mapping: []const ir.TypeId, entry: ?ir.FunctionId } = if (comptime generated) prepared: {
-        const types = @import("restoring/types/host.zig");
-        const ids = try temporary.alloc(u32, module.types.count());
-
-        @memset(ids, 0);
-
-        var workspace = zx.Arena.init(temporary);
-
-        defer workspace.deinit();
-
-        const plan = try types.prepare(workspace.allocator(), module, current, .{
-            .types = ids,
-            .functions = function_mapping,
-            .natives = native_mapping,
-        }, decoded);
-
-        try types.commit(current, payload, plan.types);
-
-        break :prepared .{ .mapping = @ptrCast(ids), .entry = plan.entry };
-    } else seed: {
-        const ids = try Seed.mergeTypes(temporary, module, current);
-        var nodes = Nodes{ .allocator = allocator, .types = .{ .mapped = ids }, .functions = .{ .indexed = function_mapping }, .native_modules = .{ .indexed = native_mapping } };
-        const entry = try Seed.rebind(module, current, &nodes, function_mapping, native_mapping);
-
-        break :seed .{ .mapping = ids, .entry = entry };
-    };
+    const ids = try Seed.mergeTypes(temporary, module, current);
+    var nodes = Nodes{ .allocator = allocator, .types = .{ .mapped = ids }, .functions = .{ .indexed = function_mapping }, .native_modules = .{ .indexed = native_mapping } };
+    const entry = try Seed.rebind(module, current, &nodes, function_mapping, native_mapping);
 
     return .{
-        .mapping = prepared.mapping,
+        .mapping = ids,
         .functions = function_mapping,
         .natives = native_mapping,
-        .entry = prepared.entry,
+        .entry = entry,
     };
 }
 

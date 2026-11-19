@@ -35,6 +35,8 @@ pub const readNativeColumnSet = column_set.read;
 pub const readTypeColumns = column_set.read;
 pub const readNominalColumns = column_set.read;
 pub const appendColumnSet = column_set.append;
+pub const appendSignatureColumnSet = column_set.append;
+pub const writeFunctionTail = column_set.writeTail;
 pub const reserveNativeColumnSet = column_set.reserve;
 pub const appendNativeColumnSet = column_set.append;
 pub const allocateColumnU32s = column_set.allocateU32s;
@@ -92,6 +94,10 @@ pub inline fn optionalU32Views(source: *const anyopaque) []const ?u32 {
 pub inline fn refreshOptionalU32View(target: *const anyopaque, source: *const anyopaque) void {
     const view: *[]const ?u32 = @ptrCast(@alignCast(@constCast(target)));
     view.* = optionalU32Views(source);
+}
+
+pub inline fn borrowOptionalU32Range(source: []const ?u32, first: u64, count: u64) error{IndexOutOfBounds}![]const ?u32 {
+    return borrowRange(?u32, source, first, count);
 }
 
 pub inline fn refreshLinkedPorts(source: *const anyopaque, target: *const anyopaque, shape: anytype) void {
@@ -385,6 +391,19 @@ pub fn allocateOptionalU32Buffer(allocator: std.mem.Allocator, target: *const an
     if (clear) @memset(items, null);
 
     output.* = items;
+}
+
+pub inline fn allocateOptionalU32WithAllocator(resource: *const anyopaque, target: *const anyopaque, count: u64, clear: bool) std.mem.Allocator.Error!void {
+    return allocateOptionalU32Buffer(column_set.borrowAllocator(resource), target, count, clear);
+}
+
+pub inline fn bindU32Range(source: *const anyopaque, target: *const anyopaque, first: u64, count: u64) error{IndexOutOfBounds}!void {
+    const input: *const []u32 = @ptrCast(@alignCast(source));
+    const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
+
+    if (first > input.len or count > input.len - first) return error.IndexOutOfBounds;
+
+    output.* = input.*[@intCast(first)..][0..@intCast(count)];
 }
 
 pub inline fn writeString(target: *const anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {

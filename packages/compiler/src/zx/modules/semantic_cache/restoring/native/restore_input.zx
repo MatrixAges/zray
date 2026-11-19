@@ -1,20 +1,26 @@
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
 import type { U32Buffer } from "memory"
+import type { Rows } from "./bindings"
 import type { Input as Validation } from "./validation"
 
-export type Published = {
+export type Mapping = {
+    storage: U32Buffer,
+    types: U32Buffer,
     inputs: U32Buffer,
-    outputs: U32Buffer,
+    outputs: U32Buffer
+}
+
+export type Reserve = Mapping & {
+    type_count: u64,
+    member_count: u64
 }
 
 export type Input = {
     base: Table,
     base_origins: Bindings,
     origin_names: string[],
-    type_ids: u32[],
-    type_mapping: U32Buffer,
-    published: Published,
-    validation: Validation
-    admitted: bool
+    mapping: Mapping,
+    validation: Validation,
+    admission?: Rows
 }

@@ -6,8 +6,8 @@ const columns = @import("../../../artifact/materializing/publication/columns.zig
 const export_rows = @import("../../../../ir/canonical/validation/names/view.zig");
 const finalize = @import("generated_native_module_finalize");
 const publication = @import("generated_native_members_publication");
-const NativeParameter = @typeInfo(@TypeOf(publication.executeState)).@"fn".param_types[1].?;
-const NativeInput = if (@typeInfo(NativeParameter) == .pointer) std.meta.Child(NativeParameter) else NativeParameter;
+const NativeInput = std.meta.Child(publication.Input);
+const FunctionRow = std.meta.Child(@typeInfo(@FieldType(NativeInput, "function_shape")).optional.child);
 const Rows = std.meta.Child(@FieldType(NativeInput, "rows"));
 const Cached = std.meta.Child(@typeInfo(@FieldType(Rows, "cached")).optional.child);
 const CacheSignatures = @FieldType(Cached, "signatures");
@@ -41,7 +41,8 @@ pub fn stageNative(allocator: std.mem.Allocator, storage: *ir.FunctionStorage, s
     try storage.reserve(allocator, count);
 
     const writable = FunctionImport.Writable.borrowRows(members);
-    const target = columns.borrow(@FieldType(NativeInput, "functions"), storage.reservedTail(count), true);
+    const slots = zx.memory.bindColumnSet(FunctionRow, true, storage);
+    const target: zx.memory.ColumnSet = &slots;
     var cache_table: if (@typeInfo(CacheSignatures) == .pointer) std.meta.Child(CacheSignatures) else CacheSignatures = undefined;
 
     const rows: Rows = switch (source) {
@@ -67,21 +68,20 @@ pub fn stageNative(allocator: std.mem.Allocator, storage: *ir.FunctionStorage, s
 
     const input: NativeInput = .{
         .rows = &rows,
-        .owner = .{ .path = path, .namespace = .{ .items = namespace, .storage = .plain }, .module = @backingInt(module) },
-        .functions = target,
+        .owner = &.{ .path = path, .namespace = namespace, .module = @backingInt(module) },
+        .functions = @ptrCast(&target),
+        .function_shape = null,
         .members = &writable.view(std.meta.Child(@FieldType(NativeInput, "members"))),
         .first = storage.count(),
         .empty = &emptyBody(std.meta.Child(@FieldType(NativeInput, "empty"))),
     };
 
-    const written = publication.executeState(allocator, if (@typeInfo(NativeParameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
+    const owned_namespace = publication.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    columns.checkBorrow(target, written.functions);
-
-    return .{ .members = members, .namespace = written.namespace.items };
+    return .{ .members = members, .namespace = owned_namespace };
 }
 
 pub fn finalizeNative(allocator: std.mem.Allocator, modules: *ir.NativeModuleStorage, functions: *ir.FunctionStorage, module: ir.NativeModuleId, loaded: @import("../../../native.zig").Result, original: []const []const u8) std.mem.Allocator.Error!void {
@@ -128,10 +128,10 @@ pub fn finalizeNative(allocator: std.mem.Allocator, modules: *ir.NativeModuleSto
 
 fn emptyBody(comptime T: type) T {
     return .{
-        .symbols = zx.columns.pointer(@FieldType(T, "symbols"), &ir.FunctionStorage.empty_symbols),
-        .expressions = zx.columns.pointer(@FieldType(T, "expressions"), &ir.FunctionStorage.empty_expressions),
-        .contracts = zx.columns.pointer(@FieldType(T, "contracts"), &ir.FunctionStorage.empty_contracts),
-        .control = zx.columns.pointer(@FieldType(T, "control"), (ir.ControlBody{}).control),
-        .stores = zx.columns.pointer(@FieldType(T, "stores"), &ir.FunctionStorage.empty_stores),
+        .symbols = @ptrCast(&ir.FunctionStorage.empty_symbols),
+        .expressions = @ptrCast(&ir.FunctionStorage.empty_expressions),
+        .contracts = @ptrCast(&ir.FunctionStorage.empty_contracts),
+        .control = @ptrCast((ir.ControlBody{}).control),
+        .stores = @ptrCast(&ir.FunctionStorage.empty_stores),
     };
 }

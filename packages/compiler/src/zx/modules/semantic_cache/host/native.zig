@@ -17,9 +17,7 @@ pub fn restore(allocator: std.mem.Allocator, artifact: *const Artifact.Module, e
     var input: Input = undefined;
     const temporary = scratch.allocator();
 
-    try input.init(temporary, artifact, entry, current, admitted);
-
-    if (!admitted) try @import("native_admission.zig").check(temporary, &input.request, artifact.function_imports);
+    input.init(artifact, entry, current, admitted);
 
     const request: *const @TypeOf(input.input) = &input.input;
 

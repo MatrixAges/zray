@@ -92,6 +92,16 @@ pub fn append(target: *const anyopaque, row: anytype) void {
     }
 }
 
+pub fn writeTail(target: *const anyopaque, row: anytype, index: u64) void {
+    const columns: *const ColumnSet = @ptrCast(@alignCast(target));
+    const View = std.meta.Child(@TypeOf(row));
+    const offset: usize = @intCast(index);
+
+    inline for (@typeInfo(View).@"struct".field_names, 0..) |name, slot| {
+        list(@FieldType(View, name), columns.*[slot]).unusedCapacitySlice()[offset] = @field(row, name);
+    }
+}
+
 pub const Range = struct {
     storage: *anyopaque,
     view: *anyopaque,

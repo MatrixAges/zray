@@ -4,7 +4,24 @@
 
     <Args in={Restore.Input} out={Restore.Output} />
 
-    <Call module="types/plan" in={$in.types} />
+    <Call
+        fn="rebind/reserve"
+        in={{
+            ...$in.buffers,
+            type_count: $in.types.merge.source.kinds.length,
+            function_count: $in.rebind.signatures.previous.files.length,
+            module_count: $in.rebind.modules.previous.specifiers.length,
+            has_body: $in.rebind.has_body
+        }}
+    />
+
+    <Call
+        module="types/plan"
+        in={{
+            ...$in.types,
+            type_ids: $ctx.reserve.types
+        }}
+    />
 
     <If on={$ctx.plan == null}>
         <Return
@@ -14,7 +31,16 @@
         />
     </If>
 
-    <Call module="rebind/check" in={$in.rebind} />
+    <Call
+        fn="rebind/input"
+        in={{
+            source: $in.rebind,
+            buffers: $in.buffers,
+            mappings: $ctx.reserve
+        }}
+    />
+
+    <Call module="rebind/check" />
 
     <If on={$ctx.check.status != Rebind.Status.Ready}>
         <Return

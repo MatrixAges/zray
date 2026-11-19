@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import type { Mappings as Output, Reservation as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { allocator, types, functions, modules } = in
+
+    const own_count = in.has_body ? 1 : 0
+
+    memory.allocateU32Buffer(allocator, types, in.type_count)
+
+    memory.allocateOptionalU32WithAllocator(
+        allocator,
+        functions,
+        in.function_count + own_count,
+        true
+    )
+
+    memory.allocateOptionalU32WithAllocator(allocator, modules, in.module_count, true)
+
+    const full = memory.optionalU32Views(functions)
+
+    return {
+        types: memory.u32Views(types),
+        functions: memory.borrowOptionalU32Range(full, 0, in.function_count),
+        modules: memory.optionalU32Views(modules)
+    }
+}
