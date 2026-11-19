@@ -1,0 +1,23 @@
+import memory from "memory"
+
+import type { ColumnLengths } from "memory"
+
+export type Input = {
+    functions?: ColumnLengths,
+    function_count: u64,
+    types: ColumnLengths,
+    type_counts: u64[],
+    origins: ColumnLengths,
+    origin_count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (in.functions != null) {
+        memory.truncateColumnLengths(in.functions, in.function_count)
+    }
+
+    memory.restoreColumnLengths(in.types, in.type_counts)
+    memory.truncateColumnLengths(in.origins, in.origin_count)
+}

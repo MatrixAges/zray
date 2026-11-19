@@ -33,6 +33,16 @@ export declare function publishColumnLengths(
     count: u64
 ): void
 
+export declare function restoreColumnLengths(
+    target: ColumnLengths,
+    counts: u64[]
+): void
+
+export declare function truncateColumnLengths(
+    target: ColumnLengths,
+    count: u64
+): void
+
 export declare function allocateStringViews(
     allocator,
     target: StringBuffer,

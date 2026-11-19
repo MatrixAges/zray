@@ -109,3 +109,12 @@ pub fn release(self: *const Self, options: *const Options) void {
         .Borrow => {},
     }
 }
+
+pub fn offsets(target: *const ir.TypeStorage) Offsets {
+    // Reservation validates the column lengths before they are used.
+    return .{
+        .children = @truncate(target.children.items.len),
+        .fields = @truncate(target.field_types.items.len),
+        .names = @truncate(target.names.items.len),
+    };
+}

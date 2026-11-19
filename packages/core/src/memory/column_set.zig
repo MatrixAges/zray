@@ -20,6 +20,27 @@ pub fn publishLengths(target: *const anyopaque, count: u64) void {
     for (lengths.*) |length| length.* += additional;
 }
 
+pub fn restoreLengths(target: *const anyopaque, counts: []const u64) void {
+    const lengths: *const Lengths = @ptrCast(@alignCast(target));
+
+    for (lengths.*, counts) |length, count| {
+        std.debug.assert(count <= length.*);
+
+        length.* = @intCast(count);
+    }
+}
+
+pub fn truncateLengths(target: *const anyopaque, count: u64) void {
+    const lengths: *const Lengths = @ptrCast(@alignCast(target));
+    const limit: usize = @intCast(count);
+
+    for (lengths.*) |length| {
+        std.debug.assert(limit <= length.*);
+
+        length.* = limit;
+    }
+}
+
 pub fn bind(comptime View: type, comptime scalar: bool, storage: anytype) [@typeInfo(View).@"struct".field_names.len]*anyopaque {
     const names = @typeInfo(View).@"struct".field_names;
     var result: [names.len]*anyopaque = undefined;

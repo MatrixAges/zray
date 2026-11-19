@@ -1,9 +1,9 @@
 import type { Table } from "core/signature_table/model"
-import type { ColumnSet, FunctionRow } from "memory/columns"
+import type { RowBuffer } from "memory/columns"
 import type { Input as External } from "../../artifact/materializing/copy_external"
 import type { Flags } from "../../artifact/materializing/publication/model"
 import type { Target } from "../../artifact/surface/bindings"
-import type { OpaqueBody } from "../../link/signature/publication/model"
+import type { Destination, OpaqueBody } from "../../link/signature/publication/model"
 import type { Member } from "../interface/members"
 
 export type Cache = {
@@ -33,14 +33,17 @@ export type Row = {
     flags: Flags
 }
 
-export type Input = {
-    rows: Rows,
-    owner: Owner,
-    functions: ColumnSet,
-    function_shape?: FunctionRow,
+export type Staging = {
+    destination: Destination,
     members: Target,
+    member_storage: RowBuffer,
     first: u64,
     empty: OpaqueBody
+}
+
+export type Input = Staging & {
+    rows: Rows,
+    owner: Owner
 }
 
 export type Output = string[]

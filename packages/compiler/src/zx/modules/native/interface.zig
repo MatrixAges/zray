@@ -52,7 +52,7 @@ pub fn analyze(types: *Types, entry: Native, module: zx.ir.NativeModuleId, funct
         item.* = .{ .name = try types.allocator.dupe(u8, value.name), .type_id = @fromBackingInt(value.type_id) };
     }
 
-    const staged = try @import("../link/signature/publication/host.zig").stageNative(types.allocator, functions, .{ .fresh = result.members }, entry.path, entry.namespace, module);
+    const staged = try @import("../link/signature/publication/host.zig").stageNative(types.allocator, functions, result.members, entry.path, entry.namespace, module);
 
     return .{ .exports = exports, .members = staged.members, .namespace = staged.namespace };
 }

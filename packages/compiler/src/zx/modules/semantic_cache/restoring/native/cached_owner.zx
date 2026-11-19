@@ -1,0 +1,18 @@
+import memory from "memory"
+
+import type { Owner as Output } from "../../../native/publication/model"
+import type { Members } from "./publish_model"
+
+export type Input = Members.Pick("cached", "module")
+
+export default function (in: Input): Output {
+    const { signatures } = in.cached
+
+    const parts = signatures.native_members[0]
+
+    return {
+        path: signatures.files[0],
+        namespace: memory.borrowStringRange(parts, 0, parts.length - 1),
+        module: in.module
+    }
+}

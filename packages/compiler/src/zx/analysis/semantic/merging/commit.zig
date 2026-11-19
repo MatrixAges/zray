@@ -7,7 +7,6 @@ const Input = std.meta.Child(rule.Input);
 const Table = std.meta.Child(@FieldType(Input, "delta"));
 const Bindings = std.meta.Child(@FieldType(Input, "origins"));
 const View = @import("publication/view.zig");
-const Offsets = View.Offsets;
 const Options = View.Options;
 const Merge = @import("generated_type_merge");
 const MergeInput = std.meta.Child(Merge.Input);
@@ -25,7 +24,7 @@ pub fn append(allocator: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*
 }
 
 pub fn appendWithPayload(allocator: std.mem.Allocator, payload: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*Origins.Storage, delta: anytype, bindings: anytype) std.mem.Allocator.Error!void {
-    const base = offsets(target);
+    const base = View.offsets(target);
 
     try write(.publish, .{
         .allocator = allocator,
@@ -65,17 +64,8 @@ pub fn snapshot(allocator: std.mem.Allocator, table: ir.TypeTable, comptime own_
     return target;
 }
 
-fn offsets(target: *const ir.TypeStorage) Offsets {
-    // Reservation validates the column lengths before they are used.
-    return .{
-        .children = @truncate(target.children.items.len),
-        .fields = @truncate(target.field_types.items.len),
-        .names = @truncate(target.names.items.len),
-    };
-}
-
 pub fn register(allocator: std.mem.Allocator, target: *ir.TypeStorage, origins: *Origins.Storage, registration: Registration) Error!Merge.Output {
-    const base = offsets(target);
+    const base = View.offsets(target);
 
     return write(.register, .{
         .allocator = allocator,

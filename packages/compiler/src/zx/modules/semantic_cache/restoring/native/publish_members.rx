@@ -1,0 +1,35 @@
+<Module>
+    <Type from="publish_model" as="Publish" />
+
+    <Args in={Publish.Members} out={Publish.Output} />
+
+    <If on={$in.cached.signatures.files.length == 0}>
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="cached_owner"
+        in={$in.pick([
+            "cached",
+            "module"
+        ])}
+    />
+
+    <Call
+        module="../../../native/publication/publish"
+        in={{
+            ...$in.omit([
+                "cached",
+                "module"
+            ]),
+            rows: {
+                fresh: [],
+                cached: $in.cached,
+                count: $in.cached.signatures.files.length
+            },
+            owner: $ctx.cached_owner
+        }}
+    />
+
+    <Return value={$ctx.publish} />
+</Module>

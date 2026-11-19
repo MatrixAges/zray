@@ -1,29 +1,91 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
+const memory = zx.memory;
 const Loaded = @import("../../native.zig");
 const Artifact = @import("../../artifact/model.zig");
 const restore = @import("../native_restore.zig");
-const Input = @import("native_input.zig");
+const Mapped = @import("native_input.zig");
 const publication = @import("../../link/signature/publication/host.zig");
-const surface = @import("../../artifact/surface.zig");
+const type_tail = @import("../../../analysis/semantic/merging/publication/view.zig");
+const names = @import("../../../ir/canonical/validation/names/view.zig");
 const remap = @import("../../artifact/nodes/remap.zig");
+const rule = @import("generated_native_restore_publication");
+const Input = std.meta.Child(rule.Input);
+const Exports = std.meta.Child(@FieldType(Input, "exports"));
+const Members = std.meta.Child(@FieldType(Input, "members"));
+const Cached = std.meta.Child(@FieldType(Members, "cached"));
+const Stage = publication.Stage(Members);
 
-pub fn apply(allocator: std.mem.Allocator, output: anytype, mapped: *const Input, artifact: *const Artifact.Module, current: restore.Current) restore.Error!Loaded.Result {
-    const mapping = remap.typeMapping(surface.Mapping, .{ .mapped = @ptrCast(mapped.type_ids) });
-    const exports = try surface.copyExports(allocator, artifact.exports, &mapping);
-    const signatures = artifact.functions;
+pub fn apply(allocator: std.mem.Allocator, output: anytype, mapped: *const Mapped, artifact: *const Artifact.Module, current: restore.Current) restore.Error!Loaded.Result {
+    const rows = names.borrow(artifact.exports);
+    const exports = names.view(std.meta.Child(@FieldType(Exports, "source")), &rows);
+    const mapping = remap.typeMapping(std.meta.Child(@FieldType(Exports, "types")), .{ .mapped = @ptrCast(mapped.type_ids) });
+    var target: []memory.NamedId = &.{};
+    var written: [1]u64 = .{0};
+    const progress: []u64 = &written;
 
-    const staged = if (signatures.count() != 0) owned: {
-        const first_member = signatures.native_members[0];
-        const rows: publication.SourceRows = .{ .cached = .{ .signatures = signatures, .inputs = mapped.input_ids, .outputs = mapped.output_ids } };
+    errdefer {
+        for (target[0..@intCast(written[0])]) |item| allocator.free(item.name);
 
-        break :owned try publication.stageNative(allocator, current.functions, rows, signatures.files[0], first_member[0 .. first_member.len - 1], current.module);
-    } else publication.Staged{};
+        allocator.free(target);
+    }
+
+    var stage: Stage = undefined;
+
+    stage.init(&allocator, current.functions);
 
     const types = zx.columns.view(ir.TypeTable, output.types);
 
-    try @import("../../../analysis/semantic/merging/commit.zig").append(allocator, current.types, &current.origins.items, types, output.origins);
+    const options: type_tail.Options = .{
+        .allocator = allocator,
+        .payload = allocator,
+        .types = current.types,
+        .origins = &current.origins.items,
+        .offsets = &type_tail.offsets(current.types),
+    };
 
-    return .{ .types = current.types.view(), .exports = exports, .members = staged.members, .namespace = staged.namespace };
+    var tail: type_tail = undefined;
+
+    tail.init(&options, types, output.origins);
+    errdefer tail.release(&options);
+
+    const cached: Cached = .{
+        .signatures = &zx.columns.columns(std.meta.Child(@FieldType(Cached, "signatures")), artifact.functions),
+        .inputs = mapped.input_ids,
+        .outputs = mapped.output_ids,
+    };
+
+    const input: Input = .{
+        .exports = &.{
+            .source = &exports,
+            .types = &mapping,
+            .target = @ptrCast(&target),
+            .progress = @ptrCast(&progress),
+        },
+        .members = &.{
+            .cached = &cached,
+            .module = @backingInt(current.module),
+            .destination = &stage.destination,
+            .members = &stage.output.view,
+            .member_storage = @ptrCast(&stage.output.buffer),
+            .first = current.functions.count(),
+            .empty = &Stage.empty(std.meta.Child(@FieldType(Members, "empty"))),
+        },
+        .types = &ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), types),
+        .origins = zx.columns.pointer(@FieldType(Input, "origins"), output.origins),
+        .destination = &tail.target,
+    };
+
+    const namespace = rule.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
+
+    return .{
+        .types = current.types.view(),
+        .exports = @ptrCast(target),
+        .members = stage.members(),
+        .namespace = namespace,
+    };
 }

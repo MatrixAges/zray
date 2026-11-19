@@ -1,0 +1,28 @@
+<Module>
+    <Type from="publish_model" as="Publish" />
+
+    <Args in={Publish.Input} out={Publish.Output} />
+
+    <Call module="../../../artifact/surface/own_exports" in={$in.exports} />
+    <Call module="publish_members" in={$in.members} />
+
+    <Call
+        fn="../../../../analysis/semantic/merging/publication/size"
+        in={{
+            delta: $in.types,
+            origins: $in.origins,
+            destination: $in.destination.destination
+        }}
+    />
+
+    <Call
+        module="../../../../analysis/semantic/merging/publication/write"
+        in={{
+            ...$in.destination,
+            delta: $in.types,
+            origins: $in.origins
+        }}
+    />
+
+    <Return value={$ctx.publish_members} />
+</Module>

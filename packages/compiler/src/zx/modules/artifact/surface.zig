@@ -7,7 +7,6 @@ const remap = @import("nodes/remap.zig");
 const Error = @import("model.zig").Error;
 const names = @import("../../ir/canonical/validation/names/view.zig");
 const constants = @import("generated_artifact_surface_constants");
-const exports = @import("generated_artifact_surface_exports");
 const memory = zx.memory;
 const ConstantRows = @import("../../analysis/constants/columns.zig").Rows;
 const ConstantInput = std.meta.Child(constants.Input);
@@ -21,36 +20,6 @@ pub const Surface = struct {
     function_imports: []const Binding = &.{},
     members: []const Binding = &.{},
 };
-
-pub fn copyExports(allocator: std.mem.Allocator, source: []const ir.Export, types: *const Mapping) Error![]const ir.Export {
-    if (source.len == 0) return &.{};
-
-    const result = try allocator.alloc(ir.Export, source.len);
-    const rows = names.borrow(source);
-    const target = @import("zx").memory.borrowNamedRows("type_id", result);
-    var written: [1]u64 = .{0};
-
-    errdefer {
-        for (result[0..@intCast(written[0])]) |item| allocator.free(item.name);
-
-        allocator.free(result);
-    }
-
-    const Input = std.meta.Child(exports.Input);
-    const view = names.view(std.meta.Child(@FieldType(Input, "source")), &rows);
-    const progress: []u64 = &written;
-
-    const input: Input = .{
-        .source = &view,
-        .types = zx.columns.pointer(@FieldType(Input, "types"), types),
-        .target = @ptrCast(&target),
-        .progress = @ptrCast(&progress),
-    };
-
-    zx.columns.invoke(exports.executeValue, allocator, &input) catch |err| return failure(err);
-
-    return result;
-}
 
 pub fn copyConstants(allocator: std.mem.Allocator, source: []const ir.Constant, types: *const Mapping) Error![]const ir.Constant {
     if (source.len == 0) return &.{};

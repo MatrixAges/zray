@@ -11,7 +11,7 @@ import type { Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { rows, owner, empty, members, first, functions } = in
+    const { rows, owner, empty, members, first, destination } = in
 
     const written = loop({
         row: 0
@@ -36,7 +36,7 @@ export default function (in: Input): Output {
                 empty
             })
 
-            memory.writeFunctionTail(functions, value, row)
+            memory.writeFunctionTail(destination.storage, value, row)
 
             bind({
                 target: members,

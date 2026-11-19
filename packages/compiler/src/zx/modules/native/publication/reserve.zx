@@ -1,0 +1,13 @@
+import memory from "memory/columns"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { resource, storage, shape, maximum_count } = in.destination
+    const { count } = in.rows
+
+    memory.allocateRows(in.member_storage, count)
+    memory.reserveColumnSet(resource, storage, shape, count, maximum_count)
+}
