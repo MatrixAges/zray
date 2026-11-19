@@ -38,7 +38,7 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.
 
         try context.stderr.print("public module {s}:\n", .{exported.name});
 
-        const succeeded = try compiler.verification.check(context.io, context.allocator, try library.module(index), sources.items, exported.path, .{ .solver = context.options.solver, .output = output }, context.stderr);
+        const succeeded = try compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, try library.module(index), sources.items, exported.path, .{ .solver = context.options.solver, .output = output }, context.stderr);
 
         verified = succeeded and verified;
     }

@@ -39,6 +39,7 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
         .project = loaded.project,
         .generation_cache = if (context.options.cache) &cache else null,
         .solver = context.options.solver,
+        .verification_allocator = @import("../verify.zig").workspace_allocator,
         .writer = context.stderr,
         .dependencies = &dependencies,
     }, &library);

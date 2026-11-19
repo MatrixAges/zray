@@ -37,7 +37,7 @@ pub fn run(context: Compile.Context, loaded: Loaded) !Compile.Status {
 
         for (analyzed.services.?.modules) |module| try sources.appendSlice(allocator, module.sources);
 
-        var emitted = try compiler.emitLibraryVerified(allocator, .{ .io = context.io, .sources = sources.items, .project = loaded.project, .generation_cache = if (options.cache) &cache else null, .solver = options.solver, .writer = writer, .dependencies = &dependencies }, library);
+        var emitted = try compiler.emitLibraryVerified(allocator, .{ .io = context.io, .sources = sources.items, .project = loaded.project, .generation_cache = if (options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../../verify.zig").workspace_allocator, .writer = writer, .dependencies = &dependencies }, library);
 
         if (emitted == .diagnostic) {
             defer emitted.diagnostic.deinit();

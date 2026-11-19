@@ -9,6 +9,7 @@ pub const Options = struct {
     semantic_cache: ?*compiler.project.SemanticCache = null,
     generation_cache: ?*compiler.zig.GenerationCache = null,
     solver: ?[]const u8 = null,
+    verification_allocator: ?std.mem.Allocator = null,
     dependencies: ?*std.ArrayList([]const u8) = null,
     writer: *std.Io.Writer,
     type_output: ?*std.Io.Writer = null,
@@ -126,7 +127,7 @@ fn checkRequirements(allocator: std.mem.Allocator, options: Options, program: co
     }
 
     if (!program.type_only and requiresVerification(program, options.solver)) {
-        if (!try compiler.verification.check(options.io, allocator, program, options.sources, options.project.entry, .{ .solver = options.solver }, options.writer)) return .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "program verification did not succeed; code was not generated" };
+        if (!try compiler.verification.check(options.io, options.verification_allocator orelse allocator, program, options.sources, options.project.entry, .{ .solver = options.solver }, options.writer)) return .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "program verification did not succeed; code was not generated" };
     }
 
     return null;

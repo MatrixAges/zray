@@ -30,17 +30,17 @@ pub const Model = struct { inputs: []const Input, output: terms.Evaluation, defi
 pub fn model(self: *Self, port_allocator: std.mem.Allocator) zx.Error!Model {
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "symbolic execution requires a pure executable function without Store capabilities");
 
-    self.input = try self.parameter(self.program.input_type, "in", port_allocator);
+    self.input = try self.parameter(self.program.input_type, "in", port_allocator, .hardware);
     const output = try self.call();
 
     return .{ .inputs = self.inputs.items, .output = output, .definitions = self.graph.?.definitions.slice() };
 }
 
-pub fn generate(self: *Self, scratch: std.mem.Allocator) zx.Error!Query {
+pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.mem.Allocator) zx.Error!Query {
     try self.ensureGraph();
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification requires an executable pure function without Store capabilities");
 
-    self.input = try self.parameter(self.program.input_type, "in", null);
+    self.input = try self.parameter(self.program.input_type, "in", result_allocator, .verification);
 
     var precondition: []const u8 = "true";
 
@@ -88,7 +88,7 @@ pub fn generate(self: *Self, scratch: std.mem.Allocator) zx.Error!Query {
         .precondition = precondition,
     };
 
-    const query = try query_module.executeValue(self.allocator, if (Record == Request) input else &input);
+    const query = try query_module.executeValue(result_allocator, if (Record == Request) input else &input);
 
     return .{
         .feasibility = query.feasibility,
@@ -97,7 +97,9 @@ pub fn generate(self: *Self, scratch: std.mem.Allocator) zx.Error!Query {
     };
 }
 
-fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: ?std.mem.Allocator) zx.Error!Value {
+const PortMode = enum { hardware, verification };
+
+fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: std.mem.Allocator, comptime mode: PortMode) zx.Error!Value {
     const target = self.program.typeOf(type_id);
 
     if (target == .object or target == .tuple) {
@@ -105,9 +107,9 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: 
         const fields = try self.allocator.alloc(Value, count);
 
         for (fields, 0..) |*field, index| {
-            const child_path = try ports.fieldPath(port_allocator orelse self.allocator, path, if (target == .object) target.object.at(index).name else null, index);
+            const child_path = try ports.fieldPath(port_allocator, path, if (target == .object) target.object.at(index).name else null, index);
 
-            field.* = try self.parameter(if (target == .object) target.object.at(index).type_id else target.tuple.at(index), child_path, port_allocator);
+            field.* = try self.parameter(if (target == .object) target.object.at(index).type_id else target.tuple.at(index), child_path, port_allocator, mode);
         }
 
         return .{ .fields = fields };
@@ -118,9 +120,9 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: 
     const width = terms.symbolicWidth(target) orelse return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification currently supports boolean, enum and fixed-width integer inputs with static objects or tuples");
     const index = self.inputs.items.len;
 
-    const symbol = if (port_allocator) |owned| try ports.name(owned, index, false) else blk: {
+    const symbol = if (mode == .hardware) try ports.name(port_allocator, index, false) else blk: {
         const members = if (target == .enumeration) target.enumeration.members.len else 0;
-        const declared = try ports.parameter(self.allocator, index, width, members);
+        const declared = try ports.parameter(port_allocator, index, width, members);
 
         try self.declarations.append(self.allocator, declared.declaration);
         if (declared.domain) |domain| try self.declarations.append(self.allocator, domain);
@@ -128,7 +130,7 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: 
         break :blk declared.symbol;
     };
 
-    try self.inputs.append(self.allocator, .{ .symbol = symbol, .path = path, .type_id = type_id });
+    try self.inputs.append(port_allocator, .{ .symbol = symbol, .path = path, .type_id = type_id });
 
     return .{ .scalar = symbol };
 }

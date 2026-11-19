@@ -122,7 +122,7 @@ pub fn run(raw_context: Context) !Status {
     };
 
     if (options.verifying) {
-        if (!try @import("verify.zig").run(context.io, allocator, sources, project, options, stderr, &semantic_cache)) {
+        if (!try @import("verify.zig").run(context, sources, project, &semantic_cache)) {
             try stderr.flush();
 
             return .failed;
@@ -134,7 +134,7 @@ pub fn run(raw_context: Context) !Status {
     }
 
     if (options.fpga) {
-        if (!try @import("fpga.zig").run(context.io, allocator, sources, project, options, stderr, &semantic_cache)) {
+        if (!try @import("fpga.zig").run(context, sources, project, &semantic_cache)) {
             try stderr.flush();
 
             return .failed;
@@ -158,7 +158,7 @@ pub fn run(raw_context: Context) !Status {
     defer generation_cache.deinit();
 
     var dependencies: std.ArrayList([]const u8) = .empty;
-    const compile_options = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = sources, .project = project, .parse_cache = if (options.cache) null else &semantic_cache.parse_cache, .semantic_cache = if (options.cache) &semantic_cache else null, .generation_cache = if (options.native and options.cache) &generation_cache else null, .solver = options.solver, .writer = stderr, .dependencies = &dependencies, .type_output = if (options.output != null) &type_output.writer else null };
+    const compile_options = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = sources, .project = project, .parse_cache = if (options.cache) null else &semantic_cache.parse_cache, .semantic_cache = if (options.cache) &semantic_cache else null, .generation_cache = if (options.native and options.cache) &generation_cache else null, .solver = options.solver, .verification_allocator = @import("verify.zig").workspace_allocator, .writer = stderr, .dependencies = &dependencies, .type_output = if (options.output != null) &type_output.writer else null };
 
     const result: compiler.Result = if (options.native) generated: {
         const compiled = try compiler.compileProjectModulesVerified(allocator, compile_options);

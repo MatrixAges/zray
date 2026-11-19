@@ -35,13 +35,13 @@ pub fn run(context: Compile.Context) !Compile.Status {
     const program = prepared.analysis.value.ir;
 
     if (options.verifying) {
-        const verified = compiler.verification.check(context.io, allocator, program, prepared.sources, loaded.project.entry, .{ .solver = options.solver, .output = options.output }, writer) catch |err| return failure(context, err);
+        const verified = compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, program, prepared.sources, loaded.project.entry, .{ .solver = options.solver, .output = options.output }, writer) catch |err| return failure(context, err);
 
         return if (verified) .success else .failed;
     }
 
     if (options.fpga) {
-        const generated = @import("../fpga.zig").runProgram(context.io, allocator, program, prepared.sources, loaded.project.entry, options, writer) catch |err| return failure(context, err);
+        const generated = @import("../fpga.zig").runProgram(context, program, prepared.sources, loaded.project.entry) catch |err| return failure(context, err);
 
         return if (generated) .success else .failed;
     }
@@ -55,7 +55,7 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     defer type_output.deinit();
 
-    const configuration = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = prepared.sources, .project = loaded.project, .generation_cache = if (options.native and options.cache) &cache else null, .solver = options.solver, .writer = writer, .dependencies = &dependencies, .type_output = if (options.output != null) &type_output.writer else null };
+    const configuration = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = prepared.sources, .project = loaded.project, .generation_cache = if (options.native and options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../verify.zig").workspace_allocator, .writer = writer, .dependencies = &dependencies, .type_output = if (options.output != null) &type_output.writer else null };
 
     if (!options.native) {
         const emitted = try compiler.emitProgramVerified(allocator, configuration, &prepared.analysis);

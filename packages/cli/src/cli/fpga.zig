@@ -1,23 +1,28 @@
 const std = @import("std");
 const compiler = @import("compiler");
-const Options = @import("options.zig").Options;
+const Context = @import("compile.zig").Context;
 const artifacts = @import("artifacts.zig");
 
-pub fn run(io: std.Io, allocator: std.mem.Allocator, sources: []const compiler.project.Source, project: compiler.project.Options, options: Options, writer: *std.Io.Writer, cache: *compiler.project.SemanticCache) !bool {
-    var analyzed = if (options.cache) try compiler.analyzeProjectIncremental(allocator, sources, project, cache) else try compiler.analyzeProjectWithCache(allocator, sources, project, &cache.parse_cache);
+pub fn run(context: Context, sources: []const compiler.project.Source, project: compiler.project.Options, cache: *compiler.project.SemanticCache) !bool {
+    const allocator = context.allocator;
+    var analyzed = if (context.options.cache) try compiler.analyzeProjectIncremental(allocator, sources, project, cache) else try compiler.analyzeProjectWithCache(allocator, sources, project, &cache.parse_cache);
 
     defer analyzed.deinit();
 
     if (analyzed.value == .diagnostic) {
-        try writer.print("fpga: {s}\n", .{analyzed.value.diagnostic.message});
+        try context.stderr.print("fpga: {s}\n", .{analyzed.value.diagnostic.message});
 
         return false;
     }
 
-    return runProgram(io, allocator, analyzed.value.ir, sources, project.entry, options, writer);
+    return runProgram(context, analyzed.value.ir, sources, project.entry);
 }
 
-pub fn runProgram(io: std.Io, allocator: std.mem.Allocator, program: compiler.ir.Program, sources: []const compiler.project.Source, entry: []const u8, options: Options, writer: *std.Io.Writer) !bool {
+pub fn runProgram(context: Context, program: compiler.ir.Program, sources: []const compiler.project.Source, entry: []const u8) !bool {
+    const io = context.io;
+    const allocator = context.allocator;
+    const options = context.options;
+    const writer = context.stderr;
     var requires_verification = program.contracts.count() != 0 or options.solver != null;
 
     for (0..program.functions.count()) |function_row| {
@@ -26,7 +31,7 @@ pub fn runProgram(io: std.Io, allocator: std.mem.Allocator, program: compiler.ir
         requires_verification = requires_verification or function.contracts.count() != 0;
     }
 
-    if (requires_verification and !try compiler.verification.check(io, allocator, program, sources, entry, .{ .solver = options.solver }, writer)) return false;
+    if (requires_verification and !try compiler.verification.check(io, @import("verify.zig").workspace_allocator, program, sources, entry, .{ .solver = options.solver }, writer)) return false;
 
     var generated = try compiler.hardware.generate(allocator, program);
 

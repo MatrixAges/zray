@@ -20,14 +20,18 @@ pub fn generate(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Al
 
     if (try @import("frontend").validateIr(allocator, program)) |issue| return .{ .arena = arena, .value = .{ .diagnostic = issue } };
 
+    var symbolic = std.heap.ArenaAllocator.init(allocator);
+
+    defer symbolic.deinit();
+
     var scratch = zx.Arena.init(allocator);
 
     defer scratch.deinit();
 
     var reporter: zx.Reporter = .{};
-    var conditions = Conditions{ .allocator = arena.allocator(), .scratch = &scratch, .program = program, .reporter = &reporter };
+    var conditions = Conditions{ .allocator = symbolic.allocator(), .scratch = &scratch, .program = program, .reporter = &reporter };
 
-    const query = conditions.generate(allocator) catch |err| {
+    const query = conditions.generate(arena.allocator(), allocator) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return .{ .arena = arena, .value = .{ .diagnostic = reporter.diagnostic orelse .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = "invalid symbolic value shape" } } };

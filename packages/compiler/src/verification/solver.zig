@@ -13,7 +13,7 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
     defer arena.deinit();
 
     const allocator = arena.allocator();
-    var generated = try @import("root.zig").generate(allocator, program);
+    var generated = try @import("root.zig").generate(backing_allocator, program);
 
     defer generated.deinit();
 
