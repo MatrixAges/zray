@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import isFunction from "./is_function"
+
+import type { Count as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop({
+        row: 0,
+        count: 0
+    }, {
+        while: state => state.row < in.length,
+        next: state => {
+            if (isFunction(memory.readTextColumn(
+                in.names,
+                state.row
+            ))) {
+                state.count += 1
+            }
+
+            state.row += 1
+        },
+        return: state => state.count
+    })
+}

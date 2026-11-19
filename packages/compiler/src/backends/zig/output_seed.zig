@@ -41,3 +41,18 @@ pub fn wanted(allocator: std.mem.Allocator, paths: []const []const u8) std.mem.A
 
     return index;
 }
+
+pub fn parents(allocator: std.mem.Allocator, paths: []const []const u8, changed: []const u32) std.mem.Allocator.Error![]const []const u8 {
+    var index: zx.bytes.Map(void) = .empty;
+    var result: std.ArrayList([]const u8) = .empty;
+
+    defer index.deinit(allocator);
+
+    for (changed) |row| {
+        const parent = std.fs.path.dirname(paths[row]) orelse continue;
+
+        if (!(try index.getOrPut(allocator, parent)).found_existing) try result.append(allocator, parent);
+    }
+
+    return result.items;
+}

@@ -1,0 +1,49 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import path from "std:path"
+import claim from "core/bytes/index/claim"
+
+import { current_directory } from "./const"
+
+import type { Index } from "core/bytes/index/model"
+
+export type Input = {
+    paths: string[],
+    changed: u32[]
+}
+
+export type Output = u8[][]
+
+export default function (in: Input): Output {
+    const index: Index = {
+        keys: [],
+        values: [],
+        buckets: []
+    }
+
+    return loop({
+        ...index,
+        row: 0
+    }, {
+        while: state => state.row < in.changed.length,
+        next: state => {
+            const file = in.paths[integers.widen(in.changed[state.row])]
+            const parent = path.dirname(file)
+
+            if (parent != current_directory) {
+                const added = claim({
+                    index: state.omit(["row"]),
+                    key: bytes.fromText(parent),
+                    value: 0
+                }).index
+
+                state.keys = added.keys
+                state.values = added.values
+                state.buckets = added.buckets
+            }
+
+            state.row += 1
+        },
+        return: state => state.keys
+    })
+}

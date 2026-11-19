@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Inventory" />
+    <Type from="split" as="Split" />
+
+    <Args in={Inventory.Input} out={Split.Output} />
+
+    <Call
+        fn="count"
+        in={$in.pick([
+            "names",
+            "length"
+        ])}
+    />
+
+    <Call
+        fn="split"
+        in={{
+            ...$in,
+            functions: $ctx.count
+        }}
+    />
+
+    <Return value={$ctx.split} />
+</Module>

@@ -3,6 +3,7 @@ const zx = @import("zx");
 pub const available = @import("parser_options").generated_parser;
 pub const manifest_read = if (available) @import("generated_output_manifest_read") else null;
 pub const manifest_write = if (available) @import("generated_output_manifest_write") else null;
+pub const inventory = @import("output/inventory.zig");
 
 pub const Input = struct {
     paths: []const []const u8,
@@ -46,7 +47,35 @@ pub const Wanted = struct {
             else => @panic(@errorName(err)),
         };
     }
+
+    pub fn staleRows(self: *Wanted, paths: []const []const u8) std.mem.Allocator.Error![]const u32 {
+        const allocator = self.arena.allocator();
+
+        if (comptime !available) {
+            var rows: std.ArrayList(u32) = .empty;
+
+            for (paths, 0..) |path, index| {
+                if (!self.value.contains(path)) try rows.append(allocator, @intCast(index));
+            }
+
+            return rows.items;
+        }
+
+        const entry = @import("generated_output_stale_rows");
+        const input: std.meta.Child(entry.Input) = .{ .index = &self.value, .paths = paths };
+
+        return zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err);
+    }
 };
+
+pub fn parents(allocator: std.mem.Allocator, paths: []const []const u8, changed: []const u32) std.mem.Allocator.Error![]const []const u8 {
+    if (comptime !available) return @import("output_seed.zig").parents(allocator, paths, changed);
+
+    const entry = @import("generated_output_parents");
+    const input: std.meta.Child(entry.Input) = .{ .paths = paths, .changed = changed };
+
+    return zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err);
+}
 
 pub fn changes(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Error!Changes {
     var arena = std.heap.ArenaAllocator.init(workspace);

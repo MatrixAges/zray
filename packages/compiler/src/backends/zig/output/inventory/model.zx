@@ -1,0 +1,21 @@
+import type { TextColumn, WriteColumn } from "memory"
+
+export type Input = {
+    names: TextColumn,
+    bodies: TextColumn,
+    paths: WriteColumn,
+    sources: WriteColumn,
+    length: u64
+}
+
+export type Count = Input.Pick("names", "length")
+
+export type Split = Input & {
+    functions: u64
+}
+
+export type Originals = Input & {
+    separator: string,
+    root_names: WriteColumn,
+    root_paths: WriteColumn
+}

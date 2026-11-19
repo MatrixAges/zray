@@ -2,29 +2,23 @@ const std = @import("std");
 const compiler = @import("compiler");
 const layout = @import("partition/layout.zig");
 const parallel = @import("parallel.zig");
+const ledger = compiler.zig.file_ledger;
 
 /// Writes the generated tree. With `partitions` set, function files are spread over that many separately
 /// compiled partitions. Only changed files are rewritten and files no longer generated are removed, so an
 /// output directory reused across runs keeps unchanged files byte- and timestamp-stable for Zig's cache.
 pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, output: []const u8, bundle: compiler.zig.LibraryBundle, partitions: u32) !void {
     var files: std.ArrayList(layout.File) = .empty;
-    var functions: std.ArrayList(layout.File) = .empty;
-    var top: std.ArrayList(layout.File) = .empty;
-    var modules: std.ArrayList(compiler.zig.partition.Module) = .empty;
+    const groups = try ledger.inventory.group(allocator, bundle.modules, bundle.public_modules.len);
+    const public = groups.support[groups.support.len - bundle.public_modules.len ..];
+    const modules = try allocator.alloc(compiler.zig.partition.Module, public.len);
 
     try files.append(allocator, .{ .path = "types.zig", .source = bundle.types });
 
-    for (bundle.modules) |module| {
-        const file = layout.File{ .path = module.name, .source = module.source };
-
-        if (std.mem.startsWith(u8, module.name, "zxc_module_")) try functions.append(allocator, file) else try top.append(allocator, file);
-    }
-
-    for (bundle.public_modules) |module| {
+    for (bundle.public_modules, public, modules) |module, *file, *exported| {
         const name = try std.fmt.allocPrint(allocator, "{s}.zig", .{module.file.name});
-
-        try top.append(allocator, .{ .path = name, .source = module.file.source });
-        try modules.append(allocator, .{ .name = module.name, .file = name });
+        file.* = .{ .path = name, .source = module.file.source };
+        exported.* = .{ .name = module.name, .file = name };
 
         const adapter = if (module.constant_only)
             try compiler.zig.host.reexports(allocator, "generated", module.name, &.{compiler.zig.constant_namespace})
@@ -39,24 +33,21 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
         try files.append(allocator, .{ .path = try std.fmt.allocPrint(allocator, "{s}.zig", .{module.name}), .source = adapter });
     }
 
-    try files.appendSlice(allocator, top.items);
+    try files.appendSlice(allocator, groups.support);
 
     if (partitions != 0) {
         try files.append(allocator, .{ .path = "signatures.zig", .source = bundle.signatures orelse "" });
 
-        const originals = try allocator.alloc(compiler.zig.partition.Module, functions.items.len);
+        const originals = try allocator.alloc(compiler.zig.partition.Module, groups.functions.len);
+        const first = files.items.len;
 
-        for (functions.items, originals) |function, *original| {
-            original.* = .{ .name = std.fs.path.stem(function.path), .file = function.path };
-
-            try files.append(allocator, .{ .path = try std.fs.path.join(allocator, &.{ "original", function.path }), .source = function.source });
-        }
-
+        try files.resize(allocator, first + originals.len);
+        try ledger.inventory.originals(allocator, groups.functions, files.items[first..], originals);
         try files.append(allocator, .{ .path = "original/root.zig", .source = try compiler.zig.partition.rootBacked(allocator, workspace, originals, false) });
     }
 
-    try files.append(allocator, .{ .path = "root.zig", .source = try compiler.zig.partition.rootBacked(allocator, workspace, modules.items, partitions != 0) });
-    if (partitions == 0) try files.appendSlice(allocator, functions.items) else try files.appendSlice(allocator, try layout.plan(io, allocator, workspace, functions.items, top.items, partitions));
+    try files.append(allocator, .{ .path = "root.zig", .source = try compiler.zig.partition.rootBacked(allocator, workspace, modules, partitions != 0) });
+    if (partitions == 0) try files.appendSlice(allocator, groups.functions) else try files.appendSlice(allocator, try layout.plan(io, allocator, workspace, groups.functions, groups.support, partitions));
     try mirror(io, allocator, workspace, output, files.items);
 }
 
@@ -78,7 +69,6 @@ fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator
 
     const previous = try recorded(io, allocator, directory);
     var manifest: std.Io.Writer.Allocating = .init(allocator);
-    var parents: compiler.bytes.Map(void) = .empty;
 
     try remove(io, directory, manifest_name);
 
@@ -95,7 +85,7 @@ fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator
 
     for (files, paths) |file, *path| path.* = file.path;
 
-    var selected = try compiler.zig.file_ledger.changes(workspace, .{
+    var selected = try ledger.changes(workspace, .{
         .paths = paths,
         .hashes = hashing.hashes,
         .previous_paths = if (previous) |known| known.paths else &.{},
@@ -106,33 +96,33 @@ fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator
     defer selected.deinit();
 
     const changed = selected.value.changed;
-    var cursor: usize = 0;
 
-    try file_manifest.write(compiler.zig.file_ledger.manifest_write, &manifest.writer, paths, hashing.hashes);
+    try file_manifest.write(ledger.manifest_write, &manifest.writer, paths, hashing.hashes);
 
-    for (files, 0..) |file, index| {
-        if (cursor == changed.len or changed[cursor] != index) continue;
+    if (changed.len != 0) {
+        var temporary = std.heap.ArenaAllocator.init(workspace);
 
-        cursor += 1;
+        defer temporary.deinit();
 
-        if (std.fs.path.dirname(file.path)) |parent| {
-            if (!(try parents.getOrPut(allocator, parent)).found_existing) try directory.createDirPath(io, parent);
-        }
+        const parents = try ledger.parents(temporary.allocator(), paths, changed);
+
+        for (parents) |parent| try directory.createDirPath(io, parent);
     }
 
     try parallel.each(arenas, changed.len, &Writing{ .io = io, .directory = directory, .files = files, .changed = changed });
 
-    var stale: std.ArrayList([]const u8) = .empty;
-
     if (!selected.value.aligned) {
-        var wanted = try compiler.zig.file_ledger.wanted(workspace, paths);
+        var wanted = try ledger.wanted(workspace, paths);
 
         defer wanted.deinit();
 
         if (previous) |known| {
-            for (known.paths) |path| if (wanted.shouldRemove(path, fingerprint_name, false)) try stale.append(allocator, path);
+            const stale = try wanted.staleRows(known.paths);
+
+            for (stale) |row| try remove(io, directory, known.paths[row]);
         } else {
             var walker = try directory.walk(allocator);
+            var stale: std.ArrayList([]const u8) = .empty;
 
             defer walker.deinit();
 
@@ -140,10 +130,11 @@ fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator
                 if (entry.kind != .file or !wanted.shouldRemove(entry.path, fingerprint_name, true)) continue;
                 try stale.append(allocator, try allocator.dupe(u8, entry.path));
             }
+
+            for (stale.items) |path| try remove(io, directory, path);
         }
     }
 
-    for (stale.items) |path| try remove(io, directory, path);
     try directory.writeFile(io, .{ .sub_path = manifest_name, .data = manifest.written() });
 }
 
@@ -175,7 +166,7 @@ fn recorded(io: std.Io, allocator: std.mem.Allocator, directory: std.Io.Dir) !?f
         else => return err,
     };
 
-    return try file_manifest.list(compiler.zig.file_ledger.manifest_read, allocator, text);
+    return try file_manifest.list(ledger.manifest_read, allocator, text);
 }
 
 fn remove(io: std.Io, directory: std.Io.Dir, path: []const u8) !void {
