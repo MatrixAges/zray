@@ -1,0 +1,30 @@
+import type { Selection } from "./model"
+
+export type Input = Selection & {
+    borrows_previous: bool
+}
+
+export type Output = {
+    restore: bool,
+    parent_count: u64,
+    capture_edits: bool,
+    release_history: bool
+}
+
+export default function (in: Input): Output {
+    if (in.same_input) {
+        return {
+            restore: true,
+            parent_count: in.parent_count,
+            capture_edits: false,
+            release_history: false
+        }
+    }
+
+    return {
+        restore: false,
+        parent_count: in.borrows_previous ? in.parent_count : 0,
+        capture_edits: in.borrows_previous && in.rx_only,
+        release_history: !in.borrows_previous
+    }
+}

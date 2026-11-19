@@ -1,0 +1,30 @@
+import memory from "memory"
+
+import different from "./different"
+
+import type { Digests as Input } from "./model"
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const count = memory.columnLength(in.earlier)
+    const rows: u64[] = []
+
+    return loop({
+        row: 0,
+        rows
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            if (different({
+                ...in,
+                row: state.row
+            })) {
+                state.rows = state.rows.push(state.row)[0]
+            }
+
+            state.row += 1
+        },
+        return: state => state.rows
+    })
+}

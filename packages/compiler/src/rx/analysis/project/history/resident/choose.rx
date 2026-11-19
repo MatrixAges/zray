@@ -1,0 +1,53 @@
+<Module>
+    <Type from="model" as="Lineage" />
+    <Type from="../model" as="History" />
+
+    <Args in={Lineage.Request} out={Lineage.Selection} />
+
+    <Call fn="../inputs" in={$in.shape} />
+
+    <If on={!$ctx.inputs}>
+        <Return
+            value={{
+                parent_count: $in.epochs.count,
+                rx_only: false,
+                same_input: false
+            }}
+        />
+    </If>
+
+    <Call fn="paths" in={$in.paths} />
+
+    <If on={!$ctx.paths}>
+        <Return
+            value={{
+                parent_count: $in.epochs.count,
+                rx_only: false,
+                same_input: false
+            }}
+        />
+    </If>
+
+    <Call fn="../source" in={$in.sources} />
+
+    <If on={$ctx.source.kind != History.SourceChange.Unchanged}>
+        <Return
+            value={{
+                parent_count: $in.epochs.count,
+                rx_only: false,
+                same_input: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="parent"
+        in={$in.pick([
+            "epochs",
+            "digests",
+            "frame"
+        ])}
+    />
+
+    <Return value={$ctx.parent} />
+</Module>

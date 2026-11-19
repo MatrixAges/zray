@@ -1,0 +1,43 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import overlaps from "./overlaps"
+
+import type { Ancestors as Input, Selection as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { epochs, digests, frame } = in
+
+    const parent_count = loop({
+        before: epochs.count,
+        parent: epochs.count,
+        continuing: true
+    }, {
+        while: state => state.continuing && state.before > 1,
+        next: state => {
+            const before = state.before - 1
+            const rows = memory.readOptionalU64List(epochs.edits, before)
+
+            if (rows == null) {
+                state.continuing = false
+            } else if (overlaps({
+                digests,
+                rows
+            })) {
+                state.parent = before
+            }
+
+            state.before = before
+        },
+        return: state => state.parent
+    })
+
+    const selected =
+        memory.readFixedBytes(epochs.frames, parent_count - 1, frame.length)
+
+    return {
+        parent_count,
+        rx_only: true,
+        same_input: bytes.equals(selected, frame)
+    }
+}

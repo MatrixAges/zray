@@ -1,0 +1,43 @@
+import type { ReadColumn, TextColumn } from "memory"
+import type { Inputs, Scan } from "../model"
+
+export type Digests = {
+    earlier: ReadColumn,
+    current: ReadColumn,
+    width: u64
+}
+
+export type Paths = {
+    earlier: TextColumn,
+    current: TextColumn,
+    earlier_count: u64,
+    current_count: u64
+}
+
+export type Epochs = {
+    frames: ReadColumn,
+    edits: ReadColumn,
+    count: u64
+}
+
+export type Ancestors = {
+    epochs: Epochs,
+    digests: Digests,
+    frame: u8[]
+}
+
+export type Request = Ancestors & {
+    shape: Inputs,
+    paths: Paths,
+    sources: Scan
+}
+
+export type Selection = {
+    parent_count: u64,
+    rx_only: bool,
+    same_input: bool
+}
+
+export type Change = Digests & {
+    row: u64
+}

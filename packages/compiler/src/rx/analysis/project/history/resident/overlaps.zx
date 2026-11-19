@@ -1,0 +1,29 @@
+import different from "./different"
+
+import type { Digests } from "./model"
+
+export type Input = {
+    digests: Digests,
+    rows: u64[]
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { digests, rows } = in
+
+    return loop({
+        index: 0,
+        overlap: false
+    }, {
+        while: state => !state.overlap && state.index < rows.length,
+        next: state => {
+            state.overlap = different({
+                ...digests,
+                row: rows[state.index]
+            })
+            state.index += 1
+        },
+        return: state => state.overlap
+    })
+}

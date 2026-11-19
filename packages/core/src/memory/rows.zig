@@ -273,6 +273,20 @@ pub inline fn readColumnU64(source: *const anyopaque, index: u64) error{IndexOut
     return readColumn(u64, source, index);
 }
 
+pub inline fn readFixedBytes(source: *const anyopaque, index: u64, width: u64) error{IndexOutOfBounds}![]const u8 {
+    const column: *const ReadColumn = @ptrCast(@alignCast(source));
+
+    if (index >= column.count or width > column.stride - column.offset) return error.IndexOutOfBounds;
+
+    const first = @as(usize, @intCast(index)) * column.stride + column.offset;
+
+    return column.bytes[first..][0..@intCast(width)];
+}
+
+pub inline fn readOptionalU64List(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?[]const u64 {
+    return readColumn(?[]const u64, source, index);
+}
+
 pub inline fn readColumnOptionalU32(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!?u32 {
     return readColumn(?u32, source, index);
 }

@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import type { Paths as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const count = in.earlier_count
+
+    if (count != in.current_count) {
+        return false
+    }
+
+    return loop({
+        row: 0,
+        same: true
+    }, {
+        while: state => state.same && state.row < count,
+        next: state => {
+            const earlier = memory.readTextColumn(in.earlier, state.row)
+            const current = memory.readTextColumn(in.current, state.row)
+
+            state.same = earlier == current
+            state.row += 1
+        },
+        return: state => state.same
+    })
+}
