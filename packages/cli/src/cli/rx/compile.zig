@@ -28,7 +28,8 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     defer parsing.deinit();
 
-    var prepared = (@import("analyze.zig").run(allocator, .{ .io = context.io, .project = loaded.project, .writer = writer, .parse_cache = &parsing, .inputs = inputs }) catch |err| return failure(context, err)) orelse return .failed;
+    const watched_parses = if (context.watch) |attempt| attempt.parse_cache else null;
+    var prepared = (@import("analyze.zig").run(allocator, .{ .io = context.io, .project = loaded.project, .writer = writer, .parse_cache = watched_parses orelse &parsing, .inputs = inputs }) catch |err| return failure(context, err)) orelse return .failed;
 
     defer prepared.analysis.deinit();
 

@@ -5,7 +5,7 @@ const Self = @This();
 allocator: std.mem.Allocator,
 inputs: *Inputs,
 previous_backend: []const []const u8,
-
+parse_cache: ?*@import("compiler").project.ParseCache,
 backend_paths: ?[]const []const u8 = null,
 preloaded: std.ArrayList([]const u8) = .empty,
 pub fn prepareBackend(self: *Self, io: std.Io) !void {

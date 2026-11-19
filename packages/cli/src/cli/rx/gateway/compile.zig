@@ -15,7 +15,8 @@ pub fn run(context: Compile.Context, loaded: Loaded) !Compile.Status {
     }
 
     const inputs = if (context.watch) |attempt| attempt.inputs else null;
-    var analyzed = try @import("analyze.zig").run(allocator, .{ .io = context.io, .loaded = loaded, .writer = writer, .inputs = inputs }) orelse return .failed;
+    const watched_parses = if (context.watch) |attempt| attempt.parse_cache else null;
+    var analyzed = try @import("analyze.zig").run(allocator, .{ .io = context.io, .loaded = loaded, .writer = writer, .inputs = inputs, .parse_cache = watched_parses }) orelse return .failed;
 
     defer analyzed.deinit();
 

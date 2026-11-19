@@ -63,6 +63,7 @@ pub const Options = struct {
     loaded: Loaded,
     writer: *std.Io.Writer,
     inputs: ?*Inputs = null,
+    parse_cache: ?*compiler.project.ParseCache = null,
     preserve_zig_entry: bool = false,
 };
 
@@ -88,10 +89,15 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     };
 
     modules = try owned.alloc(Module, options.loaded.config.exports.len);
-    const cache = try owned.create(compiler.project.ParseCache);
 
-    cache.* = .{ .allocator = allocator, .keeps_replaced = true };
-    parse_cache = cache;
+    const cache = options.parse_cache orelse local: {
+        const local = try owned.create(compiler.project.ParseCache);
+
+        local.* = .{ .allocator = allocator, .keeps_replaced = true };
+        parse_cache = local;
+
+        break :local local;
+    };
 
     var libraries = @import("inputs.zig"){ .allocator = owned };
 
@@ -136,5 +142,5 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
 
     transferred = true;
 
-    return .{ .arena = arena, .modules = modules, .parse_cache = cache };
+    return .{ .arena = arena, .modules = modules, .parse_cache = parse_cache };
 }

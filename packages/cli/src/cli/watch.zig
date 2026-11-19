@@ -14,6 +14,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
     var last_success: ?Snapshot = null;
     var last_failure: ?Snapshot = null;
     var backend_arena = std.heap.ArenaAllocator.init(allocator);
+    var parse_cache = @import("compiler").project.ParseCache{ .allocator = allocator, .keeps_replaced = true };
     var backend_paths: []const []const u8 = &.{};
     var previous_message: []const u8 = &.{};
     var status: compile.Status = .retry;
@@ -21,6 +22,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
     defer if (last_success) |*snapshot| snapshot.deinit();
     defer if (last_failure) |*snapshot| snapshot.deinit();
     defer backend_arena.deinit();
+    defer parse_cache.deinit();
     defer allocator.free(previous_message);
 
     try stderr.print("zxc watch: watching {s}\n", .{options.input});
@@ -46,7 +48,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
 
         defer inputs.deinit();
 
-        var attempt = Attempt{ .allocator = temporary, .inputs = &inputs, .previous_backend = backend_paths };
+        var attempt = Attempt{ .allocator = temporary, .inputs = &inputs, .previous_backend = backend_paths, .parse_cache = if (options.cache) &parse_cache else null };
         var diagnostics: std.Io.Writer.Allocating = .init(temporary);
 
         status = compile.run(.{ .io = io, .allocator = temporary, .backing = allocator, .options = options, .environment = environment, .stdout = stdout, .stderr = &diagnostics.writer, .watch = &attempt }) catch |err| failed: {
@@ -56,6 +58,11 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
 
             break :failed .failed;
         };
+
+        if (attempt.parse_cache) |cache| {
+            cache.release();
+            cache.retainPaths(&inputs.entries);
+        }
 
         if (attempt.backend_paths) |paths| {
             var next = std.heap.ArenaAllocator.init(allocator);

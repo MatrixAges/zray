@@ -61,6 +61,31 @@ pub fn release(self: *Self) void {
     self.clock.published = 0;
 }
 
+/// Drops parses outside the latest input set. The caller must have released all outstanding views.
+pub fn retainPaths(self: *Self, paths: anytype) void {
+    var kept: usize = 0;
+
+    for (self.entries.keys.items, self.entries.values.items) |path, entry| {
+        if (paths.contains(path)) {
+            self.entries.keys.items[kept] = path;
+            self.entries.values.items[kept] = entry;
+            kept += 1;
+        } else {
+            entry.result.deinit();
+            self.allocator.destroy(entry);
+            self.allocator.free(path);
+        }
+    }
+
+    if (kept == self.entries.keys.items.len) return;
+
+    if (kept == 0) {
+        self.entries.deinit(self.allocator);
+
+        self.entries = .empty;
+    } else self.entries.truncate(kept);
+}
+
 pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
     try self.replaced.ensureUnusedCapacity(self.allocator, self.transient.items.len);
 }

@@ -6,7 +6,7 @@ const services = @import("../../library/analyze.zig");
 const Loaded = @import("../../project.zig").Loaded;
 const Inputs = @import("../../watch/inputs.zig");
 const Export = @import("../../../package/manifest/model.zig").Export;
-pub const Options = struct { io: std.Io, loaded: Loaded, writer: *std.Io.Writer, inputs: ?*Inputs = null };
+pub const Options = struct { io: std.Io, loaded: Loaded, writer: *std.Io.Writer, inputs: ?*Inputs = null, parse_cache: ?*compiler.project.ParseCache = null };
 
 pub const Result = struct {
     gateway: gateway.Result,
@@ -33,7 +33,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     if (collection.outside(owner)) return error.RxEntryOutsideProject;
     if (options.loaded.config.library != null) return error.GatewaySourceRequired;
 
-    var loaded = try collection.load(allocator, .{ .io = options.io, .root = root, .entry = owner, .writer = options.writer, .inputs = options.inputs, .project = options.loaded.project }) orelse return null;
+    var loaded = try collection.load(allocator, .{ .io = options.io, .root = root, .entry = owner, .writer = options.writer, .inputs = options.inputs, .project = options.loaded.project, .parse_cache = options.parse_cache }) orelse return null;
 
     defer loaded.deinit();
 
@@ -67,7 +67,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     var configured = options.loaded;
 
     configured.config.exports = exports;
-    const prepared = if (exports.len == 0) null else (try services.run(allocator, .{ .io = options.io, .backing = allocator, .loaded = configured, .writer = options.writer, .inputs = options.inputs })) orelse return null;
+    const prepared = if (exports.len == 0) null else (try services.run(allocator, .{ .io = options.io, .backing = allocator, .loaded = configured, .writer = options.writer, .inputs = options.inputs, .parse_cache = options.parse_cache })) orelse return null;
 
     transferred = true;
 

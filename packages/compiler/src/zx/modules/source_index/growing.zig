@@ -109,6 +109,14 @@ pub fn Map(comptime Value: type) type {
             self.buckets[slot] = self.keys.items.len;
         }
 
+        /// Rebuilds the index after its owner compacts the retained rows in place.
+        pub fn truncate(self: *Self, count: usize) void {
+            self.keys.shrinkRetainingCapacity(count);
+            self.values.shrinkRetainingCapacity(count);
+            @memset(self.buckets, 0);
+            self.rebuild(self.buckets);
+        }
+
         pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
             self.keys.deinit(allocator);
             self.values.deinit(allocator);

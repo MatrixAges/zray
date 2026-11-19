@@ -98,9 +98,10 @@ pub fn run(raw_context: Context) !Status {
 
     defer libraries.deinit();
 
-    const detected = if (options.formatting) @as(@import("sources.zig").Detected, .{ .sources = &.{}, .has_rx = false }) else @import("sources.zig").readDetectingRx(context.io, allocator, source, project, &semantic_cache.parse_cache, inputs, &libraries) catch |err| {
-        if (err == error.OutOfMemory) return err;
+    const watched_parses = if (context.watch) |attempt| attempt.parse_cache else null;
 
+    const detected = if (options.formatting) @as(@import("sources.zig").Detected, .{ .sources = &.{}, .has_rx = false }) else @import("sources.zig").readDetectingRx(context.io, allocator, source, project, watched_parses orelse &semantic_cache.parse_cache, inputs, &libraries) catch |err| {
+        if (err == error.OutOfMemory) return err;
         try stderr.print("{s}: source loading: {s}\n", .{ libraries.failure_path orelse input_path, @errorName(err) });
         try stderr.flush();
 
@@ -108,6 +109,9 @@ pub fn run(raw_context: Context) !Status {
     };
 
     if (detected.has_rx) return @import("rx/compile.zig").run(context);
+    if (watched_parses) |cache| std.mem.swap(compiler.project.ParseCache, cache, &semantic_cache.parse_cache);
+
+    defer if (watched_parses) |cache| std.mem.swap(compiler.project.ParseCache, cache, &semantic_cache.parse_cache);
 
     const sources = detected.sources;
 
