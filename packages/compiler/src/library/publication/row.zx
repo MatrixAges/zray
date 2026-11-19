@@ -1,0 +1,31 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { NamedRowBuffer } from "memory"
+import type { RowBuffer } from "memory/columns"
+import type { Row } from "./model"
+
+export type Input = {
+    row: Row,
+    types: NamedRowBuffer,
+    constants: RowBuffer,
+    members: RowBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, index } = in.row
+
+    const name = strings.copy(in.row.name)
+    const path = strings.copy(in.row.path)
+
+    memory.writeColumnBytes(target.name, index, bytes.fromText(name))
+    memory.writeColumnBytes(target.path, index, bytes.fromText(path))
+    columns.writeColumnOptionalU32(target.function, index, in.row.function)
+    memory.writeNamedRowList(target.types, index, in.types)
+    columns.writeRowList(target.constants, index, in.constants)
+    columns.writeRowList(target.members, index, in.members)
+}

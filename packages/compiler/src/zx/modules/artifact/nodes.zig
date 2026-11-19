@@ -8,6 +8,7 @@ const IdMap = @import("nodes/id_map.zig").Map;
 const own = @import("nodes/columns.zig").own;
 const remap = @import("nodes/remap.zig");
 const generated = @import("parser_options").generated_parser;
+pub const typeMapping = remap.typeMapping;
 
 pub const TypeMap = union(enum) {
     collect: if (@import("parser_options").generated_parser) void else *Types,

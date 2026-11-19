@@ -9,7 +9,7 @@ import {
 
 import type { Input as Interface, Ports } from "./model"
 
-export type Input = Interface.Omit("executable") & {
+export type Input = Interface.Omit("executable", "input_type", "output_type") & {
     ports: Ports
 }
 
@@ -30,7 +30,7 @@ export default function (in: Input): Output {
     })
 
     if (ports.add_input) {
-        memory.writeNamedRow(target, end, input_type_name, in.input_type)
+        memory.writeNamedRow(target, end, input_type_name, ports.input_type)
     }
 
     if (ports.add_output) {
@@ -38,7 +38,7 @@ export default function (in: Input): Output {
             target,
             ports.count - 1,
             output_type_name,
-            in.output_type
+            ports.output_type
         )
     }
 }

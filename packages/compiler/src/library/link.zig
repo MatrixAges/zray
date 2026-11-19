@@ -32,7 +32,7 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
     var name_memory = std.heap.BufferFirstAllocator.init(&name_buffer, scratch);
     var names: @import("index.zig") = .{};
 
-    for (inputs, exports, 0..) |input, *exported, row| {
+    for (inputs, 0..) |input, row| {
         try names.admit(name_memory.allocator(), input.name, row, input.analysis.value == .ir);
 
         const program = input.analysis.value.ir;
@@ -55,10 +55,8 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
         for (input.borrowed_initializers) |initial| try initializers.source(initial, input.analysis.nominal_types);
 
         const function_id = try @import("entry.zig").bind(&functions, &nodes, program, input.analysis.entry_function, scratch);
-        const public_types = try @import("interface.zig").complete(owned, program, nodes.types);
-        const constants = try nodes.constants(program.constant_exports);
-        const members = try @import("members.zig").complete(owned, input.analysis, program.file_name, &nodes);
-        exported.* = .{ .name = try owned.dupe(u8, input.name), .path = try owned.dupe(u8, program.file_name), .function = function_id, .types = public_types, .constants = constants, .members = members };
+
+        try @import("publication/host.zig").publish(owned, exports, row, input, function_id, &nodes);
     }
 
     const linked_functions = functions.view();

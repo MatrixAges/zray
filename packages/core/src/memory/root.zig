@@ -178,6 +178,8 @@ pub const RowGrowth = column.RowGrowth;
 pub const growRows = column.growRows;
 pub const allocateRows = column.allocateRows;
 pub const allocateRowList = column.allocateRowList;
+pub const writeRowList = column.writeRowList;
+pub const writeNamedRowList = column.writeNamedRowList;
 pub const copyRow = column.copyRow;
 
 pub inline fn allocateRowsWithAllocator(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {

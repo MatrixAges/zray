@@ -1,0 +1,30 @@
+import type { WriteColumn } from "memory"
+import type { WriteColumn as Column } from "memory/columns"
+import type { Input as Allocate } from "../../zx/modules/artifact/surface/allocate_rows"
+import type { Input as Constants } from "../../zx/modules/artifact/surface/constants"
+import type { Input as Types } from "../interface/model"
+import type { Input as Members } from "../members/model"
+
+export type Columns = {
+    name: WriteColumn,
+    path: WriteColumn,
+    function: Column,
+    types: WriteColumn,
+    constants: Column,
+    members: Column
+}
+
+export type Row = {
+    target: Columns,
+    name: string,
+    path: string,
+    function?: u32,
+    index: u64
+}
+
+export type Input = {
+    types: Types,
+    constants: Constants & Allocate.Pick("storage"),
+    members: Members,
+    row: Row
+}

@@ -20,5 +20,7 @@ export type Ports = {
     status: Status,
     count: u64,
     add_input: bool,
-    add_output: bool
+    add_output: bool,
+    input_type: u32,
+    output_type: u32
 }

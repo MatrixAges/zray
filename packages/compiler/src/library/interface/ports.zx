@@ -12,7 +12,25 @@ import type { Input as Interface, Ports as Output } from "./model"
 export type Input = Interface.Omit("target")
 
 export default function (in: Input): Output {
-    const { source, count, mapping, executable, input_type, output_type } = in
+    const { source, count, mapping, executable } = in
+
+    const input = integers.widen(in.input_type)
+    const output = integers.widen(in.output_type)
+    const missing_port = input >= mapping.length || output >= mapping.length
+
+    if (executable && missing_port) {
+        return {
+            status: Status.InvalidModule,
+            count: 0,
+            add_input: false,
+            add_output: false,
+            input_type: 0,
+            output_type: 0
+        }
+    }
+
+    const input_type = executable ? mapping[input] : in.input_type
+    const output_type = executable ? mapping[output] : in.output_type
 
     return loop({
         row: 0,
@@ -55,7 +73,9 @@ export default function (in: Input): Output {
                 _ => 0
             },
             add_input: state.add_input,
-            add_output: state.add_output
+            add_output: state.add_output,
+            input_type,
+            output_type
         })
     })
 }

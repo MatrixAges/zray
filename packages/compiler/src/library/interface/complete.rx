@@ -17,7 +17,11 @@
         <Call
             fn="publish"
             in={{
-                ...$in.omit(["executable"]),
+                ...$in.omit([
+                    "executable",
+                    "input_type",
+                    "output_type"
+                ]),
                 ports: $ctx.ports
             }}
         />

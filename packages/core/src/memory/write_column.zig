@@ -162,6 +162,19 @@ pub fn allocateRowList(allocator: std.mem.Allocator, column: *const anyopaque, i
     try write([]const u8, column, index, output.bytes.ptr[0..@intCast(count)]);
 }
 
+pub fn writeRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
+    const output: *const RowBuffer = @ptrCast(@alignCast(source));
+    const count = if (output.bytes.len == 0) 0 else output.bytes.len / output.stride;
+
+    try write([]const u8, column, index, output.bytes.ptr[0..count]);
+}
+
+pub fn writeNamedRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
+    const output: *const []@import("rows.zig").NamedId = @ptrCast(@alignCast(source));
+
+    try write([]const u8, column, index, @as([*]const u8, @ptrCast(output.ptr))[0..output.len]);
+}
+
 pub fn copyRow(target: *const anyopaque, source: u64, destination: u64) IndexError!void {
     const output: *const RowBuffer = @ptrCast(@alignCast(target));
     const count = output.bytes.len / output.stride;

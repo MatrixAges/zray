@@ -24,6 +24,12 @@ export declare function allocateRowList(
     count: u64
 ): void throws { OutOfMemory, IndexOutOfBounds }
 
+export declare function writeRowList(
+    column: WriteColumn,
+    index: u64,
+    source: RowBuffer
+): void throws { IndexOutOfBounds }
+
 export declare function copyRow(
     target: RowBuffer,
     source: u64,
