@@ -2,6 +2,7 @@ const std = @import("std");
 const compiler = @import("compiler");
 const analysis = @import("rx_analysis");
 const collection = @import("collection.zig");
+const Sources = @import("../sources.zig");
 const Inputs = @import("../watch/inputs.zig");
 pub const Result = struct { analysis: compiler.AnalysisResult, sources: []const compiler.project.Source, store_definitions: []const analysis.store.Definition };
 
@@ -31,14 +32,17 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
 
     defer loaded.deinit();
 
+    const physical_root = try std.Io.Dir.cwd().realPathFileAlloc(io, root, allocator);
+
+    defer allocator.free(physical_root);
+
     for (loaded.data.modules) |module| {
-        try validatePath(allocator, options, try std.fs.path.resolve(allocator, &.{ root, module.path }));
+        const path = try std.fs.path.resolve(allocator, &.{ root, module.path });
+
+        defer allocator.free(path);
+
+        try validatePath(allocator, options, physical_root, path);
     }
-
-    var sources: std.ArrayList(compiler.project.Source) = .empty;
-    var seen: std.StringHashMapUnmanaged(void) = .empty;
-
-    defer seen.deinit(allocator);
 
     const functions = try @import("type_sources.zig").collect(allocator, .{
         .io = io,
@@ -50,37 +54,35 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         .inputs = options.inputs,
     }) orelse return null;
 
-    var known: @import("../sources.zig").Known = .empty;
+    var known: Sources.Known = .empty;
+    const paths = try allocator.alloc([]const u8, functions.len);
 
     defer known.deinit(allocator);
+    defer allocator.free(paths);
 
-    for (functions) |function| {
-        const path = try std.fs.path.resolve(allocator, &.{ root, function.path });
+    for (functions, paths) |function, *path| {
+        path.* = try std.fs.path.resolve(allocator, &.{ root, function.path });
 
-        try known.put(allocator, path, function.source);
+        try known.put(allocator, path.*, function.source);
     }
 
-    for (functions) |function| {
-        const path = try std.fs.path.resolve(allocator, &.{ root, function.path });
+    var traversal: Sources.Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = options.inputs, .libraries = &libraries, .known = &known };
 
-        if (seen.contains(path)) {
-            allocator.free(path);
+    defer traversal.deinit();
 
-            continue;
-        }
+    for (functions, paths) |function, path| {
+        if (traversal.paths.contains(path)) continue;
+        try validatePath(allocator, options, physical_root, path);
 
-        try validatePath(allocator, options, path);
-
-        var function_project = project;
-        function_project.entry = path;
-
+        const first = traversal.sources.items.len;
         const text = try allocator.dupe(u8, function.source);
-        const imported = try @import("../sources.zig").readKnown(io, allocator, text, function_project, cache, options.inputs, &libraries, &known);
 
-        for (imported) |item| {
-            if (project.package_scopes.len == 0) try validatePath(allocator, options, item.path);
-            if ((try seen.getOrPut(allocator, item.path)).found_existing) continue;
-            try sources.append(allocator, item);
+        try traversal.readEntry(path, text);
+
+        if (project.package_scopes.len == 0) {
+            for (traversal.sources.items[first + 1 ..]) |item| {
+                try validatePath(allocator, options, physical_root, item.path);
+            }
         }
     }
 
@@ -93,7 +95,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         .exports = options.exports,
         .modules = loaded.data.modules,
         .stores = loaded.data.stores,
-        .sources = sources.items,
+        .sources = traversal.sources.items,
         .project = project,
         .parse_cache = cache,
         .scratch_allocator = std.heap.smp_allocator,
@@ -114,21 +116,25 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     const contract = inferred.value.contract;
 
     for (loaded.data.sources) |source| {
-        try sources.append(allocator, .{
+        try traversal.sources.append(allocator, .{
             .path = try std.fs.path.resolve(allocator, &.{ root, source.path }),
             .source = try allocator.dupe(u8, source.source),
         });
     }
 
-    return .{ .analysis = .{ .arena = inferred.arena, .value = .{ .ir = contract.program }, .nominal_types = contract.nominal_types, .store_initializers = contract.store_initializers, .entry_function = contract.entry_function, .public_functions = contract.public_functions }, .sources = sources.items, .store_definitions = contract.store_definitions };
+    return .{ .analysis = .{ .arena = inferred.arena, .value = .{ .ir = contract.program }, .nominal_types = contract.nominal_types, .store_initializers = contract.store_initializers, .entry_function = contract.entry_function, .public_functions = contract.public_functions }, .sources = try traversal.sources.toOwnedSlice(allocator), .store_definitions = contract.store_definitions };
 }
 
-fn validatePath(allocator: std.mem.Allocator, options: Options, path: []const u8) !void {
+fn validatePath(allocator: std.mem.Allocator, options: Options, root: []const u8, path: []const u8) !void {
     if (options.inputs) |inputs| try inputs.add(options.io, path);
 
-    const root = try std.Io.Dir.cwd().realPathFileAlloc(options.io, options.project.root_dir, allocator);
     const real = try std.Io.Dir.cwd().realPathFileAlloc(options.io, path, allocator);
+
+    defer allocator.free(real);
+
     const relative = try std.fs.path.relative(allocator, root, null, root, real);
+
+    defer allocator.free(relative);
 
     if (collection.outside(relative)) return error.RxSourceOutsideProject;
     try @import("../../package/source.zig").validateWithInputs(options.io, allocator, path, options.project.package_scopes, options.inputs);
