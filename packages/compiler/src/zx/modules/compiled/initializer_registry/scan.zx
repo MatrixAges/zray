@@ -1,27 +1,27 @@
-import bytes from "std:bytes"
-import integers from "std:integer"
-import strings from "std:string"
 import { load_numerator, load_denominator } from "core/bytes/index/const"
 import memory from "memory"
 import columns from "memory/columns"
 
+import append from "./append"
 import { Action, Status } from "./model"
 import select from "./select"
 
-import type { Input as Registry, Output } from "./model"
-
-export type Input = Registry.Omit("scratch")
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { source, target, capacity, buckets, progress } = in
+    const { source, published, buckets, range } = in
 
-    const limit = capacity * load_numerator / load_denominator
     const zero: u32 = 0
 
     return loop({
-        status: Status.Done,
+        cursor: {
+            count: in.count,
+            space: in.space,
+            capacity: in.capacity,
+            limit: in.capacity * load_numerator / load_denominator
+        },
         next: in.start,
-        count: in.count,
+        status: Status.Done,
         previous: 0,
         function: zero
     }, {
@@ -32,46 +32,23 @@ export default function (in: Input): Output {
             const version = columns.readColumnU32(source.schema_version, row)
 
             const selected = select({
-                ...in.pick([
-                    "published",
-                    "buckets",
-                    "capacity",
-                    "range"
-                ]),
+                published,
+                buckets,
+                range,
+                capacity: state.cursor.capacity,
                 identity,
                 version,
                 id: columns.readColumnU32(source.function, row)
             })
 
             if (selected.action == Action.Append) {
-                if (state.count == in.space) {
-                    state.status = Status.Reserve
-                } else if (state.count == limit) {
-                    state.status = Status.Rehash
-                } else {
-                    const name = in.own ? strings.copy(identity) : identity
-                    const index = state.count
-
-                    memory.writeColumnBytes(
-                        target.identity,
-                        index,
-                        bytes.fromText(name)
-                    )
-                    memory.writeColumnU32(target.schema_version, index, version)
-                    memory.writeColumnU32(
-                        target.function,
-                        index,
-                        selected.function
-                    )
-                    memory.writeU32(
-                        buckets,
-                        selected.slot,
-                        integers.narrow(index + 1)
-                    )
-                    state.count += 1
-                    memory.writeU64(progress, 0, state.count)
-                    state.next += 1
-                }
+                state.cursor = append({
+                    registry: in,
+                    cursor: state.cursor,
+                    identity,
+                    version,
+                    selected
+                })
             } else {
                 state.status = match selected.action {
                     Action.Compare => Status.Compare,
@@ -82,9 +59,16 @@ export default function (in: Input): Output {
 
                 state.previous = selected.previous
                 state.function = selected.function
-                state.next += 1
             }
+
+            state.next += 1
         },
-        return: state => state
+        return: state => ({
+            status: state.status,
+            next: state.next,
+            count: state.cursor.count,
+            previous: state.previous,
+            function: state.function
+        })
     })
 }

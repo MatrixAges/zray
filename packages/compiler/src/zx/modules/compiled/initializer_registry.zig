@@ -93,30 +93,53 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
 
     const rule = @import("generated_initializer_registry");
     const Input = std.meta.Child(rule.Input);
-    const source_columns = columns(memory.ReadColumn, values);
+    const source_columns = columns(values);
     const source = source_columns.view(std.meta.Child(@FieldType(Input, "source")));
+    const Target = std.meta.Child(@FieldType(Input, "target"));
+
+    var target: memory.RowOutput(Entry, Target, .{
+        .identity = &.{"identity"},
+        .function = &.{"function"},
+        .schema_version = &.{"schema_version"},
+    }) = undefined;
+
+    target.init();
+    target.bind(self.rows.allocatedSlice());
+
+    var reads: [@typeInfo(Target).@"struct".field_names.len]memory.ReadColumn = undefined;
+    const growth: memory.RowGrowth = .{ .target = &target.buffer, .reads = &reads };
+
+    growth.refresh();
+
+    var published: @TypeOf(source) = undefined;
+
+    inline for (@typeInfo(Target).@"struct".field_names, 0..) |name, index| {
+        @field(published, name) = @ptrCast(&reads[index]);
+    }
+
     var start: u64 = 0;
     var progress = [_]u64{self.rows.items.len};
     const published_count: []u64 = &progress;
-    defer self.rows.items.len = @intCast(progress[0]);
+
+    defer {
+        const rows = target.rows();
+
+        self.rows.items = rows[0..@intCast(progress[0])];
+        self.rows.capacity = rows.len;
+    }
 
     while (true) {
-        const storage = self.rows.allocatedSlice();
-        const reads = columns(memory.ReadColumn, storage);
-        const writes = columns(memory.WriteColumn, storage);
-        const published = reads.view(@TypeOf(source));
-        const target = writes.view(std.meta.Child(@FieldType(Input, "target")));
-
         const input: Input = .{
             .source = &source,
             .published = &published,
-            .target = &target,
+            .target = &target.view,
+            .growth = @ptrCast(&growth),
             .range = &.{ .first = range.first, .count = range.count, .prefix = range.prefix, .available = available },
             .buckets = @ptrCast(&self.buckets.items),
             .scratch = @ptrCast(&self.buckets),
             .capacity = self.buckets.items.len,
-            .count = self.rows.items.len,
-            .space = storage.len,
+            .count = progress[0],
+            .space = target.buffer.bytes.len / @sizeOf(Entry),
             .start = start,
             .end = values.len,
             .own = own,
@@ -128,38 +151,33 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
             else => return error.InvalidModule,
         };
 
-        self.rows.items.len = @intCast(result.count);
         start = result.next;
 
         switch (result.status) {
             .Done => return,
-            .Reserve => try self.rows.ensureUnusedCapacity(allocator, 1),
-            .Rehash => {},
-            .Compare => if (!functions.compare(self.rows.items[@intCast(result.previous)], @fromBackingInt(result.function))) return error.ConflictingInitializer,
+            .Compare => if (!functions.compare(target.rows()[@intCast(result.previous)], @fromBackingInt(result.function))) return error.ConflictingInitializer,
             .Conflict => return error.ConflictingInitializer,
             .InvalidModule => return error.InvalidModule,
         }
     }
 }
 
-fn Columns(comptime Column: type) type {
-    return struct {
-        identity: Column,
-        schema_version: Column,
-        function: Column,
-        fn view(self: *const @This(), comptime T: type) T {
-            return .{ .identity = @ptrCast(&self.identity), .schema_version = @ptrCast(&self.schema_version), .function = @ptrCast(&self.function) };
-        }
-    };
-}
+const Reader = struct {
+    identity: memory.ReadColumn,
+    schema_version: memory.ReadColumn,
+    function: memory.ReadColumn,
+    fn view(self: *const @This(), comptime T: type) T {
+        return .{ .identity = @ptrCast(&self.identity), .schema_version = @ptrCast(&self.schema_version), .function = @ptrCast(&self.function) };
+    }
+};
 
-fn columns(comptime Column: type, values: anytype) Columns(Column) {
-    var result: Columns(Column) = undefined;
+fn columns(values: []const Entry) Reader {
+    var result: Reader = undefined;
 
     inline for (@typeInfo(Entry).@"struct".field_names) |name| {
         const T = @FieldType(Entry, name);
 
-        @field(result, name) = if (Column == memory.ReadColumn) memory.borrowReadColumn(T, name, values) else memory.borrowWriteColumn(T, name, values);
+        @field(result, name) = memory.borrowReadColumn(T, name, values);
     }
 
     return result;

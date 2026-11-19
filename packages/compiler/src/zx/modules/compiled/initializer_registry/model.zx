@@ -1,4 +1,5 @@
 import type { U32Buffer, U32Scratch, U64Buffer } from "memory"
+import type { RowGrowth } from "memory/columns"
 import type { Source, Target } from "../../link/source/initializers/model"
 
 export enum Action {
@@ -11,8 +12,6 @@ export enum Action {
 
 export enum Status {
     Done,
-    Reserve,
-    Rehash,
     Compare,
     Conflict,
     InvalidModule
@@ -29,6 +28,7 @@ export type Input = {
     source: Source,
     published: Source,
     target: Target,
+    growth: RowGrowth,
     buckets: U32Buffer,
     scratch: U32Scratch,
     capacity: u64,
@@ -54,4 +54,11 @@ export type Output = {
     count: u64,
     previous: u64,
     function: u32
+}
+
+export type Cursor = {
+    count: u64,
+    space: u64,
+    capacity: u64,
+    limit: u64
 }

@@ -1,4 +1,5 @@
 const std = @import("std");
+const ReadColumn = @import("rows.zig").ReadColumn;
 const IndexError = error{IndexOutOfBounds};
 
 pub const Column = struct {
@@ -31,6 +32,19 @@ pub const RowBuffer = struct {
         if (self.bytes.len == 0) return &.{};
 
         return std.mem.bytesAsSlice(Row, @as([]align(@alignOf(Row)) u8, @alignCast(self.bytes)));
+    }
+    fn bind(self: *RowBuffer, bytes: []u8) void {
+        self.bytes = bytes;
+        const count = bytes.len / self.stride;
+
+        for (self.fields, self.columns) |field, *column| {
+            column.* = .{
+                .items = if (count == 0) bytes.ptr else bytes.ptr + field.offset,
+                .count = count,
+                .stride = self.stride,
+                .width = field.width,
+            };
+        }
     }
 };
 
@@ -67,7 +81,61 @@ pub fn RowOutput(comptime Row: type, comptime View: type, comptime fields: anyty
         pub fn rows(self: *const Self) []Row {
             return self.buffer.rows(Row);
         }
+
+        pub fn bind(self: *Self, storage: []Row) void {
+            self.buffer.bind(std.mem.sliceAsBytes(storage));
+        }
     };
+}
+
+pub const RowGrowth = struct {
+    target: *RowBuffer,
+    reads: []ReadColumn,
+    pub fn refresh(self: RowGrowth) void {
+        const buffer = self.target;
+        const count = buffer.bytes.len / buffer.stride;
+
+        for (buffer.fields, self.reads) |field, *read| {
+            read.* = .{ .bytes = buffer.bytes, .count = count, .stride = buffer.stride, .offset = field.offset };
+        }
+    }
+};
+
+pub fn growRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u64) std.mem.Allocator.Error!u64 {
+    const growth: *const RowGrowth = @ptrCast(@alignCast(target));
+    const buffer = growth.target;
+    const stride = buffer.stride;
+    const previous = buffer.bytes;
+    const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
+
+    std.debug.assert(length == previous.len / stride);
+
+    const minimum = std.math.add(usize, length, 1) catch return error.OutOfMemory;
+    const capacity = minimum +| (minimum / 2 + @max(1, std.atomic.cache_line / stride));
+    const size = std.math.mul(usize, capacity, stride) catch return error.OutOfMemory;
+    const alignment = buffer.alignment;
+    const address = @returnAddress();
+
+    const next = if (previous.len != 0)
+        allocator.rawRemap(previous, alignment, size, address)
+    else
+        null;
+
+    const bytes = next orelse block: {
+        const storage = allocator.rawAlloc(size, alignment, address) orelse return error.OutOfMemory;
+
+        if (previous.len != 0) {
+            @memcpy(storage[0..previous.len], previous);
+            allocator.rawFree(previous, alignment, address);
+        }
+
+        break :block storage;
+    };
+
+    buffer.bind(bytes[0..size]);
+    growth.refresh();
+
+    return capacity;
 }
 
 pub fn allocateRows(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
@@ -81,11 +149,7 @@ pub fn allocateRows(allocator: std.mem.Allocator, target: *const anyopaque, coun
 
     const bytes = allocator.rawAlloc(size, output.alignment, @returnAddress()) orelse return error.OutOfMemory;
 
-    output.bytes = bytes[0..size];
-
-    for (output.fields, output.columns) |field, *column| {
-        column.* = .{ .items = bytes + field.offset, .count = length, .stride = output.stride, .width = field.width };
-    }
+    output.bind(bytes[0..size]);
 }
 
 /// Publishes a newly allocated list in a slice field of its owning row.

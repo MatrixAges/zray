@@ -1,0 +1,68 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import strings from "std:string"
+import probe from "core/bytes/index/borrowed/probe"
+import refresh from "core/bytes/index/borrowed/refresh"
+import { load_numerator, load_denominator } from "core/bytes/index/const"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Cursor as Output, Input as Registry, Selection } from "./model"
+
+export type Input = {
+    registry: Registry,
+    cursor: Output,
+    identity: string,
+    version: u32,
+    selected: Selection
+}
+
+export default function (in: Input): Output {
+    const { registry, cursor, identity, version, selected } = in
+    const { buckets, published, target } = registry
+
+    const index = cursor.count
+
+    const space = match {
+        index == cursor.space => columns.growRows(registry.growth, index),
+        _ => cursor.space
+    }
+
+    const capacity = match {
+        index == cursor.limit => refresh({
+            keys: published.identity,
+            buckets,
+            scratch: registry.scratch,
+            capacity: cursor.capacity,
+            indexed: index,
+            count: index,
+            required: index + 1
+        }),
+        _ => cursor.capacity
+    }
+
+    const slot = match {
+        capacity == cursor.capacity => selected.slot,
+        _ => probe({
+            keys: published.identity,
+            buckets,
+            capacity,
+            text: identity
+        }).slot
+    }
+
+    const name = registry.own ? strings.copy(identity) : identity
+
+    memory.writeColumnBytes(target.identity, index, bytes.fromText(name))
+    memory.writeColumnU32(target.schema_version, index, version)
+    memory.writeColumnU32(target.function, index, selected.function)
+    memory.writeU32(buckets, slot, integers.narrow(index + 1))
+    memory.writeU64(registry.progress, 0, index + 1)
+
+    return {
+        count: index + 1,
+        space,
+        capacity,
+        limit: capacity * load_numerator / load_denominator
+    }
+}

@@ -5,6 +5,7 @@ export type WriteColumn = opaque
 export type ListColumn = opaque
 export type ListProjection = opaque
 export type RowBuffer = opaque
+export type RowGrowth = opaque
 export type ColumnSet = opaque
 export type ColumnView = opaque
 export type ColumnObject = opaque

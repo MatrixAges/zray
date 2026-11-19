@@ -203,7 +203,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/link/workflow/row.rx", .name = "artifact_link_row" },
     .{ .path = "zx/modules/link/artifact/body/publish.rx", .name = "artifact_body_publication" },
     .{ .path = "zx/modules/link/result/publication/publish.rx", .name = "artifact_program_publication" },
-    .{ .path = "zx/modules/compiled/initializer_registry/merge.rx", .name = "initializer_registry" },
+    .{ .path = "zx/modules/compiled/initializer_registry/scan.zx", .name = "initializer_registry" },
     .{ .path = "core/bytes/index/borrowed/probe.zx", .name = "initializer_registry_lookup" },
     .{ .path = "rx/analysis/inference/known/find.zx", .name = "rx_known_lookup", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/known/rehash.zx", .name = "rx_known_rehash", .owner = .rx_analysis },

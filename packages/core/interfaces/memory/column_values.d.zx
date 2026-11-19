@@ -4,6 +4,12 @@ export declare function allocateRows(
     count: u64
 ): void throws { OutOfMemory }
 
+export declare function growRows(
+    allocator,
+    target: RowGrowth,
+    used: u64
+): u64 throws { OutOfMemory }
+
 export declare function allocateRowsWithAllocator(
     resource: ColumnAllocator,
     target: RowBuffer,
