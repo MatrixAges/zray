@@ -1,0 +1,14 @@
+import bytes from "std:bytes"
+
+import { magic } from "./const"
+
+import type { WriteHeader as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    bytes.write(in.writer, bytes.fromText(magic))
+    bytes.write(in.writer, bytes.fromText(in.context))
+    bytes.write(in.writer, in.digest)
+    bytes.writeU64Le(in.writer, in.count)
+}

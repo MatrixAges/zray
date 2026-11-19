@@ -205,11 +205,23 @@ pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{In
 }
 
 pub inline fn readU64Bytes(source: []const u8, offset: u64, little_endian: bool) error{IndexOutOfBounds}!u64 {
-    const width = @sizeOf(u64);
+    return readIntBytes(u64, source, offset, little_endian);
+}
+
+pub inline fn readI32Bytes(source: []const u8, offset: u64, little_endian: bool) error{IndexOutOfBounds}!i32 {
+    return readIntBytes(i32, source, offset, little_endian);
+}
+
+pub inline fn i32Bits(value: i32) u32 {
+    return @bitCast(value);
+}
+
+inline fn readIntBytes(comptime T: type, source: []const u8, offset: u64, little_endian: bool) error{IndexOutOfBounds}!T {
+    const width = @sizeOf(T);
 
     if (offset > source.len or width > source.len - offset) return error.IndexOutOfBounds;
 
-    return std.mem.readInt(u64, source[@intCast(offset)..][0..width], if (little_endian) .little else .big);
+    return std.mem.readInt(T, source[@intCast(offset)..][0..width], if (little_endian) .little else .big);
 }
 
 pub inline fn borrowU32Range(source: []const u32, first: u64, count: u64) error{IndexOutOfBounds}![]const u32 {

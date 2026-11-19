@@ -1,0 +1,52 @@
+import type { Writer } from "std:bytes"
+import type { ReadColumn, TextColumn } from "memory"
+import type { Time } from "../age"
+
+export type Paths = {
+    paths: TextColumn,
+    count: u64
+}
+
+export type Observations = Paths & {
+    inodes: ReadColumn,
+    sizes: ReadColumn,
+    mtime_high: ReadColumn,
+    mtime_low: ReadColumn,
+    ctime_high: ReadColumn,
+    ctime_low: ReadColumn
+}
+
+export type Reading = {
+    payload: u8[],
+    context: string,
+    observed: Observations,
+    now: Time
+}
+
+export type Header = Reading.Pick("payload", "context") & {
+    count: u64
+}
+
+export type Scan = Reading.Pick("payload", "observed", "now")
+
+export type Check = {
+    fields: u8[],
+    observed: Observations,
+    index: u64,
+    now: Time
+}
+
+export type WriteHeader = {
+    writer: Writer,
+    context: string,
+    digest: u8[],
+    count: u64
+}
+
+export type WriteRows = {
+    writer: Writer,
+    rows: Observations & {
+        read_high: ReadColumn,
+        read_low: ReadColumn
+    }
+}

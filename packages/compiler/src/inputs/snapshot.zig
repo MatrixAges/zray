@@ -6,7 +6,8 @@ pub const Files = std.meta.Child(@FieldType(Input, "current"));
 pub const Snapshot = std.meta.Child(@FieldType(Input, "previous"));
 const source = @import("parser_options").generated_parser;
 const envelope_seed = @import("snapshot/envelope_seed.zig");
-pub const observed_reuse = source;
+pub const binary_records = source;
+pub const records = if (source) @import("snapshot/records.zig") else void;
 pub const storage_limit: usize = if (source) @import("generated_input_snapshot_constants").@"zx.constants".snapshot_limit else envelope_seed.limit;
 const Hash = std.crypto.hash.Blake3;
 const Tag = [Hash.digest_length * 2]u8;
@@ -37,12 +38,6 @@ pub const Observation = struct {
             .ctime_low = changed.low,
         };
     }
-};
-
-pub const ObservationQuery = struct {
-    context: []const u8,
-    previous: *const Snapshot,
-    now: Time,
 };
 
 pub fn open(allocator: std.mem.Allocator, bytes: []const u8) std.mem.Allocator.Error!?[]const u8 {
@@ -128,33 +123,4 @@ pub fn reuse(allocator: std.mem.Allocator, input: Input) std.mem.Allocator.Error
         error.OutOfMemory => return error.OutOfMemory,
         else => return false,
     };
-}
-
-pub fn reuseObserved(observations: []const Observation, query: ObservationQuery) bool {
-    const rule = @import("generated_input_snapshot_observed");
-    const memory = @import("zx").memory;
-    const paths = memory.borrowTextColumn("path", observations);
-    const inodes = memory.borrowReadColumn(u64, "inode", observations);
-    const sizes = memory.borrowReadColumn(u64, "size", observations);
-    const modified_high = memory.borrowReadColumn(i32, "mtime_high", observations);
-    const modified_low = memory.borrowReadColumn(u64, "mtime_low", observations);
-    const changed_high = memory.borrowReadColumn(i32, "ctime_high", observations);
-    const changed_low = memory.borrowReadColumn(u64, "ctime_low", observations);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    return rule.executeValue(empty.allocator(), &.{
-        .context = query.context,
-        .previous = query.previous,
-        .now = &.{ .high = query.now.high, .low = query.now.low },
-        .observed = &.{
-            .paths = @ptrCast(&paths),
-            .inodes = @ptrCast(&inodes),
-            .sizes = @ptrCast(&sizes),
-            .mtime_high = @ptrCast(&modified_high),
-            .mtime_low = @ptrCast(&modified_low),
-            .ctime_high = @ptrCast(&changed_high),
-            .ctime_low = @ptrCast(&changed_low),
-            .count = observations.len,
-        },
-    }) catch false;
 }

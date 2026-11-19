@@ -1,0 +1,35 @@
+import { fingerprint_width } from "../const"
+
+export const magic: string = "zxc-inputs-v1"
+
+export const context_at: u64 = 13
+
+export const digest_at: u64 = context_at + fingerprint_width
+
+export const digest_width: u64 = 32
+
+export const count_at: u64 = digest_at + digest_width
+
+export const header_width: u64 = count_at + 8
+
+export const inode_at: u64 = 0
+
+export const size_at: u64 = 8
+
+export const modified_low_at: u64 = 16
+
+export const changed_low_at: u64 = 24
+
+export const read_low_at: u64 = 32
+
+export const modified_high_at: u64 = 40
+
+export const changed_high_at: u64 = 44
+
+export const read_high_at: u64 = 48
+
+export const path_length_at: u64 = 52
+
+export const row_width: u64 = 56
+
+export const batch_size: u64 = 64

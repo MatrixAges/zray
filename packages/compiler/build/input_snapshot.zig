@@ -1,6 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const source = compiler.input_snapshot;
+const seed = @import("input_snapshot_seed.zig");
 const interfaces = compiler.source_inputs.interfaces;
 const collection = @import("source_collection.zig");
 const manifest = @import("generation_manifest.zig");
@@ -70,34 +71,11 @@ fn reuseSaved(io: std.Io, workspace: std.mem.Allocator, path: []const u8, contex
     const allocator = scratch.allocator();
     const recorded = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(source.storage_limit)) catch return null;
     const payload = try source.open(allocator, recorded) orelse return null;
-    const previous = std.json.parseFromSliceLeaky(source.Snapshot, allocator, payload, .{}) catch return null;
     const now = source.timestamp(std.Io.Timestamp.now(io, .real).nanoseconds);
 
-    if (comptime source.observed_reuse) {
-        if (!source.reuseObserved(facts, .{
-            .context = context,
-            .previous = &previous,
-            .now = now,
-        })) return null;
-    } else {
-        const observed = (try columns(allocator, facts, null)).?;
+    if (comptime source.binary_records) return source.records.reuse(payload, context, facts, now);
 
-        if (!try source.reuse(allocator, .{
-            .context = context,
-            .current = &observed,
-            .previous = &previous,
-            .now_high = now.high,
-            .now_low = now.low,
-            .stored_checksum = "",
-            .actual_checksum = "",
-        })) return null;
-    }
-
-    var digest: [32]u8 = undefined;
-
-    _ = std.fmt.hexToBytes(&digest, previous.fingerprint) catch return null;
-
-    return digest;
+    return seed.reuse(allocator, payload, context, facts, now);
 }
 
 pub fn load(self: Self, io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: *Files, documents: *std.ArrayList(collection.Document)) !void {
@@ -112,9 +90,12 @@ pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !v
     defer scratch.deinit();
 
     const allocator = scratch.allocator();
-    const contents = try columns(allocator, self.facts, files) orelse return;
-    const snapshot: source.Snapshot = .{ .context = self.context, .fingerprint = &std.fmt.bytesToHex(fingerprint, .lower), .files = &contents };
-    const bytes = try std.json.Stringify.valueAlloc(allocator, snapshot, .{});
+
+    const bytes = if (comptime source.binary_records)
+        try encode(allocator, self.context, self.facts, files, &fingerprint) orelse return
+    else
+        try seed.encode(allocator, self.context, self.facts, files, &fingerprint) orelse return;
+
     const checksum = source.seal(bytes) orelse return;
     var file = try std.Io.Dir.cwd().createFileAtomic(io, self.path, .{ .make_path = true, .replace = true });
 
@@ -125,36 +106,31 @@ pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !v
     try file.replace(io);
 }
 
-fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Files) !?source.Files {
-    var result: source.Files = undefined;
+fn encode(allocator: std.mem.Allocator, context: []const u8, facts: []const Fact, files: *const Files, fingerprint: *const [32]u8) !?[]const u8 {
+    const records = source.records;
+    const size = records.measure(facts) orelse return null;
+    const payload = try allocator.alloc(u8, size);
+    var writer = std.Io.Writer.fixed(payload);
 
-    inline for (@typeInfo(source.Files).@"struct".field_names) |field| {
-        const Child = std.meta.Child(@FieldType(source.Files, field));
+    try records.header(&writer, context, fingerprint, facts.len);
 
-        @field(result, field) = try allocator.alloc(Child, if (files == null and std.mem.startsWith(u8, field, "read_")) 0 else facts.len);
+    var batch: [records.batch_size]records.Stored = undefined;
+    var cursor: usize = 0;
+
+    while (cursor < facts.len) {
+        const count = @min(batch.len, facts.len - cursor);
+
+        for (facts[cursor..][0..count], batch[0..count]) |*fact, *target| {
+            const version = files.version(fact.key) orelse return null;
+            target.* = records.Stored.init(fact.path, version.metadata, version.read);
+        }
+
+        try records.writeRows(&writer, batch[0..count]);
+
+        cursor += count;
     }
 
-    for (facts, 0..) |fact, index| {
-        const version = if (files) |cache| cache.version(fact.key) orelse return null else null;
-        const selected = if (version) |value| Fact.init(fact.path, fact.key, value.metadata) else fact;
+    std.debug.assert(writer.buffered().len == size);
 
-        @constCast(result.paths)[index] = selected.path;
-        @constCast(result.inodes)[index] = selected.inode;
-        @constCast(result.sizes)[index] = selected.size;
-        @constCast(result.mtime_high)[index] = selected.mtime_high;
-        @constCast(result.mtime_low)[index] = selected.mtime_low;
-        @constCast(result.ctime_high)[index] = selected.ctime_high;
-        @constCast(result.ctime_low)[index] = selected.ctime_low;
-
-        if (version) |value| timestamp(&result, "read", index, value.read);
-    }
-
-    return result;
-}
-
-fn timestamp(columns_value: *source.Files, comptime field: []const u8, index: usize, value: i96) void {
-    const parts = source.timestamp(value);
-
-    @constCast(@field(columns_value, field ++ "_low"))[index] = parts.low;
-    @constCast(@field(columns_value, field ++ "_high"))[index] = parts.high;
+    return payload;
 }

@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import { fingerprint_width, snapshot_limit } from "../const"
+import { header_width, row_width } from "./const"
+
+import type { Paths as Input } from "./model"
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const limit = snapshot_limit - fingerprint_width
+
+    return loop({
+        index: 0,
+        size: header_width
+    }, {
+        while: state => state.index < in.count && state.size <= limit,
+        next: state => {
+            const path = memory.readTextColumn(in.paths, state.index)
+
+            state.size += row_width + path.length
+            state.index += 1
+        },
+        return: state => state.size <= limit ? state.size : null
+    })
+}

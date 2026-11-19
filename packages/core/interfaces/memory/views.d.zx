@@ -117,6 +117,14 @@ export declare function readU64Bytes(
     little_endian: bool
 ): u64 throws { IndexOutOfBounds } concurrent
 
+export declare function readI32Bytes(
+    source: u8[],
+    offset: u64,
+    little_endian: bool
+): i32 throws { IndexOutOfBounds } concurrent
+
+export declare function i32Bits(value: i32): u32 concurrent
+
 export declare function writeColumnU8(
     target: WriteColumn,
     index: u64,

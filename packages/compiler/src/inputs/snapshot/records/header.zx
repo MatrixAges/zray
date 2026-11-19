@@ -1,0 +1,42 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { fingerprint_width } from "../const"
+import {
+    context_at,
+    count_at,
+    digest_at,
+    digest_width,
+    header_width,
+    magic
+} from "./const"
+
+import type { Header as Input } from "./model"
+
+export type Output = u8[]?
+
+export default function (in: Input): Output {
+    const { payload, context, count } = in
+
+    if (payload.length < header_width) {
+        return null
+    }
+
+    const version = memory.borrowU8Range(payload, 0, context_at)
+
+    if (!bytes.equals(version, bytes.fromText(magic))) {
+        return null
+    }
+
+    const stored_context = memory.borrowU8Range(payload, context_at, fingerprint_width)
+
+    if (!bytes.equals(stored_context, bytes.fromText(context))) {
+        return null
+    }
+
+    if (memory.readU64Bytes(payload, count_at, true) != count) {
+        return null
+    }
+
+    return memory.borrowU8Range(payload, digest_at, digest_width)
+}
