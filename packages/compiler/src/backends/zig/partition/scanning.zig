@@ -2,11 +2,17 @@ const std = @import("std");
 const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
 const indexing = if (generated) @import("generated_partition_scan_index") else void;
+pub const batch_size = if (generated) @import("generated_partition_scan_constants").@"zx.constants".batch_size else 8;
 const Index = if (generated) std.meta.Child(indexing.Output) else zx.bytes.Map(u32);
 const Self = @This();
 pub const References = struct { callees: []const u32, variants: []const []const u8 };
-pub const Result = struct { references: References, inline_names: []const []const u8 };
 pub const Error = std.mem.Allocator.Error || error{ UnterminatedImport, UnsupportedFunctionReference, MissingFunctionFile };
+
+pub const Columns = struct {
+    callees: [][]const u32,
+    variants: [][]const []const u8,
+    inline_names: ?[][]const []const u8 = null,
+};
 
 index: Index,
 pub fn init(allocator: std.mem.Allocator, paths: []const []const u8) Error!Self {
@@ -24,33 +30,38 @@ pub fn init(allocator: std.mem.Allocator, paths: []const []const u8) Error!Self 
     return .{ .index = zx.columns.view(Index, output) };
 }
 
-pub fn references(self: *const Self, allocator: std.mem.Allocator, source: []const u8) Error!References {
-    if (comptime !generated) return @import("scanning_seed.zig").references(allocator, source, &self.index);
+pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, output: Columns) Error!void {
+    if (comptime !generated) {
+        const seed = @import("scanning_seed.zig");
 
-    const entry = @import("generated_partition_references");
+        for (files, output.callees, output.variants, 0..) |file, *callees, *variants, row| {
+            const reference = try seed.references(allocator, file.source, &self.index);
+
+            callees.* = reference.callees;
+            variants.* = reference.variants;
+
+            if (output.inline_names) |names| names[row] = try seed.inlineNames(allocator, file.source);
+        }
+
+        return;
+    }
+
+    const entry = @import("generated_partition_scan_batch");
     const Input = std.meta.Child(entry.Input);
-    const input: Input = .{ .source = source, .index = &self.index };
-    const output = entry.executeValue(allocator, &input) catch |err| return failure(err);
+    const sources = zx.memory.borrowTextColumn("source", files);
+    const variants = zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, output.variants);
+    const inline_names = if (output.inline_names) |names| zx.memory.borrowNestedWriteColumn([]const []const u8, &.{}, names) else null;
 
-    try valid(output.status);
-
-    return .{ .callees = output.callees, .variants = output.variants };
-}
-
-pub fn scan(self: *const Self, allocator: std.mem.Allocator, source: []const u8) Error!Result {
-    if (comptime !generated) return .{
-        .references = try @import("scanning_seed.zig").references(allocator, source, &self.index),
-        .inline_names = try @import("scanning_seed.zig").inlineNames(allocator, source),
+    const input: Input = .{
+        .sources = @ptrCast(&sources),
+        .index = &self.index,
+        .count = files.len,
+        .callees = @ptrCast(&output.callees),
+        .variants = @ptrCast(&variants),
+        .inline_names = if (inline_names != null) @ptrCast(&inline_names.?) else null,
     };
 
-    const entry = @import("generated_partition_scan");
-    const Input = std.meta.Child(entry.Input);
-    const input: Input = .{ .source = source, .index = &self.index };
-    const output = entry.executeValue(allocator, &input) catch |err| return failure(err);
-
-    try valid(output.references.status);
-
-    return .{ .references = .{ .callees = output.references.callees, .variants = output.references.variants }, .inline_names = output.inline_names };
+    return valid(zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| return failure(err));
 }
 
 fn valid(status: anytype) Error!void {

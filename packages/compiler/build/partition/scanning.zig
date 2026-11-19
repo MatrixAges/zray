@@ -18,15 +18,20 @@ pub fn run(allocator: std.mem.Allocator, arenas: parallel.Arenas, functions: []c
         .inline_names = try allocator.alloc([]const []const u8, functions.len),
     };
 
-    try parallel.each(arenas, functions.len, &self);
+    const batches = std.math.divCeil(usize, functions.len, Scanner.batch_size) catch unreachable;
+
+    try parallel.each(arenas, batches, &self);
 
     return self;
 }
 
 pub fn step(self: *const Self, allocator: std.mem.Allocator, index: usize) !void {
-    const result = try self.scanner.scan(allocator, self.functions[index].source);
+    const start = index * Scanner.batch_size;
+    const end = @min(start + Scanner.batch_size, self.functions.len);
 
-    self.callees[index] = result.references.callees;
-    self.variants[index] = result.references.variants;
-    self.inline_names[index] = result.inline_names;
+    try self.scanner.scan(allocator, self.functions[start..end], .{
+        .callees = self.callees[start..end],
+        .variants = self.variants[start..end],
+        .inline_names = self.inline_names[start..end],
+    });
 }

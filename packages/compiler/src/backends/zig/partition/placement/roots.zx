@@ -1,14 +1,19 @@
 import bytes from "std:bytes"
+import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import { root_file, functions_file } from "./const"
 
 import type { WriteColumn } from "memory"
+import type { Jobs } from "./model"
 
 export type Input = {
     paths: WriteColumn,
     prefixes: string[],
-    first: u64
+    first: u64,
+    first_job: u64,
+    jobs: Jobs
 }
 
 export type Output = void
@@ -19,6 +24,7 @@ export default function (in: Input): Output {
         next: scope => {
             const prefix = in.prefixes[scope]
             const row = in.first + scope * 2
+            const job = in.first_job + scope
 
             memory.writeColumnBytes(
                 in.paths,
@@ -30,6 +36,13 @@ export default function (in: Input): Output {
                 row + 1,
                 bytes.fromText(`${prefix}${functions_file}`)
             )
+
+            memory.writeColumnU64(in.jobs.destinations, job, row)
+            memory.writeColumnU32(in.jobs.indices, job, integers.narrow(scope))
+            memory.writeColumnBool(in.jobs.roots, job, true)
+            columns.writeColumnByteList(in.jobs.variants, job, [])
+            memory.writeColumnBool(in.jobs.comptime_entries, job, false)
+
             scope += 1
         }
     })

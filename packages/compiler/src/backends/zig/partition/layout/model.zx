@@ -39,5 +39,6 @@ export type Output = {
 export type Placement = {
     first_stub: u64,
     first_root: u64,
-    length: u64
+    length: u64,
+    jobs: u64
 }

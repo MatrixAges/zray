@@ -26,11 +26,7 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
     const top_callees = try allocator.alloc([]const u32, top.len);
     const top_variants = try allocator.alloc([]const []const u8, top.len);
 
-    for (top, top_callees, top_variants) |file, *ids, *names| {
-        const reference = try scanner.references(allocator, file.source);
-        ids.* = reference.callees;
-        names.* = reference.variants;
-    }
+    try scanner.scan(allocator, top, .{ .callees = top_callees, .variants = top_variants });
 
     var planned = try generation.demand.createSeed(workspace, .{
         .owners = partitions,

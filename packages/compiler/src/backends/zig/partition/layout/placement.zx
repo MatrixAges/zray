@@ -30,6 +30,7 @@ export default function (in: Input): Output {
     return {
         first_stub: counted.first_stub,
         first_root,
-        length: first_root + in.members.length * 2
+        length: first_root + in.members.length * 2,
+        jobs: counted.stubs + in.members.length
     }
 }

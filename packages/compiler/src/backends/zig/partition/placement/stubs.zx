@@ -4,13 +4,13 @@ import memory from "memory"
 import columns from "memory/columns"
 
 import type { Scope } from "../demand/model"
-import type { State, StubTargets } from "./model"
+import type { State, Jobs } from "./model"
 
 export type Input = {
     files: State,
     prefixes: string[],
     scopes: Scope[],
-    targets: StubTargets,
+    targets: Jobs,
     first: u64
 }
 
@@ -45,7 +45,9 @@ export default function (in: Input): Output {
                         row,
                         bytes.fromText(path)
                     )
-                    memory.writeColumnU32(in.targets.callees, job, callee)
+                    memory.writeColumnU64(in.targets.destinations, job, row)
+                    memory.writeColumnU32(in.targets.indices, job, callee)
+                    memory.writeColumnBool(in.targets.roots, job, false)
                     columns.writeColumnByteList(
                         in.targets.variants,
                         job,

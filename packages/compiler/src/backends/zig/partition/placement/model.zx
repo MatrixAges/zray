@@ -15,11 +15,13 @@ export type Input = {
     members: u32[][],
     scopes: Scope[],
     placement: Placement,
-    stub_targets: StubTargets
+    jobs: Jobs
 }
 
-export type StubTargets = {
-    callees: WriteColumn,
+export type Jobs = {
+    destinations: WriteColumn,
+    indices: WriteColumn,
+    roots: WriteColumn,
     variants: ListColumn,
     comptime_entries: WriteColumn
 }

@@ -24,11 +24,7 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
     const top_callees = try temporary.alloc([]const u32, top.len);
     const top_variants = try temporary.alloc([]const []const u8, top.len);
 
-    for (top, top_callees, top_variants) |file, *ids, *names| {
-        const reference = try scanner.references(temporary, file.source);
-        ids.* = reference.callees;
-        names.* = reference.variants;
-    }
+    try scanner.scan(temporary, top, .{ .callees = top_callees, .variants = top_variants });
 
     var planned = try generation.layout.create(workspace, .{
         .paths = columns.paths,
@@ -44,18 +40,17 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
     defer planned.deinit();
 
     const publication = try generation.placement.publish(allocator, temporary, functions, columns.paths, &planned.value);
-    const first_stub: usize = @intCast(planned.value.placement.first_stub);
 
     const jobs = Rendering{
         .owner = allocator,
         .workspace = workspace,
         .columns = columns,
         .roots = planned.value.roots,
-        .stubs = publication.stubs,
-        .files = publication.files[first_stub..],
+        .jobs = publication.jobs,
+        .files = publication.files,
     };
 
-    try parallel.each(arenas, jobs.stubs.len + jobs.roots.len, &jobs);
+    try parallel.each(arenas, publication.jobs.len, &jobs);
 
     return publication.files;
 }
@@ -65,20 +60,19 @@ const Rendering = struct {
     workspace: std.mem.Allocator,
     columns: generation.layout.FunctionFiles,
     roots: @FieldType(generation.layout.Plan, "roots"),
-    stubs: []const generation.placement.Stub,
+    jobs: []const generation.placement.Job,
     files: []File,
     pub fn step(self: *const Rendering, _: std.mem.Allocator, index: usize) !void {
-        if (index < self.stubs.len) {
-            const stub = self.stubs[index];
+        const job = &self.jobs[index];
+        const row: usize = @intCast(job.destination);
 
-            self.files[index].source = try generation.namedStub(self.owner, self.workspace, self.columns.names[stub.callee], stub.variants, stub.comptime_entry);
+        if (!job.root) {
+            self.files[row].source = try generation.namedStub(self.owner, self.workspace, self.columns.names[job.index], job.variants, job.comptime_entry);
 
             return;
         }
 
-        const scope = index - self.stubs.len;
-        const selected = self.roots[scope];
-        const row = self.stubs.len + scope * 2;
+        const selected = self.roots[job.index];
 
         self.files[row].source = try generation.indexedExports(self.owner, self.workspace, self.columns.names, selected.entries, selected.variants);
         self.files[row + 1].source = try generation.indexedRoot(self.owner, self.workspace, self.columns, selected.callees);

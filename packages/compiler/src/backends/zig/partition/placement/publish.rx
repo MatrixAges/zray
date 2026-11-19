@@ -30,7 +30,7 @@
             files: $in.files,
             prefixes: $ctx.prefixes,
             scopes: $in.scopes,
-            targets: $in.stub_targets,
+            targets: $in.jobs,
             first: $in.placement.first_stub
         }}
     />
@@ -40,7 +40,9 @@
         in={{
             paths: $in.files.target_paths,
             prefixes: $ctx.prefixes,
-            first: $in.placement.first_root
+            first: $in.placement.first_root,
+            first_job: $in.placement.first_root - $in.placement.first_stub,
+            jobs: $in.jobs
         }}
     />
 </Module>

@@ -1,0 +1,46 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import inlineNames from "./inline_names"
+import { Status } from "./model"
+import references from "./references"
+
+import type { Batch as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { sources, index, count, callees, variants, inline_names } = in
+
+    return loop({
+        row: 0,
+        status: Status.Valid
+    }, {
+        while: state => state.row < count && state.status == Status.Valid,
+        next: state => {
+            const source = memory.readTextColumn(sources, state.row)
+            const scanned = references({
+                source,
+                index
+            })
+
+            state.status = scanned.status
+
+            if (scanned.status == Status.Valid) {
+                memory.writeU32List(callees, state.row, scanned.callees)
+                columns.writeColumnByteList(variants, state.row, scanned.variants)
+
+                if (inline_names != null) {
+                    columns.writeColumnByteList(
+                        inline_names,
+                        state.row,
+                        inlineNames(source)
+                    )
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.status
+    })
+}

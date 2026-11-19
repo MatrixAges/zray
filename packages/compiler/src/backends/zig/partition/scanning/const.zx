@@ -13,3 +13,5 @@ export const dot: u8 = 46
 export const newline: u8 = 10
 
 export const open_paren: u8 = 40
+
+export const batch_size: u64 = 8
