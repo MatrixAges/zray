@@ -123,6 +123,47 @@ pub fn writeTail(target: *const anyopaque, row: anytype, index: u64) void {
     }
 }
 
+pub fn writeSignatureTail(
+    target: *const anyopaque,
+    index: u64,
+    files: []const u8,
+    input_types: u32,
+    output_types: u32,
+    ownership: anytype,
+    native_modules: ?u32,
+    native_members: []const []const u8,
+    native_exports: ?[]const u8,
+    native_inputs: ?[]const ?[]const u8,
+    native_errors: ?[]const []const u8,
+    native_allocators: bool,
+    native_io: bool,
+    native_process: bool,
+    native_tuples: bool,
+    native_fallible: bool,
+    native_concurrent: bool,
+) void {
+    // The column set follows the generated signature field order.
+    const row = .{
+        .files = files,
+        .input_types = input_types,
+        .native_allocators = native_allocators,
+        .native_concurrent = native_concurrent,
+        .native_errors = native_errors,
+        .native_exports = native_exports,
+        .native_fallible = native_fallible,
+        .native_inputs = native_inputs,
+        .native_io = native_io,
+        .native_members = native_members,
+        .native_modules = native_modules,
+        .native_process = native_process,
+        .native_tuples = native_tuples,
+        .output_types = output_types,
+        .ownership = ownership,
+    };
+
+    writeTail(target, &row, index);
+}
+
 pub const Range = struct {
     storage: *anyopaque,
     view: *anyopaque,

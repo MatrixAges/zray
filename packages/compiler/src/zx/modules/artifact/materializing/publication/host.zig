@@ -51,13 +51,14 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     else
         State;
 
-    const Columns = @FieldType(Input, "target");
+    const Target = std.meta.Child(@FieldType(Input, "target"));
     const Mappings = std.meta.Child(@FieldType(Input, "mappings"));
     const Mapping = std.meta.Child(@FieldType(Mappings, "types"));
     const Empty = std.meta.Child(@FieldType(Input, "empty"));
     const Workspace = std.meta.Child(@FieldType(Input, "workspace"));
     const Source = @FieldType(Input, "source");
     const Root = if (single) std.meta.Child(Source) else void;
+    const source_view = if (!single) columns.view(std.meta.Child(Source), source) else {};
     const External = if (single) std.meta.Child(@typeInfo(@FieldType(Root, "external")).optional.child) else void;
     var external: External = undefined;
     var attributes: if (single) std.meta.Child(@FieldType(Root, "attributes")) else void = undefined;
@@ -67,7 +68,10 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     const progress: []u64 = &completed;
     const length_slots = zx.memory.borrowColumnLengths(storage);
     const lengths: zx.memory.ColumnLengths = &length_slots;
-    const target = columns.borrow(Columns, storage.reservedTail(count), true);
+    var target: columns.Tail(Target) = undefined;
+
+    target.init(storage);
+
     const types = remap.typeMapping(Mapping, nodes.types);
     const functions = remap.idMapping(Mapping, nodes.functions);
     const natives = remap.idMapping(Mapping, nodes.native_modules);
@@ -77,8 +81,9 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     defer scratch.deinit();
 
     const input: Input = .{
-        .source = if (single) &descriptor else columns.borrow(Source, source, false),
-        .target = target,
+        .source = if (single) &descriptor else &source_view,
+        .target = &.{ .storage = @ptrCast(&target.storage), .shape = null },
+        .tables = columns.body(@FieldType(Input, "tables"), storage, count),
         .mappings = &.{ .types = &types, .functions = &functions, .natives = &natives },
         .empty = &.{
             .control = zx.columns.pointer(@FieldType(Empty, "control"), (ir.ControlBody{}).control),
@@ -104,7 +109,7 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     switch (output.status) {
         .Exhausted => return error.OutOfMemory,
         .Invalid => return error.InvalidModule,
-        .Complete => columns.checkBorrow(target, output.columns.?),
+        .Complete => columns.checkBorrow(input.tables, output.tables.?),
     }
 
     std.debug.assert(completed[0] == count);

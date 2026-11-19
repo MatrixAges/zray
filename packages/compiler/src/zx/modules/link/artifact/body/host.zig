@@ -26,15 +26,21 @@ pub fn publish(nodes: *const Nodes, value: *const ir.Function, storage: *ir.Func
 
     const lengths_slots = if (append) zx.memory.borrowColumnLengths(storage) else undefined;
     const lengths: zx.memory.ColumnLengths = &lengths_slots;
-    const layout = @FieldType(Input, "columns");
+    var target: columns.Tail(Tail) = undefined;
+    var tail: Tail = undefined;
 
-    const target = if (append)
-        columns.borrow(layout, storage.reservedTail(1), true)
+    if (append) {
+        target.init(storage);
 
-    else
-        columns.borrow(layout, @as(ir.FunctionTable, .{}), false);
-
-    const tail: Tail = if (append) .{ .lengths = @ptrCast(&lengths), .linked = @ptrCast(&linked), .module = index, .first = first } else undefined;
+        tail = .{
+            .storage = @ptrCast(&target.storage),
+            .shape = null,
+            .lengths = @ptrCast(&lengths),
+            .linked = @ptrCast(&linked),
+            .module = index,
+            .first = first,
+        };
+    }
 
     const attributes: Attributes = .{
         .ownership = @fromBackingInt(@intCast(@backingInt(value.output_ownership))),
@@ -51,8 +57,8 @@ pub fn publish(nodes: *const Nodes, value: *const ir.Function, storage: *ir.Func
     const borrowed = zx.columns.borrow(Body, @as(*const @TypeOf(request.input), &request.input));
 
     const input: Input = .{
+        .tables = if (append) columns.body(@FieldType(Input, "tables"), storage, 1) else columns.borrow(@FieldType(Input, "tables"), @as(ir.FunctionTable, .{})),
         .body = if (@typeInfo(BodyArg) == .pointer) &borrowed else borrowed,
-        .columns = target,
         .tail = if (append) &tail else null,
         .attributes = if (@typeInfo(AttributesArg) == .pointer) &attributes else attributes,
         .empty = &.{
@@ -66,7 +72,7 @@ pub fn publish(nodes: *const Nodes, value: *const ir.Function, storage: *ir.Func
         else => return error.InvalidModule,
     }) orelse return error.InvalidModule;
 
-    if (append) columns.checkBorrow(target, result.columns.?);
+    if (append) columns.checkBorrow(input.tables, result.tables.?);
 
     return if (result.retained) |body| Nodes.FunctionEntry.fromLinked(Nodes.linkedBody(value, body), body) else null;
 }

@@ -15,7 +15,7 @@ export default function (in: Input): Output {
 
     const [failure, result] = try loop({
         row: 0,
-        columns: target,
+        tables: in.tables,
         valid: true
     }, {
         while: state => state.valid && state.row < end,
@@ -33,8 +33,9 @@ export default function (in: Input): Output {
             state.valid = value != null
 
             if (value != null) {
-                state.columns = write({
-                    columns: state.columns,
+                state.tables = write({
+                    storage: target.storage,
+                    tables: state.tables,
                     function: {
                         ...value.omit([
                             "stores",
@@ -62,20 +63,20 @@ export default function (in: Input): Output {
 
     if (failure == error.OutOfMemory) {
         return {
-            columns: null,
-            status: PublicationStatus.Exhausted
+            status: PublicationStatus.Exhausted,
+            tables: null
         }
     }
 
     if (result != null && result.valid) {
         return {
-            columns: result.columns,
-            status: PublicationStatus.Complete
+            status: PublicationStatus.Complete,
+            tables: result.tables
         }
     }
 
     return {
-        columns: null,
-        status: PublicationStatus.Invalid
+        status: PublicationStatus.Invalid,
+        tables: null
     }
 }

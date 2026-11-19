@@ -1,17 +1,23 @@
+import memory from "memory/columns"
+
+import ownership from "../../../link/signature/ownership"
+
+import type { ColumnSet } from "memory/columns"
 import type { Output as External } from "../copy_external"
-import type { Attributes, Columns, Payload } from "./model"
+import type { Attributes, BodyColumns, Payload } from "./model"
 
 export type Input = {
-    columns: Columns,
+    storage: ColumnSet,
+    tables: BodyColumns,
     function: Payload,
     attributes: Attributes,
     row: u64
 }
 
-export type Output = Columns
+export type Output = BodyColumns
 
 export default function (in: Input): Output {
-    const { columns, function: value, attributes, row } = in
+    const { storage, tables, function: value, attributes, row } = in
 
     const external: External = value.external ?? {
         members: [],
@@ -20,30 +26,33 @@ export default function (in: Input): Output {
         parameters: null
     }
 
+    memory.writeSignatureTail(
+        storage,
+        row,
+        value.file,
+        value.ports.input,
+        value.ports.output,
+        ownership(attributes.ownership),
+        value.ports.native_module,
+        external.members,
+        external.export_name,
+        external.parameters,
+        external.errors,
+        attributes.allocator_argument,
+        attributes.io_argument,
+        attributes.process_argument,
+        attributes.expand_tuple,
+        attributes.fallible,
+        attributes.concurrent
+    )
+
     return {
-        files: columns.files.with(row, value.file),
-        input_types: columns.input_types.with(row, value.ports.input),
-        output_types: columns.output_types.with(row, value.ports.output),
-        ownership: columns.ownership.with(row, attributes.ownership),
-        store_modes: columns.store_modes.with(row, attributes.store_mode),
-        native_modules: columns.native_modules.with(row, value.ports.native_module),
-        native_members: columns.native_members.with(row, external.members),
-        native_exports: columns.native_exports.with(row, external.export_name),
-        native_inputs: columns.native_inputs.with(row, external.parameters),
-        native_errors: columns.native_errors.with(row, external.errors),
-        native_allocators:
-            columns.native_allocators.with(row, attributes.allocator_argument),
-        native_io: columns.native_io.with(row, attributes.io_argument),
-        native_process: columns.native_process.with(row, attributes.process_argument),
-        native_tuples: columns.native_tuples.with(row, attributes.expand_tuple),
-        native_fallible: columns.native_fallible.with(row, attributes.fallible),
-        native_concurrent:
-            columns.native_concurrent.with(row, attributes.concurrent),
-        symbols: columns.symbols.with(row, value.symbols),
-        expressions: columns.expressions.with(row, value.expressions),
-        contracts: columns.contracts.with(row, value.contracts),
-        control: columns.control.with(row, value.control),
-        roots: columns.roots.with(row, attributes.root),
-        stores: columns.stores.with(row, value.store_table)
+        store_modes: tables.store_modes.with(row, attributes.store_mode),
+        roots: tables.roots.with(row, attributes.root),
+        symbols: tables.symbols.with(row, value.symbols),
+        expressions: tables.expressions.with(row, value.expressions),
+        contracts: tables.contracts.with(row, value.contracts),
+        control: tables.control.with(row, value.control),
+        stores: tables.stores.with(row, value.store_table)
     }
 }

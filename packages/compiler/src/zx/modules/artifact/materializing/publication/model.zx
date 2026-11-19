@@ -3,6 +3,7 @@ import type { Complete, StoreMode } from "core/function_table/complete"
 import type { Table } from "core/signature_table/model"
 import type { Stores } from "core/store_table/model"
 import type { Ownership } from "core/symbol_table/model"
+import type { ColumnSet, SignatureRow } from "memory/columns"
 import type { Owned } from "../function_model"
 
 export enum PublicationStatus {
@@ -12,6 +13,27 @@ export enum PublicationStatus {
 }
 
 export type Columns = Complete
+
+export type BodyColumns =
+    Columns.Pick(
+        "store_modes",
+        "roots",
+        "symbols",
+        "expressions",
+        "contracts",
+        "control",
+        "stores"
+    )
+
+export type Target = {
+    storage: ColumnSet,
+    shape?: SignatureRow
+}
+
+export type Publication = {
+    status: PublicationStatus,
+    tables?: BodyColumns
+}
 
 export type FlagColumns = Table.Pick(
     "ownership",

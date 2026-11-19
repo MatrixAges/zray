@@ -39,13 +39,14 @@ export default function (in: Input): Output {
 
     if (value == null) {
         return {
-            columns: null,
-            status: PublicationStatus.Invalid
+            status: PublicationStatus.Invalid,
+            tables: null
         }
     }
 
-    const columns = write({
-        columns: target,
+    const tables = write({
+        storage: target.storage,
+        tables: in.tables,
         function: {
             ...value.omit([
                 "stores",
@@ -64,7 +65,7 @@ export default function (in: Input): Output {
     memory.publishColumnLengths(in.lengths, 1)
 
     return {
-        columns,
-        status: PublicationStatus.Complete
+        status: PublicationStatus.Complete,
+        tables
     }
 }

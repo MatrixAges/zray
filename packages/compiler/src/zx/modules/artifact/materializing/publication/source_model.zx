@@ -8,8 +8,7 @@ import type { Workspace } from "../../../../ir/canonical/body/workspace"
 import type { Mapping } from "../../remapping/model"
 import type { Output as External } from "../copy_external"
 import type { Input as FunctionInput, Owned } from "../function_model"
-import type { PublicationStatus } from "./model"
-import type { Attributes, Columns } from "./model"
+import type { Attributes, BodyColumns, Columns, Publication, Target } from "./model"
 
 export type Source = Columns
 
@@ -34,7 +33,8 @@ export type Link = Owned?
 
 export type Input = {
     source: Source,
-    target: Columns,
+    target: Target,
+    tables: BodyColumns,
     mappings: Mappings,
     empty: Empty,
     workspace: Workspace,
@@ -43,10 +43,7 @@ export type Input = {
     lengths: ColumnLengths
 }
 
-export type Output = {
-    columns?: Columns,
-    status: PublicationStatus
-}
+export type Output = Publication
 
 export type Root = {
     file: string,

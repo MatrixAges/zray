@@ -39,6 +39,7 @@ pub const readNominalColumns = column_set.read;
 pub const appendColumnSet = column_set.append;
 pub const appendSignatureColumnSet = column_set.append;
 pub const writeFunctionTail = column_set.writeTail;
+pub const writeSignatureTail = column_set.writeSignatureTail;
 pub const reserveNativeColumnSet = column_set.reserve;
 pub const appendNativeColumnSet = column_set.append;
 pub const allocateColumnU32s = column_set.allocateU32s;

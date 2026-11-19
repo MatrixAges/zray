@@ -7,12 +7,18 @@ import write from "../../../artifact/materializing/publication/write"
 
 import type { ColumnLengths, U64Buffer } from "memory"
 import type { Output as External } from "../../../artifact/materializing/copy_external"
-import type { Columns } from "../../../artifact/materializing/publication/model"
+import type {
+    BodyColumns,
+    Columns,
+    Publication,
+    Target
+} from "../../../artifact/materializing/publication/model"
 import type { Mapping } from "./model"
 
 export type Input = {
     source: Columns,
-    target: Columns,
+    target: Target,
+    tables: BodyColumns,
     mapping: Mapping,
     instance: string,
     first: u64,
@@ -20,10 +26,7 @@ export type Input = {
     lengths: ColumnLengths
 }
 
-export type Output = {
-    columns?: Columns,
-    status: PublicationStatus
-}
+export type Output = Publication
 
 export default function (in: Input): Output {
     const { source, target, mapping, instance, first, progress } = in
@@ -32,14 +35,14 @@ export default function (in: Input): Output {
 
     if (count == 0) {
         return {
-            columns: target,
-            status: PublicationStatus.Complete
+            status: PublicationStatus.Complete,
+            tables: in.tables
         }
     }
 
     const [failure, result] = try loop({
         row: 0,
-        columns: target
+        tables: in.tables
     }, {
         while: state => state.row < count,
         next: state => {
@@ -74,8 +77,9 @@ export default function (in: Input): Output {
                 external
             })
 
-            state.columns = write({
-                columns: state.columns,
+            state.tables = write({
+                storage: target.storage,
+                tables: state.tables,
                 function: {
                     file: owned.header.file,
                     ports: {
@@ -100,7 +104,7 @@ export default function (in: Input): Output {
             state.row += 1
             memory.writeU64(progress, 0, state.row)
         },
-        return: state => state.columns
+        return: state => state.tables
     })
 
     memory.publishColumnLengths(in.lengths, memory.readU64(progress, 0))
@@ -112,20 +116,20 @@ export default function (in: Input): Output {
 
     if (exhausted) {
         return {
-            columns: null,
-            status: PublicationStatus.Exhausted
+            status: PublicationStatus.Exhausted,
+            tables: null
         }
     }
 
     if (result == null) {
         return {
-            columns: null,
-            status: PublicationStatus.Invalid
+            status: PublicationStatus.Invalid,
+            tables: null
         }
     }
 
     return {
-        columns: result,
-        status: PublicationStatus.Complete
+        status: PublicationStatus.Complete,
+        tables: result
     }
 }

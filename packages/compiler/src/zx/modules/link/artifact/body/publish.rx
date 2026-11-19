@@ -10,7 +10,8 @@
             <Call
                 fn="../../../artifact/materializing/publication/write"
                 in={{
-                    columns: $in.columns,
+                    storage: $in.tail.storage,
+                    tables: $in.tables,
                     function: {
                         ...$ctx.own_function.omit([
                             "stores",
@@ -31,7 +32,7 @@
             <Return
                 value={{
                     retained: null,
-                    columns: $ctx.write
+                    tables: $ctx.write
                 }}
             />
         </If>
@@ -39,7 +40,7 @@
         <Return
             value={{
                 retained: $ctx.own_function,
-                columns: null
+                tables: null
             }}
         />
     </If>
