@@ -66,6 +66,10 @@ export const body_reader_name: string = "bodyReader"
 
 export const allocate_remaining_name: string = "allocRemaining"
 
+export const read_exact_name: string = "readAllocAll"
+
+export const size_name: string = "size"
+
 export const limited_name: string = "limited"
 
 export const none_name: string = "none"
@@ -95,6 +99,8 @@ export const bad_request_name: string = "bad_request"
 export const out_of_memory_name: string = "OutOfMemory"
 
 export const stream_too_long_name: string = "StreamTooLong"
+
+export const end_of_stream_name: string = "EndOfStream"
 
 export const math_name: string = "math"
 

@@ -16,12 +16,15 @@ import {
 import {
     out_of_memory_name,
     stream_too_long_name,
+    end_of_stream_name,
     err_name,
     payload_too_large_name,
     large_body_message,
     bad_request_name,
-    invalid_body_message
+    invalid_body_message,
+    truncated_body_message
 } from "./const"
+import reject from "./reject"
 import reply from "./reply"
 
 import type { Read as Input, Read as Output } from "./model"
@@ -69,13 +72,34 @@ export default function (in: Input): Output {
         condition: is_oom.id
     })
 
-    const yes_scope = open(checked)
+    const eof = text({
+        state: is_long.state,
+        kind: K.ErrorValue,
+        value: bytes.fromText(end_of_stream_name)
+    })
 
-    const too_large = reply({
+    const incomplete = binary({
+        state: eof.state,
+        operator: B.Equal,
+        left: in.state.symbols.err,
+        right: eof.id
+    })
+
+    const truncated = reject({
         state: {
             ...in.state,
-            context: is_long.state
+            context: incomplete.state,
+            statements: checked
         },
+        condition: incomplete.id,
+        status: bad_request_name,
+        message: truncated_body_message
+    })
+
+    const yes_scope = open(truncated.statements)
+
+    const too_large = reply({
+        state: truncated,
         status: payload_too_large_name,
         message: large_body_message
     })

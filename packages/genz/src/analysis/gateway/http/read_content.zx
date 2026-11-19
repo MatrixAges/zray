@@ -1,0 +1,95 @@
+import bytes from "std:bytes"
+
+import binary from "../../../ast/context/binary"
+import builtin from "../../../ast/context/builtin"
+import call from "../../../ast/context/call"
+import conditional from "../../../ast/context/conditional"
+import identifier from "../../../ast/context/identifier"
+import method from "../../../ast/context/method"
+import text from "../../../ast/context/text"
+import {
+    ExpressionsBinaryOperator as B,
+    ExpressionsBuiltinName as Builtin,
+    ExpressionsKind as K
+} from "../../../printer/model/expressions"
+import {
+    allocate_remaining_name,
+    limited_name,
+    read_exact_name,
+    size_name
+} from "./const"
+
+import type { Read as Input, Read as Output } from "./model"
+
+export default function (in: Input): Output {
+    const symbols = in.state.symbols
+    const capture = bytes.fromText(size_name)
+
+    const size = identifier({
+        state: in.state.context,
+        name: capture
+    })
+
+    const count = builtin({
+        state: size.state,
+        name: Builtin.IntCast,
+        arguments: [size.id]
+    })
+
+    const fixed = method({
+        state: count.state,
+        target: symbols.reader,
+        path: [read_exact_name],
+        arguments: [
+            symbols.allocator,
+            count.id
+        ]
+    })
+
+    const limit = binary({
+        state: fixed.state,
+        operator: B.SaturatingAdd,
+        left: symbols.max_body_bytes,
+        right: in.state.values.one
+    })
+
+    const limited = text({
+        state: limit.state,
+        kind: K.EnumLiteral,
+        value: bytes.fromText(limited_name)
+    })
+
+    const bounded = call({
+        state: limited.state,
+        callee: limited.id,
+        arguments: [limit.id],
+        fallible: false
+    })
+
+    const chunked = method({
+        state: bounded.state,
+        target: symbols.reader,
+        path: [allocate_remaining_name],
+        arguments: [
+            symbols.allocator,
+            bounded.id
+        ]
+    })
+
+    const read = conditional({
+        state: chunked.state,
+        condition: symbols.length,
+        yes: fixed.id,
+        no: chunked.id,
+        capture
+    })
+
+    return {
+        ...in,
+        state: {
+            ...in.state,
+            context: read.state
+        },
+        read: read.id
+    }
+}

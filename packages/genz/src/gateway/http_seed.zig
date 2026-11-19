@@ -15,10 +15,15 @@ pub fn readBody(builder: Builder) std.mem.Allocator.Error!node.Declaration {
     const reader = try builder.path(&.{ "request", "server", "reader" });
     const bytes = try builder.expression(.{ .const_slice = try builder.expression(.{ .primitive = .u8 }) });
     const expected = try builder.call(try builder.path(&.{ "std", "ascii", "eqlIgnoreCase" }), &.{ try builder.identifier("expect"), try builder.string("100-continue") });
-    const read = try builder.call(try builder.path(&.{ "reader", "allocRemaining" }), &.{ alloc, try builder.call(try builder.expression(.{ .enum_literal = "limited" }), &.{try builder.binary(.saturating_add, maximum, try builder.integer(1))}) });
+    const fixed_length = try builder.identifier("length");
+    const size = try builder.builtin(.intCast, &.{try builder.identifier("size")});
+    const fixed = try builder.call(try builder.path(&.{ "reader", "readAllocAll" }), &.{ alloc, size });
+    const chunked = try builder.call(try builder.path(&.{ "reader", "allocRemaining" }), &.{ alloc, try builder.call(try builder.expression(.{ .enum_literal = "limited" }), &.{try builder.binary(.saturating_add, maximum, try builder.integer(1))}) });
+    const read = try builder.expression(.{ .conditional = .{ .condition = fixed_length, .capture = "size", .yes = fixed, .no = chunked } });
 
     const read_result = try builder.expression(.{ .catch_scope = .{ .value = read, .capture = "err", .body = try builder.statements(&.{
         try builder.branch(try builder.binary(.equal, err, try builder.expression(.{ .error_value = "OutOfMemory" })), &.{.{ .result = err }}, &.{}),
+        try reject(builder, try builder.binary(.equal, err, try builder.expression(.{ .error_value = "EndOfStream" })), "bad_request", "truncated request body"),
         try builder.branch(try builder.binary(.equal, err, try builder.expression(.{ .error_value = "StreamTooLong" })), &.{try reply(builder, "payload_too_large", "request body too large")}, &.{try reply(builder, "bad_request", "invalid request body")}),
         .{ .result = try builder.expression(.null_value) },
     }) } });
