@@ -7,7 +7,14 @@ const Source = @import("frontend").project.Source;
 const generated = @import("rx_options").generated_graph;
 const Error = std.mem.Allocator.Error;
 pub const Selection = struct { parent_count: usize = 0, rx_only: bool = false, same_input: bool = false };
-pub const Publication = struct { restore: bool, parent_count: usize, capture_edits: bool, release_history: bool };
+
+pub const Publication = struct {
+    restore: bool,
+    parent_count: usize,
+    release_history: bool,
+    slots: usize,
+    edits: ?[]const u64,
+};
 
 pub fn select(epochs: anytype, frame: *const [32]u8, shape: *const [32]u8, digests: []const Digest, sources: []const Source) Selection {
     if (epochs.len == 0) return .{};
@@ -48,32 +55,50 @@ pub fn select(epochs: anytype, frame: *const [32]u8, shape: *const [32]u8, diges
     return .{ .parent_count = @intCast(found.parent_count), .rx_only = found.rx_only, .same_input = found.same_input };
 }
 
-pub fn changes(allocator: std.mem.Allocator, previous: []const Digest, current: []const Digest) Error![]const u64 {
-    if (comptime !generated) return @import("resident/seed.zig").changes(allocator, previous, current);
+pub fn publication(allocator: std.mem.Allocator, selected: Selection, borrowed: bool, previous: []const Digest, current: []const Digest) Error!Publication {
+    if (comptime !generated) {
+        const parents = if (selected.same_input or borrowed) selected.parent_count else 0;
+        const capture = !selected.same_input and borrowed and selected.rx_only;
 
-    const rule = @import("generated_rx_history_changes");
+        return .{
+            .restore = selected.same_input,
+            .parent_count = parents,
+            .release_history = !selected.same_input and !borrowed,
+            .slots = parents + @as(usize, @intFromBool(!selected.same_input)),
+            .edits = if (capture) try @import("resident/seed.zig").changes(allocator, previous, current) else null,
+        };
+    }
+
+    const rule = @import("generated_rx_history_commit");
     const earlier = memory.borrowReadColumn(@FieldType(Digest, "digest"), "digest", previous);
     const after = memory.borrowReadColumn(@FieldType(Digest, "digest"), "digest", current);
-    const input: std.meta.Child(rule.Input) = .{ .earlier = @ptrCast(&earlier), .current = @ptrCast(&after), .width = @sizeOf(@FieldType(Digest, "digest")) };
 
-    return columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const input: std.meta.Child(rule.Input) = .{
+        .selection = &.{ .parent_count = selected.parent_count, .rx_only = selected.rx_only, .same_input = selected.same_input, .borrows_previous = borrowed },
+        .digests = &.{ .earlier = @ptrCast(&earlier), .current = @ptrCast(&after), .width = @sizeOf(@FieldType(Digest, "digest")) },
+    };
+
+    const plan = columns.invoke(rule.executeValue, allocator, &input) catch |err| return switch (@as(anyerror, err)) {
         error.OutOfMemory => error.OutOfMemory,
         else => unreachable,
     };
+
+    return .{
+        .restore = plan.action.restore,
+        .parent_count = @intCast(plan.action.parent_count),
+        .release_history = plan.action.release_history,
+        .slots = @intCast(plan.action.slots),
+        .edits = plan.edits,
+    };
 }
 
-pub fn publication(selected: Selection, borrowed: bool) Publication {
-    if (comptime !generated) return .{
-        .restore = selected.same_input,
-        .parent_count = if (selected.same_input or borrowed) selected.parent_count else 0,
-        .capture_edits = !selected.same_input and borrowed and selected.rx_only,
-        .release_history = !selected.same_input and !borrowed,
-    };
+pub fn capacity(parent: u64, analysis: usize, inputs: usize) u64 {
+    if (comptime !generated) return parent + analysis + inputs;
 
-    const rule = @import("generated_rx_history_publication");
-    const input: std.meta.Child(rule.Input) = .{ .parent_count = selected.parent_count, .rx_only = selected.rx_only, .same_input = selected.same_input, .borrows_previous = borrowed };
+    const rule = @import("generated_rx_history_capacity");
+    const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
+    const input: Input = .{ .parent = parent, .analysis = analysis, .inputs = inputs };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const plan = columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return .{ .restore = plan.restore, .parent_count = @intCast(plan.parent_count), .capture_edits = plan.capture_edits, .release_history = plan.release_history };
+    return columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
 }

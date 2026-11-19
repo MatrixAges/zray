@@ -1,15 +1,4 @@
-import type { Selection } from "./model"
-
-export type Input = Selection & {
-    borrows_previous: bool
-}
-
-export type Output = {
-    restore: bool,
-    parent_count: u64,
-    capture_edits: bool,
-    release_history: bool
-}
+import type { SelectionPlan as Input, Action as Output } from "./model"
 
 export default function (in: Input): Output {
     if (in.same_input) {
@@ -17,14 +6,18 @@ export default function (in: Input): Output {
             restore: true,
             parent_count: in.parent_count,
             capture_edits: false,
-            release_history: false
+            release_history: false,
+            slots: in.parent_count
         }
     }
 
+    const parents = in.borrows_previous ? in.parent_count : 0
+
     return {
         restore: false,
-        parent_count: in.borrows_previous ? in.parent_count : 0,
+        parent_count: parents,
         capture_edits: in.borrows_previous && in.rx_only,
-        release_history: !in.borrows_previous
+        release_history: !in.borrows_previous,
+        slots: parents + 1
     }
 }

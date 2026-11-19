@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="History" />
+
+    <Args in={History.Commit} out={History.Prepared} />
+
+    <Call fn="publication" in={$in.selection} />
+
+    <If on={$ctx.publication.capture_edits}>
+        <Call fn="changes" in={$in.digests} />
+
+        <Return
+            value={{
+                action: $ctx.publication,
+                edits: $ctx.changes
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            action: $ctx.publication,
+            edits: null
+        }}
+    />
+</Module>

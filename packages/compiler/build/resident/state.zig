@@ -22,7 +22,6 @@ history: History = .{ .frame = @splat(0) },
 /// Each result may borrow its chosen predecessor and that predecessor's ancestors.
 epochs: std.ArrayList(Epoch) = .empty,
 selection: revision.Selection = .{},
-retained_capacity: usize = 0,
 /// Scratch for a request, including snapshot and output file bookkeeping.
 request: ?std.heap.ArenaAllocator = null,
 profile_memory: bool = false,
@@ -43,7 +42,7 @@ const Epoch = struct {
     rx_digests: []const project.ModuleDigest,
     /// RX paths changed relative to the borrowed predecessor. Null crosses an input or graph-shape boundary.
     edited_rx: ?[]const u64,
-    capacity: usize,
+    retained_total: u64,
 };
 
 /// `gpa` must be threadsafe: background cache writers and concurrent generation share it.
@@ -108,7 +107,12 @@ pub fn persist(self: *Self) void {
 pub fn requestAllocator(self: *Self) std.mem.Allocator {
     self.endRequest();
 
-    if (History.exceedsBudget(self.retained_capacity +| self.modules.capacity +| self.files.retained_bytes +| self.parse_cache.retained_capacity)) self.release();
+    if (History.exceedsBudget(&.{
+        self.retainedCapacity(),
+        self.modules.capacity,
+        self.files.retained_bytes,
+        self.parse_cache.retained_capacity,
+    })) self.release();
 
     self.request = .init(self.gpa);
     self.modules.parsed = 0;
@@ -169,11 +173,17 @@ pub fn logMemory(self: *const Self) void {
     if (!self.profile_memory) return;
 
     std.debug.print("resident memory: epochs={d} analysis_bytes={d} xml_versions={d} xml_bytes={d} xml_parsed={d} xml_reused={d} file_bytes={d} file_retained_bytes={d} file_replaced={d} zx_bytes={d} zx_retained_bytes={d} zx_replaced={d} emission_bytes={d}\n", .{
-        self.epochs.items.len,         self.retained_capacity,             self.modules.versions,              self.modules.capacity,
+        self.epochs.items.len,         self.retainedCapacity(),            self.modules.versions,              self.modules.capacity,
         self.modules.parsed,           self.modules.reused,                self.files.counters.active,         self.files.retained_bytes,
         self.files.replaced.items.len, self.parse_cache.currentCapacity(), self.parse_cache.retained_capacity, self.parse_cache.replaced.items.len,
         self.emission.queryCapacity(),
     });
+}
+
+fn retainedCapacity(self: *const Self) u64 {
+    const items = self.epochs.items;
+
+    return if (items.len == 0) 0 else items[items.len - 1].retained_total;
 }
 
 /// The history for an analysis of inputs identified by `frame`, whose RX sources have `rx_digests` within `shape`.
@@ -198,7 +208,15 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
 
     errdefer owned.deinit();
 
-    const plan = revision.publication(self.selection, !self.selection.same_input and self.history.borrowsPrevious());
+    const earlier = if (self.selection.parent_count == 0) &.{} else self.epochs.items[self.selection.parent_count - 1].rx_digests;
+
+    const plan = try revision.publication(
+        owned.allocator(),
+        self.selection,
+        !self.selection.same_input and self.history.borrowsPrevious(),
+        earlier,
+        self.history.rx_digests,
+    );
 
     if (plan.restore) {
         self.history.next = null;
@@ -211,13 +229,7 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
     }
 
     // Reserve before discarding old history so allocation failure cannot leave a half-published analysis.
-    const edited_rx = if (plan.capture_edits)
-        try revision.changes(owned.allocator(), self.epochs.items[plan.parent_count - 1].rx_digests, self.history.rx_digests)
-
-    else
-        null;
-
-    try self.epochs.ensureTotalCapacity(self.gpa, plan.parent_count + 1);
+    try self.epochs.ensureTotalCapacity(self.gpa, plan.slots);
     try self.files.reserveAnalysis();
     try self.parse_cache.reserveAnalysis();
     if (plan.release_history) self.release() else self.dropEpochs(plan.parent_count);
@@ -226,7 +238,7 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
 
     self.history.next = null;
 
-    const capacity = owned.queryCapacity() + if (self.inputs) |inputs| inputs.queryCapacity() else 0;
+    const total = revision.capacity(self.retainedCapacity(), owned.queryCapacity(), if (self.inputs) |inputs| inputs.queryCapacity() else 0);
 
     self.epochs.appendAssumeCapacity(.{
         .analysis = owned,
@@ -234,11 +246,9 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
         .snapshot = snapshot,
         .modules = self.modules.publish(),
         .rx_digests = self.history.rx_digests,
-        .edited_rx = edited_rx,
-        .capacity = capacity,
+        .edited_rx = plan.edits,
+        .retained_total = total,
     });
-
-    self.retained_capacity += capacity;
 
     self.files.keepAnalysis();
     self.parse_cache.keepAnalysis();
@@ -264,7 +274,5 @@ fn dropEpochs(self: *Self, count: usize) void {
         if (epoch.inputs) |*inputs| inputs.deinit();
 
         self.modules.release(epoch.modules);
-
-        self.retained_capacity -= epoch.capacity;
     }
 }

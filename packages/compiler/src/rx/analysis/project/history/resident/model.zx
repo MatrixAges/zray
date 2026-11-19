@@ -38,6 +38,28 @@ export type Selection = {
     same_input: bool
 }
 
+export type SelectionPlan = Selection & {
+    borrows_previous: bool
+}
+
+export type Action = {
+    restore: bool,
+    parent_count: u64,
+    capture_edits: bool,
+    release_history: bool,
+    slots: u64
+}
+
 export type Change = Digests & {
     row: u64
+}
+
+export type Commit = {
+    selection: SelectionPlan,
+    digests: Digests
+}
+
+export type Prepared = {
+    action: Action,
+    edits?: u64[]
 }

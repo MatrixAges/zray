@@ -109,16 +109,23 @@ pub const History = struct {
     bodies_only: bool = false,
     /// Set when the analysis takes the earlier signatures, which then outlive it.
     signatures_reused: bool = false,
-    pub fn exceedsBudget(capacity: usize) bool {
+    pub fn exceedsBudget(capacities: []const u64) bool {
         if (comptime @import("rx_options").generated_graph) {
             var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-            return @import("generated_rx_history_budget").executeValue(empty.allocator(), capacity) catch unreachable;
+            return @import("generated_rx_history_budget").executeValue(empty.allocator(), capacities) catch unreachable;
         }
 
         const seed_retained_limit = 3 << 30;
+        var available: u64 = seed_retained_limit;
 
-        return capacity > seed_retained_limit;
+        for (capacities) |capacity| {
+            if (capacity > available) return true;
+
+            available -= capacity;
+        }
+
+        return false;
     }
 
     pub fn borrowsPrevious(self: *const History) bool {
