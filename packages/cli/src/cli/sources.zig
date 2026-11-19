@@ -35,6 +35,7 @@ pub const Traversal = struct {
     inputs: ?*Inputs,
     libraries: ?*Libraries,
     has_rx: ?*bool = null,
+    /// Preloaded text has the same lifetime as the resulting source list.
     known: ?*const Known = null,
     sources: std.ArrayList(compiler.project.Source) = .empty,
     paths: std.StringHashMapUnmanaged(void) = .empty,
@@ -128,7 +129,7 @@ pub const Traversal = struct {
 
             const known_text = if (self.known) |known| known.get(path) else null;
 
-            const text = if (known_text) |text| try self.allocator.dupe(u8, text) else std.Io.Dir.cwd().readFileAlloc(self.io, path, self.allocator, .limited(16 * 1024 * 1024)) catch |err| switch (err) {
+            const text = known_text orelse std.Io.Dir.cwd().readFileAlloc(self.io, path, self.allocator, .limited(16 * 1024 * 1024)) catch |err| switch (err) {
                 error.FileNotFound => continue,
                 else => return err,
             };

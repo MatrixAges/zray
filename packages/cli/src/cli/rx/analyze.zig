@@ -28,7 +28,17 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
 
     defer libraries.deinit();
 
-    var loaded = try collection.load(allocator, .{ .io = io, .root = root, .entry = owner, .writer = options.writer, .inputs = options.inputs, .project = project, .parse_cache = cache, .libraries = &libraries }) orelse return null;
+    var loaded = try collection.load(allocator, .{
+        .io = io,
+        .root = root,
+        .entry = owner,
+        .writer = options.writer,
+        .inputs = options.inputs,
+        .project = project,
+        .parse_cache = cache,
+        .libraries = &libraries,
+        .retained_source_allocator = allocator,
+    }) orelse return null;
 
     defer loaded.deinit();
 
@@ -75,9 +85,8 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         try validatePath(allocator, options, physical_root, path);
 
         const first = traversal.sources.items.len;
-        const text = try allocator.dupe(u8, function.source);
 
-        try traversal.readEntry(path, text);
+        try traversal.readEntry(path, function.source);
 
         if (project.package_scopes.len == 0) {
             for (traversal.sources.items[first + 1 ..]) |item| {
@@ -118,7 +127,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     for (loaded.data.sources) |source| {
         try traversal.sources.append(allocator, .{
             .path = try std.fs.path.resolve(allocator, &.{ root, source.path }),
-            .source = try allocator.dupe(u8, source.source),
+            .source = source.source,
         });
     }
 

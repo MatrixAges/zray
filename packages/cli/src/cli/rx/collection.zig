@@ -3,7 +3,19 @@ const rx = @import("rx");
 const compiler = @import("compiler");
 const gateway = @import("rx_analysis").gateway;
 const Inputs = @import("../watch/inputs.zig");
-pub const Options = struct { io: std.Io, root: []const u8, entry: []const u8, writer: *std.Io.Writer, inputs: ?*Inputs = null, project: compiler.project.Options = .{ .entry = "" }, parse_cache: ?*compiler.project.ParseCache = null, libraries: ?*@import("../library/inputs.zig") = null };
+
+pub const Options = struct {
+    io: std.Io,
+    root: []const u8,
+    entry: []const u8,
+    writer: *std.Io.Writer,
+    inputs: ?*Inputs = null,
+    project: compiler.project.Options = .{ .entry = "" },
+    parse_cache: ?*compiler.project.ParseCache = null,
+    libraries: ?*@import("../library/inputs.zig") = null,
+    retained_source_allocator: ?std.mem.Allocator = null,
+};
+
 pub const GatewaySource = struct { path: []const u8, node: rx.ast.Node };
 pub const Data = struct { gateway: ?GatewaySource = null, modules: []const rx.ModuleSource, stores: []const rx.ModuleSource, sources: []const rx.TextSource, functions: []const rx.TextSource };
 
@@ -119,9 +131,14 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
 
         try physical.put(allocator, real, path);
 
-        const source = std.Io.Dir.cwd().readFileAlloc(io, absolute, allocator, .limited(16 * 1024 * 1024)) catch |err| {
+        const is_zx = std.mem.endsWith(u8, path, ".zx");
+        const is_gateway = std.mem.endsWith(u8, path, ".gateway.rx");
+        const is_store = std.mem.endsWith(u8, path, ".store.rx");
+        const source_allocator = if (is_gateway or is_store) allocator else options.retained_source_allocator orelse allocator;
+
+        const source = std.Io.Dir.cwd().readFileAlloc(io, absolute, source_allocator, .limited(16 * 1024 * 1024)) catch |err| {
             if (err == error.OutOfMemory) return err;
-            if (err == error.FileNotFound and index != 0 and std.mem.endsWith(u8, path, ".zx")) continue;
+            if (err == error.FileNotFound and index != 0 and is_zx) continue;
             try writer.print("{s}: {s}\n", .{ path, @errorName(err) });
 
             return null;
@@ -129,7 +146,7 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
 
         if (options.inputs) |inputs| try inputs.record(io, absolute, source);
 
-        if (std.mem.endsWith(u8, path, ".zx")) {
+        if (is_zx) {
             const parsed = try cache.getModule(source, absolute);
             var collector = @import("references/collector.zig"){ .allocator = allocator, .temporary = &reference_memory, .options = project, .owner = absolute, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
 
@@ -165,7 +182,6 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
             return null;
         }
 
-        const is_gateway = std.mem.endsWith(u8, path, ".gateway.rx");
         var collector = @import("references/collector.zig"){ .allocator = allocator, .temporary = &reference_memory, .options = project, .owner = absolute, .package_scope = package_scope, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
 
         if (is_gateway) gateway_source = .{ .path = path, .node = parsed.value.node };
@@ -193,7 +209,7 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
             continue;
         }
 
-        if (std.mem.endsWith(u8, path, ".store.rx")) {
+        if (is_store) {
             try stores.append(allocator, module);
         } else if (!is_gateway) {
             try sources.append(allocator, .{ .path = path, .source = source, .packages = packages });

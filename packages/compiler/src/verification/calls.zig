@@ -12,19 +12,13 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
     if (comptime @import("parser_options").generated_parser) {
         const rule = @import("generated_verification_graph_call");
         const Input = std.meta.Child(rule.Input);
-        const Edges = std.meta.Child(@FieldType(Input, "calls"));
-        const table = &function.expressions;
 
         const request: Input = .{
+            .calls = function.expressions.call_functions,
+            .target = @backingInt(invocation.function),
             .stores = function.stores.count(),
             .external = function.external != null,
             .depth = self.call_depth,
-            .calls = &.{
-                .kinds = zx.columns.slice(@FieldType(Edges, "kinds"), table.kinds),
-                .payloads = table.payloads,
-                .functions = table.call_functions,
-                .target = @backingInt(invocation.function),
-            },
         };
 
         var empty = std.heap.FixedBufferAllocator.init(&.{});
@@ -35,11 +29,8 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
         if (function.stores.count() != 0) return self.reporter.fail(.unsupported, expression.span, "verification does not model Store calls");
         if (function.external != null) return self.reporter.fail(.unsupported, expression.span, "verification requires a ZX body for each executed call; external semantics are not modeled");
 
-        for (0..function.expressions.count()) |index| {
-            if (function.expressions.callee(index)) |callee| {
-                if (callee == invocation.function) return self.reporter.fail(.unsupported, expression.span, "symbolic execution does not support recursive functions");
-            }
-        }
+        if (std.mem.indexOfScalar(u32, function.expressions.call_functions, @backingInt(invocation.function)) != null)
+            return self.reporter.fail(.unsupported, expression.span, "symbolic execution does not support recursive functions");
 
         if (self.call_depth >= 128) return self.reporter.fail(.unsupported, expression.span, "verification call depth exceeds 128");
     }

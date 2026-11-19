@@ -1,3 +1,4 @@
+import recursive from "../../zx/modules/forward_entry/recursive"
 import {
     max_call_depth,
     store_call_message,
@@ -5,12 +6,10 @@ import {
     recursive_call_message,
     call_limit_message
 } from "./const"
-import recursive from "./recursion"
-
-import type { Input as Calls } from "./recursion"
 
 export type Input = {
-    calls: Calls,
+    calls: u32[],
+    target: u32,
     stores: u64,
     external: bool,
     depth: u64
@@ -19,10 +18,21 @@ export type Input = {
 export type Output = string?
 
 export default function (in: Input): Output {
+    if (in.stores != 0) {
+        return store_call_message
+    }
+
+    if (in.external) {
+        return external_call_message
+    }
+
+    const candidate = recursive({
+        calls: in.calls,
+        candidate: in.target
+    })
+
     return match {
-        in.stores != 0 => store_call_message,
-        in.external => external_call_message,
-        recursive(in.calls) => recursive_call_message,
+        candidate != null => recursive_call_message,
         in.depth >= max_call_depth => call_limit_message,
         _ => null
     }
