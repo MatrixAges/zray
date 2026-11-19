@@ -24,10 +24,6 @@ export const encoded_name: string = "encoded"
 
 export const read_body_name: string = "readBody"
 
-export const allocate_name: string = "allocate"
-
-export const always_name: string = "alloc_always"
-
 export const length_name: string = "len"
 
 export const init_name: string = "init"

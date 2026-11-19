@@ -58,10 +58,6 @@ export const json_name: string = "json"
 
 export const parse_name: string = "parseFromSliceLeaky"
 
-export const allocate_name: string = "allocate"
-
-export const always_name: string = "alloc_always"
-
 export const result_module: string = "result.zig"
 
 export const emit_name: string = "emit"

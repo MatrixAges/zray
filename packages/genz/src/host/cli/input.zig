@@ -16,7 +16,7 @@ pub fn lower(builder: Builder) std.mem.Allocator.Error!node.Statement {
         input_type,
         try builder.identifier("allocator"),
         try builder.expression(.{ .index = .{ .target = try builder.identifier("args"), .index = try builder.integer(1) } }),
-        try builder.object(&.{.{ .name = "allocate", .value = try builder.expression(.{ .enum_literal = "alloc_always" }) }}),
+        try builder.object(&.{}),
     });
 
     const json = try builder.expression(.{ .block = .{ .label = "input", .statements = try builder.statements(&.{

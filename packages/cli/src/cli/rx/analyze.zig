@@ -9,6 +9,7 @@ pub const Options = struct {
     io: std.Io,
     project: compiler.project.Options,
     writer: *std.Io.Writer,
+    parse_cache: *compiler.project.ParseCache,
     inputs: ?*Inputs = null,
     exports: []const analysis.project.Export = &.{},
 };
@@ -21,15 +22,12 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
 
     if (collection.outside(owner)) return error.RxEntryOutsideProject;
 
-    var cache = compiler.project.ParseCache{ .allocator = allocator };
-
-    defer cache.deinit();
-
+    const cache = options.parse_cache;
     var libraries = @import("../library/inputs.zig"){ .allocator = allocator };
 
     defer libraries.deinit();
 
-    var loaded = try collection.load(allocator, .{ .io = io, .root = root, .entry = owner, .writer = options.writer, .inputs = options.inputs, .project = project, .parse_cache = &cache, .libraries = &libraries }) orelse return null;
+    var loaded = try collection.load(allocator, .{ .io = io, .root = root, .entry = owner, .writer = options.writer, .inputs = options.inputs, .project = project, .parse_cache = cache, .libraries = &libraries }) orelse return null;
 
     defer loaded.deinit();
 
@@ -77,7 +75,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         function_project.entry = path;
 
         const text = try allocator.dupe(u8, function.source);
-        const imported = try @import("../sources.zig").readKnown(io, allocator, text, function_project, &cache, options.inputs, &libraries, &known);
+        const imported = try @import("../sources.zig").readKnown(io, allocator, text, function_project, cache, options.inputs, &libraries, &known);
 
         for (imported) |item| {
             if (project.package_scopes.len == 0) try validatePath(allocator, options, item.path);
@@ -97,6 +95,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         .stores = loaded.data.stores,
         .sources = sources.items,
         .project = project,
+        .parse_cache = cache,
         .scratch_allocator = std.heap.smp_allocator,
     });
 

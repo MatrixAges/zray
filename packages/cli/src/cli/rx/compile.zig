@@ -24,7 +24,11 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     if (std.mem.endsWith(u8, loaded.project.entry, ".gateway.rx")) return @import("gateway/compile.zig").run(context, loaded) catch |err| return failure(context, err);
 
-    var prepared = (@import("analyze.zig").run(allocator, .{ .io = context.io, .project = loaded.project, .writer = writer, .inputs = inputs }) catch |err| return failure(context, err)) orelse return .failed;
+    var parsing = compiler.project.ParseCache{ .allocator = context.backing, .keeps_replaced = true };
+
+    defer parsing.deinit();
+
+    var prepared = (@import("analyze.zig").run(allocator, .{ .io = context.io, .project = loaded.project, .writer = writer, .parse_cache = &parsing, .inputs = inputs }) catch |err| return failure(context, err)) orelse return .failed;
 
     defer prepared.analysis.deinit();
 

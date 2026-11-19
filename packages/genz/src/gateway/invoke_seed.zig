@@ -31,7 +31,7 @@ pub fn lower(builder: Builder, service: Service, index: usize) std.mem.Allocator
         .{ .break_value = .{ .label = "input", .value = try builder.expression(.unit) } },
     }) } });
 
-    const parsed = try builder.call(try builder.path(&.{ "std", "json", "parseFromSliceLeaky" }), &.{ input_type, alloc, body, try builder.object(&.{.{ .name = "allocate", .value = try builder.expression(.{ .enum_literal = "alloc_always" }) }}) });
+    const parsed = try builder.call(try builder.path(&.{ "std", "json", "parseFromSliceLeaky" }), &.{ input_type, alloc, body, empty });
 
     const parsed_input = try builder.expression(.{ .catch_scope = .{ .value = parsed, .capture = "err", .body = try builder.statements(&.{
         try builder.branch(oom, &.{.{ .result = err }}, &.{}),

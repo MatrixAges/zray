@@ -1,50 +1,18 @@
-import bytes from "std:bytes"
-import integers from "std:integer"
-
-import object from "../../../../ast/context/object"
 import standard from "../../../../ast/context/standard"
-import text from "../../../../ast/context/text"
-import append from "../../../../ast/fields/append"
 import branch from "../../../../ast/statements/builder/branch"
 import close from "../../../../ast/statements/builder/close"
 import open from "../../../../ast/statements/builder/open"
 import result from "../../../../ast/statements/builder/result"
-import { ExpressionsKind as K } from "../../../../printer/model/expressions"
 import { bad_request_name } from "../../const"
 import caught from "../catch"
-import {
-    allocate_name,
-    always_name,
-    json_name,
-    parse_name,
-    invalid_input_message
-} from "../const"
+import { json_name, parse_name, invalid_input_message } from "../const"
 import response from "../error_response"
 
 import type { State as Input, State as Output } from "../model"
 
 export default function (in: Input): Output {
-    const allocate = text({
-        state: in.context,
-        kind: K.EnumLiteral,
-        value: bytes.fromText(always_name)
-    })
-
-    const fields = append({
-        table: in.fields,
-        name: bytes.fromText(allocate_name),
-        value: allocate.id,
-        comptime_parameter: false
-    })
-
-    const options = object({
-        state: allocate.state,
-        first: in.source.bases.field_base + integers.narrow(in.fields.name.length),
-        count: 1
-    })
-
     const parsed = standard({
-        state: options.state,
+        state: in.context,
         path: [
             json_name,
             parse_name
@@ -53,7 +21,7 @@ export default function (in: Input): Output {
             in.types.input,
             in.symbols.allocator,
             in.symbols.body,
-            options.id
+            in.symbols.empty
         ],
         fallible: false
     })
@@ -77,8 +45,7 @@ export default function (in: Input): Output {
     const sent = response({
         state: {
             ...in,
-            context: parsed.state,
-            fields
+            context: parsed.state
         },
         status: bad_request_name,
         message: invalid_input_message

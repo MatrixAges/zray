@@ -15,11 +15,13 @@ pub const Module = struct {
 pub const Result = struct {
     arena: *std.heap.ArenaAllocator,
     modules: []Module,
+    parse_cache: ?*compiler.project.ParseCache = null,
     compiled: ?compiler.library.Result = null,
     legacy_single: bool = false,
     pub fn deinit(self: *Result) void {
         for (self.modules) |*module| module.analysis.deinit();
         if (self.compiled) |*library| library.deinit();
+        if (self.parse_cache) |cache| cache.deinit();
 
         const allocator = self.arena.child_allocator;
 
@@ -68,19 +70,21 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     var count: usize = 0;
     const owned = arena.allocator();
     var modules: []Module = &.{};
+    var parse_cache: ?*compiler.project.ParseCache = null;
 
     defer if (!transferred) {
         for (modules[0..count]) |*module| module.analysis.deinit();
+        if (parse_cache) |cache| cache.deinit();
 
         arena.deinit();
         allocator.destroy(arena);
     };
 
     modules = try owned.alloc(Module, options.loaded.config.exports.len);
+    const cache = try owned.create(compiler.project.ParseCache);
 
-    var cache = compiler.project.ParseCache{ .allocator = owned };
-
-    defer cache.deinit();
+    cache.* = .{ .allocator = allocator, .keeps_replaced = true };
+    parse_cache = cache;
 
     var libraries = @import("inputs.zig"){ .allocator = owned };
 
@@ -92,18 +96,19 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         project.entry = try std.fs.path.resolve(owned, &.{ project.root_dir, exported.source });
 
         if (std.mem.endsWith(u8, project.entry, ".rx")) {
-            const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }} }) orelse return null;
+            const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }} }) orelse return null;
             module.* = .{ .name = exported.path, .analysis = prepared.analysis, .sources = prepared.sources, .store_definitions = prepared.store_definitions };
         } else {
             const source = try std.Io.Dir.cwd().readFileAlloc(options.io, project.entry, owned, .limited(16 * 1024 * 1024));
-            const detected = try @import("../sources.zig").readDetectingRx(options.io, owned, source, project, &cache, options.inputs, &libraries);
+            const detected = try @import("../sources.zig").readDetectingRx(options.io, owned, source, project, cache, options.inputs, &libraries);
             project.compiled_libraries = libraries.libraries.items;
 
             if (detected.has_rx) {
-                const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }} }) orelse return null;
+                const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }} }) orelse return null;
                 module.* = .{ .name = exported.path, .analysis = prepared.analysis, .sources = prepared.sources, .store_definitions = prepared.store_definitions };
             } else {
-                const analyzed = try compiler.analyzeProjectWithCache(owned, detected.sources, project, &cache);
+                const analyzed = try compiler.analyzeProjectWithCache(owned, detected.sources, project, cache);
+
                 module.* = .{ .name = exported.path, .analysis = analyzed, .sources = detected.sources };
             }
         }
@@ -124,5 +129,5 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
 
     transferred = true;
 
-    return .{ .arena = arena, .modules = modules };
+    return .{ .arena = arena, .modules = modules, .parse_cache = cache };
 }

@@ -12,14 +12,14 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
     defer application.deinit(io);
 
     var last_success: ?Snapshot = null;
-    var baseline: ?Snapshot = null;
+    var last_failure: ?Snapshot = null;
     var backend_arena = std.heap.ArenaAllocator.init(allocator);
     var backend_paths: []const []const u8 = &.{};
     var previous_message: []const u8 = &.{};
     var status: compile.Status = .retry;
 
     defer if (last_success) |*snapshot| snapshot.deinit();
-    defer if (baseline) |*snapshot| snapshot.deinit();
+    defer if (last_failure) |*snapshot| snapshot.deinit();
     defer backend_arena.deinit();
     defer allocator.free(previous_message);
 
@@ -29,7 +29,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
     while (true) {
         if (options.run and @import("watch/interrupt.zig").requested()) return;
 
-        if (baseline) |snapshot| {
+        if (last_failure orelse last_success) |snapshot| {
             if (try wait(io, allocator, snapshot, status, stderr, &application)) {
                 allocator.free(previous_message);
 
@@ -85,6 +85,10 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
             try stderr.writeAll(message);
         }
 
+        if (last_failure) |*snapshot| snapshot.deinit();
+
+        last_failure = null;
+
         if (status == .success) {
             const next = try inputs.observed(allocator);
 
@@ -104,19 +108,17 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
                     try stderr.print("zxc watch: application start: {s}\n", .{@errorName(err)});
                 };
             }
-        } else if (last_success) |snapshot| {
-            for (snapshot.entries) |entry| {
-                (if (entry.directory_entries) inputs.addDirectory(io, entry.path) else inputs.add(io, entry.path)) catch |err| {
-                    if (err == error.OutOfMemory or err == error.Canceled) return err;
-                };
+        } else {
+            if (last_success) |snapshot| {
+                for (snapshot.entries) |entry| {
+                    (if (entry.directory_entries) inputs.addDirectory(io, entry.path) else inputs.add(io, entry.path)) catch |err| {
+                        if (err == error.OutOfMemory or err == error.Canceled) return err;
+                    };
+                }
             }
+
+            last_failure = try inputs.observed(allocator);
         }
-
-        const next = try inputs.observed(allocator);
-
-        if (baseline) |*snapshot| snapshot.deinit();
-
-        baseline = next;
 
         try stderr.flush();
         try stdout.flush();
