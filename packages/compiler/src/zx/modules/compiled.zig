@@ -36,6 +36,7 @@ pub const loadCalls = @import("compiled/load.zig").loadCalls;
 pub const loadInto = @import("compiled/load.zig").loadInto;
 pub const validateHeader = @import("compiled/validate.zig").validateHeader;
 pub const validate = @import("compiled/validate.zig").validate;
+pub const validateIndexed = @import("compiled/validate.zig").validateIndexed;
 pub const validateLinked = @import("compiled/validate.zig").validateLinked;
 
 pub fn copyTarget(allocator: std.mem.Allocator, value: Target) std.mem.Allocator.Error!Target {

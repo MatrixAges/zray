@@ -3,29 +3,34 @@ const compiler = @import("compiler");
 const model = @import("../../package/manifest/model.zig");
 const Inputs = @import("../watch/inputs.zig");
 const identity = compiler.project.compiled.identity;
+const admission = @import("cli_source").compiled_native_artifact;
 const Self = @This();
 
 library: compiler.library.Result,
 instance: []const u8,
 pub fn load(io: std.Io, allocator: std.mem.Allocator, root: []const u8, config: model.Manifest, scopes: []const compiler.project.PackageScope, inputs: ?*Inputs) !?Self {
-    const relative = config.library orelse return null;
+    const Input = std.meta.Child(admission.Input);
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    if (config.native_modules.len == 0 and config.native_interfaces.len == 0 and config.externals.len == 0) return null;
+    const relative = (@import("zx").columns.invoke(admission.executeValue, fixed.allocator(), &Input{
+        .path = config.library,
+        .modules = config.native_modules.len,
+        .interfaces = config.native_interfaces.len,
+        .externals = config.externals.len,
+    }) catch unreachable) orelse return null;
 
     const path = try std.fs.path.resolve(allocator, &.{ root, relative });
 
     defer allocator.free(path);
 
-    if (inputs) |observed| try observed.add(io, path);
-    try @import("../../package/source.zig").validateWithInputs(io, allocator, path, scopes, inputs);
+    const library = try @import("../library/artifact.zig").open(std.heap.page_allocator, .{
+        .io = io,
+        .path = path,
+        .scopes = scopes,
+        .inputs = inputs,
+    });
 
-    const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(64 * 1024 * 1024));
-
-    defer allocator.free(bytes);
-
-    if (inputs) |observed| try observed.record(io, path, bytes);
-
-    return .{ .library = try compiler.library.codec.decode(allocator, bytes), .instance = root };
+    return .{ .library = library, .instance = root };
 }
 
 pub fn deinit(self: *Self) void {

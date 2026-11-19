@@ -7,7 +7,16 @@ pub const Error = std.mem.Allocator.Error || error{InvalidLibrary};
 pub const LinkError = Error || error{ InvalidIr, ConflictingStore };
 
 pub fn validate(allocator: std.mem.Allocator, library: model.Graph) Error!void {
-    if (comptime !@import("parser_options").generated_parser) return @import("seed_validate.zig").validate(allocator, library);
+    return validateIndexed(allocator, library, null);
+}
+
+pub fn validateIndexed(allocator: std.mem.Allocator, library: model.Graph, names: ?*model.ExportIndex) Error!void {
+    if (comptime !@import("parser_options").generated_parser) {
+        try @import("seed_validate.zig").validate(allocator, library);
+        if (names) |index| try index.finish(library.exports);
+
+        return;
+    }
 
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
@@ -20,7 +29,15 @@ pub fn validate(allocator: std.mem.Allocator, library: model.Graph) Error!void {
 
     graph.init(temporary, &library);
 
-    const input: Input = .{ .graph = &graph.input, .export_index = null };
+    const buckets = if (names) |index| index.buckets() else null;
+
+    const index: std.meta.Child(@typeInfo(@FieldType(Input, "export_index")).optional.child) = if (buckets) |*buffer|
+        .{ .buckets = @ptrCast(buffer), .capacity = buffer.len }
+
+    else
+        undefined;
+
+    const input: Input = .{ .graph = &graph.input, .export_index = if (buckets == null) null else &index };
 
     const accepted = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,

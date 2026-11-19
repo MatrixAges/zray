@@ -36,18 +36,13 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !bool {
             };
 
             if (resolved == .source) continue;
-            try options.libraries.add(options.io, resolved.compiled, options.project, options.inputs);
 
-            for (options.libraries.libraries.items) |library| {
-                if (!std.mem.eql(u8, library.instance, resolved.compiled.instance)) continue;
+            const exported = try options.libraries.add(options.io, resolved.compiled, options.project, options.inputs);
 
-                for (library.exports) |exported| {
-                    if (!std.mem.eql(u8, exported.name, resolved.compiled.name)) continue;
-                    if (exported.function != null) break;
-                    try options.writer.print("{s}:{d}:{d}: module: Call.module requires an executable public module\n", .{ module.path, attribute.value_location.line, attribute.value_location.column });
+            if (exported.function == null) {
+                try options.writer.print("{s}:{d}:{d}: module: Call.module requires an executable public module\n", .{ module.path, attribute.value_location.line, attribute.value_location.column });
 
-                    return false;
-                }
+                return false;
             }
         }
     }

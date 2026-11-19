@@ -138,6 +138,18 @@
             "name": "library_legacy_output"
         },
         {
+            "path": "library/consumption/const.zx",
+            "name": "compiled_artifact_constants"
+        },
+        {
+            "path": "library/consumption/native_artifact.zx",
+            "name": "compiled_native_artifact"
+        },
+        {
+            "path": "library/consumption/manifest.rx",
+            "name": "compiled_manifest_selection"
+        },
+        {
             "path": "library/publication/native_views.zx",
             "name": "library_native_views"
         },

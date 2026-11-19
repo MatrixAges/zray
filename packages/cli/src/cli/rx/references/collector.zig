@@ -86,7 +86,9 @@ pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, rol
 
             try self.local(path, location, role);
         },
-        .compiled => |compiled| if (self.libraries) |libraries| try libraries.add(self.io, compiled, self.options, self.inputs),
+        .compiled => |compiled| if (self.libraries) |libraries| {
+            _ = try libraries.add(self.io, compiled, self.options, self.inputs);
+        },
     }
 }
 

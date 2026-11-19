@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const model = @import("root.zig");
 const validation = @import("validate.zig");
+const ExportIndex = @import("frontend").project.compiled.ExportIndex;
 const generated = @import("parser_options").generated_parser;
 const marker = "zxc.library.v2\n";
 const legacy_marker = "zxc.library.v1\n";
@@ -44,6 +45,23 @@ pub fn encode(allocator: std.mem.Allocator, library: *const model.Result) Error!
 }
 
 pub fn decode(allocator: std.mem.Allocator, bytes: []const u8) Error!model.Result {
+    return decodePayload(allocator, bytes, null);
+}
+
+pub const Indexed = struct {
+    library: model.Result,
+    names: ExportIndex,
+};
+
+/// The validated name index is owned by the returned library's arena.
+pub fn decodeIndexed(allocator: std.mem.Allocator, bytes: []const u8) Error!Indexed {
+    var names: ExportIndex = undefined;
+    const library = try decodePayload(allocator, bytes, &names);
+
+    return .{ .library = library, .names = names };
+}
+
+fn decodePayload(allocator: std.mem.Allocator, bytes: []const u8, names: ?*ExportIndex) Error!model.Result {
     const frame = (if (generated) envelope.open(bytes) else openSeed(bytes)) orelse return error.InvalidLibrary;
     var arena = std.heap.ArenaAllocator.init(allocator);
 
@@ -67,7 +85,13 @@ pub fn decode(allocator: std.mem.Allocator, bytes: []const u8) Error!model.Resul
 
     const result = model.Result{ .arena = arena, .program = parsed.program, .exports = parsed.exports, .nominal_types = parsed.nominal_types, .store_initializers = parsed.store_initializers };
 
-    try validation.validate(allocator, &result);
+    if (names) |index| {
+        index.* = try ExportIndex.init(memory, parsed.exports.len);
+
+        try validation.validateIndexed(allocator, &result, index);
+    } else {
+        try validation.validate(allocator, &result);
+    }
 
     return result;
 }

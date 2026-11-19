@@ -118,7 +118,7 @@ pub const Traversal = struct {
                 .compiled => |compiled| {
                     const collection = self.libraries orelse return error.CompiledLibraryLoaderRequired;
 
-                    try collection.add(self.io, compiled, project, self.inputs);
+                    _ = try collection.add(self.io, compiled, project, self.inputs);
 
                     continue;
                 },

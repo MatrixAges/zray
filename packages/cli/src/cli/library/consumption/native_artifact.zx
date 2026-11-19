@@ -1,0 +1,22 @@
+export type Input = {
+    path?: string,
+    modules: u64,
+    interfaces: u64,
+    externals: u64
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const no_native_bindings = (
+        - in.modules == 0
+        - and in.interfaces == 0
+        - and in.externals == 0
+    )
+
+    if (no_native_bindings) {
+        return null
+    }
+
+    return in.path
+}

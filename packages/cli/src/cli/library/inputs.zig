@@ -6,10 +6,10 @@ const Self = @This();
 
 allocator: std.mem.Allocator,
 libraries: std.ArrayList(compiler.project.compiled.Library) = .empty,
-owned: std.ArrayList(compiler.library.Result) = .empty,
+owned: std.ArrayList(compiler.library.codec.Indexed) = .empty,
 failure_path: ?[]const u8 = null,
 pub fn deinit(self: *Self) void {
-    for (self.owned.items) |*library| library.deinit();
+    for (self.owned.items) |*entry| entry.library.deinit();
 
     self.owned.deinit(self.allocator);
     self.libraries.deinit(self.allocator);
@@ -17,36 +17,39 @@ pub fn deinit(self: *Self) void {
     self.* = undefined;
 }
 
-pub fn add(self: *Self, io: std.Io, target: compiler.project.compiled.Target, project: compiler.project.Options, inputs: ?*Inputs) !void {
+pub fn add(self: *Self, io: std.Io, target: compiler.project.compiled.Target, project: compiler.project.Options, inputs: ?*Inputs) !*const compiler.library.Export {
     self.failure_path = null;
     errdefer self.failure_path = target.artifact;
 
     switch (resolve.cached(self.libraries.items, target)) {
-        .found => |index| return requireExport(self.libraries.items[index].exports, target.name),
+        .found => |index| return requireExport(&self.owned.items[index], target.name),
         .conflict => return error.ConflictingLibraryArtifact,
         .missing => {},
     }
 
-    if (inputs) |observed| try observed.add(io, target.artifact);
-    try @import("../../package/source.zig").validateWithInputs(io, self.allocator, target.artifact, project.package_scopes, inputs);
+    var decoded = try @import("artifact.zig").openIndexed(self.allocator, .{
+        .io = io,
+        .path = target.artifact,
+        .scopes = project.package_scopes,
+        .inputs = inputs,
+    });
 
-    const bytes = try std.Io.Dir.cwd().readFileAlloc(io, target.artifact, self.allocator, .limited(64 * 1024 * 1024));
+    errdefer decoded.library.deinit();
 
-    defer self.allocator.free(bytes);
+    const exported = try requireExport(&decoded, target.name);
+    const library = &decoded.library;
 
-    if (inputs) |observed| try observed.record(io, target.artifact, bytes);
-
-    var library = try compiler.library.codec.decode(self.allocator, bytes);
-
-    errdefer library.deinit();
-
-    try requireExport(library.exports, target.name);
     try self.libraries.ensureUnusedCapacity(self.allocator, 1);
-    try self.owned.append(self.allocator, library);
+    try self.owned.append(self.allocator, decoded);
 
     self.libraries.appendAssumeCapacity(.{ .instance = target.instance, .artifact = target.artifact, .program = library.program, .exports = library.exports, .nominal_types = library.nominal_types, .store_initializers = library.store_initializers });
+
+    return exported;
 }
 
-fn requireExport(exports: []const compiler.library.Export, name: []const u8) error{MissingPublicModule}!void {
-    if (!resolve.hasExport(exports, name)) return error.MissingPublicModule;
+fn requireExport(decoded: *const compiler.library.codec.Indexed, name: []const u8) error{MissingPublicModule}!*const compiler.library.Export {
+    const exports = decoded.library.exports;
+    const index = decoded.names.find(exports, name) orelse return error.MissingPublicModule;
+
+    return &exports[index];
 }

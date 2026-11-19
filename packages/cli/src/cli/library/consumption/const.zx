@@ -1,0 +1,1 @@
+export const artifact_limit: u64 = 64 * 1024 * 1024

@@ -1,0 +1,23 @@
+import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+
+export type Rows = {
+    count: u64,
+    names: TextColumn,
+    modules: ReadColumn
+}
+
+export type References = {
+    names: WriteColumn,
+    modules: WriteColumn
+}
+
+export type Input = {
+    source: Rows,
+    target: References,
+    preserve_legacy: bool
+}
+
+export type Output = {
+    valid: bool,
+    legacy: bool
+}

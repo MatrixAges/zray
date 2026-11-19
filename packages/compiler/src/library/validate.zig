@@ -7,6 +7,10 @@ pub fn validate(allocator: std.mem.Allocator, library: *const model.Result) Erro
     return compiled.validate(allocator, view(library));
 }
 
+pub fn validateIndexed(allocator: std.mem.Allocator, library: *const model.Result, index: *compiled.ExportIndex) Error!void {
+    return compiled.validateIndexed(allocator, view(library), index);
+}
+
 pub fn validateLinked(allocator: std.mem.Allocator, library: *const model.Result) (Error || error{ InvalidIr, ConflictingStore })!void {
     return compiled.validateLinked(allocator, view(library));
 }

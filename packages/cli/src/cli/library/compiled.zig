@@ -1,8 +1,10 @@
 const std = @import("std");
 const compiler = @import("compiler");
+const zx = @import("zx");
 const analysis = @import("analyze.zig");
 const inventory = @import("inventory.zig");
 const layout = @import("cli_source").library_legacy_output;
+const selection = @import("cli_source").compiled_manifest_selection;
 const Legacy = std.meta.Child(layout.Input);
 
 pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.Result {
@@ -19,26 +21,32 @@ pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.R
     const config = options.loaded.config;
     const path = try std.fs.path.resolve(owned, &.{ project.root_dir, config.library.? });
 
-    if (options.inputs) |inputs| try inputs.add(options.io, path);
-    try @import("../../package/source.zig").validateWithInputs(options.io, owned, path, project.package_scopes, options.inputs);
-
-    var decoded = payload: {
-        const bytes = try std.Io.Dir.cwd().readFileAlloc(options.io, path, options.backing, .limited(64 * 1024 * 1024));
-
-        defer options.backing.free(bytes);
-
-        if (options.inputs) |inputs| try inputs.record(options.io, path, bytes);
-
-        break :payload try compiler.library.codec.decode(options.backing, bytes);
-    };
+    var decoded = try @import("artifact.zig").open(options.backing, .{
+        .io = options.io,
+        .path = path,
+        .scopes = project.package_scopes,
+        .inputs = options.inputs,
+    });
 
     defer decoded.deinit();
 
     const exports = try owned.alloc(compiler.library.PublicReference, config.exports.len);
+    const names = zx.memory.borrowTextColumn("path", config.exports);
+    const modules = zx.memory.borrowReadColumn(?[]const u8, "module", config.exports);
+    const target_names = zx.memory.borrowWriteColumn([]const u8, "name", exports);
+    const target_modules = zx.memory.borrowWriteColumn([]const u8, "module", exports);
+    const Selection = std.meta.Child(selection.Input);
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    for (config.exports, exports) |source, *target| target.* = .{ .name = source.path, .module = source.module orelse return error.InvalidCompiledExport };
+    const selected = zx.columns.invoke(selection.executeValue, fixed.allocator(), &Selection{
+        .source = &.{ .count = exports.len, .names = @ptrCast(&names), .modules = @ptrCast(&modules) },
+        .target = &.{ .names = @ptrCast(&target_names), .modules = @ptrCast(&target_modules) },
+        .preserve_legacy = options.preserve_zig_entry,
+    }) catch unreachable;
 
-    const legacy_single = options.preserve_zig_entry and try legacySingle(owned, options);
+    if (!selected.valid) return error.InvalidCompiledExport;
+
+    const legacy_single = selected.legacy and try legacySingle(owned, options);
 
     const library = try compiler.library.load(allocator, .{
         .instance = project.root_dir,
@@ -53,15 +61,6 @@ pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.R
 }
 
 fn legacySingle(allocator: std.mem.Allocator, options: analysis.Options) !bool {
-    const exports = options.loaded.config.exports;
-
-    if (!legacy(.{
-        .count = exports.len,
-        .name = if (exports.len == 0) null else exports[0].module,
-        .path = if (exports.len == 0) null else exports[0].path,
-        .form = .Export,
-    })) return false;
-
     const path = try std.fs.path.resolve(allocator, &.{ options.loaded.project.root_dir, inventory.name });
 
     if (options.inputs) |inputs| try inputs.add(options.io, path);
@@ -71,15 +70,21 @@ fn legacySingle(allocator: std.mem.Allocator, options: analysis.Options) !bool {
         else => return err,
     };
 
-    const bytes = std.Io.Dir.cwd().readFileAlloc(options.io, path, allocator, .limited(inventory.limit)) catch |err| switch (err) {
+    const bytes = std.Io.Dir.cwd().readFileAlloc(options.io, path, options.backing, .limited(inventory.limit)) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => return err,
     };
 
+    defer options.backing.free(bytes);
+
     if (options.inputs) |inputs| try inputs.record(options.io, path, bytes);
 
     const Metadata = struct { public_modules: []const struct { name: []const u8, path: []const u8 } = &.{} };
-    const metadata = try std.json.parseFromSliceLeaky(Metadata, allocator, bytes, .{ .ignore_unknown_fields = true });
+    var scratch = std.heap.ArenaAllocator.init(options.backing);
+
+    defer scratch.deinit();
+
+    const metadata = try std.json.parseFromSliceLeaky(Metadata, scratch.allocator(), bytes, .{ .ignore_unknown_fields = true });
     const modules = metadata.public_modules;
 
     return legacy(.{
@@ -93,5 +98,5 @@ fn legacySingle(allocator: std.mem.Allocator, options: analysis.Options) !bool {
 fn legacy(input: Legacy) bool {
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    return @import("zx").columns.invoke(layout.executeValue, fixed.allocator(), &input) catch unreachable;
+    return zx.columns.invoke(layout.executeValue, fixed.allocator(), &input) catch unreachable;
 }

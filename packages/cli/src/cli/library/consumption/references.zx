@@ -1,0 +1,42 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { Input as Selection } from "./model"
+
+export type Input = Selection.Omit("preserve_legacy")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { source, target } = in
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < source.count,
+        next: state => {
+            const index = state.index
+            const module = memory.readOptionalTextColumn(source.modules, index)
+
+            if (module == null) {
+                state.valid = false
+            } else {
+                const name = memory.readTextColumn(source.names, index)
+
+                memory.writeColumnBytes(
+                    target.names,
+                    index,
+                    bytes.fromText(name)
+                )
+                memory.writeColumnBytes(
+                    target.modules,
+                    index,
+                    bytes.fromText(module)
+                )
+                state.index += 1
+            }
+        },
+        return: state => state.valid
+    })
+}
