@@ -16,6 +16,7 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Depen
         .imports = &.{
             .{ .name = "cli_source", .module = cli.module("cli_source") },
             .{ .name = "manifest_output", .module = cli.module("manifest_output") },
+            .{ .name = "manifest_yaml_document", .module = cli.module("manifest_yaml_document") },
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "zx", .module = compiler.module("compiler").import_table.get("zx").? },
             .{ .name = "pkgs", .module = pkgs },
@@ -23,14 +24,7 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Depen
     });
 
     manifest.addIncludePath(yaml.path("include"));
-
-    const translated = b.addTranslateC(.{ .root_source_file = yaml.path("include/yaml.h"), .target = target, .optimize = optimize });
-
-    translated.defineCMacro("YAML_DECLARE_STATIC", "1");
-
-    if (target.result.os.tag == .windows) translated.defineCMacro("_FORTIFY_SOURCE", "0");
-
-    manifest.addImport("yaml", translated.createModule());
+    manifest.addImport("yaml", cli.module("manifest_yaml_document").import_table.get("yaml").?);
 
     const yaml_module = b.createModule(.{ .target = target, .optimize = optimize, .link_libc = true });
 

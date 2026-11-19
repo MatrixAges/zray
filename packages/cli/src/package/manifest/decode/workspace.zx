@@ -1,0 +1,59 @@
+import yaml from "manifest_yaml_document"
+import memory from "memory"
+
+import field from "../schema/field"
+import { Field, Mapping } from "../schema/model"
+import {
+    mapping_size,
+    missing_workspace_packages,
+    unknown_workspace_field
+} from "./const"
+import mapping from "./mapping"
+import strings from "./strings"
+
+import type { StringBuffer } from "memory"
+import type { Input as Value } from "./value"
+
+export type Input = Value & {
+    target: StringBuffer
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const { document, node, target } = in
+
+    const pairs = mapping({
+        document: in.document,
+        node: in.node
+    })
+
+    if (pairs.length == 0) {
+        yaml.reject(document, node, missing_workspace_packages)
+    }
+
+    const written = loop(0, {
+        while: index => index < pairs.length,
+        next: index => {
+            const key = yaml.node(document, pairs[index], null)
+
+            if (field({
+                mapping: Mapping.Workspace,
+                key: yaml.text(key)
+            }) != Field.Packages) {
+                yaml.reject(document, key, unknown_workspace_field)
+            }
+
+            const packages = strings({
+                document,
+                node: yaml.node(document, pairs[index + 1], null),
+                target,
+                workspace: true
+            })
+
+            index += mapping_size
+        }
+    })
+
+    return memory.stringViews(target)
+}

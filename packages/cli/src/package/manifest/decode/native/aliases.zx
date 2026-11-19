@@ -1,0 +1,85 @@
+import yaml from "manifest_yaml_document"
+import columns from "memory/columns"
+
+import { missing_alias } from "../../schema/const"
+import field from "../../schema/field"
+import { Field, Mapping } from "../../schema/model"
+import { empty_text, mapping_size, unknown_alias_field } from "../const"
+import mapping from "../mapping"
+import sequence from "../sequence"
+import string from "../string"
+
+import type { WriteColumn } from "memory/columns"
+import type { AliasOutput } from "../model"
+import type { Input as Value } from "../value"
+
+export type Input = Value & {
+    target: AliasOutput,
+    aliases: WriteColumn,
+    row: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { document, target, aliases, row } = in
+
+    const items = sequence({
+        document: in.document,
+        node: in.node
+    })
+
+    columns.allocateRowList(aliases, row, target.buffer, items.length)
+
+    const written = loop(0, {
+        while: row => row < items.length,
+        next: row => {
+            const node = yaml.node(document, items[row], null)
+            const pairs = mapping({
+                document,
+                node
+            })
+            const data = loop({
+                index: 0,
+                name: empty_text,
+                specifier: empty_text
+            }, {
+                while: state => state.index < pairs.length,
+                next: state => {
+                    const key = yaml.node(document, pairs[state.index], null)
+                    const text = string({
+                        document,
+                        node: yaml.node(
+                            document,
+                            pairs[state.index + 1],
+                            null
+                        )
+                    })
+                    const selected = field({
+                        mapping: Mapping.AbiAlias,
+                        key: yaml.text(key)
+                    })
+
+                    switch (selected) {
+                        case Field.Name:
+                            state.name = text
+                        case Field.Specifier:
+                            state.specifier = text
+                        default:
+                            yaml.reject(document, key, unknown_alias_field)
+                    }
+
+                    state.index += mapping_size
+                }
+            })
+
+            if (data.name == empty_text || data.specifier == empty_text) {
+                yaml.reject(document, node, missing_alias)
+            }
+
+            columns.writeColumnText(target.columns.name, row, data.name)
+            columns.writeColumnText(target.columns.specifier, row, data.specifier)
+            row += 1
+        }
+    })
+}

@@ -11,9 +11,7 @@
             fn="install"
             in={{
                 destination: $in.destination,
-                namespace: $ctx.namespace,
-                names: $in.exports.names,
-                ids: $in.exports.ids
+                namespace: $ctx.namespace
             }}
         />
 

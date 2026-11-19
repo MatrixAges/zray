@@ -1,0 +1,50 @@
+export const mapping_size: u64 = 2
+
+export const bad_mapping: string = "expected a YAML mapping"
+
+export const bad_sequence: string = "expected a sequence"
+
+export const duplicate_key: string = "duplicate YAML mapping key"
+
+export const bad_name: string = "invalid package name; use lowercase name or @scope/name"
+
+export const bad_version: string = "version must be a semantic version"
+
+export const bad_entry: string = "entry must be a package-relative .zx or .rx file path"
+
+export const bad_library: string = "library must be a package-relative artifact path"
+
+export const unknown_manifest_field: string = "unknown pkg.yaml field"
+
+export const empty_exports: string = "exports must declare at least one public module"
+
+export const bad_export_key: string =
+    "export paths must be . or ./ followed by explicit module path segments"
+
+export const bad_export_module: string =
+    "compiled exports require exactly one module field"
+
+export const bad_export_source: string =
+    "export implementation must stay inside the package"
+
+export const unknown_workspace_field: string = "unknown workspace field"
+
+export const workspace_sequence: string = "workspace.packages must be a sequence"
+
+export const workspace_path: string =
+    "workspace package patterns must stay inside the workspace"
+
+export const missing_workspace_packages: string = "workspace requires packages"
+
+export const unknown_interface_field: string = "unknown native interface field"
+
+export const unknown_module_field: string = "unknown native module field"
+
+export const unknown_alias_field: string = "unknown native ABI alias field"
+
+export const unknown_external_field: string = "unknown external interface field"
+
+export const unknown_implementation_field: string =
+    "unknown external implementation field"
+
+export const empty_text: string = ""

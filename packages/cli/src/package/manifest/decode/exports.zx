@@ -1,0 +1,110 @@
+import yaml from "manifest_yaml_document"
+import memory from "memory"
+import columns from "memory/columns"
+
+import exported from "../../workspace/paths/exported"
+import { Kind } from "../../workspace/paths/model"
+import relative from "../../workspace/paths/relative"
+import compiled from "./compiled_export"
+import {
+    bad_export_key,
+    bad_export_source,
+    empty_exports,
+    empty_text,
+    mapping_size
+} from "./const"
+import mapping from "./mapping"
+import string from "./string"
+
+import type { ExportOutput } from "./model"
+import type { Input as Value } from "./value"
+
+export type Input = Value & {
+    target: ExportOutput
+}
+
+export type Output = {
+    exports: u64,
+    compiled_exports: u64
+}
+
+export default function (in: Input): Output {
+    const { document, node, target } = in
+
+    const pairs = mapping({
+        document: in.document,
+        node: in.node
+    })
+
+    const count = pairs.length / mapping_size
+
+    if (count == 0) {
+        yaml.reject(document, node, empty_exports)
+    }
+
+    columns.allocateRows(target.buffer, count)
+
+    const compiled_exports = loop({
+        row: 0,
+        compiled_exports: 0
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const row = state.row
+            const offset = row * mapping_size
+            const key = yaml.node(document, pairs[offset], null)
+            const path = yaml.text(key)
+
+            if (!exported(path)) {
+                yaml.reject(document, key, bad_export_key)
+            }
+
+            const item = yaml.node(document, pairs[offset + 1], null)
+
+            if (yaml.pairs(item) != null) {
+                const module_node = compiled({
+                    document,
+                    node: item
+                })
+                const owned_path = memory.copyText(path)
+                const module = string({
+                    document,
+                    node: module_node
+                })
+
+                columns.writeColumnText(target.columns.path, row, owned_path)
+                columns.writeColumnOptionalText(target.columns.module, row, module)
+                columns.writeColumnText(target.columns.source, row, empty_text)
+                state.compiled_exports += 1
+            } else {
+                const source = string({
+                    document,
+                    node: item
+                })
+
+                if (!relative({
+                    text: source,
+                    kind: Kind.Relative
+                })) {
+                    yaml.reject(document, item, bad_export_source)
+                }
+
+                columns.writeColumnText(
+                    target.columns.path,
+                    row,
+                    memory.copyText(path)
+                )
+                columns.writeColumnText(target.columns.source, row, source)
+                columns.writeColumnOptionalText(target.columns.module, row, null)
+            }
+
+            state.row += 1
+        },
+        return: state => state.compiled_exports
+    })
+
+    return {
+        exports: count,
+        compiled_exports
+    }
+}

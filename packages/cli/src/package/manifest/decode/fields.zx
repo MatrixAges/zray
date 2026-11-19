@@ -1,0 +1,153 @@
+import yaml from "manifest_yaml_document"
+
+import field from "../schema/field"
+import { Field, Mapping } from "../schema/model"
+import boolean from "./boolean"
+import { empty_text, mapping_size, unknown_manifest_field } from "./const"
+import dependencies from "./dependencies"
+import exports from "./exports"
+import name from "./name"
+import externals from "./native/externals"
+import interfaces from "./native/interfaces"
+import modules from "./native/modules"
+import path from "./path"
+import strings from "./strings"
+import version from "./version"
+import workspace from "./workspace"
+
+import type { Document } from "manifest_yaml_document"
+import type { Tables, Values } from "./model"
+
+export type Input = {
+    document: Document,
+    tables: Tables,
+    pairs: i32[]
+}
+
+export type State = {
+    index: u64,
+    values: Values
+}
+
+export type Output = Values
+
+export default function (in: Input): Output {
+    const { document, tables, pairs } = in
+
+    const initial: State = {
+        index: 0,
+        values: {
+            name: empty_text,
+            version: empty_text,
+            entry: null,
+            library: null,
+            private: false,
+            workspace: null,
+            libraries: [],
+            include_paths: [],
+            library_paths: [],
+            exports: 0,
+            compiled_exports: 0
+        }
+    }
+
+    return loop(initial, {
+        while: state => state.index < pairs.length,
+        next: state => {
+            const key = yaml.node(document, pairs[state.index], null)
+            const item = yaml.node(document, pairs[state.index + 1], null)
+            const value = {
+                document,
+                node: item
+            }
+            const selected = field({
+                mapping: Mapping.Manifest,
+                key: yaml.text(key)
+            })
+
+            switch (selected) {
+                case Field.Name:
+                    state.values.name = name(value)
+                case Field.Version:
+                    state.values.version = version(value)
+                case Field.Entry:
+                    state.values.entry = path({
+                        ...value,
+                        entry: true
+                    })
+                case Field.Library:
+                    state.values.library = path({
+                        ...value,
+                        entry: false
+                    })
+                case Field.Exports:
+                    const surface = exports({
+                        ...value,
+                        target: tables.exports
+                    })
+
+                    state.values.exports = surface.exports
+                    state.values.compiled_exports = surface.compiled_exports
+                case Field.Private:
+                    state.values.private = boolean(value)
+                case Field.Dependencies:
+                    dependencies({
+                        ...value,
+                        target: tables.dependencies
+                    })
+                case Field.DevDependencies:
+                    dependencies({
+                        ...value,
+                        target: tables.dev_dependencies
+                    })
+                case Field.Workspace:
+                    state.values.workspace = workspace({
+                        ...value,
+                        target: tables.strings
+                    })
+                case Field.NativeInterfaces:
+                    interfaces({
+                        ...value,
+                        target: tables.interfaces,
+                        strings_target: tables.strings
+                    })
+                case Field.NativeModules:
+                    modules({
+                        ...value,
+                        target: tables.modules,
+                        alias_target: tables.aliases,
+                        strings_target: tables.strings
+                    })
+                case Field.Externals:
+                    externals({
+                        ...value,
+                        target: tables.externals,
+                        strings_target: tables.strings
+                    })
+                case Field.Libraries:
+                    state.values.libraries = strings({
+                        ...value,
+                        target: tables.strings,
+                        workspace: false
+                    })
+                case Field.IncludePaths:
+                    state.values.include_paths = strings({
+                        ...value,
+                        target: tables.strings,
+                        workspace: false
+                    })
+                case Field.LibraryPaths:
+                    state.values.library_paths = strings({
+                        ...value,
+                        target: tables.strings,
+                        workspace: false
+                    })
+                default:
+                    yaml.reject(document, key, unknown_manifest_field)
+            }
+
+            state.index += mapping_size
+        },
+        return: state => state.values
+    })
+}

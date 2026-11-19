@@ -1,23 +1,18 @@
 import memory from "memory"
 
-import type { StringBuffer, U32Buffer } from "memory"
 import type { Destination } from "./finalize_model"
 
 export type Input = {
     destination: Destination,
-    namespace: string[],
-    names: StringBuffer,
-    ids: U32Buffer
+    namespace: string[]
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { destination, namespace, names, ids } = in
+    const { destination, namespace } = in
     const { module } = destination
 
     memory.writeStringList(destination.namespaces, module, namespace)
-    memory.writeStringList(destination.names, module, memory.stringViews(names))
-    memory.writeU32List(destination.ids, module, memory.u32Views(ids))
     memory.publishColumnLengths(destination.functions, destination.member_count)
 }

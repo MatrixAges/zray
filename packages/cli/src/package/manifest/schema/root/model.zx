@@ -1,10 +1,8 @@
-import type { ReadColumn } from "memory"
-
 export type Surface = {
     entry: bool,
     library: bool,
     exports: u64,
-    modules: ReadColumn
+    compiled_exports: u64
 }
 
 export type Identity = {

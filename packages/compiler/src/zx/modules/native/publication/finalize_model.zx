@@ -2,8 +2,7 @@ import type {
     ColumnLengths,
     StringBuffer,
     StringListBuffer,
-    U32Buffer,
-    U32ListBuffer
+    U32Buffer
 } from "memory"
 import type { Rows } from "../../../ir/canonical/validation/names/model"
 
@@ -21,8 +20,6 @@ export type Exports = {
 export type Destination = {
     module: u64,
     namespaces: StringListBuffer,
-    names: StringListBuffer,
-    ids: U32ListBuffer,
     functions: ColumnLengths,
     member_count: u64
 }

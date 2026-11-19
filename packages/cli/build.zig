@@ -43,6 +43,20 @@ pub fn build(b: *std.Build) void {
     host.addImport("manifest_yaml_scanner", yaml_scanner);
     host.import_table.get("cli_source").?.addImport("manifest_yaml_scanner", yaml_scanner);
 
+    const yaml_document = b.addModule("manifest_yaml_document", .{
+        .root_source_file = b.path("src/package/manifest/decode/document.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "yaml", .module = host.import_table.get("yaml").? },
+            .{ .name = "compiler", .module = module },
+            .{ .name = "pkgs", .module = pkgs.module("pkgs") },
+        },
+    });
+
+    host.addImport("manifest_yaml_document", yaml_document);
+    host.import_table.get("cli_source").?.addImport("manifest_yaml_document", yaml_document);
+
     if (b.option(bool, "strip", "Omit debug information from hand-written zxc code as well (generated modules already omit it); faster and lighter to compile, without source locations in stack traces")) |strip| host.strip = strip;
 
     const cache_identity = @import("build/cache_identity.zig").create(b, target, optimize, compiler, pkgs);

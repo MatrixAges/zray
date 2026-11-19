@@ -42,14 +42,16 @@ pub fn parseInto(allocator: std.mem.Allocator, source: []const u8) !Value {
 
     if (root == null) return .{ .diagnostic = .{ .line = 1, .column = 1, .message = "pkg.yaml must contain one mapping document" } };
 
-    var decoder = Decoder{ .allocator = allocator, .document = &document };
+    var reader: Decoder.Document = .{ .yaml = &document };
 
-    defer decoder.scratch.deinit();
+    defer reader.scratch.deinit();
 
-    const data = decoder.decode(root) catch |err| {
+    const data = Decoder.read(allocator, &reader, root) catch |err| {
         if (err == error.OutOfMemory) return err;
 
-        return .{ .diagnostic = decoder.diagnostic.? };
+        const issue = reader.diagnostic.?;
+
+        return .{ .diagnostic = .{ .line = issue.line, .column = issue.column, .message = issue.message } };
     };
 
     var next: c.yaml_document_t = undefined;

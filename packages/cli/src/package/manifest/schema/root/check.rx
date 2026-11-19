@@ -9,7 +9,7 @@
             "entry",
             "library",
             "exports",
-            "modules"
+            "compiled_exports"
         ])}
     />
 

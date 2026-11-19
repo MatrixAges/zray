@@ -1,0 +1,111 @@
+import type { StringBuffer } from "memory"
+import type { RowBuffer, WriteColumn } from "memory/columns"
+import type { Input as Value } from "./value"
+
+export type ExportColumns = {
+    path: WriteColumn,
+    source: WriteColumn,
+    module: WriteColumn
+}
+
+export type DependencyColumns = {
+    name: WriteColumn,
+    requirement: WriteColumn
+}
+
+export type InterfaceColumns = {
+    specifier: WriteColumn,
+    path: WriteColumn,
+    module: WriteColumn,
+    namespace: WriteColumn
+}
+
+export type ModuleColumns = {
+    name: WriteColumn,
+    path: WriteColumn,
+    header: WriteColumn,
+    dependencies: WriteColumn,
+    bundle_files: WriteColumn,
+    include_paths: WriteColumn,
+    abi_aliases: WriteColumn
+}
+
+export type ExternalColumns = {
+    identity: WriteColumn,
+    specifier: WriteColumn,
+    signature: WriteColumn,
+    export_name: WriteColumn,
+    module: WriteColumn,
+    member: WriteColumn,
+    allocator_argument: WriteColumn,
+    io_argument: WriteColumn,
+    process_argument: WriteColumn,
+    expand_tuple: WriteColumn,
+    errors: WriteColumn,
+    fallible: WriteColumn,
+    concurrent: WriteColumn
+}
+
+export type AliasColumns = {
+    name: WriteColumn,
+    specifier: WriteColumn
+}
+
+export type ExportOutput = {
+    buffer: RowBuffer,
+    columns: ExportColumns
+}
+
+export type DependencyOutput = {
+    buffer: RowBuffer,
+    columns: DependencyColumns
+}
+
+export type InterfaceOutput = {
+    buffer: RowBuffer,
+    columns: InterfaceColumns
+}
+
+export type ModuleOutput = {
+    buffer: RowBuffer,
+    columns: ModuleColumns
+}
+
+export type ExternalOutput = {
+    buffer: RowBuffer,
+    columns: ExternalColumns
+}
+
+export type AliasOutput = {
+    buffer: RowBuffer,
+    columns: AliasColumns
+}
+
+export type Tables = {
+    exports: ExportOutput,
+    dependencies: DependencyOutput,
+    dev_dependencies: DependencyOutput,
+    interfaces: InterfaceOutput,
+    modules: ModuleOutput,
+    externals: ExternalOutput,
+    aliases: AliasOutput,
+    strings: StringBuffer
+}
+
+export type Input = Value & {
+    tables: Tables
+}
+
+export type Values = {
+    name: string,
+    version: string,
+    entry?: string,
+    library?: string,
+    private: bool,
+    workspace?: string[],
+    libraries: string[],
+    include_paths: string[],
+    library_paths: string[],
+    exports: u64,
+    compiled_exports: u64
+}

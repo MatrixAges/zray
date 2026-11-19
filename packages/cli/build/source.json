@@ -82,10 +82,6 @@
             "name": "workspace_ignored"
         },
         {
-            "path": "package/workspace/paths/validate.rx",
-            "name": "manifest_path"
-        },
-        {
             "path": "package/workspace/paths/within.zx",
             "name": "workspace_manifest_within"
         },
@@ -106,24 +102,8 @@
             "name": "workspace_constants"
         },
         {
-            "path": "package/manifest/schema/field.zx",
-            "name": "manifest_field"
-        },
-        {
-            "path": "package/manifest/schema/scalar.zx",
-            "name": "manifest_scalar"
-        },
-        {
-            "path": "package/manifest/schema/boolean.zx",
-            "name": "manifest_boolean"
-        },
-        {
-            "path": "package/manifest/schema/root/check.rx",
-            "name": "manifest_root"
-        },
-        {
-            "path": "package/manifest/schema/required.zx",
-            "name": "manifest_required"
+            "path": "package/manifest/decode/read.rx",
+            "name": "manifest_decode"
         },
         {
             "path": "package/manifest/layout/collect.rx",
@@ -296,6 +276,10 @@
         {
             "path": "package_manifest/write/output.d.zx",
             "module": "manifest_output"
+        },
+        {
+            "path": "package_manifest/decode/document.d.zx",
+            "module": "manifest_yaml_document"
         }
     ]
 }

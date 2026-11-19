@@ -1,0 +1,29 @@
+export type Document = opaque
+
+export type Node = opaque
+
+export declare function node(document: Document, id: i32, shape: Node?): Node
+
+export declare function pairs(node: Node): i32[]?
+
+export declare function items(node: Node): i32[]?
+
+export declare function stringScalar(node: Node): string?
+
+export declare function plain(node: Node): bool
+
+export declare function booleanTag(node: Node): bool
+
+export declare function text(node: Node): string
+
+export declare function prepareKeys(document: Document, count: u64): void throws { OutOfMemory }
+
+export declare function claimKey(document: Document, row: u64, key: string): bool
+
+export declare function reject(document: Document, node: Node, message: string): void throws {
+    InvalidManifest
+}
+
+export declare function packageName(value: string): bool
+
+export declare function semanticVersion(value: string): bool

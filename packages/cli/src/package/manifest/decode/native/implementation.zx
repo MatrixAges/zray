@@ -1,0 +1,114 @@
+import yaml from "manifest_yaml_document"
+import columns from "memory/columns"
+
+import field from "../../schema/field"
+import { Field, Mapping } from "../../schema/model"
+import boolean from "../boolean"
+import { empty_text, mapping_size, unknown_implementation_field } from "../const"
+import mapping from "../mapping"
+import string from "../string"
+import strings from "../strings"
+
+import type { StringBuffer } from "memory"
+import type { ExternalColumns } from "../model"
+import type { Input as Value } from "../value"
+
+export type Input = Value & {
+    target: ExternalColumns,
+    strings_target: StringBuffer,
+    row: u64
+}
+
+export type Implementation = {
+    index: u64,
+    module: string,
+    member: string,
+    allocator_argument: bool,
+    io_argument: bool,
+    process_argument: bool,
+    expand_tuple: bool,
+    fallible: bool,
+    errors?: string[],
+    concurrent: bool
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { document, target, strings_target, row } = in
+
+    const pairs = mapping({
+        document: in.document,
+        node: in.node
+    })
+
+    const initial: Implementation = {
+        index: 0,
+        module: empty_text,
+        member: empty_text,
+        allocator_argument: false,
+        io_argument: false,
+        process_argument: false,
+        expand_tuple: false,
+        fallible: false,
+        errors: null,
+        concurrent: false
+    }
+
+    const data = loop(initial, {
+        while: state => state.index < pairs.length,
+        next: state => {
+            const key = yaml.node(document, pairs[state.index], null)
+            const item = yaml.node(document, pairs[state.index + 1], null)
+            const value = {
+                document,
+                node: item
+            }
+            const selected = field({
+                mapping: Mapping.Implementation,
+                key: yaml.text(key)
+            })
+
+            switch (selected) {
+                case Field.Module:
+                    state.module = string(value)
+                case Field.Member:
+                    state.member = string(value)
+                case Field.AllocatorArgument:
+                    state.allocator_argument = boolean(value)
+                case Field.IoArgument:
+                    state.io_argument = boolean(value)
+                case Field.ProcessArgument:
+                    state.process_argument = boolean(value)
+                case Field.ExpandTuple:
+                    state.expand_tuple = boolean(value)
+                case Field.Fallible:
+                    state.fallible = boolean(value)
+                case Field.Concurrent:
+                    state.concurrent = boolean(value)
+                case Field.Errors:
+                    state.errors = strings({
+                        ...value,
+                        target: strings_target,
+                        workspace: false
+                    })
+                default:
+                    yaml.reject(document, key, unknown_implementation_field)
+            }
+
+            state.index += mapping_size
+        }
+    })
+
+    columns.writeColumnText(target.module, row, data.module)
+    columns.writeColumnText(target.member, row, data.member)
+    columns.writeColumnBool(target.allocator_argument, row, data.allocator_argument)
+    columns.writeColumnBool(target.io_argument, row, data.io_argument)
+    columns.writeColumnBool(target.process_argument, row, data.process_argument)
+    columns.writeColumnBool(target.expand_tuple, row, data.expand_tuple)
+    columns.writeColumnBool(target.fallible, row, data.fallible)
+    columns.writeColumnBool(target.concurrent, row, data.concurrent)
+    columns.writeColumnOptionalTextList(target.errors, row, data.errors)
+
+    return data.module != empty_text && data.member != empty_text
+}

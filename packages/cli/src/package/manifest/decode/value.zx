@@ -1,0 +1,6 @@
+import type { Document, Node } from "manifest_yaml_document"
+
+export type Input = {
+    document: Document,
+    node: Node
+}

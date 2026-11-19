@@ -1,0 +1,35 @@
+import yaml from "manifest_yaml_document"
+
+import field from "../schema/field"
+import { Field, Mapping } from "../schema/model"
+import { bad_export_module, mapping_size } from "./const"
+import mapping from "./mapping"
+
+import type { Node } from "manifest_yaml_document"
+import type { Input } from "./value"
+
+export type Output = Node
+
+export default function (in: Input): Output {
+    const { document, node } = in
+
+    const pairs = mapping({
+        document: in.document,
+        node: in.node
+    })
+
+    if (pairs.length != mapping_size) {
+        yaml.reject(document, node, bad_export_module)
+    }
+
+    const key = yaml.node(document, pairs[0], null)
+
+    if (field({
+        mapping: Mapping.Export,
+        key: yaml.text(key)
+    }) != Field.Module) {
+        yaml.reject(document, node, bad_export_module)
+    }
+
+    return yaml.node(document, pairs[1], null)
+}

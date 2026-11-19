@@ -1,0 +1,17 @@
+import yaml from "manifest_yaml_document"
+
+import type { Input as Value } from "./value"
+
+export type Input = Value & {
+    message?: string
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { document, node, message } = in
+
+    if (message != null) {
+        yaml.reject(document, node, message)
+    }
+}

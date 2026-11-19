@@ -1,0 +1,109 @@
+import yaml from "manifest_yaml_document"
+import columns from "memory/columns"
+
+import { missing_interface } from "../../schema/const"
+import field from "../../schema/field"
+import { Field, Mapping } from "../../schema/model"
+import { empty_text, mapping_size, unknown_interface_field } from "../const"
+import mapping from "../mapping"
+import sequence from "../sequence"
+import string from "../string"
+import strings from "../strings"
+
+import type { StringBuffer } from "memory"
+import type { InterfaceOutput } from "../model"
+import type { Input as Value } from "../value"
+
+export type Input = Value & {
+    target: InterfaceOutput,
+    strings_target: StringBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { document, target, strings_target } = in
+
+    const items = sequence({
+        document: in.document,
+        node: in.node
+    })
+
+    columns.allocateRows(target.buffer, items.length)
+
+    const written = loop(0, {
+        while: row => row < items.length,
+        next: row => {
+            const node = yaml.node(document, items[row], null)
+            const pairs = mapping({
+                document,
+                node
+            })
+            const namespace: string[] = []
+            const data = loop({
+                index: 0,
+                specifier: empty_text,
+                path: empty_text,
+                module: empty_text,
+                namespace
+            }, {
+                while: state => state.index < pairs.length,
+                next: state => {
+                    const key = yaml.node(document, pairs[state.index], null)
+                    const item = yaml.node(document, pairs[state.index + 1], null)
+                    const value = {
+                        document,
+                        node: item
+                    }
+                    const selected = field({
+                        mapping: Mapping.NativeInterface,
+                        key: yaml.text(key)
+                    })
+
+                    switch (selected) {
+                        case Field.Specifier:
+                            state.specifier = string(value)
+                        case Field.Path:
+                            state.path = string(value)
+                        case Field.Module:
+                            state.module = string(value)
+                        case Field.Namespace:
+                            state.namespace = strings({
+                                ...value,
+                                target: strings_target,
+                                workspace: false
+                            })
+                        default:
+                            yaml.reject(
+                                document,
+                                key,
+                                unknown_interface_field
+                            )
+                    }
+
+                    state.index += mapping_size
+                }
+            })
+
+            const missing = (
+                - data.specifier == empty_text
+                - or data.path == empty_text
+                - or data.module == empty_text
+            )
+
+            if (missing) {
+                yaml.reject(document, node, missing_interface)
+            }
+
+            columns.writeColumnText(target.columns.specifier, row, data.specifier)
+            columns.writeColumnText(target.columns.path, row, data.path)
+            columns.writeColumnText(target.columns.module, row, data.module)
+            columns.writeColumnTextList(
+                target.columns.namespace,
+                row,
+                data.namespace
+            )
+            row += 1
+        }
+    })
+}

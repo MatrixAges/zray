@@ -1,0 +1,54 @@
+import yaml from "manifest_yaml_document"
+
+import { bad_mapping, duplicate_key, mapping_size } from "./const"
+import text from "./text"
+
+import type { Input } from "./value"
+
+export type Output = i32[]
+
+export default function (in: Input): Output {
+    const { document, node } = in
+
+    const pairs = yaml.pairs(node)
+
+    if (pairs == null) {
+        yaml.reject(document, node, bad_mapping)
+
+        return []
+    }
+
+    if (pairs.length == 0) {
+        return pairs
+    }
+
+    if (pairs.length == mapping_size) {
+        const validated = text({
+            document,
+            node: yaml.node(document, pairs[0], null)
+        })
+
+        return pairs
+    }
+
+    yaml.prepareKeys(document, pairs.length / mapping_size)
+
+    const checked = loop(0, {
+        while: index => index < pairs.length,
+        next: index => {
+            const key = yaml.node(document, pairs[index], null)
+            const value = text({
+                document,
+                node: key
+            })
+
+            if (!yaml.claimKey(document, index / mapping_size, value)) {
+                yaml.reject(document, key, duplicate_key)
+            }
+
+            index += mapping_size
+        }
+    })
+
+    return pairs
+}

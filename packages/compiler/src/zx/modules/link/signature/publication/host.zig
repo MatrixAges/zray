@@ -95,27 +95,29 @@ pub fn finalizeNative(allocator: std.mem.Allocator, modules: *ir.NativeModuleSto
     const view = export_rows.view(std.meta.Child(@FieldType(Exports, "source")), &rows);
     const length_slots = zx.memory.borrowColumnLengths(functions);
     const lengths: zx.memory.ColumnLengths = &length_slots;
-    var names: [][]const u8 = &.{};
-    var ids: []u32 = &.{};
+    const index = @backingInt(module);
+    const names = &modules.type_names.items[index];
+    const ids = &modules.type_ids.items[index];
 
     errdefer {
-        allocator.free(ids);
-        allocator.free(names);
+        allocator.free(ids.*);
+        allocator.free(names.*);
+
+        ids.* = &.{};
+        names.* = &.{};
     }
 
     const namespace: std.meta.Child(@FieldType(Input, "namespace")) = .{ .published = loaded.namespace, .original = original };
 
     const exports: Exports = .{
         .source = &view,
-        .names = @ptrCast(&names),
-        .ids = @ptrCast(&ids),
+        .names = @ptrCast(names),
+        .ids = @ptrCast(ids),
     };
 
     const destination: std.meta.Child(@FieldType(Input, "destination")) = .{
         .module = @backingInt(module),
         .namespaces = @ptrCast(&modules.type_namespaces.items),
-        .names = @ptrCast(&modules.type_names.items),
-        .ids = @ptrCast(&modules.type_ids.items),
         .functions = @ptrCast(&lengths),
         .member_count = loaded.members.len,
     };

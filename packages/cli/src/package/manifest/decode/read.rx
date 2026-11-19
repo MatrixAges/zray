@@ -1,0 +1,45 @@
+<Module>
+    <Type from="model" as="Manifest" />
+
+    <Args in={Manifest.Input} out={Manifest.Values} />
+
+    <Call
+        fn="mapping"
+        in={$in.pick([
+            "document",
+            "node"
+        ])}
+    />
+
+    <Call
+        fn="fields"
+        in={{
+            document: $in.document,
+            tables: $in.tables,
+            pairs: $ctx.mapping
+        }}
+    />
+
+    <Call
+        module="../schema/root/check"
+        in={{
+            entry: $ctx.fields.entry != null,
+            library: $ctx.fields.library != null,
+            exports: $ctx.fields.exports,
+            compiled_exports: $ctx.fields.compiled_exports,
+            name: $ctx.fields.name != "",
+            version: $ctx.fields.version != ""
+        }}
+    />
+
+    <Call
+        fn="diagnostic"
+        in={{
+            document: $in.document,
+            node: $in.node,
+            message: $ctx.check
+        }}
+    />
+
+    <Return value={$ctx.fields} />
+</Module>

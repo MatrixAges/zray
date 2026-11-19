@@ -1,0 +1,21 @@
+import yaml from "manifest_yaml_document"
+
+import { bad_name } from "./const"
+import string from "./string"
+
+import type { Input } from "./value"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const name = string({
+        document: in.document,
+        node: in.node
+    })
+
+    if (!yaml.packageName(name)) {
+        yaml.reject(in.document, in.node, bad_name)
+    }
+
+    return name
+}

@@ -1,0 +1,35 @@
+import yaml from "manifest_yaml_document"
+
+import extension from "../../workspace/paths/extension"
+import { Kind } from "../../workspace/paths/model"
+import relative from "../../workspace/paths/relative"
+import { bad_entry, bad_library } from "./const"
+import string from "./string"
+
+import type { Input as Value } from "./value"
+
+export type Input = Value & {
+    entry: bool
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { document, node, entry } = in
+
+    const value = string({
+        document: in.document,
+        node: in.node
+    })
+
+    const valid = (!entry || extension(value)) && relative({
+        text: value,
+        kind: Kind.Relative
+    })
+
+    if (!valid) {
+        yaml.reject(document, node, entry ? bad_entry : bad_library)
+    }
+
+    return value
+}

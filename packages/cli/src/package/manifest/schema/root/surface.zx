@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { entry_and_exports, library_exports, mixed_exports } from "../const"
 
 import type { Surface as Input } from "./model"
@@ -19,19 +17,10 @@ export default function (in: Input): Output {
         return library_exports
     }
 
-    const valid = loop({
-        index: 0,
-        valid: true
-    }, {
-        while: state => state.valid && state.index < in.exports,
-        next: state => {
-            const module = memory.readOptionalTextColumn(in.modules, state.index)
-
-            state.valid = in.library == (module != null)
-            state.index += 1
-        },
-        return: state => state.valid
-    })
+    const valid = match in.library {
+        true => in.compiled_exports == in.exports,
+        _ => in.compiled_exports == 0
+    }
 
     return valid ? null : mixed_exports
 }

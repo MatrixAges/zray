@@ -1,0 +1,24 @@
+import yaml from "manifest_yaml_document"
+
+import check from "../schema/boolean"
+import { empty_text } from "./const"
+
+import type { Input } from "./value"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const plain = yaml.plain(in.node)
+
+    const result = check({
+        plain,
+        allowed_tag: plain && yaml.booleanTag(in.node),
+        text: plain ? yaml.text(in.node) : empty_text
+    })
+
+    if (result.diagnostic != null) {
+        yaml.reject(in.document, in.node, result.diagnostic)
+    }
+
+    return result.value
+}

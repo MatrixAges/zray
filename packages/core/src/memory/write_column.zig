@@ -255,12 +255,24 @@ pub inline fn writeOptionalU8(target: *const anyopaque, index: u64, value: ?u8) 
     return write(?u8, target, index, value);
 }
 
+pub inline fn writeText(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
+    return write([]const u8, target, index, value);
+}
+
 pub inline fn writeOptionalText(target: *const anyopaque, index: u64, value: ?[]const u8) IndexError!void {
     return write(?[]const u8, target, index, value);
 }
 
 pub inline fn writeTextList(target: *const anyopaque, index: u64, value: []const []const u8) IndexError!void {
     return write([]const []const u8, target, index, value);
+}
+
+pub inline fn writeOptionalTextList(target: *const anyopaque, index: u64, value: ?[]const []const u8) IndexError!void {
+    return write(?[]const []const u8, target, index, value);
+}
+
+pub fn clearOptionalRowList(target: *const anyopaque, index: u64) IndexError!void {
+    return write(?[]const u8, target, index, null);
 }
 
 /// Transfers a single cell's representation between compatible, disjoint borrowed fields.

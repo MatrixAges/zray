@@ -1,0 +1,58 @@
+import yaml from "manifest_yaml_document"
+import memory from "memory"
+
+import { Kind } from "../../workspace/paths/model"
+import relative from "../../workspace/paths/relative"
+import { bad_sequence, workspace_path, workspace_sequence } from "./const"
+import string from "./string"
+
+import type { StringBuffer } from "memory"
+import type { Input as Value } from "./value"
+
+export type Input = Value & {
+    target: StringBuffer,
+    workspace: bool
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const { document, node, target, workspace } = in
+
+    const items = yaml.items(node)
+
+    if (items == null) {
+        yaml.reject(document, node, workspace ? workspace_sequence : bad_sequence)
+
+        return []
+    }
+
+    memory.allocateStringViews(target, items.length)
+
+    const written = loop(0, {
+        while: row => row < items.length,
+        next: row => {
+            const item = yaml.node(document, items[row], null)
+            const value = string({
+                document,
+                node: item
+            })
+
+            if (workspace) {
+                const valid = relative({
+                    text: value,
+                    kind: Kind.Workspace
+                })
+
+                if (!valid) {
+                    yaml.reject(document, item, workspace_path)
+                }
+            }
+
+            memory.writeString(target, row, value)
+            row += 1
+        }
+    })
+
+    return memory.stringViews(target)
+}
