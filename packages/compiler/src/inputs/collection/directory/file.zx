@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import kind from "../kind"
+import { Kind } from "../kind"
+
+import type { StringBuffer } from "memory"
+
+export type Input = {
+    prefix: string,
+    name: string,
+    path: StringBuffer
+}
+
+export type Output = Kind
+
+export default function (in: Input): Output {
+    const selected = kind(in.name)
+
+    if (selected != Kind.Ignored) {
+        memory.writeString(in.path, 0, `${in.prefix}${in.name}`)
+    }
+
+    return selected
+}

@@ -1,0 +1,54 @@
+import memory from "memory"
+
+import qualify from "../qualify"
+
+import type { Counts, Target } from "./model"
+
+export type Input = {
+    target: Target,
+    counts: Counts
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { level, next } = in.target
+    const { parents, directories } = level
+
+    memory.allocateStringViews(next, in.counts.directories)
+
+    const written = loop({
+        group: 0,
+        next: 0
+    }, {
+        while: state => state.group < parents.length,
+        next: state => {
+            const parent = parents[state.group]
+            const names = memory.readTextListColumn(directories, state.group)
+
+            const end = loop({
+                row: 0,
+                next: state.next
+            }, {
+                while: row => row.row < names.length,
+                next: row => {
+                    const path = qualify({
+                        prefix: "",
+                        parent,
+                        name: names[row.row]
+                    })
+
+                    memory.writeString(next, row.next, path)
+                    row.row += 1
+                    row.next += 1
+                },
+                return: row => row.next
+            })
+
+            state.next = end
+            state.group += 1
+        }
+    })
+
+    return in.counts.files
+}

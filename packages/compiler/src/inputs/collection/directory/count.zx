@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import type { Counts as Output, Level as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { parents, directories, files } = in
+
+    return loop({
+        row: 0,
+        directories: 0,
+        files: 0
+    }, {
+        while: state => state.row < parents.length,
+        next: state => {
+            const names = memory.readTextListColumn(directories, state.row)
+
+            state.directories += names.length
+            state.files += memory.listLength(files, state.row)
+            state.row += 1
+        },
+        return: state => ({
+            directories: state.directories,
+            files: state.files
+        })
+    })
+}

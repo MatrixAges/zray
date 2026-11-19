@@ -1,0 +1,19 @@
+import { Kind } from "../kind"
+
+export type Input = {
+    kind: Kind,
+    length: u64,
+    limit: u64
+}
+
+export type Output = {
+    lookup: bool,
+    retain: bool
+}
+
+export default function (in: Input): Output {
+    return {
+        lookup: in.length <= in.limit,
+        retain: in.kind != Kind.RX
+    }
+}

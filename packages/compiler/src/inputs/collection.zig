@@ -5,6 +5,7 @@ pub const Kind = if (generated) file_kind.Output else enum { Ignored, ZX, RX, Te
 pub const interfaces = @import("collection/interface.zig");
 pub const catalog = @import("collection/catalog.zig");
 pub const order = @import("collection/order.zig");
+pub const directory = @import("collection/directory.zig");
 
 pub fn kind(name: []const u8) Kind {
     if (comptime generated) {
@@ -22,11 +23,16 @@ pub fn kind(name: []const u8) Kind {
 
 pub fn qualify(allocator: std.mem.Allocator, prefix: []const u8, parent: []const u8, name: []const u8) std.mem.Allocator.Error![]const u8 {
     if (comptime generated) {
-        return @import("generated_input_logical_path").executeValue(allocator, &.{
+        const rule = @import("generated_input_logical_path");
+        const Input = if (@typeInfo(rule.Input) == .pointer) std.meta.Child(rule.Input) else rule.Input;
+
+        const request: Input = .{
             .prefix = prefix,
             .parent = parent,
             .name = name,
-        });
+        };
+
+        return @import("zx").columns.invoke(rule.executeValue, allocator, &request);
     }
 
     return std.mem.concat(allocator, u8, &.{ prefix, parent, if (parent.len == 0) "" else "/", name });

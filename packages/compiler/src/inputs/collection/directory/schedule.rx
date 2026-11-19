@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Directory" />
+
+    <Args in={Directory.Target} out={u64} />
+
+    <Call fn="count" in={$in.level} />
+
+    <Call
+        fn="children"
+        in={{
+            target: $in,
+            counts: $ctx.count
+        }}
+    />
+
+    <Return value={$ctx.children} />
+</Module>
