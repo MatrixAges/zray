@@ -1,6 +1,8 @@
 const std = @import("std");
 const references = @import("native_references.zig");
 const artifacts = @import("artifacts.zig");
+const paths_rule = @import("native_sources/path.zig");
+const rules = @import("cli_source");
 const NativeModule = @import("project.zig").NativeModule;
 pub const collect = @import("native_sources/collect.zig");
 pub const File = struct { path: []const u8, kind: references.Kind, sha256: []const u8, referenced_from: ?[]const u8 };
@@ -29,7 +31,7 @@ pub fn writeWithInputs(io: std.Io, allocator: std.mem.Allocator, directory: []co
         const resource_path = try collect.referencedPath(allocator, root, root, path);
         const relative = try std.fs.path.relative(allocator, resource_path, null, resource_path, output_root);
 
-        if (within(relative)) return error.NativeBundleContainsOutput;
+        if (paths_rule.within(relative)) return error.NativeBundleContainsOutput;
 
         if (physical_output) |output_path| {
             if (inputs) |observed| try observed.add(io, resource_path);
@@ -37,13 +39,16 @@ pub fn writeWithInputs(io: std.Io, allocator: std.mem.Allocator, directory: []co
             const canonical = try std.Io.Dir.cwd().realPathFileAlloc(io, resource_path, allocator);
             const physical_relative = try std.fs.path.relative(allocator, canonical, null, canonical, output_path);
 
-            if (within(physical_relative)) return error.NativeBundleContainsOutput;
+            if (paths_rule.within(physical_relative)) return error.NativeBundleContainsOutput;
         }
     }
 
-    const source = try collect.read(io, allocator, project_root, module, inputs);
+    var source = try collect.read(io, allocator, project_root, module, inputs);
+
+    defer source.index.deinit(allocator);
+
     const destination = try std.fs.path.join(allocator, &.{ "native", module.name, "source" });
-    const includes = try relocateIncludes(io, allocator, project_root, source, destination, module.include_paths orelse &.{}, inputs);
+    const includes = try relocateIncludes(io, allocator, project_root, &source, destination, module.include_paths orelse &.{}, inputs);
     const files = try allocator.alloc(File, source.files.len);
 
     for (source.files, files) |file, *output| {
@@ -74,34 +79,36 @@ pub fn writeWithInputs(io: std.Io, allocator: std.mem.Allocator, directory: []co
     };
 }
 
-fn relocateIncludes(io: std.Io, allocator: std.mem.Allocator, project_root: []const u8, source: collect.Result, destination: []const u8, paths: []const []const u8, inputs: ?*@import("watch/inputs.zig")) !Includes {
+fn relocateIncludes(io: std.Io, allocator: std.mem.Allocator, project_root: []const u8, source: *const collect.Result, destination: []const u8, paths: []const []const u8, inputs: ?*@import("watch/inputs.zig")) !Includes {
     const relocated = try allocator.alloc([]const u8, paths.len);
     var relocations: std.ArrayList(Include) = .empty;
+    var memory = std.heap.FixedBufferAllocator.init(&.{});
 
     for (paths, relocated) |path, *result| {
         const absolute = try std.fs.path.resolve(allocator, &.{ project_root, path });
         const relative = try std.fs.path.relative(allocator, source.root, null, source.root, absolute);
         var bundled = false;
 
-        if (within(relative)) for (source.files) |file| {
+        if (paths_rule.within(relative)) for (source.files) |file| {
             if (file.kind != .asset) continue;
 
-            const root = std.mem.eql(u8, relative, ".") or relative.len == 0;
-            const child = std.mem.startsWith(u8, file.path, relative) and file.path.len > relative.len and std.fs.path.isSep(file.path[relative.len]);
+            if (rules.native_include_asset.executeValue(memory.allocator(), &.{
+                .directory = relative,
+                .file = file.path,
+                .primary_separator = std.fs.path.sep,
+                .windows = @import("builtin").os.tag == .windows,
+            }) catch unreachable) {
+                bundled = true;
 
-            if (root or child) bundled = true;
+                break;
+            }
         };
 
         if (bundled) {
             for (try @import("native_sources/resources.zig").files(io, allocator, absolute, inputs)) |path_to_file| {
                 const resource = try std.fs.path.relative(allocator, source.root, null, source.root, path_to_file);
-                var found = false;
 
-                for (source.files) |file| {
-                    if (std.mem.eql(u8, file.path, resource)) found = true;
-                }
-
-                if (!found) return error.IncompleteNativeIncludeBundle;
+                if (!source.index.contains(resource)) return error.IncompleteNativeIncludeBundle;
             }
         }
 
@@ -111,8 +118,4 @@ fn relocateIncludes(io: std.Io, allocator: std.mem.Allocator, project_root: []co
     }
 
     return .{ .paths = relocated, .relocations = relocations.items };
-}
-
-fn within(path: []const u8) bool {
-    return !std.fs.path.isAbsolute(path) and !std.mem.eql(u8, path, "..") and !std.mem.startsWith(u8, path, ".." ++ std.fs.path.sep_str);
 }

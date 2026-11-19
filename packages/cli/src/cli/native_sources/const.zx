@@ -1,0 +1,37 @@
+export const c_import: string = "@cImport"
+
+export const module_import: string = "@import"
+
+export const embed_file: string = "@embedFile"
+
+export const zig_extension: string = ".zig"
+
+export const declaration_extension: string = ".d.zx"
+
+export const current_path: string = "."
+
+export const parent_path: string = ".."
+
+export const native_prefix: string = "native/"
+
+export const public_prefix: string = "public/"
+
+export const module_prefix: string = "modules/"
+
+export const abi_view_prefix: string = "abi_views/"
+
+export const interface_prefix: string = "interfaces/"
+
+export const abi_file: string = "abi.zig"
+
+export const root_file: string = "root.zig"
+
+export const build_file: string = "build.zig"
+
+export const package_file: string = "pkg.yaml"
+
+export const library_file: string = "library.zxcir"
+
+export const legacy_inventory: u32 = 1
+
+export const managed_inventory: u32 = 2

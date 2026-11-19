@@ -14,6 +14,10 @@
         {
             "path": "workspace",
             "prefix": "package/workspace/"
+        },
+        {
+            "path": "native_sources",
+            "prefix": "native_sources/"
         }
     ],
     "entries": [
@@ -52,6 +56,42 @@
         {
             "path": "package/workspace/paths/validate.rx",
             "name": "manifest_path"
+        },
+        {
+            "path": "native_sources/references/classify.rx",
+            "name": "native_reference"
+        },
+        {
+            "path": "native_sources/references/local.zx",
+            "name": "native_local_import"
+        },
+        {
+            "path": "native_sources/collect/visit.rx",
+            "name": "native_resource_visit"
+        },
+        {
+            "path": "native_sources/collect/scan.rx",
+            "name": "native_resource_scan"
+        },
+        {
+            "path": "native_sources/path/reference.zx",
+            "name": "native_resource_path"
+        },
+        {
+            "path": "native_sources/path/within.zx",
+            "name": "native_resource_within"
+        },
+        {
+            "path": "native_sources/include/asset.zx",
+            "name": "native_include_asset"
+        },
+        {
+            "path": "native_sources/inventory/admit.rx",
+            "name": "library_inventory_path"
+        },
+        {
+            "path": "native_sources/inventory/version.zx",
+            "name": "library_inventory_version"
         }
     ],
     "packages": [

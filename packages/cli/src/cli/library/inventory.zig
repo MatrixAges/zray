@@ -1,4 +1,5 @@
 const std = @import("std");
+const rules = @import("cli_source");
 pub const File = struct { path: []const u8, sha256: []const u8 };
 pub const Inventory = struct { format_version: u32, bundled_files: []const File = &.{}, managed_files: ?[]const File = null };
 
@@ -58,26 +59,21 @@ pub fn read(io: std.Io, allocator: std.mem.Allocator, directory: []const u8) !?s
 
     errdefer parsed.deinit();
 
-    if (parsed.value.format_version != 1 and parsed.value.format_version != 2) return error.InvalidLibraryInventory;
+    var memory = std.heap.FixedBufferAllocator.init(&.{});
+
+    if (!(rules.library_inventory_version.executeValue(memory.allocator(), parsed.value.format_version) catch unreachable)) return error.InvalidLibraryInventory;
 
     return parsed;
 }
 
 pub fn valid(path: []const u8, native_only: bool) bool {
-    if (path.len == 0 or std.fs.path.isAbsolute(path) or std.mem.indexOfScalar(u8, path, 0) != null) return false;
+    var memory = std.heap.FixedBufferAllocator.init(&.{});
 
-    var segments = std.mem.splitScalar(u8, path, '/');
-
-    while (segments.next()) |segment| {
-        if (segment.len == 0 or std.mem.eql(u8, segment, ".") or std.mem.eql(u8, segment, "..")) return false;
-    }
-
-    if (std.mem.startsWith(u8, path, "native/")) return true;
-    if (native_only) return false;
-    for ([_][]const u8{ "abi.zig", "root.zig", "build.zig", "pkg.yaml", "library.zxcir" }) |name| if (std.mem.eql(u8, path, name)) return true;
-    for ([_][]const u8{ "public/", "modules/", "abi_views/" }) |prefix| if (std.mem.startsWith(u8, path, prefix) and std.mem.endsWith(u8, path, ".zig")) return true;
-
-    return std.mem.startsWith(u8, path, "interfaces/") and std.mem.endsWith(u8, path, ".d.zx");
+    return rules.library_inventory_path.executeValue(memory.allocator(), &.{
+        .path = path,
+        .absolute = std.fs.path.isAbsolute(path),
+        .native_only = native_only,
+    }) catch unreachable;
 }
 
 fn lessThan(_: void, left: File, right: File) bool {

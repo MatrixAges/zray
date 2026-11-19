@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Scan} out={Collection.Decision} />
+
+    <If on={$in.found.dynamic_resources && !$in.has_bundle}>
+        <Return
+            value={{
+                ...$in.accumulated,
+                valid: false
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            c_imports: $in.accumulated.c_imports || $in.found.c_imports,
+            dynamic_resources:
+                $in.accumulated.dynamic_resources || $in.found.dynamic_resources,
+            valid: true
+        }}
+    />
+</Module>

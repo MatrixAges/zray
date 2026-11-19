@@ -1,6 +1,7 @@
 const std = @import("std");
 const Inputs = @import("watch/inputs.zig");
 const inventory = @import("library/inventory.zig");
+const path_rules = @import("native_sources/path.zig");
 
 pub fn retiredFromStaging(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, staging: []const u8, inputs: *Inputs) ![]const []const u8 {
     var next = try inventory.read(io, allocator, staging) orelse return error.MissingLibraryInventory;
@@ -17,7 +18,7 @@ pub fn retired(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, 
 
     const root = try std.fs.path.resolve(allocator, &.{directory});
     const physical_root = try std.Io.Dir.cwd().realPathFileAlloc(io, root, allocator);
-    var paths: std.ArrayList([]const u8) = .empty;
+    var retired_paths: std.ArrayList([]const u8) = .empty;
 
     for (previous.value.managed_files orelse previous.value.bundled_files) |resource| {
         const path = try std.fs.path.resolve(allocator, &.{ root, resource.path });
@@ -52,7 +53,7 @@ pub fn retired(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, 
         const physical = try std.Io.Dir.cwd().realPathFileAlloc(io, path, allocator);
         const physical_relative = try std.fs.path.relative(allocator, physical_root, null, physical_root, physical);
 
-        if (std.fs.path.isAbsolute(physical_relative) or std.mem.eql(u8, physical_relative, "..") or std.mem.startsWith(u8, physical_relative, ".." ++ std.fs.path.sep_str)) return error.LibraryResourceOutsideOutput;
+        if (!path_rules.within(physical_relative)) return error.LibraryResourceOutsideOutput;
 
         for (current) |file| {
             const target = try std.fs.path.resolve(allocator, &.{ root, file.path });
@@ -88,10 +89,10 @@ pub fn retired(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, 
         const hex = std.fmt.bytesToHex(digest, .lower);
 
         if (!std.ascii.eqlIgnoreCase(&hex, resource.sha256)) return error.LibraryResourceModified;
-        try paths.append(allocator, path);
+        try retired_paths.append(allocator, path);
     }
 
-    return paths.items;
+    return retired_paths.items;
 }
 
 pub fn remove(io: std.Io, paths: []const []const u8) !void {

@@ -1,0 +1,53 @@
+import bytes from "std:bytes"
+
+import {
+    abi_file,
+    abi_view_prefix,
+    build_file,
+    declaration_extension,
+    interface_prefix,
+    library_file,
+    module_prefix,
+    package_file,
+    public_prefix,
+    root_file,
+    zig_extension
+} from "../const"
+import suffix from "../path/suffix"
+
+export type Input = string
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const direct = match in {
+        abi_file => true,
+        root_file => true,
+        build_file => true,
+        package_file => true,
+        library_file => true,
+        _ => false
+    }
+
+    if (direct) {
+        return true
+    }
+
+    const text = bytes.fromText(in)
+    const public_directory = bytes.startsWithText(text, 0, public_prefix)
+    const module_directory = bytes.startsWithText(text, 0, module_prefix)
+    const abi_directory = bytes.startsWithText(text, 0, abi_view_prefix)
+    const zig_directory = public_directory || module_directory || abi_directory
+
+    if (zig_directory) {
+        return suffix({
+            path: in,
+            suffix: zig_extension
+        })
+    }
+
+    return bytes.startsWithText(text, 0, interface_prefix) && suffix({
+        path: in,
+        suffix: declaration_extension
+    })
+}

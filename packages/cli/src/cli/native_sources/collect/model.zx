@@ -1,0 +1,26 @@
+export type Item = {
+    previous_parsed?: bool,
+    source: bool
+}
+
+export enum Action {
+    Skip,
+    ReadAsset,
+    ReadSource,
+    Promote
+}
+
+export type Flags = {
+    dynamic_resources: bool,
+    c_imports: bool
+}
+
+export type Scan = {
+    found: Flags,
+    accumulated: Flags,
+    has_bundle: bool
+}
+
+export type Decision = Flags & {
+    valid: bool
+}

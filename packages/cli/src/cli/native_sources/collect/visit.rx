@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Item} out={Collection.Action} />
+
+    <If on={$in.previous_parsed == null}>
+        <If on={$in.source}>
+            <Return value={Collection.Action.ReadSource} />
+        </If>
+
+        <Return value={Collection.Action.ReadAsset} />
+    </If>
+
+    <If on={$in.previous_parsed == true || !$in.source}>
+        <Return value={Collection.Action.Skip} />
+    </If>
+
+    <Return value={Collection.Action.Promote} />
+</Module>

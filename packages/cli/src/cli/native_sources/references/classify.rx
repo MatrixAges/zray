@@ -1,0 +1,36 @@
+<Module>
+    <Type from="model" as="Reference" />
+    <Type from="name" as="Builtin" />
+
+    <Args in={Reference.Input} out={Reference.Action} />
+
+    <Call fn="name" in={$in.name} />
+
+    <Switch on={$ctx.name}>
+        <Case value={Builtin.Kind.Other}>
+            <Return value={Reference.Action.Ignore} />
+        </Case>
+
+        <Case value={Builtin.Kind.CImport}>
+            <Return value={Reference.Action.CImport} />
+        </Case>
+    </Switch>
+
+    <If on={$in.arguments != 1}>
+        <Return value={Reference.Action.InvalidSource} />
+    </If>
+
+    <If on={$ctx.name == Builtin.Kind.Zig}>
+        <If on={!$in.literal}>
+            <Return value={Reference.Action.InvalidImport} />
+        </If>
+
+        <Return value={Reference.Action.Zig} />
+    </If>
+
+    <If on={!$in.literal}>
+        <Return value={Reference.Action.DynamicAsset} />
+    </If>
+
+    <Return value={Reference.Action.Asset} />
+</Module>

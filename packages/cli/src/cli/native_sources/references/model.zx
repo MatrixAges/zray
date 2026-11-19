@@ -1,0 +1,15 @@
+export type Input = {
+    name: string,
+    arguments: u64,
+    literal: bool
+}
+
+export enum Action {
+    Ignore,
+    CImport,
+    InvalidSource,
+    InvalidImport,
+    DynamicAsset,
+    Zig,
+    Asset
+}

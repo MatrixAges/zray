@@ -1,0 +1,21 @@
+import { c_import, embed_file, module_import } from "../const"
+
+export enum Kind {
+    Other,
+    CImport,
+    Zig,
+    Asset
+}
+
+export type Input = string
+
+export type Output = Kind
+
+export default function (in: Input): Output {
+    return match in {
+        c_import => Kind.CImport,
+        module_import => Kind.Zig,
+        embed_file => Kind.Asset,
+        _ => Kind.Other
+    }
+}
