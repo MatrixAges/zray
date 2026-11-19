@@ -1,0 +1,54 @@
+import memory from "memory"
+
+import pack from "./text"
+
+import type { Publication as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, text, target } = in
+
+    const written = loop({
+        index: 0,
+        offset: 0
+    }, {
+        while: state => state.index < source.specifiers.length,
+        next: state => {
+            const { index, offset } = state
+            const specifier = pack({
+                target: text,
+                start: offset,
+                name: source.specifiers[index]
+            })
+            const imported = pack({
+                target: text,
+                start: offset + specifier.length,
+                name: source.import_names[index]
+            })
+
+            memory.writeString(target.specifiers, index, specifier)
+            memory.writeString(target.import_names, index, imported)
+
+            state.offset += specifier.length + imported.length
+
+            const source_identity = source.identities[index]
+            const identity: string? = match {
+                source_identity != null => pack({
+                    target: text,
+                    start: state.offset,
+                    name: source_identity
+                }),
+                _ => null
+            }
+
+            memory.writeOptionalString(target.identities, index, identity)
+
+            if (identity != null) {
+                state.offset += identity.length
+            }
+
+            state.index += 1
+        }
+    })
+}

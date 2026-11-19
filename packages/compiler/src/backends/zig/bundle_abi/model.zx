@@ -1,5 +1,6 @@
 import type { Alias } from "genz/abi/model"
-import type { Bindings } from "../source_abi/model"
+import type { TextColumn } from "memory"
+import type { Bindings, Scopes } from "../source_abi/model"
 
 export enum Status {
     Valid,
@@ -7,35 +8,37 @@ export enum Status {
     NameConflict
 }
 
-export type Scope = {
-    root: string,
-    interfaces: Bindings,
-    externals: Bindings
+export type AliasRows = {
+    count: u64,
+    names: TextColumn,
+    identities: TextColumn
 }
 
 export type Native = {
     name: string,
-    aliases?: Alias[]
+    aliases?: AliasRows
 }
 
 export type Settings = {
-    names: string[],
-    roots: string[]
+    count: u64,
+    names: TextColumn,
+    roots: TextColumn
 }
 
 export type Input = {
     modules: Bindings,
     root: string,
-    scopes: Scope[],
+    scopes: Scopes,
     natives: Native[],
     settings: Settings,
-    files: string[]
+    file_count: u64,
+    files: TextColumn
 }
 
 export type ViewInput = {
     source: Input,
     native: Native,
-    aliases: Alias[]
+    aliases: AliasRows
 }
 
 export type Resolved = {

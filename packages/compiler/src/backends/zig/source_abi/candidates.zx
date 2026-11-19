@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import contains from "./contains"
 
 import type { Bindings, Sources, Candidates } from "./model"
@@ -32,27 +34,30 @@ export default function (in: Input): Output {
         }
     })
 
+    const first = in.sources.interfaces.count
+    const last = in.sources.externals.count
+
     const result = loop({
         modules: in.modules,
         sources: in.sources,
         names: defaults.names,
         identities: defaults.identities,
         index: 0,
-        count:
-            in.sources.interfaces.specifiers.length +
-            in.sources.externals.specifiers.length
+        first,
+        count: first + last
     }, {
         while: current => current.index < current.count,
         next: current => {
-            const first = current.sources.interfaces.specifiers.length
+            const { first } = current
             const external = current.index >= first
             const source = match {
                 external => current.sources.externals,
                 _ => current.sources.interfaces
             }
             const index = external ? current.index - first : current.index
-            const name = source.specifiers[index]
-            const identity = source.identities[index] ?? name
+            const name = memory.readTextColumn(source.specifiers, index)
+            const identity =
+                memory.readOptionalTextColumn(source.identities, index) ?? name
 
             if (contains({
                 modules: current.modules,

@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import memory from "memory"
 
 import contains from "../source_abi/contains"
 import { Status } from "./model"
@@ -12,17 +13,22 @@ export default function (in: Input): Output {
     const explicit = loop({
         source: in,
         aliases,
+        count: in.aliases.count,
         index: 0
     }, {
-        while: current => current.index < current.source.aliases.length,
+        while: current => current.index < current.count,
         next: current => {
-            const alias = current.source.aliases[current.index]
+            const names = current.source.aliases
+            const identity = memory.readTextColumn(names.identities, current.index)
 
             if (contains({
                 modules: current.source.source.modules,
-                identity: alias.identity
+                identity
             })) {
-                current.aliases = current.aliases.push(alias)[0]
+                current.aliases = current.aliases.push({
+                    name: memory.readTextColumn(names.names, current.index),
+                    identity
+                })[0]
             }
 
             current.index += 1

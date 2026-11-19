@@ -5,20 +5,18 @@ import constants from "../../../ast/declarations/constants"
 import type { State as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const members = constants({
-        values: in.members,
-        base: 0
-    })
+    const first = integers.narrow(in.members.length)
+    const contents = in.members.concat(in.roots)[0]
 
-    const roots = constants({
-        values: in.roots,
-        base: integers.narrow(in.members.length)
+    const declarations = constants({
+        values: contents,
+        base: 0
     })
 
     return {
         expressions: in.expressions,
-        members: members.table,
-        roots: roots.table,
-        valid: in.valid && members.valid && roots.valid
+        declarations: declarations.table,
+        first,
+        valid: in.valid && declarations.valid
     }
 }

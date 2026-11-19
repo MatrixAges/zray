@@ -38,7 +38,7 @@ export type State = {
 
 export type Output = {
     expressions: Expressions,
-    members: Declarations,
-    roots: Declarations,
+    declarations: Declarations,
+    first: u32,
     valid: bool
 }

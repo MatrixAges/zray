@@ -1,5 +1,7 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
+const memory = zx.memory;
 const project = @import("frontend").project;
 const view = @import("genz").zx.modules.abi_view;
 const generated = @import("generated_source_abi");
@@ -15,27 +17,16 @@ pub fn render(allocator: std.mem.Allocator, modules: ir.NativeModuleTable, optio
     defer arena.deinit();
 
     const temporary = buffered.allocator();
-    const scoped = @import("generated_source_abi_scoped");
-
-    const has_scoped = scoped.executeIn(temporary, modules.identities) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    if (!has_scoped) return allocator.dupe(u8, "");
-
-    const roots = try temporary.alloc([]const u8, options.package_scopes.len);
-
-    for (options.package_scopes, roots) |scope, *root| root.* = scope.root;
-
+    const roots = memory.borrowTextColumn("root", options.package_scopes);
     const planner = @import("generated_source_abi_plan");
+    const plan: std.meta.Child(planner.Input) = .{ .identities = modules.identities, .count = options.package_scopes.len, .roots = @ptrCast(&roots), .root = options.root_dir };
 
-    const selected = planner.executeIn(temporary, &.{ .identities = modules.identities, .roots = roots, .root = options.root_dir }) catch |err| switch (@as(anyerror, err)) {
+    const selected = planner.executeIn(temporary, &plan) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    std.debug.assert(selected.scoped);
+    if (!selected.scoped) return allocator.dupe(u8, "");
 
     const configured = if (selected.scope) |index| options.package_scopes[index] else project.PackageScope{
         .root = options.root_dir,
@@ -45,43 +36,32 @@ pub fn render(allocator: std.mem.Allocator, modules: ir.NativeModuleTable, optio
     };
 
     const module_bindings: Bindings = .{ .specifiers = modules.specifiers, .identities = modules.identities };
-
-    const input: Input = .{
-        .modules = &module_bindings,
-        .sources = try sources(temporary, configured.native_interfaces, configured.externals),
-    };
+    const interfaces = Columns.init(configured.native_interfaces);
+    const externals = Columns.init(configured.externals);
+    const interface_view = interfaces.view();
+    const external_view = externals.view();
+    const configured_sources: Sources = .{ .interfaces = &interface_view, .externals = &external_view };
+    const input: Input = .{ .modules = &module_bindings, .sources = &configured_sources };
 
     const output = generated.executeIn(temporary, &input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    const aliases = try temporary.alloc(view.Alias, output.len);
-
-    for (output, aliases) |alias, *target| target.* = .{ .name = alias.name, .identity = alias.identity };
-
-    return view.render(allocator, &.{}, aliases, false);
+    return view.renderBorrowed(allocator, &.{}, output, false);
 }
 
-fn sources(allocator: std.mem.Allocator, interfaces: []const project.NativeInterface, externals: []const project.External) std.mem.Allocator.Error!*const Sources {
-    const value = try allocator.create(Sources);
-    value.* = .{ .interfaces = try bindings(allocator, interfaces), .externals = try bindings(allocator, externals) };
-
-    return value;
-}
-
-fn bindings(allocator: std.mem.Allocator, values: anytype) std.mem.Allocator.Error!*const Bindings {
-    const specifiers = try allocator.alloc([]const u8, values.len);
-    const identities = try allocator.alloc(?[]const u8, values.len);
-
-    for (values, specifiers, identities) |value, *specifier, *identity| {
-        specifier.* = value.specifier;
-        identity.* = value.identity;
+const Columns = struct {
+    specifiers: memory.TextColumn,
+    identities: memory.ReadColumn,
+    fn init(values: anytype) Columns {
+        return .{
+            .specifiers = memory.borrowTextColumn("specifier", values),
+            .identities = memory.borrowReadColumn(?[]const u8, "identity", values),
+        };
     }
 
-    const result = try allocator.create(Bindings);
-
-    result.* = .{ .specifiers = specifiers, .identities = identities };
-
-    return result;
-}
+    fn view(self: *const Columns) std.meta.Child(@FieldType(Sources, "interfaces")) {
+        return .{ .count = self.specifiers.count, .specifiers = @ptrCast(&self.specifiers), .identities = @ptrCast(&self.identities) };
+    }
+};

@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import memory from "memory"
 
 import type { ViewInput as Input } from "./model"
 
@@ -9,22 +10,29 @@ export default function (in: Input): Output {
         settings: in.source.settings,
         name: bytes.fromText(in.native.name),
         root: bytes.fromText(in.source.root),
+        count: in.source.settings.count,
         selected: false,
         index: 0
     }, {
-        while: current => current.index < current.settings.names.length,
+        while: current => current.index < current.count,
         next: current => {
             if (
                 bytes.equals(
                     bytes.fromText(
-                        current.settings.names[current.index]
+                        memory.readTextColumn(
+                            current.settings.names,
+                            current.index
+                        )
                     ),
                     current.name
                 )
             ) {
                 current.selected = bytes.equals(
                     bytes.fromText(
-                        current.settings.roots[current.index]
+                        memory.readTextColumn(
+                            current.settings.roots,
+                            current.index
+                        )
                     ),
                     current.root
                 )

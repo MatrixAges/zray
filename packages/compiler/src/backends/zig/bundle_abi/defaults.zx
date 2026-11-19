@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import memory from "memory"
 
 import contains from "../source_abi/contains"
 import append from "./append"
@@ -42,38 +43,54 @@ export default function (
     return loop({
         source: in,
         state: defaults.state,
-        index: 0
+        index: 0,
+        count: in.scopes.count
     }, {
-        while: current => current.index < current.source.scopes.length,
+        while: current => current.index < current.count,
         next: current => {
-            const scope = current.source.scopes[current.index]
+            const { scopes } = current.source
+            const root = memory.readTextColumn(scopes.roots, current.index)
 
             if (
                 bytes.equals(
-                    bytes.fromText(scope.root),
+                    bytes.fromText(root),
                     bytes.fromText(current.source.root)
                 )
             ) {
+                const first =
+                    memory.listLength(scopes.interfaces.specifiers, current.index)
+                const last =
+                    memory.listLength(scopes.externals.specifiers, current.index)
                 const entries = loop({
-                    scope,
+                    scopes,
+                    scope: current.index,
+                    first,
                     modules: current.source.modules,
                     state: current.state,
                     index: 0,
-                    count:
-                        scope.interfaces.specifiers.length +
-                        scope.externals.specifiers.length
+                    count: first + last
                 }, {
                     while: entry => entry.index < entry.count,
                     next: entry => {
-                        const first = entry.scope.interfaces.specifiers.length
+                        const { first } = entry
                         const external = entry.index >= first
                         const source = match {
-                            external => entry.scope.externals,
-                            _ => entry.scope.interfaces
+                            external => entry.scopes.externals,
+                            _ => entry.scopes.interfaces
                         }
                         const index = external ? entry.index - first : entry.index
-                        const name = source.specifiers[index]
-                        const identity = source.identities[index] ?? name
+                        const name =
+                            memory.readListText(
+                                source.specifiers,
+                                entry.scope,
+                                index
+                            )
+                        const identity =
+                            memory.readListOptionalText(
+                                source.identities,
+                                entry.scope,
+                                index
+                            ) ?? name
 
                         if (contains({
                             modules: entry.modules,

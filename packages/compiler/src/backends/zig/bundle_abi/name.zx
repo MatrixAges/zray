@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 import strings from "std:string"
+import memory from "memory"
 
 import { view_prefix, view_directory, source_suffix, empty_separator } from "./const"
 import { Status } from "./model"
@@ -40,11 +41,16 @@ export default function (in: Input): Output {
         name: bytes.fromText(name),
         module: bytes.fromText(in.native.name),
         index: 0,
+        count: in.source.file_count,
         conflict: natives.conflict
     }, {
-        while: current => !current.conflict && current.index < current.source.length,
+        while: current => !current.conflict && current.index < current.count,
         next: current => {
-            const candidate = bytes.fromText(current.source[current.index])
+            const candidate =
+                bytes.fromText(memory.readTextColumn(
+                    current.source,
+                    current.index
+                ))
 
             current.conflict = bytes.equals(candidate, current.name) ||
                 bytes.equals(candidate, current.module)

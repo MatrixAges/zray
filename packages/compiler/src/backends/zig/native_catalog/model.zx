@@ -1,0 +1,28 @@
+import type {
+    OptionalStringBuffer,
+    StringBuffer,
+    U8Buffer
+} from "memory"
+
+export type Names = {
+    identities: string?[],
+    import_names: string[],
+    specifiers: string[]
+}
+
+export type Text = {
+    data: string,
+    bytes: U8Buffer
+}
+
+export type Target = {
+    identities: OptionalStringBuffer,
+    import_names: StringBuffer,
+    specifiers: StringBuffer
+}
+
+export type Publication = {
+    source: Names,
+    text: Text,
+    target: Target
+}

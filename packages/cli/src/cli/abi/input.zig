@@ -1,70 +1,78 @@
 const std = @import("std");
 const compiler = @import("compiler");
+const memory = @import("zx").memory;
 const plan = compiler.zig.bundle_abi;
 const Loaded = @import("../project.zig").Loaded;
+const Settings = std.meta.Child(@FieldType(plan.Input, "settings"));
+const BindingLists = std.meta.Child(@FieldType(plan.Scopes, "interfaces"));
 
-pub fn create(allocator: std.mem.Allocator, modules: compiler.ir.NativeModuleTable, files: []const compiler.zig.ModuleFile, loaded: Loaded) std.mem.Allocator.Error!plan.Input {
-    const module_bindings = try allocator.create(plan.Bindings);
-    module_bindings.* = .{ .specifiers = modules.specifiers, .identities = modules.identities };
-    const scopes = try allocator.alloc(*const plan.Scope, loaded.project.package_scopes.len);
+pub const Borrowed = struct {
+    modules: plan.Bindings,
+    scopes: plan.Scopes,
+    scope_roots: memory.TextColumn,
+    interfaces: Lists,
+    externals: Lists,
+    settings: Settings,
+    setting_names: memory.TextColumn,
+    setting_roots: memory.TextColumn,
+    files: memory.TextColumn,
+    natives: []const *const plan.Native,
+    root: []const u8,
+    pub fn init(self: *Borrowed, allocator: std.mem.Allocator, modules: compiler.ir.NativeModuleTable, files: []const compiler.zig.ModuleFile, loaded: Loaded) std.mem.Allocator.Error!void {
+        const scopes = loaded.project.package_scopes;
+        self.modules = .{ .specifiers = modules.specifiers, .identities = modules.identities };
+        self.scope_roots = memory.borrowTextColumn("root", scopes);
 
-    for (loaded.project.package_scopes, scopes) |source, *target| {
-        const scope = try allocator.create(plan.Scope);
-        scope.* = .{ .root = source.root, .interfaces = try bindings(allocator, source.native_interfaces), .externals = try bindings(allocator, source.externals) };
-        target.* = scope;
+        self.interfaces.init("native_interfaces", scopes);
+        self.externals.init("externals", scopes);
+        self.scopes = .{ .count = scopes.len, .roots = @ptrCast(&self.scope_roots), .interfaces = &self.interfaces.view, .externals = &self.externals.view };
+        self.setting_names = memory.borrowTextColumn("name", loaded.native_settings);
+        self.setting_roots = memory.borrowTextColumn("root", loaded.native_settings);
+        self.settings = .{ .count = loaded.native_settings.len, .names = @ptrCast(&self.setting_names), .roots = @ptrCast(&self.setting_roots) };
+        self.files = memory.borrowTextColumn("name", files);
+        self.root = loaded.project.root_dir;
+        self.natives = try borrowNatives(allocator, loaded.config.native_modules);
     }
 
-    const natives = try allocator.alloc(*const plan.Native, loaded.config.native_modules.len);
+    pub fn input(self: *const Borrowed) plan.Input {
+        return .{ .modules = &self.modules, .root = self.root, .scopes = &self.scopes, .natives = self.natives, .settings = &self.settings, .file_count = self.files.count, .files = @ptrCast(&self.files) };
+    }
+};
 
-    for (loaded.config.native_modules, natives) |source, *target| {
-        const native = try allocator.create(plan.Native);
-        native.* = .{ .name = source.name, .aliases = if (source.abi_aliases) |items| try aliases(allocator, items) else null };
-        target.* = native;
+const Lists = struct {
+    specifiers: memory.ListColumn,
+    identities: memory.ListColumn,
+    view: BindingLists,
+    fn init(self: *Lists, comptime field: []const u8, scopes: []const compiler.project.PackageScope) void {
+        self.specifiers = memory.borrowListColumn([]const u8, field, "specifier", scopes);
+        self.identities = memory.borrowListColumn(?[]const u8, field, "identity", scopes);
+        self.view = .{ .specifiers = @ptrCast(&self.specifiers), .identities = @ptrCast(&self.identities) };
+    }
+};
+
+const Native = struct {
+    names: memory.TextColumn,
+    identities: memory.TextColumn,
+    aliases: plan.AliasRows,
+    value: plan.Native,
+};
+
+fn borrowNatives(allocator: std.mem.Allocator, modules: anytype) std.mem.Allocator.Error![]const *const plan.Native {
+    const views = try allocator.alloc(Native, modules.len);
+    const pointers = try allocator.alloc(*const plan.Native, modules.len);
+
+    for (modules, views, pointers) |module, *target, *pointer| {
+        target.value = .{ .name = module.name, .aliases = null };
+
+        if (module.abi_aliases) |aliases| {
+            target.names = memory.borrowTextColumn("name", aliases);
+            target.identities = memory.borrowTextColumn("specifier", aliases);
+            target.aliases = .{ .count = aliases.len, .names = @ptrCast(&target.names), .identities = @ptrCast(&target.identities) };
+            target.value.aliases = &target.aliases;
+        }
+
+        pointer.* = &target.value;
     }
 
-    const Settings = std.meta.Child(@FieldType(plan.Input, "settings"));
-    const settings = try allocator.create(Settings);
-    const names = try allocator.alloc([]const u8, loaded.native_settings.len);
-    const roots = try allocator.alloc([]const u8, loaded.native_settings.len);
-
-    for (loaded.native_settings, names, roots) |source, *name, *root| {
-        name.* = source.name;
-        root.* = source.root;
-    }
-
-    settings.* = .{ .names = names, .roots = roots };
-
-    const file_names = try allocator.alloc([]const u8, files.len);
-
-    for (files, file_names) |source, *target| target.* = source.name;
-
-    return .{ .modules = module_bindings, .root = loaded.project.root_dir, .scopes = scopes, .natives = natives, .settings = settings, .files = file_names };
-}
-
-fn bindings(allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!*const plan.Bindings {
-    const names = try allocator.alloc([]const u8, source.len);
-    const identities = try allocator.alloc(?[]const u8, source.len);
-
-    for (source, names, identities) |entry, *name, *identity| {
-        name.* = entry.specifier;
-        identity.* = entry.identity;
-    }
-
-    const result = try allocator.create(plan.Bindings);
-
-    result.* = .{ .specifiers = names, .identities = identities };
-
-    return result;
-}
-
-fn aliases(allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!plan.Aliases {
-    const result = try allocator.alloc(*const plan.Alias, source.len);
-
-    for (source, result) |entry, *target| {
-        const alias = try allocator.create(plan.Alias);
-        alias.* = .{ .name = entry.name, .identity = entry.specifier };
-        target.* = alias;
-    }
-
-    return result;
+    return pointers;
 }

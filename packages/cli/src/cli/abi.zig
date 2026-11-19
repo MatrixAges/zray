@@ -33,7 +33,11 @@ fn render(allocator: std.mem.Allocator, bundle: Bundle, loaded: Loaded) !Result 
 
     if (!try planner.scoped(temporary, bundle.native_modules.identities)) return .{ .source = bundle.types };
 
-    const input = try @import("abi/input.zig").create(temporary, bundle.native_modules, bundle.modules, loaded);
+    var borrowed: @import("abi/input.zig").Borrowed = undefined;
+
+    try borrowed.init(temporary, bundle.native_modules, bundle.modules, loaded);
+
+    const input = borrowed.input();
     const plan = try planner.create(temporary, &input);
     const views = try allocator.alloc(File, plan.views.len);
 
@@ -41,18 +45,10 @@ fn render(allocator: std.mem.Allocator, bundle: Bundle, loaded: Loaded) !Result 
         .module = try allocator.dupe(u8, selected.module),
         .name = try allocator.dupe(u8, selected.name),
         .path = try allocator.dupe(u8, selected.path),
-        .source = try view.render(allocator, bundle.type_names, try aliases(temporary, selected.aliases), true),
+        .source = try view.renderBorrowed(allocator, bundle.type_names, selected.aliases, true),
     };
 
-    const root_view = try view.render(temporary, &.{}, try aliases(temporary, plan.aliases), false);
+    const root_view = try view.renderBorrowed(temporary, &.{}, plan.aliases, false);
 
     return .{ .source = try std.mem.concat(allocator, u8, &.{ bundle.types, "\n", root_view }), .views = views };
-}
-
-fn aliases(allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error![]const view.Alias {
-    const result = try allocator.alloc(view.Alias, source.len);
-
-    for (source, result) |alias, *target| target.* = .{ .name = alias.name, .identity = alias.identity };
-
-    return result;
 }

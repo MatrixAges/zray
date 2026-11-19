@@ -154,20 +154,5 @@ pub fn typeNamesAnalyzed(owned: std.mem.Allocator, workspace: std.mem.Allocator,
 }
 
 pub fn nativeModules(owned: std.mem.Allocator, program: @import("zx").ir.Program) std.mem.Allocator.Error!@import("zx").ir.NativeModuleTable {
-    const ir = @import("zx").ir;
-    var native_modules: ir.NativeModuleStorage = .{};
-
-    errdefer native_modules.deinit(owned);
-
-    for (0..program.native_modules.count()) |index| {
-        const module = program.native_modules.at(index);
-
-        try native_modules.append(owned, .{
-            .specifier = try owned.dupe(u8, module.specifier),
-            .identity = if (module.identity) |identity| try owned.dupe(u8, identity) else null,
-            .import_name = try owned.dupe(u8, module.import_name),
-        });
-    }
-
-    return native_modules.finish(owned);
+    return @import("native_catalog.zig").create(owned, program.native_modules);
 }

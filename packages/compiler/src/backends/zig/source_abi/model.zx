@@ -1,18 +1,38 @@
 import type { Alias } from "genz/abi/model"
+import type { ListColumn, ReadColumn, TextColumn } from "memory"
 
 export type Bindings = {
     specifiers: string[],
     identities: string?[]
 }
 
+export type BindingRows = {
+    count: u64,
+    specifiers: TextColumn,
+    identities: ReadColumn
+}
+
+export type BindingLists = {
+    specifiers: ListColumn,
+    identities: ListColumn
+}
+
+export type Scopes = {
+    count: u64,
+    roots: TextColumn,
+    interfaces: BindingLists,
+    externals: BindingLists
+}
+
 export type Sources = {
-    interfaces: Bindings,
-    externals: Bindings
+    interfaces: BindingRows,
+    externals: BindingRows
 }
 
 export type PlanInput = {
+    count: u64,
     identities: string?[],
-    roots: string[],
+    roots: TextColumn,
     root: string
 }
 

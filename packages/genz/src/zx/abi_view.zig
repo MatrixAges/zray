@@ -31,3 +31,16 @@ pub fn render(allocator: std.mem.Allocator, type_names: []const []const u8, alia
 
     return @import("../render.zig").render(allocator, builder.nodes, declarations.items);
 }
+
+/// Renders a generated alias list while its row pointers are still borrowed.
+pub fn renderBorrowed(allocator: std.mem.Allocator, type_names: []const []const u8, aliases: anytype, imported: bool) std.mem.Allocator.Error![]u8 {
+    if (comptime @import("genz_options").generated_analysis) return @import("abi_view/generated.zig").renderBorrowed(allocator, type_names, aliases, imported);
+
+    const values = try allocator.alloc(Alias, aliases.len);
+
+    defer allocator.free(values);
+
+    for (aliases, values) |source, *target| target.* = .{ .name = source.name, .identity = source.identity };
+
+    return render(allocator, type_names, values, imported);
+}
