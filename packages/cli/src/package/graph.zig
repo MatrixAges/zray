@@ -19,27 +19,36 @@ pub const Result = struct {
 };
 
 pub fn load(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !Result {
-    return loadRetaining(io, allocator, path, null, null);
+    return loadPrepared(io, allocator, .{ .path = path }, null);
 }
 
-pub fn loadRetaining(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs, manifests: ?std.mem.Allocator) !Result {
+pub fn loadPrepared(io: std.Io, allocator: std.mem.Allocator, request: workspace.Request, members: ?*const workspace.Result) !Result {
     var result: Result = .{ .arena = .init(allocator) };
 
     errdefer result.deinit();
 
-    resolve(io, &result, path, inputs, manifests orelse result.arena.allocator()) catch |err| {
+    resolve(io, &result, request, members) catch |err| {
         if (err == error.OutOfMemory) return err;
-        if (result.diagnostic == null) result.diagnostic = try std.fmt.allocPrint(result.arena.allocator(), "{s}: {s}", .{ path, @errorName(err) });
+        if (result.diagnostic == null) result.diagnostic = try std.fmt.allocPrint(result.arena.allocator(), "{s}: {s}", .{ request.path, @errorName(err) });
     };
 
     return result;
 }
 
-fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs, manifests: std.mem.Allocator) !void {
+fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?*const workspace.Result) !void {
     const allocator = result.arena.allocator();
-    var discovered = try workspace.loadRetaining(io, result.arena.child_allocator, path, inputs, manifests);
+    const manifests = original.manifests orelse allocator;
+    var fresh: ?workspace.Result = null;
 
-    defer discovered.deinit();
+    defer if (fresh) |*snapshot| snapshot.deinit();
+
+    const discovered = captured orelse block: {
+        var request = original;
+        request.manifests = manifests;
+        fresh = try workspace.loadPrepared(io, result.arena.child_allocator, request);
+
+        break :block &fresh.?;
+    };
 
     if (discovered.diagnostic) |message| {
         result.diagnostic = try allocator.dupe(u8, message);
@@ -47,7 +56,7 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs, mani
         return error.InvalidPackageGraph;
     }
 
-    result.root = try std.Io.Dir.cwd().realPathFileAlloc(io, std.fs.path.dirname(path) orelse ".", allocator);
+    result.root = try allocator.dupe(u8, discovered.root);
 
     const location = pkgs.workspace.manifest.inspect(discovered.packages);
 
@@ -55,7 +64,7 @@ fn resolve(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs, mani
         const package = discovered.packages[@intCast(location.row)];
         const entries = if (location.development) package.manifest.dev_dependencies else package.manifest.dependencies;
 
-        result.packages = @import("installed.zig").load(io, allocator, result.root, discovered.packages, inputs, manifests) catch |err| {
+        result.packages = @import("installed.zig").load(io, allocator, result.root, discovered.packages, original.inputs, manifests) catch |err| {
             if (err == error.PackagesNotInstalled) result.diagnostic = try std.fmt.allocPrint(allocator, "{s}/pkg.yaml: dependency {s}: external dependency is not installed; run zxc pkg install", .{ package.path, entries[@intCast(location.edge)].name });
 
             return err;

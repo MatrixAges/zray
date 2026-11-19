@@ -38,6 +38,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
             .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
+            .{ .name = "zxc_string", .module = compiler.module("generated_string") },
             .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "memory/columns", .module = core.module("memory") },
         },

@@ -1,6 +1,6 @@
 const std = @import("std");
 const Lock = @import("pkgs").Lock;
-const manifest = @import("../manifest.zig");
+const source = @import("../manifest/input.zig");
 const Manifest = @import("../manifest/model.zig").Manifest;
 const Inputs = @import("../../cli/watch/inputs.zig");
 
@@ -13,13 +13,7 @@ pub fn read(io: std.Io, allocator: std.mem.Allocator, root: []const u8, inputs: 
 
     if (inputs) |observed| try observed.add(io, path);
 
-    const source = try std.Io.Dir.cwd().readFileAlloc(io, path, std.heap.smp_allocator, .limited(4 * 1024 * 1024));
-
-    defer std.heap.smp_allocator.free(source);
-
-    if (inputs) |observed| try observed.record(io, path, source);
-
-    const parsed = try manifest.parseInto(manifests, source);
+    const parsed = try source.decode(io, manifests, .{ .path = path, .physical = path }, inputs);
 
     return switch (parsed) {
         .data => |data| data,

@@ -1,0 +1,11 @@
+import string from "std:string"
+
+import { backslash, slash } from "../const"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return string.replaceAll(in, backslash, slash)
+}

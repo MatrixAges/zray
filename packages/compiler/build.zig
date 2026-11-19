@@ -47,10 +47,10 @@ pub fn build(b: *std.Build) void {
     b.modules.put(b.allocator, "frontend", frontend) catch @panic("out of memory");
     b.modules.put(b.allocator, "compiler", module) catch @panic("out of memory");
     b.modules.put(b.allocator, "frontend_checks", parser.checks(b, target, optimize, parser_source, natives, generated_strip)) catch @panic("out of memory");
-
     if (natives.objects) |objects| b.modules.put(b.allocator, "generated_objects", objects) catch @panic("out of memory");
 
     b.modules.put(b.allocator, "generated_standard", natives.generated.import_table.get("zxc_standard").?) catch @panic("out of memory");
+    b.modules.put(b.allocator, "generated_string", natives.generated.import_table.get("zxc_string").?) catch @panic("out of memory");
 
     if (natives.self_hosted_objects) |objects| b.addNamedLazyPath("generated_objects_self_hosted", objects);
 

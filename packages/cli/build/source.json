@@ -82,6 +82,26 @@
             "name": "manifest_path"
         },
         {
+            "path": "package/workspace/paths/within.zx",
+            "name": "workspace_manifest_within"
+        },
+        {
+            "path": "package/workspace/paths/portable.zx",
+            "name": "workspace_portable_path"
+        },
+        {
+            "path": "package/workspace/discover/decision.zx",
+            "name": "workspace_discovery_decision"
+        },
+        {
+            "path": "package/workspace/discover/member.zx",
+            "name": "workspace_member_path"
+        },
+        {
+            "path": "package/workspace/const.zx",
+            "name": "workspace_constants"
+        },
+        {
             "path": "native_sources/references/classify.rx",
             "name": "native_reference"
         },

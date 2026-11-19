@@ -14,12 +14,20 @@ pub const Result = struct {
 };
 
 pub fn loadWithInputs(io: std.Io, allocator: std.mem.Allocator, scratch: std.mem.Allocator, entry: []const u8, config_path: ?[]const u8, inputs: ?*Inputs) !Result {
-    const discovered = if (config_path) |path| discover.Result{ .path = path } else try discover.findWithInputs(io, scratch, entry, inputs);
+    var discovered = if (config_path) |path| discover.Result{ .path = path } else try discover.findWithInputs(io, scratch, allocator, entry, inputs);
+
+    defer discovered.deinit();
 
     if (discovered.diagnostic) |message| return .{ .diagnostic = try allocator.dupe(u8, message) };
 
     const path = discovered.path orelse return .{};
-    var resolved = try graph.loadRetaining(io, std.heap.smp_allocator, path, inputs, allocator);
+
+    var resolved = try graph.loadPrepared(io, std.heap.smp_allocator, .{
+        .path = path,
+        .inputs = inputs,
+        .manifests = allocator,
+        .root = discovered.root,
+    }, if (discovered.members) |*members| members else null);
 
     defer resolved.deinit();
 

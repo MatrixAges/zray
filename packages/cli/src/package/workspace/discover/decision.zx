@@ -1,0 +1,21 @@
+export enum Decision {
+    Remember,
+    Select,
+    Inspect,
+    Continue
+}
+
+export type Input = {
+    has_nearest: bool,
+    has_workspace: bool
+}
+
+export type Output = Decision
+
+export default function (in: Input): Output {
+    if (in.has_nearest) {
+        return in.has_workspace ? Decision.Inspect : Decision.Continue
+    }
+
+    return in.has_workspace ? Decision.Select : Decision.Remember
+}
