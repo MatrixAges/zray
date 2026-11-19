@@ -54,7 +54,7 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
         for (input.initializers) |*initial| try initializers.source(initial.borrow(), input.analysis.nominal_types);
         for (input.borrowed_initializers) |initial| try initializers.source(initial, input.analysis.nominal_types);
 
-        const function_id = try @import("entry.zig").bind(&functions, &nodes, program, input.analysis.entry_function);
+        const function_id = try @import("entry.zig").bind(&functions, &nodes, program, input.analysis.entry_function, scratch);
         const public_types = try @import("interface.zig").complete(owned, program, nodes.types);
         const constants = try nodes.constants(program.constant_exports);
         const members = try @import("members.zig").complete(owned, input.analysis, program.file_name, &nodes);

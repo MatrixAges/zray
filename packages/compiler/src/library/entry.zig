@@ -6,7 +6,7 @@ const Nodes = frontend.ArtifactNodes;
 const Error = frontend.project.artifact.Error;
 const generated = @import("parser_options").generated_parser;
 
-pub fn bind(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, requested: ?ir.FunctionId) Error!?ir.FunctionId {
+pub fn bind(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, requested: ?ir.FunctionId, scratch: std.mem.Allocator) Error!?ir.FunctionId {
     if (!generated) {
         if (requested) |id| return try nodes.functionId(id);
         if (program.type_only) return null;
@@ -14,7 +14,7 @@ pub fn bind(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, 
 
         const id: ir.FunctionId = @fromBackingInt(@as(u32, @intCast(functions.count())));
 
-        try append(functions, nodes, program);
+        try append(functions, nodes, program, scratch);
 
         return id;
     }
@@ -38,14 +38,14 @@ pub fn bind(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, 
         .Full => return error.OutOfMemory,
         .Declaration => return null,
         .Existing => {},
-        .Body => try append(functions, nodes, program),
+        .Body => try append(functions, nodes, program, scratch),
     }
 
     return @fromBackingInt(plan.id.?);
 }
 
-fn append(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program) Error!void {
-    try functions.append(nodes.allocator, try nodes.function(.{
+fn append(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, scratch: std.mem.Allocator) Error!void {
+    const body: ir.Function = .{
         .file_name = program.file_name,
         .input_type = program.input_type,
         .output_type = program.output_type,
@@ -56,5 +56,7 @@ fn append(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program) Er
         .contracts = program.contracts,
         .stores = program.stores,
         .store_mode = program.store_mode,
-    }));
+    };
+
+    try nodes.appendFunction(functions, &body, scratch);
 }
