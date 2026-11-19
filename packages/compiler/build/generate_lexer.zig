@@ -3,6 +3,7 @@ const compiler = @import("compiler");
 const rx = @import("rx");
 const analysis = @import("rx_analysis");
 const collection = @import("source_collection.zig");
+const Kind = compiler.source_inputs.Kind;
 
 pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
@@ -15,11 +16,9 @@ pub fn main(init: std.process.Init) !void {
 pub fn generate(init: std.process.Init, source_root: []const u8, core_root: []const u8, output_path: []const u8) !void {
     const entry = "scan.rx";
     const allocator = init.arena.allocator();
-    var sources: std.ArrayList(compiler.project.Source) = .empty;
-    var modules: std.ArrayList(rx.TextSource) = .empty;
-    var templates: std.ArrayList(compiler.project.Resource) = .empty;
+    var documents: std.ArrayList(collection.Document) = .empty;
 
-    try collection.collect(init.io, allocator, allocator, null, source_root, "", &sources, &modules, &templates);
+    try collection.collect(init.io, allocator, allocator, null, source_root, "", &documents);
 
     const packages = [_]compiler.project.Package{
         .{ .specifier = "core/const", .entry = "core/const.zx" },
@@ -31,20 +30,18 @@ pub fn generate(init: std.process.Init, source_root: []const u8, core_root: []co
         const path = try std.fs.path.join(allocator, &.{ core_root, relative });
         const source = try std.Io.Dir.cwd().readFileAlloc(init.io, path, allocator, .unlimited);
 
-        try sources.append(allocator, .{ .path = package.entry, .source = source });
+        try documents.append(allocator, .{ .path = package.entry, .text = source, .kind = @backingInt(Kind.ZX) });
     }
 
-    collection.sortPaths(compiler.project.Source, sources.items);
-    collection.sortPaths(rx.TextSource, modules.items);
-
-    var parsed = try rx.parseReachableModules(allocator, modules.items, entry);
+    const inputs = try collection.publish(allocator, allocator, documents.items, &.{}, false);
+    var parsed = try rx.parseReachableModules(allocator, inputs.modules, entry);
 
     defer parsed.deinit();
 
     if (parsed.value == .diagnostic) {
         const issue = parsed.value.diagnostic;
 
-        std.debug.print("{s}: {s}\n", .{ modules.items[issue.source_index].path, issue.issue.message });
+        std.debug.print("{s}: {s}\n", .{ inputs.modules[issue.source_index].path, issue.issue.message });
 
         return error.InvalidLexerModule;
     }
@@ -52,7 +49,7 @@ pub fn generate(init: std.process.Init, source_root: []const u8, core_root: []co
     var analyzed = try analysis.project.infer(allocator, .{
         .entry = entry,
         .modules = parsed.selected,
-        .sources = sources.items,
+        .sources = inputs.sources,
         .project = .{ .entry = "", .packages = &packages },
     });
 

@@ -3,6 +3,8 @@ const generated = @import("parser_options").generated_parser;
 const file_kind = if (generated) @import("generated_input_file_kind") else void;
 pub const Kind = if (generated) file_kind.Output else enum { Ignored, ZX, RX, Template };
 pub const interfaces = @import("collection/interface.zig");
+pub const catalog = @import("collection/catalog.zig");
+pub const order = @import("collection/order.zig");
 
 pub fn kind(name: []const u8) Kind {
     if (comptime generated) {

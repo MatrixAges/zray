@@ -5,20 +5,15 @@ const Files = @import("resident/files.zig");
 const listing = @import("directory_listing.zig");
 const Reader = listing.Reader;
 const inputs = compiler.source_inputs;
-
-pub fn sortPaths(comptime Row: type, rows: []Row) void {
-    std.mem.sort(Row, rows, {}, struct {
-        fn less(_: void, left: Row, right: Row) bool {
-            return std.mem.lessThan(u8, left.path, right.path);
-        }
-    }.less);
-}
+pub const Document = inputs.catalog.Document;
 
 /// Appends the sources and resources under `root`, named with `prefix`; `files`, when given, owns their texts. The tree is
 /// listed one depth at a time, every directory of a depth on its own core, and a listed file whose metadata vouches for
 /// the text `files` kept takes that text there; the calling thread reads the others afterwards.
-pub fn collect(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, sources: *std.ArrayList(compiler.project.Source), modules: *std.ArrayList(rx.TextSource), templates: *std.ArrayList(compiler.project.Resource)) !void {
-    try load(io, allocator, files, root, try scan(io, scratch, allocator, files, root, prefix, false), sources, modules, templates);
+pub fn collect(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, prefix: []const u8, documents: *std.ArrayList(Document)) !void {
+    const entries = try scan(io, scratch, allocator, files, root, prefix, false);
+
+    try load(io, scratch, allocator, files, root, entries, documents);
 }
 
 pub const Entry = struct { relative: []const u8, path: []const u8, metadata: ?Files.Metadata, text: ?[]const u8, kind: inputs.Kind };
@@ -66,22 +61,52 @@ pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, 
     return entries.items;
 }
 
-pub fn load(io: std.Io, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, entries: []const Entry, sources: *std.ArrayList(compiler.project.Source), modules: *std.ArrayList(rx.TextSource), templates: *std.ArrayList(compiler.project.Resource)) !void {
+pub fn load(io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: ?*Files, root: []const u8, entries: []const Entry, documents: *std.ArrayList(Document)) !void {
     var directory = try std.Io.Dir.cwd().openDir(io, root, .{});
 
     defer directory.close(io);
+
+    try documents.ensureUnusedCapacity(scratch, entries.len);
 
     for (entries) |file| {
         // The XML parser owns its source. ZX, template and native interface analyses may borrow theirs.
         const source = file.text orelse if (files) |kept| try kept.read(io, directory, file.relative, file.path, file.kind != .RX) else try directory.readFileAlloc(io, file.relative, allocator, .unlimited);
 
-        switch (file.kind) {
-            .ZX => try sources.append(allocator, .{ .path = file.path, .source = source }),
-            .RX => try modules.append(allocator, .{ .path = file.path, .source = source }),
-            .Template => try templates.append(allocator, .{ .path = file.path, .source = source }),
-            .Ignored => unreachable,
-        }
+        documents.appendAssumeCapacity(.{ .path = file.path, .text = source, .kind = @backingInt(file.kind) });
     }
+}
+
+pub const Catalog = struct {
+    sources: []const compiler.project.Source,
+    modules: []const rx.TextSource,
+    templates: []const compiler.project.Resource,
+};
+
+pub fn publish(workspace: std.mem.Allocator, allocator: std.mem.Allocator, documents: []const Document, packages: []const compiler.project.Package, attach_templates: bool) !Catalog {
+    const plan = try inputs.catalog.prepare(workspace, documents);
+    const sources = try allocator.alloc(compiler.project.Source, plan.sources.len);
+    const modules = try allocator.alloc(rx.TextSource, plan.modules.len);
+    const templates = try allocator.alloc(compiler.project.Resource, plan.templates.len);
+
+    for (plan.templates, templates) |index, *target| {
+        const file = documents[@intCast(index)];
+
+        target.* = .{ .path = file.path, .source = file.text };
+    }
+
+    for (plan.sources, sources) |index, *target| {
+        const file = documents[@intCast(index)];
+
+        target.* = .{ .path = file.path, .source = file.text, .templates = if (attach_templates) templates else &.{} };
+    }
+
+    for (plan.modules, modules) |index, *target| {
+        const file = documents[@intCast(index)];
+
+        target.* = .{ .path = file.path, .source = file.text, .packages = packages };
+    }
+
+    return .{ .sources = sources, .modules = modules, .templates = templates };
 }
 
 /// Threads listing at once; the file system serves more of them no faster, as they wait on its locks.

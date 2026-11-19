@@ -476,6 +476,8 @@ pub const main = [_]Entry{
     .{ .path = "inputs/parsed/same.zx", .name = "input_parsed_same", .owner = .compiler },
     .{ .path = "inputs/collection/kind.zx", .name = "input_file_kind", .owner = .compiler },
     .{ .path = "inputs/collection/qualify.zx", .name = "input_logical_path", .owner = .compiler },
+    .{ .path = "inputs/collection/order.zx", .name = "input_path_order", .owner = .compiler },
+    .{ .path = "inputs/collection/catalog/plan.rx", .name = "input_catalog_plan", .owner = .compiler },
     .{ .path = "inputs/collection/interface/location.zx", .name = "input_interface_location", .owner = .compiler },
     .{ .path = "inputs/collection/interface/register.rx", .name = "input_interface_registration", .owner = .compiler },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .compiler },

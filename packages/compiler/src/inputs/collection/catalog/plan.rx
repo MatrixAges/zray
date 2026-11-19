@@ -1,0 +1,33 @@
+<Module>
+    <Type from="../order" as="Order" />
+    <Type from="model" as="Catalog" />
+
+    <Args
+        in={{
+            order: Order.Input,
+            layout: Catalog.Layout
+        }}
+        out={Catalog.Counts}
+    />
+
+    <Call
+        fn="count"
+        in={{
+            kinds: $in.layout.kinds,
+            count: $in.order.rows.length
+        }}
+    />
+
+    <Call fn="../order" in={$in.order} />
+
+    <Call
+        fn="group"
+        in={{
+            layout: $in.layout,
+            ordered: $ctx.order,
+            counts: $ctx.count
+        }}
+    />
+
+    <Return value={$ctx.count} />
+</Module>

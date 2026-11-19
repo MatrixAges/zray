@@ -1,0 +1,35 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { sort_equal, sort_greater, sort_less } from "./const"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    paths: TextColumn,
+    rows: u64[]
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const { paths, rows } = in
+
+    return rows.sort(
+        (left, right) => {
+            const first = memory.readTextColumn(paths, left)
+            const second = memory.readTextColumn(paths, right)
+
+            return match {
+                first == second => match {
+                    left < right => sort_less,
+                    left > right => sort_greater,
+                    _ => sort_equal
+                },
+                bytes.lessThan(bytes.fromText(first), bytes.fromText(second)) =>
+                    sort_less,
+                _ => sort_greater
+            }
+        }
+    )[0]
+}

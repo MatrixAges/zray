@@ -1,6 +1,5 @@
 const std = @import("std");
 const compiler = @import("compiler");
-const rx = @import("rx");
 const analysis = @import("rx_analysis");
 const collection = @import("source_collection.zig");
 const manifest = @import("generation_manifest.zig");
@@ -66,19 +65,11 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         if (try current(io, allocator, output, digest)) return "";
     };
 
-    var sources: std.ArrayList(compiler.project.Source) = .empty;
-    var modules: std.ArrayList(rx.TextSource) = .empty;
-    var templates: std.ArrayList(compiler.project.Resource) = .empty;
+    var documents: std.ArrayList(collection.Document) = .empty;
 
     if (snapshot) |prepared| {
-        try prepared.load(io, owned, &resident.files, &sources, &modules, &templates);
-    } else for (project.roots) |root| try collection.collect(io, allocator, owned, &resident.files, root.path, root.prefix, &sources, &modules, &templates);
-
-    collection.sortPaths(compiler.project.Source, sources.items);
-    collection.sortPaths(rx.TextSource, modules.items);
-    collection.sortPaths(compiler.project.Resource, templates.items);
-
-    for (sources.items) |*source| source.templates = templates.items;
+        try prepared.load(io, allocator, owned, &resident.files, &documents);
+    } else for (project.roots) |root| try collection.collect(io, allocator, owned, &resident.files, root.path, root.prefix, &documents);
 
     const packages = try owned.alloc(compiler.project.Package, project.packages.len);
 
@@ -86,15 +77,14 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         target.* = .{ .specifier = try resident.retainText(owned, package.specifier), .entry = try resident.retainText(owned, package.entry) };
     }
 
-    for (modules.items) |*module| module.packages = packages;
+    const inputs = try collection.publish(allocator, owned, documents.items, packages, true);
+    const interfaces = try @import("interface_inputs.zig").load(io, allocator, owned, resident, project.interfaces, inputs.sources);
+    const rx_digests = try owned.alloc(analysis.project.ModuleDigest, inputs.modules.len);
 
-    const interfaces = try @import("interface_inputs.zig").load(io, allocator, owned, resident, project.interfaces, sources.items);
-    const rx_digests = try owned.alloc(analysis.project.ModuleDigest, modules.items.len);
-
-    for (modules.items, rx_digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
+    for (inputs.modules, rx_digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
 
     const frame = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces.bindings, true);
-    const inputs_digest = outputDigest(&frame, partitions, sources.items, templates.items, &resident.files);
+    const inputs_digest = outputDigest(&frame, partitions, inputs.sources, inputs.templates, &resident.files);
 
     // An output directory reused across runs already holds the result when nothing it depends on changed.
     if (request.write and interfaces.failure == null and try current(io, allocator, output, inputs_digest)) {
@@ -113,21 +103,21 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         else => return err,
     };
 
-    const prepared_sources = switch (try compiler.project.prepareSources(owned, sources.items, .{ .entry = "" })) {
+    const prepared_sources = switch (try compiler.project.prepareSources(owned, inputs.sources, .{ .entry = "" })) {
         .sources => |items| items,
         .diagnostic => |issue| {
-            std.debug.print("{s}: {s}\n", .{ sources.items[issue.source_index.?].path, issue.message });
+            std.debug.print("{s}: {s}\n", .{ inputs.sources[issue.source_index.?].path, issue.message });
 
             return error.InvalidTemplateResource;
         },
     };
 
-    const inputs = try resident.modules.prepare(owned, modules.items, fingerprint.packages(packages));
+    const modules = try resident.modules.prepare(owned, inputs.modules, fingerprint.packages(packages));
 
     if (interfaces.failure) |err| return err;
 
     const summary = try @import("shared_generation.zig").run(io, allocator, owned, resident, project.entries, .{
-        .modules = inputs,
+        .modules = modules,
         .sources = prepared_sources,
         .interfaces = interfaces.bindings[0..interfaces.external],
         .internal_modules = interfaces.bindings[interfaces.external..],

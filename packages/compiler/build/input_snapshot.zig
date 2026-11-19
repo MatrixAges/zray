@@ -51,7 +51,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
         try facts.append(allocator, fact);
     }
 
-    collection.sortPaths(Fact, facts.items);
+    try compiler.source_inputs.order.sort(Fact, files.gpa, facts.items);
 
     const here = try std.process.currentPathAlloc(io, allocator);
     const identity = compiler.input_fingerprint.snapshot(&digest, partitions, here, text);
@@ -100,8 +100,8 @@ fn reuseSaved(io: std.Io, workspace: std.mem.Allocator, path: []const u8, contex
     return digest;
 }
 
-pub fn load(self: Self, io: std.Io, allocator: std.mem.Allocator, files: *Files, sources: *std.ArrayList(compiler.project.Source), modules: *std.ArrayList(@import("rx").TextSource), templates: *std.ArrayList(compiler.project.Resource)) !void {
-    for (self.roots) |root| try collection.load(io, allocator, files, root.path, root.entries, sources, modules, templates);
+pub fn load(self: Self, io: std.Io, scratch: std.mem.Allocator, allocator: std.mem.Allocator, files: *Files, documents: *std.ArrayList(collection.Document)) !void {
+    for (self.roots) |root| try collection.load(io, scratch, allocator, files, root.path, root.entries, documents);
 }
 
 pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !void {

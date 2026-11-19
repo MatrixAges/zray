@@ -1,0 +1,22 @@
+import type { ReadColumn, U64Buffer } from "memory"
+
+export type Kinds = {
+    rows: ReadColumn,
+    zx: u8,
+    rx: u8
+}
+
+export type Files = {
+    kinds: Kinds,
+    count: u64
+}
+
+export type Counts = {
+    zx: u64,
+    rx: u64
+}
+
+export type Layout = {
+    kinds: Kinds,
+    target: U64Buffer
+}

@@ -1,0 +1,42 @@
+import memory from "memory"
+
+import type { Counts, Layout } from "./model"
+
+export type Input = {
+    layout: Layout,
+    ordered: u64[],
+    counts: Counts
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { kinds, target } = in.layout
+    const { ordered, counts } = in
+
+    const grouped = loop({
+        next: 0,
+        zx: 0,
+        rx: counts.zx,
+        template: counts.zx + counts.rx
+    }, {
+        while: state => state.next < ordered.length,
+        next: state => {
+            const row = ordered[state.next]
+            const kind = memory.readColumnU8(kinds.rows, row)
+
+            if (kind == kinds.zx) {
+                memory.writeU64(target, state.zx, row)
+                state.zx += 1
+            } else if (kind == kinds.rx) {
+                memory.writeU64(target, state.rx, row)
+                state.rx += 1
+            } else {
+                memory.writeU64(target, state.template, row)
+                state.template += 1
+            }
+
+            state.next += 1
+        }
+    })
+}
