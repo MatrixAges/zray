@@ -45,6 +45,21 @@ export declare function readColumnU64(
     index: u64
 ): u64 throws { IndexOutOfBounds }
 
+export declare function readColumnU32List(
+    source: ReadColumn,
+    index: u64
+): u32[] throws { IndexOutOfBounds }
+
+export declare function readColumnU64List(
+    source: ReadColumn,
+    index: u64
+): u64[] throws { IndexOutOfBounds }
+
+export declare function readColumnU32Lists(
+    source: ReadColumn,
+    index: u64
+): u32[][] throws { IndexOutOfBounds }
+
 export declare function readFixedBytes(
     source: ReadColumn,
     index: u64,
@@ -105,6 +120,18 @@ export declare function readListU32(
     index: u64,
     member: u64
 ): u32 throws { IndexOutOfBounds }
+
+export declare function readListU8(
+    source: ListColumn,
+    index: u64,
+    member: u64
+): u8 throws { IndexOutOfBounds }
+
+export declare function readListU64(
+    source: ListColumn,
+    index: u64,
+    member: u64
+): u64 throws { IndexOutOfBounds }
 
 export declare function readListOptionalU32(
     source: ListColumn,

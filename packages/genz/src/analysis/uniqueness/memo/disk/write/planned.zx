@@ -1,5 +1,6 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
+import memory from "memory"
 
 import { true_byte } from "../const"
 
@@ -8,7 +9,13 @@ import type { Planned as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { writer, flags, keys, paths, transfers, slot_first } = in
+    const { writer, table, index } = in
+
+    const flags = memory.borrowListBytes(table.flags, index)
+    const keys = memory.readColumnU64List(table.keys, index)
+    const paths = memory.readColumnU32Lists(table.paths, index)
+    const transfers = memory.readColumnU64List(table.transfers, index)
+    const slot_first = memory.readColumnU32List(table.slot_first, index)
 
     const first: u64 = 0
 

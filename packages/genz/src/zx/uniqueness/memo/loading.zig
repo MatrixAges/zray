@@ -21,17 +21,16 @@ fn section(allocator: std.mem.Allocator, source: []const u8, start: u64, count: 
     var at = start;
 
     for (0..count) |_| {
-        const key = source[@intCast(at)..][0..@sizeOf(Memo.Digest)].*;
-        const row = try materialize(allocator, source, at + @sizeOf(Memo.Digest));
+        const row = try materialize(allocator, source, at);
 
-        map.putAssumeCapacity(key, row.value);
+        map.putAssumeCapacity(row.digest[0..@sizeOf(Memo.Digest)].*, row.value);
 
         at = row.end;
     }
 }
 
 fn Row(comptime T: type) type {
-    return struct { value: T, end: u64 };
+    return struct { value: T, end: u64, digest: []const u8 };
 }
 
 fn settled(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Settled) {
@@ -52,6 +51,7 @@ fn settled(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!R
     return .{
         .value = .{ .passed = passed.rows(), .output = @ptrCast(row.output), .used = false },
         .end = row.end,
+        .digest = row.digest,
     };
 }
 
@@ -79,6 +79,7 @@ fn demanded(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!
     return .{
         .value = .{ .marks = marks.rows(), .normalized = normalized.rows(), .renewed = renewed.rows(), .grew = row.grew, .used = false },
         .end = row.end,
+        .digest = row.digest,
     };
 }
 
@@ -94,6 +95,7 @@ fn planned(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!R
             .used = false,
         },
         .end = row.end,
+        .digest = row.digest,
     };
 }
 
@@ -108,6 +110,7 @@ fn flowed(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Ro
             .used = false,
         },
         .end = row.end,
+        .digest = row.digest,
     };
 }
 

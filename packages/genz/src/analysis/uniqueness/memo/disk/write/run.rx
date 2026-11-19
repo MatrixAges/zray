@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Wire" />
+
+    <Args in={Wire.Tables} out={void} />
+
+    <Call fn="version" in={$in.writer} />
+
+    <Call
+        fn="settlements"
+        in={{
+            writer: $in.writer,
+            table: $in.settled
+        }}
+    />
+
+    <Call
+        fn="demands"
+        in={{
+            writer: $in.writer,
+            table: $in.demanded
+        }}
+    />
+
+    <Call
+        fn="plans"
+        in={{
+            writer: $in.writer,
+            table: $in.planned
+        }}
+    />
+
+    <Call
+        fn="flows"
+        in={{
+            writer: $in.writer,
+            table: $in.flowed
+        }}
+    />
+</Module>

@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 
 import type { Input as Source, Flowed as Shape } from "../model"
-import type { Flow as Output } from "./model"
+import type { FlowFields as Output } from "./model"
 
 export type Input = Source.Pick("source") & {
     shape: Shape

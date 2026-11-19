@@ -1,24 +1,60 @@
 import type { Writer } from "std:bytes"
-import type {
-    Contribution,
-    Mark,
-    Normalized,
-    Renewed
-} from "../../../replay/ordered/model"
+import type { ListColumn, ReadColumn } from "memory"
 
-export enum Phase {
-    Header,
-    Settled,
-    Demanded,
-    Planned,
-    Flowed,
-    Done
+export type Slots = {
+    metadata: u8[],
+    occupied: u8,
+    used: ReadColumn,
+    keys: u8[]
 }
 
-export type Frame = {
+export type Tables = {
     writer: Writer,
-    phase: Phase,
-    count: u32
+    settled: Settlements,
+    demanded: Demands,
+    planned: Plans,
+    flowed: Flows
+}
+
+export type Selection = {
+    slots: Slots,
+    first: u64
+}
+
+export type Settlements = {
+    slots: Slots,
+    callees: ListColumn,
+    levels: ListColumn,
+    output: ListColumn
+}
+
+export type Demands = {
+    slots: Slots,
+    marks_output: ListColumn,
+    marks_function: ListColumn,
+    marks_slot: ListColumn,
+    marks_want: ListColumn,
+    normalized_id: ListColumn,
+    normalized_want: ListColumn,
+    renewed_key: ListColumn,
+    renewed_want: ListColumn,
+    grew: ReadColumn
+}
+
+export type Plans = {
+    slots: Slots,
+    flags: ListColumn,
+    keys: ReadColumn,
+    paths: ReadColumn,
+    transfers: ReadColumn,
+    slot_first: ReadColumn
+}
+
+export type Flows = {
+    slots: Slots,
+    held: ListColumn,
+    text_held: ListColumn,
+    written: ListColumn
 }
 
 export type Count = {
@@ -26,36 +62,24 @@ export type Count = {
     count: u32
 }
 
-export type Settled = {
+export type Record = {
     writer: Writer,
     digest: u8[],
-    passed: Contribution[],
-    output: u8[]
+    index: u64
 }
 
-export type Demanded = {
-    writer: Writer,
-    digest: u8[],
-    marks: Mark[],
-    normalized: Normalized[],
-    renewed: Renewed[],
-    grew: bool
+export type Settled = Record & {
+    table: Settlements
 }
 
-export type Planned = {
-    writer: Writer,
-    digest: u8[],
-    flags: u8[],
-    keys: u64[],
-    paths: u32[][],
-    transfers: u64[],
-    slot_first: u32[]
+export type Demanded = Record & {
+    table: Demands
 }
 
-export type Flowed = {
-    writer: Writer,
-    digest: u8[],
-    held: u8[],
-    text_held: u8[],
-    written: u8[]
+export type Planned = Record & {
+    table: Plans
+}
+
+export type Flowed = Record & {
+    table: Flows
 }

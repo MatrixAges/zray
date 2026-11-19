@@ -1,0 +1,29 @@
+import memory from "memory"
+
+import type { Slots as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { metadata, occupied, used } = in
+
+    const zero: u32 = 0
+
+    return loop({
+        index: 0,
+        count: zero
+    }, {
+        while: state => state.index < metadata.length,
+        next: state => {
+            if (
+                metadata[state.index] >= occupied &&
+                    memory.readColumnBool(used, state.index)
+            ) {
+                state.count += 1
+            }
+
+            state.index += 1
+        },
+        return: state => state.count
+    })
+}

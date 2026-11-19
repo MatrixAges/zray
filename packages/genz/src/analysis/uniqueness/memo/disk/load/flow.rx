@@ -3,10 +3,13 @@
 
     <Args in={Load.Input} out={Load.Flow?} />
 
+    <Call fn="split" in={$in} />
+
     <Call
         fn="../flowed"
         in={{
-            ...$in,
+            source: $in.source,
+            start: $ctx.split.start,
             trusted: true
         }}
     />
@@ -20,7 +23,12 @@
             }}
         />
 
-        <Return value={$ctx.flow_vectors} />
+        <Return
+            value={{
+                ...$ctx.flow_vectors,
+                digest: $ctx.split.digest
+            }}
+        />
     </If>
 
     <Return value={null} />

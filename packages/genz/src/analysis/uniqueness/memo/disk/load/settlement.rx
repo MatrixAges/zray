@@ -4,10 +4,18 @@
     <Args in={Load.Settlement} out={Load.SettlementResult?} />
 
     <Call
+        fn="split"
+        in={$in.pick([
+            "source",
+            "start"
+        ])}
+    />
+
+    <Call
         fn="../settled"
         in={{
             source: $in.source,
-            start: $in.start,
+            start: $ctx.split.start,
             trusted: true
         }}
     />
@@ -34,6 +42,7 @@
 
         <Return
             value={{
+                digest: $ctx.split.digest,
                 end: $ctx.settled.end,
                 output: $ctx.payload
             }}

@@ -273,6 +273,18 @@ pub inline fn readColumnU64(source: *const anyopaque, index: u64) error{IndexOut
     return readColumn(u64, source, index);
 }
 
+pub inline fn readColumnU32List(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u32 {
+    return readColumn([]const u32, source, index);
+}
+
+pub inline fn readColumnU64List(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u64 {
+    return readColumn([]const u64, source, index);
+}
+
+pub inline fn readColumnU32Lists(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const []const u32 {
+    return readColumn([]const []const u32, source, index);
+}
+
 pub inline fn readFixedBytes(source: *const anyopaque, index: u64, width: u64) error{IndexOutOfBounds}![]const u8 {
     const column: *const ReadColumn = @ptrCast(@alignCast(source));
 
@@ -351,6 +363,18 @@ pub inline fn readListU32(source: *const anyopaque, index: u64, member: u64) err
     const column = try listColumn(source, index);
 
     return readColumn(u32, &column, member);
+}
+
+pub inline fn readListU8(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!u8 {
+    const column = try listColumn(source, index);
+
+    return readColumn(u8, &column, member);
+}
+
+pub inline fn readListU64(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!u64 {
+    const column = try listColumn(source, index);
+
+    return readColumn(u64, &column, member);
 }
 
 pub inline fn readListOptionalU32(source: *const anyopaque, index: u64, member: u64) error{IndexOutOfBounds}!?u32 {

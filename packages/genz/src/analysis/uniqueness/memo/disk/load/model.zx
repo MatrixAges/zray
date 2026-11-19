@@ -32,23 +32,26 @@ export type Demand = Input & GrowthTargets & {
     marks: MarkTarget
 }
 
-export type SettlementResult = {
-    end: u64,
-    output: u8[]
-}
-
-export type DemandResult = {
-    end: u64,
-    grew: bool
-}
-
-export type Plan = Planned & {
+export type Record = {
+    digest: u8[],
     end: u64
 }
 
-export type Flow = {
+export type SettlementResult = Record & {
+    output: u8[]
+}
+
+export type DemandResult = Record & {
+    grew: bool
+}
+
+export type Plan = Planned & Record
+
+export type FlowFields = {
     end: u64,
     held: u8[],
     text_held: u8[],
     written: u8[]
 }
+
+export type Flow = FlowFields & Record

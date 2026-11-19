@@ -1,0 +1,57 @@
+import memory from "memory"
+
+import { digest_width } from "../const"
+import count from "./count"
+import write from "./flowed"
+import population from "./population"
+import selected from "./selected"
+
+import type { Writer } from "std:bytes"
+import type { Flows as Table } from "./model"
+
+export type Input = {
+    writer: Writer,
+    table: Table
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, table } = in
+    const { slots } = table
+
+    count({
+        writer,
+        count: population(slots)
+    })
+
+    const first = selected({
+        slots,
+        first: 0
+    })
+
+    const last: u64 = slots.metadata.length
+
+    const written = loop(first, {
+        while: index => index < last,
+        next: index => {
+            const digest = memory.borrowU8Range(
+                slots.keys,
+                index * digest_width,
+                digest_width
+            )
+
+            write({
+                writer,
+                digest,
+                index,
+                table
+            })
+
+            index = selected({
+                slots,
+                first: index + 1
+            })
+        }
+    })
+}

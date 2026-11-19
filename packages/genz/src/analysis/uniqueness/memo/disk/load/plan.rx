@@ -3,10 +3,13 @@
 
     <Args in={Load.Input} out={Load.Plan?} />
 
+    <Call fn="split" in={$in} />
+
     <Call
         fn="../planned"
         in={{
-            ...$in,
+            source: $in.source,
+            start: $ctx.split.start,
             trusted: true
         }}
     />
@@ -36,6 +39,7 @@
                     keys: $ctx.plan_vectors.keys,
                     paths: $ctx.paths
                 },
+                digest: $ctx.split.digest,
                 end: $ctx.planned.end
             }}
         />

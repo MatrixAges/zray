@@ -4,10 +4,18 @@
     <Args in={Load.Demand} out={Load.DemandResult?} />
 
     <Call
+        fn="split"
+        in={$in.pick([
+            "source",
+            "start"
+        ])}
+    />
+
+    <Call
         fn="../demanded"
         in={{
             source: $in.source,
-            start: $in.start,
+            start: $ctx.split.start,
             trusted: true
         }}
     />
@@ -45,6 +53,7 @@
 
         <Return
             value={{
+                digest: $ctx.split.digest,
                 end: $ctx.demanded.end,
                 grew: $ctx.demanded.grew
             }}

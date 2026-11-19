@@ -1,0 +1,17 @@
+import memory from "memory"
+
+import { digest_width } from "../const"
+
+import type { Input } from "./model"
+
+export type Output = {
+    digest: u8[],
+    start: u64
+}
+
+export default function (in: Input): Output {
+    return {
+        digest: memory.borrowU8Range(in.source, in.start, digest_width),
+        start: in.start + digest_width
+    }
+}
