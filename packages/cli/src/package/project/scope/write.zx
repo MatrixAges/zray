@@ -1,0 +1,45 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import publishGroup from "./publish_group"
+
+import type { Publication as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { bindings, owner, targets, aliases } = in
+
+    const edges = memory.listLength(targets, owner)
+
+    columns.allocateRows(in.storage, in.count)
+
+    const result = loop({
+        index: 0,
+        first: 0
+    }, {
+        while: state => state.index <= edges,
+        next: state => {
+            const own = state.index == edges
+            const target = match own {
+                true => owner,
+                _ => memory.readListIndex(targets, owner, state.index)
+            }
+            const name = match own {
+                true => in.name,
+                _ => memory.readListText(aliases, owner, state.index)
+            }
+
+            state.first = publishGroup({
+                rows: memory.borrowListBytes(bindings, target),
+                paths: in.paths,
+                target,
+                width: in.width,
+                first: state.first,
+                name,
+                output: in.output
+            })
+            state.index += 1
+        }
+    })
+}

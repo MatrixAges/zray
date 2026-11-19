@@ -2,10 +2,11 @@ const std = @import("std");
 const c = @import("manifest/yaml.zig").c;
 const model = @import("manifest/model.zig");
 const Decoder = @import("manifest/decode.zig");
+pub const Value = union(enum) { data: model.Manifest, diagnostic: model.Diagnostic };
 
 pub const Result = struct {
     arena: std.heap.ArenaAllocator,
-    value: union(enum) { data: model.Manifest, diagnostic: model.Diagnostic },
+    value: Value,
     pub fn deinit(self: *Result) void {
         self.arena.deinit();
 
@@ -18,6 +19,12 @@ pub fn parse(allocator: std.mem.Allocator, source: []const u8) !Result {
 
     errdefer arena.deinit();
 
+    const value = try parseInto(arena.allocator(), source);
+
+    return .{ .arena = arena, .value = value };
+}
+
+pub fn parseInto(allocator: std.mem.Allocator, source: []const u8) !Value {
     var parser: c.yaml_parser_t = undefined;
 
     if (c.yaml_parser_initialize(&parser) == 0) return error.OutOfMemory;
@@ -27,39 +34,39 @@ pub fn parse(allocator: std.mem.Allocator, source: []const u8) !Result {
 
     var document: c.yaml_document_t = undefined;
 
-    if (c.yaml_parser_load(&parser, &document) == 0) return failure(&arena, parser);
+    if (c.yaml_parser_load(&parser, &document) == 0) return failure(allocator, parser);
 
     defer c.yaml_document_delete(&document);
 
     const root = c.yaml_document_get_root_node(&document);
 
-    if (root == null) return .{ .arena = arena, .value = .{ .diagnostic = .{ .line = 1, .column = 1, .message = "pkg.yaml must contain one mapping document" } } };
+    if (root == null) return .{ .diagnostic = .{ .line = 1, .column = 1, .message = "pkg.yaml must contain one mapping document" } };
 
-    var decoder = Decoder{ .allocator = arena.allocator(), .document = &document };
+    var decoder = Decoder{ .allocator = allocator, .document = &document };
 
     const data = decoder.decode(root) catch |err| {
         if (err == error.OutOfMemory) return err;
 
-        return .{ .arena = arena, .value = .{ .diagnostic = decoder.diagnostic.? } };
+        return .{ .diagnostic = decoder.diagnostic.? };
     };
 
     var next: c.yaml_document_t = undefined;
 
-    if (c.yaml_parser_load(&parser, &next) == 0) return failure(&arena, parser);
+    if (c.yaml_parser_load(&parser, &next) == 0) return failure(allocator, parser);
 
     defer c.yaml_document_delete(&next);
 
     if (c.yaml_document_get_root_node(&next) != null) {
-        return .{ .arena = arena, .value = .{ .diagnostic = .{ .line = next.start_mark.line + 1, .column = next.start_mark.column + 1, .message = "pkg.yaml must contain exactly one document" } } };
+        return .{ .diagnostic = .{ .line = next.start_mark.line + 1, .column = next.start_mark.column + 1, .message = "pkg.yaml must contain exactly one document" } };
     }
 
-    return .{ .arena = arena, .value = .{ .data = data } };
+    return .{ .data = data };
 }
 
-fn failure(arena: *std.heap.ArenaAllocator, parser: c.yaml_parser_t) !Result {
+fn failure(allocator: std.mem.Allocator, parser: c.yaml_parser_t) !Value {
     if (parser.@"error" == c.YAML_MEMORY_ERROR) return error.OutOfMemory;
 
-    const message = try arena.allocator().dupe(u8, if (parser.problem == null) "invalid YAML" else std.mem.span(parser.problem));
+    const message = try allocator.dupe(u8, if (parser.problem == null) "invalid YAML" else std.mem.span(parser.problem));
 
-    return .{ .arena = arena.*, .value = .{ .diagnostic = .{ .line = parser.problem_mark.line + 1, .column = parser.problem_mark.column + 1, .message = message } } };
+    return .{ .diagnostic = .{ .line = parser.problem_mark.line + 1, .column = parser.problem_mark.column + 1, .message = message } };
 }

@@ -1,0 +1,41 @@
+import type { ListColumn, WriteColumn } from "memory"
+import type { RowBuffer } from "memory/columns"
+
+export type Routes = {
+    owner: u64,
+    targets: ListColumn,
+    bindings: ListColumn
+}
+
+export type Destinations = {
+    records: WriteColumn,
+    specifiers: WriteColumn
+}
+
+export type Input = Routes & {
+    name: string,
+    aliases: ListColumn,
+    paths: ListColumn,
+    width: u64,
+    storage: RowBuffer,
+    output: Destinations
+}
+
+export type Measurement = {
+    count: u64,
+    missing?: u64
+}
+
+export type Publication = Input & {
+    count: u64
+}
+
+export type Group = {
+    rows: u8[],
+    paths: ListColumn,
+    target: u64,
+    width: u64,
+    first: u64,
+    name: string,
+    output: Destinations
+}

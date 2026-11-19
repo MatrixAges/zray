@@ -16,6 +16,10 @@
             "prefix": "package/workspace/"
         },
         {
+            "path": "package_project",
+            "prefix": "package/project/"
+        },
+        {
             "path": "native_sources",
             "prefix": "native_sources/"
         },
@@ -200,6 +204,14 @@
         {
             "path": "scopes/settings.zx",
             "name": "native_scope_settings"
+        },
+        {
+            "path": "package/project/scope/build.rx",
+            "name": "package_scope_bindings"
+        },
+        {
+            "path": "package/project/scope/const.zx",
+            "name": "package_scope_constants"
         }
     ],
     "packages": [

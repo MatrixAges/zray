@@ -1,0 +1,33 @@
+import memory from "memory"
+
+import type { Routes as Input, Measurement as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { bindings, owner, targets } = in
+
+    const edges = memory.listLength(targets, owner)
+    const missing: u64? = null
+
+    return loop({
+        edge: 0,
+        count: memory.listLength(bindings, owner),
+        missing
+    }, {
+        while: state => state.edge < edges && state.missing == null,
+        next: state => {
+            const target = memory.readListIndex(targets, owner, state.edge)
+            const count = memory.listLength(bindings, target)
+
+            if (count == 0) {
+                state.missing = state.edge
+            } else {
+                state.count += count
+                state.edge += 1
+            }
+        },
+        return: state => ({
+            count: state.count,
+            missing: state.missing
+        })
+    })
+}

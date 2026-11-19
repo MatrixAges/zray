@@ -21,13 +21,17 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !Result 
 }
 
 pub fn loadWithInputs(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs) !Result {
+    return loadRetaining(io, allocator, path, inputs, null);
+}
+
+pub fn loadRetaining(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs, manifests: ?std.mem.Allocator) !Result {
     if (inputs) |observed| try observed.add(io, path);
 
     var result: Result = .{ .arena = .init(allocator) };
 
     errdefer result.deinit();
 
-    result.packages = collect(io, &result, path, inputs) catch |err| {
+    result.packages = collect(io, &result, path, inputs, manifests orelse result.arena.allocator()) catch |err| {
         if (err == error.OutOfMemory) return err;
         if (result.diagnostic == null) result.diagnostic = try std.fmt.allocPrint(result.arena.allocator(), "{s}: {s}", .{ path, @errorName(err) });
 
@@ -37,10 +41,10 @@ pub fn loadWithInputs(io: std.Io, allocator: std.mem.Allocator, path: []const u8
     return result;
 }
 
-fn collect(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) ![]const Package {
+fn collect(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs, manifests: std.mem.Allocator) ![]const Package {
     const allocator = result.arena.allocator();
     const root_path = try std.Io.Dir.cwd().realPathFileAlloc(io, std.fs.path.dirname(path) orelse ".", allocator);
-    const root = try read(io, result, root_path, path, inputs);
+    const root = try read(io, result, root_path, path, inputs, manifests);
     var packages: std.ArrayList(Package) = .empty;
 
     try packages.append(allocator, .{ .path = ".", .manifest = root });
@@ -101,7 +105,7 @@ fn collect(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) ![]c
     for (paths.items) |member| {
         const member_path = try std.fs.path.join(allocator, &.{ root_path, member, "pkg.yaml" });
 
-        const data = read(io, result, root_path, member_path, inputs) catch |err| switch (err) {
+        const data = read(io, result, root_path, member_path, inputs, manifests) catch |err| switch (err) {
             error.FileNotFound => continue,
             else => {
                 if (err == error.OutOfMemory) return err;
@@ -131,7 +135,7 @@ fn collect(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs) ![]c
     return try packages.toOwnedSlice(allocator);
 }
 
-fn read(io: std.Io, result: *Result, root: []const u8, path: []const u8, inputs: ?*Inputs) !Manifest {
+fn read(io: std.Io, result: *Result, root: []const u8, path: []const u8, inputs: ?*Inputs, manifests: std.mem.Allocator) !Manifest {
     const allocator = result.arena.allocator();
 
     if (inputs) |observed| try observed.add(io, path);
@@ -145,13 +149,15 @@ fn read(io: std.Io, result: *Result, root: []const u8, path: []const u8, inputs:
         return error.InvalidWorkspace;
     }
 
-    const source = try std.Io.Dir.cwd().readFileAlloc(io, real, allocator, .limited(4 * 1024 * 1024));
+    const source = try std.Io.Dir.cwd().readFileAlloc(io, real, std.heap.smp_allocator, .limited(4 * 1024 * 1024));
+
+    defer std.heap.smp_allocator.free(source);
 
     if (inputs) |observed| try observed.record(io, path, source);
 
-    const parsed = try manifest.parse(allocator, source);
+    const parsed = try manifest.parseInto(manifests, source);
 
-    return switch (parsed.value) {
+    return switch (parsed) {
         .data => |data| data,
         .diagnostic => |issue| {
             result.diagnostic = try std.fmt.allocPrint(allocator, "{s}:{d}:{d}: manifest: {s}", .{ path, issue.line, issue.column, issue.message });

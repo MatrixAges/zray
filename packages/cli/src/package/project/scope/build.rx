@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Scope" />
+
+    <Args in={Scope.Input} out={Scope.Measurement} />
+
+    <Call
+        fn="measure"
+        in={$in.pick([
+            "owner",
+            "targets",
+            "bindings"
+        ])}
+    />
+
+    <If on={$ctx.measure.missing != null}>
+        <Return value={$ctx.measure} />
+    </If>
+
+    <Call
+        fn="write"
+        in={{
+            ...$in,
+            count: $ctx.measure.count
+        }}
+    />
+
+    <Return value={$ctx.measure} />
+</Module>

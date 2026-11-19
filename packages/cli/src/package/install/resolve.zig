@@ -87,7 +87,7 @@ fn external(self: *Self, first: usize, name: []const u8, release: pkgs.Index.Rel
 
     const digest = if (std.mem.eql(u8, key, release.sha256)) release.sha256 else try allocator.dupe(u8, key);
     const path = try @import("../store.zig").prepare(self.io, allocator, .{ .version = release.version, .archive = source, .sha256 = digest }, self.options.root, self.options.cache, self.options.offline);
-    const data = try model.read(self.io, allocator, path, null);
+    const data = try model.read(self.io, allocator, path, null, allocator);
 
     try pkgs.install.verify(name, release.version, &data);
 

@@ -6,10 +6,11 @@ const CompiledNative = @import("compiled_native.zig");
 const Inputs = @import("../watch/inputs.zig");
 const publish = @import("scopes/publish.zig");
 pub const NativeSettings = publish.NativeSettings;
-pub const Result = struct { scopes: []compiler.project.PackageScope, config: model.Manifest, interfaces: []const compiler.project.NativeInterface, settings: []const NativeSettings };
+pub const Result = struct { config: model.Manifest, interfaces: []const compiler.project.NativeInterface, settings: []const NativeSettings };
 
-pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.project.PackageScope, entry_root: []const u8, entry_config: model.Manifest, inputs: ?*Inputs) !Result {
-    var result = Result{ .scopes = try allocator.dupe(compiler.project.PackageScope, scopes), .config = entry_config, .interfaces = &.{}, .settings = &.{} };
+pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project.PackageScope, manifests: []const model.Manifest, owner: usize, inputs: ?*Inputs) !Result {
+    const entry_root = scopes[owner].root;
+    var result = Result{ .config = manifests[owner], .interfaces = &.{}, .settings = &.{} };
     var modules: std.ArrayList(model.NativeModule) = .empty;
     var declarations: std.ArrayList(model.NativeInterface) = .empty;
     var interfaces: std.ArrayList(compiler.project.NativeInterface) = .empty;
@@ -22,8 +23,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
 
     defer registry_memory.deinit();
 
-    for (result.scopes) |*scope| {
-        const config = if (std.mem.eql(u8, scope.root, entry_root)) entry_config else try @import("../../package/install/model.zig").read(io, allocator, scope.root, inputs);
+    for (scopes, manifests) |*scope, config| {
         var compiled = try CompiledNative.load(io, allocator, scope.root, config, scopes, inputs);
 
         defer if (compiled) |*binding| binding.deinit();

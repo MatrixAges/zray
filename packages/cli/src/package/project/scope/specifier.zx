@@ -1,0 +1,26 @@
+import memory from "memory"
+
+import { export_prefix_length, root_export } from "./const"
+
+export type Input = {
+    name: string,
+    path: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { name, path } = in
+
+    if (path == root_export) {
+        return memory.copyText(name)
+    }
+
+    const suffix = memory.borrowTextRange(
+        path,
+        export_prefix_length,
+        path.length - export_prefix_length
+    )
+
+    return `${name}/${suffix}`
+}

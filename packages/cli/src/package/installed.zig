@@ -4,7 +4,7 @@ const model = @import("install/model.zig");
 const files = @import("install/files.zig");
 const Inputs = @import("../cli/watch/inputs.zig");
 
-pub fn load(io: std.Io, allocator: std.mem.Allocator, root: []const u8, members: []const @import("workspace.zig").Package, inputs: ?*Inputs) ![]graph.Package {
+pub fn load(io: std.Io, allocator: std.mem.Allocator, root: []const u8, members: []const @import("workspace.zig").Package, inputs: ?*Inputs, manifests: std.mem.Allocator) ![]graph.Package {
     const loaded = try files.load(io, allocator, root, inputs) orelse return error.PackagesNotInstalled;
 
     if (!model.matchesWorkspace(loaded.lock, members)) return error.LockFileOutdated;
@@ -46,7 +46,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, root: []const u8, members:
 
             break :local members[row].manifest;
         } else archive: {
-            const data = try model.read(io, allocator, path, inputs);
+            const data = try model.read(io, allocator, path, inputs, manifests);
 
             if (!model.matches(data, locked)) return error.InstalledManifestDoesNotMatchLock;
 

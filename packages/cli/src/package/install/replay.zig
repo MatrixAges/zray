@@ -4,6 +4,9 @@ const model = @import("model.zig");
 
 pub fn prepare(io: std.Io, allocator: std.mem.Allocator, lock: Lock, root: []const u8, cache: []const u8, offline: bool) !model.Prepared {
     const paths = try allocator.alloc([]const u8, lock.packages.len);
+    var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+
+    defer scratch.deinit();
 
     for (lock.packages, paths) |package, *path| {
         const location = switch (package.source) {
@@ -13,7 +16,14 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, lock: Lock, root: []con
 
         path.* = try std.Io.Dir.cwd().realPathFileAlloc(io, location, allocator);
 
-        if (package.source == .archive and !model.matches(try model.read(io, allocator, path.*, null), package)) return error.InstalledManifestDoesNotMatchLock;
+        if (package.source == .archive) {
+            const memory = scratch.allocator();
+            const data = try model.read(io, memory, path.*, null, memory);
+
+            if (!model.matches(data, package)) return error.InstalledManifestDoesNotMatchLock;
+
+            _ = scratch.reset(.retain_capacity);
+        }
     }
 
     return .{ .lock = lock, .paths = paths };
