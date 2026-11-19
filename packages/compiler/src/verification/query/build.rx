@@ -2,12 +2,11 @@
     <Args
         in={{
             declarations: string[],
-            definitions: string,
             precondition: string,
-            precondition_definitions: string,
             violations: string[]
         }}
         out={{
+            header: string,
             correctness: string,
             feasibility: string
         }}
@@ -15,32 +14,21 @@
 
     <Call fn="declarations" in={$in.declarations} />
 
+    <Call fn="header" />
+
     <Call module="failures" in={$in.violations} />
 
-    <Task name="feasibility" out={$ctx.statement}>
-        <Call
-            fn="statement"
-            in={{
-                declarations: $ctx.declarations,
-                definitions: $in.precondition_definitions,
-                predicate: $in.precondition
-            }}
-        />
+    <Task name="feasibility" out={$ctx.assertion}>
+        <Call fn="assertion" in={$in.precondition} />
     </Task>
 
-    <Task name="correctness" out={$ctx.statement}>
-        <Call
-            fn="statement"
-            in={{
-                declarations: $ctx.declarations,
-                definitions: $in.definitions,
-                predicate: $ctx.failures
-            }}
-        />
+    <Task name="correctness" out={$ctx.assertion}>
+        <Call fn="assertion" in={$ctx.failures} />
     </Task>
 
     <Return
         value={{
+            header: $ctx.header,
             feasibility: $ctx.task.feasibility,
             correctness: $ctx.task.correctness
         }}

@@ -7,7 +7,6 @@ const Expressions = @import("expressions.zig");
 const Value = terms.Value;
 const Self = @This();
 const Graph = @import("graph.zig");
-const declaration_buffer_size = 4 * 1024;
 
 allocator: std.mem.Allocator,
 scratch: *zx.Arena,
@@ -70,38 +69,11 @@ pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.m
         try self.postconditions(remaining, .{ .fields = &.{} });
     }
 
-    const query_module = if (@import("parser_options").generated_parser) @import("generated_verification_query") else @import("query/seed.zig");
-    const Request = @typeInfo(@TypeOf(query_module.executeValue)).@"fn".param_types[1].?;
-    const Record = if (@typeInfo(Request) == .pointer) @typeInfo(Request).pointer.child else Request;
-    var buffer: [declaration_buffer_size]u8 = undefined;
-    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch);
-    const graph = self.graph.?;
-    const capacity = @max(buffer.len, graph.declaration_payload_bytes);
-    var definitions = try std.Io.Writer.Allocating.initCapacity(memory.allocator(), capacity);
-
-    defer definitions.deinit();
-
-    try graph.writeDeclarations(&definitions.writer, 0, precondition_count);
-
-    const precondition_bytes = definitions.written().len;
-
-    try graph.writeDeclarations(&definitions.writer, precondition_count, graph.definitions.len);
-
-    const input: Record = .{
+    return @import("query/output.zig").render(result_allocator, scratch, self.graph.?, precondition_count, .{
         .declarations = self.declarations.items,
-        .definitions = definitions.written(),
         .violations = self.violations.items,
         .precondition = precondition,
-        .precondition_definitions = definitions.written()[0..precondition_bytes],
-    };
-
-    const query = try query_module.executeValue(result_allocator, if (Record == Request) input else &input);
-
-    return .{
-        .feasibility = query.feasibility,
-        .correctness = query.correctness,
-        .inputs = self.inputs.items,
-    };
+    }, self.inputs.items);
 }
 
 const PortMode = enum { hardware, verification };

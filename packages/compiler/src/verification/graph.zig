@@ -129,6 +129,14 @@ fn appendDefinition(self: *Self, definition: Definition) void {
     self.declaration_payload_bytes +|= definition.name.len +| definition.expression.len;
 }
 
+pub fn declarationCapacity(self: *const Self) usize {
+    // The longest sort uses five digits for a bit-vector width. Names and
+    // expressions are already accounted for in declaration_payload_bytes.
+    const max_overhead = "(define-fun  () (_ BitVec 65535) )\n".len;
+
+    return self.declaration_payload_bytes +| (self.definitions.len *| max_overhead);
+}
+
 /// Every composite is assembled from evaluations whose scalar leaves are already bound.
 pub fn retain(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, input: terms.Value, span: zx.Span) zx.Error!terms.Value {
     if (input == .fields) return input;

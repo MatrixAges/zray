@@ -1,0 +1,3 @@
+
+(assert ${in})
+(check-sat)
