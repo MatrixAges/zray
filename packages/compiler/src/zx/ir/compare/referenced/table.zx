@@ -1,0 +1,61 @@
+import bytes from "std:bytes"
+import memory from "memory/columns"
+
+import optionalIds from "../optional_ids"
+import tags from "../tags"
+import texts from "../texts"
+import { Storage } from "./model"
+
+import type { Table } from "./model"
+
+export type Input = {
+    tables: Table,
+    row: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { tables, row } = in
+    const { left, right, columns } = tables
+
+    if (memory.sameReferenceRow(left, right, row)) {
+        return true
+    }
+
+    const a = memory.selectReferenceRow(left, row, null)
+    const b = memory.selectReferenceRow(right, row, null)
+
+    return loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < columns.length,
+        next: state => {
+            const column = columns[state.index]
+            const { offset, width } = column
+
+            state.equal = match column.storage {
+                Storage.Bytes => bytes.equals(
+                    memory.readReferenceRowBytes(a, offset, width),
+                    memory.readReferenceRowBytes(b, offset, width)
+                ),
+                Storage.Tags => tags({
+                    left: memory.readReferenceRowBytes(a, offset, width),
+                    right: memory.readReferenceRowBytes(b, offset, width),
+                    mask: column.mask
+                }),
+                Storage.OptionalIds => optionalIds({
+                    left: memory.readReferenceRowOptionalU32(a, offset),
+                    right: memory.readReferenceRowOptionalU32(b, offset)
+                }),
+                _ => texts({
+                    left: memory.readReferenceRowText(a, offset),
+                    right: memory.readReferenceRowText(b, offset)
+                })
+            }
+            state.index += 1
+        },
+        return: state => state.equal
+    })
+}

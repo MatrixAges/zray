@@ -29,5 +29,21 @@
 
     <Call fn="../../../zx/ir/compare/columns" in={$in.columns} />
 
-    <Return value={$ctx.columns} />
+    <If on={!$ctx.columns}>
+        <Return value={false} />
+    </If>
+
+    <If on={$in.contracts != null}>
+        <Call
+            fn="../../../zx/ir/compare/referenced/contracts"
+            in={{
+                contracts: $in.contracts,
+                row: 0
+            }}
+        />
+
+        <Return value={$ctx.contracts} />
+    </If>
+
+    <Return value={true} />
 </Module>

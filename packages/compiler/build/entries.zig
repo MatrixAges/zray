@@ -462,6 +462,7 @@ pub const main = [_]Entry{
     .{ .path = "library/entry/plan.zx", .name = "library_public_entry", .owner = .compiler },
     .{ .path = "library/initializers/compare/compare.rx", .name = "library_initializer_compare" },
     .{ .path = "zx/ir/compare/columns.zx", .name = "ir_compare_columns" },
+    .{ .path = "zx/ir/compare/referenced/bodies.zx", .name = "ir_compare_bodies" },
     .{ .path = "zx/ir/compare/header.rx", .name = "ir_compare_header" },
     input_snapshot,
     .{ .path = "inputs/snapshot/records/const.zx", .name = "input_records_constants", .owner = .compiler },

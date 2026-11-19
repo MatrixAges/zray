@@ -1,5 +1,6 @@
 import type { Ownership } from "core/symbol_table/model"
 import type { ColumnPair } from "../../../zx/ir/compare/model"
+import type { Contracts } from "../../../zx/ir/compare/referenced/model"
 
 export type Native = {
     module_id: u32,
@@ -48,7 +49,8 @@ export type Types = {
 export type Input = {
     header: HeaderPair,
     types: Types,
-    columns: ColumnPair
+    columns: ColumnPair,
+    contracts?: Contracts
 }
 
 export type Output = bool

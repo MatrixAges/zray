@@ -1,0 +1,35 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+export type Input = {
+    left: u8[],
+    right: u8[],
+    mask: u8
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    if (bytes.equals(left, right)) {
+        return true
+    }
+
+    const mask = integers.widenByte(in.mask)
+
+    return loop({
+        row: 0,
+        equal: left.length == right.length
+    }, {
+        while: state => state.equal && state.row < left.length,
+        next: state => {
+            const a = integers.widenByte(left[state.row])
+            const b = integers.widenByte(right[state.row])
+
+            state.equal = integers.andBits(a, mask) == integers.andBits(b, mask)
+            state.row += 1
+        },
+        return: state => state.equal
+    })
+}

@@ -148,6 +148,48 @@ export declare function readReferencedBytes(
     index: u64
 ): u8[] throws { IndexOutOfBounds }
 
+export declare function referenceRowCount(source: ReferenceRows): u64
+
+export declare function sameReferenceRow(
+    left: ReferenceRows,
+    right: ReferenceRows,
+    row: u64
+): bool throws { IndexOutOfBounds }
+
+export declare function readReferenceRange(
+    source: ReferenceRows,
+    first: u64,
+    end: u64
+): u8[] throws { IndexOutOfBounds }
+
+export declare function selectReferenceRow(
+    source: ReferenceRows,
+    row: u64,
+    shape: ReferenceRow?
+): ReferenceRow throws { IndexOutOfBounds }
+
+export declare function readNestedReferenceRows(
+    source: ReferenceRows,
+    row: u64,
+    offset: u64
+): ReferenceRows throws { IndexOutOfBounds }
+
+export declare function readReferenceRowBytes(
+    source: ReferenceRow,
+    offset: u64,
+    width: u64
+): u8[] throws { IndexOutOfBounds }
+
+export declare function readReferenceRowOptionalU32(
+    source: ReferenceRow,
+    offset: u64
+): u32?[] throws { IndexOutOfBounds }
+
+export declare function readReferenceRowText(
+    source: ReferenceRow,
+    offset: u64
+): string[] throws { IndexOutOfBounds }
+
 export declare function readIndirectTextColumn(
     source: IndirectTextColumn,
     index: u64

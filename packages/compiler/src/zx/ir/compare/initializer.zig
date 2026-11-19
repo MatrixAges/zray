@@ -1,7 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const comparison = @import("function.zig");
-const projection = comparison.borrow;
+const projection = @import("borrow.zig");
 const generated = @import("parser_options").generated_parser;
 
 pub fn matches(left: *const ir.Function, right: *const ir.Function, left_version: u32, right_version: u32, mapping: ?[]const ir.TypeId) bool {
@@ -40,12 +39,22 @@ pub fn matches(left: *const ir.Function, right: *const ir.Function, left_version
     const input_left = left_columns.view(std.meta.Child(@FieldType(Columns, "left")));
     const input_right = right_columns.view(std.meta.Child(@FieldType(Columns, "right")));
     const columns: Columns = .{ .left = &input_left, .right = &input_right, .masks = &projection.Function.masks };
-    const input: Input = .{ .header = &headers, .types = &types, .columns = &columns };
+    const Contracts = std.meta.Child(@typeInfo(@FieldType(Input, "contracts")).optional.child);
+    var contract_view: @import("referenced/host.zig").ContractView(Contracts) = undefined;
+    const nested = left.contracts.count() != 0;
+
+    if (nested) contract_view.init(&left.contracts, &right.contracts);
+
+    const input: Input = .{
+        .header = &headers,
+        .types = &types,
+        .columns = &columns,
+        .contracts = if (nested) &contract_view.input else null,
+    };
+
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    if (!(entry.executeIn(fixed.allocator(), &input) catch unreachable)) return false;
-
-    return comparison.contracts(fixed.allocator(), &left.contracts, &right.contracts);
+    return entry.executeIn(fixed.allocator(), &input) catch unreachable;
 }
 
 fn header(comptime Target: type, value: *const ir.Function, version: u32, external: @FieldType(Target, "native")) Target {

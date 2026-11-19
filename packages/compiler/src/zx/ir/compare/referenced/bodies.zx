@@ -1,0 +1,76 @@
+import bytes from "std:bytes"
+import memory from "memory/columns"
+
+import contracts from "./contracts"
+import table from "./table"
+
+import type { Contracts, Table } from "./model"
+
+export type Input = {
+    tables: Table[],
+    contracts: Contracts,
+    first: u64,
+    end: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { tables, first, end } = in
+
+    const shared = loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < tables.length,
+        next: state => {
+            const pair = tables[state.index]
+
+            const left = memory.readReferenceRange(pair.left, first, end)
+            const right = memory.readReferenceRange(pair.right, first, end)
+
+            state.equal = bytes.equals(left, right)
+            state.index += 1
+        },
+        return: state => state.equal
+    })
+
+    if (shared) {
+        return true
+    }
+
+    return loop({
+        row: first,
+        equal: true
+    }, {
+        while: state => state.equal && state.row < end,
+        next: state => {
+            const row = state.row
+
+            state.equal = loop({
+                index: 0,
+                equal: true
+            }, {
+                while: item => item.equal && item.index < tables.length,
+                next: item => {
+                    item.equal = table({
+                        tables: tables[item.index],
+                        row
+                    })
+                    item.index += 1
+                },
+                return: item => item.equal
+            })
+
+            if (state.equal) {
+                state.equal = contracts({
+                    contracts: in.contracts,
+                    row
+                })
+            }
+
+            state.row += 1
+        },
+        return: state => state.equal
+    })
+}

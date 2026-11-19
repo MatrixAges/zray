@@ -1,5 +1,8 @@
 import bytes from "std:bytes"
-import integers from "std:integer"
+
+import optionalIds from "./optional_ids"
+import compareTags from "./tags"
+import texts from "./texts"
 
 import type { ColumnPair as Input } from "./model"
 
@@ -32,28 +35,11 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.index
 
-            const left = in.left.tags[index]
-            const right = in.right.tags[index]
-
-            if (!bytes.equals(left, right)) {
-                const mask = integers.widenByte(in.masks[index])
-
-                state.equal = loop({
-                    index: 0,
-                    equal: left.length == right.length
-                }, {
-                    while: row => row.equal && row.index < left.length,
-                    next: row => {
-                        const a = integers.widenByte(left[row.index])
-                        const b = integers.widenByte(right[row.index])
-
-                        row.equal = integers.andBits(a, mask) ==
-                            integers.andBits(b, mask)
-                        row.index += 1
-                    },
-                    return: row => row.equal
-                })
-            }
+            state.equal = compareTags({
+                left: in.left.tags[index],
+                right: in.right.tags[index],
+                mask: in.masks[index]
+            })
             state.index += 1
         },
         return: state => state.equal
@@ -69,19 +55,9 @@ export default function (in: Input): Output {
     }, {
         while: state => state.equal && state.column < in.left.options.length,
         next: state => {
-            const left = in.left.options[state.column]
-            const right = in.right.options[state.column]
-
-            state.equal = loop({
-                index: 0,
-                equal: left.length == right.length
-            }, {
-                while: row => row.equal && row.index < left.length,
-                next: row => {
-                    row.equal = left[row.index] == right[row.index]
-                    row.index += 1
-                },
-                return: row => row.equal
+            state.equal = optionalIds({
+                left: in.left.options[state.column],
+                right: in.right.options[state.column]
             })
             state.column += 1
         },
@@ -98,19 +74,9 @@ export default function (in: Input): Output {
     }, {
         while: state => state.equal && state.column < in.left.text.length,
         next: state => {
-            const left = in.left.text[state.column]
-            const right = in.right.text[state.column]
-
-            state.equal = loop({
-                index: 0,
-                equal: left.length == right.length
-            }, {
-                while: row => row.equal && row.index < left.length,
-                next: row => {
-                    row.equal = left[row.index] == right[row.index]
-                    row.index += 1
-                },
-                return: row => row.equal
+            state.equal = texts({
+                left: in.left.text[state.column],
+                right: in.right.text[state.column]
             })
             state.column += 1
         },

@@ -1,0 +1,71 @@
+import memory from "memory/columns"
+
+import compare from "./table"
+
+import type { Contracts } from "./model"
+
+export type Input = {
+    contracts: Contracts,
+    row: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { contracts, row } = in
+    const { left, right, layout } = contracts
+
+    if (memory.sameReferenceRow(left, right, row)) {
+        return true
+    }
+
+    const symbols = {
+        left: memory.readNestedReferenceRows(left, row, layout.symbols),
+        right: memory.readNestedReferenceRows(right, row, layout.symbols),
+        columns: layout.symbol_columns
+    }
+
+    const expressions = {
+        left: memory.readNestedReferenceRows(left, row, layout.expressions),
+        right: memory.readNestedReferenceRows(right, row, layout.expressions),
+        columns: layout.expression_columns
+    }
+
+    const count = memory.referenceRowCount(symbols.left)
+    const same_symbols = count == memory.referenceRowCount(symbols.right)
+    const same_expressions = count == memory.referenceRowCount(expressions.left)
+    const complete = count == memory.referenceRowCount(expressions.right)
+
+    const different_counts = (
+        - !same_symbols
+        - or !same_expressions
+        - or !complete
+    )
+
+    if (different_counts) {
+        return false
+    }
+
+    return loop({
+        row: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.row < count,
+        next: state => {
+            state.equal = compare({
+                tables: symbols,
+                row: state.row
+            })
+
+            if (state.equal) {
+                state.equal = compare({
+                    tables: expressions,
+                    row: state.row
+                })
+            }
+
+            state.row += 1
+        },
+        return: state => state.equal
+    })
+}

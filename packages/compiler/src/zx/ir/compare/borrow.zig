@@ -9,10 +9,8 @@ pub const Function = Columns(.function, struct {
     *const ir.ContractTable,
 });
 
-pub const Contract = Columns(.contract, struct { *const ir.SymbolTable, *const ir.ExpressionTable });
-pub const Body = Columns(.body, struct { *const ir.StoreTable, *const ir.SymbolTable, *const ir.ExpressionTable, *const ir.ControlTable, *const ir.ContractTable });
 pub const Header = Columns(.header, struct { *const ir.FunctionTable });
-const Mode = enum { function, contract, body, header };
+const Mode = enum { function, body, header };
 const Kind = enum { words, tags, options, text };
 const Counts = struct { words: usize = 0, tags: usize = 0, options: usize = 0, text: usize = 0 };
 
@@ -96,12 +94,70 @@ fn tagMasks(comptime mode: Mode, comptime Tables: type, comptime size: usize) [s
 
             if (classify(Element) != .tags) continue;
 
-            result[index] = std.math.maxInt(@Int(.unsigned, @bitSizeOf(Element)));
+            result[index] = tagMask(Element);
             index += 1;
         }
     }
 
     return result;
+}
+
+pub fn referenced(comptime Spec: type, comptime Table: type) []const *const Spec {
+    @setEvalBranchQuota(100_000);
+
+    const descriptors = comptime rows(Spec, Table);
+
+    const pointers = comptime blk: {
+        var result: [descriptors.len]*const Spec = undefined;
+
+        for (&result, &descriptors) |*slot, *column| slot.* = column;
+
+        break :blk result;
+    };
+
+    return &pointers;
+}
+
+fn rows(comptime Spec: type, comptime Table: type) [rowCount(Table)]Spec {
+    var result: [rowCount(Table)]Spec = undefined;
+    const order = [_]Kind{ .words, .tags, .options, .text };
+    var index: usize = 0;
+
+    for (order) |kind| {
+        for (@typeInfo(Table).@"struct".field_names) |name| {
+            if (!included(.body, Table, name)) continue;
+
+            const Element = std.meta.Elem(@FieldType(Table, name));
+
+            if (classify(Element) != kind) continue;
+
+            result[index] = .{
+                .storage = switch (kind) {
+                    .words => .Bytes,
+                    .tags => .Tags,
+                    .options => .OptionalIds,
+                    .text => .Texts,
+                },
+                .offset = @offsetOf(Table, name),
+                .width = @sizeOf(Element),
+                .mask = if (kind == .tags) tagMask(Element) else 0,
+            };
+
+            index += 1;
+        }
+    }
+
+    return result;
+}
+
+fn rowCount(comptime Table: type) usize {
+    const size = count(.body, struct { *const Table });
+
+    return size.words + size.tags + size.options + size.text;
+}
+
+fn tagMask(comptime Element: type) u8 {
+    return std.math.maxInt(@Int(.unsigned, @bitSizeOf(Element)));
 }
 
 fn included(comptime mode: Mode, comptime Table: type, comptime name: []const u8) bool {

@@ -1,0 +1,35 @@
+import type { ReferenceRows } from "memory/columns"
+
+export enum Storage {
+    Bytes,
+    Tags,
+    OptionalIds,
+    Texts
+}
+
+export type Column = {
+    storage: Storage,
+    offset: u64,
+    width: u64,
+    mask: u8
+}
+
+export type Pair = {
+    left: ReferenceRows,
+    right: ReferenceRows
+}
+
+export type Table = Pair & {
+    columns: Column[]
+}
+
+export type Nested = {
+    symbols: u64,
+    expressions: u64,
+    symbol_columns: Column[],
+    expression_columns: Column[]
+}
+
+export type Contracts = Pair & {
+    layout: Nested
+}
