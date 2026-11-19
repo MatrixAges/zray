@@ -1,8 +1,10 @@
 import type {
     Input as TypeWrite
 } from "../../../../analysis/semantic/merging/publication/model"
+import type {
+    Input as FunctionStorage
+} from "../../../artifact/materializing/publication/reserve"
 import type { Input as NativeWrite } from "../../../link/native/publication/model"
-import type { Input as FunctionStorage } from "../functions/reserve"
 
 export type Request = {
     types: TypeWrite,

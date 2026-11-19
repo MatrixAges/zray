@@ -19,10 +19,7 @@ pub const Destination = struct {
     native_modules: *ir.NativeModuleStorage,
 };
 
-const generated = @import("parser_options").generated_parser;
-const schedule = if (generated) @import("generated_source_merge_sequence") else void;
-const Form = if (generated) schedule.Input else enum { Program, AnalyzedBody };
-const Stage = if (generated) std.meta.Child(schedule.Output) else enum { ValidateProgram, RegisterTypes, MapFunctions, BindNatives, PublishFunctions };
+pub const Form = enum { Program, AnalyzedBody };
 
 pub const Extension = struct {
     types: usize,
@@ -40,39 +37,32 @@ pub fn appendAnalyzed(program: *const ir.Program, origins: Origins.Table, destin
 }
 
 fn merge(comptime form: Form, program: *const ir.Program, origins: Origins.Table, destination: *const Destination, extension: if (form == .AnalyzedBody) *const Extension else void) Error!Nodes {
-    const stages: []const Stage = comptime if (generated) @import("zx").staticSequence(schedule, form) else switch (form) {
-        .Program => &.{ .ValidateProgram, .RegisterTypes, .MapFunctions, .BindNatives, .PublishFunctions },
-        .AnalyzedBody => &.{ .RegisterTypes, .MapFunctions, .PublishFunctions },
-    };
+    if (comptime @import("parser_options").generated_parser) return @import("source/workflow/host.zig").merge(form, program, origins, destination, extension);
 
     const temporary = destination.temporary;
-    var nodes: Nodes = undefined;
-    var natives: []?ir.NativeModuleId = undefined;
-    nodes.allocator = destination.allocator;
+    const complete = form == .Program;
 
-    inline for (stages) |stage| switch (stage) {
-        .ValidateProgram => if (try @import("../../ir/validate.zig").validate(temporary, program.*) != null) return error.InvalidIr,
-        .RegisterTypes => nodes.types = .{ .mapped = if (form == .Program)
-            try destination.types.appendFrom(temporary, program.types, origins, 0)
-        else
-            try destination.types.appendAnalyzed(temporary, temporary, program.types, origins, extension.types) },
-        .MapFunctions => {
-            const count = if (form == .Program) program.functions.count() else extension.total;
-            const base = if (form == .Program) 0 else extension.base;
-            const range = try @import("function_table.zig").range(destination.functions.count(), count, base, program.types.count(), program.native_modules.count());
+    if (complete and try @import("../../ir/validate.zig").validate(temporary, program.*) != null) return error.InvalidIr;
 
-            nodes.functions = .{ .range = .{ .first = range.first, .count = range.count, .prefix = range.prefix } };
+    const types = if (complete)
+        try destination.types.appendFrom(temporary, program.types, origins, 0)
+    else
+        try destination.types.appendAnalyzed(temporary, temporary, program.types, origins, extension.types);
 
-            if (form == .Program) {
-                natives = try temporary.alloc(?ir.NativeModuleId, program.native_modules.count());
-                nodes.native_modules = .{ .indexed = natives };
-            } else {
-                nodes.native_modules = .{ .range = .{ .first = 0, .count = range.native_modules } };
-            }
-        },
-        .BindNatives => try native.link(temporary, destination.native_modules, program.native_modules, natives, &nodes),
-        .PublishFunctions => try nodes.appendFunctions(destination.functions, if (form == .Program) program.functions else extension.tail.*, temporary),
+    const count = if (complete) program.functions.count() else extension.total;
+    const base = if (complete) 0 else extension.base;
+    const range = try @import("function_table.zig").range(destination.functions.count(), count, base, program.types.count(), program.native_modules.count());
+    const natives: []?ir.NativeModuleId = if (complete) try temporary.alloc(?ir.NativeModuleId, range.native_modules) else &.{};
+
+    var nodes: Nodes = .{
+        .allocator = destination.allocator,
+        .types = .{ .mapped = types },
+        .functions = .{ .range = .{ .first = range.first, .count = range.count, .prefix = range.prefix } },
+        .native_modules = if (complete) .{ .indexed = natives } else .{ .range = .{ .first = 0, .count = range.native_modules } },
     };
+
+    if (complete) try native.link(temporary, destination.native_modules, program.native_modules, natives, &nodes);
+    try nodes.appendFunctions(destination.functions, if (complete) program.functions else extension.tail.*, temporary);
 
     return nodes;
 }

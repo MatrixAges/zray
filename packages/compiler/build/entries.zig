@@ -193,7 +193,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/link/source/entry.zx", .name = "source_link_entry" },
     .{ .path = "zx/modules/forward_entry/owned.zx", .name = "source_owned_entry" },
     .{ .path = "zx/modules/link/source/extension/select.rx", .name = "source_link_tail" },
-    .{ .path = "zx/modules/link/source/workflow/merge.rx", .name = "source_merge_sequence" },
+    .{ .path = "zx/modules/link/source/workflow/prepare.rx", .name = "source_prepare_publication" },
     .{ .path = "zx/modules/link/source/initializer.zx", .name = "source_link_initializer" },
     .{ .path = "zx/modules/link/artifact/bind.rx", .name = "artifact_module_binding" },
     .{ .path = "zx/modules/link/workflow/link.rx", .name = "artifact_link_sequence" },

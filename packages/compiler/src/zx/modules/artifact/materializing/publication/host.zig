@@ -55,6 +55,14 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.Func
     if (count == 0) return;
     try storage.reserve(nodes.allocator, count);
 
+    return appendReserved(nodes, storage, source, temporary);
+}
+
+pub fn appendReserved(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.FunctionTable, temporary: std.mem.Allocator) Error!void {
+    const count = source.count();
+
+    if (count == 0) return;
+
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
     const length_slots = zx.memory.borrowColumnLengths(storage);

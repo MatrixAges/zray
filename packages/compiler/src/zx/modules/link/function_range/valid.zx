@@ -1,0 +1,30 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+export type Input = {
+    first: u64,
+    count: u64,
+    prefix: u64,
+    types: u64,
+    native_modules: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { first, count, prefix, types, native_modules } = in
+
+    const limit = integers.widen(max_u32)
+    const natives_fit = native_modules <= limit
+
+    const valid = (
+        - first <= limit
+        - and count <= limit
+        - and prefix <= count
+        - and prefix <= first
+        - and types <= limit
+        - and natives_fit
+    )
+
+    return valid && first + (count - prefix) <= limit
+}

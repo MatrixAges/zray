@@ -23,6 +23,41 @@ pub const Request = struct {
     complete: bool,
 };
 
+pub const View = struct {
+    source: Table,
+    base: Table,
+    origins: Bindings,
+    base_origins: Bindings,
+    data: Data,
+    limits: Limits,
+    input: Preparation,
+    pub fn init(self: *View, request: *const Request, mapping: *[]u32) void {
+        self.source = ir.TypeTable.borrow(Table, request.source);
+        self.base = ir.TypeTable.borrow(Table, request.items.view());
+        self.origins = Origins.Table.borrow(Bindings, request.origins);
+        self.base_origins = Origins.Table.borrow(Bindings, request.nominal.view());
+        self.limits = .{ .maximum_count = std.math.maxInt(u32), .scalar_count = std.enums.values(ir.Scalar).len };
+
+        self.data = .{
+            .source = &self.source,
+            .origins = &self.origins,
+            .base = &self.base,
+            .base_origins = &self.base_origins,
+            .mapping = @ptrCast(mapping),
+            .first = request.first,
+            .checked = request.checked,
+        };
+
+        self.input = .{
+            .request = &self.data,
+            .names = request.origins.names,
+            .resource = @ptrCast(&request.mapping_allocator),
+            .complete = request.complete,
+            .validation = if (request.first == 0 or request.checked) &self.limits else null,
+        };
+    }
+};
+
 pub fn append(request: Request) Error![]const ir.TypeId {
     var mapping: []u32 = &.{};
     var arena = std.heap.ArenaAllocator.init(request.temporary);
@@ -30,31 +65,13 @@ pub fn append(request: Request) Error![]const ir.TypeId {
     defer arena.deinit();
     errdefer request.mapping_allocator.free(mapping);
 
-    const source = ir.TypeTable.borrow(Table, request.source);
-    const base = ir.TypeTable.borrow(Table, request.items.view());
-    const origins = Origins.Table.borrow(Bindings, request.origins);
-    const base_origins = Origins.Table.borrow(Bindings, request.nominal.view());
-    const limits: Limits = .{ .maximum_count = std.math.maxInt(u32), .scalar_count = std.enums.values(ir.Scalar).len };
+    var preparation: View = undefined;
 
-    const preparation: Preparation = .{
-        .request = &.{
-            .source = &source,
-            .origins = &origins,
-            .base = &base,
-            .base_origins = &base_origins,
-            .mapping = @ptrCast(&mapping),
-            .first = request.first,
-            .checked = request.checked,
-        },
-        .names = request.origins.names,
-        .resource = @ptrCast(&request.mapping_allocator),
-        .complete = request.complete,
-        .validation = if (request.first == 0 or request.checked) &limits else null,
-    };
+    preparation.init(&request, &mapping);
 
     const status = try publication.register(request.allocator, request.items, request.nominal, .{
         .temporary = arena.allocator(),
-        .preparation = &preparation,
+        .preparation = &preparation.input,
     });
 
     return switch (status) {

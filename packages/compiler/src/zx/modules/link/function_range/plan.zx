@@ -1,13 +1,10 @@
 import integers from "std:integer"
-import { max_u32 } from "core/const"
 
-export type Input = {
-    first: u64,
-    count: u64,
-    prefix: u64,
-    types: u64,
-    native_modules: u64
-}
+import valid from "./valid"
+
+import type { Input as Facts } from "./valid"
+
+export type Input = Facts
 
 export type Range = {
     first: u32,
@@ -21,29 +18,13 @@ export type Range = {
 export type Output = Range?
 
 export default function (in: Input): Output {
+    if (!valid(in)) {
+        return null
+    }
+
     const { first, count, prefix, types, native_modules } = in
 
-    const limit = integers.widen(max_u32)
-    const natives_fit = native_modules <= limit
-
-    const valid = (
-        - first <= limit
-        - and count <= limit
-        - and prefix <= count
-        - and prefix <= first
-        - and types <= limit
-        - and natives_fit
-    )
-
-    if (!valid) {
-        return null
-    }
-
     const root = first + (count - prefix)
-
-    if (root > limit) {
-        return null
-    }
 
     return {
         first: integers.narrow(first),

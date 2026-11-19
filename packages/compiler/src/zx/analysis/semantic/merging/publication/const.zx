@@ -1,3 +1,5 @@
+export const progress_slot: u64 = 0
+
 export const completed_labels: u64 = 1
 
 export const completed_fields: u64 = 2

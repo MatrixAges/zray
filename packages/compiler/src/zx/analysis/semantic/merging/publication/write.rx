@@ -53,5 +53,11 @@
         />
     </If>
 
-    <Call fn="publish" in={$in.destination} />
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "destination",
+            "progress"
+        ])}
+    />
 </Module>

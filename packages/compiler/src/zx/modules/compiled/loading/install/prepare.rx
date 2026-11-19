@@ -8,8 +8,6 @@
         in={$in.types}
     />
 
-    <Call fn="types_written" in={$in.types.progress} />
-
     <If on={$in.natives.source.specifiers.length != 0}>
         <Call
             module="../../../link/native/publication/publish"
@@ -21,6 +19,9 @@
     </If>
 
     <If on={$in.functions.count != 0}>
-        <Call fn="../functions/reserve" in={$in.functions} />
+        <Call
+            fn="../../../artifact/materializing/publication/reserve"
+            in={$in.functions}
+        />
     </If>
 </Module>

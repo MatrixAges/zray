@@ -1,0 +1,94 @@
+<Module>
+    <Type from="model" as="Source" />
+    <Type from="../../../../analysis/semantic/merging/model" as="Types" />
+    <Type from="../../native/model" as="Native" />
+
+    <Args in={Source.Input} out={Source.Output} />
+
+    <If on={$in.validation != null}>
+        <Call module="../../../../ir/canonical/validation/validate" in={$in.validation} />
+
+        <If on={!$ctx.validate}>
+            <Return value={Source.Status.InvalidIr} />
+        </If>
+
+        <Call
+            fn="../../../compiled/validation/linked/started"
+            in={$in.registration_started}
+        />
+    </If>
+
+    <Call module="../../../../analysis/semantic/merging/register" in={$in.types} />
+
+    <Switch on={$ctx.register}>
+        <Case value={Types.Status.MissingOrigin}>
+            <Return value={Source.Status.MissingOrigin} />
+        </Case>
+
+        <Case value={Types.Status.Conflict}>
+            <Return value={Source.Status.ConflictingType} />
+        </Case>
+
+        <Case value={Types.Status.Invalid}>
+            <Return value={Source.Status.Invalid} />
+        </Case>
+    </Switch>
+
+    <Call fn="../../function_range/valid" in={$in.range} />
+
+    <If on={!$ctx.valid}>
+        <Return value={Source.Status.Exhausted} />
+    </If>
+
+    <If on={$in.natives != null}>
+        <Call
+            fn="native_mapping"
+            in={{
+                natives: $in.natives,
+                types: $in.types.preparation.request.mapping
+            }}
+        />
+
+        <Call
+            module="../../native/link"
+            in={{
+                plan: {
+                    source: $in.natives.source,
+                    base: $in.natives.base,
+                    types: $ctx.native_mapping,
+                    target: $in.natives.mapping
+                },
+                publication: {
+                    source: $in.natives.source,
+                    mapping: $ctx.native_mapping,
+                    destination: $in.natives.destination
+                }
+            }}
+        />
+
+        <If on={$ctx.link != null}>
+            <Switch on={$ctx.link}>
+                <Case value={Native.Status.Conflict}>
+                    <Return value={Source.Status.ConflictingInterface} />
+                </Case>
+
+                <Case value={Native.Status.Full}>
+                    <Return value={Source.Status.Exhausted} />
+                </Case>
+
+                <Default>
+                    <Return value={Source.Status.Invalid} />
+                </Default>
+            </Switch>
+        </If>
+    </If>
+
+    <If on={$in.functions.count != 0}>
+        <Call
+            fn="../../../artifact/materializing/publication/reserve"
+            in={$in.functions}
+        />
+    </If>
+
+    <Return value={Source.Status.Ready} />
+</Module>

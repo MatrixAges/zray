@@ -1,0 +1,24 @@
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+import type { Native } from "./model"
+
+export type Input = {
+    natives: Native,
+    types: U32Buffer
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const { natives, types } = in
+
+    memory.allocateOptionalU32WithAllocator(
+        natives.resource,
+        natives.mapping,
+        natives.source.specifiers.length,
+        false
+    )
+
+    return memory.u32Views(types)
+}

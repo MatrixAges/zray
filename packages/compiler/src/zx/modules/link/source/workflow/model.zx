@@ -1,12 +1,40 @@
-export enum Form {
-    Program,
-    AnalyzedBody
+import type { Modules } from "core/native_module_table/model"
+import type { Allocator, OptionalU32Buffer, U8Buffer } from "memory"
+import type {
+    Append as TypeRegistration
+} from "../../../../analysis/semantic/merging/model"
+import type { Program } from "../../../../ir/canonical/validation/model"
+import type {
+    Input as FunctionStorage
+} from "../../../artifact/materializing/publication/reserve"
+import type { Input as RangeRequest } from "../../function_range/valid"
+import type { Destination } from "../../native/publication/model"
+
+export enum Status {
+    Ready,
+    InvalidIr,
+    MissingOrigin,
+    ConflictingType,
+    ConflictingInterface,
+    Exhausted,
+    Invalid
 }
 
-export enum Stage {
-    ValidateProgram,
-    RegisterTypes,
-    MapFunctions,
-    BindNatives,
-    PublishFunctions
+export type Native = {
+    source: Modules,
+    base: Modules,
+    destination: Destination,
+    mapping: OptionalU32Buffer,
+    resource: Allocator
 }
+
+export type Input = {
+    validation?: Program,
+    registration_started: U8Buffer,
+    types: TypeRegistration,
+    range: RangeRequest,
+    natives?: Native,
+    functions: FunctionStorage
+}
+
+export type Output = Status
