@@ -3,39 +3,62 @@ const inputs = @import("../collection.zig");
 const zx = @import("zx");
 const memory = zx.memory;
 const generated = @import("parser_options").generated_parser;
-pub const File = struct { kind: inputs.Kind, path: []const u8 };
-pub const Probe = struct { lookup: bool, retain: bool };
+
+pub const File = struct {
+    kind: inputs.Kind,
+    path: []const u8,
+    relative: []const u8,
+    lookup: bool,
+    retain: bool,
+};
+
 pub const Schedule = struct { next: []const []const u8, files: usize };
 
-pub fn file(allocator: std.mem.Allocator, prefix: []const u8, name: []const u8) !?File {
+pub fn file(allocator: std.mem.Allocator, base: []const u8, name: []const u8, prefix_length: usize, lookup_limit: usize) !?File {
     if (comptime !generated) {
         const selected = inputs.kind(name);
 
-        return if (selected == .Ignored) null else .{
+        if (selected == .Ignored) return null;
+
+        const path = try std.mem.concat(allocator, u8, &.{ base, name });
+
+        return .{
             .kind = selected,
-            .path = try std.mem.concat(allocator, u8, &.{ prefix, name }),
+            .path = path,
+            .relative = path[prefix_length..],
+            .lookup = path.len <= lookup_limit,
+            .retain = selected != .RX,
         };
     }
 
     const rule = @import("generated_input_directory_file");
-    var storage: [1][]const u8 = undefined;
-    var output: []const []const u8 = &storage;
-    const request: std.meta.Child(rule.Input) = .{ .prefix = prefix, .name = name, .path = @ptrCast(&output) };
+    var storage: [1]File = undefined;
+    const output: []File = &storage;
+    const paths = memory.borrowWriteColumn([]const u8, "path", output);
+    const relatives = memory.borrowWriteColumn([]const u8, "relative", output);
+    const lookup = memory.borrowWriteColumn(bool, "lookup", output);
+    const retain = memory.borrowWriteColumn(bool, "retain", output);
+
+    const request: std.meta.Child(rule.Input) = .{
+        .prefix = base,
+        .name = name,
+        .prefix_length = prefix_length,
+        .lookup_limit = lookup_limit,
+        .output = &.{
+            .paths = @ptrCast(&paths),
+            .relatives = @ptrCast(&relatives),
+            .lookup = @ptrCast(&lookup),
+            .retain = @ptrCast(&retain),
+        },
+    };
+
     const selected = try zx.columns.invoke(rule.executeValue, allocator, &request);
 
-    return if (selected == .Ignored) null else .{ .kind = @fromBackingInt(@intCast(@backingInt(selected))), .path = storage[0] };
-}
+    if (selected == .Ignored) return null;
 
-pub fn probe(selected: inputs.Kind, length: usize, limit: usize) Probe {
-    if (comptime !generated) return .{ .lookup = length <= limit, .retain = selected != .RX };
+    storage[0].kind = @fromBackingInt(@intCast(@backingInt(selected)));
 
-    const rule = @import("generated_input_directory_probe");
-    var buffer: [128]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-    const request: std.meta.Child(rule.Input) = .{ .kind = @fromBackingInt(@intCast(@backingInt(selected))), .length = length, .limit = limit };
-    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &request) catch unreachable;
-
-    return .{ .lookup = result.lookup, .retain = result.retain };
+    return storage[0];
 }
 
 pub fn schedule(allocator: std.mem.Allocator, parents: []const []const u8, listings: anytype) !Schedule {
@@ -54,6 +77,48 @@ pub fn schedule(allocator: std.mem.Allocator, parents: []const []const u8, listi
     const count = try zx.columns.invoke(rule.executeValue, allocator, &request);
 
     return .{ .next = next, .files = @intCast(count) };
+}
+
+pub fn flatten(allocator: std.mem.Allocator, listings: anytype, entries: anytype, prefix_length: usize, copy_paths: bool) !void {
+    if (comptime !generated) {
+        var next: usize = 0;
+
+        for (listings) |listing| {
+            const output = entries[next..][0..listing.files.len];
+
+            @memcpy(output, listing.files);
+
+            if (copy_paths) for (output) |*item| {
+                item.path = try allocator.dupe(u8, item.path);
+                item.relative = item.path[prefix_length..];
+            };
+
+            next += output.len;
+        }
+
+        return;
+    }
+
+    const rule = @import("generated_input_directory_flatten");
+    const files = memory.borrowSliceColumn(&.{"files"}, listings);
+    const paths = memory.borrowListColumn([]const u8, "files", "path", listings);
+    const target_paths = memory.borrowWriteColumn([]const u8, "path", entries);
+    const target_relatives = memory.borrowWriteColumn([]const u8, "relative", entries);
+    const records = std.mem.sliceAsBytes(entries);
+
+    const request: std.meta.Child(rule.Input) = .{
+        .files = @ptrCast(&files),
+        .paths = @ptrCast(&paths),
+        .entries = @ptrCast(&records),
+        .target_paths = @ptrCast(&target_paths),
+        .target_relatives = @ptrCast(&target_relatives),
+        .groups = listings.len,
+        .width = @sizeOf(std.meta.Child(@TypeOf(entries))),
+        .prefix_length = prefix_length,
+        .copy_paths = copy_paths,
+    };
+
+    try zx.columns.invoke(rule.executeValue, allocator, &request);
 }
 
 fn seedSchedule(allocator: std.mem.Allocator, parents: []const []const u8, listings: anytype) !Schedule {

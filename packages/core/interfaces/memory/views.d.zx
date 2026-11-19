@@ -153,6 +153,10 @@ export declare function copyColumnValue(
     value: u8[]
 ): void throws { IndexOutOfBounds }
 
+export declare function copyText(allocator, value: string): string throws {
+    OutOfMemory
+}
+
 export declare function borrowU32Range(
     source: u32[],
     first: u64,

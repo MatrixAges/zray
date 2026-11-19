@@ -256,6 +256,10 @@ pub inline fn copyStringViews(target: *const anyopaque, source: []const []const 
     return copySlice([]const u8, target, source);
 }
 
+pub inline fn copyText(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {
+    return allocator.dupe(u8, value);
+}
+
 inline fn copySlice(comptime T: type, target: *const anyopaque, source: []const T) error{IndexOutOfBounds}!void {
     const buffer: *const []T = @ptrCast(@alignCast(target));
 

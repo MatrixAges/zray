@@ -63,16 +63,10 @@ pub fn scan(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, 
 
         const next_generation = 1 - generation;
         const schedule = try inputs.directory.schedule(frontier[next_generation].allocator(), level, listings);
+        const first = entries.items.len;
 
-        try entries.ensureUnusedCapacity(allocator, schedule.files);
-
-        for (listings) |found| {
-            for (found.files) |file| {
-                const path = if (shared_paths != null) file.path else try paths.dupe(u8, file.path);
-
-                entries.appendAssumeCapacity(.{ .relative = path[prefix.len..], .path = path, .text = file.text, .metadata = file.metadata, .kind = file.kind, .retain = file.retain });
-            }
-        }
+        try entries.resize(allocator, first + schedule.files);
+        try inputs.directory.flatten(paths, listings, entries.items[first..], prefix.len, shared_paths == null);
 
         _ = frontier[generation].reset(.retain_capacity);
         _ = results.reset(.retain_capacity);
@@ -119,8 +113,7 @@ pub fn publish(workspace: std.mem.Allocator, allocator: std.mem.Allocator, docum
 
 /// Threads listing at once; the file system serves more of them no faster, as they wait on its locks.
 const listers = 8;
-const File = struct { path: []const u8, kind: inputs.Kind, text: ?[]const u8, metadata: ?Files.Metadata, retain: bool };
-const Listing = struct { files: []const File = &.{}, directories: []const []const u8 = &.{}, failure: ?anyerror = null };
+const Listing = struct { files: []const Entry = &.{}, directories: []const []const u8 = &.{}, failure: ?anyerror = null };
 
 /// The directories of one depth, listed by every participant taking the next one left.
 const List = struct {
@@ -150,7 +143,7 @@ const List = struct {
 
         defer directory.close(work.io);
 
-        var files: std.ArrayList(File) = .empty;
+        var files: std.ArrayList(Entry) = .empty;
         var directories: std.ArrayList([]const u8) = .empty;
         var entries = Reader.init(directory);
         const base = try inputs.qualify(arena, work.prefix, parent, "");
@@ -159,13 +152,12 @@ const List = struct {
         while (try entries.next(work.io)) |entry| switch (entry.kind) {
             .directory => try directories.append(arena, try arena.dupe(u8, entry.name)),
             .file => {
-                const route = try inputs.directory.file(paths, base, entry.name) orelse continue;
-                const probe = inputs.directory.probe(route.kind, route.path.len, std.fs.max_path_bytes);
-                const kept = if (probe.lookup) work.files else null;
+                const route = try inputs.directory.file(paths, base, entry.name, work.prefix.len, std.fs.max_path_bytes) orelse continue;
+                const kept = if (route.lookup) work.files else null;
                 const text = if (kept) |cache| try cache.unchanged(work.io, directory, entry.name, route.path, entry.metadata) else null;
                 const metadata = entry.metadata orelse if (work.stat) Files.metadata(try directory.statFile(work.io, entry.name, .{})) else null;
 
-                try files.append(arena, .{ .path = route.path, .kind = route.kind, .text = text, .metadata = metadata, .retain = probe.retain });
+                try files.append(arena, .{ .path = route.path, .relative = route.relative, .kind = route.kind, .text = text, .metadata = metadata, .retain = route.retain });
             },
             else => {},
         };

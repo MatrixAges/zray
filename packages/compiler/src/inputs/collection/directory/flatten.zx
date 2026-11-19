@@ -1,0 +1,62 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { ListColumn, U8Buffer, WriteColumn } from "memory"
+
+export type Input = {
+    files: ListColumn,
+    paths: ListColumn,
+    entries: U8Buffer,
+    target_paths: WriteColumn,
+    target_relatives: WriteColumn,
+    groups: u64,
+    width: u64,
+    prefix_length: u64,
+    copy_paths: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const flattened = loop({
+        group: 0,
+        first: 0
+    }, {
+        while: state => state.group < in.groups,
+        next: state => {
+            const records = memory.borrowListBytes(in.files, state.group)
+            const offset = state.first * in.width
+            const written =
+                memory.copyBytes(in.entries, offset, records, 0, records.length)
+            const count = written / in.width
+
+            if (in.copy_paths) {
+                const copied = loop(0, {
+                    while: row => row < count,
+                    next: row => {
+                        const path = memory.readListText(in.paths, state.group, row)
+                        const owned = bytes.fromText(memory.copyText(path))
+                        const relative = memory.borrowU8Range(
+                            owned,
+                            in.prefix_length,
+                            owned.length - in.prefix_length
+                        )
+                        const target = state.first + row
+
+                        memory.writeColumnBytes(in.target_paths, target, owned)
+                        memory.writeColumnBytes(
+                            in.target_relatives,
+                            target,
+                            relative
+                        )
+
+                        row += 1
+                    }
+                })
+            }
+
+            state.first += count
+            state.group += 1
+        }
+    })
+}

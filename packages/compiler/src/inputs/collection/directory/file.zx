@@ -1,14 +1,24 @@
+import bytes from "std:bytes"
 import memory from "memory"
 
 import kind from "../kind"
 import { Kind } from "../kind"
 
-import type { StringBuffer } from "memory"
+import type { WriteColumn } from "memory"
+
+export type OutputColumns = {
+    paths: WriteColumn,
+    relatives: WriteColumn,
+    lookup: WriteColumn,
+    retain: WriteColumn
+}
 
 export type Input = {
     prefix: string,
     name: string,
-    path: StringBuffer
+    prefix_length: u64,
+    lookup_limit: u64,
+    output: OutputColumns
 }
 
 export type Output = Kind
@@ -16,9 +26,21 @@ export type Output = Kind
 export default function (in: Input): Output {
     const selected = kind(in.name)
 
-    if (selected != Kind.Ignored) {
-        memory.writeString(in.path, 0, `${in.prefix}${in.name}`)
+    if (selected == Kind.Ignored) {
+        return selected
     }
+
+    const path = bytes.fromText(`${in.prefix}${in.name}`)
+
+    const relative =
+        memory.borrowU8Range(path, in.prefix_length, path.length - in.prefix_length)
+
+    const { output } = in
+
+    memory.writeColumnBytes(output.paths, 0, path)
+    memory.writeColumnBytes(output.relatives, 0, relative)
+    memory.writeColumnBool(output.lookup, 0, path.length <= in.lookup_limit)
+    memory.writeColumnBool(output.retain, 0, selected != Kind.RX)
 
     return selected
 }
