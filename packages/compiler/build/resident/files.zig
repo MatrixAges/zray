@@ -7,12 +7,15 @@ const std = @import("std");
 const compiler = @import("compiler");
 const bytes = compiler.bytes;
 const snapshot = compiler.input_snapshot;
+const retention = compiler.cache_retention;
 const Self = @This();
 
 gpa: std.mem.Allocator,
 entries: compiler.SourceIndex(Entry) = .empty,
 replaced: std.ArrayList([]u8) = .empty,
 transient: std.ArrayList(Transient) = .empty,
+clock: retention.Clock = .{},
+publishable: usize = 0,
 retained_bytes: usize = 0,
 active_bytes: usize = 0,
 /// What vouches for a file's text: it is the same file, of the same size, unchanged since.
@@ -23,11 +26,10 @@ const Entry = struct {
     read: i96,
     text: []u8,
     digest: ?[32]u8 = null,
-    borrowable: bool,
-    retained: bool = false,
+    borrow_mark: u64,
 };
 
-const Transient = struct { text: []u8, borrowable: bool, retained: bool };
+const Transient = struct { text: []u8, retention: retention.Retention };
 
 pub fn deinit(self: *Self) void {
     self.endRequest();
@@ -52,7 +54,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
         const observed = metadata(try directory.statFile(io, path, .{}));
 
         if (snapshot.residentReuse(entry.metadata, observed, entry.read)) {
-            entry.borrowable = entry.borrowable or borrowable;
+            if (borrowable and entry.borrow_mark == 0) entry.borrow_mark = self.clock.current;
 
             return entry.text;
         }
@@ -70,7 +72,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
 
     if (try file.readPositionalAll(io, text, 0) != text.len) return error.FileChanged;
 
-    var observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text, .borrowable = borrowable };
+    var observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text, .borrow_mark = if (borrowable) self.clock.current else 0 };
 
     if (previous) |entry| {
         if (bytes.equal(entry.text, text)) {
@@ -78,16 +80,20 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
 
             observed.text = entry.text;
             observed.digest = entry.digest;
-            observed.borrowable = observed.borrowable or entry.borrowable;
-            observed.retained = entry.retained;
+
+            if (entry.borrow_mark != 0) observed.borrow_mark = entry.borrow_mark;
+
             entry.* = observed;
 
             return observed.text;
         }
 
-        if (entry.retained) try self.replaced.ensureUnusedCapacity(self.gpa, self.transient.items.len + 1);
-        try self.transient.append(self.gpa, .{ .text = entry.text, .borrowable = entry.borrowable, .retained = entry.retained });
+        const plan = self.clock.classify(entry.borrow_mark);
 
+        if (plan.keep_on_abort) try self.replaced.ensureUnusedCapacity(self.gpa, self.transient.items.len + 1);
+        try self.transient.append(self.gpa, .{ .text = entry.text, .retention = plan });
+
+        self.publishable += @intFromBool(plan.keep_on_publish);
         self.active_bytes -= entry.text.len;
         entry.* = observed;
     } else {
@@ -148,20 +154,15 @@ pub fn release(self: *Self) void {
     self.replaced.clearRetainingCapacity();
 
     self.retained_bytes = 0;
-
-    for (self.entries.values.items) |*entry| entry.retained = false;
+    self.clock.published = 0;
 }
 
 pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
-    var count: usize = 0;
-
-    for (self.transient.items) |previous| count += @intFromBool(previous.borrowable);
-    try self.replaced.ensureUnusedCapacity(self.gpa, count);
+    try self.replaced.ensureUnusedCapacity(self.gpa, self.publishable);
 }
 
 pub fn keepAnalysis(self: *Self) void {
-    for (self.entries.values.items) |*entry| entry.retained = entry.borrowable;
-
+    self.clock.publish();
     self.retire(true);
 }
 
@@ -171,7 +172,7 @@ pub fn endRequest(self: *Self) void {
 
 fn retire(self: *Self, published: bool) void {
     for (self.transient.items) |previous| {
-        if (previous.retained or (published and previous.borrowable)) {
+        if (previous.retention.keep(published)) {
             self.replaced.appendAssumeCapacity(previous.text);
 
             self.retained_bytes += previous.text.len;
@@ -179,4 +180,6 @@ fn retire(self: *Self, published: bool) void {
     }
 
     self.transient.clearRetainingCapacity();
+
+    self.publishable = 0;
 }

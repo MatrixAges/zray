@@ -321,6 +321,8 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/project/publication/finalize.rx", .name = "project_entry_publish" },
     .{ .path = "zx/modules/parse_cache/probe.rx", .name = "parse_cache_probe" },
     .{ .path = "zx/modules/parse_cache/batch.zx", .name = "parse_cache_batch" },
+    .{ .path = "zx/modules/cache_retention/classify.zx", .name = "cache_retention_classify" },
+    .{ .path = "zx/modules/cache_retention/publish.zx", .name = "cache_retention_publish" },
     .{ .path = "zx/modules/binding/bind.rx", .name = "project_binding" },
     .{ .path = "zx/modules/binding/publication/publish.rx", .name = "project_binding_publication" },
     .{ .path = "zx/modules/project/exports/plan.rx", .name = "project_public_exports" },

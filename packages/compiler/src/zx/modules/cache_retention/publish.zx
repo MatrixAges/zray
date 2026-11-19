@@ -1,0 +1,10 @@
+import type { Clock as Output } from "./model"
+
+export type Input = u64
+
+export default function (in: Input): Output {
+    return {
+        current: in + 1,
+        published: in
+    }
+}

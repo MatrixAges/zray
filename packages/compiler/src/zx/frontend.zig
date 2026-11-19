@@ -38,6 +38,7 @@ pub const analyzeWithContext = @import("analysis/analyze.zig").analyzeWithContex
 pub const Context = @import("analysis/analyze.zig").Context;
 pub const project = @import("modules/project.zig");
 pub const SourceIndex = @import("modules/source_index/growing.zig").Map;
+pub const cache_retention = @import("modules/cache_retention.zig");
 pub const types = @import("analysis/types.zig");
 pub const commitTypeConstruction = @import("analysis/semantic/construction.zig").commit;
 pub const type_views = @import("type_views");

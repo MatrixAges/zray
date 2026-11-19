@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const parser = @import("../frontend/parse.zig");
 const probe = @import("parse_cache/probe.zig");
+const retention = @import("cache_retention.zig");
 const Index = @import("source_index/growing.zig").Map(*Entry);
 const Self = @This();
 pub const ModuleResult = parser.ModuleResult;
@@ -12,13 +13,13 @@ const Entry = struct {
     digest: Digest,
     result: ModuleResult,
     text: ?[]const u8,
-    retained: bool = false,
+    mark: u64 = 0,
     fn init(digest: Digest, result: ModuleResult) Entry {
         return .{ .digest = digest, .result = result, .text = result.text() };
     }
 };
 
-const Transient = struct { result: ModuleResult, retained: bool };
+const Transient = struct { result: ModuleResult, retention: retention.Retention };
 
 allocator: std.mem.Allocator,
 entries: Index = .empty,
@@ -30,6 +31,8 @@ keeps_replaced: bool = false,
 transactional: bool = false,
 replaced: std.ArrayList(ModuleResult) = .empty,
 transient: std.ArrayList(Transient) = .empty,
+clock: retention.Clock = .{},
+
 retained_capacity: usize = 0,
 pub fn deinit(self: *Self) void {
     self.endRequest();
@@ -55,8 +58,7 @@ pub fn release(self: *Self) void {
     self.replaced.clearRetainingCapacity();
 
     self.retained_capacity = 0;
-
-    for (self.entries.values.items) |entry| entry.retained = false;
+    self.clock.published = 0;
 }
 
 pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
@@ -64,8 +66,7 @@ pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
 }
 
 pub fn keepAnalysis(self: *Self) void {
-    for (self.entries.values.items) |entry| entry.retained = true;
-
+    self.clock.publish();
     self.retire(true);
 }
 
@@ -75,7 +76,7 @@ pub fn endRequest(self: *Self) void {
 
 fn retire(self: *Self, published: bool) void {
     for (self.transient.items) |*version| {
-        if (published or version.retained) {
+        if (version.retention.keep(published)) {
             self.replaced.appendAssumeCapacity(version.result);
 
             self.retained_capacity += version.result.queryCapacity();
@@ -310,6 +311,7 @@ fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) 
         try self.replace(entry);
 
         entry.* = value.*;
+        entry.mark = self.clock.current;
         self.parsed += 1;
 
         return entry;
@@ -325,6 +327,7 @@ fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *const Entry) 
     errdefer self.allocator.destroy(entry);
 
     entry.* = value.*;
+    entry.mark = self.clock.current;
 
     self.entries.append(slot, key, entry);
 
@@ -348,8 +351,10 @@ fn replace(self: *Self, entry: *const Entry) std.mem.Allocator.Error!void {
         return;
     }
 
-    if (entry.retained) try self.replaced.ensureUnusedCapacity(self.allocator, self.transient.items.len + 1);
-    try self.transient.append(self.allocator, .{ .result = entry.result, .retained = entry.retained });
+    const plan = self.clock.classify(entry.mark);
+
+    if (plan.keep_on_abort) try self.replaced.ensureUnusedCapacity(self.allocator, self.transient.items.len + 1);
+    try self.transient.append(self.allocator, .{ .result = entry.result, .retention = plan });
 }
 
 fn getEntry(self: *Self, comptime native: bool, source: []const u8, path: []const u8) std.mem.Allocator.Error!*Entry {

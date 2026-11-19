@@ -1,0 +1,14 @@
+export type Clock = {
+    current: u64,
+    published: u64
+}
+
+export type Version = {
+    mark: u64,
+    published: u64
+}
+
+export type Retention = {
+    keep_on_publish: bool,
+    keep_on_abort: bool
+}

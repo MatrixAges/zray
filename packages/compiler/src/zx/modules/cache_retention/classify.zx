@@ -1,0 +1,10 @@
+import type { Version as Input, Retention as Output } from "./model"
+
+export default function (in: Input): Output {
+    const borrowable = in.mark != 0
+
+    return {
+        keep_on_publish: borrowable,
+        keep_on_abort: borrowable && in.mark <= in.published
+    }
+}
