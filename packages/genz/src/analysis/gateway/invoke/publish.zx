@@ -13,6 +13,7 @@ export default function (in: Input): Output {
             ...in.fors,
             ...in.scopes,
             ...in.breaks,
+            defer_expression: in.deferred,
             defer_scope_start: [],
             defer_scope_len: [],
             discard_error: [],

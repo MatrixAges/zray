@@ -1,13 +1,13 @@
 import bytes from "std:bytes"
 
 import construct from "../../../ast/expressions/catch_scope"
-import { err_name } from "./const"
 
 import type { State, Node as Output } from "./model"
 
 export type Input = {
     state: State,
     value: u32,
+    capture?: string,
     first: u32,
     count: u32
 }
@@ -28,7 +28,7 @@ export default function (in: Input): Output {
         },
         base: in.state.source.bases.expression_base,
         value: in.value,
-        capture: bytes.fromText(err_name),
+        capture: in.capture == null ? null : bytes.fromText(in.capture),
         start: in.first,
         count: in.count
     })

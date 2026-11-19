@@ -7,7 +7,6 @@ pub fn lower(builder: Builder, service: Service, index: usize) std.mem.Allocator
     const allocator = builder.allocator;
     const module = try builder.identifier(try std.fmt.allocPrint(allocator, "service_{d}", .{index}));
     const input_type = try builder.field(module, "Input");
-    const output_type = try builder.field(module, "Output");
     const void_type = try builder.expression(.{ .primitive = .void });
     const arena = try builder.path(&.{ "scope", "arena" });
     const input = try builder.identifier("input");
@@ -63,24 +62,26 @@ pub fn lower(builder: Builder, service: Service, index: usize) std.mem.Allocator
         .{ .result = try response(builder, "internal_server_error", try builder.string("service failed"), &.{}) },
     }) } });
 
-    const encoded = try builder.expression(.{ .conditional = .{
-        .condition = try builder.binary(.equal, output_type, void_type),
-        .yes = try builder.string("null"),
-        .no = try builder.expression(.{ .try_value = try builder.call(try builder.path(&.{ "std", "json", "Stringify", "valueAlloc" }), &.{ alloc, try builder.identifier("output"), empty }) }),
-    } });
-
     try statements.appendSlice(allocator, &.{
         .{ .constant = .{ .name = "output", .value = result } },
         .{ .scope = try @import("../host/json_output.zig").lowerFailure(builder, service.output, &.{
             .{ .expression = try builder.call(try builder.path(&.{ "std", "log", "err" }), &.{ try builder.string("Gateway service failed: {s}"), try builder.tuple(&.{try builder.string("NonFiniteJsonNumber")}) }) },
             .{ .result = try response(builder, "internal_server_error", try builder.string("service failed"), &.{}) },
         }) },
-        .{ .constant = .{ .name = "encoded", .value = encoded } },
-        .{ .result = try response(builder, "ok", try builder.identifier("encoded"), &.{try builder.object(&.{
-            .{ .name = "name", .value = try builder.string("content-type") },
-            .{ .name = "value", .value = try builder.string("application/json") },
-        })}) },
     });
+
+    const result_type = service.output.types.get(service.output.id);
+
+    const encoded = if (result_type == .scalar and result_type.scalar == .void) blk: {
+        try statements.append(allocator, .{ .discard = try builder.identifier("output") });
+
+        break :blk try builder.string("null");
+    } else try encode(builder, &statements, arena, empty);
+
+    try statements.append(allocator, .{ .result = try response(builder, "ok", encoded, &.{try builder.object(&.{
+        .{ .name = "name", .value = try builder.string("content-type") },
+        .{ .name = "value", .value = try builder.string("application/json") },
+    })}) });
 
     return .{ .function = .{
         .name = try std.fmt.allocPrint(allocator, "invoke_{d}", .{index}),
@@ -88,6 +89,27 @@ pub fn lower(builder: Builder, service: Service, index: usize) std.mem.Allocator
         .return_type = try builder.expression(.{ .error_union = .{ .inferred = true, .payload = void_type } }),
         .body = try builder.statements(statements.items),
     } };
+}
+
+fn encode(builder: Builder, statements: *std.ArrayList(node.Statement), arena: node.ExpressionId, empty: node.ExpressionId) std.mem.Allocator.Error!node.ExpressionId {
+    const allocator = try builder.field(arena, "child_allocator");
+    const writer = try builder.identifier("response_writer");
+    const created = try builder.call(try builder.path(&.{ "std", "Io", "Writer", "Allocating", "init" }), &.{allocator});
+    const destination = try builder.expression(.{ .address_of = try builder.field(writer, "writer") });
+    const serialized = try builder.call(try builder.path(&.{ "std", "json", "Stringify", "value" }), &.{ try builder.identifier("output"), empty, destination });
+    const memory_error = try builder.expression(.{ .error_value = "OutOfMemory" });
+
+    try statements.appendSlice(builder.allocator, &.{
+        .{ .variable = .{ .name = "response_writer", .value = created } },
+        .{ .defer_expression = try builder.call(try builder.field(writer, "deinit"), &.{}) },
+        .{ .expression = try builder.expression(.{ .catch_scope = .{
+            .value = serialized,
+            .capture = null,
+            .body = try builder.statements(&.{.{ .result = memory_error }}),
+        } }) },
+    });
+
+    return builder.call(try builder.field(writer, "written"), &.{});
 }
 
 pub fn parameters(builder: Builder) std.mem.Allocator.Error![]const node.Field {

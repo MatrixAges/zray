@@ -38,6 +38,7 @@ export default function (in: Input): Output {
             catch_scope_body_start: [],
             catch_scope_body_len: []
         },
+        deferred: [],
         symbols: {
             module: 0,
             scope: 0,

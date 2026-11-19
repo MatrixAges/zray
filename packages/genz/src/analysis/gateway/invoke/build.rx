@@ -17,7 +17,6 @@
 
     <Call fn="execution/runtime_arguments" />
     <Call fn="execution/execute" />
-    <Call fn="response/encoded" />
     <Call fn="response/failure" />
     <Call fn="response/validation" />
 
@@ -50,6 +49,7 @@
         }}
     />
 
+    <Call fn="response/encoded" />
     <Call fn="response/respond" />
     <Call fn="finish" />
     <Call fn="publish" />

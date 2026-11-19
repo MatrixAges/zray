@@ -74,6 +74,7 @@ export type State = {
     fields: Fields,
     declarations: Declarations,
     extra: Extra,
+    deferred: u32[],
     symbols: Symbols,
     types: Types,
     arguments: u32[],

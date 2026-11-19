@@ -60,7 +60,23 @@ export const parse_name: string = "parseFromSliceLeaky"
 
 export const stringify_name: string = "Stringify"
 
-export const value_alloc_name: string = "valueAlloc"
+export const stringify_value_name: string = "value"
+
+export const response_writer_name: string = "response_writer"
+
+export const allocating_name: string = "Allocating"
+
+export const io_type_name: string = "Io"
+
+export const writer_type_name: string = "Writer"
+
+export const writer_name: string = "writer"
+
+export const written_name: string = "written"
+
+export const deinit_name: string = "deinit"
+
+export const child_allocator_name: string = "child_allocator"
 
 export const log_name: string = "log"
 

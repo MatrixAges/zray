@@ -5,7 +5,7 @@ import open from "../../../../ast/statements/builder/open"
 import result from "../../../../ast/statements/builder/result"
 import { bad_request_name } from "../../const"
 import caught from "../catch"
-import { json_name, parse_name, invalid_input_message } from "../const"
+import { json_name, parse_name, invalid_input_message, err_name } from "../const"
 import response from "../error_response"
 
 import type { State as Input, State as Output } from "../model"
@@ -66,6 +66,7 @@ export default function (in: Input): Output {
             }
         },
         value: parsed.id,
+        capture: err_name,
         first: body.first,
         count: body.count
     })

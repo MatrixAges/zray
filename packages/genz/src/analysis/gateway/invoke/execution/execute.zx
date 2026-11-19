@@ -20,6 +20,7 @@ import {
     canceled_name,
     internal_error_name,
     service_failure_message,
+    err_name,
     output_name
 } from "../const"
 import response from "../error_response"
@@ -105,6 +106,7 @@ export default function (in: Input): Output {
             }
         },
         value: execute.id,
+        capture: err_name,
         first: body.first,
         count: body.count
     })
