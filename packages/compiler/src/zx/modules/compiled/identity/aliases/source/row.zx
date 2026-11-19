@@ -1,0 +1,29 @@
+import memory from "memory"
+
+import type { Declarations } from "../model"
+
+export type Input = {
+    declarations: Declarations,
+    index: u64
+}
+
+export type Output = {
+    name: string,
+    specifier?: string
+}
+
+export default function (in: Input): Output {
+    const { declarations, index } = in
+
+    const first = index < declarations.interfaces.count
+    const rows = first ? declarations.interfaces : declarations.externals
+    const row = first ? index : index - declarations.interfaces.count
+
+    const name = memory.readTextColumn(rows.names, row)
+    const identity = memory.readOptionalTextColumn(rows.identities, row)
+
+    return {
+        name,
+        specifier: identity ?? name
+    }
+}

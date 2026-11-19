@@ -1,0 +1,69 @@
+import { Status } from "../model"
+import write from "../write"
+import check from "./check"
+import select from "./select"
+
+import type { Configured, Declarations, Rows } from "../model"
+
+export type Input = {
+    declarations: Declarations,
+    configured?: Configured,
+    output: Rows
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { declarations, configured, output } = in
+
+    const total = declarations.interfaces.count + declarations.externals.count
+    const count = configured == null ? total : configured.count
+
+    return loop({
+        index: 0,
+        written: 0,
+        capacity: 0,
+        status: Status.Done
+    }, {
+        while: current => current.index < count && current.status == Status.Done,
+        next: current => {
+            const selected = select({
+                declarations,
+                configured,
+                total,
+                index: current.index
+            })
+
+            const target = selected.specifier
+
+            if (target == null) {
+                current.status = Status.Unknown
+            } else {
+                const status = check({
+                    published: output.published,
+                    count: current.written,
+                    name: selected.name,
+                    specifier: target
+                })
+
+                if (status == Status.Ready) {
+                    current.capacity = write({
+                        rows: output,
+                        count: current.written,
+                        capacity: current.capacity,
+                        name: selected.name,
+                        specifier: target,
+                        own_name: false
+                    })
+
+                    current.written += 1
+                } else {
+                    current.status = status
+                }
+            }
+
+            current.index += 1
+        },
+        return: current => current.status
+    })
+}

@@ -23,7 +23,7 @@ export default function (in: Input): Output {
         next: choice.next,
         name: choice.name,
         status,
-        identity: declaration.identity,
+        identity: declaration.conflict ? null : declaration.identity,
         shared: declaration.shared
     }
 }

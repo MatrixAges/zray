@@ -1,0 +1,38 @@
+import memory from "memory"
+
+import resolve from "./resolve"
+import row from "./row"
+
+import type { Configured, Declarations } from "../model"
+import type { Output as Alias } from "./row"
+
+export type Input = {
+    declarations: Declarations,
+    configured?: Configured,
+    total: u64,
+    index: u64
+}
+
+export type Output = Alias
+
+export default function (in: Input): Output {
+    const { declarations, configured, total, index } = in
+
+    if (configured == null) {
+        return row({
+            declarations,
+            index
+        })
+    }
+
+    const requested = memory.readTextColumn(configured.requests, index)
+
+    return {
+        name: memory.readTextColumn(configured.names, index),
+        specifier: resolve({
+            declarations,
+            count: total,
+            requested
+        })
+    }
+}

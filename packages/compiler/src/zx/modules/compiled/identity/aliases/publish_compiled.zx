@@ -1,0 +1,70 @@
+import strings from "std:string"
+import nextAlias from "compiler/compiled_native_alias_step"
+import memory from "memory"
+
+import scope from "../scope"
+import { Status } from "./model"
+import write from "./write"
+
+import type { Compiled, Configured, Output as Destination } from "./model"
+
+export type Input = {
+    library: Compiled,
+    configured?: Configured,
+    output: Destination
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { library, configured, output } = in
+
+    return loop({
+        cursor: 0,
+        count: 0,
+        capacity: 0,
+        status: Status.Ready
+    }, {
+        while: current => current.status == Status.Ready,
+        next: current => {
+            const item = nextAlias({
+                modules: library.modules,
+                configured,
+                row: current.cursor
+            })
+
+            current.status = item.status
+
+            const identity = item.identity
+            const name = item.name
+
+            if (identity != null && name != null) {
+                const target = match item.shared {
+                    true => strings.copy(identity),
+                    _ => scope({
+                        instance: library.instance,
+                        value: identity
+                    })
+                }
+
+                memory.writeOptionalString(output.pending, 0, target)
+
+                current.capacity = write({
+                    rows: output.rows,
+                    count: current.count,
+                    capacity: current.capacity,
+                    name,
+                    specifier: target,
+                    own_name: configured == null
+                })
+
+                memory.writeOptionalString(output.pending, 0, null)
+
+                current.count += 1
+            }
+
+            current.cursor = item.next
+        },
+        return: current => current.status
+    })
+}

@@ -1,91 +1,71 @@
 const std = @import("std");
 const zx = @import("zx");
-const memory = @import("zx").memory;
 const identity = @import("../identity.zig");
+const interface = @import("../../interface.zig");
 const Modules = zx.ir.NativeModuleTable;
+const generated = @import("parser_options").generated_parser;
+
+const Origin = union(enum) {
+    compiled: struct { modules: Modules, instance: []const u8 },
+    source: struct { interfaces: []const interface.Native, externals: []const interface.External },
+};
 
 pub fn resolve(allocator: std.mem.Allocator, modules: Modules, instance: []const u8, comptime Alias: type, configured: ?[]const Alias) identity.DeclarationError![]const Alias {
-    var aliases: std.ArrayList(Alias) = .empty;
+    if (comptime !generated) return @import("aliases/seed.zig").resolve(allocator, modules, instance, Alias, configured);
 
-    errdefer {
-        for (aliases.items) |alias| {
-            if (configured == null) allocator.free(alias.name);
-
-            allocator.free(alias.specifier);
-        }
-
-        aliases.deinit(allocator);
-    }
-
-    if (comptime @import("parser_options").generated_parser) {
-        const generated = @import("generated_compiled_native_alias_step");
-        const Input = std.meta.Child(generated.Input);
-        const Configured = std.meta.Child(@typeInfo(@FieldType(Input, "configured")).optional.child);
-        const view = zx.columns.columns(std.meta.Child(@FieldType(Input, "modules")), modules);
-        var names: memory.TextColumn = undefined;
-        var requests: memory.TextColumn = undefined;
-        var choices: Configured = undefined;
-
-        if (configured) |rows| {
-            names = memory.borrowTextColumn("name", rows);
-            requests = memory.borrowTextColumn("specifier", rows);
-            choices = .{ .names = @ptrCast(&names), .requests = @ptrCast(&requests), .count = rows.len };
-        }
-
-        var cursor: Input = .{ .modules = &view, .configured = if (configured != null) &choices else null, .row = 0 };
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-        while (true) {
-            const next = zx.columns.invoke(generated.executeValue, scratch.allocator(), @as(*const Input, &cursor)) catch unreachable;
-
-            switch (next.status) {
-                .Done => break,
-                .Conflict => return error.ConflictingNativeAbiAlias,
-                .Unknown => return error.UnknownNativeAbiAlias,
-                .Ready => {
-                    const target = try identity.ownDeclaration(allocator, instance, next.identity.?, next.shared);
-
-                    errdefer allocator.free(target);
-
-                    try append(allocator, &aliases, next.name.?, target, configured == null);
-
-                    cursor.row = next.next;
-                },
-            }
-        }
-    } else if (configured) |entries| {
-        for (entries) |entry| {
-            const target = try identity.declaration(allocator, modules, instance, entry.specifier);
-
-            errdefer allocator.free(target);
-
-            try append(allocator, &aliases, entry.name, target, false);
-        }
-    } else {
-        for (0..modules.count()) |row| {
-            const module = modules.at(row);
-
-            if (std.mem.startsWith(u8, module.specifier, "std:")) continue;
-
-            for (aliases.items) |previous| {
-                if (zx.bytes.equal(previous.name, module.specifier)) return error.ConflictingNativeAbiAlias;
-            }
-
-            const target = try identity.declaration(allocator, modules, instance, module.key());
-
-            errdefer allocator.free(target);
-
-            try append(allocator, &aliases, module.specifier, target, true);
-        }
-    }
-
-    return aliases.toOwnedSlice(allocator);
+    return publish(allocator, Alias, configured, .{ .compiled = .{ .modules = modules, .instance = instance } });
 }
 
-fn append(allocator: std.mem.Allocator, aliases: anytype, name: []const u8, target: []const u8, own_name: bool) std.mem.Allocator.Error!void {
-    try aliases.ensureUnusedCapacity(allocator, 1);
+pub fn source(allocator: std.mem.Allocator, interfaces: []const interface.Native, externals: []const interface.External, comptime Alias: type, configured: ?[]const Alias) identity.DeclarationError![]const Alias {
+    if (comptime !generated) return @import("aliases/source/seed.zig").resolve(allocator, interfaces, externals, Alias, configured);
 
-    const stable = if (own_name) try allocator.dupe(u8, name) else name;
+    return publish(allocator, Alias, configured, .{ .source = .{ .interfaces = interfaces, .externals = externals } });
+}
 
-    aliases.appendAssumeCapacity(.{ .name = stable, .specifier = target });
+fn publish(allocator: std.mem.Allocator, comptime Alias: type, configured: ?[]const Alias, origin: Origin) identity.DeclarationError![]const Alias {
+    const layout = @import("aliases/view.zig");
+    const View = layout.View(Alias);
+    var storage: View = undefined;
+
+    storage.init(configured);
+
+    var compiled: layout.Compiled = undefined;
+    var modules: layout.Modules = undefined;
+    var declarations: layout.Declarations = undefined;
+    var interfaces: layout.Rows = undefined;
+    var externals: layout.Rows = undefined;
+
+    switch (origin) {
+        .compiled => |raw| {
+            modules = zx.columns.columns(layout.Modules, raw.modules);
+            compiled = .{ .modules = &modules, .instance = raw.instance };
+        },
+        .source => |raw| {
+            interfaces.init(raw.interfaces);
+            externals.init(raw.externals);
+
+            declarations = .{ .interfaces = &interfaces.view, .externals = &externals.view };
+        },
+    }
+
+    const input: layout.Input = .{
+        .compiled = if (origin == .compiled) &compiled else null,
+        .source = if (origin == .source) &declarations else null,
+        .configured = if (configured != null) &storage.configured else null,
+        .output = &storage.output,
+    };
+
+    errdefer storage.release(allocator, origin == .compiled, configured == null);
+
+    const status = zx.columns.invoke(layout.rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    switch (status) {
+        .Done => return storage.take(allocator),
+        .Conflict => return error.ConflictingNativeAbiAlias,
+        .Unknown => return error.UnknownNativeAbiAlias,
+        .Ready => unreachable,
+    }
 }

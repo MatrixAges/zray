@@ -1,0 +1,36 @@
+import memory from "memory"
+
+import { Status } from "../model"
+
+import type { Published } from "../model"
+
+export type Input = {
+    published: Published,
+    count: u64,
+    name: string,
+    specifier: string
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { published, count, name, specifier } = in
+
+    return loop({
+        row: 0,
+        status: Status.Ready
+    }, {
+        while: current => current.row < count && current.status == Status.Ready,
+        next: current => {
+            if (memory.readTextColumn(published.names, current.row) == name) {
+                const previous =
+                    memory.readTextColumn(published.specifiers, current.row)
+
+                current.status = previous == specifier ? Status.Done : Status.Conflict
+            }
+
+            current.row += 1
+        },
+        return: current => current.status
+    })
+}

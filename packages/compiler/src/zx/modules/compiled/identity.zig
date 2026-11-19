@@ -4,6 +4,7 @@ const generated = @import("parser_options").generated_parser;
 const Library = @import("../compiled.zig").Library;
 pub const DeclarationError = std.mem.Allocator.Error || error{ ConflictingNativeAbiAlias, UnknownNativeAbiAlias };
 pub const aliases = @import("identity/aliases.zig").resolve;
+pub const sourceAliases = @import("identity/aliases.zig").source;
 
 pub fn scope(allocator: std.mem.Allocator, instance: []const u8, value: []const u8) std.mem.Allocator.Error![]const u8 {
     if (comptime generated) {

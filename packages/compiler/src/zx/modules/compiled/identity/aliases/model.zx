@@ -1,5 +1,12 @@
 import type { Modules } from "core/native_module_table/model"
-import type { TextColumn } from "memory"
+import type {
+    OptionalStringBuffer,
+    ReadColumn,
+    TextColumn,
+    U64Buffer,
+    WriteColumn
+} from "memory"
+import type { RowGrowth } from "memory/columns"
 
 export type Configured = {
     names: TextColumn,
@@ -31,4 +38,49 @@ export type Item = Choice.Pick("next", "name") & {
     status: Status,
     identity?: string,
     shared: bool
+}
+
+export type DeclarationRows = {
+    names: TextColumn,
+    identities: ReadColumn,
+    count: u64
+}
+
+export type Declarations = {
+    interfaces: DeclarationRows,
+    externals: DeclarationRows
+}
+
+export type Compiled = {
+    modules: Modules,
+    instance: string
+}
+
+export type Fields = {
+    names: WriteColumn,
+    specifiers: WriteColumn
+}
+
+export type Published = {
+    names: TextColumn,
+    specifiers: TextColumn
+}
+
+export type Rows = {
+    fields: Fields,
+    published: Published,
+    growth: RowGrowth,
+    progress: U64Buffer
+}
+
+export type Output = {
+    rows: Rows,
+    pending: OptionalStringBuffer
+}
+
+export type Request = {
+    compiled?: Compiled,
+    source?: Declarations,
+    configured?: Configured,
+    output: Output
 }

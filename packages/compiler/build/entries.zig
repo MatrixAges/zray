@@ -392,7 +392,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/compiled/loading/install/prepare.rx", .name = "compiled_prepare_publication" },
     .{ .path = "zx/modules/compiled/loading/install/publish.rx", .name = "compiled_publish" },
     .{ .path = "zx/modules/compiled/identity/declaration.zx", .name = "compiled_native_declaration" },
-    .{ .path = "zx/modules/compiled/identity/aliases/step.rx", .name = "compiled_native_alias_step" },
+    .{ .path = "zx/modules/compiled/identity/aliases/build.rx", .name = "native_abi_aliases" },
     .{ .path = "zx/modules/compiled/identity/scope.zx", .name = "compiled_scope_identity" },
     .{ .path = "zx/modules/compiled/const.zx", .name = "compiled_identity_constants" },
     .{ .path = "zx/modules/compiled/validation/publication.zx", .name = "compiled_header" },

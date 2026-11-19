@@ -43,7 +43,8 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
             entry.implementation.module = try backendName(allocator, compiled, scope.root, entry_root, entry.implementation.module);
 
             var published = entry.*;
-            published.specifier = if (compiled) |binding| try binding.declaration(allocator, entry.specifier) else try identity.declaration(allocator, scope.root, entry.specifier);
+
+            published.specifier = entry.key();
             published.identity = null;
 
             try externals.append(allocator, published);
@@ -89,7 +90,12 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
             for (includes, resolved_includes) |path, *resolved| resolved.* = try std.fs.path.resolve(allocator, &.{ scope.root, path });
 
             module.include_paths = resolved_includes;
-            module.abi_aliases = if (compiled) |binding| try binding.aliases(allocator, original.abi_aliases) else try @import("abi_aliases.zig").resolve(allocator, scope.*, original.abi_aliases);
+
+            module.abi_aliases = if (compiled) |binding|
+                try binding.aliases(allocator, original.abi_aliases)
+
+            else
+                try compiler.project.compiled.identity.sourceAliases(allocator, native, legacy, model.AbiAlias, original.abi_aliases);
 
             for (modules.items) |previous| {
                 if (std.mem.eql(u8, previous.name, module.name)) return error.DuplicateNativeModule;
