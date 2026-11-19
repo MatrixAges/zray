@@ -142,7 +142,7 @@ fn wait(io: std.Io, allocator: std.mem.Allocator, baseline: Snapshot, status: co
 
         polls += 1;
 
-        const unchanged = baseline.unchanged(io, allocator) catch |err| {
+        const unchanged = baseline.poll(io, allocator) catch |err| {
             if (err == error.OutOfMemory or err == error.Canceled) return err;
 
             if (if (previous_error) |previous| previous != err else true) {
