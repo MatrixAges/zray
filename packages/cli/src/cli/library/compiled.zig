@@ -1,6 +1,9 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const analysis = @import("analyze.zig");
+const inventory = @import("inventory.zig");
+const layout = @import("cli_source").library_legacy_output;
+const Legacy = std.meta.Child(layout.Input);
 
 pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.Result {
     const arena = try allocator.create(std.heap.ArenaAllocator);
@@ -52,9 +55,14 @@ pub fn load(allocator: std.mem.Allocator, options: analysis.Options) !analysis.R
 fn legacySingle(allocator: std.mem.Allocator, options: analysis.Options) !bool {
     const exports = options.loaded.config.exports;
 
-    if (exports.len != 1 or !std.mem.eql(u8, exports[0].path, ".") or !std.mem.eql(u8, exports[0].module.?, ".")) return false;
+    if (!legacy(.{
+        .count = exports.len,
+        .name = if (exports.len == 0) null else exports[0].module,
+        .path = if (exports.len == 0) null else exports[0].path,
+        .form = .Export,
+    })) return false;
 
-    const path = try std.fs.path.resolve(allocator, &.{ options.loaded.project.root_dir, "library.json" });
+    const path = try std.fs.path.resolve(allocator, &.{ options.loaded.project.root_dir, inventory.name });
 
     if (options.inputs) |inputs| try inputs.add(options.io, path);
 
@@ -63,7 +71,7 @@ fn legacySingle(allocator: std.mem.Allocator, options: analysis.Options) !bool {
         else => return err,
     };
 
-    const bytes = std.Io.Dir.cwd().readFileAlloc(options.io, path, allocator, .limited(16 * 1024 * 1024)) catch |err| switch (err) {
+    const bytes = std.Io.Dir.cwd().readFileAlloc(options.io, path, allocator, .limited(inventory.limit)) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => return err,
     };
@@ -72,6 +80,18 @@ fn legacySingle(allocator: std.mem.Allocator, options: analysis.Options) !bool {
 
     const Metadata = struct { public_modules: []const struct { name: []const u8, path: []const u8 } = &.{} };
     const metadata = try std.json.parseFromSliceLeaky(Metadata, allocator, bytes, .{ .ignore_unknown_fields = true });
+    const modules = metadata.public_modules;
 
-    return metadata.public_modules.len == 1 and std.mem.eql(u8, metadata.public_modules[0].name, "library") and std.mem.eql(u8, metadata.public_modules[0].path, "root.zig");
+    return legacy(.{
+        .count = modules.len,
+        .name = if (modules.len == 0) null else modules[0].name,
+        .path = if (modules.len == 0) null else modules[0].path,
+        .form = .Facade,
+    });
+}
+
+fn legacy(input: Legacy) bool {
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    return @import("zx").columns.invoke(layout.executeValue, fixed.allocator(), &input) catch unreachable;
 }

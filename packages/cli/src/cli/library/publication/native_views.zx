@@ -1,0 +1,46 @@
+import locate from "cli/native_module_lookup"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { TextColumn } from "memory"
+import type { WriteColumn } from "memory/columns"
+import type { Rows } from "./layout/model"
+
+export type Input = {
+    modules: Rows,
+    views: Rows & {
+        paths: TextColumn
+    },
+    target: WriteColumn
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { modules, views, target } = in
+
+    const written = loop(0, {
+        while: index => index < modules.count,
+        next: index => {
+            const name = memory.readTextColumn(modules.names, index)
+            const view = locate({
+                count: views.count,
+                names: views.names,
+                name,
+                last: true
+            })
+
+            if (view == null) {
+                columns.writeColumnOptionalText(target, index, null)
+            } else {
+                columns.writeColumnOptionalText(
+                    target,
+                    index,
+                    memory.readTextColumn(views.paths, view)
+                )
+            }
+
+            index += 1
+        }
+    })
+}

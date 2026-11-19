@@ -1,0 +1,43 @@
+<Module>
+    <Type from="model" as="Layout" />
+
+    <Args in={Layout.Input} out={Layout.Output} />
+
+    <Call
+        fn="manifest"
+        in={{
+            package: $in.package,
+            exports: $in.exports,
+            rows: $in.export_rows
+        }}
+    />
+
+    <Task name="generated">
+        <Call
+            fn="modules"
+            in={{
+                kind: Layout.Kind.Generated,
+                modules: $in.generated,
+                rows: $in.generated_rows
+            }}
+        />
+    </Task>
+
+    <Task name="public" out={$ctx.modules}>
+        <Call
+            fn="modules"
+            in={{
+                kind: $in.legacy ? Layout.Kind.Legacy : Layout.Kind.Public,
+                modules: $in.public,
+                rows: $in.public_rows
+            }}
+        />
+    </Task>
+
+    <Return
+        value={{
+            package: $ctx.manifest,
+            valid: $ctx.task.public
+        }}
+    />
+</Module>

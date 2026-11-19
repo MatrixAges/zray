@@ -1,0 +1,51 @@
+import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { WriteColumn as Column } from "memory/columns"
+
+export enum Kind {
+    Generated,
+    Public,
+    Legacy
+}
+
+export type Rows = {
+    count: u64,
+    names: TextColumn
+}
+
+export type Modules = Rows & {
+    basenames: TextColumn,
+    dependencies: ReadColumn
+}
+
+export type ModuleOutput = {
+    names: WriteColumn,
+    paths: WriteColumn,
+    dependencies: Column
+}
+
+export type ExportOutput = {
+    paths: WriteColumn,
+    modules: Column,
+    sources: WriteColumn
+}
+
+export type Package = {
+    name: string,
+    version: string
+}
+
+export type Input = {
+    package: Package,
+    legacy: bool,
+    exports: Rows,
+    export_rows: ExportOutput,
+    generated: Modules,
+    generated_rows: ModuleOutput,
+    public: Modules,
+    public_rows: ModuleOutput
+}
+
+export type Output = {
+    package: Package,
+    valid: bool
+}

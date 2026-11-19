@@ -1,0 +1,27 @@
+import { current_path, root_file } from "../../native_sources/const"
+import { legacy_module } from "./const"
+
+export enum Form {
+    Export,
+    Facade
+}
+
+export type Input = {
+    count: u64,
+    name?: string,
+    path?: string,
+    form: Form
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (in.count != 1) {
+        return false
+    }
+
+    return match in.form {
+        Form.Export => in.name == current_path && in.path == current_path,
+        _ => in.name == legacy_module && in.path == root_file
+    }
+}

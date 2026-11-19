@@ -130,6 +130,18 @@
             "name": "library_publication_constants"
         },
         {
+            "path": "library/publication/layout/plan.rx",
+            "name": "library_output_layout"
+        },
+        {
+            "path": "library/publication/legacy.zx",
+            "name": "library_legacy_output"
+        },
+        {
+            "path": "library/publication/native_views.zx",
+            "name": "library_native_views"
+        },
+        {
             "path": "command/const.zx",
             "name": "backend_command_constants"
         },
@@ -184,6 +196,10 @@
         {
             "path": "memory/index.d.zx",
             "module": "memory"
+        },
+        {
+            "path": "memory/columns.d.zx",
+            "module": "memory/columns"
         }
     ]
 }

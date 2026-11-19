@@ -1,3 +1,15 @@
 export const inventory_name: string = "library.json"
 
 export const inventory_limit: u64 = 16 * 1024 * 1024
+
+export const legacy_module: string = "library"
+
+export const default_version: string = "0.0.0"
+
+export {
+    abi_file,
+    build_file,
+    library_file,
+    managed_inventory,
+    package_file
+} from "../../native_sources/const"

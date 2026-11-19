@@ -1,84 +1,96 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const Loaded = @import("../project.zig").Loaded;
+const Config = @import("../project.zig").Config;
 const Inputs = @import("../watch/inputs.zig");
 const artifacts = @import("../artifacts.zig");
 const config_writer = @import("../library_config.zig");
 const inventory = @import("inventory.zig");
+const constants = @import("cli_source").library_publication_constants.@"zx.constants";
 
 pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, library: *const compiler.library.Result, bundle: compiler.zig.LibraryBundle, loaded: Loaded, inputs: ?*Inputs) ![]const inventory.File {
     const abi = try @import("../abi.zig").createLibrary(allocator, bundle, loaded);
-    var resources_input = loaded;
+    const resources = try @import("resources.zig").write(io, allocator, directory, loaded, inputs);
+    const plan = try @import("publication/layout.zig").create(allocator, loaded.config, library, &bundle);
 
-    resources_input.config.native_interfaces = &.{};
-    resources_input.config.externals = &.{};
-    resources_input.project.native_interfaces = &.{};
-    const resources = try @import("resources.zig").write(io, allocator, directory, resources_input, inputs);
-    var config = resources.config;
-    const exports = try allocator.alloc(@import("../../package/manifest/model.zig").Export, library.exports.len);
+    const config: Config = .{
+        .name = plan.name,
+        .version = plan.version,
+        .library = constants.library_file,
+        .exports = plan.exports,
+        .private = loaded.config.private,
+        .native_modules = resources.native_modules,
+        .libraries = loaded.config.libraries,
+        .library_paths = resources.library_paths,
+    };
 
-    for (library.exports, exports) |exported, *entry| entry.* = .{ .path = exported.name, .module = exported.name };
-
-    config.entry = null;
-    config.library = "library.zxcir";
-    config.exports = exports;
-    config.dependencies = &.{};
-    config.dev_dependencies = &.{};
-    config.workspace = null;
-
-    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, "library.zxcir" }), try compiler.library.codec.encode(allocator, library));
-    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, "abi.zig" }), abi.source);
+    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, constants.library_file }), try compiler.library.codec.encode(allocator, library));
+    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, constants.abi_file }), abi.source);
     for (abi.views) |view| try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, view.path }), view.source);
 
-    var generated: std.ArrayList(config_writer.GeneratedModule) = .empty;
-    var public: std.ArrayList(config_writer.GeneratedModule) = .empty;
-
-    for (bundle.modules) |module| {
-        const path = try std.fmt.allocPrint(allocator, "modules/{s}.zig", .{module.name});
-
-        try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, path }), module.source);
-        try generated.append(allocator, .{ .name = module.name, .path = path, .dependencies = module.imports });
+    for (bundle.modules, plan.generated) |module, output| {
+        try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, output.path }), module.source);
     }
 
-    for (bundle.public_modules) |module| {
-        const single = loaded.config.exports.len == 0;
-        const path = if (single) "root.zig" else try std.fmt.allocPrint(allocator, "public/{s}.zig", .{module.file.name});
-        const name = if (single) "library" else module.name;
-
-        for (public.items) |previous| if (std.mem.eql(u8, previous.name, name)) return error.ConflictingModuleName;
-        try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, path }), module.file.source);
-        try public.append(allocator, .{ .name = name, .path = path, .dependencies = module.file.imports });
+    for (bundle.public_modules, plan.public) |module, output| {
+        try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, output.path }), module.file.source);
     }
 
-    var manifest: std.Io.Writer.Allocating = .init(allocator);
+    try writeManifest(io, try std.fs.path.join(allocator, &.{ directory, constants.package_file }), config);
 
-    try @import("../../package/manifest/write.zig").write(&manifest.writer, config);
-    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, "pkg.yaml" }), manifest.written());
-
-    const build_source = try config_writer.render(allocator, config, public.items, generated.items, abi.views);
+    const build_source = try config_writer.render(allocator, config, plan.public, plan.generated, abi.views);
 
     defer allocator.free(build_source);
 
-    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, "build.zig" }), build_source);
+    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, constants.build_file }), build_source);
 
     const managed = try inventory.collect(io, allocator, directory);
 
-    const metadata = try std.json.Stringify.valueAlloc(allocator, .{
-        .format_version = 2,
+    try writeInventory(io, try std.fs.path.join(allocator, &.{ directory, inventory.name }), .{
+        .format_version = constants.managed_inventory,
         .library = config.library,
         .ir_version = @import("zx").ir_version,
-        .public_modules = public.items,
+        .public_modules = plan.public,
         .store_initializers = bundle.store_initializers,
         .native_sources_bundled = resources.bundled_files.len != 0,
         .bundled_files = resources.bundled_files,
         .managed_files = managed,
         .native_dependencies = resources.dependencies,
-        .generated_modules = generated.items,
+        .generated_modules = plan.generated,
         .external_build_requirements = .{ .libraries = config.libraries, .include_paths = resources.external_includes, .library_paths = config.library_paths },
-    }, .{ .whitespace = .indent_2 });
-
-    if (metadata.len >= inventory.limit) return error.StreamTooLong;
-    try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, inventory.name }), metadata);
+    });
 
     return managed;
+}
+
+fn writeManifest(io: std.Io, path: []const u8, config: Config) !void {
+    var file = try std.Io.Dir.cwd().createFileAtomic(io, path, .{ .make_path = true, .replace = true });
+
+    defer file.deinit(io);
+
+    var buffer: [4096]u8 = undefined;
+    var writer = file.file.writerStreaming(io, &buffer);
+
+    @import("../../package/manifest/write.zig").write(&writer.interface, config) catch return writer.err.?;
+
+    writer.interface.flush() catch return writer.err.?;
+
+    try file.replace(io);
+}
+
+fn writeInventory(io: std.Io, path: []const u8, metadata: anytype) !void {
+    var file = try std.Io.Dir.cwd().createFileAtomic(io, path, .{ .make_path = true, .replace = true });
+
+    defer file.deinit(io);
+
+    var buffer: [4096]u8 = undefined;
+    var writer = file.file.writerStreaming(io, &buffer);
+
+    std.json.Stringify.value(metadata, .{ .whitespace = .indent_2 }, &writer.interface) catch return writer.err.?;
+
+    if (writer.logicalPos() >= inventory.limit) return error.StreamTooLong;
+
+    writer.interface.flush() catch return writer.err.?;
+
+    try file.replace(io);
 }

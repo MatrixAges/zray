@@ -1,0 +1,76 @@
+import bytes from "std:bytes"
+import locate from "cli/native_module_lookup"
+import memory from "memory"
+import columns from "memory/columns"
+
+import {
+    module_prefix,
+    public_prefix,
+    root_file,
+    zig_extension
+} from "../../../native_sources/const"
+import { legacy_module } from "../const"
+import { Kind } from "./model"
+
+import type { ModuleOutput, Modules } from "./model"
+
+export type Input = {
+    kind: Kind,
+    modules: Modules,
+    rows: ModuleOutput
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { kind, modules, rows } = in
+
+    const legacy = kind == Kind.Legacy
+    const prefix = kind == Kind.Generated ? module_prefix : public_prefix
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < modules.count,
+        next: state => {
+            const index = state.index
+            const exported = memory.readTextColumn(modules.names, index)
+            const name = legacy ? legacy_module : exported
+
+            const repeated = match kind {
+                Kind.Generated => false,
+                Kind.Legacy => index != 0,
+                _ => locate({
+                    count: index,
+                    names: modules.names,
+                    name,
+                    last: false
+                }) != null
+            }
+
+            if (repeated) {
+                state.valid = false
+            } else {
+                const basename = memory.readTextColumn(modules.basenames, index)
+                const path = match {
+                    legacy => root_file,
+                    _ => `${prefix}${basename}${zig_extension}`
+                }
+                const dependencies =
+                    memory.readTextListColumn(modules.dependencies, index)
+
+                memory.writeColumnBytes(rows.names, index, bytes.fromText(name))
+                memory.writeColumnBytes(rows.paths, index, bytes.fromText(path))
+                columns.writeColumnTextList(
+                    rows.dependencies,
+                    index,
+                    dependencies
+                )
+            }
+
+            state.index += 1
+        },
+        return: state => state.valid
+    })
+}

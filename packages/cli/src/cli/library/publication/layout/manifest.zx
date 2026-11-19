@@ -1,0 +1,39 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import { default_version, legacy_module } from "../const"
+
+import type { ExportOutput, Package, Rows } from "./model"
+
+export type Input = {
+    package: Package,
+    exports: Rows,
+    rows: ExportOutput
+}
+
+export type Output = Package
+
+export default function (in: Input): Output {
+    const { exports, rows } = in
+
+    const written = loop(0, {
+        while: index => index < exports.count,
+        next: index => {
+            const name = memory.readTextColumn(exports.names, index)
+
+            memory.writeColumnBytes(rows.paths, index, bytes.fromText(name))
+            columns.writeColumnOptionalText(rows.modules, index, name)
+            memory.writeColumnBytes(rows.sources, index, [])
+
+            index += 1
+        }
+    })
+
+    const { name, version } = in.package
+
+    return {
+        name: name == "" ? legacy_module : name,
+        version: version == "" ? default_version : version
+    }
+}

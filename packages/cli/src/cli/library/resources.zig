@@ -4,27 +4,18 @@ const artifacts = @import("../artifacts.zig");
 const native_sources = @import("../native_sources.zig");
 const Inputs = @import("../watch/inputs.zig");
 pub const Dependency = struct { name: []const u8, header: ?[]const u8, c_imports: bool = false, dynamic_resources: bool = false, include_relocations: []const native_sources.Include = &.{} };
-pub const Result = struct { config: project_config.Config, bundled_files: []const native_sources.File, dependencies: []const Dependency, external_includes: []const []const u8 };
+
+pub const Result = struct {
+    native_modules: []const project_config.NativeModule,
+    library_paths: []const []const u8,
+    bundled_files: []const native_sources.File,
+    dependencies: []const Dependency,
+    external_includes: []const []const u8,
+};
 
 pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, loaded: project_config.Loaded, inputs: ?*Inputs) !Result {
-    var config = loaded.config;
-    const native_modules = try allocator.dupe(project_config.NativeModule, config.native_modules);
-    config.native_modules = native_modules;
-
-    const interfaces = try allocator.dupe(project_config.NativeInterface, config.native_interfaces);
-
-    for (interfaces, loaded.project.native_interfaces, 0..) |*entry, interface, index| {
-        entry.path = try std.fmt.allocPrint(allocator, "interfaces/module_{d}.d.zx", .{index});
-
-        try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, entry.path }), interface.source);
-    }
-
-    config.native_interfaces = interfaces;
-
-    if (config.name.len == 0) config.name = "library";
-    if (config.version.len == 0) config.version = "0.0.0";
-
-    config.library_paths = try absolutePaths(allocator, loaded.project.root_dir, config.library_paths);
+    const native_modules = try allocator.dupe(project_config.NativeModule, loaded.config.native_modules);
+    const library_paths = try absolutePaths(allocator, loaded.project.root_dir, loaded.config.library_paths);
     var bundled_files: std.ArrayList(native_sources.File) = .empty;
     var dependencies: std.ArrayList(Dependency) = .empty;
     var external_includes: std.ArrayList([]const u8) = .empty;
@@ -76,9 +67,13 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, lo
         }
     }
 
-    config.include_paths = &.{};
-
-    return .{ .config = config, .bundled_files = bundled_files.items, .dependencies = dependencies.items, .external_includes = external_includes.items };
+    return .{
+        .native_modules = native_modules,
+        .library_paths = library_paths,
+        .bundled_files = bundled_files.items,
+        .dependencies = dependencies.items,
+        .external_includes = external_includes.items,
+    };
 }
 
 fn absolutePaths(allocator: std.mem.Allocator, root: []const u8, paths: []const []const u8) ![]const []const u8 {
