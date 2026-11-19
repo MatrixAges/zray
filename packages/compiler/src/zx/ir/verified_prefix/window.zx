@@ -1,0 +1,23 @@
+export type Window = {
+    first: u64,
+    end: u64
+}
+
+export type Input = {
+    first: u64,
+    limit: u64,
+    strict: bool
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in.strict) {
+        return in.limit
+    }
+
+    const remaining = in.limit - in.first
+    const width = in.first == 0 ? 1 : in.first
+
+    return in.first + (remaining < width ? remaining : width)
+}

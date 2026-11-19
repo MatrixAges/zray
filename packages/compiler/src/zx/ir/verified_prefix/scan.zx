@@ -1,0 +1,61 @@
+import compare from "./column"
+import windowEnd from "./window"
+
+import type { Column } from "./column"
+
+export type Input = {
+    columns: Column[],
+    limit: u64,
+    strict: bool
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { columns, limit, strict } = in
+
+    return loop({
+        first: 0,
+        equal: true
+    }, {
+        while: bounds => bounds.equal && bounds.first < limit,
+        next: bounds => {
+            const first = bounds.first
+
+            const end = windowEnd({
+                first,
+                limit,
+                strict
+            })
+
+            const matched = loop({
+                end,
+                column: 0
+            }, {
+                while: current => {
+                    const has_columns = current.column < columns.length
+                    const has_rows = current.end > first
+                    const continue_scan = !strict || current.end == end
+
+                    return has_columns && has_rows && continue_scan
+                },
+                next: current => {
+                    current.end = compare({
+                        column: columns[current.column],
+                        window: {
+                            first,
+                            end: current.end
+                        }
+                    })
+
+                    current.column += 1
+                },
+                return: current => current.end
+            })
+
+            bounds.first = matched
+            bounds.equal = matched == end
+        },
+        return: bounds => bounds.first
+    })
+}

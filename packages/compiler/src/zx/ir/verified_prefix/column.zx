@@ -1,0 +1,66 @@
+import bytes from "./bytes"
+import ids from "./ids"
+import optionalViews from "./optional_views"
+import views from "./views"
+
+import type { Pair as Bytes } from "./bytes"
+import type { Pair as Ids } from "./ids"
+import type { Pair as OptionalViews } from "./optional_views"
+import type { Pair as Views } from "./views"
+import type { Window } from "./window"
+
+export type Column = {
+    bytes?: Bytes,
+    ids?: Ids,
+    views?: Views,
+    optional_views?: OptionalViews
+}
+
+export type Input = {
+    column: Column,
+    window: Window
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { column, window } = in
+
+    const byte_pair = column.bytes
+
+    if (byte_pair != null) {
+        return bytes({
+            ...window,
+            pair: byte_pair
+        })
+    }
+
+    const id_pair = column.ids
+
+    if (id_pair != null) {
+        return ids({
+            ...window,
+            pair: id_pair
+        })
+    }
+
+    const view_pair = column.views
+
+    if (view_pair != null) {
+        return views({
+            ...window,
+            pair: view_pair
+        })
+    }
+
+    const optional_pair = column.optional_views
+
+    if (optional_pair != null) {
+        return optionalViews({
+            ...window,
+            pair: optional_pair
+        })
+    }
+
+    return window.end
+}

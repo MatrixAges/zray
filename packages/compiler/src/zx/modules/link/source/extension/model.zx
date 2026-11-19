@@ -1,14 +1,30 @@
 import type { Complete } from "core/function_table/complete"
 
 export enum Tail {
-    Invalid,
     Embedded,
-    Separate
+    Separate,
+    Exhausted
+}
+
+export type Shared = {
+    same_functions: bool,
+    same_natives: bool,
+    functions: u64,
+    types: u64,
+    base_types?: u64,
+    size_limit: u64
 }
 
 export type Input = {
     functions: Complete,
     base: Complete,
     suffix?: Complete,
-    maximum_count: u64
+    maximum_count: u64,
+    shared?: Shared
+}
+
+export type Plan = {
+    tail: Tail,
+    total: u64,
+    types: u64
 }

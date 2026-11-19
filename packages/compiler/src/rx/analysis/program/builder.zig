@@ -69,10 +69,10 @@ fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program
     const prefix = self.base_functions;
     const base_count = prefix.count();
     const table = @import("frontend").project.artifact.function_table;
-    const tail = table.appendTail(program.functions, prefix, suffix) orelse return error.InvalidModule;
+    const extension = try table.extend(program.functions, prefix, suffix, null);
     const Nodes = @import("frontend").ArtifactNodes;
     const first = std.math.add(usize, base_count, self.functions.count()) catch return error.OutOfMemory;
-    const count = std.math.add(usize, base_count, tail.count()) catch return error.OutOfMemory;
+    const count = std.math.cast(usize, extension.total) orelse return error.OutOfMemory;
     const range = try table.range(first, count, base_count, self.types.count(), self.native_modules.count());
 
     var nodes = Nodes{
@@ -89,7 +89,7 @@ fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program
     inline for (comptime Schedule.steps(form)) |step| {
         switch (step) {
             .Done => {},
-            .AppendFunctionTail => nodes.appendFunctions(&self.functions, tail, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
+            .AppendFunctionTail => nodes.appendFunctions(&self.functions, extension.tail, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
             .LinkInitializers => try self.mergeInitializers(initializers, .{ .first = range.first, .count = range.count, .prefix = range.prefix }),
             .AppendFunctionEntry => nodes.appendFunction(&self.functions, &.{
                 .file_name = program.file_name,

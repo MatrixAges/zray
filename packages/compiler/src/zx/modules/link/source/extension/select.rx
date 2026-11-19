@@ -1,10 +1,28 @@
 <Module>
     <Type from="model" as="Extension" />
 
-    <Args in={Extension.Input} out={Extension.Tail} />
+    <Args in={Extension.Input} out={Extension.Plan?} />
+
+    <If on={$in.shared != null}>
+        <If on={!$in.shared.same_natives}>
+            <Return value={null} />
+        </If>
+
+        <If on={$in.shared.base_types == null}>
+            <If on={!$in.shared.same_functions}>
+                <Return value={null} />
+            </If>
+
+            <Else>
+                <If on={$in.base.files.length > $in.shared.functions}>
+                    <Return value={null} />
+                </If>
+            </Else>
+        </If>
+    </If>
 
     <If on={$in.functions.files.length < $in.base.files.length}>
-        <Return value={Extension.Tail.Invalid} />
+        <Return value={null} />
     </If>
 
     <Task name="base" out={$ctx.functions}>
@@ -19,7 +37,7 @@
     </Task>
 
     <If on={!$ctx.task.base}>
-        <Return value={Extension.Tail.Invalid} />
+        <Return value={null} />
     </If>
 
     <Task name="extended" out={$ctx.functions}>
@@ -34,12 +52,12 @@
     </Task>
 
     <If on={!$ctx.task.extended}>
-        <Return value={Extension.Tail.Invalid} />
+        <Return value={null} />
     </If>
 
     <If on={$in.suffix != null}>
         <If on={$in.functions.files.length != $in.base.files.length}>
-            <Return value={Extension.Tail.Invalid} />
+            <Return value={null} />
         </If>
 
         <Task name="suffix" out={$ctx.functions}>
@@ -54,11 +72,31 @@
         </Task>
 
         <If on={!$ctx.task.suffix}>
-            <Return value={Extension.Tail.Invalid} />
+            <Return value={null} />
         </If>
 
-        <Return value={Extension.Tail.Separate} />
+        <Call
+            fn="plan"
+            in={{
+                tail: Extension.Tail.Separate,
+                base: $in.base.files.length,
+                added: $in.suffix.files.length,
+                shared: $in.shared
+            }}
+        />
+
+        <Return value={$ctx.plan} />
     </If>
 
-    <Return value={Extension.Tail.Embedded} />
+    <Call
+        fn="plan"
+        in={{
+            tail: Extension.Tail.Embedded,
+            base: $in.base.files.length,
+            added: $in.functions.files.length - $in.base.files.length,
+            shared: $in.shared
+        }}
+    />
+
+    <Return value={$ctx.plan} />
 </Module>

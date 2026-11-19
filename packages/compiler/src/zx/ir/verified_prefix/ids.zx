@@ -1,17 +1,23 @@
-export type Input = {
+import type { Window } from "./window"
+
+export type Pair = {
     left: u32?[],
     right: u32?[]
+}
+
+export type Input = Window & {
+    pair: Pair
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { left, right } = in
+    const { left, right } = in.pair
 
     return loop({
-        index: 0
+        index: in.first
     }, {
-        while: state => state.index < left.length &&
+        while: state => state.index < in.end &&
             left[state.index] == right[state.index],
         next: state => {
             state.index += 1

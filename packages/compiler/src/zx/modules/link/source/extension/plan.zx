@@ -1,0 +1,28 @@
+import { Tail } from "./model"
+
+import type { Plan as Output, Shared } from "./model"
+
+export type Input = {
+    tail: Tail,
+    base: u64,
+    added: u64,
+    shared?: Shared
+}
+
+export default function (in: Input): Output {
+    const shared = in.shared
+
+    if (shared != null && in.added > shared.size_limit - in.base) {
+        return {
+            tail: Tail.Exhausted,
+            total: 0,
+            types: 0
+        }
+    }
+
+    return {
+        tail: in.tail,
+        total: in.base + in.added,
+        types: shared == null ? 0 : (shared.base_types ?? shared.types)
+    }
+}

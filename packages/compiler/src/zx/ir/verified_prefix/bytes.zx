@@ -1,20 +1,32 @@
 import bytes from "std:bytes"
+import encoding from "std:encoding"
 import integers from "std:integer"
 
-export type Input = {
-    left: u8[],
-    right: u8[],
+import type { Window } from "./window"
+
+export type Pair = {
+    left: string,
+    right: string,
     width: u64,
     mask: u64
+}
+
+export type Input = Window & {
+    pair: Pair
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { left, right, width, mask } = in
+    const { width, mask } = in.pair
+
+    const start = in.first * width
+    const end = in.end * width
+    const left = bytes.fromText(encoding.sliceBytes(in.pair.left, start, end))
+    const right = bytes.fromText(encoding.sliceBytes(in.pair.right, start, end))
 
     if (bytes.equals(left, right)) {
-        return left.length / width
+        return in.end
     }
 
     return loop({
@@ -32,6 +44,6 @@ export default function (in: Input): Output {
                 state.index += 1
             }
         },
-        return: state => state.index / width
+        return: state => in.first + (state.index / width)
     })
 }

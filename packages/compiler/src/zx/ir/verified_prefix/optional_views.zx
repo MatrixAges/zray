@@ -1,20 +1,26 @@
 import strings from "zig:string"
 
-export type Input = {
+import type { Window } from "./window"
+
+export type Pair = {
     left: string?[],
     right: string?[]
+}
+
+export type Input = Window & {
+    pair: Pair
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { left, right } = in
+    const { left, right } = in.pair
 
     return loop({
-        index: 0,
+        index: in.first,
         equal: true
     }, {
-        while: state => state.equal && state.index < left.length,
+        while: state => state.equal && state.index < in.end,
         next: state => {
             const a = left[state.index]
             const b = right[state.index]

@@ -53,12 +53,15 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
 
     defer scratch.deinit();
 
-    const shared = if (input.base_types == null) sameView(base, destination.functions.view()) else base.count() <= destination.functions.count();
+    const extension = try table.extend(program.functions, base, if (input.function_suffix) |*suffix| suffix else null, .{
+        .functions = destination.functions,
+        .natives = destination.native_modules,
+        .source_natives = program.native_modules,
+        .type_count = destination.types.items.count(),
+        .base_types = input.base_types,
+    });
 
-    if (!shared or !sameView(program.native_modules, destination.native_modules.view())) return error.InvalidModule;
-
-    const tail = table.appendTail(program.functions, base, if (input.function_suffix) |*suffix| suffix else null) orelse return error.InvalidModule;
-    const count = std.math.add(usize, base.count(), tail.count()) catch return error.OutOfMemory;
+    const tail = extension.tail;
     const temporary = scratch.allocator();
 
     if (comptime checks.internal) {
@@ -68,14 +71,14 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
         if (try checks.validateExtending(temporary, checked, input.verified_functions) != null) return error.InvalidIr;
     }
 
-    const type_prefix = input.base_types orelse destination.types.items.count();
+    const type_prefix = extension.types;
     var workspace = destination;
     workspace.temporary = temporary;
 
     var nodes = try program_link.appendAnalyzed(program, input.nominal_types, &workspace, &.{
         .types = type_prefix,
         .base = base.count(),
-        .total = count,
+        .total = @intCast(extension.total),
         .tail = &tail,
     });
 
@@ -155,15 +158,4 @@ fn publishSeedDeclarations(nodes: *Nodes, program: *const ir.Program) program_li
     }
 
     return .{ aliases, try nodes.constants(program.constant_exports) };
-}
-
-fn sameView(left: anytype, right: @TypeOf(left)) bool {
-    inline for (@typeInfo(@TypeOf(left)).@"struct".field_names) |name| {
-        const a = @field(left, name);
-        const b = @field(right, name);
-
-        if (a.len != b.len or (a.len != 0 and a.ptr != b.ptr)) return false;
-    }
-
-    return true;
 }
