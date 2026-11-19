@@ -1,0 +1,28 @@
+<Module>
+    <Type from="../model" as="Protocol" />
+
+    <Args in={Protocol.Sending} out={void} />
+
+    <Call
+        fn="write_identity"
+        in={$in.pick([
+            "writer",
+            "size",
+            "mtime_low",
+            "mtime_high",
+            "path"
+        ])}
+    />
+
+    <Call
+        fn="write_paths"
+        in={$in.pick([
+            "writer",
+            "cwd",
+            "manifest",
+            "output",
+            "cache",
+            "partitions"
+        ])}
+    />
+</Module>

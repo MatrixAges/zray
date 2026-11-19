@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import readText from "../read_text"
+
+import type { Identity as Output, Reader as Input } from "../model"
+
+export default function (in: Input): Output {
+    const size = memory.takeU64Le(in)
+    const mtime_low = memory.takeU64Le(in)
+    const mtime_high = memory.takeU64Le(in)
+    const path = readText(in)
+
+    return {
+        size,
+        mtime_low,
+        mtime_high,
+        path
+    }
+}

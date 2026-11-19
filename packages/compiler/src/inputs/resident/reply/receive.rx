@@ -1,0 +1,15 @@
+<Module>
+    <Type from="../model" as="Protocol" />
+
+    <Args in={Protocol.Reader} out={string?} />
+
+    <Call fn="read_status" in={$in} />
+
+    <If on={$ctx.read_status == null}>
+        <Return value={null} />
+    </If>
+
+    <Call fn="../read_text" in={$in} />
+
+    <Return value={$ctx.read_status == Protocol.Status.Done ? $ctx.read_text : null} />
+</Module>

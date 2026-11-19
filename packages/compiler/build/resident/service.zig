@@ -2,17 +2,17 @@
 //! it serving requests on a Unix socket in the cache directory; later builds hand their request to that copy, which
 //! keeps the parsed modules and cached sources in memory instead of reading and parsing them again. The copy analyzes
 //! the first build's request again as it starts, so the next build, which usually changes little, already reuses it. A copy built from
-//! another executable, or idle for `idle_limit`, exits. A request the resident copy cannot finish is run again here,
+//! another executable, or idle for 15 minutes, exits. A request the resident copy cannot finish is run again here,
 //! so its diagnostics reach the build. `ZXC_RESIDENT_GENERATOR=0` turns this off.
 const std = @import("std");
 const Resident = @import("state.zig");
 const generator = @import("../generate_parser.zig");
+const protocol = @import("compiler").resident_protocol;
+const settings = protocol.settings;
+const Watch = @import("watch.zig");
 const Request = generator.Request;
-const socket_name = "generator.sock";
-const idle_limit = std.Io.Duration.fromSeconds(15 * 60);
-/// Seconds a build waits for the resident generator before generating itself; a cold generation takes a few.
-const reply_limit = 120;
-const Status = enum(u8) { done, failed, stale, declined };
+const Identity = protocol.Identity;
+const Status = protocol.Status;
 
 /// Runs `request`, through the resident generator when one serves this executable.
 pub fn run(init: std.process.Init, request: Request) !void {
@@ -34,7 +34,7 @@ pub fn run(init: std.process.Init, request: Request) !void {
     if (enabled) start(init, allocator, request) catch {};
 }
 
-/// Serves requests on the socket in `cache` until idle for `idle_limit` or asked by another executable, after
+/// Serves requests on the socket in `cache` until idle or asked by another executable, after
 /// analyzing `warm`. Requests arriving meanwhile wait on the socket.
 pub fn serve(init: std.process.Init, cache: []const u8, warm: ?Request) !void {
     const io = init.io;
@@ -48,11 +48,10 @@ pub fn serve(init: std.process.Init, cache: []const u8, warm: ?Request) !void {
     defer server.deinit(io);
 
     var resident = try Resident.init(io, init.gpa);
-    resident.profile_memory = if (init.environ_map.get("ZXC_RESIDENT_MEMORY")) |value| std.mem.eql(u8, value, "1") else false;
-    const identity = try Identity.own(io, init.arena.allocator());
-    var watch = Watch{ .io = io, .path = path, .resident = &resident, .last = std.Io.Timestamp.now(io, .awake) };
-
-    _ = try std.Thread.spawn(.{}, Watch.run, .{&watch});
+    resident.profile_memory = if (init.environ_map.get(settings.memory_name)) |value| std.mem.eql(u8, value, settings.memory_value) else false;
+    const identity = try ownIdentity(io, init.arena.allocator());
+    var watch = Watch{ .io = io, .path = path, .resident = &resident };
+    const thread = try std.Thread.spawn(.{}, Watch.run, .{&watch});
 
     if (warm) |request| {
         _ = generator.generate(io, resident.requestAllocator(), &resident, request) catch {};
@@ -60,26 +59,34 @@ pub fn serve(init: std.process.Init, cache: []const u8, warm: ?Request) !void {
         resident.endRequest();
     }
 
+    watch.finish();
+
     while (true) {
         const stream = server.accept(io) catch continue;
 
+        if (!watch.begin()) {
+            stream.close(io);
+            thread.join();
+            unreachable;
+        }
+
         defer stream.close(io);
 
-        const status = answer(io, &resident, identity, stream) catch .failed;
+        const status = answer(io, &resident, &identity, stream) catch .Failed;
 
         resident.logMemory();
 
-        watch.last = std.Io.Timestamp.now(io, .awake);
-
-        if (status == .stale) {
+        if (status == .Stale) {
             std.Io.Dir.cwd().deleteFile(io, path) catch {};
             std.process.exit(0);
         }
+
+        watch.finish();
     }
 }
 
 /// Reads one request, runs it, and replies with its status and summary.
-fn answer(io: std.Io, resident: *Resident, identity: Identity, stream: std.Io.net.Stream) !Status {
+fn answer(io: std.Io, resident: *Resident, identity: *const Identity, stream: std.Io.net.Stream) !Status {
     const allocator = resident.requestAllocator();
 
     defer resident.endRequest();
@@ -88,21 +95,18 @@ fn answer(io: std.Io, resident: *Resident, identity: Identity, stream: std.Io.ne
     var output_buffer: [4096]u8 = undefined;
     var reader = stream.reader(io, &input_buffer);
     var writer = stream.writer(io, &output_buffer);
-    const incoming = &reader.interface;
-    const caller = Identity{ .size = try incoming.takeInt(u64, .little), .mtime = try incoming.takeInt(i128, .little), .path = try text(incoming, allocator) };
-    const cwd = try text(incoming, allocator);
-    const request = Request{ .manifest = try text(incoming, allocator), .output = try text(incoming, allocator), .cache = try text(incoming, allocator), .partitions = try incoming.takeInt(u32, .little) };
+    const message = try protocol.receive(allocator, &reader.interface);
     const here = try std.process.currentPathAlloc(io, allocator);
+    var status = protocol.admit(identity, &message, here);
     var summary: []const u8 = "";
 
-    const status: Status = if (!identity.eql(caller)) .stale else if (!std.mem.eql(u8, cwd, here)) .declined else done: {
-        summary = generator.generate(io, allocator, resident, request) catch break :done .failed;
+    if (status == .Done) {
+        if (generator.generate(io, allocator, resident, message.request)) |generated| {
+            summary = generated;
+        } else |_| status = .Failed;
+    }
 
-        break :done .done;
-    };
-
-    try writer.interface.writeByte(@backingInt(status));
-    try field(&writer.interface, summary);
+    try protocol.reply(&writer.interface, status, summary);
     try writer.interface.flush();
 
     return status;
@@ -118,30 +122,22 @@ fn forward(io: std.Io, allocator: std.mem.Allocator, request: Request) !?[]const
 
     // A resident generator that stops answering must not hold up the build: past the limit the request runs here.
     for ([_]u32{ std.c.SO.RCVTIMEO, std.c.SO.SNDTIMEO }) |option| {
-        const limit = std.c.timeval{ .sec = reply_limit, .usec = 0 };
+        const limit = std.c.timeval{ .sec = @intCast(settings.reply_timeout_seconds), .usec = 0 };
 
         std.posix.setsockopt(stream.socket.handle, std.c.SOL.SOCKET, option, std.mem.asBytes(&limit)) catch return null;
     }
 
-    const identity = try Identity.own(io, allocator);
+    const identity = try ownIdentity(io, allocator);
     var input_buffer: [4096]u8 = undefined;
     var output_buffer: [4096]u8 = undefined;
     var writer = stream.writer(io, &output_buffer);
     var reader = stream.reader(io, &input_buffer);
-    const outgoing = &writer.interface;
+    const cwd = try std.process.currentPathAlloc(io, allocator);
 
-    outgoing.writeInt(u64, identity.size, .little) catch return null;
-    outgoing.writeInt(i128, identity.mtime, .little) catch return null;
+    protocol.send(&writer.interface, identity, cwd, request) catch return null;
+    writer.interface.flush() catch return null;
 
-    for ([_][]const u8{ identity.path, try std.process.currentPathAlloc(io, allocator), request.manifest, request.output, request.cache }) |value| field(outgoing, value) catch return null;
-
-    outgoing.writeInt(u32, request.partitions, .little) catch return null;
-    outgoing.flush() catch return null;
-
-    const status = std.enums.fromInt(Status, reader.interface.takeByte() catch return null) orelse return null;
-    const summary = text(&reader.interface, allocator) catch return null;
-
-    return if (status == .done) summary else null;
+    return protocol.readSummary(allocator, &reader.interface) catch null;
 }
 
 /// Starts a resident copy of this executable for later builds, detached from the build that ran `request`.
@@ -156,7 +152,7 @@ fn start(init: std.process.Init, allocator: std.mem.Allocator, request: Request)
     }
 
     _ = try std.process.spawn(init.io, .{
-        .argv = &.{ executable, "--serve", request.cache, request.manifest, request.output, try std.fmt.allocPrint(allocator, "{d}", .{request.partitions}) },
+        .argv = &.{ executable, settings.serve_command, request.cache, request.manifest, request.output, try std.fmt.allocPrint(allocator, "{d}", .{request.partitions}) },
         .environ_map = &environ,
         .stdin = .ignore,
         .stdout = .ignore,
@@ -165,62 +161,23 @@ fn start(init: std.process.Init, allocator: std.mem.Allocator, request: Request)
     });
 }
 
-/// Ends the resident generator once no request has arrived for `idle_limit`.
-const Watch = struct {
-    io: std.Io,
-    path: []const u8,
-    resident: *Resident,
-    last: std.Io.Timestamp,
-    fn run(self: *Watch) void {
-        while (true) {
-            self.io.sleep(.fromSeconds(30), .awake) catch {};
+fn ownIdentity(io: std.Io, allocator: std.mem.Allocator) !Identity {
+    const path = try std.process.executablePathAlloc(io, allocator);
+    const stat = try std.Io.Dir.cwd().statFile(io, path, .{});
 
-            if (self.last.durationTo(std.Io.Timestamp.now(self.io, .awake)).nanoseconds < idle_limit.nanoseconds) continue;
-
-            std.Io.Dir.cwd().deleteFile(self.io, self.path) catch {};
-            self.resident.persist();
-            std.process.exit(0);
-        }
-    }
-};
-
-/// The executable a generator runs from; a rebuilt generator differs in size or modification time.
-const Identity = struct {
-    path: []const u8,
-    size: u64,
-    mtime: i128,
-    fn own(io: std.Io, allocator: std.mem.Allocator) !Identity {
-        const path = try std.process.executablePathAlloc(io, allocator);
-        const stat = try std.Io.Dir.cwd().statFile(io, path, .{});
-
-        return .{ .path = path, .size = stat.size, .mtime = stat.mtime.nanoseconds };
-    }
-    fn eql(self: Identity, other: Identity) bool {
-        return self.size == other.size and self.mtime == other.mtime and std.mem.eql(u8, self.path, other.path);
-    }
-};
+    return Identity.init(stat.size, stat.mtime.nanoseconds, path);
+}
 
 fn socketPath(allocator: std.mem.Allocator, cache: []const u8) ![]const u8 {
-    return std.fs.path.join(allocator, &.{ cache, socket_name });
+    return std.fs.path.join(allocator, &.{ cache, settings.socket_name });
 }
 
 fn disabled(environ: *const std.process.Environ.Map) bool {
-    const value = environ.get("ZXC_RESIDENT_GENERATOR") orelse return false;
+    const value = environ.get(settings.enabled_name) orelse return false;
 
-    return std.mem.eql(u8, value, "0");
+    return std.mem.eql(u8, value, settings.disabled_value);
 }
 
 fn print(io: std.Io, summary: []const u8) !void {
     try std.Io.File.stdout().writeStreamingAll(io, summary);
-}
-
-fn field(writer: *std.Io.Writer, value: []const u8) !void {
-    try writer.writeInt(u32, @intCast(value.len), .little);
-    try writer.writeAll(value);
-}
-
-fn text(reader: *std.Io.Reader, allocator: std.mem.Allocator) ![]const u8 {
-    const length = try reader.takeInt(u32, .little);
-
-    return reader.readAlloc(allocator, length);
 }

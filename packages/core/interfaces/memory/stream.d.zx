@@ -1,0 +1,17 @@
+export declare function takeByte(
+    source: StreamReader
+): u8 throws { EndOfStream, ReadFailed }
+
+export declare function takeU32Le(
+    source: StreamReader
+): u32 throws { EndOfStream, ReadFailed }
+
+export declare function takeU64Le(
+    source: StreamReader
+): u64 throws { EndOfStream, ReadFailed }
+
+export declare function takeText(
+    allocator,
+    source: StreamReader,
+    count: u32
+): string throws { EndOfStream, ReadFailed, OutOfMemory }

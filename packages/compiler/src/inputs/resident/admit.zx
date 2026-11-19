@@ -1,0 +1,20 @@
+import { Status } from "./model"
+
+import type { Admission as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { own, caller } = in
+
+    const same_time =
+        own.mtime_low == caller.mtime_low && own.mtime_high == caller.mtime_high
+
+    const same_file = own.size == caller.size && own.path == caller.path
+
+    return match {
+        !same_time || !same_file => Status.Stale,
+        in.cwd != in.here => Status.Declined,
+        _ => Status.Done
+    }
+}

@@ -1,0 +1,18 @@
+import memory from "memory"
+
+import { done_code, failed_code, stale_code, declined_code } from "../const"
+import { Status } from "../model"
+
+import type { Reader as Input } from "../model"
+
+export type Output = Status?
+
+export default function (in: Input): Output {
+    return match memory.takeByte(in) {
+        done_code => Status.Done,
+        failed_code => Status.Failed,
+        stale_code => Status.Stale,
+        declined_code => Status.Declined,
+        _ => null
+    }
+}

@@ -1,0 +1,13 @@
+import { idle_nanoseconds } from "./const"
+
+import type { Idle as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (in.now < in.last) {
+        return false
+    }
+
+    return in.now - in.last >= idle_nanoseconds
+}

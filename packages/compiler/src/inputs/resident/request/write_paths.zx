@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+
+import writeText from "../write_text"
+
+import type { Body as Input } from "../model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { writer, cwd, manifest, output, cache, partitions } = in
+
+    writeText({
+        writer,
+        value: cwd
+    })
+
+    writeText({
+        writer,
+        value: manifest
+    })
+
+    writeText({
+        writer,
+        value: output
+    })
+
+    writeText({
+        writer,
+        value: cache
+    })
+
+    bytes.writeU32Le(writer, partitions)
+}

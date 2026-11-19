@@ -1,0 +1,47 @@
+export const lexer_command: string = "--lexer"
+
+export const abi_command: string = "--standard-abi"
+
+export const manifest_command: string = "--manifest"
+
+export const serve_command: string = "--serve"
+
+export const partitions_option: string = "--partitions"
+
+export const command_count: u64 = 2
+
+export const lexer_count: u64 = 5
+
+export const abi_count: u64 = 3
+
+export const manifest_count: u64 = 5
+
+export const partitioned_count: u64 = 7
+
+export const serve_count: u64 = 3
+
+export const warm_count: u64 = 6
+
+export const socket_name: string = "generator.sock"
+
+export const enabled_name: string = "ZXC_RESIDENT_GENERATOR"
+
+export const memory_name: string = "ZXC_RESIDENT_MEMORY"
+
+export const disabled_value: string = "0"
+
+export const memory_value: string = "1"
+
+export const idle_nanoseconds: u64 = 900000000000
+
+export const check_interval_seconds: u64 = 30
+
+export const reply_timeout_seconds: u64 = 120
+
+export const done_code: u8 = 0
+
+export const failed_code: u8 = 1
+
+export const stale_code: u8 = 2
+
+export const declined_code: u8 = 3

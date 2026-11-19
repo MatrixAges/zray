@@ -1,5 +1,6 @@
 export type U8Buffer = opaque
 export type ByteWriter = opaque
+export type StreamReader = opaque
 export type U32Buffer = opaque
 export type U32Scratch = opaque
 export type U64Buffer = opaque

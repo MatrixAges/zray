@@ -11,43 +11,33 @@ const fingerprint = compiler.input_fingerprint;
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);
+    const kind = compiler.resident_protocol.command(args);
 
-    if (args.len < 2) return error.MissingCommand;
-
-    if (std.mem.eql(u8, args[1], "--lexer")) {
-        if (args.len != 5) return error.OutputCountMismatch;
-
-        return @import("generate_lexer.zig").generate(init, args[2], args[3], args[4]);
-    }
-
-    if (std.mem.eql(u8, args[1], "--standard-abi")) {
-        if (args.len != 3) return error.OutputCountMismatch;
-
-        return @import("generate_types.zig").generate(init, args[2]);
-    }
-
-    if (std.mem.eql(u8, args[1], "--manifest")) {
-        if (args.len != 5 and !(args.len == 7 and std.mem.eql(u8, args[5], "--partitions"))) return error.OutputCountMismatch;
-
-        const partitions = if (args.len == 7) try std.fmt.parseInt(u32, args[6], 10) else 0;
-
-        return @import("resident/service.zig").run(init, .{ .manifest = args[2], .output = args[3], .cache = args[4], .partitions = partitions });
-    }
-
-    if (std.mem.eql(u8, args[1], "--serve")) {
-        if (args.len != 3 and args.len != 6) return error.OutputCountMismatch;
-
-        const warm: ?Request = if (args.len == 6) .{ .manifest = args[3], .output = args[4], .cache = args[2], .partitions = try std.fmt.parseInt(u32, args[5], 10), .write = false } else null;
-
-        return @import("resident/service.zig").serve(init, args[2], warm);
-    }
-
-    return error.UnknownCommand;
+    return switch (kind) {
+        .Missing => error.MissingCommand,
+        .Unknown => error.UnknownCommand,
+        .Incomplete => error.OutputCountMismatch,
+        .Lexer => @import("generate_lexer.zig").generate(init, args[2], args[3], args[4]),
+        .StandardAbi => @import("generate_types.zig").generate(init, args[2]),
+        .Manifest, .Partitioned => @import("resident/service.zig").run(init, .{
+            .manifest = args[2],
+            .output = args[3],
+            .cache = args[4],
+            .partitions = if (kind == .Partitioned) try std.fmt.parseInt(u32, args[6], 10) else 0,
+        }),
+        .Serve, .Warm => @import("resident/service.zig").serve(init, args[2], if (kind == .Warm) .{
+            .manifest = args[3],
+            .output = args[4],
+            .cache = args[2],
+            .partitions = try std.fmt.parseInt(u32, args[5], 10),
+            .write = false,
+        } else null),
+    };
 }
 
 /// One generation: the manifest naming the entries and source roots, the output tree, the cache directory and the
 /// partition count. Without `write` it only analyzes, leaving the output as it is.
-pub const Request = struct { manifest: []const u8, output: []const u8, cache: []const u8, partitions: u32, write: bool = true };
+pub const Request = compiler.resident_protocol.Request;
 
 /// Runs `request` and returns its summary line, or nothing when the output is already current.
 pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, request: Request) ![]const u8 {

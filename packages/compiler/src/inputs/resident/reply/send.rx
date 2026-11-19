@@ -1,0 +1,21 @@
+<Module>
+    <Type from="../model" as="Protocol" />
+
+    <Args in={Protocol.Reply} out={void} />
+
+    <Call
+        fn="write_status"
+        in={$in.pick([
+            "writer",
+            "status"
+        ])}
+    />
+
+    <Call
+        fn="../write_text"
+        in={{
+            writer: $in.writer,
+            value: $in.summary
+        }}
+    />
+</Module>

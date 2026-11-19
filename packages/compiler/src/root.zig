@@ -13,6 +13,7 @@ pub const source_inputs = @import("inputs/collection.zig");
 pub const SourceIndex = frontend.SourceIndex;
 pub const cache_retention = frontend.cache_retention;
 pub const resident_modules = @import("inputs/module_versions.zig");
+pub const resident_protocol = @import("inputs/resident.zig");
 pub const Sha256 = zx.Sha256;
 pub const parse = frontend.parse;
 pub const ParseResult = frontend.ParseResult;

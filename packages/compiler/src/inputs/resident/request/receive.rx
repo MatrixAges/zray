@@ -1,0 +1,15 @@
+<Module>
+    <Type from="../model" as="Protocol" />
+
+    <Args in={Protocol.Reader} out={Protocol.Request} />
+
+    <Call fn="read_identity" in={$in} />
+    <Call fn="read_paths" in={$in} />
+
+    <Return
+        value={{
+            ...$ctx.read_identity,
+            ...$ctx.read_paths
+        }}
+    />
+</Module>

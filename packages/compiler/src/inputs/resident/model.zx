@@ -1,0 +1,81 @@
+import type { Writer } from "std:bytes"
+import type { StreamReader } from "memory"
+
+export enum Command {
+    Missing,
+    Unknown,
+    Incomplete,
+    Lexer,
+    StandardAbi,
+    Manifest,
+    Partitioned,
+    Serve,
+    Warm
+}
+
+export type Arguments = {
+    count: u64,
+    command: string,
+    option: string
+}
+
+export enum Status {
+    Done,
+    Failed,
+    Stale,
+    Declined
+}
+
+export type Reader = StreamReader
+
+export type Identity = {
+    size: u64,
+    mtime_low: u64,
+    mtime_high: u64,
+    path: string
+}
+
+export type Paths = {
+    cwd: string,
+    manifest: string,
+    output: string,
+    cache: string,
+    partitions: u32
+}
+
+export type Request = Identity & Paths
+
+export type Admission = {
+    own: Identity,
+    caller: Identity,
+    cwd: string,
+    here: string
+}
+
+export type Sending = Request & {
+    writer: Writer
+}
+
+export type Header = Identity & {
+    writer: Writer
+}
+
+export type Body = Paths & {
+    writer: Writer
+}
+
+export type Reply = {
+    writer: Writer,
+    status: Status,
+    summary: string
+}
+
+export type Field = {
+    writer: Writer,
+    value: string
+}
+
+export type Idle = {
+    last: u64,
+    now: u64
+}

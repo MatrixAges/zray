@@ -1,0 +1,44 @@
+import {
+    command_count,
+    lexer_command,
+    abi_command,
+    manifest_command,
+    serve_command,
+    partitions_option,
+    lexer_count,
+    abi_count,
+    manifest_count,
+    partitioned_count,
+    serve_count,
+    warm_count
+} from "./const"
+import { Command } from "./model"
+
+import type { Arguments as Input } from "./model"
+
+export type Output = Command
+
+export default function (in: Input): Output {
+    const { count, command, option } = in
+
+    if (count < command_count) {
+        return Command.Missing
+    }
+
+    return match command {
+        lexer_command => count == lexer_count ? Command.Lexer : Command.Incomplete,
+        abi_command => count == abi_count ? Command.StandardAbi : Command.Incomplete,
+        manifest_command => match {
+            count == manifest_count => Command.Manifest,
+            count == partitioned_count && option == partitions_option =>
+                Command.Partitioned,
+            _ => Command.Incomplete
+        },
+        serve_command => match count {
+            serve_count => Command.Serve,
+            warm_count => Command.Warm,
+            _ => Command.Incomplete
+        },
+        _ => Command.Unknown
+    }
+}

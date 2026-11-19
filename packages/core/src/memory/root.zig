@@ -1,4 +1,9 @@
 const std = @import("std");
+const stream = @import("stream.zig");
+pub const takeByte = stream.takeByte;
+pub const takeU32Le = stream.takeU32Le;
+pub const takeU64Le = stream.takeU64Le;
+pub const takeText = stream.takeText;
 const atomic = @import("atomic.zig");
 pub const loadU32Acquire = atomic.loadU32Acquire;
 pub const storeU32Release = atomic.storeU32Release;

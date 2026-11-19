@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import readText from "../read_text"
+
+import type { Paths as Output, Reader as Input } from "../model"
+
+export default function (in: Input): Output {
+    const cwd = readText(in)
+    const manifest = readText(in)
+    const output = readText(in)
+    const cache = readText(in)
+    const partitions = memory.takeU32Le(in)
+
+    return {
+        cwd,
+        manifest,
+        output,
+        cache,
+        partitions
+    }
+}
