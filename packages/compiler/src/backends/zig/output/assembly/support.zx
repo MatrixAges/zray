@@ -1,0 +1,26 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { Input as Assembly } from "./model"
+
+export type Input = Assembly.Pick("sections", "support", "files")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { support, sections, files } = in
+
+    const written = loop(0, {
+        while: index => index < support.count,
+        next: index => {
+            const path = memory.readTextColumn(support.paths, index)
+            const body = memory.readTextColumn(support.bodies, index)
+            const target = sections.support + index
+
+            memory.writeColumnBytes(files.paths, target, bytes.fromText(path))
+            memory.writeColumnBytes(files.bodies, target, bytes.fromText(body))
+
+            index += 1
+        }
+    })
+}

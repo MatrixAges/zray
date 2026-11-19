@@ -4,6 +4,7 @@ pub const available = @import("parser_options").generated_parser;
 pub const manifest_read = if (available) @import("generated_output_manifest_read") else null;
 pub const manifest_write = if (available) @import("generated_output_manifest_write") else null;
 pub const inventory = @import("output/inventory.zig");
+pub const assembly = @import("output/assembly.zig");
 
 pub const Input = struct {
     paths: []const []const u8,

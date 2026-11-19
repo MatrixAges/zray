@@ -13,6 +13,7 @@ pub const BootstrapEntries = struct {
     value_entry: bool,
     state_entry: bool,
     allocator_entry: bool,
+    constant_only: bool,
 };
 
 pub fn reexports(allocator: std.mem.Allocator, module: []const u8, member: []const u8, names: []const []const u8) std.mem.Allocator.Error![]u8 {
@@ -28,7 +29,15 @@ pub fn bootstrapReexports(allocator: std.mem.Allocator, workspace: std.mem.Alloc
     if (comptime !@import("genz_options").generated_analysis) return @import("bindings_seed.zig").bootstrapReexports(allocator, workspace, entries);
 
     const entry = @import("generated_host_bootstrap_reexports");
-    const input = zx.columns.view(std.meta.Child(entry.Input), entries);
+
+    const input: std.meta.Child(entry.Input) = .{
+        .member = entries.member,
+        .value_entry = entries.value_entry,
+        .state_entry = entries.state_entry,
+        .allocator_entry = entries.allocator_entry,
+        .constant_only = entries.constant_only,
+        .constant_namespace = @import("../zx/module/constants.zig").namespace,
+    };
 
     return render(allocator, workspace, entry, &input);
 }

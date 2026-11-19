@@ -8,54 +8,38 @@ const ledger = compiler.zig.file_ledger;
 /// compiled partitions. Only changed files are rewritten and files no longer generated are removed, so an
 /// output directory reused across runs keeps unchanged files byte- and timestamp-stable for Zig's cache.
 pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, output: []const u8, bundle: compiler.zig.LibraryBundle, partitions: u32) !void {
-    var files: std.ArrayList(layout.File) = .empty;
-    const groups = try ledger.inventory.group(allocator, bundle.modules, bundle.public_modules.len);
-    const public = groups.support[groups.support.len - bundle.public_modules.len ..];
-    const modules = try allocator.alloc(compiler.zig.partition.Module, public.len);
+    const groups = try ledger.inventory.group(allocator, bundle.modules);
+    const tree = try ledger.assembly.prepare(allocator, &bundle, groups, partitions != 0);
+    const slots = tree.sections;
+    const head = tree.files;
 
-    try files.append(allocator, .{ .path = "types.zig", .source = bundle.types });
-
-    for (bundle.public_modules, public, modules) |module, *file, *exported| {
-        const name = try std.fmt.allocPrint(allocator, "{s}.zig", .{module.file.name});
-        file.* = .{ .path = name, .source = module.file.source };
-        exported.* = .{ .name = module.name, .file = name };
-
-        const adapter = if (module.constant_only)
-            try compiler.zig.host.reexports(allocator, "generated", module.name, &.{compiler.zig.constant_namespace})
-        else
-            try compiler.zig.host.bootstrapReexports(allocator, workspace, .{
-                .member = module.name,
-                .value_entry = module.value_entry,
-                .state_entry = module.state_entry,
-                .allocator_entry = module.allocator_entry,
-            });
-
-        try files.append(allocator, .{ .path = try std.fmt.allocPrint(allocator, "{s}.zig", .{module.name}), .source = adapter });
+    for (bundle.public_modules, head[slots.adapters..slots.support]) |module, *file| {
+        file.source = try compiler.zig.host.bootstrapReexports(allocator, workspace, .{
+            .member = module.name,
+            .value_entry = module.value_entry,
+            .state_entry = module.state_entry,
+            .allocator_entry = module.allocator_entry,
+            .constant_only = module.constant_only,
+        });
     }
 
-    try files.appendSlice(allocator, groups.support);
+    const functions: []const layout.File = if (partitions == 0) blk: {
+        head[slots.root].source = try compiler.zig.partition.rootBacked(allocator, workspace, tree.modules, false);
 
-    var scratch = std.heap.ArenaAllocator.init(workspace);
+        break :blk groups.functions;
+    } else blk: {
+        var scratch = std.heap.ArenaAllocator.init(workspace);
 
-    defer scratch.deinit();
+        defer scratch.deinit();
 
-    const function_files = if (partitions == 0) undefined else blk: {
-        try files.append(allocator, .{ .path = "signatures.zig", .source = bundle.signatures orelse "" });
+        const original = try ledger.inventory.originals(allocator, scratch.allocator(), groups.functions, head[slots.originals..slots.original_root]);
+        head[slots.original_root].source = try compiler.zig.partition.indexedRoot(allocator, workspace, original, null);
+        head[slots.root].source = try compiler.zig.partition.rootBacked(allocator, workspace, tree.modules, true);
 
-        const first = files.items.len;
-
-        try files.resize(allocator, first + groups.functions.len);
-
-        const original = try ledger.inventory.originals(allocator, scratch.allocator(), groups.functions, files.items[first..]);
-
-        try files.append(allocator, .{ .path = "original/root.zig", .source = try compiler.zig.partition.indexedRoot(allocator, workspace, original, null) });
-
-        break :blk original;
+        break :blk try layout.plan(io, allocator, workspace, groups.functions, original, head[slots.support..slots.signatures], partitions);
     };
 
-    try files.append(allocator, .{ .path = "root.zig", .source = try compiler.zig.partition.rootBacked(allocator, workspace, modules, partitions != 0) });
-    if (partitions == 0) try files.appendSlice(allocator, groups.functions) else try files.appendSlice(allocator, try layout.plan(io, allocator, workspace, groups.functions, function_files, groups.support, partitions));
-    try mirror(io, allocator, workspace, output, files.items);
+    try mirror(io, allocator, workspace, output, .{ .head = head, .functions = functions });
 }
 
 const file_manifest = @import("partition/file_manifest.zig");
@@ -64,7 +48,7 @@ const manifest_name = file_manifest.name;
 /// Records the content hash of every written file in a manifest, so a later run compares hashes instead of
 /// reading files back, and removes exactly the files the previous run wrote and this one does not. Without a
 /// manifest the directory is walked once and every file not generated now is removed.
-fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, output: []const u8, files: []const layout.File) !void {
+fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, output: []const u8, files: Files) !void {
     const cwd = std.Io.Dir.cwd();
 
     try cwd.createDirPath(io, output);
@@ -78,18 +62,16 @@ fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator
 
     try remove(io, directory, manifest_name);
 
-    const arenas = try parallel.Arenas.init(io, allocator, files.len);
+    const count = files.len();
+    const arenas = try parallel.Arenas.init(io, allocator, count);
 
     defer arenas.deinit();
 
-    const hashing = Hashing{ .files = files, .hashes = try allocator.alloc(u64, files.len) };
+    const paths = try allocator.alloc([]const u8, count);
+    const hashing = Hashing{ .files = files, .paths = paths, .hashes = try allocator.alloc(u64, count) };
 
-    try parallel.each(arenas, files.len, &hashing);
-    try manifest.writer.ensureUnusedCapacity(files.len * 64);
-
-    const paths = try allocator.alloc([]const u8, files.len);
-
-    for (files, paths) |file, *path| path.* = file.path;
+    try parallel.each(arenas, blocks(files.head) + blocks(files.functions), &hashing);
+    try manifest.writer.ensureUnusedCapacity(count * 64);
 
     var selected = try ledger.changes(workspace, .{
         .paths = paths,
@@ -148,21 +130,50 @@ fn mirror(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator
 const Writing = struct {
     io: std.Io,
     directory: std.Io.Dir,
-    files: []const layout.File,
+    files: Files,
     changed: []const u32,
     pub fn step(self: *const Writing, _: std.mem.Allocator, index: usize) !void {
-        const file = self.files[self.changed[index]];
+        const file = self.files.at(self.changed[index]);
 
         try self.directory.writeFile(self.io, .{ .sub_path = file.path, .data = file.source });
     }
 };
 
-/// The content hash of every file, computed on all cores.
+const Files = struct {
+    head: []const layout.File,
+    functions: []const layout.File,
+    inline fn len(self: Files) usize {
+        return self.head.len + self.functions.len;
+    }
+
+    inline fn at(self: Files, index: usize) layout.File {
+        return if (index < self.head.len) self.head[index] else self.functions[index - self.head.len];
+    }
+};
+
+fn blocks(files: []const layout.File) usize {
+    return std.math.divCeil(usize, files.len, ledger.assembly.hash_batch) catch unreachable;
+}
+
+/// Projects the paths and hashes from each section in batches, without merging the sections.
 const Hashing = struct {
-    files: []const layout.File,
+    files: Files,
+    paths: [][]const u8,
     hashes: []u64,
     pub fn step(self: *const Hashing, _: std.mem.Allocator, index: usize) !void {
-        self.hashes[index] = compiler.bytes.hash(0, self.files[index].source);
+        const head_blocks = blocks(self.files.head);
+
+        if (index < head_blocks) {
+            self.mark(self.files.head, 0, index);
+        } else {
+            self.mark(self.files.functions, self.files.head.len, index - head_blocks);
+        }
+    }
+    fn mark(self: *const Hashing, files: []const layout.File, output: usize, index: usize) void {
+        const start = index * ledger.assembly.hash_batch;
+        const end = @min(start + ledger.assembly.hash_batch, files.len);
+
+        ledger.assembly.mark(files[start..end], self.paths[output + start .. output + end], self.hashes[output + start .. output + end]);
     }
 };
 

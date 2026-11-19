@@ -1,0 +1,11 @@
+export const types_file: string = "types.zig"
+
+export const root_file: string = "root.zig"
+
+export const signatures_file: string = "signatures.zig"
+
+export const original_root_file: string = "original/root.zig"
+
+export const zig_suffix: string = ".zig"
+
+export const hash_batch: u64 = 32

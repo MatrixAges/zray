@@ -1,0 +1,21 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { types_file, root_file } from "./const"
+
+import type { Input as Assembly } from "./model"
+
+export type Input = Assembly.Pick("sections", "files", "types")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeColumnBytes(in.files.paths, 0, bytes.fromText(types_file))
+    memory.writeColumnBytes(in.files.bodies, 0, bytes.fromText(in.types))
+
+    memory.writeColumnBytes(
+        in.files.paths,
+        in.sections.root,
+        bytes.fromText(root_file)
+    )
+}

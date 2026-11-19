@@ -15,6 +15,14 @@ import {
 import type { Bootstrap as Input, Input as Output } from "./model"
 
 export default function (in: Input): Output {
+    if (in.constant_only) {
+        return {
+            module: generated_module,
+            member: in.member,
+            names: [in.constant_namespace]
+        }
+    }
+
     const required = [
         input_name,
         output_name,

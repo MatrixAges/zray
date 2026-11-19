@@ -8,13 +8,12 @@ const FunctionFiles = @import("../partition/layout.zig").FunctionFiles;
 
 pub const Groups = struct { functions: []File, support: []File };
 
-pub fn group(allocator: std.mem.Allocator, modules: []const ModuleFile, public_count: usize) !Groups {
-    const files = try allocator.alloc(File, modules.len + public_count);
+pub fn group(allocator: std.mem.Allocator, modules: []const ModuleFile) !Groups {
+    const files = try allocator.alloc(File, modules.len);
 
     errdefer allocator.free(files);
 
-    const destinations = files[0..modules.len];
-    const count = if (comptime available) try split(allocator, modules, destinations) else seedSplit(modules, destinations);
+    const count = if (comptime available) try split(allocator, modules, files) else seedSplit(modules, files);
 
     return .{ .functions = files[0..count], .support = files[count..] };
 }

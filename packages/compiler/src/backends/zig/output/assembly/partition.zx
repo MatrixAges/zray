@@ -1,0 +1,32 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { original_root_file, signatures_file } from "./const"
+
+import type { Input as Assembly } from "./model"
+
+export type Input = Assembly.Pick("sections", "files", "signatures")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { sections, files } = in
+
+    memory.writeColumnBytes(
+        files.paths,
+        sections.signatures,
+        bytes.fromText(signatures_file)
+    )
+
+    memory.writeColumnBytes(
+        files.bodies,
+        sections.signatures,
+        bytes.fromText(in.signatures)
+    )
+
+    memory.writeColumnBytes(
+        files.paths,
+        sections.original_root,
+        bytes.fromText(original_root_file)
+    )
+}

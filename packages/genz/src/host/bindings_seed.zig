@@ -48,6 +48,8 @@ pub fn cAdapter(allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
 }
 
 pub fn bootstrapReexports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, input: @import("root.zig").BootstrapEntries) std.mem.Allocator.Error![]u8 {
+    if (input.constant_only) return reexports(allocator, "generated", input.member, &.{@import("../zx/module/constants.zig").namespace});
+
     var storage: [10][]const u8 = undefined;
     var names: std.ArrayList([]const u8) = .initBuffer(&storage);
 

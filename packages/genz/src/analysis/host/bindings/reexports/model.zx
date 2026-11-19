@@ -17,7 +17,9 @@ export type Bootstrap = {
     member: string,
     value_entry: bool,
     state_entry: bool,
-    allocator_entry: bool
+    allocator_entry: bool,
+    constant_only: bool,
+    constant_namespace: string
 }
 
 export type State = {

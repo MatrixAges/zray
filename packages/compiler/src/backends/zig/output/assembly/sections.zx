@@ -1,0 +1,22 @@
+import type { Counts as Input, Sections as Output } from "./model"
+
+export default function (in: Input): Output {
+    const adapters = 1
+    const support = adapters + in.public_count
+    const public_files = support + in.support_count
+    const signatures = public_files + in.public_count
+    const originals = signatures + 1
+    const original_root = originals + in.function_count
+    const root = in.partitioned ? original_root + 1 : signatures
+
+    return {
+        adapters,
+        support,
+        public_files,
+        signatures,
+        originals,
+        original_root,
+        root,
+        length: root + 1
+    }
+}

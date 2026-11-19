@@ -1,0 +1,29 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { StringBuffer, TextColumn, U64Buffer } from "memory"
+
+export type Input = {
+    paths: TextColumn,
+    bodies: TextColumn,
+    names: StringBuffer,
+    hashes: U64Buffer,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const path = memory.readTextColumn(in.paths, row)
+            const body = memory.readTextColumn(in.bodies, row)
+
+            memory.writeString(in.names, row, path)
+            memory.writeU64(in.hashes, row, bytes.hash(bytes.fromText(body)))
+
+            row += 1
+        }
+    })
+}

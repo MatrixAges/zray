@@ -1,0 +1,50 @@
+import type { TextColumn, WriteColumn } from "memory"
+
+export type Counts = {
+    public_count: u64,
+    support_count: u64,
+    function_count: u64,
+    partitioned: bool
+}
+
+export type Sections = {
+    adapters: u64,
+    support: u64,
+    public_files: u64,
+    signatures: u64,
+    originals: u64,
+    original_root: u64,
+    root: u64,
+    length: u64
+}
+
+export type Sources = {
+    paths: TextColumn,
+    bodies: TextColumn,
+    count: u64
+}
+
+export type Public = Sources & {
+    names: TextColumn
+}
+
+export type Destination = {
+    paths: WriteColumn,
+    bodies: WriteColumn
+}
+
+export type PublicModules = {
+    names: WriteColumn,
+    files: WriteColumn
+}
+
+export type Input = {
+    partitioned: bool,
+    sections: Sections,
+    public: Public,
+    support: Sources,
+    files: Destination,
+    modules: PublicModules,
+    types: string,
+    signatures: string
+}
