@@ -1,6 +1,8 @@
 const std = @import("std");
 const Compile = @import("../compile.zig");
 const kinds = @import("kind.zig");
+const pkgs = @import("pkgs");
+const yaml = @import("yaml.zig");
 
 pub fn run(context: Compile.Context) !Compile.Status {
     return execute(context) catch |err| {
@@ -24,22 +26,30 @@ fn execute(context: Compile.Context) !Compile.Status {
 
     defer context.allocator.free(source);
 
-    if (!try @import("check.zig").run(context.allocator, kind, source, options.input, context.stderr)) return .failed;
+    const result: yaml.Formatted = switch (kind) {
+        .manifest => try yaml.format(context.allocator, source, options.input, context.stderr) orelse return .failed,
+        .index => index: {
+            const checked = try pkgs.Index.parse(context.allocator, source);
 
-    if (kind == .lock) {
-        if (options.linting) return .success;
-        try context.stderr.writeAll("pkg.lock.json is managed by zxc pkg install; use zxc lint for read-only validation\n");
+            checked.deinit();
 
-        return .failed;
-    }
+            break :index .{ .bytes = try @import("lint").configuration.json.format(context.allocator, source) };
+        },
+        .lock => {
+            const checked = try pkgs.Lock.parse(context.allocator, source);
 
-    const formatted = switch (kind) {
-        .manifest => try @import("yaml.zig").format(context.allocator, source),
-        .index => try @import("lint").configuration.json.format(context.allocator, source),
-        .lock => unreachable,
+            checked.deinit();
+
+            if (options.linting) return .success;
+            try context.stderr.writeAll("pkg.lock.json is managed by zxc pkg install; use zxc lint for read-only validation\n");
+
+            return .failed;
+        },
     };
 
-    defer context.allocator.free(formatted);
+    defer if (result.allocated) context.allocator.free(result.bytes);
+
+    const formatted = result.bytes;
 
     if (options.linting or options.check) {
         if (!std.mem.eql(u8, source, formatted)) {

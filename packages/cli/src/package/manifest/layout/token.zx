@@ -1,0 +1,49 @@
+import {
+    alias,
+    anchor,
+    block_end,
+    block_entry,
+    block_mapping_start,
+    block_sequence_start,
+    flow_entry,
+    flow_mapping_end,
+    flow_mapping_start,
+    flow_sequence_end,
+    flow_sequence_start,
+    scalar,
+    tag,
+    value
+} from "./const"
+
+export enum Token {
+    Other,
+    Material,
+    BlockOpen,
+    BlockClose,
+    FlowOpen,
+    FlowClose
+}
+
+export type Input = i32
+
+export type Output = Token
+
+export default function (in: Input): Output {
+    return match in {
+        scalar => Token.Material,
+        alias => Token.Material,
+        anchor => Token.Material,
+        tag => Token.Material,
+        value => Token.Material,
+        block_entry => Token.Material,
+        flow_entry => Token.Material,
+        block_mapping_start => Token.BlockOpen,
+        block_sequence_start => Token.BlockOpen,
+        block_end => Token.BlockClose,
+        flow_mapping_start => Token.FlowOpen,
+        flow_sequence_start => Token.FlowOpen,
+        flow_mapping_end => Token.FlowClose,
+        flow_sequence_end => Token.FlowClose,
+        _ => Token.Other
+    }
+}

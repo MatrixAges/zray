@@ -126,6 +126,10 @@
             "name": "manifest_required"
         },
         {
+            "path": "package/manifest/layout/collect.rx",
+            "name": "manifest_layout"
+        },
+        {
             "path": "native_sources/references/classify.rx",
             "name": "native_reference"
         },
@@ -280,6 +284,10 @@
         {
             "path": "memory/columns.d.zx",
             "module": "memory/columns"
+        },
+        {
+            "path": "package_manifest/layout/scanner.d.zx",
+            "module": "manifest_yaml_scanner"
         }
     ]
 }

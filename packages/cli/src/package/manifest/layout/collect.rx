@@ -1,0 +1,24 @@
+<Module>
+    <Type from="scan" as="Scan" />
+    <Type from="project" as="Positions" />
+
+    <Args
+        in={{
+            scanner: Scan.Input,
+            source: u8[]
+        }}
+        out={Positions.Output}
+    />
+
+    <Call fn="scan" in={$in.scanner} />
+
+    <Call
+        fn="project"
+        in={{
+            source: $in.source,
+            fields: $ctx.scan
+        }}
+    />
+
+    <Return value={$ctx.project} />
+</Module>

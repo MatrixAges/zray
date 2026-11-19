@@ -1,0 +1,53 @@
+import {
+    utf8_continuation_start,
+    utf8_two_byte_start,
+    utf8_three_byte_start,
+    utf8_four_byte_start
+} from "./const"
+
+export type Cursor = {
+    character: u64,
+    byte: u64
+}
+
+export type Input = {
+    source: u8[],
+    cursor: Cursor,
+    target: u64
+}
+
+export type Output = Cursor
+
+export default function (in: Input): Output {
+    const { source, cursor, target } = in
+
+    return loop({
+        character: cursor.character,
+        byte: cursor.byte
+    }, {
+        while: current => current.character != target,
+        next: current => {
+            if (current.character < target) {
+                const lead = source[current.byte]
+                const width: u64 = match {
+                    lead < utf8_continuation_start => 1,
+                    lead < utf8_three_byte_start => 2,
+                    lead < utf8_four_byte_start => 3,
+                    _ => 4
+                }
+
+                current.byte += width
+                current.character += 1
+            } else {
+                current.byte = loop(current.byte - 1, {
+                    while: byte =>
+                        source[byte] >= utf8_continuation_start &&
+                        source[byte] < utf8_two_byte_start,
+                    next: byte => { byte -= 1 }
+                })
+
+                current.character -= 1
+            }
+        }
+    })
+}

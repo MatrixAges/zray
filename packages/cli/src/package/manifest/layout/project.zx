@@ -1,0 +1,60 @@
+import bytes from "std:bytes"
+
+import { utf8_bom, utf8_bom_width } from "./const"
+import offset from "./offset"
+
+import type { Field } from "./scan"
+
+export type Input = {
+    source: u8[],
+    fields: Field[]
+}
+
+export type Positioned = {
+    byte_start: u64,
+    byte_end: u64,
+    preserve_trailing: bool
+}
+
+export type Output = Positioned[]
+
+export default function (in: Input): Output {
+    const { source, fields } = in
+
+    const positioned: Positioned[] = []
+    const first = bytes.startsWithText(source, 0, utf8_bom) ? utf8_bom_width : 0
+
+    return loop({
+        index: 0,
+        cursor: {
+            character: 0,
+            byte: first
+        },
+        positioned
+    }, {
+        while: state => state.index < fields.length,
+        next: state => {
+            const field = fields[state.index]
+            const start = offset({
+                source,
+                cursor: state.cursor,
+                target: field.start
+            })
+            const end = offset({
+                source,
+                cursor: start,
+                target: field.end
+            })
+
+            state.positioned = state.positioned.push({
+                byte_start: start.byte,
+                byte_end: end.byte,
+                preserve_trailing: field.preserve_trailing
+            })[0]
+
+            state.cursor = end
+            state.index += 1
+        },
+        return: state => state.positioned
+    })
+}

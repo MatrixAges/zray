@@ -1,0 +1,43 @@
+export const stream_end: i32 = 2
+
+export const block_sequence_start: i32 = 7
+
+export const block_mapping_start: i32 = 8
+
+export const block_end: i32 = 9
+
+export const flow_sequence_start: i32 = 10
+
+export const flow_sequence_end: i32 = 11
+
+export const flow_mapping_start: i32 = 12
+
+export const flow_mapping_end: i32 = 13
+
+export const block_entry: i32 = 14
+
+export const flow_entry: i32 = 15
+
+export const key: i32 = 16
+
+export const value: i32 = 17
+
+export const alias: i32 = 18
+
+export const anchor: i32 = 19
+
+export const tag: i32 = 20
+
+export const scalar: i32 = 21
+
+export const utf8_bom: string = "﻿"
+
+export const utf8_bom_width: u64 = 3
+
+export const utf8_continuation_start: u8 = 128
+
+export const utf8_two_byte_start: u8 = 192
+
+export const utf8_three_byte_start: u8 = 224
+
+export const utf8_four_byte_start: u8 = 240

@@ -1,0 +1,90 @@
+import scanner from "manifest_yaml_scanner"
+
+import { key, scalar, block_mapping_start, stream_end } from "./const"
+import classify from "./token"
+
+import type { Scanner } from "manifest_yaml_scanner"
+import type { Token } from "./token"
+
+export type Input = Scanner
+
+export type Field = {
+    start: u64,
+    end: u64,
+    preserve_trailing: bool
+}
+
+export type Output = Field[]
+
+export default function (in: Input): Output {
+    const fields: Field[] = []
+
+    return loop({
+        depth: 0,
+        root_block: false,
+        pending: false,
+        start: 0,
+        end: 0,
+        preserve_trailing: false,
+        token: scanner.next(in),
+        fields
+    }, {
+        while: state => state.token != stream_end,
+        next: state => {
+            const token = state.token
+            const kind = classify(token)
+            const root_field = state.root_block && state.depth == 1
+            const starts_field = root_field && token == key
+            const closing = kind == Token.BlockClose || kind == Token.FlowClose
+            const material = kind == Token.Material || kind == Token.FlowOpen ||
+                kind == Token.FlowClose
+
+            if (state.pending && material) {
+                state.end = scanner.end(in)
+                state.preserve_trailing = token == scalar && scanner.blockScalar(in)
+            }
+
+            const ends_root = root_field && closing
+
+            const publish = (
+                - state.pending
+                - and (starts_field || ends_root)
+            )
+
+            if (publish) {
+                state.fields = state.fields.push({
+                    start: state.start,
+                    end: state.end,
+                    preserve_trailing: state.preserve_trailing
+                })[0]
+            }
+
+            if (starts_field) {
+                const start = scanner.start(in)
+
+                state.pending = true
+                state.start = start
+                state.end = start
+                state.preserve_trailing = false
+            }
+
+            if (kind == Token.BlockOpen || kind == Token.FlowOpen) {
+                if (state.depth == 0) {
+                    state.root_block = token == block_mapping_start
+                }
+
+                state.depth += 1
+            } else if (closing) {
+                if (root_field) {
+                    state.pending = false
+                    state.root_block = false
+                }
+
+                state.depth -= 1
+            }
+
+            state.token = scanner.next(in)
+        },
+        return: state => state.fields
+    })
+}
