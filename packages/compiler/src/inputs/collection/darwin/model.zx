@@ -1,0 +1,31 @@
+import type { WriteColumn } from "memory"
+
+export type Metadata = {
+    inode: WriteColumn,
+    size: WriteColumn,
+    modified_seconds: WriteColumn,
+    modified_nanos: WriteColumn,
+    changed_seconds: WriteColumn,
+    changed_nanos: WriteColumn
+}
+
+export type Columns = {
+    names: WriteColumn,
+    kinds: WriteColumn,
+    has_metadata: WriteColumn,
+    metadata: Metadata
+}
+
+export type Input = {
+    buffer: u8[],
+    offset: u64,
+    count: u64,
+    little_endian: bool,
+    rows: Columns
+}
+
+export type Record = {
+    bytes: u8[],
+    row: u64,
+    little_endian: bool
+}

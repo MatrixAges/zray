@@ -6,6 +6,7 @@ pub const interfaces = @import("collection/interface.zig");
 pub const catalog = @import("collection/catalog.zig");
 pub const order = @import("collection/order.zig");
 pub const directory = @import("collection/directory.zig");
+pub const darwin_directory = @import("collection/darwin.zig");
 
 pub fn kind(name: []const u8) Kind {
     if (comptime generated) {

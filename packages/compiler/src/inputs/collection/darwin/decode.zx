@@ -1,0 +1,96 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import {
+    common_offset,
+    data_length,
+    directory_kind,
+    directory_type,
+    file_offset,
+    kind_offset,
+    length_offset,
+    link_kind,
+    link_type,
+    metadata_attributes,
+    object_type,
+    regular_kind,
+    regular_type,
+    unknown_kind
+} from "./const"
+import metadata from "./metadata"
+import name from "./name"
+
+import type { Input, Record } from "./model"
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { buffer, count, little_endian, rows } = in
+
+    return loop({
+        row: 0,
+        offset: in.offset,
+        valid: true
+    }, {
+        while: state => state.row < count && state.valid,
+        next: state => {
+            const size = integers.widen(
+                bytes.readU32(
+                    buffer,
+                    state.offset + length_offset,
+                    little_endian
+                )
+            )
+            const record = memory.borrowU8Range(buffer, state.offset, size)
+            const common =
+                integers.widen(bytes.readU32(
+                    record,
+                    common_offset,
+                    little_endian
+                ))
+            const file =
+                integers.widen(bytes.readU32(record, file_offset, little_endian))
+            const entry: Record = {
+                bytes: record,
+                row: state.row,
+                little_endian
+            }
+            const object = integers.andBits(common, object_type)
+            const kind = match object {
+                0 => unknown_kind,
+                _ => match bytes.readU32(record, kind_offset, little_endian) {
+                    regular_type => regular_kind,
+                    directory_type => directory_kind,
+                    link_type => link_kind,
+                    _ => unknown_kind
+                }
+            }
+
+            const complete =
+                integers.andBits(common, metadata_attributes) == metadata_attributes
+            const has_metadata = complete && integers.andBits(file, data_length) != 0
+
+            const entry_name = name(entry)
+
+            if (entry_name != null) {
+                memory.writeColumnBytes(rows.names, state.row, entry_name)
+                memory.writeColumnU8(rows.kinds, state.row, kind)
+                memory.writeColumnBool(rows.has_metadata, state.row, has_metadata)
+
+                if (has_metadata) {
+                    metadata({
+                        ...entry,
+                        target: rows.metadata
+                    })
+                }
+            } else {
+                state.valid = false
+            }
+
+            state.row += 1
+            state.offset += size
+        },
+        return: state => state.valid ? state.offset : null
+    })
+}

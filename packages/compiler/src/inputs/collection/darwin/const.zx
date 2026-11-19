@@ -1,0 +1,63 @@
+export const bitmap_count: u16 = 5
+
+export const buffer_size: u64 = 32 * 1024
+
+export const batch_size: u64 = 16
+
+export const name_attribute: u64 = 1
+
+export const object_type: u64 = 8
+
+export const modified_attribute: u64 = 1024
+
+export const changed_attribute: u64 = 2048
+
+export const inode_attribute: u64 = 33554432
+
+export const returned_attributes: u64 = 2147483648
+
+export const metadata_attributes: u64 =
+    object_type + modified_attribute + changed_attribute + inode_attribute
+
+export const common_request: u64 =
+    returned_attributes + name_attribute + metadata_attributes
+
+export const data_length: u64 = 512
+
+export const length_offset: u64 = 0
+
+export const common_offset: u64 = 4
+
+export const file_offset: u64 = 16
+
+export const name_offset: u64 = 24
+
+export const name_length_offset: u64 = 28
+
+export const kind_offset: u64 = 32
+
+export const modified_seconds_offset: u64 = 36
+
+export const modified_nanos_offset: u64 = 44
+
+export const changed_seconds_offset: u64 = 52
+
+export const changed_nanos_offset: u64 = 60
+
+export const inode_offset: u64 = 68
+
+export const size_offset: u64 = 76
+
+export const regular_type: u32 = 1
+
+export const directory_type: u32 = 2
+
+export const link_type: u32 = 5
+
+export const unknown_kind: u8 = 0
+
+export const regular_kind: u8 = 1
+
+export const directory_kind: u8 = 2
+
+export const link_kind: u8 = 3

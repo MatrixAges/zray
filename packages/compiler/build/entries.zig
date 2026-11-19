@@ -483,6 +483,8 @@ pub const main = [_]Entry{
     .{ .path = "inputs/collection/directory/file.zx", .name = "input_directory_file", .owner = .compiler },
     .{ .path = "inputs/collection/directory/flatten.zx", .name = "input_directory_flatten", .owner = .compiler },
     .{ .path = "inputs/collection/directory/schedule.rx", .name = "input_directory_schedule", .owner = .compiler },
+    .{ .path = "inputs/collection/darwin/const.zx", .name = "input_darwin_constants", .owner = .compiler },
+    .{ .path = "inputs/collection/darwin/decode.zx", .name = "input_darwin_decode", .owner = .compiler },
     .{ .path = "inputs/collection/order.zx", .name = "input_path_order", .owner = .compiler },
     .{ .path = "inputs/collection/order/apply.zx", .name = "input_path_apply", .owner = .compiler },
     .{ .path = "inputs/collection/selection.zx", .name = "input_row_selection", .owner = .compiler },

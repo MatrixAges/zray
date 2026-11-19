@@ -1,0 +1,44 @@
+import memory from "memory"
+
+import {
+    modified_seconds_offset,
+    modified_nanos_offset,
+    changed_seconds_offset,
+    changed_nanos_offset,
+    inode_offset,
+    size_offset
+} from "./const"
+
+import type { Metadata, Record } from "./model"
+
+export type Input = Record & {
+    target: Metadata
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { bytes: record, row, little_endian, target } = in
+
+    const inode = memory.readU64Bytes(record, inode_offset, little_endian)
+    const size = memory.readU64Bytes(record, size_offset, little_endian)
+
+    const modified_seconds =
+        memory.readU64Bytes(record, modified_seconds_offset, little_endian)
+
+    const modified_nanos =
+        memory.readU64Bytes(record, modified_nanos_offset, little_endian)
+
+    const changed_seconds =
+        memory.readU64Bytes(record, changed_seconds_offset, little_endian)
+
+    const changed_nanos =
+        memory.readU64Bytes(record, changed_nanos_offset, little_endian)
+
+    memory.writeColumnU64(target.inode, row, inode)
+    memory.writeColumnU64(target.size, row, size)
+    memory.writeColumnU64(target.modified_seconds, row, modified_seconds)
+    memory.writeColumnU64(target.modified_nanos, row, modified_nanos)
+    memory.writeColumnU64(target.changed_seconds, row, changed_seconds)
+    memory.writeColumnU64(target.changed_nanos, row, changed_nanos)
+}

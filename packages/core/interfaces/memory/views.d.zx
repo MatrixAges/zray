@@ -111,6 +111,12 @@ export declare function borrowU8Range(
     count: u64
 ): u8[] throws { IndexOutOfBounds } concurrent
 
+export declare function readU64Bytes(
+    source: u8[],
+    offset: u64,
+    little_endian: bool
+): u64 throws { IndexOutOfBounds } concurrent
+
 export declare function writeColumnU8(
     target: WriteColumn,
     index: u64,

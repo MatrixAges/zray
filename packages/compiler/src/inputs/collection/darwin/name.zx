@@ -1,0 +1,26 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import memory from "memory"
+
+import { name_offset, name_length_offset } from "./const"
+
+import type { Record as Input } from "./model"
+
+export type Output = u8[]?
+
+export default function (in: Input): Output {
+    const offset =
+        integers.widen(bytes.readU32(in.bytes, name_offset, in.little_endian))
+
+    const length = integers.widen(
+        bytes.readU32(in.bytes, name_length_offset, in.little_endian)
+    )
+
+    if (length == 0) {
+        return null
+    }
+
+    const raw = memory.borrowU8Range(in.bytes, name_offset + offset, length)
+
+    return memory.borrowU8Range(raw, 0, length - 1)
+}
