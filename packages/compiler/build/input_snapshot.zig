@@ -6,8 +6,6 @@ const manifest = @import("generation_manifest.zig");
 const Files = @import("resident/files.zig");
 const Self = @This();
 const name = "input-snapshots";
-const checksum_length = std.crypto.hash.Blake3.digest_length * 2;
-const maximum_snapshot_bytes = 8 << 20;
 const Root = struct { path: []const u8, entries: []const collection.Entry };
 const Fact = source.Observation;
 
@@ -15,11 +13,10 @@ roots: []const Root,
 facts: []const Fact,
 context: []const u8,
 path: []const u8,
-previous: ?*const source.Snapshot,
-stored_checksum: []const u8 = "",
-actual_checksum: []const u8 = "",
+
+fingerprint: ?[32]u8 = null,
 /// Platform observations only: RX/ZX decides whether the previous snapshot vouches for these files.
-pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, files: *Files, digest: [32]u8, project: manifest.Project, text: []const u8, partitions: u32, cache: []const u8) !?Self {
+pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocator, files: *Files, digest: [32]u8, project: manifest.Project, text: []const u8, partitions: u32, cache: []const u8) !Self {
     const roots = try allocator.alloc(Root, project.roots.len);
     var facts: std.ArrayList(Fact) = .empty;
 
@@ -43,7 +40,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
 
         else found: {
             const path = try std.fs.path.resolve(allocator, &.{interface.path});
-            const stat = std.Io.Dir.cwd().statFile(io, interface.path, .{}) catch return .{ .roots = roots, .facts = &.{}, .context = "", .path = "", .previous = null };
+            const stat = std.Io.Dir.cwd().statFile(io, interface.path, .{}) catch return .{ .roots = roots, .facts = &.{}, .context = "", .path = "" };
 
             break :found Fact.init(path, path, Files.metadata(stat));
         };
@@ -57,58 +54,39 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
     const identity = compiler.input_fingerprint.snapshot(&digest, partitions, here, text);
     const context = try allocator.dupe(u8, &std.fmt.bytesToHex(identity, .lower));
     const path = try std.fs.path.join(allocator, &.{ cache, name, context });
-    var stored_checksum: []const u8 = "";
-    var actual_checksum: []const u8 = "";
+    const fingerprint = try reuseSaved(io, files.gpa, path, context, facts.items);
 
-    const previous: ?*const source.Snapshot = previous: {
-        const recorded = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(maximum_snapshot_bytes)) catch break :previous null;
-
-        if (recorded.len < checksum_length) break :previous null;
-
-        const payload = recorded[checksum_length..];
-        var checksum: [std.crypto.hash.Blake3.digest_length]u8 = undefined;
-
-        std.crypto.hash.Blake3.hash(payload, &checksum, .{});
-
-        const encoded = std.fmt.bytesToHex(checksum, .lower);
-
-        if (!compiler.bytes.equal(recorded[0..checksum_length], &encoded)) break :previous null;
-
-        const value = std.json.parseFromSliceLeaky(source.Snapshot, allocator, payload, .{}) catch break :previous null;
-        const owned = try allocator.create(source.Snapshot);
-        owned.* = value;
-        stored_checksum = recorded[0..checksum_length];
-        actual_checksum = stored_checksum;
-
-        break :previous owned;
-    };
-
-    return .{ .roots = roots, .facts = facts.items, .context = context, .path = path, .previous = previous, .stored_checksum = stored_checksum, .actual_checksum = actual_checksum };
+    return .{ .roots = roots, .facts = facts.items, .context = context, .path = path, .fingerprint = fingerprint };
 }
 
-pub fn current(self: Self, io: std.Io, allocator: std.mem.Allocator) !?[32]u8 {
-    const previous = self.previous orelse return null;
+fn reuseSaved(io: std.Io, workspace: std.mem.Allocator, path: []const u8, context: []const u8, facts: []const Fact) !?[32]u8 {
+    var scratch = std.heap.ArenaAllocator.init(workspace);
+
+    defer scratch.deinit();
+
+    const allocator = scratch.allocator();
+    const recorded = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(source.storage_limit)) catch return null;
+    const payload = try source.open(allocator, recorded) orelse return null;
+    const previous = std.json.parseFromSliceLeaky(source.Snapshot, allocator, payload, .{}) catch return null;
     const now = source.timestamp(std.Io.Timestamp.now(io, .real).nanoseconds);
 
     if (comptime source.observed_reuse) {
-        if (!source.reuseObserved(self.facts, .{
-            .context = self.context,
-            .previous = previous,
+        if (!source.reuseObserved(facts, .{
+            .context = context,
+            .previous = &previous,
             .now = now,
-            .stored_checksum = self.stored_checksum,
-            .actual_checksum = self.actual_checksum,
         })) return null;
     } else {
-        const observed = try columns(allocator, self.facts, null);
+        const observed = (try columns(allocator, facts, null)).?;
 
         if (!try source.reuse(allocator, .{
-            .context = self.context,
+            .context = context,
             .current = &observed,
-            .previous = previous,
+            .previous = &previous,
             .now_high = now.high,
             .now_low = now.low,
-            .stored_checksum = self.stored_checksum,
-            .actual_checksum = self.actual_checksum,
+            .stored_checksum = "",
+            .actual_checksum = "",
         })) return null;
     }
 
@@ -123,30 +101,28 @@ pub fn load(self: Self, io: std.Io, allocator: std.mem.Allocator, files: *Files,
     for (self.roots) |root| try collection.load(io, allocator, files, root.path, root.entries, sources, modules, templates);
 }
 
-pub fn save(self: Self, io: std.Io, allocator: std.mem.Allocator, files: *const Files, fingerprint: [32]u8) !void {
+pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !void {
     if (self.facts.len == 0) return;
-    for (self.facts) |fact| if (files.version(fact.key) == null) return;
 
-    const contents = try columns(allocator, self.facts, files);
+    var scratch = std.heap.ArenaAllocator.init(files.gpa);
+
+    defer scratch.deinit();
+
+    const allocator = scratch.allocator();
+    const contents = try columns(allocator, self.facts, files) orelse return;
     const snapshot: source.Snapshot = .{ .context = self.context, .fingerprint = &std.fmt.bytesToHex(fingerprint, .lower), .files = &contents };
     const bytes = try std.json.Stringify.valueAlloc(allocator, snapshot, .{});
-
-    if (bytes.len > maximum_snapshot_bytes - checksum_length) return;
-
-    var checksum: [std.crypto.hash.Blake3.digest_length]u8 = undefined;
-
-    std.crypto.hash.Blake3.hash(bytes, &checksum, .{});
-
+    const checksum = source.seal(bytes) orelse return;
     var file = try std.Io.Dir.cwd().createFileAtomic(io, self.path, .{ .make_path = true, .replace = true });
 
     defer file.deinit(io);
 
-    try file.file.writeStreamingAll(io, &std.fmt.bytesToHex(checksum, .lower));
+    try file.file.writeStreamingAll(io, &checksum);
     try file.file.writeStreamingAll(io, bytes);
     try file.replace(io);
 }
 
-fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Files) !source.Files {
+fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Files) !?source.Files {
     var result: source.Files = undefined;
 
     inline for (@typeInfo(source.Files).@"struct".field_names) |field| {
@@ -156,7 +132,7 @@ fn columns(allocator: std.mem.Allocator, facts: []const Fact, files: ?*const Fil
     }
 
     for (facts, 0..) |fact, index| {
-        const version = if (files) |cache| cache.version(fact.key) else null;
+        const version = if (files) |cache| cache.version(fact.key) orelse return null else null;
         const selected = if (version) |value| Fact.init(fact.path, fact.key, value.metadata) else fact;
 
         @constCast(result.paths)[index] = selected.path;

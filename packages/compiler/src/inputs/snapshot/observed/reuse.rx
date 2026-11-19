@@ -4,16 +4,14 @@
     <Args in={Snapshot.Input} out={bool} />
 
     <Call
-        fn="../context"
+        fn="../identity"
         in={$in.pick([
             "context",
-            "previous",
-            "stored_checksum",
-            "actual_checksum"
+            "previous"
         ])}
     />
 
-    <If on={!$ctx.context}>
+    <If on={!$ctx.identity}>
         <Return value={false} />
     </If>
 

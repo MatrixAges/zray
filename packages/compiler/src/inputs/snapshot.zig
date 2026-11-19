@@ -5,7 +5,11 @@ pub const Input = std.meta.Child(generated.Input);
 pub const Files = std.meta.Child(@FieldType(Input, "current"));
 pub const Snapshot = std.meta.Child(@FieldType(Input, "previous"));
 const source = @import("parser_options").generated_parser;
+const envelope_seed = @import("snapshot/envelope_seed.zig");
 pub const observed_reuse = source;
+pub const storage_limit: usize = if (source) @import("generated_input_snapshot_constants").@"zx.constants".snapshot_limit else envelope_seed.limit;
+const Hash = std.crypto.hash.Blake3;
+const Tag = [Hash.digest_length * 2]u8;
 pub const Time = struct { high: i32, low: u64 };
 pub const Metadata = struct { inode: std.Io.File.INode, size: u64, mtime: i96, ctime: i96 };
 
@@ -39,9 +43,45 @@ pub const ObservationQuery = struct {
     context: []const u8,
     previous: *const Snapshot,
     now: Time,
-    stored_checksum: []const u8,
-    actual_checksum: []const u8,
 };
+
+pub fn open(allocator: std.mem.Allocator, bytes: []const u8) std.mem.Allocator.Error!?[]const u8 {
+    if (comptime !source) return envelope_seed.open(bytes, checksum);
+
+    const split = @import("generated_input_snapshot_split");
+    const accept = @import("generated_input_snapshot_accept");
+    const frame = split.executeValue(allocator, bytes) catch |err| return envelopeFailure(err);
+
+    if (!frame.valid) return null;
+
+    const tag = checksum(frame.payload);
+    const input: std.meta.Child(accept.Input) = .{ .stored = frame.checksum, .actual = &tag };
+    const valid = zx.columns.invoke(accept.executeValue, allocator, &input) catch |err| return envelopeFailure(err);
+
+    return if (valid) frame.payload else null;
+}
+
+pub fn seal(payload: []const u8) ?Tag {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const allowed = if (comptime source) @import("generated_input_snapshot_fits").executeValue(empty.allocator(), payload.len) catch unreachable else envelope_seed.fits(payload.len);
+
+    return if (allowed) checksum(payload) else null;
+}
+
+fn checksum(payload: []const u8) Tag {
+    var digest: [Hash.digest_length]u8 = undefined;
+
+    Hash.hash(payload, &digest, .{});
+
+    return std.fmt.bytesToHex(digest, .lower);
+}
+
+fn envelopeFailure(err: anyerror) std.mem.Allocator.Error {
+    return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        else => unreachable,
+    };
+}
 
 pub fn timestamp(value: i96) Time {
     const bits: u96 = @bitCast(value);
@@ -101,8 +141,6 @@ pub fn reuseObserved(observations: []const Observation, query: ObservationQuery)
         .context = query.context,
         .previous = query.previous,
         .now = &.{ .high = query.now.high, .low = query.now.low },
-        .stored_checksum = query.stored_checksum,
-        .actual_checksum = query.actual_checksum,
         .observed = &.{
             .paths = @ptrCast(&paths),
             .inodes = @ptrCast(&inodes),

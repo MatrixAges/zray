@@ -16,9 +16,12 @@ export type Snapshot = {
     files: Files
 }
 
-export type Context = {
+export type Identity = {
     context: string,
-    previous: Snapshot,
+    previous: Snapshot
+}
+
+export type Context = Identity & {
     stored_checksum: string,
     actual_checksum: string
 }

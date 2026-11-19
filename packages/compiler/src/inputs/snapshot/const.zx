@@ -1,3 +1,5 @@
 export const timestamp_fence: u64 = 1000000000
 
 export const fingerprint_width: u64 = 64
+
+export const snapshot_limit: u64 = 8388608

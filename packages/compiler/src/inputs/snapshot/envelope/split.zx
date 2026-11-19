@@ -1,0 +1,34 @@
+import memory from "memory"
+
+import { fingerprint_width, snapshot_limit } from "../const"
+
+export type Input = u8[]
+
+export type Frame = {
+    checksum: u8[],
+    payload: u8[],
+    valid: bool
+}
+
+export type Output = Frame
+
+export default function (in: Input): Output {
+    if (in.length < fingerprint_width || in.length > snapshot_limit) {
+        return {
+            checksum: [],
+            payload: [],
+            valid: false
+        }
+    }
+
+    return {
+        checksum: memory.borrowU8Range(in, 0, fingerprint_width),
+        payload:
+            memory.borrowU8Range(
+                in,
+                fingerprint_width,
+                in.length - fingerprint_width
+            ),
+        valid: true
+    }
+}

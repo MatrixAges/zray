@@ -62,7 +62,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     const owned = resident.inputAllocator(allocator);
     const snapshot = if (request.write) try InputSnapshot.prepare(io, allocator, owned, &resident.files, resident.digest, project, manifest_source, partitions, request.cache) else null;
 
-    if (snapshot) |prepared| if (try prepared.current(io, allocator)) |digest| {
+    if (snapshot) |prepared| if (prepared.fingerprint) |digest| {
         if (try current(io, allocator, output, digest)) return "";
     };
 
@@ -140,7 +140,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
     // An output directory reused across runs already holds the result when nothing it depends on changed.
     if (request.write and interface_error == null and try current(io, allocator, output, inputs_digest)) {
-        if (snapshot) |prepared| prepared.save(io, allocator, &resident.files, inputs_digest) catch |err| switch (err) {
+        if (snapshot) |prepared| prepared.save(io, &resident.files, inputs_digest) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => {},
         };
@@ -182,7 +182,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     if (request.write) {
         try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = recorded, .data = &std.fmt.bytesToHex(inputs_digest, .lower) });
 
-        if (snapshot) |prepared| prepared.save(io, allocator, &resident.files, inputs_digest) catch |err| switch (err) {
+        if (snapshot) |prepared| prepared.save(io, &resident.files, inputs_digest) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => {},
         };
