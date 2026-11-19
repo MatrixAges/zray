@@ -15,34 +15,9 @@
         <Return value={false} />
     </If>
 
-    <Call
-        module="../../analysis/semantic/origins"
-        in={{
-            table: $in.program.context.table,
-            origins: $in.origins,
-            names: $in.origin_names
-        }}
-    />
+    <Call module="validation/surface" in={$in} />
 
-    <If on={!$ctx.origins}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="validation/nominal" in={$in} />
-
-    <If on={!$ctx.nominal}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="validation/initializers" in={$in} />
-
-    <If on={!$ctx.initializers}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="validation/exports" in={$in} />
-
-    <If on={!$ctx.exports}>
+    <If on={!$ctx.surface}>
         <Return value={false} />
     </If>
 
@@ -53,9 +28,5 @@
         }}
     />
 
-    <If on={!$ctx.stores}>
-        <Return value={false} />
-    </If>
-
-    <Return value={true} />
+    <Return value={$ctx.stores} />
 </Module>

@@ -3,18 +3,32 @@ const Types = @import("../link/types.zig");
 const ir = @import("zx").ir;
 const model = @import("../compiled.zig");
 pub const Error = std.mem.Allocator.Error || error{InvalidLibrary};
+const LinkError = Error || error{ InvalidIr, ConflictingStore };
 
 pub fn validate(allocator: std.mem.Allocator, library: model.Graph) Error!void {
+    return check(allocator, library, false);
+}
+
+pub fn validateLinked(allocator: std.mem.Allocator, library: model.Graph) LinkError!void {
+    return check(allocator, library, true);
+}
+
+fn check(allocator: std.mem.Allocator, library: model.Graph, comptime linked: bool) (if (linked) LinkError else Error)!void {
     const program = library.program;
-
-    try validateHeader(&program, library.exports.len);
-    if (try @import("../../ir/validate.zig").validate(allocator, program) != null) return error.InvalidLibrary;
-
     var temporary = std.heap.ArenaAllocator.init(allocator);
 
     defer temporary.deinit();
 
     const scratch = temporary.allocator();
+
+    if (linked) {
+        try validateStores(allocator, program.functions.stores);
+        if (try @import("../../ir/validate.zig").validate(allocator, program) != null) return error.InvalidIr;
+        try validateHeader(&program, library.exports.len);
+    } else {
+        try validateHeader(&program, library.exports.len);
+        if (try @import("../../ir/validate.zig").validate(allocator, program) != null) return error.InvalidLibrary;
+    }
 
     var types = Types.init(scratch) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
@@ -99,18 +113,24 @@ pub fn validate(allocator: std.mem.Allocator, library: model.Graph) Error!void {
         }
     }
 
-    var stores: std.StringHashMapUnmanaged(ir.TypeId) = .empty;
+    if (!linked) validateStores(scratch, program.functions.stores) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.ConflictingStore => return error.InvalidLibrary,
+    };
+}
 
-    for (0..program.functions.count()) |function_row| {
-        const function = program.functions.at(function_row);
+fn validateStores(allocator: std.mem.Allocator, tables: []const *const ir.StoreTable) (std.mem.Allocator.Error || error{ConflictingStore})!void {
+    var seen: std.StringHashMapUnmanaged(u32) = .empty;
 
-        for (0..function.stores.count()) |store_index| {
-            const slot = function.stores.at(store_index);
-            const entry = try stores.getOrPut(scratch, slot.path);
+    defer seen.deinit(allocator);
 
-            if (entry.found_existing and entry.value_ptr.* != slot.type_id) return error.InvalidLibrary;
+    for (tables) |table| {
+        for (table.paths, table.types) |path, type_id| {
+            const entry = try seen.getOrPut(allocator, path);
 
-            entry.value_ptr.* = slot.type_id;
+            if (entry.found_existing and entry.value_ptr.* != type_id) return error.ConflictingStore;
+
+            entry.value_ptr.* = type_id;
         }
     }
 }

@@ -21,8 +21,7 @@
         fn="identity/valid"
         in={$in.pick([
             "instance",
-            "artifact",
-            "load"
+            "artifact"
         ])}
     />
 
@@ -36,12 +35,6 @@
 
     <If on={!$ctx.validate}>
         <Call fn="empty" in={1} />
-
-        <Return value={$ctx.empty} />
-    </If>
-
-    <If on={!$in.load}>
-        <Call fn="empty" in={0} />
 
         <Return value={$ctx.empty} />
     </If>

@@ -1,0 +1,34 @@
+<Module>
+    <Type from="../model" as="Model" />
+
+    <Args in={Model.Graph} out={bool} />
+
+    <Call
+        module="../../../analysis/semantic/origins"
+        in={{
+            table: $in.program.context.table,
+            origins: $in.origins,
+            names: $in.origin_names
+        }}
+    />
+
+    <If on={!$ctx.origins}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="nominal" in={$in} />
+
+    <If on={!$ctx.nominal}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="initializers" in={$in} />
+
+    <If on={!$ctx.initializers}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="exports" in={$in} />
+
+    <Return value={$ctx.exports} />
+</Module>

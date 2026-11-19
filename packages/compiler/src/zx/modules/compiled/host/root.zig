@@ -5,23 +5,6 @@ const Destination = load_model.Destination;
 const generated = @import("generated_compiled_library");
 const Input = @import("input.zig");
 
-pub fn validate(allocator: std.mem.Allocator, graph: model.Graph) (std.mem.Allocator.Error || error{InvalidLibrary})!void {
-    var arena = std.heap.ArenaAllocator.init(allocator);
-
-    defer arena.deinit();
-
-    var input: Input = undefined;
-
-    try input.init(arena.allocator(), &graph, "", "", null, false, null);
-
-    const result = generated.execute(&arena, &input.input) catch |err| switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => return error.InvalidLibrary,
-    };
-
-    if (result.status != 0) return error.InvalidLibrary;
-}
-
 pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options, call_scratch: ?load_model.CallScratch) !model.Loaded {
     var types = try @import("../../../analysis/type_table.zig").storage(allocator, options.types);
     var origins = try @import("../../nominal_origins.zig").copy(allocator, options.nominal_types);

@@ -1,0 +1,15 @@
+import type { U8Buffer } from "memory"
+import type { Graph } from "../../model"
+
+export type Input = {
+    graph: Graph,
+    ir_started: U8Buffer,
+    surface_started: U8Buffer
+}
+
+export enum Status {
+    Valid,
+    ConflictingStore,
+    InvalidIr,
+    InvalidLibrary
+}

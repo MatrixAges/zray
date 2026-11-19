@@ -49,8 +49,8 @@ pub const View = struct {
             @field(self.targets, name) = &rows.view;
         }
 
-        self.exports_view = zx.columns.view(@TypeOf(self.exports_view), input.exports.input);
-        self.initializers_view = zx.columns.view(@TypeOf(self.initializers_view), input.initializers.input);
+        self.exports_view = zx.columns.view(@TypeOf(self.exports_view), input.graph.exports.input);
+        self.initializers_view = zx.columns.view(@TypeOf(self.initializers_view), input.graph.initializers.input);
 
         if (plan.selection) |value| self.selection = zx.columns.view(@TypeOf(self.selection), value);
 

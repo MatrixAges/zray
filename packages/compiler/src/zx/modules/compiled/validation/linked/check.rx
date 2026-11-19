@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Linked" />
+
+    <Args in={Linked.Input} out={Linked.Status} />
+
+    <Call
+        fn="../stores"
+        in={{
+            tables: $in.graph.program.context.functions.stores
+        }}
+    />
+
+    <If on={!$ctx.stores}>
+        <Return value={Linked.Status.ConflictingStore} />
+    </If>
+
+    <Call fn="started" in={$in.ir_started} />
+
+    <Call module="../../../../ir/canonical/validation/validate" in={$in.graph.program} />
+
+    <If on={!$ctx.validate}>
+        <Return value={Linked.Status.InvalidIr} />
+    </If>
+
+    <Call fn="started" in={$in.surface_started} />
+    <Call fn="../header" in={$in.graph} />
+
+    <If on={!$ctx.header}>
+        <Return value={Linked.Status.InvalidLibrary} />
+    </If>
+
+    <Call module="../surface" in={$in.graph} />
+
+    <If on={!$ctx.surface}>
+        <Return value={Linked.Status.InvalidLibrary} />
+    </If>
+
+    <Return value={Linked.Status.Valid} />
+</Module>

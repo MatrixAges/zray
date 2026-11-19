@@ -12,33 +12,25 @@ const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Selection = std.meta.Child(@typeInfo(@FieldType(Input, "selection")).optional.child);
 const Self = @This();
 
-program: @import("../../../ir/canonical/validation/input.zig").Storage(std.meta.Child(@FieldType(Graph, "program"))),
-origins: std.meta.Child(@FieldType(Graph, "origins")),
-exports: @import("input/exports.zig").View(std.meta.Child(@FieldType(Graph, "exports"))),
-initializers: @import("input/initializers.zig").View(std.meta.Child(@FieldType(Graph, "initializers"))),
+graph: @import("graph.zig").View(Graph),
 types: std.meta.Child(@FieldType(Destination, "types")),
 base_origins: std.meta.Child(@FieldType(Destination, "origins")),
 natives: std.meta.Child(@FieldType(Destination, "natives")),
-graph: Graph,
 destination: Destination,
 selection: Selection,
 selection_names: memory.TextColumn,
 selection_modules: memory.TextColumn,
 type_ids: []u32,
 input: Input,
-pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: ?load.Destination, seed: bool, selected: ?[]const model.PublicReference) std.mem.Allocator.Error!void {
-    self.program.init(allocator, &graph.program, .{});
+pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph, instance: []const u8, artifact: []const u8, destination: load.Destination, seed: bool, selected: ?[]const model.PublicReference) std.mem.Allocator.Error!void {
+    self.graph.init(allocator, graph);
 
-    self.origins = Origins.Table.borrow(@TypeOf(self.origins), graph.nominal_types);
+    const origins = destination.origins.items.view();
 
-    self.exports.init(graph.exports);
-    self.initializers.init(graph.store_initializers);
-
-    self.types = ir.TypeTable.borrow(@TypeOf(self.types), if (destination) |target| target.types.view() else .{});
-    self.base_origins = Origins.Table.borrow(@TypeOf(self.base_origins), if (destination) |target| target.origins.items.view() else .{});
-    self.natives = borrow.columns(@TypeOf(self.natives), if (destination) |target| target.native_modules.view() else @as(ir.NativeModuleTable, .{}));
-    self.graph = .{ .program = &self.program.input, .origins = &self.origins, .origin_names = graph.nominal_types.names, .exports = &self.exports.input, .initializers = &self.initializers.input };
-    self.destination = .{ .types = &self.types, .origins = &self.base_origins, .origin_names = if (destination) |target| target.origins.items.view().names else &.{}, .natives = &self.natives, .function_count = if (destination) |target| target.functions.count() else 0 };
+    self.types = ir.TypeTable.borrow(@TypeOf(self.types), destination.types.view());
+    self.base_origins = Origins.Table.borrow(@TypeOf(self.base_origins), origins);
+    self.natives = borrow.columns(@TypeOf(self.natives), destination.native_modules.view());
+    self.destination = .{ .types = &self.types, .origins = &self.base_origins, .origin_names = origins.names, .natives = &self.natives, .function_count = destination.functions.count() };
 
     if (selected) |values| {
         self.selection_names = memory.borrowTextColumn("name", values);
@@ -51,15 +43,14 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, graph: *const model.Graph
         };
     }
 
-    self.type_ids = if (destination != null) try allocator.alloc(u32, graph.program.types.count()) else &.{};
+    self.type_ids = try allocator.alloc(u32, graph.program.types.count());
 
     @memset(self.type_ids, 0);
 
     self.input = .{
-        .graph = &self.graph,
+        .graph = &self.graph.input,
         .instance = instance,
         .artifact = artifact,
-        .load = destination != null,
         .seed = seed,
         .destination = &self.destination,
         .type_ids = self.type_ids,

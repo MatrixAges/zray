@@ -72,7 +72,6 @@ export type Input = {
     graph: Graph,
     instance: string,
     artifact: string,
-    load: bool,
     seed: bool,
     destination: Destination,
     type_ids: u32[],

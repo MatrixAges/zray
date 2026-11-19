@@ -59,10 +59,6 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
         try @import("publication/host.zig").publish(owned, exports, row, input, function_id, &nodes);
     }
 
-    const linked_functions = functions.view();
-
-    try @import("stores.zig").validate(allocator, linked_functions.stores);
-
     const program = ir.Program{
         .file_name = "library",
         .types = types.items.view(),
@@ -71,16 +67,14 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
         .symbols = .{},
         .expressions = .{},
         .body = .{},
-        .functions = linked_functions,
+        .functions = functions.view(),
         .native_modules = native_modules.view(),
         .type_only = true,
     };
 
-    if (try frontend.validateIr(scratch, program) != null) return error.InvalidIr;
-
     const result = model.Result{ .arena = arena, .program = program, .exports = exports, .nominal_types = types.origins.items.view(), .store_initializers = initializers.registry.rows.items };
 
-    try @import("validate.zig").validate(scratch, &result);
+    try @import("validate.zig").validateLinked(allocator, &result);
 
     return result;
 }

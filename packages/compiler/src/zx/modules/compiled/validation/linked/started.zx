@@ -1,0 +1,11 @@
+import memory from "memory"
+
+import type { U8Buffer } from "memory"
+
+export type Input = U8Buffer
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU8(in, 0, 1)
+}
