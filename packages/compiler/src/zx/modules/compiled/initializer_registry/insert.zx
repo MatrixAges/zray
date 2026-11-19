@@ -1,0 +1,24 @@
+import { load_numerator, load_denominator } from "core/bytes/index/const"
+
+import append from "./append"
+
+import type { Entry } from "./append"
+import type { Cursor, Storage } from "./model"
+
+export type Input = Entry & {
+    registry: Storage
+}
+
+export type Output = Cursor
+
+export default function (in: Input): Output {
+    const { registry } = in
+
+    return append({
+        ...in,
+        count: registry.count,
+        space: registry.space,
+        capacity: registry.capacity,
+        limit: registry.capacity * load_numerator / load_denominator
+    })
+}

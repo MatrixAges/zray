@@ -11,13 +11,14 @@ import select from "./select"
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { source, published, buckets, range } = in
+    const { source, registry, range } = in
+    const { published, buckets } = registry
 
     return loop({
-        count: in.count,
-        space: in.space,
-        capacity: in.capacity,
-        limit: in.capacity * load_numerator / load_denominator,
+        count: registry.count,
+        space: registry.space,
+        capacity: registry.capacity,
+        limit: registry.capacity * load_numerator / load_denominator,
         next: 0,
         status: Status.Done
     }, {
@@ -39,14 +40,15 @@ export default function (in: Input): Output {
 
             if (selected.action == Action.Append) {
                 const cursor = append({
-                    registry: in,
+                    registry,
                     count: state.count,
                     space: state.space,
                     capacity: state.capacity,
                     limit: state.limit,
                     identity,
                     version,
-                    selected
+                    slot: selected.slot,
+                    function: selected.function
                 })
 
                 state.count = cursor.count

@@ -1,0 +1,73 @@
+<Module>
+    <Type from="model" as="Initializer" />
+    <Type from="../../../analysis/semantic/merging/model" as="Types" />
+
+    <Args in={Initializer.Input} out={Initializer.Plan} />
+
+    <Call
+        fn="../../../../backends/zig/store_initializers/validation/eligible"
+        in={$in.eligibility}
+    />
+
+    <If on={$ctx.eligible}>
+        <Call
+            module="../../../../backends/zig/store_initializers/validation/validate"
+            in={$in.program}
+        />
+
+        <If on={$ctx.validate}>
+            <Call
+                fn="../../compiled/validation/linked/started"
+                in={$in.registration_started}
+            />
+
+            <Call module="../../../analysis/semantic/merging/register" in={$in.types} />
+
+            <Switch on={$ctx.register}>
+                <Case value={Types.Status.Ready}>
+                    <Call fn="select" in={$in.registry} />
+
+                    <Return value={$ctx.select} />
+                </Case>
+
+                <Case value={Types.Status.MissingOrigin}>
+                    <Return
+                        value={{
+                            status: Initializer.Status.MissingOrigin,
+                            function: 0,
+                            slot: 0
+                        }}
+                    />
+                </Case>
+
+                <Case value={Types.Status.Conflict}>
+                    <Return
+                        value={{
+                            status: Initializer.Status.ConflictingType,
+                            function: 0,
+                            slot: 0
+                        }}
+                    />
+                </Case>
+
+                <Default>
+                    <Return
+                        value={{
+                            status: Initializer.Status.Invalid,
+                            function: 0,
+                            slot: 0
+                        }}
+                    />
+                </Default>
+            </Switch>
+        </If>
+    </If>
+
+    <Return
+        value={{
+            status: Initializer.Status.InvalidInitializer,
+            function: 0,
+            slot: 0
+        }}
+    />
+</Module>

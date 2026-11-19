@@ -7,12 +7,22 @@ const Error = @import("../../model.zig").Error;
 const columns = @import("columns.zig");
 const batch = @import("generated_source_function_batch");
 const root = @import("generated_source_function_root");
+const initializer = @import("generated_source_initializer_publish");
 const stack_depth_slots = 2048 / @sizeOf(u32);
 
 pub fn appendRoot(nodes: *const Nodes, storage: *ir.FunctionStorage, source: anytype, temporary: std.mem.Allocator) Error!void {
     try storage.reserve(nodes.allocator, 1);
 
-    return publish(root, nodes, storage, source, 1, temporary);
+    return publish(root, nodes, storage, source, 1, temporary, {});
+}
+
+const InitializerInput = std.meta.Child(initializer.Input);
+pub const InitializerRegistration = std.meta.Child(@FieldType(InitializerInput, "registry"));
+
+pub fn appendInitializer(nodes: *const Nodes, storage: *ir.FunctionStorage, source: *const ir.Program, temporary: std.mem.Allocator, registration: *const InitializerRegistration) Error!void {
+    try storage.reserve(nodes.allocator, 1);
+
+    return publish(initializer, nodes, storage, source, 1, temporary, registration);
 }
 
 pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.FunctionTable, temporary: std.mem.Allocator) Error!void {
@@ -29,22 +39,30 @@ pub fn appendReserved(nodes: *const Nodes, storage: *ir.FunctionStorage, source:
 
     if (count == 0) return;
 
-    return publish(batch, nodes, storage, source, count, temporary);
+    return publish(batch, nodes, storage, source, count, temporary, {});
 }
 
-fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStorage, source: anytype, count: usize, temporary: std.mem.Allocator) Error!void {
-    const Input = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStorage, source: anytype, count: usize, temporary: std.mem.Allocator, registration: if (entry == initializer) *const InitializerRegistration else void) Error!void {
+    const single = entry != batch;
+    const State = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+
+    const Input = if (entry == initializer)
+        @FieldType(State, "body")
+    else
+        State;
+
     const Columns = @FieldType(Input, "target");
     const Mappings = std.meta.Child(@FieldType(Input, "mappings"));
     const Mapping = std.meta.Child(@FieldType(Mappings, "types"));
     const Empty = std.meta.Child(@FieldType(Input, "empty"));
     const Workspace = std.meta.Child(@FieldType(Input, "workspace"));
     const Source = @FieldType(Input, "source");
-    const Root = if (entry == root) std.meta.Child(Source) else void;
-    const External = if (entry == root) std.meta.Child(@typeInfo(@FieldType(Root, "external")).optional.child) else void;
+    const Root = if (single) std.meta.Child(Source) else void;
+    const External = if (single) std.meta.Child(@typeInfo(@FieldType(Root, "external")).optional.child) else void;
     var external: External = undefined;
-    var attributes: if (entry == root) std.meta.Child(@FieldType(Root, "attributes")) else void = undefined;
-    const descriptor = if (entry == root) borrowRoot(Root, source, &external, &attributes) else {};
+    var attributes: if (single) std.meta.Child(@FieldType(Root, "attributes")) else void = undefined;
+    const identity = if (entry == initializer) registration.identity else null;
+    const descriptor = if (single) borrowRoot(Root, source, &external, &attributes, identity) else {};
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
     const length_slots = zx.memory.borrowColumnLengths(storage);
@@ -59,7 +77,7 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     defer scratch.deinit();
 
     const input: Input = .{
-        .source = if (entry == root) &descriptor else columns.borrow(Source, source, false),
+        .source = if (single) &descriptor else columns.borrow(Source, source, false),
         .target = target,
         .mappings = &.{ .types = &types, .functions = &functions, .natives = &natives },
         .empty = &.{
@@ -72,7 +90,13 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
         .lengths = @ptrCast(&lengths),
     };
 
-    const output = entry.executeState(nodes.allocator, input) catch |err| switch (@as(anyerror, err)) {
+    const result = if (entry == initializer)
+        entry.executeState(nodes.allocator, .{ .body = input, .registry = registration })
+
+    else
+        entry.executeState(nodes.allocator, input);
+
+    const output = result catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
@@ -86,7 +110,7 @@ fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStora
     std.debug.assert(completed[0] == count);
 }
 
-fn borrowRoot(comptime Root: type, source: anytype, external: anytype, attributes: anytype) Root {
+fn borrowRoot(comptime Root: type, source: anytype, external: anytype, attributes: anytype, identity: ?[]const u8) Root {
     const signature: ?ir.External = if (@hasField(std.meta.Child(@TypeOf(source)), "external")) source.external else null;
 
     if (signature) |native| external.* = .{
@@ -102,7 +126,7 @@ fn borrowRoot(comptime Root: type, source: anytype, external: anytype, attribute
             .borrowed => .Borrowed,
             .owned => .Owned,
         },
-        .store_mode = @fromBackingInt(@intCast(@backingInt(source.store_mode))),
+        .store_mode = @fromBackingInt(@intCast(@backingInt(if (identity != null) ir.StoreMode.transaction else source.store_mode))),
         .root = if (source.body.root) |id| @backingInt(id) else null,
         .allocator_argument = if (signature) |native| native.allocator_argument else false,
         .io_argument = if (signature) |native| native.io_argument else false,
@@ -113,7 +137,7 @@ fn borrowRoot(comptime Root: type, source: anytype, external: anytype, attribute
     };
 
     return .{
-        .file = source.file_name,
+        .file = identity orelse source.file_name,
         .input_type = @backingInt(source.input_type),
         .output_type = @backingInt(source.output_type),
         .attributes = attributes,

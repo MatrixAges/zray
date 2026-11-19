@@ -1,0 +1,48 @@
+import type { U32Buffer, U8Buffer } from "memory"
+import type {
+    Eligibility
+} from "../../../../backends/zig/store_initializers/validation/model"
+import type { Append as Types } from "../../../analysis/semantic/merging/model"
+import type { Program } from "../../../ir/canonical/validation/model"
+import type { RootRequest } from "../../artifact/materializing/publication/source_model"
+import type { Input as Insert } from "../../compiled/initializer_registry/insert"
+import type { Source } from "../source/initializers/model"
+
+export enum Status {
+    Append,
+    Compare,
+    Conflict,
+    InvalidInitializer,
+    MissingOrigin,
+    ConflictingType,
+    Exhausted,
+    Invalid
+}
+
+export type Registry = {
+    source: Source,
+    buckets: U32Buffer,
+    capacity: u64,
+    identity: string,
+    version: u32,
+    functions: u64
+}
+
+export type Input = {
+    eligibility: Eligibility,
+    program: Program,
+    types: Types,
+    registration_started: U8Buffer,
+    registry: Registry
+}
+
+export type Plan = {
+    status: Status,
+    function: u32,
+    slot: u64
+}
+
+export type Publication = {
+    body: RootRequest,
+    registry: Insert
+}

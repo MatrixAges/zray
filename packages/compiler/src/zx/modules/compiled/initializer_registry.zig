@@ -93,59 +93,25 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
 
     const rule = @import("generated_initializer_registry");
     const Input = std.meta.Child(rule.Input);
-    const source_columns = columns(values);
+    const source_columns = readRows(values);
     const source = source_columns.view(std.meta.Child(@FieldType(Input, "source")));
-    const Target = std.meta.Child(@FieldType(Input, "target"));
+    var writer: Writer(std.meta.Child(@FieldType(Input, "registry"))) = undefined;
 
-    var target: memory.RowOutput(Entry, Target, .{
-        .identity = &.{"identity"},
-        .function = &.{"function"},
-        .schema_version = &.{"schema_version"},
-    }) = undefined;
+    writer.init(self, own);
 
-    target.init();
-    target.bind(self.rows.allocatedSlice());
+    defer writer.finish(self);
 
-    var reads: [@typeInfo(Target).@"struct".field_names.len]memory.ReadColumn = undefined;
-    const growth: memory.RowGrowth = .{ .target = &target.buffer, .reads = &reads };
-
-    growth.refresh();
-
-    var published: @TypeOf(source) = undefined;
-
-    inline for (@typeInfo(Target).@"struct".field_names, 0..) |name, index| {
-        @field(published, name) = @ptrCast(&reads[index]);
-    }
-
-    var progress = [_]u64{self.rows.items.len};
-    const published_count: []u64 = &progress;
     const FunctionView = @import("../../ir/compare/linked/host.zig").View(std.meta.Child(@FieldType(Input, "functions")));
     var function_view: FunctionView = undefined;
 
     function_view.init(functions.prefix, functions.local);
 
-    defer {
-        const rows = target.rows();
-
-        self.rows.items = rows[0..@intCast(progress[0])];
-        self.rows.capacity = rows.len;
-    }
-
     const input: Input = .{
         .source = &source,
-        .published = &published,
-        .target = &target.view,
-        .growth = @ptrCast(&growth),
+        .registry = &writer.input,
         .range = &.{ .first = range.first, .count = range.count, .prefix = range.prefix, .available = available },
         .functions = &function_view.input,
-        .buckets = @ptrCast(&self.buckets.items),
-        .scratch = @ptrCast(&self.buckets),
-        .capacity = self.buckets.items.len,
-        .count = progress[0],
-        .space = target.buffer.bytes.len / @sizeOf(Entry),
         .end = values.len,
-        .own = own,
-        .progress = @ptrCast(&published_count),
     };
 
     const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -160,16 +126,69 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
     }
 }
 
-const Reader = struct {
+pub fn Writer(comptime Storage: type) type {
+    const Target = std.meta.Child(@FieldType(Storage, "target"));
+    const Published = std.meta.Child(@FieldType(Storage, "published"));
+
+    return struct {
+        target: memory.RowOutput(Entry, Target, .{
+            .identity = &.{"identity"},
+            .function = &.{"function"},
+            .schema_version = &.{"schema_version"},
+        }),
+        reads: [@typeInfo(Target).@"struct".field_names.len]memory.ReadColumn,
+        growth: memory.RowGrowth,
+        published: Published,
+        progress: [1]u64,
+        progress_view: []u64,
+        input: Storage,
+        pub fn init(self: *@This(), registry: *Self, own: bool) void {
+            self.target.init();
+            self.target.bind(registry.rows.allocatedSlice());
+
+            self.growth = .{ .target = &self.target.buffer, .reads = &self.reads };
+
+            self.growth.refresh();
+
+            inline for (@typeInfo(Target).@"struct".field_names, 0..) |name, index| {
+                @field(self.published, name) = @ptrCast(&self.reads[index]);
+            }
+
+            self.progress = .{registry.rows.items.len};
+            self.progress_view = &self.progress;
+
+            self.input = .{
+                .published = &self.published,
+                .target = &self.target.view,
+                .growth = @ptrCast(&self.growth),
+                .buckets = @ptrCast(&registry.buckets.items),
+                .scratch = @ptrCast(&registry.buckets),
+                .capacity = registry.buckets.items.len,
+                .count = registry.rows.items.len,
+                .space = registry.rows.capacity,
+                .own = own,
+                .progress = @ptrCast(&self.progress_view),
+            };
+        }
+        pub fn finish(self: *const @This(), registry: *Self) void {
+            const rows = self.target.rows();
+
+            registry.rows.items = rows[0..@intCast(self.progress[0])];
+            registry.rows.capacity = rows.len;
+        }
+    };
+}
+
+pub const Reader = struct {
     identity: memory.ReadColumn,
     schema_version: memory.ReadColumn,
     function: memory.ReadColumn,
-    fn view(self: *const @This(), comptime T: type) T {
+    pub fn view(self: *const @This(), comptime T: type) T {
         return .{ .identity = @ptrCast(&self.identity), .schema_version = @ptrCast(&self.schema_version), .function = @ptrCast(&self.function) };
     }
 };
 
-fn columns(values: []const Entry) Reader {
+pub fn readRows(values: []const Entry) Reader {
     var result: Reader = undefined;
 
     inline for (@typeInfo(Entry).@"struct".field_names) |name| {

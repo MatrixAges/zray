@@ -15,6 +15,8 @@ types: *Types,
 functions: *ir.FunctionStorage,
 registry: frontend.project.compiled.InitializerRegistry,
 pub fn source(self: *Self, initial: model.Initializer.Borrowed, origins: @FieldType(frontend.AnalysisResult, "nominal_types")) Error!void {
+    if (comptime generated) return artifact.source_initializer.publish(self.types, self.scratch, self.functions, &self.registry, initial, origins);
+
     const program = initial.program;
 
     if (!try valid(self.scratch, program)) return error.InvalidInitializer;
@@ -47,7 +49,6 @@ pub fn source(self: *Self, initial: model.Initializer.Borrowed, origins: @FieldT
 }
 
 fn valid(scratch: std.mem.Allocator, program: *const ir.Program) std.mem.Allocator.Error!bool {
-    if (generated) return @import("../backends/zig/store_initializers/validation.zig").validate(scratch, program, .forbidden);
     if (program.type_only or program.functions.count() != 0 or program.native_modules.count() != 0 or program.stores.count() != 0 or program.contracts.count() != 0) return false;
     if (try frontend.validateIr(scratch, program.*) != null) return false;
 

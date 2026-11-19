@@ -1,17 +1,19 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const projection = @import("borrow.zig");
-const generated = @import("parser_options").generated_parser;
+const Initializer = @import("../../modules/source_store_initializer.zig");
+const empty_contracts: ir.ContractTable = .{};
 
 pub fn matches(left: *const ir.Function, right: *const ir.Function, left_version: u32, right_version: u32, mapping: ?[]const ir.TypeId) bool {
-    if (!generated) {
-        const seed = @import("initializer_seed.zig");
+    const seed = @import("initializer_seed.zig");
 
-        if (left_version != right_version) return false;
+    if (left_version != right_version) return false;
 
-        return if (mapping) |map| seed.source(left, right, map) else seed.linked(left, right);
-    }
+    return if (mapping) |map| seed.source(left, right, map) else seed.linked(left, right);
+}
 
+pub fn source(table: *const ir.FunctionTable, row: u32, initial: Initializer.Borrowed, mapping: []const u32) bool {
+    const program = initial.program;
     const entry = @import("generated_library_initializer_compare");
     const Input = std.meta.Child(entry.Input);
     const Pair = std.meta.Child(@FieldType(Input, "header"));
@@ -20,30 +22,55 @@ pub fn matches(left: *const ir.Function, right: *const ir.Function, left_version
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Ids = std.meta.Child(@FieldType(Types, "symbols"));
     const Columns = std.meta.Child(@FieldType(Input, "columns"));
-    const map = if (mapping) |values| @as([*]const u32, @ptrCast(values.ptr))[0..values.len] else null;
-    const left_native = if (left.external) |value| native(Native, value) else null;
-    const right_native = if (right.external) |value| native(Native, value) else null;
-    const left_header = header(Header, left, left_version, if (left_native != null) &left_native.? else null);
-    const right_header = header(Header, right, right_version, if (right_native != null) &right_native.? else null);
-    const headers: Pair = .{ .left = &left_header, .right = &right_header, .mapping = map };
-    const symbols = ids(Ids, left.symbols.types, right.symbols.types);
-    const expressions = ids(Ids, left.expressions.types, right.expressions.types);
-    const types: Types = .{ .symbols = &symbols, .expressions = &expressions, .mapping = map };
-    const right_control = if (mapping != null and right.body.root == null) &ir.ControlTable{} else right.body.control;
+    const signature = ir.SignatureTable.read(table, row);
+    const left_native = if (signature.external) |value| native(Native, value) else null;
+
+    const left_header: Header = .{
+        .version = initial.schema_version,
+        .name = signature.file_name,
+        .transaction = table.store_modes[row] == .transaction,
+        .ownership = @fromBackingInt(@backingInt(table.ownership[row])),
+        .input_type = table.input_types[row],
+        .output_type = table.output_types[row],
+        .root = table.roots[row],
+        .native = if (left_native != null) &left_native.? else null,
+    };
+
+    const right_header: Header = .{
+        .version = initial.schema_version,
+        .name = initial.identity,
+        .transaction = true,
+        .ownership = switch (program.output_ownership) {
+            .copy => .Copy,
+            .borrowed => .Borrowed,
+            .owned => .Owned,
+        },
+        .input_type = @backingInt(program.input_type),
+        .output_type = @backingInt(program.output_type),
+        .root = if (program.body.root) |root| @backingInt(root) else null,
+        .native = null,
+    };
+
+    const headers: Pair = .{ .left = &left_header, .right = &right_header, .mapping = mapping };
+    const symbols = ids(Ids, table.symbols[row].types, program.symbols.types);
+    const expressions = ids(Ids, table.expressions[row].types, program.expressions.types);
+    const types: Types = .{ .symbols = &symbols, .expressions = &expressions, .mapping = mapping };
+    const right_control = if (program.body.root == null) &ir.ControlTable{} else program.body.control;
     var left_columns: projection.Function = undefined;
     var right_columns: projection.Function = undefined;
 
-    left_columns.borrow(.{ &left.stores, &left.symbols, &left.expressions, left.body.control, &left.contracts });
-    right_columns.borrow(.{ &right.stores, &right.symbols, &right.expressions, right_control, &right.contracts });
+    left_columns.borrow(.{ table.stores[row], table.symbols[row], table.expressions[row], table.control[row], table.contracts[row] });
+
+    right_columns.borrow(.{ &ir.FunctionStorage.empty_stores, &program.symbols, &program.expressions, right_control, &empty_contracts });
 
     const input_left = left_columns.view(std.meta.Child(@FieldType(Columns, "left")));
     const input_right = right_columns.view(std.meta.Child(@FieldType(Columns, "right")));
     const columns: Columns = .{ .left = &input_left, .right = &input_right, .masks = &projection.Function.masks };
     const Contracts = std.meta.Child(@typeInfo(@FieldType(Input, "contracts")).optional.child);
     var contract_view: @import("referenced/host.zig").ContractView(Contracts) = undefined;
-    const nested = left.contracts.count() != 0;
+    const nested = table.contracts[row].count() != 0;
 
-    if (nested) contract_view.init(&left.contracts, &right.contracts);
+    if (nested) contract_view.init(table.contracts[row], &empty_contracts);
 
     const input: Input = .{
         .header = &headers,
@@ -55,23 +82,6 @@ pub fn matches(left: *const ir.Function, right: *const ir.Function, left_version
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     return entry.executeIn(fixed.allocator(), &input) catch unreachable;
-}
-
-fn header(comptime Target: type, value: *const ir.Function, version: u32, external: @FieldType(Target, "native")) Target {
-    return .{
-        .version = version,
-        .name = value.file_name,
-        .transaction = value.store_mode == .transaction,
-        .ownership = switch (value.output_ownership) {
-            .copy => .Copy,
-            .borrowed => .Borrowed,
-            .owned => .Owned,
-        },
-        .input_type = @backingInt(value.input_type),
-        .output_type = @backingInt(value.output_type),
-        .root = if (value.body.root) |root| @backingInt(root) else null,
-        .native = external,
-    };
 }
 
 fn native(comptime Target: type, value: ir.External) Target {

@@ -7,17 +7,21 @@ import { load_numerator, load_denominator } from "core/bytes/index/const"
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { Cursor as Output, Input as Registry, Selection } from "./model"
+import type { Cursor as Output, Storage } from "./model"
 
-export type Input = Output & {
-    registry: Registry,
+export type Entry = {
     identity: string,
     version: u32,
-    selected: Selection
+    slot: u64,
+    function: u32
+}
+
+export type Input = Output & Entry & {
+    registry: Storage
 }
 
 export default function (in: Input): Output {
-    const { registry, identity, version, selected } = in
+    const { registry, identity, version } = in
     const { buckets, published, target } = registry
 
     const index = in.count
@@ -41,7 +45,7 @@ export default function (in: Input): Output {
     }
 
     const slot = match {
-        capacity == in.capacity => selected.slot,
+        capacity == in.capacity => in.slot,
         _ => probe({
             keys: published.identity,
             buckets,
@@ -54,7 +58,7 @@ export default function (in: Input): Output {
 
     memory.writeColumnBytes(target.identity, index, bytes.fromText(name))
     memory.writeColumnU32(target.schema_version, index, version)
-    memory.writeColumnU32(target.function, index, selected.function)
+    memory.writeColumnU32(target.function, index, in.function)
     memory.writeU32(buckets, slot, integers.narrow(index + 1))
     memory.writeU64(registry.progress, 0, index + 1)
 

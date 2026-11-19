@@ -24,21 +24,25 @@ export type Range = {
     available: u64
 }
 
-export type Input = {
-    source: Source,
+export type Storage = {
     published: Source,
     target: Target,
     growth: RowGrowth,
     buckets: U32Buffer,
     scratch: U32Scratch,
     capacity: u64,
-    range: Range,
-    functions: Functions,
     own: bool,
-    end: u64,
     count: u64,
     space: u64,
     progress: U64Buffer
+}
+
+export type Input = {
+    registry: Storage,
+    source: Source,
+    range: Range,
+    functions: Functions,
+    end: u64
 }
 
 export type Selection = {

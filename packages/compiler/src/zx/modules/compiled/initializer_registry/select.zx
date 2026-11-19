@@ -6,9 +6,10 @@ import decide from "../../../ir/compare/initializer/linked_action"
 import { Output as Decision } from "../../../ir/compare/initializer/linked_action"
 import { Action } from "./model"
 
-import type { Input as Registry, Selection as Output } from "./model"
+import type { Range, Selection as Output, Storage } from "./model"
 
-export type Input = Registry.Pick("published", "buckets", "range") & {
+export type Input = Storage.Pick("published", "buckets") & {
+    range: Range,
     capacity: u64,
     identity: string,
     version: u32,
