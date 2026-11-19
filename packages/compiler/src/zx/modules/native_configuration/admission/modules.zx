@@ -1,6 +1,6 @@
+import slot from "core/bytes/index/borrowed/wide_slot"
 import memory from "memory"
 
-import select from "../../project/target/select"
 import { Status } from "./model"
 import moduleName from "./module_name"
 
@@ -11,17 +11,17 @@ export type Input = Modules
 export type Output = Status
 
 export default function (in: Input): Output {
-    const { names, paths, headers } = in
+    const { index, count, paths, headers } = in
 
     return loop({
         index: 0,
         status: Status.Valid
     }, {
-        while: current => current.index < names.length && current.status == Status.Valid,
+        while: current => current.index < count && current.status == Status.Valid,
         next: current => {
             const path = memory.readOptionalTextColumn(paths, current.index)
             const header = memory.readOptionalTextColumn(headers, current.index)
-            const name = memory.readTextColumn(names.items, current.index)
+            const name = memory.readTextColumn(index.names, current.index)
 
             current.status = match (path == null) == (header == null) {
                 true => Status.InvalidNativeModule,
@@ -29,16 +29,18 @@ export default function (in: Input): Output {
             }
 
             if (current.status == Status.Valid) {
-                const previous = select({
-                    specifiers: {
-                        items: names.items,
-                        length: current.index
-                    },
-                    name,
-                    check_duplicates: false
+                const previous = slot({
+                    ...index,
+                    name
                 })
 
-                if (previous.first != null) {
+                if (previous.entry == 0) {
+                    memory.writeU64(
+                        index.buckets,
+                        previous.slot,
+                        current.index + 1
+                    )
+                } else {
                     current.status = Status.DuplicateNativeModule
                 }
             }

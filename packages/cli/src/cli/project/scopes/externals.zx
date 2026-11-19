@@ -1,0 +1,25 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Externals as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const end = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const identity = memory.readOptionalTextColumn(in.identities, row)
+            const specifier = identity ?? memory.readTextColumn(in.names, row)
+
+            memory.writeColumnBytes(
+                in.specifiers,
+                row,
+                bytes.fromText(specifier)
+            )
+            columns.writeColumnOptionalText(in.output_identities, row, null)
+            row += 1
+        }
+    })
+}

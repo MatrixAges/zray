@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Declarations as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const rows = in.rows
+
+    const end = loop(0, {
+        while: row => row < rows.count,
+        next: row => {
+            const identity = memory.readOptionalTextColumn(rows.identities, row)
+            const specifier = identity ?? memory.readTextColumn(rows.specifiers, row)
+            const path = memory.readTextColumn(rows.paths, row)
+            const module = memory.readTextColumn(rows.modules, row)
+            const namespace = memory.readTextListColumn(rows.namespaces, row)
+
+            memory.writeColumnBytes(
+                in.specifiers,
+                row,
+                bytes.fromText(specifier)
+            )
+            memory.writeColumnBytes(in.paths, row, bytes.fromText(path))
+            memory.writeColumnBytes(in.modules, row, bytes.fromText(module))
+            columns.writeColumnTextList(in.namespaces, row, namespace)
+
+            row += 1
+        }
+    })
+}

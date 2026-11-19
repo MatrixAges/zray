@@ -1,4 +1,4 @@
-import select from "../../project/target/select"
+import slot from "core/bytes/index/borrowed/wide_slot"
 
 import type { Registry } from "./model"
 
@@ -12,14 +12,13 @@ export type Output = string?
 export default function (in: Input): Output {
     const { registry, value } = in
 
-    const row = select({
-        specifiers: registry.local,
-        name: value,
-        check_duplicates: false
-    }).first
+    const found = slot({
+        ...registry.index,
+        name: value
+    })
 
-    return match {
-        row != null => registry.names[row],
-        _ => null
+    return match found.entry {
+        0 => null,
+        _ => registry.names[found.entry - 1]
     }
 }

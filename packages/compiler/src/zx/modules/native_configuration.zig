@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const memory = zx.memory;
-const registry = @import("project/target/registry.zig");
 const interfaces = @import("generated_native_configuration_interface");
 const externals = @import("generated_native_configuration_externals");
 const modules = @import("generated_native_configuration_modules");
@@ -10,6 +9,7 @@ const names = @import("generated_native_configuration_names");
 const registered = @import("generated_native_configuration_registered_name");
 const dependency = @import("generated_native_configuration_dependencies");
 const declaration_name = @import("generated_native_configuration_declaration");
+const Map = @import("source_index/fixed.zig");
 const Backend = std.meta.Child(backend.Input);
 pub const Scope = std.meta.Child(@FieldType(Backend, "scope"));
 const name_workspace_size = 1024;
@@ -40,15 +40,15 @@ pub fn validateInterface(specifier: []const u8, path: []const u8) AdmissionError
     return admitted(zx.columns.invoke(interfaces.executeValue, scratch.allocator(), &request) catch unreachable);
 }
 
-pub fn validateModules(rows: anytype) AdmissionError!void {
+fn validateModules(rows: anytype, names_view: *const memory.TextColumn, buckets: *[]u64) AdmissionError!void {
     if (rows.len == 0) return;
 
-    const local = memory.borrowTextColumn("name", rows);
     const paths = memory.borrowReadColumn(?[]const u8, "path", rows);
     const headers = memory.borrowReadColumn(?[]const u8, "header", rows);
 
     const request: std.meta.Child(modules.Input) = .{
-        .names = &.{ .items = @ptrCast(&local), .length = rows.len },
+        .index = &.{ .names = @ptrCast(names_view), .buckets = @ptrCast(buckets), .capacity = buckets.len },
+        .count = rows.len,
         .paths = @ptrCast(&paths),
         .headers = @ptrCast(&headers),
     };
@@ -70,20 +70,21 @@ fn admitted(status: anytype) AdmissionError!void {
     };
 }
 
-pub fn hasModule(rows: anytype, name: []const u8) bool {
-    return registry.select(rows, "name", name, false).first != null;
-}
-
 pub const Names = struct {
     scope: Scope,
     local: memory.TextColumn,
+    buckets: []u64,
     resolved: [][]const u8,
+    pub fn deinit(self: Names, temporary: std.mem.Allocator) void {
+        temporary.free(self.resolved);
+        temporary.free(self.buckets);
+    }
     pub fn name(self: *const Names, allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {
         if (self.resolved.len != 0) {
             const Input = std.meta.Child(registered.Input);
             const View = std.meta.Child(@FieldType(Input, "registry"));
-            const local = self.rows(std.meta.Child(@FieldType(View, "local")));
-            const request: Input = .{ .registry = &.{ .local = &local, .names = self.resolved }, .value = value };
+            const index = self.table(std.meta.Child(@FieldType(View, "index")));
+            const request: Input = .{ .registry = &.{ .index = &index, .names = self.resolved }, .value = value };
             var empty = std.heap.FixedBufferAllocator.init(&.{});
 
             if (zx.columns.invoke(registered.executeValue, empty.allocator(), &request) catch unreachable) |found| return found;
@@ -106,10 +107,10 @@ pub const Names = struct {
         const output = try allocator.alloc([]const u8, values.len);
         const Input = std.meta.Child(dependency.Input);
         const View = std.meta.Child(@FieldType(Input, "registry"));
-        const local = self.rows(std.meta.Child(@FieldType(View, "local")));
+        const index = self.table(std.meta.Child(@FieldType(View, "index")));
 
         const request: Input = .{
-            .registry = &.{ .local = &local, .names = self.resolved },
+            .registry = &.{ .index = &index, .names = self.resolved },
             .dependencies = values,
             .output = @ptrCast(&output),
         };
@@ -120,13 +121,19 @@ pub const Names = struct {
 
         return output;
     }
-    fn rows(self: *const Names, comptime Local: type) Local {
-        return .{ .items = @ptrCast(&self.local), .length = self.resolved.len };
+    fn table(self: *const Names, comptime Table: type) Table {
+        return .{ .names = @ptrCast(&self.local), .buckets = @ptrCast(&self.buckets), .capacity = self.buckets.len };
     }
 };
 
-pub fn bindNames(allocator: std.mem.Allocator, temporary: std.mem.Allocator, rows: anytype, scope: Scope) std.mem.Allocator.Error!Names {
+pub fn bindNames(allocator: std.mem.Allocator, temporary: std.mem.Allocator, rows: anytype, scope: Scope) (std.mem.Allocator.Error || AdmissionError)!Names {
     const local = memory.borrowTextColumn("name", rows);
+    var buckets = try Map.bucketsFor(temporary, rows.len);
+
+    errdefer temporary.free(buckets);
+
+    try validateModules(rows, &local, &buckets);
+
     const output = try temporary.alloc([]const u8, rows.len);
 
     errdefer temporary.free(output);
@@ -151,7 +158,7 @@ pub fn bindNames(allocator: std.mem.Allocator, temporary: std.mem.Allocator, row
         zx.columns.invoke(names.executeValue, arena.allocator(), &request) catch return error.OutOfMemory;
     }
 
-    return .{ .scope = scope, .local = local, .resolved = output };
+    return .{ .scope = scope, .local = local, .buckets = buckets, .resolved = output };
 }
 
 pub fn declaration(allocator: std.mem.Allocator, owner: []const u8, value: []const u8) (std.mem.Allocator.Error || error{InvalidExternalSpecifier})![]const u8 {

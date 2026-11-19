@@ -1,0 +1,23 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Settings as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const root = bytes.fromText(in.root)
+
+    const end = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const name = memory.readTextColumn(in.names, row)
+
+            memory.writeColumnBytes(in.output_names, row, bytes.fromText(name))
+            memory.writeColumnBytes(in.output_roots, row, root)
+            columns.writeColumnTextList(in.output_includes, row, in.includes)
+            row += 1
+        }
+    })
+}

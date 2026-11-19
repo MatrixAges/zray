@@ -30,7 +30,5 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, root_dir: []const u8, conf
         };
     }
 
-    try configuration.validateModules(config.native_modules);
-
     return interfaces;
 }

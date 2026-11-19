@@ -4,7 +4,8 @@ const model = @import("../../package/manifest/model.zig");
 const configuration = compiler.project.native_configuration;
 const CompiledNative = @import("compiled_native.zig");
 const Inputs = @import("../watch/inputs.zig");
-pub const NativeSettings = struct { name: []const u8, root: []const u8, include_paths: []const []const u8 };
+const publish = @import("scopes/publish.zig");
+pub const NativeSettings = publish.NativeSettings;
 pub const Result = struct { scopes: []compiler.project.PackageScope, config: model.Manifest, interfaces: []const compiler.project.NativeInterface, settings: []const NativeSettings };
 
 pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.project.PackageScope, entry_root: []const u8, entry_config: model.Manifest, inputs: ?*Inputs) !Result {
@@ -16,6 +17,10 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
     var settings: std.ArrayList(NativeSettings) = .empty;
     var libraries: std.ArrayList([]const u8) = .empty;
     var library_paths: std.ArrayList([]const u8) = .empty;
+    var registry: compiler.project.source_index.Owned = .{};
+    var registry_memory = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+
+    defer registry_memory.deinit();
 
     for (result.scopes) |*scope| {
         const config = if (std.mem.eql(u8, scope.root, entry_root)) entry_config else try @import("../../package/install/model.zig").read(io, allocator, scope.root, inputs);
@@ -25,7 +30,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
 
         const native = try @import("native.zig").load(io, allocator, scope.root, config, inputs);
         const legacy = try allocator.dupe(compiler.project.External, config.externals);
-        var slots: [16][]const u8 = undefined;
+        var slots: [32][]const u8 = undefined;
         var name_memory = std.heap.BufferFirstAllocator.init(std.mem.sliceAsBytes(&slots), allocator);
         const temporary = name_memory.allocator();
 
@@ -35,38 +40,42 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
             .compiled = compiled != null,
         });
 
-        defer temporary.free(names.resolved);
+        defer names.deinit(temporary);
 
-        for (native, config.native_interfaces) |*entry, original| {
+        for (native) |*entry| {
             entry.identity = if (compiled) |binding| try binding.declaration(allocator, entry.specifier) else try configuration.declaration(allocator, scope.root, entry.specifier);
             entry.module = try names.name(allocator, entry.module);
-
-            var declaration = original;
-            declaration.module = entry.module;
-            declaration.path = entry.path;
-            declaration.specifier = entry.key();
-
-            try declarations.append(allocator, declaration);
         }
 
         for (legacy) |*entry| {
             entry.identity = if (compiled) |binding| try binding.declaration(allocator, entry.specifier) else try configuration.declaration(allocator, scope.root, entry.specifier);
             entry.implementation.module = try names.name(allocator, entry.implementation.module);
-
-            var published = entry.*;
-
-            published.specifier = entry.key();
-            published.identity = null;
-
-            try externals.append(allocator, published);
         }
 
         scope.native_interfaces = native;
         scope.externals = legacy;
 
+        if (native.len != 0 or legacy.len != 0) {
+            const exported = try declarations.addManyAsSlice(allocator, native.len);
+            const external_first = externals.items.len;
+
+            try externals.appendSlice(allocator, legacy);
+
+            publish.declarations(native, legacy, exported, externals.items[external_first..]);
+        }
+
         try interfaces.appendSlice(allocator, native);
         try libraries.appendSlice(allocator, config.libraries);
-        for (config.library_paths) |path| try library_paths.append(allocator, try std.fs.path.resolve(allocator, &.{ scope.root, path }));
+
+        const resolved_libraries = try library_paths.addManyAsSlice(allocator, config.library_paths.len);
+
+        for (config.library_paths, resolved_libraries) |path, *resolved| {
+            resolved.* = try std.fs.path.resolve(allocator, &.{ scope.root, path });
+        }
+
+        const first = modules.items.len;
+
+        try modules.ensureUnusedCapacity(allocator, config.native_modules.len);
 
         for (config.native_modules, names.resolved) |original, name| {
             var module = original;
@@ -89,9 +98,17 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
             else
                 try compiler.project.compiled.identity.sourceAliases(allocator, native, legacy, model.AbiAlias, original.abi_aliases);
 
-            if (configuration.hasModule(modules.items, module.name)) return error.DuplicateNativeModule;
-            try modules.append(allocator, module);
-            try settings.append(allocator, .{ .name = module.name, .root = scope.root, .include_paths = config.include_paths });
+            if (try registry.register(registry_memory.allocator(), module.name, modules.items.len) != null) return error.DuplicateNativeModule;
+
+            modules.appendAssumeCapacity(module);
+        }
+
+        const scoped_modules = modules.items[first..];
+
+        if (scoped_modules.len != 0) {
+            const output = try settings.addManyAsSlice(allocator, scoped_modules.len);
+
+            publish.settings(scope.root, config.include_paths, scoped_modules, output);
         }
     }
 

@@ -32,6 +32,10 @@
             "prefix": "standard/"
         },
         {
+            "path": "scopes",
+            "prefix": "scopes/"
+        },
+        {
             "path": "memory",
             "prefix": "memory/"
         }
@@ -188,6 +192,14 @@
         {
             "path": "standard/plan.rx",
             "name": "standard_linkage"
+        },
+        {
+            "path": "scopes/publish.rx",
+            "name": "native_scope_publication"
+        },
+        {
+            "path": "scopes/settings.zx",
+            "name": "native_scope_settings"
         }
     ],
     "packages": [

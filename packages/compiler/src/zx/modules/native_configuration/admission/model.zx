@@ -1,5 +1,5 @@
+import type { Table } from "core/bytes/index/borrowed/wide_slot"
 import type { ReadColumn } from "memory"
-import type { Rows } from "../../project/target/select"
 
 export enum Status {
     Valid,
@@ -12,7 +12,8 @@ export enum Status {
 }
 
 export type Modules = {
-    names: Rows,
+    index: Table,
+    count: u64,
     paths: ReadColumn,
     headers: ReadColumn
 }
