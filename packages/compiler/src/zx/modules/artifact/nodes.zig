@@ -69,12 +69,14 @@ pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.Func
     }
 }
 
+pub fn appendProgram(self: *Self, storage: *ir.FunctionStorage, program: *const ir.Program, temporary: std.mem.Allocator) Error!void {
+    if (comptime generated) return @import("materializing/publication/host.zig").appendRoot(self, storage, program, temporary);
+    try storage.append(self.allocator, try self.function(@import("../function_body.zig").value(program.*)));
+}
+
 pub fn appendFunction(self: *Self, storage: *ir.FunctionStorage, value: *const ir.Function, temporary: std.mem.Allocator) Error!void {
-    if (comptime generated) {
-        try @import("materializing/publication/host.zig").appendOne(self, storage, value, temporary);
-    } else {
-        try storage.append(self.allocator, try self.function(value.*));
-    }
+    if (comptime generated) return @import("materializing/publication/host.zig").appendRoot(self, storage, value, temporary);
+    try storage.append(self.allocator, try self.function(value.*));
 }
 
 pub const Structure = enum { unchecked, validated };

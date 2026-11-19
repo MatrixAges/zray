@@ -41,9 +41,9 @@ pub fn append(input: Input, destination: program_link.Destination) program_link.
 
     var nodes = try program_link.append(.{ .program = input.program, .nominal_types = input.nominal_types }, destination);
     const extended = if (input.base_functions) |base| input.program.functions.count() > base.count() else true;
-    const own = if (extended) function_body.own(input.program) else null;
+    const tail = if (extended) &input.program.functions else &ir.FunctionTable{};
 
-    return finish(&input, destination, &nodes, own, 0);
+    return finish(&input, destination, &nodes, tail, 0, 0);
 }
 
 pub fn appendBody(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
@@ -82,17 +82,20 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
         .tail = &tail,
     });
 
-    return finish(&input, destination, &nodes, function_body.ownTail(program.*, tail, base.count()), type_prefix);
+    return finish(&input, destination, &nodes, &tail, base.count(), type_prefix);
 }
 
-fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, own: ?ir.FunctionId, type_prefix: usize) program_link.Error!Loaded {
+fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, tail: *const ir.FunctionTable, first: usize, type_prefix: usize) program_link.Error!Loaded {
     const program = &input.program;
-    const entry = try publishEntry(program, destination.functions, nodes, own, destination.temporary);
     var result: Loaded = undefined;
 
     if (comptime generated) {
+        const entry = try @import("source/entry/host.zig").publish(program, tail, first, destination.functions, nodes, destination.temporary);
+
         try @import("source/surface/host.zig").publish(input, destination.functions, nodes, entry, type_prefix, &result);
     } else {
+        const own = function_body.ownTail(program.*, tail.*, first);
+        const entry = try publishSeedEntry(program, destination.functions, nodes, own);
         result.exports, result.constant_exports = try publishSeedDeclarations(nodes, program);
         result.store_initializers = try @import("source/initializers.zig").link(nodes, input.store_initializers, input.shared_initializers);
         const surface = try @import("source/members.zig").link(nodes, input.members, entry);
@@ -113,38 +116,13 @@ fn finish(input: *const Input, destination: program_link.Destination, nodes: *No
     return result;
 }
 
-fn publishEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes: *Nodes, own: ?ir.FunctionId, temporary: std.mem.Allocator) program_link.Error!?ir.FunctionId {
-    if (comptime generated) {
-        const rule = @import("generated_source_link_entry");
-        const EntryInput = std.meta.Child(rule.Input);
-        const Mapping = std.meta.Child(@FieldType(EntryInput, "functions"));
-        const functions = @import("../artifact/nodes/remap.zig").idMapping(Mapping, nodes.functions);
-
-        const input: EntryInput = .{
-            .own = if (own) |id| @backingInt(id) else null,
-            .type_only = program.type_only,
-            .next = storage.count(),
-            .functions = &functions,
-        };
-
-        var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-        const output = @import("zx").columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
-
-        if (output.append) try nodes.appendFunction(storage, &function_body.value(program.*), temporary);
-
-        return if (output.function) |id| @fromBackingInt(id) else null;
-    }
-
+fn publishSeedEntry(program: *const ir.Program, storage: *ir.FunctionStorage, nodes: *Nodes, own: ?ir.FunctionId) program_link.Error!?ir.FunctionId {
     if (own) |id| return try nodes.functionId(id);
     if (program.type_only) return null;
 
     const id: ir.FunctionId = @fromBackingInt(@intCast(storage.count()));
 
-    try nodes.appendFunction(storage, &function_body.value(program.*), temporary);
+    try storage.append(nodes.allocator, try nodes.function(function_body.value(program.*)));
 
     return id;
 }

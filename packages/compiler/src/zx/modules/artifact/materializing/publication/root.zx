@@ -1,0 +1,70 @@
+import link from "compiler/source_function_row"
+import memory from "memory"
+
+import { PublicationStatus } from "./model"
+import write from "./write"
+
+import type { RootRequest as Input, Output } from "./source_model"
+
+export default function (in: Input): Output {
+    const { source, target, mappings, max_offset, progress, empty, workspace } = in
+
+    const value = link({
+        admission: {
+            source: {
+                ...mappings,
+                ports: {
+                    input: source.input_type,
+                    output: source.output_type,
+                    native_module: source.native_module
+                },
+                symbols: source.symbols,
+                expressions: source.expressions,
+                contracts: source.contracts,
+                stores: source.stores.types,
+                candidate: null
+            },
+            stores: source.stores,
+            checked: false,
+            max_offset
+        },
+        metadata: {
+            file: source.file,
+            external: source.external
+        },
+        root: source.attributes.root,
+        control: source.control,
+        workspace
+    })
+
+    if (value == null) {
+        return {
+            columns: null,
+            status: PublicationStatus.Invalid
+        }
+    }
+
+    const columns = write({
+        columns: target,
+        function: {
+            ...value.omit([
+                "stores",
+                "recursive",
+                "control",
+                "store_table"
+            ]),
+            control: value.control ?? empty.control,
+            store_table: value.store_table ?? empty.stores
+        },
+        attributes: source.attributes,
+        row: 0
+    })
+
+    memory.writeU64(progress, 0, 1)
+    memory.publishColumnLengths(in.lengths, 1)
+
+    return {
+        columns,
+        status: PublicationStatus.Complete
+    }
+}

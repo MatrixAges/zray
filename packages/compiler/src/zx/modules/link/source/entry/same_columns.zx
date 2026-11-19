@@ -1,0 +1,19 @@
+import views from "../../../../ir/verified_prefix/views"
+
+import type { Pair as Input } from "../../../../ir/verified_prefix/views"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right } = in
+
+    if (left.length != right.length) {
+        return false
+    }
+
+    return views({
+        pair: in,
+        first: 0,
+        end: left.length
+    }) == left.length
+}

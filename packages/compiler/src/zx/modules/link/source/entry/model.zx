@@ -1,0 +1,35 @@
+import type { Mapping } from "../../../artifact/remapping/model"
+
+export type Body = {
+    file: string,
+    input_type: u32,
+    output_type: u32,
+    ownership: u8,
+    store_mode: u8,
+    root?: u32,
+    control: string,
+    stores: string[],
+    symbols: string[],
+    expressions: string[],
+    contracts: string[]
+}
+
+export type Candidate = {
+    source: Body,
+    last: Body,
+    calls: u32[],
+    function: u32,
+    native: bool
+}
+
+export type Input = {
+    candidate?: Candidate,
+    type_only: bool,
+    next: u64,
+    functions: Mapping
+}
+
+export type Output = {
+    function?: u32,
+    append: bool
+}

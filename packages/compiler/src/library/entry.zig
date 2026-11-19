@@ -14,7 +14,7 @@ pub fn bind(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, 
 
         const id: ir.FunctionId = @fromBackingInt(@as(u32, @intCast(functions.count())));
 
-        try append(functions, nodes, program, scratch);
+        try nodes.appendProgram(functions, &program, scratch);
 
         return id;
     }
@@ -38,25 +38,8 @@ pub fn bind(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, 
         .Full => return error.OutOfMemory,
         .Declaration => return null,
         .Existing => {},
-        .Body => try append(functions, nodes, program, scratch),
+        .Body => try nodes.appendProgram(functions, &program, scratch),
     }
 
     return @fromBackingInt(plan.id.?);
-}
-
-fn append(functions: *ir.FunctionStorage, nodes: *Nodes, program: ir.Program, scratch: std.mem.Allocator) Error!void {
-    const body: ir.Function = .{
-        .file_name = program.file_name,
-        .input_type = program.input_type,
-        .output_type = program.output_type,
-        .output_ownership = program.output_ownership,
-        .symbols = program.symbols,
-        .expressions = program.expressions,
-        .body = program.body,
-        .contracts = program.contracts,
-        .stores = program.stores,
-        .store_mode = program.store_mode,
-    };
-
-    try nodes.appendFunction(functions, &body, scratch);
 }

@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Input} out={Entry.Output} />
+
+    <If on={$in.type_only}>
+        <Return
+            value={{
+                function: null,
+                append: false
+            }}
+        />
+    </If>
+
+    <If on={$in.candidate != null}>
+        <Call fn="own" in={$in.candidate} />
+
+        <If on={$ctx.own != null}>
+            <Call
+                fn="../../../artifact/remapping/id"
+                in={{
+                    id: $ctx.own,
+                    mapping: $in.functions
+                }}
+            />
+
+            <Return
+                value={{
+                    function: $ctx.id,
+                    append: false
+                }}
+            />
+        </If>
+    </If>
+
+    <Call fn="fallback" in={$in.next} />
+
+    <Return value={$ctx.fallback} />
+</Module>

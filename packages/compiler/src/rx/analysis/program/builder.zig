@@ -91,18 +91,7 @@ fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program
             .Done => {},
             .AppendFunctionTail => nodes.appendFunctions(&self.functions, extension.tail, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
             .LinkInitializers => try self.mergeInitializers(initializers, .{ .first = range.first, .count = range.count, .prefix = range.prefix }),
-            .AppendFunctionEntry => nodes.appendFunction(&self.functions, &.{
-                .file_name = program.file_name,
-                .stores = program.stores,
-                .store_mode = program.store_mode,
-                .input_type = program.input_type,
-                .output_type = program.output_type,
-                .output_ownership = program.output_ownership,
-                .symbols = program.symbols,
-                .expressions = program.expressions,
-                .body = program.body,
-                .contracts = program.contracts,
-            }, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
+            .AppendFunctionEntry => nodes.appendProgram(&self.functions, &program, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
             else => unreachable,
         }
     }

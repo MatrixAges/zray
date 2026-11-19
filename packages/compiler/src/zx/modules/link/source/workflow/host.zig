@@ -65,6 +65,8 @@ fn prepareStorage(comptime form: source.Form, program: *const ir.Program, origin
 
     mapping.init(&registration, &types);
 
+    if (complete) mapping.input.validation = null;
+
     const offsets = TypePublication.offsets(registration.items);
 
     const options: TypePublication.Options = .{

@@ -1,0 +1,74 @@
+import strings from "zig:string"
+
+import recursive from "../../../forward_entry/recursive"
+import sameColumns from "./same_columns"
+
+import type { Candidate as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { source, last, calls, function: id, native } = in
+
+    if (native || recursive({
+        calls,
+        candidate: id
+    }) == null) {
+        return null
+    }
+
+    if (
+        source.input_type != last.input_type || source.output_type != last.output_type
+    ) {
+        return null
+    }
+
+    if (source.ownership != last.ownership || source.store_mode != last.store_mode) {
+        return null
+    }
+
+    if (
+        source.root != last.root ||
+            !strings.sameStorage(source.control, last.control)
+    ) {
+        return null
+    }
+
+    if (!strings.sameStorage(source.file, last.file)) {
+        return null
+    }
+
+    const stores_match = sameColumns({
+        left: source.stores,
+        right: last.stores
+    })
+
+    if (!stores_match) {
+        return null
+    }
+
+    const symbols_match = sameColumns({
+        left: source.symbols,
+        right: last.symbols
+    })
+
+    if (!symbols_match) {
+        return null
+    }
+
+    const expressions_match = sameColumns({
+        left: source.expressions,
+        right: last.expressions
+    })
+
+    if (!expressions_match) {
+        return null
+    }
+
+    const contracts_match = sameColumns({
+        left: source.contracts,
+        right: last.contracts
+    })
+
+    return contracts_match ? id : null
+}

@@ -1,11 +1,15 @@
+import type { Contracts } from "core/contract_table/model"
 import type { Control } from "core/control_table/model"
+import type { Expressions } from "core/expression_table/model"
 import type { Stores } from "core/store_table/model"
+import type { Symbols } from "core/symbol_table/model"
 import type { ColumnLengths, U64Buffer } from "memory"
 import type { Workspace } from "../../../../ir/canonical/body/workspace"
 import type { Mapping } from "../../remapping/model"
+import type { Output as External } from "../copy_external"
 import type { Input as FunctionInput, Owned } from "../function_model"
 import type { PublicationStatus } from "./model"
-import type { Columns } from "./model"
+import type { Attributes, Columns } from "./model"
 
 export type Source = Columns
 
@@ -42,4 +46,22 @@ export type Input = {
 export type Output = {
     columns?: Columns,
     status: PublicationStatus
+}
+
+export type Root = {
+    file: string,
+    input_type: u32,
+    output_type: u32,
+    attributes: Attributes,
+    native_module?: u32,
+    external?: External,
+    stores: Stores,
+    symbols: Symbols,
+    expressions: Expressions,
+    contracts: Contracts,
+    control: Control
+}
+
+export type RootRequest = Input.Omit("source") & {
+    source: Root
 }

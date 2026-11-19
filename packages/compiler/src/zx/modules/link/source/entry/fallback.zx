@@ -1,0 +1,12 @@
+import integers from "std:integer"
+
+import type { Output } from "./model"
+
+export type Input = u64
+
+export default function (in: Input): Output {
+    return {
+        function: integers.narrow(in),
+        append: true
+    }
+}

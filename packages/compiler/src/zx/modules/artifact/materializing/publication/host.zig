@@ -5,48 +5,14 @@ const Nodes = @import("../../nodes.zig");
 const remap = @import("../../nodes/remap.zig");
 const Error = @import("../../model.zig").Error;
 const columns = @import("columns.zig");
-const generated = @import("generated_source_function_batch");
-const Input = @typeInfo(@TypeOf(generated.executeState)).@"fn".param_types[1].?;
-const Columns = @FieldType(Input, "target");
-const Mappings = std.meta.Child(@FieldType(Input, "mappings"));
-const Mapping = std.meta.Child(@FieldType(Mappings, "types"));
-const Empty = std.meta.Child(@FieldType(Input, "empty"));
-const Workspace = std.meta.Child(@FieldType(Input, "workspace"));
+const batch = @import("generated_source_function_batch");
+const root = @import("generated_source_function_root");
 const stack_depth_slots = 2048 / @sizeOf(u32);
 
-pub fn appendOne(nodes: *const Nodes, storage: *ir.FunctionStorage, function: *const ir.Function, temporary: std.mem.Allocator) Error!void {
-    const signature = function.external;
+pub fn appendRoot(nodes: *const Nodes, storage: *ir.FunctionStorage, source: anytype, temporary: std.mem.Allocator) Error!void {
+    try storage.reserve(nodes.allocator, 1);
 
-    const source: ir.FunctionTable = .{
-        .files = &.{function.file_name},
-        .input_types = &.{@backingInt(function.input_type)},
-        .output_types = &.{@backingInt(function.output_type)},
-        .ownership = &.{switch (function.output_ownership) {
-            .copy => .Copy,
-            .borrowed => .Borrowed,
-            .owned => .Owned,
-        }},
-        .store_modes = &.{function.store_mode},
-        .native_inputs = &.{if (signature) |external| if (external.input) |input| input.names else null else null},
-        .native_modules = &.{if (signature) |external| @backingInt(external.module) else null},
-        .native_members = &.{if (signature) |external| external.member else &.{}},
-        .native_exports = &.{if (signature) |external| external.export_name else null},
-        .native_allocators = &.{if (signature) |external| external.allocator_argument else false},
-        .native_io = &.{if (signature) |external| external.io_argument else false},
-        .native_process = &.{if (signature) |external| external.process_argument else false},
-        .native_tuples = &.{if (signature) |external| external.expand_tuple else false},
-        .native_fallible = &.{if (signature) |external| external.fallible else false},
-        .native_errors = &.{if (signature) |external| external.errors else null},
-        .native_concurrent = &.{if (signature) |external| external.concurrent else false},
-        .symbols = &.{&function.symbols},
-        .expressions = &.{&function.expressions},
-        .contracts = &.{&function.contracts},
-        .control = &.{function.body.control},
-        .roots = &.{if (function.body.root) |root| @backingInt(root) else null},
-        .stores = &.{&function.stores},
-    };
-
-    return append(nodes, storage, source, temporary);
+    return publish(root, nodes, storage, source, 1, temporary);
 }
 
 pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, source: ir.FunctionTable, temporary: std.mem.Allocator) Error!void {
@@ -63,6 +29,22 @@ pub fn appendReserved(nodes: *const Nodes, storage: *ir.FunctionStorage, source:
 
     if (count == 0) return;
 
+    return publish(batch, nodes, storage, source, count, temporary);
+}
+
+fn publish(comptime entry: type, nodes: *const Nodes, storage: *ir.FunctionStorage, source: anytype, count: usize, temporary: std.mem.Allocator) Error!void {
+    const Input = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+    const Columns = @FieldType(Input, "target");
+    const Mappings = std.meta.Child(@FieldType(Input, "mappings"));
+    const Mapping = std.meta.Child(@FieldType(Mappings, "types"));
+    const Empty = std.meta.Child(@FieldType(Input, "empty"));
+    const Workspace = std.meta.Child(@FieldType(Input, "workspace"));
+    const Source = @FieldType(Input, "source");
+    const Root = if (entry == root) std.meta.Child(Source) else void;
+    const External = if (entry == root) std.meta.Child(@typeInfo(@FieldType(Root, "external")).optional.child) else void;
+    var external: External = undefined;
+    var attributes: if (entry == root) std.meta.Child(@FieldType(Root, "attributes")) else void = undefined;
+    const descriptor = if (entry == root) borrowRoot(Root, source, &external, &attributes) else {};
     var completed: [1]u64 = .{0};
     const progress: []u64 = &completed;
     const length_slots = zx.memory.borrowColumnLengths(storage);
@@ -77,7 +59,7 @@ pub fn appendReserved(nodes: *const Nodes, storage: *ir.FunctionStorage, source:
     defer scratch.deinit();
 
     const input: Input = .{
-        .source = columns.borrow(@FieldType(Input, "source"), source, false),
+        .source = if (entry == root) &descriptor else columns.borrow(Source, source, false),
         .target = target,
         .mappings = &.{ .types = &types, .functions = &functions, .natives = &natives },
         .empty = &.{
@@ -90,7 +72,7 @@ pub fn appendReserved(nodes: *const Nodes, storage: *ir.FunctionStorage, source:
         .lengths = @ptrCast(&lengths),
     };
 
-    const output = generated.executeState(nodes.allocator, input) catch |err| switch (@as(anyerror, err)) {
+    const output = entry.executeState(nodes.allocator, input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
@@ -102,4 +84,45 @@ pub fn appendReserved(nodes: *const Nodes, storage: *ir.FunctionStorage, source:
     }
 
     std.debug.assert(completed[0] == count);
+}
+
+fn borrowRoot(comptime Root: type, source: anytype, external: anytype, attributes: anytype) Root {
+    const signature: ?ir.External = if (@hasField(std.meta.Child(@TypeOf(source)), "external")) source.external else null;
+
+    if (signature) |native| external.* = .{
+        .members = native.member,
+        .errors = native.errors,
+        .export_name = native.export_name,
+        .parameters = if (native.input) |input| input.names else null,
+    };
+
+    attributes.* = .{
+        .ownership = switch (source.output_ownership) {
+            .copy => .Copy,
+            .borrowed => .Borrowed,
+            .owned => .Owned,
+        },
+        .store_mode = @fromBackingInt(@intCast(@backingInt(source.store_mode))),
+        .root = if (source.body.root) |id| @backingInt(id) else null,
+        .allocator_argument = if (signature) |native| native.allocator_argument else false,
+        .io_argument = if (signature) |native| native.io_argument else false,
+        .process_argument = if (signature) |native| native.process_argument else false,
+        .expand_tuple = if (signature) |native| native.expand_tuple else false,
+        .fallible = if (signature) |native| native.fallible else false,
+        .concurrent = if (signature) |native| native.concurrent else false,
+    };
+
+    return .{
+        .file = source.file_name,
+        .input_type = @backingInt(source.input_type),
+        .output_type = @backingInt(source.output_type),
+        .attributes = attributes,
+        .native_module = if (signature) |native| @backingInt(native.module) else null,
+        .external = if (signature != null) external else null,
+        .stores = zx.columns.pointer(@FieldType(Root, "stores"), &source.stores),
+        .symbols = zx.columns.pointer(@FieldType(Root, "symbols"), &source.symbols),
+        .expressions = zx.columns.pointer(@FieldType(Root, "expressions"), &source.expressions),
+        .contracts = zx.columns.pointer(@FieldType(Root, "contracts"), &source.contracts),
+        .control = zx.columns.pointer(@FieldType(Root, "control"), source.body.control),
+    };
 }
