@@ -30,6 +30,13 @@ export default function (in: Input): Output {
 
     const count = source.files.length
 
+    if (count == 0) {
+        return {
+            columns: target,
+            status: PublicationStatus.Complete
+        }
+    }
+
     const [failure, result] = try loop({
         row: 0,
         columns: target

@@ -1,0 +1,29 @@
+<Module>
+    <Type from="../functions/batch" as="Batch" />
+    <Type from="../interface/model" as="Interface" />
+    <Type from="../../../artifact/materializing/publication/model" as="Publication" />
+
+    <Args
+        in={{
+            functions: Batch.Input,
+            interface?: Interface.Request
+        }}
+        out={Batch.Output}
+    />
+
+    <Call fn="../functions/batch" in={$in.functions} />
+
+    <If on={$ctx.batch.status != Publication.PublicationStatus.Complete}>
+        <Return value={$ctx.batch} />
+    </If>
+
+    <If on={$in.interface != null}>
+        <If
+            on={$in.interface.exports.count != 0 || $in.interface.initializers.count != 0}
+        >
+            <Call module="../interface/materialize" in={$in.interface} />
+        </If>
+    </If>
+
+    <Return value={$ctx.batch} />
+</Module>

@@ -6,9 +6,11 @@ const load = @import("../load.zig");
 const Input = @import("input.zig");
 const Output = std.meta.Child(@import("generated_compiled_library").Output);
 const function = @import("function.zig");
+const interface = @import("interface.zig");
 const native = @import("../../link/native/host.zig");
 const TypeView = @import("../../../analysis/semantic/merging/publication/view.zig");
 const prepare = @import("generated_compiled_prepare_publication");
+const publish = @import("generated_compiled_publish");
 const Request = std.meta.Child(prepare.Input);
 const Types = std.meta.Child(@FieldType(Request, "types"));
 const Delta = std.meta.Child(@FieldType(Types, "delta"));
@@ -22,19 +24,33 @@ pub fn apply(allocator: std.mem.Allocator, temporary: std.mem.Allocator, input: 
 
     try prepareStorage(allocator, function_allocator, temporary, output, destination, library.program.functions.count());
 
-    try function.appendReserved(function_allocator, destination.functions, library.program.functions, .{
+    var functions: function.View = undefined;
+
+    functions.init(destination.functions, library.program.functions, .{
         .types = output.functions.types,
         .natives = output.functions.natives,
         .first = first_function,
         .instance = library.instance,
     });
 
-    const interface = if (call_scratch == null)
-        try @import("interface.zig").materialize(allocator, input, output, first_function)
-    else
-        @as(@import("interface.zig").Interface, .{});
+    var public: interface.View = undefined;
+    const needs_interface = call_scratch == null;
 
-    return .{ .types = destination.types.view(), .nominal_types = destination.origins.items.view(), .exports = interface.exports, .store_initializers = interface.initializers };
+    if (needs_interface) public.init(input, output, first_function);
+
+    const result = publish.executeState(function_allocator, .{
+        .functions = functions.input,
+        .interface = if (needs_interface) &public.request else null,
+    }) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
+
+    try functions.check(result);
+
+    const exports = if (needs_interface) public.result() else interface.Interface{};
+
+    return .{ .types = destination.types.view(), .nominal_types = destination.origins.items.view(), .exports = exports.exports, .store_initializers = exports.initializers };
 }
 
 fn prepareStorage(allocator: std.mem.Allocator, function_allocator: std.mem.Allocator, temporary: std.mem.Allocator, output: *const Output, destination: load.Destination, count: usize) std.mem.Allocator.Error!void {
