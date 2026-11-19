@@ -183,11 +183,13 @@ def remove(path):
 
 
 def clean(options, protected):
+    protected_tree = protected.union(parent for saved in protected for parent in saved.parents)
+
     def retained(path):
-        return any(path.is_relative_to(saved) for saved in protected)
+        return path in protected or not protected.isdisjoint(path.parents)
 
     def keep(path):
-        return retained(path) or any(saved.is_relative_to(path) for saved in protected)
+        return path in protected_tree or retained(path)
 
     cutoff = time.time() - options.min_age_hours * 3_600
     references = documentation_references()
@@ -234,8 +236,9 @@ def clean(options, protected):
 
     for directory in buckets:
         count = 0
+        # Retained buckets were excluded above. Each candidate is a direct child.
         for path in expired_cache_entries(directory, cutoff):
-            if keep(path):
+            if path in protected_tree:
                 continue
 
             success = not options.apply or remove(path)
