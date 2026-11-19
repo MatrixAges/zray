@@ -4,6 +4,7 @@ const ir = zx.ir;
 const function_link = @import("functions.zig");
 const Schedule = @import("statements/schedule.zig");
 const Self = @This();
+const Registry = @import("frontend").project.compiled.InitializerRegistry;
 const StoreInitializer = @import("frontend").project.compiled.StoreInitializer;
 pub const Error = std.mem.Allocator.Error || error{ InvalidModule, UnreachableFlow, IncompleteFlow };
 
@@ -14,7 +15,8 @@ symbols: ir.SymbolStorage = .{},
 expressions: ir.ExpressionStorage = .{},
 functions: ir.FunctionStorage = .{},
 base_functions: ir.FunctionTable = .{},
-store_initializers: @import("initializers.zig") = .{},
+store_initializers: Registry = .{},
+checked_initializers: []const StoreInitializer = &.{},
 stores: ir.StoreStorage = .{},
 bindings: std.ArrayList(ir.SymbolId) = .empty,
 linking_scratch: std.heap.ArenaAllocator = .init(std.heap.page_allocator),
@@ -47,12 +49,12 @@ pub fn importFunction(self: *Self, program: ir.Program, suffix: ?*const ir.Funct
     if (existing) |id| {
         if (suffix != null) return error.InvalidModule;
 
-        const checked = self.store_initializers.alreadyChecked(initializers);
+        const checked = initializers.len == 0 or (initializers.len <= self.checked_initializers.len and initializers.ptr == self.checked_initializers.ptr);
 
         switch (function_link.shared(&self.base_functions, @backingInt(id), &program, checked)) {
             .Invalid => return error.InvalidModule,
             .Checked => {},
-            .CheckInitializers => for (initializers) |initial| try self.initializer(initial),
+            .CheckInitializers => try self.mergeInitializers(initializers, .{ .count = self.base_functions.count() + self.functions.count() }),
         }
 
         return id;
@@ -88,11 +90,7 @@ fn appendFunction(self: *Self, comptime form: Schedule.Form, program: ir.Program
         switch (step) {
             .Done => {},
             .AppendFunctionTail => nodes.appendFunctions(&self.functions, tail, self.linking_scratch.allocator()) catch |err| return linkFailure(err),
-            .LinkInitializers => for (initializers) |initial| {
-                const mapped = nodes.remapInitializer(initial, false) catch |err| return linkFailure(err);
-
-                try self.initializer(mapped);
-            },
+            .LinkInitializers => try self.mergeInitializers(initializers, .{ .first = range.first, .count = range.count, .prefix = range.prefix }),
             .AppendFunctionEntry => nodes.appendFunction(&self.functions, &.{
                 .file_name = program.file_name,
                 .stores = program.stores,
@@ -140,26 +138,6 @@ pub fn seedStore(self: *Self, value: ir.StoreSlot) Error!u32 {
     return self.appendStore(value);
 }
 
-fn lookupFunction(self: *const Self, id: ir.FunctionId) ir.Function {
-    const index = @backingInt(id);
-
-    return if (index < self.base_functions.count()) self.base_functions.at(index) else self.functions.at(index - self.base_functions.count());
-}
-
-pub fn initializer(self: *Self, value: StoreInitializer) Error!void {
-    if (@backingInt(value.function) >= self.base_functions.count() + self.functions.count()) return error.InvalidModule;
-
-    const previous = (try self.store_initializers.add(self.allocator, value)) orelse return;
-    const compare = @import("frontend").compare_ir.initializer;
-
-    switch (compare.linkedAction(previous, value)) {
-        .Reuse => return,
-        .Conflict => return error.InvalidModule,
-        .Compare => {},
-    }
-
-    const before = self.lookupFunction(previous.function);
-    const after = self.lookupFunction(value.function);
-
-    if (!compare.matches(&before, &after, previous.schema_version, value.schema_version, null)) return error.InvalidModule;
+pub fn mergeInitializers(self: *Self, values: []const StoreInitializer, range: Registry.Range) Error!void {
+    self.store_initializers.merge(self.allocator, values, range, &.{ .prefix = &self.base_functions, .local = &self.functions }, false) catch |err| return linkFailure(err);
 }

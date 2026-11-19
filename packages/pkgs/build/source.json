@@ -151,6 +151,14 @@
         {
             "specifier": "core/bytes/index/column",
             "entry": "core/bytes/index/column.zx"
+        },
+        {
+            "specifier": "core/bytes/index/borrowed/probe",
+            "entry": "core/bytes/index/borrowed/probe.zx"
+        },
+        {
+            "specifier": "core/bytes/index/borrowed/refresh",
+            "entry": "core/bytes/index/borrowed/refresh.zx"
         }
     ],
     "interfaces": [

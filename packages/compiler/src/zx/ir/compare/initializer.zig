@@ -3,27 +3,6 @@ const ir = @import("zx").ir;
 const comparison = @import("function.zig");
 const projection = comparison.borrow;
 const generated = @import("parser_options").generated_parser;
-const action = if (generated) @import("generated_initializer_linked_action") else void;
-const Action = if (generated) action.Output else enum { Conflict, Reuse, Compare };
-
-pub fn linkedAction(previous: @import("../../modules/compiled.zig").StoreInitializer, incoming: @TypeOf(previous)) Action {
-    if (comptime !generated) {
-        if (previous.schema_version != incoming.schema_version) return .Conflict;
-
-        return if (previous.function == incoming.function) .Reuse else .Compare;
-    }
-
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-    const input: std.meta.Child(action.Input) = .{
-        .previous_version = previous.schema_version,
-        .version = incoming.schema_version,
-        .previous_function = @backingInt(previous.function),
-        .function = @backingInt(incoming.function),
-    };
-
-    return @import("zx").columns.invoke(action.executeValue, scratch.allocator(), &input) catch unreachable;
-}
 
 pub fn matches(left: *const ir.Function, right: *const ir.Function, left_version: u32, right_version: u32, mapping: ?[]const ir.TypeId) bool {
     if (!generated) {

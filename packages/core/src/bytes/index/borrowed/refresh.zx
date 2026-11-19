@@ -1,28 +1,34 @@
 import integers from "std:integer"
-import { load_denominator, load_numerator } from "core/bytes/index/const"
-import capacityFor from "core/bytes/map/capacity"
 import memory from "memory"
 
+import capacityFor from "../../map/capacity"
+import { load_denominator, load_numerator } from "../const"
 import probe from "./probe"
 
-import type { Input as Archive } from "./model"
+import type { U32Scratch } from "memory"
+import type { Table } from "./probe"
 
-export type Input =
-    Archive.Pick("digests", "buckets", "scratch", "count", "indexed", "capacity")
+export type Input = Table & {
+    scratch: U32Scratch,
+    count: u64,
+    indexed: u64,
+    required: u64,
+    capacity: u64
+}
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { count, capacity, indexed, buckets, digests } = in
+    const { count, capacity, indexed, buckets, keys } = in
 
-    if (count == indexed) {
+    const grow = in.required > capacity * load_numerator / load_denominator
+
+    if (!grow && count == indexed) {
         return capacity
     }
 
-    const grow = count > capacity * load_numerator / load_denominator
-
     const size = match {
-        grow => capacityFor(integers.narrow(count)).capacity,
+        grow => capacityFor(integers.narrow(in.required)).capacity,
         _ => capacity
     }
 
@@ -38,8 +44,8 @@ export default function (in: Input): Output {
         next: i => {
             const location = probe({
                 buckets,
-                digests,
-                digest: memory.readTextColumn(digests, i),
+                keys,
+                text: memory.readTextColumn(keys, i),
                 capacity: size
             })
             memory.writeU32(buckets, location.slot, integers.narrow(i + 1))

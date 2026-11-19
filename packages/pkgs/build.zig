@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) void {
         _ = files.addCopyDirectory(b.path(b.fmt("src/{s}", .{dir})), dir, .{ .include_extensions = &.{ ".zx", ".rx" } });
     }
 
-    for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/map/capacity.zx", "bytes/index/const.zx", "bytes/index/column.zx", "bytes/index/sorted_text.zx" }) |file| {
+    for ([_][]const u8{ "const.zx", "ascii/const.zx", "bytes/map/capacity.zx", "bytes/index/const.zx", "bytes/index/column.zx", "bytes/index/borrowed/probe.zx", "bytes/index/borrowed/refresh.zx", "bytes/index/sorted_text.zx" }) |file| {
         _ = files.addCopyFile(core.path(b.fmt("src/{s}", .{file})), b.fmt("core/{s}", .{file}));
     }
 

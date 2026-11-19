@@ -23,7 +23,10 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
     var types = try Types.init(owned);
     var functions: ir.FunctionStorage = .{};
     var native_modules: ir.NativeModuleStorage = .{};
-    var initializers = Initializers{ .allocator = owned, .scratch = scratch, .types = &types, .functions = &functions };
+    var initializers = Initializers{ .allocator = owned, .scratch = scratch, .types = &types, .functions = &functions, .registry = .{ .buckets = .{ .allocator = allocator } } };
+
+    defer initializers.registry.deinit();
+
     const exports = try owned.alloc(model.Export, inputs.len);
     var name_buffer: [1024]u8 = undefined;
     var name_memory = std.heap.BufferFirstAllocator.init(&name_buffer, scratch);
@@ -45,12 +48,9 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
             .native_modules = &native_modules,
         });
 
-        for (input.analysis.store_initializers) |initial| try initializers.append(.{
-            .identity = initial.identity,
-            .schema_version = initial.schema_version,
-            .function = try nodes.functionId(initial.function),
-        });
+        const range = nodes.functions.range;
 
+        try initializers.registry.merge(owned, input.analysis.store_initializers, .{ .first = range.first, .count = range.count, .prefix = range.prefix }, &.{ .local = &functions }, true);
         for (input.initializers) |*initial| try initializers.source(initial.borrow(), input.analysis.nominal_types);
         for (input.borrowed_initializers) |initial| try initializers.source(initial, input.analysis.nominal_types);
 
@@ -80,7 +80,7 @@ pub fn link(allocator: std.mem.Allocator, inputs: []const model.Input) Error!mod
 
     if (try frontend.validateIr(scratch, program) != null) return error.InvalidIr;
 
-    const result = model.Result{ .arena = arena, .program = program, .exports = exports, .nominal_types = types.origins.items.view(), .store_initializers = initializers.items.items };
+    const result = model.Result{ .arena = arena, .program = program, .exports = exports, .nominal_types = types.origins.items.view(), .store_initializers = initializers.registry.rows.items };
 
     try @import("validate.zig").validate(scratch, &result);
 

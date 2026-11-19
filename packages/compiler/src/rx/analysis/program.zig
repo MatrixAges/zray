@@ -36,9 +36,9 @@ pub fn lower(allocator: std.mem.Allocator, contract: Options) Builder.Error!Resu
     defer builder.linking_scratch.deinit();
     defer builder.store_initializers.deinit();
 
-    for (contract.store_initializers) |initial| try builder.initializer(initial);
+    try builder.mergeInitializers(contract.store_initializers, .{ .count = contract.shared_functions.count() });
 
-    builder.store_initializers.checked_prefix = contract.store_initializers;
+    builder.checked_initializers = contract.store_initializers;
 
     const body = try lowerBody(&builder, contract);
     const suffix = builder.functions.view();

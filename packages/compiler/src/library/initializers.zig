@@ -4,8 +4,6 @@ const ir = @import("zx").ir;
 const model = @import("root.zig");
 const artifact = frontend.project.artifact;
 const Types = artifact.type_link.Table;
-const Entry = frontend.project.compiled.StoreInitializer;
-const Index = frontend.project.source_index.Owned;
 const equality = frontend.compare_ir.initializer;
 const generated = @import("parser_options").generated_parser;
 const Self = @This();
@@ -15,42 +13,7 @@ allocator: std.mem.Allocator,
 scratch: std.mem.Allocator,
 types: *Types,
 functions: *ir.FunctionStorage,
-items: std.ArrayList(Entry) = .empty,
-index: Index = .{},
-pub fn append(self: *Self, value: Entry) Error!void {
-    if (try self.register(value.identity)) |previous| {
-        switch (equality.linkedAction(previous, value)) {
-            .Reuse => return,
-            .Conflict => return error.ConflictingInitializer,
-            .Compare => {},
-        }
-
-        const left = self.functions.at(@backingInt(previous.function));
-        const right = self.functions.at(@backingInt(value.function));
-
-        if (!equality.matches(&left, &right, previous.schema_version, value.schema_version, null)) return error.ConflictingInitializer;
-
-        return;
-    }
-
-    try self.publish(value);
-}
-
-fn register(self: *Self, identity: []const u8) Error!?Entry {
-    try self.items.ensureUnusedCapacity(self.allocator, 1);
-
-    const row = (try self.index.register(self.scratch, identity, self.items.items.len)) orelse return null;
-
-    return self.items.items[row];
-}
-
-fn publish(self: *Self, value: Entry) Error!void {
-    var copied = value;
-    copied.identity = try self.allocator.dupe(u8, value.identity);
-
-    self.items.appendAssumeCapacity(copied);
-}
-
+registry: frontend.project.compiled.InitializerRegistry,
 pub fn source(self: *Self, initial: model.Initializer.Borrowed, origins: @FieldType(frontend.AnalysisResult, "nominal_types")) Error!void {
     const program = initial.program;
 
@@ -68,7 +31,7 @@ pub fn source(self: *Self, initial: model.Initializer.Borrowed, origins: @FieldT
         .body = program.body,
     };
 
-    if (try self.register(initial.identity)) |previous| {
+    if (self.registry.find(initial.identity)) |previous| {
         const linked = self.functions.at(@backingInt(previous.function));
 
         if (!equality.matches(&linked, &candidate, previous.schema_version, initial.schema_version, mapping)) return error.ConflictingInitializer;
@@ -80,7 +43,7 @@ pub fn source(self: *Self, initial: model.Initializer.Borrowed, origins: @FieldT
     const id: ir.FunctionId = @fromBackingInt(@intCast(self.functions.count()));
 
     try self.functions.append(self.allocator, try nodes.function(candidate));
-    try self.publish(.{ .identity = initial.identity, .schema_version = initial.schema_version, .function = id });
+    try self.registry.merge(self.allocator, &.{.{ .identity = initial.identity, .schema_version = initial.schema_version, .function = id }}, .{ .count = self.functions.count() }, &.{ .local = self.functions }, true);
 }
 
 fn valid(scratch: std.mem.Allocator, program: *const ir.Program) std.mem.Allocator.Error!bool {

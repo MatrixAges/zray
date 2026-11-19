@@ -2,10 +2,15 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
-import type { Table } from "./model"
+import type { TextColumn, U32Buffer } from "memory"
+
+export type Table = {
+    keys: TextColumn,
+    buckets: U32Buffer
+}
 
 export type Input = Table & {
-    digest: string,
+    text: string,
     capacity: u64
 }
 
@@ -15,7 +20,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { digests, buckets, digest, capacity } = in
+    const { keys, buckets, text, capacity } = in
 
     if (capacity == 0) {
         return {
@@ -24,7 +29,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const key = bytes.fromText(digest)
+    const key = bytes.fromText(text)
     const mask = capacity - 1
 
     return loop({
@@ -40,7 +45,7 @@ export default function (in: Input): Output {
                 _ => bytes.equals(
                     bytes.fromText(
                         memory.readTextColumn(
-                            digests,
+                            keys,
                             integers.widen(entry) - 1
                         )
                     ),

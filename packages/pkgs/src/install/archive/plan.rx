@@ -4,26 +4,27 @@
     <Args in={Archive.Input} out={Archive.Result} />
 
     <Call
-        fn="publish"
-        in={$in.pick([
-            "digests",
-            "buckets",
-            "scratch",
-            "capacity",
-            "indexed",
-            "count"
-        ])}
+        fn="../../core/bytes/index/borrowed/refresh"
+        in={{
+            ...$in.pick([
+                "buckets",
+                "scratch",
+                "indexed",
+                "count",
+                "capacity"
+            ]),
+            keys: $in.digests,
+            required: $in.count
+        }}
     />
 
     <Call
-        fn="probe"
+        fn="../../core/bytes/index/borrowed/probe"
         in={{
-            ...$in.pick([
-                "digests",
-                "buckets",
-                "digest"
-            ]),
-            capacity: $ctx.publish
+            keys: $in.digests,
+            buckets: $in.buckets,
+            text: $in.digest,
+            capacity: $ctx.refresh
         }}
     />
 

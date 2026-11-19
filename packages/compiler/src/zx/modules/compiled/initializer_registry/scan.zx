@@ -1,0 +1,90 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import strings from "std:string"
+import { load_numerator, load_denominator } from "core/bytes/index/const"
+import memory from "memory"
+import columns from "memory/columns"
+
+import { Action, Status } from "./model"
+import select from "./select"
+
+import type { Input as Registry, Output } from "./model"
+
+export type Input = Registry.Omit("scratch")
+
+export default function (in: Input): Output {
+    const { source, target, capacity, buckets, progress } = in
+
+    const limit = capacity * load_numerator / load_denominator
+    const zero: u32 = 0
+
+    return loop({
+        status: Status.Done,
+        next: in.start,
+        count: in.count,
+        previous: 0,
+        function: zero
+    }, {
+        while: state => state.status == Status.Done && state.next < in.end,
+        next: state => {
+            const row = state.next
+            const identity = memory.readTextColumn(source.identity, row)
+            const version = columns.readColumnU32(source.schema_version, row)
+
+            const selected = select({
+                ...in.pick([
+                    "published",
+                    "buckets",
+                    "capacity",
+                    "range"
+                ]),
+                identity,
+                version,
+                id: columns.readColumnU32(source.function, row)
+            })
+
+            if (selected.action == Action.Append) {
+                if (state.count == in.space) {
+                    state.status = Status.Reserve
+                } else if (state.count == limit) {
+                    state.status = Status.Rehash
+                } else {
+                    const name = in.own ? strings.copy(identity) : identity
+                    const index = state.count
+
+                    memory.writeColumnBytes(
+                        target.identity,
+                        index,
+                        bytes.fromText(name)
+                    )
+                    memory.writeColumnU32(target.schema_version, index, version)
+                    memory.writeColumnU32(
+                        target.function,
+                        index,
+                        selected.function
+                    )
+                    memory.writeU32(
+                        buckets,
+                        selected.slot,
+                        integers.narrow(index + 1)
+                    )
+                    state.count += 1
+                    memory.writeU64(progress, 0, state.count)
+                    state.next += 1
+                }
+            } else {
+                state.status = match selected.action {
+                    Action.Compare => Status.Compare,
+                    Action.Conflict => Status.Conflict,
+                    Action.InvalidModule => Status.InvalidModule,
+                    _ => Status.Done
+                }
+
+                state.previous = selected.previous
+                state.function = selected.function
+                state.next += 1
+            }
+        },
+        return: state => state
+    })
+}

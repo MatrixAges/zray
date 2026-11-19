@@ -1,0 +1,73 @@
+import integers from "std:integer"
+import probe from "core/bytes/index/borrowed/probe"
+import columns from "memory/columns"
+
+import decide from "../../../ir/compare/initializer/linked_action"
+import { Output as Decision } from "../../../ir/compare/initializer/linked_action"
+import { Action } from "./model"
+
+import type { Input as Registry, Selection as Output } from "./model"
+
+export type Input = Registry.Pick("published", "buckets", "capacity", "range") & {
+    identity: string,
+    version: u32,
+    id: u32
+}
+
+export default function (in: Input): Output {
+    const { range, published, id } = in
+
+    const index = integers.widen(id)
+
+    const mapped = match {
+        index < range.prefix => index,
+        _ => range.first + (index - range.prefix)
+    }
+
+    if (index >= range.count || mapped >= range.available) {
+        return {
+            action: Action.InvalidModule,
+            previous: 0,
+            slot: 0,
+            function: 0
+        }
+    }
+
+    const function_id = integers.narrow(mapped)
+
+    const found = probe({
+        keys: published.identity,
+        buckets: in.buckets,
+        capacity: in.capacity,
+        text: in.identity
+    })
+
+    if (found.entry == 0) {
+        return {
+            action: Action.Append,
+            previous: 0,
+            slot: found.slot,
+            function: function_id
+        }
+    }
+
+    const previous = found.entry - 1
+
+    const decision = decide({
+        previous_version: columns.readColumnU32(published.schema_version, previous),
+        previous_function: columns.readColumnU32(published.function, previous),
+        version: in.version,
+        function: function_id
+    })
+
+    return {
+        action: match decision {
+            Decision.Compare => Action.Compare,
+            Decision.Conflict => Action.Conflict,
+            _ => Action.Reuse
+        },
+        previous,
+        slot: found.slot,
+        function: function_id
+    }
+}

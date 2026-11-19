@@ -1,0 +1,57 @@
+import type { U32Buffer, U32Scratch, U64Buffer } from "memory"
+import type { Source, Target } from "../../link/source/initializers/model"
+
+export enum Action {
+    Append,
+    Reuse,
+    Compare,
+    Conflict,
+    InvalidModule
+}
+
+export enum Status {
+    Done,
+    Reserve,
+    Rehash,
+    Compare,
+    Conflict,
+    InvalidModule
+}
+
+export type Range = {
+    first: u64,
+    prefix: u64,
+    count: u64,
+    available: u64
+}
+
+export type Input = {
+    source: Source,
+    published: Source,
+    target: Target,
+    buckets: U32Buffer,
+    scratch: U32Scratch,
+    capacity: u64,
+    range: Range,
+    own: bool,
+    start: u64,
+    end: u64,
+    count: u64,
+    space: u64,
+    progress: U64Buffer
+}
+
+export type Selection = {
+    action: Action,
+    previous: u64,
+    slot: u64,
+    function: u32
+}
+
+export type Output = {
+    status: Status,
+    next: u64,
+    count: u64,
+    previous: u64,
+    function: u32
+}
