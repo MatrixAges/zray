@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="File" />
+
+    <Args in={File.Read} out={File.Update} />
+
+    <Call
+        fn="content"
+        in={$in.pick([
+            "previous",
+            "text"
+        ])}
+    />
+
+    <Call
+        fn="advance"
+        in={{
+            read: $in,
+            same: $ctx.content
+        }}
+    />
+
+    <Return value={$ctx.advance} />
+</Module>

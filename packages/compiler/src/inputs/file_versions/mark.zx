@@ -1,0 +1,15 @@
+export type Input = {
+    previous: u64,
+    current: u64,
+    borrowable: bool
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in.previous != 0 || !in.borrowable) {
+        return in.previous
+    }
+
+    return in.current
+}

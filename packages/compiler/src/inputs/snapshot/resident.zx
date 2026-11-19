@@ -1,5 +1,7 @@
+import upgrade from "../file_versions/mark"
 import age from "./age"
 
+import type { Input as Borrow } from "../file_versions/mark"
 import type { Time } from "./age"
 
 export type File = {
@@ -12,10 +14,11 @@ export type File = {
 export type Input = {
     stored: File,
     observed: File,
-    read: Time
+    read: Time,
+    borrow: Borrow
 }
 
-export type Output = bool
+export type Output = u64?
 
 export default function (in: Input): Output {
     const { stored, observed } = in
@@ -34,8 +37,10 @@ export default function (in: Input): Output {
         - and ctime.low == next_ctime.low
     )
 
-    return same && age({
+    const settled = same && age({
         changed: ctime,
         read: in.read
     })
+
+    return settled ? upgrade(in.borrow) : null
 }

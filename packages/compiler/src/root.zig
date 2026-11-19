@@ -8,6 +8,7 @@ pub const parallel = zx.parallel;
 pub const input_snapshot = @import("inputs/snapshot.zig");
 pub const input_fingerprint = @import("inputs/fingerprint.zig");
 pub const parsed_inputs = @import("inputs/parsed.zig");
+pub const file_versions = @import("inputs/file_versions.zig");
 pub const source_inputs = @import("inputs/collection.zig");
 pub const SourceIndex = frontend.SourceIndex;
 pub const cache_retention = frontend.cache_retention;

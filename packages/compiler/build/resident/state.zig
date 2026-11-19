@@ -170,7 +170,7 @@ pub fn logMemory(self: *const Self) void {
 
     std.debug.print("resident memory: epochs={d} analysis_bytes={d} xml_versions={d} xml_bytes={d} xml_parsed={d} xml_reused={d} file_bytes={d} file_retained_bytes={d} file_replaced={d} zx_bytes={d} zx_retained_bytes={d} zx_replaced={d} emission_bytes={d}\n", .{
         self.epochs.items.len,         self.retained_capacity,             self.modules.versions,              self.modules.capacity,
-        self.modules.parsed,           self.modules.reused,                self.files.active_bytes,            self.files.retained_bytes,
+        self.modules.parsed,           self.modules.reused,                self.files.counters.active,         self.files.retained_bytes,
         self.files.replaced.items.len, self.parse_cache.currentCapacity(), self.parse_cache.retained_capacity, self.parse_cache.replaced.items.len,
         self.emission.queryCapacity(),
     });

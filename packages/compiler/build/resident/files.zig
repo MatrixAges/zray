@@ -5,9 +5,9 @@
 //! to its read is read again. Replaced texts stay alive until `release`, since analyses may point into them.
 const std = @import("std");
 const compiler = @import("compiler");
-const bytes = compiler.bytes;
 const snapshot = compiler.input_snapshot;
 const retention = compiler.cache_retention;
+const versions = compiler.file_versions;
 const Self = @This();
 
 gpa: std.mem.Allocator,
@@ -15,9 +15,8 @@ entries: compiler.SourceIndex(Entry) = .empty,
 replaced: std.ArrayList([]u8) = .empty,
 transient: std.ArrayList(Transient) = .empty,
 clock: retention.Clock = .{},
-publishable: usize = 0,
 retained_bytes: usize = 0,
-active_bytes: usize = 0,
+counters: versions.Counters = .{},
 /// What vouches for a file's text: it is the same file, of the same size, unchanged since.
 pub const Metadata = snapshot.Metadata;
 
@@ -53,8 +52,12 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
     if (previous) |entry| {
         const observed = metadata(try directory.statFile(io, path, .{}));
 
-        if (snapshot.residentReuse(entry.metadata, observed, entry.read)) {
-            if (borrowable and entry.borrow_mark == 0) entry.borrow_mark = self.clock.current;
+        if (snapshot.residentMark(entry.metadata, observed, entry.read, .{
+            .previous = entry.borrow_mark,
+            .current = self.clock.current,
+            .borrowable = borrowable,
+        })) |mark| {
+            entry.borrow_mark = mark;
 
             return entry.text;
         }
@@ -72,29 +75,32 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
 
     if (try file.readPositionalAll(io, text, 0) != text.len) return error.FileChanged;
 
-    var observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text, .borrow_mark = if (borrowable) self.clock.current else 0 };
+    const plan = versions.update(.{
+        .previous = if (previous) |entry| .{ .text = entry.text, .mark = entry.borrow_mark } else null,
+        .text = text,
+        .borrowable = borrowable,
+        .clock = self.clock,
+        .counters = self.counters,
+    });
+
+    var observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text, .borrow_mark = plan.mark };
 
     if (previous) |entry| {
-        if (bytes.equal(entry.text, text)) {
+        if (plan.reuse) {
             self.gpa.free(text);
 
             observed.text = entry.text;
             observed.digest = entry.digest;
-
-            if (entry.borrow_mark != 0) observed.borrow_mark = entry.borrow_mark;
-
             entry.* = observed;
 
             return observed.text;
         }
 
-        const plan = self.clock.classify(entry.borrow_mark);
+        const keep = plan.previous.?;
 
-        if (plan.keep_on_abort) try self.replaced.ensureUnusedCapacity(self.gpa, self.transient.items.len + 1);
-        try self.transient.append(self.gpa, .{ .text = entry.text, .retention = plan });
+        if (keep.keep_on_abort) try self.replaced.ensureUnusedCapacity(self.gpa, plan.counters.abortable);
+        try self.transient.append(self.gpa, .{ .text = entry.text, .retention = keep });
 
-        self.publishable += @intFromBool(plan.keep_on_publish);
-        self.active_bytes -= entry.text.len;
         entry.* = observed;
     } else {
         const slot = if (try self.entries.reserve(self.gpa)) self.entries.position(key).slot else found.slot;
@@ -103,7 +109,7 @@ pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, ke
         self.entries.append(slot, owned_key, observed);
     }
 
-    self.active_bytes += text.len;
+    self.counters = plan.counters;
 
     return text;
 }
@@ -114,7 +120,7 @@ pub fn unchanged(self: *const Self, io: std.Io, directory: std.Io.Dir, path: []c
     const entry = self.entries.getPtr(key) orelse return null;
     const found = known orelse metadata(try directory.statFile(io, path, .{}));
 
-    return if (snapshot.residentReuse(entry.metadata, found, entry.read)) entry.text else null;
+    return if (snapshot.residentMark(entry.metadata, found, entry.read, .{}) != null) entry.text else null;
 }
 
 pub fn metadata(stat: std.Io.File.Stat) Metadata {
@@ -133,8 +139,11 @@ pub fn version(self: *const Self, key: []const u8) ?Version {
 pub fn digest(self: *Self, key: []const u8, text: []const u8) [32]u8 {
     const entry = self.entries.getPtr(key) orelse return hash(text);
 
-    if (entry.text.ptr != text.ptr or entry.text.len != text.len) return hash(text);
-    if (entry.digest == null) entry.digest = hash(text);
+    switch (versions.digest(entry.text, text, entry.digest != null)) {
+        .Hash => return hash(text),
+        .Reuse => return entry.digest.?,
+        .Save => entry.digest = hash(text),
+    }
 
     return entry.digest.?;
 }
@@ -158,7 +167,7 @@ pub fn release(self: *Self) void {
 }
 
 pub fn reserveAnalysis(self: *Self) std.mem.Allocator.Error!void {
-    try self.replaced.ensureUnusedCapacity(self.gpa, self.publishable);
+    try self.replaced.ensureUnusedCapacity(self.gpa, self.counters.publishable);
 }
 
 pub fn keepAnalysis(self: *Self) void {
@@ -171,15 +180,15 @@ pub fn endRequest(self: *Self) void {
 }
 
 fn retire(self: *Self, published: bool) void {
-    for (self.transient.items) |previous| {
-        if (previous.retention.keep(published)) {
-            self.replaced.appendAssumeCapacity(previous.text);
+    const retired = versions.retire(self.transient.items, self.replaced.unusedCapacitySlice(), published);
 
-            self.retained_bytes += previous.text.len;
-        } else self.gpa.free(previous.text);
-    }
+    self.replaced.items.len += retired.count;
+    self.retained_bytes += retired.bytes;
+
+    for (self.transient.items) |previous| self.gpa.free(previous.text);
 
     self.transient.clearRetainingCapacity();
 
-    self.publishable = 0;
+    self.counters.publishable = 0;
+    self.counters.abortable = 0;
 }

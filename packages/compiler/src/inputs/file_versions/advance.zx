@@ -1,0 +1,51 @@
+import classify from "../../zx/modules/cache_retention/classify"
+import mark from "./mark"
+
+import type { Retention } from "../../zx/modules/cache_retention/model"
+import type { Read, Update as Output } from "./model"
+
+export type Input = {
+    read: Read,
+    same: bool
+}
+
+export default function (in: Input): Output {
+    const { previous, text, clock, counters, borrowable } = in.read
+
+    if (previous != null && in.same) {
+        return {
+            reuse: true,
+            mark: mark({
+                previous: previous.mark,
+                current: clock.current,
+                borrowable
+            }),
+            previous: null,
+            counters
+        }
+    }
+
+    const old_size = previous == null ? 0 : previous.text.length
+
+    const retention: Retention? = match {
+        previous != null => classify({
+            mark: previous.mark,
+            published: clock.published
+        }),
+        _ => null
+    }
+
+    const keep_for_publish = retention != null && retention.keep_on_publish
+    const keep_for_abort = retention != null && retention.keep_on_abort
+
+    return {
+        reuse: false,
+        mark: borrowable ? clock.current : 0,
+        previous: retention,
+        counters: {
+            active: counters.active - old_size + text.length,
+            publishable: counters.publishable + (keep_for_publish ? 1 : 0),
+            abortable: counters.abortable + (keep_for_abort ? 1 : 0)
+        }
+    }
+}

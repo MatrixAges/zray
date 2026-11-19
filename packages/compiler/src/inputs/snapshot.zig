@@ -89,7 +89,9 @@ pub fn timestamp(value: i96) Time {
     return .{ .high = @bitCast(@as(u32, @truncate(bits >> 64))), .low = @truncate(bits) };
 }
 
-pub fn residentReuse(stored: Metadata, observed: Metadata, read: i96) bool {
+pub const Borrow = struct { previous: u64 = 0, current: u64 = 0, borrowable: bool = false };
+
+pub fn residentMark(stored: Metadata, observed: Metadata, read: i96, borrow: Borrow) ?u64 {
     if (comptime source) {
         const rule = @import("generated_input_resident_reuse");
         const Fields = std.meta.Child(rule.Input);
@@ -106,10 +108,13 @@ pub fn residentReuse(stored: Metadata, observed: Metadata, read: i96) bool {
             .stored = &.{ .inode = stored.inode, .size = stored.size, .modified = &stored_mtime, .changed = &stored_ctime },
             .observed = &.{ .inode = observed.inode, .size = observed.size, .modified = &found_mtime, .changed = &found_ctime },
             .read = &last_read,
+            .borrow = &.{ .previous = borrow.previous, .current = borrow.current, .borrowable = borrow.borrowable },
         }) catch unreachable;
     }
 
-    return stored.inode == observed.inode and stored.size == observed.size and stored.mtime == observed.mtime and stored.ctime == observed.ctime and observed.ctime + std.time.ns_per_s < read;
+    if (stored.inode != observed.inode or stored.size != observed.size or stored.mtime != observed.mtime or stored.ctime != observed.ctime or observed.ctime + std.time.ns_per_s >= read) return null;
+
+    return if (borrow.previous == 0 and borrow.borrowable) borrow.current else borrow.previous;
 }
 
 fn timeFields(comptime Fields: type, value: i96) Fields {

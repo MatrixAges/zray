@@ -1,0 +1,23 @@
+import strings from "std:string"
+
+export enum Decision {
+    Hash,
+    Reuse,
+    Save
+}
+
+export type Input = {
+    cached: bool,
+    stored: string,
+    text: string
+}
+
+export type Output = Decision
+
+export default function (in: Input): Output {
+    if (!strings.sameStorage(in.stored, in.text)) {
+        return Decision.Hash
+    }
+
+    return in.cached ? Decision.Reuse : Decision.Save
+}
