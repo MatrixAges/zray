@@ -3,6 +3,7 @@ const compiler = @import("compiler");
 const zx = @import("zx");
 const Inputs = @import("watch/inputs.zig");
 const Libraries = @import("library/inputs.zig");
+const Text = @import("sources/text.zig");
 
 pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, project: compiler.project.Options, cache: *compiler.project.ParseCache) ![]const compiler.project.Source {
     return readWithInputs(io, allocator, source, project, cache, null);
@@ -13,14 +14,31 @@ pub fn readWithInputs(io: std.Io, allocator: std.mem.Allocator, source: []const 
 }
 
 pub fn readWithLibraries(io: std.Io, allocator: std.mem.Allocator, source: []const u8, project: compiler.project.Options, cache: *compiler.project.ParseCache, inputs: ?*Inputs, libraries: ?*Libraries) ![]const compiler.project.Source {
-    return readInternal(io, allocator, source, project, cache, inputs, libraries, null);
+    var traversal: Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = inputs, .libraries = libraries };
+
+    return readInternal(&traversal, source, false);
 }
 
 pub const Detected = struct { sources: []const compiler.project.Source, has_rx: bool };
 
 pub fn readDetectingRx(io: std.Io, allocator: std.mem.Allocator, source: []const u8, project: compiler.project.Options, cache: *compiler.project.ParseCache, inputs: ?*Inputs, libraries: ?*Libraries) !Detected {
+    var traversal: Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = inputs, .libraries = libraries };
+
+    return detect(&traversal, source, false);
+}
+
+pub fn readLibrary(io: std.Io, allocator: std.mem.Allocator, project: compiler.project.Options, cache: *compiler.project.ParseCache, inputs: ?*Inputs, libraries: *Libraries, texts: *Text.Cache) !Detected {
+    const source = try Text.read(io, allocator, project.entry, texts);
+    var traversal: Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = inputs, .libraries = libraries, .texts = texts };
+
+    return detect(&traversal, source.bytes, !source.fresh);
+}
+
+fn detect(traversal: *Traversal, source: []const u8, recorded: bool) !Detected {
     var has_rx = false;
-    const sources = try readInternal(io, allocator, source, project, cache, inputs, libraries, &has_rx);
+    traversal.has_rx = &has_rx;
+
+    const sources = try readInternal(traversal, source, recorded);
 
     return .{ .sources = sources, .has_rx = has_rx };
 }
@@ -37,13 +55,14 @@ pub const Traversal = struct {
     has_rx: ?*bool = null,
     /// Preloaded text has the same lifetime as the resulting source list.
     known: ?*const Known = null,
+    texts: ?*Text.Cache = null,
     sources: std.ArrayList(compiler.project.Source) = .empty,
     paths: std.StringHashMapUnmanaged(void) = .empty,
     pub fn deinit(self: *Traversal) void {
         self.paths.deinit(self.allocator);
         self.sources.deinit(self.allocator);
     }
-    pub fn readEntry(self: *Traversal, path: []const u8, source: []const u8) !void {
+    pub fn readEntry(self: *Traversal, path: []const u8, source: []const u8, recorded: bool) !void {
         const allocator = self.allocator;
         var project = self.project;
 
@@ -51,7 +70,7 @@ pub const Traversal = struct {
 
         if (self.inputs) |observed| try observed.add(self.io, path);
         try @import("../package/source.zig").validateWithInputs(self.io, allocator, path, project.package_scopes, self.inputs);
-        if (self.inputs) |observed| try observed.record(self.io, path, source);
+        if (!recorded) if (self.inputs) |observed| try observed.record(self.io, path, source);
 
         var index = self.sources.items.len;
 
@@ -129,23 +148,27 @@ pub const Traversal = struct {
 
             const known_text = if (self.known) |known| known.get(path) else null;
 
-            const text = known_text orelse std.Io.Dir.cwd().readFileAlloc(self.io, path, self.allocator, .limited(16 * 1024 * 1024)) catch |err| switch (err) {
+            if (known_text) |text| {
+                try self.append(.{ .path = path, .source = text });
+
+                continue;
+            }
+
+            const text = Text.read(self.io, self.allocator, path, self.texts) catch |err| switch (err) {
                 error.FileNotFound => continue,
                 else => return err,
             };
 
-            if (self.inputs) |observed| try observed.record(self.io, path, text);
-            try self.append(.{ .path = path, .source = text });
+            if (text.fresh) if (self.inputs) |observed| try observed.record(self.io, path, text.bytes);
+            try self.append(.{ .path = path, .source = text.bytes });
         }
     }
 };
 
-fn readInternal(io: std.Io, allocator: std.mem.Allocator, source: []const u8, project: compiler.project.Options, cache: *compiler.project.ParseCache, inputs: ?*Inputs, libraries: ?*Libraries, has_rx: ?*bool) ![]const compiler.project.Source {
-    var traversal: Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = inputs, .libraries = libraries, .has_rx = has_rx };
-
+fn readInternal(traversal: *Traversal, source: []const u8, recorded: bool) ![]const compiler.project.Source {
     defer traversal.deinit();
 
-    try traversal.readEntry(project.entry, source);
+    try traversal.readEntry(traversal.project.entry, source, recorded);
 
-    return traversal.sources.toOwnedSlice(allocator);
+    return traversal.sources.toOwnedSlice(traversal.allocator);
 }

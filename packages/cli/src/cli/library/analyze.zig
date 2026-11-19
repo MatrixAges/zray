@@ -4,6 +4,8 @@ const zx = @import("zx");
 const store = @import("rx_analysis").store;
 const Loaded = @import("../project.zig").Loaded;
 const Inputs = @import("../watch/inputs.zig");
+const Sources = @import("../sources.zig");
+const Text = @import("../sources/text.zig");
 
 pub const Module = struct {
     name: []const u8,
@@ -100,8 +102,10 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     };
 
     var libraries = @import("inputs.zig"){ .allocator = owned };
+    var texts = Text.Cache{ .allocator = owned };
 
     defer libraries.deinit();
+    defer texts.deinit();
 
     for (options.loaded.config.exports, modules) |exported, *module| {
         var project = options.loaded.project;
@@ -109,15 +113,15 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         project.entry = try std.fs.path.resolve(owned, &.{ project.root_dir, exported.source });
 
         if (std.mem.endsWith(u8, project.entry, ".rx")) {
-            const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }} }) orelse return null;
+            const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }}, .texts = &texts }) orelse return null;
             module.* = .{ .name = exported.path, .analysis = prepared.analysis, .sources = prepared.sources, .store_definitions = prepared.store_definitions };
         } else {
-            const source = try std.Io.Dir.cwd().readFileAlloc(options.io, project.entry, owned, .limited(16 * 1024 * 1024));
-            const detected = try @import("../sources.zig").readDetectingRx(options.io, owned, source, project, cache, options.inputs, &libraries);
+            const detected = try Sources.readLibrary(options.io, owned, project, cache, options.inputs, &libraries, &texts);
+
             project.compiled_libraries = libraries.libraries.items;
 
             if (detected.has_rx) {
-                const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }} }) orelse return null;
+                const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }}, .texts = &texts }) orelse return null;
                 module.* = .{ .name = exported.path, .analysis = prepared.analysis, .sources = prepared.sources, .store_definitions = prepared.store_definitions };
             } else {
                 const analyzed = try compiler.analyzeProjectWithCache(owned, detected.sources, project, cache);

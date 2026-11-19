@@ -4,6 +4,7 @@ const analysis = @import("rx_analysis");
 const collection = @import("collection.zig");
 const Sources = @import("../sources.zig");
 const Inputs = @import("../watch/inputs.zig");
+const Text = @import("../sources/text.zig");
 pub const Result = struct { analysis: compiler.AnalysisResult, sources: []const compiler.project.Source, store_definitions: []const analysis.store.Definition };
 
 pub const Options = struct {
@@ -13,6 +14,7 @@ pub const Options = struct {
     parse_cache: *compiler.project.ParseCache,
     inputs: ?*Inputs = null,
     exports: []const analysis.project.Export = &.{},
+    texts: ?*Text.Cache = null,
 };
 
 pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
@@ -38,6 +40,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         .parse_cache = cache,
         .libraries = &libraries,
         .retained_source_allocator = allocator,
+        .texts = options.texts,
     }) orelse return null;
 
     defer loaded.deinit();
@@ -62,6 +65,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         .functions = loaded.data.functions,
         .writer = options.writer,
         .inputs = options.inputs,
+        .texts = options.texts,
     }) orelse return null;
 
     var known: Sources.Known = .empty;
@@ -76,7 +80,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
         try known.put(allocator, path.*, function.source);
     }
 
-    var traversal: Sources.Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = options.inputs, .libraries = &libraries, .known = &known };
+    var traversal: Sources.Traversal = .{ .io = io, .allocator = allocator, .project = project, .cache = cache, .inputs = options.inputs, .libraries = &libraries, .known = &known, .texts = options.texts };
 
     defer traversal.deinit();
 
@@ -86,7 +90,7 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
 
         const first = traversal.sources.items.len;
 
-        try traversal.readEntry(path, function.source);
+        try traversal.readEntry(path, function.source, true);
 
         if (project.package_scopes.len == 0) {
             for (traversal.sources.items[first + 1 ..]) |item| {

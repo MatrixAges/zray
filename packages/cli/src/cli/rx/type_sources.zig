@@ -3,6 +3,7 @@ const compiler = @import("compiler");
 const rx = @import("rx");
 const zx = @import("zx");
 const Inputs = @import("../watch/inputs.zig");
+const Text = @import("../sources/text.zig");
 
 pub const Options = struct {
     io: std.Io,
@@ -12,6 +13,7 @@ pub const Options = struct {
     functions: []const rx.TextSource,
     writer: *std.Io.Writer,
     inputs: ?*Inputs = null,
+    texts: ?*Text.Cache = null,
 };
 
 pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.TextSource {
@@ -72,16 +74,16 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.Text
                 if (@import("collection.zig").outside(relative)) return error.RxSourceOutsideProject;
             }
 
-            const source = std.Io.Dir.cwd().readFileAlloc(options.io, path, allocator, .limited(16 * 1024 * 1024)) catch |err| {
+            const source = Text.read(options.io, allocator, path, options.texts) catch |err| {
                 if (err == error.OutOfMemory or err == error.Canceled) return err;
                 try options.writer.print("{s}:{d}:{d}: module: {s}\n", .{ module.path, from.value_location.line, from.value_location.column, @errorName(err) });
 
                 return null;
             };
 
-            if (options.inputs) |inputs| try inputs.record(options.io, path, source);
+            if (source.fresh) if (options.inputs) |inputs| try inputs.record(options.io, path, source.bytes);
             try seen.put(allocator, path, {});
-            try result.append(allocator, .{ .path = path, .source = source });
+            try result.append(allocator, .{ .path = path, .source = source.bytes });
         }
     }
 
