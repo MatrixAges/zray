@@ -22,15 +22,12 @@ pub fn declaration(allocator: std.mem.Allocator, modules: zx.ir.NativeModuleTabl
         const entry = @import("generated_compiled_native_declaration");
         const Input = std.meta.Child(entry.Input);
         const view = zx.columns.columns(std.meta.Child(@FieldType(Input, "modules")), modules);
-        const input: Input = .{ .modules = &view, .requested = requested };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const selected = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+        const input: Input = .{ .modules = &view, .requested = requested, .instance = instance };
+        const result = zx.columns.invoke(entry.executeValue, allocator, &input) catch return error.OutOfMemory;
 
-        if (selected.conflict) return error.ConflictingNativeAbiAlias;
+        if (result.conflict) return error.ConflictingNativeAbiAlias;
 
-        const identity = selected.identity orelse return error.UnknownNativeAbiAlias;
-
-        return ownDeclaration(allocator, instance, identity, selected.shared);
+        return result.value orelse error.UnknownNativeAbiAlias;
     }
 
     return seedDeclaration(allocator, modules, instance, requested);

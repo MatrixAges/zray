@@ -4,19 +4,14 @@ const Inputs = @import("../watch/inputs.zig");
 const Config = @import("../../package/manifest/model.zig").Manifest;
 
 pub fn load(io: std.Io, allocator: std.mem.Allocator, root_dir: []const u8, config: Config, inputs: ?*Inputs) ![]compiler.project.NativeInterface {
-    for (config.externals) |external| {
-        const kind = try compiler.project.specifier.classify(external.specifier);
+    const configuration = compiler.project.native_configuration;
 
-        if (kind != .zig and kind != .c and kind != .legacy_library) return error.InvalidExternalSpecifier;
-    }
+    try configuration.validateExternals(config.externals);
 
     const interfaces = try allocator.alloc(compiler.project.NativeInterface, config.native_interfaces.len);
 
     for (config.native_interfaces, interfaces) |declaration, *interface| {
-        const kind = try compiler.project.specifier.classify(declaration.specifier);
-
-        if (kind == .file or kind == .package) return error.InvalidExternalSpecifier;
-        if (!std.mem.endsWith(u8, declaration.path, ".d.zx")) return error.InvalidNativeInterfacePath;
+        try configuration.validateInterface(declaration.specifier, declaration.path);
 
         const interface_path = try std.fs.path.resolve(allocator, &.{ root_dir, declaration.path });
 
@@ -35,23 +30,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, root_dir: []const u8, conf
         };
     }
 
-    for (config.native_modules, 0..) |module, index| {
-        const sources = @as(u8, @intFromBool(module.path != null)) + @as(u8, @intFromBool(module.header != null));
-
-        if (module.name.len == 0 or sources != 1) return error.InvalidNativeModule;
-
-        for (module.name) |byte| {
-            if (!std.ascii.isAlphanumeric(byte) and byte != '_' and byte != '-') return error.InvalidNativeModule;
-        }
-
-        for ([_][]const u8{ "std", "builtin", "root", "application", "zxc_abi", "zx_runtime" }) |reserved| {
-            if (std.mem.eql(u8, module.name, reserved)) return error.ReservedNativeModule;
-        }
-
-        for (config.native_modules[0..index]) |previous| {
-            if (std.mem.eql(u8, previous.name, module.name)) return error.DuplicateNativeModule;
-        }
-    }
+    try configuration.validateModules(config.native_modules);
 
     return interfaces;
 }

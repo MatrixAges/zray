@@ -1,0 +1,25 @@
+import bytes from "std:bytes"
+
+import { declaration_suffix } from "../const"
+import { Status } from "./model"
+
+export type Input = string
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    if (in.length < declaration_suffix.length) {
+        return Status.InvalidNativeInterfacePath
+    }
+
+    const start = in.length - declaration_suffix.length
+
+    return match bytes.startsWithText(
+        bytes.fromText(in),
+        start,
+        declaration_suffix
+    ) {
+        true => Status.Valid,
+        _ => Status.InvalidNativeInterfacePath
+    }
+}

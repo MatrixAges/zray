@@ -1,0 +1,34 @@
+import memory from "memory"
+
+import classify from "../../specifier/check"
+import { Kind } from "../../specifier/model"
+import { Status } from "./model"
+
+import type { Rows } from "../../project/target/select"
+
+export type Input = Rows
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        status: Status.Valid
+    }, {
+        while: current => current.index < in.length && current.status == Status.Valid,
+        next: current => {
+            const specifier = memory.readTextColumn(in.items, current.index)
+
+            current.status = match classify(specifier) {
+                Kind.Zig => Status.Valid,
+                Kind.C => Status.Valid,
+                Kind.LegacyLibrary => Status.Valid,
+                Kind.Invalid => Status.InvalidSpecifier,
+                _ => Status.InvalidExternalSpecifier
+            }
+
+            current.index += 1
+        },
+        return: current => current.status
+    })
+}

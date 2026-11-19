@@ -1,0 +1,27 @@
+import type { Arena, StringBuffer } from "memory"
+import type { ColumnAllocator } from "memory/columns"
+import type { Rows } from "../../project/target/select"
+
+export type Scope = {
+    owner: string,
+    entry_root: string,
+    compiled: bool
+}
+
+export type Request = {
+    scope: Scope,
+    value: string
+}
+
+export type Registry = {
+    local: Rows,
+    names: string[]
+}
+
+export type Prepare = {
+    scope: Scope,
+    local: Rows,
+    names: StringBuffer,
+    resource: ColumnAllocator,
+    scratch: Arena
+}

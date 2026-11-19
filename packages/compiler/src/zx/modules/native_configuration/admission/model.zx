@@ -1,0 +1,18 @@
+import type { ReadColumn } from "memory"
+import type { Rows } from "../../project/target/select"
+
+export enum Status {
+    Valid,
+    InvalidSpecifier,
+    InvalidExternalSpecifier,
+    InvalidNativeInterfacePath,
+    InvalidNativeModule,
+    ReservedNativeModule,
+    DuplicateNativeModule
+}
+
+export type Modules = {
+    names: Rows,
+    paths: ReadColumn,
+    headers: ReadColumn
+}

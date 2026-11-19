@@ -1,0 +1,15 @@
+export const declaration_suffix: string = ".d.zx"
+
+export const native_prefix: string = "zxc_native_"
+
+export const standard_module: string = "std"
+
+export const builtin_module: string = "builtin"
+
+export const root_module: string = "root"
+
+export const application_module: string = "application"
+
+export const abi_module: string = "zxc_abi"
+
+export const runtime_module: string = "zx_runtime"

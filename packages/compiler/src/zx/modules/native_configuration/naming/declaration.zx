@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+import { ascii_colon } from "core/ascii/const"
+import memory from "memory"
+
+import packageName from "./package_name"
+
+import type { Input as Name } from "./package_name"
+
+export type Input = Name
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const end = bytes.indexOfScalar(bytes.fromText(in.value), 0, ascii_colon)
+
+    if (end == null) {
+        return null
+    }
+
+    const prefix = memory.borrowTextRange(in.value, 0, end)
+    const name = packageName(in)
+
+    return `${prefix}:${name}`
+}

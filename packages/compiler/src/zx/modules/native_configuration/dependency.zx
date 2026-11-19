@@ -1,0 +1,50 @@
+import bytes from "std:bytes"
+import { ascii_equals } from "core/ascii/const"
+import memory from "memory"
+
+import registered from "./naming/registered"
+
+import type { StringBuffer } from "memory"
+import type { Registry } from "./naming/model"
+
+export type Input = {
+    registry: Registry,
+    dependencies: string[],
+    output: StringBuffer
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { registry, dependencies, output } = in
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: current => current.valid && current.index < dependencies.length,
+        next: current => {
+            const value = dependencies[current.index]
+            const separator =
+                bytes.indexOfScalar(bytes.fromText(value), 0, ascii_equals)
+            const first: u64 = separator == null ? 0 : separator + 1
+            const size = value.length
+            const target = memory.borrowTextRange(value, first, size - first)
+            const resolved = registered({
+                registry,
+                value: target
+            })
+
+            if (resolved == null) {
+                current.valid = false
+            } else {
+                const alias = memory.borrowTextRange(value, 0, separator ?? size)
+
+                memory.writeString(output, current.index, `${alias}=${resolved}`)
+            }
+
+            current.index += 1
+        },
+        return: current => current.valid
+    })
+}

@@ -1,0 +1,50 @@
+import memory from "memory"
+
+import select from "../../project/target/select"
+import { Status } from "./model"
+import moduleName from "./module_name"
+
+import type { Modules } from "./model"
+
+export type Input = Modules
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { names, paths, headers } = in
+
+    return loop({
+        index: 0,
+        status: Status.Valid
+    }, {
+        while: current => current.index < names.length && current.status == Status.Valid,
+        next: current => {
+            const path = memory.readOptionalTextColumn(paths, current.index)
+            const header = memory.readOptionalTextColumn(headers, current.index)
+            const name = memory.readTextColumn(names.items, current.index)
+
+            current.status = match (path == null) == (header == null) {
+                true => Status.InvalidNativeModule,
+                _ => moduleName(name)
+            }
+
+            if (current.status == Status.Valid) {
+                const previous = select({
+                    specifiers: {
+                        items: names.items,
+                        length: current.index
+                    },
+                    name,
+                    check_duplicates: false
+                })
+
+                if (previous.first != null) {
+                    current.status = Status.DuplicateNativeModule
+                }
+            }
+
+            current.index += 1
+        },
+        return: current => current.status
+    })
+}

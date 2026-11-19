@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Admission" />
+    <Type from="../../specifier/model" as="Specifier" />
+
+    <Args
+        in={{
+            specifier: string,
+            path: string
+        }}
+        out={Admission.Status}
+    />
+
+    <Call fn="../../specifier/check" in={$in.specifier} />
+
+    <Switch on={$ctx.check}>
+        <Case value={Specifier.Kind.Invalid}>
+            <Return value={Admission.Status.InvalidSpecifier} />
+        </Case>
+
+        <Case value={Specifier.Kind.File}>
+            <Return value={Admission.Status.InvalidExternalSpecifier} />
+        </Case>
+
+        <Case value={Specifier.Kind.Package}>
+            <Return value={Admission.Status.InvalidExternalSpecifier} />
+        </Case>
+    </Switch>
+
+    <Call fn="interface_path" in={$in.path} />
+
+    <Return value={$ctx.interface_path} />
+</Module>

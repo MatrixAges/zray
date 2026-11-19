@@ -1,7 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const model = @import("../../package/manifest/model.zig");
-const identity = @import("identity.zig");
+const configuration = compiler.project.native_configuration;
 const CompiledNative = @import("compiled_native.zig");
 const Inputs = @import("../watch/inputs.zig");
 pub const NativeSettings = struct { name: []const u8, root: []const u8, include_paths: []const []const u8 };
@@ -25,10 +25,21 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
 
         const native = try @import("native.zig").load(io, allocator, scope.root, config, inputs);
         const legacy = try allocator.dupe(compiler.project.External, config.externals);
+        var slots: [16][]const u8 = undefined;
+        var name_memory = std.heap.BufferFirstAllocator.init(std.mem.sliceAsBytes(&slots), allocator);
+        const temporary = name_memory.allocator();
+
+        const names = try configuration.bindNames(allocator, temporary, config.native_modules, .{
+            .owner = scope.root,
+            .entry_root = entry_root,
+            .compiled = compiled != null,
+        });
+
+        defer temporary.free(names.resolved);
 
         for (native, config.native_interfaces) |*entry, original| {
-            entry.identity = if (compiled) |binding| try binding.declaration(allocator, entry.specifier) else try identity.declaration(allocator, scope.root, entry.specifier);
-            entry.module = try backendName(allocator, compiled, scope.root, entry_root, entry.module);
+            entry.identity = if (compiled) |binding| try binding.declaration(allocator, entry.specifier) else try configuration.declaration(allocator, scope.root, entry.specifier);
+            entry.module = try names.name(allocator, entry.module);
 
             var declaration = original;
             declaration.module = entry.module;
@@ -39,8 +50,8 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
         }
 
         for (legacy) |*entry| {
-            entry.identity = if (compiled) |binding| try binding.declaration(allocator, entry.specifier) else try identity.declaration(allocator, scope.root, entry.specifier);
-            entry.implementation.module = try backendName(allocator, compiled, scope.root, entry_root, entry.implementation.module);
+            entry.identity = if (compiled) |binding| try binding.declaration(allocator, entry.specifier) else try configuration.declaration(allocator, scope.root, entry.specifier);
+            entry.implementation.module = try names.name(allocator, entry.implementation.module);
 
             var published = entry.*;
 
@@ -57,33 +68,14 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
         try libraries.appendSlice(allocator, config.libraries);
         for (config.library_paths) |path| try library_paths.append(allocator, try std.fs.path.resolve(allocator, &.{ scope.root, path }));
 
-        for (config.native_modules) |original| {
+        for (config.native_modules, names.resolved) |original, name| {
             var module = original;
 
-            module.name = try backendName(allocator, compiled, scope.root, entry_root, original.name);
+            module.name = name;
 
             if (original.path) |path| module.path = try std.fs.path.resolve(allocator, &.{ scope.root, path });
 
-            const dependencies = try allocator.alloc([]const u8, original.dependencies.len);
-
-            for (original.dependencies, dependencies) |local, *dependency| {
-                const separator = std.mem.indexOfScalar(u8, local, '=');
-                const alias = if (separator) |index| local[0..index] else local;
-                const target = if (separator) |index| local[index + 1 ..] else local;
-                var found = false;
-
-                for (config.native_modules) |candidate| if (std.mem.eql(u8, candidate.name, target)) {
-                    found = true;
-
-                    break;
-                };
-
-                if (!found) return error.UnknownNativeDependency;
-
-                dependency.* = try std.fmt.allocPrint(allocator, "{s}={s}", .{ alias, try backendName(allocator, compiled, scope.root, entry_root, target) });
-            }
-
-            module.dependencies = dependencies;
+            module.dependencies = try names.dependencies(allocator, original.dependencies);
             const includes = original.include_paths orelse config.include_paths;
             const resolved_includes = try allocator.alloc([]const u8, includes.len);
 
@@ -97,10 +89,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
             else
                 try compiler.project.compiled.identity.sourceAliases(allocator, native, legacy, model.AbiAlias, original.abi_aliases);
 
-            for (modules.items) |previous| {
-                if (std.mem.eql(u8, previous.name, module.name)) return error.DuplicateNativeModule;
-            }
-
+            if (configuration.hasModule(modules.items, module.name)) return error.DuplicateNativeModule;
             try modules.append(allocator, module);
             try settings.append(allocator, .{ .name = module.name, .root = scope.root, .include_paths = config.include_paths });
         }
@@ -115,11 +104,4 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []const compiler.p
     result.settings = try settings.toOwnedSlice(allocator);
 
     return result;
-}
-
-fn backendName(allocator: std.mem.Allocator, compiled: ?CompiledNative, owner: []const u8, entry_root: []const u8, local: []const u8) ![]const u8 {
-    if (compiled) |binding| return binding.name(allocator, local);
-    if (std.mem.eql(u8, owner, entry_root)) return allocator.dupe(u8, local);
-
-    return identity.name(allocator, owner, local);
 }

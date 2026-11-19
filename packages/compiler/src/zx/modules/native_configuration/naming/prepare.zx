@@ -1,0 +1,34 @@
+import backend from "compiler/native_configuration_backend_name"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Prepare } from "./model"
+
+export type Input = Prepare
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { scope, local, names, resource, scratch } = in
+
+    const named = loop(0, {
+        while: index => index < local.length,
+        next: index => {
+            const value = memory.readTextColumn(local.items, index)
+
+            const name = backend({
+                scope,
+                value
+            })
+
+            memory.writeString(
+                names,
+                index,
+                columns.copyColumnText(resource, name)
+            )
+            memory.resetArena(scratch)
+
+            index += 1
+        }
+    })
+}

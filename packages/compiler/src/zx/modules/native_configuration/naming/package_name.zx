@@ -1,0 +1,26 @@
+import bytes from "std:bytes"
+import crypto from "std:crypto"
+import encoding from "std:encoding"
+import { ascii_null } from "core/ascii/const"
+
+import { native_prefix } from "../const"
+
+export type Input = {
+    owner: string,
+    value: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const parts = [
+        bytes.fromText(in.owner),
+        [ascii_null],
+        bytes.fromText(in.value)
+    ]
+
+    return parts
+        -> crypto.sha256Parts(_)
+        -> encoding.encodeHex(_)
+        -> `${native_prefix}${_}`
+}

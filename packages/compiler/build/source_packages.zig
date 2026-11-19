@@ -47,6 +47,7 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/ir_unit_structure", .entry = "zx/ir/canonical/validation/structure/unit.rx" },
     .{ .specifier = "compiler/ir_function_check", .entry = "zx/ir/canonical/validation/functions/check.rx" },
     .{ .specifier = "compiler/compiled_native_alias_step", .entry = "zx/modules/compiled/identity/aliases/step.rx" },
+    .{ .specifier = "compiler/native_configuration_backend_name", .entry = "zx/modules/native_configuration/naming/backend.rx" },
     .{ .specifier = "compiler/compiled_interface_row", .entry = "zx/modules/compiled/loading/interface/row.rx" },
     .{ .specifier = "compiler/ir_external_check", .entry = "zx/ir/canonical/validation/external/check.rx" },
     .{ .specifier = "compiler/collection_lower", .entry = "zx/analysis/analyzer/collections/lower.rx" },

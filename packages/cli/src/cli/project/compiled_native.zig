@@ -32,10 +32,6 @@ pub fn deinit(self: *Self) void {
     self.library.deinit();
 }
 
-pub fn name(self: Self, allocator: std.mem.Allocator, local: []const u8) ![]const u8 {
-    return identity.nativeName(allocator, self.instance, local);
-}
-
 pub fn declaration(self: Self, allocator: std.mem.Allocator, specifier: []const u8) ![]const u8 {
     return identity.declaration(allocator, self.library.program.native_modules, self.instance, specifier);
 }

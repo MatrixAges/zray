@@ -1,0 +1,25 @@
+import select from "../../project/target/select"
+
+import type { Registry } from "./model"
+
+export type Input = {
+    registry: Registry,
+    value: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { registry, value } = in
+
+    const row = select({
+        specifiers: registry.local,
+        name: value,
+        check_duplicates: false
+    }).first
+
+    return match {
+        row != null => registry.names[row],
+        _ => null
+    }
+}
