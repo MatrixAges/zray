@@ -1,0 +1,30 @@
+import memory from "memory"
+
+import type { ReadColumn } from "memory"
+
+export type Input = {
+    flags: ReadColumn,
+    first: u64,
+    end: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { flags, first, end } = in
+
+    return loop({
+        row: first,
+        done: false
+    }, {
+        while: state => !state.done && state.row < end,
+        next: state => {
+            if (memory.readColumnBool(flags, state.row)) {
+                state.done = true
+            } else {
+                state.row += 1
+            }
+        },
+        return: state => state.row
+    })
+}

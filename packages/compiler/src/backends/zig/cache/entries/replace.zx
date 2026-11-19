@@ -1,0 +1,44 @@
+import strings from "std:string"
+import memory from "memory"
+
+import type { TextColumn } from "memory"
+
+export type Previous = {
+    pending: u64,
+    source: string
+}
+
+export type Input = {
+    previous?: Previous,
+    queue: TextColumn,
+    count: u64,
+    persistent: bool,
+    needs_write: bool
+}
+
+export type Output = {
+    append?: u64,
+    retire?: u64
+}
+
+export default function (in: Input): Output {
+    const { previous, queue, count, persistent, needs_write } = in
+
+    const append: u64? = persistent && needs_write ? count : null
+    const none: u64? = null
+
+    if (previous == null || previous.pending >= count) {
+        return {
+            append,
+            retire: none
+        }
+    }
+
+    const pending = memory.readTextColumn(queue, previous.pending)
+    const same = strings.sameStorage(previous.source, pending)
+
+    return {
+        append,
+        retire: same ? previous.pending : null
+    }
+}

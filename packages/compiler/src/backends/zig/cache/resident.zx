@@ -1,0 +1,31 @@
+export enum Action {
+    Reuse,
+    Open,
+    Replace
+}
+
+export type Input = {
+    existing?: string,
+    path: string,
+    resident: bool
+}
+
+export type Output = {
+    action: Action,
+    record_trace: bool
+}
+
+export default function (in: Input): Output {
+    const { existing, path, resident } = in
+
+    const action = match {
+        existing == null => Action.Open,
+        existing == path => Action.Reuse,
+        _ => Action.Replace
+    }
+
+    return {
+        action,
+        record_trace: resident
+    }
+}

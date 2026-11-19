@@ -17,7 +17,7 @@ parse_cache: compiler.project.ParseCache,
 /// The sources read so far, so unchanged ones keep their texts.
 files: Files,
 modules: Modules,
-generation: ?Generation = null,
+generation: ?compiler.zig.GenerationCache = null,
 history: History = .{ .frame = @splat(0) },
 /// Each result may borrow its chosen predecessor and that predecessor's ancestors.
 epochs: std.ArrayList(Epoch) = .empty,
@@ -32,8 +32,6 @@ discarded: ?std.heap.ArenaAllocator = null,
 /// What each request's output is built in, reset rather than freed between requests so that its pages stay mapped:
 /// copying the reused sources into fresh pages costs more in page faults than in copying.
 emission: std.heap.ArenaAllocator,
-const Generation = struct { path: []u8, cache: compiler.zig.GenerationCache };
-
 const Epoch = struct {
     analysis: std.heap.ArenaAllocator,
     inputs: ?std.heap.ArenaAllocator,
@@ -55,10 +53,7 @@ pub fn init(io: std.Io, gpa: std.mem.Allocator) !Self {
 }
 
 pub fn deinit(self: *Self) void {
-    if (self.generation) |*generation| {
-        generation.cache.deinit();
-        self.gpa.free(generation.path);
-    }
+    if (self.generation) |*cache| cache.deinit();
 
     self.endRequest();
     self.release();
@@ -71,35 +66,36 @@ pub fn deinit(self: *Self) void {
 
 /// The generation cache persisted under `path`, kept across requests that name the same directory.
 pub fn generationCache(self: *Self, io: std.Io, path: []const u8) !*compiler.zig.GenerationCache {
-    if (self.generation) |*generation| {
-        if (std.mem.eql(u8, generation.path, path)) return &generation.cache;
+    const Cache = compiler.zig.GenerationCache;
+    const previous = if (self.generation) |*cache| cache.storage.?.directory else null;
+    const plan = Cache.residentPlan(previous, path, self.request != null);
 
-        generation.cache.deinit();
-        self.gpa.free(generation.path);
+    switch (plan.action) {
+        .Reuse => return &self.generation.?,
+        .Open => {},
+        .Replace => {
+            self.generation.?.deinit();
 
-        self.generation = null;
+            self.generation = null;
+        },
     }
 
-    const owned = try self.gpa.dupe(u8, path);
-
-    errdefer self.gpa.free(owned);
-
-    var cache = try compiler.zig.GenerationCache.initPersistent(self.gpa, io, path, self.digest);
+    var cache = try Cache.initPersistent(self.gpa, io, path, self.digest);
 
     errdefer cache.deinit();
 
-    if (try cache.keepMemo()) |memo| memo.record_trace = self.request != null;
+    if (try cache.keepMemo()) |memo| memo.record_trace = plan.record_trace;
 
-    self.generation = .{ .path = owned, .cache = cache };
+    self.generation = cache;
 
-    return &self.generation.?.cache;
+    return &self.generation.?;
 }
 
 /// Writes what later processes reuse from this one to the cache directory.
 pub fn persist(self: *Self) void {
-    if (self.generation) |*generation| {
-        generation.cache.flush();
-        generation.cache.flushMemo() catch {};
+    if (self.generation) |*cache| {
+        cache.flush();
+        cache.flushMemo() catch {};
     }
 }
 

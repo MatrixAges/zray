@@ -1,0 +1,25 @@
+import bytes from "std:bytes"
+
+export enum Route {
+    Held,
+    Stored,
+    Missing
+}
+
+export type Input = {
+    resident?: u8[],
+    key: u8[],
+    storage: bool
+}
+
+export type Output = Route
+
+export default function (in: Input): Output {
+    const { resident, key, storage } = in
+
+    if (resident != null && bytes.equals(resident, key)) {
+        return Route.Held
+    }
+
+    return storage ? Route.Stored : Route.Missing
+}

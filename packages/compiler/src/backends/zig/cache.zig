@@ -1,5 +1,6 @@
 const std = @import("std");
 const Storage = @import("cache/storage.zig");
+const policy = @import("cache/policy.zig");
 const Self = @This();
 const Owner = enum { cache, shared };
 const Entry = struct { key: [32]u8, source: []u8, pending: ?usize = null, owner: Owner = .cache };
@@ -19,18 +20,18 @@ last_io_error: ?anyerror = null,
 /// Keeps the uniqueness memo in `memo` across generations instead of reading and writing it for each one; `flushMemo`
 /// writes it to storage.
 keeps_memo: bool = false,
-
 memo: ?Memo = null,
 /// Sources put since storage was last written. `put` only collects them, and `startWriting` stores them on another
 /// thread while the build goes on; every later change to the cache waits for that thread first.
-unwritten: std.ArrayList(Unwritten) = .empty,
+unwritten: Queue = .{},
 writer: ?std.Thread = null,
 writing: Writing = .{},
 const Unwritten = struct { key: [32]u8, source: []u8, owner: Owner, retired: bool = false };
+const Queue = struct { records: std.ArrayList(Unwritten) = .empty, has_retired: bool = false };
 
 /// What the writer thread did, read once it was joined.
 const Writing = struct {
-    queue: std.ArrayList(Unwritten) = .empty,
+    queue: Queue = .{},
     written: usize = 0,
     io_errors: usize = 0,
     last_io_error: ?anyerror = null,
@@ -46,7 +47,7 @@ pub fn initPersistent(allocator: std.mem.Allocator, io: std.Io, directory: []con
 
 pub fn deinit(self: *Self) void {
     self.flush();
-    self.unwritten.deinit(self.allocator);
+    self.unwritten.records.deinit(self.allocator);
 
     for (self.entries.keys.items, self.entries.values.items) |name, entry| {
         self.allocator.free(name);
@@ -80,13 +81,16 @@ pub const Fetched = struct {
 
 /// A parallel search uses the shared allocator for disk buffers. Cache metadata stays on the caller's allocator.
 pub fn fetch(self: *const Self, name: []const u8, key: [32]u8, owner: Owner) std.mem.Allocator.Error!Fetched {
-    if (self.entries.getPtr(name)) |entry| {
-        if (std.mem.eql(u8, &entry.key, &key)) return .{ .source = entry.source, .kind = .held };
+    const entry = self.entries.getPtr(name);
+    const cached = if (entry) |value| &value.key else null;
+
+    switch (policy.lookup(cached, &key, self.storage != null)) {
+        .Held => return .{ .source = entry.?.source, .kind = .held },
+        .Missing => return .{},
+        .Stored => {},
     }
 
-    const storage = self.storage orelse return .{};
-
-    const source = storage.read(self.sourceAllocator(owner), key) catch |err| switch (err) {
+    const source = self.storage.?.read(self.sourceAllocator(owner), key) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidCache => return .{ .kind = .invalid },
         else => return .{ .failure = err, .kind = .failed },
@@ -117,7 +121,7 @@ pub fn record(self: *Self, name: []const u8, key: [32]u8, fetched: *Fetched) std
         .stored => {
             const source = @constCast(fetched.source.?);
 
-            try self.store(name, .{ .key = key, .source = source, .owner = fetched.owner });
+            try self.store(name, .{ .key = key, .source = source, .owner = fetched.owner }, false);
 
             fetched.* = .{};
             self.loaded += 1;
@@ -153,63 +157,83 @@ pub fn putShared(self: *Self, name: []const u8, key: [32]u8, source: []u8) std.m
 }
 
 fn putOwned(self: *Self, name: []const u8, key: [32]u8, source: []u8, owner: Owner) std.mem.Allocator.Error!void {
-    if (self.storage != null) try self.unwritten.ensureUnusedCapacity(self.allocator, 1);
-
-    const pending = if (self.storage != null) self.unwritten.items.len else null;
-
-    try self.store(name, .{ .key = key, .source = source, .pending = pending, .owner = owner });
-    if (pending != null) self.unwritten.appendAssumeCapacity(.{ .key = key, .source = source, .owner = owner });
+    try self.store(name, .{ .key = key, .source = source, .owner = owner }, true);
 }
 
 /// Writes the sources put so far to storage on another thread, or here when no thread starts.
 pub fn startWriting(self: *Self) void {
-    self.finishWriting();
-
-    if (self.unwritten.items.len == 0) return;
-
-    self.takeWrites();
-
-    self.writer = std.Thread.spawn(.{}, writeAllInto, .{ self.storage.?, &self.writing }) catch {
-        self.finishWriting();
-
-        return;
-    };
+    self.runWriter(.Background);
 }
 
 /// Writes every source put so far before returning, as counting what was written expects.
 pub fn flush(self: *Self) void {
-    self.finishWriting();
-
-    if (self.unwritten.items.len == 0) return;
-
-    self.takeWrites();
-    self.finishWriting();
+    self.runWriter(.Synchronous);
 }
 
 /// Waits for the writes `startWriting` began and accounts for them.
 pub fn finishWriting(self: *Self) void {
-    if (self.writer) |thread| {
-        thread.join();
+    self.runWriter(.Wait);
+}
 
-        self.writer = null;
-    } else if (self.writing.queue.items.len != 0) writeAllInto(self.storage.?, &self.writing);
+fn runWriter(self: *Self, mode: policy.Mode) void {
+    const active = self.writing.queue.records.items.len != 0;
+    const waiting = self.unwritten.records.items.len != 0;
 
-    if (self.writing.queue.items.len == 0) return;
+    if (!active and (mode == .Wait or !waiting)) return;
+
+    const plan = policy.schedule(mode, active, self.writer != null, waiting);
+
+    self.completeWrites(plan.finish);
+
+    if (plan.start == .Idle) return;
+
+    self.writing = .{ .queue = self.unwritten };
+    self.unwritten = .{};
+
+    switch (plan.start) {
+        .Drain => self.completeWrites(.Drain),
+        .Spawn => {
+            self.writer = std.Thread.spawn(.{}, writeAllInto, .{ self.storage.?, &self.writing }) catch {
+                self.completeWrites(.Drain);
+
+                return;
+            };
+        },
+        .Idle, .Join => unreachable,
+    }
+}
+
+fn completeWrites(self: *Self, action: policy.Action) void {
+    switch (action) {
+        .Idle => return,
+        .Join => {
+            self.writer.?.join();
+
+            self.writer = null;
+        },
+        .Drain => writeAllInto(self.storage.?, &self.writing),
+        .Spawn => unreachable,
+    }
 
     self.written += self.writing.written;
     self.io_errors += self.writing.io_errors;
 
     if (self.writing.last_io_error) |err| self.last_io_error = err;
-    for (self.writing.queue.items) |item| if (item.retired) self.sourceAllocator(item.owner).free(item.source);
 
-    self.writing.queue.deinit(self.allocator);
+    if (self.writing.queue.has_retired) {
+        const records = self.writing.queue.records.items;
+        var row = policy.nextRetired(records, 0);
+
+        while (row < records.len) : (row = policy.nextRetired(records, row + 1)) {
+            const item = records[row];
+
+            self.sourceAllocator(item.owner).free(item.source);
+        }
+    }
+
+    self.writing.queue.records.deinit(self.allocator);
 
     self.writing = .{};
-}
-
-fn takeWrites(self: *Self) void {
-    self.writing = .{ .queue = self.unwritten };
-    self.unwritten = .empty;
 }
 
 /// Writes every record on a few of the shared workers; records are separate files, which the file system creates
@@ -249,7 +273,7 @@ fn writeAllInto(storage: Storage, writing: *Writing) void {
         }
     };
 
-    const items = writing.queue.items;
+    const items = writing.queue.records.items;
     var records = Records{ .storage = storage, .items = items };
     const participants = @min(writers, items.len);
 
@@ -298,40 +322,40 @@ pub fn flushMemo(self: *Self) std.mem.Allocator.Error!void {
     if (self.memo) |*memo| try @import("uniqueness_memo.zig").save(self.allocator, self, memo);
 }
 
-fn store(self: *Self, name: []const u8, value: Entry) std.mem.Allocator.Error!void {
+fn store(self: *Self, name: []const u8, input: Entry, enqueue: bool) std.mem.Allocator.Error!void {
+    const found = self.entries.position(name);
+    const previous = if (found.row) |row| &self.entries.values.items[row] else null;
+    const queued: ?policy.Previous = if (previous) |entry| if (entry.pending) |row| .{ .pending = row, .source = entry.source } else null else null;
+    const plan = policy.replace(queued, self.unwritten.records.items, self.storage != null, enqueue);
+
+    if (plan.append != null) try self.unwritten.records.ensureUnusedCapacity(self.allocator, 1);
+
     self.finishWriting();
 
-    const found = self.entries.position(name);
+    var value = input;
 
-    if (found.row) |row| {
-        const entry = &self.entries.values.items[row];
+    value.pending = plan.append;
 
-        if (self.pendingWrite(entry)) |item| {
-            item.retired = true;
+    if (previous) |entry| {
+        if (plan.retire) |row| {
+            self.unwritten.records.items[row].retired = true;
+            self.unwritten.has_retired = true;
         } else {
             self.sourceAllocator(entry.owner).free(entry.source);
         }
 
         entry.* = value;
+    } else {
+        const slot = if (try self.entries.reserve(self.allocator)) self.entries.position(name).slot else found.slot;
+        const owned_name = try self.allocator.dupe(u8, name);
 
-        return;
+        self.entries.append(slot, owned_name, value);
     }
 
-    const slot = if (try self.entries.reserve(self.allocator)) self.entries.position(name).slot else found.slot;
-    const owned_name = try self.allocator.dupe(u8, name);
-
-    self.entries.append(slot, owned_name, value);
+    if (plan.append != null) self.unwritten.records.appendAssumeCapacity(.{ .key = value.key, .source = value.source, .owner = value.owner });
 }
 
-fn pendingWrite(self: *Self, entry: *const Entry) ?*Unwritten {
-    const index = entry.pending orelse return null;
-
-    if (index >= self.unwritten.items.len) return null;
-
-    const item = &self.unwritten.items[index];
-
-    return if (item.source.ptr == entry.source.ptr) item else null;
-}
+pub const residentPlan = policy.resident;
 
 fn recordError(self: *Self, err: anyerror) void {
     self.io_errors += 1;
