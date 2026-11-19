@@ -1,0 +1,29 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { Completed as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const completed = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const constant_only = match {
+                !in.type_only => false,
+                memory.readColumnOptionalU32(in.defaults, row) != null => false,
+                memory.listLength(in.constants, row) == 0 => false,
+                memory.listLength(in.types, row) != 0 => false,
+                _ => memory.listLength(in.member_ids, row) == 0
+            }
+
+            memory.writeColumnBytes(
+                in.source_files,
+                row,
+                bytes.fromText(in.sources[row])
+            )
+            memory.writeColumnBool(in.constants_only, row, constant_only)
+            row += 1
+        }
+    })
+}

@@ -1,0 +1,30 @@
+import integers from "std:integer"
+
+import type { Body, FunctionColumns } from "./model"
+
+export type Input = {
+    functions: FunctionColumns,
+    id: u32
+}
+
+export type Output = Body
+
+export default function (in: Input): Output {
+    const { functions } = in
+
+    const row = integers.widen(in.id)
+
+    return {
+        file: functions.files[row],
+        input_type: functions.input_types[row],
+        output_type: functions.output_types[row],
+        ownership: functions.ownership[row],
+        store_mode: functions.store_modes[row],
+        symbols: functions.symbols[row],
+        expressions: functions.expressions[row],
+        control: functions.control[row],
+        root: functions.roots[row],
+        contracts: functions.contracts[row],
+        stores: functions.stores[row]
+    }
+}

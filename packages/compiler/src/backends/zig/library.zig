@@ -81,27 +81,23 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
     const memo = if (loaded) |*value| value else if (keeps_memo) try cache.?.keepMemo() else null;
     const Analysis = @import("genz").zx.modules.Analysis;
 
-    var analysis = if (concurrent_analysis)
-        try Analysis.createRememberedConcurrent(allocator, program, publication.roots, memo)
-    else
-        try Analysis.createRemembered(allocator, program, publication.roots, memo);
+    var batch = initialized: {
+        var analysis = if (concurrent_analysis)
+            try Analysis.createRememberedConcurrent(allocator, program, publication.roots, memo)
+        else
+            try Analysis.createRemembered(allocator, program, publication.roots, memo);
 
-    // Names take the capabilities the analysis already found instead of tracing the call graph again.
-    var identities = names.createWith(owned, allocator, program, library.nominal_types, .{ .io = analysis.value.io, .process = analysis.value.process }) catch |err| {
-        analysis.deinit();
+        errdefer analysis.deinit();
 
-        return err;
+        // Use the capabilities already discovered by the analysis.
+        var identities = try names.createWith(owned, allocator, program, library.nominal_types, .{ .io = analysis.value.io, .process = analysis.value.process });
+
+        if (file_imports) identities.functions = try @import("library_publication.zig").fileNames(owned, identities.functions);
+
+        break :initialized modules.Batch.fromAnalysis(allocator, program, identities, cache, analysis);
     };
 
-    if (file_imports) {
-        const functions = try owned.alloc([]const u8, identities.functions.len);
-
-        for (identities.functions, functions) |name, *path| path.* = try std.fmt.allocPrint(owned, "{s}.zig", .{name});
-
-        identities.functions = functions;
-    }
-
-    var batch = modules.Batch.fromAnalysis(allocator, program, identities, cache, analysis);
+    const identities = batch.names;
 
     defer batch.deinit();
 
@@ -148,8 +144,6 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
             .value_entry = public_batch.analysis.value.hasValueEntry(),
             .state_entry = public_batch.analysis.value.hasStateEntry(view),
             .allocator_entry = public_batch.analysis.value.hasAllocatorEntry(),
-            .constant_only = view.type_only and view.constant_exports.len != 0 and
-                view.exports.len == 0 and exported.members.len == 0,
             .requirements = .{ .io = public_batch.analysis.value.entry_flags.io, .process = public_batch.analysis.value.entry_flags.process },
             .file = .{
                 .name = published.module,
@@ -170,8 +164,7 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
     const graph = try references.plan(workspace, allocator, program.functions, entry_roots, publication.member_ids);
     const units = try @import("function_units.zig").create(workspace, graph, publication.regular);
     const generated = try @import("function_sources.zig").createJobs(owned, .{ .batch = &batch, .entries = public_batches, .types = true, .functions = units });
-
-    for (public_modules, generated[0..public_batches.len]) |*public_module, source| public_module.file.source = source;
+    @import("library_publication.zig").complete(library.exports, program.type_only, public_modules, generated[0..public_batches.len]);
 
     const type_source = generated[public_batches.len];
     const initializers = try @import("library_initializers.zig").createBacked(owned, allocator, library, identities, cache);

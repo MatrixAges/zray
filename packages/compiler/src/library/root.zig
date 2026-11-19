@@ -37,20 +37,7 @@ pub const Result = struct {
         result.exports = exported.types;
         result.constant_exports = exported.constants;
 
-        if (exported.function) |id| {
-            const function = result.functions.at(@backingInt(id));
-            result.file_name = function.file_name;
-            result.type_only = false;
-            result.input_type = function.input_type;
-            result.output_type = function.output_type;
-            result.output_ownership = function.output_ownership;
-            result.symbols = function.symbols;
-            result.expressions = function.expressions;
-            result.body = function.body;
-            result.contracts = function.contracts;
-            result.stores = function.stores;
-            result.store_mode = function.store_mode;
-        }
+        @import("entry_view.zig").apply(&result, exported.function, false);
 
         return result;
     }

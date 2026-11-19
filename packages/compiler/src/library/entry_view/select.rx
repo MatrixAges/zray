@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Input} out={Entry.Body?} />
+
+    <If on={$in.function_id != null}>
+        <Call
+            fn="function_body"
+            in={{
+                functions: $in.functions,
+                id: $in.function_id
+            }}
+        />
+
+        <If on={$in.initializer != null}>
+            <Return
+                value={{
+                    ...$ctx.function_body,
+                    file: $in.initializer.file,
+                    store_mode: $in.initializer.store_mode,
+                    stores: $in.initializer.empty_stores
+                }}
+            />
+        </If>
+
+        <Return value={$ctx.function_body} />
+    </If>
+
+    <Return value={null} />
+</Module>

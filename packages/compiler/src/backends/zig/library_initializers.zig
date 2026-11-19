@@ -15,17 +15,8 @@ pub fn createBacked(allocator: std.mem.Allocator, backing: std.mem.Allocator, li
     const entries = try allocator.alloc(modules.StoreInitializer, library.store_initializers.len);
 
     for (library.store_initializers, files, entries) |initial, *file, *entry| {
-        const function = library.program.functions.at(@backingInt(initial.function));
         var program = library.program;
-        program.type_only = false;
-        program.input_type = function.input_type;
-        program.output_type = function.output_type;
-        program.output_ownership = function.output_ownership;
-        program.symbols = function.symbols;
-        program.expressions = function.expressions;
-        program.body = function.body;
-        program.contracts = function.contracts;
-        program.stores = .{};
+        @import("../../library/entry_view.zig").apply(&program, initial.function, true);
         program.exports = &.{};
         const published = try @import("publication/initializer.zig").emit(allocator, backing, initial.identity, initial.schema_version, &program, names, cache);
         file.* = published.file;

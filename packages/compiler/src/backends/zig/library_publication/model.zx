@@ -4,7 +4,8 @@ import type {
     ReadColumn,
     U32Buffer,
     U64Buffer,
-    U8Buffer
+    U8Buffer,
+    WriteColumn
 } from "memory"
 
 export type Exports = {
@@ -30,4 +31,21 @@ export type Input = {
 export type Output = {
     roots: u64,
     members: u64
+}
+
+export type CapacityInput = Exports.Pick("count", "member_ids")
+
+export type Capacity = {
+    roots: u64,
+    members: u64
+}
+
+export type Completed = CapacityInput & {
+    defaults: ReadColumn,
+    types: ListColumn,
+    constants: ListColumn,
+    type_only: bool,
+    sources: string[],
+    source_files: WriteColumn,
+    constants_only: WriteColumn
 }

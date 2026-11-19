@@ -1,0 +1,22 @@
+import memory from "memory"
+
+import type { CapacityInput as Input, Capacity as Output } from "./model"
+
+export default function (in: Input): Output {
+    const members = loop({
+        row: 0,
+        count: 0
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            state.count += memory.listLength(in.member_ids, state.row)
+            state.row += 1
+        },
+        return: state => state.count
+    })
+
+    return {
+        roots: members + in.count,
+        members
+    }
+}
