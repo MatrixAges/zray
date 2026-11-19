@@ -1,0 +1,31 @@
+import slot from "core/bytes/index/borrowed/wide_slot"
+import memory from "memory"
+
+import type { Table } from "core/bytes/index/borrowed/wide_slot"
+
+export type Input = Table & {
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { names, buckets, capacity, count } = in
+
+    const indexed = loop(0, {
+        while: row => row < count,
+        next: row => {
+            const found = slot({
+                names,
+                buckets,
+                capacity,
+                name: memory.readTextColumn(names, row)
+            })
+
+            // Library validation has already accepted the export names.
+            memory.writeU64(buckets, found.slot, row + 1)
+
+            row += 1
+        }
+    })
+}

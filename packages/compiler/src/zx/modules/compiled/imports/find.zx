@@ -1,0 +1,30 @@
+import bytes from "std:bytes"
+import slot from "core/bytes/index/borrowed/wide_slot"
+import memory from "memory"
+
+import type { Input as Search } from "core/bytes/index/borrowed/wide_slot"
+
+export type Input = Search & {
+    count: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { names, name, count } = in
+
+    if (count == 0) {
+        return null
+    }
+
+    if (count == 1) {
+        const candidate = memory.readTextColumn(names, 0)
+        const equal = bytes.equals(bytes.fromText(candidate), bytes.fromText(name))
+
+        return equal ? 0 : null
+    }
+
+    const found = slot(in.omit(["count"]))
+
+    return found.entry == 0 ? null : found.entry - 1
+}

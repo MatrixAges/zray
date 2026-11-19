@@ -1,0 +1,19 @@
+<Module>
+    <Type from="find" as="Selection" />
+
+    <Args
+        in={{
+            search: Selection.Input,
+            build: bool
+        }}
+        out={Selection.Output}
+    />
+
+    <If on={$in.build && $in.search.count > 1}>
+        <Call fn="build_index" in={$in.search.omit(["name"])} />
+    </If>
+
+    <Call fn="find" in={$in.search} />
+
+    <Return value={$ctx.find} />
+</Module>
