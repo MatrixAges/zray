@@ -1,12 +1,13 @@
 import memory from "memory"
 
-import select from "../../../project/target/select"
 import { missing_public_module } from "./const"
+import lookup from "./lookup"
 
-import type { Exports, Selection, SelectionPlan } from "../../model"
+import type { ExportIndex, Exports, Selection, SelectionPlan } from "../../model"
 
 export type Input = {
     source: Exports,
+    export_index?: ExportIndex,
     selection?: Selection
 }
 
@@ -38,14 +39,11 @@ export default function (in: Input): Output {
             current.found && current.index < selection.count,
         next: current => {
             const module = memory.readTextColumn(selection.modules, current.index)
-            const row = select({
-                specifiers: {
-                    items: source.names,
-                    length: source.count
-                },
-                name: module,
-                check_duplicates: false
-            }).first
+            const row = lookup({
+                source,
+                index: in.export_index,
+                name: module
+            })
 
             if (row != null) {
                 const selected_rows = current.rows

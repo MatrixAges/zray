@@ -27,6 +27,7 @@
         fn="selection/plan"
         in={{
             source: $in.input.graph.exports,
+            export_index: $in.input.export_index,
             selection: $in.input.selection
         }}
     />

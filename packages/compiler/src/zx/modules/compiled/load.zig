@@ -22,6 +22,7 @@ pub const Destination = struct {
 pub const CallScratch = struct {
     functions: std.mem.Allocator,
     temporary: std.mem.Allocator,
+    export_buckets: ?[]u64 = null,
 };
 
 pub fn load(allocator: std.mem.Allocator, options: Options) !model.Loaded {

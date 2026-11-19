@@ -30,6 +30,7 @@ pub const Loaded = struct { types: ir.TypeTable, nominal_types: Origins.Table, e
 pub const identity = @import("compiled/identity.zig");
 pub const resolve = @import("compiled/resolve.zig");
 pub const imports = @import("compiled/imports.zig");
+pub const ExportIndex = @import("compiled/imports/index.zig");
 pub const load = @import("compiled/load.zig").load;
 pub const loadCalls = @import("compiled/load.zig").loadCalls;
 pub const loadInto = @import("compiled/load.zig").loadInto;

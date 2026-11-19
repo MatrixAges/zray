@@ -21,7 +21,12 @@ pub fn loadOptions(allocator: std.mem.Allocator, options: load_model.Options, ca
         .origins = &origins,
         .functions = options.functions,
         .native_modules = options.native_modules,
-    }, .{ .seed = true, .selected = options.selected, .call_scratch = call_scratch });
+    }, .{
+        .seed = true,
+        .selected = options.selected,
+        .call_scratch = call_scratch,
+        .export_buckets = if (call_scratch) |scratch| scratch.export_buckets else null,
+    });
 }
 
 pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: Destination, export_buckets: ?[]u64) !model.Loaded {
@@ -39,7 +44,12 @@ fn loadPrepared(allocator: std.mem.Allocator, library: model.Library, destinatio
     try input.init(arena.allocator(), &graph, library.instance, library.artifact, destination, options.seed, options.selected);
 
     var index: std.meta.Child(@typeInfo(@FieldType(@TypeOf(input.input), "export_index")).optional.child) = undefined;
-    const export_buckets = options.export_buckets;
+
+    const export_buckets = options.export_buckets orelse if (options.selected != null and options.selected.?.len > 1 and library.exports.len > 1)
+        (try model.ExportIndex.init(arena.allocator(), library.exports.len)).buckets()
+
+    else
+        null;
 
     if (export_buckets) |*buckets| {
         index = .{ .buckets = @ptrCast(buckets), .capacity = buckets.len };

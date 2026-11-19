@@ -5,7 +5,6 @@ const ir = @import("zx").ir;
 const target = @import("target.zig");
 const wrapper = @import("compiled_wrapper.zig");
 const compiled = frontend.project.compiled;
-const Paths = frontend.project.source_index.Map;
 const Self = @This();
 const Error = std.mem.Allocator.Error;
 const Value = union(enum) { ports: frontend.project.signature_project.Ports, diagnostic: target.Diagnostic };
@@ -19,7 +18,7 @@ const Call = struct {
 
 const Bound = struct {
     functions: ir.FunctionStorage = .{},
-    exports: Paths,
+    exports: compiled.ExportIndex,
     checked: std.DynamicBitSetUnmanaged,
     validated: bool = false,
 };
@@ -51,7 +50,7 @@ pub fn bind(self: *Self, project: *frontend.project.Options, call: Call) Error!V
         break :block loaded;
     };
 
-    const row = binding.exports.get(call.selected.name) orelse return self.fail(call, "module", "compiled package does not export the requested public module");
+    const row = binding.exports.find(library.exports, call.selected.name) orelse return self.fail(call, "module", "compiled package does not export the requested public module");
     const exported = &library.exports[row];
 
     if (wrapper.reject(exported.function, &binding.functions, call.setter)) |issue| return self.fail(call, issue.code, issue.message);
@@ -92,11 +91,17 @@ pub fn bind(self: *Self, project: *frontend.project.Options, call: Call) Error!V
 fn load(self: *Self, project: *frontend.project.Options, library: *const compiled.Library) !*Bound {
     const temporary = self.scratch.allocator();
     const binding = try temporary.create(Bound);
-    binding.* = .{ .exports = .empty, .checked = .{} };
+    binding.* = .{ .exports = .{}, .checked = .{} };
     const context = &project.context;
     var natives = try frontend.native_context.storage(self.allocator, context.native_modules);
 
-    const result = try compiled.loadCalls(self.allocator, .{ .functions = temporary, .temporary = self.scratch.child_allocator }, .{
+    binding.exports = try compiled.ExportIndex.init(temporary, library.exports.len);
+
+    const result = try compiled.loadCalls(self.allocator, .{
+        .functions = temporary,
+        .temporary = self.scratch.child_allocator,
+        .export_buckets = binding.exports.buckets(),
+    }, .{
         .library = library.*,
         .types = context.types,
         .nominal_types = context.nominal_types,
@@ -104,12 +109,9 @@ fn load(self: *Self, project: *frontend.project.Options, library: *const compile
         .native_modules = &natives,
     });
 
-    binding.exports = try Paths.init(temporary, library.exports.len);
     binding.checked = try std.DynamicBitSetUnmanaged.initEmpty(temporary, binding.functions.count());
 
-    for (library.exports, 0..) |*exported, index| {
-        if (!binding.exports.claim(index, exported.name)) return error.InvalidLibrary;
-    }
+    try binding.exports.finish(library.exports);
 
     context.types = result.types;
     context.nominal_types = result.nominal_types;

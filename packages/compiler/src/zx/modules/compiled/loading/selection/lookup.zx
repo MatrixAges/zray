@@ -1,0 +1,34 @@
+import select from "../../../project/target/select"
+import find from "../../imports/find"
+
+import type { ExportIndex, Exports } from "../../model"
+
+export type Input = {
+    source: Exports,
+    index?: ExportIndex,
+    name: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { source, index, name } = in
+
+    if (index != null) {
+        return find({
+            ...index,
+            names: source.names,
+            count: source.count,
+            name
+        })
+    }
+
+    return select({
+        specifiers: {
+            items: source.names,
+            length: source.count
+        },
+        name,
+        check_duplicates: false
+    }).first
+}
