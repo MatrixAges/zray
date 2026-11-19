@@ -31,20 +31,12 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, lo
 
     for (native_modules) |*native| {
         var dependency = Dependency{ .name = native.name, .header = native.header, .c_imports = native.header != null };
-        var source_root = loaded.project.root_dir;
-        var include_paths = native.include_paths orelse loaded.config.include_paths;
+        const scope = project_config.nativeScope(loaded, native.*);
 
-        for (loaded.native_settings) |setting| if (std.mem.eql(u8, setting.name, native.name)) {
-            source_root = setting.root;
-            include_paths = native.include_paths orelse setting.include_paths;
-
-            break;
-        };
-
-        native.include_paths = try absolutePaths(allocator, source_root, include_paths);
+        native.include_paths = try absolutePaths(allocator, scope.root, scope.paths);
 
         if (native.path != null or native.bundle_files.len != 0) {
-            const bundled = try native_sources.writeWithInputs(io, allocator, directory, source_root, native.*, inputs);
+            const bundled = try native_sources.writeWithInputs(io, allocator, directory, scope.root, native.*, inputs);
 
             native.path = bundled.entry;
             native.include_paths = bundled.include_paths;

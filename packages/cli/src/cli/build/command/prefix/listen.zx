@@ -1,0 +1,43 @@
+import memory from "memory"
+
+import {
+    assembly_flag,
+    build_root_flag,
+    cache_flag,
+    global_cache_flag,
+    listen_flag,
+    name_flag
+} from "../const"
+
+import type { StringBuffer } from "memory"
+import type { Server } from "./model"
+
+export type Input = {
+    out: StringBuffer,
+    at: u64,
+    server: Server
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, at, server } = in
+
+    memory.writeString(out, at, listen_flag)
+    memory.writeString(out, at + 1, name_flag)
+    memory.writeString(out, at + 2, server.name)
+    memory.writeString(out, at + 3, build_root_flag)
+    memory.writeString(out, at + 4, server.root)
+    memory.writeString(out, at + 5, cache_flag)
+    memory.writeString(out, at + 6, server.local)
+    memory.writeString(out, at + 7, global_cache_flag)
+    memory.writeString(out, at + 8, server.global)
+
+    if (server.assembly) {
+        memory.writeString(out, at + 9, assembly_flag)
+
+        return at + 10
+    }
+
+    return at + 9
+}

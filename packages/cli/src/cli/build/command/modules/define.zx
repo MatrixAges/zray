@@ -1,0 +1,42 @@
+import memory from "memory"
+
+import {
+    dependency_flag,
+    module_prefix,
+    translation_dependency,
+    translation_prefix
+} from "../const"
+import copy from "../copy"
+
+import type { Definition as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, at, spec } = in
+    const { name, path, translated } = spec
+
+    const definition = `${module_prefix}${name}=${path}`
+
+    if (translated == null) {
+        memory.writeString(out, at, definition)
+
+        return at + 1
+    }
+
+    const translated_name = `${translation_prefix}${name}`
+
+    memory.writeString(out, at, dependency_flag)
+    memory.writeString(out, at + 1, `${translation_dependency}${translated_name}`)
+    memory.writeString(out, at + 2, definition)
+
+    const next = copy({
+        out,
+        at: at + 3,
+        values: spec.settings
+    })
+
+    memory.writeString(out, next, `${module_prefix}${translated_name}=${translated}`)
+
+    return next + 1
+}

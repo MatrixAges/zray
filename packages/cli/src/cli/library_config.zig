@@ -1,6 +1,7 @@
 const std = @import("std");
 const library = @import("compiler").zig.host.library;
-const Config = @import("project.zig").Config;
+const project = @import("project.zig");
+const Config = project.Config;
 pub const GeneratedModule = library.Module;
 
 pub fn render(allocator: std.mem.Allocator, config: Config, public_modules: []const GeneratedModule, generated: []const GeneratedModule, views: []const @import("abi.zig").File) library.Error![]u8 {
@@ -9,11 +10,7 @@ pub fn render(allocator: std.mem.Allocator, config: Config, public_modules: []co
     defer allocator.free(native);
 
     for (config.native_modules, native) |module, *mapped| {
-        var view_path: ?[]const u8 = null;
-
-        for (views) |view| {
-            if (std.mem.eql(u8, view.module, module.name)) view_path = view.path;
-        }
+        const view = project.nativeIndex("module", views, module.name, true);
 
         mapped.* = .{
             .name = module.name,
@@ -21,7 +18,7 @@ pub fn render(allocator: std.mem.Allocator, config: Config, public_modules: []co
             .header = module.header,
             .dependencies = module.dependencies,
             .include_paths = module.include_paths orelse config.include_paths,
-            .abi_view = view_path,
+            .abi_view = if (view) |index| views[index].path else null,
         };
     }
 

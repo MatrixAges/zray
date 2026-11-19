@@ -1,0 +1,21 @@
+import type { StringBuffer } from "memory"
+
+export type Spec = {
+    settings: string[],
+    name: string,
+    path: string,
+    imports: string[],
+    includes: string[],
+    canonical: bool,
+    abi?: string,
+    translated?: string
+}
+
+export type Input = {
+    out: StringBuffer,
+    spec: Spec
+}
+
+export type Definition = Input & {
+    at: u64
+}

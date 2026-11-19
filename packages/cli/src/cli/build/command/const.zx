@@ -1,0 +1,83 @@
+export const build_executable: string = "build-exe"
+
+export const build_library: string = "build-lib"
+
+export const translate_c: string = "translate-c"
+
+export const library_directory_flag: string = "--zig-lib-dir"
+
+export const dynamic_flag: string = "-dynamic"
+
+export const allow_undefined_flag: string = "-fallow-shlib-undefined"
+
+export const no_entry_flag: string = "-fno-entry"
+
+export const export_memory_flag: string = "--export-memory"
+
+export const dynamic_symbols_flag: string = "-rdynamic"
+
+export const listen_flag: string = "--listen=-"
+
+export const name_flag: string = "--name"
+
+export const build_root_flag: string = "--build-root"
+
+export const cache_flag: string = "--cache-dir"
+
+export const global_cache_flag: string = "--global-cache-dir"
+
+export const assembly_flag: string = "-femit-asm"
+
+export const binary_prefix: string = "-femit-bin="
+
+export const assembly_prefix: string = "-femit-asm="
+
+export const library_prefix: string = "-l"
+
+export const library_path_flag: string = "-L"
+
+export const libc_flag: string = "-lc"
+
+export const optimize_flag: string = "-O"
+
+export const target_flag: string = "-target"
+
+export const cpu_flag: string = "-mcpu"
+
+export const dependency_flag: string = "--dep"
+
+export const include_flag: string = "-I"
+
+export const root_module: string = "root"
+
+export const application_module: string = "application"
+
+export const abi_module: string = "zxc_abi"
+
+export const napi_module: string = "zxc_napi"
+
+export const canonical_dependency: string = "zxc_abi_canonical=zxc_abi"
+
+export const root_source: string = "main.zig"
+
+export const application_source: string = "program.zig"
+
+export const abi_source: string = "abi.zig"
+
+export const napi_source: string = "napi/root.zig"
+
+export const module_prefix: string = "-M"
+
+export const translation_prefix: string = "zxc_c_"
+
+export const translation_dependency: string = "zxc_c="
+
+export const settings_capacity: u64 = 6
+
+export const prefix_capacity: u64 = 18
+
+export const entry_capacity: u64 = 10
+
+export const module_capacity: u64 = 6
+
+export const translation_capacity: u64 = 11

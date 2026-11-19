@@ -1,0 +1,19 @@
+import type { ReadColumn, TextColumn } from "memory"
+import type { Input as Locator } from "./locate"
+
+export type Input = Locator.Omit("last") & {
+    roots: TextColumn,
+    includes: ReadColumn,
+    default_root: string,
+    default_paths: string[],
+    explicit?: string[]
+}
+
+export type Selection = Input & {
+    index?: u64
+}
+
+export type Output = {
+    root: string,
+    paths: string[]
+}

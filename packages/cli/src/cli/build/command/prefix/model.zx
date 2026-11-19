@@ -1,0 +1,38 @@
+import type { StringBuffer } from "memory"
+
+export type Toolchain = {
+    tool: string,
+    library: string
+}
+
+export type Cache = {
+    local: string,
+    global: string
+}
+
+export type Server = Cache & {
+    root: string,
+    name: string,
+    assembly: bool
+}
+
+export type Files = {
+    binary: string,
+    assembly?: string
+}
+
+export type Spec = Toolchain & {
+    node: bool,
+    wasm: bool,
+    node_library?: string,
+    server?: Server,
+    files?: Files,
+    libraries: string[],
+    library_paths: string[],
+    libc: bool
+}
+
+export type Input = {
+    out: StringBuffer,
+    spec: Spec
+}

@@ -1,0 +1,33 @@
+import memory from "memory"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    count: u64,
+    names: TextColumn,
+    name: string,
+    last: bool
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const empty: u64? = null
+
+    return loop({
+        index: 0,
+        result: empty
+    }, {
+        while: state => state.index < in.count && (in.last || state.result == null),
+        next: state => {
+            const name = memory.readTextColumn(in.names, state.index)
+
+            if (name == in.name) {
+                state.result = state.index
+            }
+
+            state.index += 1
+        },
+        return: state => state.result
+    })
+}

@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import { abi_module, dependency_flag } from "../const"
+
+import type { Definition as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, at, spec } = in
+
+    if (!spec.canonical) {
+        return at
+    }
+
+    const view = spec.abi
+
+    const binding = match {
+        view == null => abi_module,
+        _ => `${abi_module}=${view}`
+    }
+
+    memory.writeString(out, at, dependency_flag)
+    memory.writeString(out, at + 1, binding)
+
+    return at + 2
+}

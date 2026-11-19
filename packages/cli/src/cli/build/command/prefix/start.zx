@@ -1,0 +1,45 @@
+import memory from "memory"
+
+import {
+    allow_undefined_flag,
+    build_executable,
+    build_library,
+    dynamic_flag,
+    dynamic_symbols_flag,
+    export_memory_flag,
+    library_directory_flag,
+    no_entry_flag
+} from "../const"
+
+import type { Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, spec } = in
+
+    memory.writeString(out, 0, spec.tool)
+
+    const command = spec.node ? build_library : build_executable
+
+    memory.writeString(out, 1, command)
+    memory.writeString(out, 2, library_directory_flag)
+    memory.writeString(out, 3, spec.library)
+
+    if (spec.node) {
+        memory.writeString(out, 4, dynamic_flag)
+        memory.writeString(out, 5, spec.node_library ?? allow_undefined_flag)
+
+        return 6
+    }
+
+    if (spec.wasm) {
+        memory.writeString(out, 4, no_entry_flag)
+        memory.writeString(out, 5, export_memory_flag)
+        memory.writeString(out, 6, dynamic_symbols_flag)
+
+        return 7
+    }
+
+    return 4
+}

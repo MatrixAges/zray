@@ -1,0 +1,52 @@
+import memory from "memory"
+
+import {
+    abi_module,
+    application_module,
+    application_source,
+    dependency_flag,
+    module_prefix
+} from "../const"
+import copy from "../copy"
+import pairs from "../pairs"
+
+import type { Application as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, at, spec } = in
+
+    const after_settings = copy({
+        out,
+        at,
+        values: spec.settings
+    })
+
+    memory.writeString(out, after_settings, dependency_flag)
+    memory.writeString(out, after_settings + 1, abi_module)
+
+    const imports = pairs({
+        out,
+        at: after_settings + 2,
+        flag: dependency_flag,
+        values: spec.imports
+    })
+
+    const next = pairs({
+        out,
+        at: imports,
+        flag: dependency_flag,
+        values: spec.natives
+    })
+
+    const directory = spec.directory
+
+    memory.writeString(
+        out,
+        next,
+        `${module_prefix}${application_module}=${directory}/${application_source}`
+    )
+
+    return next + 1
+}

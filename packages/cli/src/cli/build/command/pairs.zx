@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import type { Input as CopyInput } from "./copy"
+
+export type Input = CopyInput & {
+    flag: string
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, at, values, flag } = in
+
+    return loop({
+        index: 0,
+        offset: at
+    }, {
+        while: current => current.index < values.length,
+        next: current => {
+            memory.writeString(out, current.offset, flag)
+            memory.writeString(out, current.offset + 1, values[current.index])
+            current.offset += 2
+            current.index += 1
+        },
+        return: current => current.offset
+    })
+}

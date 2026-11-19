@@ -1,0 +1,19 @@
+import type { StringBuffer } from "memory"
+
+export type Spec = {
+    settings: string[],
+    directory: string,
+    node: bool,
+    state?: string,
+    imports: string[],
+    natives: string[]
+}
+
+export type Input = {
+    out: StringBuffer,
+    spec: Spec
+}
+
+export type Application = Input & {
+    at: u64
+}

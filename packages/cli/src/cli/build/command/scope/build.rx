@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Scope" />
+
+    <Args in={Scope.Input} out={Scope.Output} />
+
+    <Call
+        fn="locate"
+        in={{
+            ...$in.pick([
+                "count",
+                "names",
+                "name"
+            ]),
+            last: false
+        }}
+    />
+
+    <Call
+        fn="select"
+        in={{
+            ...$in,
+            index: $ctx.locate
+        }}
+    />
+
+    <Return value={$ctx.select} />
+</Module>

@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="ModuleCommand" />
+
+    <Args in={ModuleCommand.Input} out={u64} />
+
+    <Call
+        fn="../copy"
+        in={{
+            out: $in.out,
+            at: 0,
+            values: $in.spec.settings
+        }}
+    />
+
+    <Call
+        fn="abi"
+        in={{
+            ...$in,
+            at: $ctx.copy
+        }}
+    />
+
+    <Call
+        fn="imports"
+        in={{
+            ...$in,
+            at: $ctx.abi
+        }}
+    />
+
+    <Call
+        fn="define"
+        in={{
+            ...$in,
+            at: $ctx.imports
+        }}
+    />
+
+    <Return value={$ctx.define} />
+</Module>

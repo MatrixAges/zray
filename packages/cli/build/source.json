@@ -22,6 +22,14 @@
         {
             "path": "library",
             "prefix": "library/"
+        },
+        {
+            "path": "command",
+            "prefix": "command/"
+        },
+        {
+            "path": "memory",
+            "prefix": "memory/"
         }
     ],
     "entries": [
@@ -116,6 +124,38 @@
         {
             "path": "library/publication/const.zx",
             "name": "library_publication_constants"
+        },
+        {
+            "path": "command/const.zx",
+            "name": "backend_command_constants"
+        },
+        {
+            "path": "command/settings.zx",
+            "name": "backend_command_settings"
+        },
+        {
+            "path": "command/prefix/build.rx",
+            "name": "backend_command_prefix"
+        },
+        {
+            "path": "command/modules/build.rx",
+            "name": "backend_command_module"
+        },
+        {
+            "path": "command/entry/build.rx",
+            "name": "backend_command_entry"
+        },
+        {
+            "path": "command/translation.zx",
+            "name": "backend_translation_command"
+        },
+        {
+            "path": "command/scope/build.rx",
+            "name": "native_include_scope"
+        },
+        {
+            "path": "command/scope/locate.zx",
+            "name": "native_module_lookup"
         }
     ],
     "packages": [
@@ -128,5 +168,10 @@
             "entry": "core/ascii/const.zx"
         }
     ],
-    "interfaces": []
+    "interfaces": [
+        {
+            "path": "memory/index.d.zx",
+            "module": "memory"
+        }
+    ]
 }

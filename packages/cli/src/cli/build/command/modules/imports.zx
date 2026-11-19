@@ -1,0 +1,24 @@
+import { dependency_flag, include_flag } from "../const"
+import pairs from "../pairs"
+
+import type { Definition as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, at, spec } = in
+
+    const imports = pairs({
+        out,
+        at,
+        flag: dependency_flag,
+        values: spec.imports
+    })
+
+    return pairs({
+        out,
+        at: imports,
+        flag: include_flag,
+        values: spec.includes
+    })
+}

@@ -330,7 +330,10 @@ pub fn build(b: *std.Build) void {
 
     const observed = b.createModule(.{
         .root_source_file = observed_root,
-        .imports = &.{.{ .name = "cli_source", .module = cli_dependency.module("cli_source") }},
+        .imports = &.{
+            .{ .name = "cli_source", .module = cli_dependency.module("cli_source") },
+            .{ .name = "compiler", .module = compiler.module("compiler") },
+        },
         .target = target,
         .optimize = optimize,
     });

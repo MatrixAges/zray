@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Prefix" />
+
+    <Args in={Prefix.Input} out={u64} />
+
+    <Call fn="start" in={$in} />
+
+    <Call
+        module="destination"
+        in={{
+            request: $in,
+            at: $ctx.start
+        }}
+    />
+
+    <Call
+        fn="link"
+        in={{
+            out: $in.out,
+            at: $ctx.destination,
+            libraries: $in.spec.libraries,
+            paths: $in.spec.library_paths,
+            libc: $in.spec.libc
+        }}
+    />
+
+    <Return value={$ctx.link} />
+</Module>

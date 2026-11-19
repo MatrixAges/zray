@@ -1,0 +1,30 @@
+import memory from "memory"
+
+import { assembly_prefix, binary_prefix } from "../const"
+
+import type { StringBuffer } from "memory"
+import type { Files } from "./model"
+
+export type Input = {
+    out: StringBuffer,
+    at: u64,
+    files: Files
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, at, files } = in
+
+    const assembly = files.assembly
+
+    memory.writeString(out, at, `${binary_prefix}${files.binary}`)
+
+    if (assembly != null) {
+        memory.writeString(out, at + 1, `${assembly_prefix}${assembly}`)
+
+        return at + 2
+    }
+
+    return at + 1
+}

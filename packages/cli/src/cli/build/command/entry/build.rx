@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Input} out={u64} />
+
+    <Call fn="runner" in={$in} />
+
+    <Call
+        fn="application"
+        in={{
+            ...$in,
+            at: $ctx.runner
+        }}
+    />
+
+    <Return value={$ctx.application} />
+</Module>

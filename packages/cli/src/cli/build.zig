@@ -1,11 +1,13 @@
 const std = @import("std");
 const Options = @import("options.zig").Options;
-const Loaded = @import("project.zig").Loaded;
+const project = @import("project.zig");
+const Loaded = project.Loaded;
 const artifacts = @import("artifacts.zig");
 const Cache = @import("build/observed.zig").Cache;
 pub const Observed = @import("build/observed.zig");
 const Staged = @import("build/staged.zig");
 const Translation = @import("build/translation.zig");
+const Command = @import("build/command.zig");
 const Emission = union(enum) { staged: Staged, observed: Cache };
 
 pub fn run(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler").zig.ModuleBundle, options: Options, loaded: Loaded, toolchain: @import("toolchain.zig").Paths, environment: *const std.process.Environ.Map) !bool {
@@ -118,9 +120,8 @@ fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
     defer if (wasm or node) allocator.free(executable_bundle.runner.?);
 
     const directory = try artifacts.prepare(io, allocator, executable_bundle, configuration, abi, options.result == .json);
-    var arguments: std.ArrayList([]const u8) = .empty;
-
-    try arguments.appendSlice(allocator, &.{ toolchain.executable, if (node) "build-lib" else "build-exe", "--zig-lib-dir", toolchain.library });
+    var arguments = Command{ .allocator = allocator };
+    var node_library: ?[]const u8 = null;
 
     if (node) {
         const target = if (options.target) |triple| try std.Target.Query.parse(.{ .arch_os_abi = triple }) else std.Target.Query.fromTarget(&@import("builtin").target);
@@ -129,142 +130,163 @@ fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
 
         if (arch == .wasm32 or arch == .wasm64) return error.UnsupportedNodeTarget;
         if (os == .windows and options.node_library == null) return error.NodeImportLibraryRequired;
-        try arguments.append(allocator, "-dynamic");
-
-        if (options.node_library) |path| {
-            try arguments.append(allocator, try std.fs.path.resolve(allocator, &.{path}));
-        } else try arguments.append(allocator, "-fallow-shlib-undefined");
-
+        if (options.node_library) |path| node_library = try std.fs.path.resolve(allocator, &.{path});
         for (node_sources.?.files) |file| try artifacts.retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "node", file.path }), file.source);
         for (node_sources.?.napi) |file| try artifacts.retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "napi", file.path }), file.source);
     }
 
-    if (wasm) try arguments.appendSlice(allocator, &.{ "-fno-entry", "--export-memory", "-rdynamic" });
-
-    if (emission == .observed) {
-        const paths = emission.observed;
-
-        try arguments.appendSlice(allocator, &.{ "--listen=-", "--name", Observed.artifact_name, "--build-root", paths.cwd, "--cache-dir", paths.local, "--global-cache-dir", paths.global });
-        if (options.assembly != null) try arguments.append(allocator, "-femit-asm");
-    } else {
-        const staged = emission.staged;
-
-        try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-femit-bin={s}", .{staged.binary}));
-        try ensureParent(io, staged.binary);
-
-        if (staged.assembly) |assembly| {
-            try ensureParent(io, assembly);
-            try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-femit-asm={s}", .{assembly}));
-        }
+    if (emission == .staged) {
+        try ensureParent(io, emission.staged.binary);
+        if (emission.staged.assembly) |path| try ensureParent(io, path);
     }
 
-    for (loaded.config.libraries) |library| try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-l{s}", .{library}));
-    for (loaded.config.library_paths) |path| try arguments.appendSlice(allocator, &.{ "-L", try std.fs.path.resolve(allocator, &.{ loaded.project.root_dir, path }) });
+    const modules = loaded.config.native_modules;
+    const native_names = try allocator.alloc([]const u8, modules.len);
+    var libc = false;
 
-    for (loaded.config.native_modules) |module| {
-        if (module.header != null) {
-            try arguments.append(allocator, "-lc");
-
-            break;
-        }
+    for (modules, native_names) |module, *name| {
+        name.* = module.name;
+        libc = libc or module.header != null;
     }
 
-    try settings(allocator, &arguments, options);
-    if (node) try arguments.appendSlice(allocator, &.{ "--dep", "zxc_napi" });
-    if (bundle.state_module) |name| try arguments.appendSlice(allocator, &.{ "--dep", name });
-    try arguments.appendSlice(allocator, &.{ "--dep", "application", try std.fmt.allocPrint(allocator, "-Mroot={s}/main.zig", .{directory}) });
-    try settings(allocator, &arguments, options);
-    try arguments.appendSlice(allocator, &.{ "--dep", "zxc_abi" });
-    for (bundle.entry.imports) |dependency| try arguments.appendSlice(allocator, &.{ "--dep", dependency });
-    for (loaded.config.native_modules) |module| try arguments.appendSlice(allocator, &.{ "--dep", module.name });
-    try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-Mapplication={s}/program.zig", .{directory}));
+    try arguments.prefix(.{
+        .tool = toolchain.executable,
+        .library = toolchain.library,
+        .node = node,
+        .wasm = wasm,
+        .node_library = node_library,
+        .server = if (emission == .observed) &.{
+            .name = Observed.artifact_name,
+            .root = emission.observed.cwd,
+            .local = emission.observed.local,
+            .global = emission.observed.global,
+            .assembly = options.assembly != null,
+        } else null,
+        .files = if (emission == .staged) &.{
+            .binary = emission.staged.binary,
+            .assembly = emission.staged.assembly,
+        } else null,
+        .libraries = loaded.config.libraries,
+        .library_paths = try resolvePaths(allocator, loaded.project.root_dir, loaded.config.library_paths),
+        .libc = libc,
+    });
+
+    var settings_buffer: [Command.constants.settings_capacity][]const u8 = undefined;
+    const settings = try Command.settings(allocator, &settings_buffer, try targetOptions(allocator, options));
+
+    try arguments.entry(.{
+        .settings = settings,
+        .directory = directory,
+        .node = node,
+        .state = bundle.state_module,
+        .imports = bundle.entry.imports,
+        .natives = native_names,
+    });
 
     for (bundle.modules) |module| {
-        try settings(allocator, &arguments, options);
-        try arguments.appendSlice(allocator, &.{ "--dep", "zxc_abi" });
-        for (module.imports) |dependency| try arguments.appendSlice(allocator, &.{ "--dep", dependency });
-        try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-M{s}={s}", .{ module.name, try artifacts.modulePath(allocator, module) }));
+        try arguments.module(.{
+            .settings = settings,
+            .name = module.name,
+            .path = try artifacts.modulePath(allocator, module),
+            .imports = module.imports,
+            .includes = &.{},
+            .canonical = true,
+            .abi = null,
+            .translated = null,
+        });
     }
 
-    for (loaded.config.native_modules) |module| {
-        try settings(allocator, &arguments, options);
+    for (modules) |module| {
+        const abi_index = project.nativeIndex("module", abi.views, module.name, false);
+        const scope = project.nativeScope(loaded, module);
+        const includes = try resolvePaths(allocator, scope.root, scope.paths);
 
-        var abi_name: []const u8 = "zxc_abi";
-
-        for (abi.views) |view| if (std.mem.eql(u8, view.module, module.name)) {
-            abi_name = try std.fmt.allocPrint(allocator, "zxc_abi={s}", .{view.name});
-
-            break;
+        var planned: Command.Module = .{
+            .settings = settings,
+            .name = module.name,
+            .path = undefined,
+            .imports = module.dependencies,
+            .includes = includes,
+            .canonical = true,
+            .abi = if (abi_index) |index| abi.views[index].name else null,
+            .translated = null,
         };
 
-        try arguments.appendSlice(allocator, &.{ "--dep", abi_name });
-        for (module.dependencies) |dependency| try arguments.appendSlice(allocator, &.{ "--dep", dependency });
-
-        var include_root = loaded.project.root_dir;
-        var include_paths = module.include_paths orelse loaded.config.include_paths;
-
-        for (loaded.native_settings) |setting| {
-            if (!std.mem.eql(u8, setting.name, module.name)) continue;
-
-            include_root = setting.root;
-            include_paths = module.include_paths orelse setting.include_paths;
-
-            break;
-        }
-
-        for (include_paths) |path| try arguments.appendSlice(allocator, &.{ "-I", try std.fs.path.resolve(allocator, &.{ include_root, path }) });
-
-        const path = if (module.path) |path| try std.fs.path.resolve(allocator, &.{ loaded.project.root_dir, path }) else {
-            const path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.zig", .{ directory, module.name });
+        if (module.path) |path| {
+            planned.path = try std.fs.path.resolve(allocator, &.{ loaded.project.root_dir, path });
+        } else {
+            planned.path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.zig", .{ directory, module.name });
             const header_path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.h", .{ directory, module.name });
             const include = try std.json.Stringify.valueAlloc(allocator, module.header.?, .{});
             const header_source = try std.fmt.allocPrint(allocator, "#include {s}\n", .{include});
-            var command: std.ArrayList([]const u8) = .empty;
+            var command = Command{ .allocator = allocator };
 
             try artifacts.retain(io, allocator, header_path, header_source);
-            try command.appendSlice(allocator, &.{ toolchain.executable, "translate-c", "--zig-lib-dir", toolchain.library, "-lc", "--listen=-", "--cache-dir", translation.cache.local, "--global-cache-dir", translation.cache.global });
-            try settings(allocator, &command, options);
-            for (include_paths) |include_path| try command.appendSlice(allocator, &.{ "-I", try std.fs.path.resolve(allocator, &.{ include_root, include_path }) });
-            try command.append(allocator, header_path);
 
-            const translated = try translation.execute(io, command.items, environment, module.name) orelse return null;
-            const translated_name = try std.fmt.allocPrint(allocator, "zxc_c_{s}", .{module.name});
+            try command.translate(.{
+                .tool = toolchain.executable,
+                .library = toolchain.library,
+                .local = translation.cache.local,
+                .global = translation.cache.global,
+                .settings = settings,
+                .includes = includes,
+                .header = header_path,
+            });
 
-            try arguments.appendSlice(allocator, &.{ "--dep", try std.fmt.allocPrint(allocator, "zxc_c={s}", .{translated_name}), try std.fmt.allocPrint(allocator, "-M{s}={s}", .{ module.name, path }) });
-            try settings(allocator, &arguments, options);
-            try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-M{s}={s}", .{ translated_name, translated }));
+            planned.translated = try translation.execute(io, command.arguments.items, environment, module.name) orelse return null;
 
             const adapter = try @import("compiler").zig.host.cAdapter(allocator);
 
             defer allocator.free(adapter);
 
-            try artifacts.retain(io, allocator, path, adapter);
+            try artifacts.retain(io, allocator, planned.path, adapter);
+        }
 
-            continue;
-        };
-
-        try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-M{s}={s}", .{ module.name, path }));
+        try arguments.module(planned);
     }
 
     for (abi.views) |view| {
-        try settings(allocator, &arguments, options);
-        try arguments.appendSlice(allocator, &.{ "--dep", "zxc_abi_canonical=zxc_abi", try std.fmt.allocPrint(allocator, "-M{s}={s}/{s}", .{ view.name, directory, view.path }) });
+        try arguments.module(.{
+            .settings = settings,
+            .name = view.name,
+            .path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ directory, view.path }),
+            .imports = &.{Command.constants.canonical_dependency},
+            .includes = &.{},
+            .canonical = false,
+            .abi = null,
+            .translated = null,
+        });
     }
 
-    try settings(allocator, &arguments, options);
-    try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-Mzxc_abi={s}/abi.zig", .{directory}));
+    try arguments.module(.{
+        .settings = settings,
+        .name = Command.constants.abi_module,
+        .path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ directory, Command.constants.abi_source }),
+        .imports = &.{},
+        .includes = &.{},
+        .canonical = false,
+        .abi = null,
+        .translated = null,
+    });
 
     if (node) {
-        try settings(allocator, &arguments, options);
-        try arguments.appendSlice(allocator, &.{ "--dep", "application" });
-        try arguments.append(allocator, try std.fmt.allocPrint(allocator, "-Mzxc_napi={s}/napi/root.zig", .{directory}));
+        try arguments.module(.{
+            .settings = settings,
+            .name = Command.constants.napi_module,
+            .path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ directory, Command.constants.napi_source }),
+            .imports = &.{Command.constants.application_module},
+            .includes = &.{},
+            .canonical = false,
+            .abi = null,
+            .translated = null,
+        });
     }
 
-    const manifest = try std.json.Stringify.valueAlloc(allocator, arguments.items, .{ .whitespace = .indent_2 });
+    const manifest = try std.json.Stringify.valueAlloc(allocator, arguments.arguments.items, .{ .whitespace = .indent_2 });
 
     try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, "command.json" }), manifest);
 
-    return arguments.items;
+    return arguments.arguments.items;
 }
 
 fn environmentFor(allocator: std.mem.Allocator, environment: *const std.process.Environ.Map, library: []const u8) !std.process.Environ.Map {
@@ -278,15 +300,20 @@ fn environmentFor(allocator: std.mem.Allocator, environment: *const std.process.
     return result;
 }
 
-fn settings(allocator: std.mem.Allocator, arguments: *std.ArrayList([]const u8), options: Options) !void {
-    try arguments.appendSlice(allocator, &.{ "-O", @tagName(options.optimize) });
-
+fn targetOptions(allocator: std.mem.Allocator, options: Options) !Command.Settings {
     const builtin = @import("builtin");
     const host = @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag);
     const target = options.target orelse if (!std.mem.eql(u8, host, @import("bundle").zig_host)) try builtin.target.zigTriple(allocator) else null;
 
-    if (target) |triple| try arguments.appendSlice(allocator, &.{ "-target", triple });
-    if (options.cpu) |cpu| try arguments.appendSlice(allocator, &.{ "-mcpu", cpu });
+    return .{ .optimize = @tagName(options.optimize), .target = target, .cpu = options.cpu };
+}
+
+fn resolvePaths(allocator: std.mem.Allocator, root: []const u8, paths: []const []const u8) ![]const []const u8 {
+    const result = try allocator.alloc([]const u8, paths.len);
+
+    for (paths, result) |path, *resolved| resolved.* = try std.fs.path.resolve(allocator, &.{ root, path });
+
+    return result;
 }
 
 fn ensureParent(io: std.Io, path: []const u8) !void {

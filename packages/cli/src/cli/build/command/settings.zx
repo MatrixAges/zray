@@ -1,0 +1,43 @@
+import memory from "memory"
+
+import { cpu_flag, optimize_flag, target_flag } from "./const"
+
+import type { StringBuffer } from "memory"
+
+export type Spec = {
+    optimize: string,
+    target?: string,
+    cpu?: string
+}
+
+export type Input = {
+    out: StringBuffer,
+    spec: Spec
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { out, spec } = in
+
+    memory.writeString(out, 0, optimize_flag)
+    memory.writeString(out, 1, spec.optimize)
+
+    const target = spec.target
+
+    if (target != null) {
+        memory.writeString(out, 2, target_flag)
+        memory.writeString(out, 3, target)
+    }
+
+    const after_target = target == null ? 2 : 4
+
+    if (spec.cpu == null) {
+        return after_target
+    }
+
+    memory.writeString(out, after_target, cpu_flag)
+    memory.writeString(out, after_target + 1, spec.cpu)
+
+    return after_target + 2
+}
