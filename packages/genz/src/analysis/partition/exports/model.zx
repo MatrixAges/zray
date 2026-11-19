@@ -9,8 +9,13 @@ export type Entry = {
 
 export type Input = Entry[]
 
+export type Indexed = {
+    names: string[],
+    entries: u32[],
+    variants: string[]
+}
+
 export type State = {
-    source: Input,
     expressions: Expressions,
     declarations: Declarations,
     tags: StatementsKind[],
@@ -19,9 +24,4 @@ export type State = {
     functions: u32,
     exporter: u32,
     valid: bool
-}
-
-export type Item = {
-    state: State,
-    index: u64
 }

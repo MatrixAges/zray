@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Exports" />
+    <Type from="../root/model" as="Root" />
+
+    <Args in={Exports.Indexed} out={Root.Output} />
+
+    <Call fn="initialize" in={{}} />
+
+    <Call fn="bindings" />
+
+    <Call
+        fn="indexed_entries"
+        in={{
+            state: $ctx.bindings,
+            source: $in
+        }}
+    />
+
+    <Call fn="publish" />
+
+    <Return value={$ctx.publish} />
+</Module>

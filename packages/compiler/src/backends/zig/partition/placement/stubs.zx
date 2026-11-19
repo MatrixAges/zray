@@ -1,14 +1,16 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import type { Scope } from "../demand/model"
-import type { State } from "./model"
+import type { State, StubTargets } from "./model"
 
 export type Input = {
     files: State,
     prefixes: string[],
     scopes: Scope[],
+    targets: StubTargets,
     first: u64
 }
 
@@ -21,23 +23,38 @@ export default function (in: Input): Output {
     }, {
         while: state => state.scope < in.scopes.length,
         next: state => {
-            const callees = in.scopes[state.scope].stubs.callees
+            const demand = in.scopes[state.scope].stubs
             const use_prefix = state.scope < in.prefixes.length
             const prefix = use_prefix ? in.prefixes[state.scope] : ""
 
             const written = loop(0, {
-                while: index => index < callees.length,
+                while: index => index < demand.callees.length,
                 next: index => {
-                    const name = in.files.paths[integers.widen(callees[index])]
+                    const callee = demand.callees[index]
+                    const name = in.files.paths[integers.widen(callee)]
                     const path = match use_prefix {
                         true => `${prefix}${name}`,
                         _ => name
                     }
 
+                    const row = state.position + index
+                    const job = row - in.first
+
                     memory.writeColumnBytes(
                         in.files.target_paths,
-                        state.position + index,
+                        row,
                         bytes.fromText(path)
+                    )
+                    memory.writeColumnU32(in.targets.callees, job, callee)
+                    columns.writeColumnByteList(
+                        in.targets.variants,
+                        job,
+                        demand.variants[index]
+                    )
+                    memory.writeColumnBool(
+                        in.targets.comptime_entries,
+                        job,
+                        !use_prefix
                     )
                     index += 1
                 }

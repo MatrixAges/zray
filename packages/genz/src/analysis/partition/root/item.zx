@@ -6,11 +6,13 @@ import {
     ExpressionsKind
 } from "../../../printer/model/expressions"
 
-import type { Item as Input, State as Output } from "./model"
+import type { Module, State as Output } from "./model"
+
+export type Input = Module & {
+    state: Output
+}
 
 export default function (in: Input): Output {
-    const module = in.state.source.modules[in.index]
-
     const file = named({
         ...in.state.expressions.pick([
             "tags",
@@ -19,7 +21,7 @@ export default function (in: Input): Output {
         values: in.state.strings,
         base: 0,
         kind: ExpressionsKind.String,
-        name: module.file
+        name: in.file
     })
 
     const imported = header({
@@ -32,7 +34,7 @@ export default function (in: Input): Output {
 
     const declarations = constant({
         state: in.state.declarations,
-        name: module.name,
+        name: in.name,
         value: imported.id,
         type_expr: null,
         exported: true

@@ -30,6 +30,7 @@
             files: $in.files,
             prefixes: $ctx.prefixes,
             scopes: $in.scopes,
+            targets: $in.stub_targets,
             first: $in.placement.first_stub
         }}
     />

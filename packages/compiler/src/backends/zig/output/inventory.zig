@@ -4,7 +4,7 @@ const memory = zx.memory;
 const available = @import("../output.zig").available;
 const File = @import("../partition/placement.zig").File;
 const ModuleFile = @import("../modules.zig").File;
-const Module = @import("../partition.zig").Module;
+const FunctionFiles = @import("../partition/layout.zig").FunctionFiles;
 
 pub const Groups = struct { functions: []File, support: []File };
 
@@ -62,14 +62,21 @@ fn seedSplit(modules: []const ModuleFile, files: []File) usize {
     return count;
 }
 
-pub fn originals(allocator: std.mem.Allocator, functions: []const File, files: []File, roots: []Module) !void {
+pub fn originals(allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: []const File, files: []File) !FunctionFiles {
+    const function_paths = try workspace.alloc([]const u8, functions.len);
+    const function_names = try workspace.alloc([]const u8, functions.len);
+    const function_sizes = try workspace.alloc(u64, functions.len);
+    const inventory: FunctionFiles = .{ .paths = function_paths, .names = function_names, .sizes = function_sizes };
+
     if (comptime !available) {
-        for (functions, files, roots) |function, *file, *root| {
-            root.* = .{ .name = std.fs.path.stem(function.path), .file = function.path };
+        for (functions, files, function_paths, function_names, function_sizes) |function, *file, *path, *name, *size| {
+            path.* = function.path;
+            name.* = std.fs.path.stem(function.path);
+            size.* = function.source.len;
             file.* = .{ .path = try std.fs.path.join(allocator, &.{ "original", function.path }), .source = function.source };
         }
 
-        return;
+        return inventory;
     }
 
     const entry = @import("generated_output_originals");
@@ -77,8 +84,6 @@ pub fn originals(allocator: std.mem.Allocator, functions: []const File, files: [
     const bodies = memory.borrowTextColumn("source", functions);
     const paths = memory.borrowWriteColumn([]const u8, "path", files);
     const sources = memory.borrowWriteColumn([]const u8, "source", files);
-    const root_names = memory.borrowWriteColumn([]const u8, "name", roots);
-    const root_paths = memory.borrowWriteColumn([]const u8, "file", roots);
 
     const input: std.meta.Child(entry.Input) = .{
         .names = @ptrCast(&names),
@@ -87,9 +92,12 @@ pub fn originals(allocator: std.mem.Allocator, functions: []const File, files: [
         .sources = @ptrCast(&sources),
         .length = functions.len,
         .separator = std.fs.path.sep_str,
-        .root_names = @ptrCast(&root_names),
-        .root_paths = @ptrCast(&root_paths),
+        .function_paths = @ptrCast(&function_paths),
+        .function_names = @ptrCast(&function_names),
+        .function_sizes = @ptrCast(&function_sizes),
     };
 
     try zx.columns.invoke(entry.executeValue, allocator, &input);
+
+    return inventory;
 }

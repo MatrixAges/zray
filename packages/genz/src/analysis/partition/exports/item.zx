@@ -7,10 +7,14 @@ import header from "../../../ast/statements/header"
 import { StatementsKind } from "../../../printer/model/statements"
 import { symbol_separator } from "../stub/const"
 
-import type { Item as Input, State as Output } from "./model"
+import type { Entry, State as Output } from "./model"
+
+export type Input = Entry & {
+    state: Output
+}
 
 export default function (in: Input): Output {
-    const { function_name, variant } = in.state.source[in.index]
+    const { function_name, variant } = in
 
     const imported = field({
         state: in.state.expressions,

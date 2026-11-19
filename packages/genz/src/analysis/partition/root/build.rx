@@ -3,9 +3,16 @@
 
     <Args in={Root.Input} out={Root.Output} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="initialize" in={{}} />
 
-    <Call fn="modules" />
+    <Call
+        fn="modules"
+        in={{
+            state: $ctx.initialize,
+            modules: $in.modules
+        }}
+    />
+
     <Call fn="assemble" />
 
     <If on={$in.panic_handler}>

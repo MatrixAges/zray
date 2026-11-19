@@ -1,4 +1,4 @@
-import type { TextColumn, WriteColumn } from "memory"
+import type { StringBuffer, TextColumn, U64Buffer, WriteColumn } from "memory"
 
 export type Input = {
     names: TextColumn,
@@ -16,6 +16,7 @@ export type Split = Input & {
 
 export type Originals = Input & {
     separator: string,
-    root_names: WriteColumn,
-    root_paths: WriteColumn
+    function_paths: StringBuffer,
+    function_names: StringBuffer,
+    function_sizes: U64Buffer
 }

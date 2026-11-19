@@ -1,0 +1,32 @@
+import integers from "std:integer"
+
+import item from "./item"
+
+import type { Indexed, State as Output } from "./model"
+
+export type Input = {
+    state: Output,
+    source: Indexed
+}
+
+export default function (in: Input): Output {
+    return loop({
+        state: in.state,
+        index: 0
+    }, {
+        while: current => current.state.valid &&
+            current.state.expressions.valid &&
+            current.index < in.source.entries.length,
+        next: current => {
+            const row = integers.widen(in.source.entries[current.index])
+
+            current.state = item({
+                state: current.state,
+                function_name: in.source.names[row],
+                variant: in.source.variants[current.index]
+            })
+            current.index += 1
+        },
+        return: current => current.state
+    })
+}

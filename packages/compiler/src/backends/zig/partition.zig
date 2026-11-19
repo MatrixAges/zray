@@ -43,6 +43,27 @@ pub fn rootBacked(allocator: std.mem.Allocator, workspace: std.mem.Allocator, mo
     return render(allocator, arena.allocator(), std.meta.Child(entry.Output), output);
 }
 
+pub fn indexedRoot(allocator: std.mem.Allocator, workspace: std.mem.Allocator, files: layout.FunctionFiles, callees: ?[]const u32) ![]const u8 {
+    if (comptime !layout.available) {
+        const modules = try workspace.alloc(Module, if (callees) |rows| rows.len else files.paths.len);
+
+        defer workspace.free(modules);
+
+        for (modules, 0..) |*module, index| {
+            const row = if (callees) |rows| rows[index] else index;
+
+            module.* = .{ .name = files.names[row], .file = files.paths[row] };
+        }
+
+        return rootBacked(allocator, workspace, modules, false);
+    }
+
+    const entry = @import("generated_partition_indexed_root");
+    const input: std.meta.Child(entry.Input) = .{ .paths = files.paths, .names = files.names, .callees = callees };
+
+    return renderEntry(allocator, workspace, entry, &input);
+}
+
 fn failure(err: anyerror) std.mem.Allocator.Error {
     return switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
@@ -79,6 +100,13 @@ pub fn exportsBacked(allocator: std.mem.Allocator, workspace: std.mem.Allocator,
     return render(allocator, arena.allocator(), std.meta.Child(entry.Output), output);
 }
 
+pub fn indexedExports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, names: []const []const u8, entries: []const u32, variants: []const []const u8) ![]const u8 {
+    const entry = @import("generated_partition_indexed_exports");
+    const input: std.meta.Child(entry.Input) = .{ .names = names, .entries = entries, .variants = variants };
+
+    return renderEntry(allocator, workspace, entry, &input);
+}
+
 pub fn stub(allocator: std.mem.Allocator, file: []const u8, variants: []const []const u8, comptime_entry: bool) ![]const u8 {
     return stubBacked(allocator, allocator, file, variants, comptime_entry);
 }
@@ -86,20 +114,22 @@ pub fn stub(allocator: std.mem.Allocator, file: []const u8, variants: []const []
 pub fn stubBacked(allocator: std.mem.Allocator, workspace: std.mem.Allocator, file: []const u8, variants: []const []const u8, comptime_entry: bool) ![]const u8 {
     if (comptime !@import("parser_options").generated_parser) return @import("partition_seed.zig").stub(allocator, file, variants, comptime_entry);
 
+    return namedStub(allocator, workspace, std.fs.path.stem(file), variants, comptime_entry);
+}
+
+pub fn namedStub(allocator: std.mem.Allocator, workspace: std.mem.Allocator, name: []const u8, variants: []const []const u8, comptime_entry: bool) ![]const u8 {
+    const entry = @import("generated_partition_stub");
+    const input: std.meta.Child(entry.Input) = .{ .function_name = name, .variants = variants, .comptime_entry = comptime_entry };
+
+    return renderEntry(allocator, workspace, entry, &input);
+}
+
+fn renderEntry(allocator: std.mem.Allocator, workspace: std.mem.Allocator, comptime entry: type, input: entry.Input) ![]const u8 {
     var arena = std.heap.ArenaAllocator.init(workspace);
 
     defer arena.deinit();
 
-    const entry = @import("generated_partition_stub");
-    const Input = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
-
-    const input: Input = .{
-        .function_name = std.fs.path.stem(file),
-        .variants = variants,
-        .comptime_entry = comptime_entry,
-    };
-
-    const output = entry.executeValue(arena.allocator(), input) catch |err| return failure(err);
+    const output = @import("zx").columns.invoke(entry.executeValue, arena.allocator(), input) catch |err| return failure(err);
 
     if (!output.valid) return error.OutOfMemory;
 

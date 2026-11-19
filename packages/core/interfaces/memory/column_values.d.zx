@@ -47,6 +47,12 @@ export declare function writeColumnTextList(
     value: string[]
 ): void throws { IndexOutOfBounds }
 
+export declare function writeColumnByteList(
+    target: WriteColumn,
+    index: u64,
+    value: u8[][]
+): void throws { IndexOutOfBounds }
+
 export declare function readColumnU32(
     source: ReadColumn,
     index: u64

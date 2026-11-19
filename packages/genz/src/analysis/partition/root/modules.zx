@@ -1,17 +1,25 @@
 import item from "./item"
 
-import type { State as Input, State as Output } from "./model"
+import type { Module, State as Output } from "./model"
+
+export type Input = {
+    state: Output,
+    modules: Module[]
+}
 
 export default function (in: Input): Output {
     return loop({
-        state: in,
+        state: in.state,
         index: 0
     }, {
         while: current => current.state.valid &&
             current.state.declarations.valid &&
-            current.index < in.source.modules.length,
+            current.index < in.modules.length,
         next: current => {
-            current.state = item(current)
+            current.state = item({
+                ...in.modules[current.index],
+                state: current.state
+            })
             current.index += 1
         },
         return: current => current.state

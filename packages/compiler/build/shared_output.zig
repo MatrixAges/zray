@@ -35,19 +35,26 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
 
     try files.appendSlice(allocator, groups.support);
 
-    if (partitions != 0) {
+    var scratch = std.heap.ArenaAllocator.init(workspace);
+
+    defer scratch.deinit();
+
+    const function_files = if (partitions == 0) undefined else blk: {
         try files.append(allocator, .{ .path = "signatures.zig", .source = bundle.signatures orelse "" });
 
-        const originals = try allocator.alloc(compiler.zig.partition.Module, groups.functions.len);
         const first = files.items.len;
 
-        try files.resize(allocator, first + originals.len);
-        try ledger.inventory.originals(allocator, groups.functions, files.items[first..], originals);
-        try files.append(allocator, .{ .path = "original/root.zig", .source = try compiler.zig.partition.rootBacked(allocator, workspace, originals, false) });
-    }
+        try files.resize(allocator, first + groups.functions.len);
+
+        const original = try ledger.inventory.originals(allocator, scratch.allocator(), groups.functions, files.items[first..]);
+
+        try files.append(allocator, .{ .path = "original/root.zig", .source = try compiler.zig.partition.indexedRoot(allocator, workspace, original, null) });
+
+        break :blk original;
+    };
 
     try files.append(allocator, .{ .path = "root.zig", .source = try compiler.zig.partition.rootBacked(allocator, workspace, modules, partitions != 0) });
-    if (partitions == 0) try files.appendSlice(allocator, groups.functions) else try files.appendSlice(allocator, try layout.plan(io, allocator, workspace, groups.functions, groups.support, partitions));
+    if (partitions == 0) try files.appendSlice(allocator, groups.functions) else try files.appendSlice(allocator, try layout.plan(io, allocator, workspace, groups.functions, function_files, groups.support, partitions));
     try mirror(io, allocator, workspace, output, files.items);
 }
 

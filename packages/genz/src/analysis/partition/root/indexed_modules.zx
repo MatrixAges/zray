@@ -1,0 +1,40 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import item from "./item"
+
+import type { Indexed, State as Output } from "./model"
+
+export type Input = {
+    state: Output,
+    source: Indexed
+}
+
+export default function (in: Input): Output {
+    const all = in.source.callees == null
+    const rows = in.source.callees ?? []
+    const length = all ? in.source.paths.length : rows.length
+
+    return loop({
+        state: in.state,
+        index: 0
+    }, {
+        while: current => current.state.valid &&
+            current.state.declarations.valid &&
+            current.index < length,
+        next: current => {
+            const row = match all {
+                true => current.index,
+                _ => integers.widen(rows[current.index])
+            }
+
+            current.state = item({
+                state: current.state,
+                file: bytes.fromText(in.source.paths[row]),
+                name: bytes.fromText(in.source.names[row])
+            })
+            current.index += 1
+        },
+        return: current => current.state
+    })
+}

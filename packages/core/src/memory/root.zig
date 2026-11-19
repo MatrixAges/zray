@@ -175,6 +175,7 @@ pub const writeColumnOptionalU32 = column.writeOptionalU32;
 pub const writeColumnOptionalU8 = column.writeOptionalU8;
 pub const writeColumnOptionalText = column.writeOptionalText;
 pub const writeColumnTextList = column.writeTextList;
+pub const writeColumnByteList = column.writeTextList;
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;
 pub const readScalarKind = scalar_column.readKind;

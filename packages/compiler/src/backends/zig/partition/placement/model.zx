@@ -1,4 +1,5 @@
 import type { TextColumn, WriteColumn } from "memory"
+import type { WriteColumn as ListColumn } from "memory/columns"
 import type { Scope } from "../demand/model"
 import type { Placement } from "../layout/model"
 
@@ -13,7 +14,14 @@ export type Input = {
     files: State,
     members: u32[][],
     scopes: Scope[],
-    placement: Placement
+    placement: Placement,
+    stub_targets: StubTargets
+}
+
+export type StubTargets = {
+    callees: WriteColumn,
+    variants: ListColumn,
+    comptime_entries: WriteColumn
 }
 
 export type BodyGroup = {

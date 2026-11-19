@@ -4,10 +4,18 @@
 
     <Args in={Exports.Input} out={Root.Output} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="initialize" in={{}} />
 
     <Call fn="bindings" />
-    <Call fn="entries" />
+
+    <Call
+        fn="entries"
+        in={{
+            state: $ctx.bindings,
+            entries: $in
+        }}
+    />
+
     <Call fn="publish" />
 
     <Return value={$ctx.publish} />

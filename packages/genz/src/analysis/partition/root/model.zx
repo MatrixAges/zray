@@ -19,6 +19,12 @@ export type Input = {
     panic_handler: bool
 }
 
+export type Indexed = {
+    paths: string[],
+    names: string[],
+    callees?: u32[]
+}
+
 export type Expressions = {
     tags: ExpressionsKind[],
     offsets: u32[],
@@ -27,17 +33,11 @@ export type Expressions = {
 }
 
 export type State = {
-    source: Input,
     context: Context,
     declarations: Declarations,
     expressions: Expressions,
     strings: u8[][],
     valid: bool
-}
-
-export type Item = {
-    state: State,
-    index: u64
 }
 
 export type Output = {

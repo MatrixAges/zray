@@ -21,8 +21,9 @@ export default function (in: Input): Output {
             const name = memory.borrowTextRange(base, 0, size)
             const target = `${prefix}${file}`
 
-            memory.writeColumnBytes(in.root_names, row, bytes.fromText(name))
-            memory.writeColumnBytes(in.root_paths, row, bytes.fromText(file))
+            memory.writeString(in.function_paths, row, file)
+            memory.writeString(in.function_names, row, name)
+            memory.writeU64(in.function_sizes, row, source.length)
             memory.writeColumnBytes(in.paths, row, bytes.fromText(target))
             memory.writeColumnBytes(in.sources, row, bytes.fromText(source))
             row += 1
