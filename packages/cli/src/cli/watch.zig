@@ -48,6 +48,10 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
 
         defer inputs.deinit();
 
+        inputs.retain_versions = options.cache;
+
+        if (inputs.retain_versions) inputs.previous = last_success orelse last_failure;
+
         var attempt = Attempt{ .allocator = temporary, .inputs = &inputs, .previous_backend = backend_paths, .parse_cache = if (options.cache) &parse_cache else null };
         var diagnostics: std.Io.Writer.Allocating = .init(temporary);
 
@@ -92,16 +96,16 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
             try stderr.writeAll(message);
         }
 
-        if (last_failure) |*snapshot| snapshot.deinit();
-
-        last_failure = null;
-
         if (status == .success) {
-            const next = try inputs.observed(allocator);
+            const next = inputs.takePublished() orelse try inputs.observed(allocator);
 
             if (last_success) |*snapshot| snapshot.deinit();
 
             last_success = next;
+
+            if (last_failure) |*snapshot| snapshot.deinit();
+
+            last_failure = null;
 
             try stderr.print("zxc watch: built {s}\n", .{options.output.?});
 
@@ -124,7 +128,11 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
                 }
             }
 
-            last_failure = try inputs.observed(allocator);
+            const next = try inputs.observed(allocator);
+
+            if (last_failure) |*snapshot| snapshot.deinit();
+
+            last_failure = next;
         }
 
         try stderr.flush();

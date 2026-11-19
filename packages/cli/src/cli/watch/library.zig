@@ -14,8 +14,9 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
     const allocator = arena.allocator();
     const destination = try std.fs.path.resolve(allocator, &.{ inputs.cwd, output });
     var observed = try inputs.observed(backing);
+    var retained = false;
 
-    defer observed.deinit();
+    defer if (!retained) observed.deinit();
 
     for (observed.entries) |entry| {
         const relative = try std.fs.path.relative(allocator, destination, null, destination, entry.path);
@@ -23,7 +24,7 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
         if (paths.within(relative)) return error.OutputOverlapsInput;
     }
 
-    if (!try observed.unchanged(io, backing)) return false;
+    if (!try inputs.verify(io, backing, observed)) return false;
 
     const retired = try retirement.retired(io, allocator, backing, destination, managed, inputs);
     var directory = try std.Io.Dir.openDirAbsolute(io, staging, .{ .iterate = true });
@@ -68,6 +69,8 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
 
     try retirement.remove(io, retired);
     try directory.copyFile(inventory.name, .cwd(), try std.fs.path.join(allocator, &.{ destination, inventory.name }), io, .{ .make_path = true });
+
+    retained = inputs.retainPublished(observed);
 
     return true;
 }

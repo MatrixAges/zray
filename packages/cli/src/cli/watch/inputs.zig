@@ -1,12 +1,20 @@
 const std = @import("std");
 const Snapshot = @import("snapshot.zig");
 const Self = @This();
-const Observation = struct { state: Snapshot.State, consumed: bool = false, directory_entries: bool = false };
+
+const Observation = struct {
+    state: Snapshot.State,
+    consumed: bool = false,
+    directory_entries: bool = false,
+};
 
 arena: std.heap.ArenaAllocator,
 cwd: []const u8,
 entries: std.StringHashMapUnmanaged(Observation) = .empty,
 consistent: bool = true,
+retain_versions: bool = false,
+previous: ?Snapshot = null,
+published: ?Snapshot = null,
 pub fn init(io: std.Io, allocator: std.mem.Allocator) !Self {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
@@ -18,6 +26,8 @@ pub fn init(io: std.Io, allocator: std.mem.Allocator) !Self {
 }
 
 pub fn deinit(self: *Self) void {
+    if (self.published) |*snapshot| snapshot.deinit();
+
     self.arena.deinit();
 
     self.* = undefined;
@@ -36,6 +46,24 @@ fn addWithDirectoryEntries(self: *Self, io: std.Io, path: []const u8, directory_
     const entry = try self.entries.getOrPut(self.arena.allocator(), normalized);
 
     if (entry.found_existing and (!directory_entries or entry.value_ptr.directory_entries)) return;
+
+    if (!entry.found_existing and !directory_entries) {
+        if (self.previous) |previous| {
+            if (previous.find(normalized)) |prior| {
+                const matched = prior.stillMatches(io) catch |err| {
+                    entry.value_ptr.* = .{ .state = .{ .failed = err } };
+
+                    return err;
+                };
+
+                if (matched) {
+                    entry.value_ptr.* = .{ .state = prior.state };
+
+                    return;
+                }
+            }
+        }
+    }
 
     const state = Snapshot.readWithDirectoryEntries(io, self.arena.allocator(), normalized, directory_entries) catch |err| {
         if (entry.found_existing) self.consistent = false;
@@ -72,16 +100,13 @@ pub fn record(self: *Self, io: std.Io, path: []const u8, source: []const u8) !vo
 
     std.crypto.hash.sha2.Sha256.hash(source, &digest, .{});
 
-    if (entry.found_existing and entry.value_ptr.consumed) {
-        const same = switch (entry.value_ptr.state) {
-            .file => |previous| std.mem.eql(u8, &previous.digest, &digest) and std.mem.eql(u8, previous.physical_path, physical),
-            else => false,
-        };
+    const state = Snapshot.State{ .file = .{ .digest = digest, .physical_path = physical } };
 
-        self.consistent = self.consistent and same;
+    if (entry.found_existing and entry.value_ptr.consumed) {
+        self.consistent = self.consistent and Snapshot.sameState(entry.value_ptr.state, state);
     }
 
-    entry.value_ptr.* = .{ .state = .{ .file = .{ .digest = digest, .physical_path = physical } }, .consumed = true };
+    entry.value_ptr.* = .{ .state = state, .consumed = true };
 }
 
 pub fn observed(self: *const Self, allocator: std.mem.Allocator) !Snapshot {
@@ -109,6 +134,28 @@ pub fn observed(self: *const Self, allocator: std.mem.Allocator) !Snapshot {
     std.mem.sort(Snapshot.Entry, entries, {}, lessThan);
 
     return .{ .arena = arena, .entries = entries, .consistent = self.consistent };
+}
+
+pub fn verify(self: *const Self, io: std.Io, allocator: std.mem.Allocator, snapshot: Snapshot) !bool {
+    if (!self.retain_versions) return snapshot.unchanged(io, allocator);
+
+    return snapshot.verifyVersions(io, allocator);
+}
+
+pub fn retainPublished(self: *Self, snapshot: Snapshot) bool {
+    if (!self.retain_versions) return false;
+
+    std.debug.assert(self.published == null);
+
+    self.published = snapshot;
+
+    return true;
+}
+
+pub fn takePublished(self: *Self) ?Snapshot {
+    defer self.published = null;
+
+    return self.published;
 }
 
 fn lessThan(_: void, left: Snapshot.Entry, right: Snapshot.Entry) bool {

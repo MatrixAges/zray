@@ -71,7 +71,7 @@ pub fn resolve(io: std.Io, response: *Response, cache: Cache, library: []const u
     return .{ .response = response.*, .input_paths = paths, .new_inputs = new_inputs, .binary = binary, .assembly = assembly };
 }
 
-pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, options: Options) !bool {
+pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inputs: *Inputs, options: Options) !bool {
     if (!self.response.succeeded or !self.response.inputs_complete or self.new_inputs) return false;
 
     const output = try @import("../watch/output.zig").check(io, allocator, inputs, options.output.?);
@@ -96,14 +96,17 @@ pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inpu
         }
     }
 
-    var observed = try inputs.observed(allocator);
+    var observed = try inputs.observed(if (inputs.retain_versions) inputs.arena.child_allocator else allocator);
+    var retained = false;
 
-    defer observed.deinit();
+    defer if (!retained) observed.deinit();
 
-    if (!try observed.unchanged(io, allocator)) return false;
+    if (!try inputs.verify(io, allocator, observed)) return false;
     if (self.bindings) |files| try files.publish(io);
     if (self.assembly) |path| try std.Io.Dir.cwd().copyFile(path, .cwd(), options.assembly.?, io, .{ .make_path = true });
     try std.Io.Dir.cwd().copyFile(self.binary.?, .cwd(), options.output.?, io, .{ .make_path = true });
+
+    retained = inputs.retainPublished(observed);
 
     return true;
 }

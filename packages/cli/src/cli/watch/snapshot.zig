@@ -17,12 +17,27 @@ pub const Entry = struct {
     state: State,
     directory_entries: bool = false,
     verified_file: ?VerifiedFile = null,
+    pub fn stillMatches(self: *const Entry, io: std.Io) !bool {
+        const verified = self.verified_file orelse return false;
+
+        return verified.matches(io, self.path, self.state.file.physical_path);
+    }
 };
 
 arena: std.heap.ArenaAllocator,
 entries: []Entry,
 
 consistent: bool = true,
+pub fn find(self: Self, path: []const u8) ?*const Entry {
+    const row = std.sort.binarySearch(Entry, self.entries, path, comparePath) orelse return null;
+
+    return &self.entries[row];
+}
+
+fn comparePath(path: []const u8, entry: Entry) std.math.Order {
+    return std.mem.order(u8, path, entry.path);
+}
+
 pub fn deinit(self: *Self) void {
     self.arena.deinit();
 
@@ -30,43 +45,38 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn unchanged(self: Self, io: std.Io, allocator: std.mem.Allocator) !bool {
-    if (!self.consistent) return false;
+    return self.scan(io, allocator, .content);
+}
 
-    var scratch = std.heap.ArenaAllocator.init(allocator);
-
-    defer scratch.deinit();
-
-    for (self.entries) |entry| {
-        const current = try readWithDirectoryEntries(io, scratch.allocator(), entry.path, entry.directory_entries);
-
-        if (!sameState(entry.state, current)) return false;
-
-        _ = scratch.reset(.retain_capacity);
-    }
-
-    return true;
+pub fn verifyVersions(self: Self, io: std.Io, allocator: std.mem.Allocator) !bool {
+    return self.scan(io, allocator, .content_and_version);
 }
 
 pub fn poll(self: Self, io: std.Io, allocator: std.mem.Allocator) !bool {
+    return self.scan(io, allocator, .reuse_version);
+}
+
+const Scan = enum { content, content_and_version, reuse_version };
+
+fn scan(self: Self, io: std.Io, allocator: std.mem.Allocator, mode: Scan) !bool {
     if (!self.consistent) return false;
 
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
 
-    const started = std.Io.Timestamp.now(io, .real).nanoseconds;
+    const save_version = mode != .content;
+    const started = if (save_version) std.Io.Timestamp.now(io, .real).nanoseconds else 0;
 
     for (self.entries) |*entry| {
-        if (entry.verified_file) |verified| {
-            if (try verified.matches(io, entry.path, entry.state.file.physical_path)) continue;
-        }
+        if (mode == .reuse_version and try entry.stillMatches(io)) continue;
 
         var verified_file: ?VerifiedFile = null;
-        const current = try read(io, scratch.allocator(), entry.path, entry.directory_entries, started, &verified_file);
+        const current = try read(io, scratch.allocator(), entry.path, entry.directory_entries, started, if (save_version) &verified_file else null);
 
         if (!sameState(entry.state, current)) return false;
+        if (save_version) entry.verified_file = verified_file;
 
-        entry.verified_file = verified_file;
         _ = scratch.reset(.retain_capacity);
     }
 
