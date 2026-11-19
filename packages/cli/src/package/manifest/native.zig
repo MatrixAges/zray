@@ -1,162 +1,141 @@
-const std = @import("std");
 const compiler = @import("compiler");
 const c = @import("yaml.zig").c;
 const model = @import("model.zig");
 const Decoder = @import("decode.zig");
 const Error = Decoder.Error;
+const External = compiler.project.External;
+const Implementation = @FieldType(External, "implementation");
 
-pub fn field(decoder: *Decoder, key: []const u8, value: *const c.yaml_node_t, result: *model.Manifest) Error!bool {
-    if (std.mem.eql(u8, key, "native_interfaces")) {
-        const items = try decoder.sequence(value);
-        const values = try decoder.allocator.alloc(model.NativeInterface, items.len);
+pub fn decodeList(comptime T: type, decoder: *Decoder, value: *const c.yaml_node_t, comptime decode: fn (*Decoder, *const c.yaml_node_t) Error!T) Error![]const T {
+    const items = try decoder.sequence(value);
+    const output = try decoder.allocator.alloc(T, items.len);
 
-        for (items, values) |item, *entry| entry.* = try interface(decoder, decoder.node(item));
+    for (items, output) |item, *result| result.* = try decode(decoder, decoder.node(item));
 
-        result.native_interfaces = values;
-    } else if (std.mem.eql(u8, key, "native_modules")) {
-        const items = try decoder.sequence(value);
-        const values = try decoder.allocator.alloc(model.NativeModule, items.len);
-
-        for (items, values) |item, *entry| entry.* = try module(decoder, decoder.node(item));
-
-        result.native_modules = values;
-    } else if (std.mem.eql(u8, key, "externals")) {
-        const items = try decoder.sequence(value);
-        const values = try decoder.allocator.alloc(compiler.project.External, items.len);
-
-        for (items, values) |item, *entry| entry.* = try external(decoder, decoder.node(item));
-
-        result.externals = values;
-    } else if (std.mem.eql(u8, key, "libraries")) {
-        result.libraries = try decoder.strings(value);
-    } else if (std.mem.eql(u8, key, "include_paths")) {
-        result.include_paths = try decoder.strings(value);
-    } else if (std.mem.eql(u8, key, "library_paths")) {
-        result.library_paths = try decoder.strings(value);
-    } else return false;
-
-    return true;
+    return output;
 }
 
-fn interface(decoder: *Decoder, value: *const c.yaml_node_t) Error!model.NativeInterface {
+pub fn interface(decoder: *Decoder, value: *const c.yaml_node_t) Error!model.NativeInterface {
     var result: model.NativeInterface = .{ .specifier = "", .path = "", .module = "" };
 
     for (try decoder.mapping(value)) |entry| {
-        const key = try decoder.scalar(decoder.node(entry.key));
+        const key = decoder.node(entry.key);
         const item = decoder.node(entry.value);
 
-        if (std.mem.eql(u8, key, "specifier")) {
-            result.specifier = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "path")) {
-            result.path = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "module")) {
-            result.module = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "namespace")) {
-            result.namespace = try decoder.strings(item);
-        } else return decoder.fail(decoder.node(entry.key), "unknown native interface field");
+        switch (Decoder.keyField(.NativeInterface, key)) {
+            .Specifier => result.specifier = try decoder.scalar(item),
+            .Path => result.path = try decoder.scalar(item),
+            .Module => result.module = try decoder.scalar(item),
+            .Namespace => result.namespace = try decoder.strings(item),
+            else => return decoder.fail(key, "unknown native interface field"),
+        }
     }
 
-    if (result.specifier.len == 0 or result.path.len == 0 or result.module.len == 0) return decoder.fail(value, "native interface requires specifier, path and module");
+    try decoder.require(value, .NativeInterface, .{
+        .specifier = result.specifier.len != 0,
+        .path = result.path.len != 0,
+        .module = result.module.len != 0,
+    });
 
     return result;
 }
 
-fn module(decoder: *Decoder, value: *const c.yaml_node_t) Error!model.NativeModule {
+pub fn module(decoder: *Decoder, value: *const c.yaml_node_t) Error!model.NativeModule {
     var result: model.NativeModule = .{ .name = "" };
 
     for (try decoder.mapping(value)) |entry| {
-        const key = try decoder.scalar(decoder.node(entry.key));
+        const key = decoder.node(entry.key);
         const item = decoder.node(entry.value);
 
-        if (std.mem.eql(u8, key, "name")) {
-            result.name = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "path")) {
-            result.path = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "header")) {
-            result.header = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "dependencies")) {
-            result.dependencies = try decoder.strings(item);
-        } else if (std.mem.eql(u8, key, "bundle_files")) {
-            result.bundle_files = try decoder.strings(item);
-        } else if (std.mem.eql(u8, key, "include_paths")) {
-            result.include_paths = try decoder.strings(item);
-        } else if (std.mem.eql(u8, key, "abi_aliases")) {
-            result.abi_aliases = try abiAliases(decoder, item);
-        } else return decoder.fail(decoder.node(entry.key), "unknown native module field");
+        switch (Decoder.keyField(.NativeModule, key)) {
+            .Name => result.name = try decoder.scalar(item),
+            .Path => result.path = try decoder.scalar(item),
+            .Header => result.header = try decoder.scalar(item),
+            .Dependencies => result.dependencies = try decoder.strings(item),
+            .BundleFiles => result.bundle_files = try decoder.strings(item),
+            .IncludePaths => result.include_paths = try decoder.strings(item),
+            .AbiAliases => result.abi_aliases = try decodeList(model.AbiAlias, decoder, item, abiAlias),
+            else => return decoder.fail(key, "unknown native module field"),
+        }
     }
 
-    if (result.name.len == 0) return decoder.fail(value, "native module requires name");
-    if ((result.path == null) == (result.header == null)) return decoder.fail(value, "native module requires exactly one of path or header");
+    try decoder.require(value, .NativeModule, .{
+        .name = result.name.len != 0,
+        .path = result.path != null,
+        .header = result.header != null,
+    });
 
     return result;
 }
 
-fn abiAliases(decoder: *Decoder, value: *const c.yaml_node_t) Error![]const model.AbiAlias {
-    const items = try decoder.sequence(value);
-    const aliases = try decoder.allocator.alloc(model.AbiAlias, items.len);
-
-    for (items, aliases) |item, *alias| {
-        alias.* = .{ .name = "", .specifier = "" };
-
-        for (try decoder.mapping(decoder.node(item))) |pair| {
-            const key = try decoder.scalar(decoder.node(pair.key));
-            const text = try decoder.scalar(decoder.node(pair.value));
-
-            if (std.mem.eql(u8, key, "name")) {
-                alias.name = text;
-            } else if (std.mem.eql(u8, key, "specifier")) {
-                alias.specifier = text;
-            } else return decoder.fail(decoder.node(pair.key), "unknown native ABI alias field");
-        }
-
-        if (alias.name.len == 0 or alias.specifier.len == 0) return decoder.fail(decoder.node(item), "native ABI alias requires name and specifier");
-    }
-
-    return aliases;
-}
-
-fn external(decoder: *Decoder, value: *const c.yaml_node_t) Error!compiler.project.External {
-    var result: compiler.project.External = .{ .specifier = "", .signature = "", .implementation = .{ .module = "", .member = "" } };
+fn abiAlias(decoder: *Decoder, value: *const c.yaml_node_t) Error!model.AbiAlias {
+    var result: model.AbiAlias = .{ .name = "", .specifier = "" };
 
     for (try decoder.mapping(value)) |entry| {
-        const key = try decoder.scalar(decoder.node(entry.key));
-        const item = decoder.node(entry.value);
+        const key = decoder.node(entry.key);
+        const text = try decoder.scalar(decoder.node(entry.value));
 
-        if (std.mem.eql(u8, key, "specifier")) {
-            result.specifier = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "signature")) {
-            result.signature = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "export_name")) {
-            result.export_name = try decoder.scalar(item);
-        } else if (std.mem.eql(u8, key, "implementation")) {
-            for (try decoder.mapping(item)) |part| {
-                const name = try decoder.scalar(decoder.node(part.key));
-                const field_value = decoder.node(part.value);
-
-                if (std.mem.eql(u8, name, "module")) {
-                    result.implementation.module = try decoder.scalar(field_value);
-                } else if (std.mem.eql(u8, name, "member")) {
-                    result.implementation.member = try decoder.scalar(field_value);
-                } else if (std.mem.eql(u8, name, "allocator_argument")) {
-                    result.implementation.allocator_argument = try decoder.boolean(field_value);
-                } else if (std.mem.eql(u8, name, "io_argument")) {
-                    result.implementation.io_argument = try decoder.boolean(field_value);
-                } else if (std.mem.eql(u8, name, "process_argument")) {
-                    result.implementation.process_argument = try decoder.boolean(field_value);
-                } else if (std.mem.eql(u8, name, "expand_tuple")) {
-                    result.implementation.expand_tuple = try decoder.boolean(field_value);
-                } else if (std.mem.eql(u8, name, "errors")) {
-                    result.implementation.errors = try decoder.strings(field_value);
-                } else if (std.mem.eql(u8, name, "fallible")) {
-                    result.implementation.fallible = try decoder.boolean(field_value);
-                } else if (std.mem.eql(u8, name, "concurrent")) {
-                    result.implementation.concurrent = try decoder.boolean(field_value);
-                } else return decoder.fail(decoder.node(part.key), "unknown external implementation field");
-            }
-        } else return decoder.fail(decoder.node(entry.key), "unknown external interface field");
+        switch (Decoder.keyField(.AbiAlias, key)) {
+            .Name => result.name = text,
+            .Specifier => result.specifier = text,
+            else => return decoder.fail(key, "unknown native ABI alias field"),
+        }
     }
 
-    if (result.specifier.len == 0 or result.signature.len == 0 or result.implementation.module.len == 0 or result.implementation.member.len == 0) return decoder.fail(value, "external interface requires specifier, signature and implementation module/member");
+    try decoder.require(value, .AbiAlias, .{
+        .name = result.name.len != 0,
+        .specifier = result.specifier.len != 0,
+    });
+
+    return result;
+}
+
+pub fn external(decoder: *Decoder, value: *const c.yaml_node_t) Error!External {
+    var result: External = .{ .specifier = "", .signature = "", .implementation = .{ .module = "", .member = "" } };
+
+    for (try decoder.mapping(value)) |entry| {
+        const key = decoder.node(entry.key);
+        const item = decoder.node(entry.value);
+
+        switch (Decoder.keyField(.External, key)) {
+            .Specifier => result.specifier = try decoder.scalar(item),
+            .Signature => result.signature = try decoder.scalar(item),
+            .ExportName => result.export_name = try decoder.scalar(item),
+            .Implementation => result.implementation = try implementation(decoder, item),
+            else => return decoder.fail(key, "unknown external interface field"),
+        }
+    }
+
+    try decoder.require(value, .External, .{
+        .specifier = result.specifier.len != 0,
+        .signature = result.signature.len != 0,
+        .module = result.implementation.module.len != 0,
+        .member = result.implementation.member.len != 0,
+    });
+
+    return result;
+}
+
+fn implementation(decoder: *Decoder, value: *const c.yaml_node_t) Error!Implementation {
+    var result: Implementation = .{ .module = "", .member = "" };
+
+    for (try decoder.mapping(value)) |entry| {
+        const key = decoder.node(entry.key);
+        const item = decoder.node(entry.value);
+
+        switch (Decoder.keyField(.Implementation, key)) {
+            .Module => result.module = try decoder.scalar(item),
+            .Member => result.member = try decoder.scalar(item),
+            .AllocatorArgument => result.allocator_argument = try decoder.boolean(item),
+            .IoArgument => result.io_argument = try decoder.boolean(item),
+            .ProcessArgument => result.process_argument = try decoder.boolean(item),
+            .ExpandTuple => result.expand_tuple = try decoder.boolean(item),
+            .Errors => result.errors = try decoder.strings(item),
+            .Fallible => result.fallible = try decoder.boolean(item),
+            .Concurrent => result.concurrent = try decoder.boolean(item),
+            else => return decoder.fail(key, "unknown external implementation field"),
+        }
+    }
 
     return result;
 }

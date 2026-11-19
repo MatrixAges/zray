@@ -1,0 +1,106 @@
+export const name_key: string = "name"
+
+export const version_key: string = "version"
+
+export const entry_key: string = "entry"
+
+export const library_key: string = "library"
+
+export const exports_key: string = "exports"
+
+export const private_key: string = "private"
+
+export const dependencies_key: string = "dependencies"
+
+export const dev_dependencies_key: string = "dev_dependencies"
+
+export const workspace_key: string = "workspace"
+
+export const packages_key: string = "packages"
+
+export const native_interfaces_key: string = "native_interfaces"
+
+export const native_modules_key: string = "native_modules"
+
+export const externals_key: string = "externals"
+
+export const libraries_key: string = "libraries"
+
+export const include_paths_key: string = "include_paths"
+
+export const library_paths_key: string = "library_paths"
+
+export const specifier_key: string = "specifier"
+
+export const path_key: string = "path"
+
+export const module_key: string = "module"
+
+export const namespace_key: string = "namespace"
+
+export const header_key: string = "header"
+
+export const bundle_files_key: string = "bundle_files"
+
+export const abi_aliases_key: string = "abi_aliases"
+
+export const signature_key: string = "signature"
+
+export const export_name_key: string = "export_name"
+
+export const implementation_key: string = "implementation"
+
+export const member_key: string = "member"
+
+export const allocator_argument_key: string = "allocator_argument"
+
+export const io_argument_key: string = "io_argument"
+
+export const process_argument_key: string = "process_argument"
+
+export const expand_tuple_key: string = "expand_tuple"
+
+export const errors_key: string = "errors"
+
+export const fallible_key: string = "fallible"
+
+export const concurrent_key: string = "concurrent"
+
+export const true_scalar: string = "true"
+
+export const false_scalar: string = "false"
+
+export const invalid_scalar: string = "expected a string scalar"
+
+export const invalid_text: string = "empty strings and NUL are not allowed in this field"
+
+export const quoted_boolean: string = "expected an unquoted boolean"
+
+export const invalid_boolean: string = "expected a boolean"
+
+export const invalid_boolean_text: string = "expected true or false"
+
+export const entry_and_exports: string =
+    "entry and exports cannot both define the package public interface"
+
+export const library_exports: string = "library requires exports and cannot use entry"
+
+export const mixed_exports: string =
+    "library exports require module selections; source packages require implementation paths"
+
+export const missing_name: string = "pkg.yaml requires name"
+
+export const missing_version: string = "pkg.yaml requires version"
+
+export const missing_interface: string =
+    "native interface requires specifier, path and module"
+
+export const missing_module_name: string = "native module requires name"
+
+export const missing_module_target: string =
+    "native module requires exactly one of path or header"
+
+export const missing_alias: string = "native ABI alias requires name and specifier"
+
+export const missing_external: string =
+    "external interface requires specifier, signature and implementation module/member"

@@ -1,0 +1,13 @@
+import { missing_name, missing_version } from "../const"
+
+import type { Identity as Input } from "./model"
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    return match {
+        !in.name => missing_name,
+        !in.version => missing_version,
+        _ => null
+    }
+}

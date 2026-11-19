@@ -1,0 +1,15 @@
+import type { ReadColumn } from "memory"
+
+export type Surface = {
+    entry: bool,
+    library: bool,
+    exports: u64,
+    modules: ReadColumn
+}
+
+export type Identity = {
+    name: bool,
+    version: bool
+}
+
+export type Input = Surface & Identity

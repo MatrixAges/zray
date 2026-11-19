@@ -1,0 +1,49 @@
+import {
+    true_scalar,
+    false_scalar,
+    quoted_boolean,
+    invalid_boolean,
+    invalid_boolean_text
+} from "./const"
+
+export type Input = {
+    plain: bool,
+    allowed_tag: bool,
+    text: string
+}
+
+export type Output = {
+    value: bool,
+    diagnostic?: string
+}
+
+export default function (in: Input): Output {
+    if (!in.plain) {
+        return {
+            value: false,
+            diagnostic: quoted_boolean
+        }
+    }
+
+    if (!in.allowed_tag) {
+        return {
+            value: false,
+            diagnostic: invalid_boolean
+        }
+    }
+
+    return match in.text {
+        true_scalar => ({
+            value: true,
+            diagnostic: null
+        }),
+        false_scalar => ({
+            value: false,
+            diagnostic: null
+        }),
+        _ => ({
+            value: false,
+            diagnostic: invalid_boolean_text
+        })
+    }
+}

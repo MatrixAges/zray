@@ -20,6 +20,10 @@
             "prefix": "package/project/"
         },
         {
+            "path": "package_manifest",
+            "prefix": "package/manifest/"
+        },
+        {
             "path": "native_sources",
             "prefix": "native_sources/"
         },
@@ -100,6 +104,26 @@
         {
             "path": "package/workspace/const.zx",
             "name": "workspace_constants"
+        },
+        {
+            "path": "package/manifest/schema/field.zx",
+            "name": "manifest_field"
+        },
+        {
+            "path": "package/manifest/schema/scalar.zx",
+            "name": "manifest_scalar"
+        },
+        {
+            "path": "package/manifest/schema/boolean.zx",
+            "name": "manifest_boolean"
+        },
+        {
+            "path": "package/manifest/schema/root/check.rx",
+            "name": "manifest_root"
+        },
+        {
+            "path": "package/manifest/schema/required.zx",
+            "name": "manifest_required"
         },
         {
             "path": "native_sources/references/classify.rx",

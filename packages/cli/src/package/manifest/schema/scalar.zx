@@ -1,0 +1,23 @@
+import bytes from "std:bytes"
+import { ascii_null } from "core/ascii/const"
+
+import { invalid_scalar, invalid_text } from "./const"
+
+export type Input = {
+    text?: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const text = in.text
+
+    if (text == null) {
+        return invalid_scalar
+    }
+
+    const valid = text.length != 0 &&
+        bytes.indexOfScalar(bytes.fromText(text), 0, ascii_null) == null
+
+    return valid ? null : invalid_text
+}

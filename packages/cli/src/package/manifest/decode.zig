@@ -1,58 +1,59 @@
 const std = @import("std");
-const path_rule = @import("cli_source").manifest_path;
+const zx = @import("zx");
+const compiler = @import("compiler");
+const rules = @import("cli_source");
+const path_rule = rules.manifest_path;
 const c = @import("yaml.zig").c;
 const model = @import("model.zig");
+const schema = @import("schema.zig");
+const native = @import("native.zig");
 const Decoder = @This();
 pub const Error = error{ OutOfMemory, InvalidManifest };
 
 allocator: std.mem.Allocator,
 document: *c.yaml_document_t,
 diagnostic: ?model.Diagnostic = null,
+scratch: std.heap.ArenaAllocator = .init(std.heap.smp_allocator),
 pub fn decode(self: *Decoder, root: *const c.yaml_node_t) Error!model.Manifest {
     const entries = try self.mapping(root);
     var result: model.Manifest = .{ .name = "", .version = "" };
 
     for (entries) |entry| {
-        const key = try self.scalar(self.node(entry.key));
+        const key = self.node(entry.key);
         const value = self.node(entry.value);
 
-        if (std.mem.eql(u8, key, "name")) {
-            result.name = try self.packageName(value);
-        } else if (std.mem.eql(u8, key, "version")) {
-            result.version = try self.scalar(value);
-            _ = std.SemanticVersion.parse(result.version) catch return self.fail(value, "version must be a semantic version");
-        } else if (std.mem.eql(u8, key, "entry")) {
-            result.entry = try self.scalar(value);
+        switch (keyField(.Manifest, key)) {
+            .Name => result.name = try self.packageName(value),
+            .Version => {
+                result.version = try self.scalar(value);
+                _ = std.SemanticVersion.parse(result.version) catch return self.fail(value, "version must be a semantic version");
+            },
+            .Entry => {
+                result.entry = try self.scalar(value);
 
-            if (!validPath(result.entry.?, .Entry)) {
-                return self.fail(value, "entry must be a package-relative .zx or .rx file path");
-            }
-        } else if (std.mem.eql(u8, key, "library")) {
-            result.library = try self.scalar(value);
+                if (!validPath(result.entry.?, .Entry)) return self.fail(value, "entry must be a package-relative .zx or .rx file path");
+            },
+            .Library => {
+                result.library = try self.scalar(value);
 
-            if (!validPath(result.library.?, .Relative)) return self.fail(value, "library must be a package-relative artifact path");
-        } else if (std.mem.eql(u8, key, "exports")) {
-            result.exports = try @import("exports.zig").decode(self, value);
-        } else if (std.mem.eql(u8, key, "private")) {
-            result.private = try self.boolean(value);
-        } else if (std.mem.eql(u8, key, "dependencies")) {
-            result.dependencies = try self.dependencies(value);
-        } else if (std.mem.eql(u8, key, "dev_dependencies")) {
-            result.dev_dependencies = try self.dependencies(value);
-        } else if (std.mem.eql(u8, key, "workspace")) {
-            result.workspace = try self.workspace(value);
-        } else if (!try @import("native.zig").field(self, key, value, &result)) return self.fail(self.node(entry.key), "unknown pkg.yaml field");
+                if (!validPath(result.library.?, .Relative)) return self.fail(value, "library must be a package-relative artifact path");
+            },
+            .Exports => result.exports = try @import("exports.zig").decode(self, value),
+            .Private => result.private = try self.boolean(value),
+            .Dependencies => result.dependencies = try self.dependencies(value),
+            .DevDependencies => result.dev_dependencies = try self.dependencies(value),
+            .Workspace => result.workspace = try self.workspace(value),
+            .NativeInterfaces => result.native_interfaces = try native.decodeList(model.NativeInterface, self, value, native.interface),
+            .NativeModules => result.native_modules = try native.decodeList(model.NativeModule, self, value, native.module),
+            .Externals => result.externals = try native.decodeList(compiler.project.External, self, value, native.external),
+            .Libraries => result.libraries = try self.strings(value),
+            .IncludePaths => result.include_paths = try self.strings(value),
+            .LibraryPaths => result.library_paths = try self.strings(value),
+            else => return self.fail(key, "unknown pkg.yaml field"),
+        }
     }
 
-    if (result.entry != null and result.exports.len != 0) return self.fail(root, "entry and exports cannot both define the package public interface");
-    if (result.library != null and (result.entry != null or result.exports.len == 0)) return self.fail(root, "library requires exports and cannot use entry");
-
-    for (result.exports) |exported| {
-        if ((result.library != null) != (exported.module != null)) return self.fail(root, "library exports require module selections; source packages require implementation paths");
-    }
-
-    if (result.name.len == 0) return self.fail(root, "pkg.yaml requires name");
-    if (result.version.len == 0) return self.fail(root, "pkg.yaml requires version");
+    if (schema.complete(&result)) |message| return self.fail(root, message);
 
     return result;
 }
@@ -76,9 +77,9 @@ fn workspace(self: *Decoder, value: *const c.yaml_node_t) Error!model.Workspace 
     var packages: ?[]const []const u8 = null;
 
     for (entries) |entry| {
-        const key = try self.scalar(self.node(entry.key));
+        const key = self.node(entry.key);
 
-        if (!std.mem.eql(u8, key, "packages")) return self.fail(self.node(entry.key), "unknown workspace field");
+        if (keyField(.Workspace, key) != .Packages) return self.fail(key, "unknown workspace field");
 
         const list = self.node(entry.value);
 
@@ -108,16 +109,22 @@ pub fn mapping(self: *Decoder, value: *const c.yaml_node_t) Error![]const c.yaml
     const pairs = value.data.mapping.pairs;
     const count = (@intFromPtr(pairs.top) - @intFromPtr(pairs.start)) / @sizeOf(c.yaml_node_pair_t);
     const entries = if (count == 0) &.{} else pairs.start[0..count];
-    var seen: std.StringHashMap(void) = .init(self.allocator);
 
-    defer seen.deinit();
+    if (entries.len < 2) {
+        if (entries.len == 1) _ = try self.borrowScalar(self.node(entries[0].key));
 
-    for (entries) |entry| {
+        return entries;
+    }
+
+    const temporary = self.scratch.allocator();
+    defer _ = self.scratch.reset(.retain_capacity);
+    var seen = try compiler.project.source_index.Map.init(temporary, entries.len);
+
+    for (entries, 0..) |entry, index| {
         const key_node = self.node(entry.key);
-        const key = try self.scalar(key_node);
-        const item = try seen.getOrPut(key);
+        const key = try self.borrowScalar(key_node);
 
-        if (item.found_existing) return self.fail(key_node, "duplicate YAML mapping key");
+        if (!seen.claim(index, key)) return self.fail(key_node, "duplicate YAML mapping key");
     }
 
     return entries;
@@ -132,29 +139,64 @@ fn packageName(self: *Decoder, value: *const c.yaml_node_t) Error![]const u8 {
 }
 
 pub fn scalar(self: *Decoder, value: *const c.yaml_node_t) Error![]const u8 {
-    if (value.type != c.YAML_SCALAR_NODE or !std.mem.eql(u8, std.mem.span(value.tag), "tag:yaml.org,2002:str")) return self.fail(value, "expected a string scalar");
+    return self.allocator.dupe(u8, try self.borrowScalar(value));
+}
 
-    const bytes = value.data.scalar.value[0..value.data.scalar.length];
+fn borrowScalar(self: *Decoder, value: *const c.yaml_node_t) Error![]const u8 {
+    const text = if (value.type == c.YAML_SCALAR_NODE and std.mem.eql(u8, std.mem.span(value.tag), "tag:yaml.org,2002:str")) scalarText(value) else null;
+    const Input = std.meta.Child(rules.manifest_scalar.Input);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    if (bytes.len == 0 or std.mem.indexOfScalar(u8, bytes, 0) != null) return self.fail(value, "empty strings and NUL are not allowed in this field");
+    if (zx.columns.invoke(rules.manifest_scalar.executeValue, empty.allocator(), &Input{ .text = text }) catch unreachable) |message| return self.fail(value, message);
 
-    return self.allocator.dupe(u8, bytes);
+    return text.?;
+}
+
+pub fn keyField(shape: schema.Mapping, key: *const c.yaml_node_t) schema.Field {
+    return schema.field(shape, scalarText(key));
+}
+
+pub fn keyText(key: *const c.yaml_node_t) []const u8 {
+    return scalarText(key);
+}
+
+fn scalarText(value: *const c.yaml_node_t) []const u8 {
+    const scalar_value = value.data.scalar;
+
+    return scalar_value.value[0..scalar_value.length];
 }
 
 pub fn boolean(self: *Decoder, value: *const c.yaml_node_t) Error!bool {
-    if (value.type != c.YAML_SCALAR_NODE or value.data.scalar.style != c.YAML_PLAIN_SCALAR_STYLE) {
-        return self.fail(value, "expected an unquoted boolean");
+    const is_scalar = value.type == c.YAML_SCALAR_NODE;
+    const plain = is_scalar and value.data.scalar.style == c.YAML_PLAIN_SCALAR_STYLE;
+    const tag = if (plain) std.mem.span(value.tag) else "";
+    const Input = std.meta.Child(rules.manifest_boolean.Input);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    const result = zx.columns.invoke(rules.manifest_boolean.executeValue, empty.allocator(), &Input{
+        .plain = plain,
+        .allowed_tag = std.mem.eql(u8, tag, "tag:yaml.org,2002:str") or std.mem.eql(u8, tag, "tag:yaml.org,2002:bool"),
+        .text = if (plain) scalarText(value) else "",
+    }) catch unreachable;
+
+    if (result.diagnostic) |message| return self.fail(value, message);
+
+    return result.value;
+}
+
+pub fn require(self: *Decoder, node_value: *const c.yaml_node_t, shape: schema.Mapping, fields: anytype) Error!void {
+    var input: schema.Required = std.mem.zeroes(schema.Required);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    input.mapping = shape;
+
+    inline for (@typeInfo(@TypeOf(fields)).@"struct".field_names) |name| {
+        @field(input, name) = @field(fields, name);
     }
 
-    const tag = std.mem.span(value.tag);
+    const request: *const schema.Required = &input;
 
-    if (!std.mem.eql(u8, tag, "tag:yaml.org,2002:str") and !std.mem.eql(u8, tag, "tag:yaml.org,2002:bool")) {
-        return self.fail(value, "expected a boolean");
-    }
-
-    const text = value.data.scalar.value[0..value.data.scalar.length];
-
-    return if (std.mem.eql(u8, text, "true")) true else if (std.mem.eql(u8, text, "false")) false else self.fail(value, "expected true or false");
+    if (zx.columns.invoke(rules.manifest_required.executeValue, empty.allocator(), request) catch unreachable) |message| return self.fail(node_value, message);
 }
 
 pub fn strings(self: *Decoder, value: *const c.yaml_node_t) Error![]const []const u8 {

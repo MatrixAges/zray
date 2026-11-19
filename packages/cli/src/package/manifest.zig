@@ -44,6 +44,8 @@ pub fn parseInto(allocator: std.mem.Allocator, source: []const u8) !Value {
 
     var decoder = Decoder{ .allocator = allocator, .document = &document };
 
+    defer decoder.scratch.deinit();
+
     const data = decoder.decode(root) catch |err| {
         if (err == error.OutOfMemory) return err;
 

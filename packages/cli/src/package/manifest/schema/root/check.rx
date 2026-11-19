@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Schema" />
+
+    <Args in={Schema.Input} out={string?} />
+
+    <Call
+        fn="surface"
+        in={$in.pick([
+            "entry",
+            "library",
+            "exports",
+            "modules"
+        ])}
+    />
+
+    <If on={$ctx.surface != null}>
+        <Return value={$ctx.surface} />
+    </If>
+
+    <Call
+        fn="identity"
+        in={$in.pick([
+            "name",
+            "version"
+        ])}
+    />
+
+    <Return value={$ctx.identity} />
+</Module>

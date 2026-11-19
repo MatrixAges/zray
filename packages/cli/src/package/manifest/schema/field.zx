@@ -1,0 +1,119 @@
+import {
+    name_key,
+    version_key,
+    entry_key,
+    library_key,
+    exports_key,
+    private_key,
+    dependencies_key,
+    dev_dependencies_key,
+    workspace_key,
+    packages_key,
+    native_interfaces_key,
+    native_modules_key,
+    externals_key,
+    libraries_key,
+    include_paths_key,
+    library_paths_key,
+    specifier_key,
+    path_key,
+    module_key,
+    namespace_key,
+    header_key,
+    bundle_files_key,
+    abi_aliases_key,
+    signature_key,
+    export_name_key,
+    implementation_key,
+    member_key,
+    allocator_argument_key,
+    io_argument_key,
+    process_argument_key,
+    expand_tuple_key,
+    errors_key,
+    fallible_key,
+    concurrent_key
+} from "./const"
+import { Mapping, Field } from "./model"
+
+export type Input = {
+    mapping: Mapping,
+    key: string
+}
+
+export type Output = Field
+
+export default function (in: Input): Output {
+    const { mapping, key } = in
+
+    return match mapping {
+        Mapping.Manifest => match key {
+            name_key => Field.Name,
+            version_key => Field.Version,
+            entry_key => Field.Entry,
+            library_key => Field.Library,
+            exports_key => Field.Exports,
+            private_key => Field.Private,
+            dependencies_key => Field.Dependencies,
+            dev_dependencies_key => Field.DevDependencies,
+            workspace_key => Field.Workspace,
+            native_interfaces_key => Field.NativeInterfaces,
+            native_modules_key => Field.NativeModules,
+            externals_key => Field.Externals,
+            libraries_key => Field.Libraries,
+            include_paths_key => Field.IncludePaths,
+            library_paths_key => Field.LibraryPaths,
+            _ => Field.Unknown
+        },
+        Mapping.Workspace => match key {
+            packages_key => Field.Packages,
+            _ => Field.Unknown
+        },
+        Mapping.Export => match key {
+            module_key => Field.Module,
+            _ => Field.Unknown
+        },
+        Mapping.NativeInterface => match key {
+            specifier_key => Field.Specifier,
+            path_key => Field.Path,
+            module_key => Field.Module,
+            namespace_key => Field.Namespace,
+            _ => Field.Unknown
+        },
+        Mapping.NativeModule => match key {
+            name_key => Field.Name,
+            path_key => Field.Path,
+            header_key => Field.Header,
+            dependencies_key => Field.Dependencies,
+            bundle_files_key => Field.BundleFiles,
+            include_paths_key => Field.IncludePaths,
+            abi_aliases_key => Field.AbiAliases,
+            _ => Field.Unknown
+        },
+        Mapping.AbiAlias => match key {
+            name_key => Field.Name,
+            specifier_key => Field.Specifier,
+            _ => Field.Unknown
+        },
+        Mapping.External => match key {
+            specifier_key => Field.Specifier,
+            signature_key => Field.Signature,
+            export_name_key => Field.ExportName,
+            implementation_key => Field.Implementation,
+            _ => Field.Unknown
+        },
+        Mapping.Implementation => match key {
+            module_key => Field.Module,
+            member_key => Field.Member,
+            allocator_argument_key => Field.AllocatorArgument,
+            io_argument_key => Field.IoArgument,
+            process_argument_key => Field.ProcessArgument,
+            expand_tuple_key => Field.ExpandTuple,
+            errors_key => Field.Errors,
+            fallible_key => Field.Fallible,
+            concurrent_key => Field.Concurrent,
+            _ => Field.Unknown
+        },
+        _ => Field.Unknown
+    }
+}
