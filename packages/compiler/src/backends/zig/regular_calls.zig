@@ -9,11 +9,12 @@ const selection = @import("generated_regular_calls_select");
 const publication = @import("generated_regular_calls_publish");
 const BuildInput = std.meta.Child(indexing.Input);
 const ScanInput = std.meta.Child(scanning.Input);
+const Sources = std.meta.Child(@FieldType(ScanInput, "sources"));
 const Table = std.meta.Child(@FieldType(BuildInput, "table"));
 const Candidates = std.meta.Child(@FieldType(BuildInput, "candidates"));
 
-pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, units: []generating.FunctionUnit, sources: [][]const u8) generating.Error!void {
-    if (comptime !@import("parser_options").generated_parser) return @import("regular_calls_seed.zig").complete(owned, batch, roots, units, sources);
+pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, initializers: []const @import("modules.zig").File, units: []generating.FunctionUnit, sources: [][]const u8) generating.Error!void {
+    if (comptime !@import("parser_options").generated_parser) return @import("regular_calls_seed.zig").complete(owned, batch, roots, initializers, units, sources);
     if (units.len == 0) return;
 
     var scratch = std.heap.ArenaAllocator.init(batch.backing);
@@ -49,11 +50,11 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
     var rows: [1][]u8 = .{wanted};
     const cells: [][]u8 = &rows;
-    var scan_roots = roots;
-    var scan_functions: []const []const u8 = sources;
+    const initial_sources = zx.memory.borrowTextColumn("source", initializers);
+    var inputs: Sources = .{ .roots = roots, .initializers = @ptrCast(&initial_sources), .initializer_count = initializers.len, .functions = sources };
 
     while (true) {
-        var scan = Scan{ .roots = scan_roots, .functions = scan_functions, .table = &table, .wanted = @ptrCast(&cells) };
+        var scan = Scan{ .sources = &inputs, .table = &table, .wanted = @ptrCast(&cells) };
 
         try scan.run();
 
@@ -72,20 +73,20 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
         if (count == 0) return;
 
-        scan_roots = &.{};
-        scan_functions = regenerated;
+        inputs.roots = &.{};
+        inputs.initializer_count = 0;
+        inputs.functions = regenerated;
     }
 }
 
 const Scan = struct {
-    roots: []const []const u8,
-    functions: []const []const u8,
+    sources: *const Sources,
     table: *const Table,
     wanted: *const anyopaque,
     next: std.atomic.Value(usize) = .init(0),
     error_code: std.atomic.Value(u16) = .init(0),
     fn run(self: *Scan) std.mem.Allocator.Error!void {
-        const count = self.roots.len + self.functions.len;
+        const count = self.sources.roots.len + self.sources.initializer_count + self.sources.functions.len;
 
         if (count == 0) return;
 
@@ -97,20 +98,14 @@ const Scan = struct {
     }
     fn work(self: *Scan, _: usize) void {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const count = self.roots.len + self.functions.len;
+        const count = self.sources.roots.len + self.sources.initializer_count + self.sources.functions.len;
 
         while (self.error_code.load(.monotonic) == 0) {
             const position = self.next.fetchAdd(1, .monotonic);
 
             if (position >= count) return;
 
-            const source = if (position < self.roots.len)
-                self.roots[position]
-
-            else
-                self.functions[position - self.roots.len];
-
-            const input: ScanInput = .{ .source = source, .table = zx.columns.pointer(@FieldType(ScanInput, "table"), self.table), .wanted = @ptrCast(self.wanted) };
+            const input: ScanInput = .{ .sources = self.sources, .position = position, .table = zx.columns.pointer(@FieldType(ScanInput, "table"), self.table), .wanted = @ptrCast(self.wanted) };
 
             zx.columns.invoke(scanning.executeValue, empty.allocator(), &input) catch |err| {
                 const problem = failure(err);

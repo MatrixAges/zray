@@ -10,7 +10,7 @@ const needle = "\")).call(";
 
 /// Gives `call` to every value function in `units` that `roots` or the files reach through it, regenerating those
 /// files until every `call` they reach exists; `sources` are the files of `units` and are updated in place.
-pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, units: []generating.FunctionUnit, sources: [][]const u8) generating.Error!void {
+pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []const u8, initializers: []const @import("modules.zig").File, units: []generating.FunctionUnit, sources: [][]const u8) generating.Error!void {
     var scratch = std.heap.ArenaAllocator.init(batch.backing);
 
     defer scratch.deinit();
@@ -28,7 +28,11 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
     if (modules.count() == 0) return;
 
-    var scanned = try std.mem.concat(temporary, []const u8, &.{ roots, sources });
+    const entries = try temporary.alloc([]const u8, initializers.len);
+
+    for (entries, initializers) |*target, file| target.* = file.source;
+
+    var scanned = try std.mem.concat(temporary, []const u8, &.{ roots, entries, sources });
 
     while (true) {
         var scan = Scan{ .sources = scanned, .modules = &modules, .wanted = wanted };

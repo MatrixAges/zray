@@ -1,6 +1,6 @@
 import type { AtomicRows } from "std:bytes"
 import type { Table } from "core/bytes/index/fixed"
-import type { StringBuffer, U64Buffer, WriteColumn } from "memory"
+import type { StringBuffer, TextColumn, U64Buffer, WriteColumn } from "memory"
 import type { View } from "../function_units/model"
 
 export type Candidates = {
@@ -13,6 +13,13 @@ export type Indexed = {
     candidates: Candidates,
     units: View,
     values: bool[]
+}
+
+export type Sources = {
+    roots: string[],
+    initializers: TextColumn,
+    initializer_count: u64,
+    functions: string[]
 }
 
 export type Scan = {

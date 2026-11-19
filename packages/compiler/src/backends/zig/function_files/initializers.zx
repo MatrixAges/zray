@@ -1,0 +1,39 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Initializers, Target } from "./model"
+
+export type Input = {
+    source: Initializers,
+    target: Target,
+    first: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, target } = in
+
+    const published = loop(0, {
+        while: row => row < source.count,
+        next: row => {
+            const position = in.first + row
+            const name = memory.readTextColumn(source.names, row)
+            const code = memory.readTextColumn(source.sources, row)
+
+            memory.writeColumnBytes(target.name, position, bytes.fromText(name))
+            memory.writeColumnBytes(
+                target.source,
+                position,
+                bytes.fromText(code)
+            )
+            columns.writeColumnTextList(
+                target.imports,
+                position,
+                memory.readTextListColumn(source.imports, row)
+            )
+            row += 1
+        }
+    })
+}

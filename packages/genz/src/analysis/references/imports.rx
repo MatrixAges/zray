@@ -7,9 +7,27 @@
         <Return value={[$in.native]} />
     </If>
 
+    <Call fn="direct" in={$in} />
+
+    <If on={$ctx.direct != null}>
+        <Return value={$ctx.direct} />
+    </If>
+
     <Call fn="collect" in={$in} />
 
     <Call fn="order" />
+
+    <If on={$in.destination != null}>
+        <Call
+            fn="retain"
+            in={{
+                destination: $in.destination,
+                names: $ctx.order
+            }}
+        />
+
+        <Return value={$ctx.retain} />
+    </If>
 
     <Return value={$ctx.order} />
 </Module>

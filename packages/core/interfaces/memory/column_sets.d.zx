@@ -201,6 +201,11 @@ export declare function copyColumnTexts(
     source: string[]
 ): string[] throws { OutOfMemory }
 
+export declare function copyColumnTextViews(
+    resource: ColumnAllocator,
+    source: string[]
+): string[] throws { OutOfMemory }
+
 export declare function copyColumnOptionalTexts(
     resource: ColumnAllocator,
     source: ColumnNames

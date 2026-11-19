@@ -5,9 +5,9 @@ import type { Imports as Input } from "./model"
 export type Output = string[]
 
 export default function (in: Input): Output {
-    const { body, members, names } = in
+    const { expressions, members, names } = in
 
-    const contracts = body.contracts.expressions
+    const contracts = in.contracts.expressions
     const empty: string[] = []
 
     return loop({
@@ -17,7 +17,7 @@ export default function (in: Input): Output {
         while: state => state.table <= contracts.length + 1,
         next: state => {
             const ids = match {
-                state.table == 0 => body.expressions.call_functions,
+                state.table == 0 => expressions.call_functions,
                 state.table <= contracts.length =>
                     contracts[state.table - 1].call_functions,
                 _ => members

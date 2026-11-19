@@ -127,35 +127,15 @@ fn functionFilesPlanned(owned: std.mem.Allocator, batch: *const Batch, graph: re
 
     const sources = try @import("function_sources.zig").createJobs(owned, .{ .batch = batch, .functions = units });
 
-    return functionFilesFrom(owned, batch, units, sources, roots, native_names);
+    return functionFilesFrom(owned, batch, units, sources, roots, native_names, &.{});
 }
 
 /// The files of function `units` from their generated `sources`, once the `roots` that call them are known.
-pub fn functionFilesFrom(owned: std.mem.Allocator, batch: *const Batch, units: []generating.FunctionUnit, sources: [][]const u8, roots: []const []const u8, native_names: []const []const u8) Error![]const File {
-    if (comptime !@import("parser_options").generated_parser) return @import("function_files_seed.zig").create(owned, batch, units, sources, roots);
-    try @import("regular_calls.zig").complete(owned, batch, roots, units, sources);
+pub fn functionFilesFrom(owned: std.mem.Allocator, batch: *const Batch, units: []generating.FunctionUnit, sources: [][]const u8, roots: []const []const u8, native_names: []const []const u8, initializers: []const File) Error![]const File {
+    if (comptime !@import("parser_options").generated_parser) return @import("function_files_seed.zig").create(owned, batch, units, sources, roots, initializers);
+    try @import("regular_calls.zig").complete(owned, batch, roots, initializers, units, sources);
 
-    var scratch = std.heap.ArenaAllocator.init(batch.backing);
-
-    defer scratch.deinit();
-
-    const registry = @import("function_files.zig");
-    const names_for_files = batch.names.functions;
-    const selected = try registry.select(scratch.allocator(), names_for_files, units, sources);
-    const files = try owned.alloc(File, selected.len);
-
-    for (selected, files) |position, *file| {
-        const row: usize = @intCast(position);
-        const index = @backingInt(units[row].id);
-
-        file.* = .{
-            .name = names_for_files[index],
-            .source = sources[row],
-            .imports = try references.fileImports(owned, batch.backing, &batch.program.functions, index, names_for_files, native_names),
-        };
-    }
-
-    return files;
+    return @import("function_files.zig").create(owned, batch.backing, &batch.program.functions, batch.names.functions, units, sources, native_names, initializers);
 }
 
 pub fn typeNames(owned: std.mem.Allocator, program: @import("zx").ir.Program, identities: generating.Names) std.mem.Allocator.Error![]const []const u8 {

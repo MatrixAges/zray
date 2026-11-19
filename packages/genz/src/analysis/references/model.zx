@@ -1,6 +1,7 @@
 import type { Contracts } from "core/contract_table/model"
 import type { Expressions } from "core/expression_table/model"
-import type { U8Buffer } from "memory"
+import type { Arena, U8Buffer } from "memory"
+import type { ColumnAllocator } from "memory/columns"
 
 export type Body = {
     expressions: Expressions,
@@ -19,9 +20,14 @@ export type Input = {
     members: u32[]
 }
 
-export type Imports = {
-    body: Body,
+export type Destination = {
+    owner: ColumnAllocator,
+    scratch: Arena
+}
+
+export type Imports = Body & {
     names: string[],
     members: u32[],
+    destination?: Destination,
     native?: string
 }

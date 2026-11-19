@@ -97,23 +97,19 @@ pub fn fileImports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, f
 fn importsBorrowed(allocator: std.mem.Allocator, workspace: std.mem.Allocator, expressions: *const ir.ExpressionTable, contracts: *const ir.ContractTable, names: []const []const u8, members: []const ir.FunctionId, native: ?[]const u8) std.mem.Allocator.Error![]const []const u8 {
     const generated = @import("generated_reference_imports");
     const Input = std.meta.Child(generated.Input);
-    const Body = std.meta.Child(@FieldType(Input, "body"));
     var scratch = std.heap.ArenaAllocator.init(workspace);
 
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
 
-    const body = Body{
-        .expressions = zx.columns.pointer(@FieldType(Body, "expressions"), expressions),
-        .contracts = zx.columns.pointer(@FieldType(Body, "contracts"), contracts),
-    };
-
     const input = Input{
-        .body = &body,
+        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), expressions),
+        .contracts = zx.columns.pointer(@FieldType(Input, "contracts"), contracts),
         .names = names,
         .members = @as([*]const u32, @ptrCast(members.ptr))[0..members.len],
         .native = native,
+        .destination = null,
     };
 
     const output = generated.executeIn(temporary, &input) catch |err| switch (err) {

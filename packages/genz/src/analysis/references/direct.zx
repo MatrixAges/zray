@@ -1,0 +1,56 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Imports as Input } from "./model"
+
+export type Output = string[]?
+
+export default function (in: Input): Output {
+    const { expressions, members } = in
+
+    const calls = expressions.call_functions
+
+    if (calls.length + members.length > 1) {
+        return null
+    }
+
+    const first: u32? = match {
+        calls.length == 1 => calls[0],
+        members.length == 1 => members[0],
+        _ => null
+    }
+
+    const contracts = in.contracts.expressions
+
+    const result = loop({
+        row: 0,
+        id: first,
+        multiple: false
+    }, {
+        while: state => state.row < contracts.length && !state.multiple,
+        next: state => {
+            const ids = contracts[state.row].call_functions
+
+            if (ids.length != 0) {
+                state.multiple = ids.length > 1 || state.id != null
+                state.id = ids[0]
+            }
+
+            state.row += 1
+        }
+    })
+
+    if (result.multiple) {
+        return null
+    }
+
+    const id = result.id
+
+    if (id != null) {
+        return memory.borrowStringRange(in.names, integers.widen(id), 1)
+    }
+
+    const empty: string[] = []
+
+    return empty
+}

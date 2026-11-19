@@ -35,6 +35,7 @@ pub const appendNativeColumnSet = column_set.append;
 pub const allocateColumnU32s = column_set.allocateU32s;
 pub const writeColumnU32s = writeU32;
 pub const copyColumnText = column_set.copyText;
+pub const copyColumnTextViews = column_set.copyTextViews;
 pub const copyColumnTexts = column_set.copyTexts;
 pub const copyColumnOptionalTexts = column_set.copyTexts;
 
@@ -153,6 +154,11 @@ pub const WriteColumn = column.Column;
 pub const RowBuffer = column.RowBuffer;
 pub const RowOutput = column.RowOutput;
 pub const allocateRows = column.allocateRows;
+
+pub inline fn allocateRowsWithAllocator(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    return column.allocateRows(column_set.borrowAllocator(resource), target, count);
+}
+
 pub const copyRowPrefix = column.copyRowPrefix;
 pub const borrowWriteColumn = column.borrow;
 pub const borrowNestedWriteColumn = column.borrowNested;

@@ -1,1 +1,32 @@
-<Module fn="collect" />
+<Module>
+    <Type from="model" as="Files" />
+
+    <Args in={Files.Assembly} out={bool} />
+
+    <Call fn="collect" in={$in.registry} />
+
+    <If on={!$ctx.collect.valid}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="publication"
+        in={{
+            ...$in,
+            count: $ctx.collect.count
+        }}
+    />
+
+    <If on={$in.initializers.count != 0}>
+        <Call
+            fn="initializers"
+            in={{
+                source: $in.initializers,
+                target: $in.target,
+                first: $ctx.collect.count
+            }}
+        />
+    </If>
+
+    <Return value={true} />
+</Module>

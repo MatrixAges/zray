@@ -175,14 +175,8 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
 
     const type_source = generated[public_batches.len];
     const initializers = try @import("library_initializers.zig").createBacked(owned, allocator, library, identities, cache);
-    const roots = try workspace.alloc([]const u8, public_modules.len + initializers.files.len);
-
-    for (roots[0..public_modules.len], public_modules) |*root, public_module| root.* = public_module.file.source;
-    for (roots[public_modules.len..], initializers.files) |*root, file| root.* = file.source;
-
     const native_modules = try modules.nativeModules(owned, program);
-    const functions = try modules.functionFilesFrom(owned, &batch, units, generated[public_batches.len + 1 ..], roots, native_modules.import_names);
-    const files = try std.mem.concat(owned, modules.File, &.{ functions, initializers.files });
+    const files = try modules.functionFilesFrom(owned, &batch, units, generated[public_batches.len + 1 ..], generated[0..public_batches.len], native_modules.import_names, initializers.files);
     const type_names = try modules.typeNamesAnalyzed(owned, batch.backing, program, identities, batch.analysis.value.value.state);
 
     return .{

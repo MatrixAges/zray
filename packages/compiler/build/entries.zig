@@ -507,7 +507,7 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/partition/scanning/references.zx", .name = "partition_references", .owner = .compiler },
     .{ .path = "backends/zig/partition/scanning/scan.rx", .name = "partition_scan", .owner = .compiler },
     .{ .path = "backends/zig/regular_calls/index.rx", .name = "regular_calls_index", .owner = .compiler },
-    .{ .path = "backends/zig/regular_calls/scan.zx", .name = "regular_calls_scan", .owner = .compiler },
+    .{ .path = "backends/zig/regular_calls/scan_sources.rx", .name = "regular_calls_scan", .owner = .compiler },
     .{ .path = "backends/zig/regular_calls/select.zx", .name = "regular_calls_select", .owner = .compiler },
     .{ .path = "backends/zig/regular_calls/publish.zx", .name = "regular_calls_publish", .owner = .compiler },
     .{ .path = "backends/zig/function_sources/plan.rx", .name = "function_sources_plan", .owner = .compiler },

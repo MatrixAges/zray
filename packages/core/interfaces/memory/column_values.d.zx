@@ -4,6 +4,12 @@ export declare function allocateRows(
     count: u64
 ): void throws { OutOfMemory }
 
+export declare function allocateRowsWithAllocator(
+    resource: ColumnAllocator,
+    target: RowBuffer,
+    count: u64
+): void throws { OutOfMemory }
+
 export declare function copyRowPrefix(
     target: RowBuffer,
     source: u8[],

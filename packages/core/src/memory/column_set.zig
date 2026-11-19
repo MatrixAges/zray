@@ -189,6 +189,10 @@ pub fn allocateU32s(resource: *const anyopaque, target: *const anyopaque, count:
     return items;
 }
 
+pub fn copyTextViews(resource: *const anyopaque, source: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
+    return borrowAllocator(resource).dupe([]const u8, source);
+}
+
 pub fn copyTexts(resource: *const anyopaque, source: anytype) std.mem.Allocator.Error!@TypeOf(source) {
     const allocator = borrowAllocator(resource);
     const Text = std.meta.Elem(@TypeOf(source));
@@ -214,7 +218,7 @@ pub fn copyTexts(resource: *const anyopaque, source: anytype) std.mem.Allocator.
     return result;
 }
 
-fn borrowAllocator(resource: *const anyopaque) std.mem.Allocator {
+pub fn borrowAllocator(resource: *const anyopaque) std.mem.Allocator {
     const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
 
     return allocator.*;

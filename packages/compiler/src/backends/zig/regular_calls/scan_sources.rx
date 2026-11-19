@@ -1,0 +1,16 @@
+<Module>
+    <Type from="source" as="Job" />
+
+    <Args in={Job.Input} out={void} />
+
+    <Call fn="source" in={$in} />
+
+    <Call
+        fn="scan"
+        in={{
+            table: $in.table,
+            wanted: $in.wanted,
+            source: $ctx.source
+        }}
+    />
+</Module>

@@ -6,13 +6,13 @@ const modules = @import("modules.zig");
 const File = modules.File;
 const Error = modules.Error;
 
-pub fn create(owned: std.mem.Allocator, batch: *const Batch, units: []generating.FunctionUnit, sources: [][]const u8, roots: []const []const u8) Error![]const File {
+pub fn create(owned: std.mem.Allocator, batch: *const Batch, units: []generating.FunctionUnit, sources: [][]const u8, roots: []const []const u8, initializers: []const File) Error![]const File {
     const program = batch.program;
     const identities = batch.names;
     var files: std.ArrayList(File) = .empty;
     var seen: @import("zx").bytes.Map(usize) = .empty;
 
-    try @import("regular_calls.zig").complete(owned, batch, roots, units, sources);
+    try @import("regular_calls.zig").complete(owned, batch, roots, initializers, units, sources);
 
     for (units, sources) |unit, source| {
         const index = @backingInt(unit.id);
@@ -36,6 +36,8 @@ pub fn create(owned: std.mem.Allocator, batch: *const Batch, units: []generating
 
         try files.append(owned, file);
     }
+
+    try files.appendSlice(owned, initializers);
 
     return files.toOwnedSlice(owned);
 }

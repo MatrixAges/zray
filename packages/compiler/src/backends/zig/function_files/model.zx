@@ -1,5 +1,7 @@
 import type { Table } from "core/bytes/index/fixed"
-import type { ReadColumn, U64Buffer } from "memory"
+import type { Destination, Functions } from "genz/reference_model"
+import type { ReadColumn, TextColumn, U64Buffer, WriteColumn } from "memory"
+import type { RowBuffer, WriteColumn as ListColumn } from "memory/columns"
 
 export type Input = Table & {
     ids: ReadColumn,
@@ -10,4 +12,29 @@ export type Input = Table & {
 export type Output = {
     valid: bool,
     count: u64
+}
+
+export type Target = {
+    name: WriteColumn,
+    source: WriteColumn,
+    imports: ListColumn
+}
+
+export type Initializers = {
+    names: TextColumn,
+    sources: TextColumn,
+    imports: ReadColumn,
+    count: u64
+}
+
+export type Assembly = {
+    registry: Input,
+    initializers: Initializers,
+    functions: Functions,
+    names: string[],
+    native_ids: u32?[],
+    native_names: string[],
+    destination: Destination,
+    storage: RowBuffer,
+    target: Target
 }
