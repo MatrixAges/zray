@@ -1,6 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const source = compiler.input_snapshot;
+const interfaces = compiler.source_inputs.interfaces;
 const collection = @import("source_collection.zig");
 const manifest = @import("generation_manifest.zig");
 const Files = @import("resident/files.zig");
@@ -32,10 +33,12 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
         }
     }
 
-    const discovered = facts.items.len;
+    const matches = try allocator.alloc(interfaces.Location, project.interfaces.len);
 
-    for (project.interfaces) |interface| {
-        const fact: Fact = if (compiler.source_inputs.interfaceRow("key", facts.items[0..discovered], interface.path, false)) |row|
+    interfaces.locate(project.interfaces, facts.items, matches);
+
+    for (project.interfaces, matches) |interface, match| {
+        const fact: Fact = if (interfaces.sourceRow(match.source)) |row|
             facts.items[row]
 
         else found: {

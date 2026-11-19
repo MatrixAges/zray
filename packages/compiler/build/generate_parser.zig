@@ -88,58 +88,16 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
     for (modules.items) |*module| module.packages = packages;
 
-    const interfaces = try owned.alloc(compiler.project.NativeInterface, project.interfaces.len);
-    var external_count: usize = 0;
-
-    for (project.interfaces) |interface| {
-        if (interface.specifier != null) external_count += 1;
-    }
-
-    var external_index: usize = 0;
-    var internal_index = external_count;
-    var interface_error: ?anyerror = null;
-
-    for (project.interfaces) |interface| {
-        const source = if (compiler.source_inputs.interfaceRow("path", sources.items, interface.path, true)) |row|
-            sources.items[row].source
-
-        else
-            resident.files.read(io, std.Io.Dir.cwd(), interface.path, try std.fs.path.resolve(allocator, &.{interface.path}), true) catch |err| unread: {
-                if (interface_error == null) interface_error = err;
-
-                break :unread "";
-            };
-
-        const specifier = if (interface.specifier) |name|
-            name
-        else
-            try std.fmt.allocPrint(allocator, "zig:{s}", .{interface.module});
-
-        const binding: compiler.project.NativeInterface = .{
-            .specifier = try resident.retainText(owned, specifier),
-            .path = try resident.retainText(owned, interface.path),
-            .source = source,
-            .module = try resident.retainText(owned, interface.module),
-        };
-
-        if (interface.specifier != null) {
-            interfaces[external_index] = binding;
-            external_index += 1;
-        } else {
-            interfaces[internal_index] = binding;
-            internal_index += 1;
-        }
-    }
-
+    const interfaces = try @import("interface_inputs.zig").load(io, allocator, owned, resident, project.interfaces, sources.items);
     const rx_digests = try owned.alloc(analysis.project.ModuleDigest, modules.items.len);
 
     for (modules.items, rx_digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
 
-    const frame = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces, true);
+    const frame = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces.bindings, true);
     const inputs_digest = outputDigest(&frame, partitions, sources.items, templates.items, &resident.files);
 
     // An output directory reused across runs already holds the result when nothing it depends on changed.
-    if (request.write and interface_error == null and try current(io, allocator, output, inputs_digest)) {
+    if (request.write and interfaces.failure == null and try current(io, allocator, output, inputs_digest)) {
         if (snapshot) |prepared| prepared.save(io, &resident.files, inputs_digest) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => {},
@@ -166,16 +124,16 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
     const inputs = try resident.modules.prepare(owned, modules.items, fingerprint.packages(packages));
 
-    if (interface_error) |err| return err;
+    if (interfaces.failure) |err| return err;
 
     const summary = try @import("shared_generation.zig").run(io, allocator, owned, resident, project.entries, .{
         .modules = inputs,
         .sources = prepared_sources,
-        .interfaces = interfaces[0..external_count],
-        .internal_modules = interfaces[external_count..],
+        .interfaces = interfaces.bindings[0..interfaces.external],
+        .internal_modules = interfaces.bindings[interfaces.external..],
         .packages = packages,
         .frame = frame,
-        .shape = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces, false),
+        .shape = frameDigest(&resident.digest, manifest_source, rx_digests, interfaces.bindings, false),
         .rx_digests = rx_digests,
     }, if (request.write) output else null, request.cache, partitions);
 

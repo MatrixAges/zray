@@ -1,0 +1,45 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import { internal_prefix } from "../const"
+
+import type { Destination } from "./model"
+
+export type Input = {
+    target: Destination,
+    first_internal: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { aliases, modules, bindings, names } = in.target
+    const { specifiers, count } = aliases
+
+    const assigned = loop({
+        row: 0,
+        external: 0,
+        internal: in.first_internal
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const { row } = state
+            const alias = memory.readOptionalTextColumn(specifiers, row)
+
+            if (alias != null) {
+                memory.writeColumnU64(bindings, row, state.external)
+                memory.writeColumnBytes(names, row, bytes.fromText(alias))
+                state.external += 1
+            } else {
+                const module = memory.readTextColumn(modules, row)
+                const name = `${internal_prefix}${module}`
+
+                memory.writeColumnU64(bindings, row, state.internal)
+                memory.writeColumnBytes(names, row, bytes.fromText(name))
+                state.internal += 1
+            }
+
+            state.row += 1
+        }
+    })
+}

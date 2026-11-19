@@ -1,0 +1,25 @@
+<Module>
+    <Type from="location" as="Lookup" />
+    <Type from="model" as="Interface" />
+
+    <Args
+        in={{
+            location: Lookup.Input,
+            target: Interface.Destination
+        }}
+        out={u64}
+    />
+
+    <Call fn="location" in={$in.location} />
+    <Call fn="count" in={$in.target.aliases} />
+
+    <Call
+        fn="assign"
+        in={{
+            target: $in.target,
+            first_internal: $ctx.count
+        }}
+    />
+
+    <Return value={$ctx.count} />
+</Module>
