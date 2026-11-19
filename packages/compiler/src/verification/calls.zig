@@ -66,6 +66,7 @@ fn execute(self: *Expressions, function: ir.Function, input: terms.Value) zx.Err
 
     var conditions = Conditions{
         .allocator = self.allocator,
+        .scratch = self.scratch,
         .program = program,
         .reporter = self.reporter,
         .input = input,

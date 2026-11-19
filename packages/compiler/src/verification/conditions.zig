@@ -10,6 +10,7 @@ const Graph = @import("graph.zig");
 const declaration_buffer_size = 4 * 1024;
 
 allocator: std.mem.Allocator,
+scratch: *zx.Arena,
 program: ir.Program,
 reporter: *zx.Reporter,
 declarations: std.ArrayList([]const u8) = .empty,
@@ -55,7 +56,7 @@ pub fn generate(self: *Self, scratch: std.mem.Allocator) zx.Error!Query {
         precondition = try self.conjunction(precondition, try self.conjunction(evaluated.safe, evaluated.value.scalar));
     }
 
-    const environment = try self.allocator.alloc(?Value, self.program.symbols.count());
+    const environment = try self.scratch.allocator().alloc(?Value, self.program.symbols.count());
 
     @memset(environment, null);
 
@@ -133,8 +134,12 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: 
 }
 
 fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []const u8) zx.Error![]const u8 {
+    const checkpoint = self.scratch.checkpoint();
+
+    defer self.scratch.rewindRetainingCapacity(checkpoint);
+
     var path = initial;
-    var evaluator = Expressions{ .allocator = self.allocator, .program = self.program, .environment = environment, .graph = self.graph.?, .reporter = self.reporter, .call_depth = self.call_depth };
+    var evaluator = Expressions{ .allocator = self.allocator, .scratch = self.scratch, .program = self.program, .environment = environment, .graph = self.graph.?, .reporter = self.reporter, .call_depth = self.call_depth };
 
     // Scope validation gives each binding a unique slot and rejects reads outside its branch.
     for (0..statements.len) |statement_index| {
@@ -267,7 +272,11 @@ fn parallel(self: *Self, evaluator: *Expressions, invocations: @FieldType(ir.Sta
 }
 
 fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Error!terms.Evaluation {
-    const environment = try self.allocator.alloc(?Value, clause.symbols.count());
+    const checkpoint = self.scratch.checkpoint();
+
+    defer self.scratch.rewindRetainingCapacity(checkpoint);
+
+    const environment = try self.scratch.allocator().alloc(?Value, clause.symbols.count());
 
     environment[0] = self.input;
 
@@ -278,7 +287,7 @@ fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Error!t
     view.symbols = clause.symbols;
     view.expressions = clause.expressions;
 
-    var evaluator = Expressions{ .allocator = self.allocator, .program = view, .environment = environment, .graph = self.graph.?, .reporter = self.reporter };
+    var evaluator = Expressions{ .allocator = self.allocator, .scratch = self.scratch, .program = view, .environment = environment, .graph = self.graph.?, .reporter = self.reporter };
 
     return evaluator.evaluate(clause.predicate);
 }
@@ -333,6 +342,10 @@ fn ensureGraph(self: *Self) zx.Error!void {
 pub fn call(self: *Self) zx.Error!terms.Evaluation {
     try self.ensureGraph();
 
+    const checkpoint = self.scratch.checkpoint();
+
+    defer self.scratch.rewindRetainingCapacity(checkpoint);
+
     var path: []const u8 = "true";
 
     for (0..self.program.contracts.count()) |contract_index| {
@@ -348,7 +361,7 @@ pub fn call(self: *Self) zx.Error!terms.Evaluation {
         path = try self.conjunction(path, valid);
     }
 
-    const environment = try self.allocator.alloc(?Value, self.program.symbols.count());
+    const environment = try self.scratch.allocator().alloc(?Value, self.program.symbols.count());
 
     @memset(environment, null);
 

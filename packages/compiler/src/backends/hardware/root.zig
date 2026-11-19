@@ -35,7 +35,11 @@ pub fn generate(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Al
     var memory = std.heap.BufferFirstAllocator.init(&buffer, symbolic.allocator());
     const scratch = memory.allocator();
     var reporter: zx.Reporter = .{};
-    var conditions = Conditions{ .allocator = scratch, .program = program, .reporter = &reporter };
+    var evaluation_scratch = zx.Arena.init(allocator);
+
+    defer evaluation_scratch.deinit();
+
+    var conditions = Conditions{ .allocator = scratch, .scratch = &evaluation_scratch, .program = program, .reporter = &reporter };
 
     const model = conditions.model(arena.allocator()) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;

@@ -53,6 +53,12 @@ pub fn rewind(self: *Self, position: Checkpoint) void {
     self.end = position.end;
 }
 
+/// Reuses the chunks beyond this checkpoint for the next scoped allocation.
+pub fn rewindRetainingCapacity(self: *Self, position: Checkpoint) void {
+    self.current = position.chunk orelse self.first;
+    self.end = position.end;
+}
+
 /// Releases everything allocated so far but keeps the chunks, up to `limit` bytes of them, so a run that needs as much
 /// again neither asks `child` for memory nor touches pages for the first time.
 pub fn reset(self: *Self, limit: usize) void {

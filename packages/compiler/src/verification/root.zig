@@ -20,8 +20,12 @@ pub fn generate(allocator: std.mem.Allocator, program: zx.ir.Program) std.mem.Al
 
     if (try @import("frontend").validateIr(allocator, program)) |issue| return .{ .arena = arena, .value = .{ .diagnostic = issue } };
 
+    var scratch = zx.Arena.init(allocator);
+
+    defer scratch.deinit();
+
     var reporter: zx.Reporter = .{};
-    var conditions = Conditions{ .allocator = arena.allocator(), .program = program, .reporter = &reporter };
+    var conditions = Conditions{ .allocator = arena.allocator(), .scratch = &scratch, .program = program, .reporter = &reporter };
 
     const query = conditions.generate(allocator) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;

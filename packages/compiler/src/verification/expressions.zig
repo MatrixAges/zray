@@ -9,6 +9,7 @@ const Self = @This();
 const Graph = @import("graph.zig");
 
 allocator: std.mem.Allocator,
+scratch: *zx.Arena,
 program: ir.Program,
 environment: []?Value,
 reporter: *zx.Reporter,
@@ -25,7 +26,7 @@ pub fn evaluate(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
 
     const result = try self.retain(expression, try self.evaluateRaw(id, expression));
 
-    try self.cache.put(self.allocator, id, result);
+    try self.cache.put(self.scratch.allocator(), id, result);
 
     return result;
 }
