@@ -1,4 +1,4 @@
-import type { ReadColumn, U64Buffer } from "memory"
+import type { ReadColumn, TextColumn, WriteColumn } from "memory"
 
 export type Kinds = {
     rows: ReadColumn,
@@ -16,7 +16,42 @@ export type Counts = {
     rx: u64
 }
 
-export type Layout = {
+export type Plan = {
+    ordered: u64[],
+    counts: Counts
+}
+
+export type Text = {
+    paths: WriteColumn,
+    bodies: WriteColumn
+}
+
+export type Sources = {
+    text: Text,
+    templates: WriteColumn,
+    original: WriteColumn,
+    origins: WriteColumn
+}
+
+export type Modules = {
+    text: Text,
+    packages: WriteColumn
+}
+
+export type Shared = {
+    templates: u8[],
+    packages: u8[],
+    original: u8[],
+    origins: u8[]
+}
+
+export type Publish = {
+    paths: TextColumn,
+    bodies: TextColumn,
     kinds: Kinds,
-    target: U64Buffer
+    ordered: u64[],
+    sources: Sources,
+    modules: Modules,
+    templates: Text,
+    shared: Shared
 }

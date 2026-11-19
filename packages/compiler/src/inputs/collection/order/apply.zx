@@ -1,0 +1,63 @@
+import memory from "memory"
+
+import type { ReadColumn, U64Buffer, WriteColumn } from "memory"
+
+export type Input = {
+    source: ReadColumn,
+    target: WriteColumn,
+    order: U64Buffer,
+    saved: ReadColumn,
+    temporary: WriteColumn,
+    count: u64,
+    width: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const applied = loop(0, {
+        while: start => start < in.count,
+        next: start => {
+            if (memory.readU64(in.order, start) != start) {
+                const first = memory.readFixedBytes(in.source, start, in.width)
+
+                memory.copyColumnValue(in.temporary, 0, first)
+
+                const cycle = loop({
+                    row: start,
+                    done: false
+                }, {
+                    while: state => !state.done,
+                    next: state => {
+                        const next = memory.readU64(in.order, state.row)
+
+                        memory.writeU64(in.order, state.row, state.row)
+
+                        if (next == start) {
+                            const saved = memory.readFixedBytes(in.saved, 0, in.width)
+
+                            memory.copyColumnValue(
+                                in.target,
+                                state.row,
+                                saved
+                            )
+                            state.done = true
+                        } else {
+                            const record =
+                                memory.readFixedBytes(in.source, next, in.width)
+
+                            memory.copyColumnValue(
+                                in.target,
+                                state.row,
+                                record
+                            )
+                            state.row = next
+                        }
+                    }
+                })
+            }
+
+            start += 1
+        }
+    })
+}

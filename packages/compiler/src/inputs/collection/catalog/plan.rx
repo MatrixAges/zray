@@ -5,29 +5,25 @@
     <Args
         in={{
             order: Order.Input,
-            layout: Catalog.Layout
+            kinds: Catalog.Kinds
         }}
-        out={Catalog.Counts}
+        out={Catalog.Plan}
     />
 
     <Call
         fn="count"
         in={{
-            kinds: $in.layout.kinds,
+            kinds: $in.kinds,
             count: $in.order.rows.length
         }}
     />
 
     <Call fn="../order" in={$in.order} />
 
-    <Call
-        fn="group"
-        in={{
-            layout: $in.layout,
+    <Return
+        value={{
             ordered: $ctx.order,
             counts: $ctx.count
         }}
     />
-
-    <Return value={$ctx.count} />
 </Module>

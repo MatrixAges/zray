@@ -164,6 +164,17 @@ pub inline fn writeTextList(target: *const anyopaque, index: u64, value: []const
     return write([]const []const u8, target, index, value);
 }
 
+/// Transfers a single cell's representation between compatible, disjoint borrowed fields.
+pub inline fn copyValue(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
+    const column: *const Column = @ptrCast(@alignCast(target));
+
+    if (index >= column.count or value.len != column.width) return error.IndexOutOfBounds;
+
+    const offset = @as(usize, @intCast(index)) * column.stride;
+
+    @memcpy(column.items[offset..][0..column.width], value);
+}
+
 pub inline fn write(comptime T: type, target: *const anyopaque, index: u64, value: T) IndexError!void {
     const column: *const Column = @ptrCast(@alignCast(target));
 

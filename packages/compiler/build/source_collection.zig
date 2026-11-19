@@ -108,27 +108,11 @@ pub const Catalog = struct {
 
 pub fn publish(workspace: std.mem.Allocator, allocator: std.mem.Allocator, documents: []const Document, packages: []const compiler.project.Package, attach_templates: bool) !Catalog {
     const plan = try inputs.catalog.prepare(workspace, documents);
-    const sources = try allocator.alloc(compiler.project.Source, plan.sources.len);
-    const modules = try allocator.alloc(rx.TextSource, plan.modules.len);
-    const templates = try allocator.alloc(compiler.project.Resource, plan.templates.len);
+    const sources = try allocator.alloc(compiler.project.Source, plan.sources);
+    const modules = try allocator.alloc(rx.TextSource, plan.modules);
+    const templates = try allocator.alloc(compiler.project.Resource, documents.len - plan.sources - plan.modules);
 
-    for (plan.templates, templates) |index, *target| {
-        const file = documents[@intCast(index)];
-
-        target.* = .{ .path = file.path, .source = file.text };
-    }
-
-    for (plan.sources, sources) |index, *target| {
-        const file = documents[@intCast(index)];
-
-        target.* = .{ .path = file.path, .source = file.text, .templates = if (attach_templates) templates else &.{} };
-    }
-
-    for (plan.modules, modules) |index, *target| {
-        const file = documents[@intCast(index)];
-
-        target.* = .{ .path = file.path, .source = file.text, .packages = packages };
-    }
+    try inputs.catalog.publish(documents, plan, .{ .sources = sources, .modules = modules, .templates = templates }, packages, attach_templates);
 
     return .{ .sources = sources, .modules = modules, .templates = templates };
 }

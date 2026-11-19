@@ -147,6 +147,12 @@ export declare function writeColumnBytes(
     value: u8[]
 ): void throws { IndexOutOfBounds }
 
+export declare function copyColumnValue(
+    target: WriteColumn,
+    index: u64,
+    value: u8[]
+): void throws { IndexOutOfBounds }
+
 export declare function borrowU32Range(
     source: u32[],
     first: u64,

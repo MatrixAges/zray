@@ -26,29 +26,54 @@ pub fn sort(comptime Row: type, backing: std.mem.Allocator, rows: []Row) !void {
     const input: std.meta.Child(rule.Input) = .{ .paths = @ptrCast(&paths), .rows = indices };
     const order = try zx.columns.invoke(rule.executeValue, allocator, &input);
 
-    apply(Row, rows, @constCast(order));
+    try apply(Row, rows, @constCast(order));
 }
 
-fn apply(comptime Row: type, rows: []Row, order: []u64) void {
-    for (order, 0..) |source, start| {
-        if (source == start) continue;
+fn apply(comptime Row: type, rows: []Row, order: []u64) !void {
+    const memory = zx.memory;
+    const rule = @import("generated_input_path_apply");
+    const source = memory.borrowNestedColumn(Row, &.{}, rows);
+    const target = memory.borrowNestedWriteColumn(Row, &.{}, rows);
+    var scratch: [1]Row = undefined;
+    const slot: []Row = &scratch;
+    const saved = memory.borrowNestedColumn(Row, &.{}, slot);
+    const temporary = memory.borrowNestedWriteColumn(Row, &.{}, slot);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        const saved = rows[start];
-        var target = start;
+    const input: std.meta.Child(rule.Input) = .{
+        .source = @ptrCast(&source),
+        .target = @ptrCast(&target),
+        .order = @ptrCast(&order),
+        .saved = @ptrCast(&saved),
+        .temporary = @ptrCast(&temporary),
+        .count = rows.len,
+        .width = @sizeOf(Row),
+    };
 
-        while (true) {
-            const next: usize = @intCast(order[target]);
+    try zx.columns.invoke(rule.executeValue, empty.allocator(), &input);
+}
 
-            order[target] = target;
+pub fn select(comptime Row: type, source: []const Row, indices: []const u64, target: []Row) !void {
+    if (comptime !generated) {
+        for (target, indices) |*row, index| row.* = source[@intCast(index)];
 
-            if (next == start) break;
-
-            rows[target] = rows[next];
-            target = next;
-        }
-
-        rows[target] = saved;
+        return;
     }
+
+    const memory = zx.memory;
+    const rule = @import("generated_input_row_selection");
+    const from = memory.borrowNestedColumn(Row, &.{}, source);
+    const to = memory.borrowNestedWriteColumn(Row, &.{}, target);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    const input: std.meta.Child(rule.Input) = .{
+        .source = @ptrCast(&from),
+        .target = @ptrCast(&to),
+        .indices = indices,
+        .width = @sizeOf(Row),
+    };
+
+    try zx.columns.invoke(rule.executeValue, empty.allocator(), &input);
 }
 
 fn sortSeed(comptime Row: type, rows: []Row) void {
