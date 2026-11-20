@@ -27,7 +27,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, args: []const []const u8, e
             return false;
         }
 
-        try std.json.Stringify.value(result.packages, .{ .whitespace = .indent_2 }, output);
+        try @import("graph/display.zig").write(&result, output);
         try output.writeByte('\n');
 
         return true;

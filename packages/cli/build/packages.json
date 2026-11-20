@@ -1,0 +1,37 @@
+{
+    "roots": [
+        {
+            "path": "package_install",
+            "prefix": "package/install/"
+        },
+        {
+            "path": "package_graph",
+            "prefix": "package/graph/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "package/install/run.rx",
+            "name": "workflow"
+        },
+        {
+            "path": "package/graph/load.rx",
+            "name": "graph_load"
+        },
+        {
+            "path": "package/graph/const.zx",
+            "name": "graph_constants"
+        }
+    ],
+    "packages": [],
+    "interfaces": [
+        {
+            "path": "package_install/host.d.zx",
+            "module": "installation_host"
+        },
+        {
+            "path": "package_graph/host.d.zx",
+            "module": "package_graph_host"
+        }
+    ]
+}

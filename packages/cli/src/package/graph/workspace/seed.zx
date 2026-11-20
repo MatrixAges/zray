@@ -1,0 +1,22 @@
+import host from "package_graph_host"
+
+import type { Workspace as Input } from "../model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const traversal = loop({
+        row: 0,
+        first: 0
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            const length = host.localEdgeCount(in.host, state.row)
+
+            host.seedLocal(in.host, state.row, state.first, length)
+
+            state.first += length
+            state.row += 1
+        }
+    })
+}

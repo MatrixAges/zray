@@ -1,0 +1,31 @@
+import type { Host } from "package_graph_host"
+
+export enum Status {
+    Valid,
+    PackagesNotInstalled,
+    LockFileOutdated,
+    InvalidPackageInstallation,
+    InstalledManifestDoesNotMatchLock,
+    InvalidPackageGraph,
+    InvalidVersion,
+    Overflow
+}
+
+export type Input = {
+    host: Host,
+    external: bool,
+    count: u64
+}
+
+export type Workspace = Input.Pick("host", "count")
+
+export type Installed = Workspace
+
+export type InstalledHost = Host
+
+export type Row = {
+    host: Host,
+    row: u64
+}
+
+export type Result = Status

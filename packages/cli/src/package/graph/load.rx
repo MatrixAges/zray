@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Project" />
+
+    <Args in={Project.Input} out={Project.Result} />
+
+    <If on={$in.external}>
+        <Call module="installed/read" in={$in.host} />
+
+        <If on={$ctx.read == Project.Status.PackagesNotInstalled}>
+            <Call fn="missing" in={$in.host} />
+        </If>
+
+        <Return value={$ctx.read} />
+
+        <Else>
+            <Call
+                module="workspace/read"
+                in={$in.pick([
+                    "host",
+                    "count"
+                ])}
+            />
+
+            <Return value={$ctx.read} />
+        </Else>
+    </If>
+</Module>

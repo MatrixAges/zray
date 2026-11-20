@@ -1,0 +1,60 @@
+export type Host = opaque
+
+export enum WorkspaceStatus {
+    Valid,
+    Duplicate,
+    InvalidSpecifier,
+    Missing,
+    InvalidRange,
+    InvalidVersion,
+    Overflow,
+    LockVersionMismatch,
+    CyclicPackageDependencies,
+    PackageDependencyDepthExceeded
+}
+
+export declare function openLock(host: Host): bool throws { PackageGraphHostFailure }
+export declare function lockMatches(host: Host): bool
+export declare function openMapping(host: Host): bool throws { PackageGraphHostFailure }
+export declare function mappingVersion(host: Host): u32
+export declare function mappingDigest(host: Host): string
+export declare function expectedDigest(host: Host): string
+export declare function mappedPaths(host: Host): string[]
+export declare function lockedCount(host: Host): u64
+export declare function isAbsolute(path: string): bool
+
+export declare function prepareInstalled(host: Host): void throws { PackageGraphHostFailure }
+export declare function isArchive(host: Host, row: u64): bool
+export declare function mappedPath(host: Host, row: u64): string
+export declare function archiveDigest(host: Host, row: u64): string
+export declare function parent(path: string): string?
+export declare function basename(path: string): string
+export declare function canonical(host: Host, path: string): string throws { PackageGraphHostFailure }
+export declare function verifyReceipt(host: Host, directory: string, digest: string): void throws {
+    PackageGraphHostFailure
+}
+export declare function readInstalledArchive(host: Host, path: string): void throws { PackageGraphHostFailure }
+export declare function archiveMatches(host: Host, row: u64): bool
+export declare function recordInstalledArchive(host: Host, row: u64, path: string): void
+
+export declare function installedWorkspacePath(host: Host, row: u64): string throws {
+    PackageGraphHostFailure
+}
+export declare function recordMember(host: Host, row: u64, ordinal: u64, path: string): bool
+
+export declare function reportMissing(host: Host, message: string): void throws {
+    PackageGraphHostFailure
+}
+export declare function prepareWorkspace(host: Host): void throws { PackageGraphHostFailure }
+export declare function localEdgeCount(host: Host, row: u64): u64
+export declare function seedLocal(host: Host, row: u64, first: u64, length: u64): void throws {
+    PackageGraphHostFailure
+}
+export declare function assembleWorkspace(host: Host, shape: WorkspaceStatus): WorkspaceStatus throws {
+    PackageGraphHostFailure
+}
+export declare function failedOwner(host: Host): u64
+export declare function discardEdges(host: Host, row: u64): void
+export declare function reportWorkspace(host: Host, message: string, use_package_name: bool): void throws {
+    PackageGraphHostFailure
+}

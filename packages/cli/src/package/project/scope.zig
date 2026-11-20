@@ -24,8 +24,7 @@ pub fn bind(allocator: std.mem.Allocator, scratch: std.mem.Allocator, project: *
 
     const bindings = memory.borrowSliceColumn(&.{"bindings"}, surfaces);
     const paths = memory.borrowListColumn([]const u8, "bindings", "specifier", surfaces);
-    const targets = memory.borrowListColumn(usize, "dependencies", "target", project.packages);
-    const aliases = memory.borrowListColumn([]const u8, "dependencies", "name", project.packages);
+    const dependencies = project.dependencyColumns();
 
     for (project.packages, scopes, 0..) |package, *scope, owner| {
         var target: Target = undefined;
@@ -35,8 +34,8 @@ pub fn bind(allocator: std.mem.Allocator, scratch: std.mem.Allocator, project: *
         const plan = zx.columns.invoke(rules.package_scope_bindings.executeValue, allocator, &Input{
             .owner = owner,
             .name = package.manifest.name,
-            .targets = @ptrCast(&targets),
-            .aliases = @ptrCast(&aliases),
+            .targets = @ptrCast(&dependencies.targets),
+            .aliases = @ptrCast(&dependencies.names),
             .bindings = @ptrCast(&bindings),
             .paths = @ptrCast(&paths),
             .width = @sizeOf(Package),
@@ -48,7 +47,7 @@ pub fn bind(allocator: std.mem.Allocator, scratch: std.mem.Allocator, project: *
         };
 
         if (plan.missing) |index| {
-            const edge = package.dependencies[@intCast(index)];
+            const edge = project.dependency(owner, @intCast(index));
             const dependency = project.packages[edge.target].manifest;
 
             return try std.fmt.allocPrint(allocator, "{s}/pkg.yaml: dependency {s}: target {s} has no public modules", .{ scope.root, edge.name, dependency.name });

@@ -1,0 +1,9 @@
+export {
+    openLock,
+    lockMatches,
+    openMapping,
+    lockedCount,
+    prepareInstalled,
+    reportMissing,
+    prepareWorkspace
+} from "package_graph_host"

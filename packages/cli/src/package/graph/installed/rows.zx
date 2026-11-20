@@ -1,0 +1,37 @@
+import host from "package_graph_host"
+
+import { Status } from "../model"
+import archive from "./archive"
+
+import type { Installed as Input, Result as Output } from "../model"
+
+export default function (in: Input): Output {
+    return loop({
+        row: 0,
+        ordinal: 0,
+        status: Status.Valid
+    }, {
+        while: state => state.status == Status.Valid && state.row < in.count,
+        next: state => {
+            const row = state.row
+
+            if (host.isArchive(in.host, row)) {
+                state.status = archive({
+                    host: in.host,
+                    row
+                })
+            } else {
+                const path = host.installedWorkspacePath(in.host, row)
+
+                if (host.recordMember(in.host, row, state.ordinal, path)) {
+                    state.ordinal += 1
+                } else {
+                    state.status = Status.LockFileOutdated
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.status
+    })
+}

@@ -4,7 +4,7 @@ const rules = @import("pkgs_source");
 const Lock = @import("../lock.zig");
 const LockRows = @import("lock_rows.zig");
 const Pair = std.meta.Child(rules.manifest_matches.Input);
-const Location = @typeInfo(@TypeOf(rules.first_external.executeValue(undefined, undefined))).error_union.payload;
+pub const Location = @typeInfo(@TypeOf(rules.first_external.executeValue(undefined, undefined))).error_union.payload;
 
 pub fn inspect(members: anytype) Location {
     const production = memory.borrowListPath([]const u8, &.{ "manifest", "dependencies" }, &.{"requirement"}, members);

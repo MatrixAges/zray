@@ -1,0 +1,42 @@
+<Module>
+    <Type from="../model" as="Project" />
+
+    <Args in={Project.InstalledHost} out={Project.Result} />
+
+    <Call fn="../effects.openLock" in={$in} />
+
+    <If on={!$ctx.openLock}>
+        <Return value={Project.Status.PackagesNotInstalled} />
+    </If>
+
+    <Call fn="../effects.lockMatches" in={$in} />
+
+    <If on={!$ctx.lockMatches}>
+        <Return value={Project.Status.LockFileOutdated} />
+    </If>
+
+    <Call fn="../effects.openMapping" in={$in} />
+
+    <If on={!$ctx.openMapping}>
+        <Return value={Project.Status.PackagesNotInstalled} />
+    </If>
+
+    <Call fn="mapping" in={$in} />
+
+    <If on={!$ctx.mapping}>
+        <Return value={Project.Status.InvalidPackageInstallation} />
+    </If>
+
+    <Call fn="../effects.prepareInstalled" in={$in} />
+    <Call fn="../effects.lockedCount" in={$in} />
+
+    <Call
+        fn="rows"
+        in={{
+            host: $in,
+            count: $ctx.lockedCount
+        }}
+    />
+
+    <Return value={$ctx.rows} />
+</Module>

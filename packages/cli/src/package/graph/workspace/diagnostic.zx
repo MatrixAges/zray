@@ -1,0 +1,64 @@
+import host from "package_graph_host"
+import { WorkspaceStatus } from "package_graph_host"
+
+import {
+    cyclic_dependencies,
+    dependency_depth,
+    duplicate_dependency,
+    invalid_specifier,
+    missing_dependency,
+    invalid_range,
+    version_mismatch
+} from "../const"
+import { Status } from "../model"
+
+import type { Workspace } from "../model"
+import type { Result as Output } from "../model"
+
+export type Input = Workspace & {
+    status: WorkspaceStatus
+}
+
+export default function (in: Input): Output {
+    const package_issue = match in.status {
+        WorkspaceStatus.CyclicPackageDependencies => cyclic_dependencies,
+        WorkspaceStatus.PackageDependencyDepthExceeded => dependency_depth,
+        _ => ""
+    }
+
+    if (package_issue != "") {
+        host.reportWorkspace(in.host, package_issue, true)
+
+        return Status.InvalidPackageGraph
+    }
+
+    const traversal = loop({
+        row: host.failedOwner(in.host)
+    }, {
+        while: state => state.row < in.count,
+        next: state => {
+            host.discardEdges(in.host, state.row)
+
+            state.row += 1
+        }
+    })
+
+    const message = match in.status {
+        WorkspaceStatus.Duplicate => duplicate_dependency,
+        WorkspaceStatus.InvalidSpecifier => invalid_specifier,
+        WorkspaceStatus.Missing => missing_dependency,
+        WorkspaceStatus.InvalidRange => invalid_range,
+        WorkspaceStatus.LockVersionMismatch => version_mismatch,
+        _ => ""
+    }
+
+    if (message != "") {
+        host.reportWorkspace(in.host, message, false)
+    }
+
+    return match in.status {
+        WorkspaceStatus.InvalidVersion => Status.InvalidVersion,
+        WorkspaceStatus.Overflow => Status.Overflow,
+        _ => Status.InvalidPackageGraph
+    }
+}

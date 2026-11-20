@@ -1,0 +1,42 @@
+import host from "package_graph_host"
+
+import { archive_directory } from "../const"
+import { Status } from "../model"
+
+import type { Row as Input, Result as Output } from "../model"
+
+export default function (in: Input): Output {
+    const { row } = in
+
+    const path = host.mappedPath(in.host, row)
+    const parent = host.parent(path)
+
+    if (parent == null) {
+        return Status.InvalidPackageInstallation
+    }
+
+    const digest = host.archiveDigest(in.host, row)
+    const leaf = host.basename(path)
+    const directory = host.basename(parent)
+
+    if (leaf != archive_directory || directory != digest) {
+        return Status.InvalidPackageInstallation
+    }
+
+    const canonical = host.canonical(in.host, path)
+
+    if (canonical != path) {
+        return Status.InvalidPackageInstallation
+    }
+
+    host.verifyReceipt(in.host, parent, digest)
+    host.readInstalledArchive(in.host, canonical)
+
+    if (!host.archiveMatches(in.host, row)) {
+        return Status.InstalledManifestDoesNotMatchLock
+    }
+
+    host.recordInstalledArchive(in.host, row, canonical)
+
+    return Status.Valid
+}

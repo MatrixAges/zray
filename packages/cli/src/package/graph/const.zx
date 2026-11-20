@@ -1,0 +1,24 @@
+export const mapping_version: u32 = 1
+
+export const archive_directory: string = "package"
+
+export const not_installed: string =
+    "external dependency is not installed; run zxc pkg install"
+
+export const cyclic_dependencies: string = "package dependencies must be acyclic"
+
+export const dependency_depth: string = "package dependency depth exceeds 256"
+
+export const duplicate_dependency: string =
+    "dependency appears in both dependencies and dev_dependencies"
+
+export const invalid_specifier: string =
+    "workspace alias requires a package name and version range"
+
+export const missing_dependency: string =
+    "workspace dependency has no matching local package"
+
+export const invalid_range: string = "invalid workspace version range"
+
+export const version_mismatch: string =
+    "workspace package version does not satisfy the dependency range"

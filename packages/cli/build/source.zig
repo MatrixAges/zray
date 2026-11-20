@@ -43,11 +43,12 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     });
 }
 
-pub fn installation(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, effects: *std.Build.Module) *std.Build.Module {
+pub fn packages(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, effects: *std.Build.Module) *std.Build.Module {
     const files = b.addWriteFiles();
     _ = files.addCopyDirectory(b.path("src/package/install"), "package_install", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/graph"), "package_graph", .{ .include_extensions = &.{ ".rx", ".zx" } });
 
-    const generated = generate(b, compiler, files, "build/installation.json", "installation");
+    const generated = generate(b, compiler, files, "build/packages.json", "packages");
 
     return b.createModule(.{
         .root_source_file = generated.path(b, "root.zig"),
@@ -56,6 +57,7 @@ pub fn installation(b: *std.Build, compiler: *std.Build.Dependency, target: std.
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
             .{ .name = "installation_host", .module = effects },
+            .{ .name = "package_graph_host", .module = effects },
         },
     });
 }
