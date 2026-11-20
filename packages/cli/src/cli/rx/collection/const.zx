@@ -1,0 +1,7 @@
+export const zx_suffix: string = ".zx"
+
+export const gateway_suffix: string = ".gateway.rx"
+
+export const store_suffix: string = ".store.rx"
+
+export const parent_component: string = ".."

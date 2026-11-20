@@ -91,11 +91,3 @@ pub fn import(self: *Self, reference: []const u8, location: rx.ast.Location, rol
         },
     }
 }
-
-pub fn header(self: *Self, view: anytype) Error!void {
-    for (0..view.importCount()) |index| {
-        const item = view.importAt(index);
-
-        try self.import(item.path, .{ .offset = item.span.start, .line = 1, .column = 1 }, .dependency, null);
-    }
-}

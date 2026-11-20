@@ -17,6 +17,12 @@ pub const source_loader = struct {
     pub const templates = @import("cli/sources/templates.zig");
 };
 
+pub const rx_collection = struct {
+    pub const state = @import("cli/rx/collection/state.zig");
+    pub const files = @import("cli/rx/collection/files.zig");
+    pub const documents = @import("cli/rx/collection/documents.zig");
+};
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);

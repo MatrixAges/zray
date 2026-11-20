@@ -1,0 +1,46 @@
+<Module>
+    <Type from="../index" as="IO" />
+    <Type from="../model" as="Collection" />
+
+    <Args in={Collection.Document} out={bool} />
+
+    <Call fn="../index.parseCollectionXml" in={$in.collection} />
+
+    <If on={!$ctx.parseCollectionXml}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.validateCollectionXml" in={$in.collection} />
+
+    <If on={!$ctx.validateCollectionXml}>
+        <Return value={false} />
+    </If>
+
+    <If on={$in.kind == IO.Kind.Gateway}>
+        <Call fn="../index.recordCollectionGateway" in={$in.collection} />
+
+        <If on={$ctx.recordCollectionGateway}>
+            <Call fn="../index.prepareCollectionGateway" in={$in.collection} />
+
+            <If on={!$ctx.prepareCollectionGateway}>
+                <Return value={false} />
+            </If>
+
+            <Call fn="services" in={$in.collection} />
+
+            <Return value={true} />
+        </If>
+    </If>
+
+    <If on={$in.kind == IO.Kind.Store}>
+        <Call fn="../index.recordCollectionStore" in={$in.collection} />
+    </If>
+
+    <If on={$in.kind == IO.Kind.Module}>
+        <Call fn="../index.recordCollectionModule" in={$in.collection} />
+    </If>
+
+    <Call fn="../index.collectXmlReferences" in={$in.collection} />
+
+    <Return value={$ctx.collectXmlReferences} />
+</Module>

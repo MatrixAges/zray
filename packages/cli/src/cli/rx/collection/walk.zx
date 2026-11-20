@@ -1,0 +1,27 @@
+import { collectionQueueLength, releaseRxDocument } from "rx_collection_host"
+
+import visit from "./visit.rx"
+
+import type { Collection as Input } from "rx_collection_host"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: current => current.valid && current.index < collectionQueueLength(in),
+        next: current => {
+            current.valid = visit({
+                collection: in,
+                index: current.index
+            })
+
+            releaseRxDocument(in)
+
+            current.index += 1
+        },
+        return: current => current.valid
+    })
+}

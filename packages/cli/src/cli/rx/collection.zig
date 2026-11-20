@@ -4,6 +4,7 @@ const compiler = @import("compiler");
 const gateway = @import("rx_analysis").gateway;
 const Inputs = @import("watch_inputs").Inputs;
 const Text = @import("../sources/text.zig");
+const State = @import("collection/state.zig").State;
 
 pub const Options = struct {
     io: std.Io,
@@ -47,7 +48,7 @@ pub fn load(allocator: std.mem.Allocator, options: Options) !?Result {
 
     errdefer result.deinit();
 
-    result.data = try loadIn(&result, allocator, options) orelse {
+    result.data = try State.load(&result, allocator, &options) orelse {
         result.deinit();
 
         return null;
@@ -56,185 +57,6 @@ pub fn load(allocator: std.mem.Allocator, options: Options) !?Result {
     return result;
 }
 
-fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data {
-    const allocator = result.arena.allocator();
-    const io = options.io;
-    const writer = options.writer;
-    const root = try std.fs.path.resolve(allocator, &.{options.root});
-    var project = options.project;
-    project.root_dir = root;
-
-    const physical_root = try std.Io.Dir.cwd().realPathFileAlloc(io, root, allocator);
-
-    const first = (if (std.mem.endsWith(u8, options.entry, ".zx")) allocator.dupe(u8, options.entry) else if (std.mem.endsWith(u8, options.entry, ".gateway.rx")) rx.normalizeGatewayPath(allocator, options.entry) else if (std.mem.endsWith(u8, options.entry, ".store.rx")) rx.normalizeStorePath(allocator, options.entry) else rx.normalizeModulePath(allocator, options.entry)) catch |err| {
-        if (err == error.OutOfMemory) return err;
-        try writer.print("{s}: invalid RX entry path\n", .{options.entry});
-
-        return null;
-    };
-
-    var local_cache = compiler.project.ParseCache{ .allocator = allocator };
-
-    defer local_cache.deinit();
-
-    const cache = options.parse_cache orelse &local_cache;
-    var queue: std.ArrayList([]const u8) = .empty;
-    var queued: std.StringHashMapUnmanaged(void) = .empty;
-
-    defer queued.deinit(allocator);
-
-    var sources: std.ArrayList(rx.TextSource) = .empty;
-    var modules: std.ArrayList(rx.ModuleSource) = .empty;
-    var stores: std.ArrayList(rx.ModuleSource) = .empty;
-    var functions: std.ArrayList(rx.TextSource) = .empty;
-    var gateway_source: ?GatewaySource = null;
-    var physical: std.StringHashMapUnmanaged([]const u8) = .empty;
-    var reference_memory = std.heap.ArenaAllocator.init(backing);
-
-    defer reference_memory.deinit();
-
-    try queue.append(allocator, first);
-    try queued.put(allocator, try std.fs.path.resolve(allocator, &.{ root, first }), {});
-
-    var index: usize = 0;
-
-    while (index < queue.items.len) : (index += 1) {
-        _ = reference_memory.reset(.retain_capacity);
-
-        const requested = queue.items[index];
-        const candidate = try std.fs.path.resolve(allocator, &.{ root, requested });
-        const absolute = if (std.mem.endsWith(u8, candidate, ".zx")) try @import("../sources/module_path.zig").select(io, allocator, candidate, options.inputs) else candidate;
-        const path = try std.fs.path.relative(allocator, root, null, root, absolute);
-
-        if (options.inputs) |inputs| try inputs.add(io, absolute);
-
-        const real = std.Io.Dir.cwd().realPathFileAlloc(io, absolute, allocator) catch |err| {
-            if (err == error.OutOfMemory) return err;
-            if (err == error.FileNotFound and index != 0 and std.mem.endsWith(u8, path, ".zx")) continue;
-            try writer.print("{s}: {s}\n", .{ path, @errorName(err) });
-
-            return null;
-        };
-
-        const relative = try std.fs.path.relative(allocator, physical_root, null, physical_root, real);
-
-        if (outside(relative)) {
-            try writer.print("{s}: physical module file escapes the project root\n", .{path});
-
-            return null;
-        }
-
-        if (physical.get(real)) |previous| {
-            if (std.mem.eql(u8, previous, path)) continue;
-            try writer.print("{s}: physical module file is already registered as {s}\n", .{ path, previous });
-
-            return null;
-        }
-
-        try physical.put(allocator, real, path);
-
-        const is_zx = std.mem.endsWith(u8, path, ".zx");
-        const is_gateway = std.mem.endsWith(u8, path, ".gateway.rx");
-        const is_store = std.mem.endsWith(u8, path, ".store.rx");
-        const source_allocator = if (is_gateway or is_store) allocator else options.retained_source_allocator orelse allocator;
-        const texts = if (is_gateway or is_store) null else options.texts;
-
-        const text = Text.read(io, source_allocator, absolute, texts) catch |err| {
-            if (err == error.OutOfMemory) return err;
-            if (err == error.FileNotFound and index != 0 and is_zx) continue;
-            try writer.print("{s}: {s}\n", .{ path, @errorName(err) });
-
-            return null;
-        };
-
-        const source = text.bytes;
-
-        if (text.fresh) if (options.inputs) |inputs| try inputs.record(io, absolute, source);
-
-        if (is_zx) {
-            const parsed = try cache.getModule(source, absolute);
-            var collector = @import("references/collector.zig"){ .allocator = allocator, .temporary = &reference_memory, .options = project, .owner = absolute, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
-
-            if (parsed.diagnostic() == null) switch (parsed.*) {
-                .native => |value| try collector.header(@import("zx").syntax.header.Native{ .program = value.value.parsed.ast }),
-                .indexed => |*value| if (compiler.project.ParseCache.indexed_enabled) try collector.header(value.header()) else unreachable,
-            };
-
-            try functions.append(allocator, .{ .path = path, .source = source });
-
-            continue;
-        }
-
-        const document = try Text.parseRx(allocator, texts, absolute, text);
-        const parsed = document.xml;
-
-        if (parsed.value == .diagnostic) {
-            try report(writer, path, parsed.value.diagnostic);
-
-            return null;
-        }
-
-        const package_scope = compiler.project.ImportScope.init(project.package_scopes, absolute);
-        const packages = package_scope.dependencies(project.packages);
-        var module: rx.ModuleSource = .{ .path = path, .node = parsed.value.node, .packages = packages, .references = document.references };
-        var checked = try rx.validateSource(backing, &module);
-
-        defer checked.deinit();
-
-        if (checked.value == .diagnostic) {
-            try report(writer, path, checked.value.diagnostic);
-
-            return null;
-        }
-
-        var collector = @import("references/collector.zig"){ .allocator = allocator, .temporary = &reference_memory, .options = project, .owner = absolute, .package_scope = package_scope, .queue = &queue, .queued = &queued, .io = io, .inputs = options.inputs, .libraries = options.libraries, .writer = writer };
-
-        if (is_gateway) gateway_source = .{ .path = path, .node = parsed.value.node };
-
-        if (is_gateway and (checked.value.data.gateway.attributes.protocol orelse .http) == .http) {
-            result.gateway_analysis = try gateway.analyze(backing, .{ .owner = path, .node = parsed.value.node, .validated_attributes = checked.value.data.gateway.attributes });
-            const analysis = &result.gateway_analysis.?;
-
-            if (analysis.value == .diagnostic) {
-                const issue = analysis.value.diagnostic;
-
-                try writer.print("{s}:{d}:{d}: {s}: {s}\n", .{ issue.path, issue.location.line, issue.location.column, issue.code, issue.message });
-
-                return null;
-            }
-
-            const definition = analysis.value.definition;
-
-            for (definition.service_routes) |route_index| {
-                const route = definition.routes[route_index];
-
-                try collector.local(route.service, route.location, .dependency);
-            }
-
-            continue;
-        }
-
-        if (is_store) {
-            try stores.append(allocator, module);
-        } else if (!is_gateway) {
-            try sources.append(allocator, .{ .path = path, .source = source, .packages = packages });
-            try modules.append(allocator, module);
-        }
-
-        @import("rx_analysis").project.source_graph.references.collect(&collector, module) catch |err| {
-            if (err == error.InvalidSourceGraph) return null;
-
-            return err;
-        };
-    }
-
-    return .{ .gateway = gateway_source, .modules = modules.items, .stores = stores.items, .sources = sources.items, .functions = functions.items };
-}
-
 pub fn outside(path: []const u8) bool {
     return std.fs.path.isAbsolute(path) or std.mem.eql(u8, path, "..") or std.mem.startsWith(u8, path, "../") or std.mem.startsWith(u8, path, "..\\");
-}
-
-fn report(writer: *std.Io.Writer, path: []const u8, issue: rx.Diagnostic) !void {
-    try writer.print("{s}:{d}:{d}: {t}: {s}\n", .{ path, issue.location.line, issue.location.column, issue.code, issue.message });
 }

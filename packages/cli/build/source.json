@@ -66,6 +66,10 @@
         {
             "path": "sources",
             "prefix": "sources/"
+        },
+        {
+            "path": "rx_collection",
+            "prefix": "rx/collection/"
         }
     ],
     "entries": [
@@ -324,6 +328,10 @@
         {
             "path": "sources/template/run.rx",
             "name": "load_source_template"
+        },
+        {
+            "path": "rx/collection/run.rx",
+            "name": "collect_rx_sources"
         }
     ],
     "packages": [
@@ -388,6 +396,10 @@
         {
             "path": "sources/host.d.zx",
             "module": "source_loader_host"
+        },
+        {
+            "path": "rx/collection/host.d.zx",
+            "module": "rx_collection_host"
         }
     ]
 }

@@ -1,0 +1,45 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import { Kind } from "rx_collection_host"
+
+import { gateway_suffix, store_suffix, zx_suffix } from "./const"
+
+export type Input = string
+
+export type Output = Kind
+
+export default function (in: Input): Output {
+    const length = in.length
+
+    if (length >= zx_suffix.length) {
+        const tail = encoding.sliceBytes(in, length - zx_suffix.length, length)
+
+        if (bytes.equals(bytes.fromText(tail), bytes.fromText(zx_suffix))) {
+            return Kind.Zx
+        }
+    }
+
+    if (length >= gateway_suffix.length) {
+        const tail = encoding.sliceBytes(in, length - gateway_suffix.length, length)
+
+        if (bytes.equals(
+            bytes.fromText(tail),
+            bytes.fromText(gateway_suffix)
+        )) {
+            return Kind.Gateway
+        }
+    }
+
+    if (length >= store_suffix.length) {
+        const tail = encoding.sliceBytes(in, length - store_suffix.length, length)
+
+        if (bytes.equals(
+            bytes.fromText(tail),
+            bytes.fromText(store_suffix)
+        )) {
+            return Kind.Store
+        }
+    }
+
+    return Kind.Module
+}

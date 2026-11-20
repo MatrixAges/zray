@@ -1,0 +1,18 @@
+import { collectGatewayService, collectionGatewayServices } from "rx_collection_host"
+
+import type { Collection as Input } from "rx_collection_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = collectionGatewayServices(in)
+
+    const collected = loop(0, {
+        while: index => index < count,
+        next: index => {
+            collectGatewayService(in, index)
+
+            index += 1
+        }
+    })
+}

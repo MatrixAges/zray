@@ -1,0 +1,25 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Collection} out={bool} />
+
+    <Call fn="index.collectionEntry" in={$in} />
+
+    <Call fn="kind" />
+
+    <Call
+        fn="index.registerCollectionEntry"
+        in={[
+            $in,
+            $ctx.kind
+        ]}
+    />
+
+    <If on={!$ctx.registerCollectionEntry}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="walk" in={$in} />
+
+    <Return value={$ctx.walk} />
+</Module>

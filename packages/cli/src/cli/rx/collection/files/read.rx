@@ -1,0 +1,81 @@
+<Module>
+    <Type from="../index" as="IO" />
+    <Type from="../model" as="Collection" />
+
+    <Args in={Collection.File} out={Collection.Readiness} />
+
+    <Call fn="../index.resolveCollectionPhysicalPath" in={$in.collection} />
+
+    <If on={$ctx.resolveCollectionPhysicalPath != IO.Availability.Ready}>
+        <Call
+            module="unavailable"
+            in={{
+                collection: $in.collection,
+                kind: $in.kind,
+                first: $in.first,
+                availability: $ctx.resolveCollectionPhysicalPath
+            }}
+        />
+
+        <Return value={$ctx.unavailable} />
+    </If>
+
+    <Call fn="../index.collectionPhysicalRelative" in={$in.collection} />
+
+    <Call fn="outside" />
+
+    <Call
+        fn="../../../publication/index.absolutePath"
+        in={$ctx.collectionPhysicalRelative}
+    />
+
+    <If on={$ctx.absolutePath || $ctx.outside}>
+        <Call fn="../index.reportCollectionEscape" in={$in.collection} />
+
+        <Return value={Collection.Readiness.Invalid} />
+    </If>
+
+    <Call fn="../index.previousCollectionPath" in={$in.collection} />
+
+    <If on={$ctx.previousCollectionPath != null}>
+        <If on={$ctx.previousCollectionPath == $in.path}>
+            <Return value={Collection.Readiness.Skipped} />
+        </If>
+
+        <Call
+            fn="../index.reportCollectionAlias"
+            in={[
+                $in.collection,
+                $ctx.previousCollectionPath
+            ]}
+        />
+
+        <Return value={Collection.Readiness.Invalid} />
+    </If>
+
+    <Call fn="../index.registerCollectionPhysicalPath" in={$in.collection} />
+
+    <Call
+        fn="../index.readCollectionFile"
+        in={[
+            $in.collection,
+            $in.kind == IO.Kind.Module || $in.kind == IO.Kind.Zx
+        ]}
+    />
+
+    <If on={$ctx.readCollectionFile != IO.Availability.Ready}>
+        <Call
+            module="unavailable"
+            in={{
+                collection: $in.collection,
+                kind: $in.kind,
+                first: $in.first,
+                availability: $ctx.readCollectionFile
+            }}
+        />
+
+        <Return value={$ctx.unavailable} />
+    </If>
+
+    <Return value={Collection.Readiness.Ready} />
+</Module>

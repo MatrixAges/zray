@@ -1,0 +1,34 @@
+import type { Availability, Collection, Kind } from "rx_collection_host"
+
+export enum Readiness {
+    Ready,
+    Skipped,
+    Invalid
+}
+
+export type Row = {
+    collection: Collection,
+    index: u64
+}
+
+export type Document = {
+    collection: Collection,
+    kind: Kind
+}
+
+export type File = Document & {
+    path: string,
+    first: bool
+}
+
+export type Unavailable = {
+    collection: Collection,
+    kind: Kind,
+    first: bool,
+    availability: Availability
+}
+
+export type Imports = {
+    collection: Collection,
+    count: u64
+}

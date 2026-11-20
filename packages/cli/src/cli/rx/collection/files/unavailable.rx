@@ -1,0 +1,16 @@
+<Module>
+    <Type from="../index" as="IO" />
+    <Type from="../model" as="Collection" />
+
+    <Args in={Collection.Unavailable} out={Collection.Readiness} />
+
+    <If on={$in.availability == IO.Availability.Missing}>
+        <If on={!$in.first && $in.kind == IO.Kind.Zx}>
+            <Return value={Collection.Readiness.Skipped} />
+        </If>
+    </If>
+
+    <Call fn="../index.reportCollectionFileFailure" in={$in.collection} />
+
+    <Return value={Collection.Readiness.Invalid} />
+</Module>

@@ -1,0 +1,46 @@
+<Module>
+    <Type from="index" as="IO" />
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Row} out={bool} />
+
+    <Call
+        fn="index.selectCollectionPath"
+        in={[
+            $in.collection,
+            $in.index
+        ]}
+    />
+
+    <Call fn="kind" />
+
+    <Call
+        module="files/read"
+        in={{
+            collection: $in.collection,
+            kind: $ctx.kind,
+            path: $ctx.selectCollectionPath,
+            first: $in.index == 0
+        }}
+    />
+
+    <If on={$ctx.read != Collection.Readiness.Ready}>
+        <Return value={$ctx.read == Collection.Readiness.Skipped} />
+    </If>
+
+    <If on={$ctx.kind == IO.Kind.Zx}>
+        <Call module="documents/zx" in={$in.collection} />
+
+        <Return value={true} />
+    </If>
+
+    <Call
+        module="documents/xml"
+        in={{
+            collection: $in.collection,
+            kind: $ctx.kind
+        }}
+    />
+
+    <Return value={$ctx.xml} />
+</Module>
