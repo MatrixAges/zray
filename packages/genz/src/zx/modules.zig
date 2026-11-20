@@ -242,25 +242,36 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
     lower.used = try temporary.alloc(bool, selected.symbols.count());
     lower.cache_reads = try temporary.alloc(u64, selected.expressions.count());
 
+    const workflow = @import("module/workflow.zig");
+    const form = workflow.functionForm(selected.external != null, lower.value_functions[@backingInt(id)], regular);
+
+    const declarations = switch (form) {
+        inline else => |variant| try functionDeclarations(&lower, selected, id, variant),
+    };
+
+    return @import("../render.zig").renderStored(allocator, lower.builder.nodes, declarations);
+}
+
+fn functionDeclarations(lower: *Lower, selected: ir.Function, id: ir.FunctionId, comptime form: @import("module/workflow.zig").FunctionForm) Error!@import("../node/stored.zig").Declarations {
+    const temporary = lower.allocator;
     var output: std.ArrayList(node.Declaration) = .empty;
+    var suffix: std.ArrayList(node.Declaration) = .empty;
     var comparisons: std.ArrayList(ir.TypeId) = .empty;
     var task_declarations = @import("auxiliary.zig").init();
 
     lower.comparisons = &comparisons;
     lower.task_declarations = &task_declarations;
+    lower.local_regular_function = form != .Value;
 
-    try output.append(temporary, .{ .constant = .{ .name = "std", .value = try lower.builtin(.import, &.{try lower.builder.string("std")}) } });
-    try @import("types.zig").lower(&lower, &output, false);
-    try @import("store.zig").declaration(&lower, &output);
-
-    const value = selected.external == null and lower.value_functions[@backingInt(id)];
-
-    lower.local_regular_function = !value or regular;
-
-    if (lower.local_regular_function) {
-        var declaration = if (selected.external) |external| native: {
-            const module = program.native_modules.at(@backingInt(external.module));
-            const native_names = try temporary.alloc([]const u8, program.native_modules.count());
+    inline for (comptime @import("module/workflow.zig").functionSteps(form)) |step| switch (step) {
+        .Standard => try output.append(temporary, .{ .constant = .{ .name = "std", .value = try lower.builtin(.import, &.{try lower.builder.string("std")}) } }),
+        .Types => try @import("types.zig").lower(lower, &output, false),
+        .Store => try @import("store.zig").declaration(lower, &output),
+        .NativeImport => {
+            const external = selected.external.?;
+            const modules = lower.program.native_modules;
+            const module = modules.at(@backingInt(external.module));
+            const native_names = try temporary.alloc([]const u8, modules.count());
 
             @memset(native_names, "");
             native_names[@backingInt(external.module)] = "zx_native";
@@ -268,32 +279,30 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
             lower.native_names = native_names;
 
             try output.append(temporary, .{ .constant = .{ .name = "zx_native", .value = try lower.builtin(.import, &.{try lower.builder.string(module.import_name)}) } });
+        },
+        .NativeBody, .RegularBody, .ValueBody => {
+            var declaration = switch (step) {
+                .NativeBody => try @import("external.zig").lower(lower, selected, @backingInt(id)),
+                .RegularBody => if (try @import("functions/adapter.zig").build(lower, id)) |adapter| adapter else try lower.function("call", false),
+                .ValueBody => try lower.functionValue("callValue"),
+                else => unreachable,
+            };
 
-            break :native try @import("external.zig").lower(&lower, selected, @backingInt(id));
-        } else if (try @import("functions/adapter.zig").build(&lower, id)) |adapter| adapter else try lower.function("call", false);
+            if (step != .ValueBody) declaration.function.name = "call";
 
-        declaration.function.name = "call";
-        declaration.function.exported = true;
+            declaration.function.exported = true;
 
-        try output.append(temporary, declaration);
-    }
+            try output.append(temporary, declaration);
+        },
+        .ParallelAllocator => {
+            if (lower.uses_parallel) try output.append(temporary, try @import("parallel/allocator.zig").declaration(lower));
+        },
+        .Comparisons => {
+            for (comparisons.items) |type_id| try suffix.append(temporary, try @import("comparison.zig").ordering(lower, type_id));
+        },
+    };
 
-    if (value) {
-        var value_declaration = try lower.functionValue("callValue");
-        value_declaration.function.exported = true;
-
-        try output.append(temporary, value_declaration);
-    }
-
-    if (lower.uses_parallel) try output.append(temporary, try @import("parallel/allocator.zig").declaration(&lower));
-
-    var suffix: std.ArrayList(node.Declaration) = .empty;
-
-    for (comparisons.items) |type_id| try suffix.append(temporary, try @import("comparison.zig").ordering(&lower, type_id));
-
-    const declarations = try task_declarations.assemble(temporary, lower.builder.nodes, output.items, suffix.items);
-
-    return @import("../render.zig").renderStored(allocator, lower.builder.nodes, declarations);
+    return task_declarations.assemble(temporary, lower.builder.nodes, output.items, suffix.items);
 }
 
 fn initialize(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, scratch: ?*TypeScratch) Error!Lower {

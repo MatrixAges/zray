@@ -5,7 +5,7 @@ const Types = @import("../types.zig");
 const Builder = @import("builder.zig");
 const Callback = @import("callback.zig").Result;
 
-pub fn build(builder: Builder, plan: @import("iteration_plan.zig").Plan, parameter: ir.SymbolId, callback: Callback) zx.Error!ir.ExprId {
+pub fn build(builder: Builder, kind: @FieldType(ir.Transform, "kind"), parameter: ir.SymbolId, callback: Callback) zx.Error!ir.ExprId {
     const analyzer = builder.analyzer;
     const current = try builder.reference(parameter);
     const source = try builder.field(current, "source");
@@ -30,12 +30,12 @@ pub fn build(builder: Builder, plan: @import("iteration_plan.zig").Plan, paramet
         }
     }
 
-    const parameters: []const ir.ExprId = if (plan.accumulator) &.{ previous, item, index, source } else &.{ item, index, source };
+    const parameters: []const ir.ExprId = if (kind == .reduce) &.{ previous, item, index, source } else &.{ item, index, source };
 
     for (callback.parameters, 0..) |symbol, position| try bindings.append(analyzer.allocator, .{
         .symbol = symbol,
         .value = parameters[position],
-        .borrow = !plan.accumulator or position != 0,
+        .borrow = kind != .reduce or position != 0,
     });
 
     const computed = try builder.symbol("$collection_value", analyzer.node(callback.body).type_id);
@@ -44,10 +44,11 @@ pub fn build(builder: Builder, plan: @import("iteration_plan.zig").Plan, paramet
 
     const value = try builder.reference(computed);
 
-    const result = switch (plan.update) {
-        .Append => try builder.push(previous, value),
-        .Filter => try builder.expression(analyzer.node(previous).type_id, .{ .conditional = .{ .condition = value, .yes = try builder.push(previous, item), .no = previous } }),
-        .Replace => value,
+    const result = switch (kind) {
+        .sort => unreachable,
+        .map => try builder.push(previous, value),
+        .filter => try builder.expression(analyzer.node(previous).type_id, .{ .conditional = .{ .condition = value, .yes = try builder.push(previous, item), .no = previous } }),
+        .reduce, .every, .some => value,
     };
 
     const next_index = try builder.expression(Types.scalarId(.u64), .{ .binary = .{ .operator = .add, .left = index, .right = try builder.integer(1) } });

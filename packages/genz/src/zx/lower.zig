@@ -82,7 +82,19 @@ pub fn refreshEntry(self: *Self) Error!void {
     self.entry_flags = try @import("entry_flags.zig").analyze(self.workspace, self.program, .{ .local = self.local_functions, .pure = self.pure_functions, .io = self.io_functions, .process = self.process_functions, .tasks = self.task_functions, .self_function = self.self_function });
 }
 
-pub fn declarations(self: *Self) Error!@import("../node/stored.zig").Declarations {
+const ModuleDeclarations = @import("../node/stored.zig").Declarations;
+
+pub fn declarations(self: *Self) Error!ModuleDeclarations {
+    const type_only = self.program.type_only;
+    const local = self.function_modules == null;
+    const mode = @as(u2, @intFromBool(type_only)) << 1 | @intFromBool(local);
+
+    return switch (mode) {
+        inline else => |value| self.moduleDeclarations(value & 2 != 0, value & 1 != 0),
+    };
+}
+
+fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: bool) Error!ModuleDeclarations {
     var output: std.ArrayList(node.Declaration) = .empty;
     var comparisons: std.ArrayList(ir.TypeId) = .empty;
     var task_declarations = @import("auxiliary.zig").init();
@@ -91,31 +103,39 @@ pub fn declarations(self: *Self) Error!@import("../node/stored.zig").Declaration
     self.task_declarations = &task_declarations;
 
     var function_requests = try @import("functions/requests.zig").init(self.allocator, self.program.functions.count());
-
     self.function_requests = &function_requests;
 
-    try @import("module/emitting.zig").standard(self, &output);
-    if (self.function_modules == null) self.native_names = try @import("imports.zig").lower(self, &output);
-    try @import("types.zig").lower(self, &output, false);
-    try @import("module/emitting.zig").exports(self, &output);
-    try @import("module/constants.zig").append(self, &output);
-    if (self.program.type_only) return self.builder.nodes.declarations(self.allocator, output.items);
-    try @import("shape.zig").lower(self, &output);
-    try @import("module/emitting.zig").contracts(self, &output);
-    try @import("store.zig").declaration(self, &output);
-    try @import("entry.zig").declarations(self, &output);
-    try @import("entry_values.zig").declarations(self, &output);
-
-    var function_index: usize = 0;
-
-    while (function_index < function_requests.count()) : (function_index += 1) {
-        try @import("functions/emit.zig").append(self, &output, function_requests.at(function_index));
-    }
-
     var suffix: std.ArrayList(node.Declaration) = .empty;
+    const steps = comptime @import("module/workflow.zig").entrySteps(type_only, local);
+    const emission = @import("module/emitting.zig");
 
-    if (self.uses_parallel) try suffix.append(self.allocator, try @import("parallel/allocator.zig").declaration(self));
-    for (comparisons.items) |type_id| try suffix.append(self.allocator, try @import("comparison.zig").ordering(self, type_id));
+    inline for (steps) |step| switch (step) {
+        .Standard => try emission.standard(self, &output),
+        .NativeImports => self.native_names = try @import("imports.zig").lower(self, &output),
+        .Types => try @import("types.zig").lower(self, &output, false),
+        .Exports => try emission.exports(self, &output),
+        .Constants => try @import("module/constants.zig").append(self, &output),
+        .Shape => try @import("shape.zig").lower(self, &output),
+        .Contracts => try emission.contracts(self, &output),
+        .Store => try @import("store.zig").declaration(self, &output),
+        .Entry => try @import("entry.zig").declarations(self, &output),
+        .ValueEntry => try @import("entry_values.zig").declarations(self, &output),
+        .RequestedFunctions => {
+            var function_index: usize = 0;
+
+            while (function_index < function_requests.count()) : (function_index += 1) {
+                try @import("functions/emit.zig").append(self, &output, function_requests.at(function_index));
+            }
+        },
+        .ParallelAllocator => {
+            if (self.uses_parallel) try suffix.append(self.allocator, try @import("parallel/allocator.zig").declaration(self));
+        },
+        .Comparisons => {
+            for (comparisons.items) |type_id| try suffix.append(self.allocator, try @import("comparison.zig").ordering(self, type_id));
+        },
+    };
+
+    if (type_only) return self.builder.nodes.declarations(self.allocator, output.items);
 
     return task_declarations.assemble(self.allocator, self.builder.nodes, output.items, suffix.items);
 }

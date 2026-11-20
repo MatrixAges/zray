@@ -1,0 +1,61 @@
+<Module>
+    <Type from="model" as="Workflow" />
+
+    <Args in={Workflow.FunctionForm} out={Workflow.FunctionStep[]} />
+
+    <Switch on={$in}>
+        <Case value={Workflow.FunctionForm.Native}>
+            <Return
+                value={[
+                    Workflow.FunctionStep.Standard,
+                    Workflow.FunctionStep.Types,
+                    Workflow.FunctionStep.Store,
+                    Workflow.FunctionStep.NativeImport,
+                    Workflow.FunctionStep.NativeBody,
+                    Workflow.FunctionStep.ParallelAllocator,
+                    Workflow.FunctionStep.Comparisons
+                ]}
+            />
+        </Case>
+
+        <Case value={Workflow.FunctionForm.Regular}>
+            <Return
+                value={[
+                    Workflow.FunctionStep.Standard,
+                    Workflow.FunctionStep.Types,
+                    Workflow.FunctionStep.Store,
+                    Workflow.FunctionStep.RegularBody,
+                    Workflow.FunctionStep.ParallelAllocator,
+                    Workflow.FunctionStep.Comparisons
+                ]}
+            />
+        </Case>
+
+        <Case value={Workflow.FunctionForm.RegularAndValue}>
+            <Return
+                value={[
+                    Workflow.FunctionStep.Standard,
+                    Workflow.FunctionStep.Types,
+                    Workflow.FunctionStep.Store,
+                    Workflow.FunctionStep.RegularBody,
+                    Workflow.FunctionStep.ValueBody,
+                    Workflow.FunctionStep.ParallelAllocator,
+                    Workflow.FunctionStep.Comparisons
+                ]}
+            />
+        </Case>
+
+        <Case value={Workflow.FunctionForm.Value}>
+            <Return
+                value={[
+                    Workflow.FunctionStep.Standard,
+                    Workflow.FunctionStep.Types,
+                    Workflow.FunctionStep.Store,
+                    Workflow.FunctionStep.ValueBody,
+                    Workflow.FunctionStep.ParallelAllocator,
+                    Workflow.FunctionStep.Comparisons
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

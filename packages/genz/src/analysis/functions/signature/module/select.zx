@@ -1,3 +1,4 @@
+import { FunctionForm } from "../../../module/workflow/model"
 import { unnamed_parameter } from "./const"
 
 export type Input = {
@@ -7,17 +8,24 @@ export type Input = {
 }
 
 export type Output = {
+    form: FunctionForm,
     regular: bool,
     value: bool,
     parameter_name: string
 }
 
 export default function (in: Input): Output {
-    const value = !in.external && in.value_function
+    const form = match {
+        in.external => FunctionForm.Native,
+        !in.value_function => FunctionForm.Regular,
+        in.pointer_variant => FunctionForm.RegularAndValue,
+        _ => FunctionForm.Value
+    }
 
     return {
-        regular: !value || in.pointer_variant,
-        value,
+        form,
+        regular: form != FunctionForm.Value,
+        value: form == FunctionForm.Value || form == FunctionForm.RegularAndValue,
         parameter_name: unnamed_parameter
     }
 }
