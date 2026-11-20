@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
+import constant from "../../../ast/declarations/builder/constant"
 import namespace from "../../../ast/expressions/namespace"
 import {
     input_name,
@@ -45,7 +46,7 @@ export default function (in: Input): Output {
                         integers.widen(item.source.functions.input_types[index])
                     const output =
                         integers.widen(item.source.functions.output_types[index])
-                    const start = item.declarations.length
+                    const start = item.declarations.tags.length
                     const names: string[] =
                         [
                             input_name,
@@ -65,19 +66,20 @@ export default function (in: Input): Output {
                         declarations: item.declarations,
                         names,
                         values,
-                        valid: item.valid,
                         index: 0
                     }, {
-                        while: field => field.valid && field.index < field.names.length,
+                        while: field =>
+                            field.declarations.valid && field.index < field.names.length,
                         next: field => {
-                            field.declarations = field.declarations.push({
+                            field.declarations = constant({
+                                state: field.declarations,
                                 name: bytes.fromText(
                                     field.names[field.index]
                                 ),
                                 type_expr: null,
                                 value: field.values[field.index],
                                 exported: true
-                            })[0]
+                            })
                             field.index += 1
                         }
                     })
@@ -92,14 +94,14 @@ export default function (in: Input): Output {
                                 ) + start
                             ),
                         count: integers.narrow(
-                            fields.declarations.length - start
+                            fields.declarations.tags.length - start
                         )
                     })
 
                     item.expressions = expression.table
                     item.declarations = fields.declarations
                     item.signatures = item.signatures.push(expression.id)[0]
-                    item.valid = fields.valid && expression.valid
+                    item.valid = fields.declarations.valid && expression.valid
                     item.index += 1
                 }
             })

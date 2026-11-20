@@ -945,7 +945,6 @@ pub const main = [_]Entry{
     .{ .path = "core/type_table/scalar.zx", .name = "scalar_type", .owner = .genz },
     .{ .path = "genz/analysis/names/type_names.rx", .name = "stable_type_names", .owner = .genz },
     .{ .path = "genz/analysis/names/analyze.rx", .name = "stable_names", .owner = .genz },
-    .{ .path = "genz/analysis/native_namespaces/plan.rx", .name = "native_namespaces", .owner = .genz },
     .{ .path = "genz/analysis/native_namespaces/emit/build.rx", .name = "native_declarations", .owner = .genz },
     .{ .path = "genz/analysis/simd/analyze.rx", .name = "simd_plan", .owner = .genz },
     .{ .path = "genz/analysis/simd/emit/build.rx", .name = "simd_emit", .owner = .genz },

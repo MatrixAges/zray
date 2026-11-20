@@ -1,9 +1,9 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
-import constants from "../../../ast/declarations/constants"
+import constant from "../../../ast/declarations/builder/constant"
+import publish from "../../../ast/declarations/builder/publish"
 
-import type { Constant } from "../../../ast/declarations/model"
 import type { State, Output } from "./model"
 
 export type Input = {
@@ -13,61 +13,29 @@ export type Input = {
 }
 
 export default function (in: Input): Output {
-    const declarations = constants({
-        values: in.state.declarations,
-        base: in.state.source.declaration_base
+    const start = in.state.declarations.tags.length
+
+    const natives = constant({
+        state: in.state.declarations,
+        name: bytes.fromText(in.state.source.plan.native_name),
+        type_expr: null,
+        value: in.native_value,
+        exported: true
     })
 
-    const base = integers.widen(in.state.source.declaration_base) +
-        in.state.declarations.length
-
-    const values: Constant[] = [
-        {
-            name: bytes.fromText(in.state.source.plan.native_name),
-            type_expr: null,
-            value: in.native_value,
-            exported: true
-        },
-        {
-            name: bytes.fromText(in.state.source.plan.layouts_name),
-            type_expr: null,
-            value: in.layouts_value,
-            exported: true
-        }
-    ]
-
-    const roots = constants({
-        values,
-        base: integers.narrow(base)
-    })
-
-    const prefix = integers.widen(in.state.source.prefix_count)
-    const first = integers.widen(in.state.source.declaration_base) - prefix
-    const count = prefix + roots.table.tags.length
-    const indices: u32[] = []
-
-    const selected = loop({
-        indices,
-        index: 0
-    }, {
-        while: state => state.index < count,
-        next: state => {
-            const row = match {
-                state.index < prefix => first + state.index,
-                _ => base + state.index - prefix
-            }
-
-            state.indices = state.indices.push(integers.narrow(row))[0]
-            state.index += 1
-        },
-        return: state => state.indices
+    const layouts = constant({
+        state: natives,
+        name: bytes.fromText(in.state.source.plan.layouts_name),
+        type_expr: null,
+        value: in.layouts_value,
+        exported: true
     })
 
     return {
         expressions: in.state.expressions,
-        declarations: declarations.table,
-        roots: roots.table,
-        selected,
-        valid: in.state.valid && declarations.valid && roots.valid
+        declarations: publish(layouts),
+        root_start: layouts.base + integers.narrow(start),
+        root_count: integers.narrow(layouts.tags.length - start),
+        valid: in.state.valid && layouts.valid
     }
 }

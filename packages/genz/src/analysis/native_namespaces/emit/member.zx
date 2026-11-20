@@ -2,7 +2,7 @@ import integers from "std:integer"
 import exportName from "core/native_module_table/export_name"
 
 import type { Group } from "../model"
-import type { Input as Source } from "./model"
+import type { Planned as Source } from "./model"
 
 export type Input = {
     source: Source,

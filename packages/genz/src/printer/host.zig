@@ -2,25 +2,26 @@ const std = @import("std");
 const zx = @import("zx");
 const Storage = @import("../node/storage.zig");
 const view = @import("../node/view.zig");
+const Range = @import("../node/stored.zig").Declarations;
 const generated = @import("generated_printer");
 const Input = @typeInfo(generated.Input).pointer.child;
 const Source = @typeInfo(@FieldType(Input, "source")).pointer.child;
 
-pub fn renderStored(allocator: std.mem.Allocator, workspace: std.mem.Allocator, nodes: *Storage, selected: @import("../node/stored.zig").Declarations, comptime scoped: bool) std.mem.Allocator.Error![]u8 {
+pub fn renderStored(allocator: std.mem.Allocator, workspace: std.mem.Allocator, nodes: *Storage, ranges: []const Range, comptime scoped: bool) std.mem.Allocator.Error![]u8 {
     const expressions = view.rows(@typeInfo(@FieldType(Source, "expressions")).pointer.child, &nodes.expressions);
     const statements = view.rows(@typeInfo(@FieldType(Source, "statements")).pointer.child, &nodes.statements);
     const declaration_rows = view.rows(@typeInfo(@FieldType(Source, "declarations")).pointer.child, &nodes.declaration_rows);
     const fields = view.members(@typeInfo(@FieldType(Source, "fields")).pointer.child, &nodes.field_columns);
     const arms = view.members(@typeInfo(@FieldType(Source, "arms")).pointer.child, &nodes.arm_columns);
 
-    const source = Source{
+    var source = Source{
         .expressions = &expressions,
         .statements = &statements,
         .declarations = &declaration_rows,
         .fields = &fields,
         .arms = &arms,
-        .first = selected.start,
-        .count = selected.len,
+        .first = if (scoped) 0 else ranges[0].start,
+        .count = if (scoped) 1 else ranges[0].len,
     };
 
     var arena = zx.Arena.init(workspace);
@@ -32,16 +33,16 @@ pub fn renderStored(allocator: std.mem.Allocator, workspace: std.mem.Allocator, 
     defer output.deinit();
 
     if (scoped) {
-        var root = source;
-        root.count = 1;
         const mark = arena.checkpoint();
 
-        for (0..selected.len) |offset| {
-            root.first = selected.start + @as(u32, @intCast(offset));
+        for (ranges) |range| {
+            for (0..range.len) |offset| {
+                source.first = range.start + @as(u32, @intCast(offset));
 
-            try write(arena.allocator(), &root, &output);
+                try write(arena.allocator(), &source, &output);
 
-            arena.rewindRetainingCapacity(mark);
+                arena.rewindRetainingCapacity(mark);
+            }
         }
     } else {
         try write(arena.allocator(), &source, &output);

@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
+import constant from "../../../ast/declarations/builder/constant"
 import namespace from "../../../ast/expressions/namespace"
 import resolve from "./member"
 
@@ -24,16 +25,15 @@ export default function (in: Input): Output {
             current.valid && current.index < current.source.plan.groups.length,
         next: current => {
             const group = current.source.plan.groups[current.index]
-            const start = current.declarations.length
+            const start = current.declarations.tags.length
             const selected = loop({
                 source: current.source,
                 group,
                 signatures: current.signatures[current.index],
                 declarations: current.declarations,
-                valid: current.valid,
                 index: 0
             }, {
-                while: item => item.valid &&
+                while: item => item.declarations.valid &&
                     item.index < item.group.types.length + item.group.functions.length,
                 next: item => {
                     const member =
@@ -48,12 +48,13 @@ export default function (in: Input): Output {
                             )
                         )
 
-                    item.declarations = item.declarations.push({
+                    item.declarations = constant({
+                        state: item.declarations,
                         name: bytes.fromText(member.name),
                         type_expr: null,
                         value: member.value,
                         exported: true
-                    })[0]
+                    })
                     item.index += 1
                 }
             })
@@ -67,13 +68,13 @@ export default function (in: Input): Output {
                             current.source.declaration_base
                         ) + start
                     ),
-                count: integers.narrow(selected.declarations.length - start)
+                count: integers.narrow(selected.declarations.tags.length - start)
             })
 
             current.declarations = selected.declarations
             current.expressions = expression.table
             current.members = current.members.push(expression.id)[0]
-            current.valid = selected.valid && expression.valid
+            current.valid = selected.declarations.valid && expression.valid
             current.index += 1
         }
     })

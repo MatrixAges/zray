@@ -1,4 +1,6 @@
-import type { Input, State } from "./model"
+import declarations from "../../../ast/declarations/builder/initialize"
+
+import type { Planned as Input, State } from "./model"
 
 export type Output = State
 
@@ -11,7 +13,7 @@ export default function (in: Input): Output {
             namespace_type_start: [],
             namespace_type_len: []
         },
-        declarations: [],
+        declarations: declarations(in.declaration_base),
         signatures: [],
         members: [],
         layouts: [],

@@ -1,16 +1,34 @@
 const std = @import("std");
 const zx = @import("zx");
 const Lower = @import("lower.zig");
+const printer = @import("../render.zig");
+const Range = @import("../node/stored.zig").Declarations;
 
-pub fn declarations(self: *Lower) Lower.Error!@import("../node/stored.zig").Declarations {
-    if (!@import("genz_options").generated_analysis) return self.builder.nodes.declarations(self.allocator, try @import("type_bundle/seed.zig").declarations(self));
+pub fn render(allocator: std.mem.Allocator, self: *Lower) Lower.Error![]u8 {
+    if (!@import("genz_options").generated_analysis) {
+        const declarations = try @import("type_bundle/seed.zig").declarations(self);
+        const stored = try self.builder.nodes.declarations(self.allocator, declarations);
+
+        return printer.renderStoredScoped(allocator, self.workspace, self.builder.nodes, &.{stored});
+    }
 
     const first = self.builder.nodes.declaration_rows.tags.items.len;
 
     try @import("types.zig").lower(self, null, true);
 
-    const declaration_base = self.builder.nodes.declaration_rows.tags.items.len;
-    const generated = @import("generated_native_namespaces");
+    const end = self.builder.nodes.declaration_rows.tags.items.len;
+    const roots = try appendNamespaces(self, @intCast(end));
+
+    const ranges = [_]Range{
+        .{ .start = @intCast(first), .len = @intCast(end - first) },
+        roots,
+    };
+
+    return printer.renderStoredScoped(allocator, self.workspace, self.builder.nodes, &ranges);
+}
+
+fn appendNamespaces(self: *Lower, declaration_base: u32) Lower.Error!Range {
+    const generated = @import("generated_native_declarations");
     const Input = std.meta.Child(generated.Input);
     const Modules = std.meta.Child(@FieldType(Input, "modules"));
     const Functions = std.meta.Child(@FieldType(Input, "functions"));
@@ -29,26 +47,16 @@ pub fn declarations(self: *Lower) Lower.Error!@import("../node/stored.zig").Decl
         @field(functions, name) = zx.columns.slice(@FieldType(Functions, name), @field(self.program.functions, name));
     }
 
-    const plan = generated.executeIn(scratch.allocator(), &.{ .modules = &modules, .functions = &functions }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    const emitter = @import("generated_native_declarations");
-    const EmitInput = std.meta.Child(emitter.Input);
-
-    const input = EmitInput{
-        .plan = plan,
+    const input = Input{
         .modules = &modules,
         .functions = &functions,
         .types = @ptrCast(self.types),
         .layouts = @ptrCast(self.layouts),
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .declaration_base = @intCast(declaration_base),
-        .prefix_count = @intCast(declaration_base - first),
+        .declaration_base = declaration_base,
     };
 
-    const output = emitter.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+    const output = generated.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
@@ -67,13 +75,5 @@ pub fn declarations(self: *Lower) Lower.Error!@import("../node/stored.zig").Decl
         error.InvalidAst => unreachable,
     };
 
-    rows.appendBorrowed(self.allocator, &self.builder.nodes.declaration_rows, output.roots) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    return self.builder.nodes.selectDeclarations(self.allocator, output.selected) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+    return .{ .start = output.root_start, .len = output.root_count };
 }

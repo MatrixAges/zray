@@ -3,7 +3,21 @@
 
     <Args in={Emit.Input} out={Emit.Output} />
 
-    <Call fn="initialize" in={$in} />
+    <Call
+        module="../plan"
+        in={$in.pick([
+            "modules",
+            "functions"
+        ])}
+    />
+
+    <Call
+        fn="initialize"
+        in={{
+            ...$in,
+            plan: $ctx.plan
+        }}
+    />
 
     <Call fn="signatures" />
     <Call fn="members" />

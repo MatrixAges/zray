@@ -1,4 +1,5 @@
 const std = @import("std");
+const zx = @import("zx");
 const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
 const Lower = @import("../lower.zig");
@@ -35,15 +36,16 @@ pub fn append(self: *Lower, declarations: ?*Pending, comptime Output: type, outp
         error.InvalidAst => unreachable,
     };
 
-    const constants = output.declarations;
+    const Constants = std.meta.Child(@FieldType(Output, "declarations"));
+    const constants = zx.columns.view(Constants, output.declarations);
     const destination = &self.builder.nodes.declaration_rows;
     const start = destination.tags.items.len;
 
     const published = if (payloads == .copy)
-        rows.append(self.allocator, destination, constants)
+        rows.append(self.allocator, destination, &constants)
 
     else
-        rows.appendBorrowed(self.allocator, destination, constants);
+        rows.appendBorrowed(self.allocator, destination, &constants);
 
     published catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

@@ -1,23 +1,25 @@
-import type { Modules, Functions } from "core/native_module_table/model"
-import type { Columns as Declarations, Constant } from "../../../ast/declarations/model"
+import type {
+    Columns as Declarations,
+    State as DeclarationBuilder
+} from "../../../ast/declarations/builder/model"
 import type { Columns as Expressions } from "../../../ast/expressions/namespace"
-import type { Output as Plan } from "../model"
+import type { Input as Namespace, Output as Plan } from "../model"
 
-export type Input = {
-    plan: Plan,
-    modules: Modules,
-    functions: Functions,
+export type Input = Namespace & {
     types: u32[],
     layouts: u32[],
     expression_base: u32,
-    declaration_base: u32,
-    prefix_count: u32
+    declaration_base: u32
+}
+
+export type Planned = Input & {
+    plan: Plan
 }
 
 export type State = {
-    source: Input,
+    source: Planned,
     expressions: Expressions,
-    declarations: Constant[],
+    declarations: DeclarationBuilder,
     signatures: u32[][],
     members: u32[],
     layouts: u32[],
@@ -27,7 +29,7 @@ export type State = {
 export type Output = {
     expressions: Expressions,
     declarations: Declarations,
-    roots: Declarations,
-    selected: u32[],
+    root_start: u32,
+    root_count: u32,
     valid: bool
 }

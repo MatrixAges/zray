@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
+import constant from "../../../ast/declarations/builder/constant"
 import namespace from "../../../ast/expressions/namespace"
 
 import type { State } from "./model"
@@ -16,25 +17,26 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const start = in.state.declarations.length
+    const start = in.state.declarations.tags.length
 
     const result = loop({
         source: in.state.source,
         values: in.values,
         declarations: in.state.declarations,
-        valid: in.state.valid,
         index: 0
     }, {
-        while: current => current.valid && current.index < current.values.length,
+        while: current =>
+            current.declarations.valid && current.index < current.values.length,
         next: current => {
-            current.declarations = current.declarations.push({
+            current.declarations = constant({
+                state: current.declarations,
                 name: bytes.fromText(
                     current.source.plan.groups[current.index].key
                 ),
                 type_expr: null,
                 value: current.values[current.index],
                 exported: true
-            })[0]
+            })
             current.index += 1
         }
     })
@@ -46,7 +48,7 @@ export default function (in: Input): Output {
             integers.narrow(
                 integers.widen(in.state.source.declaration_base) + start
             ),
-        count: integers.narrow(result.declarations.length - start)
+        count: integers.narrow(result.declarations.tags.length - start)
     })
 
     return {
@@ -54,7 +56,7 @@ export default function (in: Input): Output {
             ...in.state,
             declarations: result.declarations,
             expressions: expression.table,
-            valid: result.valid && expression.valid
+            valid: in.state.valid && result.declarations.valid && expression.valid
         },
         value: expression.id
     }
