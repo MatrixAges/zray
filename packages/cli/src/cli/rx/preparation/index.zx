@@ -1,0 +1,24 @@
+export {
+    isPreparationPackage,
+    resolvePreparationTarget,
+    preparationSourcePath,
+    reportPreparationReference,
+    prepareCompiledReference,
+    copyInitialTypeSources,
+    selectTypeSourcePath,
+    validateTypeSourceFile,
+    hasTypeSourceScopes,
+    validateTypeSourceRoot,
+    readPreparedTypeSource,
+    loadPreparationDocuments,
+    preparePhysicalRoot,
+    collectPreparationTypes,
+    reservePreparationRoots,
+    hasPreparedRoot,
+    loadPreparationRoot,
+    hasPreparationScopes,
+    collectPreparationLibraries,
+    inferPreparedProject
+} from "rx_preparation_host"
+
+export type { Preparation, References, TypeSources, Target } from "rx_preparation_host"

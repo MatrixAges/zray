@@ -1,0 +1,22 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.TypeSources} out={bool} />
+
+    <Call fn="../index.selectTypeSourcePath" in={$in} />
+
+    <If on={!$ctx.selectTypeSourcePath}>
+        <Return value={true} />
+    </If>
+
+    <Call fn="../index.validateTypeSourceFile" in={$in} />
+    <Call fn="../index.hasTypeSourceScopes" in={$in} />
+
+    <If on={!$ctx.hasTypeSourceScopes}>
+        <Call fn="../index.validateTypeSourceRoot" in={$in} />
+    </If>
+
+    <Call fn="../index.readPreparedTypeSource" in={$in} />
+
+    <Return value={$ctx.readPreparedTypeSource} />
+</Module>

@@ -1,0 +1,18 @@
+import { registerInitialTypeSource } from "rx_preparation_host"
+
+import type { TypeRange as Input } from "../model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { types, count } = in
+
+    const completed = loop(0, {
+        while: index => index < count,
+        next: index => {
+            registerInitialTypeSource(types, index)
+
+            index += 1
+        }
+    })
+}

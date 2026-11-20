@@ -1,9 +1,10 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const rx = @import("rx");
-const zx = @import("zx");
 const Libraries = @import("../library/inputs.zig");
 const Inputs = @import("watch_inputs").Inputs;
+const Cursor = @import("preparation/references.zig").Cursor;
+const rule = @import("cli_source").prepare_rx_libraries;
 
 pub const Options = struct {
     io: std.Io,
@@ -15,37 +16,17 @@ pub const Options = struct {
 };
 
 pub fn collect(allocator: std.mem.Allocator, options: Options) !bool {
-    for (options.modules) |*module| {
-        const owner = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, module.path });
-        const packages = rx.module_reference.dependencies(options.project, owner);
+    var cursor: Cursor = .{
+        .allocator = allocator,
+        .io = options.io,
+        .project = options.project,
+        .modules = options.modules,
+        .writer = options.writer,
+        .inputs = options.inputs,
+        .libraries = options.libraries,
+    };
 
-        for (module.indexedReferences() orelse unreachable) |reference| {
-            if (reference.role != .Call or reference.target != .Module) continue;
+    const reference = &cursor;
 
-            const attribute = reference.attribute orelse unreachable;
-
-            if (!rx.module_reference.isPackage(attribute.value, packages)) continue;
-
-            var reporter: zx.Reporter = .{};
-
-            const resolved = compiler.project.resolveModuleTarget(allocator, owner, attribute.value, options.project, &reporter, .{ .start = 0, .end = 0 }) catch |err| {
-                if (err == error.OutOfMemory) return error.OutOfMemory;
-                try options.writer.print("{s}:{d}:{d}: module: {s}\n", .{ module.path, attribute.value_location.line, attribute.value_location.column, reporter.diagnostic.?.message });
-
-                return false;
-            };
-
-            if (resolved == .source) continue;
-
-            const exported = try options.libraries.add(options.io, resolved.compiled, options.project, options.inputs);
-
-            if (exported.function == null) {
-                try options.writer.print("{s}:{d}:{d}: module: Call.module requires an executable public module\n", .{ module.path, attribute.value_location.line, attribute.value_location.column });
-
-                return false;
-            }
-        }
-    }
-
-    return true;
+    return rule.executeIn(allocator, @ptrCast(&reference)) catch |err| return cursor.failure.unwrap(err);
 }

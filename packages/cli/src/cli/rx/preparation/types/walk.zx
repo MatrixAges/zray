@@ -1,0 +1,54 @@
+import {
+    Role,
+    preparationModuleCount,
+    preparationReferenceRole,
+    selectPreparationModule
+} from "rx_preparation_host"
+
+import { type_zx_required } from "../const"
+import load from "./reference.rx"
+
+import type { TypePass as Input } from "../model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { references } = in
+
+    const count = preparationModuleCount(references)
+
+    const target = {
+        ...in,
+        diagnostic: type_zx_required
+    }
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: row => row.index < count && row.valid,
+        next: row => {
+            const end = selectPreparationModule(references, row.index)
+
+            row.valid = loop({
+                end,
+                valid: true
+            }, {
+                while: item => item.end > 0 && item.valid,
+                next: item => {
+                    item.end -= 1
+
+                    if (
+                        preparationReferenceRole(references, item.end) ==
+                            Role.TypeImport
+                    ) {
+                        item.valid = load(target)
+                    }
+                },
+                return: item => item.valid
+            })
+            row.index += 1
+        },
+        return: row => row.valid
+    })
+}

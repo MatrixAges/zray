@@ -1,0 +1,43 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Preparation} out={bool} />
+
+    <Call fn="index.loadPreparationDocuments" in={$in} />
+
+    <If on={!$ctx.loadPreparationDocuments}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.preparePhysicalRoot" in={$in} />
+
+    <Call
+        fn="validate_modules"
+        in={{
+            preparation: $in,
+            count: $ctx.preparePhysicalRoot
+        }}
+    />
+
+    <Call fn="index.collectPreparationTypes" in={$in} />
+
+    <If on={!$ctx.collectPreparationTypes}>
+        <Return value={false} />
+    </If>
+
+    <Call module="sources/prepare" in={$in} />
+
+    <Call fn="index.collectPreparationLibraries" in={$in} />
+
+    <If on={!$ctx.collectPreparationLibraries}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.inferPreparedProject" in={$in} />
+
+    <If on={$ctx.inferPreparedProject}>
+        <Call fn="evidence" in={$in} />
+    </If>
+
+    <Return value={$ctx.inferPreparedProject} />
+</Module>

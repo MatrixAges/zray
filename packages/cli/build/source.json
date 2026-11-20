@@ -70,6 +70,10 @@
         {
             "path": "rx_collection",
             "prefix": "rx/collection/"
+        },
+        {
+            "path": "rx_preparation",
+            "prefix": "rx/preparation/"
         }
     ],
     "entries": [
@@ -332,6 +336,18 @@
         {
             "path": "rx/collection/run.rx",
             "name": "collect_rx_sources"
+        },
+        {
+            "path": "rx/preparation/run.rx",
+            "name": "prepare_rx_project"
+        },
+        {
+            "path": "rx/preparation/types/run.rx",
+            "name": "prepare_rx_types"
+        },
+        {
+            "path": "rx/preparation/compiled/walk.zx",
+            "name": "prepare_rx_libraries"
         }
     ],
     "packages": [
@@ -400,6 +416,10 @@
         {
             "path": "rx/collection/host.d.zx",
             "module": "rx_collection_host"
+        },
+        {
+            "path": "rx/preparation/host.d.zx",
+            "module": "rx_preparation_host"
         }
     ]
 }

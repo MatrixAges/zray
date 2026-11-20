@@ -1,0 +1,50 @@
+export type Preparation = opaque
+
+export type References = opaque
+
+export type TypeSources = opaque
+
+export enum Role {
+    TypeImport,
+    ModuleCall,
+    Other
+}
+
+export enum Target {
+    Source,
+    Compiled,
+    Invalid
+}
+
+export declare function preparationModuleCount(references: References): u64
+export declare function selectPreparationModule(references: References, index: u64): u64 throws { SourceLoadFailure }
+export declare function preparationReferenceRole(references: References, index: u64): Role
+export declare function isPreparationPackage(references: References): bool
+export declare function resolvePreparationTarget(references: References, at_attribute: bool): Target throws { SourceLoadFailure }
+export declare function preparationSourcePath(references: References): string
+export declare function reportPreparationReference(references: References, message: string): void throws { SourceLoadFailure }
+export declare function prepareCompiledReference(references: References): bool throws { SourceLoadFailure }
+
+export declare function copyInitialTypeSources(types: TypeSources): u64 throws { SourceLoadFailure }
+export declare function registerInitialTypeSource(types: TypeSources, index: u64): void throws { SourceLoadFailure }
+export declare function selectTypeSourcePath(types: TypeSources): bool throws { SourceLoadFailure }
+export declare function validateTypeSourceFile(types: TypeSources): void throws { SourceLoadFailure }
+export declare function hasTypeSourceScopes(types: TypeSources): bool
+export declare function validateTypeSourceRoot(types: TypeSources): void throws { SourceLoadFailure }
+export declare function readPreparedTypeSource(types: TypeSources): bool throws { SourceLoadFailure }
+
+export declare function loadPreparationDocuments(preparation: Preparation): bool throws { SourceLoadFailure }
+export declare function preparePhysicalRoot(preparation: Preparation): u64 throws { SourceLoadFailure }
+export declare function validatePreparedModule(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
+export declare function collectPreparationTypes(preparation: Preparation): bool throws { SourceLoadFailure }
+export declare function reservePreparationRoots(preparation: Preparation): u64 throws { SourceLoadFailure }
+export declare function registerPreparationRoot(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
+export declare function hasPreparedRoot(preparation: Preparation, index: u64): bool
+export declare function loadPreparationRoot(preparation: Preparation, index: u64): u64 throws { SourceLoadFailure }
+export declare function hasPreparationScopes(preparation: Preparation): bool
+export declare function preparedZxCount(preparation: Preparation): u64
+export declare function validatePreparedSource(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
+export declare function collectPreparationLibraries(preparation: Preparation): bool throws { SourceLoadFailure }
+export declare function inferPreparedProject(preparation: Preparation): bool throws { SourceLoadFailure }
+export declare function preparationEvidenceCount(preparation: Preparation): u64
+export declare function recordPreparationEvidence(preparation: Preparation, index: u64): void throws { SourceLoadFailure }

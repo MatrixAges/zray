@@ -1,0 +1,19 @@
+<Module>
+    <Type from="../model" as="Preparation" />
+
+    <Args in={Preparation.TypePass} out={bool} />
+
+    <Call fn="../index.copyInitialTypeSources" in={$in.types} />
+
+    <Call
+        fn="initial"
+        in={{
+            types: $in.types,
+            count: $ctx.copyInitialTypeSources
+        }}
+    />
+
+    <Call fn="walk" in={$in} />
+
+    <Return value={$ctx.walk} />
+</Module>

@@ -1,0 +1,22 @@
+<Module>
+    <Type from="../model" as="Preparation" />
+
+    <Args in={Preparation.Root} out={void} />
+
+    <Call fn="../index.hasPreparedRoot" in={$in} />
+
+    <If on={!$ctx.hasPreparedRoot}>
+        <Call fn="../index.loadPreparationRoot" in={$in} />
+        <Call fn="../index.hasPreparationScopes" in={$in[0]} />
+
+        <If on={!$ctx.hasPreparationScopes}>
+            <Call
+                fn="check"
+                in={{
+                    preparation: $in[0],
+                    first: $ctx.loadPreparationRoot + 1
+                }}
+            />
+        </If>
+    </If>
+</Module>

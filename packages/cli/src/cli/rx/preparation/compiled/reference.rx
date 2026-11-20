@@ -1,0 +1,40 @@
+<Module>
+    <Type from="../index" as="IO" />
+    <Type from="../model" as="Preparation" />
+
+    <Args in={Preparation.CompiledReference} out={bool} />
+
+    <Call fn="../index.isPreparationPackage" in={$in.references} />
+
+    <If on={!$ctx.isPreparationPackage}>
+        <Return value={true} />
+    </If>
+
+    <Call
+        fn="../index.resolvePreparationTarget"
+        in={[
+            $in.references,
+            false
+        ]}
+    />
+
+    <If on={$ctx.resolvePreparationTarget != IO.Target.Compiled}>
+        <Return value={$ctx.resolvePreparationTarget == IO.Target.Source} />
+    </If>
+
+    <Call fn="../index.prepareCompiledReference" in={$in.references} />
+
+    <If on={!$ctx.prepareCompiledReference}>
+        <Call
+            fn="../index.reportPreparationReference"
+            in={[
+                $in.references,
+                $in.diagnostic
+            ]}
+        />
+
+        <Return value={false} />
+    </If>
+
+    <Return value={true} />
+</Module>

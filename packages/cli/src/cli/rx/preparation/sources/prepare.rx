@@ -1,0 +1,23 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.Preparation} out={void} />
+
+    <Call fn="../index.reservePreparationRoots" in={$in} />
+
+    <Call
+        fn="register"
+        in={{
+            preparation: $in,
+            count: $ctx.reservePreparationRoots
+        }}
+    />
+
+    <Call
+        fn="roots"
+        in={{
+            preparation: $in,
+            count: $ctx.reservePreparationRoots
+        }}
+    />
+</Module>

@@ -1,0 +1,4 @@
+export const type_zx_required: string = "Type requires a ZX source module"
+
+export const module_executable_required: string =
+    "Call.module requires an executable public module"

@@ -1,0 +1,32 @@
+import type { Preparation, References, TypeSources } from "rx_preparation_host"
+
+export type TypePass = {
+    types: TypeSources,
+    references: References
+}
+
+export type TypeRange = {
+    types: TypeSources,
+    count: u64
+}
+
+export type Range = {
+    preparation: Preparation,
+    count: u64
+}
+
+export type NewSources = {
+    preparation: Preparation,
+    first: u64
+}
+
+export type Root = [Preparation, u64]
+
+export type TypeReference = TypePass & {
+    diagnostic: string
+}
+
+export type CompiledReference = {
+    references: References,
+    diagnostic: string
+}

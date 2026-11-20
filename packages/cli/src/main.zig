@@ -23,6 +23,12 @@ pub const rx_collection = struct {
     pub const documents = @import("cli/rx/collection/documents.zig");
 };
 
+pub const rx_preparation = struct {
+    pub const project = @import("cli/rx/preparation/project.zig");
+    pub const references = @import("cli/rx/preparation/references.zig");
+    pub const types = @import("cli/rx/type_sources.zig");
+};
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);
