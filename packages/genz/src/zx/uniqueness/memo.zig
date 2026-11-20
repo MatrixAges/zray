@@ -8,6 +8,7 @@ const Hash = @import("zx").Sha256;
 const Self = @This();
 const generated_encoding = @import("genz_options").generated_analysis;
 const Encoding = @import("memo/encoding.zig");
+const Table = @import("memo/table.zig").Table;
 /// Results of body analyses by the exact state they read: the body's identity, its own input summary, the output
 /// summaries of its callees, and its growth copies. An analysis is a pure function of that state, so a body met again
 /// in the same state replays what it passed on instead of being analyzed again; the replay meets the same
@@ -47,10 +48,10 @@ pub const Digest = [32]u8;
 const Trace = @import("trace.zig");
 
 arena: std.heap.ArenaAllocator,
-settled: std.AutoHashMapUnmanaged(Digest, Settled) = .empty,
-demanded: std.AutoHashMapUnmanaged(Digest, Demanded) = .empty,
-planned: std.AutoHashMapUnmanaged(Digest, Planned) = .empty,
-flowed: std.AutoHashMapUnmanaged(Digest, Flowed) = .empty,
+settled: Table(Settled) = .empty,
+demanded: Table(Demanded) = .empty,
+planned: Table(Planned) = .empty,
+flowed: Table(Flowed) = .empty,
 key: Digest = undefined,
 order: if (generated_encoding) void else std.ArrayList(Record) = if (generated_encoding) {} else .empty,
 /// The bytes the next key digests, gathered so they are hashed in one call.
@@ -73,9 +74,19 @@ pub fn init(backing: std.mem.Allocator, persistent: bool) Self {
 pub fn deinit(self: *Self) void {
     if (self.trace) |*trace| trace.deinit();
 
+    if (generated_encoding) {
+        const owner = self.arena.child_allocator;
+
+        inline for (.{ &self.settled, &self.demanded, &self.planned, &self.flowed }) |table| table.deinit(owner);
+    }
+
     self.arena.deinit();
 
     self.* = undefined;
+}
+
+fn indexAllocator(self: *Self) std.mem.Allocator {
+    return if (generated_encoding) self.arena.child_allocator else self.arena.allocator();
 }
 
 pub const Kind = enum { settled, demanded, planned };
@@ -146,7 +157,7 @@ pub fn putSettled(self: *Self, key: Digest, passed: []const Function.Contributio
 pub fn putOwnedSettled(self: *Self, key: Digest, passed: []const Function.Contribution, output: []const Level) std.mem.Allocator.Error!Settled {
     const value = Settled{ .passed = passed, .output = output };
 
-    try self.settled.put(self.arena.allocator(), key, value);
+    try self.settled.put(self.indexAllocator(), key, value);
 
     self.changed = true;
 
@@ -175,7 +186,7 @@ pub fn putOwnedDemanded(self: *Self, key: Digest, marks: []const Function.Mark, 
         .grew = grew,
     };
 
-    try self.demanded.put(allocator, key, value);
+    try self.demanded.put(self.indexAllocator(), key, value);
 
     self.changed = true;
 
@@ -192,7 +203,7 @@ pub fn getPlanned(self: *Self, summaries: *const Summaries, state: State) std.me
 pub fn putOwnedPlan(self: *Self, key: Digest, plan: Function.Plan) std.mem.Allocator.Error!Planned {
     const value = Planned{ .flags = plan.flags, .renewals = plan.renewals, .transfers = plan.transfers, .slot_first = plan.slot_first };
 
-    try self.planned.put(self.arena.allocator(), key, value);
+    try self.planned.put(self.indexAllocator(), key, value);
 
     self.changed = true;
 
@@ -214,10 +225,10 @@ pub fn putFlowed(self: *Self, key: Digest, held: []const bool, text_held: []cons
 
     self.changed = true;
 
-    try self.flowed.put(allocator, key, .{ .held = try allocator.dupe(bool, held), .text_held = try allocator.dupe(bool, text_held), .written = try allocator.dupe(bool, written) });
+    try self.flowed.put(self.indexAllocator(), key, .{ .held = try allocator.dupe(bool, held), .text_held = try allocator.dupe(bool, text_held), .written = try allocator.dupe(bool, written) });
 }
 
-fn use(comptime Value: type, map: *std.AutoHashMapUnmanaged(Digest, Value), key: Digest) ?Value {
+fn use(comptime Value: type, map: *Table(Value), key: Digest) ?Value {
     const entry = map.getPtr(key) orelse return null;
 
     entry.used = true;
@@ -362,9 +373,13 @@ pub fn stale(self: *const Self) bool {
     if (self.changed) return true;
 
     inline for (.{ &self.settled, &self.demanded, &self.planned, &self.flowed }) |map| {
-        var values = map.iterator();
+        if (generated_encoding) {
+            for (map.values.items) |entry| if (!entry.used) return true;
+        } else {
+            var values = map.iterator();
 
-        while (values.next()) |entry| if (!entry.value_ptr.used) return true;
+            while (values.next()) |entry| if (!entry.value_ptr.used) return true;
+        }
     }
 
     return false;

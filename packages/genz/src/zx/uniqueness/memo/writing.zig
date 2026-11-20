@@ -17,10 +17,10 @@ pub fn save(memo: *const Memo, allocator: std.mem.Allocator) Error![]u8 {
     var planned: View(@FieldType(Input, "planned")) = undefined;
     var flowed: View(@FieldType(Input, "flowed")) = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    const settlements = mapRows(&memo.settled);
-    const demands = mapRows(&memo.demanded);
-    const plans = mapRows(&memo.planned);
-    const flows = mapRows(&memo.flowed);
+    const settlements = memo.settled.values.items;
+    const demands = memo.demanded.values.items;
+    const plans = memo.planned.values.items;
+    const flows = memo.flowed.values.items;
 
     const settlement_fields = .{
         .callees = memory.borrowListColumn(u32, "passed", "callee", settlements),
@@ -56,10 +56,10 @@ pub fn save(memo: *const Memo, allocator: std.mem.Allocator) Error![]u8 {
 
     const input: Input = .{
         .writer = @ptrCast(&out.writer),
-        .settled = settled.borrow(memo.settled.keyIterator(), settlements, &settlement_fields),
-        .demanded = demanded.borrow(memo.demanded.keyIterator(), demands, &demand_fields),
-        .planned = planned.borrow(memo.planned.keyIterator(), plans, &plan_fields),
-        .flowed = flowed.borrow(memo.flowed.keyIterator(), flows, &flow_fields),
+        .settled = settled.borrow(memo.settled.keys.items, settlements, &settlement_fields),
+        .demanded = demanded.borrow(memo.demanded.keys.items, demands, &demand_fields),
+        .planned = planned.borrow(memo.planned.keys.items, plans, &plan_fields),
+        .flowed = flowed.borrow(memo.flowed.keys.items, flows, &flow_fields),
     };
 
     zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
@@ -70,36 +70,25 @@ pub fn save(memo: *const Memo, allocator: std.mem.Allocator) Error![]u8 {
     return out.toOwnedSlice();
 }
 
-fn mapRows(map: anytype) []const @TypeOf(map.valueIterator().items[0]) {
-    const rows = map.valueIterator();
-
-    return if (rows.len == 0) &.{} else rows.items[0..rows.len];
-}
-
 fn View(comptime Target: type) type {
     const Table = Value(Target);
-    const Slots = Value(@FieldType(Table, "slots"));
+    const Rows = Value(@FieldType(Table, "rows"));
 
     return struct {
         used: memory.ReadColumn,
-        slots: Slots,
+        rows: Rows,
         table: Table,
-        fn borrow(self: *@This(), keys: anytype, rows: anytype, fields: anytype) Target {
-            const Metadata = @TypeOf(keys.metadata[0]);
-            const occupied = comptime occupiedFloor(Metadata);
-
+        fn borrow(self: *@This(), keys: []const Memo.Digest, rows: anytype, fields: anytype) Target {
             self.used = memory.borrowReadColumn(bool, "used", rows);
 
-            self.slots = .{
-                .metadata = if (keys.len == 0) &.{} else std.mem.sliceAsBytes(keys.metadata[0..keys.len]),
-                .occupied = occupied,
-                .keys = if (keys.len == 0) &.{} else std.mem.sliceAsBytes(keys.items[0..keys.len]),
+            self.rows = .{
+                .keys = std.mem.sliceAsBytes(keys),
                 .used = @ptrCast(&self.used),
             };
 
             inline for (@typeInfo(Table).@"struct".field_names) |name| {
-                @field(self.table, name) = if (comptime std.mem.eql(u8, name, "slots"))
-                    if (@typeInfo(@FieldType(Table, name)) == .pointer) &self.slots else self.slots
+                @field(self.table, name) = if (comptime std.mem.eql(u8, name, "rows"))
+                    if (@typeInfo(@FieldType(Table, name)) == .pointer) &self.rows else self.rows
 
                 else if (comptime std.mem.eql(u8, name, "zx_origin"))
                     null
@@ -110,16 +99,6 @@ fn View(comptime Target: type) type {
             return if (@typeInfo(Target) == .pointer) &self.table else self.table;
         }
     };
-}
-
-/// The standard table's forward iterators expose the same bucket order for keys and values.
-fn occupiedFloor(comptime Metadata: type) u8 {
-    comptime {
-        std.debug.assert(@bitSizeOf(Metadata) == @bitSizeOf(u8));
-        std.debug.assert(@bitOffsetOf(Metadata, "used") == @bitSizeOf(u7));
-    }
-
-    return @bitCast(Metadata{ .used = 1 });
 }
 
 fn Value(comptime T: type) type {

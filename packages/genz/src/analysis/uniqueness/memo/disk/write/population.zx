@@ -1,11 +1,12 @@
+import { sha256_digest_width } from "core/const"
 import memory from "memory"
 
-import type { Slots as Input } from "./model"
+import type { Rows as Input } from "./model"
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { metadata, occupied, used } = in
+    const { keys, used } = in
 
     const zero: u32 = 0
 
@@ -13,12 +14,9 @@ export default function (in: Input): Output {
         index: 0,
         count: zero
     }, {
-        while: state => state.index < metadata.length,
+        while: state => state.index < keys.length / sha256_digest_width,
         next: state => {
-            if (
-                metadata[state.index] >= occupied &&
-                    memory.readColumnBool(used, state.index)
-            ) {
+            if (memory.readColumnBool(used, state.index)) {
                 state.count += 1
             }
 

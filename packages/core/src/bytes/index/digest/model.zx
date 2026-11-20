@@ -1,0 +1,12 @@
+import type { U32Buffer } from "memory"
+
+export type Table = {
+    keys: u8[],
+    buckets: U32Buffer,
+    capacity: u64
+}
+
+export type Exchange = Table & {
+    key: u8[],
+    insert?: u32
+}

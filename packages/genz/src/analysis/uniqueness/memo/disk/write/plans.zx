@@ -1,6 +1,6 @@
+import { sha256_digest_width } from "core/const"
 import memory from "memory"
 
-import { digest_width } from "../const"
 import count from "./count"
 import write from "./planned"
 import population from "./population"
@@ -18,27 +18,27 @@ export type Output = void
 
 export default function (in: Input): Output {
     const { writer, table } = in
-    const { slots } = table
+    const { rows } = table
 
     count({
         writer,
-        count: population(slots)
+        count: population(rows)
     })
 
     const first = selected({
-        slots,
+        rows,
         first: 0
     })
 
-    const last: u64 = slots.metadata.length
+    const last: u64 = rows.keys.length / sha256_digest_width
 
     const written = loop(first, {
         while: index => index < last,
         next: index => {
             const digest = memory.borrowU8Range(
-                slots.keys,
-                index * digest_width,
-                digest_width
+                rows.keys,
+                index * sha256_digest_width,
+                sha256_digest_width
             )
 
             write({
@@ -49,7 +49,7 @@ export default function (in: Input): Output {
             })
 
             index = selected({
-                slots,
+                rows,
                 first: index + 1
             })
         }

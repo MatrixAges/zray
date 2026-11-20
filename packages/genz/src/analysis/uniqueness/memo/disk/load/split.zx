@@ -1,6 +1,5 @@
+import { sha256_digest_width } from "core/const"
 import memory from "memory"
-
-import { digest_width } from "../const"
 
 import type { Input } from "./model"
 
@@ -11,7 +10,7 @@ export type Output = {
 
 export default function (in: Input): Output {
     return {
-        digest: memory.borrowU8Range(in.source, in.start, digest_width),
-        start: in.start + digest_width
+        digest: memory.borrowU8Range(in.source, in.start, sha256_digest_width),
+        start: in.start + sha256_digest_width
     }
 }

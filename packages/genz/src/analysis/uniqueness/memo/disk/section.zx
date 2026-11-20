@@ -1,5 +1,7 @@
+import { sha256_digest_width } from "core/const"
+
 import { word_width } from "../encoding/const"
-import { byte_width, digest_width } from "./const"
+import { byte_width } from "./const"
 import demanded from "./demanded"
 import vector from "./fields/vector"
 import flowed from "./flowed"
@@ -10,7 +12,7 @@ import settled from "./settled"
 import type { Scan as Input, Span as Output } from "./model"
 
 export default function (in: Input): Output {
-    const shortest = digest_width + word_width + byte_width
+    const shortest = sha256_digest_width + word_width + byte_width
 
     const records = vector({
         source: in.source,
@@ -30,7 +32,7 @@ export default function (in: Input): Output {
         next: state => {
             const record = {
                 source: in.source,
-                start: state.offset + digest_width,
+                start: state.offset + sha256_digest_width,
                 trusted: false
             }
 

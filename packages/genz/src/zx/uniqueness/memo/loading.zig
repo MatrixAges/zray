@@ -6,22 +6,23 @@ const disk = @import("disk.zig");
 const Error = std.mem.Allocator.Error;
 
 pub fn load(memo: *Memo, source: []const u8) Error!void {
-    const layout = (try disk.inspect(memo.arena.child_allocator, source)) orelse return;
-    const allocator = memo.arena.allocator();
+    const owner = memo.arena.child_allocator;
+    const layout = (try disk.inspect(owner, source)) orelse return;
+    const payload = memo.arena.allocator();
 
-    try section(allocator, source, layout.settled_start, layout.settled_count, &memo.settled, settled);
-    try section(allocator, source, layout.demanded_start, layout.demanded_count, &memo.demanded, demanded);
-    try section(allocator, source, layout.planned_start, layout.planned_count, &memo.planned, planned);
-    try section(allocator, source, layout.flowed_start, layout.flowed_count, &memo.flowed, flowed);
+    try section(owner, payload, source, layout.settled_start, layout.settled_count, &memo.settled, settled);
+    try section(owner, payload, source, layout.demanded_start, layout.demanded_count, &memo.demanded, demanded);
+    try section(owner, payload, source, layout.planned_start, layout.planned_count, &memo.planned, planned);
+    try section(owner, payload, source, layout.flowed_start, layout.flowed_count, &memo.flowed, flowed);
 }
 
-fn section(allocator: std.mem.Allocator, source: []const u8, start: u64, count: u32, map: anytype, comptime materialize: anytype) Error!void {
-    try map.ensureUnusedCapacity(allocator, count);
+fn section(owner: std.mem.Allocator, payload: std.mem.Allocator, source: []const u8, start: u64, count: u32, map: anytype, comptime materialize: anytype) Error!void {
+    try map.ensureUnusedCapacity(owner, count);
 
     var at = start;
 
     for (0..count) |_| {
-        const row = try materialize(allocator, source, at);
+        const row = try materialize(payload, source, at);
 
         map.putAssumeCapacity(row.digest[0..@sizeOf(Memo.Digest)].*, row.value);
 

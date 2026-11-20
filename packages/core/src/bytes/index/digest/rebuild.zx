@@ -1,0 +1,30 @@
+import integers from "std:integer"
+import { sha256_digest_width } from "core/const"
+import memory from "memory"
+
+import exchange from "./exchange"
+
+import type { Table as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop(0, {
+        while: row => row < in.keys.length / sha256_digest_width,
+        next: row => {
+            const key = memory.borrowU8Range(
+                in.keys,
+                row * sha256_digest_width,
+                sha256_digest_width
+            )
+
+            const previous = exchange({
+                ...in,
+                key,
+                insert: integers.narrow(row)
+            })
+
+            row += 1
+        }
+    })
+}

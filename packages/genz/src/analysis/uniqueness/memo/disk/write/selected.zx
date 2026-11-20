@@ -1,3 +1,4 @@
+import { sha256_digest_width } from "core/const"
 import memory from "memory"
 
 import type { Selection as Input } from "./model"
@@ -5,18 +6,15 @@ import type { Selection as Input } from "./model"
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { metadata, occupied, used } = in.slots
+    const { keys, used } = in.rows
 
     return loop({
         index: in.first,
         found: false
     }, {
-        while: state => !state.found && state.index < metadata.length,
+        while: state => !state.found && state.index < keys.length / sha256_digest_width,
         next: state => {
-            if (metadata[state.index] >= occupied) {
-                state.found = memory.readColumnBool(used, state.index)
-            }
-
+            state.found = memory.readColumnBool(used, state.index)
             state.index += 1
         },
         return: state => state.found ? state.index - 1 : state.index

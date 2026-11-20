@@ -1,9 +1,7 @@
 import type { Writer } from "std:bytes"
 import type { ListColumn, ReadColumn } from "memory"
 
-export type Slots = {
-    metadata: u8[],
-    occupied: u8,
+export type Rows = {
     used: ReadColumn,
     keys: u8[]
 }
@@ -17,19 +15,19 @@ export type Tables = {
 }
 
 export type Selection = {
-    slots: Slots,
+    rows: Rows,
     first: u64
 }
 
 export type Settlements = {
-    slots: Slots,
+    rows: Rows,
     callees: ListColumn,
     levels: ListColumn,
     output: ListColumn
 }
 
 export type Demands = {
-    slots: Slots,
+    rows: Rows,
     marks_output: ListColumn,
     marks_function: ListColumn,
     marks_slot: ListColumn,
@@ -42,7 +40,7 @@ export type Demands = {
 }
 
 export type Plans = {
-    slots: Slots,
+    rows: Rows,
     flags: ListColumn,
     keys: ReadColumn,
     paths: ReadColumn,
@@ -51,7 +49,7 @@ export type Plans = {
 }
 
 export type Flows = {
-    slots: Slots,
+    rows: Rows,
     held: ListColumn,
     text_held: ListColumn,
     written: ListColumn

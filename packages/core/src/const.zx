@@ -4,6 +4,8 @@ export const max_u16: u16 = 65535
 
 export const max_u32: u32 = 4294967295
 
+export const sha256_digest_width: u64 = 32
+
 export const max_u64: u64 = 18446744073709551615
 
 export const i32_positive_magnitude: u64 = 2147483647
