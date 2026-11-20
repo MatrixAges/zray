@@ -1,0 +1,13 @@
+import type { Flowed as Input } from "../replay/ordered/model"
+
+export type Output = Input
+
+export default function (in: Input): Output {
+    const flags: bool[] = []
+
+    return {
+        held: flags.concat(in.held)[0],
+        text_held: flags.concat(in.text_held)[0],
+        written: flags.concat(in.written)[0]
+    }
+}

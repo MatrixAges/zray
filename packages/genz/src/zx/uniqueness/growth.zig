@@ -8,13 +8,6 @@ pub const Renewed = struct { key: u64, want: Level };
 pub const Rows = struct {
     normalized: []const Normalized = &.{},
     renewed: []const Renewed = &.{},
-    pub fn copy(self: Rows, allocator: std.mem.Allocator) std.mem.Allocator.Error!Rows {
-        const normalized = try allocator.dupe(Normalized, self.normalized);
-
-        errdefer allocator.free(normalized);
-
-        return .{ .normalized = normalized, .renewed = try allocator.dupe(Renewed, self.renewed) };
-    }
 };
 
 pub const Store = if (generated) Rows else Seed;

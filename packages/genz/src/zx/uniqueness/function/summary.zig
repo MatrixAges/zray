@@ -1,6 +1,8 @@
 const std = @import("std");
 const zx = @import("zx");
 const Function = @import("../function.zig");
+const Level = @import("../level.zig").Level;
+const Memo = @import("../memo.zig");
 const rows = @import("../row_output.zig");
 const publishing = @import("generated_uniqueness_result_settlement");
 const Publication = std.meta.Child(publishing.Input);
@@ -50,7 +52,7 @@ pub fn settle(function: *Function, owner: std.mem.Allocator, count: usize) std.m
     return .{ .passed = passed.rows(), .output = @ptrCast(output), .changed = result.changed, .reads = reads.rows() };
 }
 
-pub fn retain(owner: std.mem.Allocator, passed: []const Function.Contribution) std.mem.Allocator.Error![]const Function.Contribution {
+pub fn retain(owner: std.mem.Allocator, passed: []const Function.Contribution, output: []const Level) std.mem.Allocator.Error!Memo.Settled {
     const retaining = @import("generated_uniqueness_result_retain");
     const Parameter = @typeInfo(@TypeOf(retaining.executeValue)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
@@ -61,12 +63,13 @@ pub fn retain(owner: std.mem.Allocator, passed: []const Function.Contribution) s
     const input: Input = .{
         .source = zx.columns.storage.view(@FieldType(Input, "source"), passed),
         .target = &.{ .storage = @ptrCast(&result.buffer), .columns = &result.view },
+        .output = @ptrCast(output),
     };
 
-    retaining.executeValue(owner, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
+    const levels = retaining.executeValue(owner, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => std.debug.panic("contribution retention failed: {s}", .{@errorName(err)}),
     };
 
-    return result.rows();
+    return .{ .passed = result.rows(), .output = @ptrCast(levels) };
 }

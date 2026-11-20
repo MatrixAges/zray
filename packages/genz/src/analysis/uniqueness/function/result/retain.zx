@@ -7,10 +7,11 @@ import type { ContributionTarget } from "./columns"
 
 export type Input = {
     source: Contribution[],
-    target: ContributionTarget
+    target: ContributionTarget,
+    output: u8[]
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { source, target } = in
@@ -33,4 +34,8 @@ export default function (in: Input): Output {
             index += 1
         }
     })
+
+    const output: u8[] = []
+
+    return output.concat(in.output)[0]
 }

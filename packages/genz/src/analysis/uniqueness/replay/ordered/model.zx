@@ -51,6 +51,12 @@ export type Demanded = {
     grew: bool
 }
 
+export type Flowed = {
+    held: bool[],
+    text_held: bool[],
+    written: bool[]
+}
+
 export type Demand = {
     left: Demanded,
     right: Demanded

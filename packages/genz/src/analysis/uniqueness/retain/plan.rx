@@ -1,0 +1,15 @@
+<Module>
+    <Type from="../replay/ordered/model" as="Records" />
+
+    <Args in={Records.Planned} out={Records.Planned} />
+
+    <Call fn="vectors" in={$in.omit(["renewals"])} />
+    <Call fn="../renewals/retain" in={$in.renewals} />
+
+    <Return
+        value={{
+            ...$ctx.vectors,
+            renewals: $ctx.retain
+        }}
+    />
+</Module>

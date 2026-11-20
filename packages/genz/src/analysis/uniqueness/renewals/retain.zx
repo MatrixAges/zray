@@ -1,0 +1,13 @@
+import type { Renewals as Input } from "./model"
+
+export type Output = Input
+
+export default function (in: Input): Output {
+    const slots: u32[] = []
+    const keys: u64[] = []
+
+    return {
+        keys: keys.concat(in.keys)[0],
+        paths: in.paths.map(path => slots.concat(path)[0])[0]
+    }
+}

@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Retention" />
+
+    <Args in={Retention.Growth} out={void} />
+
+    <Call fn="rows" in={$in.normalized} />
+    <Call fn="rows" in={$in.renewed} />
+</Module>

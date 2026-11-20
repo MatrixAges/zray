@@ -172,8 +172,6 @@ pub fn settle(self: *Self, owner: std.mem.Allocator, count: usize) std.mem.Alloc
 }
 
 pub fn copyContributions(owner: std.mem.Allocator, passed: []const Contribution) std.mem.Allocator.Error![]const Contribution {
-    if (generated_analysis) return Summary.retain(owner, passed);
-
     const values = try owner.alloc(Contribution, passed.len);
 
     for (passed, values) |item, *target| target.* = .{ .callee = item.callee, .levels = try owner.dupe(Level, item.levels) };
@@ -349,7 +347,18 @@ pub const Plan = struct {
     pub fn renewalAt(self: Plan, index: usize) Renewal {
         return storage.at(self.renewals, index);
     }
+
+    pub fn fromColumns(record: anytype) Plan {
+        return .{
+            .flags = @ptrCast(record.flags),
+            .renewals = .{ .keys = record.renewals.keys, .paths = record.renewals.paths },
+            .transfers = record.transfers,
+            .slot_first = record.slot_first,
+        };
+    }
     pub fn copy(self: Plan, allocator: std.mem.Allocator) std.mem.Allocator.Error!Plan {
+        if (generated_analysis) return @import("retain.zig").plan(allocator, &self);
+
         const owned_flags = try allocator.dupe(Flags, self.flags);
 
         errdefer allocator.free(owned_flags);
@@ -362,7 +371,7 @@ pub const Plan = struct {
 
         errdefer allocator.free(slot_first);
 
-        return .{ .flags = owned_flags, .renewals = try storage.copy(allocator, self.renewals), .transfers = transfers, .slot_first = slot_first };
+        return .{ .flags = owned_flags, .renewals = try storage.copySeed(allocator, self.renewals), .transfers = transfers, .slot_first = slot_first };
     }
 };
 

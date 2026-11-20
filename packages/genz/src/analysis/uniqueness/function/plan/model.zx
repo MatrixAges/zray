@@ -1,5 +1,5 @@
 import type { Table } from "core/type_table/model"
-import type { Renewals } from "../../renewals/model"
+import type { Planned } from "../../replay/ordered/model"
 import type { Context, Knowledge, Metadata, Read } from "../levels/model"
 
 export type Snapshot = {
@@ -48,12 +48,7 @@ export type Finish = {
     needed: bool[]
 }
 
-export type Published = {
-    flags: u8[],
-    renewals: Renewals,
-    transfers: u64[],
-    slot_first: u32[]
-}
+export type Published = Planned
 
 export type Visit = Input.Omit("state")
 

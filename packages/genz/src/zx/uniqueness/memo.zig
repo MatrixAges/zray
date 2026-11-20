@@ -151,6 +151,12 @@ fn keyed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: S
 pub fn putSettled(self: *Self, key: Digest, passed: []const Function.Contribution, output: []const Level) std.mem.Allocator.Error!Settled {
     const allocator = self.arena.allocator();
 
+    if (generated_encoding) {
+        const held = try @import("function/summary.zig").retain(allocator, passed, output);
+
+        return self.putOwnedSettled(key, held.passed, held.output);
+    }
+
     return self.putOwnedSettled(key, try Function.copyContributions(allocator, passed), try allocator.dupe(Level, output));
 }
 
@@ -172,7 +178,10 @@ pub fn getDemanded(self: *Self, summaries: *const Summaries, state: State) std.m
 
 /// Records the demand pass of the state `getDemanded` digested into `key`, with the growth copies it left.
 pub fn putDemanded(self: *Self, key: Digest, marks: []const Function.Mark, records: *const Growth.Store, grew: bool) std.mem.Allocator.Error!Demanded {
-    return self.putOwnedDemanded(key, try self.arena.allocator().dupe(Function.Mark, marks), records, grew);
+    const allocator = self.arena.allocator();
+    const retained = if (generated_encoding) try @import("retain.zig").marks(allocator, marks) else try allocator.dupe(Function.Mark, marks);
+
+    return self.putOwnedDemanded(key, retained, records, grew);
 }
 
 pub fn putOwnedDemanded(self: *Self, key: Digest, marks: []const Function.Mark, records: *const Growth.Store, grew: bool) std.mem.Allocator.Error!Demanded {
@@ -223,9 +232,14 @@ pub fn keepFlowed(self: *Self, key: Digest) void {
 pub fn putFlowed(self: *Self, key: Digest, held: []const bool, text_held: []const bool, written: []const bool) std.mem.Allocator.Error!void {
     const allocator = self.arena.allocator();
 
-    self.changed = true;
+    const value = if (generated_encoding)
+        try @import("retain.zig").flow(allocator, held, text_held, written)
+    else
+        Flowed{ .held = try allocator.dupe(bool, held), .text_held = try allocator.dupe(bool, text_held), .written = try allocator.dupe(bool, written) };
 
-    try self.flowed.put(self.indexAllocator(), key, .{ .held = try allocator.dupe(bool, held), .text_held = try allocator.dupe(bool, text_held), .written = try allocator.dupe(bool, written) });
+    try self.flowed.put(self.indexAllocator(), key, value);
+
+    self.changed = true;
 }
 
 fn use(comptime Value: type, map: *Table(Value), key: Digest) ?Value {

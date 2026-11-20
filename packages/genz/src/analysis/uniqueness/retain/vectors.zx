@@ -1,0 +1,17 @@
+import type { Planned } from "../replay/ordered/model"
+
+export type Input = Planned.Omit("renewals")
+
+export type Output = Input
+
+export default function (in: Input): Output {
+    const bytes: u8[] = []
+    const words: u32[] = []
+    const wide: u64[] = []
+
+    return {
+        flags: bytes.concat(in.flags)[0],
+        transfers: wide.concat(in.transfers)[0],
+        slot_first: words.concat(in.slot_first)[0]
+    }
+}

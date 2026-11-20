@@ -22,31 +22,7 @@ pub fn at(records: Records, index: usize) Record {
     return .{ .owner = @intCast(group >> @bitSizeOf(u1)), .path = records.paths[index], .value = @as(u1, @truncate(group)) != 0, .writable = (records.keys[index] & 1) != 0 };
 }
 
-pub fn copy(allocator: std.mem.Allocator, source: Records) std.mem.Allocator.Error!Records {
-    if (generated) {
-        if (source.keys.len == 0) return empty;
-
-        const keys = try allocator.dupe(u64, source.keys);
-
-        errdefer allocator.free(keys);
-
-        const paths = try allocator.alloc([]const u32, source.paths.len);
-        var copied: usize = 0;
-
-        errdefer {
-            for (paths[0..copied]) |path| allocator.free(path);
-
-            allocator.free(paths);
-        }
-
-        for (source.paths, paths) |path, *target| {
-            target.* = try allocator.dupe(u32, path);
-            copied += 1;
-        }
-
-        return .{ .keys = keys, .paths = paths };
-    }
-
+pub fn copySeed(allocator: std.mem.Allocator, source: []const Record) std.mem.Allocator.Error![]const Record {
     if (source.len == 0) return &.{};
 
     const rows = try allocator.alloc(Record, source.len);

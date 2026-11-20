@@ -90,7 +90,8 @@ pub const Replay = struct {
     /// body that met another result than recorded ends the replay.
     pub fn met(self: *Replay, comptime kind: Kind, index: usize, value: Memo.Result(kind), memo: *const Memo) std.mem.Allocator.Error!void {
         const recording = if (self.recording) |*arena| arena.allocator() else return;
-        const state = try recording.dupe(u8, self.recalled orelse memo.lastState());
+        const source = self.recalled orelse memo.lastState();
+        const state = if (generated) try @import("retain.zig").state(recording, source) else try recording.dupe(u8, source);
 
         self.recalled = null;
 
@@ -120,7 +121,12 @@ pub const Replay = struct {
 
         var result: Self = undefined;
         result.key = self.key;
-        result.identities = try allocator.dupe(Digest, self.identities);
+
+        result.identities = if (generated)
+            @constCast(std.mem.bytesAsSlice(Digest, try @import("retain.zig").state(allocator, std.mem.sliceAsBytes(self.identities))))
+
+        else
+            try allocator.dupe(Digest, self.identities);
 
         inline for (@typeInfo(Kind).@"enum".field_names, 0..) |kind, index| {
             const log = @field(self, kind);

@@ -41,12 +41,7 @@ pub fn publish(function: *const Function, allocator: std.mem.Allocator, borrowed
 
     const result = zx.columns.invoke(publication.executeValue, allocator, &finish) catch |err| return failure(err);
 
-    return .{
-        .flags = @ptrCast(result.flags),
-        .renewals = .{ .keys = result.renewals.keys, .paths = result.renewals.paths },
-        .transfers = result.transfers,
-        .slot_first = result.slot_first,
-    };
+    return Function.Plan.fromColumns(result);
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

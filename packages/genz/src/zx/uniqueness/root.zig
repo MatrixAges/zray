@@ -260,7 +260,7 @@ fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, lasting: std.
         .demanded => {
             const result = try analysis.demand(memo.arena.allocator());
 
-            if (generated and !analysis.grew) growth.* = try growth.copy(memo.arena.allocator());
+            if (generated and !analysis.grew) growth.* = try @import("retain.zig").growth(memo.arena.allocator(), growth.*);
 
             return try memo.putOwnedDemanded(memo.key, result.marks, growth, analysis.grew);
         },

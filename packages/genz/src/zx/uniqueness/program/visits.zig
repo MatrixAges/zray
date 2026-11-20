@@ -47,7 +47,7 @@ pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Erro
         break :replayed demanded;
     } else if (early) |found| ahead: {
         const rows = if (@import("genz_options").generated_analysis and found.grew)
-            try found.growth.copy(ctx.memo.arena.allocator())
+            try @import("../retain.zig").growth(ctx.memo.arena.allocator(), found.growth)
         else
             found.growth;
 
