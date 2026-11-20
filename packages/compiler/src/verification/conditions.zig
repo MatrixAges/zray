@@ -174,9 +174,15 @@ fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []co
                 try self.require(path, condition.safe);
 
                 path = try self.conjunction(path, condition.safe);
-                const yes = try self.block(branch.yes, environment, try self.conjunction(path, condition.value.scalar));
-                const no = try self.block(branch.no, environment, try self.excluding(path, condition.value.scalar));
-                path = try self.disjunction(yes, no);
+                const yes_entry = try self.conjunction(path, condition.value.scalar);
+                const yes = try self.block(branch.yes, environment, yes_entry);
+                const no_entry = try self.excluding(path, condition.value.scalar);
+                const no = try self.block(branch.no, environment, no_entry);
+
+                // When both arms preserve their entry paths, their union is the incoming path.
+                if (!std.mem.eql(u8, yes, yes_entry) or !std.mem.eql(u8, no, no_entry)) {
+                    path = try self.disjunction(yes, no);
+                }
             },
             .switch_stmt => |selection| {
                 const subject = try evaluator.evaluate(selection.subject);
