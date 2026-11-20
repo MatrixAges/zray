@@ -1,4 +1,5 @@
 const std = @import("std");
+pub const installation = @import("package/install/host.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();

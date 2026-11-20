@@ -29,6 +29,14 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    const installation_host = b.createModule(.{
+        .root_source_file = b.path("src/package/install/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_host", .module = host }},
+    });
+
+    host.addImport("cli_installation", @import("build/source.zig").installation(b, compiler, target, optimize, installation_host));
     host.addImport("manifest_output", b.modules.get("manifest_output").?);
 
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);

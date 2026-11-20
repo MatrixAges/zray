@@ -1,0 +1,48 @@
+<Module>
+    <Type from="../model" as="Installation" />
+
+    <Args in={Installation.Archive} out={u64} />
+
+    <Call
+        fn="../effects.findArchive"
+        in={[
+            $in.host,
+            $in.members
+        ]}
+    />
+
+    <If on={$ctx.findArchive != null}>
+        <Return value={$ctx.findArchive} />
+    </If>
+
+    <Call fn="locate" in={$in.host} />
+
+    <Call
+        fn="../effects.fetchArchive"
+        in={[
+            $in.host,
+            $ctx.locate
+        ]}
+    />
+
+    <Call
+        fn="../effects.readArchive"
+        in={[
+            $in.host,
+            $ctx.fetchArchive
+        ]}
+    />
+
+    <Call fn="../effects.verifyArchive" in={$in.host} />
+
+    <Call
+        fn="../effects.recordArchive"
+        in={[
+            $in.host,
+            $ctx.locate,
+            $ctx.fetchArchive
+        ]}
+    />
+
+    <Return value={$ctx.recordArchive} />
+</Module>

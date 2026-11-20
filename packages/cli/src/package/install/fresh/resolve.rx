@@ -1,0 +1,18 @@
+<Module>
+    <Type from="../model" as="Installation" />
+
+    <Args in={Installation.Fresh} out={void} />
+
+    <Call fn="../effects.prepareIndex" in={$in.host} />
+
+    <Call
+        fn="seed"
+        in={$in.pick([
+            "host",
+            "members"
+        ])}
+    />
+
+    <Call fn="closure" in={$in} />
+    <Call fn="../effects.finishFresh" in={$in.host} />
+</Module>

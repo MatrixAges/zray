@@ -36,22 +36,38 @@ pub fn installed(io: std.Io, allocator: std.mem.Allocator, root: []const u8, loa
     return data.paths;
 }
 
-pub fn publish(io: std.Io, allocator: std.mem.Allocator, root: []const u8, prepared: @import("model.zig").Prepared) !void {
+pub const Publication = struct {
+    lock: []const u8,
+    mapping: []const u8,
+    digest: [64]u8,
+    pub fn fits(self: Publication) bool {
+        return self.lock.len <= maximum_bytes and self.mapping.len <= maximum_bytes;
+    }
+};
+
+pub fn render(allocator: std.mem.Allocator, prepared: @import("model.zig").Prepared) !Publication {
     const source = prepared.source orelse try std.json.Stringify.valueAlloc(allocator, prepared.lock, .{ .whitespace = .indent_2 });
     const digest = hash(source);
     const mapping = try std.json.Stringify.valueAlloc(allocator, Installation{ .format_version = 1, .lock_sha256 = &digest, .paths = prepared.paths }, .{ .whitespace = .indent_2 });
 
-    if (source.len > maximum_bytes or mapping.len > maximum_bytes) return error.PackageInstallationTooLarge;
+    return .{ .lock = source, .mapping = mapping, .digest = digest };
+}
 
-    try write(io, try mapPath(allocator, root, &digest), mapping);
+pub fn writeMapping(io: std.Io, allocator: std.mem.Allocator, root: []const u8, data: *const Publication) !void {
+    try write(io, try mapPath(allocator, root, &data.digest), data.mapping);
+}
 
+pub fn lockUnchanged(io: std.Io, allocator: std.mem.Allocator, root: []const u8, source: []const u8) !bool {
+    const path = try std.fs.path.join(allocator, &.{ root, "pkg.lock.json" });
+    const current = try read(io, allocator, path, null);
+
+    return std.mem.eql(u8, current, source);
+}
+
+pub fn writeLock(io: std.Io, allocator: std.mem.Allocator, root: []const u8, source: []const u8) !void {
     const path = try std.fs.path.join(allocator, &.{ root, "pkg.lock.json" });
 
-    if (prepared.source != null) {
-        const current = try read(io, allocator, path, null);
-
-        if (!std.mem.eql(u8, current, source)) return error.LockChangedDuringInstall;
-    } else try write(io, path, source);
+    try write(io, path, source);
 }
 
 fn mapPath(allocator: std.mem.Allocator, root: []const u8, digest: []const u8) ![]const u8 {

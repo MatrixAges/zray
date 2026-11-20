@@ -1,0 +1,33 @@
+<Module>
+    <Type from="../model" as="Installation" />
+
+    <Args in={Installation.Publication} out={Installation.Result} />
+
+    <Call fn="../effects.currentWorkspaceMatches" in={$in.host} />
+
+    <If on={!$ctx.currentWorkspaceMatches}>
+        <Return value={Installation.Status.WorkspaceChangedDuringInstall} />
+    </If>
+
+    <Call fn="../effects.renderInstallation" in={$in.host} />
+
+    <If on={!$ctx.renderInstallation}>
+        <Return value={Installation.Status.PackageInstallationTooLarge} />
+    </If>
+
+    <Call fn="../effects.publishMapping" in={$in.host} />
+
+    <If on={$in.reuse}>
+        <Call fn="../effects.lockUnchanged" in={$in.host} />
+
+        <If on={!$ctx.lockUnchanged}>
+            <Return value={Installation.Status.LockChangedDuringInstall} />
+        </If>
+
+        <Else>
+            <Call fn="../effects.publishLock" in={$in.host} />
+        </Else>
+    </If>
+
+    <Return value={Installation.Status.Installed} />
+</Module>

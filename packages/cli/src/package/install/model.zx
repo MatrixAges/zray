@@ -1,0 +1,30 @@
+import type { Host } from "installation_host"
+
+export enum Status {
+    Installed,
+    LockFileMissing,
+    LockFileOutdated,
+    WorkspaceChangedDuringInstall,
+    LockChangedDuringInstall,
+    PackageInstallationTooLarge
+}
+
+export type Input = {
+    host: Host,
+    members: u64,
+    maximum_edges: u64,
+    locked_rows: u64,
+    has_lock: bool,
+    reuse: bool,
+    frozen: bool
+}
+
+export type Fresh = Input.Pick("host", "members", "maximum_edges")
+
+export type Archive = Fresh.Pick("host", "members")
+
+export type Replay = Input.Pick("host", "locked_rows")
+
+export type Publication = Input.Pick("host", "reuse")
+
+export type Result = Status

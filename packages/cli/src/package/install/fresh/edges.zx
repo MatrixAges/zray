@@ -1,0 +1,38 @@
+import host from "installation_host"
+
+import archive from "./archive.rx"
+
+import type { Fresh } from "../model"
+
+export type Input = Fresh.Pick("host", "members") & {
+    owner: u64,
+    remaining: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { owner, remaining } = in
+
+    host.beginDependencies(in.host, owner, owner < in.members)
+
+    const traversal = loop({
+        done: false
+    }, {
+        while: current => !current.done,
+        next: current => {
+            if (host.advanceDependency(in.host, remaining)) {
+                const target = archive({
+                    host: in.host,
+                    members: in.members
+                })
+
+                host.acceptArchive(in.host, target)
+            } else {
+                current.done = true
+            }
+        }
+    })
+
+    return host.finishDependencies(in.host, owner)
+}

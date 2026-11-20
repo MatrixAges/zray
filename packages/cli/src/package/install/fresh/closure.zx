@@ -1,0 +1,29 @@
+import host from "installation_host"
+
+import edges from "./edges"
+
+import type { Fresh as Input } from "../model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const traversal = loop({
+        owner: first,
+        consumed: first
+    }, {
+        while: current => current.owner < host.packageCount(in.host),
+        next: current => {
+            const { owner, consumed } = current
+
+            current.consumed += edges({
+                host: in.host,
+                members: in.members,
+                owner,
+                remaining: in.maximum_edges - consumed
+            })
+            current.owner += 1
+        }
+    })
+}

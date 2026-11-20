@@ -1,0 +1,32 @@
+import host from "installation_host"
+
+import type { Replay as Input } from "../model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const traversal = loop({
+        row: first
+    }, {
+        while: current => current.row < in.locked_rows,
+        next: current => {
+            const row = current.row
+
+            const archive = host.lockedArchive(in.host, row)
+            const location = match archive {
+                true => host.fetchLocked(in.host, row),
+                _ => host.workspacePath(in.host, row)
+            }
+
+            const path = host.recordLockedPath(in.host, row, location)
+
+            if (archive) {
+                host.verifyLockedManifest(in.host, row, path)
+            }
+
+            current.row += 1
+        }
+    })
+}

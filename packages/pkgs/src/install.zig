@@ -53,7 +53,7 @@ pub const Dependencies = struct {
         self.cursor = 0;
     }
 
-    const Pending = struct { name: []const u8, release: Index.Release };
+    pub const Pending = struct { name: []const u8, release: Index.Release };
 
     pub fn accept(self: *Dependencies, target: usize) void {
         self.output.rows()[@intCast(self.cursor)].target = target;
@@ -122,10 +122,20 @@ pub const Archives = struct {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
         const selected = rules.install_archive.executeValue(empty.allocator(), &.{
-            .names = @ptrCast(&names), .versions = @ptrCast(&versions), .digests = @ptrCast(&digests),
-            .buckets = @ptrCast(&self.table.items), .scratch = @ptrCast(&self.table), .capacity = self.table.items.len,
-            .indexed = self.indexed, .first = first, .count = archives.len, .maximum = Lock.maximum_packages,
-            .digest = digest, .name = name, .version = release.version, .archive = release.archive,
+            .names = @ptrCast(&names),
+            .versions = @ptrCast(&versions),
+            .digests = @ptrCast(&digests),
+            .buckets = @ptrCast(&self.table.items),
+            .scratch = @ptrCast(&self.table),
+            .capacity = self.table.items.len,
+            .indexed = self.indexed,
+            .first = first,
+            .count = archives.len,
+            .maximum = Lock.maximum_packages,
+            .digest = digest,
+            .name = name,
+            .version = release.version,
+            .archive = release.archive,
         }) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,

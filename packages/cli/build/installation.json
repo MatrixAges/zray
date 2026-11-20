@@ -1,0 +1,21 @@
+{
+    "roots": [
+        {
+            "path": "package_install",
+            "prefix": "package/install/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "package/install/run.rx",
+            "name": "workflow"
+        }
+    ],
+    "packages": [],
+    "interfaces": [
+        {
+            "path": "package_install/host.d.zx",
+            "module": "installation_host"
+        }
+    ]
+}

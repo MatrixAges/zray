@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Installation" />
+
+    <Args in={Installation.Input} out={Installation.Result} />
+
+    <If on={$in.reuse}>
+        <Call
+            module="locked/replay"
+            in={$in.pick([
+                "host",
+                "locked_rows"
+            ])}
+        />
+
+        <Else>
+            <If on={$in.frozen}>
+                <Call fn="frozen" in={$in.has_lock} />
+
+                <Return value={$ctx.frozen} />
+            </If>
+
+            <Call
+                module="fresh/resolve"
+                in={$in.pick([
+                    "host",
+                    "members",
+                    "maximum_edges"
+                ])}
+            />
+        </Else>
+    </If>
+
+    <Call
+        module="publish/write"
+        in={$in.pick([
+            "host",
+            "reuse"
+        ])}
+    />
+
+    <Return value={$ctx.write} />
+</Module>

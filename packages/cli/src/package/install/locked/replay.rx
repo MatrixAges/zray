@@ -1,0 +1,15 @@
+<Module>
+    <Type from="../model" as="Installation" />
+
+    <Args in={Installation.Replay} out={void} />
+
+    <Call
+        fn="../effects.beginReplay"
+        in={[
+            $in.host,
+            $in.locked_rows
+        ]}
+    />
+
+    <Call fn="paths" in={$in} />
+</Module>
