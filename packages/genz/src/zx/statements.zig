@@ -58,67 +58,67 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         output.clearRetainingCapacity();
 
         var consumed_previous = false;
-        var emitted: ?node.Block = null;
         const route = if (generated) routes[offset] else 0;
 
         if (if (generated) route & planning.flags.store_route != 0 else true) {
             if (try @import("store/begin.zig").statement(self, values, offset)) |begin| try output.append(self.allocator, begin);
         }
 
-        switch (values.at(offset)) {
+        const span = switch (values.at(offset)) {
             .evaluate => |id| try emission.discard(self, &output, try @import("iteration.zig").discard(self, id)),
-            .parallel => |invocations| try output.appendSlice(self.allocator, try @import("parallel/root.zig").lower(self, invocations)),
+            .parallel => |invocations| try @import("parallel/root.zig").lower(self, invocations),
             .constant => |binding| binding_block: {
                 const task = if (generated) route & planning.flags.task_route != 0 else @import("binding.zig").before(self, binding.value, binding.symbol, false) == .Task;
 
                 if (task) {
                     try @import("tasks/root.zig").bind(self, &output, self.names[@backingInt(binding.symbol)], binding.value, false);
 
-                    break :binding_block;
+                    break :binding_block try self.builder.statements(output.items);
                 }
 
                 const borrowed = try locals.optionalCall(self, &output, binding.symbol, binding.value, self.program.output_type);
                 const value = borrowed orelse if (self.stack_symbols.contains(binding.symbol)) try @import("value_call/root.zig").expression(self, binding.value) else try self.expr(binding.value);
 
-                try @import("binding.zig").append(self, &output, .{
+                break :binding_block try @import("binding.zig").publish(self, &output, .{
                     .symbol = binding.symbol,
                     .value = value,
                     .by_value = self.stack_symbols.contains(binding.symbol),
                 });
             },
-            .destructure => |binding| try @import("statements/destructure/lower.zig").append(self, &output, binding),
-            .result => |value| {
+            .destructure => |binding| try @import("statements/destructure/lower.zig").publish(self, &output, binding),
+            .result => |value| result: {
                 const fuse = if (generated) route & planning.flags.fuse_route != 0 else false;
+                const lowered = try @import("statements/result/lower.zig").publish(self, &output, values, offset, value, fuse);
 
-                consumed_previous = try @import("statements/result/lower.zig").append(self, &output, values, offset, value, fuse);
+                consumed_previous = lowered.consumed_previous;
+
+                break :result lowered.block;
             },
-            .branch => |branch| {
+            .branch => |branch| conditional: {
                 const condition = try self.expr(branch.condition);
                 const yes = try lower(self, branch.yes);
                 const no = try lower(self, branch.no);
 
-                try emission.branch(self, &output, condition, yes, no);
+                break :conditional try emission.branch(self, &output, condition, yes, no);
             },
-            .switch_stmt => |selection| {
+            .switch_stmt => |selection| cases: {
                 const prefix = try self.builder.statements(output.items);
                 const body = try @import("statements/switch/lower.zig").lower(self, selection);
 
-                emitted = if (prefix.len == 0) body else try @import("../node/blocks.zig").join(
+                break :cases if (prefix.len == 0) body else try @import("../node/blocks.zig").join(
                     self.allocator,
                     self.builder.nodes,
                     &.{ prefix.start, body.start },
                     &.{ prefix.len, body.len },
                 );
             },
-            .store_set => |setter| {
+            .store_set => |setter| store_set: {
                 const target = try emission.storeTarget(self, setter.slot);
                 const value = try self.expr(setter.value);
 
-                try emission.assignment(self, &output, target, value);
+                break :store_set try emission.assignment(self, &output, target, value);
             },
-        }
-
-        const span = emitted orelse try self.builder.statements(output.items);
+        };
 
         starts[offset] = span.start;
         counts[offset] = span.len;

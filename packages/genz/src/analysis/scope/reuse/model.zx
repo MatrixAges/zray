@@ -18,7 +18,9 @@ export type Input = {
 
 export type Plan = {
     changes: u32?[],
-    variables: bool[]
+    variables: bool[],
+    alias_symbols: u32[],
+    alias_sources: u32[]
 }
 
 export type Output = Plan?
@@ -28,12 +30,10 @@ export type Preparation = {
     last: Last
 }
 
-export type Work = {
+export type Work = Plan & {
     source: Input,
     last: Last,
     bound: Last,
-    changes: u32?[],
-    variables: bool[],
     binding: u64,
     candidate: u64
 }

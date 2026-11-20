@@ -4,16 +4,24 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn discard(self: *Lower, output: *std.ArrayList(node.Statement), value: node.ExpressionId) Lower.Error!void {
-    if (!generated) return output.append(self.allocator, .{ .discard = value });
+pub fn discard(self: *Lower, output: *std.ArrayList(node.Statement), value: node.ExpressionId) Lower.Error!node.Block {
+    if (!generated) {
+        try output.append(self.allocator, .{ .discard = value });
 
-    return append(@import("generated_statement_discard"), self, output, .{ .value = @backingInt(value) });
+        return self.builder.statements(output.items);
+    }
+
+    return publish(@import("generated_statement_discard"), self, output.items, .{ .value = @backingInt(value) });
 }
 
-pub fn branch(self: *Lower, output: *std.ArrayList(node.Statement), condition: node.ExpressionId, yes: node.Block, no: node.Block) Lower.Error!void {
-    if (!generated) return output.append(self.allocator, .{ .branch = .{ .condition = condition, .yes = yes, .no = no } });
+pub fn branch(self: *Lower, output: *std.ArrayList(node.Statement), condition: node.ExpressionId, yes: node.Block, no: node.Block) Lower.Error!node.Block {
+    if (!generated) {
+        try output.append(self.allocator, .{ .branch = .{ .condition = condition, .yes = yes, .no = no } });
 
-    return append(@import("generated_statement_branch"), self, output, .{
+        return self.builder.statements(output.items);
+    }
+
+    return publish(@import("generated_statement_branch"), self, output.items, .{
         .condition = @backingInt(condition),
         .yes_start = yes.start,
         .yes_count = yes.len,
@@ -22,10 +30,14 @@ pub fn branch(self: *Lower, output: *std.ArrayList(node.Statement), condition: n
     });
 }
 
-pub fn assignment(self: *Lower, output: *std.ArrayList(node.Statement), target: node.ExpressionId, value: node.ExpressionId) Lower.Error!void {
-    if (!generated) return output.append(self.allocator, .{ .assignment = .{ .target = target, .value = value } });
+pub fn assignment(self: *Lower, output: *std.ArrayList(node.Statement), target: node.ExpressionId, value: node.ExpressionId) Lower.Error!node.Block {
+    if (!generated) {
+        try output.append(self.allocator, .{ .assignment = .{ .target = target, .value = value } });
 
-    return append(@import("generated_statement_assignment"), self, output, .{ .target = @backingInt(target), .value = @backingInt(value) });
+        return self.builder.statements(output.items);
+    }
+
+    return publish(@import("generated_statement_assignment"), self, output.items, .{ .target = @backingInt(target), .value = @backingInt(value) });
 }
 
 pub fn storeTarget(self: *Lower, slot: u32) Lower.Error!node.ExpressionId {
@@ -61,7 +73,7 @@ pub fn storeTarget(self: *Lower, slot: u32) Lower.Error!node.ExpressionId {
     return @fromBackingInt(result.root);
 }
 
-fn append(comptime entry: type, self: *Lower, output: *std.ArrayList(node.Statement), input: std.meta.Child(entry.Input)) Lower.Error!void {
+fn publish(comptime entry: type, self: *Lower, prefix: []const node.Statement, input: std.meta.Child(entry.Input)) Lower.Error!node.Block {
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -69,7 +81,8 @@ fn append(comptime entry: type, self: *Lower, output: *std.ArrayList(node.Statem
     defer scratch.deinit();
 
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, output, result) catch |err| return failure(err);
+
+    return self.builder.publishStatements(prefix, result);
 }
 
 fn failure(err: anyerror) Lower.Error {

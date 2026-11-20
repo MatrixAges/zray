@@ -29,11 +29,17 @@ export default function (in: Input): Output {
                     })
 
                     if (previous != null) {
+                        const change = integers.narrow(row)
+
                         state.changes = state.changes.with(
                             state.binding,
-                            integers.narrow(row)
+                            change
                         )
                         state.variables = state.variables.with(previous, true)
+                        state.alias_symbols = state.alias_symbols.push(symbol)[0]
+                        state.alias_sources = state.alias_sources.push(
+                            candidates.previous[row]
+                        )[0]
                     }
                 }
 
@@ -50,9 +56,11 @@ export default function (in: Input): Output {
 
             state.binding += 1
         },
-        return: state => ({
-            changes: state.changes,
-            variables: state.variables
-        })
+        return: state => state.pick([
+            "changes",
+            "variables",
+            "alias_symbols",
+            "alias_sources"
+        ])
     })
 }

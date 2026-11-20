@@ -51,6 +51,18 @@ pub fn statements(self: Self, values: []const node.Statement) std.mem.Allocator.
     return self.nodes.block(self.allocator, values);
 }
 
+pub fn publishStatements(self: Self, prefix: []const node.Statement, columns: anytype) std.mem.Allocator.Error!node.Block {
+    const first = try self.statements(prefix);
+    const table = &self.nodes.statements;
+
+    @import("node/import_rows.zig").appendBorrowed(self.allocator, table, columns) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
+
+    return .{ .start = first.start, .len = @intCast(table.tags.items.len - first.start) };
+}
+
 pub fn binary(self: Self, operator: node.BinaryOperator, left: node.ExpressionId, right: node.ExpressionId) std.mem.Allocator.Error!node.ExpressionId {
     return self.expression(.{ .binary = .{ .operator = operator, .left = left, .right = right } });
 }

@@ -3,12 +3,15 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const rows = @import("../../../node/import_rows.zig");
-const statements = @import("../../../node/import_statements.zig");
 const Lower = @import("../../lower.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize, value: ?ir.ExprId, fuse: bool) Lower.Error!bool {
-    if (!generated) return @import("seed.zig").append(self, output, values, offset, value);
+pub fn publish(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize, value: ?ir.ExprId, fuse: bool) Lower.Error!struct { block: node.Block, consumed_previous: bool } {
+    if (!generated) {
+        const consumed_previous = try @import("seed.zig").append(self, output, values, offset, value);
+
+        return .{ .block = try self.builder.statements(output.items), .consumed_previous = consumed_previous };
+    }
 
     var returned: ?node.ExpressionId = null;
     var consumed_previous = false;
@@ -29,12 +32,10 @@ pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.B
         returned = try @import("../../state_value/conversion.zig").convert(self, output, self.program.output_type, boundary, .view_layout);
     };
 
-    try emit(self, output, returned);
-
-    return consumed_previous;
+    return .{ .block = try emit(self, output.items, returned), .consumed_previous = consumed_previous };
 }
 
-fn emit(self: *Lower, output: *std.ArrayList(node.Statement), value: ?node.ExpressionId) Lower.Error!void {
+fn emit(self: *Lower, prefix: []const node.Statement, value: ?node.ExpressionId) Lower.Error!node.Block {
     const entry = @import("generated_result_emit");
     const Input = std.meta.Child(entry.Input);
     const Output = std.meta.Child(entry.Output);
@@ -84,9 +85,11 @@ fn emit(self: *Lower, output: *std.ArrayList(node.Statement), value: ?node.Expre
         body.constant_name = names;
     }
 
-    statements.appendBorrowingText(self.allocator, output, &body) catch |err| return failure(err);
+    const block = try self.builder.publishStatements(prefix, &body);
 
     self.serial = @intCast(result.serial);
+
+    return block;
 }
 
 fn failure(err: anyerror) Lower.Error {

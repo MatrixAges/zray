@@ -55,7 +55,7 @@ fn after(self: *const Lower, declaration: Declaration) Plan {
     return zx.columns.invoke(after_rule.executeValue, memory.allocator(), &input) catch unreachable;
 }
 
-pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), declaration: Declaration) Lower.Error!void {
+pub fn publish(self: *Lower, output: *std.ArrayList(node.Statement), declaration: Declaration) Lower.Error!node.Block {
     const plan = after(self, declaration);
 
     const type_expr: ?node.ExpressionId = switch (plan.type_mode) {
@@ -67,12 +67,16 @@ pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), declaration:
 
     const name = if (plan.type_mode == .None) &.{} else self.names[@backingInt(declaration.symbol.?)];
 
-    if (!generated) return output.append(self.allocator, switch (plan.kind) {
-        .constant => .{ .constant = .{ .name = name, .type_expr = type_expr, .value = declaration.value } },
-        .variable => .{ .variable = .{ .name = name, .type_expr = type_expr, .value = declaration.value } },
-        .discard => .{ .discard = declaration.value },
-        else => unreachable,
-    });
+    if (!generated) {
+        try output.append(self.allocator, switch (plan.kind) {
+            .constant => .{ .constant = .{ .name = name, .type_expr = type_expr, .value = declaration.value } },
+            .variable => .{ .variable = .{ .name = name, .type_expr = type_expr, .value = declaration.value } },
+            .discard => .{ .discard = declaration.value },
+            else => unreachable,
+        });
+
+        return self.builder.statements(output.items);
+    }
 
     const entry = @import("generated_binding_emit");
     const Input = std.meta.Child(entry.Input);
@@ -88,8 +92,5 @@ pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), declaration:
     var memory = std.heap.FixedBufferAllocator.init(&buffer);
     const rows = zx.columns.view(std.meta.Child(entry.Output), try zx.columns.invoke(entry.executeValue, memory.allocator(), &input));
 
-    @import("../node/import_statements.zig").appendBorrowingText(self.allocator, output, &rows) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+    return self.builder.publishStatements(output.items, &rows);
 }

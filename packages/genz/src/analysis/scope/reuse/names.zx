@@ -1,0 +1,44 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { StringBuffer } from "memory"
+
+export type Input = {
+    symbols: u32[],
+    sources: u32[],
+    names: StringBuffer,
+    saved: StringBuffer,
+    restore: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const names = memory.stringViews(in.names)
+    const saved = memory.stringViews(in.saved)
+
+    const updated = loop({
+        index: 0
+    }, {
+        while: state => state.index < in.symbols.length,
+        next: state => {
+            const index = match in.restore {
+                true => in.symbols.length - state.index - 1,
+                _ => state.index
+            }
+
+            const symbol = integers.widen(in.symbols[index])
+
+            if (in.restore) {
+                memory.writeString(in.names, symbol, saved[index])
+            } else {
+                const previous = integers.widen(in.sources[index])
+
+                memory.writeString(in.saved, index, names[symbol])
+                memory.writeString(in.names, symbol, names[previous])
+            }
+
+            state.index += 1
+        }
+    })
+}

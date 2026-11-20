@@ -72,7 +72,7 @@ pub fn expression(self: *Lower, temporary: std.mem.Allocator, plan: Plan, body: 
     return @fromBackingInt(output.root);
 }
 
-pub fn statements(self: *Lower, target: *std.ArrayList(node.Statement), change: Change) Lower.Error!void {
+pub fn statementBlock(self: *Lower, prefix: []const node.Statement, change: Change) Lower.Error!node.Block {
     const generated = @import("generated_object_update_statements");
     const Input = std.meta.Child(generated.Input);
     const value = try self.expr(change.field.value);
@@ -108,12 +108,11 @@ pub fn statements(self: *Lower, target: *std.ArrayList(node.Statement), change: 
 
     try append(self, &self.builder.nodes.expressions, &expressions);
 
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, target, &flat) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
+    const block = try self.builder.publishStatements(prefix, &flat);
 
     self.used[@backingInt(change.previous)] = true;
+
+    return block;
 }
 
 fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {

@@ -1,20 +1,29 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const view = @import("../../node/view.zig");
 const Self = @This();
 const Change = @import("../object_update.zig").Change;
+const generated = @import("genz_options").generated_analysis;
+const Seed = @import("reuse/seed.zig");
 
-scope: ir.ScopeRow,
-changes: []?Change,
-variables: []bool,
-names: [][]const u8,
-pub fn create(lowering: *Lower, scope: ir.ScopeRow) Lower.Error!?Self {
-    if (!@import("genz_options").generated_analysis) {
-        const result = try @import("reuse/seed.zig").create(lowering, scope);
+const Active = struct {
+    facts: std.MultiArrayList(Fact).Slice,
+    changes: []const ?u32,
+    alias_symbols: []const u32,
+    alias_sources: []const u32,
+    saved: [][]const u8,
+};
 
-        return if (result) |plan| .{ .scope = plan.scope, .changes = plan.changes, .variables = plan.variables, .names = plan.names } else null;
+variables: []const bool,
+state: if (generated) Active else Seed,
+pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) Lower.Error!?Self {
+    if (!generated) {
+        const plan = (try Seed.create(lowering, scope)) orelse return null;
+
+        return .{ .variables = plan.variables, .state = plan };
     }
 
     const enabled = @import("generated_scope_reuse_enabled");
@@ -29,16 +38,10 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow) Lower.Error!?Self {
 
     if (!(enabled.executeIn(fixed.allocator(), &flags) catch unreachable)) return null;
 
-    const generated = @import("generated_scope_reuse");
-    const Parameter = @typeInfo(@TypeOf(generated.executeValue)).@"fn".param_types[1].?;
-    const indirect = @typeInfo(Parameter) == .pointer;
-    const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
-    const CandidateParameter = @FieldType(Input, "candidates");
-    const candidates_indirect = @typeInfo(CandidateParameter) == .pointer;
-    const Candidates = if (candidates_indirect) std.meta.Child(CandidateParameter) else CandidateParameter;
+    const entry = @import("generated_scope_reuse");
+    const Input = std.meta.Child(entry.Input);
+    const Candidates = std.meta.Child(@FieldType(Input, "candidates"));
     var facts: std.MultiArrayList(Fact) = .empty;
-
-    defer facts.deinit(lowering.workspace);
 
     for (0..scope.bindings.len) |index| {
         const binding = scope.bindings.at(index);
@@ -46,7 +49,7 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow) Lower.Error!?Self {
         if (binding.symbol == null) continue;
 
         if (@import("../object_update.zig").match(lowering, binding.value)) |change| {
-            try facts.append(lowering.workspace, .{
+            try facts.append(scratch, .{
                 .binding = @intCast(index),
                 .previous = change.previous,
                 .reference = change.reference,
@@ -68,83 +71,76 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow) Lower.Error!?Self {
     const program: *const ir.Program = &lowering.program;
 
     const input: Input = .{
-        .expressions = @import("zx").columns.pointer(@FieldType(Input, "expressions"), &program.expressions),
+        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), &program.expressions),
         .bindings = scope.bindings.values,
         .symbols = scope.bindings.symbols,
         .symbol_types = program.symbols.types,
         .result = @backingInt(scope.result),
-        .candidates = if (candidates_indirect) &candidates else candidates,
+        .candidates = &candidates,
     };
 
-    const checking = @import("generated_scope_reuse_has");
-
-    if (!(@import("zx").columns.invoke(checking.executeValue, fixed.allocator(), &input) catch unreachable)) return null;
-
-    const changes = try lowering.allocator.alloc(?Change, scope.bindings.len);
-    const variables = try lowering.allocator.alloc(bool, scope.bindings.len);
-    const names = try lowering.allocator.alloc([]const u8, scope.bindings.len);
-    var scratch = std.heap.ArenaAllocator.init(lowering.workspace);
-
-    defer scratch.deinit();
-
-    const result = generated.executeValue(scratch.allocator(), if (indirect) &input else input) catch |err| switch (err) {
+    const result = entry.executeIn(scratch, &input) catch |err| switch (err) {
         error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
     const plan = result orelse return null;
 
-    @memset(changes, null);
-    @memcpy(variables, plan.variables);
+    if (plan.alias_symbols.len == 0) return null;
 
-    for (0..scope.bindings.len) |index| {
-        const binding = scope.bindings.at(index);
-        const symbol = binding.symbol orelse continue;
-
-        names[index] = lowering.names[@backingInt(symbol)];
-
-        if (plan.changes[index]) |row| changes[index] = .{
-            .previous = facts.items(.previous)[row],
-            .reference = facts.items(.reference)[row],
-            .field = .{ .index = facts.items(.field_index)[row], .value = facts.items(.field_value)[row] },
-            .type_id = facts.items(.type_id)[row],
-        };
-    }
-
-    for (changes, 0..) |change, index| if (change) |update| {
-        const symbol = scope.bindings.at(index).symbol.?;
-
-        lowering.names[@backingInt(symbol)] = lowering.names[@backingInt(update.previous)];
+    const state: Active = .{
+        .facts = facts.slice(),
+        .changes = plan.changes,
+        .alias_symbols = plan.alias_symbols,
+        .alias_sources = plan.alias_sources,
+        .saved = try scratch.alloc([]const u8, plan.alias_symbols.len),
     };
 
-    return .{ .scope = scope, .changes = changes, .variables = variables, .names = names };
+    names(lowering, &state, false);
+
+    return .{ .variables = plan.variables, .state = state };
 }
 
 pub fn restore(self: *const Self, lowering: *Lower) void {
-    for (0..self.scope.bindings.len) |index| if (self.scope.bindings.at(index).symbol) |symbol| {
-        lowering.names[@backingInt(symbol)] = self.names[index];
-    };
+    if (!generated) return self.state.restore(lowering);
+
+    names(lowering, &self.state, true);
 }
 
-pub fn append(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), index: usize) Lower.Error!bool {
-    const change = self.changes[index] orelse return false;
+pub fn publish(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), index: usize) Lower.Error!?node.Block {
+    if (!generated) {
+        if (!(try self.state.append(lowering, output, index))) return null;
 
-    if (@import("genz_options").generated_analysis) {
-        try @import("../object_update/emit.zig").statements(lowering, output, change);
-
-        return true;
+        return try lowering.builder.statements(output.items);
     }
 
-    const field = lowering.program.typeOf(change.type_id).object.at(change.field.index);
-    const value = try @import("../aggregate.zig").bind(lowering, output, try lowering.expr(change.field.value));
-    const target = try lowering.builder.identifier(lowering.names[@backingInt(change.previous)]);
+    const row = self.state.changes[index] orelse return null;
+    const facts = self.state.facts.get(row);
 
-    lowering.used[@backingInt(change.previous)] = true;
+    const change: Change = .{
+        .previous = facts.previous,
+        .reference = facts.reference,
+        .field = .{ .index = facts.field_index, .value = facts.field_value },
+        .type_id = facts.type_id,
+    };
 
-    try output.append(lowering.allocator, .{ .assignment = .{ .target = try lowering.field(target, field.name), .value = value } });
-    try output.append(lowering.allocator, .{ .assignment = .{ .target = try lowering.field(target, try @import("../state_value/origin.zig").name(lowering, change.type_id)), .value = try lowering.builder.expression(.null_value) } });
+    return try @import("../object_update/emit.zig").statementBlock(lowering, output.items, change);
+}
 
-    return true;
+fn names(lowering: *Lower, state: *const Active, restoring: bool) void {
+    const entry = @import("generated_scope_reuse_names");
+
+    const input: std.meta.Child(entry.Input) = .{
+        .symbols = state.alias_symbols,
+        .sources = state.alias_sources,
+        .names = @ptrCast(&lowering.names),
+        .saved = @ptrCast(&state.saved),
+        .restore = restoring,
+    };
+
+    var memory = std.heap.FixedBufferAllocator.init(&.{});
+
+    entry.executeIn(memory.allocator(), &input) catch unreachable;
 }
 
 const Fact = struct {

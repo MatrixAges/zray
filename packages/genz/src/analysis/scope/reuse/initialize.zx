@@ -26,6 +26,8 @@ export default function (in: Input): Output {
             },
             changes: state.changes,
             variables: state.variables,
+            alias_symbols: [],
+            alias_sources: [],
             binding: 0,
             candidate: 0
         })

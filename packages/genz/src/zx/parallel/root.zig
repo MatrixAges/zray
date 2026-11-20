@@ -5,8 +5,8 @@ const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 
-pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel")) Lower.Error![]const node.Statement {
-    if (!@import("genz_options").generated_analysis) return @import("root_seed.zig").lower(self, invocations);
+pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel")) Lower.Error!node.Block {
+    if (!@import("genz_options").generated_analysis) return self.builder.statements(try @import("root_seed.zig").lower(self, invocations));
 
     self.uses_parallel = true;
     self.uses_allocator = true;
@@ -66,19 +66,9 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
     @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
     _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
 
-    var children = statements;
-    children.tags = statements.tags[0..result.inner_count];
-    children.offsets = statements.offsets[0..result.inner_count];
-    @import("../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &children) catch |err| return failure(err);
+    const block = try self.builder.publishStatements(&.{}, &statements);
 
-    var outer = statements;
-
-    outer.tags = statements.tags[result.inner_count..];
-    outer.offsets = statements.offsets[result.inner_count..];
-    var output: std.ArrayList(node.Statement) = .empty;
-    @import("../../node/import_statements.zig").appendSelectedBorrowingText(self.allocator, &output, &outer) catch |err| return failure(err);
-
-    return output.toOwnedSlice(self.allocator);
+    return .{ .start = block.start + result.inner_count, .len = block.len - result.inner_count };
 }
 
 fn fresh(self: *Lower, kind: anytype) Lower.Error![]const u8 {

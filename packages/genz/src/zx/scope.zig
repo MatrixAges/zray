@@ -2,6 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
+const Reuse = @import("scope/reuse.zig");
 
 pub fn lower(self: *Lower, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
     return lowerMode(self, scope, false);
@@ -26,7 +27,11 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
     };
 
     const result_type = self.program.expression(scope.result).type_id;
-    const reuse = try @import("scope/reuse.zig").create(self, scope);
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+
+    defer scratch.deinit();
+
+    const reuse = try Reuse.create(self, scope, scratch.allocator());
 
     defer if (reuse) |*plan| plan.restore(self);
 
@@ -68,9 +73,7 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
         output.clearRetainingCapacity();
 
-        try appendBinding(self, &output, scope, if (reuse) |*plan| plan else null, result_type, offset);
-
-        const span = try self.builder.statements(output.items);
+        const span = try publishBinding(self, &output, scope, if (reuse) |*plan| plan else null, result_type, offset);
 
         starts[offset] = span.start;
         counts[offset] = span.len;
@@ -81,14 +84,19 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
     return @import("aggregate.zig").finishStored(self, body, result.?, null);
 }
 
-fn appendBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: ir.ScopeRow, reuse: ?*const @import("scope/reuse.zig"), result_type: ir.TypeId, offset: usize) Lower.Error!void {
-    if (reuse) |plan| if (try plan.append(self, output, offset)) return;
+fn publishBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: ir.ScopeRow, reuse: ?*const Reuse, result_type: ir.TypeId, offset: usize) Lower.Error!node.Block {
+    if (reuse) |plan| if (try plan.publish(self, output, offset)) |block| return block;
 
     const binding = scope.bindings.at(offset);
     const route = @import("binding.zig").before(self, binding.value, binding.symbol, true);
 
-    if (route == .Skip) return;
-    if (route == .Task) return @import("tasks/root.zig").bind(self, output, self.names[@backingInt(binding.symbol.?)], binding.value, false);
+    if (route == .Skip) return .{};
+
+    if (route == .Task) {
+        try @import("tasks/root.zig").bind(self, output, self.names[@backingInt(binding.symbol.?)], binding.value, false);
+
+        return self.builder.statements(output.items);
+    }
 
     const by_value = if (binding.symbol) |symbol| self.stack_symbols.contains(symbol) else false;
     const borrowed = if (binding.symbol) |symbol| try @import("value_call/locals.zig").optionalCall(self, output, symbol, binding.value, result_type) else null;
@@ -101,7 +109,7 @@ fn appendBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: ir
     else
         try self.expr(binding.value);
 
-    try @import("binding.zig").append(self, output, .{
+    return @import("binding.zig").publish(self, output, .{
         .symbol = binding.symbol,
         .value = value,
         .by_value = by_value,
