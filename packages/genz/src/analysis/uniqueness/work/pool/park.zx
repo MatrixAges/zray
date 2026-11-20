@@ -1,0 +1,20 @@
+import memory from "memory"
+
+import { decrement, signal, sleepers, stopping } from "./const"
+import pending from "./pending"
+
+import type { U32Buffer as Input } from "memory"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.addU32Sequential(in, sleepers, 1)
+
+    const observed = memory.loadU32Sequential(in, signal)
+
+    if (!pending(in) && memory.loadU32Sequential(in, stopping) == 0) {
+        memory.waitU32(in, signal, observed)
+    }
+
+    memory.addU32Sequential(in, sleepers, decrement)
+}

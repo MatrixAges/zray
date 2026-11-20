@@ -1,0 +1,11 @@
+import memory from "memory"
+
+import { stopped, stopping } from "./const"
+
+import type { U32Buffer as Input } from "memory"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.storeU32Sequential(in, stopping, stopped)
+}

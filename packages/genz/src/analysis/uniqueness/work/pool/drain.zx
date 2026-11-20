@@ -1,0 +1,36 @@
+import memory from "memory"
+
+import { busy, head, tail } from "./const"
+
+import type { U32Buffer as Input } from "memory"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const end = memory.loadU32Relaxed(in, tail)
+
+    const cleared = loop(false, {
+        while: clear => !clear,
+        next: clear => {
+            const first = memory.loadU32Sequential(in, head)
+
+            clear = first == end || memory.compareExchangeU32Sequential(
+                in,
+                head,
+                first,
+                end
+            )
+        }
+    })
+
+    const finished = loop(false, {
+        while: done => !done,
+        next: done => {
+            done = memory.loadU32Sequential(in, busy) == 0
+
+            if (!done) {
+                memory.spinHint()
+            }
+        }
+    })
+}

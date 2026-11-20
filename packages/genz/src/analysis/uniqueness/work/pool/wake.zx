@@ -1,0 +1,14 @@
+import memory from "memory"
+
+import { signal, sleepers } from "./const"
+
+import type { U32Buffer as Input } from "memory"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (memory.loadU32Sequential(in, sleepers) != 0) {
+        memory.addU32Sequential(in, signal, 1)
+        memory.wakeAllU32(in, signal)
+    }
+}

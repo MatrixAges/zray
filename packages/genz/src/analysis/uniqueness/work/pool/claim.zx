@@ -1,0 +1,33 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { busy, capacity, decrement, head, tail, word_mask } from "./const"
+
+import type { State as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { counters, ring } = in
+
+    // A drain may discard the request between the first observation and this read.
+    memory.addU32Sequential(counters, busy, 1)
+
+    const first = memory.loadU32Sequential(counters, head)
+    const end = memory.loadU32Sequential(counters, tail)
+
+    if (first != end) {
+        const position = integers.widen(first)
+        // The producer may reuse the slot as soon as the cursor advances.
+        const task = memory.loadU32Relaxed(ring, position % capacity)
+        const next = integers.narrow(integers.andBits(position + 1, word_mask))
+
+        if (memory.compareExchangeU32Sequential(counters, head, first, next)) {
+            return task
+        }
+    }
+
+    memory.addU32Sequential(counters, busy, decrement)
+
+    return null
+}
