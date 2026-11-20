@@ -1,5 +1,8 @@
+import integers from "std:integer"
+
 import emptyDeclarations from "../../../ast/snapshot/empty_declarations"
 import emptyStatements from "../../../ast/snapshot/empty_statements"
+import expressions from "../../../ast/snapshot/expressions"
 import statements from "../../../ast/statements/builder/publish"
 
 import type { State as Input, Output } from "./model"
@@ -14,35 +17,38 @@ export default function (in: Input): Output {
     )
 
     return {
-        module: {
-            context: in.tree.ast.context,
-            extra: in.tree.extra,
-            expression_forms: {
-                ...in.expressions,
-                optional_type: in.tree.ast.optional_type
-            },
-            statements: {
-                ...emptyStatements({}),
-                ...body.statements,
-                ...body.variables,
-                ...in.loops,
-                ...in.scopes,
-                ...in.breaks,
-                ...in.tree.extra.pick([
-                    "defer_expression",
-                    "defer_scope_start",
-                    "defer_scope_len"
-                ])
-            },
-            declarations: {
-                ...emptyDeclarations({}),
-                ...in.tree.ast.declarations,
-                ...in.declarations
-            },
-            fields: in.tree.ast.fields,
-            arms: in.arms,
-            first: in.first
+        expressions: {
+            ...expressions(in.tree.ast.context),
+            ...in.expressions,
+            ...in.tree.extra.omit([
+                "defer_expression",
+                "defer_scope_start",
+                "defer_scope_len"
+            ]),
+            optional_type: in.tree.ast.optional_type
         },
+        statements: {
+            ...emptyStatements({}),
+            ...body.statements,
+            ...body.variables,
+            ...in.loops,
+            ...in.scopes,
+            ...in.breaks,
+            ...in.tree.extra.pick([
+                "defer_expression",
+                "defer_scope_start",
+                "defer_scope_len"
+            ])
+        },
+        declarations: {
+            ...emptyDeclarations({}),
+            ...in.tree.ast.declarations,
+            ...in.declarations
+        },
+        fields: in.tree.ast.fields,
+        arms: in.arms,
+        first: in.first,
+        count: integers.narrow(in.tree.ast.declarations.tags.length) - in.first,
         valid
     }
 }

@@ -3,13 +3,7 @@ import type { Table as Declarations } from "../../../ast/declarations/table/mode
 import type { Columns as Fields } from "../../../ast/fields/model"
 import type { State as Statements } from "../../../ast/statements/builder/model"
 import type { Columns as Loops } from "../../../ast/statements/builder/while_loop"
-import type {
-    Declarations as PublishedDeclarations
-} from "../../../printer/model/declarations"
-import type { Expressions } from "../../../printer/model/expressions"
-import type {
-    Statements as PublishedStatements
-} from "../../../printer/model/statements"
+import type { Destination, Published as Module } from "../../../printer/model"
 
 export type Input = {
     stateful: bool
@@ -27,10 +21,6 @@ export type State = {
     valid: bool
 }
 
-export type Published = {
-    expressions: Expressions,
-    statements: PublishedStatements,
-    fields: Fields,
-    declarations: PublishedDeclarations,
-    valid: bool
-}
+export type Render = Input & Destination
+
+export type Published = Module

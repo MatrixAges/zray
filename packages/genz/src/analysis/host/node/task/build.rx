@@ -1,9 +1,9 @@
 <Module>
-    <Type from="../../tree/model" as="Task" />
+    <Type from="../../tree/ast" as="Task" />
 
-    <Args in={Task.Input} out={Task.Output} />
+    <Args in={Task.Render} out={bool} />
 
-    <Call fn="../../tree/initialize" in={$in} />
+    <Call fn="../../tree/initialize" in={$in.omit(["writer"])} />
 
     <Call fn="prelude" />
     <Call fn="fields" />
@@ -19,5 +19,13 @@
 
     <Call fn="publish" />
 
-    <Return value={$ctx.publish} />
+    <Call
+        module="../../../../printer/render_checked"
+        in={{
+            module: $ctx.publish,
+            writer: $in.writer
+        }}
+    />
+
+    <Return value={$ctx.render_checked} />
 </Module>

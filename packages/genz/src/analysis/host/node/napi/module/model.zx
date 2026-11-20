@@ -1,7 +1,16 @@
+import type { Destination } from "../../../../../printer/model"
 import type { State as Codec, Output as Published } from "../codec/model"
 import type { Input as PlanInput, Output as Plan } from "../plan/model"
 
 export type Input = PlanInput
+
+export type Render = Input & Destination
+
+export enum Status {
+    Ready,
+    Unsupported,
+    Invalid
+}
 
 export type Output = Published
 

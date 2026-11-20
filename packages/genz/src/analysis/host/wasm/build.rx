@@ -1,9 +1,9 @@
 <Module>
-    <Type from="model" as="Wasm" />
+    <Type from="../input" as="Host" />
 
-    <Args in={Wasm.Input} out={Wasm.Output} />
+    <Args in={Host.Render} out={bool} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="initialize" in={$in.omit(["writer"])} />
 
     <Call module="storage" />
     <Call module="allocation" />
@@ -20,5 +20,13 @@
 
     <Call fn="publish" />
 
-    <Return value={$ctx.publish} />
+    <Call
+        module="../../../printer/render_checked"
+        in={{
+            module: $ctx.publish,
+            writer: $in.writer
+        }}
+    />
+
+    <Return value={$ctx.render_checked} />
 </Module>

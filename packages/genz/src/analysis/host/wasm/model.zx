@@ -1,14 +1,11 @@
-import type { State as Context } from "../../../ast/context/model"
-import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Breaks } from "../../../ast/statements/builder/break_value"
 import type { Columns as Loops } from "../../../ast/statements/builder/for_loop"
 import type { Columns as Scopes } from "../../../ast/statements/builder/scope"
-import type { Declarations } from "../../../printer/model/declarations"
+import type { Published } from "../../../printer/model"
 import type { StatementsKind } from "../../../printer/model/statements"
-import type { Statements } from "../../../printer/model/statements"
 import type { Arms } from "../../match/model"
 import type { Input as HostInput } from "../input"
-import type { State as Tree, Extra as TreeExtra } from "../tree/model"
+import type { State as Tree } from "../tree/model"
 
 export type Input = HostInput
 
@@ -54,21 +51,7 @@ export type Node = {
     id: u32
 }
 
-export type Module = {
-    context: Context,
-    extra: TreeExtra,
-    expression_forms: ExpressionColumns,
-    statements: Statements,
-    fields: Fields,
-    declarations: Declarations,
-    arms: Arms,
-    first: u32
-}
-
-export type Output = {
-    module: Module,
-    valid: bool
-}
+export type Output = Published
 
 export type Validation = {
     state: State,

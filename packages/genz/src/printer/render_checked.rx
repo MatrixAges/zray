@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Printer" />
+
+    <Args in={Printer.Publication} out={bool} />
+
+    <If on={!$in.module.valid}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        module="render"
+        in={{
+            source: $in.module.omit(["valid"]),
+            output: $in.writer
+        }}
+    />
+
+    <Return value={true} />
+</Module>

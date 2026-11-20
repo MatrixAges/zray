@@ -1,12 +1,11 @@
 import type {
     Input as Bases,
-    State as Context,
-    Variables
+    State as Context
 } from "../../../ast/context/model"
 import type { Table as Declarations } from "../../../ast/declarations/table/model"
 import type { Columns as Fields } from "../../../ast/fields/model"
 import type { State as Statements, Scope } from "../../../ast/statements/builder/model"
-import type { Columns as StatementColumns } from "../../../ast/statements/model"
+import type { Destination, Published } from "../../../printer/model"
 
 export type Input = Bases
 
@@ -77,16 +76,9 @@ export type Node = {
     id: u32
 }
 
-export type Output = {
-    context: Context,
-    statements: StatementColumns,
-    variables: Variables,
-    statement_forms: Control,
-    fields: Fields,
-    declarations: Declarations,
-    extra: Extra,
-    valid: bool
-}
+export type Render = Destination
+
+export type Output = Published
 
 export type Caught = {
     state: State,

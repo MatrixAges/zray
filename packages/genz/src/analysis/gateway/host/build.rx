@@ -1,10 +1,11 @@
 <Module>
     <Type from="model" as="Host" />
 
-    <Args in={Host.Input} out={Host.Output} />
+    <Args in={Host.Render} out={bool} />
 
-    <Call fn="prepare" in={$in} />
+    <Call fn="../entry/bases" in={{}} />
 
+    <Call fn="prepare" />
     <Call fn="symbols" />
     <Call fn="types" />
     <Call fn="result_types" />
@@ -22,5 +23,13 @@
     <Call fn="check_canceled" />
     <Call fn="publish" />
 
-    <Return value={$ctx.publish} />
+    <Call
+        module="../../../printer/render_checked"
+        in={{
+            module: $ctx.publish,
+            writer: $in.writer
+        }}
+    />
+
+    <Return value={$ctx.render_checked} />
 </Module>

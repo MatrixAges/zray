@@ -6,14 +6,8 @@ import type { Columns as Breaks } from "../../../ast/statements/builder/break_va
 import type { Columns as Loops } from "../../../ast/statements/builder/for_loop"
 import type { State as Statements } from "../../../ast/statements/builder/model"
 import type { Columns as Scopes } from "../../../ast/statements/builder/scope"
-import type {
-    Declarations as PublishedDeclarations
-} from "../../../printer/model/declarations"
-import type { Expressions } from "../../../printer/model/expressions"
-import type {
-    StatementsKind,
-    Statements as PublishedStatements
-} from "../../../printer/model/statements"
+import type { Published } from "../../../printer/model"
+import type { StatementsKind } from "../../../printer/model/statements"
 import type { Input as HostInput } from "../input"
 import type { State as JsonState } from "../json_output/model"
 
@@ -73,10 +67,4 @@ export type Validated = {
     checked: JsonState
 }
 
-export type Output = {
-    expressions: Expressions,
-    statements: PublishedStatements,
-    fields: Fields,
-    declarations: PublishedDeclarations,
-    valid: bool
-}
+export type Output = Published

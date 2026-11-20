@@ -1,7 +1,10 @@
 import type { Table } from "core/type_table/model"
+import type { Destination } from "../../printer/model"
 
 export type Input = {
     stateful: bool,
     types: Table,
     output_type: u32
 }
+
+export type Render = Input & Destination

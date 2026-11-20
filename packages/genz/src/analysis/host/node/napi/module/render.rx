@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Binding" />
+
+    <Args in={Binding.Render} out={Binding.Status} />
+
+    <Call module="build" in={$in.omit(["writer"])} />
+
+    <If on={!$ctx.build.supported}>
+        <Return value={Binding.Status.Unsupported} />
+    </If>
+
+    <If on={!$ctx.build.valid}>
+        <Return value={Binding.Status.Invalid} />
+    </If>
+
+    <Call
+        module="../../../../../printer/render"
+        in={{
+            source: $ctx.build.module,
+            output: $in.writer
+        }}
+    />
+
+    <Return value={Binding.Status.Ready} />
+</Module>

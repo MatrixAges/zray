@@ -1,4 +1,8 @@
+import integers from "std:integer"
+
+import emptyDeclarations from "../../../../../ast/snapshot/empty_declarations"
 import emptyStatements from "../../../../../ast/snapshot/empty_statements"
+import expressions from "../../../../../ast/snapshot/expressions"
 import statements from "../../../../../ast/statements/builder/publish"
 
 import type { State as Input, Output } from "./model"
@@ -14,8 +18,8 @@ export default function (in: Input): Output {
 
     return {
         module: {
-            context: in.tree.ast.context,
-            extra: {
+            expressions: {
+                ...expressions(in.tree.ast.context),
                 ...in.tree.extra.omit([
                     "defer_expression",
                     "defer_scope_start",
@@ -37,7 +41,17 @@ export default function (in: Input): Output {
                 ])
             },
             fields: in.tree.ast.fields,
-            declarations: in.tree.ast.declarations
+            declarations: {
+                ...emptyDeclarations({}),
+                ...in.tree.ast.declarations
+            },
+            arms: {
+                value: [],
+                capture: [],
+                result: []
+            },
+            first: 0,
+            count: integers.narrow(in.tree.ast.declarations.tags.length)
         },
         supported: in.supported,
         valid

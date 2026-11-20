@@ -1,3 +1,8 @@
+import integers from "std:integer"
+
+import emptyDeclarations from "../../../ast/snapshot/empty_declarations"
+import emptyStatements from "../../../ast/snapshot/empty_statements"
+import expressions from "../../../ast/snapshot/expressions"
 import publish from "../../../ast/statements/builder/publish"
 
 import type { State as Input, Output } from "./model"
@@ -6,16 +11,29 @@ export default function (in: Input): Output {
     const body = publish(in.statements)
 
     return {
-        context: in.context,
+        expressions: {
+            ...expressions(in.context),
+            ...in.extra
+        },
         statements: {
+            ...emptyStatements({}),
             ...body.statements,
+            ...body.variables,
+            ...in.control,
             defer_expression: in.deferred
         },
-        variables: body.variables,
-        statement_forms: in.control,
         fields: in.fields,
-        declarations: in.declarations,
-        extra: in.extra,
+        declarations: {
+            ...emptyDeclarations({}),
+            ...in.declarations
+        },
+        arms: {
+            value: [],
+            capture: [],
+            result: []
+        },
+        first: 0,
+        count: integers.narrow(in.declarations.tags.length),
         valid: in.valid && in.context.valid && body.valid
     }
 }

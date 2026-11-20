@@ -1,9 +1,9 @@
 <Module>
-    <Type from="model" as="Cli" />
+    <Type from="../input" as="Host" />
 
-    <Args in={Cli.Input} out={Cli.Output} />
+    <Args in={Host.Render} out={bool} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="initialize" in={$in.omit(["writer"])} />
 
     <Call fn="prelude" />
 
@@ -26,5 +26,13 @@
     <Call fn="finish" />
     <Call fn="publish" />
 
-    <Return value={$ctx.publish} />
+    <Call
+        module="../../../printer/render_checked"
+        in={{
+            module: $ctx.publish,
+            writer: $in.writer
+        }}
+    />
+
+    <Return value={$ctx.render_checked} />
 </Module>

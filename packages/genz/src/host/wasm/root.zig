@@ -8,15 +8,19 @@ pub fn render(allocator: std.mem.Allocator, stateful: bool, output: @import("../
 
     defer arena.deinit();
 
+    var writer: zx.memory.ByteWriter = .{ .allocator = allocator };
+
+    defer writer.deinit();
+
     const entry = @import("generated_wasm_host");
     const Input = std.meta.Child(entry.Input);
     const table = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), output.types);
-    const input: Input = .{ .stateful = stateful, .types = &table, .output_type = @backingInt(output.id) };
+    const input: Input = .{ .writer = @ptrCast(&writer), .stateful = stateful, .types = &table, .output_type = @backingInt(output.id) };
     const result = zx.columns.invoke(entry.executeValue, arena.allocator(), &input) catch |err| return failure(err);
 
-    if (!result.valid) return error.OutOfMemory;
+    if (!result) return error.OutOfMemory;
 
-    return @import("../../printer/module.zig").render(allocator, arena.allocator(), std.meta.Child(@FieldType(std.meta.Child(entry.Output), "module")), result.module);
+    return writer.finish();
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {
