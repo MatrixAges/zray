@@ -1,9 +1,12 @@
+import integers from "std:integer"
+
 import { PlanSource } from "./model"
 
 import type { Scan, Range as Output } from "./model"
 
 export type Input = Scan.Pick("planned", "changed") & {
-    first: u64
+    first: u64,
+    replacement: u64
 }
 
 export default function (in: Input): Output {
@@ -29,8 +32,21 @@ export default function (in: Input): Output {
         }
     })
 
+    const plan_first = match source {
+        PlanSource.Recorded => integers.widen(planned[first]),
+        PlanSource.Replacement => in.replacement,
+        _ => 0
+    }
+
+    const next_replacement = match {
+        replaced && active => in.replacement + (end - first),
+        _ => in.replacement
+    }
+
     return {
         end,
-        source
+        source,
+        plan_first,
+        next_replacement
     }
 }

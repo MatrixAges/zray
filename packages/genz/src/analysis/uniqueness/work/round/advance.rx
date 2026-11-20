@@ -2,9 +2,9 @@
     <Type from="model" as="Round" />
     <Type from="../../program/model" as="Program" />
 
-    <Args in={Round.Advance} out={Round.Step} />
+    <Args in={Round.Advance} out={Round.Visit} />
 
-    <If on={$in.previous.present}>
+    <If on={$in.previous != null}>
         <Switch on={$in.phase}>
             <Case value={Program.Phase.Settle}>
                 <Call
@@ -46,21 +46,19 @@
                 </If>
             </Case>
         </Switch>
+
+        <If on={$in.previous.grew}>
+            <Call fn="record_growth" in={$in.state} />
+        </If>
     </If>
 
     <Call
         fn="take"
         in={$in.pick([
             "state",
-            "phase",
-            "budget"
+            "phase"
         ])}
     />
 
-    <Return
-        value={{
-            ...$ctx.take,
-            grew: $in.grew || $in.previous.grew
-        }}
-    />
+    <Return value={$ctx.take} />
 </Module>

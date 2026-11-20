@@ -37,5 +37,7 @@ export enum PlanSource {
 
 export type Range = {
     end: u64,
-    source: PlanSource
+    source: PlanSource,
+    plan_first: u64,
+    next_replacement: u64
 }

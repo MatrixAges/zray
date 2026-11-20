@@ -2,7 +2,7 @@
     <Type from="model" as="Round" />
     <Type from="../../program/model" as="Program" />
 
-    <Args in={Round.Input} out={u64} />
+    <Args in={Round.Input} out={void} />
 
     <If on={$in.phase == Program.Phase.Settle}>
         <Call fn="../../summaries/reset" in={$in.facts} />
@@ -19,7 +19,5 @@
     </If>
 
     <Call fn="../fill" in={$in.queue} />
-    <Call fn="budget" in={$in.queue.state.capacity} />
-
-    <Return value={$ctx.budget} />
+    <Call fn="budget" in={$in.queue.state} />
 </Module>

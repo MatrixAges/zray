@@ -2,12 +2,11 @@ import integers from "std:integer"
 
 import { Role } from "../order/model"
 
-import type { Columns, Input as Source } from "./model"
+import type { Input as Source, Trace } from "./model"
 
 export type Input = {
     source: Source,
-    first: u32[],
-    sites: Columns
+    trace: Trace
 }
 
 export type Output = Role[]
@@ -16,40 +15,35 @@ export default function (in: Input): Output {
     const roles: Role[] = []
 
     return loop({
-        source: in.source,
-        sites: in.sites,
         roles,
         role: Role.argument,
         index: 0
     }, {
-        while: current => current.index < current.sites.role.length,
+        while: current => current.index < in.trace.sites.length,
         next: current => {
-            const index = current.index
+            const site = in.trace.sites[current.index]
+            const source = in.source
 
-            current.role = current.sites.role[index]
+            current.role = site.role
 
             if (current.role == Role.argument) {
-                const parent = integers.widen(current.sites.parent[index])
+                const parent = integers.widen(site.parent)
 
-                const payload =
-                    integers.widen(current.source.expressions.payloads[parent])
+                const payload = integers.widen(source.expressions.payloads[parent])
 
                 const callee =
-                    integers.widen(
-                        current.source.expressions.call_functions[payload]
-                    )
-                const kind = current.source.effects.kind[callee]
-                const delta = current.sites.delta[index]
-                const first = integers.widenSigned(current.sites.lo[index]) + delta
-                const end = integers.widenSigned(current.sites.hi[index]) + delta
-                const limit =
-                    integers.widenSigned(current.source.effects.limit[callee])
+                    integers.widen(source.expressions.call_functions[payload])
+
+                const kind = source.effects.kind[callee]
+                const first = integers.widenSigned(site.lo) + site.delta
+                const end = integers.widenSigned(site.hi) + site.delta
+                const limit = integers.widenSigned(source.effects.limit[callee])
                 const known = first >= 0 && end <= limit
-                const root = current.source.symbols.length + parent
+                const root = source.symbols.length + parent
                 const observes = kind == Role.observe ||
                     (
-                        current.source.effects.borrow_only[callee] &&
-                            in.first[root] == in.first[root + 1]
+                        source.effects.borrow_only[callee] &&
+                            in.trace.first[root] == in.trace.first[root + 1]
                     )
 
                 if (known && observes) {

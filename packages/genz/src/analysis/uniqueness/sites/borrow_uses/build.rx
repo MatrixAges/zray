@@ -2,12 +2,17 @@
     <Type from="model" as="Borrow" />
     <Type from="../model" as="Sites" />
 
-    <Args in={Borrow.Input} out={Sites.Plan} />
+    <Args in={Borrow.Input} out={Sites.Resolved} />
 
     <Call fn="candidates" in={$in} />
 
     <If on={$ctx.candidates.length == 0}>
-        <Return value={$in.plan} />
+        <Return
+            value={{
+                trace: $in.trace,
+                roles: $in.roles
+            }}
+        />
     </If>
 
     <Call
@@ -18,14 +23,10 @@
         }}
     />
 
-    <Call fn="../publish" in={$ctx.expand.sites} />
-
     <Return
         value={{
-            edge_count: $in.plan.edge_count,
-            first: $ctx.expand.first,
-            slot_first: $in.plan.slot_first,
-            sites: $ctx.publish
+            trace: $ctx.expand,
+            roles: null
         }}
     />
 </Module>

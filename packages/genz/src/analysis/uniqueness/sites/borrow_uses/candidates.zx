@@ -13,7 +13,7 @@ export default function (in: Input): Output {
         candidates,
         index: 0
     }, {
-        while: state => state.index < in.rows.length,
+        while: state => state.index < in.trace.sites.length,
         next: state => {
             if (eligible({
                 source: in,

@@ -8,11 +8,13 @@ const preparing = @import("generated_uniqueness_prepare_round");
 const advancing = @import("generated_uniqueness_work_advance");
 const Queue = std.meta.Child(@FieldType(std.meta.Child(advancing.Input), "state"));
 const Self = @This();
+const position_count = 4;
 
 allocator: std.mem.Allocator,
 slots: []u64,
 queued: []u8,
-positions: []u64,
+
+positions: [position_count]u64 = undefined,
 pub fn init(allocator: std.mem.Allocator, size: usize) std.mem.Allocator.Error!Self {
     const slots = try allocator.alloc(u64, size);
 
@@ -20,78 +22,77 @@ pub fn init(allocator: std.mem.Allocator, size: usize) std.mem.Allocator.Error!S
 
     const queued = try allocator.alloc(u8, size);
 
-    errdefer allocator.free(queued);
-
-    return .{ .allocator = allocator, .slots = slots, .queued = queued, .positions = try allocator.alloc(u64, 2) };
+    return .{ .allocator = allocator, .slots = slots, .queued = queued };
 }
 
 pub fn deinit(self: *Self) void {
-    self.allocator.free(self.positions);
     self.allocator.free(self.queued);
     self.allocator.free(self.slots);
 }
 
-fn queue(self: *const Self) Queue {
+fn queue(self: *const Self, positions: *const []const u64) Queue {
     return .{
         .slots = @ptrCast(&self.slots),
         .queued = @ptrCast(&self.queued),
-        .positions = @ptrCast(&self.positions),
+        .positions = @ptrCast(positions),
         .capacity = self.slots.len,
     };
 }
 
-pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!u64 {
+pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
     const state = SummaryState.Borrowed.init(summaries);
     const facts = state.input(.Reset, program.functions.native_modules, known);
+    const positions: []const u64 = &self.positions;
 
     const input: std.meta.Child(preparing.Input) = .{
-        .queue = &.{ .state = &self.queue(), .native_modules = program.functions.native_modules, .type_only = program.type_only },
+        .queue = &.{ .state = &self.queue(&positions), .native_modules = program.functions.native_modules, .type_only = program.type_only },
         .facts = &facts,
         .phase = phase,
         .exhausted = exhausted,
     };
 
-    return invoke(preparing, &input);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return invoke(preparing, empty.allocator(), &input);
 }
 
-pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, progress: *Round.Progress) std.mem.Allocator.Error!Round.Claim {
+pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback) std.mem.Allocator.Error!Round.Claim {
     const flags = std.mem.sliceAsBytes(frame.dirty);
-    const feedback = previous orelse Round.Feedback{ .body = 0, .changed = &.{} };
+    const positions: []const u64 = &self.positions;
+    const Input = std.meta.Child(advancing.Input);
+    const Feedback = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
 
-    const input: std.meta.Child(advancing.Input) = .{
-        .state = &self.queue(),
+    const feedback: Feedback = if (previous) |value| .{
+        .body = value.body,
+        .changed = value.changed,
+        .levels = std.mem.sliceAsBytes(value.levels),
+        .grew = value.grew,
+    } else undefined;
+
+    const input: Input = .{
+        .state = &self.queue(&positions),
         .phase = phase,
-        .budget = progress.budget,
-        .grew = progress.grew,
         .outputs = @ptrCast(&frame.outputs),
         .native_modules = frame.program.functions.native_modules,
         .type_only = frame.program.type_only,
         .dirty = @ptrCast(&flags),
         .callers = frame.callers,
-        .previous = &.{
-            .present = previous != null,
-            .body = feedback.body,
-            .changed = feedback.changed,
-            .levels = std.mem.sliceAsBytes(feedback.levels),
-            .grew = feedback.grew,
-        },
+        .previous = if (previous != null) &feedback else null,
     };
 
-    const output = try invoke(advancing, &input);
-    progress.* = .{ .budget = output.budget, .grew = output.grew };
-
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const output = try invoke(advancing, empty.allocator(), &input);
     const first: usize = @intCast(output.first);
 
     return .{
         .visit = if (output.body) |body| .{ .body = @intCast(body) } else if (output.exhausted) .exhausted else .done,
         .pending = .{ .first = self.slots[first..][0..@intCast(output.prefix)], .second = self.slots[0..@intCast(output.suffix)] },
+        .grew = output.grew,
     };
 }
 
-inline fn invoke(comptime entry: type, input: entry.Input) std.mem.Allocator.Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(entry.executeValue, empty.allocator(), input) catch |err| switch (@as(anyerror, err)) {
+inline fn invoke(comptime entry: type, allocator: std.mem.Allocator, input: entry.Input) std.mem.Allocator.Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {
+    return zx.columns.invoke(entry.executeValue, allocator, input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => std.debug.panic("ownership queue failed: {s}", .{@errorName(err)}),
     };

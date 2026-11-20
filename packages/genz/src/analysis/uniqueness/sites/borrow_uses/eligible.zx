@@ -12,7 +12,7 @@ export type Output = bool
 
 export default function (in: Input): Output {
     const input = in.source
-    const site = input.rows[in.site]
+    const site = input.trace.sites[in.site]
 
     if (site.role != Role.argument || site.parent == max_u32) {
         return false
@@ -65,11 +65,11 @@ export default function (in: Input): Output {
     const root = input.source.symbols.length + parent
 
     return loop({
-        index: integers.widen(input.plan.first[root]),
+        index: integers.widen(input.trace.first[root]),
         valid: true
     }, {
         while: state => state.valid &&
-            state.index < integers.widen(input.plan.first[root + 1]),
+            state.index < integers.widen(input.trace.first[root + 1]),
         next: state => {
             state.valid = observes({
                 source: input,

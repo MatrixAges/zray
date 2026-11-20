@@ -42,5 +42,4 @@ pub const Feedback = struct {
     grew: bool = false,
 };
 
-pub const Progress = struct { budget: u64, grew: bool = false };
-pub const Claim = struct { visit: Visit, pending: Window };
+pub const Claim = struct { visit: Visit, pending: Window, grew: bool };

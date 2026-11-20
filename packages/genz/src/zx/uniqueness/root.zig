@@ -216,21 +216,19 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
     var replacement: usize = 0;
 
     while (first < units.len) {
-        const span = Shortcut.range(trace.planned.starts, replay.changed, first);
-        const recorded = trace.planned.starts[first];
+        const span = Shortcut.range(trace.planned.starts, replay.changed, first, replacement);
 
         for (first..span.end, 0..) |index, offset| {
             const target = if (index == plans.len) &entry_plan else &plans[index];
 
             target.* = switch (span.source) {
                 .empty => .{ .flags = &.{} },
-                .recorded => try trace.planned.entries[recorded + offset].value.plan().copy(allocator),
-                .replacement => try replacements.items[replacement + offset].value.plan().copy(allocator),
+                .recorded => try trace.planned.entries[span.plan_first + offset].value.plan().copy(allocator),
+                .replacement => try replacements.items[span.plan_first + offset].value.plan().copy(allocator),
             };
         }
 
-        if (span.source == .replacement) replacement += span.end - first;
-
+        replacement = span.next_replacement;
         first = span.end;
     }
 

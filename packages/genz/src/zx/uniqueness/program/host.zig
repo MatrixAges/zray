@@ -106,7 +106,9 @@ pub const Context = struct {
         };
 
         const rounds = &self.rounds.?;
-        const budget = try rounds.work.prepare(self.program, self.summaries, rounds.reverse.known, phase, exhausted);
+
+        try rounds.work.prepare(self.program, self.summaries, rounds.reverse.known, phase, exhausted);
+
         var round = std.heap.ArenaAllocator.init(self.workspace);
 
         defer round.deinit();
@@ -128,16 +130,15 @@ pub const Context = struct {
             .callers = rounds.reverse.callers,
         };
 
-        var progress = Round.Progress{ .budget = budget };
         var feedback: ?Round.Feedback = null;
 
         while (true) {
-            const claim = try rounds.work.advance(phase, &frame, feedback, &progress);
+            const claim = try rounds.work.advance(phase, &frame, feedback);
 
             if (self.replay.trace == null) try rounds.ahead.request(kind, self.memo, claim.pending);
 
             const index = switch (claim.visit) {
-                .done => return .{ .grew = progress.grew },
+                .done => return .{ .grew = claim.grew },
                 .exhausted => return .{ .exhausted = true },
                 .body => |index| index,
             };

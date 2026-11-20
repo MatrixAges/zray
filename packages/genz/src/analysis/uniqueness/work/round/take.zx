@@ -1,24 +1,24 @@
 import memory from "memory"
 
 import { Phase } from "../../program/model"
-import { clear_flag, count_slot, head_slot } from "../const"
+import { budget_slot, clear_flag, count_slot, growth_slot, head_slot } from "../const"
 
 import type { Take as Input, Visit as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { state, budget } = in
+    const { state } = in
 
     const head = memory.readU64(state.positions, head_slot)
     const count = memory.readU64(state.positions, count_slot)
 
     if (count == 0) {
         return {
-            budget,
             body: null,
             exhausted: false,
             first: head,
             prefix: 0,
-            suffix: 0
+            suffix: 0,
+            grew: memory.readU64(state.positions, growth_slot) != 0
         }
     }
 
@@ -33,14 +33,19 @@ export default function (in: Input): Output {
     memory.writeU64(state.positions, count_slot, count - 1)
 
     const limited = in.phase == Phase.Settle
+    const budget = limited ? memory.readU64(state.positions, budget_slot) : 0
     const exhausted = limited && budget == 0
 
+    if (limited && !exhausted) {
+        memory.writeU64(state.positions, budget_slot, budget - 1)
+    }
+
     return {
-        budget: limited && !exhausted ? budget - 1 : budget,
         body: exhausted ? null : index,
         exhausted,
         first: head,
         prefix,
-        suffix: count - prefix
+        suffix: count - prefix,
+        grew: false
     }
 }

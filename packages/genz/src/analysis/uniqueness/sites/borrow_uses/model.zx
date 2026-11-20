@@ -1,9 +1,10 @@
-import type { Input as Source, Plan, Site } from "../model"
+import type { Role } from "../../order/model"
+import type { Input as Source, Trace } from "../model"
 
 export type Input = {
     source: Source,
-    plan: Plan,
-    rows: Site[]
+    trace: Trace,
+    roles: Role[]
 }
 
 export type Selected = {

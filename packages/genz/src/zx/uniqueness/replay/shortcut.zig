@@ -64,20 +64,33 @@ fn nextSeed(self: Cursor, program: *const zx.ir.Program, trace: *const Trace, ch
 pub const Range = struct {
     end: usize,
     source: enum { empty, recorded, replacement },
+    plan_first: usize,
+    next_replacement: usize,
 };
 
 /// Consecutive accepted bodies backed by the same table; each active body has one visit.
-pub fn range(planned: []const u32, changed: []const bool, first: usize) Range {
+pub fn range(planned: []const u32, changed: []const bool, first: usize, replacement: usize) Range {
     if (!@import("genz_options").generated_analysis) {
         const inactive = planned[first] == planned[first + 1];
+        const replaced = !inactive and changed[first];
 
-        return .{ .end = first + 1, .source = if (inactive) .empty else if (changed[first]) .replacement else .recorded };
+        return .{
+            .end = first + 1,
+            .source = if (inactive) .empty else if (replaced) .replacement else .recorded,
+            .plan_first = if (replaced) replacement else planned[first],
+            .next_replacement = replacement + @intFromBool(replaced),
+        };
     }
 
     const entry = @import("generated_uniqueness_shortcut_range");
-    const input: std.meta.Child(entry.Input) = .{ .first = first, .planned = planned, .changed = changed };
+    const input: std.meta.Child(entry.Input) = .{ .first = first, .planned = planned, .changed = changed, .replacement = replacement };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
 
-    return .{ .end = @intCast(result.end), .source = @fromBackingInt(@intCast(@backingInt(result.source))) };
+    return .{
+        .end = @intCast(result.end),
+        .source = @fromBackingInt(@intCast(@backingInt(result.source))),
+        .plan_first = @intCast(result.plan_first),
+        .next_replacement = @intCast(result.next_replacement),
+    };
 }

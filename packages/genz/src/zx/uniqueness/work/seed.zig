@@ -9,6 +9,8 @@ allocator: std.mem.Allocator,
 queue: std.ArrayList(u64) = .empty,
 head: usize = 0,
 queued: []bool,
+budget: u64 = 0,
+grew: bool = false,
 pub fn init(allocator: std.mem.Allocator, size: usize) std.mem.Allocator.Error!Self {
     return .{ .allocator = allocator, .queued = try allocator.alloc(bool, size) };
 }
@@ -18,12 +20,13 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.queued);
 }
 
-pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!u64 {
+pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
     if (phase == .Settle) summaries.reset(program.*, known);
     if (phase == .Demand and exhausted) summaries.clear();
     try self.fill(program);
 
-    return 64 * @as(u64, self.queued.len);
+    self.budget = 64 * @as(u64, self.queued.len);
+    self.grew = false;
 }
 
 fn fill(self: *Self, program: *const ir.Program) std.mem.Allocator.Error!void {
@@ -102,13 +105,13 @@ pub fn pop(self: *Self) std.mem.Allocator.Error!?usize {
     return index;
 }
 
-fn take(self: *Self, phase: Round.Phase, budget: *u64) std.mem.Allocator.Error!Round.Visit {
+fn take(self: *Self, phase: Round.Phase) std.mem.Allocator.Error!Round.Visit {
     const index = try self.pop() orelse return .done;
 
     if (phase == .Settle) {
-        if (budget.* == 0) return .exhausted;
+        if (self.budget == 0) return .exhausted;
 
-        budget.* -= 1;
+        self.budget -= 1;
     }
 
     return .{ .body = index };
@@ -118,7 +121,7 @@ fn pending(self: *const Self) Round.Window {
     return .{ .first = self.queue.items[self.head..] };
 }
 
-pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, progress: *Round.Progress) std.mem.Allocator.Error!Round.Claim {
+pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback) std.mem.Allocator.Error!Round.Claim {
     if (previous) |result| {
         const callers = frame.callers[result.body];
 
@@ -128,10 +131,10 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
             try self.notify(frame.dirty, frame.program.*, result.changed, callers, result.body);
         }
 
-        progress.grew = progress.grew or result.grew;
+        self.grew = self.grew or result.grew;
     }
 
     const queued = self.pending();
 
-    return .{ .visit = try self.take(phase, &progress.budget), .pending = queued };
+    return .{ .visit = try self.take(phase), .pending = queued, .grew = self.grew };
 }

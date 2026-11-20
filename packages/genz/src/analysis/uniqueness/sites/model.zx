@@ -83,6 +83,11 @@ export type Trace = {
     sites: Site[]
 }
 
+export type Resolved = {
+    trace: Trace,
+    roles?: Role[]
+}
+
 export type Columns = {
     lo: u32[],
     hi: u32[],

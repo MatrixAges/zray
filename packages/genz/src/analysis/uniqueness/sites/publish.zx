@@ -1,21 +1,28 @@
-import type { Columns as Output, Site } from "./model"
+import type { Plan as Output, Resolved } from "./model"
 
-export type Input = Site[]
+export type Input = Resolved & Output.Pick("edge_count", "slot_first")
 
 export default function (in: Input): Output {
+    const { sites } = in.trace
+
     return {
-        lo: in.map(site => site.lo)[0],
-        hi: in.map(site => site.hi)[0],
-        delta: in.map(site => site.delta)[0],
-        top: in.map(site => site.top)[0],
-        region: in.map(site => site.region)[0],
-        a: in.map(site => site.a)[0],
-        b: in.map(site => site.b)[0],
-        c: in.map(site => site.c)[0],
-        d: in.map(site => site.d)[0],
-        arms: in.map(site => site.arms)[0],
-        edge: in.map(site => site.edge)[0],
-        parent: in.map(site => site.parent)[0],
-        role: in.map(site => site.role)[0]
+        edge_count: in.edge_count,
+        first: in.trace.first,
+        slot_first: in.slot_first,
+        sites: {
+            lo: sites.map(site => site.lo)[0],
+            hi: sites.map(site => site.hi)[0],
+            delta: sites.map(site => site.delta)[0],
+            top: sites.map(site => site.top)[0],
+            region: sites.map(site => site.region)[0],
+            a: sites.map(site => site.a)[0],
+            b: sites.map(site => site.b)[0],
+            c: sites.map(site => site.c)[0],
+            d: sites.map(site => site.d)[0],
+            arms: sites.map(site => site.arms)[0],
+            edge: sites.map(site => site.edge)[0],
+            parent: sites.map(site => site.parent)[0],
+            role: in.roles ?? sites.map(site => site.role)[0]
+        }
     }
 }

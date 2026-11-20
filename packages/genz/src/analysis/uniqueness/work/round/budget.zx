@@ -1,9 +1,13 @@
+import memory from "memory"
+
+import { budget_slot, growth_slot } from "../const"
 import { visits_per_body } from "./const"
 
-export type Input = u64
+import type { State as Input } from "../model"
 
-export type Output = u64
+export type Output = void
 
 export default function (in: Input): Output {
-    return in * visits_per_body
+    memory.writeU64(in.positions, budget_slot, in.capacity * visits_per_body)
+    memory.writeU64(in.positions, growth_slot, 0)
 }

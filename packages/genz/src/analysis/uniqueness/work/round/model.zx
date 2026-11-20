@@ -12,17 +12,16 @@ export type Input = {
 
 export type Take = {
     state: State,
-    budget: u64,
     phase: Phase
 }
 
 export type Visit = {
-    budget: u64,
     body?: u64,
     exhausted: bool,
     first: u64,
     prefix: u64,
-    suffix: u64
+    suffix: u64,
+    grew: bool
 }
 
 export type Settlement = Notify.Omit("demand_body") & {
@@ -32,7 +31,6 @@ export type Settlement = Notify.Omit("demand_body") & {
 }
 
 export type Feedback = {
-    present: bool,
     body: u64,
     changed: u64[],
     levels: u8[],
@@ -42,10 +40,5 @@ export type Feedback = {
 export type Advance = Take & Notify.Pick("dirty", "native_modules", "type_only") & {
     outputs: AtomicRows,
     callers: u64[][],
-    previous: Feedback,
-    grew: bool
-}
-
-export type Step = Visit & {
-    grew: bool
+    previous?: Feedback
 }

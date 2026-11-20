@@ -15,9 +15,9 @@ export default function (in: Input): Output {
         sites,
         root: 0,
         candidate: 0,
-        serial: input.plan.edge_count
+        serial: input.source.edges.parent.length
     }, {
-        while: state => state.root + 1 < input.plan.first.length,
+        while: state => state.root + 1 < input.trace.first.length,
         next: state => {
             state.first = state.first.push(integers.narrow(state.sites.length))[0]
 
@@ -25,12 +25,12 @@ export default function (in: Input): Output {
                 sites: state.sites,
                 candidate: state.candidate,
                 serial: state.serial,
-                index: integers.widen(input.plan.first[state.root])
+                index: integers.widen(input.trace.first[state.root])
             }, {
                 while: current => current.index <
-                    integers.widen(input.plan.first[state.root + 1]),
+                    integers.widen(input.trace.first[state.root + 1]),
                 next: current => {
-                    const site = input.rows[current.index]
+                    const site = input.trace.sites[current.index]
                     const selected = match {
                         current.candidate < in.candidates.length =>
                             integers.widen(in.candidates[current.candidate]) ==
@@ -38,7 +38,7 @@ export default function (in: Input): Output {
                         _ => false
                     }
 
-                    const original_role = input.plan.sites.role[current.index]
+                    const original_role = input.roles[current.index]
                     const edge = match {
                         selected => integers.narrow(current.serial),
                         _ => site.edge
@@ -60,12 +60,12 @@ export default function (in: Input): Output {
                         const observations = loop({
                             sites: current.sites,
                             serial: current.serial,
-                            index: integers.widen(input.plan.first[root])
+                            index: integers.widen(input.trace.first[root])
                         }, {
                             while: observed => observed.index <
-                                integers.widen(input.plan.first[root + 1]),
+                                integers.widen(input.trace.first[root + 1]),
                             next: observed => {
-                                const use = input.rows[observed.index]
+                                const use = input.trace.sites[observed.index]
 
                                 observed.sites = observed.sites.push({
                                     ...site,
