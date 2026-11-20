@@ -1,0 +1,11 @@
+export type Environment = opaque
+
+export declare function get(environment: Environment, key: string): string?
+
+export declare function absolute(path: string): bool
+
+export declare function usePath(environment: Environment, path: string): void
+
+export declare function joinPath(environment: Environment, base: string, first: string, second: string?, third: string?): void throws {
+    OutOfMemory
+}

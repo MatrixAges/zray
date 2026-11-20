@@ -1,0 +1,21 @@
+import type { Environment } from "toolchain_environment"
+
+export enum Platform {
+    Windows,
+    Mac,
+    Other
+}
+
+export enum Status {
+    Ready,
+    InvalidZxcCacheDirectory,
+    MissingUserCacheDirectory,
+    InvalidUserCacheDirectory
+}
+
+export type Input = {
+    environment: Environment,
+    platform: Platform
+}
+
+export type Output = Status

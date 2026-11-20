@@ -293,6 +293,7 @@ fn postconditions(self: *Self, path: []const u8, value: Value) zx.Error!void {
 fn require(self: *Self, path: []const u8, predicate: []const u8) zx.Error!void {
     const condition = try self.excluding(path, predicate);
 
+    if (std.mem.eql(u8, condition, "false")) return;
     try self.violations.append(self.allocator, condition);
 }
 

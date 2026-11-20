@@ -1,43 +1,113 @@
 const std = @import("std");
-const maximum = @import("../archive.zig").maximum_archive;
+const rule = @import("package_cache").download;
+const constants = @import("../store.zig").constants;
+const Error = error{PackageDownloadHostFailure};
 
-pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: []const u8) ![]u8 {
-    if (try @import("pkgs").install.archiveTransport(allocator, source) == .Local) {
-        const path = try std.fs.path.resolve(allocator, &.{ base, source });
+const State = struct {
+    client: std.http.Client,
+    source: []const u8,
+    base: []const u8,
+    request: ?std.http.Client.Request = null,
+    response: std.http.Client.Response = undefined,
+    redirect_buffer: [8192]u8 = undefined,
+    body: ?[]u8 = null,
+    failure: ?anyerror = null,
+    fn get(handle: *const anyopaque) *State {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn fail(self: *State, err: anyerror) Error {
+        self.failure = err;
 
-        defer allocator.free(path);
-
-        const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(maximum + 1));
-
-        errdefer allocator.free(bytes);
-
-        if (bytes.len > maximum) return error.PackageArchiveTooLarge;
-
-        return bytes;
+        return error.PackageDownloadHostFailure;
     }
 
-    var client: std.http.Client = .{ .allocator = allocator, .io = io };
+    fn deinit(self: *State, accepted: bool) void {
+        if (self.request) |*request| {
+            if (!accepted) {
+                if (request.connection) |connection| connection.closing = true;
+            }
 
-    defer client.deinit();
+            request.deinit();
+        }
 
-    var request = try client.request(.GET, try std.Uri.parse(source), .{ .redirect_behavior = @enumFromInt(3), .headers = .{ .accept_encoding = .{ .override = "identity" } } });
+        if (!accepted) {
+            if (self.body) |body| self.client.allocator.free(body);
+        }
 
-    defer request.deinit();
+        self.client.deinit();
+    }
+};
 
-    errdefer if (request.connection) |connection| {
-        connection.closing = true;
-    };
+pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: []const u8) ![]u8 {
+    var state: State = .{ .client = .{ .io = io, .allocator = allocator }, .source = source, .base = base };
+    var accepted = false;
 
-    try request.sendBodiless();
+    defer state.deinit(accepted);
 
-    var redirect_buffer: [8192]u8 = undefined;
-    var response = try request.receiveHead(&redirect_buffer);
+    const result = rule.executeValue(allocator, @ptrCast(&state)) catch |err| return if (err == error.PackageDownloadHostFailure) state.failure.? else err;
 
-    if (response.head.status != .ok) return error.PackageDownloadFailed;
-    if (response.head.content_encoding != .identity) return error.UnsupportedPackageContentEncoding;
-    if (response.head.content_length) |length| if (length > maximum) return error.PackageArchiveTooLarge;
+    switch (result) {
+        .Ready => accepted = true,
+        .PackageArchiveTooLarge => return error.PackageArchiveTooLarge,
+        .PackageDownloadFailed => return error.PackageDownloadFailed,
+        .UnsupportedPackageContentEncoding => return error.UnsupportedPackageContentEncoding,
+    }
 
+    return state.body.?;
+}
+
+pub fn local(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const transport = @import("pkgs").install.archiveTransport(self.client.allocator, self.source) catch |err| return self.fail(err);
+
+    return transport == .Local;
+}
+
+pub fn readLocal(handle: *const anyopaque, limit: u64) Error!u64 {
+    const self = State.get(handle);
+    const allocator = self.client.allocator;
+    const path = std.fs.path.resolve(allocator, &.{ self.base, self.source }) catch |err| return self.fail(err);
+
+    defer allocator.free(path);
+
+    const bytes = std.Io.Dir.cwd().readFileAlloc(self.client.io, path, allocator, .limited(@intCast(limit))) catch |err| return self.fail(err);
+
+    self.body = bytes;
+
+    return bytes.len;
+}
+
+pub fn receiveHead(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const uri = std.Uri.parse(self.source) catch |err| return self.fail(err);
+
+    self.request = self.client.request(.GET, uri, .{
+        .redirect_behavior = @fromBackingInt(constants.maximum_redirects),
+        .headers = .{ .accept_encoding = .{ .override = "identity" } },
+    }) catch |err| return self.fail(err);
+
+    const request = &self.request.?;
+
+    request.sendBodiless() catch |err| return self.fail(err);
+
+    self.response = request.receiveHead(&self.redirect_buffer) catch |err| return self.fail(err);
+}
+
+pub fn ok(handle: *const anyopaque) bool {
+    return State.get(handle).response.head.status == .ok;
+}
+
+pub fn identityEncoding(handle: *const anyopaque) bool {
+    return State.get(handle).response.head.content_encoding == .identity;
+}
+
+pub fn declaredLength(handle: *const anyopaque) ?u64 {
+    return State.get(handle).response.head.content_length;
+}
+
+pub fn readBody(handle: *const anyopaque, limit: u64) Error!void {
+    const self = State.get(handle);
     var buffer: [65536]u8 = undefined;
 
-    return response.reader(&buffer).allocRemaining(allocator, .limited(maximum));
+    self.body = self.response.reader(&buffer).allocRemaining(self.client.allocator, .limited(@intCast(limit))) catch |err| return self.fail(err);
 }

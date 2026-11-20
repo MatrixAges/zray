@@ -1,0 +1,30 @@
+export type Toolchain = opaque
+
+export declare function resolveExecutable(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function prepareCache(toolchain: Toolchain, resources_only: bool): void throws {
+    ToolchainHostFailure
+}
+export declare function openCache(toolchain: Toolchain, staged: bool): bool throws {
+    ToolchainHostFailure
+}
+export declare function marker(toolchain: Toolchain): string throws { ToolchainHostFailure }
+export declare function expectedMarker(toolchain: Toolchain): string
+export declare function regularFile(toolchain: Toolchain, path: string): bool throws {
+    ToolchainHostFailure
+}
+export declare function closeDirectory(toolchain: Toolchain): void
+export declare function createStaging(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function loadZig(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function zigHash(toolchain: Toolchain): bool
+export declare function zip(toolchain: Toolchain): bool
+export declare function extractZip(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function extractTar(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function renameZig(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function standardHash(toolchain: Toolchain): bool
+export declare function extractStandard(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function writeMarker(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function publish(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function unlock(toolchain: Toolchain): void
+export declare function probeLibrary(toolchain: Toolchain, suffix: string): bool throws {
+    ToolchainHostFailure
+}

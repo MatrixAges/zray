@@ -7,11 +7,12 @@ export type Input = Pair
 export type Output = string
 
 export default function (in: Input): Output {
-    const operand = in.right
+    const { left, right: operand } = in
 
-    return match in.left {
-        smt_false => smt_false,
-        smt_true => templateFile("../scalar/templates/not.tpl"),
+    return match {
+        left == smt_false || operand == smt_true => smt_false,
+        operand == smt_false => left,
+        left == smt_true => templateFile("../scalar/templates/not.tpl"),
         _ => templateFile("./templates/exclude.tpl")
     }
 }

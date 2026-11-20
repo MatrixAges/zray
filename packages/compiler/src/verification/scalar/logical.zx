@@ -1,7 +1,9 @@
 import { BinaryOperator } from "core/expression_table/kinds"
 
+import choose from "../predicate/choose"
 import conjunction from "./conjunction"
 import { smt_true } from "./const"
+import disjunction from "./disjunction"
 
 import type { Binary, Result } from "./model"
 
@@ -13,19 +15,21 @@ export default function (in: Input): Output {
     const { left, right } = in
 
     const both = in.operator == BinaryOperator.LogicalAnd
-    const a = left.value
-    const b = right.value
     const yes = both ? right.safe : smt_true
     const no = both ? smt_true : right.safe
-    const guarded = templateFile("./templates/guard.tpl")
 
-    const value = match {
-        both => conjunction({
-            left: a,
-            right: b
-        }),
-        _ => templateFile("./templates/or.tpl")
+    const guarded = choose({
+        condition: left.value,
+        yes,
+        no
+    })
+
+    const operands = {
+        left: left.value,
+        right: right.value
     }
+
+    const value = both ? conjunction(operands) : disjunction(operands)
 
     return {
         value,

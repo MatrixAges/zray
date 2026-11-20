@@ -1,0 +1,33 @@
+{
+    "roots": [
+        {
+            "path": "toolchain",
+            "prefix": "toolchain/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "toolchain/const.zx",
+            "name": "constants"
+        },
+        {
+            "path": "toolchain/cache/root.zx",
+            "name": "cache_root"
+        },
+        {
+            "path": "toolchain/workflow/resolve.rx",
+            "name": "resolve"
+        }
+    ],
+    "packages": [],
+    "interfaces": [
+        {
+            "path": "toolchain/cache/host.d.zx",
+            "module": "toolchain_environment"
+        },
+        {
+            "path": "toolchain/workflow/host.d.zx",
+            "module": "toolchain_host"
+        }
+    ]
+}

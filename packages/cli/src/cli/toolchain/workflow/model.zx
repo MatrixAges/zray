@@ -1,0 +1,18 @@
+import type { Toolchain } from "toolchain_host"
+
+export type Handle = Toolchain
+
+export enum Status {
+    Ready,
+    IncompleteToolchainCache,
+    ZxcZigLibraryNotFound,
+    CorruptBundledToolchain
+}
+
+export type Input = {
+    toolchain: Toolchain,
+    external: bool,
+    windows: bool
+}
+
+export type Output = Status

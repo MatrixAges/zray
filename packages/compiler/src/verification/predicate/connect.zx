@@ -1,4 +1,5 @@
 import conjunction from "../scalar/conjunction"
+import disjunction from "../scalar/disjunction"
 import { Operator } from "./model"
 
 import type { Connection as Input } from "./model"
@@ -11,7 +12,7 @@ export default function (in: Input): Output {
 
     return match in.operator {
         Operator.And => conjunction(in.omit(["operator"])),
-        Operator.Or => templateFile("../scalar/templates/or.tpl"),
+        Operator.Or => disjunction(in.omit(["operator"])),
         _ => templateFile("../scalar/templates/equal.tpl")
     }
 }

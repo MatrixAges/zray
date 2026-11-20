@@ -25,6 +25,10 @@
         {
             "path": "extract/unpack.zx",
             "name": "unpack"
+        },
+        {
+            "path": "store/download/read.rx",
+            "name": "download"
         }
     ],
     "packages": [],
@@ -40,6 +44,10 @@
         {
             "path": "extract/host.d.zx",
             "module": "package_extract_host"
+        },
+        {
+            "path": "store/download/host.d.zx",
+            "module": "package_download_host"
         }
     ]
 }

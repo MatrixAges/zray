@@ -1,0 +1,60 @@
+<Module>
+    <Type from="model" as="Toolchain" />
+
+    <Args in={Toolchain.Input} out={Toolchain.Output} />
+
+    <Call fn="index.createStaging" in={$in.toolchain} />
+
+    <If on={!$in.external}>
+        <Call fn="index.loadZig" in={$in.toolchain} />
+        <Call fn="index.zigHash" in={$in.toolchain} />
+
+        <If on={!$ctx.zigHash}>
+            <Return value={Toolchain.Status.CorruptBundledToolchain} />
+        </If>
+
+        <Call fn="index.zip" in={$in.toolchain} />
+
+        <If on={$ctx.zip}>
+            <Call fn="index.extractZip" in={$in.toolchain} />
+
+            <Else>
+                <Call fn="index.extractTar" in={$in.toolchain} />
+            </Else>
+        </If>
+
+        <Call fn="index.renameZig" in={$in.toolchain} />
+    </If>
+
+    <Call fn="standard" in={$in.toolchain} />
+
+    <If on={$ctx.standard != Toolchain.Status.Ready}>
+        <Return value={$ctx.standard} />
+    </If>
+
+    <Call fn="index.closeDirectory" in={$in.toolchain} />
+    <Call fn="index.writeMarker" in={$in.toolchain} />
+
+    <Call
+        fn="index.openStaging"
+        in={[
+            $in.toolchain,
+            true
+        ]}
+    />
+
+    <If on={!$ctx.openStaging}>
+        <Return value={Toolchain.Status.IncompleteToolchainCache} />
+    </If>
+
+    <Call fn="ready" in={$in} />
+
+    <If on={!$ctx.ready}>
+        <Return value={Toolchain.Status.IncompleteToolchainCache} />
+    </If>
+
+    <Call fn="index.closeDirectory" in={$in.toolchain} />
+    <Call fn="index.publish" in={$in.toolchain} />
+
+    <Return value={Toolchain.Status.Ready} />
+</Module>

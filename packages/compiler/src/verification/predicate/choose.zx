@@ -1,3 +1,5 @@
+import { smt_true, smt_false } from "../scalar/const"
+
 import type { Choice as Input } from "./model"
 
 export type Output = string
@@ -7,5 +9,9 @@ export default function (in: Input): Output {
 
     const { yes, no } = in
 
-    return templateFile("../scalar/templates/guard.tpl")
+    return match {
+        a == smt_true || yes == no => yes,
+        a == smt_false => no,
+        _ => templateFile("../scalar/templates/guard.tpl")
+    }
 }

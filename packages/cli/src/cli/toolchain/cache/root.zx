@@ -1,0 +1,64 @@
+import host from "toolchain_environment"
+
+import {
+    app_name,
+    cache_name,
+    cache_override,
+    mac_caches,
+    mac_library,
+    user_cache,
+    user_home,
+    windows_cache,
+    xdg_cache
+} from "../const"
+import { Platform, Status } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { environment, platform } = in
+
+    const configured = host.get(environment, cache_override)
+
+    if (configured != null) {
+        if (!host.absolute(configured)) {
+            return Status.InvalidZxcCacheDirectory
+        }
+
+        host.usePath(environment, configured)
+
+        return Status.Ready
+    }
+
+    const xdg = match platform {
+        Platform.Other => host.get(environment, xdg_cache),
+        _ => null
+    }
+
+    const key = platform == Platform.Windows ? windows_cache : user_home
+
+    const base: string? = match {
+        xdg == null => host.get(environment, key),
+        _ => xdg
+    }
+
+    if (base == null) {
+        return Status.MissingUserCacheDirectory
+    }
+
+    if (!host.absolute(base)) {
+        return Status.InvalidUserCacheDirectory
+    }
+
+    if (platform == Platform.Windows) {
+        host.joinPath(environment, base, app_name, cache_name, null)
+    } else if (platform == Platform.Mac) {
+        host.joinPath(environment, base, mac_library, mac_caches, app_name)
+    } else if (xdg == null) {
+        host.joinPath(environment, base, user_cache, app_name, null)
+    } else {
+        host.joinPath(environment, base, app_name, null, null)
+    }
+
+    return Status.Ready
+}

@@ -1,0 +1,15 @@
+export type Download = opaque
+
+export declare function local(download: Download): bool throws { PackageDownloadHostFailure }
+export declare function readLocal(download: Download, limit: u64): u64 throws {
+    PackageDownloadHostFailure
+}
+export declare function receiveHead(download: Download): void throws {
+    PackageDownloadHostFailure
+}
+export declare function ok(download: Download): bool
+export declare function identityEncoding(download: Download): bool
+export declare function declaredLength(download: Download): u64?
+export declare function readBody(download: Download, limit: u64): void throws {
+    PackageDownloadHostFailure
+}

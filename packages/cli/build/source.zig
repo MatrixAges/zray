@@ -95,10 +95,36 @@ pub fn store(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
             .{ .name = "package_cache_host", .module = effects },
             .{ .name = "package_extract_host", .module = effects },
             .{ .name = "package_receipt_host", .module = effects },
+            .{ .name = "package_download_host", .module = effects },
         },
     });
 
     return host;
+}
+
+pub fn toolchain(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module) *std.Build.Module {
+    const files = b.addWriteFiles();
+    _ = files.addCopyDirectory(b.path("src/cli/toolchain"), "toolchain", .{ .include_extensions = &.{ ".rx", ".zx" } });
+
+    const generated = generate(b, compiler, files, "build/toolchain.json", "toolchain");
+
+    const effects = b.createModule(.{
+        .root_source_file = b.path("src/cli/toolchain/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_host", .module = host }},
+    });
+
+    return b.createModule(.{
+        .root_source_file = generated.path(b, "root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
+            .{ .name = "toolchain_environment", .module = effects },
+            .{ .name = "toolchain_host", .module = effects },
+        },
+    });
 }
 
 fn generate(b: *std.Build, compiler: *std.Build.Dependency, files: *std.Build.Step.WriteFile, manifest: []const u8, output: []const u8) std.Build.LazyPath {

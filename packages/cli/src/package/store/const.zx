@@ -19,3 +19,5 @@ export const maximum_unpacked: u64 = 536870912
 export const maximum_entries: u64 = 65536
 
 export const digest_width: u64 = 64
+
+export const maximum_redirects: u8 = 3

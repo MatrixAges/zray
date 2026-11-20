@@ -1,0 +1,10 @@
+export type { Download as Input } from "package_download_host"
+
+export enum Status {
+    Ready,
+    PackageArchiveTooLarge,
+    PackageDownloadFailed,
+    UnsupportedPackageContentEncoding
+}
+
+export type Output = Status

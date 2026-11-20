@@ -1,0 +1,12 @@
+import host from "package_download_host"
+
+import { maximum_archive } from "../const"
+import { Status } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const length = host.readLocal(in, maximum_archive + 1)
+
+    return length > maximum_archive ? Status.PackageArchiveTooLarge : Status.Ready
+}

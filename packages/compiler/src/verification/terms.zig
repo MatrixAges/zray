@@ -73,6 +73,9 @@ pub fn exclude(allocator: std.mem.Allocator, path: []const u8, predicate: []cons
         return zx.columns.invoke(rule.executeValue, allocator, &input);
     }
 
+    if (std.mem.eql(u8, path, "false") or std.mem.eql(u8, predicate, "true")) return "false";
+    if (std.mem.eql(u8, predicate, "false")) return path;
+
     return seed.binary(allocator, "and", path, try seed.unary(allocator, "not", predicate));
 }
 

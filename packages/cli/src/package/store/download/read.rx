@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Download" />
+
+    <Args in={Download.Input} out={Download.Output} />
+
+    <Call fn="index.isLocal" in={$in} />
+
+    <If on={$ctx.isLocal}>
+        <Call fn="local" in={$in} />
+
+        <Return value={$ctx.local} />
+    </If>
+
+    <Call fn="index.receiveHead" in={$in} />
+    <Call fn="body" in={$in} />
+
+    <Return value={$ctx.body} />
+</Module>

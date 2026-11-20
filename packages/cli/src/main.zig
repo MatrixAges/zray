@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const package_graph = @import("package/graph/host.zig");
+pub const toolchain = @import("cli/toolchain.zig");
 pub const installation = @import("package/install/host.zig");
 
 pub fn main(init: std.process.Init) !void {

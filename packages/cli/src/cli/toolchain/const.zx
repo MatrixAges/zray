@@ -1,0 +1,53 @@
+export const cache_override: string = "ZXC_CACHE_DIR"
+
+export const user_home: string = "HOME"
+
+export const xdg_cache: string = "XDG_CACHE_HOME"
+
+export const windows_cache: string = "LOCALAPPDATA"
+
+export const app_name: string = "zxc"
+
+export const cache_name: string = "cache"
+
+export const user_cache: string = ".cache"
+
+export const mac_library: string = "Library"
+
+export const mac_caches: string = "Caches"
+
+export const toolchains: string = "toolchains"
+
+export const standard_directory: string = "standard"
+
+export const zig_directory: string = "zig"
+
+export const ready_file: string = "ready"
+
+export const lock_suffix: string = ".lock"
+
+export const staging_suffix: string = ".partial"
+
+export const resources_prefix: string = "resources-"
+
+export const marker_limit: u64 = 128
+
+export const standard_probe: string = "standard/src/root.zig"
+
+export const zig_library_probe: string = "zig/lib/std/std.zig"
+
+export const zig_probe: string = "zig/zig"
+
+export const windows_zig_probe: string = "zig/zig.exe"
+
+export const windows_zig_executable: string = "zig.exe"
+
+export const official_lib: string = "lib"
+
+export const system_lib: string = "../lib/zig"
+
+export const sibling_lib: string = "../lib"
+
+export const zig_override: string = "ZXC_ZIG"
+
+export const library_probe: string = "std/std.zig"

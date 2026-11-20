@@ -3,6 +3,7 @@ const pkgs = @import("pkgs");
 pub const archive = @import("archive.zig");
 pub const receipt = @import("store/receipt.zig");
 pub const cache = @import("store/cache/storage.zig");
+pub const transfer = @import("store/download.zig");
 pub const paths = @import("archive/path.zig");
 pub const constants = @import("package_cache").constants.@"zx.constants";
 

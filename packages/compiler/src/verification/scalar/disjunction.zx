@@ -1,0 +1,16 @@
+import { smt_true, smt_false } from "./const"
+
+import type { Input } from "./conjunction"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { left: a, right: b } = in
+
+    return match {
+        a == smt_true || b == smt_true => smt_true,
+        a == smt_false => b,
+        b == smt_false => a,
+        _ => templateFile("./templates/or.tpl")
+    }
+}

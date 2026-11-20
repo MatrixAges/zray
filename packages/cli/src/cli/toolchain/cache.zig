@@ -1,24 +1,48 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const rule = @import("cli_toolchain").cache_root;
+
+const Context = struct {
+    allocator: std.mem.Allocator,
+    environment: *const std.process.Environ.Map,
+    result: []const u8 = undefined,
+    fn get(handle: *const anyopaque) *Context {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
 
 pub fn root(allocator: std.mem.Allocator, environment: *const std.process.Environ.Map) ![]const u8 {
-    if (environment.get("ZXC_CACHE_DIR")) |path| {
-        if (!std.fs.path.isAbsolute(path)) return error.InvalidZxcCacheDirectory;
+    var context: Context = .{ .allocator = allocator, .environment = environment };
 
-        return path;
-    }
+    const status = try rule.executeValue(allocator, &.{
+        .environment = @ptrCast(&context),
+        .platform = switch (builtin.os.tag) {
+            .windows => .Windows,
+            .macos => .Mac,
+            else => .Other,
+        },
+    });
 
-    const base = switch (builtin.os.tag) {
-        .windows => environment.get("LOCALAPPDATA") orelse return error.MissingUserCacheDirectory,
-        .macos => environment.get("HOME") orelse return error.MissingUserCacheDirectory,
-        else => environment.get("XDG_CACHE_HOME") orelse environment.get("HOME") orelse return error.MissingUserCacheDirectory,
+    return switch (status) {
+        .Ready => context.result,
+        .InvalidZxcCacheDirectory => error.InvalidZxcCacheDirectory,
+        .MissingUserCacheDirectory => error.MissingUserCacheDirectory,
+        .InvalidUserCacheDirectory => error.InvalidUserCacheDirectory,
     };
+}
 
-    if (!std.fs.path.isAbsolute(base)) return error.InvalidUserCacheDirectory;
+pub fn get(handle: *const anyopaque, key: []const u8) ?[]const u8 {
+    return Context.get(handle).environment.get(key);
+}
 
-    return switch (builtin.os.tag) {
-        .windows => std.fs.path.join(allocator, &.{ base, "zxc", "cache" }),
-        .macos => std.fs.path.join(allocator, &.{ base, "Library", "Caches", "zxc" }),
-        else => std.fs.path.join(allocator, if (environment.get("XDG_CACHE_HOME") != null) &.{ base, "zxc" } else &.{ base, ".cache", "zxc" }),
-    };
+pub fn usePath(handle: *const anyopaque, path: []const u8) void {
+    Context.get(handle).result = path;
+}
+
+pub fn joinPath(handle: *const anyopaque, base: []const u8, first: []const u8, second: ?[]const u8, third: ?[]const u8) error{OutOfMemory}!void {
+    const context = Context.get(handle);
+    const parts = [_][]const u8{ base, first, second orelse "", third orelse "" };
+    const count: usize = if (third != null) 4 else if (second != null) 3 else 2;
+
+    context.result = try std.fs.path.join(context.allocator, parts[0..count]);
 }
