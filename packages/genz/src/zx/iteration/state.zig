@@ -15,16 +15,11 @@ pub const Declaration = struct {
 pub const Tracker = union(enum) {
     seed: []const u8,
     generated: @FieldType(node.Statement, "assignment"),
-    pub fn mark(self: Tracker, lowering: *Lower, body: *std.ArrayList(node.Statement)) Lower.Error!void {
-        const assignment: @FieldType(node.Statement, "assignment") = switch (self) {
-            .seed => |name| .{
-                .target = try lowering.builder.identifier(name),
-                .value = try lowering.builder.expression(.{ .boolean = true }),
-            },
-            .generated => |assignment| assignment,
-        };
+    pub fn markSeed(self: Tracker, lowering: *Lower, body: *std.ArrayList(node.Statement)) Lower.Error!void {
+        const target = try lowering.builder.identifier(self.seed);
+        const value = try lowering.builder.expression(.{ .boolean = true });
 
-        try body.append(lowering.allocator, .{ .assignment = assignment });
+        try body.append(lowering.allocator, .{ .assignment = .{ .target = target, .value = value } });
     }
 };
 

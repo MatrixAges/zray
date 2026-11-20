@@ -4,21 +4,29 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 
-pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, target: node.ExpressionId, value: node.ExpressionId) Lower.Error!void {
-    if (!@import("genz_options").generated_analysis) return @import("assignment_seed.zig").append(self, body, type_id, target, value);
+pub const Write = struct {
+    type_id: ir.TypeId,
+    active: bool,
+    target: node.ExpressionId,
+    value: node.ExpressionId,
+    mark: ?@FieldType(node.Statement, "assignment"),
+};
 
+pub fn lower(self: *Lower, write: Write) Lower.Error!u32 {
     const entry = @import("generated_iteration_assignment");
     const Input = std.meta.Child(entry.Input);
     const Facts = std.meta.Child(@FieldType(Input, "facts"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
     const facts: Facts = .{ .types = &types, .selected = self.state_plan.selected };
+    const Mark = std.meta.Child(@typeInfo(@FieldType(Input, "mark")).optional.child);
 
     const input: Input = .{
         .facts = &facts,
-        .active = self.state_active,
-        .type_id = @backingInt(type_id),
-        .target = @backingInt(target),
-        .value = @backingInt(value),
+        .active = write.active,
+        .type_id = @backingInt(write.type_id),
+        .target = @backingInt(write.target),
+        .value = @backingInt(write.value),
+        .mark = if (write.mark) |value| &@as(Mark, .{ .target = @backingInt(value.target), .value = @backingInt(value.value) }) else null,
         .base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .serial = self.serial,
     };
@@ -34,13 +42,13 @@ pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Ty
     if (!result.valid) return error.OutOfMemory;
 
     var expressions = result.expressions.*;
-    var snapshots = result.snapshots.*;
+    var statements = result.statements.*;
     const names = try memory.allocator().alloc([]const u8, expressions.identifier.len);
 
     for (expressions.identifier, names) |name, *owned| owned.* = try self.allocator.dupe(u8, name);
 
     expressions.identifier = names;
-    snapshots.constant_name = names;
+    statements.constant_name = names;
 
     const fields = try memory.allocator().dupe([]const u8, expressions.field_name);
 
@@ -54,12 +62,11 @@ pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Ty
     expressions.field_name = fields;
 
     @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-    const statements = @import("../../node/import_statements.zig");
-
-    statements.appendBorrowingText(self.allocator, body, &snapshots) catch |err| return failure(err);
-    statements.appendBorrowingText(self.allocator, body, result.assignments) catch |err| return failure(err);
+    @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return failure(err);
 
     self.serial = @intCast(result.serial);
+
+    return @intCast(statements.tags.len);
 }
 
 fn failure(err: anyerror) Lower.Error {

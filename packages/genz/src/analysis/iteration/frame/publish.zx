@@ -9,7 +9,7 @@ export default function (in: Input): Output {
     const source = in.source
     const guarded = in.guard != null
     const extra = guarded ? guard_rows : 0
-    const base = integers.widen(source.statement_base) + source.body_count + extra
+    const base = integers.widen(source.statement_base) + extra
     const wrapped = in.entry != null
     const owned = source.prefix_count + 1
     const start = wrapped ? base + owned : base

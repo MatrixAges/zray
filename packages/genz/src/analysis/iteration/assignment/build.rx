@@ -8,7 +8,15 @@
     <If on={!$ctx.initialize.split}>
         <Call fn="direct" in={$ctx.initialize} />
 
-        <Return value={$ctx.direct} />
+        <Call
+            fn="publish"
+            in={{
+                state: $ctx.direct,
+                mark: $in.mark
+            }}
+        />
+
+        <Return value={$ctx.publish} />
     </If>
 
     <Call
@@ -30,5 +38,13 @@
         }}
     />
 
-    <Return value={$ctx.collect} />
+    <Call
+        fn="publish"
+        in={{
+            state: $ctx.collect,
+            mark: $in.mark
+        }}
+    />
+
+    <Return value={$ctx.publish} />
 </Module>

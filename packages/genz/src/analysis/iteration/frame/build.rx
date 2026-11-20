@@ -12,8 +12,7 @@
                 fn="entry"
                 in={{
                     condition: $in.condition,
-                    body_start: $ctx.guard.loop.start,
-                    body_count: $ctx.guard.loop.count,
+                    statement_base: $in.statement_base,
                     prefix_count: $in.prefix_count
                 }}
             />
@@ -47,7 +46,7 @@
         fn="statement"
         in={{
             condition: $in.condition,
-            start: $in.statement_base,
+            start: $in.body_start,
             count: $in.body_count
         }}
     />

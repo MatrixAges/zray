@@ -11,29 +11,27 @@ pub const Check = struct {
 
 pub fn lower(
     self: *Lower,
-    prefix: ?*std.ArrayList(node.Statement),
-    body: *std.ArrayList(node.Statement),
+    prefix: []const node.Statement,
+    body: node.Block,
     check: Check,
 ) Lower.Error!node.Block {
-    if (!@import("genz_options").generated_analysis) {
-        var target: std.ArrayList(node.Statement) = .empty;
+    const nodes = self.builder.nodes;
 
-        try seed(self, &target, prefix, body, check);
+    std.debug.assert(@as(usize, body.start) + body.len == nodes.statements.tags.items.len);
 
-        return self.builder.statements(target.items);
-    }
+    if (!@import("genz_options").generated_analysis) return seed(self, prefix, body, check);
 
     const module = @import("generated_iteration_frame");
     const Input = std.meta.Child(module.Input);
     const Output = std.meta.Child(module.Output);
-    const before = if (prefix) |rows| rows.items else &.{};
 
     const input: Input = .{
         .condition = @backingInt(check.condition),
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .body_count = body.items.len,
-        .prefix_count = before.len,
+        .body_start = body.start,
+        .body_count = body.len,
+        .prefix_count = prefix.len,
         .after_step = check.after_step,
         .guarded_initial = check.guarded_initial,
     };
@@ -54,16 +52,11 @@ pub fn lower(
         const exit = zx.columns.view(std.meta.Child(@FieldType(Guard, "exit")), guard.exit);
 
         try appendRows(self, &self.builder.nodes.expressions, &expressions);
-        try appendRows(self, &self.builder.nodes.statements, &stop);
-
-        _ = try self.builder.statements(body.items);
-
-        try appendRows(self, &self.builder.nodes.statements, &exit);
-    } else {
-        _ = try self.builder.statements(body.items);
+        try appendRows(self, &nodes.statements, &exit);
+        try appendRows(self, &nodes.statements, &stop);
     }
 
-    _ = try self.builder.statements(before);
+    _ = try self.builder.statements(prefix);
 
     try appendRows(self, &self.builder.nodes.statements, &statement);
 
@@ -77,37 +70,39 @@ pub fn lower(
     return .{ .start = output.start, .len = output.count };
 }
 
-fn seed(
-    self: *Lower,
-    target: *std.ArrayList(node.Statement),
-    prefix: ?*std.ArrayList(node.Statement),
-    body: *std.ArrayList(node.Statement),
-    check: Check,
-) Lower.Error!void {
-    const entered = prefix orelse target;
-    const renewed = if (prefix) |rows| rows.items.len != 0 else false;
+fn seed(self: *Lower, prefix: []const node.Statement, body: node.Block, check: Check) Lower.Error!node.Block {
+    const renewed = prefix.len != 0;
     const trailing = check.after_step or renewed or check.guarded_initial;
+    var statements = body;
+    var condition = check.condition;
 
-    if (trailing) try body.append(self.allocator, .{ .branch = .{
-        .condition = try self.builder.expression(.{ .unary = .{ .operator = .not, .operand = check.condition } }),
-        .yes = try self.builder.statements(&.{.break_loop}),
-        .no = .{},
-    } });
+    if (trailing) {
+        const stop = std.math.cast(u32, self.builder.nodes.statements.tags.items.len + 1) orelse return error.OutOfMemory;
+        const exit = try self.builder.expression(.{ .unary = .{ .operator = .not, .operand = check.condition } });
 
-    try entered.append(self.allocator, .{ .while_loop = .{
-        .condition = if (trailing) try self.builder.expression(.{ .boolean = true }) else check.condition,
-        .body = try self.builder.statements(body.items),
-    } });
+        _ = try self.builder.statements(&.{.{ .branch = .{
+            .condition = exit,
+            .yes = .{ .start = stop, .len = 1 },
+            .no = .{},
+        } }});
 
-    if (prefix) |rows| {
-        if (!check.after_step and renewed) {
-            try target.append(self.allocator, .{ .branch = .{
-                .condition = check.condition,
-                .yes = try self.builder.statements(rows.items),
-                .no = .{},
-            } });
-        } else try target.appendSlice(self.allocator, rows.items);
+        _ = try self.builder.statements(&.{.break_loop});
+        statements.len += 1;
+        condition = try self.builder.expression(.{ .boolean = true });
     }
+
+    var entered = try self.builder.statements(prefix);
+
+    _ = try self.builder.statements(&.{.{ .while_loop = .{ .condition = condition, .body = statements } }});
+    entered.len += 1;
+
+    if (!check.after_step and renewed) return self.builder.statements(&.{.{ .branch = .{
+        .condition = check.condition,
+        .yes = entered,
+        .no = .{},
+    } }});
+
+    return entered;
 }
 
 fn appendRows(self: *Lower, target: anytype, source: anytype) Lower.Error!void {

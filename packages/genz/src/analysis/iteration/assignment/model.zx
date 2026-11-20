@@ -8,12 +8,16 @@ export type Facts = {
     selected: bool[]
 }
 
-export type Input = {
+export type Write = {
+    target: u32,
+    value: u32
+}
+
+export type Input = Write & {
     facts: Facts,
     active: bool,
     type_id: u32,
-    target: u32,
-    value: u32,
+    mark?: Write,
     base: u32,
     serial: u64
 }
@@ -82,4 +86,18 @@ export type Bound = {
     id: u32
 }
 
-export type Output = State
+export type Statements = Snapshots & Assignments
+
+export type Publication = {
+    state: State,
+    mark?: Write
+}
+
+export type Output = State.Pick(
+    "expressions",
+    "field_name_source",
+    "serial",
+    "valid"
+) & {
+    statements: Statements
+}

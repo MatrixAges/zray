@@ -1,20 +1,20 @@
 import integers from "std:integer"
 
 import branch from "./branch"
+import { guard_rows } from "./const"
 
 import type { Branch as Output } from "./model"
 
 export type Input = {
     condition: u32,
-    body_start: u32,
-    body_count: u64,
+    statement_base: u32,
     prefix_count: u64
 }
 
 export default function (in: Input): Output {
     return branch({
         condition: in.condition,
-        start: integers.narrow(integers.widen(in.body_start) + in.body_count),
+        start: integers.narrow(integers.widen(in.statement_base) + guard_rows),
         count: integers.narrow(in.prefix_count + 1)
     })
 }

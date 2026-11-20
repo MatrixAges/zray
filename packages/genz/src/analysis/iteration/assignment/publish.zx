@@ -1,0 +1,49 @@
+import integers from "std:integer"
+
+import { StatementsKind } from "../../../printer/model/statements"
+
+import type { Assignments, Output, Publication as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { state, mark } = in
+    const { snapshots, assignments } = state
+
+    const writes: Assignments = match {
+        mark != null => {
+            tags: assignments.tags.push(StatementsKind.Assignment)[0],
+            offsets: assignments.offsets.push(
+                integers.narrow(
+                    assignments.assignment_target.length
+                )
+            )[0],
+            assignment_target: assignments.assignment_target.push(mark.target)[0],
+            assignment_value: assignments.assignment_value.push(mark.value)[0]
+        },
+        _ => assignments
+    }
+
+    const tags = match {
+        snapshots.tags.length == 0 => writes.tags,
+        _ => snapshots.tags.concat(writes.tags)[0]
+    }
+
+    const offsets = match {
+        snapshots.offsets.length == 0 => writes.offsets,
+        _ => snapshots.offsets.concat(writes.offsets)[0]
+    }
+
+    return {
+        ...state.pick([
+            "expressions",
+            "field_name_source",
+            "serial",
+            "valid"
+        ]),
+        statements: {
+            ...snapshots,
+            ...writes,
+            tags,
+            offsets
+        }
+    }
+}

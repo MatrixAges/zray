@@ -179,18 +179,17 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
             .initial = try selected.initial(self),
         });
 
-        try step.append(self, &loop, schedule, .{
+        const prefix = try self.builder.statements(entered.items);
+
+        const update = try step.store(self, &loop, schedule, .{
             .type_id = type_id,
             .origin = iteration.body,
             .target = state,
             .value = next.value,
             .fields = selected,
-        });
+        }, tracker);
 
-        if (tracker) |value| try value.mark(self, &loop);
-
-        const prefix = try self.builder.statements(entered.items);
-        const framed = try frame.lower(self, null, &loop, .{ .condition = next.condition, .after_step = schedule.after_step });
+        const framed = try frame.lower(self, &.{}, update, .{ .condition = next.condition, .after_step = schedule.after_step });
 
         entered.clearRetainingCapacity();
 
@@ -232,18 +231,16 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
 
     try renewals.emit(self, &entered, type_id, .{ .reference = state });
 
-    try step.append(self, &loop, schedule, .{
+    const prefix = try self.builder.statements(body.items);
+
+    const update = try step.store(self, &loop, schedule, .{
         .type_id = type_id,
         .origin = iteration.body,
         .target = state,
         .value = next.value,
-    });
+    }, tracker);
 
-    if (tracker) |value| try value.mark(self, &loop);
-
-    const prefix = try self.builder.statements(body.items);
-
-    const framed = try frame.lower(self, &entered, &loop, .{
+    const framed = try frame.lower(self, entered.items, update, .{
         .condition = next.condition,
         .after_step = schedule.after_step,
         .guarded_initial = initial_guard != null,

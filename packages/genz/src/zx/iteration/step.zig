@@ -65,22 +65,36 @@ pub const Write = struct {
     fields: ?*const Fields = null,
 };
 
-pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), schedule: Plan, write: Write) Lower.Error!void {
-    const basic = @import("../statements/basic.zig");
+pub fn store(self: *Lower, body: *std.ArrayList(node.Statement), schedule: Plan, write: Write, tracker: ?@import("state.zig").Tracker) Lower.Error!node.Block {
+    const value = switch (schedule.assignment) {
+        .Direct => write.value,
+        .Projected => try write.fields.?.qualify(self, body, write.origin, write.value),
+        .State => try @import("../state_value/ownership.zig").clip(self, body, write.origin, write.value),
+    };
 
-    switch (schedule.assignment) {
-        .Direct => try basic.assignment(self, body, write.target, write.value),
-        .Projected => {
-            const qualified = try write.fields.?.qualify(self, body, write.origin, write.value);
+    if (!generated) {
+        if (schedule.assignment == .State) {
+            try @import("assignment_seed.zig").append(self, body, write.type_id, write.target, value);
+        } else {
+            try body.append(self.allocator, .{ .assignment = .{ .target = write.target, .value = value } });
+        }
 
-            try basic.assignment(self, body, write.target, qualified);
-        },
-        .State => {
-            const qualified = try @import("../state_value/ownership.zig").clip(self, body, write.origin, write.value);
+        if (tracker) |flag| try flag.markSeed(self, body);
 
-            try @import("assignment.zig").append(self, body, write.type_id, write.target, qualified);
-        },
+        return self.builder.statements(body.items);
     }
+
+    const prefix = try self.builder.statements(body.items);
+
+    const count = try @import("assignment.zig").lower(self, .{
+        .type_id = write.type_id,
+        .active = schedule.assignment == .State and self.state_active,
+        .target = write.target,
+        .value = value,
+        .mark = if (tracker) |flag| flag.generated else null,
+    });
+
+    return .{ .start = prefix.start, .len = prefix.len + count };
 }
 
 fn seed(input: Input) Plan {

@@ -11,7 +11,7 @@ import type { Input, Guard as Output } from "./model"
 
 export default function (in: Input): Output {
     const condition = integers.narrow(integers.widen(in.expression_base) + 1)
-    const start = integers.narrow(integers.widen(in.statement_base) + 1)
+    const stop = integers.narrow(integers.widen(in.statement_base) + 1)
 
     return {
         expressions: {
@@ -33,12 +33,12 @@ export default function (in: Input): Output {
         },
         exit: branch({
             condition: in.expression_base,
-            start: in.statement_base,
+            start: stop,
             count: 1
         }),
         loop: {
             condition,
-            start,
+            start: in.body_start,
             count: in.body_count + 1
         }
     }

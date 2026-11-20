@@ -8,6 +8,7 @@ export type Input = {
     condition: u32,
     expression_base: u32,
     statement_base: u32,
+    body_start: u32,
     body_count: u64,
     prefix_count: u64,
     after_step: bool,
