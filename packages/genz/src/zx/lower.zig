@@ -82,6 +82,22 @@ pub fn refreshEntry(self: *Self) Error!void {
     self.entry_flags = try @import("entry_flags.zig").analyze(self.workspace, self.program, .{ .local = self.local_functions, .pure = self.pure_functions, .io = self.io_functions, .process = self.process_functions, .tasks = self.task_functions, .self_function = self.self_function });
 }
 
+/// Select a function body while retaining the program's shared type and function tables.
+pub fn selectFunction(self: *Self, id: ir.FunctionId, selected: ir.Function) Error!void {
+    self.program.symbols = selected.symbols;
+    self.program.expressions = selected.expressions;
+    self.program.body = selected.body;
+    self.program.input_type = selected.input_type;
+    self.program.output_type = selected.output_type;
+    self.program.stores = selected.stores;
+    self.program.store_mode = selected.store_mode;
+    self.program.contracts = selected.contracts;
+    self.self_function = id;
+
+    try self.refreshEntry();
+    try @import("error_effects.zig").forFunction(self, id);
+}
+
 const ModuleDeclarations = @import("../node/stored.zig").Declarations;
 
 pub fn declarations(self: *Self) Error!ModuleDeclarations {
@@ -101,8 +117,8 @@ fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: boo
 
     self.comparisons = &comparisons;
     self.task_declarations = &task_declarations;
-
-    var function_requests = try @import("functions/requests.zig").init(self.allocator, self.program.functions.count());
+    const local_functions = if (local and !type_only) self.program.functions.count() else 0;
+    var function_requests = try @import("functions/requests.zig").init(self.allocator, local_functions);
     self.function_requests = &function_requests;
 
     var suffix: std.ArrayList(node.Declaration) = .empty;
@@ -121,10 +137,8 @@ fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: boo
         .Entry => try @import("entry.zig").declarations(self, &output),
         .ValueEntry => try @import("entry_values.zig").declarations(self, &output),
         .RequestedFunctions => {
-            var function_index: usize = 0;
-
-            while (function_index < function_requests.count()) : (function_index += 1) {
-                try @import("functions/emit.zig").append(self, &output, function_requests.at(function_index));
+            while (function_requests.next(self.program.functions.native_modules)) |request| {
+                try @import("functions/emit.zig").append(self, &output, request);
             }
         },
         .ParallelAllocator => {

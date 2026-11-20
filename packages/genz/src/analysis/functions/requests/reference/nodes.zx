@@ -24,7 +24,8 @@ export default function (in: Input): Output {
                 field_target: [],
                 field_name: []
             },
-            root: base
+            root: base,
+            request: in.name.request
         }
     }
 
@@ -47,6 +48,7 @@ export default function (in: Input): Output {
             field_target: [base + 1],
             field_name: [text]
         },
-        root: base + 2
+        root: base + 2,
+        request: in.name.request
     }
 }

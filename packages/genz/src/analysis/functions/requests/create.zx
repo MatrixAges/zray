@@ -18,7 +18,8 @@ export default function (in: Input): Output {
             ids: [],
             variants: [],
             first: [],
-            seen: state.seen
+            seen: state.seen,
+            next: 0
         })
     })
 }

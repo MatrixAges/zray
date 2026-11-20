@@ -18,6 +18,7 @@ export default function (in: Input): Output {
             identifier: resources.identifier.concat(reference.nodes.identifier)[0]
         },
         root: call.root,
-        valid: call.valid
+        valid: call.valid,
+        request: reference.request
     }
 }

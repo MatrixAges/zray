@@ -5,6 +5,7 @@ const Self = @This();
 
 items: std.ArrayList(Requests.Item) = .empty,
 seen: []std.EnumSet(Requests.Variant),
+next: usize = 0,
 pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
     const seen = try allocator.alloc(std.EnumSet(Requests.Variant), count);
 

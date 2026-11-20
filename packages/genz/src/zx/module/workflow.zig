@@ -43,7 +43,9 @@ pub fn entrySteps(comptime type_only: bool, comptime local: bool) []const EntryS
 
     if (type_only) return header;
 
-    return header ++ &[_]EntryStep{ .Shape, .Contracts, .Store, .Entry, .ValueEntry, .RequestedFunctions, .ParallelAllocator, .Comparisons };
+    const functions_to_emit: []const EntryStep = if (local) &.{.RequestedFunctions} else &.{};
+
+    return header ++ &[_]EntryStep{ .Shape, .Contracts, .Store, .Entry, .ValueEntry } ++ functions_to_emit ++ &[_]EntryStep{ .ParallelAllocator, .Comparisons };
 }
 
 pub fn functionSteps(comptime form: FunctionForm) []const FunctionStep {

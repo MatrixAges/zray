@@ -12,7 +12,8 @@ export type Target = Request & {
 
 export type Name = {
     text: u8[],
-    module?: string
+    module?: string,
+    request: bool
 }
 
 export type Input = {
@@ -38,5 +39,6 @@ export type Nodes = {
 
 export type Output = {
     nodes: Nodes,
-    root: u32
+    root: u32,
+    request: bool
 }

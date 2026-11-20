@@ -7,7 +7,8 @@ export type State = {
     ids: u32[],
     variants: Variant[],
     first: bool[],
-    seen: u8[]
+    seen: u8[],
+    next: u64
 }
 
 export type Request = {
@@ -19,4 +20,32 @@ export type Push = {
     state: State,
     id: u32,
     variant: Variant
+}
+
+export enum Form {
+    Done,
+    Native,
+    FirstRegular,
+    Regular,
+    FirstValue,
+    Value
+}
+
+export type Take = State.Pick("ids", "variants", "first", "next") & {
+    native_modules: u32?[]
+}
+
+export type Taken = {
+    id: u32,
+    next: u64,
+    form: Form
+}
+
+export enum EmitStep {
+    Native,
+    Enter,
+    Store,
+    Regular,
+    Value,
+    Parallel
 }

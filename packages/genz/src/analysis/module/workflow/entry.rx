@@ -57,7 +57,6 @@
             Workflow.EntryStep.Store,
             Workflow.EntryStep.Entry,
             Workflow.EntryStep.ValueEntry,
-            Workflow.EntryStep.RequestedFunctions,
             Workflow.EntryStep.ParallelAllocator,
             Workflow.EntryStep.Comparisons
         ]}

@@ -853,6 +853,8 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/imports/build.rx", .name = "native_imports", .owner = .genz },
     .{ .path = "genz/analysis/functions/requests/create.zx", .name = "function_requests_create", .owner = .genz },
     .{ .path = "genz/analysis/functions/requests/push.zx", .name = "function_requests_push", .owner = .genz },
+    .{ .path = "genz/analysis/functions/requests/take.zx", .name = "function_requests_take", .owner = .genz },
+    .{ .path = "genz/analysis/functions/requests/emit.rx", .name = "function_requests_emit", .owner = .genz },
     .{ .path = "genz/analysis/functions/requests/name.zx", .name = "function_reference_name", .owner = .genz },
     .{ .path = "genz/analysis/functions/requests/member.zx", .name = "function_reference_member", .owner = .genz },
     .{ .path = "genz/analysis/functions/requests/reference/build.rx", .name = "function_reference", .owner = .genz },

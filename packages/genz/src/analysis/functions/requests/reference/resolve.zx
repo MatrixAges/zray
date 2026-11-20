@@ -15,7 +15,8 @@ export default function (in: Input): Output {
                 "id",
                 "variant"
             ])),
-            module: null
+            module: null,
+            request: true
         }
     }
 
@@ -23,6 +24,7 @@ export default function (in: Input): Output {
 
     return {
         text: bytes.fromText(member(variant)),
-        module: local ? null : module
+        module: local ? null : module,
+        request: false
     }
 }

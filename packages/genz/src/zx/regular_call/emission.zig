@@ -17,7 +17,7 @@ pub const Request = struct {
 };
 
 pub fn lower(self: *Lower, request: Request) Lower.Error!node.ExpressionId {
-    const target = try reference.prepare(self, request.function, .regular);
+    const target = reference.prepare(self, request.function, .regular);
     var capture: Capture = undefined;
 
     const input: Input = .{
@@ -45,8 +45,8 @@ pub fn lower(self: *Lower, request: Request) Lower.Error!node.ExpressionId {
     const output = entry.executeIn(temporary, &input) catch |err| return reference.failure(err);
 
     if (!output.valid) return error.OutOfMemory;
-
-    try reference.publish(self, temporary, output.nodes, target.module == null);
+    if (output.request) try self.function_requests.add(self.allocator, request.function, .regular);
+    try reference.publish(self, temporary, output.nodes, output.request);
 
     self.uses_allocator = true;
     self.uses_io = self.uses_io or request.io;

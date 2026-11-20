@@ -25,6 +25,7 @@ export default function (in: Input): Output {
         ids,
         variants,
         first,
-        seen: in.state.seen.with(index, seen)
+        seen: in.state.seen.with(index, seen),
+        next: in.state.next
     }
 }

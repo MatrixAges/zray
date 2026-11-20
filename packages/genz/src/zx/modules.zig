@@ -124,18 +124,7 @@ fn selectFunction(lower: *Lower, id: ir.FunctionId) Error!ir.Function {
 
     const selected = lower.program.functions.at(@backingInt(id));
 
-    lower.program.symbols = selected.symbols;
-    lower.program.expressions = selected.expressions;
-    lower.program.body = selected.body;
-    lower.program.input_type = selected.input_type;
-    lower.program.output_type = selected.output_type;
-    lower.program.stores = selected.stores;
-    lower.program.store_mode = selected.store_mode;
-    lower.program.contracts = selected.contracts;
-    lower.self_function = id;
-
-    try lower.refreshEntry();
-    try @import("error_effects.zig").forFunction(lower, id);
+    try lower.selectFunction(id, selected);
 
     return selected;
 }

@@ -41,5 +41,6 @@ export type Nodes = ReferenceNodes & CallNodes.Omit("tags", "offsets")
 export type Output = {
     nodes: Nodes,
     root: u32,
-    valid: bool
+    valid: bool,
+    request: bool
 }

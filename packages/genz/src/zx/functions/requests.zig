@@ -1,9 +1,12 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const generated = @import("genz_options").generated_analysis;
 const Seed = @import("requests/seed.zig");
 const creating = @import("generated_function_requests_create");
 const pushing = @import("generated_function_requests_push");
+const taking = if (generated) @import("generated_function_requests_take") else void;
+const emitting = if (generated) @import("generated_function_requests_emit") else void;
 const State = if (generated) @typeInfo(@typeInfo(@TypeOf(creating.executeState)).@"fn".return_type.?).error_union.payload else Seed;
 const Self = @This();
 
@@ -44,6 +47,8 @@ pub const Variant = enum {
 };
 
 pub const Item = struct { id: ir.FunctionId, variant: Variant, first: bool };
+pub const Form = if (generated) @FieldType(std.meta.Child(taking.Output), "form") else enum { Done, Native, FirstRegular, Regular, FirstValue, Value };
+pub const Request = struct { id: ir.FunctionId, form: Form };
 
 state: State,
 pub fn init(allocator: std.mem.Allocator, size: usize) std.mem.Allocator.Error!Self {
@@ -65,20 +70,54 @@ pub fn add(self: *Self, allocator: std.mem.Allocator, id: ir.FunctionId, variant
     }) catch |err| return failure(err);
 }
 
-pub fn count(self: *const Self) usize {
-    return if (generated) self.state.ids.items.len else self.state.items.items.len;
+pub fn next(self: *Self, native_modules: []const ?u32) ?Request {
+    if (!generated) {
+        const cursor = self.state.next;
+
+        if (cursor == self.state.items.items.len) return null;
+
+        const item = self.state.items.items[cursor];
+
+        self.state.next += 1;
+
+        const form: Form = if (native_modules[@backingInt(item.id)] != null) .Native else switch (item.variant) {
+            .regular => if (item.first) .FirstRegular else .Regular,
+            .value => if (item.first) .FirstValue else .Value,
+        };
+
+        return .{ .id = item.id, .form = form };
+    }
+
+    const input: std.meta.Child(taking.Input) = .{
+        .ids = self.state.ids.items,
+        .variants = self.state.variants.items,
+        .first = self.state.first.items,
+        .next = self.state.next,
+        .native_modules = native_modules,
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(taking.executeValue, fixed.allocator(), &input) catch unreachable;
+
+    if (result.form == .Done) return null;
+
+    self.state.next = result.next;
+
+    return .{ .id = @fromBackingInt(result.id), .form = result.form };
 }
 
-pub fn at(self: *const Self, index: usize) Item {
-    if (!generated) return self.state.items.items[index];
+const EmitStep = if (generated) std.meta.Child(emitting.Output) else enum { Native, Enter, Store, Regular, Value, Parallel };
 
-    return .{
-        .id = @fromBackingInt(self.state.ids.items[index]),
-        .variant = switch (self.state.variants.items[index]) {
-            .Regular => .regular,
-            .Value => .value,
-        },
-        .first = self.state.first.items[index],
+pub fn steps(comptime form: Form) []const EmitStep {
+    if (generated) return zx.staticSequence(emitting, @fromBackingInt(@backingInt(form)));
+
+    return switch (form) {
+        .Done => &.{},
+        .Native => &.{.Native},
+        .FirstRegular => &.{ .Enter, .Store, .Regular, .Parallel },
+        .Regular => &.{ .Enter, .Regular, .Parallel },
+        .FirstValue => &.{ .Enter, .Store, .Value, .Parallel },
+        .Value => &.{ .Enter, .Value, .Parallel },
     };
 }
 

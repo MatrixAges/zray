@@ -7,10 +7,8 @@ const entry = @import("generated_function_reference");
 const Input = std.meta.Child(entry.Input);
 const Target = std.meta.Child(@FieldType(Input, "target"));
 
-pub fn prepare(self: *Lower, id: zx.ir.FunctionId, variant: Variant) Lower.Error!Target {
+pub fn prepare(self: *const Lower, id: zx.ir.FunctionId, variant: Variant) Target {
     const module = if (self.function_modules) |modules| modules[@backingInt(id)] else null;
-
-    if (module == null) try self.function_requests.add(self.allocator, id, variant);
 
     return .{
         .id = @backingInt(id),
@@ -25,7 +23,7 @@ pub fn prepare(self: *Lower, id: zx.ir.FunctionId, variant: Variant) Lower.Error
 }
 
 pub fn lower(self: *Lower, id: zx.ir.FunctionId, variant: Variant) Lower.Error!node.ExpressionId {
-    const target = try prepare(self, id, variant);
+    const target = prepare(self, id, variant);
 
     const input: Input = .{
         .target = &target,
@@ -42,7 +40,8 @@ pub fn lower(self: *Lower, id: zx.ir.FunctionId, variant: Variant) Lower.Error!n
     const temporary = memory.allocator();
     const output = entry.executeIn(temporary, &input) catch |err| return failure(err);
 
-    try publish(self, temporary, output.nodes, target.module == null);
+    if (output.request) try self.function_requests.add(self.allocator, id, variant);
+    try publish(self, temporary, output.nodes, output.request);
 
     return @fromBackingInt(output.root);
 }
