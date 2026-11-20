@@ -6,8 +6,14 @@ const Lower = @import("../../lower.zig");
 
 pub const Flags = struct { exported: bool, io: bool, process: bool };
 
-pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), flags: Flags) Lower.Error!void {
-    if (!@import("genz_options").generated_analysis) return @import("seed.zig").append(self, body, flags);
+pub fn lower(self: *Lower, flags: Flags) Lower.Error!node.Block {
+    if (!@import("genz_options").generated_analysis) {
+        var body: std.ArrayList(node.Statement) = .empty;
+
+        try @import("seed.zig").append(self, &body, flags);
+
+        return self.builder.statements(body.items);
+    }
 
     const required = @import("generated_function_task_allocator");
     const Request = std.meta.Child(required.Input);
@@ -57,15 +63,21 @@ pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), flags: Flags) 
     const statements = view.join(result.statements.*, result.variables.*);
     @import("../../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
     _ = @import("../../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
-    @import("../../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);
+
+    const statement_rows = &self.builder.nodes.statements;
+    const start: u32 = @intCast(statement_rows.tags.items.len);
+    @import("../../../node/import_rows.zig").appendBorrowingText(self.allocator, statement_rows, &statements) catch |err| return failure(err);
 
     var auxiliary_storage: [1]node.Declaration = undefined;
     var auxiliary = std.ArrayList(node.Declaration).initBuffer(&auxiliary_storage);
 
     @import("../../../node/import_constants.zig").appendBorrowingText(self.allocator, &auxiliary, result.declarations) catch |err| return failure(err);
+
     for (auxiliary.items) |declaration| try self.task_declarations.append(self.allocator, declaration);
 
     self.uses_io = result.uses_io;
+
+    return .{ .start = start, .len = @intCast(statements.tags.len) };
 }
 
 fn failure(err: anyerror) Lower.Error {

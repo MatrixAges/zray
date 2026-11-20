@@ -4,13 +4,12 @@ const ir = zx.ir;
 const node = @import("../../../node.zig");
 const view = @import("../../../node/view.zig");
 const rows = @import("../../../node/import_rows.zig");
-const statements = @import("../../../node/import_statements.zig");
 const Lower = @import("../../lower.zig");
 const services = @import("../../statements.zig");
 const generated = @import("genz_options").generated_analysis;
 const Selection = @FieldType(ir.StatementRow, "switch_stmt");
 
-pub fn lower(self: *Lower, selection: Selection) Lower.Error![]const node.Statement {
+pub fn lower(self: *Lower, selection: Selection) Lower.Error!node.Block {
     if (!generated) return @import("seed.zig").lowerSwitch(self, selection);
 
     const entry = @import("generated_switch_emit");
@@ -46,7 +45,7 @@ pub fn lower(self: *Lower, selection: Selection) Lower.Error![]const node.Statem
     while (default_cursor > named) {
         default_cursor -= 1;
         const item = selection.cases.at(rows_by_case[default_cursor]);
-        fallback = try self.builder.statements(try services.lower(self, item.body));
+        fallback = try services.lower(self, item.body);
     }
 
     const selected = try @import("../../selection.zig").labels(self, selection.subject, labels[0..named]);
@@ -65,7 +64,7 @@ pub fn lower(self: *Lower, selection: Selection) Lower.Error![]const node.Statem
 
         if (!selected) comparisons[remaining] = @backingInt(try self.binary(.{ .operator = .equal, .left = selection.subject, .right = label }));
 
-        const body = try self.builder.statements(try services.lower(self, item.body));
+        const body = try services.lower(self, item.body);
 
         starts[remaining] = body.start;
         counts[remaining] = body.len;
@@ -121,12 +120,19 @@ pub fn lower(self: *Lower, selection: Selection) Lower.Error![]const node.Statem
     children.tags = output.children.tags;
     children.offsets = output.children.offsets;
     @import("../../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &children) catch |err| return failure(err);
-    var result: std.ArrayList(node.Statement) = .empty;
 
-    statements.appendSelectedBorrowingText(self.allocator, &result, &physical) catch |err| return failure(err);
-    statements.appendBlock(self.allocator, &result, self.builder.nodes, .{ .start = output.tail.start, .len = output.tail.count }) catch |err| return failure(err);
+    const node_storage = self.builder.nodes;
+    const start: u32 = @intCast(node_storage.statements.tags.items.len);
+    const count: u32 = @intCast(physical.tags.len);
 
-    return result.toOwnedSlice(self.allocator);
+    @import("../../../node/import_selected.zig").appendBorrowingText(self.allocator, &node_storage.statements, &physical) catch |err| return failure(err);
+
+    return @import("../../../node/blocks.zig").join(
+        self.allocator,
+        node_storage,
+        &.{ start, output.tail.start },
+        &.{ count, output.tail.count },
+    );
 }
 
 fn partition(cases: @FieldType(Selection, "cases"), labels: []u32, rows_by_case: []u32) Lower.Error!usize {

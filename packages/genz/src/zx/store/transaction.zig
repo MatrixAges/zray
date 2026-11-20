@@ -54,8 +54,14 @@ pub fn declaration(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower
     @import("../../node/import_constants.zig").appendBorrowingText(self.allocator, output, result.declarations) catch |err| return failure(err);
 }
 
-pub fn initialize(self: *Lower, body: *std.ArrayList(node.Statement)) Lower.Error!void {
-    if (!generated) return seed.initialize(self, body);
+pub fn initialize(self: *Lower) Lower.Error!node.Block {
+    if (!generated) {
+        var body: std.ArrayList(node.Statement) = .empty;
+
+        try seed.initialize(self, &body);
+
+        return self.builder.statements(body.items);
+    }
 
     const entry = @import("generated_store_pending_initial");
     const Input = std.meta.Child(entry.Input);
@@ -86,23 +92,28 @@ pub fn initialize(self: *Lower, body: *std.ArrayList(node.Statement)) Lower.Erro
 
     defer scratch.deinit();
 
-    const result = (entry.executeIn(memory.allocator(), &input) catch |err| return failure(err)) orelse return;
+    const result = (entry.executeIn(memory.allocator(), &input) catch |err| return failure(err)) orelse return .{};
 
     if (!result.valid) return error.OutOfMemory;
 
     const expressions = view.join(result.expressions.*, result.forms.*);
     @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
     @import("../../node/import_fields.zig").append(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, result.statements) catch |err| return failure(err);
+
+    const statement_rows = &self.builder.nodes.statements;
+    const start: u32 = @intCast(statement_rows.tags.items.len);
+    @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, statement_rows, result.statements) catch |err| return failure(err);
+
+    return .{ .start = start, .len = @intCast(result.statements.tags.len) };
 }
 
-pub fn finish(self: *Lower, statements: *std.ArrayList(node.Statement)) Lower.Error!void {
+pub fn finish(self: *Lower) Lower.Error!node.Block {
     const body = self.program.body;
 
     if (!generated) {
-        if (seed.active(self) and !zx.ir.terminates(body.block())) try statements.append(self.allocator, .{ .expression = try seed.commit(self) });
+        if (seed.active(self) and !zx.ir.terminates(body.block())) return self.builder.statements(&.{.{ .expression = try seed.commit(self) }});
 
-        return;
+        return .{};
     }
 
     const entry = @import("generated_store_fallthrough");
@@ -134,12 +145,13 @@ pub fn finish(self: *Lower, statements: *std.ArrayList(node.Statement)) Lower.Er
 
     defer scratch.deinit();
 
-    const result = (entry.executeIn(memory.allocator(), &input) catch |err| return failure(err)) orelse return;
+    const result = (entry.executeIn(memory.allocator(), &input) catch |err| return failure(err)) orelse return .{};
 
     if (!result.valid) return error.OutOfMemory;
 
     @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, result.expressions) catch |err| return failure(err);
-    try statements.append(self.allocator, .{ .expression = @fromBackingInt(result.root) });
+
+    return self.builder.statements(&.{.{ .expression = @fromBackingInt(result.root) }});
 }
 
 fn failure(err: anyerror) Lower.Error {

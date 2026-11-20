@@ -1,0 +1,52 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Destination as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop({
+        index: 0,
+        target: 0
+    }, {
+        while: state => state.index < in.counts.length,
+        next: state => {
+            const count = integers.widen(in.counts[state.index])
+
+            if (count != 0) {
+                const start = integers.widen(in.starts[state.index])
+                const end = start + count
+
+                const copied = memory.copyBytes(
+                    in.target_tags,
+                    state.target,
+                    in.tags,
+                    start,
+                    end
+                )
+
+                const offsets = loop({
+                    source: start,
+                    target: state.target
+                }, {
+                    while: position => position.source < end,
+                    next: position => {
+                        memory.writeU32(
+                            in.target_offsets,
+                            position.target,
+                            in.offsets[position.source]
+                        )
+                        position.source += 1
+                        position.target += 1
+                    },
+                    return: position => position.target
+                })
+
+                state.target = offsets
+            }
+
+            state.index += 1
+        }
+    })
+}

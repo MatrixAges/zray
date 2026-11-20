@@ -40,14 +40,17 @@ pub fn build(self: *Lower, id: ir.FunctionId) Lower.Error!?node.Declaration {
         .stores = &.{},
     });
 
-    var body: std.ArrayList(node.Statement) = .empty;
-
-    try @import("prelude/build.zig").append(self, &body, .{ .exported = false, .io = false, .process = false });
-    try body.appendSlice(self.allocator, self.reference_storage.items);
-    try body.append(self.allocator, .{ .result = result });
-
+    const prelude = try @import("prelude/build.zig").lower(self, .{ .exported = false, .io = false, .process = false });
+    const references = try self.builder.statements(self.reference_storage.items);
+    const returned = try self.builder.statements(&.{.{ .result = result }});
     var function = try self.prototype("call", false);
-    function.body = try self.builder.statements(body.items);
+
+    function.body = try @import("../../node/blocks.zig").join(
+        self.allocator,
+        self.builder.nodes,
+        &.{ prelude.start, references.start, returned.start },
+        &.{ prelude.len, references.len, returned.len },
+    );
 
     return .{ .function = function };
 }

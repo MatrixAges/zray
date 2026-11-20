@@ -44,14 +44,15 @@ pub fn lower(self: *Lower, function: ir.Function, index: usize) Lower.Error!node
     if (!result.valid) return error.OutOfMemory;
 
     @import("../node/import_rows.zig").append(self.allocator, &self.builder.nodes.expressions, result.expressions) catch |err| return failure(err);
-    var body: std.ArrayList(node.Statement) = .empty;
 
-    @import("../node/import_statements.zig").appendBorrowingText(self.allocator, &body, result.statements) catch |err| return failure(err);
+    const statements = &self.builder.nodes.statements;
+    const start: u32 = @intCast(statements.tags.items.len);
+    @import("../node/import_rows.zig").appendBorrowingText(self.allocator, statements, result.statements) catch |err| return failure(err);
     self.uses_allocator = result.uses_allocator;
 
     var declaration = try prototype(self, function, index);
 
-    declaration.body = try self.builder.statements(body.items);
+    declaration.body = .{ .start = start, .len = @intCast(result.statements.tags.len) };
 
     return .{ .function = declaration };
 }

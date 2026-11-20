@@ -162,22 +162,22 @@ pub fn function(self: *Self, name: []const u8, exported: bool) Error!node.Declar
     @memset(self.used, false);
     @memset(self.cache_reads, 0);
 
-    const body_statements = try self.statements(self.program.body.block());
+    const body = try self.statements(self.program.body.block());
     const preconditions = try @import("contracts.zig").preconditions(self);
-    var body: std.ArrayList(node.Statement) = .empty;
     const has_stores = self.program.stores.count() != 0;
-    const store_transaction = @import("store/transaction.zig");
-
-    try @import("functions/prelude/build.zig").append(self, &body, .{ .exported = exported, .io = needs_io, .process = needs_process });
-    if (has_stores) try store_transaction.initialize(self, &body);
-    try body.appendSlice(self.allocator, self.reference_storage.items);
-    try body.appendSlice(self.allocator, preconditions);
-    try body.appendSlice(self.allocator, body_statements);
-    if (has_stores) try store_transaction.finish(self, &body);
-
+    const stores = @import("store/transaction.zig");
+    const prelude = try @import("functions/prelude/build.zig").lower(self, .{ .exported = exported, .io = needs_io, .process = needs_process });
+    const pending = if (has_stores) try stores.initialize(self) else node.Block{};
+    const references = try self.builder.statements(self.reference_storage.items);
+    const commit = if (has_stores) try stores.finish(self) else node.Block{};
     var declaration = try self.prototypeWithErrors(name, exported, errors);
 
-    declaration.body = try self.builder.statements(body.items);
+    declaration.body = try @import("../node/blocks.zig").join(
+        self.allocator,
+        self.builder.nodes,
+        &.{ prelude.start, pending.start, references.start, preconditions.start, body.start, commit.start },
+        &.{ prelude.len, pending.len, references.len, preconditions.len, body.len, commit.len },
+    );
 
     return .{ .function = declaration };
 }
@@ -336,7 +336,7 @@ pub fn fresh(self: *Self, prefix: []const u8) Error![]const u8 {
     return name;
 }
 
-pub fn statements(self: *Self, values: ir.Block) Error![]const node.Statement {
+pub fn statements(self: *Self, values: ir.Block) Error!node.Block {
     return @import("statements.zig").lower(self, values);
 }
 

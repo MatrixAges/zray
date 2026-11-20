@@ -1,0 +1,19 @@
+import type { U32Buffer, U8Buffer } from "memory"
+
+export type Blocks = {
+    starts: u32[],
+    counts: u32[]
+}
+
+export type Layout = {
+    start: u64,
+    count: u64,
+    contiguous: bool
+}
+
+export type Destination = Blocks & {
+    tags: u8[],
+    offsets: u32[],
+    target_tags: U8Buffer,
+    target_offsets: U32Buffer
+}

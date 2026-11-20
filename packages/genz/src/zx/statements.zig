@@ -6,7 +6,9 @@ const emission = @import("statements/basic.zig");
 const planning = @import("statements/block.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn lower(self: *Lower, values: ir.Block) Lower.Error![]const node.Statement {
+pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
+    if (values.len == 0) return .{};
+
     const state_symbols = try @import("state_value/locals.zig").statements(self, values);
 
     defer for (state_symbols) |symbol| {
@@ -32,14 +34,31 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error![]const node.Statement 
 
     if (generated) try planning.fill(self, values, routes);
 
-    const chunks = try self.allocator.alloc([]const node.Statement, values.len);
+    var inline_spans: [128 * 2]u32 = undefined;
+
+    const spans = if (values.len <= inline_spans.len / 2)
+        inline_spans[0 .. values.len * 2]
+
+    else
+        try self.workspace.alloc(u32, std.math.mul(usize, values.len, 2) catch return error.OutOfMemory);
+
+    defer if (spans.len > inline_spans.len) self.workspace.free(spans);
+
+    const starts = spans[0..values.len];
+    const counts = spans[values.len..];
+    var output: std.ArrayList(node.Statement) = .empty;
+
+    defer output.deinit(self.allocator);
+
     var offset = values.len;
-    var total: usize = 0;
 
     while (offset > 0) {
         offset -= 1;
-        var output: std.ArrayList(node.Statement) = .empty;
+
+        output.clearRetainingCapacity();
+
         var consumed_previous = false;
+        var emitted: ?node.Block = null;
         const route = if (generated) routes[offset] else 0;
 
         if (if (generated) route & planning.flags.store_route != 0 else true) {
@@ -75,12 +94,22 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error![]const node.Statement 
             },
             .branch => |branch| {
                 const condition = try self.expr(branch.condition);
-                const yes = try self.builder.statements(try lower(self, branch.yes));
-                const no = try self.builder.statements(try lower(self, branch.no));
+                const yes = try lower(self, branch.yes);
+                const no = try lower(self, branch.no);
 
                 try emission.branch(self, &output, condition, yes, no);
             },
-            .switch_stmt => |selection| try output.appendSlice(self.allocator, try switchStatement(self, selection)),
+            .switch_stmt => |selection| {
+                const prefix = try self.builder.statements(output.items);
+                const body = try @import("statements/switch/lower.zig").lower(self, selection);
+
+                emitted = if (prefix.len == 0) body else try @import("../node/blocks.zig").join(
+                    self.allocator,
+                    self.builder.nodes,
+                    &.{ prefix.start, body.start },
+                    &.{ prefix.len, body.len },
+                );
+            },
             .store_set => |setter| {
                 const target = try emission.storeTarget(self, setter.slot);
                 const value = try self.expr(setter.value);
@@ -89,31 +118,19 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error![]const node.Statement 
             },
         }
 
-        const chunk = try output.toOwnedSlice(self.allocator);
+        const span = emitted orelse try self.builder.statements(output.items);
 
-        total = std.math.add(usize, total, chunk.len) catch return error.OutOfMemory;
-        chunks[offset] = chunk;
+        starts[offset] = span.start;
+        counts[offset] = span.len;
 
         if (consumed_previous) {
             offset -= 1;
-            chunks[offset] = &.{};
+            starts[offset] = 0;
+            counts[offset] = 0;
         }
     }
 
-    const output = try self.allocator.alloc(node.Statement, total);
-    var position: usize = 0;
-
-    for (chunks) |chunk| {
-        @memcpy(output[position..][0..chunk.len], chunk);
-
-        position += chunk.len;
-    }
-
-    return output;
-}
-
-fn switchStatement(self: *Lower, selection: @FieldType(ir.StatementRow, "switch_stmt")) Lower.Error![]const node.Statement {
-    return @import("statements/switch/lower.zig").lower(self, selection);
+    return @import("../node/blocks.zig").join(self.allocator, self.builder.nodes, starts, counts);
 }
 
 pub const writes = @import("control/writes.zig").writes;

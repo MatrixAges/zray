@@ -734,6 +734,8 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/statements/basic/branch.zx", .name = "statement_branch", .owner = .genz },
     .{ .path = "genz/analysis/statements/basic/assignment.zx", .name = "statement_assignment", .owner = .genz },
     .{ .path = "genz/analysis/statements/basic/store_target.zx", .name = "statement_store_target", .owner = .genz },
+    .{ .path = "genz/analysis/node_headers/block/layout.zx", .name = "node_block_layout", .owner = .genz },
+    .{ .path = "genz/analysis/node_headers/block/publish.zx", .name = "node_block_publish", .owner = .genz },
     .{ .path = "genz/analysis/node_headers/check.rx", .name = "node_header_check", .owner = .genz },
     .{ .path = "genz/analysis/node_headers/rebase.zx", .name = "node_header_rebase", .owner = .genz },
     .{ .path = "genz/analysis/node_headers/selected.zx", .name = "node_header_selected", .owner = .genz },

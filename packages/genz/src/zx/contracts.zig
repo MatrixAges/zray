@@ -4,7 +4,7 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn preconditions(self: *Lower) Lower.Error![]const node.Statement {
+pub fn preconditions(self: *Lower) Lower.Error!node.Block {
     var statements: std.ArrayList(node.Statement) = .empty;
     const contracts = self.program.contracts;
     var start: usize = 0;
@@ -50,7 +50,7 @@ pub fn preconditions(self: *Lower) Lower.Error![]const node.Statement {
         self.reference_storage = predicate.reference_storage;
     }
 
-    return statements.toOwnedSlice(self.allocator);
+    return self.builder.statements(statements.items);
 }
 
 fn next(kinds: []const zx.ir.ContractTable.Kind, start: usize) ?usize {

@@ -1,0 +1,36 @@
+import integers from "std:integer"
+
+import type { Blocks as Input, Layout as Output } from "./model"
+
+export default function (in: Input): Output {
+    return loop({
+        start: 0,
+        count: 0,
+        contiguous: true,
+        index: 0
+    }, {
+        while: state => state.index < in.counts.length,
+        next: state => {
+            const length = integers.widen(in.counts[state.index])
+
+            if (length != 0) {
+                const start = integers.widen(in.starts[state.index])
+
+                if (state.count == 0) {
+                    state.start = start
+                } else if (start != state.start + state.count) {
+                    state.contiguous = false
+                }
+
+                state.count += length
+            }
+
+            state.index += 1
+        },
+        return: state => state.pick([
+            "start",
+            "count",
+            "contiguous"
+        ])
+    })
+}

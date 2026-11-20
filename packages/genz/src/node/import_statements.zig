@@ -24,24 +24,6 @@ pub fn appendSelectedBorrowingText(allocator: std.mem.Allocator, target: *std.Ar
     return appendRows(allocator, target, source, true, true);
 }
 
-/// Existing AST payloads and text must outlive the target list.
-pub fn appendBlock(allocator: std.mem.Allocator, target: *std.ArrayList(node.Statement), storage: *const @import("storage.zig"), block: node.Block) Error!void {
-    const start: usize = block.start;
-    const count: usize = block.len;
-
-    if (start > storage.statements.tags.items.len or count > storage.statements.tags.items.len - start) return error.InvalidAst;
-    if (count > std.math.maxInt(u32) - target.items.len) return error.OutOfMemory;
-    try target.ensureUnusedCapacity(allocator, count);
-
-    for (0..count) |index| {
-        const value = storage.statement(block, index);
-
-        target.appendAssumeCapacity(switch (value) {
-            inline else => |payload, tag| @unionInit(node.Statement, @tagName(tag), payload),
-        });
-    }
-}
-
 fn appendRows(allocator: std.mem.Allocator, target: *std.ArrayList(node.Statement), source: anytype, comptime borrow_text: bool, comptime selected_rows: bool) Error!void {
     var empty: Rows(Stored) = .init();
 
