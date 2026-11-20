@@ -1,0 +1,19 @@
+import type { Discovery, Flags } from "../collect/model"
+
+export type Input = Discovery & {
+    include_paths: string[],
+    separator: u8,
+    windows: bool
+}
+
+export enum Status {
+    Published,
+    AbsoluteHeader,
+    OutputOverlap,
+    MissingBundle,
+    IncompleteInclude
+}
+
+export type Output = Flags & {
+    status: Status
+}

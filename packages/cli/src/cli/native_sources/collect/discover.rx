@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Discovery} out={Collection.Decision} />
+
+    <Call fn="../index.openCollection" in={$in.collection} />
+
+    <Call
+        fn="seed"
+        in={$in.pick([
+            "collection",
+            "bundle_files"
+        ])}
+    />
+
+    <Call
+        fn="walk"
+        in={{
+            collection: $in.collection,
+            has_bundle: $in.bundle_files.length != 0,
+            header: $in.header
+        }}
+    />
+
+    <Return value={$ctx.walk} />
+</Module>

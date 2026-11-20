@@ -1,0 +1,40 @@
+import host from "native_resource_host"
+
+import asset from "./asset"
+
+import type { Context } from "native_resource_host"
+
+export type Input = {
+    collection: Context,
+    directory: string,
+    separator: u8,
+    windows: bool
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { collection, directory, separator, windows } = in
+
+    const count = host.sourceCount(collection)
+
+    return loop({
+        index: 0,
+        found: false
+    }, {
+        while: row => row.index < count && !row.found,
+        next: row => {
+            if (host.sourceIsAsset(collection, row.index)) {
+                row.found = asset({
+                    directory,
+                    file: host.sourcePath(collection, row.index),
+                    primary_separator: separator,
+                    windows
+                })
+            }
+
+            row.index += 1
+        },
+        return: row => row.found
+    })
+}

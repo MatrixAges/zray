@@ -1,0 +1,19 @@
+import host from "native_resource_host"
+
+import type { Context as Input } from "native_resource_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = host.referenceCount(in)
+
+    const queued = loop({
+        index: 0
+    }, {
+        while: row => row.index < count,
+        next: row => {
+            host.enqueueReference(in, row.index)
+            row.index += 1
+        }
+    })
+}

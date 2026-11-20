@@ -1,0 +1,50 @@
+import host from "native_resource_host"
+
+import classify from "./classify.rx"
+import local from "./local"
+import { Action } from "./model"
+
+import type { Context } from "native_resource_host"
+import type { Flags } from "../collect/model"
+
+export type Input = Context
+
+export type Output = Flags
+
+export default function (in: Input): Output {
+    return loop({
+        dynamic_resources: false,
+        c_imports: false
+    }, {
+        while: state => host.nextBuiltin(in),
+        next: state => {
+            const action = classify({
+                name: host.builtinName(in),
+                arguments: host.builtinArguments(in),
+                literal: host.builtinHasLiteral(in)
+            })
+
+            switch (action) {
+                case Action.CImport:
+                    state.c_imports = true
+                case Action.InvalidSource:
+                    host.invalidBuiltin(in, false)
+                case Action.InvalidImport:
+                    host.invalidBuiltin(in, true)
+                case Action.DynamicAsset:
+                    state.dynamic_resources = true
+                case Action.Zig:
+                    const path = host.decodeLiteral(in)
+
+                    if (local(path)) {
+                        host.recordReference(in, path, true)
+                    } else {
+                        host.discardLiteral(in, path)
+                    }
+                case Action.Asset:
+                    host.recordReference(in, host.decodeLiteral(in), false)
+                default:
+            }
+        }
+    })
+}

@@ -1,0 +1,11 @@
+<Module>
+    <Type from="read" as="References" />
+
+    <Args in={References.Input} out={References.Output} />
+
+    <Call fn="../index.openAst" in={$in} />
+    <Call fn="read" in={$in} />
+    <Call fn="../index.closeAst" in={$in} />
+
+    <Return value={$ctx.read} />
+</Module>

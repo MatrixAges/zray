@@ -134,20 +134,8 @@
             "name": "manifest_write"
         },
         {
-            "path": "native_sources/references/classify.rx",
-            "name": "native_reference"
-        },
-        {
-            "path": "native_sources/references/local.zx",
-            "name": "native_local_import"
-        },
-        {
-            "path": "native_sources/collect/visit.rx",
-            "name": "native_resource_visit"
-        },
-        {
-            "path": "native_sources/collect/scan.rx",
-            "name": "native_resource_scan"
+            "path": "native_sources/bundle/build.rx",
+            "name": "native_bundle"
         },
         {
             "path": "native_sources/path/reference.zx",
@@ -156,10 +144,6 @@
         {
             "path": "native_sources/path/within.zx",
             "name": "native_resource_within"
-        },
-        {
-            "path": "native_sources/include/asset.zx",
-            "name": "native_include_asset"
         },
         {
             "path": "native_sources/inventory/admit.rx",
@@ -356,6 +340,10 @@
         {
             "path": "publication/host.d.zx",
             "module": "publication_host"
+        },
+        {
+            "path": "native_sources/host.d.zx",
+            "module": "native_resource_host"
         }
     ]
 }

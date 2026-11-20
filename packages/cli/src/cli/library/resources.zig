@@ -1,7 +1,7 @@
 const std = @import("std");
 const project_config = @import("../project.zig");
 const artifacts = @import("../artifacts.zig");
-const native_sources = @import("../native_sources.zig");
+const native_sources = @import("native_resource_host");
 const Inputs = @import("watch_inputs").Inputs;
 pub const Dependency = struct { name: []const u8, header: ?[]const u8, c_imports: bool = false, dynamic_resources: bool = false, include_relocations: []const native_sources.Include = &.{} };
 
@@ -27,7 +27,13 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, lo
         native.include_paths = try absolutePaths(allocator, scope.root, scope.paths);
 
         if (native.path != null or native.bundle_files.len != 0) {
-            const bundled = try native_sources.writeWithInputs(io, allocator, directory, scope.root, native.*, inputs);
+            const bundled = try native_sources.write(io, allocator, directory, scope.root, .{
+                .name = native.name,
+                .path = native.path,
+                .header = native.header,
+                .bundle_files = native.bundle_files,
+                .include_paths = native.include_paths.?,
+            }, inputs);
 
             native.path = bundled.entry;
             native.include_paths = bundled.include_paths;

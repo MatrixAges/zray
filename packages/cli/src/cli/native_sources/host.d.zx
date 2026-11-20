@@ -1,0 +1,46 @@
+export type Context = opaque
+
+export declare function absoluteHeader(collection: Context): bool
+export declare function prepareBundle(collection: Context): void throws { NativeResourceFailure }
+export declare function bundlePath(collection: Context, path: string): string throws { NativeResourceFailure }
+export declare function logicalOutputInside(collection: Context, resource: string): bool throws { NativeResourceFailure }
+export declare function physicalOutputInside(collection: Context, resource: string): bool throws { NativeResourceFailure }
+
+export declare function openCollection(collection: Context): void throws { NativeResourceFailure }
+export declare function entryPath(collection: Context): string?
+export declare function readBundle(collection: Context, path: string): string[] throws { NativeResourceFailure }
+export declare function enqueue(collection: Context, path: string, source: bool): void throws { NativeResourceFailure }
+export declare function pendingCount(collection: Context): u64
+export declare function selectPending(collection: Context, index: u64): bool? throws { NativeResourceFailure }
+export declare function sourcePending(collection: Context): bool
+export declare function checkPending(collection: Context): void throws { NativeResourceFailure }
+export declare function readPending(collection: Context): void throws { NativeResourceFailure }
+export declare function reusePending(collection: Context): void
+export declare function observePending(collection: Context): void throws { NativeResourceFailure }
+export declare function addPending(collection: Context): void throws { NativeResourceFailure }
+export declare function promotePending(collection: Context): void
+export declare function referenceCount(collection: Context): u64
+export declare function enqueueReference(collection: Context, index: u64): void throws { NativeResourceFailure }
+
+export declare function prepareIncludes(collection: Context): void throws { NativeResourceFailure }
+export declare function selectInclude(collection: Context, path: string): string? throws { NativeResourceFailure }
+export declare function includeFiles(collection: Context): string[] throws { NativeResourceFailure }
+export declare function includesFile(collection: Context, path: string): bool throws { NativeResourceFailure }
+export declare function writeInclude(collection: Context, index: u64, bundled: bool): void throws { NativeResourceFailure }
+export declare function sourceCount(collection: Context): u64
+export declare function sourceIsAsset(collection: Context, index: u64): bool
+export declare function sourcePath(collection: Context, index: u64): string
+
+export declare function prepareFiles(collection: Context): void throws { NativeResourceFailure }
+export declare function publishFile(collection: Context, index: u64): void throws { NativeResourceFailure }
+
+export declare function openAst(collection: Context): void throws { NativeResourceFailure }
+export declare function closeAst(collection: Context): void
+export declare function nextBuiltin(collection: Context): bool
+export declare function builtinName(collection: Context): string
+export declare function builtinArguments(collection: Context): u64
+export declare function builtinHasLiteral(collection: Context): bool
+export declare function decodeLiteral(collection: Context): string throws { NativeResourceFailure }
+export declare function discardLiteral(collection: Context, text: string): void
+export declare function recordReference(collection: Context, path: string, source: bool): void throws { NativeResourceFailure }
+export declare function invalidBuiltin(collection: Context, invalid_import: bool): void throws { NativeResourceFailure }

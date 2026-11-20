@@ -1,0 +1,89 @@
+<Module>
+    <Type from="model" as="Bundle" />
+
+    <Args in={Bundle.Input} out={Bundle.Output} />
+
+    <Call fn="../index.absoluteHeader" in={$in.collection} />
+
+    <If on={$ctx.absoluteHeader}>
+        <Return
+            value={{
+                status: Bundle.Status.AbsoluteHeader,
+                dynamic_resources: false,
+                c_imports: false
+            }}
+        />
+    </If>
+
+    <Call fn="../index.prepareBundle" in={$in.collection} />
+
+    <Call
+        fn="check_output"
+        in={$in.pick([
+            "collection",
+            "bundle_files"
+        ])}
+    />
+
+    <If on={!$ctx.check_output}>
+        <Return
+            value={{
+                status: Bundle.Status.OutputOverlap,
+                dynamic_resources: false,
+                c_imports: false
+            }}
+        />
+    </If>
+
+    <Call
+        module="../collect/discover"
+        in={$in.pick([
+            "collection",
+            "bundle_files",
+            "header"
+        ])}
+    />
+
+    <If on={!$ctx.discover.valid}>
+        <Return
+            value={{
+                status: Bundle.Status.MissingBundle,
+                dynamic_resources: false,
+                c_imports: false
+            }}
+        />
+    </If>
+
+    <Call fn="../index.prepareIncludes" in={$in.collection} />
+
+    <Call
+        fn="../include/relocate"
+        in={$in.pick([
+            "collection",
+            "include_paths",
+            "separator",
+            "windows"
+        ])}
+    />
+
+    <If on={!$ctx.relocate}>
+        <Return
+            value={{
+                status: Bundle.Status.IncompleteInclude,
+                dynamic_resources: false,
+                c_imports: false
+            }}
+        />
+    </If>
+
+    <Call fn="../index.prepareFiles" in={$in.collection} />
+    <Call fn="files" in={$in.collection} />
+
+    <Return
+        value={{
+            status: Bundle.Status.Published,
+            dynamic_resources: $ctx.discover.dynamic_resources,
+            c_imports: $ctx.discover.c_imports
+        }}
+    />
+</Module>

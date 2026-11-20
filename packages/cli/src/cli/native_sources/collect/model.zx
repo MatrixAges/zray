@@ -1,3 +1,5 @@
+import type { Context } from "native_resource_host"
+
 export type Item = {
     previous_parsed?: bool,
     source: bool
@@ -23,4 +25,19 @@ export type Scan = {
 
 export type Decision = Flags & {
     valid: bool
+}
+
+export type Discovery = {
+    collection: Context,
+    bundle_files: string[],
+    header: bool
+}
+
+export type Walk = Discovery.Pick("collection", "header") & {
+    has_bundle: bool
+}
+
+export type Pending = Walk.Pick("collection", "has_bundle") & {
+    index: u64,
+    flags: Decision
 }

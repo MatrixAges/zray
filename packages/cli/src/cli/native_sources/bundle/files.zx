@@ -1,0 +1,19 @@
+import host from "native_resource_host"
+
+import type { Context as Input } from "native_resource_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = host.sourceCount(in)
+
+    const written = loop({
+        index: 0
+    }, {
+        while: row => row.index < count,
+        next: row => {
+            host.publishFile(in, row.index)
+            row.index += 1
+        }
+    })
+}

@@ -1,121 +1,102 @@
 const std = @import("std");
-const references = @import("native_references.zig");
-const artifacts = @import("artifacts.zig");
-const paths_rule = @import("publication_host").paths;
-const rules = @import("cli_source");
-const NativeModule = @import("project.zig").NativeModule;
-pub const collect = @import("native_sources/collect.zig");
-pub const File = struct { path: []const u8, kind: references.Kind, sha256: []const u8, referenced_from: ?[]const u8 };
-pub const Include = struct { source: []const u8, destination: []const u8 };
-const Includes = struct { paths: []const []const u8, relocations: []const Include };
-pub const Result = struct { entry: ?[]const u8, include_paths: []const []const u8, include_relocations: []const Include, files: []const File, dynamic_resources: bool, c_imports: bool };
+const columns = @import("zx").columns;
+const storage = @import("native_sources/storage.zig");
+const collection = @import("native_sources/collect.zig");
+const bundle = @import("native_sources/bundle/storage.zig");
+const ast = @import("native_sources/references/ast.zig");
+const includes = @import("native_sources/include/storage.zig");
+const rule = @import("cli_source").native_bundle;
+pub const File = storage.File;
+pub const Include = storage.Include;
 
-pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, project_root: []const u8, module: NativeModule) !Result {
-    return writeWithInputs(io, allocator, directory, project_root, module, null);
-}
+pub const Result = struct {
+    entry: ?[]const u8,
+    include_paths: []const []const u8,
+    include_relocations: []const Include,
+    files: []const File,
+    dynamic_resources: bool,
+    c_imports: bool,
+};
 
-pub fn writeWithInputs(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, project_root: []const u8, module: NativeModule, inputs: ?*@import("watch_inputs").Inputs) !Result {
-    if (module.header) |header| {
-        if (std.fs.path.isAbsolute(header)) return error.AbsoluteNativeHeaderCannotBeBundled;
-    }
-
-    const root = if (module.path) |path| std.fs.path.dirname(try std.fs.path.resolve(allocator, &.{ project_root, path })).? else try std.fs.path.resolve(allocator, &.{project_root});
-    const output_root = try std.fs.path.resolve(allocator, &.{directory});
-
-    const physical_output = std.Io.Dir.cwd().realPathFileAlloc(io, output_root, allocator) catch |err| switch (err) {
-        error.FileNotFound => null,
-        else => return err,
+pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, project_root: []const u8, options: storage.Options, inputs: ?*@import("watch_inputs").Inputs) !Result {
+    var context: storage.Context = .{
+        .io = io,
+        .allocator = allocator,
+        .directory = directory,
+        .project_root = project_root,
+        .options = options,
+        .inputs = inputs,
     };
 
-    for (module.bundle_files) |path| {
-        const resource_path = try collect.referencedPath(allocator, root, root, path);
-        const relative = try std.fs.path.relative(allocator, resource_path, null, resource_path, output_root);
+    defer context.seen.deinit(allocator);
+    defer ast.closeAst(@ptrCast(&context));
 
-        if (paths_rule.within(relative)) return error.NativeBundleContainsOutput;
+    const input: std.meta.Child(rule.Input) = .{
+        .collection = @ptrCast(&context),
+        .bundle_files = options.bundle_files,
+        .header = options.header != null,
+        .include_paths = options.include_paths,
+        .separator = std.fs.path.sep,
+        .windows = @import("builtin").os.tag == .windows,
+    };
 
-        if (physical_output) |output_path| {
-            if (inputs) |observed| try observed.add(io, resource_path);
+    const result = columns.invoke(rule.executeValue, allocator, &input) catch |err| return if (err == error.NativeResourceFailure) context.failure.? else err;
 
-            const canonical = try std.Io.Dir.cwd().realPathFileAlloc(io, resource_path, allocator);
-            const physical_relative = try std.fs.path.relative(allocator, canonical, null, canonical, output_path);
-
-            if (paths_rule.within(physical_relative)) return error.NativeBundleContainsOutput;
-        }
-    }
-
-    var source = try collect.read(io, allocator, project_root, module, inputs);
-
-    defer source.index.deinit(allocator);
-
-    const destination = try std.fs.path.join(allocator, &.{ "native", module.name, "source" });
-    const includes = try relocateIncludes(io, allocator, project_root, &source, destination, module.include_paths orelse &.{}, inputs);
-    const files = try allocator.alloc(File, source.files.len);
-
-    for (source.files, files) |file, *output| {
-        const target = try std.fs.path.join(allocator, &.{ destination, file.path });
-        var digest: [32]u8 = undefined;
-
-        std.crypto.hash.sha2.Sha256.hash(file.bytes, &digest, .{});
-
-        const hex = std.fmt.bytesToHex(digest, .lower);
-
-        try artifacts.write(io, try std.fs.path.join(allocator, &.{ directory, target }), file.bytes);
-
-        output.* = .{
-            .path = target,
-            .kind = file.kind,
-            .sha256 = try allocator.dupe(u8, &hex),
-            .referenced_from = if (file.referenced_from) |path| try std.fs.path.join(allocator, &.{ destination, path }) else null,
-        };
+    switch (result.status) {
+        .Published => {},
+        .AbsoluteHeader => return error.AbsoluteNativeHeaderCannotBeBundled,
+        .OutputOverlap => return error.NativeBundleContainsOutput,
+        .MissingBundle => return error.NativeBundleRequiresFiles,
+        .IncompleteInclude => return error.IncompleteNativeIncludeBundle,
     }
 
     return .{
-        .entry = if (source.entry) |entry| try std.fs.path.join(allocator, &.{ destination, entry }) else null,
-        .include_paths = includes.paths,
-        .include_relocations = includes.relocations,
-        .files = files,
-        .dynamic_resources = source.dynamic_resources,
-        .c_imports = source.c_imports,
+        .entry = if (context.entry) |entry| try std.fs.path.join(allocator, &.{ context.destination, std.fs.path.basename(entry) }) else null,
+        .include_paths = context.include_paths,
+        .include_relocations = context.relocations.items,
+        .files = context.files,
+        .dynamic_resources = result.dynamic_resources,
+        .c_imports = result.c_imports,
     };
 }
 
-fn relocateIncludes(io: std.Io, allocator: std.mem.Allocator, project_root: []const u8, source: *const collect.Result, destination: []const u8, paths: []const []const u8, inputs: ?*@import("watch_inputs").Inputs) !Includes {
-    const relocated = try allocator.alloc([]const u8, paths.len);
-    var relocations: std.ArrayList(Include) = .empty;
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
-
-    for (paths, relocated) |path, *result| {
-        const absolute = try std.fs.path.resolve(allocator, &.{ project_root, path });
-        const relative = try std.fs.path.relative(allocator, source.root, null, source.root, absolute);
-        var bundled = false;
-
-        if (paths_rule.within(relative)) for (source.files) |file| {
-            if (file.kind != .asset) continue;
-
-            if (rules.native_include_asset.executeValue(memory.allocator(), &.{
-                .directory = relative,
-                .file = file.path,
-                .primary_separator = std.fs.path.sep,
-                .windows = @import("builtin").os.tag == .windows,
-            }) catch unreachable) {
-                bundled = true;
-
-                break;
-            }
-        };
-
-        if (bundled) {
-            for (try @import("native_sources/resources.zig").files(io, allocator, absolute, inputs)) |path_to_file| {
-                const resource = try std.fs.path.relative(allocator, source.root, null, source.root, path_to_file);
-
-                if (!source.index.contains(resource)) return error.IncompleteNativeIncludeBundle;
-            }
-        }
-
-        result.* = if (bundled) try std.fs.path.join(allocator, &.{ destination, relative }) else absolute;
-
-        if (bundled) try relocations.append(allocator, .{ .source = relative, .destination = result.* });
-    }
-
-    return .{ .paths = relocated, .relocations = relocations.items };
-}
+pub const absoluteHeader = bundle.absoluteHeader;
+pub const prepareBundle = bundle.prepareBundle;
+pub const bundlePath = bundle.bundlePath;
+pub const logicalOutputInside = bundle.logicalOutputInside;
+pub const physicalOutputInside = bundle.physicalOutputInside;
+pub const openCollection = collection.openCollection;
+pub const entryPath = collection.entryPath;
+pub const readBundle = collection.readBundle;
+pub const enqueue = collection.enqueue;
+pub const pendingCount = collection.pendingCount;
+pub const selectPending = collection.selectPending;
+pub const sourcePending = collection.sourcePending;
+pub const checkPending = collection.checkPending;
+pub const readPending = collection.readPending;
+pub const reusePending = collection.reusePending;
+pub const observePending = collection.observePending;
+pub const addPending = collection.addPending;
+pub const promotePending = collection.promotePending;
+pub const referenceCount = collection.referenceCount;
+pub const enqueueReference = collection.enqueueReference;
+pub const prepareIncludes = bundle.prepareIncludes;
+pub const selectInclude = includes.selectInclude;
+pub const includeFiles = includes.includeFiles;
+pub const includesFile = includes.includesFile;
+pub const writeInclude = includes.writeInclude;
+pub const sourceCount = bundle.sourceCount;
+pub const sourceIsAsset = bundle.sourceIsAsset;
+pub const sourcePath = bundle.sourcePath;
+pub const prepareFiles = bundle.prepareFiles;
+pub const publishFile = bundle.publishFile;
+pub const openAst = ast.openAst;
+pub const closeAst = ast.closeAst;
+pub const nextBuiltin = ast.nextBuiltin;
+pub const builtinName = ast.builtinName;
+pub const builtinArguments = ast.builtinArguments;
+pub const builtinHasLiteral = ast.builtinHasLiteral;
+pub const decodeLiteral = ast.decodeLiteral;
+pub const discardLiteral = ast.discardLiteral;
+pub const recordReference = ast.recordReference;
+pub const invalidBuiltin = ast.invalidBuiltin;

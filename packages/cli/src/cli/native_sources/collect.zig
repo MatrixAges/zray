@@ -1,120 +1,123 @@
 const std = @import("std");
-const references = @import("../native_references.zig");
 const paths = @import("publication_host").paths;
-const rules = @import("cli_source");
-const Inputs = @import("watch_inputs").Inputs;
-const NativeModule = @import("../project.zig").NativeModule;
-pub const File = struct { path: []const u8, kind: references.Kind, bytes: [:0]const u8, referenced_from: ?[]const u8 };
+const resources = @import("resources.zig");
+const storage = @import("storage.zig");
+const Context = storage.Context;
+const Error = storage.Error;
 
-pub const Result = struct {
-    root: []const u8,
-    entry: ?[]const u8,
-    files: []const File,
-    index: std.StringHashMapUnmanaged(Seen),
-    dynamic_resources: bool,
-    c_imports: bool,
-};
+pub fn openCollection(handle: *const anyopaque) Error!void {
+    const self = Context.get(handle);
 
-const Pending = struct { path: []const u8, kind: references.Kind, from: ?[]const u8 };
-const Seen = struct { index: usize, parsed: bool };
+    if (self.entry) |path| if (self.inputs) |inputs| inputs.add(self.io, path) catch |err| return self.fail(err);
 
-pub fn read(io: std.Io, allocator: std.mem.Allocator, project_root: []const u8, module: NativeModule, inputs: ?*Inputs) !Result {
-    const entry = if (module.path) |path| try std.fs.path.resolve(allocator, &.{ project_root, path }) else null;
+    self.canonical_root = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.root, self.allocator) catch |err| return self.fail(err);
+}
 
-    if (entry) |path| if (inputs) |observed| try observed.add(io, path);
+pub fn entryPath(handle: *const anyopaque) ?[]const u8 {
+    return Context.get(handle).entry;
+}
 
-    const root = if (entry) |path| std.fs.path.dirname(path).? else try std.fs.path.resolve(allocator, &.{project_root});
-    const canonical_root = try std.Io.Dir.cwd().realPathFileAlloc(io, root, allocator);
-    var pending: std.ArrayList(Pending) = .empty;
-    var files: std.ArrayList(File) = .empty;
-    var seen: std.StringHashMapUnmanaged(Seen) = .empty;
+pub fn readBundle(handle: *const anyopaque, path: []const u8) Error![]const []const u8 {
+    const self = Context.get(handle);
+    const absolute = referencedPath(self.allocator, self.root, self.root, path) catch |err| return self.fail(err);
 
-    errdefer seen.deinit(allocator);
+    checkPhysical(self, absolute) catch |err| return self.fail(err);
 
-    var dynamic_resources = false;
-    var c_imports = module.header != null;
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
+    return resources.files(self.io, self.allocator, absolute, self.inputs) catch |err| return self.fail(err);
+}
 
-    if (entry) |path| try pending.append(allocator, .{ .path = path, .kind = .zig, .from = null });
+pub fn enqueue(handle: *const anyopaque, path: []const u8, source: bool) Error!void {
+    const self = Context.get(handle);
 
-    for (module.bundle_files) |path| {
-        const absolute = try referencedPath(allocator, root, root, path);
+    self.pending.append(self.allocator, .{
+        .path = path,
+        .kind = if (source) .zig else .asset,
+        .from = null,
+    }) catch |err| return self.fail(err);
+}
 
-        if (inputs) |observed| try observed.add(io, absolute);
+pub fn pendingCount(handle: *const anyopaque) u64 {
+    return Context.get(handle).pending.items.len;
+}
 
-        const canonical = try std.Io.Dir.cwd().realPathFileAlloc(io, absolute, allocator);
+pub fn selectPending(handle: *const anyopaque, index: u64) Error!?bool {
+    const self = Context.get(handle);
 
-        _ = try relativePath(allocator, canonical_root, canonical);
+    self.current = self.pending.items[@intCast(index)];
+    self.relative = relativePath(self.allocator, self.root, self.current.path) catch |err| return self.fail(err);
+    self.previous = self.seen.getPtr(self.relative);
 
-        for (try @import("resources.zig").files(io, allocator, absolute, inputs)) |file| {
-            try pending.append(allocator, .{ .path = file, .kind = .asset, .from = null });
-        }
-    }
+    return if (self.previous) |row| row.parsed else null;
+}
 
-    var cursor: usize = 0;
+pub fn sourcePending(handle: *const anyopaque) bool {
+    return Context.get(handle).current.kind == .zig;
+}
 
-    while (cursor < pending.items.len) : (cursor += 1) {
-        const item = pending.items[cursor];
-        const relative = try relativePath(allocator, root, item.path);
-        const previous = seen.getPtr(relative);
+pub fn checkPending(handle: *const anyopaque) Error!void {
+    const self = Context.get(handle);
 
-        const action = rules.native_resource_visit.executeValue(memory.allocator(), &.{
-            .previous_parsed = if (previous) |value| value.parsed else null,
-            .source = item.kind == .zig,
-        }) catch unreachable;
+    checkPhysical(self, self.current.path) catch |err| return self.fail(err);
+}
 
-        if (action == .Skip) continue;
-        if (inputs) |observed| try observed.add(io, item.path);
+fn checkPhysical(self: *Context, path: []const u8) !void {
+    if (self.inputs) |inputs| try inputs.add(self.io, path);
 
-        const canonical = try std.Io.Dir.cwd().realPathFileAlloc(io, item.path, allocator);
+    const canonical = try std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator);
 
-        _ = try relativePath(allocator, canonical_root, canonical);
+    _ = try relativePath(self.allocator, self.canonical_root, canonical);
+}
 
-        const bytes = if (action == .Promote)
-            files.items[previous.?.index].bytes
-        else
-            try std.Io.Dir.cwd().readFileAllocOptions(io, item.path, allocator, .unlimited, .of(u8), 0);
+pub fn readPending(handle: *const anyopaque) Error!void {
+    const self = Context.get(handle);
 
-        if (inputs) |observed| try observed.record(io, item.path, bytes);
+    self.bytes = std.Io.Dir.cwd().readFileAllocOptions(self.io, self.current.path, self.allocator, .unlimited, .of(u8), 0) catch |err| return self.fail(err);
+}
 
-        if (action == .Promote) {
-            files.items[previous.?.index].kind = .zig;
-            previous.?.parsed = true;
-        } else {
-            try seen.put(allocator, relative, .{ .index = files.items.len, .parsed = action == .ReadSource });
-            try files.append(allocator, .{ .path = relative, .kind = item.kind, .bytes = bytes, .referenced_from = item.from });
-        }
+pub fn reusePending(handle: *const anyopaque) void {
+    const self = Context.get(handle);
 
-        if (action == .ReadAsset) continue;
+    self.bytes = self.sources.items[self.previous.?.index].bytes;
+}
 
-        const parsed = try references.read(allocator, bytes);
+pub fn observePending(handle: *const anyopaque) Error!void {
+    const self = Context.get(handle);
 
-        const scan = rules.native_resource_scan.executeValue(memory.allocator(), &.{
-            .found = &.{ .dynamic_resources = parsed.dynamic_resources, .c_imports = parsed.c_imports },
-            .accumulated = &.{ .dynamic_resources = dynamic_resources, .c_imports = c_imports },
-            .has_bundle = module.bundle_files.len != 0,
-        }) catch unreachable;
+    if (self.inputs) |inputs| inputs.record(self.io, self.current.path, self.bytes) catch |err| return self.fail(err);
+}
 
-        if (!scan.valid) return error.NativeBundleRequiresFiles;
+pub fn addPending(handle: *const anyopaque) Error!void {
+    const self = Context.get(handle);
 
-        dynamic_resources = scan.dynamic_resources;
-        c_imports = scan.c_imports;
+    self.seen.put(self.allocator, self.relative, .{ .index = self.sources.items.len, .parsed = self.current.kind == .zig }) catch |err| return self.fail(err);
 
-        for (parsed.references) |reference| {
-            const path = try referencedPath(allocator, root, std.fs.path.dirname(item.path).?, reference.path);
+    self.sources.append(self.allocator, .{
+        .path = self.relative,
+        .kind = self.current.kind,
+        .bytes = self.bytes,
+        .referenced_from = self.current.from,
+    }) catch |err| return self.fail(err);
+}
 
-            try pending.append(allocator, .{ .path = path, .kind = reference.kind, .from = relative });
-        }
-    }
+pub fn promotePending(handle: *const anyopaque) void {
+    const self = Context.get(handle);
+    const row = self.previous.?;
 
-    return .{
-        .root = root,
-        .entry = if (entry) |path| std.fs.path.basename(path) else null,
-        .files = files.items,
-        .index = seen,
-        .dynamic_resources = dynamic_resources,
-        .c_imports = c_imports,
-    };
+    self.sources.items[row.index].kind = .zig;
+    row.parsed = true;
+}
+
+pub fn referenceCount(handle: *const anyopaque) u64 {
+    return Context.get(handle).references.items.len;
+}
+
+pub fn enqueueReference(handle: *const anyopaque, index: u64) Error!void {
+    const self = Context.get(handle);
+    const reference = self.references.items[@intCast(index)];
+    const parent = std.fs.path.dirname(self.current.path).?;
+    const path = referencedPath(self.allocator, self.root, parent, reference.path) catch |err| return self.fail(err);
+
+    self.pending.append(self.allocator, .{ .path = path, .kind = reference.kind, .from = self.relative }) catch |err| return self.fail(err);
 }
 
 pub fn referencedPath(allocator: std.mem.Allocator, root: []const u8, parent: []const u8, path: []const u8) ![]const u8 {

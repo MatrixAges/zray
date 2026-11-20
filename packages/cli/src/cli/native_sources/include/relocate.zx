@@ -1,0 +1,39 @@
+import host from "native_resource_host"
+
+import check from "./check"
+import find from "./find"
+
+import type { Input as Bundle } from "../bundle/model"
+
+export type Input = Bundle.Pick("collection", "include_paths", "separator", "windows")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { collection, include_paths, separator, windows } = in
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: row => row.valid && row.index < include_paths.length,
+        next: row => {
+            const directory = host.selectInclude(collection, include_paths[row.index])
+            const bundled = directory != null && find({
+                collection,
+                directory,
+                separator,
+                windows
+            })
+
+            row.valid = !bundled || check(collection)
+
+            if (row.valid) {
+                host.writeInclude(collection, row.index, bundled)
+            }
+
+            row.index += 1
+        },
+        return: row => row.valid
+    })
+}

@@ -1,0 +1,71 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Pending} out={Collection.Decision} />
+
+    <Call
+        fn="../index.selectPending"
+        in={[
+            $in.collection,
+            $in.index
+        ]}
+    />
+
+    <Call fn="../index.sourcePending" in={$in.collection} />
+
+    <Call
+        module="visit"
+        in={{
+            previous_parsed: $ctx.selectPending,
+            source: $ctx.sourcePending
+        }}
+    />
+
+    <If on={$ctx.visit == Collection.Action.Skip}>
+        <Return value={$in.flags} />
+    </If>
+
+    <Call fn="../index.checkPending" in={$in.collection} />
+
+    <If on={$ctx.visit == Collection.Action.Promote}>
+        <Call fn="../index.reusePending" in={$in.collection} />
+
+        <Else>
+            <Call fn="../index.readPending" in={$in.collection} />
+        </Else>
+    </If>
+
+    <Call fn="../index.observePending" in={$in.collection} />
+
+    <If on={$ctx.visit == Collection.Action.Promote}>
+        <Call fn="../index.promotePending" in={$in.collection} />
+
+        <Else>
+            <Call fn="../index.addPending" in={$in.collection} />
+        </Else>
+    </If>
+
+    <If on={$ctx.visit == Collection.Action.ReadAsset}>
+        <Return value={$in.flags} />
+    </If>
+
+    <Call module="../references/read" in={$in.collection} />
+
+    <Call
+        module="scan"
+        in={{
+            found: $ctx.read,
+            accumulated: $in.flags.pick([
+                "dynamic_resources",
+                "c_imports"
+            ]),
+            has_bundle: $in.has_bundle
+        }}
+    />
+
+    <If on={$ctx.scan.valid}>
+        <Call fn="references" in={$in.collection} />
+    </If>
+
+    <Return value={$ctx.scan} />
+</Module>
