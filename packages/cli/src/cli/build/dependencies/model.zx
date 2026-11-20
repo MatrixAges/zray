@@ -1,0 +1,24 @@
+import type { Dependencies } from "backend_input_host"
+
+export type Roots = {
+    cwd: string,
+    library: string,
+    local: string,
+    global: string
+}
+
+export type Input = {
+    dependencies: Dependencies,
+    roots: Roots,
+    batches: u64
+}
+
+export type Plan = {
+    count: u64,
+    complete: bool
+}
+
+export type Output = {
+    complete: bool,
+    new_inputs: bool
+}

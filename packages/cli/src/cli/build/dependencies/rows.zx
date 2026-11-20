@@ -1,0 +1,41 @@
+import host from "backend_input_host"
+
+import { prefix_zig_lib, prefix_local_cache, prefix_global_cache } from "./const"
+
+import type { Input as Request } from "./model"
+
+export type Input = Request.Pick("dependencies", "roots") & {
+    count: u64,
+    new_inputs: bool
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { dependencies, roots, count } = in
+
+    return loop({
+        row: 0,
+        new_inputs: in.new_inputs
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const prefix = host.prefixAt(dependencies, state.row)
+            const root = match prefix {
+                prefix_zig_lib => roots.library,
+                prefix_local_cache => roots.local,
+                prefix_global_cache => roots.global,
+                _ => roots.cwd
+            }
+
+            state.new_inputs = host.registerPath(
+                dependencies,
+                state.row,
+                root,
+                state.new_inputs
+            )
+            state.row += 1
+        },
+        return: state => state.new_inputs
+    })
+}

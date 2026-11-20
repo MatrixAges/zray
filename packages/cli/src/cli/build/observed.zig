@@ -4,7 +4,22 @@ const Inputs = @import("watch_inputs").Inputs;
 const Options = @import("../options.zig").Options;
 const Response = @import("backend_protocol").Result;
 const Self = @This();
-pub const artifact_name = "application";
+const host = @import("backend_input_host");
+const source = @import("cli_source");
+const constants = source.backend_cache_constants.@"zx.constants";
+
+pub const artifact_name = constants.artifact_name;
+
+comptime {
+    const Prefix = std.zig.Server.Message.PathPrefix;
+
+    if (@backingInt(Prefix.zig_lib) != constants.prefix_zig_lib or
+        @backingInt(Prefix.local_cache) != constants.prefix_local_cache or
+        @backingInt(Prefix.global_cache) != constants.prefix_global_cache)
+    {
+        @compileError("Unexpected Zig dependency prefix values");
+    }
+}
 
 pub const Cache = struct {
     cwd: []const u8,
@@ -35,25 +50,18 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn resolve(io: std.Io, response: *Response, cache: Cache, library: []const u8, options: Options, inputs: *Inputs) !Self {
+    return resolveBatches(io, response, &.{}, cache, library, options, inputs);
+}
+
+pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Response, cache: Cache, library: []const u8, options: Options, inputs: *Inputs) !Self {
     const allocator = response.arena.allocator();
-    const paths = try allocator.alloc([]const u8, response.inputs.len);
-    var new_inputs = false;
+    var context: host.Context = .{ .io = io, .owned = allocator, .inputs = inputs, .translations = translations, .response = response };
 
-    for (response.inputs, paths) |input, *absolute| {
-        const prefix = switch (input.prefix) {
-            .build_root, .cwd => cache.cwd,
-            .zig_lib => library,
-            .local_cache => cache.local,
-            .global_cache => cache.global,
-        };
-
-        const path = try std.fs.path.resolve(allocator, &.{ prefix, input.path });
-
-        absolute.* = path;
-        new_inputs = new_inputs or !inputs.entries.contains(path);
-
-        try inputs.add(io, path);
-    }
+    const observation = source.backend_inputs.executeIn(allocator, &.{
+        .dependencies = @ptrCast(&context),
+        .roots = &.{ .cwd = cache.cwd, .local = cache.local, .global = cache.global, .library = library },
+        .batches = translations.len + 1,
+    }) catch |err| return if (err == error.BackendInputFailure) context.failure.? else err;
 
     var binary: ?[]const u8 = null;
     var assembly: ?[]const u8 = null;
@@ -61,14 +69,25 @@ pub fn resolve(io: std.Io, response: *Response, cache: Cache, library: []const u
     if (response.succeeded) {
         const target = if (options.target) |triple| try std.zig.system.resolveTargetQuery(io, try std.Target.Query.parse(.{ .arch_os_abi = triple })) else builtin.target;
         const name = try std.zig.binNameAlloc(allocator, .{ .root_name = artifact_name, .cpu_arch = target.cpu.arch, .os_tag = target.os.tag, .ofmt = target.ofmt, .abi = target.abi, .output_mode = if (options.host == .node) .Lib else .Exe, .link_mode = if (options.host == .node) .dynamic else .static });
-        const digest = std.fmt.bytesToHex(response.digest.?, .lower);
-        const directory = try std.fs.path.join(allocator, &.{ cache.local, "o", &digest });
+
+        const location = try source.backend_cache_path.executeIn(allocator, &.{
+            .digest = &response.digest.?,
+            .stem = null,
+            .separator = &.{std.fs.path.sep},
+        });
+
+        const directory = try std.fs.path.join(allocator, &.{ cache.local, location });
+
         binary = try std.fs.path.join(allocator, &.{ directory, name });
 
-        if (options.assembly != null) assembly = try std.fs.path.join(allocator, &.{ directory, artifact_name ++ ".s" });
+        if (options.assembly != null) assembly = try std.fs.path.join(allocator, &.{ directory, constants.assembly_name });
     }
 
-    return .{ .response = response.*, .input_paths = paths, .new_inputs = new_inputs, .binary = binary, .assembly = assembly };
+    var result = response.*;
+
+    result.inputs_complete = observation.complete;
+
+    return .{ .response = result, .input_paths = context.paths, .new_inputs = observation.new_inputs, .binary = binary, .assembly = assembly };
 }
 
 pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inputs: *Inputs, options: Options) !bool {

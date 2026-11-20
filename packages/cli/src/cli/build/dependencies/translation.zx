@@ -1,0 +1,20 @@
+export enum Retention {
+    Failed,
+    Release,
+    Observe
+}
+
+export type Input = {
+    succeeded: bool,
+    observed: bool
+}
+
+export type Output = Retention
+
+export default function (in: Input): Output {
+    return match {
+        !in.succeeded => Retention.Failed,
+        in.observed => Retention.Observe,
+        _ => Retention.Release
+    }
+}

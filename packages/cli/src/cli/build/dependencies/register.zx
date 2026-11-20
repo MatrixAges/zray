@@ -1,0 +1,31 @@
+import host from "backend_input_host"
+
+import rows from "./rows"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { dependencies, roots, batches } = in
+
+    return loop({
+        index: 0,
+        new_inputs: false
+    }, {
+        while: state => state.index < batches,
+        next: state => {
+            const count = host.selectBatch(dependencies, state.index)
+
+            state.new_inputs = rows({
+                dependencies,
+                roots,
+                count,
+                new_inputs: state.new_inputs
+            })
+
+            state.index += 1
+        },
+        return: state => state.new_inputs
+    })
+}

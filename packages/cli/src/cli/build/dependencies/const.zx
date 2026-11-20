@@ -1,0 +1,13 @@
+export const cached_objects: string = "o"
+
+export const artifact_name: string = "application"
+
+export const assembly_name: string = "application.s"
+
+export const zig_extension: string = ".zig"
+
+export const prefix_zig_lib: u8 = 1
+
+export const prefix_local_cache: u8 = 2
+
+export const prefix_global_cache: u8 = 3

@@ -23,7 +23,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
 
     defer backend_environment.deinit();
 
-    var translation = Translation.init(allocator, try Cache.init(io, allocator, environment));
+    var translation = Translation.init(allocator, try Cache.init(io, allocator, environment), false);
 
     defer translation.deinit();
 
@@ -59,7 +59,7 @@ pub fn runObserved(io: std.Io, allocator: std.mem.Allocator, bundle: @import("co
 
     defer backend_environment.deinit();
 
-    var translation = Translation.init(allocator, cache);
+    var translation = Translation.init(allocator, cache, true);
 
     defer translation.deinit();
 
@@ -70,9 +70,7 @@ pub fn runObserved(io: std.Io, allocator: std.mem.Allocator, bundle: @import("co
 
     errdefer response.deinit();
 
-    try translation.merge(&response);
-
-    var observed = try Observed.resolve(io, &response, cache, toolchain.library, options, inputs);
+    var observed = try Observed.resolveBatches(io, &response, translation.responses.items, cache, toolchain.library, options, inputs);
 
     observed.bindings = try @import("node/bindings.zig").create(response.arena.allocator(), bundle, options);
 

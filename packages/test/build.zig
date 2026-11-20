@@ -332,6 +332,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "watch_inputs", .module = cli_dependency.module("watch_inputs") },
             .{ .name = "artifact_io", .module = cli_dependency.module("artifact_io") },
             .{ .name = "backend_protocol", .module = backend_protocol },
+            .{ .name = "backend_input_host", .module = cli_dependency.module("backend_input_host") },
         },
         .target = target,
         .optimize = optimize,

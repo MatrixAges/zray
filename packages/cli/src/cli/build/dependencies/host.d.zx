@@ -1,0 +1,14 @@
+export type Dependencies = opaque
+
+export declare function selectBatch(dependencies: Dependencies, index: u64): u64
+export declare function completeBatch(dependencies: Dependencies): bool
+export declare function reserve(dependencies: Dependencies, count: u64): void throws {
+    BackendInputFailure
+}
+export declare function prefixAt(dependencies: Dependencies, row: u64): u8
+export declare function registerPath(
+    dependencies: Dependencies,
+    row: u64,
+    root: string,
+    known_new: bool
+): bool throws { BackendInputFailure }

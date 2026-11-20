@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Backend" />
+
+    <Args in={Backend.Input} out={Backend.Output} />
+
+    <Call fn="scan" in={$in} />
+
+    <Call
+        fn="index.reserve"
+        in={[
+            $in.dependencies,
+            $ctx.scan.count
+        ]}
+    />
+
+    <Call fn="register" in={$in} />
+
+    <Return
+        value={{
+            complete: $ctx.scan.complete,
+            new_inputs: $ctx.register
+        }}
+    />
+</Module>
