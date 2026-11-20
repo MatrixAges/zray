@@ -1,6 +1,8 @@
 import type { Expressions } from "core/expression_table/model"
+import type { BoolBuffer } from "memory"
 import type { Input as Order } from "../../order/model"
 import type { Definitions } from "../../order/plan"
+import type { Flowed } from "../../replay/ordered/model"
 import type { Layout } from "../../slots/model"
 
 export type Prepared = {
@@ -41,10 +43,12 @@ export type Body = Facts & Environment & {
     expressions: Expressions
 }
 
-export type Summary = {
-    held: bool[],
-    text_held: bool[],
-    written: bool[]
+export type Summary = Flowed
+
+export type Target = {
+    held: BoolBuffer,
+    text_held: BoolBuffer,
+    written: BoolBuffer
 }
 
 export type Input = {
@@ -63,6 +67,7 @@ export type Selection = Build & {
 export type Visit = Input.Omit("body") & {
     source: Order,
     environment: Environment,
+    target: Target,
     facts?: Facts
 }
 

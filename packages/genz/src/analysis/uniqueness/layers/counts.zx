@@ -1,8 +1,9 @@
 import integers from "std:integer"
 
-import type { Depths } from "./model"
+import type { Depths, Functions } from "./model"
 
-export type Input = Depths
+export type Input =
+    Depths.Pick("values", "maximum") & Functions.Pick("native_modules")
 
 export type Output = u64[]
 
@@ -21,6 +22,8 @@ export default function (in: Input): Output {
         }
     })
 
+    const native_modules = in.native_modules
+
     return loop({
         depths: in.values,
         counts: initial.values,
@@ -28,9 +31,12 @@ export default function (in: Input): Output {
     }, {
         while: current => current.index < current.depths.length,
         next: current => {
-            const depth = integers.widen(current.depths[current.index])
+            if (native_modules[current.index] == null) {
+                const depth = integers.widen(current.depths[current.index])
 
-            current.counts[depth] += 1
+                current.counts[depth] += 1
+            }
+
             current.index += 1
         },
         return: state => state.counts

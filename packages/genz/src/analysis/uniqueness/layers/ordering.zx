@@ -1,16 +1,18 @@
 import integers from "std:integer"
+import memory from "memory"
 
-import type { Plan } from "./model"
+import type { Functions, Plan } from "./model"
 
 export type Input = {
     depths: u32[],
     starts: u64[]
-}
+} & Functions.Pick("native_modules")
 
 export type Output = Plan
 
 export default function (in: Input): Output {
     const order: u32[] = in.depths.map(depth => 0)[0]
+    const native_modules = in.native_modules
 
     const result = loop({
         depths: in.depths,
@@ -20,17 +22,25 @@ export default function (in: Input): Output {
     }, {
         while: current => current.index < current.depths.length,
         next: current => {
-            const depth = integers.widen(current.depths[current.index])
-            const position = current.ends[depth]
+            if (native_modules[current.index] == null) {
+                const depth = integers.widen(current.depths[current.index])
+                const position = current.ends[depth]
 
-            current.order[position] = integers.narrow(current.index)
-            current.ends[depth] += 1
+                current.order[position] = integers.narrow(current.index)
+                current.ends[depth] += 1
+            }
+
             current.index += 1
         }
     })
 
     return {
-        order: result.order,
+        order:
+            memory.borrowU32Range(
+                result.order,
+                0,
+                result.ends[result.ends.length - 1]
+            ),
         ends: result.ends
     }
 }

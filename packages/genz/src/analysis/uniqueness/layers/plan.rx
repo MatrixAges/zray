@@ -9,7 +9,13 @@
         <Return value={null} />
     </If>
 
-    <Call fn="counts" in={$ctx.depths} />
+    <Call
+        fn="counts"
+        in={{
+            ...$ctx.depths.omit(["ordered"]),
+            native_modules: $in.native_modules
+        }}
+    />
 
     <Call fn="offsets" />
 
@@ -17,7 +23,8 @@
         fn="ordering"
         in={{
             depths: $ctx.depths.values,
-            starts: $ctx.offsets
+            starts: $ctx.offsets,
+            native_modules: $in.native_modules
         }}
     />
 

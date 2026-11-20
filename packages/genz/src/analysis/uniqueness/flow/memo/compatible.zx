@@ -1,0 +1,20 @@
+import type { Summary, Target } from "../body/model"
+
+export type Input = {
+    current: Summary,
+    cached: Summary
+}
+
+export type Adoption = Input & {
+    target: Target
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { current, cached } = in
+
+    return current.held.length == cached.held.length &&
+        current.text_held.length == cached.text_held.length &&
+        current.written.length == cached.written.length
+}

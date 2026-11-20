@@ -305,6 +305,15 @@ pub inline fn copyU8s(target: *const anyopaque, source: []const u8) error{IndexO
     return copySlice(u8, target, source);
 }
 
+pub inline fn copyBools(target: *const anyopaque, source: []const bool) error{IndexOutOfBounds}!void {
+    const buffer: *const []bool = @ptrCast(@alignCast(target));
+
+    if (buffer.len != source.len) return error.IndexOutOfBounds;
+    if (buffer.ptr == source.ptr) return;
+
+    @memmove(buffer.*, source);
+}
+
 pub inline fn copyU32s(target: *const anyopaque, source: []const u32) error{IndexOutOfBounds}!void {
     return copySlice(u32, target, source);
 }

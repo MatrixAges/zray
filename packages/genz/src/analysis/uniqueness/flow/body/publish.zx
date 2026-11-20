@@ -1,0 +1,18 @@
+import memory from "memory"
+
+import type { Summary, Target } from "./model"
+
+export type Input = {
+    target: Target,
+    summary: Summary
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, summary } = in
+
+    memory.copyBools(target.held, summary.held)
+    memory.copyBools(target.text_held, summary.text_held)
+    memory.copyBools(target.written, summary.written)
+}

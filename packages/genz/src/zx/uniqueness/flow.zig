@@ -82,6 +82,8 @@ const Remembered = struct {
 };
 
 fn layered(self: Self, program: ir.Program, slots: Slots, found: Layers, remembered: ?Remembered) std.mem.Allocator.Error!void {
+    if (found.order.len == 0) return;
+
     const width = @import("zx").parallel.width();
     const walkers = try std.heap.page_allocator.alloc(Walker, width);
 
@@ -100,6 +102,9 @@ fn layered(self: Self, program: ir.Program, slots: Slots, found: Layers, remembe
 
     for (found.ends) |boundary| {
         const end: usize = @intCast(boundary);
+
+        if (start == end) continue;
+
         var layer = Layer{ .flow = self, .program = program, .slots = slots, .functions = found.order[start..end], .walkers = walkers, .remembered = remembered };
 
         start = end;
@@ -111,7 +116,7 @@ fn layered(self: Self, program: ir.Program, slots: Slots, found: Layers, remembe
         const kept = remembered orelse continue;
 
         for (layer.functions) |index| {
-            if (program.functions.at(index).external != null) continue;
+            if (!generated_analysis and program.functions.native_modules[index] != null) continue;
             if (kept.found[index]) kept.memo.keepFlowed(kept.keys[index]) else try kept.memo.putFlowed(kept.keys[index], self.held[index], self.text_held[index], self.written[index]);
         }
     }
@@ -149,30 +154,25 @@ const Layer = struct {
         }
     }
     fn step(self: *Layer, walker: *Walker, index: u32) std.mem.Allocator.Error!void {
+        if (!generated_analysis and self.program.functions.native_modules[index] != null) return;
+
         const function = self.program.functions.at(index);
 
-        if (function.external != null) return;
-
-        const held = @constCast(self.flow.held[index]);
-        const text_held = @constCast(self.flow.text_held[index]);
-        const written = @constCast(self.flow.written[index]);
-
         if (self.remembered) |kept| {
-            kept.keys[index] = kept.key(self.flow, function, index);
-            kept.found[index] = false;
+            const key = kept.key(self.flow, function, index);
 
-            if (kept.memo.getFlowed(kept.keys[index])) |value| if (value.held.len == held.len and value.text_held.len == text_held.len and value.written.len == written.len) {
-                @memcpy(held, value.held);
-                @memcpy(text_held, value.text_held);
-                @memcpy(written, value.written);
+            kept.keys[index] = key;
 
-                kept.found[index] = true;
+            kept.found[index] = if (kept.memo.getFlowed(key)) |value|
+                if (generated_analysis) walker.walk.?.adopt(index, value) else Seed.adopt(self.flow, index, value)
 
-                return;
-            };
+            else
+                false;
+
+            if (kept.found[index]) return;
         }
 
-        if (held.len == 0) return;
+        if (self.flow.held[index].len == 0) return;
 
         if (generated_analysis) {
             _ = try walker.walk.?.visit(index, &function, null);
@@ -184,7 +184,7 @@ const Layer = struct {
         const body = try Body.create(walker.bodies.allocator(), function, self.slots);
         const walk = &walker.walk.?;
 
-        _ = try walk.analyze(index, &body, held, text_held, written);
+        _ = try walk.analyze(index, &body, @constCast(self.flow.held[index]), @constCast(self.flow.text_held[index]), @constCast(self.flow.written[index]));
     }
 };
 

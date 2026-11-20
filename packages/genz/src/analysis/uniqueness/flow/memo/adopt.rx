@@ -1,0 +1,21 @@
+<Module>
+    <Type from="compatible" as="Memo" />
+
+    <Args in={Memo.Adoption} out={bool} />
+
+    <Call fn="compatible" in={$in.omit(["target"])} />
+
+    <If on={!$ctx.compatible}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="../body/publish"
+        in={{
+            target: $in.target,
+            summary: $in.cached
+        }}
+    />
+
+    <Return value={true} />
+</Module>

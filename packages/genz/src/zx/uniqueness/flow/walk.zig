@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Flow = @import("../flow.zig");
+const Memo = @import("../memo.zig");
 const Slots = @import("../slots.zig");
 const Body = @import("body.zig");
 const generated = @import("generated_uniqueness_flow_visit");
@@ -19,6 +20,36 @@ pub fn deinit(self: *Self) void {
     if (self.scratch) |*scratch| scratch.deinit();
 }
 
+pub fn adopt(self: *const Self, index: u32, cached: Memo.Flowed) bool {
+    const entry = @import("generated_uniqueness_flow_adopt");
+    const Adoption = std.meta.Child(entry.Input);
+    const current = self.row(index);
+
+    const input: Adoption = .{
+        .current = zx.columns.pointer(@FieldType(Adoption, "current"), &current),
+        .target = &target(std.meta.Child(@FieldType(Adoption, "target")), &current),
+        .cached = &.{ .held = cached.held, .text_held = cached.text_held, .written = cached.written },
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+}
+
+fn row(self: *const Self, index: u32) Current {
+    const flow = self.flow;
+
+    return .{ .held = flow.held[index], .text_held = flow.text_held[index], .written = flow.written[index] };
+}
+
+fn target(comptime Target: type, current: *const Current) Target {
+    return .{
+        .held = @ptrCast(&current.held),
+        .text_held = @ptrCast(&current.text_held),
+        .written = @ptrCast(&current.written),
+    };
+}
+
 pub fn visit(self: *Self, index: u32, function: *const ir.Function, saved: ?*const Body) std.mem.Allocator.Error!bool {
     if (self.scratch == null) self.scratch = .init(self.allocator);
 
@@ -31,7 +62,7 @@ pub fn visit(self: *Self, index: u32, function: *const ir.Function, saved: ?*con
     const environment = Environment{ .layout = &layout, .type_kinds = slots.types.kinds, .type_first = slots.types.first, .counts = slots.counts };
     const source = Body.source(std.meta.Child(@FieldType(Input, "source")), function);
     const facts = if (saved) |body| body.view() else undefined;
-    const current = Current{ .held = self.flow.held[index], .text_held = self.flow.text_held[index], .written = self.flow.written[index] };
+    const current = self.row(index);
 
     const input: Input = .{
         .function_index = index,
@@ -42,16 +73,11 @@ pub fn visit(self: *Self, index: u32, function: *const ir.Function, saved: ?*con
         .text_held = self.flow.text_held,
         .written = self.flow.written,
         .current = &current,
+        .target = &target(std.meta.Child(@FieldType(Input, "target")), &current),
     };
 
-    const output = generated.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
+    return zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
-
-    if (current.held.ptr != output.held.ptr) @memcpy(@constCast(current.held), output.held);
-    if (current.text_held.ptr != output.text_held.ptr) @memcpy(@constCast(current.text_held), output.text_held);
-    if (current.written.ptr != output.written.ptr) @memcpy(@constCast(current.written), output.written);
-
-    return output.changed;
 }

@@ -3,6 +3,21 @@ const ir = @import("zx").ir;
 const Order = @import("../order/seed.zig");
 const Slots = @import("../slots.zig");
 const Flow = @import("../flow.zig");
+const Memo = @import("../memo.zig");
+
+pub fn adopt(flow: Flow, index: u32, value: Memo.Flowed) bool {
+    const held = @constCast(flow.held[index]);
+    const text_held = @constCast(flow.text_held[index]);
+    const written = @constCast(flow.written[index]);
+
+    if (held.len != value.held.len or text_held.len != value.text_held.len or written.len != value.written.len) return false;
+
+    @memcpy(held, value.held);
+    @memcpy(text_held, value.text_held);
+    @memcpy(written, value.written);
+
+    return true;
+}
 
 pub const Body = struct {
     function: ir.Function,
