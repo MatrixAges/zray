@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Graph" />
+
+    <Args in={Graph.Graph} out={bool} />
+
+    <Call
+        fn="../index.reserveCheckGraph"
+        in={[
+            $in.check,
+            $in.gateway
+        ]}
+    />
+
+    <Call fn="graph_rows" in={$in} />
+    <Call fn="../index.buildCheckGraph" in={$in.check} />
+
+    <If on={$ctx.buildCheckGraph}>
+        <Call
+            fn="index_calls"
+            in={{
+                check: $in.check,
+                count: $in.module_count
+            }}
+        />
+    </If>
+
+    <Call fn="../index.closeCheckGraph" in={$in.check} />
+
+    <Return value={$ctx.buildCheckGraph} />
+</Module>

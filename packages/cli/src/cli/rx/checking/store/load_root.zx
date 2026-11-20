@@ -1,0 +1,22 @@
+import { loadStoreCheckRoot, registerStoreCheckImport } from "rx_checking_host"
+
+import type { StoreCheck } from "rx_checking_host"
+
+export type Input = [StoreCheck, u64]
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const [check, root] = in
+
+    const count = loadStoreCheckRoot(check, root)
+
+    const loaded = loop(0, {
+        while: index => index < count,
+        next: index => {
+            registerStoreCheckImport(check, index)
+
+            index += 1
+        }
+    })
+}

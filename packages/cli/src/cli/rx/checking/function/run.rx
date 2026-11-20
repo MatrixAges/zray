@@ -1,0 +1,52 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.FunctionCheck} out={bool} />
+
+    <Call fn="../index.loadFunctionProject" in={$in} />
+
+    <If on={!$ctx.loadFunctionProject}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.loadFunctionSources" in={$in} />
+
+    <If on={!$ctx.loadFunctionSources}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.functionHasCalls" in={$in} />
+    <Call fn="../index.functionHasRx" in={$in} />
+
+    <If on={!$ctx.functionHasCalls || $ctx.functionHasRx}>
+        <Call fn="../index.analyzeFunctionSignatures" in={$in} />
+
+        <If on={!$ctx.analyzeFunctionSignatures}>
+            <Return value={false} />
+        </If>
+
+        <Call fn="../index.functionHasDefaultCall" in={$in} />
+
+        <If on={!$ctx.functionHasDefaultCall}>
+            <Return value={true} />
+        </If>
+
+        <Call fn="select_delegate" in={$in} />
+
+        <If on={$ctx.select_delegate}>
+            <Call fn="registered_delegate" in={$in} />
+
+            <If on={!$ctx.registered_delegate}>
+                <Call fn="../index.reportFunctionDelegate" in={$in} />
+            </If>
+
+            <Return value={$ctx.registered_delegate} />
+        </If>
+
+        <Call fn="../index.closeFunctionSignatures" in={$in} />
+    </If>
+
+    <Call fn="../index.analyzeCheckedFunction" in={$in} />
+
+    <Return value={$ctx.analyzeCheckedFunction} />
+</Module>

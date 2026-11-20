@@ -1,0 +1,48 @@
+export type ProjectCheck = opaque
+
+export type StoreCheck = opaque
+
+export type FunctionCheck = opaque
+
+export declare function loadCheckProject(check: ProjectCheck): bool throws { SourceLoadFailure }
+export declare function collectCheckDocuments(check: ProjectCheck): bool throws { SourceLoadFailure }
+export declare function collectCheckTypes(check: ProjectCheck): bool throws { SourceLoadFailure }
+export declare function reserveCheckCalls(check: ProjectCheck): u64 throws { SourceLoadFailure }
+export declare function checkHasGateway(check: ProjectCheck): bool
+export declare function checkModuleCount(check: ProjectCheck): u64
+export declare function reserveCheckGraph(check: ProjectCheck, gateway: bool): void throws { SourceLoadFailure }
+export declare function registerCheckSource(check: ProjectCheck, index: u64): void
+export declare function registerCheckRoot(check: ProjectCheck, index: u64): void
+export declare function buildCheckGraph(check: ProjectCheck): bool throws { SourceLoadFailure }
+export declare function selectCheckCallModule(check: ProjectCheck, index: u64): u64
+export declare function isCheckCallEdge(check: ProjectCheck, index: u64): bool
+export declare function takeCheckCallReference(check: ProjectCheck): bool
+export declare function recordCheckFunctionCall(check: ProjectCheck, index: u64): void throws { SourceLoadFailure }
+export declare function closeCheckGraph(check: ProjectCheck): void
+export declare function checkStoreTypes(check: ProjectCheck): bool throws { SourceLoadFailure }
+export declare function beginCheckFunctions(check: ProjectCheck): void
+export declare function checkFunction(check: ProjectCheck, index: u64): bool throws { SourceLoadFailure }
+export declare function closeCheckFunctions(check: ProjectCheck): void
+export declare function checkCompiledModules(check: ProjectCheck): bool throws { SourceLoadFailure }
+export declare function checkModulePaths(check: ProjectCheck): bool throws { SourceLoadFailure }
+
+export declare function storeCheckRootCount(check: StoreCheck): u64
+export declare function loadStoreCheckRoot(check: StoreCheck, index: u64): u64 throws { SourceLoadFailure }
+export declare function registerStoreCheckImport(check: StoreCheck, index: u64): void throws { SourceLoadFailure }
+export declare function buildStoreCheckGraph(check: StoreCheck): bool throws { SourceLoadFailure }
+export declare function analyzeStoreCheckSignatures(check: StoreCheck): bool throws { SourceLoadFailure }
+export declare function checkStoreRegistry(check: StoreCheck): bool throws { SourceLoadFailure }
+
+export declare function loadFunctionProject(check: FunctionCheck): bool throws { SourceLoadFailure }
+export declare function loadFunctionSources(check: FunctionCheck): bool throws { SourceLoadFailure }
+export declare function functionHasCalls(check: FunctionCheck): bool
+export declare function functionHasRx(check: FunctionCheck): bool
+export declare function analyzeFunctionSignatures(check: FunctionCheck): bool throws { SourceLoadFailure }
+export declare function functionHasDefaultCall(check: FunctionCheck): bool
+export declare function signatureModuleCount(check: FunctionCheck): u64
+export declare function selectFunctionDelegate(check: FunctionCheck, index: u64): bool
+export declare function functionModuleCount(check: FunctionCheck): u64
+export declare function matchesFunctionDelegate(check: FunctionCheck, index: u64): bool throws { SourceLoadFailure }
+export declare function reportFunctionDelegate(check: FunctionCheck): void throws { SourceLoadFailure }
+export declare function closeFunctionSignatures(check: FunctionCheck): void
+export declare function analyzeCheckedFunction(check: FunctionCheck): bool throws { SourceLoadFailure }

@@ -1,0 +1,22 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.StoreCheck} out={bool} />
+
+    <Call fn="load_roots" in={$in} />
+    <Call fn="../index.buildStoreCheckGraph" in={$in} />
+
+    <If on={!$ctx.buildStoreCheckGraph}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.analyzeStoreCheckSignatures" in={$in} />
+
+    <If on={!$ctx.analyzeStoreCheckSignatures}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.checkStoreRegistry" in={$in} />
+
+    <Return value={$ctx.checkStoreRegistry} />
+</Module>

@@ -74,6 +74,10 @@
         {
             "path": "rx_preparation",
             "prefix": "rx/preparation/"
+        },
+        {
+            "path": "rx_checking",
+            "prefix": "rx/checking/"
         }
     ],
     "entries": [
@@ -348,6 +352,18 @@
         {
             "path": "rx/preparation/compiled/walk.zx",
             "name": "prepare_rx_libraries"
+        },
+        {
+            "path": "rx/checking/project/run.rx",
+            "name": "check_rx_project"
+        },
+        {
+            "path": "rx/checking/store/run.rx",
+            "name": "check_store_types"
+        },
+        {
+            "path": "rx/checking/function/run.rx",
+            "name": "check_zx_function"
         }
     ],
     "packages": [
@@ -420,6 +436,10 @@
         {
             "path": "rx/preparation/host.d.zx",
             "module": "rx_preparation_host"
+        },
+        {
+            "path": "rx/checking/host.d.zx",
+            "module": "rx_checking_host"
         }
     ]
 }

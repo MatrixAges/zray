@@ -2,87 +2,160 @@ const std = @import("std");
 const compiler = @import("compiler");
 const analysis = @import("rx_analysis");
 const zx = @import("zx");
+const rx = @import("rx");
+const graph = analysis.project.source_graph;
 const Collection = @import("collection.zig").Data;
+const Libraries = @import("../library/inputs.zig");
+const effects = @import("../sources/effects.zig");
+const Error = effects.Error;
 
-pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection, functions: []const @import("rx").TextSource, project: compiler.project.Options, writer: *std.Io.Writer) !bool {
+const State = struct {
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    collection: Collection,
+    functions: []const rx.TextSource,
+    project: compiler.project.Options,
+    writer: *std.Io.Writer,
+    cache: compiler.project.ParseCache,
+    libraries: Libraries,
+    sources: std.ArrayList(compiler.project.Source) = .empty,
+    seen: std.StringHashMapUnmanaged(void) = .empty,
+    imports: []const compiler.project.Source = &.{},
+    paths: compiler.project.source_index.Map = .empty,
+    prefetched: compiler.project.ParseCache.Prefetched = .{},
+    graph_result: ?graph.Result = null,
+    signatures: ?compiler.project.signature_project.Result = null,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return effects.state(State, handle);
+    }
+    fn deinit(self: *State) void {
+        if (self.signatures) |*signatures| signatures.deinit();
+
+        self.prefetched.deinit(self.allocator);
+
+        if (self.graph_result) |*result| result.deinit();
+
+        self.paths.deinit(self.allocator);
+        self.allocator.free(self.imports);
+        self.sources.deinit(self.allocator);
+        self.seen.deinit(self.allocator);
+        self.libraries.deinit();
+        self.cache.deinit();
+    }
+};
+
+pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection, functions: []const rx.TextSource, project: compiler.project.Options, writer: *std.Io.Writer) !bool {
     if (collection.stores.len == 0) return true;
 
-    var cache = compiler.project.ParseCache{ .allocator = allocator };
+    var state: State = .{
+        .io = io,
+        .allocator = allocator,
+        .collection = collection,
+        .functions = functions,
+        .project = project,
+        .writer = writer,
+        .cache = .{ .allocator = allocator },
+        .libraries = .{ .allocator = allocator },
+    };
 
-    defer cache.deinit();
+    const reference = &state;
 
-    var libraries = @import("../library/inputs.zig"){ .allocator = allocator };
+    defer state.deinit();
 
-    defer libraries.deinit();
+    return @import("cli_source").check_store_types.executeIn(allocator, @ptrCast(&reference)) catch |err| state.failure.unwrap(err);
+}
 
-    var sources: std.ArrayList(compiler.project.Source) = .empty;
-    var seen: std.StringHashMapUnmanaged(void) = .empty;
+pub fn storeCheckRootCount(handle: *const anyopaque) u64 {
+    return State.get(handle).functions.len;
+}
 
-    defer seen.deinit(allocator);
+pub fn loadStoreCheckRoot(handle: *const anyopaque, index: u64) Error!u64 {
+    const self = State.get(handle);
+    const allocator = self.allocator;
+    const function = self.functions[@intCast(index)];
+    var options = self.project;
 
-    for (functions) |function| {
-        var options = project;
-        options.entry = try std.fs.path.resolve(allocator, &.{ project.root_dir, function.path });
+    options.entry = std.fs.path.resolve(allocator, &.{ options.root_dir, function.path }) catch |err| return self.failure.save(err);
 
-        const imported = try @import("../sources.zig").readWithLibraries(io, allocator, function.source, options, &cache, null, &libraries);
+    allocator.free(self.imports);
 
-        for (imported) |source| {
-            if ((try seen.getOrPut(allocator, source.path)).found_existing) continue;
-            try sources.append(allocator, source);
-        }
-    }
+    self.imports = &.{};
+    self.imports = @import("../sources.zig").readWithLibraries(self.io, allocator, function.source, options, &self.cache, null, &self.libraries) catch |err| return self.failure.save(err);
 
-    var options = project;
-    options.compiled_libraries = libraries.libraries.items;
-    var paths = compiler.project.source_index.Map.empty;
-    var prefetched: compiler.project.ParseCache.Prefetched = .{};
+    return self.imports.len;
+}
 
-    defer paths.deinit(allocator);
-    defer prefetched.deinit(allocator);
+pub fn registerStoreCheckImport(handle: *const anyopaque, index: u64) Error!void {
+    const self = State.get(handle);
+    const source = self.imports[@intCast(index)];
+    const allocator = self.allocator;
+    const known = self.seen.getOrPut(allocator, source.path) catch |err| return self.failure.save(err);
 
-    var graph = try analysis.project.source_graph.build(allocator, .{
+    if (!known.found_existing) self.sources.append(allocator, source) catch |err| return self.failure.save(err);
+}
+
+pub fn buildStoreCheckGraph(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const collection = self.collection;
+
+    self.project.compiled_libraries = self.libraries.libraries.items;
+
+    self.graph_result = graph.build(self.allocator, .{
         .entry = collection.stores[0].path,
         .include_rx_modules = true,
         .modules = collection.modules,
         .stores = collection.stores,
-        .sources = sources.items,
-        .project = options,
-        .parse_cache = &cache,
-        .prefetched = &prefetched,
-        .registered_paths = &paths,
-    });
+        .sources = self.sources.items,
+        .project = self.project,
+        .parse_cache = &self.cache,
+        .prefetched = &self.prefetched,
+        .registered_paths = &self.paths,
+    }) catch |err| return self.failure.save(err);
 
-    defer graph.deinit();
+    const value = &self.graph_result.?.value;
 
-    if (graph.value == .diagnostic) return report(writer, graph.value.diagnostic);
+    return if (value.* == .diagnostic) report(self.writer, value.diagnostic) catch |err| return self.failure.save(err) else true;
+}
 
-    const entries = try analysis.project.source_graph.orderedRows(allocator, &graph.value.graph, .zx);
+pub fn analyzeStoreCheckSignatures(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const allocator = self.allocator;
+    const entries = graph.orderedRows(allocator, &self.graph_result.?.value.graph, .zx) catch |err| return self.failure.save(err);
 
     defer allocator.free(entries);
 
-    var signatures = try compiler.project.analyzePrefetchedSignatures(allocator, prefetched, entries, options, &paths);
+    self.signatures = compiler.project.analyzePrefetchedSignatures(allocator, self.prefetched, entries, self.project, &self.paths) catch |err| return self.failure.save(err);
 
-    defer signatures.deinit();
-    prefetched.deinit(allocator);
+    self.prefetched.deinit(allocator);
 
-    if (signatures.value == .diagnostic) {
-        const issue = signatures.value.diagnostic;
-        const source = if (issue.source_index) |index| sources.items[index] else null;
-        const location: zx.source.Location = if (source) |value| zx.source.locate(value.source, issue.span.start) else .{ .line = 1, .column = 1 };
+    const result = &self.signatures.?.value;
 
-        try writer.print("{s}:{d}:{d}: {t}: {s}\n", .{ if (source) |value| value.path else collection.stores[0].path, location.line, location.column, issue.code, issue.message });
+    if (result.* != .diagnostic) return true;
 
-        return false;
-    }
+    const issue = result.diagnostic;
+    const source = if (issue.source_index) |index| self.sources.items[index] else null;
+    const location: zx.source.Location = if (source) |value| zx.source.locate(value.source, issue.span.start) else .{ .line = 1, .column = 1 };
+    const path = if (source) |value| value.path else self.collection.stores[0].path;
 
-    options.context.types = signatures.value.data.types;
-    options.context.nominal_types = signatures.value.data.nominal_types;
-    options.context.native_modules = signatures.value.data.native_modules;
-    const indexed = try analysis.project.source_graph.Signatures.init(allocator, graph.value.graph, signatures.value.data.modules, &paths);
-    const stores = graph.value.graph.modules.items(.dependencies)[graph.value.graph.sources.rx_end..];
-    const registry = try analysis.store.registry.loadSignatures(allocator, collection.stores, options.context, stores, indexed);
+    self.writer.print("{s}:{d}:{d}: {t}: {s}\n", .{ path, location.line, location.column, issue.code, issue.message }) catch |err| return self.failure.save(err);
 
-    return if (registry == .diagnostic) report(writer, registry.diagnostic) else true;
+    return false;
+}
+
+pub fn checkStoreRegistry(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const signatures = &self.signatures.?.value.data;
+    const closure = &self.graph_result.?.value.graph;
+    var context = self.project.context;
+    context.types = signatures.types;
+    context.nominal_types = signatures.nominal_types;
+    context.native_modules = signatures.native_modules;
+    const indexed = graph.Signatures.init(self.allocator, closure.*, signatures.modules, &self.paths) catch |err| return self.failure.save(err);
+    const edges = closure.modules.items(.dependencies)[closure.sources.rx_end..];
+    const registry = analysis.store.registry.loadSignatures(self.allocator, self.collection.stores, context, edges, indexed) catch |err| return self.failure.save(err);
+
+    return if (registry == .diagnostic) report(self.writer, registry.diagnostic) catch |err| return self.failure.save(err) else true;
 }
 
 fn report(writer: *std.Io.Writer, issue: anytype) !bool {

@@ -1,0 +1,75 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.ProjectCheck} out={bool} />
+
+    <Call fn="../index.loadCheckProject" in={$in} />
+
+    <If on={!$ctx.loadCheckProject}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.collectCheckDocuments" in={$in} />
+
+    <If on={!$ctx.collectCheckDocuments}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.collectCheckTypes" in={$in} />
+
+    <If on={!$ctx.collectCheckTypes}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.reserveCheckCalls" in={$in} />
+    <Call fn="../index.checkHasGateway" in={$in} />
+    <Call fn="../index.checkModuleCount" in={$in} />
+
+    <If on={!$ctx.checkHasGateway || $ctx.checkModuleCount > 0}>
+        <Call
+            module="graph"
+            in={{
+                check: $in,
+                source_count: $ctx.reserveCheckCalls,
+                module_count: $ctx.checkModuleCount,
+                gateway: $ctx.checkHasGateway
+            }}
+        />
+
+        <If on={!$ctx.graph}>
+            <Return value={false} />
+        </If>
+    </If>
+
+    <Call fn="../index.checkStoreTypes" in={$in} />
+
+    <If on={!$ctx.checkStoreTypes}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.beginCheckFunctions" in={$in} />
+
+    <Call
+        fn="functions"
+        in={{
+            check: $in,
+            count: $ctx.reserveCheckCalls
+        }}
+    />
+
+    <Call fn="../index.closeCheckFunctions" in={$in} />
+
+    <If on={!$ctx.functions}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.checkCompiledModules" in={$in} />
+
+    <If on={!$ctx.checkCompiledModules}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.checkModulePaths" in={$in} />
+
+    <Return value={$ctx.checkModulePaths} />
+</Module>

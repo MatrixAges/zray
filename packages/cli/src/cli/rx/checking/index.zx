@@ -1,0 +1,30 @@
+export {
+    loadCheckProject,
+    collectCheckDocuments,
+    collectCheckTypes,
+    reserveCheckCalls,
+    checkHasGateway,
+    checkModuleCount,
+    reserveCheckGraph,
+    buildCheckGraph,
+    closeCheckGraph,
+    checkStoreTypes,
+    beginCheckFunctions,
+    closeCheckFunctions,
+    checkCompiledModules,
+    checkModulePaths,
+    buildStoreCheckGraph,
+    analyzeStoreCheckSignatures,
+    checkStoreRegistry,
+    loadFunctionProject,
+    loadFunctionSources,
+    functionHasCalls,
+    functionHasRx,
+    analyzeFunctionSignatures,
+    functionHasDefaultCall,
+    reportFunctionDelegate,
+    closeFunctionSignatures,
+    analyzeCheckedFunction
+} from "rx_checking_host"
+
+export type { ProjectCheck, StoreCheck, FunctionCheck } from "rx_checking_host"

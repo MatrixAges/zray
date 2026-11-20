@@ -13,22 +13,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, scratch: std.mem.Allocator,
 
         defer arena.deinit();
 
-        var loaded = try @import("load.zig").load(io, arena.allocator(), scratch, paths[1], if (paths.len == 4) paths[3] else null, writer) orelse return false;
-
-        defer loaded.deinit();
-
-        const modules = loaded.data.modules;
-        var result = try rx.validateModulePaths(allocator, modules);
-
-        defer result.deinit();
-
-        if (result.value == .diagnostic) {
-            const diagnostic = result.value.diagnostic;
-
-            return report(writer, modules[diagnostic.source_index].path, diagnostic.issue);
-        }
-
-        return true;
+        return @import("load.zig").check(io, arena.allocator(), allocator, scratch, paths[1], if (paths.len == 4) paths[3] else null, writer);
     }
 
     if (paths.len == 0) {
@@ -74,7 +59,7 @@ fn validate(allocator: std.mem.Allocator, sources: []const rx.TextSource, writer
     return true;
 }
 
-fn report(writer: *std.Io.Writer, path: []const u8, issue: rx.Diagnostic) !bool {
+pub fn report(writer: *std.Io.Writer, path: []const u8, issue: rx.Diagnostic) !bool {
     try writer.print("{s}:{d}:{d}: {t}: {s}\n", .{ path, issue.location.line, issue.location.column, issue.code, issue.message });
 
     return false;

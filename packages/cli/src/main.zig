@@ -29,6 +29,12 @@ pub const rx_preparation = struct {
     pub const types = @import("cli/rx/type_sources.zig");
 };
 
+pub const rx_checking = struct {
+    pub const project = @import("cli/rx/load.zig");
+    pub const store = @import("cli/rx/store_types.zig");
+    pub const function = @import("cli/rx/function.zig");
+};
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);

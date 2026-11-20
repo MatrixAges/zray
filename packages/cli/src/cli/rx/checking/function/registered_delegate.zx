@@ -1,0 +1,22 @@
+import { functionModuleCount, matchesFunctionDelegate } from "rx_checking_host"
+
+import type { FunctionCheck as Input } from "rx_checking_host"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const count = functionModuleCount(in)
+    const first: u64 = 0
+
+    return loop({
+        index: first,
+        found: false
+    }, {
+        while: state => !state.found && state.index < count,
+        next: state => {
+            state.found = matchesFunctionDelegate(in, state.index)
+            state.index += 1
+        },
+        return: state => state.found
+    })
+}

@@ -142,6 +142,15 @@ pub fn build(b: *std.Build) void {
     cli_source.addImport("rx_preparation_host", rx_preparation);
     host.addImport("rx_preparation_abi", cli_source.import_table.get("zxc_abi").?);
 
+    const rx_checking = b.createModule(.{
+        .root_source_file = b.path("src/cli/rx/checking/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_host", .module = host }},
+    });
+
+    cli_source.addImport("rx_checking_host", rx_checking);
+
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 
     const yaml_scanner = b.createModule(.{
