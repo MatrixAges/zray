@@ -1,0 +1,93 @@
+import integers from "std:integer"
+import { scalar_string } from "core/type_table/const"
+import { Kind } from "core/type_table/model"
+
+import { ExpressionsKind } from "../../../printer/model/expressions"
+import named from "./emit/named"
+import task from "./emit/task"
+import wrapped from "./emit/wrapped"
+import members from "./members"
+import typeName from "./name"
+import isNamed from "./named"
+import scalar from "./scalar"
+
+import type { Input as Source, Expressions } from "./model"
+
+export type Input = {
+    table: Expressions,
+    source: Source,
+    index: u64,
+    target: Kind,
+    child: u32,
+    start: u32
+}
+
+export type Output = Expressions
+
+export default function (in: Input): Output {
+    const { table, source, index, target, child, start } = in
+
+    const first = source.types.first[index]
+    const second = source.types.second[index]
+
+    if (isNamed(target)) {
+        return named({
+            table,
+            name: typeName({
+                names: source.names,
+                index
+            }),
+            start,
+            pointer: target != Kind.Enumeration
+        })
+    }
+
+    if (target == Kind.Scalar) {
+        const primitive = {
+            ...table,
+            tags: table.tags.push(ExpressionsKind.Primitive)[0],
+            offsets: table.offsets.push(integers.narrow(table.primitive.length))[0],
+            primitive: table.primitive.push(scalar(first))[0]
+        }
+
+        if (first == scalar_string) {
+            return wrapped({
+                table: primitive,
+                child: start,
+                slice: true
+            })
+        }
+
+        return primitive
+    }
+
+    return match target {
+        Kind.Optional => wrapped({
+            table,
+            child,
+            slice: false
+        }),
+        Kind.List => wrapped({
+            table,
+            child,
+            slice: true
+        }),
+        Kind.ErrorSet => {
+            ...table,
+            tags: table.tags.push(ExpressionsKind.ErrorSet)[0],
+            offsets: table.offsets.push(integers.narrow(table.error_set.length))[0],
+            error_set: table.error_set.push(members({
+                names: source.types.names,
+                start: first,
+                count: second
+            }))[0]
+        },
+        _ => task({
+            table,
+            types: source.types,
+            start,
+            child,
+            errors: second
+        })
+    }
+}

@@ -1,0 +1,72 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import { ExpressionsKind } from "../../../../printer/model/expressions"
+import { standard_binding, io_member, future_member } from "../const"
+import members from "../members"
+
+import type { Table } from "core/type_table/model"
+import type { Expressions } from "../model"
+
+export type Input = {
+    table: Expressions,
+    types: Table,
+    start: u32,
+    child: u32,
+    errors: u32
+}
+
+export type Output = Expressions
+
+export default function (in: Input): Output {
+    const { table, types, start, child } = in
+
+    const errors = integers.widen(in.errors)
+    const io = start + 1
+    const future = start + 2
+    const error_union = start + 3
+    const identifier_slot = integers.narrow(table.identifier.length)
+    const field_slot = integers.narrow(table.field_target.length)
+    const error_union_slot = integers.narrow(table.error_union_payload.length)
+    const call_slot = integers.narrow(table.call_callee.length)
+
+    const tags = table.tags.concat([
+        ExpressionsKind.Identifier,
+        ExpressionsKind.Field,
+        ExpressionsKind.Field,
+        ExpressionsKind.ErrorUnion,
+        ExpressionsKind.Call
+    ])[0]
+
+    const offsets = table.offsets.concat([
+        identifier_slot,
+        field_slot,
+        field_slot + 1,
+        error_union_slot,
+        call_slot
+    ])[0]
+
+    return {
+        ...table,
+        tags,
+        offsets,
+        identifier: table.identifier.push(bytes.fromText(standard_binding))[0],
+        field_target: table.field_target.concat([
+            start,
+            io
+        ])[0],
+        field_name: table.field_name.concat([
+            bytes.fromText(io_member),
+            bytes.fromText(future_member)
+        ])[0],
+        error_union_payload: table.error_union_payload.push(child)[0],
+        error_union_errors: table.error_union_errors.push(members({
+            names: types.names,
+            start: types.first[errors],
+            count: types.second[errors]
+        }))[0],
+        error_union_inferred: table.error_union_inferred.push(false)[0],
+        call_callee: table.call_callee.push(future)[0],
+        call_arguments: table.call_arguments.push([error_union])[0]
+    }
+}

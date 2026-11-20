@@ -7,7 +7,7 @@ import type { Output as Nodes } from "../abi/model"
 import type { Columns } from "./model"
 
 export type Input = {
-    nodes: Nodes,
+    nodes: Nodes.Pick("ids", "values", "layouts"),
     columns: Columns
 }
 

@@ -1,0 +1,44 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import { ExpressionsKind } from "../../../../printer/model/expressions"
+import { abi_binding, named_layout_offset } from "../const"
+
+import type { Expressions } from "../model"
+
+export type Input = {
+    table: Expressions,
+    name: u8[],
+    start: u32,
+    pointer: bool
+}
+
+export type Output = Expressions
+
+export default function (in: Input): Output {
+    const { table, name, start } = in
+
+    const tags = table.tags.push(ExpressionsKind.Identifier)[0]
+    const offsets = table.offsets.push(integers.narrow(table.identifier.length))[0]
+
+    const selected = {
+        ...table,
+        tags: tags.push(ExpressionsKind.Field)[0],
+        offsets: offsets.push(integers.narrow(table.field_target.length))[0],
+        identifier: table.identifier.push(bytes.fromText(abi_binding))[0],
+        field_target: table.field_target.push(start)[0],
+        field_name: table.field_name.push(name)[0]
+    }
+
+    if (!in.pointer) {
+        return selected
+    }
+
+    return {
+        ...selected,
+        tags: selected.tags.push(ExpressionsKind.ConstPointer)[0],
+        offsets:
+            selected.offsets.push(integers.narrow(selected.const_pointer.length))[0],
+        const_pointer: selected.const_pointer.push(start + named_layout_offset)[0]
+    }
+}

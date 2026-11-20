@@ -1,60 +1,59 @@
-import abi from "../abi/construct"
+import integers from "std:integer"
+import kind from "core/type_table/kind"
+
+import abi from "../abi/emit"
+import wrapped from "../abi/emit/wrapped"
+import empty from "../abi/empty"
 import { Action } from "./model"
 import named from "./named"
-import wrapped from "./wrapped"
 
-import type { Expressions } from "../abi/model"
-import type { Plan as Input, Output } from "./model"
+import type { Plan, Output } from "./model"
+
+export type Input = Plan
 
 export default function (in: Input): Output {
-    const segments: Expressions[] = []
-
-    const result = loop({
-        source: in.source,
-        steps: in.steps,
-        index: 0,
-        segments,
-        valid: in.valid
+    return loop({
+        expressions: empty({}),
+        index: 0
     }, {
-        while: current => current.valid && current.index < current.steps.length,
+        while: current => in.valid && current.index < in.steps.length,
         next: current => {
-            const step = current.steps[current.index]
+            const step = in.steps[current.index]
+            const table = current.expressions
+            const index = integers.widen(step.request.id)
 
-            if (step.action == Action.Abi) {
-                const output = abi({
-                    source: {
-                        ...current.source.abi,
-                        base: step.base
-                    },
-                    order: [step.request.id],
-                    child: step.child
+            current.expressions = match step.action {
+                Action.Abi => abi({
+                    table,
+                    source: in.source.abi,
+                    index,
+                    target: kind(in.source.abi.types.kinds[index]),
+                    child: step.child,
+                    start: step.base
+                }),
+                Action.Optional => wrapped({
+                    table,
+                    child: step.child,
+                    slice: false
+                }),
+                Action.Slice => wrapped({
+                    table,
+                    child: step.child,
+                    slice: true
+                }),
+                _ => named({
+                    table,
+                    source: in.source,
+                    step
                 })
-
-                current.valid = output.valid
-                current.segments = current.segments.push(output.expressions)[0]
-            } else {
-                current.segments = current.segments.push(
-                    match {
-                        step.action == Action.Optional || step.action == Action.Slice =>
-                            wrapped({
-                                child: step.child,
-                                slice: step.action == Action.Slice
-                            }),
-                        _ => named({
-                            source: current.source,
-                            step
-                        })
-                    }
-                )[0]
             }
 
             current.index += 1
+        },
+        return: current => {
+            expressions: current.expressions,
+            entries: in.entries,
+            valid: in.valid
         }
     })
-
-    return {
-        segments: result.segments,
-        entries: in.entries,
-        valid: result.valid
-    }
 }

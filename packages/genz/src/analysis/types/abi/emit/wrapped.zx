@@ -1,0 +1,34 @@
+import integers from "std:integer"
+
+import { ExpressionsKind } from "../../../../printer/model/expressions"
+
+import type { Expressions } from "../model"
+
+export type Input = {
+    table: Expressions,
+    child: u32,
+    slice: bool
+}
+
+export type Output = Expressions
+
+export default function (in: Input): Output {
+    const { table, child } = in
+
+    if (in.slice) {
+        return {
+            ...table,
+            tags: table.tags.push(ExpressionsKind.ConstSlice)[0],
+            offsets:
+                table.offsets.push(integers.narrow(table.const_slice.length))[0],
+            const_slice: table.const_slice.push(child)[0]
+        }
+    }
+
+    return {
+        ...table,
+        tags: table.tags.push(ExpressionsKind.OptionalType)[0],
+        offsets: table.offsets.push(integers.narrow(table.optional_type.length))[0],
+        optional_type: table.optional_type.push(child)[0]
+    }
+}

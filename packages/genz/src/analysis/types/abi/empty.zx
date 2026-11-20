@@ -1,16 +1,11 @@
-import type { Plan, Build } from "../model"
+import type { Expressions } from "./model"
 
-export type Input = Plan
+export type Input = {}
 
-export type Output = Build
+export type Output = Expressions
 
 export default function (in: Input): Output {
     return {
-        source: in.source,
-        order: in.order,
-        child: in.child,
-        remaining: in.order.length,
-        valid: true,
         tags: [],
         offsets: [],
         identifier: [],
@@ -25,9 +20,6 @@ export default function (in: Input): Output {
         error_union_errors: [],
         error_union_inferred: [],
         call_callee: [],
-        call_arguments: [],
-        ids: [],
-        values: [],
-        layouts: []
+        call_arguments: []
     }
 }
