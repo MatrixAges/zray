@@ -1,9 +1,7 @@
-const std = @import("std");
-const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const emit = @import("entry/emitting.zig");
 
-pub fn declarations(lowering: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
+pub fn declarations(lowering: *Lower, output: *@import("../node/declarations.zig").Output) Lower.Error!void {
     if (!emit.generated) return @import("entry/seed.zig").declarations(lowering, output);
 
     const route = @import("entry/policy.zig").base(lowering);

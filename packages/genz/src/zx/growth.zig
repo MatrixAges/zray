@@ -4,17 +4,6 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
 
-/// List growth emitted into generated code: an append allocates a buffer with a header recording its capacity and the
-/// length of the furthest value built on it. Appending to a value at that frontier writes in place and moves the
-/// frontier; any other value copies, so older values never see the write. Only the values the uniqueness plan proves
-/// headered are checked, and a pop of a unique headered value hands the frontier back. A loop whose state must own a
-/// list renews it once on entry, copying the records on the way so the loop never writes into its initial value.
-pub fn declarations(self: *Lower, exported: bool) Lower.Error![6]node.Declaration {
-    if (!@import("genz_options").generated_analysis) return @import("growth/declarations_seed.zig").declarations(self, exported);
-
-    return @import("growth/declarations.zig").lower(self, exported);
-}
-
 /// The value of `id` with the lists the plan renews in it moved to growth buffers of their own, where a value read out of
 /// a list or another opaque source enters the values that later appends extend.
 pub fn renewValue(self: *Lower, id: ir.ExprId, value: node.ExpressionId) Lower.Error!node.ExpressionId {

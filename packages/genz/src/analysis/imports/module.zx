@@ -34,7 +34,7 @@ export default function (in: Input): Output {
     }
 
     const alias = integers.narrow(
-        integers.widen(in.state.source.count) +
+        integers.widen(in.state.source.publication_base) +
             in.state.declarations.length
     )
 

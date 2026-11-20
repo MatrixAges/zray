@@ -22,7 +22,7 @@ pub fn active(self: *const Lower) bool {
     return zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch unreachable;
 }
 
-pub fn declaration(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
+pub fn declaration(self: *Lower, output: *@import("../../node/declarations.zig").Output) Lower.Error!void {
     if (!generated) return seed.declaration(self, output);
 
     const types = try self.allocator.alloc(node.ExpressionId, self.program.stores.count());
@@ -37,7 +37,7 @@ pub fn declaration(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower
         .name = self.pending_name,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .declaration_base = @intCast(output.items.len),
+        .declaration_base = @intCast(self.builder.nodes.declaration_rows.tags.items.len),
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -51,7 +51,7 @@ pub fn declaration(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower
     if (!result.valid) return error.OutOfMemory;
     @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, result.expressions) catch |err| return failure(err);
     @import("../../node/import_fields.zig").append(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
-    @import("../../node/import_constants.zig").appendBorrowingText(self.allocator, output, result.declarations) catch |err| return failure(err);
+    output.appendColumns(self.allocator, result.declarations, true) catch |err| return failure(err);
 }
 
 pub fn initialize(self: *Lower) Lower.Error!node.Block {

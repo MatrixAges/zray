@@ -26,7 +26,7 @@ pub const Prototypes = struct {
     value: ?node.Function,
 };
 
-pub fn append(lower: *Lower, output: *std.ArrayList(node.Declaration), prototypes: Prototypes) Lower.Error!void {
+pub fn append(lower: *Lower, output: *@import("../../node/declarations.zig").Output, prototypes: Prototypes) Lower.Error!void {
     const entry = @import("generated_signature_module_build");
     const Input = std.meta.Child(entry.Input);
     const Prototype = std.meta.Child(@typeInfo(@FieldType(Input, "regular")).optional.child);
@@ -57,7 +57,7 @@ pub fn append(lower: *Lower, output: *std.ArrayList(node.Declaration), prototype
     try import(lower, &nodes.statements, result.statements);
     try import(lower, &nodes.declaration_rows, result.functions);
     try import(lower, &nodes.declaration_rows, result.aliases);
-    @import("../../node/import_constants.zig").appendBorrowingText(lower.allocator, output, result.roots) catch |err| return failure(err);
+    output.appendColumns(lower.allocator, result.roots, true) catch |err| return failure(err);
 }
 
 fn prepare(lower: *Lower, function: node.Function, name: []const u8, result: anytype) Lower.Error!@TypeOf(result) {

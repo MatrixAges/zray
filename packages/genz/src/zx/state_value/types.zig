@@ -4,7 +4,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 
 /// The value layouts of a file that declares its own types; files importing the shared bundle build them on use.
-pub fn lower(self: *Lower, output: ?*std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
+pub fn lower(self: *Lower, output: ?*@import("../../node/declarations.zig").Output, exported: bool) Lower.Error!void {
     self.abi_types = self.types;
     self.abi_layouts = self.layouts;
 

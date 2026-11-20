@@ -1,10 +1,9 @@
 const std = @import("std");
 const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
-const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 pub const Payloads = enum { copy, borrow_text, retain };
-pub const Pending = std.ArrayList(node.Declaration);
+pub const Pending = @import("../../node/declarations.zig").Output;
 
 /// Field names must outlive the AST; retained payloads already belong to its allocator.
 pub fn append(self: *Lower, declarations: ?*Pending, comptime Output: type, output: anytype, fields: anytype, payloads: Payloads) Lower.Error!void {
@@ -37,31 +36,19 @@ pub fn append(self: *Lower, declarations: ?*Pending, comptime Output: type, outp
     };
 
     const constants = output.declarations;
+    const destination = &self.builder.nodes.declaration_rows;
+    const start = destination.tags.items.len;
 
-    const staged = declarations orelse {
-        const destination = &self.builder.nodes.declaration_rows;
+    const published = if (payloads == .copy)
+        rows.append(self.allocator, destination, constants)
 
-        const result = if (payloads == .copy)
-            rows.append(self.allocator, destination, constants)
-        else
-            rows.appendBorrowed(self.allocator, destination, constants);
+    else
+        rows.appendBorrowed(self.allocator, destination, constants);
 
-        return result catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.InvalidAst => unreachable,
-        };
+    published catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
     };
 
-    try staged.ensureUnusedCapacity(self.allocator, constants.constant_name.len);
-
-    for (constants.constant_name, constants.constant_type_expr, constants.constant_value, constants.constant_exported) |text, type_expr, value, exported| {
-        const name = if (payloads == .copy) try self.allocator.dupe(u8, text) else text;
-
-        staged.appendAssumeCapacity(.{ .constant = .{
-            .name = name,
-            .type_expr = if (type_expr) |id| @fromBackingInt(id) else null,
-            .value = @fromBackingInt(value),
-            .exported = exported,
-        } });
-    }
+    if (declarations) |roots| try roots.spans.append(.{ .start = @intCast(start), .len = @intCast(constants.tags.len) });
 }

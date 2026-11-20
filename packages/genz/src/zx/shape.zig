@@ -1,9 +1,8 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 
-pub fn lower(self: *Lower, declarations: *std.ArrayList(node.Declaration)) Lower.Error!void {
+pub fn lower(self: *Lower, declarations: *@import("../node/declarations.zig").Output) Lower.Error!void {
     if (!@import("genz_options").generated_analysis) return @import("shape/seed.zig").lower(self, declarations);
 
     const generated = @import("generated_shape_declarations");
@@ -20,7 +19,7 @@ pub fn lower(self: *Lower, declarations: *std.ArrayList(node.Declaration)) Lower
         .output = @backingInt(self.program.output_type),
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(self.builder.nodes.field_columns.count()),
-        .declaration_base = @intCast(declarations.items.len),
+        .declaration_base = @intCast(self.builder.nodes.declaration_rows.tags.items.len),
     };
 
     const output = generated.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
@@ -40,7 +39,7 @@ pub fn lower(self: *Lower, declarations: *std.ArrayList(node.Declaration)) Lower
         error.InvalidAst => unreachable,
     };
 
-    @import("../node/import_constants.zig").append(self.allocator, declarations, output.declarations) catch |err| switch (err) {
+    declarations.appendColumns(self.allocator, output.declarations, false) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidAst => unreachable,
     };

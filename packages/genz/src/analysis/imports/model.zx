@@ -11,6 +11,7 @@ export type Input = {
     declarations: Declarations,
     first: u32,
     count: u32,
+    publication_base: u32,
     modules: string[],
     expression_base: u32
 }

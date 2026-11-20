@@ -109,10 +109,21 @@ pub fn store(self: *const Self, allocator: std.mem.Allocator, nodes: *@import(".
     return .{ .start = start, .len = @intCast(self.count()) };
 }
 
-pub fn assemble(self: *const Self, allocator: std.mem.Allocator, nodes: *@import("../node/storage.zig"), prefix: []const node.Declaration, suffix: []const node.Declaration) std.mem.Allocator.Error!stored.Declarations {
-    const first = try nodes.declarations(allocator, prefix);
+pub fn assemble(self: *const Self, allocator: std.mem.Allocator, nodes: *@import("../node/storage.zig"), prefix: *@import("../node/declarations.zig").Output, suffix: *@import("../node/declarations.zig").Output) std.mem.Allocator.Error!stored.Declarations {
+    if (generated) {
+        try prefix.spans.append(try self.store(allocator, nodes));
+
+        const spans = &suffix.spans;
+
+        for (0..spans.parts.len) |index| try prefix.spans.append(spans.parts.get(index));
+        try prefix.spans.append(spans.last);
+
+        return prefix.spans.finish(allocator);
+    }
+
+    const first = try nodes.declarations(allocator, prefix.items);
     const middle = try self.store(allocator, nodes);
-    const last = try nodes.declarations(allocator, suffix);
+    const last = try nodes.declarations(allocator, suffix.items);
 
     std.debug.assert(first.start + first.len == middle.start);
     std.debug.assert(middle.start + middle.len == last.start);

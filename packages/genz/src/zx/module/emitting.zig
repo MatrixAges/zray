@@ -1,12 +1,11 @@
 const std = @import("std");
 const zx = @import("zx");
-const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const seed = @import("seed.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn standard(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
+pub fn standard(self: *Lower, output: *@import("../../node/declarations.zig").Output) Lower.Error!void {
     if (!generated) return seed.standard(self, output);
 
     const entry = @import("generated_module_standard");
@@ -22,7 +21,7 @@ pub fn standard(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Er
     try publish(self, output, result);
 }
 
-pub fn exports(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
+pub fn exports(self: *Lower, output: *@import("../../node/declarations.zig").Output) Lower.Error!void {
     if (!generated) return seed.exports(self, output);
 
     const entry = @import("generated_module_exports");
@@ -45,7 +44,7 @@ pub fn exports(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Err
     try publish(self, output, result);
 }
 
-pub fn contracts(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
+pub fn contracts(self: *Lower, output: *@import("../../node/declarations.zig").Output) Lower.Error!void {
     if (!generated) return seed.contracts(self, output);
 
     const query = @import("generated_module_contracts");
@@ -93,7 +92,7 @@ fn context(comptime Bases: type, self: *const Lower) Bases {
     };
 }
 
-fn publish(self: *Lower, output: *std.ArrayList(node.Declaration), result: anytype) Lower.Error!void {
+fn publish(self: *Lower, output: *@import("../../node/declarations.zig").Output, result: anytype) Lower.Error!void {
     if (!result.valid) return error.OutOfMemory;
 
     const expressions = view.join(result.expressions.*, result.forms.*);
@@ -102,8 +101,8 @@ fn publish(self: *Lower, output: *std.ArrayList(node.Declaration), result: anyty
     try appendDeclarations(self, output, result.declarations);
 }
 
-fn appendDeclarations(self: *Lower, output: *std.ArrayList(node.Declaration), source: anytype) Lower.Error!void {
-    @import("../../node/import_constants.zig").appendBorrowingText(self.allocator, output, source) catch |err| return failure(err);
+fn appendDeclarations(self: *Lower, output: *@import("../../node/declarations.zig").Output, source: anytype) Lower.Error!void {
+    output.appendColumns(self.allocator, source, true) catch |err| return failure(err);
 }
 
 fn failure(err: anyerror) Lower.Error {

@@ -2,7 +2,8 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
-const render = @import("../render.zig").render;
+const publication = @import("../node/declarations.zig");
+const generated = @import("genz_options").generated_analysis;
 pub const Analysis = @import("function_analysis.zig");
 pub const Names = struct { types: []const []const u8, functions: []const []const u8 };
 /// `function` is one function's file; a value function's file holds only its value variant. `regular` is the same file
@@ -40,7 +41,10 @@ fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
 
     const temporary = arena.allocator();
     var lower = try initialize(temporary, backing, program, names, facts, null);
-    var output: std.ArrayList(node.Declaration) = .empty;
+    var output = publication.init(lower.builder.nodes, lower.workspace);
+
+    defer if (generated) output.deinit();
+
     var emitted: std.StringHashMapUnmanaged(void) = .empty;
 
     try output.append(temporary, .{ .constant = .{ .name = "std", .value = try lower.builtin(.import, &.{try lower.builder.string("std")}) } });
@@ -91,7 +95,7 @@ fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
         try output.append(temporary, .{ .constant = .{ .name = name, .exported = true, .value = try lower.builder.expression(.{ .namespace_type = variants.items }) } });
     }
 
-    return render(allocator, lower.builder.nodes, output.items);
+    return @import("../render.zig").renderStored(allocator, lower.builder.nodes, try publication.finish(&output, lower.builder.nodes, temporary));
 }
 
 fn regularPrototype(lower: *Lower, id: ir.FunctionId, function_value: ir.Function) Error!node.Function {
@@ -243,8 +247,12 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
 
 fn functionDeclarations(lower: *Lower, selected: ir.Function, id: ir.FunctionId, comptime form: @import("module/workflow.zig").FunctionForm) Error!@import("../node/stored.zig").Declarations {
     const temporary = lower.allocator;
-    var output: std.ArrayList(node.Declaration) = .empty;
-    var suffix: std.ArrayList(node.Declaration) = .empty;
+    var output = publication.init(lower.builder.nodes, lower.workspace);
+    var suffix = publication.init(lower.builder.nodes, lower.workspace);
+
+    defer if (generated) output.deinit();
+    defer if (generated) suffix.deinit();
+
     var comparisons: std.ArrayList(ir.TypeId) = .empty;
     var task_declarations = @import("auxiliary.zig").init();
 
@@ -284,14 +292,14 @@ fn functionDeclarations(lower: *Lower, selected: ir.Function, id: ir.FunctionId,
             try output.append(temporary, declaration);
         },
         .ParallelAllocator => {
-            if (lower.uses_parallel) try output.append(temporary, try @import("parallel/allocator.zig").declaration(lower));
+            if (lower.uses_parallel) try @import("parallel/allocator.zig").append(lower, &output);
         },
         .Comparisons => {
             for (comparisons.items) |type_id| try suffix.append(temporary, try @import("comparison.zig").ordering(lower, type_id));
         },
     };
 
-    return task_declarations.assemble(temporary, lower.builder.nodes, output.items, suffix.items);
+    return task_declarations.assemble(temporary, lower.builder.nodes, &output, &suffix);
 }
 
 fn initialize(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, scratch: ?*TypeScratch) Error!Lower {

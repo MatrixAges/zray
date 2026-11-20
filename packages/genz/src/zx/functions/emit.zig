@@ -1,17 +1,16 @@
 const std = @import("std");
 const ir = @import("zx").ir;
-const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Requests = @import("requests.zig");
 
-pub fn append(self: *Lower, output: *std.ArrayList(node.Declaration), request: Requests.Request) Lower.Error!void {
+pub fn append(self: *Lower, output: *@import("../../node/declarations.zig").Output, request: Requests.Request) Lower.Error!void {
     switch (request.form) {
         .Done => unreachable,
         inline else => |form| try emit(self, output, request.id, form),
     }
 }
 
-fn emit(self: *Lower, output: *std.ArrayList(node.Declaration), id: ir.FunctionId, comptime form: Requests.Form) Lower.Error!void {
+fn emit(self: *Lower, output: *@import("../../node/declarations.zig").Output, id: ir.FunctionId, comptime form: Requests.Form) Lower.Error!void {
     const index = @backingInt(id);
     const function = self.program.functions.at(index);
     var helper: Lower = undefined;

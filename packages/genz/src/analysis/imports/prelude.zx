@@ -25,7 +25,7 @@ export default function (in: Input): Output {
                 current.index = put({
                     index: current.index,
                     key: name,
-                    value: integers.narrow(current.position)
+                    value: in.source.first + integers.narrow(current.position)
                 })
             }
 

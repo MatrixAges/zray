@@ -1,11 +1,10 @@
 const std = @import("std");
-const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 
-pub fn declaration(self: *Lower) Lower.Error!node.Declaration {
+pub fn append(self: *Lower, output: *@import("../../node/declarations.zig").Output) Lower.Error!void {
     const value = try @import("../allocator.zig").lower(self, false);
 
-    if (!@import("genz_options").generated_analysis) return .{ .constant = .{ .name = "zx_parallel_allocator", .value = value } };
+    if (!@import("genz_options").generated_analysis) return output.append(self.allocator, .{ .constant = .{ .name = "zx_parallel_allocator", .value = value } });
 
     const entry = @import("generated_parallel_allocator_alias");
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -15,11 +14,8 @@ pub fn declaration(self: *Lower) Lower.Error!node.Declaration {
     defer scratch.deinit();
 
     const columns = entry.executeIn(memory.allocator(), @backingInt(value)) catch |err| return failure(err);
-    var storage: [1]node.Declaration = undefined;
-    var output = std.ArrayList(node.Declaration).initBuffer(&storage);
-    @import("../../node/import_constants.zig").appendBorrowingText(self.allocator, &output, columns) catch |err| return failure(err);
 
-    return output.items[0];
+    output.appendColumns(self.allocator, columns, true) catch |err| return failure(err);
 }
 
 fn failure(err: anyerror) Lower.Error {

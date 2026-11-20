@@ -1,9 +1,8 @@
-const std = @import("std");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 pub const namespace = "zx.constants";
 
-pub fn append(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
+pub fn append(self: *Lower, output: *@import("../../node/declarations.zig").Output) Lower.Error!void {
     const exports = self.program.constant_exports;
 
     if (exports.len == 0) return;

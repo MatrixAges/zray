@@ -12,7 +12,7 @@
         fn="../../ast/declarations/constants"
         in={{
             values: $ctx.modules.declarations,
-            base: $in.count
+            base: $in.publication_base
         }}
     />
 

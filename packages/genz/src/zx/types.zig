@@ -5,7 +5,7 @@ const Lower = @import("lower.zig");
 /// A type expression not built yet: a file that imports the shared type bundle builds each one when first used.
 const unset = @import("types/scratch.zig").unset;
 
-pub fn lower(self: *Lower, output: ?*std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
+pub fn lower(self: *Lower, output: ?*@import("../node/declarations.zig").Output, exported: bool) Lower.Error!void {
     if (self.shared_types) return shared(self, output.?);
 
     const has_lists = if (@import("genz_options").generated_analysis)
@@ -15,10 +15,12 @@ pub fn lower(self: *Lower, output: ?*std.ArrayList(node.Declaration), exported: 
     try @import("state_value/types.zig").lower(self, output, exported);
 
     if (has_lists) {
-        if (output) |pending| {
-            try pending.appendSlice(self.allocator, &try @import("growth.zig").declarations(self, exported));
-        } else if (@import("genz_options").generated_analysis) {
-            _ = try @import("growth/declarations.zig").publish(self, exported);
+        if (@import("genz_options").generated_analysis) {
+            const stored = try @import("growth/declarations.zig").publish(self, exported);
+
+            if (output) |roots| try roots.spans.append(stored);
+        } else {
+            try output.?.appendSlice(self.allocator, &try @import("growth/declarations_seed.zig").declarations(self, exported));
         }
     }
 }
@@ -105,7 +107,7 @@ pub fn resource(self: *Lower, id: ir.TypeId, selection: anytype) Lower.Error!nod
 }
 
 /// A file that imports the shared type bundle declares only the import; a function uses few of the program's types.
-fn shared(self: *Lower, output: *std.ArrayList(node.Declaration)) Lower.Error!void {
+fn shared(self: *Lower, output: *@import("../node/declarations.zig").Output) Lower.Error!void {
     try output.append(self.allocator, .{ .constant = .{
         .name = "zx_abi",
         .value = try self.builtin(.import, &.{try self.builder.string("zxc_abi")}),

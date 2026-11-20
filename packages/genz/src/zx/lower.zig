@@ -111,7 +111,13 @@ pub fn declarations(self: *Self) Error!ModuleDeclarations {
 }
 
 fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: bool) Error!ModuleDeclarations {
-    var output: std.ArrayList(node.Declaration) = .empty;
+    const publication = @import("../node/declarations.zig");
+    var output = publication.init(self.builder.nodes, self.workspace);
+    var suffix = publication.init(self.builder.nodes, self.workspace);
+
+    defer if (generated) output.deinit();
+    defer if (generated) suffix.deinit();
+
     var comparisons: std.ArrayList(ir.TypeId) = .empty;
     var task_declarations = @import("auxiliary.zig").init();
 
@@ -121,7 +127,6 @@ fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: boo
     var function_requests = try @import("functions/requests.zig").init(self.allocator, local_functions);
     self.function_requests = &function_requests;
 
-    var suffix: std.ArrayList(node.Declaration) = .empty;
     const steps = comptime @import("module/workflow.zig").entrySteps(type_only, local);
     const emission = @import("module/emitting.zig");
 
@@ -142,16 +147,16 @@ fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: boo
             }
         },
         .ParallelAllocator => {
-            if (self.uses_parallel) try suffix.append(self.allocator, try @import("parallel/allocator.zig").declaration(self));
+            if (self.uses_parallel) try @import("parallel/allocator.zig").append(self, &suffix);
         },
         .Comparisons => {
             for (comparisons.items) |type_id| try suffix.append(self.allocator, try @import("comparison.zig").ordering(self, type_id));
         },
     };
 
-    if (type_only) return self.builder.nodes.declarations(self.allocator, output.items);
+    if (type_only) return publication.finish(&output, self.builder.nodes, self.allocator);
 
-    return task_declarations.assemble(self.allocator, self.builder.nodes, output.items, suffix.items);
+    return task_declarations.assemble(self.allocator, self.builder.nodes, &output, &suffix);
 }
 
 pub fn functionValue(self: *Self, name: []const u8) Error!node.Declaration {

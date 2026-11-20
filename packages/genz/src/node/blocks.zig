@@ -4,83 +4,85 @@ const node = @import("../node.zig");
 const Storage = @import("storage.zig");
 const generated = @import("genz_options").generated_analysis;
 const Layout = struct { start: u64, count: u64, contiguous: bool };
+pub const Sequence = Spans(node.Block, "statements");
+pub const DeclarationSpans = Spans(@import("stored.zig").Declarations, "declaration_rows");
 
-/// Collect committed statement spans in execution order.
-pub const Sequence = struct {
-    storage: *Storage,
-    scratch: std.mem.Allocator,
-    parts: std.MultiArrayList(node.Block) = .empty,
-    last: node.Block = .{},
-    pub fn deinit(self: *Sequence) void {
-        self.parts.deinit(self.scratch);
-    }
+/// Collect committed row spans in output order.
+fn Spans(comptime Span: type, comptime field: []const u8) type {
+    return struct {
+        const Self = @This();
+        storage: *Storage,
+        scratch: std.mem.Allocator,
+        parts: std.MultiArrayList(Span) = .empty,
+        last: Span = .{ .start = 0, .len = 0 },
+        pub fn deinit(self: *Self) void {
+            self.parts.deinit(self.scratch);
+        }
 
-    pub fn clearRetainingCapacity(self: *Sequence) void {
-        self.parts.shrinkRetainingCapacity(0);
+        pub fn clearRetainingCapacity(self: *Self) void {
+            self.parts.shrinkRetainingCapacity(0);
 
-        self.last = .{};
-    }
+            self.last = .{ .start = 0, .len = 0 };
+        }
+        pub fn append(self: *Self, span: Span) std.mem.Allocator.Error!void {
+            if (span.len == 0) return;
 
-    pub fn append(self: *Sequence, span: node.Block) std.mem.Allocator.Error!void {
-        if (span.len == 0) return;
+            if (self.last.len == 0) {
+                self.last = span;
+            } else if (self.last.start + self.last.len == span.start) {
+                self.last.len += span.len;
+            } else {
+                try self.parts.append(self.scratch, self.last);
 
-        if (self.last.len == 0) {
-            self.last = span;
-        } else if (self.last.start + self.last.len == span.start) {
-            self.last.len += span.len;
-        } else {
+                self.last = span;
+            }
+        }
+        pub fn finish(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!Span {
+            return self.collectSpan(allocator, true);
+        }
+        pub fn block(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!Span {
+            return self.collectSpan(allocator, false);
+        }
+        fn collectSpan(self: *Self, allocator: std.mem.Allocator, comptime at_tail: bool) std.mem.Allocator.Error!Span {
+            if (self.parts.len == 0) {
+                if (!at_tail) return self.last;
+                if (self.last.len == 0) return .{ .start = @intCast(@field(self.storage, field).tags.items.len), .len = 0 };
+                if (self.last.start + self.last.len == @field(self.storage, field).tags.items.len) return self.last;
+
+                return collect(Span, allocator, &@field(self.storage, field), &.{self.last.start}, &.{self.last.len}, true);
+            }
+
             try self.parts.append(self.scratch, self.last);
 
-            self.last = span;
+            defer self.parts.shrinkRetainingCapacity(self.parts.len - 1);
+
+            return collect(Span, allocator, &@field(self.storage, field), self.parts.items(.start), self.parts.items(.len), at_tail);
         }
-    }
-
-    pub fn finish(self: *Sequence, allocator: std.mem.Allocator) std.mem.Allocator.Error!node.Block {
-        return self.collectSpan(allocator, true);
-    }
-    pub fn block(self: *Sequence, allocator: std.mem.Allocator) std.mem.Allocator.Error!node.Block {
-        return self.collectSpan(allocator, false);
-    }
-    fn collectSpan(self: *Sequence, allocator: std.mem.Allocator, comptime at_tail: bool) std.mem.Allocator.Error!node.Block {
-        if (self.parts.len == 0) {
-            if (!at_tail) return self.last;
-            if (self.last.len == 0) return .{ .start = @intCast(self.storage.statements.tags.items.len) };
-            if (self.last.start + self.last.len == self.storage.statements.tags.items.len) return self.last;
-
-            return tail(allocator, self.storage, &.{self.last.start}, &.{self.last.len});
-        }
-
-        try self.parts.append(self.scratch, self.last);
-
-        defer self.parts.shrinkRetainingCapacity(self.parts.len - 1);
-
-        return collect(allocator, self.storage, self.parts.items(.start), self.parts.items(.len), at_tail);
-    }
-};
+    };
+}
 
 /// The supplied spans refer to previously committed statements.
 pub fn join(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!node.Block {
-    return collect(allocator, storage, starts, counts, false);
+    return collect(node.Block, allocator, &storage.statements, starts, counts, false);
 }
 
 /// Publish a block at the end of the statement table so a caller can append to it.
 pub fn tail(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!node.Block {
-    return collect(allocator, storage, starts, counts, true);
+    return collect(node.Block, allocator, &storage.statements, starts, counts, true);
 }
 
-fn collect(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32, comptime at_tail: bool) std.mem.Allocator.Error!node.Block {
+fn collect(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, starts: []const u32, counts: []const u32, comptime at_tail: bool) std.mem.Allocator.Error!Span {
     std.debug.assert(starts.len == counts.len);
 
-    const rows = &storage.statements;
     const start = rows.tags.items.len;
 
     const layout: Layout = switch (counts.len) {
-        0 => return .{ .start = if (at_tail) @intCast(start) else 0 },
+        0 => return .{ .start = if (at_tail) @intCast(start) else 0, .len = 0 },
         1 => .{ .start = starts[0], .count = counts[0], .contiguous = true },
         else => measure(starts, counts),
     };
 
-    if (layout.count == 0) return .{ .start = if (at_tail) @intCast(start) else 0 };
+    if (layout.count == 0) return .{ .start = if (at_tail) @intCast(start) else 0, .len = 0 };
     if (layout.contiguous and (!at_tail or layout.start + layout.count == start)) return .{ .start = @intCast(layout.start), .len = @intCast(layout.count) };
     if (layout.count > std.math.maxInt(u32) - start) return error.OutOfMemory;
 
@@ -93,7 +95,7 @@ fn collect(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32,
     const offsets = rows.offsets.unusedCapacitySlice()[0..length];
 
     if (generated) {
-        comptime std.debug.assert(@sizeOf(std.meta.Tag(node.Statement)) == 1);
+        comptime std.debug.assert(@sizeOf(std.meta.Child(@TypeOf(rows.tags.items))) == 1);
 
         const entry = @import("generated_node_block_publish");
 

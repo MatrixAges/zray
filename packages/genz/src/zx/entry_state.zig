@@ -1,4 +1,3 @@
-const std = @import("std");
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const types = @import("types.zig");
@@ -6,7 +5,7 @@ const aggregate = @import("aggregate.zig");
 const conversion = @import("state_value/conversion.zig");
 const emit = @import("entry/emitting.zig");
 
-pub fn declarations(self: *Lower, output: *std.ArrayList(node.Declaration), name: []const u8) Lower.Error!bool {
+pub fn declarations(self: *Lower, output: *@import("../node/declarations.zig").Output, name: []const u8) Lower.Error!bool {
     if (!emit.generated) return @import("entry/state_seed.zig").declarations(self, output);
 
     if (@import("entry/policy.zig").forwarded(self)) |function| {
