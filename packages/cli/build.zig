@@ -90,6 +90,18 @@ pub fn build(b: *std.Build) void {
     host.addImport("native_resource_host", native_resources);
     host.import_table.get("cli_source").?.addImport("native_resource_host", native_resources);
 
+    const cli_source = host.import_table.get("cli_source").?;
+
+    const staging_host = b.createModule(.{
+        .root_source_file = b.path("src/cli/library/stage/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_host", .module = host }},
+    });
+
+    cli_source.addImport("library_stage_host", staging_host);
+    host.addImport("library_stage_abi", cli_source.import_table.get("zxc_abi").?);
+
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 
     const yaml_scanner = b.createModule(.{

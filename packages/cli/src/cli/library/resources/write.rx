@@ -1,0 +1,10 @@
+<Module>
+    <Type from="model" as="Resources" />
+
+    <Args in={Resources.Input} out={void} />
+
+    <Call fn="index.allocateNativeRows" in={$in} />
+    <Call fn="index.selectLibraryPaths" in={$in} />
+    <Call fn="resolve_paths" in={$in} />
+    <Call fn="modules" in={$in} />
+</Module>

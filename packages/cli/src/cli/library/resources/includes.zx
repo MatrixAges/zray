@@ -1,0 +1,23 @@
+import { addExternalInclude, nativeIncludes } from "library_stage_host"
+import { absolutePath } from "publication_host"
+
+import type { NativeResources as Input } from "library_stage_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const paths = nativeIncludes(in)
+
+    const collected = loop(0, {
+        while: index => index < paths.length,
+        next: index => {
+            const path = paths[index]
+
+            if (absolutePath(path)) {
+                addExternalInclude(in, path)
+            }
+
+            index += 1
+        }
+    })
+}

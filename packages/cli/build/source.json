@@ -150,6 +150,10 @@
             "name": "native_directory_files"
         },
         {
+            "path": "library/stage/write.rx",
+            "name": "library_stage_write"
+        },
+        {
             "path": "library/inventory/collect.rx",
             "name": "library_inventory_collect"
         },
@@ -332,6 +336,10 @@
         {
             "path": "backend_dependencies/host.d.zx",
             "module": "backend_input_host"
+        },
+        {
+            "path": "library/stage/host.d.zx",
+            "module": "library_stage_host"
         },
         {
             "path": "publication/host.d.zx",

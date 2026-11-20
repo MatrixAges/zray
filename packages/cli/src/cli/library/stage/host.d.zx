@@ -1,0 +1,37 @@
+export type Stage = opaque
+
+export type NativeResources = opaque
+
+export enum FileGroup {
+    AbiViews,
+    Generated,
+    Public
+}
+
+export declare function prepareStageAbi(stage: Stage): void throws { PublicationFailure }
+export declare function prepareStageLayout(stage: Stage): void throws { PublicationFailure }
+export declare function collectStageInventory(stage: Stage): void throws { PublicationFailure }
+export declare function writeStageArtifact(stage: Stage): void throws { PublicationFailure }
+export declare function writeStageAbi(stage: Stage): void throws { PublicationFailure }
+export declare function stageFileCount(stage: Stage, group: FileGroup): u64
+export declare function writeStageFile(stage: Stage, group: FileGroup, index: u64): void throws { PublicationFailure }
+export declare function writeStageManifest(stage: Stage): void throws { PublicationFailure }
+export declare function writeStageBuild(stage: Stage): void throws { PublicationFailure }
+export declare function writeStageInventory(stage: Stage): void throws { PublicationFailure }
+
+export declare function allocateNativeRows(resources: NativeResources): void throws { PublicationFailure }
+export declare function selectLibraryPaths(resources: NativeResources): void throws { PublicationFailure }
+export declare function pathCount(resources: NativeResources): u64
+export declare function resolveResourcePath(resources: NativeResources, index: u64): void throws { PublicationFailure }
+export declare function nativeModuleCount(resources: NativeResources): u64
+export declare function selectNativeModule(resources: NativeResources, index: u64): void throws { PublicationFailure }
+export declare function hasBundleInput(resources: NativeResources): bool
+export declare function hasNativeHeader(resources: NativeResources): bool
+export declare function bundleNativeModule(resources: NativeResources): void throws { PublicationFailure }
+export declare function allocateBundlePaths(resources: NativeResources): void throws { PublicationFailure }
+export declare function bundleFileCount(resources: NativeResources): u64
+export declare function recordBundlePath(resources: NativeResources, index: u64): void
+export declare function nativeIncludes(resources: NativeResources): string[]
+export declare function addExternalInclude(resources: NativeResources, path: string): void throws { PublicationFailure }
+export declare function writeNativeHeader(resources: NativeResources): void throws { PublicationFailure }
+export declare function writeNativeAdapter(resources: NativeResources): void throws { PublicationFailure }

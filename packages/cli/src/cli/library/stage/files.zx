@@ -1,0 +1,23 @@
+import { stageFileCount, writeStageFile } from "library_stage_host"
+
+import type { FileGroup, Stage } from "library_stage_host"
+
+export type Input = {
+    stage: Stage,
+    group: FileGroup
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = stageFileCount(in.stage, in.group)
+
+    const written = loop(0, {
+        while: index => index < count,
+        next: index => {
+            writeStageFile(in.stage, in.group, index)
+
+            index += 1
+        }
+    })
+}

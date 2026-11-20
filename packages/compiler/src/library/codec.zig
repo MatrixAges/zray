@@ -23,13 +23,7 @@ pub const Error = validation.Error || error{IncompatibleLibraryVersion};
 pub fn encode(allocator: std.mem.Allocator, library: *const model.Result) Error![]u8 {
     try validation.validate(allocator, library);
 
-    const value: Payload = .{
-        .ir_version = zx.ir_version,
-        .program = library.program,
-        .exports = library.exports,
-        .nominal_types = library.nominal_types,
-        .store_initializers = library.store_initializers,
-    };
+    const value = payloadOf(library);
 
     if (generated) return envelope.encode(allocator, value);
 
@@ -42,6 +36,29 @@ pub fn encode(allocator: std.mem.Allocator, library: *const model.Result) Error!
     @import("zx").Sha256.hash(payload, &digest, .{});
 
     return std.fmt.allocPrint(allocator, marker ++ "{s}\n{s}", .{ std.fmt.bytesToHex(digest, .lower), payload });
+}
+
+pub fn writeFile(io: std.Io, file: std.Io.File, allocator: std.mem.Allocator, library: *const model.Result) !void {
+    if (comptime !generated) {
+        const bytes = try encode(allocator, library);
+
+        defer allocator.free(bytes);
+
+        return file.writeStreamingAll(io, bytes);
+    }
+
+    try validation.validate(allocator, library);
+    try envelope.writeFile(io, file, payloadOf(library));
+}
+
+fn payloadOf(library: *const model.Result) Payload {
+    return .{
+        .ir_version = zx.ir_version,
+        .program = library.program,
+        .exports = library.exports,
+        .nominal_types = library.nominal_types,
+        .store_initializers = library.store_initializers,
+    };
 }
 
 pub fn decode(allocator: std.mem.Allocator, bytes: []const u8) Error!model.Result {

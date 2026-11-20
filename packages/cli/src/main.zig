@@ -3,6 +3,7 @@ pub const watch = @import("cli/watch.zig");
 pub const package_graph = @import("package/graph/host.zig");
 pub const toolchain = @import("cli/toolchain.zig");
 pub const installation = @import("package/install/host.zig");
+pub const library_stage = @import("cli/library/publish.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();

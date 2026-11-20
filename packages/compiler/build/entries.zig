@@ -466,6 +466,7 @@ pub const main = [_]Entry{
     .{ .path = "library/envelope/layout.zx", .name = "library_envelope_layout", .owner = .compiler },
     .{ .path = "library/envelope/open.rx", .name = "library_envelope_open", .owner = .compiler },
     .{ .path = "library/envelope/seal.rx", .name = "library_envelope_seal", .owner = .compiler },
+    .{ .path = "library/envelope/header.zx", .name = "library_envelope_header", .owner = .compiler },
     .{ .path = "library/envelope/versions.zx", .name = "library_envelope_versions", .owner = .compiler },
     .{ .path = "library/publication/publish.rx", .name = "library_source_exports", .owner = .compiler },
     .{ .path = "core/bytes/index/claim.zx", .name = "library_index_claim" },

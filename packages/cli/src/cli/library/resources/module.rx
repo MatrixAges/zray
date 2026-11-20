@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Resources" />
+
+    <Args in={Resources.Input} out={void} />
+
+    <Call fn="resolve_paths" in={$in} />
+    <Call fn="index.hasNativeHeader" in={$in} />
+    <Call fn="index.hasBundleInput" in={$in} />
+
+    <If on={$ctx.hasBundleInput}>
+        <Call fn="index.bundleNativeModule" in={$in} />
+
+        <If on={$ctx.hasNativeHeader}>
+            <Call fn="index.allocateBundlePaths" in={$in} />
+            <Call fn="bundle_paths" in={$in} />
+        </If>
+    </If>
+
+    <Call fn="includes" in={$in} />
+
+    <If on={$ctx.hasNativeHeader}>
+        <Call fn="index.writeNativeHeader" in={$in} />
+        <Call fn="index.writeNativeAdapter" in={$in} />
+    </If>
+</Module>

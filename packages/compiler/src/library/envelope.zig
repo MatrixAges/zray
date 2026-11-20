@@ -1,8 +1,10 @@
 const std = @import("std");
-const columns = @import("zx").columns;
+const zx = @import("zx");
+const columns = zx.columns;
 const layout = @import("generated_library_envelope_layout");
 const opening = @import("generated_library_envelope_open");
 const sealing = @import("generated_library_envelope_seal");
+const header = @import("generated_library_envelope_header");
 const versions = @import("generated_library_envelope_versions");
 
 pub const Payload = struct {
@@ -44,6 +46,31 @@ pub fn encode(allocator: std.mem.Allocator, payload: anytype) std.mem.Allocator.
     std.debug.assert(writer.end == header_size);
 
     return out.toOwnedSlice();
+}
+
+pub fn writeFile(io: std.Io, file: std.Io.File, payload: anytype) !void {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const header_size = layout.executeValue(empty.allocator(), {}) catch unreachable;
+    var writer = file.writer(io, &.{});
+
+    try writer.seekToUnbuffered(header_size);
+
+    var buffer: [16 * 1024]u8 = undefined;
+    var hashed = writer.interface.hashed(zx.Sha256.init(.{}), &buffer);
+
+    std.json.Stringify.value(payload, .{}, &hashed.writer) catch return writer.err.?;
+    hashed.writer.flush() catch return writer.err.?;
+
+    const digest = std.fmt.bytesToHex(hashed.hasher.finalResult(), .lower);
+    var prefix: std.Io.Writer = .fixed(buffer[0..@intCast(header_size)]);
+    var scratch_buffer: [256]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&scratch_buffer);
+    const input: std.meta.Child(header.Input) = .{ .writer = @ptrCast(&prefix), .digest = &digest };
+
+    header.executeIn(scratch.allocator(), &input) catch unreachable;
+    std.debug.assert(prefix.end == header_size);
+
+    try file.writePositionalAll(io, prefix.buffered(), 0);
 }
 
 pub fn compatible(outer: u32, program: u32, expected: u32) bool {

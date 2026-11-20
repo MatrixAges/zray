@@ -1,0 +1,6 @@
+import type { NativeResources, Stage } from "library_stage_host"
+
+export type Input = {
+    stage: Stage,
+    resources: NativeResources
+}

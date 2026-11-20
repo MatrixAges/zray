@@ -1,0 +1,21 @@
+import { nativeModuleCount, selectNativeModule } from "library_stage_host"
+
+import stage from "./module.rx"
+
+import type { NativeResources as Input } from "library_stage_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = nativeModuleCount(in)
+
+    const staged = loop(0, {
+        while: index => index < count,
+        next: index => {
+            selectNativeModule(in, index)
+            stage(in)
+
+            index += 1
+        }
+    })
+}

@@ -1,91 +1,179 @@
 const std = @import("std");
-const project_config = @import("../project.zig");
+const compiler = @import("compiler");
+const project = @import("../project.zig");
 const artifacts = @import("../artifacts.zig");
 const native_sources = @import("native_resource_host");
 const Inputs = @import("watch_inputs").Inputs;
-pub const Dependency = struct { name: []const u8, header: ?[]const u8, c_imports: bool = false, dynamic_resources: bool = false, include_relocations: []const native_sources.Include = &.{} };
+const effects = @import("publication_host").effects;
+const Error = effects.Error;
 
-pub const Result = struct {
-    native_modules: []const project_config.NativeModule,
-    library_paths: []const []const u8,
-    bundled_files: []const native_sources.File,
-    dependencies: []const Dependency,
-    external_includes: []const []const u8,
+pub const Dependency = struct {
+    name: []const u8,
+    header: ?[]const u8,
+    c_imports: bool = false,
+    dynamic_resources: bool = false,
+    include_relocations: []const native_sources.Include = &.{},
 };
 
-pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, loaded: project_config.Loaded, inputs: ?*Inputs) !Result {
-    const native_modules = try allocator.dupe(project_config.NativeModule, loaded.config.native_modules);
-    const library_paths = try absolutePaths(allocator, loaded.project.root_dir, loaded.config.library_paths);
-    var bundled_files: std.ArrayList(native_sources.File) = .empty;
-    var dependencies: std.ArrayList(Dependency) = .empty;
-    var external_includes: std.ArrayList([]const u8) = .empty;
-
-    for (native_modules) |*native| {
-        var dependency = Dependency{ .name = native.name, .header = native.header, .c_imports = native.header != null };
-        const scope = project_config.nativeScope(loaded, native.*);
-
-        native.include_paths = try absolutePaths(allocator, scope.root, scope.paths);
-
-        if (native.path != null or native.bundle_files.len != 0) {
-            const bundled = try native_sources.write(io, allocator, directory, scope.root, .{
-                .name = native.name,
-                .path = native.path,
-                .header = native.header,
-                .bundle_files = native.bundle_files,
-                .include_paths = native.include_paths.?,
-            }, inputs);
-
-            native.path = bundled.entry;
-            native.include_paths = bundled.include_paths;
-            dependency.c_imports = bundled.c_imports;
-            dependency.dynamic_resources = bundled.dynamic_resources;
-            dependency.include_relocations = bundled.include_relocations;
-
-            try bundled_files.appendSlice(allocator, bundled.files);
-
-            if (native.header != null) {
-                const paths = try allocator.alloc([]const u8, bundled.files.len);
-
-                for (bundled.files, paths) |file, *path| path.* = file.path;
-
-                native.bundle_files = paths;
-            }
-        }
-
-        for (native.include_paths.?) |path| {
-            if (std.fs.path.isAbsolute(path)) try external_includes.append(allocator, path);
-        }
-
-        try dependencies.append(allocator, dependency);
-
-        if (native.header) |header| {
-            const path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.zig", .{ directory, native.name });
-            const header_path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.h", .{ directory, native.name });
-            const include = try std.json.Stringify.valueAlloc(allocator, header, .{});
-
-            try artifacts.write(io, header_path, try std.fmt.allocPrint(allocator, "#include {s}\n", .{include}));
-
-            const adapter = try @import("compiler").zig.host.cAdapter(allocator);
-
-            defer allocator.free(adapter);
-
-            try artifacts.write(io, path, adapter);
-        }
-    }
-
-    return .{
-        .native_modules = native_modules,
-        .library_paths = library_paths,
-        .bundled_files = bundled_files.items,
-        .dependencies = dependencies.items,
-        .external_includes = external_includes.items,
+pub const State = struct {
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    directory: []const u8,
+    loaded: *const project.Loaded,
+    inputs: ?*Inputs,
+    failure: *effects.Failure,
+    native_modules: []project.NativeModule = &.{},
+    library_paths: []const []const u8 = &.{},
+    bundled_files: std.ArrayList(native_sources.File) = .empty,
+    dependencies: []Dependency = &.{},
+    external_includes: std.ArrayList([]const u8) = .empty,
+    current: *project.NativeModule = undefined,
+    dependency: *Dependency = undefined,
+    bundle: native_sources.Result = undefined,
+    bundle_paths: [][]const u8 = &.{},
+    paths: Paths = undefined,
+    const Paths = struct {
+        root: []const u8,
+        source: []const []const u8,
+        output: [][]const u8,
     };
+    fn preparePaths(self: *State, root: []const u8, paths: []const []const u8) Error![][]const u8 {
+        const resolved = self.allocator.alloc([]const u8, paths.len) catch |err| return self.failure.save(err);
+
+        self.paths = .{ .root = root, .source = paths, .output = resolved };
+
+        return resolved;
+    }
+};
+
+pub fn allocateNativeRows(handle: *const anyopaque) Error!void {
+    const self = effects.state(State, handle);
+    const modules = self.loaded.config.native_modules;
+    self.native_modules = self.allocator.dupe(project.NativeModule, modules) catch |err| return self.failure.save(err);
+    self.dependencies = self.allocator.alloc(Dependency, modules.len) catch |err| return self.failure.save(err);
 }
 
-fn absolutePaths(allocator: std.mem.Allocator, root: []const u8, paths: []const []const u8) ![]const []const u8 {
-    const result = try allocator.alloc([]const u8, paths.len);
+pub fn selectLibraryPaths(handle: *const anyopaque) Error!void {
+    const self = effects.state(State, handle);
 
-    for (paths, result) |path, *absolute| absolute.* = try std.fs.path.resolve(allocator, &.{ root, path });
+    self.library_paths = try self.preparePaths(self.loaded.project.root_dir, self.loaded.config.library_paths);
+}
 
-    return result;
+pub fn pathCount(handle: *const anyopaque) u64 {
+    return effects.state(State, handle).paths.source.len;
+}
+
+pub fn resolveResourcePath(handle: *const anyopaque, index: u64) Error!void {
+    const self = effects.state(State, handle);
+    const row: usize = @intCast(index);
+    const paths = self.paths;
+
+    paths.output[row] = std.fs.path.resolve(self.allocator, &.{ paths.root, paths.source[row] }) catch |err| return self.failure.save(err);
+}
+
+pub fn nativeModuleCount(handle: *const anyopaque) u64 {
+    return effects.state(State, handle).native_modules.len;
+}
+
+pub fn selectNativeModule(handle: *const anyopaque, index: u64) Error!void {
+    const self = effects.state(State, handle);
+    const row: usize = @intCast(index);
+    const native = &self.native_modules[row];
+    const scope = project.nativeScope(self.loaded.*, native.*);
+
+    self.current = native;
+    self.dependency = &self.dependencies[row];
+    self.dependency.* = .{ .name = native.name, .header = native.header, .c_imports = native.header != null };
+    native.include_paths = try self.preparePaths(scope.root, scope.paths);
+}
+
+pub fn hasBundleInput(handle: *const anyopaque) bool {
+    const native = effects.state(State, handle).current;
+
+    return native.path != null or native.bundle_files.len != 0;
+}
+
+pub fn hasNativeHeader(handle: *const anyopaque) bool {
+    return effects.state(State, handle).current.header != null;
+}
+
+pub fn bundleNativeModule(handle: *const anyopaque) Error!void {
+    const self = effects.state(State, handle);
+    const native = self.current;
+
+    const bundled = native_sources.write(self.io, self.allocator, self.directory, self.paths.root, .{
+        .name = native.name,
+        .path = native.path,
+        .header = native.header,
+        .bundle_files = native.bundle_files,
+        .include_paths = native.include_paths.?,
+    }, self.inputs) catch |err| return self.failure.save(err);
+
+    self.bundle = bundled;
+    native.path = bundled.entry;
+    native.include_paths = bundled.include_paths;
+    self.dependency.c_imports = bundled.c_imports;
+    self.dependency.dynamic_resources = bundled.dynamic_resources;
+    self.dependency.include_relocations = bundled.include_relocations;
+
+    self.bundled_files.appendSlice(self.allocator, bundled.files) catch |err| return self.failure.save(err);
+}
+
+pub fn allocateBundlePaths(handle: *const anyopaque) Error!void {
+    const self = effects.state(State, handle);
+
+    self.bundle_paths = self.allocator.alloc([]const u8, self.bundle.files.len) catch |err| return self.failure.save(err);
+    self.current.bundle_files = self.bundle_paths;
+}
+
+pub fn bundleFileCount(handle: *const anyopaque) u64 {
+    return effects.state(State, handle).bundle.files.len;
+}
+
+pub fn recordBundlePath(handle: *const anyopaque, index: u64) void {
+    const self = effects.state(State, handle);
+    const row: usize = @intCast(index);
+
+    self.bundle_paths[row] = self.bundle.files[row].path;
+}
+
+pub fn nativeIncludes(handle: *const anyopaque) []const []const u8 {
+    return effects.state(State, handle).current.include_paths.?;
+}
+
+pub fn addExternalInclude(handle: *const anyopaque, path: []const u8) Error!void {
+    const self = effects.state(State, handle);
+
+    self.external_includes.append(self.allocator, path) catch |err| return self.failure.save(err);
+}
+
+pub fn writeNativeHeader(handle: *const anyopaque) Error!void {
+    const self = effects.state(State, handle);
+
+    writeHeader(self) catch |err| return self.failure.save(err);
+}
+
+fn writeHeader(self: *State) !void {
+    const allocator = self.allocator;
+    const path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.h", .{ self.directory, self.current.name });
+    const include = try std.json.Stringify.valueAlloc(allocator, self.current.header.?, .{});
+    const source = try std.fmt.allocPrint(allocator, "#include {s}\n", .{include});
+
+    try artifacts.write(self.io, path, source);
+}
+
+pub fn writeNativeAdapter(handle: *const anyopaque) Error!void {
+    const self = effects.state(State, handle);
+
+    writeAdapter(self) catch |err| return self.failure.save(err);
+}
+
+fn writeAdapter(self: *State) !void {
+    const allocator = self.allocator;
+    const path = try std.fmt.allocPrint(allocator, "{s}/native/{s}.zig", .{ self.directory, self.current.name });
+    const source = try compiler.zig.host.cAdapter(allocator);
+
+    defer allocator.free(source);
+
+    try artifacts.write(self.io, path, source);
 }

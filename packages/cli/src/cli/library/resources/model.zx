@@ -1,0 +1,1 @@
+export type { NativeResources as Input } from "library_stage_host"
