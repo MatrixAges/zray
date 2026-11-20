@@ -1,0 +1,8 @@
+<Module>
+    <Type from="index" as="Template" />
+
+    <Args in={Template.Input} out={void} />
+
+    <Call fn="references" in={$in} />
+    <Call fn="index.expandSourceTemplate" in={$in} />
+</Module>

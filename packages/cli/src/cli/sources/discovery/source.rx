@@ -1,0 +1,18 @@
+<Module>
+    <Type from="index" as="Discovery" />
+
+    <Args in={Discovery.Input} out={void} />
+
+    <Call fn="index.prepareSource" in={$in} />
+    <Call fn="index.openHeader" in={$in} />
+
+    <Call
+        fn="imports"
+        in={{
+            discovery: $in,
+            count: $ctx.openHeader
+        }}
+    />
+
+    <Call fn="index.closeHeader" in={$in} />
+</Module>

@@ -62,6 +62,10 @@
         {
             "path": "publication",
             "prefix": "publication/"
+        },
+        {
+            "path": "sources",
+            "prefix": "sources/"
         }
     ],
     "entries": [
@@ -312,6 +316,14 @@
         {
             "path": "publication/overlap.zx",
             "name": "publication_overlap"
+        },
+        {
+            "path": "sources/discovery/run.rx",
+            "name": "discover_sources"
+        },
+        {
+            "path": "sources/template/run.rx",
+            "name": "load_source_template"
         }
     ],
     "packages": [
@@ -372,6 +384,10 @@
         {
             "path": "native_sources/host.d.zx",
             "module": "native_resource_host"
+        },
+        {
+            "path": "sources/host.d.zx",
+            "module": "source_loader_host"
         }
     ]
 }

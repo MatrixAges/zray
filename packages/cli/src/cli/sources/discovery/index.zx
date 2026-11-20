@@ -1,0 +1,15 @@
+export {
+    registerRoot,
+    prepareSource,
+    openHeader,
+    closeHeader,
+    resolveImport,
+    admitCompiledImport,
+    importPath,
+    markRxImport,
+    selectImportFile,
+    hasSource,
+    loadImportText
+} from "source_loader_host"
+
+export type { Discovery as Input, Target } from "source_loader_host"

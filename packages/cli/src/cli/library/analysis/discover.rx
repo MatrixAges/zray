@@ -3,7 +3,9 @@
 
     <Args in={Analysis.Input} out={bool} />
 
-    <Call fn="is_rx" in={$in} />
+    <Call fn="index.libraryEntryPath" in={$in} />
+
+    <Call fn="../../sources/path/is_rx" />
 
     <If on={$ctx.is_rx}>
         <Return value={true} />

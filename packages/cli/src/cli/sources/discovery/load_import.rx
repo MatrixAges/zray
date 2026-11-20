@@ -1,0 +1,28 @@
+<Module>
+    <Type from="index" as="Discovery" />
+    <Type from="model" as="Import" />
+
+    <Args in={Import.Row} out={void} />
+
+    <Call fn="index.resolveImport" in={$in} />
+
+    <If on={$ctx.resolveImport != Discovery.Target.Deferred}>
+        <If on={$ctx.resolveImport == Discovery.Target.Compiled}>
+            <Call fn="index.admitCompiledImport" in={$in[0]} />
+
+            <Else>
+                <Call fn="index.importPath" in={$in[0]} />
+
+                <Call fn="../path/is_rx" />
+
+                <If on={$ctx.is_rx}>
+                    <Call fn="index.markRxImport" in={$in[0]} />
+
+                    <Else>
+                        <Call module="load_source" in={$in[0]} />
+                    </Else>
+                </If>
+            </Else>
+        </If>
+    </If>
+</Module>

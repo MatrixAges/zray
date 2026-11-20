@@ -1,0 +1,7 @@
+export {
+    expandSourceTemplate,
+    readTemplateFile,
+    resolveTemplateReference
+} from "source_loader_host"
+
+export type { Template as Input } from "source_loader_host"

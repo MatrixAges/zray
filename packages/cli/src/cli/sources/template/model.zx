@@ -1,0 +1,8 @@
+import type { Template } from "source_loader_host"
+
+export type Row = [Template, u64]
+
+export type File = {
+    template: Template,
+    path: string
+}

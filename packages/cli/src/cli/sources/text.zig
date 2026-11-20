@@ -1,6 +1,6 @@
 const std = @import("std");
 const rx = @import("rx");
-const Read = struct { bytes: []const u8, fresh: bool };
+pub const Read = struct { bytes: []const u8, fresh: bool };
 const Entry = struct { bytes: []const u8, xml: ?*const rx.IndexedXml = null };
 const limit = 16 * 1024 * 1024;
 

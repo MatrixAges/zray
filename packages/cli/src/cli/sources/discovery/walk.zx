@@ -1,0 +1,21 @@
+import { selectSource, sourceCount } from "source_loader_host"
+
+import source from "./source.rx"
+
+import type { Range as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { discovery, first } = in
+
+    const loaded = loop(first, {
+        while: index => index < sourceCount(discovery),
+        next: index => {
+            selectSource(discovery, index)
+            source(discovery)
+
+            index += 1
+        }
+    })
+}

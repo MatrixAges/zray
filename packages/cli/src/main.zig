@@ -12,6 +12,11 @@ pub const library_workflow = struct {
     pub const proof = @import("cli/library/verify.zig");
 };
 
+pub const source_loader = struct {
+    pub const discovery = @import("cli/sources/discovery/host.zig");
+    pub const templates = @import("cli/sources/templates.zig");
+};
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);

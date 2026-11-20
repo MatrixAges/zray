@@ -112,6 +112,16 @@ pub fn build(b: *std.Build) void {
     cli_source.addImport("library_workflow_host", library_workflow);
     host.addImport("library_workflow_abi", cli_source.import_table.get("zxc_abi").?);
 
+    const source_loader = b.createModule(.{
+        .root_source_file = b.path("src/cli/sources/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_host", .module = host }},
+    });
+
+    cli_source.addImport("source_loader_host", source_loader);
+    host.addImport("source_loader_abi", cli_source.import_table.get("zxc_abi").?);
+
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 
     const yaml_scanner = b.createModule(.{

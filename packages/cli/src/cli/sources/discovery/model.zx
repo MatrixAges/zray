@@ -1,0 +1,13 @@
+import type { Discovery } from "source_loader_host"
+
+export type Row = [Discovery, u64]
+
+export type Range = {
+    discovery: Discovery,
+    first: u64
+}
+
+export type Header = {
+    discovery: Discovery,
+    count: u64
+}

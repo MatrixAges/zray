@@ -4,6 +4,7 @@ export {
     isCompiledLibrary,
     loadCompiledLibrary,
     beginLibraryAnalysis,
+    libraryEntryPath,
     readLibraryDependencies,
     inferLibraryRx,
     inferLibraryZx,

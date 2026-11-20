@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Template" />
+
+    <Args in={Template.Row} out={void} />
+
+    <Call fn="index.resolveTemplateReference" in={$in} />
+
+    <If on={$ctx.resolveTemplateReference != null}>
+        <Call
+            fn="contains"
+            in={{
+                template: $in[0],
+                path: $ctx.resolveTemplateReference
+            }}
+        />
+
+        <If on={!$ctx.contains}>
+            <Call fn="index.readTemplateFile" in={$in[0]} />
+        </If>
+    </If>
+</Module>

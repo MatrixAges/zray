@@ -1,0 +1,30 @@
+export type Discovery = opaque
+
+export type Template = opaque
+
+export enum Target {
+    Deferred,
+    Compiled,
+    Source
+}
+
+export declare function registerRoot(discovery: Discovery): u64 throws { SourceLoadFailure }
+export declare function sourceCount(discovery: Discovery): u64
+export declare function selectSource(discovery: Discovery, index: u64): void
+export declare function prepareSource(discovery: Discovery): void throws { SourceLoadFailure }
+export declare function openHeader(discovery: Discovery): u64 throws { SourceLoadFailure }
+export declare function closeHeader(discovery: Discovery): void
+export declare function resolveImport(discovery: Discovery, index: u64): Target throws { SourceLoadFailure }
+export declare function admitCompiledImport(discovery: Discovery): void throws { SourceLoadFailure }
+export declare function importPath(discovery: Discovery): string
+export declare function markRxImport(discovery: Discovery): void
+export declare function selectImportFile(discovery: Discovery): bool throws { SourceLoadFailure }
+export declare function hasSource(discovery: Discovery): bool
+export declare function loadImportText(discovery: Discovery): void throws { SourceLoadFailure }
+
+export declare function templateReferenceCount(template: Template): u64
+export declare function resolveTemplateReference(template: Template, index: u64): string? throws { SourceLoadFailure }
+export declare function templateFileCount(template: Template): u64
+export declare function templateFilePath(template: Template, index: u64): string
+export declare function readTemplateFile(template: Template): void throws { SourceLoadFailure }
+export declare function expandSourceTemplate(template: Template): void throws { SourceLoadFailure }

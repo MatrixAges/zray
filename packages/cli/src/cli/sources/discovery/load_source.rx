@@ -1,0 +1,15 @@
+<Module>
+    <Type from="index" as="Discovery" />
+
+    <Args in={Discovery.Input} out={void} />
+
+    <Call fn="index.selectImportFile" in={$in} />
+
+    <If on={$ctx.selectImportFile}>
+        <Call fn="index.hasSource" in={$in} />
+
+        <If on={!$ctx.hasSource}>
+            <Call fn="index.loadImportText" in={$in} />
+        </If>
+    </If>
+</Module>
