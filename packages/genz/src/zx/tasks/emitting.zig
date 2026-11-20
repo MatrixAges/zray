@@ -44,7 +44,7 @@ pub fn start(self: *Lower, worker: node.ExpressionId, process: bool, concurrent:
     return @fromBackingInt(result.root);
 }
 
-pub fn bind(self: *Lower, output: *std.ArrayList(node.Statement), name: []const u8, value: node.ExpressionId) Lower.Error!void {
+pub fn bind(self: *Lower, name: []const u8, value: node.ExpressionId) Lower.Error!node.Block {
     const entry = @import("generated_task_future_bind");
     const Input = std.meta.Child(entry.Input);
     const bases = context(std.meta.Child(@FieldType(Input, "bases")), self);
@@ -58,21 +58,11 @@ pub fn bind(self: *Lower, output: *std.ArrayList(node.Statement), name: []const 
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
     if (!result.valid) return error.OutOfMemory;
-
     try append(self, &self.builder.nodes.expressions, result.expressions);
 
-    var children = result.statements.*;
+    _ = try self.builder.publishStatements(&.{}, result.statements);
 
-    children.tags = children.tags[0..1];
-    children.offsets = children.offsets[0..1];
-    @import("../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &children) catch |err| return failure(err);
-
-    var outer = result.statements.*;
-
-    outer.tags = outer.tags[1..];
-    outer.offsets = outer.offsets[1..];
-
-    @import("../../node/import_statements.zig").appendSelectedBorrowingText(self.allocator, output, &outer) catch |err| return failure(err);
+    return .{ .start = result.first, .len = result.count };
 }
 
 pub fn call(self: *Lower, value: ?node.ExpressionId, name: ?[]const u8, method: anytype, fallible: bool) Lower.Error!node.ExpressionId {
@@ -102,7 +92,7 @@ pub fn call(self: *Lower, value: ?node.ExpressionId, name: ?[]const u8, method: 
     return @fromBackingInt(result.root);
 }
 
-pub fn cancel(self: *Lower, output: *std.ArrayList(node.Statement), value: ?node.ExpressionId, name: ?[]const u8) Lower.Error!node.ExpressionId {
+pub fn cancel(self: *Lower, value: ?node.ExpressionId, name: ?[]const u8) Lower.Error!struct { block: node.Block, value: node.ExpressionId } {
     const entry = @import("generated_task_future_cancel");
     const Input = std.meta.Child(entry.Input);
     const bases = context(std.meta.Child(@FieldType(Input, "bases")), self);
@@ -117,9 +107,11 @@ pub fn cancel(self: *Lower, output: *std.ArrayList(node.Statement), value: ?node
 
     if (!result.valid) return error.OutOfMemory;
     try append(self, &self.builder.nodes.expressions, result.expressions);
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, output, result.statements) catch |err| return failure(err);
 
-    return @fromBackingInt(result.root);
+    return .{
+        .block = try self.builder.publishStatements(&.{}, result.statements),
+        .value = @fromBackingInt(result.root),
+    };
 }
 
 pub fn context(comptime Bases: type, self: *const Lower) Bases {

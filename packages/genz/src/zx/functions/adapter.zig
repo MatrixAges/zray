@@ -41,7 +41,7 @@ pub fn build(self: *Lower, id: ir.FunctionId) Lower.Error!?node.Declaration {
     });
 
     const prelude = try @import("prelude/build.zig").lower(self, .{ .exported = false, .io = false, .process = false });
-    const references = try self.builder.statements(self.reference_storage.items);
+    const references = try self.referenceBlock();
     const returned = try self.builder.statements(&.{.{ .result = result }});
     var function = try self.prototype("call", false);
 

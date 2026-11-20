@@ -7,7 +7,7 @@ const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 pub const generated = @import("genz_options").generated_analysis;
 pub const Prepared = struct { parameters: []const node.Field, arguments: []node.ExpressionId };
-pub const Tail = struct { name: []const u8, return_type: node.ExpressionId, statements: []const node.Statement, inlined: bool };
+pub const Tail = struct { name: []const u8, return_type: node.ExpressionId, body: node.Block, inlined: bool };
 
 pub fn arena(self: *Lower, inner: node.Function) Lower.Error!node.Declaration {
     const entry = @import("generated_public_entry_arena");
@@ -29,13 +29,11 @@ pub fn arena(self: *Lower, inner: node.Function) Lower.Error!node.Declaration {
 
     try append(self, &expressions);
 
-    const body = try statements(self, output.statements);
-
     return .{ .function = .{
         .name = output.name,
         .parameters = field_rows.materializeBorrowingText(self.allocator, output.parameters) catch |err| return failure(err),
         .return_type = @fromBackingInt(output.return_type),
-        .body = try self.builder.statements(body),
+        .body = try self.builder.publishStatements(&.{}, output.statements),
         .exported = true,
     } };
 }
@@ -134,7 +132,12 @@ pub fn finish(self: *Lower, state: node.Function, value: node.ExpressionId, outp
 
     try append(self, &expressions);
 
-    return .{ .name = output.name, .return_type = @fromBackingInt(output.return_type), .statements = try statements(self, output.statements), .inlined = output.inlined };
+    return .{
+        .name = output.name,
+        .return_type = @fromBackingInt(output.return_type),
+        .body = try self.builder.publishStatements(&.{}, output.statements),
+        .inlined = output.inlined,
+    };
 }
 
 fn fields(comptime Fields: type, allocator: std.mem.Allocator, original: []const node.Field) Lower.Error!Fields {
@@ -159,14 +162,6 @@ fn context(comptime Bases: type, self: *const Lower) Bases {
 
 fn append(self: *Lower, source: anytype) Lower.Error!void {
     rows.appendBorrowingText(self.allocator, &self.builder.nodes.expressions, source) catch |err| return failure(err);
-}
-
-fn statements(self: *Lower, source: anytype) Lower.Error![]const node.Statement {
-    var output: std.ArrayList(node.Statement) = .empty;
-
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, &output, source) catch |err| return failure(err);
-
-    return output.toOwnedSlice(self.allocator);
 }
 
 fn failure(err: anyerror) Lower.Error {

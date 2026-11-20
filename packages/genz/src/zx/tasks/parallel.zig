@@ -4,7 +4,7 @@ const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const emit = @import("emitting.zig");
 
-pub fn awaitAll(self: *Lower, output: *std.ArrayList(node.Statement), futures: []const []const u8, results: []const []const u8) Lower.Error!void {
+pub fn awaitAll(self: *Lower, futures: []const []const u8, results: []const []const u8) Lower.Error!node.Block {
     const entry = @import("generated_task_parallel_await");
     const Input = std.meta.Child(entry.Input);
     const bases = emit.context(std.meta.Child(@FieldType(Input, "bases")), self);
@@ -19,10 +19,11 @@ pub fn awaitAll(self: *Lower, output: *std.ArrayList(node.Statement), futures: [
 
     if (!awaited.valid) return error.OutOfMemory;
     try emit.append(self, &self.builder.nodes.expressions, awaited.expressions);
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, output, awaited.statements) catch |err| return emit.failure(err);
+
+    return self.builder.publishStatements(&.{}, awaited.statements);
 }
 
-pub fn result(self: *Lower, output: *std.ArrayList(node.Statement), results: []const []const u8, values: []const ?[]const u8, fields: []const ?[]const u8, object: bool) Lower.Error!node.ExpressionId {
+pub fn result(self: *Lower, results: []const []const u8, values: []const ?[]const u8, fields: []const ?[]const u8, object: bool) Lower.Error!struct { block: node.Block, value: node.ExpressionId } {
     const entry = @import("generated_task_parallel_result");
     const Input = std.meta.Child(entry.Input);
 
@@ -50,7 +51,9 @@ pub fn result(self: *Lower, output: *std.ArrayList(node.Statement), results: []c
     try emit.append(self, &self.builder.nodes.expressions, &expressions);
 
     _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, compiled.fields) catch |err| return emit.failure(err);
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, output, compiled.statements) catch |err| return emit.failure(err);
 
-    return @fromBackingInt(compiled.root);
+    return .{
+        .block = try self.builder.publishStatements(&.{}, compiled.statements),
+        .value = @fromBackingInt(compiled.root),
+    };
 }

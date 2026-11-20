@@ -43,6 +43,7 @@ export type Output = {
     forms: Forms,
     statements: Statements,
     variables: Variables,
+    body: u32,
     valid: bool
 }
 

@@ -1,6 +1,8 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
 import identifier from "../../../ast/context/identifier"
 import initialize from "../../../ast/context/initialize"
-import header from "../../../ast/statements/header"
 import { StatementsKind } from "../../../printer/model/statements"
 import invoke from "./invoke"
 import { Method } from "./invoke"
@@ -29,6 +31,8 @@ export type Statements = {
 export type Output = {
     expressions: Expressions,
     statements: Statements,
+    first: u32,
+    count: u32,
     valid: bool
 }
 
@@ -45,35 +49,35 @@ export default function (in: Input): Output {
         fallible: false
     })
 
-    const child = header({
-        tags: [],
-        offsets: [],
-        base: in.bases.statement_base,
-        kind: StatementsKind.DiscardError,
-        offset: 0
-    })
+    const statements: Statements = {
+        tags: [
+            StatementsKind.DiscardError,
+            StatementsKind.Variable,
+            StatementsKind.DeferScope
+        ],
+        offsets: [
+            0,
+            0,
+            0
+        ],
+        variable_name: [in.name],
+        variable_type_expr: [null],
+        variable_value: [in.value],
+        variable_exported: [false],
+        discard_error: [cleanup.id],
+        defer_scope_start: [in.bases.statement_base],
+        defer_scope_len: [1]
+    }
+
+    const first = integers.widen(in.bases.statement_base) + 1
+    const count = statements.tags.length - 1
+    const valid = first + count <= integers.widen(max_u32)
 
     return {
         expressions: cleanup.state.expressions,
-        statements: {
-            tags: [
-                StatementsKind.DiscardError,
-                StatementsKind.Variable,
-                StatementsKind.DeferScope
-            ],
-            offsets: [
-                0,
-                0,
-                0
-            ],
-            variable_name: [in.name],
-            variable_type_expr: [null],
-            variable_value: [in.value],
-            variable_exported: [false],
-            discard_error: [cleanup.id],
-            defer_scope_start: [in.bases.statement_base],
-            defer_scope_len: [1]
-        },
-        valid: cleanup.state.valid && child.valid
+        statements,
+        first: integers.narrow(first),
+        count: integers.narrow(count),
+        valid: cleanup.state.valid && valid
     }
 }

@@ -3,6 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../../../node.zig");
 const view = @import("../../../node/view.zig");
 const Lower = @import("../../lower.zig");
+const blocks = @import("../../../node/blocks.zig");
 
 pub const Prepared = struct { names: [3][]const u8, raw: [2]node.ExpressionId };
 
@@ -44,6 +45,7 @@ pub fn finish(self: *Lower, args: Final) Lower.Error!node.Declaration {
     const entry = @import("generated_sorting_worker");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
+    const references = try args.worker.referenceBlock();
 
     const bases: Bases = .{
         .capture = null,
@@ -68,7 +70,7 @@ pub fn finish(self: *Lower, args: Final) Lower.Error!node.Declaration {
         .uses_io = args.worker.uses_io,
         .uses_process = args.worker.uses_process,
         .uses_environment = args.worker.used[@backingInt(args.environment)],
-        .reference_count = args.worker.reference_storage.items.len,
+        .reference_count = references.len,
         .helper_count = args.helpers[0].len + args.helpers[1].len,
         .bases = &bases,
         .declaration_base = @intCast(self.builder.nodes.declaration_rows.tags.items.len),
@@ -89,28 +91,25 @@ pub fn finish(self: *Lower, args: Final) Lower.Error!node.Declaration {
     try append(self, &self.builder.nodes.expressions, &expressions);
 
     _ = @import("../../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
-    const statements = @import("../../../node/import_statements.zig");
-    var body: std.ArrayList(node.Statement) = .empty;
 
-    statements.appendBorrowingText(self.allocator, &body, result.prefix) catch |err| return failure(err);
+    const prefix = try self.builder.publishStatements(&.{}, result.prefix);
+    const left = try self.builder.statements(args.helpers[0]);
+    const bindings = try self.builder.publishStatements(&.{}, result.bindings);
+    const right = try self.builder.statements(args.helpers[1]);
+    const ending = try self.builder.publishStatements(&.{}, result.ending);
 
-    try body.appendSlice(self.allocator, args.worker.reference_storage.items);
+    const body = try blocks.join(
+        self.allocator,
+        self.builder.nodes,
+        &.{ prefix.start, references.start, left.start, bindings.start, right.start, bindings.start + 1, ending.start },
+        &.{ prefix.len, references.len, left.len, 1, right.len, 1, ending.len },
+    );
 
-    var storage: [2]node.Statement = undefined;
-    var bindings = std.ArrayList(node.Statement).initBuffer(&storage);
+    var declarations = result.declarations.*;
 
-    statements.appendBorrowingText(self.allocator, &bindings, result.bindings) catch |err| return failure(err);
+    declarations.function_body_start = &.{body.start};
 
-    for (args.helpers, 0..) |helper, index| {
-        try body.appendSlice(self.allocator, helper);
-        try body.append(self.allocator, bindings.items[index]);
-    }
-
-    statements.appendBorrowingText(self.allocator, &body, result.ending) catch |err| return failure(err);
-
-    _ = try self.builder.statements(body.items);
-
-    try append(self, &self.builder.nodes.declaration_rows, result.declarations);
+    try append(self, &self.builder.nodes.declaration_rows, &declarations);
 
     return .{ .function = try self.builder.nodes.materializeFunction(self.allocator, input.declaration_base) };
 }

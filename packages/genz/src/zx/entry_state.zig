@@ -41,19 +41,23 @@ fn view(self: *Lower, state: node.Function) Lower.Error!node.Declaration {
     const result = try aggregate.bind(self, &body, try emit.call(self, state.name, arguments));
     const returned = try conversion.convert(self, &body, self.program.output_type, result, .view_layout);
     const output_type = try types.get(self, self.view_types, self.program.output_type);
-    const tail = try emit.finish(self, state, returned, output_type);
-    var statements: std.ArrayList(node.Statement) = .empty;
+    const references = try self.referenceBlock();
+    const values = try self.builder.statements(body.items);
+    const ending = try emit.finish(self, state, returned, output_type);
 
-    try statements.appendSlice(self.allocator, self.reference_storage.items);
-    try statements.appendSlice(self.allocator, body.items);
-    try statements.appendSlice(self.allocator, tail.statements);
+    const statements = try @import("../node/blocks.zig").join(
+        self.allocator,
+        self.builder.nodes,
+        &.{ references.start, values.start, ending.body.start },
+        &.{ references.len, values.len, ending.body.len },
+    );
 
     return .{ .function = .{
-        .name = tail.name,
+        .name = ending.name,
         .parameters = prepared.parameters,
-        .return_type = tail.return_type,
-        .body = try self.builder.statements(statements.items),
+        .return_type = ending.return_type,
+        .body = statements,
         .exported = true,
-        .inlined = tail.inlined,
+        .inlined = ending.inlined,
     } };
 }

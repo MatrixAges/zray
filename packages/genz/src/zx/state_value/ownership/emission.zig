@@ -66,8 +66,9 @@ pub fn clear(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
     const storage = @import("../../../node/view.zig").join(output.storage.*, output.variables.*);
     const statements = @import("../../../node/import_statements.zig");
 
-    statements.appendSelected(self.allocator, &self.reference_storage, &storage) catch |err| return imported(err);
     @import("../../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, output.statements) catch |err| return imported(err);
+
+    try self.hoistReferences(&storage);
 
     statements.appendSelected(self.allocator, body, output.body) catch |err| return imported(err);
 

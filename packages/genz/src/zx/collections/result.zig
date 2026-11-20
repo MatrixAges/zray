@@ -15,7 +15,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Typ
     const declarations = self.task_declarations.count();
     const statements = self.builder.nodes.statements.tags.items.len;
     const roots = body.items.len;
-    const storage = self.reference_storage.items.len;
+    const storage = self.referenceBatches();
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -45,7 +45,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Typ
 
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
     std.debug.assert(statements == self.builder.nodes.statements.tags.items.len and roots == body.items.len);
-    std.debug.assert(storage == self.reference_storage.items.len);
+    std.debug.assert(storage == self.referenceBatches());
 
     const bases: Bases = .{
         .capture = if (self.capture) |item| &.{ .name = item.name, .label = item.label, .failure = @backingInt(item.failure) } else null,

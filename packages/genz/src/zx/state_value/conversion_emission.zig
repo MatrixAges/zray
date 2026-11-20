@@ -137,7 +137,8 @@ pub fn apply(self: *Lower, borrow_storage: *std.ArrayList(node.Statement), body:
     const flat = view.join(output.body.*, output.variables.*);
     @import("../../node/import_rows.zig").append(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return imported(err);
     @import("../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return imported(err);
-    @import("../../node/import_statements.zig").appendSelected(self.allocator, &self.reference_storage, &storage) catch |err| return imported(err);
+
+    try self.hoistReferences(&storage);
     @import("../../node/import_statements.zig").appendSelected(self.allocator, borrow_storage, &borrowed) catch |err| return imported(err);
     @import("../../node/import_statements.zig").appendSelected(self.allocator, body, &flat) catch |err| return imported(err);
     _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| return imported(err);

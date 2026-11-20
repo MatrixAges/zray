@@ -12,7 +12,7 @@ pub fn expressions(self: *Lower, output: anytype) Lower.Error!void {
 pub fn storage(self: *Lower, output: anytype) Lower.Error!void {
     const source = view.join(output.storage.*, output.variables.*);
 
-    try flat(self, &self.reference_storage, &source);
+    try self.hoistReferences(&source);
 }
 
 pub fn flat(self: *Lower, target: *std.ArrayList(node.Statement), source: anytype) Lower.Error!void {

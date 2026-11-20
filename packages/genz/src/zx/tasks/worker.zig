@@ -2,6 +2,7 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const emitting = @import("worker/emitting.zig");
+const blocks = @import("../../node/blocks.zig");
 
 pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("worker_seed.zig").lower(self, id, process);
@@ -37,11 +38,13 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     const result = try worker.expr(task.body);
     const output_type = try self.typeExpr(task_type.result);
     const errors = self.program.typeOf(task_type.errors).error_set;
-    const body_first: u32 = @intCast(self.builder.nodes.statements.tags.items.len);
+    const first: u32 = @intCast(self.builder.nodes.statements.tags.items.len);
 
     try emitting.discard(self, &worker, task.captures, process);
 
-    _ = try self.builder.statements(worker.reference_storage.items);
+    const count: u32 = @intCast(self.builder.nodes.statements.tags.items.len - first);
+    const references = try worker.referenceBlock();
+    const body = try blocks.tail(self.allocator, self.builder.nodes, &.{ first, references.start }, &.{ count, references.len });
 
     return emitting.finish(self, .{
         .name = name,
@@ -50,7 +53,7 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
         .errors = errors,
         .parameters_first = parameters.first,
         .parameters_count = parameters.count,
-        .body_first = body_first,
+        .body_first = body.start,
         .slot = declaration_index,
     });
 }

@@ -4,6 +4,7 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const emission = @import("statements/basic.zig");
 const planning = @import("statements/block.zig");
+const blocks = @import("../node/blocks.zig");
 const generated = @import("genz_options").generated_analysis;
 
 pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
@@ -60,21 +61,18 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         var consumed_previous = false;
         const route = if (generated) routes[offset] else 0;
 
-        if (if (generated) route & planning.flags.store_route != 0 else true) {
-            if (try @import("store/begin.zig").statement(self, values, offset)) |begin| try output.append(self.allocator, begin);
-        }
+        const transaction = if (if (generated) route & planning.flags.store_route != 0 else true)
+            try @import("store/begin.zig").lower(self, values, offset)
+        else
+            node.Block{};
 
-        const span = switch (values.at(offset)) {
+        const body = switch (values.at(offset)) {
             .evaluate => |id| try emission.discard(self, &output, try @import("iteration.zig").discard(self, id)),
             .parallel => |invocations| try @import("parallel/root.zig").lower(self, invocations),
             .constant => |binding| binding_block: {
                 const task = if (generated) route & planning.flags.task_route != 0 else @import("binding.zig").before(self, binding.value, binding.symbol, false) == .Task;
 
-                if (task) {
-                    try @import("tasks/root.zig").bind(self, &output, self.names[@backingInt(binding.symbol)], binding.value, false);
-
-                    break :binding_block try self.builder.statements(output.items);
-                }
+                if (task) break :binding_block try @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false);
 
                 const borrowed = try locals.optionalCall(self, &output, binding.symbol, binding.value, self.program.output_type);
                 const value = borrowed orelse if (self.stack_symbols.contains(binding.symbol)) try @import("value_call/root.zig").expression(self, binding.value) else try self.expr(binding.value);
@@ -101,17 +99,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
 
                 break :conditional try emission.branch(self, &output, condition, yes, no);
             },
-            .switch_stmt => |selection| cases: {
-                const prefix = try self.builder.statements(output.items);
-                const body = try @import("statements/switch/lower.zig").lower(self, selection);
-
-                break :cases if (prefix.len == 0) body else try @import("../node/blocks.zig").join(
-                    self.allocator,
-                    self.builder.nodes,
-                    &.{ prefix.start, body.start },
-                    &.{ prefix.len, body.len },
-                );
-            },
+            .switch_stmt => |selection| try @import("statements/switch/lower.zig").lower(self, selection),
             .store_set => |setter| store_set: {
                 const target = try emission.storeTarget(self, setter.slot);
                 const value = try self.expr(setter.value);
@@ -119,6 +107,13 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
                 break :store_set try emission.assignment(self, &output, target, value);
             },
         };
+
+        const span = if (transaction.len == 0) body else try blocks.join(
+            self.allocator,
+            self.builder.nodes,
+            &.{ transaction.start, body.start },
+            &.{ transaction.len, body.len },
+        );
 
         starts[offset] = span.start;
         counts[offset] = span.len;
@@ -130,7 +125,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         }
     }
 
-    return @import("../node/blocks.zig").join(self.allocator, self.builder.nodes, starts, counts);
+    return blocks.join(self.allocator, self.builder.nodes, starts, counts);
 }
 
 pub const writes = @import("control/writes.zig").writes;

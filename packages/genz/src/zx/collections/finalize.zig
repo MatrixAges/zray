@@ -11,7 +11,7 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
     const serial = self.serial;
     const declarations = self.task_declarations.count();
     const statements = self.builder.nodes.statements.tags.items.len;
-    const storage = self.reference_storage.items.len;
+    const storage = self.referenceBatches();
 
     const resources: construction.Resources = if (layout) |target| .{
         .mode = .Value,
@@ -24,7 +24,7 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
     const ast = @import("../construction/ast.zig").borrow(std.meta.Child(@FieldType(Construction, "ast")), self);
 
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
-    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len and storage == self.reference_storage.items.len);
+    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len and storage == self.referenceBatches());
 
     const source: Construction = .{
         .mode = @fromBackingInt(@backingInt(resources.mode)),

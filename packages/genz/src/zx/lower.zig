@@ -6,6 +6,8 @@ const projection_path = @import("access/projection/path.zig");
 const projection_read = @import("access/projection/read.zig");
 const ir = zx.ir;
 const Self = @This();
+const generated = @import("genz_options").generated_analysis;
+const blocks = @import("../node/blocks.zig");
 pub const Error = std.mem.Allocator.Error;
 
 allocator: std.mem.Allocator,
@@ -55,7 +57,7 @@ constructed_outputs: []const bool = &.{},
 value_output: bool = false,
 public_value_output: bool = false,
 stack_symbols: @import("members.zig") = .empty,
-reference_storage: std.ArrayList(node.Statement) = .empty,
+reference_storage: if (generated) std.MultiArrayList(node.Block) else std.ArrayList(node.Statement) = .empty,
 projected_symbols: ?[]const bool = null,
 input_aliases: ?[]const bool = null,
 iteration_value: ?*@import("iteration_value/root.zig") = null,
@@ -168,11 +170,11 @@ pub fn function(self: *Self, name: []const u8, exported: bool) Error!node.Declar
     const stores = @import("store/transaction.zig");
     const prelude = try @import("functions/prelude/build.zig").lower(self, .{ .exported = exported, .io = needs_io, .process = needs_process });
     const pending = if (has_stores) try stores.initialize(self) else node.Block{};
-    const references = try self.builder.statements(self.reference_storage.items);
+    const references = try self.referenceBlock();
     const commit = if (has_stores) try stores.finish(self) else node.Block{};
     var declaration = try self.prototypeWithErrors(name, exported, errors);
 
-    declaration.body = try @import("../node/blocks.zig").join(
+    declaration.body = try blocks.join(
         self.allocator,
         self.builder.nodes,
         &.{ prelude.start, pending.start, references.start, preconditions.start, body.start, commit.start },
@@ -180,6 +182,36 @@ pub fn function(self: *Self, name: []const u8, exported: bool) Error!node.Declar
     );
 
     return .{ .function = declaration };
+}
+
+pub fn hoistReferences(self: *Self, source: anytype) Error!void {
+    const rows = &self.builder.nodes.statements;
+    const count = source.tags.len;
+
+    if (count == 0) return;
+
+    const first = rows.tags.items.len;
+
+    try self.reference_storage.ensureUnusedCapacity(self.allocator, 1);
+
+    @import("../node/import_selected.zig").append(self.allocator, rows, source) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
+
+    self.reference_storage.appendAssumeCapacity(.{ .start = @intCast(first), .len = @intCast(count) });
+}
+
+pub fn referenceBatches(self: *const Self) usize {
+    return if (generated) self.reference_storage.len else self.reference_storage.items.len;
+}
+
+pub fn referenceBlock(self: *const Self) Error!node.Block {
+    if (!generated) return self.builder.statements(self.reference_storage.items);
+
+    const storage = &self.reference_storage;
+
+    return blocks.join(self.allocator, self.builder.nodes, storage.items(.start), storage.items(.len));
 }
 
 pub fn prototype(self: *Self, name: []const u8, exported: bool) Error!node.Function {

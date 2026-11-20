@@ -55,7 +55,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const operands = try temporary.alloc(u32, plan.types.len);
     const serial = self.serial;
     const declarations = context.declarations.items.len;
-    const storage = self.reference_storage.items.len;
+    const storage = self.referenceBatches();
 
     for (plan.types, prepared.requirements, layouts, operands, 0..) |raw, requirement, *layout, *operand, index| {
         const selected: ir.TypeId = @fromBackingInt(raw);
@@ -71,7 +71,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         };
     }
 
-    std.debug.assert(serial == self.serial and declarations == context.declarations.items.len and storage == self.reference_storage.items.len);
+    std.debug.assert(serial == self.serial and declarations == context.declarations.items.len and storage == self.referenceBatches());
 
     const ast = @import("../construction/ast.zig").borrow(std.meta.Child(@FieldType(Input, "ast")), self);
 
@@ -105,7 +105,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const view = @import("../../node/view.zig");
     const prefix = view.join(output.storage.*, output.result.variables.*);
 
-    try @import("../construction/apply.zig").flat(self, &self.reference_storage, &prefix);
+    try self.hoistReferences(&prefix);
 
     return result;
 }

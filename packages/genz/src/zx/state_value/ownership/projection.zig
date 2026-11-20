@@ -99,8 +99,9 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
 
     const statements = view.join(result.statements.*, result.variables.*);
     const storage = view.join(result.storage.*, result.variables.*);
-    @import("../../../node/import_statements.zig").appendSelected(self.allocator, &self.reference_storage, &storage) catch |err| return imported(err);
     @import("../../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return imported(err);
+
+    try self.hoistReferences(&storage);
 
     if (result.declaration) |declaration| {
         const parameters = @import("../../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, declaration.parameters) catch |err| return imported(err);

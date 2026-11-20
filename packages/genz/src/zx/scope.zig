@@ -91,12 +91,7 @@ fn publishBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: i
     const route = @import("binding.zig").before(self, binding.value, binding.symbol, true);
 
     if (route == .Skip) return .{};
-
-    if (route == .Task) {
-        try @import("tasks/root.zig").bind(self, output, self.names[@backingInt(binding.symbol.?)], binding.value, false);
-
-        return self.builder.statements(output.items);
-    }
+    if (route == .Task) return @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol.?)], binding.value, false);
 
     const by_value = if (binding.symbol) |symbol| self.stack_symbols.contains(symbol) else false;
     const borrowed = if (binding.symbol) |symbol| try @import("value_call/locals.zig").optionalCall(self, output, symbol, binding.value, result_type) else null;

@@ -30,6 +30,7 @@ export default function (in: Input): Output {
         forms: result.state.forms,
         statements: result.state.statements,
         variables: result.state.variables,
+        body: result.body,
         valid: result.state.valid
     }
 }

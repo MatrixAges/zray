@@ -5,8 +5,12 @@ const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 
-pub fn statement(self: *Lower, statements: ir.Block, index: usize) Lower.Error!?node.Statement {
-    if (!@import("genz_options").generated_analysis) return @import("begin_seed.zig").statement(self, statements, index);
+pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.Block {
+    if (!@import("genz_options").generated_analysis) {
+        const begin = (try @import("begin_seed.zig").statement(self, statements, index)) orelse return .{};
+
+        return self.builder.statements(&.{begin});
+    }
 
     const entry = @import("generated_store_begin");
     const Input = std.meta.Child(entry.Input);
@@ -58,7 +62,7 @@ pub fn statement(self: *Lower, statements: ir.Block, index: usize) Lower.Error!?
     const output = (entry.executeIn(memory.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
-    }) orelse return null;
+    }) orelse return .{};
 
     self.uses_context = true;
 
@@ -70,20 +74,10 @@ pub fn statement(self: *Lower, statements: ir.Block, index: usize) Lower.Error!?
     rows.append(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
 
     const emitted = view.join(output.statements.*, output.variables.*);
-    const last = emitted.tags.len - 1;
-    var children = emitted;
-    children.tags = emitted.tags[0..last];
-    children.offsets = emitted.offsets[0..last];
-    @import("../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &children) catch |err| return failure(err);
 
-    var selected = emitted;
-    selected.tags = emitted.tags[last..];
-    selected.offsets = emitted.offsets[last..];
-    var storage: [1]node.Statement = undefined;
-    var result = std.ArrayList(node.Statement).initBuffer(&storage);
-    @import("../../node/import_statements.zig").appendSelected(self.allocator, &result, &selected) catch |err| return failure(err);
+    _ = try self.builder.publishStatements(&.{}, &emitted);
 
-    return result.items[0];
+    return .{ .start = output.body, .len = 1 };
 }
 
 fn failure(err: anyerror) Lower.Error {
