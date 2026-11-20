@@ -1,0 +1,29 @@
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+
+export type Input = {
+    values: u32?[],
+    labels: U32Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const written = loop({
+        index: 0,
+        label: 0
+    }, {
+        while: state => state.index < in.values.length,
+        next: state => {
+            const value = in.values[state.index]
+
+            if (value != null) {
+                memory.writeU32(in.labels, state.label, value)
+                state.label += 1
+            }
+
+            state.index += 1
+        }
+    })
+}

@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Traversal" />
+
+    <Args in={Traversal.Input} out={Traversal.Schedule} />
+
+    <If on={$in.rows.branch_yes.length == 0 && $in.rows.selection_count.length == 0}>
+        <Return
+            value={{
+                flat: true,
+                actions: [],
+                offsets: [],
+                counts: [],
+                capacity: $in.count,
+                depth: 1,
+                selection_depth: 0
+            }}
+        />
+    </If>
+
+    <Call fn="walk" in={$in} />
+
+    <Return value={$ctx.walk} />
+</Module>

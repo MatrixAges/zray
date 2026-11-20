@@ -717,12 +717,13 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/statements/switch/name.zx", .name = "switch_name", .owner = .genz },
     .{ .path = "genz/analysis/statements/switch/reference.zx", .name = "switch_reference", .owner = .genz },
     .{ .path = "genz/analysis/statements/switch/build.rx", .name = "switch_emit", .owner = .genz },
-    .{ .path = "genz/analysis/statements/switch/partition.zx", .name = "switch_partition", .owner = .genz },
+    .{ .path = "genz/analysis/statements/switch/labels.zx", .name = "switch_labels", .owner = .genz },
     .{ .path = "genz/analysis/statements/destructure/name.zx", .name = "destructure_name", .owner = .genz },
     .{ .path = "genz/analysis/statements/destructure/build.rx", .name = "destructure_emit", .owner = .genz },
     .{ .path = "genz/analysis/statements/result/build.rx", .name = "result_emit", .owner = .genz },
     .{ .path = "genz/analysis/statements/block/plan.zx", .name = "statement_block_plan", .owner = .genz },
     .{ .path = "genz/analysis/statements/block/const.zx", .name = "statement_block_constants", .owner = .genz },
+    .{ .path = "genz/analysis/statements/traversal/build.rx", .name = "statement_traversal", .owner = .genz },
     .{ .path = "genz/analysis/statements/basic/discard.zx", .name = "statement_discard", .owner = .genz },
     .{ .path = "genz/analysis/statements/basic/branch.zx", .name = "statement_branch", .owner = .genz },
     .{ .path = "genz/analysis/statements/basic/assignment.zx", .name = "statement_assignment", .owner = .genz },
@@ -1012,6 +1013,7 @@ pub const collections = [_]Entry{
     .{ .path = "genz/analysis/members/add.zx", .name = "members_add", .owner = .genz },
     .{ .path = "core/integer/index/get.zx", .name = "members_get", .owner = .genz },
     .{ .path = "core/integer/index/remove.zx", .name = "members_remove", .owner = .genz },
+    .{ .path = "genz/analysis/members/remove_many.zx", .name = "members_remove_many", .owner = .genz },
 };
 
 pub const ordered = [_]Entry{

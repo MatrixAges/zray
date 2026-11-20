@@ -1,0 +1,105 @@
+import integers from "std:integer"
+
+import frame from "./frame"
+import { Action } from "./model"
+import step from "./step"
+
+import type { Frame, Input, Schedule as Output } from "./model"
+
+export default function (in: Input): Output {
+    const parents: Frame[] = []
+
+    return loop({
+        frame: frame({
+            first: in.first,
+            count: in.count
+        }),
+        parents,
+        actions: [Action.Open],
+        offsets: [integers.narrow(in.first)],
+        counts: [integers.narrow(in.count)],
+        live: in.count,
+        capacity: in.count,
+        depth: 1,
+        selections: 0,
+        selection_depth: 0,
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const next = step({
+                frame: state.frame,
+                rows: in.rows
+            })
+
+            if (next.action != Action.Descend) {
+                state.actions = state.actions.push(next.action)[0]
+                state.offsets = state.offsets.push(next.first)[0]
+                state.counts = state.counts.push(next.count)[0]
+
+                if (next.action == Action.Selection) {
+                    state.selections += 1
+
+                    if (state.selections > state.selection_depth) {
+                        state.selection_depth = state.selections
+                    }
+                } else if (next.action == Action.EndSelection) {
+                    state.selections -= 1
+                }
+            }
+
+            const block = next.child
+
+            if (block != null) {
+                state.parents = state.parents.push(next.frame)[0]
+
+                const index = integers.widen(block)
+                const first = in.rows.block_first[index]
+                const count = in.rows.block_count[index]
+
+                state.frame = frame({
+                    first: integers.widen(first),
+                    count: integers.widen(count)
+                })
+
+                state.actions = state.actions.push(Action.Open)[0]
+                state.offsets = state.offsets.push(first)[0]
+                state.counts = state.counts.push(count)[0]
+
+                state.live += integers.widen(count)
+
+                if (state.live > state.capacity) {
+                    state.capacity = state.live
+                }
+
+                const depth = state.parents.length + 1
+
+                if (depth > state.depth) {
+                    state.depth = depth
+                }
+            } else if (next.action == Action.Close) {
+                state.live -= state.frame.count
+
+                if (state.parents.length == 0) {
+                    state.done = true
+                } else {
+                    const last = state.parents.length - 1
+
+                    state.frame = state.parents[last]
+                    state.parents = state.parents.pop()[0]
+                }
+            } else {
+                state.frame = next.frame
+            }
+        },
+        return: state => ({
+            flat: false,
+            actions: state.actions,
+            offsets: state.offsets,
+            counts: state.counts,
+            capacity: state.capacity,
+            depth: state.depth,
+            selection_depth: state.selection_depth
+        })
+    })
+}

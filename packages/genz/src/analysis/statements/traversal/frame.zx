@@ -1,0 +1,20 @@
+import { Phase } from "./model"
+
+import type { Frame as Output } from "./model"
+
+export type Input = {
+    first: u64,
+    count: u64
+}
+
+export default function (in: Input): Output {
+    return {
+        ...in,
+        cursor: in.first + in.count,
+        phase: Phase.Statements,
+        no: 0,
+        case_end: 0,
+        case_cursor: 0,
+        named: 0
+    }
+}

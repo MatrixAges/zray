@@ -1,0 +1,28 @@
+import { StatementKind } from "core/control_table/model"
+
+export type Input = {
+    kinds: StatementKind[],
+    first: u64,
+    cursor: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop({
+        cursor: in.cursor,
+        stop: false
+    }, {
+        while: state => !state.stop && state.cursor > in.first,
+        next: state => {
+            const kind = in.kinds[state.cursor - 1]
+
+            state.stop = kind == StatementKind.Branch || kind == StatementKind.Switch
+
+            if (!state.stop) {
+                state.cursor -= 1
+            }
+        },
+        return: state => state.cursor
+    })
+}

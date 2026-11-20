@@ -1,0 +1,80 @@
+import type { Control } from "core/control_table/model"
+
+export type Rows = Control.Pick(
+    "statement_kinds",
+    "statement_payloads",
+    "block_first",
+    "block_count",
+    "branch_yes",
+    "branch_no",
+    "selection_first",
+    "selection_count",
+    "case_bodies",
+    "case_values"
+)
+
+export type Input = {
+    rows: Rows,
+    first: u64,
+    count: u64
+}
+
+export enum Action {
+    Open,
+    Execute,
+    Condition,
+    SaveYes,
+    Join,
+    Selection,
+    Fallback,
+    Resolve,
+    Case,
+    SaveCase,
+    EndSelection,
+    Close,
+    Descend
+}
+
+export enum Phase {
+    Statements,
+    No,
+    Join,
+    Defaults,
+    SaveDefault,
+    Named,
+    SaveNamed
+}
+
+export type Frame = {
+    first: u64,
+    count: u64,
+    cursor: u64,
+    phase: Phase,
+    no: u32,
+    case_end: u64,
+    case_cursor: u64,
+    named: u64
+}
+
+export type Step = {
+    frame: Frame,
+    action: Action,
+    first: u32,
+    count: u32,
+    child?: u32
+}
+
+export type Position = {
+    frame: Frame,
+    rows: Rows
+}
+
+export type Schedule = {
+    flat: bool,
+    actions: Action[],
+    offsets: u32[],
+    counts: u32[],
+    capacity: u64,
+    depth: u64,
+    selection_depth: u64
+}

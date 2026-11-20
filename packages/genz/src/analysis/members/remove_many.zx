@@ -1,0 +1,27 @@
+import remove from "core/integer/index/remove"
+
+import type { Index as Output } from "core/integer/index/model"
+
+export type Input = {
+    index: Output,
+    keys: u32[]
+}
+
+export default function (in: Input): Output {
+    return loop({
+        index: in.index,
+        position: 0
+    }, {
+        while: state => state.position < in.keys.length,
+        next: state => {
+            const removed = remove({
+                index: state.index,
+                key: in.keys[state.position]
+            })
+
+            state.index = removed.index
+            state.position += 1
+        },
+        return: state => state.index
+    })
+}

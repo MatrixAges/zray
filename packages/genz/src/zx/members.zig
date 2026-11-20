@@ -44,6 +44,33 @@ pub fn remove(self: *Self, key: ir.SymbolId) bool {
     return result.position != null;
 }
 
+pub fn removeMany(self: *Self, keys: []const ir.SymbolId) void {
+    if (!generated) {
+        for (keys) |key| _ = self.remove(key);
+
+        return;
+    }
+
+    if (keys.len == 0) return;
+
+    const entry = @import("generated_members_remove_many");
+    const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    const state = self.current();
+
+    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
+
+    const input: Input = .{
+        .index = zx.columns.view(@FieldType(Input, "index"), state.*),
+        .keys = .{ .items = @as([*]const u32, @ptrCast(keys.ptr))[0..keys.len], .storage = .plain },
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const result = entry.executeState(fixed.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch unreachable;
+
+    state.* = zx.columns.view(@TypeOf(state.*), result);
+}
+
 pub fn contains(self: *const Self, key: ir.SymbolId) bool {
     if (!generated) return self.state.contains(key);
 

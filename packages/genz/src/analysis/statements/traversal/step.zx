@@ -1,0 +1,109 @@
+import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
+
+import { Action, Phase } from "./model"
+import runStart from "./run_start"
+import selection from "./selection"
+
+import type { Position as Input, Step as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { frame, rows } = in
+
+    const position = frame.cursor - frame.first
+
+    if (frame.phase == Phase.No) {
+        return {
+            frame: {
+                ...frame,
+                phase: Phase.Join
+            },
+            action: Action.SaveYes,
+            first: 0,
+            count: 0,
+            child: frame.no
+        }
+    }
+
+    if (frame.phase == Phase.Join) {
+        return {
+            frame: {
+                ...frame,
+                phase: Phase.Statements
+            },
+            action: Action.Join,
+            first: integers.narrow(position),
+            count: 0,
+            child: null
+        }
+    }
+
+    if (frame.phase != Phase.Statements) {
+        return selection(in)
+    }
+
+    if (position == 0) {
+        return {
+            frame,
+            action: Action.Close,
+            first: 0,
+            count: 0,
+            child: null
+        }
+    }
+
+    const start = runStart({
+        kinds: rows.statement_kinds,
+        first: frame.first,
+        cursor: frame.cursor
+    })
+
+    if (start < frame.cursor) {
+        return {
+            frame: {
+                ...frame,
+                cursor: start
+            },
+            action: Action.Execute,
+            first: integers.narrow(start - frame.first),
+            count: integers.narrow(frame.cursor - start),
+            child: null
+        }
+    }
+
+    const cursor = frame.cursor - 1
+    const payload = integers.widen(rows.statement_payloads[cursor])
+
+    if (rows.statement_kinds[cursor] == StatementKind.Switch) {
+        const first = integers.widen(rows.selection_first[payload])
+        const count = integers.widen(rows.selection_count[payload])
+
+        return {
+            frame: {
+                ...frame,
+                cursor,
+                phase: Phase.Defaults,
+                case_end: first + count,
+                case_cursor: first,
+                named: 0
+            },
+            action: Action.Selection,
+            first: integers.narrow(position - 1),
+            count: 0,
+            child: null
+        }
+    }
+
+    return {
+        frame: {
+            ...frame,
+            cursor,
+            phase: Phase.No,
+            no: rows.branch_no[payload]
+        },
+        action: Action.Condition,
+        first: integers.narrow(position - 1),
+        count: 0,
+        child: rows.branch_yes[payload]
+    }
+}

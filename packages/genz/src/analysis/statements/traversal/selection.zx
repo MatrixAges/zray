@@ -1,0 +1,116 @@
+import integers from "std:integer"
+
+import { Action, Phase } from "./model"
+
+import type { Position as Input, Step as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { frame, rows } = in
+
+    if (frame.phase == Phase.SaveDefault) {
+        return {
+            frame: {
+                ...frame,
+                phase: Phase.Defaults
+            },
+            action: Action.Fallback,
+            first: 0,
+            count: 0,
+            child: null
+        }
+    }
+
+    if (frame.phase == Phase.SaveNamed) {
+        const label = rows.case_values[frame.case_cursor]
+
+        return {
+            frame: {
+                ...frame,
+                phase: Phase.Named
+            },
+            action: Action.SaveCase,
+            first: label ?? 0,
+            count: integers.narrow(frame.named),
+            child: null
+        }
+    }
+
+    if (frame.phase == Phase.Defaults) {
+        const cursor = loop(frame.case_cursor, {
+            while: cursor =>
+                cursor < frame.case_end && rows.case_values[cursor] != null,
+            next: cursor => {
+                cursor += 1
+            },
+            return: cursor => cursor
+        })
+
+        const named = frame.named + cursor - frame.case_cursor
+
+        if (cursor == frame.case_end) {
+            return {
+                frame: {
+                    ...frame,
+                    phase: Phase.Named,
+                    case_cursor: cursor,
+                    named
+                },
+                action: Action.Resolve,
+                first: 0,
+                count: integers.narrow(named),
+                child: null
+            }
+        }
+
+        return {
+            frame: {
+                ...frame,
+                phase: Phase.SaveDefault,
+                case_cursor: cursor + 1,
+                named
+            },
+            action: Action.Descend,
+            first: 0,
+            count: 0,
+            child: rows.case_bodies[cursor]
+        }
+    }
+
+    if (frame.named == 0) {
+        return {
+            frame: {
+                ...frame,
+                phase: Phase.Statements
+            },
+            action: Action.EndSelection,
+            first: integers.narrow(frame.cursor - frame.first),
+            count: 0,
+            child: null
+        }
+    }
+
+    const end = loop(frame.case_cursor, {
+        while: cursor => rows.case_values[cursor - 1] == null,
+        next: cursor => {
+            cursor -= 1
+        },
+        return: cursor => cursor
+    })
+
+    const cursor = end - 1
+    const named = frame.named - 1
+    const label = rows.case_values[cursor]
+
+    return {
+        frame: {
+            ...frame,
+            phase: Phase.SaveNamed,
+            case_cursor: cursor,
+            named
+        },
+        action: Action.Case,
+        first: label ?? 0,
+        count: integers.narrow(named),
+        child: rows.case_bodies[cursor]
+    }
+}
