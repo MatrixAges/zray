@@ -151,17 +151,36 @@ pub fn bind(self: *Lower, body: *std.ArrayList(node.Statement), expression: node
 }
 
 pub fn finish(self: *Lower, body: *std.ArrayList(node.Statement), result: node.ExpressionId) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("aggregate/binding_seed.zig").finish(self, body, result);
+    const span = try self.builder.statements(body.items);
 
-    return @import("aggregate/binding.zig").finish(self, body, result);
+    return finishStored(self, span, result, null);
 }
 
 pub fn finishGuarded(self: *Lower, body: *std.ArrayList(node.Statement), condition: node.ExpressionId, value: node.ExpressionId, fallback: node.ExpressionId) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return finish(self, body, try self.builder.expression(.{ .conditional = .{
-        .condition = condition,
-        .yes = value,
-        .no = fallback,
-    } }));
+    const span = try self.builder.statements(body.items);
 
-    return @import("aggregate/binding.zig").finishGuarded(self, body, condition, value, fallback);
+    return finishStored(self, span, value, .{ .condition = condition, .fallback = fallback });
+}
+
+pub const Guard = @import("aggregate/binding.zig").Guard;
+
+/// The block ends at the current statement tail.
+pub fn finishStored(self: *Lower, body: node.Block, value: node.ExpressionId, guard: ?Guard) Lower.Error!node.ExpressionId {
+    std.debug.assert(@as(usize, body.start) + body.len == self.builder.nodes.statements.tags.items.len);
+
+    if (!@import("genz_options").generated_analysis) {
+        const result = if (guard) |check| try self.builder.expression(.{ .conditional = .{
+            .condition = check.condition,
+            .yes = value,
+            .no = check.fallback,
+        } }) else value;
+
+        return @import("aggregate/binding_seed.zig").finish(self, body, result);
+    }
+
+    const binding = @import("aggregate/binding.zig");
+
+    if (guard) |check| return binding.finishGuarded(self, body, value, check);
+
+    return binding.finish(self, body, value);
 }

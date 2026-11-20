@@ -1,0 +1,25 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+import { guard_rows } from "./const"
+
+import type { Publication as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const source = in.source
+    const guarded = in.guard != null
+    const extra = guarded ? guard_rows : 0
+    const base = integers.widen(source.statement_base) + source.body_count + extra
+    const wrapped = in.entry != null
+    const owned = source.prefix_count + 1
+    const start = wrapped ? base + owned : base
+    const count = wrapped ? 1 : owned
+    const valid = start + count <= integers.widen(max_u32)
+
+    return {
+        ...in.omit(["source"]),
+        start: valid ? integers.narrow(start) : 0,
+        count: valid ? integers.narrow(count) : 0,
+        valid
+    }
+}

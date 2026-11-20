@@ -44,59 +44,68 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     if (result == null) result = if (layout) try values.expression(self, scope.result) else try self.expr(scope.result);
 
-    const statements = try self.allocator.alloc([]const node.Statement, scope.bindings.len);
-    var offset = scope.bindings.len;
+    var inline_spans: [64]u32 = undefined;
+    const count = scope.bindings.len - @intFromBool(consumed_last);
 
-    if (consumed_last) {
-        offset -= 1;
-        statements[offset] = &.{};
-    }
+    const spans = if (count <= inline_spans.len / 2)
+        inline_spans[0 .. count * 2]
+
+    else
+        try self.workspace.alloc(u32, std.math.mul(usize, count, 2) catch return error.OutOfMemory);
+
+    defer if (spans.len > inline_spans.len) self.workspace.free(spans);
+
+    const starts = spans[0..count];
+    const counts = spans[count..];
+    var output: std.ArrayList(node.Statement) = .empty;
+
+    defer output.deinit(self.allocator);
+
+    var offset = count;
 
     while (offset > 0) {
         offset -= 1;
-        const binding = scope.bindings.at(offset);
-        var output: std.ArrayList(node.Statement) = .empty;
 
-        if (reuse) |*plan| if (try plan.append(self, &output, offset)) {
-            statements[offset] = try output.toOwnedSlice(self.allocator);
+        output.clearRetainingCapacity();
 
-            continue;
-        };
+        try appendBinding(self, &output, scope, if (reuse) |*plan| plan else null, result_type, offset);
 
-        const route = @import("binding.zig").before(self, binding.value, binding.symbol, true);
+        const span = try self.builder.statements(output.items);
 
-        if (route == .Skip) {
-            statements[offset] = &.{};
-
-            continue;
-        }
-
-        if (route == .Task) {
-            try @import("tasks/root.zig").bind(self, &output, self.names[@backingInt(binding.symbol.?)], binding.value, false);
-
-            statements[offset] = try output.toOwnedSlice(self.allocator);
-
-            continue;
-        }
-
-        const by_value = if (binding.symbol) |symbol| self.stack_symbols.contains(symbol) else false;
-        const borrowed = if (binding.symbol) |symbol| try @import("value_call/locals.zig").optionalCall(self, &output, symbol, binding.value, result_type) else null;
-        const value = borrowed orelse if (binding.symbol == null) try @import("iteration.zig").discard(self, binding.value) else if (by_value) try values.expression(self, binding.value) else try self.expr(binding.value);
-
-        try @import("binding.zig").append(self, &output, .{
-            .symbol = binding.symbol,
-            .value = value,
-            .by_value = by_value,
-            .scope = true,
-            .mutable = reuse != null and reuse.?.variables[offset],
-        });
-
-        statements[offset] = try output.toOwnedSlice(self.allocator);
+        starts[offset] = span.start;
+        counts[offset] = span.len;
     }
 
-    var body: std.ArrayList(node.Statement) = .empty;
+    const body = try @import("../node/blocks.zig").tail(self.allocator, self.builder.nodes, starts, counts);
 
-    for (statements) |chunk| try body.appendSlice(self.allocator, chunk);
+    return @import("aggregate.zig").finishStored(self, body, result.?, null);
+}
 
-    return @import("aggregate.zig").finish(self, &body, result.?);
+fn appendBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: ir.ScopeRow, reuse: ?*const @import("scope/reuse.zig"), result_type: ir.TypeId, offset: usize) Lower.Error!void {
+    if (reuse) |plan| if (try plan.append(self, output, offset)) return;
+
+    const binding = scope.bindings.at(offset);
+    const route = @import("binding.zig").before(self, binding.value, binding.symbol, true);
+
+    if (route == .Skip) return;
+    if (route == .Task) return @import("tasks/root.zig").bind(self, output, self.names[@backingInt(binding.symbol.?)], binding.value, false);
+
+    const by_value = if (binding.symbol) |symbol| self.stack_symbols.contains(symbol) else false;
+    const borrowed = if (binding.symbol) |symbol| try @import("value_call/locals.zig").optionalCall(self, output, symbol, binding.value, result_type) else null;
+
+    const value = borrowed orelse if (binding.symbol == null)
+        try @import("iteration.zig").discard(self, binding.value)
+
+    else if (by_value)
+        try @import("value_call/root.zig").expression(self, binding.value)
+    else
+        try self.expr(binding.value);
+
+    try @import("binding.zig").append(self, output, .{
+        .symbol = binding.symbol,
+        .value = value,
+        .by_value = by_value,
+        .scope = true,
+        .mutable = reuse != null and reuse.?.variables[offset],
+    });
 }

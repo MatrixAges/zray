@@ -10,10 +10,12 @@ pub fn bind(self: *Lower, body: *std.ArrayList(node.Statement), expression: node
     return self.builder.identifier(name);
 }
 
-pub fn finish(self: *Lower, body: *std.ArrayList(node.Statement), result: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn finish(self: *Lower, body: node.Block, result: node.ExpressionId) Lower.Error!node.ExpressionId {
     const label = try self.fresh("block");
+    _ = try self.builder.statements(&.{.{ .break_value = .{ .label = label, .value = result } }});
 
-    try body.append(self.allocator, .{ .break_value = .{ .label = label, .value = result } });
-
-    return self.builder.expression(.{ .block = .{ .label = label, .statements = try self.builder.statements(body.items) } });
+    return self.builder.expression(.{ .block = .{
+        .label = label,
+        .statements = .{ .start = body.start, .len = body.len + 1 },
+    } });
 }

@@ -9,14 +9,19 @@ pub const Check = struct {
     guarded_initial: bool = false,
 };
 
-pub fn append(
+pub fn lower(
     self: *Lower,
-    target: *std.ArrayList(node.Statement),
     prefix: ?*std.ArrayList(node.Statement),
     body: *std.ArrayList(node.Statement),
     check: Check,
-) Lower.Error!void {
-    if (!@import("genz_options").generated_analysis) return seed(self, target, prefix, body, check);
+) Lower.Error!node.Block {
+    if (!@import("genz_options").generated_analysis) {
+        var target: std.ArrayList(node.Statement) = .empty;
+
+        try seed(self, &target, prefix, body, check);
+
+        return self.builder.statements(target.items);
+    }
 
     const module = @import("generated_iteration_frame");
     const Input = std.meta.Child(module.Input);
@@ -36,6 +41,9 @@ pub fn append(
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.FixedBufferAllocator.init(&buffer);
     const output = zx.columns.invoke(module.executeValue, memory.allocator(), &input) catch |err| return failure(err);
+
+    if (!output.valid) return error.OutOfMemory;
+
     const Statement = std.meta.Child(@FieldType(Output, "statement"));
     const statement = zx.columns.view(Statement, output.statement);
 
@@ -55,21 +63,18 @@ pub fn append(
         _ = try self.builder.statements(body.items);
     }
 
-    const importer = @import("../../node/import_statements.zig");
+    _ = try self.builder.statements(before);
+
+    try appendRows(self, &self.builder.nodes.statements, &statement);
 
     if (output.entry) |entry| {
         const Branch = std.meta.Child(@typeInfo(@FieldType(Output, "entry")).optional.child);
         const branch = zx.columns.view(Branch, entry);
-        _ = try self.builder.statements(before);
 
-        try appendRows(self, &self.builder.nodes.statements, &statement);
-
-        importer.appendBorrowingText(self.allocator, target, &branch) catch |err| return failure(err);
-    } else {
-        try target.appendSlice(self.allocator, before);
-
-        importer.appendBorrowingText(self.allocator, target, &statement) catch |err| return failure(err);
+        try appendRows(self, &self.builder.nodes.statements, &branch);
     }
+
+    return .{ .start = output.start, .len = output.count };
 }
 
 fn seed(

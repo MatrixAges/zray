@@ -189,15 +189,18 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
 
         if (tracker) |value| try value.mark(self, &loop);
 
-        try frame.append(self, &entered, null, &loop, .{ .condition = next.condition, .after_step = schedule.after_step });
+        const prefix = try self.builder.statements(entered.items);
+        const framed = try frame.lower(self, null, &loop, .{ .condition = next.condition, .after_step = schedule.after_step });
+
+        entered.clearRetainingCapacity();
 
         const restored = if (schedule.restore_projected) try aggregate.bind(self, &entered, try selected.restore(self, state)) else state;
-        const result = try finish.lower(self, &entered, restored);
+        const result = try finish.lower(self, &entered, restored, .{ prefix, framed });
 
         if (first_condition) |first| {
             var skipped: std.ArrayList(node.Statement) = .empty;
 
-            return try aggregate.finishGuarded(self, &body, first, result, try finish.lower(self, &skipped, seed));
+            return try aggregate.finishGuarded(self, &body, first, result, try finish.lower(self, &skipped, seed, .{ .{}, .{} }));
         }
 
         return try aggregate.finish(self, &body, result);
@@ -238,13 +241,17 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
 
     if (tracker) |value| try value.mark(self, &loop);
 
-    try frame.append(self, &body, &entered, &loop, .{
+    const prefix = try self.builder.statements(body.items);
+
+    const framed = try frame.lower(self, &entered, &loop, .{
         .condition = next.condition,
         .after_step = schedule.after_step,
         .guarded_initial = initial_guard != null,
     });
 
-    const result = try finish.lower(self, &body, state);
+    body.clearRetainingCapacity();
+
+    const result = try finish.lower(self, &body, state, .{ prefix, framed });
 
     if (initial_guard) |*guard| return try guard.finish(self, result);
 

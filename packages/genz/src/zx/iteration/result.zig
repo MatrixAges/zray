@@ -27,27 +27,35 @@ pub const Result = struct {
     initial: node.ExpressionId,
     changed_name: []const u8,
     mode: Mode,
-    pub fn lower(config: Result, self: *Lower, body: *std.ArrayList(node.Statement), state: node.ExpressionId) Lower.Error!node.ExpressionId {
+    pub fn lower(config: Result, self: *Lower, body: *std.ArrayList(node.Statement), state: node.ExpressionId, previous: [2]node.Block) Lower.Error!node.ExpressionId {
         const actions = config.plan();
         const prepared = try config.prepare(self, body, state, actions.preparation);
 
-        switch (actions.completion) {
-            .Prepared => return aggregate.finish(self, body, prepared),
-            .State => return aggregate.finish(self, body, state),
-            else => {},
-        }
-
-        const condition = try self.builder.identifier(config.changed_name);
-
-        const result = switch (actions.completion) {
-            .GuardPrepared => prepared,
-            .GuardState => state,
-            .GuardDeep => try @import("../iteration_value/conversion.zig").convert(config.context, config.type_id, state, true),
-            .GuardConstruct => try self.construct(config.type_id, state),
-            else => unreachable,
+        const guard: ?aggregate.Guard = switch (actions.completion) {
+            .Prepared, .State => null,
+            else => .{
+                .condition = try self.builder.identifier(config.changed_name),
+                .fallback = config.initial,
+            },
         };
 
-        return aggregate.finishGuarded(self, body, condition, result, config.initial);
+        const value = switch (actions.completion) {
+            .Prepared, .GuardPrepared => prepared,
+            .State, .GuardState => state,
+            .GuardDeep => try @import("../iteration_value/conversion.zig").convert(config.context, config.type_id, state, true),
+            .GuardConstruct => try self.construct(config.type_id, state),
+        };
+
+        const appended = try self.builder.statements(body.items);
+
+        const final = try @import("../../node/blocks.zig").tail(
+            self.allocator,
+            self.builder.nodes,
+            &.{ previous[0].start, previous[1].start, appended.start },
+            &.{ previous[0].len, previous[1].len, appended.len },
+        );
+
+        return aggregate.finishStored(self, final, value, guard);
     }
     fn prepare(config: Result, self: *Lower, body: *std.ArrayList(node.Statement), state: node.ExpressionId, action: Preparation) Lower.Error!node.ExpressionId {
         return switch (action) {

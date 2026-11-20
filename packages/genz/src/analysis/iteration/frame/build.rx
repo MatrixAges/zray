@@ -18,22 +18,29 @@
                 }}
             />
 
-            <Return
-                value={{
+            <Call
+                fn="publish"
+                in={{
+                    source: $in,
                     guard: $ctx.guard,
                     statement: $ctx.statement,
                     entry: $ctx.entry
                 }}
             />
+
+            <Return value={$ctx.publish} />
         </If>
 
-        <Return
-            value={{
+        <Call
+            fn="publish"
+            in={{
+                source: $in,
                 guard: $ctx.guard,
-                statement: $ctx.statement,
-                entry: null
+                statement: $ctx.statement
             }}
         />
+
+        <Return value={$ctx.publish} />
     </If>
 
     <Call
@@ -45,11 +52,13 @@
         }}
     />
 
-    <Return
-        value={{
-            guard: null,
-            statement: $ctx.statement,
-            entry: null
+    <Call
+        fn="publish"
+        in={{
+            source: $in,
+            statement: $ctx.statement
         }}
     />
+
+    <Return value={$ctx.publish} />
 </Module>

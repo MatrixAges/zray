@@ -3,21 +3,21 @@ const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Form = enum { bind, block, guarded };
-const Guard = struct { condition: node.ExpressionId, fallback: node.ExpressionId };
+pub const Guard = struct { condition: node.ExpressionId, fallback: node.ExpressionId };
 
 pub fn bind(self: *Lower, body: *std.ArrayList(node.Statement), value: node.ExpressionId) Lower.Error!node.ExpressionId {
-    return lower(self, body, value, .bind, null);
+    return lower(self, .bind, body, value, null);
 }
 
-pub fn finish(self: *Lower, body: *std.ArrayList(node.Statement), value: node.ExpressionId) Lower.Error!node.ExpressionId {
-    return lower(self, body, value, .block, null);
+pub fn finish(self: *Lower, body: node.Block, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+    return lower(self, .block, body, value, null);
 }
 
-pub fn finishGuarded(self: *Lower, body: *std.ArrayList(node.Statement), condition: node.ExpressionId, value: node.ExpressionId, fallback: node.ExpressionId) Lower.Error!node.ExpressionId {
-    return lower(self, body, value, .guarded, .{ .condition = condition, .fallback = fallback });
+pub fn finishGuarded(self: *Lower, body: node.Block, value: node.ExpressionId, guard: Guard) Lower.Error!node.ExpressionId {
+    return lower(self, .guarded, body, value, guard);
 }
 
-fn lower(self: *Lower, body: *std.ArrayList(node.Statement), value: node.ExpressionId, comptime form: Form, guard: ?Guard) Lower.Error!node.ExpressionId {
+fn lower(self: *Lower, comptime form: Form, body: if (form == .bind) *std.ArrayList(node.Statement) else node.Block, value: node.ExpressionId, guard: ?Guard) Lower.Error!node.ExpressionId {
     const generated = switch (form) {
         .bind => @import("generated_operand_binding"),
         .block => @import("generated_result_block"),
@@ -29,8 +29,8 @@ fn lower(self: *Lower, body: *std.ArrayList(node.Statement), value: node.Express
     var input: Input = undefined;
     input.value = @backingInt(value);
     input.expression_base = @intCast(self.builder.nodes.expressions.tags.items.len);
-    input.statement_base = @intCast(self.builder.nodes.statements.tags.items.len);
-    input.body_count = body.items.len;
+    input.statement_base = if (form == .bind) 0 else body.start;
+    input.body_count = if (form == .bind) 0 else body.len;
     input.serial = self.serial;
 
     if (form == .guarded) {
@@ -61,10 +61,14 @@ fn lower(self: *Lower, body: *std.ArrayList(node.Statement), value: node.Express
         statements.constant_name = &names;
     }
 
-    @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);
+    if (form == .bind) {
+        @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);
+    } else {
+        @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return failure(err);
+    }
 
-    if (form != .bind) _ = try self.builder.statements(body.items);
     @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
+
     self.serial = output.serial;
 
     return @fromBackingInt(output.root);

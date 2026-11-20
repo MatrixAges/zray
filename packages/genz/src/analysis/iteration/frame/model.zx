@@ -62,8 +62,18 @@ export type Guard = {
     loop: Loop
 }
 
-export type Output = {
+export type Parts = {
     guard?: Guard,
     statement: While,
     entry?: Branch
+}
+
+export type Publication = Parts & {
+    source: Input
+}
+
+export type Output = Parts & {
+    start: u32,
+    count: u32,
+    valid: bool
 }

@@ -7,18 +7,28 @@ const Layout = struct { start: u64, count: u64, contiguous: bool };
 
 /// The supplied spans refer to previously committed statements.
 pub fn join(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!node.Block {
+    return collect(allocator, storage, starts, counts, false);
+}
+
+/// Publish a block at the end of the statement table so a caller can append to it.
+pub fn tail(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!node.Block {
+    return collect(allocator, storage, starts, counts, true);
+}
+
+fn collect(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32, comptime at_tail: bool) std.mem.Allocator.Error!node.Block {
     std.debug.assert(starts.len == counts.len);
-
-    if (counts.len == 0) return .{};
-    if (counts.len == 1) return .{ .start = starts[0], .len = counts[0] };
-
-    const layout = measure(starts, counts);
-
-    if (layout.contiguous) return .{ .start = @intCast(layout.start), .len = @intCast(layout.count) };
 
     const rows = &storage.statements;
     const start = rows.tags.items.len;
 
+    const layout: Layout = switch (counts.len) {
+        0 => return .{ .start = if (at_tail) @intCast(start) else 0 },
+        1 => .{ .start = starts[0], .count = counts[0], .contiguous = true },
+        else => measure(starts, counts),
+    };
+
+    if (layout.count == 0) return .{ .start = if (at_tail) @intCast(start) else 0 };
+    if (layout.contiguous and (!at_tail or layout.start + layout.count == start)) return .{ .start = @intCast(layout.start), .len = @intCast(layout.count) };
     if (layout.count > std.math.maxInt(u32) - start) return error.OutOfMemory;
 
     const length: usize = @intCast(layout.count);
