@@ -640,7 +640,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/identity/combine.zx", .name = "uniqueness_identity_combine", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/publication/build.rx", .name = "uniqueness_trace_publication", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/shortcut/advance.rx", .name = "uniqueness_shortcut_advance", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/replay/shortcut/range.zx", .name = "uniqueness_shortcut_range", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/replay/shortcut/publish.rx", .name = "uniqueness_shortcut_publish", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/encoding/key.rx", .name = "uniqueness_memo_key", .owner = .genz },
     .{ .path = "core/bytes/map/capacity.zx", .name = "uniqueness_memo_capacity", .owner = .genz },
     .{ .path = "core/bytes/index/digest/exchange.zx", .name = "uniqueness_memo_exchange", .owner = .genz },

@@ -179,6 +179,24 @@ export declare function writeColumnBytes(
     value: u8[]
 ): void throws { IndexOutOfBounds }
 
+export declare function writeColumnU32List(
+    target: WriteColumn,
+    index: u64,
+    value: u32[]
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnU64List(
+    target: WriteColumn,
+    index: u64,
+    value: u64[]
+): void throws { IndexOutOfBounds }
+
+export declare function writeColumnU32Lists(
+    target: WriteColumn,
+    index: u64,
+    value: u32[][]
+): void throws { IndexOutOfBounds }
+
 export declare function writeNamedRowList(
     column: WriteColumn,
     index: u64,

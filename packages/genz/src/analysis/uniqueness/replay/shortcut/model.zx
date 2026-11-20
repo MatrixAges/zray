@@ -1,3 +1,5 @@
+import type { ReadColumn, ListColumn, WriteColumn, U8Buffer } from "memory"
+
 export enum Phase {
     Start,
     Settled,
@@ -26,17 +28,44 @@ export type Scan = {
     cursor: Cursor
 }
 
-export type Input = Scan & Visits
-
-export enum PlanSource {
-    Empty,
-    Recorded,
-    Replacement
+export type Input = Scan & Visits & {
+    agreed: bool
 }
 
-export type Range = {
-    end: u64,
-    source: PlanSource,
-    plan_first: u64,
-    next_replacement: u64
+export type PlanReads = {
+    flags: ListColumn,
+    keys: ReadColumn,
+    paths: ReadColumn,
+    transfers: ReadColumn,
+    slot_first: ReadColumn
+}
+
+export type PlanWrites = {
+    flags: WriteColumn,
+    keys: WriteColumn,
+    paths: WriteColumn,
+    transfers: WriteColumn,
+    slot_first: WriteColumn
+}
+
+export type Plans = Scan.Pick("planned", "changed") & {
+    recorded: PlanReads,
+    replacements: PlanReads,
+    functions: PlanWrites,
+    entry: PlanWrites
+}
+
+export type Commit = {
+    count: u64,
+    width: u64,
+    positions: ReadColumn,
+    values: ReadColumn,
+    records: WriteColumn,
+    old_identities: U8Buffer,
+    identities: u8[]
+}
+
+export type Publication = {
+    plans: Plans,
+    commit: Commit
 }

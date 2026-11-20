@@ -1,0 +1,36 @@
+import memory from "memory"
+
+import retainRenewals from "../../renewals/retain"
+import retainVectors from "../../retain/vectors"
+
+import type { PlanReads, PlanWrites } from "./model"
+
+export type Input = {
+    source: PlanReads,
+    row: u64,
+    target: PlanWrites,
+    destination: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, row, target, destination } = in
+
+    const vectors = retainVectors({
+        flags: memory.borrowListBytes(source.flags, row),
+        transfers: memory.readColumnU64List(source.transfers, row),
+        slot_first: memory.readColumnU32List(source.slot_first, row)
+    })
+
+    const renewals = retainRenewals({
+        keys: memory.readColumnU64List(source.keys, row),
+        paths: memory.readColumnU32Lists(source.paths, row)
+    })
+
+    memory.writeColumnBytes(target.flags, destination, vectors.flags)
+    memory.writeColumnU64List(target.keys, destination, renewals.keys)
+    memory.writeColumnU32Lists(target.paths, destination, renewals.paths)
+    memory.writeColumnU64List(target.transfers, destination, vectors.transfers)
+    memory.writeColumnU32List(target.slot_first, destination, vectors.slot_first)
+}

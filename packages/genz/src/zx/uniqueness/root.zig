@@ -6,7 +6,6 @@ const Growth = @import("growth.zig");
 const Identity = @import("identity.zig");
 const Trace = @import("trace.zig");
 const Shortcut = @import("replay/shortcut.zig");
-const PlanWriter = @import("program/visit/plan_writer.zig");
 pub const Memo = @import("memo.zig");
 const Bodies = @import("program/bodies.zig");
 const Topology = @import("topology.zig");
@@ -139,12 +138,12 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
 
     defer scratch.deinit();
 
-    const Replacement = struct { visit: usize, value: Memo.Planned };
-    var replacements: std.ArrayList(Replacement) = .empty;
+    var replacements: std.ArrayList(Shortcut.Replacement) = .empty;
     var cursor: Shortcut = .{};
+    var agreed = true;
 
     while (true) {
-        cursor = cursor.next(active, trace, replay.changed);
+        cursor = cursor.next(active, trace, replay.changed, agreed);
 
         switch (cursor.phase) {
             .start => unreachable,
@@ -155,45 +154,23 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
                 const visit = @field(trace, @tagName(phase)).entries[cursor.visit];
 
                 _ = scratch.reset(.retain_capacity);
-                const value = try revisit(kind, scratch.allocator(), temporary, slots, summaries, bodies, cursor.body, memo, visit.state) orelse return undo(summaries, bodies.units, replay.changed);
+
+                const value = try revisit(kind, scratch.allocator(), temporary, slots, summaries, bodies, cursor.body, memo, visit.state) orelse {
+                    agreed = false;
+
+                    continue;
+                };
 
                 if (kind == .planned) {
-                    try replacements.append(temporary, .{ .visit = cursor.visit, .value = value });
-                } else if (!try Trace.agree(kind, scratch.allocator(), visit.value, value)) return undo(summaries, bodies.units, replay.changed);
+                    try replacements.append(temporary, .{ .visit = @intCast(cursor.visit), .value = value });
+                } else {
+                    agreed = try Trace.agree(kind, scratch.allocator(), visit.value, value);
+                }
             },
         }
     }
 
-    var plans = try PlanWriter.init(allocator, bodies.program.functions.count());
-    var first: usize = 0;
-    var replacement: usize = 0;
-
-    while (first < bodies.units.len) {
-        const span = Shortcut.range(trace.planned.starts, replay.changed, first, replacement);
-
-        switch (span.source) {
-            .empty => {},
-            .recorded => for (first..span.end, 0..) |index, offset| {
-                const record = trace.planned.entries[span.plan_first + offset];
-
-                plans.put(index, try record.value.plan().copy(allocator));
-            },
-            .replacement => for (first..span.end, 0..) |index, offset| {
-                const record = replacements.items[span.plan_first + offset];
-
-                plans.put(index, try record.value.plan().copy(allocator));
-            },
-        }
-
-        replacement = span.next_replacement;
-        first = span.end;
-    }
-
-    for (replacements.items) |change| trace.planned.entries[change.visit].value = change.value;
-
-    @memcpy(trace.identities, replay.identities);
-
-    return plans.result();
+    return try Shortcut.publish(allocator, trace, replay, replacements.items);
 }
 
 /// The result body `index` reaches in a recorded state: the memo's when it has one, or a new analysis in that state.

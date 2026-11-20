@@ -3,6 +3,15 @@
 
     <Args in={Trace.Input} out={Trace.Cursor} />
 
+    <If on={!$in.agreed}>
+        <Return
+            value={{
+                ...$in.cursor,
+                phase: Trace.Phase.Reject
+            }}
+        />
+    </If>
+
     <If
         on={$in.cursor.phase == Trace.Phase.Settled ||
             $in.cursor.phase == Trace.Phase.Demanded}
@@ -11,7 +20,8 @@
             fn="remaining"
             in={$in.omit([
                 "active",
-                "changed"
+                "changed",
+                "agreed"
             ])}
         />
 
@@ -22,7 +32,8 @@
         fn="next"
         in={$in.omit([
             "settled",
-            "demanded"
+            "demanded",
+            "agreed"
         ])}
     />
 

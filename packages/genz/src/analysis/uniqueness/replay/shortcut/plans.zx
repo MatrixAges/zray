@@ -1,0 +1,40 @@
+import integers from "std:integer"
+
+import retain from "./retain_plan"
+
+import type { Plans as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const last = in.changed.length - 1
+
+    const filled = loop({
+        body: 0,
+        replacement: 0
+    }, {
+        while: state => state.body < in.changed.length,
+        next: state => {
+            const body = state.body
+            const start = in.planned[body]
+
+            if (start != in.planned[body + 1]) {
+                const replaced = in.changed[body]
+                const entry = body == last
+
+                retain({
+                    source: replaced ? in.replacements : in.recorded,
+                    row: replaced ? state.replacement : integers.widen(start),
+                    target: entry ? in.entry : in.functions,
+                    destination: entry ? 0 : body
+                })
+
+                if (replaced) {
+                    state.replacement += 1
+                }
+            }
+
+            state.body += 1
+        }
+    })
+}

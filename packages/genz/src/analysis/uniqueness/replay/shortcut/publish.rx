@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Replay" />
+
+    <Args in={Replay.Publication} out={void} />
+
+    <Call fn="plans" in={$in.plans} />
+    <Call fn="commit" in={$in.commit} />
+</Module>

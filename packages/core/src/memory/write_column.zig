@@ -247,6 +247,18 @@ pub inline fn writeBytes(target: *const anyopaque, index: u64, value: []const u8
     return write([]const u8, target, index, value);
 }
 
+pub inline fn writeU32List(target: *const anyopaque, index: u64, value: []const u32) IndexError!void {
+    return write([]const u32, target, index, value);
+}
+
+pub inline fn writeU64List(target: *const anyopaque, index: u64, value: []const u64) IndexError!void {
+    return write([]const u64, target, index, value);
+}
+
+pub inline fn writeU32Lists(target: *const anyopaque, index: u64, value: []const []const u32) IndexError!void {
+    return write([]const []const u32, target, index, value);
+}
+
 pub inline fn writeOptionalU32(target: *const anyopaque, index: u64, value: ?u32) IndexError!void {
     return write(?u32, target, index, value);
 }
