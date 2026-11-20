@@ -1,20 +1,15 @@
 const std = @import("std");
+const zx = @import("zx");
+const source = @import("cli_source");
+const disk = @import("artifact_io");
+pub const write = disk.write;
 
-pub fn write(io: std.Io, path: []const u8, content: []const u8) !void {
-    var file = try std.Io.Dir.cwd().createFileAtomic(io, path, .{ .make_path = true, .replace = true });
+pub const Prepared = struct {
+    directory: []const u8,
+    module_paths: []const []const u8,
+};
 
-    defer file.deinit(io);
-
-    try file.file.writeStreamingAll(io, content);
-    try file.replace(io);
-}
-
-pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler").zig.ModuleBundle, configuration: []const u8, abi: @import("abi.zig").Result, emit_result: bool) ![]const u8 {
-    var hash: [32]u8 = undefined;
-    var state = std.crypto.hash.sha2.Sha256.init(.{});
-
-    state.update("zxc.build.artifacts.v2");
-
+pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler").zig.ModuleBundle, configuration: []const u8, abi: @import("abi.zig").Result, emit_result: bool) !Prepared {
     const result = try @import("compiler").zig.host.result(allocator, emit_result);
 
     defer allocator.free(result);
@@ -31,43 +26,57 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compil
 
     defer allocator.free(graph);
 
-    for ([_][]const u8{ bundle.entry.source, abi.source, runner, result, configuration, graph }) |field| {
-        var length: [8]u8 = undefined;
+    const paths = try allocator.alloc([]const u8, bundle.modules.len);
+    var output = paths;
+    var hash: zx.Sha256 = undefined;
+    const hash_state: zx.Sha256State = .{ .value = &hash };
+    var context: disk.Context = .{ .io = io };
+    const view_paths = zx.memory.borrowTextColumn("path", abi.views);
+    const view_sources = zx.memory.borrowTextColumn("source", abi.views);
+    const names = zx.memory.borrowTextColumn("name", bundle.modules);
+    const sources = zx.memory.borrowTextColumn("source", bundle.modules);
 
-        std.mem.writeInt(u64, &length, @intCast(field.len), .little);
-        state.update(&length);
-        state.update(field);
-    }
+    const directory = source.workspace_build.executeIn(allocator, &.{
+        .fs = @ptrCast(&context),
+        .separator = &.{std.fs.path.sep},
+        .identity = &.{
+            .hash = @ptrCast(&hash_state),
+            .entry = bundle.entry.source,
+            .abi = abi.source,
+            .runner = runner,
+            .result = result,
+            .configuration = configuration,
+            .graph = graph,
+        },
+        .views = &.{ .count = abi.views.len, .paths = @ptrCast(&view_paths), .sources = @ptrCast(&view_sources) },
+        .modules = &.{
+            .files = &.{ .count = bundle.modules.len, .paths = @ptrCast(&names), .sources = @ptrCast(&sources) },
+            .output = @ptrCast(&output),
+        },
+    }) catch |err| return ioError(context, err);
 
-    state.final(&hash);
-
-    const directory = try std.fmt.allocPrint(allocator, ".zxc/build/{s}", .{std.fmt.bytesToHex(hash, .lower)});
-
-    try retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "program.zig" }), bundle.entry.source);
-    try retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "abi.zig" }), abi.source);
-    for (abi.views) |view| try retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, view.path }), view.source);
-    try retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "main.zig" }), runner);
-    try retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "result.zig" }), result);
-    for (bundle.modules) |module| try retain(io, allocator, try modulePath(allocator, module), module.source);
-
-    return directory;
+    return .{ .directory = directory, .module_paths = paths };
 }
 
-pub fn modulePath(allocator: std.mem.Allocator, module: @import("compiler").zig.ModuleFile) std.mem.Allocator.Error![]const u8 {
-    var digest: [32]u8 = undefined;
+pub fn retainFiles(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, files: []const @import("node/resources.zig").File) !void {
+    const paths = zx.memory.borrowTextColumn("path", files);
+    const sources = zx.memory.borrowTextColumn("source", files);
+    var context: disk.Context = .{ .io = io };
 
-    std.crypto.hash.sha2.Sha256.hash(module.source, &digest, .{});
-
-    return std.fmt.allocPrint(allocator, ".zxc/build/modules/{s}/{s}.zig", .{ module.name, std.fmt.bytesToHex(digest, .lower) });
+    source.workspace_views.executeIn(allocator, &.{
+        .fs = @ptrCast(&context),
+        .directory = directory,
+        .separator = &.{std.fs.path.sep},
+        .files = &.{ .count = files.len, .paths = @ptrCast(&paths), .sources = @ptrCast(&sources) },
+    }) catch |err| return ioError(context, err);
 }
 
 pub fn retain(io: std.Io, allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {
-    const existing = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(content.len + 1)) catch |err| switch (err) {
-        error.FileNotFound, error.StreamTooLong => return write(io, path, content),
-        else => return err,
-    };
+    var context: disk.Context = .{ .io = io };
 
-    defer allocator.free(existing);
+    source.workspace_retain.executeIn(allocator, &.{ .fs = @ptrCast(&context), .path = path, .source = content }) catch |err| return ioError(context, err);
+}
 
-    if (!std.mem.eql(u8, existing, content)) try write(io, path, content);
+fn ioError(context: disk.Context, err: anyerror) anyerror {
+    return if (err == error.ArtifactIoFailure) context.failure.? else err;
 }

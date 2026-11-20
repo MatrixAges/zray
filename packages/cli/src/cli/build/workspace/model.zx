@@ -1,0 +1,44 @@
+import type { Sha256State } from "std:crypto"
+import type { FileSystem } from "artifact_io"
+import type { StringBuffer, TextColumn } from "memory"
+
+export type Identity = {
+    hash: Sha256State,
+    entry: string,
+    abi: string,
+    runner: string,
+    result: string,
+    configuration: string,
+    graph: string
+}
+
+export type Files = {
+    count: u64,
+    paths: TextColumn,
+    sources: TextColumn
+}
+
+export type Modules = {
+    files: Files,
+    output: StringBuffer
+}
+
+export type Workspace = {
+    fs: FileSystem,
+    directory: string,
+    separator: string
+}
+
+export type Input = {
+    fs: FileSystem,
+    separator: string,
+    identity: Identity,
+    views: Files,
+    modules: Modules
+}
+
+export type Artifact = {
+    fs: FileSystem,
+    path: string,
+    source: string
+}

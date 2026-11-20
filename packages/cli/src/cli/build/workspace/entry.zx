@@ -1,0 +1,26 @@
+import { abi_source, application_source } from "../command/const"
+import retain from "./retain"
+
+import type { Identity, Workspace } from "./model"
+
+export type Input = Workspace & {
+    identity: Identity
+}
+
+export type Output = void
+
+export default function(in: Input): Output {
+    const { fs, directory, separator, identity } = in
+
+    retain({
+        fs,
+        path: `${directory}${separator}${application_source}`,
+        source: identity.entry
+    })
+
+    retain({
+        fs,
+        path: `${directory}${separator}${abi_source}`,
+        source: identity.abi
+    })
+}

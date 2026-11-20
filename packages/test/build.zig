@@ -330,6 +330,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "toolchain_cache", .module = cli_dependency.module("toolchain_cache") },
             .{ .name = "watch_inputs", .module = cli_dependency.module("watch_inputs") },
+            .{ .name = "artifact_io", .module = cli_dependency.module("artifact_io") },
             .{ .name = "backend_protocol", .module = backend_protocol },
         },
         .target = target,

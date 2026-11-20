@@ -1,0 +1,47 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.Input} out={string} />
+
+    <Call fn="identity" in={$in.identity} />
+
+    <Call
+        fn="entry"
+        in={{
+            fs: $in.fs,
+            directory: $ctx.identity,
+            separator: $in.separator,
+            identity: $in.identity
+        }}
+    />
+
+    <Call
+        fn="views"
+        in={{
+            fs: $in.fs,
+            directory: $ctx.identity,
+            separator: $in.separator,
+            files: $in.views
+        }}
+    />
+
+    <Call
+        fn="runner"
+        in={{
+            fs: $in.fs,
+            directory: $ctx.identity,
+            separator: $in.separator,
+            identity: $in.identity
+        }}
+    />
+
+    <Call
+        fn="modules"
+        in={{
+            ...$in.modules,
+            fs: $in.fs
+        }}
+    />
+
+    <Return value={$ctx.identity} />
+</Module>

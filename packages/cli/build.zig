@@ -43,6 +43,7 @@ pub fn build(b: *std.Build) void {
     host.addImport("watch_inputs", @import("build/source.zig").observations(b, compiler, target, optimize, host.import_table.get("cli_source").?));
     host.addImport("cli_watch", @import("build/source.zig").watch(b, compiler, target, optimize, host));
     host.addImport("manifest_output", b.modules.get("manifest_output").?);
+    host.addImport("artifact_io", b.modules.get("artifact_io").?);
 
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 

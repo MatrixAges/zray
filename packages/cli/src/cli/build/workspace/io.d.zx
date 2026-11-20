@@ -1,0 +1,9 @@
+export type FileSystem = opaque
+
+export declare function matches(fs: FileSystem, path: string, expected: string): bool throws {
+    ArtifactIoFailure
+}
+
+export declare function writeAtomic(fs: FileSystem, path: string, source: string): void throws {
+    ArtifactIoFailure
+}

@@ -1,0 +1,9 @@
+export const identity_domain: string = "zxc.build.artifacts.v2"
+
+export const build_root: string = ".zxc/build"
+
+export const modules_root: string = ".zxc/build/modules"
+
+export const zig_extension: string = ".zig"
+
+export const result_source: string = "result.zig"

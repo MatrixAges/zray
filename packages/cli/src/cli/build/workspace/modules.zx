@@ -1,0 +1,46 @@
+import bytes from "std:bytes"
+import crypto from "std:crypto"
+import encoding from "std:encoding"
+import memory from "memory"
+
+import { modules_root, zig_extension } from "./const"
+import retain from "./retain"
+
+import type { FileSystem } from "artifact_io"
+import type { Modules } from "./model"
+
+export type Input = Modules & {
+    fs: FileSystem
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    loop({
+        source: in,
+        index: first
+    }, {
+        while: current => current.index < current.source.files.count,
+        next: current => {
+            const { fs, files, output } = current.source
+
+            const index = current.index
+            const name = memory.readTextColumn(files.paths, index)
+            const source = memory.readTextColumn(files.sources, index)
+            const digest = encoding.encodeHex(crypto.sha256(bytes.fromText(source)))
+            const path = `${modules_root}/${name}/${digest}${zig_extension}`
+
+            retain({
+                fs,
+                path,
+                source
+            })
+
+            memory.writeString(output, index, path)
+
+            current.index += 1
+        }
+    })
+}

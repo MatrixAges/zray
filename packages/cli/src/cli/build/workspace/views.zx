@@ -1,0 +1,35 @@
+import memory from "memory"
+
+import retain from "./retain"
+
+import type { Files, Workspace } from "./model"
+
+export type Input = Workspace & {
+    files: Files
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    loop({
+        source: in,
+        index: first
+    }, {
+        while: current => current.index < current.source.files.count,
+        next: current => {
+            const { fs, directory, separator, files } = current.source
+
+            const leaf = memory.readTextColumn(files.paths, current.index)
+
+            retain({
+                fs,
+                path: `${directory}${separator}${leaf}`,
+                source: memory.readTextColumn(files.sources, current.index)
+            })
+
+            current.index += 1
+        }
+    })
+}

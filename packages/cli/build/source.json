@@ -36,6 +36,10 @@
             "prefix": "command/"
         },
         {
+            "path": "workspace_files",
+            "prefix": "workspace_files/"
+        },
+        {
             "path": "watch_diagnostics",
             "prefix": "watch_diagnostics/"
         },
@@ -222,6 +226,18 @@
             "name": "backend_command_entry"
         },
         {
+            "path": "workspace_files/build.rx",
+            "name": "workspace_build"
+        },
+        {
+            "path": "workspace_files/retain.zx",
+            "name": "workspace_retain"
+        },
+        {
+            "path": "workspace_files/views.zx",
+            "name": "workspace_views"
+        },
+        {
             "path": "command/translation.zx",
             "name": "backend_translation_command"
         },
@@ -276,6 +292,10 @@
         {
             "path": "memory/columns.d.zx",
             "module": "memory/columns"
+        },
+        {
+            "path": "workspace_files/io.d.zx",
+            "module": "artifact_io"
         },
         {
             "path": "package_manifest/layout/scanner.d.zx",

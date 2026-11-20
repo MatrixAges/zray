@@ -119,7 +119,8 @@ fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
 
     defer if (wasm or node) allocator.free(executable_bundle.runner.?);
 
-    const directory = try artifacts.prepare(io, allocator, executable_bundle, configuration, abi, options.result == .json);
+    const workspace = try artifacts.prepare(io, allocator, executable_bundle, configuration, abi, options.result == .json);
+    const directory = workspace.directory;
     var arguments = Command{ .allocator = allocator };
     var node_library: ?[]const u8 = null;
 
@@ -131,8 +132,8 @@ fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
         if (arch == .wasm32 or arch == .wasm64) return error.UnsupportedNodeTarget;
         if (os == .windows and options.node_library == null) return error.NodeImportLibraryRequired;
         if (options.node_library) |path| node_library = try std.fs.path.resolve(allocator, &.{path});
-        for (node_sources.?.files) |file| try artifacts.retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "node", file.path }), file.source);
-        for (node_sources.?.napi) |file| try artifacts.retain(io, allocator, try std.fs.path.join(allocator, &.{ directory, "napi", file.path }), file.source);
+        try artifacts.retainFiles(io, allocator, try std.fs.path.join(allocator, &.{ directory, "node" }), &node_sources.?.files);
+        try artifacts.retainFiles(io, allocator, try std.fs.path.join(allocator, &.{ directory, "napi" }), &node_sources.?.napi);
     }
 
     if (emission == .staged) {
@@ -183,11 +184,11 @@ fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
         .natives = native_names,
     });
 
-    for (bundle.modules) |module| {
+    for (bundle.modules, workspace.module_paths) |module, path| {
         try arguments.module(.{
             .settings = settings,
             .name = module.name,
-            .path = try artifacts.modulePath(allocator, module),
+            .path = path,
             .imports = module.imports,
             .includes = &.{},
             .canonical = true,

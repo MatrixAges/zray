@@ -1,0 +1,27 @@
+import { root_source } from "../command/const"
+import { result_source } from "./const"
+import retain from "./retain"
+
+import type { Identity, Workspace } from "./model"
+
+export type Input = Workspace & {
+    identity: Identity
+}
+
+export type Output = void
+
+export default function(in: Input): Output {
+    const { fs, directory, separator, identity } = in
+
+    retain({
+        fs,
+        path: `${directory}${separator}${root_source}`,
+        source: identity.runner
+    })
+
+    retain({
+        fs,
+        path: `${directory}${separator}${result_source}`,
+        source: identity.result
+    })
+}

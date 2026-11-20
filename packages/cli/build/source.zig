@@ -10,6 +10,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(b.path("src/package/manifest"), "package_manifest", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/native_sources"), "native_sources", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/library"), "library", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/build/workspace"), "workspace_files", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/build/command"), "command", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/watch/diagnostics"), "watch_diagnostics", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyDirectory(b.path("src/cli/standard"), "standard", .{ .include_extensions = &.{ ".rx", ".zx" } });
@@ -29,6 +30,12 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
         .optimize = optimize,
     });
 
+    const artifact_io = b.addModule("artifact_io", .{
+        .root_source_file = b.path("src/cli/build/workspace/io.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     return b.addModule("cli_source", .{
         .root_source_file = generated.path(b, "root.zig"),
         .target = target,
@@ -40,6 +47,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
             .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "memory/columns", .module = core.module("memory") },
             .{ .name = "manifest_output", .module = manifest_output },
+            .{ .name = "artifact_io", .module = artifact_io },
         },
     });
 }
