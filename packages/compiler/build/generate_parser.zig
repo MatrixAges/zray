@@ -8,6 +8,7 @@ const Files = @import("resident/files.zig");
 const InputSnapshot = @import("input_snapshot.zig");
 const fingerprint = compiler.input_fingerprint;
 const publication = compiler.input_generation;
+const generation = @import("shared_generation.zig");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -76,11 +77,11 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     for (inputs.modules, rx_digests) |module, *item| item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
 
     const frame = fingerprint.frame(&resident.digest, manifest_source, rx_digests, interfaces.bindings);
-    const inputs_digest = if (recorded != null) outputDigest(&frame.content, partitions, inputs.sources, inputs.templates, &resident.files) else null;
+    const inputs_digest = outputDigest(&frame.content, partitions, inputs.sources, inputs.templates, &resident.files);
 
     if (recorded) |path| {
-        if (interfaces.failure == null and try current(io, path, &inputs_digest.?)) {
-            try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest.?);
+        if (interfaces.failure == null and try current(io, path, &inputs_digest)) {
+            try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest);
 
             return "";
         }
@@ -91,33 +92,47 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         };
     }
 
-    const prepared_sources = switch (try compiler.project.prepareSources(owned, inputs.sources, .{ .entry = "" })) {
-        .sources => |items| items,
-        .diagnostic => |issue| {
-            std.debug.print("{s}: {s}\n", .{ inputs.sources[issue.source_index.?].path, issue.message });
-
-            return error.InvalidTemplateResource;
-        },
+    const target: generation.Target = .{
+        .io = io,
+        .allocator = allocator,
+        .resident = resident,
+        .output = if (request.write) output else null,
+        .cache_path = request.cache,
+        .partitions = partitions,
     };
 
-    const modules = try resident.modules.prepare(owned, inputs.modules, fingerprint.packages(packages));
+    const previous = if (interfaces.failure == null) resident.exactAnalysis(&inputs_digest) else null;
 
-    if (interfaces.failure) |err| return err;
+    const summary = if (previous) |saved| try generation.restore(target, saved, project.entries.len) else fresh: {
+        const prepared_sources = switch (try compiler.project.prepareSources(owned, inputs.sources, .{ .entry = "" })) {
+            .sources => |items| items,
+            .diagnostic => |issue| {
+                std.debug.print("{s}: {s}\n", .{ inputs.sources[issue.source_index.?].path, issue.message });
 
-    const summary = try @import("shared_generation.zig").run(io, allocator, owned, resident, project.entries, .{
-        .modules = modules,
-        .sources = prepared_sources,
-        .interfaces = interfaces.bindings[0..interfaces.external],
-        .internal_modules = interfaces.bindings[interfaces.external..],
-        .packages = packages,
-        .frame = frame.content,
-        .shape = frame.shape,
-        .rx_digests = rx_digests,
-    }, if (request.write) output else null, request.cache, partitions);
+                return error.InvalidTemplateResource;
+            },
+        };
+
+        const modules = try resident.modules.prepare(owned, inputs.modules, fingerprint.packages(packages));
+
+        if (interfaces.failure) |err| return err;
+
+        break :fresh try generation.run(target, owned, project.entries, .{
+            .modules = modules,
+            .sources = prepared_sources,
+            .interfaces = interfaces.bindings[0..interfaces.external],
+            .internal_modules = interfaces.bindings[interfaces.external..],
+            .packages = packages,
+            .frame = frame.content,
+            .shape = frame.shape,
+            .rx_digests = rx_digests,
+            .fingerprint = inputs_digest,
+        });
+    };
 
     if (recorded) |path| {
-        try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = &publication.stamp(&inputs_digest.?) });
-        try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest.?);
+        try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = &publication.stamp(&inputs_digest) });
+        try saveSnapshot(snapshot.?, io, &resident.files, inputs_digest);
     }
 
     return summary;

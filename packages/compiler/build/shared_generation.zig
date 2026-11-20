@@ -5,6 +5,15 @@ const Entry = @import("entries.zig").Entry;
 const Resident = @import("resident/state.zig");
 const publication = compiler.input_generation;
 
+pub const Target = struct {
+    io: std.Io,
+    allocator: std.mem.Allocator,
+    resident: *Resident,
+    output: ?[]const u8,
+    cache_path: []const u8,
+    partitions: u32,
+};
+
 const Inputs = struct {
     modules: []const @import("rx").ModuleSource,
     sources: []const compiler.project.Source,
@@ -16,12 +25,22 @@ const Inputs = struct {
     /// The frame without the RX sources' texts, and their digests by path.
     shape: [32]u8,
     rx_digests: []const analysis.project.ModuleDigest,
+    fingerprint: [32]u8,
+};
+
+const Counts = struct {
+    entries: usize,
+    analyzed: usize,
+    reused: usize,
+    bodies_only: bool,
 };
 
 /// Generates the tree for `entries` into `output`, unless it is null, and returns its summary line. Parsed modules,
 /// cached sources and the previous analysis come from `resident`, which keeps them for later requests.
-pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, resident: *Resident, entries: []const Entry, inputs: Inputs, output: ?[]const u8, cache_path: []const u8, partitions: u32) ![]const u8 {
-    const started = std.Io.Timestamp.now(io, .awake);
+pub fn run(target: Target, owned: std.mem.Allocator, entries: []const Entry, inputs: Inputs) ![]const u8 {
+    const allocator = target.allocator;
+    const resident = target.resident;
+    const started = std.Io.Timestamp.now(target.io, .awake);
     const roots = try allocator.alloc([]const u8, entries.len);
     const exports = try allocator.alloc(analysis.project.Export, entries.len);
 
@@ -64,7 +83,6 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, r
         return error.InvalidParserSource;
     }
 
-    const inferred = std.Io.Timestamp.now(io, .awake);
     const contract = analyzed.value.contract;
 
     const library = compiler.library.Result{
@@ -86,16 +104,47 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, r
         .store_initializers = contract.store_initializers,
     };
 
-    const cache = try resident.generationCache(io, cache_path);
+    const summary = try emit(target, &library, .{
+        .entries = entries.len,
+        .analyzed = history.analyzed,
+        .reused = history.reused,
+        .bodies_only = history.bodies_only,
+    }, started);
+
+    kept = true;
+
+    try resident.keepAnalysis(library, inputs.fingerprint, history.reused + history.analyzed);
+
+    return summary;
+}
+
+pub fn restore(target: Target, analysis_snapshot: Resident.Restored, entry_count: usize) ![]const u8 {
+    const summary = try emit(target, analysis_snapshot.library, .{
+        .entries = entry_count,
+        .analyzed = 0,
+        .reused = analysis_snapshot.module_count,
+        .bodies_only = false,
+    }, std.Io.Timestamp.now(target.io, .awake));
+
+    target.resident.restoreAnalysis(analysis_snapshot.parent_count);
+
+    return summary;
+}
+
+fn emit(target: Target, library: *const compiler.library.Result, counts: Counts, started: std.Io.Timestamp) ![]const u8 {
+    const io = target.io;
+    const resident = target.resident;
+    const inferred = std.Io.Timestamp.now(io, .awake);
+    const cache = try resident.generationCache(io, target.cache_path);
     const generated = cache.generated;
     const reused = cache.reused;
-    const bundle = try compiler.zig.emitLibraryFilesCachedConcurrentWith(resident.gpa, resident.emissionAllocator(), &library, cache, .{ .signatures = partitions != 0 and !compiler.zig.partition.groups.available });
+    const bundle = try compiler.zig.emitLibraryFilesCachedConcurrentWith(resident.gpa, resident.emissionAllocator(), library, cache, .{ .signatures = target.partitions != 0 and !compiler.zig.partition.groups.available });
 
     defer resident.discard(bundle.arena);
 
     const emitted = std.Io.Timestamp.now(io, .awake);
 
-    if (output) |path| try @import("shared_output.zig").write(io, allocator, resident.gpa, path, bundle, partitions);
+    if (target.output) |path| try @import("shared_output.zig").write(io, target.allocator, resident.gpa, path, bundle, target.partitions);
 
     const written = std.Io.Timestamp.now(io, .awake);
 
@@ -103,19 +152,11 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, owned: std.mem.Allocator, r
     // two sets of files would contend for the file system.
     cache.startWriting();
 
-    const modules_reused = history.reused;
-    const modules_analyzed = history.analyzed;
-    const frame_reused = history.bodies_only;
-
-    kept = true;
-
-    try resident.keepAnalysis(analyzed.arena);
-
-    return publication.report(allocator, .{
-        .entries = entries.len,
-        .analyzed = modules_analyzed,
-        .reused = modules_reused,
-        .bodies_only = frame_reused,
+    return publication.report(target.allocator, .{
+        .entries = counts.entries,
+        .analyzed = counts.analyzed,
+        .reused = counts.reused,
+        .bodies_only = counts.bodies_only,
         .files = bundle.modules.len,
         .generated = cache.generated - generated,
         .cached = cache.reused - reused,

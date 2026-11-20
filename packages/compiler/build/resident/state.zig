@@ -33,7 +33,9 @@ discarded: ?std.heap.ArenaAllocator = null,
 /// copying the reused sources into fresh pages costs more in page faults than in copying.
 emission: std.heap.ArenaAllocator,
 const Epoch = struct {
-    analysis: std.heap.ArenaAllocator,
+    fingerprint: [32]u8,
+    library: compiler.library.Result,
+    module_count: usize,
     inputs: ?std.heap.ArenaAllocator,
     snapshot: @typeInfo(@FieldType(History, "previous")).optional.child,
     modules: *Modules.Batch,
@@ -41,6 +43,12 @@ const Epoch = struct {
     /// RX paths changed relative to the borrowed predecessor. Null crosses an input or graph-shape boundary.
     edited_rx: ?[]const u64,
     retained_total: u64,
+};
+
+pub const Restored = struct {
+    parent_count: usize,
+    library: *const compiler.library.Result,
+    module_count: usize,
 };
 
 /// `gpa` must be threadsafe: background cache writers and concurrent generation share it.
@@ -182,6 +190,27 @@ fn retainedCapacity(self: *const Self) u64 {
     return if (items.len == 0) 0 else items[items.len - 1].retained_total;
 }
 
+pub fn exactAnalysis(self: *const Self, fingerprint: *const [32]u8) ?Restored {
+    const count = revision.exact(self.epochs.items, fingerprint);
+
+    if (count == 0) return null;
+
+    const epoch = &self.epochs.items[count - 1];
+
+    return .{ .parent_count = count, .library = &epoch.library, .module_count = epoch.module_count };
+}
+
+pub fn restoreAnalysis(self: *Self, parent_count: usize) void {
+    const epoch = &self.epochs.items[parent_count - 1];
+
+    self.modules.restore(epoch.modules);
+
+    self.history.previous = epoch.snapshot;
+    self.history.next = null;
+
+    self.dropEpochs(parent_count);
+}
+
 /// The history for an analysis of inputs identified by `frame`, whose RX sources have `rx_digests` within `shape`.
 pub fn startAnalysis(self: *Self, frame: [32]u8, shape: [32]u8, rx_digests: []const project.ModuleDigest, sources: []const compiler.project.Source) *History {
     self.selection = revision.select(self.epochs.items, &frame, &shape, rx_digests, sources);
@@ -198,16 +227,16 @@ pub fn startAnalysis(self: *Self, frame: [32]u8, shape: [32]u8, rx_digests: []co
     return &self.history;
 }
 
-/// Keeps the analysis that just succeeded, whose memory is `analysis`, for the next request.
-pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allocator.Error!void {
-    var owned = analysis;
+/// Keeps the successful analysis and the library it can emit for an identical request.
+pub fn keepAnalysis(self: *Self, library: compiler.library.Result, fingerprint: [32]u8, module_count: usize) std.mem.Allocator.Error!void {
+    var owned = library;
 
     errdefer owned.deinit();
 
     const earlier = if (self.selection.parent_count == 0) &.{} else self.epochs.items[self.selection.parent_count - 1].rx_digests;
 
     const plan = try revision.publication(
-        owned.allocator(),
+        owned.arena.allocator(),
         self.selection,
         !self.selection.same_input and self.history.borrowsPrevious(),
         earlier,
@@ -215,10 +244,7 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
     );
 
     if (plan.restore) {
-        self.history.next = null;
-
-        self.modules.restore(self.epochs.items[plan.parent_count - 1].modules);
-        self.dropEpochs(plan.parent_count);
+        self.restoreAnalysis(plan.parent_count);
         owned.deinit();
 
         return;
@@ -234,10 +260,12 @@ pub fn keepAnalysis(self: *Self, analysis: std.heap.ArenaAllocator) std.mem.Allo
 
     self.history.next = null;
 
-    const total = revision.capacity(self.retainedCapacity(), owned.queryCapacity(), if (self.inputs) |inputs| inputs.queryCapacity() else 0);
+    const total = revision.capacity(self.retainedCapacity(), owned.arena.queryCapacity(), if (self.inputs) |inputs| inputs.queryCapacity() else 0);
 
     self.epochs.appendAssumeCapacity(.{
-        .analysis = owned,
+        .fingerprint = fingerprint,
+        .library = owned,
+        .module_count = module_count,
         .inputs = self.inputs,
         .snapshot = snapshot,
         .modules = self.modules.publish(),
@@ -265,7 +293,7 @@ fn dropEpochs(self: *Self, count: usize) void {
     while (self.epochs.items.len > count) {
         var epoch = self.epochs.pop().?;
 
-        epoch.analysis.deinit();
+        epoch.library.deinit();
 
         if (epoch.inputs) |*inputs| inputs.deinit();
 

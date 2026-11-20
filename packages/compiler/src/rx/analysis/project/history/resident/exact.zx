@@ -1,0 +1,28 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { ReadColumn } from "memory"
+
+export type Input = {
+    count: u64,
+    fingerprints: ReadColumn,
+    current: u8[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return loop(in.count, {
+        while: count => count != 0 && !bytes.equals(
+            memory.readFixedBytes(
+                in.fingerprints,
+                count - 1,
+                in.current.length
+            ),
+            in.current
+        ),
+        next: count => {
+            count -= 1
+        }
+    })
+}

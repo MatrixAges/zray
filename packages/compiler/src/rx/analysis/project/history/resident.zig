@@ -16,6 +16,32 @@ pub const Publication = struct {
     edits: ?[]const u64,
 };
 
+/// Returns the length of the prefix ending in the latest exact match.
+pub fn exact(epochs: anytype, fingerprint: *const [32]u8) usize {
+    if (epochs.len == 0) return 0;
+
+    if (comptime !generated) {
+        var count = epochs.len;
+
+        while (count != 0 and !zx.bytes.equal(&epochs[count - 1].fingerprint, fingerprint)) count -= 1;
+
+        return count;
+    }
+
+    const rule = @import("generated_rx_history_exact");
+    const fingerprints = memory.borrowReadColumn([32]u8, "fingerprint", epochs);
+
+    const input: std.meta.Child(rule.Input) = .{
+        .count = epochs.len,
+        .fingerprints = @ptrCast(&fingerprints),
+        .current = fingerprint,
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return @intCast(columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable);
+}
+
 pub fn select(epochs: anytype, frame: *const [32]u8, shape: *const [32]u8, digests: []const Digest, sources: []const Source) Selection {
     if (epochs.len == 0) return .{};
     if (comptime !generated) return @import("resident/seed.zig").select(Selection, epochs, frame, shape, digests, sources);

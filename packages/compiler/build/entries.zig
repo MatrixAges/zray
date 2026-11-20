@@ -115,6 +115,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/history/budget.zx", .name = "rx_history_budget", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/history/borrows.zx", .name = "rx_history_borrows", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/history/resident/choose.rx", .name = "rx_history_parent", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/history/resident/exact.zx", .name = "rx_history_exact", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/history/resident/commit.rx", .name = "rx_history_commit", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/history/resident/capacity.zx", .name = "rx_history_capacity", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/body/admit.rx", .name = "rx_mixed_body_admit", .owner = .rx_analysis },
