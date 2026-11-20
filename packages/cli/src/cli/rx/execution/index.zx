@@ -45,20 +45,11 @@ export {
     resolveGatewayToolchain,
     resolveGatewayNativeProject,
     runGatewayBackend,
-    watchesNativeBuild,
-    runNativeBuild,
-    prepareObservedNativeBuild,
-    runObservedNativeBuild,
-    finishObservedNativeInputs,
-    reportObservedNativeBuild,
-    requireObservedNativeInputs,
-    publishObservedNativeBuild,
     Status
 } from "rx_execution_host"
 
 export type {
     RxApplication,
     GatewayAnalysis,
-    GatewayBuild,
-    NativeBuild
+    GatewayBuild
 } from "rx_execution_host"

@@ -4,8 +4,7 @@ const Bundle = @import("compiler").zig.ModuleBundle;
 const Self = @import("publication_host").application.Bindings;
 const marker = Self.marker;
 
-pub fn create(allocator: std.mem.Allocator, bundle: Bundle, options: Options) !?Self {
-    if (options.host != .node) return null;
+pub fn create(allocator: std.mem.Allocator, bundle: *const Bundle, options: Options) !Self {
     if (bundle.runner != null) return error.UnsupportedNodeRunner;
 
     const output = options.output.?;

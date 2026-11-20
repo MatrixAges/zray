@@ -72,14 +72,136 @@ export declare function resolveGatewayToolchain(check: GatewayBuild): void throw
 export declare function resolveGatewayNativeProject(check: GatewayBuild): void throws { SourceLoadFailure }
 export declare function runGatewayBackend(check: GatewayBuild): Status throws { SourceLoadFailure }
 
-export declare function watchesNativeBuild(check: NativeBuild): bool
-export declare function runNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
-export declare function prepareObservedNativeBuild(check: NativeBuild): void throws { SourceLoadFailure }
-export declare function runObservedNativeBuild(check: NativeBuild): void throws { SourceLoadFailure }
-export declare function finishObservedNativeInputs(check: NativeBuild): void throws { SourceLoadFailure }
-export declare function reportObservedNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
-export declare function requireObservedNativeInputs(check: NativeBuild): void throws { SourceLoadFailure }
-export declare function publishObservedNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
+export declare function watchesNativeBuild(build: NativeBuild): bool
+export declare function nativeNodeHost(build: NativeBuild): bool
+export declare function createStagedBindings(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function openStagedOutput(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function openBackendEnvironment(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function openBackendTranslation(build: NativeBuild, observed: bool): void throws {
+    SourceLoadFailure
+}
+export declare function reportStagedTranslationFailure(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function spawnStagedBackend(build: NativeBuild): bool throws {
+    SourceLoadFailure
+}
+export declare function retainStagedBindings(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function publishStagedBackend(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function prepareObservedNativeBuild(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function spawnObservedBackend(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function takeTranslationFailure(build: NativeBuild): void
+export declare function resolveObservedNativeInputs(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function createObservedBindings(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function finishObservedNativeInputs(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function reportObservedNativeBuild(build: NativeBuild): bool throws {
+    SourceLoadFailure
+}
+export declare function requireObservedNativeInputs(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function publishObservedNativeBuild(build: NativeBuild): bool throws {
+    SourceLoadFailure
+}
+
+export declare function validateNativePorts(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function generateNodeResources(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function encodeBackendConfiguration(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function prepareBackendAbi(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function resolveNativeTarget(build: NativeBuild): bool throws {
+    SourceLoadFailure
+}
+export declare function generateNodeRunner(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function generateWasmRunner(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function writeBackendWorkspace(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function retainNodeResources(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function releaseBackendSources(build: NativeBuild): void
+export declare function prepareStagedParents(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+
+export declare function reserveNativeNames(build: NativeBuild): u64 throws {
+    SourceLoadFailure
+}
+export declare function recordNativeName(build: NativeBuild, index: u64): bool
+export declare function appendBackendPrefix(build: NativeBuild, libc: bool): void throws {
+    SourceLoadFailure
+}
+export declare function appendBackendEntry(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function writeBackendCommand(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+
+export declare function generatedModuleCount(build: NativeBuild): u64
+export declare function appendGeneratedModule(build: NativeBuild, index: u64): void throws {
+    SourceLoadFailure
+}
+export declare function prepareNativeModule(build: NativeBuild, index: u64): bool throws {
+    SourceLoadFailure
+}
+export declare function resolveNativeModulePath(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function writeNativeHeader(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function translateNativeHeader(build: NativeBuild): bool throws {
+    SourceLoadFailure
+}
+export declare function writeNativeAdapter(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function appendNativeModule(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function abiViewCount(build: NativeBuild): u64
+export declare function appendAbiView(build: NativeBuild, index: u64): void throws {
+    SourceLoadFailure
+}
+export declare function appendCanonicalAbi(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
+export declare function appendNapiModule(build: NativeBuild): void throws {
+    SourceLoadFailure
+}
 
 export declare function compilationLinting(check: Compilation): bool
 export declare function runCompilationLint(check: Compilation): Status throws { SourceLoadFailure }

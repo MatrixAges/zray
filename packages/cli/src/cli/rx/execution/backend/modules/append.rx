@@ -1,0 +1,29 @@
+<Module>
+    <Type from="../model" as="Backend" />
+
+    <Args in={Backend.Row} out={bool} />
+
+    <Call
+        fn="../index.prepareNativeModule"
+        in={[
+            $in.build,
+            $in.index
+        ]}
+    />
+
+    <If on={$ctx.prepareNativeModule}>
+        <Call fn="../index.resolveNativeModulePath" in={$in.build} />
+
+        <Else>
+            <Call module="translate" in={$in.build} />
+
+            <If on={!$ctx.translate}>
+                <Return value={false} />
+            </If>
+        </Else>
+    </If>
+
+    <Call fn="../index.appendNativeModule" in={$in.build} />
+
+    <Return value={true} />
+</Module>

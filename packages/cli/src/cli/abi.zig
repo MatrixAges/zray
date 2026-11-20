@@ -13,7 +13,7 @@ const Bundle = struct {
 pub const File = struct { module: []const u8, name: []const u8, path: []const u8, source: []const u8 };
 pub const Result = struct { source: []const u8, views: []const File = &.{} };
 
-pub fn create(allocator: std.mem.Allocator, bundle: compiler.zig.ModuleBundle, loaded: Loaded) !Result {
+pub fn create(allocator: std.mem.Allocator, bundle: *const compiler.zig.ModuleBundle, loaded: Loaded) !Result {
     return render(allocator, .{ .types = bundle.types, .type_names = bundle.type_names, .native_modules = bundle.native_modules, .modules = bundle.modules }, loaded);
 }
 

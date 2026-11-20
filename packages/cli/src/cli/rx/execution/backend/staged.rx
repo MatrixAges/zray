@@ -1,0 +1,43 @@
+<Module>
+    <Type from="index" as="IO" />
+    <Type from="model" as="Backend" />
+
+    <Args in={Backend.Invocation} out={IO.Status} />
+
+    <If on={$in.node}>
+        <Call fn="index.createStagedBindings" in={$in.build} />
+    </If>
+
+    <Call fn="index.openStagedOutput" in={$in.build} />
+    <Call fn="index.openBackendEnvironment" in={$in.build} />
+
+    <Call
+        fn="index.openBackendTranslation"
+        in={[
+            $in.build,
+            $in.observed
+        ]}
+    />
+
+    <Call module="prepare" in={$in} />
+
+    <If on={!$ctx.prepare}>
+        <Call fn="index.reportStagedTranslationFailure" in={$in.build} />
+
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.spawnStagedBackend" in={$in.build} />
+
+    <If on={!$ctx.spawnStagedBackend}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <If on={$in.node}>
+        <Call fn="index.retainStagedBindings" in={$in.build} />
+    </If>
+
+    <Call fn="index.publishStagedBackend" in={$in.build} />
+
+    <Return value={IO.Status.Success} />
+</Module>

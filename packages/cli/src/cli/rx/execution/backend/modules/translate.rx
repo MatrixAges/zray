@@ -1,0 +1,14 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.NativeBuild} out={bool} />
+
+    <Call fn="../index.writeNativeHeader" in={$in} />
+    <Call fn="../index.translateNativeHeader" in={$in} />
+
+    <If on={$ctx.translateNativeHeader}>
+        <Call fn="../index.writeNativeAdapter" in={$in} />
+    </If>
+
+    <Return value={$ctx.translateNativeHeader} />
+</Module>

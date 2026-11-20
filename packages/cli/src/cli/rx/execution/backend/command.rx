@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Backend" />
+
+    <Args in={Backend.Invocation} out={bool} />
+
+    <Call fn="index.reserveNativeNames" in={$in.build} />
+
+    <Call
+        fn="modules/names"
+        in={{
+            build: $in.build,
+            count: $ctx.reserveNativeNames
+        }}
+    />
+
+    <Call
+        fn="index.appendBackendPrefix"
+        in={[
+            $in.build,
+            $ctx.names
+        ]}
+    />
+
+    <Call fn="index.appendBackendEntry" in={$in.build} />
+    <Call fn="modules/generated" in={$in.build} />
+
+    <Call
+        fn="modules/native"
+        in={{
+            build: $in.build,
+            count: $ctx.reserveNativeNames
+        }}
+    />
+
+    <If on={!$ctx.native}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="modules/views" in={$in.build} />
+    <Call fn="index.appendCanonicalAbi" in={$in.build} />
+
+    <If on={$in.node}>
+        <Call fn="index.appendNapiModule" in={$in.build} />
+    </If>
+
+    <Call fn="index.writeBackendCommand" in={$in.build} />
+
+    <Return value={true} />
+</Module>

@@ -1,0 +1,17 @@
+import type { NativeBuild } from "rx_execution_host"
+
+export type Invocation = {
+    build: NativeBuild,
+    node: bool,
+    observed: bool
+}
+
+export type Modules = {
+    build: NativeBuild,
+    count: u64
+}
+
+export type Row = {
+    build: NativeBuild,
+    index: u64
+}

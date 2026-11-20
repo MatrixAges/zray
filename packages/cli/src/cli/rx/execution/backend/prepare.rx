@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Backend" />
+
+    <Args in={Backend.Invocation} out={bool} />
+
+    <Call fn="index.validateNativePorts" in={$in.build} />
+
+    <If on={$in.node}>
+        <Call fn="index.generateNodeResources" in={$in.build} />
+    </If>
+
+    <Call fn="index.encodeBackendConfiguration" in={$in.build} />
+    <Call fn="index.prepareBackendAbi" in={$in.build} />
+    <Call fn="index.resolveNativeTarget" in={$in.build} />
+
+    <If on={$in.node}>
+        <Call fn="index.generateNodeRunner" in={$in.build} />
+    </If>
+
+    <If on={$ctx.resolveNativeTarget}>
+        <Call fn="index.generateWasmRunner" in={$in.build} />
+    </If>
+
+    <Call fn="index.writeBackendWorkspace" in={$in.build} />
+
+    <If on={$in.node}>
+        <Call fn="index.retainNodeResources" in={$in.build} />
+    </If>
+
+    <Call fn="index.releaseBackendSources" in={$in.build} />
+
+    <If on={!$in.observed}>
+        <Call fn="index.prepareStagedParents" in={$in.build} />
+    </If>
+
+    <Call module="command" in={$in} />
+
+    <Return value={$ctx.command} />
+</Module>

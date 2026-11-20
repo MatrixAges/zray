@@ -1,0 +1,50 @@
+<Module>
+    <Type from="index" as="IO" />
+    <Type from="model" as="Backend" />
+
+    <Args in={Backend.Invocation} out={IO.Status} />
+
+    <Call fn="index.prepareObservedNativeBuild" in={$in.build} />
+
+    <Call
+        fn="index.openBackendTranslation"
+        in={[
+            $in.build,
+            $in.observed
+        ]}
+    />
+
+    <Call fn="index.openBackendEnvironment" in={$in.build} />
+
+    <Call module="prepare" in={$in} />
+
+    <If on={$ctx.prepare}>
+        <Call fn="index.spawnObservedBackend" in={$in.build} />
+
+        <Else>
+            <Call fn="index.takeTranslationFailure" in={$in.build} />
+        </Else>
+    </If>
+
+    <Call fn="index.resolveObservedNativeInputs" in={$in.build} />
+
+    <If on={$in.node}>
+        <Call fn="index.createObservedBindings" in={$in.build} />
+    </If>
+
+    <Call fn="index.finishObservedNativeInputs" in={$in.build} />
+    <Call fn="index.reportObservedNativeBuild" in={$in.build} />
+
+    <If on={!$ctx.reportObservedNativeBuild}>
+        <Return value={IO.Status.BackendFailed} />
+    </If>
+
+    <Call fn="index.requireObservedNativeInputs" in={$in.build} />
+    <Call fn="index.publishObservedNativeBuild" in={$in.build} />
+
+    <If on={!$ctx.publishObservedNativeBuild}>
+        <Return value={IO.Status.Retry} />
+    </If>
+
+    <Return value={IO.Status.Success} />
+</Module>
