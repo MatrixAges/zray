@@ -1,0 +1,20 @@
+import integers from "std:integer"
+import capacity from "core/bytes/map/capacity"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Reserve as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { keys, values, buckets, owner, current, additional } = in
+
+    const size = capacity(integers.narrow(current + integers.widen(additional)))
+
+    columns.reserveRows(keys, current, size.limit)
+    columns.reserveRows(values, current, size.limit)
+    memory.allocateU32Buffer(owner, buckets, size.capacity)
+
+    return size.limit
+}

@@ -105,14 +105,37 @@ pub fn growRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u6
     const growth: *const RowGrowth = @ptrCast(@alignCast(target));
     const buffer = growth.target;
     const stride = buffer.stride;
-    const previous = buffer.bytes;
     const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
 
-    std.debug.assert(length == previous.len / stride);
+    std.debug.assert(length == buffer.bytes.len / stride);
 
     const minimum = std.math.add(usize, length, 1) catch return error.OutOfMemory;
     const capacity = minimum +| (minimum / 2 + @max(1, std.atomic.cache_line / stride));
-    const size = std.math.mul(usize, capacity, stride) catch return error.OutOfMemory;
+
+    try reserve(allocator, buffer, length, capacity);
+
+    growth.refresh();
+
+    return capacity;
+}
+
+pub fn reserveRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u64, count: u64) std.mem.Allocator.Error!void {
+    const buffer: *RowBuffer = @ptrCast(@alignCast(@constCast(target)));
+    const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
+    const capacity = std.math.cast(usize, count) orelse return error.OutOfMemory;
+
+    return reserve(allocator, buffer, length, capacity);
+}
+
+fn reserve(allocator: std.mem.Allocator, buffer: *RowBuffer, used: usize, count: usize) std.mem.Allocator.Error!void {
+    const previous = buffer.bytes;
+    const stride = buffer.stride;
+
+    std.debug.assert(used <= previous.len / stride);
+
+    if (count <= previous.len / stride) return;
+
+    const size = std.math.mul(usize, count, stride) catch return error.OutOfMemory;
     const alignment = buffer.alignment;
     const address = @returnAddress();
 
@@ -125,7 +148,9 @@ pub fn growRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u6
         const storage = allocator.rawAlloc(size, alignment, address) orelse return error.OutOfMemory;
 
         if (previous.len != 0) {
-            @memcpy(storage[0..previous.len], previous);
+            const prefix = used * stride;
+
+            @memcpy(storage[0..prefix], previous[0..prefix]);
             allocator.rawFree(previous, alignment, address);
         }
 
@@ -133,9 +158,12 @@ pub fn growRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u6
     };
 
     buffer.bind(bytes[0..size]);
-    growth.refresh();
+}
 
-    return capacity;
+pub inline fn rowBufferBytes(target: *const anyopaque) []const u8 {
+    const buffer: *const RowBuffer = @ptrCast(@alignCast(target));
+
+    return buffer.bytes;
 }
 
 pub fn allocateRows(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {

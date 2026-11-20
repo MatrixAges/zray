@@ -1,9 +1,9 @@
 import memory from "memory"
 import columns from "memory/columns"
 
+import claim from "../../../table/claim"
+import complete from "../../../table/complete"
 import decode from "../settlement.rx"
-import claim from "./claim"
-import complete from "./complete"
 
 import type { SettledSection as Input } from "./model"
 

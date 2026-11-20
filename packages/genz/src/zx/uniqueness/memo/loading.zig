@@ -82,27 +82,12 @@ const Loader = struct {
         const Columns = std.meta.Child(@FieldType(Input, "target"));
         const Value = std.meta.Elem(@TypeOf(table.values.items));
         var target: zx.memory.RowOutput(Value, Columns, fields) = undefined;
+        var frame: @TypeOf(table.*).Publication(std.meta.Child(@FieldType(Input, "index"))) = undefined;
 
         target.init();
         target.bind(table.values.allocatedSlice());
-
-        const keys = table.keys.allocatedSlice();
-        const digest_width = @sizeOf(Memo.Digest);
-
-        const digests: zx.memory.WriteColumn = .{
-            .items = @ptrCast(keys.ptr),
-            .count = keys.len,
-            .stride = digest_width,
-            .width = digest_width,
-        };
-
-        var used = [1]u32{@intCast(table.keys.items.len)};
-        const used_view: []u32 = &used;
-
-        defer {
-            table.keys.items.len = used[0];
-            table.values.items.len = used[0];
-        }
+        frame.open(table);
+        defer frame.finish(table);
 
         var input: Input = undefined;
 
@@ -110,16 +95,7 @@ const Loader = struct {
         input.start = bounds.start;
         input.count = bounds.count;
         input.target = &target.view;
-
-        input.index = &.{
-            .lookup = &.{
-                .keys = std.mem.sliceAsBytes(keys),
-                .buckets = @ptrCast(&table.buckets),
-                .capacity = table.buckets.len,
-            },
-            .keys = @ptrCast(&digests),
-            .used = @ptrCast(&used_view),
-        };
+        input.index = &frame.index;
 
         inline for (@typeInfo(@TypeOf(buffers)).@"struct".field_names) |name| {
             const buffer = @field(buffers, name);

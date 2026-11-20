@@ -1,0 +1,20 @@
+import rebuild from "core/bytes/index/digest/rebuild"
+import { sha256_digest_width } from "core/const"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Rehash as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { keys, current, buckets } = in
+
+    const bytes = columns.rowBufferBytes(keys)
+
+    const rebuilt = rebuild({
+        keys: memory.borrowU8Range(bytes, 0, current * sha256_digest_width),
+        buckets,
+        capacity: memory.u32BufferLength(buckets)
+    })
+}

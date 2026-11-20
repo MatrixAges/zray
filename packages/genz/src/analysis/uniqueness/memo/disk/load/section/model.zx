@@ -1,15 +1,9 @@
-import type { Table } from "core/bytes/index/digest/model"
-import type { U32Buffer, WriteColumn } from "memory"
+import type { WriteColumn } from "memory"
 import type { WriteColumn as ListTarget } from "memory/columns"
 import type { PlanWrites } from "../../../../replay/shortcut/model"
+import type { Index } from "../../../table/model"
 import type { Input, Span } from "../../model"
 import type { Demand, Settlement } from "../model"
-
-export type Index = {
-    lookup: Table,
-    keys: WriteColumn,
-    used: U32Buffer
-}
 
 export type Section = Input & Span.Pick("start", "count") & {
     index: Index

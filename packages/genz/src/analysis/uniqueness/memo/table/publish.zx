@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import claim from "./claim"
+import complete from "./complete"
+
+import type { Publication as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { index, digest, values, value } = in
+
+    const used = memory.readU32(index.used, 0)
+
+    const row = claim({
+        index,
+        digest,
+        used
+    })
+
+    memory.copyColumnValue(values, row, value)
+
+    const completed = complete({
+        target: index.used,
+        used,
+        row
+    })
+}

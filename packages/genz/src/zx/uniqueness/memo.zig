@@ -227,6 +227,7 @@ pub fn getFlowed(self: *const Self, key: Digest) ?Flowed {
 
 /// Keeps the flow `getFlowed` found for a later run.
 pub fn keepFlowed(self: *Self, key: Digest) void {
+    if (generated_encoding) return self.flowed.keep(key);
     if (self.flowed.getPtr(key)) |entry| entry.used = true;
 }
 
@@ -244,6 +245,8 @@ pub fn putFlowed(self: *Self, key: Digest, held: []const bool, text_held: []cons
 }
 
 fn use(comptime Value: type, map: *Table(Value), key: Digest) ?Value {
+    if (generated_encoding) return map.use(key);
+
     const entry = map.getPtr(key) orelse return null;
 
     entry.used = true;
@@ -389,7 +392,7 @@ pub fn stale(self: *const Self) bool {
 
     inline for (.{ &self.settled, &self.demanded, &self.planned, &self.flowed }) |map| {
         if (generated_encoding) {
-            for (map.values.items) |entry| if (!entry.used) return true;
+            if (map.hasUnused()) return true;
         } else {
             var values = map.iterator();
 

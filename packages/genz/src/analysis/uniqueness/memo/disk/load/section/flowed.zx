@@ -1,8 +1,8 @@
 import memory from "memory"
 
+import claim from "../../../table/claim"
+import complete from "../../../table/complete"
 import decode from "../flow.rx"
-import claim from "./claim"
-import complete from "./complete"
 
 import type { FlowedSection as Input } from "./model"
 

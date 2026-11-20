@@ -1,0 +1,20 @@
+import integers from "std:integer"
+import exchange from "core/bytes/index/digest/exchange"
+import memory from "memory"
+
+import type { Hit as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const row = exchange({
+        ...in.omit(["used"]),
+        insert: null
+    })
+
+    if (row != null) {
+        memory.writeColumnBool(in.used, integers.widen(row), true)
+    }
+
+    return row
+}

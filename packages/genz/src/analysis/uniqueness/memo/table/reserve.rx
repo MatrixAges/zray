@@ -1,0 +1,20 @@
+<Module>
+    <Type from="model" as="Table" />
+
+    <Args in={Table.Reserve} out={u64} />
+
+    <Call fn="allocate" in={$in} />
+
+    <If on={$in.current != 0}>
+        <Call
+            fn="rehash"
+            in={$in.pick([
+                "keys",
+                "buckets",
+                "current"
+            ])}
+        />
+    </If>
+
+    <Return value={$ctx.allocate} />
+</Module>

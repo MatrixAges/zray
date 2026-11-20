@@ -1,10 +1,13 @@
 const std = @import("std");
-const columns = @import("zx").columns;
+const zx = @import("zx");
+const columns = zx.columns;
 const generated = @import("genz_options").generated_analysis;
 const Digest = @import("../memo.zig").Digest;
-const capacity = @import("generated_uniqueness_memo_capacity");
 const exchange = @import("generated_uniqueness_memo_exchange");
-const rebuild = @import("generated_uniqueness_memo_rebuild");
+const touching = @import("generated_uniqueness_memo_touch");
+const unused = @import("generated_uniqueness_memo_unused");
+const publication = @import("table/publication.zig");
+const reserve = @import("table/reserve.zig");
 const Error = std.mem.Allocator.Error;
 
 pub fn Table(comptime Value: type) type {
@@ -13,6 +16,7 @@ pub fn Table(comptime Value: type) type {
     return struct {
         const Self = @This();
         pub const empty: Self = .{};
+        pub const Publication = publication.Frame;
 
         keys: std.ArrayList(Digest) = .empty,
         values: std.ArrayList(Value) = .empty,
@@ -25,78 +29,61 @@ pub fn Table(comptime Value: type) type {
         }
 
         pub fn get(self: *const Self, key: Digest) ?Value {
-            const row = self.rowFor(&key, null) orelse return null;
+            const row = self.rowFor(&key) orelse return null;
 
             return self.values.items[row];
         }
-        pub fn getPtr(self: *Self, key: Digest) ?*Value {
-            const row = self.rowFor(&key, null) orelse return null;
+        pub fn use(self: *Self, key: Digest) ?Value {
+            const row = self.touch(key) orelse return null;
 
-            return &self.values.items[row];
+            return self.values.items[row];
+        }
+        pub fn keep(self: *Self, key: Digest) void {
+            _ = self.touch(key);
         }
 
         pub fn contains(self: *const Self, key: Digest) bool {
-            return self.rowFor(&key, null) != null;
+            return self.rowFor(&key) != null;
         }
         pub fn put(self: *Self, allocator: std.mem.Allocator, key: Digest, value: Value) Error!void {
             try self.ensureUnusedCapacity(allocator, 1);
 
-            self.putAssumeCapacity(key, value);
-        }
-
-        pub fn putAssumeCapacity(self: *Self, key: Digest, value: Value) void {
-            const insert: u32 = @intCast(self.keys.items.len);
-            const row = self.rowFor(&key, insert);
-
-            if (row) |existing| {
-                self.values.items[existing] = value;
-
-                return;
-            }
-
-            self.keys.appendAssumeCapacity(key);
-            self.values.appendAssumeCapacity(value);
+            publication.put(self, &key, &value);
         }
         pub fn ensureUnusedCapacity(self: *Self, allocator: std.mem.Allocator, additional: u32) Error!void {
-            const needed = std.math.add(u32, @intCast(self.keys.items.len), additional) catch return error.OutOfMemory;
+            if (additional <= self.limit - self.keys.items.len) return;
 
-            if (needed <= self.limit) return;
-
-            const size = try capacity.executeValue(allocator, needed);
-            const length = std.math.cast(usize, size.capacity) orelse return error.OutOfMemory;
-            const limit: usize = @intCast(size.limit);
-
-            try self.keys.ensureTotalCapacityPrecise(allocator, limit);
-            try self.values.ensureTotalCapacityPrecise(allocator, limit);
-
-            const buckets = try allocator.alloc(u32, length);
-
-            @memset(buckets, 0);
-
-            if (self.keys.items.len != 0) {
-                const input: std.meta.Child(rebuild.Input) = .{
-                    .keys = std.mem.sliceAsBytes(self.keys.items),
-                    .buckets = @ptrCast(&buckets),
-                    .capacity = length,
-                };
-
-                var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-                _ = columns.invoke(rebuild.executeValue, scratch.allocator(), &input) catch unreachable;
-            }
-
-            allocator.free(self.buckets);
-
-            self.buckets = buckets;
-            self.limit = limit;
+            return reserve.grow(self, allocator, additional);
         }
-        fn rowFor(self: *const Self, key: *const Digest, insert: ?u32) ?u32 {
+        pub fn hasUnused(self: *const Self) bool {
+            const used = zx.memory.borrowReadColumn(bool, "used", self.values.items);
+            const input: std.meta.Child(unused.Input) = .{ .count = self.values.items.len, .used = @ptrCast(&used) };
+            var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+            return columns.invoke(unused.executeValue, scratch.allocator(), &input) catch unreachable;
+        }
+        fn touch(self: *Self, key: Digest) ?u32 {
+            const used = publication.writeColumn(self.values.items, "used");
+
+            const input: std.meta.Child(touching.Input) = .{
+                .keys = std.mem.sliceAsBytes(self.keys.items),
+                .buckets = @ptrCast(&self.buckets),
+                .capacity = self.buckets.len,
+                .key = &key,
+                .used = @ptrCast(&used),
+            };
+
+            var scratch = std.heap.FixedBufferAllocator.init(&.{});
+
+            return columns.invoke(touching.executeValue, scratch.allocator(), &input) catch unreachable;
+        }
+        fn rowFor(self: *const Self, key: *const Digest) ?u32 {
             const input: std.meta.Child(exchange.Input) = .{
                 .keys = std.mem.sliceAsBytes(self.keys.items),
                 .buckets = @ptrCast(&self.buckets),
                 .capacity = self.buckets.len,
                 .key = key,
-                .insert = insert,
+                .insert = null,
             };
 
             var scratch = std.heap.FixedBufferAllocator.init(&.{});

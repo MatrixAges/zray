@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { Usage as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { used, count } = in
+
+    return loop({
+        index: 0,
+        unused: false
+    }, {
+        while: state => !state.unused && state.index < count,
+        next: state => {
+            state.unused = !memory.readColumnBool(used, state.index)
+            state.index += 1
+        },
+        return: state => state.unused
+    })
+}
