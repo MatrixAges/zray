@@ -9,6 +9,7 @@ export type Index = Group
 export type Effects = {
     kind: Role[],
     limit: u32[],
+    return_only: bool[],
     borrow_only: bool[]
 }
 

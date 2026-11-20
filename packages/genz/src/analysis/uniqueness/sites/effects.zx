@@ -69,6 +69,7 @@ export default function (in: Input): Output {
     return {
         kind: result.kinds,
         limit: result.limits,
+        return_only: in.return_only,
         borrow_only: result.borrow_only
     }
 }

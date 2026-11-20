@@ -99,12 +99,13 @@ fn eligible(source: *const Seed, site: Site) bool {
 
     const callee = @backingInt(source.expressions.get(@fromBackingInt(site.parent)).value.call.function);
 
-    if (!borrowOnly(source, callee) or !known(source, site, callee)) return false;
+    if (!source.summaries.return_only[callee] or !known(source, site, callee)) return false;
 
     const first: usize = @intCast(@as(i64, site.lo) + site.delta);
     const end: usize = @intCast(@as(i64, site.hi) + site.delta);
 
-    if (std.mem.indexOfScalar(bool, source.summaries.held[callee][first..end], true) == null) return false;
+    if (std.mem.indexOfScalar(bool, source.summaries.written[callee][first..end], true) != null or
+        std.mem.indexOfScalar(bool, source.summaries.held[callee][first..end], true) == null) return false;
 
     const result = source.nodeRoot(@fromBackingInt(site.parent));
 
@@ -127,11 +128,12 @@ fn observes(source: *const Seed, site: Site) bool {
 
     const callee = @backingInt(parent.call.function);
 
-    if (!borrowOnly(source, callee) or !known(source, site, callee)) return false;
-    if (role == .observe) return true;
+    if (!source.summaries.return_only[callee] or !known(source, site, callee)) return false;
+    if (role == .observe and borrowOnly(source, callee)) return true;
 
     const first: usize = @intCast(@as(i64, site.lo) + site.delta);
     const end: usize = @intCast(@as(i64, site.hi) + site.delta);
 
-    return std.mem.indexOfScalar(bool, source.summaries.held[callee][first..end], true) == null;
+    return std.mem.indexOfScalar(bool, source.summaries.held[callee][first..end], true) == null and
+        std.mem.indexOfScalar(bool, source.summaries.written[callee][first..end], true) == null;
 }

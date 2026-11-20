@@ -3,8 +3,8 @@ import { max_u32 } from "core/const"
 import { ExpressionKind } from "core/expression_table/kinds"
 
 import { Role } from "../../order/model"
+import hasEffect from "./has_effect"
 import observes from "./observes"
-import retains from "./retains"
 
 import type { Selected as Input } from "./model"
 
@@ -27,25 +27,37 @@ export default function (in: Input): Output {
 
     const payload = integers.widen(expressions.payloads[parent])
     const callee = integers.widen(expressions.call_functions[payload])
+    const effects = input.source.effects
 
-    if (!input.source.effects.borrow_only[callee]) {
+    if (!effects.return_only[callee]) {
         return false
     }
 
     const first = integers.widenSigned(site.lo) + site.delta
     const end = integers.widenSigned(site.hi) + site.delta
-    const held = input.source.held[callee]
-
-    const limit = integers.widenSigned(input.source.effects.limit[callee])
+    const limit = integers.widenSigned(effects.limit[callee])
 
     if (first < 0 || end > limit) {
         return false
     }
 
-    if (!retains({
-        held,
+    const range = {
         first: integers.narrowSigned(first),
         end: integers.narrowSigned(end)
+    }
+
+    const held = hasEffect({
+        ...range,
+        slots: input.source.held[callee]
+    })
+
+    if (!held) {
+        return false
+    }
+
+    if (!effects.borrow_only[callee] && hasEffect({
+        ...range,
+        slots: input.source.written[callee]
     })) {
         return false
     }

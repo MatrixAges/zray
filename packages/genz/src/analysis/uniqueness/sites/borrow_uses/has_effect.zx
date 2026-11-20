@@ -1,7 +1,7 @@
 import integers from "std:integer"
 
 export type Input = {
-    held: bool[],
+    slots: bool[],
     first: u32,
     end: u32
 }
@@ -15,7 +15,7 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.found && state.slot < integers.widen(in.end),
         next: state => {
-            state.found = in.held[state.slot]
+            state.found = in.slots[state.slot]
             state.slot += 1
         },
         return: state => state.found
