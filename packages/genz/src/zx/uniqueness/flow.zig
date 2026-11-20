@@ -27,7 +27,7 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
     const temporary = scratch.allocator();
     const self = try @import("flow/initial.zig").create(allocator, program, slots, texts);
 
-    if (try @import("flow/layers/root.zig").build(temporary, program.functions)) |found| {
+    if (try @import("flow/layers/root.zig").build(temporary, &program.functions, self.held, memo != null)) |found| {
         const remembered: ?Remembered = if (memo) |value| .{
             .memo = value,
             .types = types,
@@ -36,7 +36,7 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
             .found = try temporary.alloc(bool, count),
         } else null;
 
-        try self.layered(program, slots, found, remembered);
+        try self.layered(&program.functions, slots, found, remembered);
     } else if (generated_analysis) {
         try @import("flow/fixpoint.zig").settle(self, temporary, workspace, program.functions, slots);
     } else try self.settleSeed(temporary, program, slots);
@@ -55,8 +55,8 @@ const Remembered = struct {
     keys: []Memo.Digest,
     found: []bool,
     /// The key of a body: its content within the types, and the summaries of each function it calls.
-    fn key(self: Remembered, flow: Self, function: ir.Function, index: usize) Memo.Digest {
-        if (generated_analysis) return @import("flow/key.zig").build(flow, function, &self.types, &self.contents[index]);
+    fn key(self: Remembered, flow: Self, expressions: *const ir.ExpressionTable, index: usize) Memo.Digest {
+        if (generated_analysis) return @import("flow/key.zig").build(flow, expressions.call_functions, &self.types, &self.contents[index]);
 
         var hash = @import("zx").Sha256.init(.{});
         var result: Memo.Digest = undefined;
@@ -65,8 +65,8 @@ const Remembered = struct {
         hash.update(&self.types);
         hash.update(&self.contents[index]);
 
-        for (function.expressions.kinds, 0..) |_, expression| {
-            const callee = @backingInt(function.expressions.callee(expression) orelse continue);
+        for (expressions.kinds, 0..) |_, expression| {
+            const callee = @backingInt(expressions.callee(expression) orelse continue);
 
             hash.update(std.mem.asBytes(&@as(u32, @intCast(flow.held[callee].len))));
             hash.update(std.mem.sliceAsBytes(flow.held[callee]));
@@ -81,7 +81,7 @@ const Remembered = struct {
     }
 };
 
-fn layered(self: Self, program: ir.Program, slots: Slots, found: Layers, remembered: ?Remembered) std.mem.Allocator.Error!void {
+fn layered(self: Self, functions: *const ir.FunctionTable, slots: Slots, found: Layers, remembered: ?Remembered) std.mem.Allocator.Error!void {
     if (found.order.len == 0) return;
 
     const width = @import("zx").parallel.width();
@@ -89,12 +89,15 @@ fn layered(self: Self, program: ir.Program, slots: Slots, found: Layers, remembe
 
     defer std.heap.page_allocator.free(walkers);
 
-    for (walkers) |*walker| walker.* = .{ .bodies = .init(std.heap.page_allocator), .lasting = .init(std.heap.page_allocator) };
+    for (walkers) |*walker| walker.* = .{
+        .bodies = if (generated_analysis) {} else .init(std.heap.page_allocator),
+        .lasting = .init(std.heap.page_allocator),
+    };
 
     defer for (walkers) |*walker| {
         if (walker.walk) |*walk| walk.deinit();
+        if (!generated_analysis) walker.bodies.deinit();
 
-        walker.bodies.deinit();
         walker.lasting.deinit();
     };
 
@@ -103,9 +106,9 @@ fn layered(self: Self, program: ir.Program, slots: Slots, found: Layers, remembe
     for (found.ends) |boundary| {
         const end: usize = @intCast(boundary);
 
-        if (start == end) continue;
+        if (!generated_analysis and start == end) continue;
 
-        var layer = Layer{ .flow = self, .program = program, .slots = slots, .functions = found.order[start..end], .walkers = walkers, .remembered = remembered };
+        var layer = Layer{ .flow = self, .table = functions, .slots = slots, .functions = found.order[start..end], .walkers = walkers, .remembered = remembered };
 
         start = end;
 
@@ -116,18 +119,22 @@ fn layered(self: Self, program: ir.Program, slots: Slots, found: Layers, remembe
         const kept = remembered orelse continue;
 
         for (layer.functions) |index| {
-            if (!generated_analysis and program.functions.native_modules[index] != null) continue;
+            if (!generated_analysis and functions.native_modules[index] != null) continue;
             if (kept.found[index]) kept.memo.keepFlowed(kept.keys[index]) else try kept.memo.putFlowed(kept.keys[index], self.held[index], self.text_held[index], self.written[index]);
         }
     }
 }
 
-const Walker = struct { bodies: std.heap.ArenaAllocator, lasting: std.heap.ArenaAllocator, walk: ?Walk = null };
+const Walker = struct {
+    bodies: if (generated_analysis) void else std.heap.ArenaAllocator,
+    lasting: std.heap.ArenaAllocator,
+    walk: ?Walk = null,
+};
 
 /// Walks the bodies of one layer, each participant with its own arenas.
 const Layer = struct {
     flow: Self,
-    program: ir.Program,
+    table: *const ir.FunctionTable,
     slots: Slots,
     functions: []const u32,
     walkers: []Walker,
@@ -154,12 +161,10 @@ const Layer = struct {
         }
     }
     fn step(self: *Layer, walker: *Walker, index: u32) std.mem.Allocator.Error!void {
-        if (!generated_analysis and self.program.functions.native_modules[index] != null) return;
-
-        const function = self.program.functions.at(index);
+        if (!generated_analysis and self.table.native_modules[index] != null) return;
 
         if (self.remembered) |kept| {
-            const key = kept.key(self.flow, function, index);
+            const key = kept.key(self.flow, self.table.expressions[index], index);
 
             kept.keys[index] = key;
 
@@ -173,6 +178,8 @@ const Layer = struct {
         }
 
         if (self.flow.held[index].len == 0) return;
+
+        const function = self.table.at(index);
 
         if (generated_analysis) {
             _ = try walker.walk.?.visit(index, &function, null);

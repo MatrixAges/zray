@@ -26,7 +26,7 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
     const contents = if (kept != null) try @import("identity.zig").contents(allocator, &program) else &.{};
     const types: [32]u8 = if (kept != null) @import("identity.zig").types(program.types) else @splat(0);
     const flow = try Flow.create(allocator, workspace, program, slots, built.texts, contents, types, kept);
-    const return_only = try @import("return_only.zig").create(allocator, workspace, program);
+    const return_only = try @import("return_only.zig").create(allocator, program);
 
     const effects = if (generated)
         analyzing_effects.executeIn(allocator, &.{ .held = flow.held, .written = flow.written, .return_only = return_only }) catch |err| switch (err) {

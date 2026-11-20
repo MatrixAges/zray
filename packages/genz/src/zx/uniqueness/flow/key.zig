@@ -5,7 +5,7 @@ const generated = @import("generated_uniqueness_flow_key");
 const Flow = @import("../flow.zig");
 const Input = std.meta.Child(generated.Input);
 
-pub fn build(flow: Flow, function: zx.ir.Function, types: *const [32]u8, content: *const [32]u8) [32]u8 {
+pub fn build(flow: Flow, callees: []const u32, types: *const [32]u8, content: *const [32]u8) [32]u8 {
     var hash: zx.Sha256 = undefined;
     const hash_state = zx.Sha256State{ .value = &hash };
 
@@ -13,9 +13,7 @@ pub fn build(flow: Flow, function: zx.ir.Function, types: *const [32]u8, content
         .hash = @ptrCast(&hash_state),
         .types = types,
         .content = content,
-        .kinds = zx.columns.slice(@FieldType(Input, "kinds"), function.expressions.kinds),
-        .payloads = function.expressions.payloads,
-        .call_functions = function.expressions.call_functions,
+        .call_functions = callees,
         .held = @ptrCast(flow.held),
         .text_held = @ptrCast(flow.text_held),
         .written = @ptrCast(flow.written),

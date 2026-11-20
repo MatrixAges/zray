@@ -21,7 +21,7 @@ export default function (in: Input): Output {
 
             if (memory.readU8(queued, state.body) != unlisted) {
                 row({
-                    table: expressions[state.body],
+                    calls: expressions[state.body].call_functions,
                     caller: integers.narrow(state.body),
                     first,
                     items,

@@ -700,6 +700,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/function/prepare/build.rx", .name = "uniqueness_function_prepare", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/prepare/publish.zx", .name = "uniqueness_function_publish", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/flow/body/build.rx", .name = "uniqueness_flow_facts", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/flow/body/save.zx", .name = "uniqueness_flow_save_facts", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/flow/body/visit.rx", .name = "uniqueness_flow_visit", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/flow/memo/adopt.rx", .name = "uniqueness_flow_adopt", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/flow/fixpoint/create.rx", .name = "uniqueness_flow_queue", .owner = .genz },

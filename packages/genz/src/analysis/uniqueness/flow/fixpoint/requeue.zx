@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import { queued, unlisted } from "./const"
+import { queued, retained_queued, retained_unlisted, unlisted } from "./const"
 
 import type { Advance as Input } from "./model"
 
@@ -26,8 +26,15 @@ export default function (in: Input): Output {
             const caller = in.items[state.position]
             const index = integers.widen(caller)
 
-            if (memory.readU8(in.queued, index) == unlisted) {
-                memory.writeU8(in.queued, index, queued)
+            const status = memory.readU8(in.queued, index)
+            const next = match status {
+                unlisted => queued,
+                retained_unlisted => retained_queued,
+                _ => status
+            }
+
+            if (next != status) {
+                memory.writeU8(in.queued, index, next)
                 memory.writeU32(in.indices, state.count, caller)
                 state.count += 1
             }

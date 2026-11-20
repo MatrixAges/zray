@@ -1,44 +1,32 @@
 import integers from "std:integer"
-import { ExpressionKind } from "core/expression_table/kinds"
 import memory from "memory"
 
-import type { Expressions } from "core/expression_table/model"
 import type { Edges } from "./model"
 
 export type Input = Edges.Pick("first", "items", "fill") & {
-    table: Expressions,
+    calls: u32[],
     caller: u32
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    loop({
-        source: in,
-        index: in.table.kinds.length
+    const result = loop({
+        index: in.calls.length
     }, {
         while: row => row.index != 0,
         next: row => {
             row.index -= 1
 
-            const { table, first, items, fill, caller } = row.source
+            const { calls, first, items, fill, caller } = in
+            const target = integers.widen(calls[row.index])
+            const end = memory.readU64(first, target)
 
-            if (table.kinds[row.index] == ExpressionKind.Call) {
-                const payload = integers.widen(table.payloads[row.index])
-                const target =
-                    integers.widen(table.call_functions[payload])
-                const end = memory.readU64(first, target)
-
-                if (!fill) {
-                    memory.writeU64(first, target, end + 1)
-                } else {
-                    memory.writeU64(first, target, end - 1)
-                    memory.writeU32(
-                        items,
-                        end - 1,
-                        caller
-                    )
-                }
+            if (fill) {
+                memory.writeU64(first, target, end - 1)
+                memory.writeU32(items, end - 1, caller)
+            } else {
+                memory.writeU64(first, target, end + 1)
             }
         }
     })

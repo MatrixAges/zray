@@ -5,6 +5,13 @@ export type Functions = {
     expressions: Expressions[]
 }
 
+export type Selection = Functions.Pick("native_modules") & {
+    held: bool[][],
+    remembered: bool
+}
+
+export type Planning = Functions & Selection
+
 export type Depths = {
     values: u32[],
     maximum: u32,

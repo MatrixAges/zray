@@ -1,0 +1,15 @@
+import type { Selection } from "./model"
+
+export type Input = Selection & {
+    index: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (in.native_modules[in.index] != null) {
+        return false
+    }
+
+    return in.remembered || in.held[in.index].length != 0
+}

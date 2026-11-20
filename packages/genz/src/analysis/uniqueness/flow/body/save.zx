@@ -1,0 +1,31 @@
+import type { Definition } from "../../order/model"
+import type { Facts } from "./model"
+
+export type Input = Facts
+
+export type Output = Facts
+
+export default function (in: Input): Output {
+    const { definitions, prepared } = in
+
+    const flags: bool[] = []
+    const kinds: Definition[] = []
+    const words: u32[] = []
+    const wide: u64[] = []
+
+    return {
+        seen: flags.concat(in.seen)[0],
+        definitions: {
+            kind: kinds.concat(definitions.kind)[0],
+            value: words.concat(definitions.value)[0],
+            index: words.concat(definitions.index)[0]
+        },
+        results: words.concat(in.results)[0],
+        prepared: {
+            first: words.concat(prepared.first)[0],
+            elements: words.concat(prepared.elements)[0],
+            objects: words.concat(prepared.objects)[0],
+            object_first: wide.concat(prepared.object_first)[0]
+        }
+    }
+}

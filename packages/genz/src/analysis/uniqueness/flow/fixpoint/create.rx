@@ -49,5 +49,13 @@
         }}
     />
 
+    <Call
+        fn="retention"
+        in={$in.pick([
+            "expressions",
+            "queued"
+        ])}
+    />
+
     <Return value={$ctx.seed} />
 </Module>

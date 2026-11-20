@@ -1,9 +1,15 @@
 <Module>
     <Type from="model" as="Layers" />
 
-    <Args in={Layers.Functions} out={Layers.Plan?} />
+    <Args in={Layers.Planning} out={Layers.Plan?} />
 
-    <Call fn="depths" in={$in} />
+    <Call
+        fn="depths"
+        in={$in.pick([
+            "expressions",
+            "native_modules"
+        ])}
+    />
 
     <If on={!$ctx.depths.ordered}>
         <Return value={null} />
@@ -13,7 +19,7 @@
         fn="counts"
         in={{
             ...$ctx.depths.omit(["ordered"]),
-            native_modules: $in.native_modules
+            selection: $in.omit(["expressions"])
         }}
     />
 
@@ -24,9 +30,16 @@
         in={{
             depths: $ctx.depths.values,
             starts: $ctx.offsets,
-            native_modules: $in.native_modules
+            selection: $in.omit(["expressions"])
         }}
     />
 
-    <Return value={$ctx.ordering} />
+    <Call fn="nonempty" in={$ctx.ordering.ends} />
+
+    <Return
+        value={{
+            order: $ctx.ordering.order,
+            ends: $ctx.nonempty
+        }}
+    />
 </Module>

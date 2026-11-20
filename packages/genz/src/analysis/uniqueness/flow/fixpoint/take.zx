@@ -1,29 +1,31 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import { unlisted } from "./const"
+import { retained_queued, retained_unlisted, unlisted } from "./const"
 
-import type { Stack, Visit as Output } from "./model"
+import type { Advance, Visit as Output } from "./model"
 
-export type Input = Stack & {
-    count: u64
-}
+export type Input = Advance.Pick("indices", "queued", "count")
 
 export default function (in: Input): Output {
     if (in.count == 0) {
         return {
             count: 0,
-            index: null
+            index: null,
+            retain: false
         }
     }
 
     const count = in.count - 1
     const index = memory.readU32(in.indices, count)
+    const body = integers.widen(index)
+    const retain = memory.readU8(in.queued, body) == retained_queued
 
-    memory.writeU8(in.queued, integers.widen(index), unlisted)
+    memory.writeU8(in.queued, body, retain ? retained_unlisted : unlisted)
 
     return {
         count,
-        index
+        index,
+        retain
     }
 }

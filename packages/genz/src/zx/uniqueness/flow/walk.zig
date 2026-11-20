@@ -50,25 +50,35 @@ fn target(comptime Target: type, current: *const Current) Target {
     };
 }
 
-pub fn visit(self: *Self, index: u32, function: *const ir.Function, saved: ?*const Body) std.mem.Allocator.Error!bool {
+fn workspace(self: *Self) std.mem.Allocator {
     if (self.scratch == null) self.scratch = .init(self.allocator);
 
     const scratch = &self.scratch.?;
 
     _ = scratch.reset(.retain_capacity);
 
+    return scratch.allocator();
+}
+
+pub fn keep(self: *Self, owner: std.mem.Allocator, function: *const ir.Function) std.mem.Allocator.Error!*const Body.Facts {
+    return Body.keep(owner, self.workspace(), function, self.slots);
+}
+
+pub fn visit(self: *Self, index: u32, function: *const ir.Function, saved: ?*const Body.Facts) std.mem.Allocator.Error!bool {
     const slots = self.slots;
     const layout = Layout{ .offsets = slots.offsets, .members = @ptrCast(slots.members), .unwrapped = @ptrCast(slots.unwrapped) };
     const environment = Environment{ .layout = &layout, .type_kinds = slots.types.kinds, .type_first = slots.types.first, .counts = slots.counts };
     const source = Body.source(std.meta.Child(@FieldType(Input, "source")), function);
-    const facts = if (saved) |body| body.view() else undefined;
     const current = self.row(index);
 
     const input: Input = .{
         .function_index = index,
         .source = &source,
         .environment = &environment,
-        .facts = if (saved != null) &facts else null,
+        .facts = if (saved) |facts|
+            zx.columns.pointer(std.meta.Child(@FieldType(Input, "facts")), facts)
+        else
+            null,
         .held = self.flow.held,
         .text_held = self.flow.text_held,
         .written = self.flow.written,
@@ -76,7 +86,7 @@ pub fn visit(self: *Self, index: u32, function: *const ir.Function, saved: ?*con
         .target = &target(std.meta.Child(@FieldType(Input, "target")), &current),
     };
 
-    return zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
+    return zx.columns.invoke(generated.executeValue, self.workspace(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };

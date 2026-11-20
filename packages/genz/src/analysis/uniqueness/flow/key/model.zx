@@ -1,12 +1,9 @@
 import type { Sha256State } from "std:crypto"
-import type { ExpressionKind } from "core/expression_table/kinds"
 
 export type Input = {
     hash: Sha256State,
     types: u8[],
     content: u8[],
-    kinds: ExpressionKind[],
-    payloads: u32[],
     call_functions: u32[],
     held: u8[][],
     text_held: u8[][],

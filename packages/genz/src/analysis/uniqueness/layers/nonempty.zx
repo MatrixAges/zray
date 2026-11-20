@@ -1,0 +1,29 @@
+import memory from "memory"
+
+export type Input = u64[]
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const result = loop({
+        ends: in,
+        next: 0,
+        count: 0,
+        previous: 0
+    }, {
+        while: state => state.next < state.ends.length,
+        next: state => {
+            const end = state.ends[state.next]
+
+            if (end != state.previous) {
+                state.ends[state.count] = end
+                state.count += 1
+                state.previous = end
+            }
+
+            state.next += 1
+        }
+    })
+
+    return memory.borrowU64Range(result.ends, 0, result.count)
+}

@@ -26,5 +26,6 @@ export type Advance = Stack & {
 
 export type Visit = {
     count: u64,
-    index?: u32
+    index?: u32,
+    retain: bool
 }

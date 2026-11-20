@@ -1,0 +1,43 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { queued, retained_queued, unlisted } from "./const"
+
+import type { Input as Queue } from "./model"
+
+export type Input = Queue.Pick("expressions", "queued")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const result = loop({
+        index: 0
+    }, {
+        while: state => state.index < in.expressions.length,
+        next: state => {
+            const index = state.index
+
+            if (memory.readU8(in.queued, index) == queued) {
+                const calls = in.expressions[index].call_functions
+                const revisit = calls.some(
+                    callee => {
+                        const target = integers.widen(callee)
+                        const status = memory.readU8(in.queued, target)
+
+                        return match status {
+                            unlisted => false,
+                            retained_queued => true,
+                            _ => target >= index
+                        }
+                    }
+                )
+
+                if (revisit) {
+                    memory.writeU8(in.queued, index, retained_queued)
+                }
+            }
+
+            state.index += 1
+        }
+    })
+}

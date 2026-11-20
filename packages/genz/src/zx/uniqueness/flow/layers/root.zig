@@ -4,8 +4,8 @@ const ir = zx.ir;
 
 pub const Plan = struct { order: []const u32, ends: []const u64 };
 
-pub fn build(allocator: std.mem.Allocator, functions: ir.FunctionTable) std.mem.Allocator.Error!?Plan {
-    if (!@import("genz_options").generated_analysis) return @import("seed.zig").build(Plan, allocator, functions);
+pub fn build(allocator: std.mem.Allocator, functions: *const ir.FunctionTable, held: []const []const bool, remembered: bool) std.mem.Allocator.Error!?Plan {
+    if (!@import("genz_options").generated_analysis) return @import("seed.zig").build(Plan, allocator, functions.*);
 
     const generated = @import("generated_uniqueness_layers");
     const Input = std.meta.Child(generated.Input);
@@ -13,6 +13,8 @@ pub fn build(allocator: std.mem.Allocator, functions: ir.FunctionTable) std.mem.
     const input: Input = .{
         .native_modules = functions.native_modules,
         .expressions = zx.columns.slice(@FieldType(Input, "expressions"), functions.expressions),
+        .held = held,
+        .remembered = remembered,
     };
 
     const output = (zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {

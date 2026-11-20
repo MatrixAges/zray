@@ -36,13 +36,9 @@ pub fn settle(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator
         else => unreachable,
     };
 
-    const bodies = try owner.alloc(?Body, size);
+    const bodies = try owner.alloc(?*const Body.Facts, size);
 
     @memset(bodies, null);
-
-    var temporary = std.heap.ArenaAllocator.init(workspace);
-
-    defer temporary.deinit();
 
     var walk = Walk{ .allocator = workspace, .flow = flow, .slots = slots };
 
@@ -63,14 +59,17 @@ pub fn settle(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator
         const next = zx.columns.invoke(advance.executeValue, empty.allocator(), &next_input) catch unreachable;
         const index = next.index orelse return;
         count = next.count;
-
         const function = functions.at(index);
+        var facts: ?*const Body.Facts = null;
 
-        if (bodies[index] == null) {
-            bodies[index] = try Body.keep(owner, temporary.allocator(), &function, slots);
-            _ = temporary.reset(.retain_capacity);
+        if (next.retain) {
+            if (bodies[index] == null) {
+                bodies[index] = try walk.keep(owner, &function);
+            }
+
+            facts = bodies[index];
         }
 
-        changed = if (try walk.visit(index, &function, &bodies[index].?)) index else null;
+        changed = if (try walk.visit(index, &function, facts)) index else null;
     }
 }

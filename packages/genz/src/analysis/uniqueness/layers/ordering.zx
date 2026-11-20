@@ -1,18 +1,21 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import type { Functions, Plan } from "./model"
+import includes from "./includes"
+
+import type { Plan, Selection } from "./model"
 
 export type Input = {
     depths: u32[],
-    starts: u64[]
-} & Functions.Pick("native_modules")
+    starts: u64[],
+    selection: Selection
+}
 
 export type Output = Plan
 
 export default function (in: Input): Output {
     const order: u32[] = in.depths.map(depth => 0)[0]
-    const native_modules = in.native_modules
+    const selection = in.selection
 
     const result = loop({
         depths: in.depths,
@@ -22,7 +25,10 @@ export default function (in: Input): Output {
     }, {
         while: current => current.index < current.depths.length,
         next: current => {
-            if (native_modules[current.index] == null) {
+            if (includes({
+                ...selection,
+                index: current.index
+            })) {
                 const depth = integers.widen(current.depths[current.index])
                 const position = current.ends[depth]
 

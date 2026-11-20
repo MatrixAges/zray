@@ -1,3 +1,7 @@
 export const queued: u8 = 1
 
 export const unlisted: u8 = 0
+
+export const retained_queued: u8 = 3
+
+export const retained_unlisted: u8 = 2
