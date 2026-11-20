@@ -1,0 +1,30 @@
+import integers from "std:integer"
+
+import { cases_lane, lane_count } from "../../control/const"
+import { Region } from "./model"
+
+import type { Config, Frame } from "./model"
+
+export type Input = Config
+
+export type Output = Config & {
+    frame: Frame
+}
+
+export default function (in: Input): Output {
+    const root = in.shape.units.firsts.length - 1
+    const first = integers.widen(in.shape.units.firsts[root])
+
+    return {
+        ...in,
+        frame: {
+            region: Region.Root,
+            block: integers.narrow(root),
+            position: first,
+            end: first + integers.widen(in.shape.units.counts[root]),
+            step: 0,
+            target: 0,
+            cases: in.layout[root * lane_count + cases_lane]
+        }
+    }
+}

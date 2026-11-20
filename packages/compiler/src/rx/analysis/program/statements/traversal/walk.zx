@@ -1,0 +1,123 @@
+import integers from "std:integer"
+
+import callEnd from "./call_end"
+import enter from "./enter"
+import { Action, Region } from "./model"
+import record from "./record"
+import step from "./step"
+
+import type { Output as Input } from "./initial"
+import type { Event, Frame, Schedule as Output } from "./model"
+
+export default function (in: Input): Output {
+    const parents: Frame[] = []
+    const events: Event[] = []
+    const shape = in.shape
+    const layout = in.layout
+    const borrow_root = in.borrow_root
+
+    return loop({
+        frame: in.frame,
+        parents,
+        events,
+        slots: 0,
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const frame = state.frame
+            const request = {
+                shape,
+                region: frame.region,
+                position: frame.position,
+                end: frame.end,
+                scope_step: frame.step,
+                case_first: frame.cases,
+                borrow_root
+            }
+
+            const position = callEnd(request)
+
+            if (frame.position < position) {
+                state.events = state.events.push({
+                    action: Action.Calls,
+                    block: frame.block,
+                    first: integers.narrow(frame.position),
+                    count: integers.narrow(position - frame.position),
+                    slot: 0,
+                    exhaustive: false
+                })[0]
+            }
+
+            const event = step({
+                ...request,
+                position
+            })
+
+            if (event.action == Action.Done) {
+                state.done = true
+            } else {
+                const opening = match event.action {
+                    Action.OpenTask => true,
+                    Action.OpenSelection => true,
+                    Action.OpenCase => true,
+                    _ => false
+                }
+
+                const depth = state.parents.length
+                const slot = opening || depth == 0 ? depth : depth - 1
+
+                state.events = state.events.push(record({
+                    units: shape.units,
+                    layout,
+                    frame,
+                    event,
+                    position,
+                    slot
+                }))[0]
+
+                if (opening) {
+                    state.parents = state.parents.push({
+                        ...frame,
+                        position: event.next
+                    })[0]
+                    state.frame = enter({
+                        parent: frame,
+                        event,
+                        position,
+                        layout
+                    })
+
+                    const depth = state.parents.length
+
+                    if (state.slots < depth) {
+                        state.slots = depth
+                    }
+                } else if (position == frame.end) {
+                    const parent = state.parents[depth - 1]
+
+                    const cases = match frame.region {
+                        Region.Case => parent.cases,
+                        Region.Selection => frame.cases + (event.count ?? 0),
+                        _ => frame.cases
+                    }
+
+                    state.parents = state.parents.pop()[0]
+                    state.frame = {
+                        ...parent,
+                        cases
+                    }
+                } else {
+                    state.frame = {
+                        ...frame,
+                        position: event.next
+                    }
+                }
+            }
+        },
+        return: state => state.pick([
+            "events",
+            "slots"
+        ])
+    })
+}

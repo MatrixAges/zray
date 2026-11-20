@@ -1,0 +1,23 @@
+import integers from "std:integer"
+
+import { lane_count, tag_lane } from "../../control/const"
+
+import type { Units } from "../../control/model"
+
+export type Input = {
+    units: Units,
+    layout: u32[],
+    unit: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const successor = integers.widen(in.unit) + 1
+
+    if (in.units.blocks[successor]) {
+        return integers.narrow(successor)
+    }
+
+    return in.layout[successor * lane_count + tag_lane]
+}

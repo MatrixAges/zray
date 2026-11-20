@@ -9,6 +9,7 @@ export enum Region {
 
 export enum Action {
     Done,
+    Calls,
     Parallel,
     Return,
     ReturnBorrowed,
@@ -24,7 +25,7 @@ export enum Action {
 
 export type Shape = {
     steps: Steps,
-    units: Units.Pick("firsts", "counts"),
+    units: Units,
     cases: u32[]
 }
 
@@ -48,7 +49,32 @@ export type Output = {
     exhaustive?: bool
 }
 
-export type Batch = Output & {
+export type Config = {
+    shape: Shape,
+    layout: u32[],
+    borrow_root: bool
+}
+
+export type Frame = {
+    region: Region,
+    block: u32,
     position: u64,
-    pop: bool
+    end: u64,
+    step: u64,
+    target: u32,
+    cases: u32
+}
+
+export type Event = {
+    action: Action,
+    block: u32,
+    first: u32,
+    count: u32,
+    slot: u32,
+    exhaustive: bool
+}
+
+export type Schedule = {
+    events: Event[],
+    slots: u64
 }

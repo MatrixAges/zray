@@ -183,7 +183,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/program/control/write/member.zx", .name = "rx_control_write_member", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/control/write/finish_block.zx", .name = "rx_control_finish_block", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/statements/plan.rx", .name = "rx_statement_schedule", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/program/statements/traversal/advance.rx", .name = "rx_statement_advance", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/program/statements/traversal/build.rx", .name = "rx_statement_schedule_body", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/store/read_slots.zx", .name = "rx_program_read_slots", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/store/bind.zx", .name = "rx_program_store_bind", .owner = .rx_analysis },
     .{ .path = "rx/analysis/program/functions/check.rx", .name = "rx_program_check_function", .owner = .rx_analysis },

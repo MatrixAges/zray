@@ -1,0 +1,43 @@
+import { Kind } from "../../control/model"
+import finish from "./finish"
+import { Action, Region } from "./model"
+import openCase from "./open_case"
+import openTask from "./open_task"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    if (in.position == in.end) {
+        return finish(in)
+    }
+
+    if (in.region == Region.Selection) {
+        return openCase(in)
+    }
+
+    const step = in.position
+    const steps = in.shape.steps
+
+    return match steps.kinds[step] {
+        Kind.Parallel => {
+            action: Action.Parallel,
+            next: step + 1,
+            first: steps.firsts[step],
+            count: steps.counts[step]
+        },
+        Kind.Return => {
+            action: match {
+                in.region == Region.Root && in.borrow_root => Action.ReturnBorrowed,
+                _ => Action.Return
+            },
+            next: step + 1
+        },
+        Kind.Task => openTask(in),
+        _ => {
+            action: Action.OpenSelection,
+            next: step + 1,
+            first: steps.firsts[step],
+            count: steps.counts[step]
+        }
+    }
+}

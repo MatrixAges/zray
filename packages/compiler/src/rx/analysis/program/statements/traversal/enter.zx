@@ -1,0 +1,42 @@
+import integers from "std:integer"
+
+import { cases_lane, lane_count } from "../../control/const"
+import { Action, Region } from "./model"
+
+import type { Frame, Output as Step } from "./model"
+
+export type Input = {
+    parent: Frame,
+    event: Step,
+    position: u64,
+    layout: u32[]
+}
+
+export type Output = Frame
+
+export default function (in: Input): Output {
+    const event = in.event
+    const parent = in.parent
+
+    const region = match event.action {
+        Action.OpenTask => Region.Task,
+        Action.OpenSelection => Region.Selection,
+        _ => Region.Case
+    }
+
+    const block = event.unit ?? parent.block
+    const position = integers.widen(event.first ?? 0)
+
+    return {
+        region,
+        block,
+        position,
+        end: position + integers.widen(event.count ?? 0),
+        step: in.position,
+        target: event.target ?? 0,
+        cases: match region {
+            Region.Case => in.layout[integers.widen(block) * lane_count + cases_lane],
+            _ => parent.cases
+        }
+    }
+}

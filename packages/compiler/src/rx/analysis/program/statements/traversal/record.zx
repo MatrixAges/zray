@@ -1,0 +1,50 @@
+import integers from "std:integer"
+
+import endUnit from "./end_unit"
+import { Action } from "./model"
+
+import type { Units } from "../../control/model"
+import type { Event, Frame, Output as Step } from "./model"
+
+export type Input = {
+    units: Units,
+    layout: u32[],
+    frame: Frame,
+    event: Step,
+    position: u64,
+    slot: u64
+}
+
+export type Output = Event
+
+export default function (in: Input): Output {
+    const event = in.event
+    const frame = in.frame
+    const position = integers.narrow(in.position)
+
+    const first = match event.action {
+        Action.Parallel => event.first ?? 0,
+        Action.EvaluateTask => integers.narrow(frame.step),
+        Action.BindTask => integers.narrow(frame.step),
+        Action.CloseCase => frame.target,
+        _ => position
+    }
+
+    const count = match event.action {
+        Action.CloseCase => endUnit({
+            units: in.units,
+            layout: in.layout,
+            unit: frame.block
+        }),
+        _ => event.count ?? 0
+    }
+
+    return {
+        action: event.action,
+        block: event.unit ?? frame.block,
+        first,
+        count,
+        slot: integers.narrow(in.slot),
+        exhaustive: event.exhaustive ?? false
+    }
+}
