@@ -23,44 +23,98 @@ const Layout = std.meta.Child(std.meta.Child(@FieldType(Destination, "shape")));
 const Request = std.meta.Child(@typeInfo(@FieldType(Binding, "source")).optional.child);
 const Source = std.meta.Child(@FieldType(Request, "source"));
 const Attributes = std.meta.Child(@FieldType(Source, "attributes"));
-const BodyHost = @import("../body/host.zig");
+const abi = @import("abi.zig");
+const NativeBinding = std.meta.Child(@typeInfo(@FieldType(Binding, "native")).optional.child);
+const Empty = std.meta.Child(@FieldType(abi.Input, "empty"));
+const view_budget = 64 * 1024;
 
-pub fn bind(self: *Builder, scratch: *std.heap.ArenaAllocator) Builder.Error!?BodyHost.Retained {
+pub fn bind(self: *Builder, setup: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, owned: *std.heap.ArenaAllocator) Builder.Error!?abi.Retained {
     var providers: dependencies.Providers = undefined;
-    var view: View = undefined;
+    var target: Target = undefined;
+    var inline_depths: [inline_depth_slots]u32 = undefined;
+    var scope: memory.ArenaScope = .{ .active = owned };
+    const order = self.plan.registration;
+    const capacity = @min(order.len, @max(1, view_budget / (@sizeOf(View) + @sizeOf(abi.Row))));
+    const views = try setup.alloc(View, capacity);
+    const rows = try setup.alloc(abi.Row, capacity);
 
     providers.init(self);
-    view.init(self);
+    target.init(self);
 
-    for (self.plan.dependencies) |row| {
-        _ = try view.bindOne(self, @intCast(row), &providers, false);
+    var input: abi.Input = .{
+        .rows = &.{},
+        .scope = @ptrCast(&scope),
+        .scratch = @ptrCast(scratch),
+        .owned = @ptrCast(owned),
+        .storage = @ptrCast(&target.writable),
+        .linked = @ptrCast(&self.module_functions),
+        .empty = &empty,
+    };
 
-        if (!scratch.reset(.retain_capacity)) return error.OutOfMemory;
+    var first: usize = 0;
+    var entry: ?abi.Retained = null;
+
+    while (first < order.len) {
+        const count = @min(capacity, order.len - first);
+
+        for (order[first..][0..count], views[0..count], rows[0..count]) |index, *view, *row| {
+            view.borrow(self, @intCast(index), &providers, &target.destination, &inline_depths);
+
+            view.record = .{ .module = index, .binding = &view.input };
+            row.* = &view.record;
+        }
+
+        input.rows = rows[0..count];
+        entry = try install(self, scope.allocator(), &input);
+        first += count;
     }
 
-    return view.bindOne(self, self.plan.entry, &providers, true);
+    return entry;
 }
 
-const View = struct {
-    input: Binding,
-    mappings: admission.Mappings,
-    admission_view: admission.View,
-    native_view: native.View,
-    dependency_view: dependencies.View,
-    signatures: SignatureView,
+fn install(self: *Builder, allocator: std.mem.Allocator, input: *const abi.Input) Builder.Error!?abi.Retained {
+    const result = abi.entry.executeIn(allocator, input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
+
+    switch (result.status) {
+        .Ready => {},
+        .Invalid => return error.InvalidModule,
+        .Conflict => return error.ConflictingInterface,
+        .Full => return error.OutOfMemory,
+    }
+
+    for (result.bodies) |patch| {
+        const index: usize = @intCast(patch.row);
+        const body = patch.entry.body;
+        const storage = &self.functions;
+
+        storage.symbols.items[index] = zx.columns.pointer(*const ir.SymbolTable, body.symbols);
+        storage.expressions.items[index] = zx.columns.pointer(*const ir.ExpressionTable, body.expressions);
+        storage.contracts.items[index] = zx.columns.pointer(*const ir.ContractTable, body.contracts);
+        storage.stores.items[index] = if (patch.entry.stores) |stores| zx.columns.pointer(*const ir.StoreTable, stores) else &ir.FunctionStorage.empty_stores;
+        storage.control.items[index] = if (body.control) |control| zx.columns.pointer(*const ir.ControlTable, control) else (ir.ControlBody{}).control;
+        storage.roots.items[index] = body.root;
+        storage.store_modes.items[index] = @fromBackingInt(@intCast(@backingInt(patch.entry.ports.store_mode)));
+    }
+
+    return result.entry;
+}
+
+const empty: Empty = .{
+    .symbols = @ptrCast(&ir.FunctionStorage.empty_symbols),
+    .expressions = @ptrCast(&ir.FunctionStorage.empty_expressions),
+    .contracts = @ptrCast(&ir.FunctionStorage.empty_contracts),
+    .control = @ptrCast((ir.ControlBody{}).control),
+    .stores = @ptrCast(&ir.FunctionStorage.empty_stores),
+};
+
+const Target = struct {
     write_slots: [@typeInfo(Layout).@"struct".field_names.len]*anyopaque,
     writable: memory.ColumnSet,
     destination: Destination,
-    buffer: [inline_depth_slots]u32,
-    scratch: memory.U32Scratch,
-    header: Header,
-    workspace: Workspace,
-    control: Control,
-    body: Body,
-    request: Request,
-    source: Source,
-    attributes: Attributes,
-    fn init(self: *View, builder: *Builder) void {
+    fn init(self: *Target, builder: *Builder) void {
         self.write_slots = memory.bindColumnSet(Layout, true, &builder.functions);
         self.writable = &self.write_slots;
 
@@ -71,9 +125,29 @@ const View = struct {
             .resource = @ptrCast(&builder.allocator),
         };
     }
-    fn bindOne(self: *View, builder: *Builder, index: usize, providers: *const dependencies.Providers, entry: bool) Builder.Error!?BodyHost.Retained {
+};
+
+const View = struct {
+    record: std.meta.Child(abi.Row),
+    input: Binding,
+    mappings: admission.Mappings,
+    admission_view: admission.View,
+    native_view: native.View,
+    native_binding: NativeBinding,
+    dependency_view: dependencies.View,
+    signatures: SignatureView,
+    scratch: memory.U32Scratch,
+    header: Header,
+    workspace: Workspace,
+    control: Control,
+    body: Body,
+    request: Request,
+    source: Source,
+    attributes: Attributes,
+    fn borrow(self: *View, builder: *Builder, index: usize, providers: *const dependencies.Providers, target: *const Destination, depths: []u32) void {
         const module = &builder.modules[index];
         const types: []const u32 = @ptrCast(builder.type_mappings[index]);
+        const entry = index == builder.plan.entry;
 
         self.mappings = .{ .functions = &.{}, .modules = &.{} };
 
@@ -81,11 +155,19 @@ const View = struct {
 
         const has_natives = module.native_modules.count() != 0;
 
-        if (has_natives) self.native_view.init(&builder.allocator, &builder.native_modules, module.native_modules, types, &self.mappings.modules);
+        if (has_natives) {
+            self.native_view.init(&builder.allocator, &builder.native_modules, module.native_modules, types, &self.mappings.modules);
+
+            self.native_binding = .{
+                .plan = zx.columns.pointer(@FieldType(NativeBinding, "plan"), self.native_view.input.plan.?),
+                .publication = zx.columns.pointer(@FieldType(NativeBinding, "publication"), self.native_view.input.publication),
+                .snapshot = @ptrCast(&self.native_view.base),
+            };
+        }
 
         const linked = module.function != null or module.functions.count() != 0;
 
-        self.scratch = .{ .allocator = builder.temporary, .items = &self.buffer };
+        self.scratch = .{ .allocator = builder.temporary, .items = depths };
 
         if (module.function) |*value| {
             self.header = .{ .path = module.path, .file_name = value.file_name, .external = value.external != null };
@@ -136,27 +218,22 @@ const View = struct {
             .stores = module.stores.count(),
             .slot = module.functions.count(),
             .target = @ptrCast(&self.mappings.functions),
-            .destination = if (linked) &self.destination else null,
+            .destination = if (linked) target else null,
             .control = if (module.function != null) &self.control else null,
         };
 
-        if (module.functions.count() != 0) self.signatures.init(builder, index, self, providers);
+        if (module.functions.count() != 0) self.signatures.init(builder, index, self, providers, target);
 
         self.dependency_view.init(builder, index, &self.mappings, providers);
 
         self.input = .{
             .admission = &self.admission_view.input,
-            .native = if (has_natives) &self.native_view.input else null,
+            .native = if (has_natives) &self.native_binding else null,
             .body = &self.body,
             .signatures = if (module.functions.count() != 0) &self.signatures.input else null,
             .dependencies = &self.dependency_view.input,
             .source = if (module.function != null) &self.request else null,
         };
-
-        const result = try dependencies.run(builder.temporary, &self.input);
-        const body = result.body orelse return null;
-
-        return BodyHost.publish(builder.allocator, &builder.functions, builder.module_functions, index, body);
     }
 };
 
@@ -173,7 +250,7 @@ const SignatureView = struct {
     readable: memory.ColumnSet,
     snapshot: Linked,
     registry: std.meta.Child(@FieldType(Input, "registry")),
-    fn init(self: *SignatureView, builder: *Builder, index: usize, view: *View, providers: *const dependencies.Providers) void {
+    fn init(self: *SignatureView, builder: *Builder, index: usize, view: *View, providers: *const dependencies.Providers, destination: *const Destination) void {
         const module = &builder.modules[index];
 
         self.edge_columns = Edges.borrow(module.dependencies, builder.plan.sources(index));
@@ -202,7 +279,7 @@ const SignatureView = struct {
             .providers = &self.providers,
             .functions = @ptrCast(builder.module_functions),
             .target = @ptrCast(&view.mappings.functions),
-            .destination = &view.destination,
+            .destination = destination,
             .read_columns = @ptrCast(&self.readable),
             .snapshot = @ptrCast(&self.snapshot),
             .linked_shape = null,

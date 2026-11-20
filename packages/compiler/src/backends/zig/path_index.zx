@@ -1,0 +1,72 @@
+import integers from "std:integer"
+import {
+    initial_capacity,
+    capacity_growth,
+    load_numerator,
+    load_denominator
+} from "core/bytes/index/const"
+import probe from "core/bytes/index/probe"
+import memory from "memory"
+
+import type { Index as Output } from "core/bytes/index/model"
+import type { OptionalU32Buffer, U32Buffer } from "memory"
+
+export type Input = {
+    keys: u8[][],
+    values: U32Buffer,
+    buckets: OptionalU32Buffer
+}
+
+export default function (in: Input): Output {
+    const { keys, values, buckets } = in
+
+    const count = keys.length
+
+    if (count == 0) {
+        return {
+            keys,
+            values: [],
+            buckets: []
+        }
+    }
+
+    const capacity = loop({
+        capacity: initial_capacity
+    }, {
+        while: current =>
+            current.capacity * load_numerator / load_denominator < count,
+        next: current => {
+            current.capacity *= capacity_growth
+        },
+        return: current => current.capacity
+    })
+
+    memory.allocateOptionalU32Buffer(buckets, capacity, true)
+    memory.allocateU32Views(values, count)
+
+    const index: Output = {
+        keys,
+        values: memory.u32Views(values),
+        buckets: memory.optionalU32Views(buckets)
+    }
+
+    const tiled = loop({
+        position: 0
+    }, {
+        while: current => current.position < count,
+        next: current => {
+            const position = current.position
+            const row = integers.narrow(position)
+            const slot = probe({
+                index,
+                key: keys[position]
+            })
+
+            memory.writeU32(values, position, row)
+            memory.writeOptionalU32(buckets, slot, row)
+            current.position += 1
+        }
+    })
+
+    return index
+}

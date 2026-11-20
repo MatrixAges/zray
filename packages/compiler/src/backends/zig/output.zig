@@ -1,5 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
+const path_index = @import("path_index.zig");
 pub const available = @import("parser_options").generated_parser;
 pub const manifest_read = if (available) @import("generated_output_manifest_read") else null;
 pub const manifest_write = if (available) @import("generated_output_manifest_write") else null;
@@ -15,7 +16,7 @@ pub const Input = struct {
 };
 
 pub const Selection = struct { changed: []const u32, aligned: bool };
-pub const Index = if (available) std.meta.Child(@import("generated_output_wanted").Output) else zx.bytes.Map(void);
+pub const Index = if (available) path_index.Index else zx.bytes.Map(void);
 
 pub const Changes = struct {
     arena: std.heap.ArenaAllocator,
@@ -89,7 +90,19 @@ pub fn changes(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Err
 
     const entry = @import("generated_output_changes");
     const Fields = std.meta.Child(entry.Input);
-    const fields: Fields = .{ .paths = input.paths, .hashes = input.hashes, .previous_paths = input.previous_paths, .previous_hashes = input.previous_hashes, .present = input.present };
+    var index_values: []u32 = &.{};
+    var index_buckets: []?u32 = &.{};
+
+    const fields: Fields = .{
+        .paths = input.paths,
+        .hashes = input.hashes,
+        .previous_paths = input.previous_paths,
+        .previous_hashes = input.previous_hashes,
+        .present = input.present,
+        .index_values = @ptrCast(&index_values),
+        .index_buckets = @ptrCast(&index_buckets),
+    };
+
     const result = zx.columns.invoke(entry.executeValue, allocator, &fields) catch |err| return failure(err);
 
     return .{ .arena = arena, .value = .{ .changed = result.changed, .aligned = result.aligned } };
@@ -104,9 +117,7 @@ pub fn wanted(workspace: std.mem.Allocator, paths: []const []const u8) std.mem.A
 
     if (comptime !available) return .{ .arena = arena, .value = try @import("output_seed.zig").wanted(allocator, paths) };
 
-    const result = @import("generated_output_wanted").executeValue(allocator, paths) catch |err| return failure(err);
-
-    return .{ .arena = arena, .value = zx.columns.view(Index, result) };
+    return .{ .arena = arena, .value = try path_index.build(allocator, paths) };
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

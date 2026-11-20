@@ -1,9 +1,13 @@
+import type { OptionalU32Buffer, U32Buffer } from "memory"
+
 export type Input = {
     paths: u8[][],
     hashes: u64[],
     previous_paths: u8[][],
     previous_hashes: u64[],
-    present: bool
+    present: bool,
+    index_values: U32Buffer,
+    index_buckets: OptionalU32Buffer
 }
 
 export type Selected = {

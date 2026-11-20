@@ -6,40 +6,22 @@
     <Call module="../../../artifact/materializing/own_function" in={$in.request.body} />
 
     <If on={$ctx.own_function != null}>
-        <If on={$in.tail != null}>
+        <If on={$in.request.append != null}>
             <Call
-                fn="../../../artifact/materializing/publication/write"
+                fn="publish_header"
                 in={{
-                    storage: $in.tail.storage,
-                    tables: $in.tables,
-                    function: {
-                        ...$ctx.own_function.omit([
-                            "stores",
-                            "recursive",
-                            "control",
-                            "store_table"
-                        ]),
-                        control: $ctx.own_function.control ?? $in.empty.control,
-                        store_table: $ctx.own_function.store_table ?? $in.empty.stores
-                    },
-                    attributes: $in.request.attributes,
-                    row: 0
-                }}
-            />
-
-            <Call fn="commit" in={$in.tail} />
-
-            <Return
-                value={{
-                    retained: null,
-                    tables: $ctx.write
+                    ...$in.omit(["request"]),
+                    value: $ctx.own_function,
+                    row: $in.request.append,
+                    ownership: $in.request.attributes.ownership
                 }}
             />
         </If>
 
         <Return
             value={{
-                retained: {
+                row: $in.request.append,
+                entry: {
                     file: $ctx.own_function.file,
                     recursive: $ctx.own_function.recursive,
                     stores: $ctx.own_function.store_table,
@@ -56,8 +38,7 @@
                         control: $ctx.own_function.control,
                         root: $in.request.attributes.root
                     }
-                },
-                tables: null
+                }
             }}
         />
     </If>

@@ -1,30 +1,21 @@
 import type { Stores } from "core/store_table/model"
-import type { ColumnLengths, OptionalU32Buffer } from "memory"
-import type {
-    BodyColumns,
-    Target
-} from "../../../artifact/materializing/publication/model"
-import type { Empty } from "../../../artifact/materializing/publication/source_model"
+import type { OptionalU32Buffer } from "memory"
+import type { ColumnSet } from "memory/columns"
 import type { Entry } from "../../result/publication/model"
+import type { OpaqueBody } from "../../signature/publication/model"
 import type { Output as Prepared } from "./request"
-
-export type Tail = Target & {
-    lengths: ColumnLengths,
-    linked: OptionalU32Buffer,
-    module: u64,
-    first: u64
-}
 
 export type Input = {
     request: Prepared,
-    tables: BodyColumns,
-    tail?: Tail,
-    empty: Empty
+    storage: ColumnSet,
+    linked: OptionalU32Buffer,
+    module: u64,
+    empty: OpaqueBody
 }
 
 export type Output = {
-    retained?: Retained,
-    tables?: BodyColumns
+    row?: u64,
+    entry: Retained
 }
 
 export type Retained = Entry & {

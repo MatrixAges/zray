@@ -1,0 +1,19 @@
+import columns from "memory/columns"
+
+import type { Native } from "../artifact/binding"
+import type { Input as Plan } from "./plan"
+
+export type Input = Native
+
+export type Output = Plan
+
+export default function (in: Input): Output {
+    return {
+        ...in.plan,
+        base: columns.readNativeColumnSet(
+            in.publication.destination.storage,
+            in.snapshot,
+            null
+        )
+    }
+}

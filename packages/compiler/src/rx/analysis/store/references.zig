@@ -13,12 +13,7 @@ const Registration = if (generated and @typeInfo(Parameter) == .pointer) std.met
 const Namespaces = if (generated) @FieldType(Registration, "index") else std.StringHashMapUnmanaged(void);
 const Status = if (generated) @FieldType(@typeInfo(Parameters.return_type.?).error_union.payload, "status") else enum { Accepted, Invalid, Duplicate };
 const Namespace = struct { name: []const u8, status: Status };
-
-const empty: Namespaces = if (generated) .{
-    .keys = .{ .items = &.{}, .storage = .plain },
-    .values = .{ .items = &.{}, .storage = .plain },
-    .buckets = .{ .items = &.{}, .storage = .plain },
-} else .empty;
+const empty: Namespaces = if (generated) frontend.project.source_index.emptyGenerated(Namespaces) else .empty;
 
 const Row = struct {
     name: []const u8,

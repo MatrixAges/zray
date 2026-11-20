@@ -92,7 +92,15 @@ fn viewMode(comptime Target: type, value: anytype, comptime borrowed: bool) Targ
         return if (value) |payload| viewMode(target.optional.child, payload, borrowed) else null;
     }
 
-    if (target == .pointer) return if (target.pointer.size == .slice) slice(Target, value) else pointer(Target, value);
+    if (target == .pointer) {
+        if (target.pointer.size != .slice) return pointer(Target, value);
+
+        const source = @TypeOf(value);
+
+        if (@typeInfo(source) == .@"struct" and @hasField(source, "items") and @hasField(source, "storage")) return slice(Target, value.items);
+
+        return slice(Target, value);
+    }
 
     const source_pointer = @typeInfo(@TypeOf(value));
 

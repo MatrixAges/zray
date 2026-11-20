@@ -41,6 +41,8 @@ pub const entries: []const Package = &.{
     .{ .specifier = "compiler/compiled_linked_function", .entry = "zx/modules/compiled/loading/functions/remap.rx" },
     .{ .specifier = "compiler/native_publication_row", .entry = "zx/modules/link/native/publication/row.rx" },
     .{ .specifier = "compiler/artifact_type_register", .entry = "zx/analysis/semantic/merging/register.rx" },
+    .{ .specifier = "compiler/artifact_bind_row", .entry = "zx/modules/link/artifact/bind.rx" },
+    .{ .specifier = "compiler/artifact_bind_body", .entry = "zx/modules/link/artifact/body/publish.rx" },
     .{ .specifier = "compiler/artifact_signature_row", .entry = "zx/modules/link/signature/bind.rx" },
     .{ .specifier = "compiler/artifact_signature_publish", .entry = "zx/modules/link/signature/publication/publish.rx" },
     .{ .specifier = "compiler/artifact_named_item", .entry = "zx/modules/link/dependencies/item.rx" },

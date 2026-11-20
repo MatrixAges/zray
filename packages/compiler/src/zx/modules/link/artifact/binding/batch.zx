@@ -1,0 +1,65 @@
+import publish from "compiler/artifact_bind_body"
+import bind from "compiler/artifact_bind_row"
+import memory from "memory"
+
+import { Status } from "../binding"
+
+import type { Retained } from "../body/publication"
+import type { Input, Output, Patch } from "./batch_model"
+
+export default function (in: Input): Output {
+    const { rows, scope, scratch, owned, storage, linked, empty } = in
+
+    const entry: Retained? = null
+    const bodies: Patch[] = []
+
+    return loop({
+        position: 0,
+        status: Status.Ready,
+        entry,
+        bodies
+    }, {
+        while: state => state.status == Status.Ready && state.position < rows.length,
+        next: state => {
+            const { module, binding } = rows[state.position]
+
+            memory.selectArena(scope, scratch)
+
+            const bound = bind(binding)
+
+            memory.selectArena(scope, owned)
+
+            state.status = bound.status
+
+            if (bound.body != null) {
+                const written = publish({
+                    request: bound.body,
+                    module,
+                    storage,
+                    linked,
+                    empty
+                })
+
+                if (written == null) {
+                    state.status = Status.Invalid
+                } else {
+                    if (written.row == null) {
+                        state.entry = written.entry
+                    } else {
+                        state.bodies = state.bodies.push({
+                            row: written.row,
+                            entry: written.entry
+                        })[0]
+                    }
+                }
+            }
+
+            state.position += 1
+
+            if (state.status == Status.Ready && !binding.body.entry) {
+                memory.resetArena(scratch)
+            }
+        },
+        return: state => state.omit(["position"])
+    })
+}

@@ -1,4 +1,6 @@
 const std = @import("std");
+pub const ArenaScope = @import("arena_scope.zig");
+pub const selectArena = ArenaScope.select;
 const stream = @import("stream.zig");
 pub const takeByte = stream.takeByte;
 pub const takeU32Le = stream.takeU32Le;

@@ -1,6 +1,24 @@
 const std = @import("std");
+const columns = @import("zx").columns;
 pub const Map = if (@import("parser_options").generated_parser) @import("source_index/fixed.zig") else @import("source_index/seed.zig");
 pub const Owned = @import("source_index/owned.zig");
+
+pub fn emptyGenerated(comptime State: type) State {
+    const indirect = @typeInfo(State) == .pointer;
+    const Index = if (indirect) std.meta.Child(State) else State;
+
+    const Empty = struct {
+        const source = .{
+            .keys = @as([]const []const u8, &.{}),
+            .values = @as([]const u32, &.{}),
+            .buckets = @as([]const ?u32, &.{}),
+        };
+
+        const index: Index = columns.borrow(Index, &source);
+    };
+
+    return if (indirect) &Empty.index else Empty.index;
+}
 
 /// The map and canonical keys belong to the surrounding analysis arena.
 pub fn buildIn(allocator: std.mem.Allocator, sources: anytype, root: []const u8) std.mem.Allocator.Error!*const Map {

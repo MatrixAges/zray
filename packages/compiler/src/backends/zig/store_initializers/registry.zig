@@ -28,13 +28,7 @@ pub fn validate(self: *const Self, stores: *const zx.ir.StoreTable) Error!void {
     const Input = std.meta.Child(coverage.Input);
     const Registry = std.meta.Child(@FieldType(Input, "registry"));
     const Index = std.meta.Child(@FieldType(Registry, "index"));
-
-    const index: Index = .{
-        .keys = self.state.index.keys.items,
-        .values = self.state.index.values.items,
-        .buckets = self.state.index.buckets.items,
-    };
-
+    const index = zx.columns.view(Index, self.state.index);
     const registry: Registry = .{ .index = &index, .status = self.state.status };
     const input: Input = .{ .registry = &registry, .paths = stores.paths, .types = stores.types };
     const status = coverage.executeValue(self.allocator, &input) catch |err| return failure(err);

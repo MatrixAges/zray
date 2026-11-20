@@ -1,9 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
-const indexing = if (generated) @import("generated_partition_scan_index") else void;
+const path_index = @import("../path_index.zig");
 pub const batch_size = if (generated) @import("generated_partition_scan_constants").@"zx.constants".batch_size else 8;
-const Index = if (generated) std.meta.Child(indexing.Output) else zx.bytes.Map(u32);
+const Index = if (generated) path_index.Index else zx.bytes.Map(u32);
 const Self = @This();
 pub const References = struct { callees: []const u32, variants: []const []const u8 };
 pub const Error = std.mem.Allocator.Error || error{ UnterminatedImport, UnsupportedFunctionReference, MissingFunctionFile };
@@ -25,9 +25,7 @@ pub fn init(allocator: std.mem.Allocator, paths: []const []const u8) Error!Self 
         return .{ .index = index };
     }
 
-    const output = indexing.executeValue(allocator, paths) catch |err| return failure(err);
-
-    return .{ .index = zx.columns.view(Index, output) };
+    return .{ .index = try path_index.build(allocator, paths) };
 }
 
 pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, output: Columns) Error!void {

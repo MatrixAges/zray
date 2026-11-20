@@ -1,0 +1,49 @@
+import columns from "memory/columns"
+
+import complete from "../../signature/publication/function_row"
+import signature from "../../signature/publication/signature_row"
+import slot from "./slot"
+
+import type { Ownership } from "core/symbol_table/model"
+import type { Owned } from "../../../artifact/materializing/function_model"
+import type { Input as Publication } from "./publication"
+
+export type Input = Publication.Omit("request") & {
+    value: Owned,
+    row: u64,
+    ownership: Ownership
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { value, ownership, empty, storage, row, linked, module } = in
+
+    const fields = signature({
+        signature: value.pick([
+            "file",
+            "ports",
+            "external"
+        ]),
+        flags: {
+            ownership,
+            allocator_argument: false,
+            io_argument: false,
+            process_argument: false,
+            expand_tuple: false,
+            fallible: false,
+            concurrent: false
+        }
+    })
+
+    columns.appendColumnSet(storage, complete({
+        signature: fields,
+        empty
+    }))
+
+    slot({
+        first: row,
+        slot: module,
+        target: linked
+    })
+}

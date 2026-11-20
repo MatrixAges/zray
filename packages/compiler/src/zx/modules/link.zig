@@ -66,7 +66,7 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     };
 
     const function = if (comptime generated)
-        try @import("link/artifact/binding/host.zig").bind(&builder, &module_scratch)
+        try @import("link/artifact/binding/host.zig").bind(&builder, scratch, &module_scratch, &arena)
 
     else seed: {
         for (plan.dependencies) |index| try linkDependencySeed(&builder, @intCast(index), &module_scratch);

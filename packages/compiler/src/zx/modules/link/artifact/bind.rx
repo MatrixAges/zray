@@ -18,7 +18,15 @@
     </If>
 
     <If on={$in.native != null}>
-        <Call module="../native/link" in={$in.native} />
+        <Call fn="../native/current" in={$in.native} />
+
+        <Call
+            module="../native/link"
+            in={{
+                plan: $ctx.current,
+                publication: $in.native.publication
+            }}
+        />
 
         <If on={$ctx.link != null}>
             <Switch on={$ctx.link}>

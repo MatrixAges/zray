@@ -7,9 +7,7 @@ const Constants = @import("../../../analysis/constants/columns.zig").Rows;
 const BindingColumns = @import("bindings/view.zig").Columns;
 const Edges = @import("traversal/view.zig").Columns;
 const admission = @import("../artifact/admission/host.zig");
-const generated = @import("generated_artifact_module_binding");
-pub const Binding = std.meta.Child(generated.Input);
-pub const Bound = std.meta.Child(generated.Output);
+pub const Binding = @import("../artifact/binding/abi.zig").Binding;
 const Input = std.meta.Child(@FieldType(Binding, "dependencies"));
 const Walk = std.meta.Child(@FieldType(Input, "walk"));
 const Views = std.meta.Child(@FieldType(Input, "views"));
@@ -224,17 +222,3 @@ pub const Providers = struct {
         };
     }
 };
-
-pub fn run(temporary: std.mem.Allocator, request: *const Binding) Builder.Error!*const Bound {
-    const bound = generated.executeIn(temporary, request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
-    return switch (bound.status) {
-        .Ready => bound,
-        .Invalid => error.InvalidModule,
-        .Conflict => error.ConflictingInterface,
-        .Full => error.OutOfMemory,
-    };
-}

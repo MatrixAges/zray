@@ -6,11 +6,7 @@ const Input = if (generated and @typeInfo(Parameter) == .pointer) std.meta.Child
 const State = if (generated) @FieldType(Input, "index") else std.StringHashMapUnmanaged(u32);
 const Self = @This();
 
-state: State = if (generated) .{
-    .keys = .{ .items = &.{}, .storage = .plain },
-    .values = .{ .items = &.{}, .storage = .plain },
-    .buckets = .{ .items = &.{}, .storage = .plain },
-} else .empty,
+state: State = if (generated) @import("../source_index.zig").emptyGenerated(State) else .empty,
 pub fn register(self: *Self, allocator: std.mem.Allocator, key: []const u8, row: usize) std.mem.Allocator.Error!?u32 {
     const id = std.math.cast(u32, row) orelse return error.OutOfMemory;
 
@@ -26,7 +22,7 @@ pub fn register(self: *Self, allocator: std.mem.Allocator, key: []const u8, row:
 
     const input: Input = .{
         .index = self.state,
-        .key = .{ .items = key, .storage = .plain },
+        .key = if (@typeInfo(@FieldType(Input, "key")) == .pointer) key else .{ .items = key, .storage = .plain },
         .value = id,
     };
 

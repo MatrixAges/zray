@@ -2,7 +2,7 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import get from "core/bytes/index/get"
 
-import index from "./build_index"
+import index from "../path_index"
 
 import type { Input, Selected as Output } from "./model"
 
@@ -43,7 +43,11 @@ export default function (in: Input): Output {
                     current.aligned = false
 
                     if (!current.indexed) {
-                        const prepared = index(in.previous_paths)
+                        const prepared = index({
+                            keys: in.previous_paths,
+                            values: in.index_values,
+                            buckets: in.index_buckets
+                        })
 
                         current.keys = prepared.keys
                         current.values = prepared.values
