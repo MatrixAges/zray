@@ -40,18 +40,9 @@ pub fn clear(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
 
     const plan = planner.executeIn(buffered.allocator(), &request) catch |err| return failure(err);
 
-    if (plan.types.len == 0) return;
+    if (plan.kinds.len == 0) return;
 
-    const layouts = try buffered.allocator().alloc(u32, plan.types.len);
-
-    for (plan.types, plan.kinds, layouts) |selected, operation, *layout| {
-        layout.* = if (operation == .Reference)
-            @backingInt(try @import("../../types.zig").get(self, self.state_layouts, @fromBackingInt(selected)))
-
-        else
-            0;
-    }
-
+    const layouts = try resolveLayouts(self, buffered.allocator(), plan.references);
     const emitter = @import("generated_ownership_clear");
     const Input = std.meta.Child(emitter.Input);
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../list_emission.zig").borrow(self));
@@ -81,6 +72,17 @@ pub fn clear(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
     statements.appendSelected(self.allocator, body, output.body) catch |err| return imported(err);
 
     self.serial = @intCast(output.serial);
+}
+
+pub fn resolveLayouts(self: *Lower, temporary: std.mem.Allocator, references: []const u32) Lower.Error![]const u32 {
+    const types = @import("../../types.zig");
+    const layouts = try temporary.alloc(u32, references.len);
+
+    for (references, layouts) |type_id, *layout| {
+        layout.* = @backingInt(try types.get(self, self.state_layouts, @fromBackingInt(type_id)));
+    }
+
+    return layouts;
 }
 
 fn failure(err: anyerror) Lower.Error {

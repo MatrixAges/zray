@@ -7,7 +7,7 @@ export default function (in: Input): Output {
     return {
         source: in,
         plan: {
-            types: [],
+            references: [],
             parents: [],
             names: [],
             kinds: [],

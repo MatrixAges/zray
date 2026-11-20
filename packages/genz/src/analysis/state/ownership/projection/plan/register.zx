@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+
+import find from "../../../../../ast/declarations/table/find"
+
+import type { Registration as Output } from "../../helper/flow/model"
+
+export type Input = {
+    names: u8[][],
+    name: string
+}
+
+export default function (in: Input): Output {
+    const name = bytes.fromText(in.name)
+
+    const found = find({
+        names: in.names,
+        name
+    })
+
+    return {
+        name: found ?? name,
+        registered: found != null
+    }
+}

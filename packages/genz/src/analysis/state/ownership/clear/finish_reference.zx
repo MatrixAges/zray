@@ -14,12 +14,13 @@ export default function (in: Input): Output {
             context: value.state,
             body: in.state.body
         },
-        target: in.state.targets[in.node],
+        target: in.state.targets[in.state.targets.length - 1],
         value: value.id
     })
 
     return {
         ...in.state,
-        ...assigned
+        ...assigned,
+        targets: in.state.targets.pop()[0]
     }
 }

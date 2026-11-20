@@ -1,16 +1,8 @@
 import initialize from "../../../../ast/context/initialize"
 
-import type { Body } from "../../../../ast/body/model"
 import type { Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const values: u32[] = in.plan.types.map(type_id => 0)[0]
-
-    const bodies: Body[] = in.plan.types.map(type_id => ({
-        tags: [],
-        offsets: []
-    }))[0]
-
     return {
         context: initialize({
             capture: null,
@@ -27,9 +19,10 @@ export default function (in: Input): Output {
             tags: [],
             offsets: []
         },
-        values,
-        targets: values,
-        bodies,
-        index: 0
+        values: [],
+        targets: [],
+        bodies: [],
+        index: 0,
+        layout_index: 0
     }
 }

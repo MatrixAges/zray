@@ -25,13 +25,13 @@
         <Return value={$ctx.failed} />
     </If>
 
-    <If on={$in.helper_name != null}>
+    <If on={$in.helper != null}>
         <Call
             fn="helper_input"
             in={{
                 source: $in,
                 projection: $ctx.projected,
-                name: $in.helper_name
+                registration: $in.helper
             }}
         />
 

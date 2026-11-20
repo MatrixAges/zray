@@ -2,16 +2,15 @@ import type { Node, Variables } from "../../../../ast/context/model"
 import type { Columns as Statements } from "../../../../ast/statements/model"
 import type { Ast } from "../../list/model"
 import type { Output as Cleared, Plan } from "../clear/model"
-import type { Output as Result } from "../helper/flow/model"
+import type { Output as Result, Registration } from "../helper/flow/model"
 import type { Outline } from "../model"
 
 export type Input = {
     source: Outline,
     name: u8[],
-    helper_name?: u8[],
+    helper?: Registration,
     clear_plan?: Plan,
     layouts: u32[],
-    existing_names: u8[][],
     type_expr: u32,
     value: u32,
     ast: Ast,
@@ -37,7 +36,7 @@ export type Output = {
 export type Helper = {
     source: Input,
     projection: Node,
-    name: u8[]
+    registration: Registration
 }
 
 export type Clear = {

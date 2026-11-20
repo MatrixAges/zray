@@ -24,7 +24,7 @@ pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId,
 
     const name = try std.fmt.allocPrint(self.allocator, "zx_weaken_{s}", .{std.fmt.bytesToHex(digest, .lower)});
 
-    if (!self.task_declarations.containsFunction(name)) {
+    if (!self.task_declarations.containsSeedFunction(name)) {
         var statements: std.ArrayList(node.Statement) = .empty;
 
         try ownership.clear(self, &statements, id, type_id, try self.builder.identifier("value"), slot);

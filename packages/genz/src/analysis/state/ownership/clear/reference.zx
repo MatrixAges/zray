@@ -7,7 +7,7 @@ import type { Step as Input, State as Output } from "./model"
 export default function (in: Input): Output {
     const storage = slot({
         context: in.state.context,
-        layout: in.source.layouts[in.node]
+        layout: in.source.layouts[in.state.layout_index]
     })
 
     const value = dereference({
@@ -31,6 +31,8 @@ export default function (in: Input): Output {
             tags: in.state.storage.tags.concat(storage.storage.tags)[0],
             offsets: in.state.storage.offsets.concat(storage.storage.offsets)[0]
         },
-        values: in.state.values.with(in.node, storage.root)
+        values: in.state.values.with(in.node, storage.root),
+        targets: in.state.targets.push(in.state.values[in.node])[0],
+        layout_index: in.state.layout_index + 1
     }
 }

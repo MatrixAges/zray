@@ -79,20 +79,12 @@ pub fn appendFunction(self: *Self, allocator: std.mem.Allocator, source: anytype
     try self.apply(allocator, entry, input);
 }
 
-pub fn containsFunction(self: *const Self, name: []const u8) bool {
-    if (!generated) {
-        for (self.state.items) |value| {
-            if (value == .function and std.mem.eql(u8, value.function.name, name)) return true;
-        }
-
-        return false;
+pub fn containsSeedFunction(self: *const Self, name: []const u8) bool {
+    for (self.state.items) |value| {
+        if (value == .function and std.mem.eql(u8, value.function.name, name)) return true;
     }
 
-    const entry = @import("generated_auxiliary_contains");
-    const input: std.meta.Child(entry.Input) = .{ .names = self.state.function_name.items, .name = name };
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return entry.executeIn(fixed.allocator(), &input) catch @panic("invalid auxiliary lookup");
+    return false;
 }
 
 pub fn functionNames(self: *const Self) []const []const u8 {

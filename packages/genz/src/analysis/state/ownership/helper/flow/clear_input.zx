@@ -6,7 +6,7 @@ import type { ClearRequest as Input } from "./model"
 export default function (in: Input): Output {
     return {
         plan: in.plan,
-        layouts: in.layouts,
+        layouts: [],
         ast: in.source.ast,
         value: in.prepared.root,
         expression_base: integers.narrow(

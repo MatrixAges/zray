@@ -31,6 +31,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
         .source = &outline,
         .hash = @ptrCast(&hash_state),
         .names = self.type_names,
+        .existing_names = self.task_declarations.functionNames(),
         .key = &self.state_plan.keys[@backingInt(type_id)],
         .serial = self.serial,
         .required = required,
@@ -44,34 +45,32 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
 
     const temporary = buffered.allocator();
     const request = (planner.executeIn(temporary, &plan_input) catch |err| return failure(err)) orelse return value;
-    const name = try self.allocator.dupe(u8, request.qualified.name);
-    const helper_name = if (request.helper_name) |text| try self.allocator.dupe(u8, text) else null;
-
-    self.serial = @intCast(request.qualified.serial);
-
-    const type_expr = try @import("../../types.zig").get(self, self.state_types, type_id);
-    const layouts = try temporary.alloc(u32, if (request.clear_plan) |plan| plan.types.len else 0);
-
-    if (request.clear_plan) |plan| {
-        for (plan.types, plan.kinds, layouts) |selected, operation, *layout| {
-            layout.* = if (operation == .Reference)
-                @backingInt(try @import("../../types.zig").get(self, self.state_layouts, @fromBackingInt(selected)))
-            else
-                0;
-        }
-    }
-
     const emitter = @import("generated_ownership_projection");
     const Input = std.meta.Child(emitter.Input);
+    const Registration = std.meta.Child(@typeInfo(@FieldType(Input, "helper")).optional.child);
+    const name = try self.allocator.dupe(u8, request.qualified.name);
+
+    const helper: ?Registration = if (request.helper) |selected| .{
+        .name = if (selected.registered) selected.name else try self.allocator.dupe(u8, selected.name),
+        .registered = selected.registered,
+    } else null;
+
+    self.serial = @intCast(request.qualified.serial);
+    const type_expr = try @import("../../types.zig").get(self, self.state_types, type_id);
+
+    const layouts = if (request.clear_plan) |plan|
+        try @import("emission.zig").resolveLayouts(self, temporary, plan.references)
+    else
+        &.{};
+
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../list_emission.zig").borrow(self));
 
     const input: Input = .{
         .source = &outline,
         .name = name,
-        .helper_name = helper_name,
+        .helper = if (helper) |*selected| selected else null,
         .clear_plan = request.clear_plan,
         .layouts = layouts,
-        .existing_names = self.task_declarations.functionNames(),
         .type_expr = @backingInt(type_expr),
         .value = @backingInt(value),
         .ast = &ast,

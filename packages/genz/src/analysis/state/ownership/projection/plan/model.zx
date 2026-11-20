@@ -1,12 +1,14 @@
 import type { Sha256State } from "std:crypto"
 import type { Output as Qualified } from "../../../../../ast/fresh"
 import type { Plan } from "../../clear/model"
+import type { Registration } from "../../helper/flow/model"
 import type { Outline } from "../../model"
 
 export type Input = {
     source: Outline,
     hash: Sha256State,
     names?: string[],
+    existing_names: u8[][],
     key: u8[],
     serial: u64,
     required: bool
@@ -14,7 +16,7 @@ export type Input = {
 
 export type Request = {
     qualified: Qualified,
-    helper_name?: string,
+    helper?: Registration,
     clear_plan?: Plan
 }
 

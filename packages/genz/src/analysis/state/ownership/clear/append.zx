@@ -33,10 +33,13 @@ export default function append(in: Input): Output {
         }
     }
 
-    const node = integers.narrow(plan.types.length)
+    const node = integers.narrow(plan.kinds.length)
 
     const entered = {
-        types: plan.types.push(query.type_id)[0],
+        references: match {
+            referenced => plan.references.push(query.type_id)[0],
+            _ => plan.references
+        },
         parents: plan.parents.push(in.parent)[0],
         names: plan.names.push(in.name)[0],
         kinds: plan.kinds.push(operation)[0],

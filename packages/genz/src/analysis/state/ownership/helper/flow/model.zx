@@ -9,10 +9,13 @@ import type { Outline } from "../../model"
 import type { Output as Declared } from "../declare"
 import type { Input as DeclarationInput, Parameters, Prepared } from "../model"
 
-export type Input = {
-    source: Outline,
+export type Registration = {
     name: u8[],
-    existing_names: u8[][],
+    registered: bool
+}
+
+export type Input = Registration & {
+    source: Outline,
     type_expr: u32,
     value: u32,
     ast: Ast,
@@ -48,7 +51,6 @@ export type ClearRequest = {
     source: Input,
     prepared: Prepared,
     plan: Plan,
-    layouts: u32[]
 }
 
 export type BodyInput = {

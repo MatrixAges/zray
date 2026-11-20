@@ -19,10 +19,18 @@
 
         <Call module="../../helper/name/build" />
 
+        <Call
+            fn="register"
+            in={{
+                names: $in.existing_names,
+                name: $ctx.build
+            }}
+        />
+
         <Return
             value={{
                 qualified: $ctx.qualified,
-                helper_name: $ctx.build,
+                helper: $ctx.register,
                 clear_plan: null
             }}
         />
@@ -33,7 +41,6 @@
             <Return
                 value={{
                     qualified: $ctx.qualified,
-                    helper_name: null,
                     clear_plan: $ctx.plan
                 }}
             />

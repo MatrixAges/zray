@@ -15,7 +15,7 @@ export enum Operation {
 }
 
 export type Plan = {
-    types: u32[],
+    references: u32[],
     parents: u32[],
     names: u8[][],
     kinds: Operation[],
@@ -47,7 +47,8 @@ export type State = {
     values: u32[],
     targets: u32[],
     bodies: Body[],
-    index: u64
+    index: u64,
+    layout_index: u64
 }
 
 export type Step = {

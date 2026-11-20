@@ -8,7 +8,6 @@ export default function (in: Input): Output {
         ...in.source.pick(
             [
                 "source",
-                "existing_names",
                 "type_expr",
                 "ast",
                 "statement_base",
@@ -16,7 +15,7 @@ export default function (in: Input): Output {
                 "serial"
             ]
         ),
-        name: in.name,
+        ...in.registration,
         value: in.projection.id,
         expression_base: integers.narrow(
             integers.widen(in.source.expression_base) +

@@ -11,14 +11,14 @@ export default function (in: Input): Output {
     const condition = binary({
         state: absent.state,
         operator: ExpressionsBinaryOperator.NotEqual,
-        left: in.state.targets[in.node],
+        left: in.state.targets[in.state.targets.length - 1],
         right: absent.id
     })
 
     const result = branch({
         state: {
             context: condition.state,
-            body: in.state.bodies[in.node]
+            body: in.state.bodies[in.state.bodies.length - 1]
         },
         condition: condition.id,
         yes: in.state.body
@@ -26,6 +26,8 @@ export default function (in: Input): Output {
 
     return {
         ...in.state,
-        ...result
+        ...result,
+        targets: in.state.targets.pop()[0],
+        bodies: in.state.bodies.pop()[0]
     }
 }

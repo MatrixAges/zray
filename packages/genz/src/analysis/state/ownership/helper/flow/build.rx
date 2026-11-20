@@ -3,15 +3,7 @@
 
     <Args in={Flow.Input} out={Flow.Output} />
 
-    <Call
-        fn="../../../../../ast/declarations/table/contains"
-        in={{
-            names: $in.existing_names,
-            name: $in.name
-        }}
-    />
-
-    <If on={!$ctx.contains}>
+    <If on={!$in.registered}>
         <Call
             fn="../prepare"
             in={{
@@ -27,9 +19,7 @@
 
         <Call module="../../clear/plan" in={$in.source} />
 
-        <Call fn="layouts" />
-
-        <If on={!$ctx.layouts.valid}>
+        <If on={$ctx.plan.references.length != 0}>
             <Call fn="failed" in={$in.serial} />
 
             <Return value={$ctx.failed} />
@@ -40,8 +30,7 @@
             in={{
                 source: $in,
                 prepared: $ctx.prepare,
-                plan: $ctx.plan,
-                layouts: $ctx.layouts.values
+                plan: $ctx.plan
             }}
         />
 

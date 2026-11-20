@@ -11,8 +11,7 @@ export default function (in: Input): Output {
     const state = {
         ...in.state,
         context: value.state,
-        values: in.state.values.with(in.node, value.id),
-        targets: in.state.targets.with(in.node, value.id)
+        values: in.state.values.push(value.id)[0]
     }
 
     const operation = in.source.plan.kinds[in.node]
@@ -37,7 +36,8 @@ export default function (in: Input): Output {
         ...state,
         context: payload.state,
         values: state.values.with(in.node, payload.id),
-        bodies: state.bodies.with(in.node, state.body),
+        targets: state.targets.push(value.id)[0],
+        bodies: state.bodies.push(state.body)[0],
         body: {
             tags: [],
             offsets: []
