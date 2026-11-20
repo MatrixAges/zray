@@ -25,7 +25,8 @@ export default function (in: Input): Output {
                 carried: current.closure.carried,
                 function_index: null,
                 deferred: false,
-                record_marks: false
+                record_marks: false,
+                return_allocations: []
             }
 
             const working = initialize({

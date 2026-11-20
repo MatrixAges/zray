@@ -12,7 +12,7 @@ export type Mark = {
 
 export type Source = {
     kinds: u8[],
-    native_modules: u32?[],
+    return_allocations: bool[],
     carried: Knowledge[][],
     inputs: AtomicRows,
     outputs: AtomicRows,

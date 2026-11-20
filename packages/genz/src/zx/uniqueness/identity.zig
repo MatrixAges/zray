@@ -8,12 +8,12 @@ const Self = @This();
 /// (types, function signatures, the basis) and each body itself. Source spans are left out, so moving code without
 /// changing it keeps its digest.
 hash: Hash = .init(.{}),
-pub fn program(value: ir.Program, basis: *const Basis) [32]u8 {
-    if (@import("genz_options").generated_analysis) return @import("identity/program.zig").build(value, basis);
+pub fn program(value: ir.Program, basis: *const Basis, return_allocations: []const bool) [32]u8 {
+    if (@import("genz_options").generated_analysis) return @import("identity/program.zig").build(value, basis, return_allocations);
 
     var self = Self{};
 
-    self.bytes("zxc.uniqueness.program.v19");
+    self.bytes("zxc.uniqueness.program.v20");
     self.bytes(&basis.types);
     self.write(value.functions.count());
 
@@ -26,6 +26,7 @@ pub fn program(value: ir.Program, basis: *const Basis) [32]u8 {
     self.write(basis.flow.held);
     self.write(basis.flow.written);
     self.write(basis.return_only);
+    self.write(return_allocations);
 
     return self.finish();
 }

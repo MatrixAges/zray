@@ -877,7 +877,10 @@ fn trace(self: *Self, request: TraceRequest) std.mem.Allocator.Error!void {
         .call => |invocation| {
             const callee = @backingInt(invocation.function);
 
-            if (self.functions.at(callee).external == null) try self.mark(.{ .output = true, .function = @intCast(callee), .slot = request.slot, .want = want });
+            if (callee < self.summaries.return_allocations.len and self.summaries.return_allocations[callee]) {
+                try self.mark(.{ .output = true, .function = @intCast(callee), .slot = request.slot, .want = want });
+            }
+
             try self.normalize(leaf, want);
         },
         else => if (request.repeat) try self.provide(request.id, request.slot, leaf, want),

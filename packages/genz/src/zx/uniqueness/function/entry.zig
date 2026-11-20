@@ -26,7 +26,6 @@ pub fn analyze(function: *Function, allocator: std.mem.Allocator) std.mem.Alloca
         .results = function.facts.results,
         .inputs = @ptrCast(&summaries.inputs),
         .outputs = @ptrCast(&summaries.outputs),
-        .native_modules = function.functions.native_modules,
         .clear_demands = &.{ .cells = @ptrCast(&demands), .count = demands.len, .dirty = @ptrCast(&dirty) },
     };
 

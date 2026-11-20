@@ -80,10 +80,13 @@ export default function (in: Input): Output {
 
     if (kind == ExpressionKind.Call) {
         const function_index = expressions.call_functions[payload]
+        const callee = integers.widen(function_index)
+
+        const allows = callee < in.source.return_allocations.length &&
+            in.source.return_allocations[callee]
 
         const marked = match {
-            in.source.native_modules[integers.widen(function_index)] != null => working,
-            _ => mark({
+            allows => mark({
                 stage: {
                     source: in.source,
                     working
@@ -94,7 +97,8 @@ export default function (in: Input): Output {
                     slot: request.slot,
                     want: request.wanted
                 }
-            })
+            }),
+            _ => working
         }
 
         return {

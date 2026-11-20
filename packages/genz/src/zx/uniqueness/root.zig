@@ -62,16 +62,16 @@ pub const Unit = struct {
 
 /// `exported` functions are also called from outside the program, so nothing is known about their input. A persistent
 /// `memo` carries body analyses over from earlier programs; without one, repeated states only replay within this call.
-pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, basis: *const Basis, persistent: ?*Memo) std.mem.Allocator.Error!Result {
-    return analyzeWithConcurrency(allocator, workspace, program, exported, basis, persistent, false);
+pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, basis: *const Basis, return_allocations: []const bool, persistent: ?*Memo) std.mem.Allocator.Error!Result {
+    return analyzeWithConcurrency(allocator, workspace, program, exported, basis, return_allocations, persistent, false);
 }
 
 /// All allocators must be threadsafe, including shared parents and the exclusively borrowed memo.
-pub fn analyzeConcurrent(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, basis: *const Basis, persistent: ?*Memo) std.mem.Allocator.Error!Result {
-    return analyzeWithConcurrency(allocator, workspace, program, exported, basis, persistent, true);
+pub fn analyzeConcurrent(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, basis: *const Basis, return_allocations: []const bool, persistent: ?*Memo) std.mem.Allocator.Error!Result {
+    return analyzeWithConcurrency(allocator, workspace, program, exported, basis, return_allocations, persistent, true);
 }
 
-fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, basis: *const Basis, persistent: ?*Memo, comptime concurrent: bool) std.mem.Allocator.Error!Result {
+fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, basis: *const Basis, return_allocations: []const bool, persistent: ?*Memo, comptime concurrent: bool) std.mem.Allocator.Error!Result {
     var scratch = std.heap.ArenaAllocator.init(workspace);
 
     defer scratch.deinit();
@@ -88,6 +88,9 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
     defer summary_memory.deinit();
 
     var summaries = try Summaries.create(summary_memory.allocator(), program, basis, .program);
+
+    summaries.return_allocations = return_allocations;
+
     const count = program.functions.count();
     const units = try temporary.alloc(?*Unit, count + 1);
     const topology = try Topology.collect(temporary, program);
@@ -103,7 +106,7 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
     var replay = Trace.Replay{ .allocator = temporary };
 
     if (memo.persistent) {
-        const shared = Identity.program(program, basis);
+        const shared = Identity.program(program, basis, return_allocations);
         const identities = try temporary.alloc(Trace.Digest, units.len);
 
         identify(shared, basis.contents, units, identities);

@@ -1,0 +1,28 @@
+import allocation from "../functions/allocation"
+
+export type Input = {
+    errors: string[]?[],
+    native_modules: u32?[]
+}
+
+export type Output = bool[]
+
+export default function (in: Input): Output {
+    const slots: bool[] = []
+
+    return loop({
+        slots,
+        index: 0
+    }, {
+        while: state => state.index < in.native_modules.length,
+        next: state => {
+            const allows = in.native_modules[state.index] == null && allocation({
+                errors: in.errors[state.index]
+            })
+
+            state.slots = state.slots.push(allows)[0]
+            state.index += 1
+        },
+        return: state => state.slots
+    })
+}

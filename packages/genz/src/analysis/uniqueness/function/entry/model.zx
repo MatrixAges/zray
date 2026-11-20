@@ -7,12 +7,17 @@ import type { Decisions, Snapshot, Visit } from "../plan/model"
 export type Input = Visit & {
     inputs: AtomicRows,
     outputs: AtomicRows,
-    native_modules: u32?[],
     clear_demands: EntryReset
 }
 
 export type Demand =
-    Source.Omit("carried", "function_index", "deferred", "record_marks")
+    Source.Omit(
+        "carried",
+        "function_index",
+        "deferred",
+        "record_marks",
+        "return_allocations"
+    )
 
 export type Solve = {
     context: Context,

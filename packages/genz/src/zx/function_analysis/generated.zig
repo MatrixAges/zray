@@ -4,6 +4,7 @@ const ir = zx.ir;
 const columns = zx.columns;
 const generated = @import("generated_function_facts");
 const error_publication = @import("generated_function_facts_errors");
+const allocation_policy = @import("generated_function_return_allocations");
 const Input = std.meta.Child(generated.Input);
 const Program = std.meta.Child(@FieldType(Input, "program"));
 const Functions = std.meta.Child(@FieldType(Program, "functions"));
@@ -19,6 +20,7 @@ pub const Facts = struct {
     constructed_outputs: []bool,
     identity_free: []bool,
     errors: []const ?[]const []const u8,
+    return_allocations: []const bool,
     layout_types: []const @import("../iteration_layout/generated.zig").Type,
     grows: []const bool,
 };
@@ -87,6 +89,14 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         else => unreachable,
     };
 
+    const return_allocations = columns.invoke(allocation_policy.executeValue, allocator, &.{
+        .errors = errors,
+        .native_modules = program.functions.native_modules,
+    }) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
     return .{
         .value = .{
             .pure = try allocator.dupe(bool, output.pure),
@@ -108,6 +118,7 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .constructed_outputs = try allocator.dupe(bool, output.constructed_outputs),
         .identity_free = try allocator.dupe(bool, output.identity_free),
         .errors = errors,
+        .return_allocations = return_allocations,
         .layout_types = try allocator.dupe(@import("../iteration_layout/generated.zig").Type, output.layout_types),
     };
 }

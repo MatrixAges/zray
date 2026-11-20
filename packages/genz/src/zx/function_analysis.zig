@@ -13,6 +13,7 @@ process: []const bool,
 tasks: []const bool,
 /// The errors each function raises, null where unknown.
 errors: []const ?[]const []const u8 = &.{},
+return_allocations: []const bool,
 layout_types: []const @import("iteration_layout/generated.zig").Type = &.{},
 /// The pure functions that compare no represented aggregates by identity, themselves or through their callees.
 identity_free: []const bool = &.{},
@@ -110,8 +111,7 @@ pub fn analyzeConcurrent(allocator: std.mem.Allocator, workspace: std.mem.Alloca
     return analyzeFrom(allocator, workspace, program, exported, .{ .ready = basis }, memo, true);
 }
 
-/// The basis uniqueness reads, or where to build it: building it first on the uniqueness thread overlaps it with the
-/// other passes, which read no basis.
+/// The basis uniqueness reads, or where to build it alongside function facts.
 const Source = union(enum) {
     ready: *const Uniqueness.Basis,
     build: *Uniqueness.Basis,
@@ -124,12 +124,10 @@ const Source = union(enum) {
 };
 
 fn analyzeFrom(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, source: Source, memo: ?*Uniqueness.Memo, comptime concurrent: bool) std.mem.Allocator.Error!Self {
-    var uniqueness = Concurrent{ .allocator = allocator, .workspace = workspace, .program = program, .exported = exported, .source = source, .memo = memo };
-    const thread: ?std.Thread = if (concurrent) std.Thread.spawn(.{}, Concurrent.run, .{&uniqueness}) catch null else null;
+    var building = BasisBuild{ .allocator = allocator, .workspace = workspace, .program = program, .source = source, .memo = memo };
+    const thread: ?std.Thread = if (concurrent and source == .build) std.Thread.spawn(.{}, BasisBuild.run, .{&building}) catch null else null;
 
-    if (thread == null) {
-        uniqueness.result = analyzeUniqueness(allocator, workspace, program, exported, source, memo, concurrent);
-    }
+    if (thread == null) building.run();
 
     const others = remaining(allocator, workspace, program, exported);
 
@@ -137,8 +135,16 @@ fn analyzeFrom(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
 
     var value = try others;
 
-    value.uniqueness = try uniqueness.result;
+    try building.result;
+
     value.basis = source.basis();
+
+    value.uniqueness = if (concurrent)
+        try Uniqueness.analyzeConcurrent(allocator, workspace, program, exported, value.basis, value.return_allocations, memo)
+
+    else
+        try Uniqueness.analyze(allocator, workspace, program, exported, value.basis, value.return_allocations, memo);
+
     value.entry_flags = try Entry.analyze(workspace, program, .{ .local = value.value.local, .pure = value.value.pure, .io = value.io, .process = value.process, .tasks = value.tasks });
 
     return value;
@@ -199,6 +205,7 @@ fn remaining(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program
             .constructed_outputs = generated.constructed_outputs,
             .identity_free = generated.identity_free,
             .errors = generated.errors,
+            .return_allocations = generated.return_allocations,
             .layout_types = generated.layout_types,
             .entry_flags = undefined,
             .uniqueness = undefined,
@@ -207,6 +214,12 @@ fn remaining(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program
     }
 
     const value = try @import("value_call/analysis.zig").analyzeExported(allocator, program, exported);
+    const errors = try @import("zx").error_effects.perFunction(allocator, program.types, program.functions);
+    const return_allocations = try allocator.alloc(bool, errors.len);
+
+    for (return_allocations, program.functions.native_modules, errors) |*allowed, native, names| {
+        allowed.* = native == null and @import("functions/policy.zig").allowsAllocation(names);
+    }
 
     return .{
         .value = value,
@@ -216,33 +229,28 @@ fn remaining(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program
         .fresh_outputs = try freshOutputs(allocator, program),
         .constructed_outputs = try @import("value_call/fresh.zig").functions(allocator, program),
         .identity_free = try @import("iteration_layout/identity_free.zig").functions(allocator, program, value.pure),
-        .errors = try @import("zx").error_effects.perFunction(allocator, program.types, program.functions),
+        .errors = errors,
+        .return_allocations = return_allocations,
         .entry_flags = undefined,
         .uniqueness = undefined,
         .basis = undefined,
     };
 }
 
-const Concurrent = struct {
+const BasisBuild = struct {
     allocator: std.mem.Allocator,
     workspace: std.mem.Allocator,
     program: ir.Program,
-    exported: []const ir.FunctionId,
     source: Source,
     memo: ?*Uniqueness.Memo,
-    result: std.mem.Allocator.Error!Uniqueness.Result = error.OutOfMemory,
-    fn run(self: *Concurrent) void {
-        self.result = analyzeUniqueness(self.allocator, self.workspace, self.program, self.exported, self.source, self.memo, true);
+    result: std.mem.Allocator.Error!void = error.OutOfMemory,
+    fn run(self: *BasisBuild) void {
+        self.result = switch (self.source) {
+            .ready => {},
+            .build => |basis| init(self, basis),
+        };
+    }
+    fn init(self: *BasisBuild, basis: *Uniqueness.Basis) std.mem.Allocator.Error!void {
+        basis.* = try Uniqueness.Basis.create(self.allocator, self.workspace, self.program, self.memo);
     }
 };
-
-fn analyzeUniqueness(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId, source: Source, memo: ?*Uniqueness.Memo, comptime concurrent: bool) std.mem.Allocator.Error!Uniqueness.Result {
-    if (source == .build) {
-        source.build.* = try Uniqueness.Basis.create(allocator, workspace, program, memo);
-    }
-
-    return if (concurrent)
-        Uniqueness.analyzeConcurrent(allocator, workspace, program, exported, source.basis(), memo)
-    else
-        Uniqueness.analyze(allocator, workspace, program, exported, source.basis(), memo);
-}

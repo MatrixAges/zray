@@ -614,6 +614,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/printer/render.rx", .name = "printer", .owner = .genz },
     .{ .path = "genz/analysis/facts/analyze.rx", .name = "function_facts", .owner = .genz },
     .{ .path = "genz/analysis/facts/function_errors.zx", .name = "function_facts_errors", .owner = .genz },
+    .{ .path = "genz/analysis/facts/return_allocations.zx", .name = "function_return_allocations", .owner = .genz },
     .{ .path = "genz/analysis/value/input_aliases/analyze.rx", .name = "input_aliases", .owner = .genz },
     .{ .path = "genz/analysis/value/projections/analyze.rx", .name = "value_projections", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/sites/effects.zx", .name = "uniqueness_effects", .owner = .genz },

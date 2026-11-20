@@ -29,4 +29,12 @@
             bytes: $in.return_only
         }}
     />
+
+    <Call
+        fn="../bytes"
+        in={{
+            hash: $in.hash,
+            bytes: $in.return_allocations
+        }}
+    />
 </Module>

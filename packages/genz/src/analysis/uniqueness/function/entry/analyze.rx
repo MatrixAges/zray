@@ -12,7 +12,6 @@
             repeated: $in.repeated,
             source: {
                 kinds: $in.types.kinds,
-                native_modules: $in.native_modules,
                 inputs: $in.inputs,
                 outputs: $in.outputs,
                 entry_dirty: $in.clear_demands.dirty,

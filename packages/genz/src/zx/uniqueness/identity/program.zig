@@ -4,7 +4,7 @@ const Basis = @import("../basis.zig");
 const generated = @import("generated_uniqueness_program_identity");
 const Input = std.meta.Child(generated.Input);
 
-pub fn build(value: zx.ir.Program, basis: *const Basis) [32]u8 {
+pub fn build(value: zx.ir.Program, basis: *const Basis, return_allocations: []const bool) [32]u8 {
     var hash: zx.Sha256 = undefined;
     const hash_state = zx.Sha256State{ .value = &hash };
 
@@ -17,6 +17,7 @@ pub fn build(value: zx.ir.Program, basis: *const Basis) [32]u8 {
         .held = @ptrCast(basis.flow.held),
         .written = @ptrCast(basis.flow.written),
         .return_only = std.mem.sliceAsBytes(basis.return_only),
+        .return_allocations = std.mem.sliceAsBytes(return_allocations),
     };
 
     var memory = std.heap.FixedBufferAllocator.init(&.{});

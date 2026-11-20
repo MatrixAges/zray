@@ -10,7 +10,8 @@ export type Input = {
     native_modules: u32?[],
     held: u8[][],
     written: u8[][],
-    return_only: u8[]
+    return_only: u8[],
+    return_allocations: u8[]
 }
 
 export type Rows = {
