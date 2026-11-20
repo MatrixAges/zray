@@ -5,6 +5,7 @@ const Manifest = @import("manifest/model.zig").Manifest;
 const pkgs = @import("pkgs");
 const memory = @import("zx").memory;
 pub const Dependency = struct { name: []const u8, target: usize, development: bool };
+pub const DependencyColumns = struct { targets: memory.ListColumn, names: memory.ListColumn };
 pub const Package = struct { path: []const u8, manifest: Manifest, dependencies: []const Dependency = &.{} };
 
 pub const Result = struct {
@@ -23,7 +24,7 @@ pub const Result = struct {
         return self.packages[owner].dependencies[index];
     }
 
-    pub fn dependencyColumns(self: *const Result) struct { targets: memory.ListColumn, names: memory.ListColumn } {
+    pub fn dependencyColumns(self: *const Result) DependencyColumns {
         return if (self.locked) |locked| .{
             .targets = memory.borrowListColumn(usize, "dependencies", "target", locked),
             .names = memory.borrowListColumn([]const u8, "dependencies", "name", locked),

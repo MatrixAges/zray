@@ -1,0 +1,48 @@
+<Module>
+    <Type from="model" as="Scopes" />
+
+    <Args in={Scopes.Row} out={void} />
+
+    <Call
+        fn="index.prepareSurface"
+        in={[
+            $in.binding,
+            $in.index
+        ]}
+    />
+
+    <Call fn="index.scopeEntry" in={$in.binding} />
+
+    <If on={$ctx.scopeEntry != null}>
+        <Call
+            fn="index.writeScopeEntry"
+            in={[
+                $in.binding,
+                $ctx.scopeEntry
+            ]}
+        />
+
+        <Else>
+            <Call fn="index.scopeLibrary" in={$in.binding} />
+
+            <If on={$ctx.scopeLibrary != null}>
+                <Call
+                    fn="index.prepareLibrarySurface"
+                    in={[
+                        $in.binding,
+                        $ctx.scopeLibrary
+                    ]}
+                />
+            </If>
+
+            <Call
+                fn="exports"
+                in={{
+                    binding: $in.binding,
+                    count: $ctx.prepareSurface,
+                    compiled: $ctx.scopeLibrary != null
+                }}
+            />
+        </Else>
+    </If>
+</Module>

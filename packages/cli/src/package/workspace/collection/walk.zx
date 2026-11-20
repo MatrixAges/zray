@@ -1,0 +1,23 @@
+import { directoryName, directoryPath, nextDirectory } from "package_workspace_host"
+
+import visit from "./visit.rx"
+
+import type { Patterns as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { collection, patterns } = in
+
+    const visited = loop(false, {
+        while: state => nextDirectory(collection),
+        next: state => {
+            visit({
+                collection,
+                patterns,
+                path: directoryPath(collection),
+                name: directoryName(collection)
+            })
+        }
+    })
+}

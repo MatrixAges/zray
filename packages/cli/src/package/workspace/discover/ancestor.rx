@@ -1,0 +1,19 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Search} out={bool} />
+
+    <Call fn="index.loadAncestor" in={$in} />
+
+    <If on={!$ctx.loadAncestor}>
+        <Return value={true} />
+    </If>
+
+    <Call fn="index.ancestorContainsMember" in={$in} />
+
+    <If on={$ctx.ancestorContainsMember}>
+        <Call fn="index.selectAncestor" in={$in} />
+    </If>
+
+    <Return value={$ctx.ancestorContainsMember} />
+</Module>

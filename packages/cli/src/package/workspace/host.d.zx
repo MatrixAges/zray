@@ -1,0 +1,96 @@
+export type Collection = opaque
+
+export type Search = opaque
+
+export type Source = opaque
+
+export type Project = opaque
+
+export type ScopeBinding = opaque
+
+export enum Probe {
+    Missing,
+    Invalid,
+    Read
+}
+
+export declare function readRoot(collection: Collection): string[] throws { SourceLoadFailure }
+export declare function invalidPattern(collection: Collection, pattern: string): void throws {
+    SourceLoadFailure
+}
+
+export declare function openDirectory(collection: Collection): void throws { SourceLoadFailure }
+export declare function nextDirectory(collection: Collection): bool throws { SourceLoadFailure }
+export declare function directoryPath(collection: Collection): string
+export declare function directoryName(collection: Collection): string
+export declare function recordDirectory(collection: Collection): void throws { SourceLoadFailure }
+export declare function enterDirectory(collection: Collection): void throws { SourceLoadFailure }
+
+export declare function orderMembers(collection: Collection): u64 throws { SourceLoadFailure }
+export declare function readMember(collection: Collection, index: u64): bool throws {
+    SourceLoadFailure
+}
+export declare function registerMember(collection: Collection, index: u64): u64? throws {
+    SourceLoadFailure
+}
+export declare function duplicateMember(collection: Collection, previous: u64): void throws {
+    SourceLoadFailure
+}
+export declare function publishMember(collection: Collection, index: u64): void throws {
+    SourceLoadFailure
+}
+
+export declare function startSearch(search: Search): void throws { SourceLoadFailure }
+export declare function readCandidate(search: Search): Probe throws { SourceLoadFailure }
+export declare function hasNearest(search: Search): bool
+export declare function hasWorkspace(search: Search): bool
+export declare function rememberCandidate(search: Search): void
+export declare function selectCandidate(search: Search): void
+export declare function loadAncestor(search: Search): bool throws { SourceLoadFailure }
+export declare function ancestorContainsMember(search: Search): bool throws { SourceLoadFailure }
+export declare function selectAncestor(search: Search): void
+export declare function moveParent(search: Search): bool
+export declare function selectNearest(search: Search): void
+
+export declare function scopeRoot(source: Source, path: string): string?
+export declare function physicalSource(source: Source, path: string): string throws {
+    SourceLoadFailure
+}
+export declare function parentDirectory(path: string): string?
+export declare function hasPackageManifest(source: Source, directory: string): bool throws {
+    SourceLoadFailure
+}
+
+export declare function projectConfiguration(project: Project): string?
+export declare function findProjectConfiguration(project: Project): string? throws {
+    SourceLoadFailure
+}
+export declare function loadProjectGraph(project: Project, path: string): bool throws {
+    SourceLoadFailure
+}
+export declare function bindProjectScopes(project: Project): bool throws { SourceLoadFailure }
+export declare function owningProjectScope(project: Project): u64? throws { SourceLoadFailure }
+export declare function reportProjectEntry(project: Project): void
+export declare function publishProject(project: Project, owner: u64): void throws {
+    SourceLoadFailure
+}
+
+export declare function prepareSurface(binding: ScopeBinding, index: u64): u64 throws {
+    SourceLoadFailure
+}
+export declare function scopeEntry(binding: ScopeBinding): string?
+export declare function scopeLibrary(binding: ScopeBinding): string?
+export declare function writeScopeEntry(binding: ScopeBinding, entry: string): void throws {
+    SourceLoadFailure
+}
+export declare function prepareLibrarySurface(binding: ScopeBinding, library: string): void throws {
+    SourceLoadFailure
+}
+export declare function writeCompiledExport(binding: ScopeBinding, index: u64): void
+export declare function writeSourceExport(binding: ScopeBinding, index: u64): void throws {
+    SourceLoadFailure
+}
+export declare function borrowScopeColumns(binding: ScopeBinding): void
+export declare function bindScope(binding: ScopeBinding, index: u64): bool throws {
+    SourceLoadFailure
+}

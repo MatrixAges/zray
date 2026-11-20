@@ -1,0 +1,15 @@
+import type { ScopeBinding } from "package_workspace_host"
+
+export type Input = {
+    binding: ScopeBinding,
+    count: u64
+}
+
+export type Row = {
+    binding: ScopeBinding,
+    index: u64
+}
+
+export type Exports = Input & {
+    compiled: bool
+}

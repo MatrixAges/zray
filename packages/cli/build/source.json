@@ -154,6 +154,30 @@
             "name": "workspace_constants"
         },
         {
+            "path": "package/workspace/collection/run.rx",
+            "name": "workspace_collect"
+        },
+        {
+            "path": "package/workspace/discover/run.rx",
+            "name": "workspace_discover"
+        },
+        {
+            "path": "package/workspace/source/check.rx",
+            "name": "workspace_source"
+        },
+        {
+            "path": "package/project/run.rx",
+            "name": "workspace_project"
+        },
+        {
+            "path": "package/project/const.zx",
+            "name": "workspace_project_constants"
+        },
+        {
+            "path": "package/project/scope/bind/run.rx",
+            "name": "workspace_scope_bind"
+        },
+        {
             "path": "package/manifest/decode/read.rx",
             "name": "manifest_decode"
         },
@@ -508,6 +532,10 @@
         {
             "path": "sources/host.d.zx",
             "module": "source_loader_host"
+        },
+        {
+            "path": "workspace/host.d.zx",
+            "module": "package_workspace_host"
         },
         {
             "path": "rx/collection/host.d.zx",

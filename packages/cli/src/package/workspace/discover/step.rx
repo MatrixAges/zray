@@ -1,0 +1,43 @@
+<Module>
+    <Type from="index" as="IO" />
+    <Type from="decision" as="Choice" />
+
+    <Args in={IO.Search} out={bool} />
+
+    <Call fn="index.readCandidate" in={$in} />
+
+    <If on={$ctx.readCandidate != IO.Probe.Read}>
+        <Return value={$ctx.readCandidate == IO.Probe.Invalid} />
+    </If>
+
+    <Call fn="index.hasNearest" in={$in} />
+    <Call fn="index.hasWorkspace" in={$in} />
+
+    <Call
+        fn="decision"
+        in={{
+            has_nearest: $ctx.hasNearest,
+            has_workspace: $ctx.hasWorkspace
+        }}
+    />
+
+    <If on={$ctx.decision == Choice.Decision.Remember}>
+        <Call fn="index.rememberCandidate" in={$in} />
+
+        <Return value={false} />
+    </If>
+
+    <If on={$ctx.decision == Choice.Decision.Select}>
+        <Call fn="index.selectCandidate" in={$in} />
+
+        <Return value={true} />
+    </If>
+
+    <If on={$ctx.decision == Choice.Decision.Inspect}>
+        <Call module="ancestor" in={$in} />
+
+        <Return value={$ctx.ancestor} />
+    </If>
+
+    <Return value={false} />
+</Module>

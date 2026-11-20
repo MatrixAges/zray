@@ -1,0 +1,16 @@
+import type { Collection } from "package_workspace_host"
+
+export type Patterns = {
+    collection: Collection,
+    patterns: string[]
+}
+
+export type Members = {
+    collection: Collection,
+    count: u64
+}
+
+export type Member = {
+    collection: Collection,
+    index: u64
+}

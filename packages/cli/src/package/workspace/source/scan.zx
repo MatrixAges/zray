@@ -1,0 +1,32 @@
+import { hasPackageManifest, parentDirectory } from "package_workspace_host"
+
+import { Status } from "./model"
+
+import type { Scan as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { source, root } = in
+
+    return loop({
+        directory: in.directory,
+        status: Status.Valid
+    }, {
+        while: state => state.status == Status.Valid && state.directory != root,
+        next: state => {
+            if (hasPackageManifest(source, state.directory)) {
+                state.status = Status.Undeclared
+            } else {
+                const parent = parentDirectory(state.directory)
+
+                if (parent == null) {
+                    state.status = Status.Outside
+                } else {
+                    state.directory = parent
+                }
+            }
+        },
+        return: state => state.status
+    })
+}

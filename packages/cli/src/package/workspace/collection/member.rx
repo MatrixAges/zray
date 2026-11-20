@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.Member} out={void} />
+
+    <Call
+        fn="index.readMember"
+        in={[
+            $in.collection,
+            $in.index
+        ]}
+    />
+
+    <If on={$ctx.readMember}>
+        <Call
+            fn="index.registerMember"
+            in={[
+                $in.collection,
+                $in.index
+            ]}
+        />
+
+        <If on={$ctx.registerMember != null}>
+            <Call
+                fn="index.duplicateMember"
+                in={[
+                    $in.collection,
+                    $ctx.registerMember
+                ]}
+            />
+        </If>
+
+        <Call
+            fn="index.publishMember"
+            in={[
+                $in.collection,
+                $in.index
+            ]}
+        />
+    </If>
+</Module>

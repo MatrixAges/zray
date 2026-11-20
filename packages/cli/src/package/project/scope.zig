@@ -4,80 +4,155 @@ const zx = @import("zx");
 const memory = zx.memory;
 const rules = @import("cli_source");
 const graph = @import("../graph.zig");
-const Manifest = @import("../manifest/model.zig").Manifest;
+const effects = @import("../../cli/sources/effects.zig");
+const Error = effects.Error;
 const Package = compiler.project.Package;
 const Scope = compiler.project.PackageScope;
 const Input = std.meta.Child(rules.package_scope_bindings.Input);
 const Output = std.meta.Child(@FieldType(Input, "output"));
 const Target = memory.RowOutput(Package, Output, .{ .records = &.{}, .specifiers = &.{"specifier"} });
 const root_export = rules.package_scope_constants.@"zx.constants".root_export;
-const Surface = struct { bindings: []const Package };
+const Surface = struct { bindings: []Package };
+
+const State = struct {
+    allocator: std.mem.Allocator,
+    scratch: std.mem.Allocator,
+    graph: *const graph.Result,
+    scopes: []Scope,
+    surfaces: []Surface,
+    current: usize = undefined,
+    compiled_path: []const u8 = undefined,
+    bindings: memory.ListColumn = undefined,
+    paths: memory.ListColumn = undefined,
+    dependencies: graph.DependencyColumns = undefined,
+    diagnostic: ?[]const u8 = null,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return effects.state(State, handle);
+    }
+    fn root(self: *const State) []const u8 {
+        return self.scopes[self.current].root;
+    }
+    fn destination(self: *State, index: usize) *Package {
+        return &self.surfaces[self.current].bindings[index];
+    }
+};
 
 pub fn bind(allocator: std.mem.Allocator, scratch: std.mem.Allocator, project: *const graph.Result, scopes: []Scope) !?[]const u8 {
-    const surfaces = try scratch.alloc(Surface, scopes.len);
+    var state: State = .{
+        .allocator = allocator,
+        .scratch = scratch,
+        .graph = project,
+        .scopes = scopes,
+        .surfaces = try scratch.alloc(Surface, scopes.len),
+    };
 
-    for (project.packages, scopes, surfaces) |package, *scope, *surface| {
-        const root = try std.fs.path.resolve(allocator, &.{ project.root, package.path });
-        scope.* = .{ .root = root, .packages = &.{} };
-        surface.* = .{ .bindings = try destinations(allocator, scratch, root, package.manifest) };
-    }
+    const reference = &state;
 
-    const bindings = memory.borrowSliceColumn(&.{"bindings"}, surfaces);
-    const paths = memory.borrowListColumn([]const u8, "bindings", "specifier", surfaces);
-    const dependencies = project.dependencyColumns();
+    rules.workspace_scope_bind.executeValue(scratch, &.{ .binding = @ptrCast(&reference), .count = scopes.len }) catch |err| return state.failure.unwrap(err);
 
-    for (project.packages, scopes, 0..) |package, *scope, owner| {
-        var target: Target = undefined;
-
-        target.init();
-
-        const plan = zx.columns.invoke(rules.package_scope_bindings.executeValue, allocator, &Input{
-            .owner = owner,
-            .name = package.manifest.name,
-            .targets = @ptrCast(&dependencies.targets),
-            .aliases = @ptrCast(&dependencies.names),
-            .bindings = @ptrCast(&bindings),
-            .paths = @ptrCast(&paths),
-            .width = @sizeOf(Package),
-            .storage = @ptrCast(&target.buffer),
-            .output = &target.view,
-        }) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-            else => unreachable,
-        };
-
-        if (plan.missing) |index| {
-            const edge = project.dependency(owner, @intCast(index));
-            const dependency = project.packages[edge.target].manifest;
-
-            return try std.fmt.allocPrint(allocator, "{s}/pkg.yaml: dependency {s}: target {s} has no public modules", .{ scope.root, edge.name, dependency.name });
-        }
-
-        scope.packages = target.rows();
-    }
-
-    return null;
+    return state.diagnostic;
 }
 
-fn destinations(allocator: std.mem.Allocator, scratch: std.mem.Allocator, root: []const u8, manifest: Manifest) ![]const Package {
-    const count = manifest.exports.len + @intFromBool(manifest.entry != null);
-    const result = try scratch.alloc(Package, count);
+pub fn prepareSurface(handle: *const anyopaque, row: u64) Error!u64 {
+    const self = State.get(handle);
+    const index: usize = @intCast(row);
+    const package = &self.graph.packages[index];
+    const root = std.fs.path.resolve(self.allocator, &.{ self.graph.root, package.path }) catch |err| return self.failure.save(err);
+    const count = package.manifest.exports.len + @intFromBool(package.manifest.entry != null);
+    const items = self.scratch.alloc(Package, count) catch |err| return self.failure.save(err);
 
-    if (manifest.entry) |entry| {
-        result[0] = .{ .specifier = root_export, .entry = try std.fs.path.resolve(allocator, &.{ root, entry }) };
-    } else if (manifest.library) |library| {
-        const artifact = try std.fs.path.resolve(allocator, &.{ root, library });
+    self.current = index;
+    self.scopes[index] = .{ .root = root, .packages = &.{} };
+    self.surfaces[index] = .{ .bindings = items };
 
-        for (manifest.exports, result) |item, *binding| binding.* = .{
-            .specifier = item.path,
-            .compiled = .{ .instance = root, .artifact = artifact, .name = item.module.? },
-        };
-    } else {
-        for (manifest.exports, result) |item, *binding| binding.* = .{
-            .specifier = item.path,
-            .entry = try std.fs.path.resolve(allocator, &.{ root, item.source }),
-        };
+    return package.manifest.exports.len;
+}
+
+pub fn scopeEntry(handle: *const anyopaque) ?[]const u8 {
+    const self = State.get(handle);
+
+    return self.graph.packages[self.current].manifest.entry;
+}
+
+pub fn scopeLibrary(handle: *const anyopaque) ?[]const u8 {
+    const self = State.get(handle);
+
+    return self.graph.packages[self.current].manifest.library;
+}
+
+pub fn writeScopeEntry(handle: *const anyopaque, entry: []const u8) Error!void {
+    const self = State.get(handle);
+    const path = std.fs.path.resolve(self.allocator, &.{ self.root(), entry }) catch |err| return self.failure.save(err);
+
+    self.destination(0).* = .{ .specifier = root_export, .entry = path };
+}
+
+pub fn prepareLibrarySurface(handle: *const anyopaque, library: []const u8) Error!void {
+    const self = State.get(handle);
+
+    self.compiled_path = std.fs.path.resolve(self.allocator, &.{ self.root(), library }) catch |err| return self.failure.save(err);
+}
+
+pub fn writeCompiledExport(handle: *const anyopaque, index: u64) void {
+    const self = State.get(handle);
+    const row: usize = @intCast(index);
+    const item = &self.graph.packages[self.current].manifest.exports[row];
+
+    self.destination(row).* = .{ .specifier = item.path, .compiled = .{ .instance = self.root(), .artifact = self.compiled_path, .name = item.module.? } };
+}
+
+pub fn writeSourceExport(handle: *const anyopaque, index: u64) Error!void {
+    const self = State.get(handle);
+    const row: usize = @intCast(index);
+    const item = &self.graph.packages[self.current].manifest.exports[row];
+    const path = std.fs.path.resolve(self.allocator, &.{ self.root(), item.source }) catch |err| return self.failure.save(err);
+
+    self.destination(row).* = .{ .specifier = item.path, .entry = path };
+}
+
+pub fn borrowScopeColumns(handle: *const anyopaque) void {
+    const self = State.get(handle);
+
+    self.bindings = memory.borrowSliceColumn(&.{"bindings"}, self.surfaces);
+    self.paths = memory.borrowListColumn([]const u8, "bindings", "specifier", self.surfaces);
+    self.dependencies = self.graph.dependencyColumns();
+}
+
+pub fn bindScope(handle: *const anyopaque, index: u64) Error!bool {
+    const self = State.get(handle);
+    const owner: usize = @intCast(index);
+    const package = &self.graph.packages[owner];
+    const scope = &self.scopes[owner];
+    var target: Target = undefined;
+
+    target.init();
+
+    const plan = zx.columns.invoke(rules.package_scope_bindings.executeValue, self.allocator, &Input{
+        .owner = owner,
+        .name = package.manifest.name,
+        .targets = @ptrCast(&self.dependencies.targets),
+        .aliases = @ptrCast(&self.dependencies.names),
+        .bindings = @ptrCast(&self.bindings),
+        .paths = @ptrCast(&self.paths),
+        .width = @sizeOf(Package),
+        .storage = @ptrCast(&target.buffer),
+        .output = &target.view,
+    }) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return self.failure.save(error.OutOfMemory),
+        else => unreachable,
+    };
+
+    if (plan.missing) |edge_index| {
+        const edge = self.graph.dependency(owner, @intCast(edge_index));
+        const name = self.graph.packages[edge.target].manifest.name;
+
+        self.diagnostic = std.fmt.allocPrint(self.allocator, "{s}/pkg.yaml: dependency {s}: target {s} has no public modules", .{ scope.root, edge.name, name }) catch |err| return self.failure.save(err);
+
+        return false;
     }
 
-    return result;
+    scope.packages = target.rows();
+
+    return true;
 }

@@ -1,0 +1,15 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Project} out={string?} />
+
+    <Call fn="index.projectConfiguration" in={$in} />
+
+    <If on={$ctx.projectConfiguration != null}>
+        <Return value={$ctx.projectConfiguration} />
+    </If>
+
+    <Call fn="index.findProjectConfiguration" in={$in} />
+
+    <Return value={$ctx.findProjectConfiguration} />
+</Module>

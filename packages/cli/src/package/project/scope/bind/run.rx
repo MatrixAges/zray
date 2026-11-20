@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Scopes" />
+
+    <Args in={Scopes.Input} out={void} />
+
+    <Call fn="prepare" in={$in} />
+    <Call fn="index.borrowScopeColumns" in={$in.binding} />
+    <Call fn="publish" in={$in} />
+</Module>

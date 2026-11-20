@@ -1,0 +1,12 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Search} out={void} />
+
+    <Call fn="index.startSearch" in={$in} />
+    <Call fn="search" in={$in} />
+
+    <If on={!$ctx.search}>
+        <Call fn="index.selectNearest" in={$in} />
+    </If>
+</Module>

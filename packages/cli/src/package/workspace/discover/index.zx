@@ -1,0 +1,15 @@
+export {
+    startSearch,
+    readCandidate,
+    hasNearest,
+    hasWorkspace,
+    rememberCandidate,
+    selectCandidate,
+    loadAncestor,
+    ancestorContainsMember,
+    selectAncestor,
+    selectNearest,
+    Probe
+} from "package_workspace_host"
+
+export type { Search } from "package_workspace_host"

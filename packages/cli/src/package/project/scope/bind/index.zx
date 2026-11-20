@@ -1,0 +1,8 @@
+export {
+    prepareSurface,
+    scopeEntry,
+    scopeLibrary,
+    writeScopeEntry,
+    prepareLibrarySurface,
+    borrowScopeColumns
+} from "package_workspace_host"

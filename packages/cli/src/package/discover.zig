@@ -3,7 +3,11 @@ const builtin = @import("builtin");
 const Inputs = @import("watch_inputs").Inputs;
 const source = @import("manifest/input.zig");
 const workspace = @import("workspace.zig");
-const decision = @import("cli_source").workspace_discovery_decision;
+const rules = @import("cli_source");
+const constants = rules.workspace_constants.@"zx.constants";
+const effects = @import("../cli/sources/effects.zig");
+const Error = effects.Error;
+pub const Probe = @import("package_workspace_abi").native.@"zig:package_workspace_host".Probe;
 
 pub const Result = struct {
     path: ?[]const u8 = null,
@@ -15,106 +19,192 @@ pub const Result = struct {
     }
 };
 
-const Nearest = struct { manifest: source.Known, arena: std.heap.ArenaAllocator };
+const Candidate = struct {
+    manifest: source.Known,
+    arena: std.heap.ArenaAllocator,
+};
 
-/// The compilation allocator owns the accepted manifests. The workspace result owns only the walk metadata.
+const State = struct {
+    io: std.Io,
+    scratch: std.mem.Allocator,
+    retained: std.mem.Allocator,
+    entry: []const u8,
+    inputs: ?*Inputs,
+    directory: []const u8 = undefined,
+    result: Result = .{},
+    nearest: ?Candidate = null,
+    candidate: ?Candidate = null,
+    members: ?workspace.Result = null,
+    member_memory: ?std.heap.ArenaAllocator = null,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return effects.state(State, handle);
+    }
+    fn discardProbe(self: *State) void {
+        if (self.members) |*members| members.deinit();
+        if (self.member_memory) |*arena| arena.deinit();
+        if (self.candidate) |*candidate| candidate.arena.deinit();
+
+        self.members = null;
+        self.member_memory = null;
+        self.candidate = null;
+    }
+};
+
+/// The compilation allocator owns accepted manifests. The workspace result owns the walk metadata.
 pub fn findWithInputs(io: std.Io, scratch: std.mem.Allocator, retained: std.mem.Allocator, entry: []const u8, inputs: ?*Inputs) !Result {
-    if (inputs) |observed| try observed.add(io, entry);
-
-    const real = try std.Io.Dir.cwd().realPathFileAlloc(io, entry, scratch);
-    var directory = std.fs.path.dirname(real).?;
-    var nearest: ?Nearest = null;
-    var retain_nearest = false;
-
-    defer if (!retain_nearest) {
-        if (nearest) |saved| saved.arena.deinit();
+    var state: State = .{
+        .io = io,
+        .scratch = scratch,
+        .retained = retained,
+        .entry = entry,
+        .inputs = inputs,
     };
 
-    while (true) {
-        const path = try std.fs.path.join(scratch, &.{ directory, "pkg.yaml" });
+    defer {
+        state.discardProbe();
 
-        const file = source.locate(io, scratch, path, inputs) catch |err| switch (err) {
-            error.FileNotFound => null,
-            else => return err,
-        };
-
-        if (file) |found| {
-            var arena = std.heap.ArenaAllocator.init(retained);
-            var keep = false;
-
-            defer if (!keep) arena.deinit();
-
-            const parsed = source.decode(io, arena.allocator(), found, inputs) catch |err| switch (err) {
-                error.FileNotFound => null,
-                else => return err,
-            };
-
-            if (parsed) |value| {
-                const data = switch (value) {
-                    .data => |data| data,
-                    .diagnostic => |issue| return .{ .diagnostic = try source.diagnostic(scratch, path, issue) },
-                };
-
-                const candidate: source.Known = .{ .file = found, .data = data };
-                var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-                switch (decision.executeValue(empty.allocator(), &.{
-                    .has_nearest = nearest != null,
-                    .has_workspace = data.workspace != null,
-                }) catch unreachable) {
-                    .Remember => {
-                        nearest = .{ .manifest = candidate, .arena = arena };
-                        keep = true;
-                    },
-                    .Select => {
-                        keep = true;
-
-                        return .{ .path = path, .root = candidate };
-                    },
-                    .Inspect => {
-                        var member_memory = std.heap.ArenaAllocator.init(retained);
-                        var selected = false;
-
-                        defer if (!selected) member_memory.deinit();
-
-                        const local = nearest.?.manifest;
-
-                        var members = try workspace.loadPrepared(io, std.heap.smp_allocator, .{
-                            .path = path,
-                            .inputs = inputs,
-                            .manifests = member_memory.allocator(),
-                            .root = candidate,
-                            .member = local,
-                        });
-
-                        defer if (!selected) members.deinit();
-
-                        if (members.diagnostic) |message| return .{ .diagnostic = try scratch.dupe(u8, message) };
-
-                        const target = try std.fs.path.relative(scratch, directory, null, directory, std.fs.path.dirname(local.file.path).?);
-                        const member = if (comptime builtin.os.tag == .windows) try workspace.portablePath(scratch, target) else target;
-
-                        if (workspace.containsMember(members.packages, member)) {
-                            selected = true;
-                            keep = true;
-                            retain_nearest = true;
-
-                            return .{ .path = path, .members = members };
-                        }
-                    },
-                    .Continue => {},
-                }
-            }
-        }
-
-        directory = std.fs.path.dirname(directory) orelse break;
+        if (state.nearest) |*saved| saved.arena.deinit();
     }
 
-    if (nearest) |saved| {
-        retain_nearest = true;
+    const reference = &state;
 
-        return .{ .path = saved.manifest.file.path, .root = saved.manifest };
+    rules.workspace_discover.executeValue(scratch, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+
+    return state.result;
+}
+
+pub fn startSearch(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+
+    if (self.inputs) |observed| observed.add(self.io, self.entry) catch |err| return self.failure.save(err);
+
+    const real = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.entry, self.scratch) catch |err| return self.failure.save(err);
+
+    self.directory = std.fs.path.dirname(real).?;
+}
+
+pub fn readCandidate(handle: *const anyopaque) Error!Probe {
+    const self = State.get(handle);
+    const path = std.fs.path.join(self.scratch, &.{ self.directory, constants.manifest_name }) catch |err| return self.failure.save(err);
+
+    const file = source.locate(self.io, self.scratch, path, self.inputs) catch |err| switch (err) {
+        error.FileNotFound => return .Missing,
+        else => return self.failure.save(err),
+    };
+
+    var arena = std.heap.ArenaAllocator.init(self.retained);
+    var retained = false;
+
+    defer if (!retained) arena.deinit();
+
+    const parsed = source.decode(self.io, arena.allocator(), file, self.inputs) catch |err| switch (err) {
+        error.FileNotFound => return .Missing,
+        else => return self.failure.save(err),
+    };
+
+    switch (parsed) {
+        .diagnostic => |issue| {
+            self.result.diagnostic = source.diagnostic(self.scratch, path, issue) catch |err| return self.failure.save(err);
+
+            return .Invalid;
+        },
+        .data => |data| {
+            self.candidate = .{ .manifest = .{ .file = file, .data = data }, .arena = arena };
+            retained = true;
+
+            return .Read;
+        },
+    }
+}
+
+pub fn hasNearest(handle: *const anyopaque) bool {
+    return State.get(handle).nearest != null;
+}
+
+pub fn hasWorkspace(handle: *const anyopaque) bool {
+    return State.get(handle).candidate.?.manifest.data.workspace != null;
+}
+
+pub fn rememberCandidate(handle: *const anyopaque) void {
+    const self = State.get(handle);
+
+    self.nearest = self.candidate;
+    self.candidate = null;
+}
+
+pub fn selectCandidate(handle: *const anyopaque) void {
+    const self = State.get(handle);
+    const candidate = self.candidate.?.manifest;
+    self.result.path = candidate.file.path;
+    self.result.root = candidate;
+    self.candidate = null;
+}
+
+pub fn loadAncestor(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const candidate = self.candidate.?.manifest;
+    self.member_memory = .init(self.retained);
+
+    self.members = workspace.loadPrepared(self.io, std.heap.smp_allocator, .{
+        .path = candidate.file.path,
+        .inputs = self.inputs,
+        .manifests = self.member_memory.?.allocator(),
+        .root = candidate,
+        .member = self.nearest.?.manifest,
+    }) catch |err| return self.failure.save(err);
+
+    if (self.members.?.diagnostic) |message| {
+        self.result.diagnostic = self.scratch.dupe(u8, message) catch |err| return self.failure.save(err);
+
+        return false;
     }
 
-    return .{};
+    return true;
+}
+
+pub fn ancestorContainsMember(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const directory = self.directory;
+    const local = std.fs.path.dirname(self.nearest.?.manifest.file.path).?;
+    const target = std.fs.path.relative(self.scratch, directory, null, directory, local) catch |err| return self.failure.save(err);
+
+    const member = if (comptime builtin.os.tag == .windows)
+        workspace.portablePath(self.scratch, target) catch |err| return self.failure.save(err)
+
+    else
+        target;
+
+    return workspace.containsMember(self.members.?.packages, member);
+}
+
+pub fn selectAncestor(handle: *const anyopaque) void {
+    const self = State.get(handle);
+
+    self.result.path = self.candidate.?.manifest.file.path;
+    self.result.members = self.members;
+    self.members = null;
+    self.member_memory = null;
+    self.candidate = null;
+    self.nearest = null;
+}
+
+pub fn moveParent(handle: *const anyopaque) bool {
+    const self = State.get(handle);
+
+    self.discardProbe();
+
+    self.directory = std.fs.path.dirname(self.directory) orelse return false;
+
+    return true;
+}
+
+pub fn selectNearest(handle: *const anyopaque) void {
+    const self = State.get(handle);
+
+    if (self.nearest) |saved| {
+        self.result.path = saved.manifest.file.path;
+        self.result.root = saved.manifest;
+        self.nearest = null;
+    }
 }

@@ -1,0 +1,41 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Collection} out={void} />
+
+    <Call fn="index.readRoot" in={$in} />
+
+    <If on={$ctx.readRoot.length > 0}>
+        <Call fn="../glob/invalid" in={$ctx.readRoot} />
+
+        <If on={$ctx.invalid != null}>
+            <Call
+                fn="index.invalidPattern"
+                in={[
+                    $in,
+                    $ctx.readRoot[$ctx.invalid]
+                ]}
+            />
+        </If>
+
+        <Call fn="index.openDirectory" in={$in} />
+
+        <Call
+            fn="walk"
+            in={{
+                collection: $in,
+                patterns: $ctx.readRoot
+            }}
+        />
+
+        <Call fn="index.orderMembers" in={$in} />
+
+        <Call
+            fn="members"
+            in={{
+                collection: $in,
+                count: $ctx.orderMembers
+            }}
+        />
+    </If>
+</Module>

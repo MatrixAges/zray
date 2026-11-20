@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args
+        in={Workspace.Patterns & {
+            path: string,
+            name: string
+        }}
+        out={void}
+    />
+
+    <Call module="../choose" in={$in.omit(["collection"])} />
+
+    <If on={$ctx.choose.included}>
+        <Call fn="index.recordDirectory" in={$in.collection} />
+    </If>
+
+    <If on={$ctx.choose.descendants}>
+        <Call fn="index.enterDirectory" in={$in.collection} />
+    </If>
+</Module>

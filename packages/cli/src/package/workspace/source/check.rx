@@ -1,0 +1,44 @@
+<Module>
+    <Type from="model" as="Ownership" />
+
+    <Args in={Ownership.Input} out={Ownership.Status} />
+
+    <Call
+        fn="index.scopeRoot"
+        in={[
+            $in.source,
+            $in.path
+        ]}
+    />
+
+    <If on={$ctx.scopeRoot != null}>
+        <Call
+            fn="index.physicalSource"
+            in={[
+                $in.source,
+                $in.path
+            ]}
+        />
+
+        <If on={$ctx.physicalSource != $in.path}>
+            <Return value={Ownership.Status.Alias} />
+        </If>
+
+        <Call fn="index.parentDirectory" in={$in.path} />
+
+        <If on={$ctx.parentDirectory != null}>
+            <Call
+                fn="scan"
+                in={{
+                    source: $in.source,
+                    directory: $ctx.parentDirectory,
+                    root: $ctx.scopeRoot
+                }}
+            />
+
+            <Return value={$ctx.scan} />
+        </If>
+    </If>
+
+    <Return value={Ownership.Status.Outside} />
+</Module>

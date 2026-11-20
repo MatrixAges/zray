@@ -1,0 +1,19 @@
+import type { Source } from "package_workspace_host"
+
+export enum Status {
+    Valid,
+    Outside,
+    Alias,
+    Undeclared
+}
+
+export type Input = {
+    source: Source,
+    path: string
+}
+
+export type Scan = {
+    source: Source,
+    directory: string,
+    root: string
+}

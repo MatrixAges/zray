@@ -5,6 +5,13 @@ pub const toolchain = @import("cli/toolchain.zig");
 pub const installation = @import("package/install/host.zig");
 pub const library_stage = @import("cli/library/publish.zig");
 
+pub const package_workspace = struct {
+    pub const collection = @import("package/workspace.zig");
+    pub const discovery = @import("package/discover.zig");
+    pub const source = @import("package/source.zig");
+    pub const project = @import("package/project.zig");
+};
+
 pub const library_workflow = struct {
     pub const build = @import("cli/library/build.zig");
     pub const analysis = @import("cli/library/analysis/rows.zig");

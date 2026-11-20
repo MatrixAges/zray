@@ -1,0 +1,11 @@
+export {
+    projectConfiguration,
+    findProjectConfiguration,
+    loadProjectGraph,
+    bindProjectScopes,
+    owningProjectScope,
+    reportProjectEntry,
+    publishProject
+} from "package_workspace_host"
+
+export type { Project } from "package_workspace_host"
