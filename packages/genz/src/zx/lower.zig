@@ -252,6 +252,8 @@ pub fn functionReference(self: *Self, id: ir.FunctionId) Error!node.ExpressionId
 }
 
 pub fn requestFunction(self: *Self, id: ir.FunctionId, variant: @import("functions/requests.zig").Variant) Error!node.ExpressionId {
+    if (@import("genz_options").generated_analysis) return @import("functions/reference.zig").lower(self, id, variant);
+
     if (self.function_modules) |modules| {
         const member = variant.member();
 

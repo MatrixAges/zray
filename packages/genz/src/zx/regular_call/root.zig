@@ -18,11 +18,10 @@ pub fn lower(self: *Lower, invocation: seed.Operation) Lower.Error!node.Expressi
 
     const plan = selected.regular.?;
     const function = self.program.functions.at(@backingInt(invocation.function));
-    const arguments = try self.allocator.alloc(node.ExpressionId, @intCast(plan.argument_count));
     var body: std.ArrayList(node.Statement) = .empty;
-    arguments[0] = try self.builder.identifier("allocator");
+    const allocator = try self.builder.identifier("allocator");
 
-    arguments[1] = switch (plan.argument) {
+    const argument = switch (plan.argument) {
         .ExternalTuple => tuple: {
             const value = self.program.expression(invocation.argument);
             const layout = try aggregate.tupleValue(self, value, value.value.tuple);
@@ -39,21 +38,16 @@ pub fn lower(self: *Lower, invocation: seed.Operation) Lower.Error!node.Expressi
         .Value => try self.expr(invocation.argument),
     };
 
-    if (plan.stores) arguments[@intCast(plan.store_slot)] = try @import("../store.zig").adapter(self, invocation);
+    const store = if (plan.stores) try @import("../store.zig").adapter(self, invocation) else null;
 
-    if (plan.io) {
-        self.uses_io = true;
-
-        arguments[@intCast(plan.io_slot)] = try self.builder.identifier("io");
-    }
-
-    if (plan.process) {
-        self.uses_process = true;
-
-        arguments[@intCast(plan.process_slot)] = try self.builder.identifier("process");
-    }
-
-    var result = try self.call(try self.functionReference(invocation.function), arguments, true);
+    var result = try @import("emission.zig").lower(self, .{
+        .function = invocation.function,
+        .allocator = allocator,
+        .value = argument,
+        .store = store,
+        .io = plan.io,
+        .process = plan.process,
+    });
 
     if (plan.convert_output) {
         result = try aggregate.bind(self, &body, result);

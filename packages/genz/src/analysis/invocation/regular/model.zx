@@ -58,11 +58,7 @@ export type Plan = {
     convert_output: bool,
     stores: bool,
     io: bool,
-    process: bool,
-    argument_count: u64,
-    store_slot: u64,
-    io_slot: u64,
-    process_slot: u64
+    process: bool
 }
 
 export type Output = {

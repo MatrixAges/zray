@@ -1,0 +1,45 @@
+import type { Capture } from "../../../../ast/expressions/fallible"
+import type { ExpressionsKind } from "../../../../printer/model/expressions"
+import type {
+    Nodes as ReferenceNodes,
+    Output as Reference,
+    Target
+} from "../../../functions/requests/reference/model"
+import type { Nodes as CallNodes } from "../../model"
+import type { Output as Call } from "../../nodes"
+
+export type Input = {
+    base: u32,
+    target: Target,
+    allocator: u32,
+    value: u32,
+    store?: u32,
+    io: bool,
+    process: bool,
+    capture?: Capture
+}
+
+export type ResourceInput = Input.Pick("base", "io", "process")
+
+export type Resources = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    identifier: u8[][],
+    base: u32,
+    io?: u32,
+    process?: u32
+}
+
+export type Assemble = {
+    resources: Resources,
+    reference: Reference,
+    call: Call
+}
+
+export type Nodes = ReferenceNodes & CallNodes.Omit("tags", "offsets")
+
+export type Output = {
+    nodes: Nodes,
+    root: u32,
+    valid: bool
+}

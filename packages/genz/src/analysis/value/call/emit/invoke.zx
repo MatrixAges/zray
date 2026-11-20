@@ -3,6 +3,7 @@ import bytes from "std:bytes"
 import call from "../../../../ast/context/call"
 import identifier from "../../../../ast/context/identifier"
 import { allocator_name } from "../../../construction/const"
+import arguments from "../../../invocation/arguments"
 
 import type { Work as Input, Work as Output } from "./model"
 
@@ -27,10 +28,13 @@ export default function (in: Input): Output {
     const result = call({
         state: allocator.state,
         callee: in.source.callee,
-        arguments: [
-            allocator.id,
-            in.root
-        ],
+        arguments: arguments({
+            allocator: allocator.id,
+            value: in.root,
+            store: null,
+            io: null,
+            process: null
+        }),
         fallible: true
     })
 

@@ -1,0 +1,35 @@
+export type Input = {
+    allocator: u32,
+    value: u32,
+    store?: u32,
+    io?: u32,
+    process?: u32
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const store_value = in.store
+    const io_value = in.io
+    const process_value = in.process
+
+    const explicit = [
+        in.allocator,
+        in.value
+    ]
+
+    const stored = match {
+        store_value != null => explicit.push(store_value)[0],
+        _ => explicit
+    }
+
+    const io_args = match {
+        io_value != null => stored.push(io_value)[0],
+        _ => stored
+    }
+
+    return match {
+        process_value != null => io_args.push(process_value)[0],
+        _ => io_args
+    }
+}

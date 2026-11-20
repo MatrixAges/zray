@@ -1,0 +1,58 @@
+<Module>
+    <Type from="model" as="Emission" />
+
+    <Args in={Emission.Input} out={Emission.Output} />
+
+    <Call
+        fn="resources"
+        in={$in.pick([
+            "base",
+            "io",
+            "process"
+        ])}
+    />
+
+    <Call
+        module="../../../functions/requests/reference/build"
+        in={{
+            target: $in.target,
+            base: $ctx.resources.base,
+            identifiers: $ctx.resources.identifier.length
+        }}
+    />
+
+    <Call
+        fn="../../arguments"
+        in={{
+            ...$in.pick([
+                "allocator",
+                "value",
+                "store"
+            ]),
+            io: $ctx.resources.io,
+            process: $ctx.resources.process
+        }}
+    />
+
+    <Call
+        fn="../../nodes"
+        in={{
+            callee: $ctx.build.root,
+            arguments: $ctx.arguments,
+            expression_base: $ctx.build.root + 1,
+            fallible: true,
+            capture: $in.capture
+        }}
+    />
+
+    <Call
+        fn="assemble"
+        in={{
+            resources: $ctx.resources,
+            reference: $ctx.build,
+            call: $ctx.nodes
+        }}
+    />
+
+    <Return value={$ctx.assemble} />
+</Module>

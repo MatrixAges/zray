@@ -1,0 +1,23 @@
+import type { Assemble as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { resources, reference, call } = in
+
+    const tags = resources.tags.concat(reference.nodes.tags)[0]
+    const offsets = resources.offsets.concat(reference.nodes.offsets)[0]
+
+    return {
+        nodes: {
+            ...reference.nodes,
+            ...call.nodes.omit([
+                "tags",
+                "offsets"
+            ]),
+            tags: tags.concat(call.nodes.tags)[0],
+            offsets: offsets.concat(call.nodes.offsets)[0],
+            identifier: resources.identifier.concat(reference.nodes.identifier)[0]
+        },
+        root: call.root,
+        valid: call.valid
+    }
+}

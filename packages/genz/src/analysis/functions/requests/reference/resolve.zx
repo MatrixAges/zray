@@ -1,0 +1,28 @@
+import bytes from "std:bytes"
+
+import member from "../member"
+import { Variant } from "../model"
+import name from "../name"
+
+import type { Target as Input, Name as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { module, variant } = in
+
+    if (module == null) {
+        return {
+            text: name(in.pick([
+                "id",
+                "variant"
+            ])),
+            module: null
+        }
+    }
+
+    const local = in.recursive && (variant == Variant.Value || in.local_regular)
+
+    return {
+        text: bytes.fromText(member(variant)),
+        module: local ? null : module
+    }
+}

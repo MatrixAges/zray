@@ -1,0 +1,52 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import {
+    ExpressionsBuiltinName,
+    ExpressionsKind
+} from "../../../../printer/model/expressions"
+
+import type { Build as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { module, text } = in.name
+    const { base } = in
+
+    if (module == null) {
+        return {
+            nodes: {
+                tags: [ExpressionsKind.Identifier],
+                offsets: [integers.narrow(in.identifiers)],
+                identifier: [text],
+                string: [],
+                builtin_name: [],
+                builtin_arguments: [],
+                field_target: [],
+                field_name: []
+            },
+            root: base
+        }
+    }
+
+    return {
+        nodes: {
+            tags: [
+                ExpressionsKind.String,
+                ExpressionsKind.Builtin,
+                ExpressionsKind.Field
+            ],
+            offsets: [
+                0,
+                0,
+                0
+            ],
+            identifier: [],
+            string: [bytes.fromText(module)],
+            builtin_name: [ExpressionsBuiltinName.Import],
+            builtin_arguments: [[base]],
+            field_target: [base + 1],
+            field_name: [text]
+        },
+        root: base + 2
+    }
+}
