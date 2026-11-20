@@ -4,7 +4,7 @@
     <Type from="failed" as="Failed" />
     <Type from="result" as="Result" />
 
-    <Args in={Restore.Input} out={Failed.Output} />
+    <Args in={Restore.Preparation} out={Failed.Output} />
 
     <Call
         fn="reserve"

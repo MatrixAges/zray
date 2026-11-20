@@ -1,0 +1,55 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.Input} out={void} />
+
+    <Call fn="reserve" in={$in.destination} />
+
+    <If
+        on={$in.delta.kinds.length != 0 || $in.delta.first.length != 0 ||
+            $in.origins.ids.length != 0}
+    >
+        <Call
+            fn="text"
+            in={$in.pick([
+                "delta",
+                "origins",
+                "target",
+                "nominal",
+                "text_mode",
+                "progress",
+                "payload"
+            ])}
+        />
+
+        <Call
+            fn="first"
+            in={{
+                kinds: $in.delta.kinds,
+                first: $in.delta.first,
+                target: $in.target.first,
+                offsets: $in.offsets
+            }}
+        />
+
+        <Call
+            fn="payload"
+            in={$in.pick([
+                "delta",
+                "origins",
+                "target",
+                "nominal"
+            ])}
+        />
+
+        <Call
+            fn="names"
+            in={{
+                ids: $in.origins.ids,
+                base_labels: $in.base_labels,
+                delta_labels: $in.target.labels,
+                names: $in.nominal.names
+            }}
+        />
+    </If>
+</Module>

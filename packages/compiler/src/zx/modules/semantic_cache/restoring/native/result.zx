@@ -6,7 +6,8 @@ export enum Status {
     InvalidModule,
     InvalidIr,
     MissingNominalOrigin,
-    ConflictingNominalType
+    ConflictingNominalType,
+    Full
 }
 
 export type Value = {

@@ -1,28 +1,78 @@
 <Module>
     <Type from="publish_model" as="Publish" />
+    <Type from="result" as="Result" />
 
-    <Args in={Publish.Input} out={Publish.Output} />
+    <Args in={Publish.Input} out={Result.Status} />
 
-    <Call module="../../../artifact/surface/own_exports" in={$in.exports} />
-    <Call module="publish_members" in={$in.members} />
+    <Call
+        fn="publication_input"
+        in={$in.pick([
+            "target",
+            "mapping",
+            "signatures",
+            "exported"
+        ])}
+    />
+
+    <Call
+        module="../../../artifact/surface/own_exports"
+        in={$ctx.publication_input.exports}
+    />
+
+    <Call module="publish_members" in={$ctx.publication_input.members} />
+
+    <Call
+        fn="../../../native/publication/namespace"
+        in={{
+            published: $ctx.publish_members,
+            original: $in.namespace
+        }}
+    />
+
+    <Call fn="../../../native/publication/bindings" in={$in.target.bindings} />
+
+    <If on={!$ctx.bindings}>
+        <Return value={Result.Status.Full} />
+    </If>
 
     <Call
         fn="../../../../analysis/semantic/merging/publication/size"
         in={{
             delta: $in.types,
             origins: $in.origins,
-            destination: $in.destination.destination
+            destination: $in.target.destination.destination
         }}
     />
 
     <Call
-        module="../../../../analysis/semantic/merging/publication/write"
+        module="../../../../analysis/semantic/merging/publication/stage"
         in={{
-            ...$in.destination,
+            ...$in.target.destination,
             delta: $in.types,
             origins: $in.origins
         }}
     />
 
-    <Return value={$ctx.publish_members} />
+    <Call
+        fn="commit"
+        in={{
+            types: $in.target.destination.pick([
+                "destination",
+                "progress"
+            ]),
+            module: {
+                destination: {
+                    ...$in.target.native,
+                    member_count: $in.signatures.files.length
+                },
+                namespace: $ctx.namespace,
+                exports: $in.target.bindings.pick([
+                    "names",
+                    "ids"
+                ])
+            }
+        }}
+    />
+
+    <Return value={Result.Status.Ready} />
 </Module>

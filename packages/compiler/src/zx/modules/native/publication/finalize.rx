@@ -11,7 +11,11 @@
             fn="install"
             in={{
                 destination: $in.destination,
-                namespace: $ctx.namespace
+                namespace: $ctx.namespace,
+                exports: $in.exports.pick([
+                    "names",
+                    "ids"
+                ])
             }}
         />
 

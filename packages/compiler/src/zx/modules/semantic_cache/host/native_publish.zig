@@ -1,91 +1,78 @@
 const std = @import("std");
 const zx = @import("zx");
-const ir = zx.ir;
 const memory = zx.memory;
-const Loaded = @import("../../native.zig");
 const Artifact = @import("../../artifact/model.zig");
-const restore = @import("../native_restore.zig");
-const Mapped = @import("native_input.zig");
+const Current = @import("../native_restore.zig").Current;
+const OriginTable = @import("../../nominal_origins.zig").Table;
 const publication = @import("../../link/signature/publication/host.zig");
-const type_tail = @import("../../../analysis/semantic/merging/publication/view.zig");
-const names = @import("../../../ir/canonical/validation/names/view.zig");
-const remap = @import("../../artifact/nodes/remap.zig");
-const rule = @import("generated_native_restore_publication");
-const Input = std.meta.Child(rule.Input);
-const Exports = std.meta.Child(@FieldType(Input, "exports"));
-const Members = std.meta.Child(@FieldType(Input, "members"));
-const Cached = std.meta.Child(@FieldType(Members, "cached"));
-const Stage = publication.Stage(Members);
+const function_target = @import("../../link/signature/publication/destination.zig");
+const native_bindings = @import("../../link/signature/publication/native_bindings.zig");
+const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
+const Restore = std.meta.Child(@import("generated_native_restore").Input);
+const Target = std.meta.Child(@FieldType(Restore, "target"));
+const Bindings = std.meta.Child(@FieldType(Target, "bindings"));
+const Native = std.meta.Child(@FieldType(Target, "native"));
+const Members = std.meta.Child(@FieldType(Target, "members"));
+const Exports = std.meta.Child(@FieldType(Target, "exports"));
+const empty = function_target.empty(std.meta.Child(@FieldType(Members, "empty")));
+const Self = @This();
 
-pub fn apply(allocator: std.mem.Allocator, output: anytype, mapped: *const Mapped, artifact: *const Artifact.Module, current: restore.Current) restore.Error!Loaded.Result {
-    const rows = names.borrow(artifact.exports);
-    const exports = names.view(std.meta.Child(@FieldType(Exports, "source")), &rows);
-    const mapping = remap.typeMapping(std.meta.Child(@FieldType(Exports, "types")), .{ .mapped = @ptrCast(mapped.type_ids) });
-    var target: []memory.NamedId = &.{};
-    var written: [1]u64 = .{0};
-    const progress: []u64 = &written;
+exports: []const memory.NamedId,
+written: [1]u64,
+progress: []u64,
+export_view: Exports,
+functions: publication.Stage(Members),
+member_view: Members,
+bindings: native_bindings.View(Bindings, Native),
+offsets: TypeTail.Offsets,
+options: TypeTail.Options,
+tail: TypeTail,
+input: Target,
+pub fn init(self: *Self, allocator: std.mem.Allocator, scope: *memory.ArenaScope, artifact: *const Artifact.Module, current: Current) void {
+    self.exports = &.{};
+    self.written = .{0};
+    self.progress = &self.written;
+    self.export_view = .{ .target = @ptrCast(&self.exports), .progress = @ptrCast(&self.progress) };
+    self.offsets = TypeTail.offsets(current.types);
 
-    errdefer {
-        for (target[0..@intCast(written[0])]) |item| allocator.free(item.name);
-
-        allocator.free(target);
-    }
-
-    var stage: Stage = undefined;
-
-    stage.init(&allocator, current.functions);
-
-    const types = zx.columns.view(ir.TypeTable, output.types);
-
-    const options: type_tail.Options = .{
+    self.options = .{
         .allocator = allocator,
         .payload = allocator,
         .types = current.types,
         .origins = &current.origins.items,
-        .offsets = &type_tail.offsets(current.types),
+        .offsets = &self.offsets,
     };
 
-    var tail: type_tail = undefined;
+    self.tail.init(&self.options, .{}, OriginTable{});
+    self.bindings.init(current.modules, current.functions, current.module, &self.exports, artifact.exports.len);
+    self.functions.init(&self.options.allocator, current.functions);
 
-    tail.init(&options, types, output.origins);
-    errdefer tail.release(&options);
-
-    const cached: Cached = .{
-        .signatures = &zx.columns.columns(std.meta.Child(@FieldType(Cached, "signatures")), artifact.functions),
-        .inputs = mapped.input_ids,
-        .outputs = mapped.output_ids,
+    self.member_view = .{
+        .destination = &self.functions.functions.input,
+        .members = &self.functions.output.view,
+        .member_storage = @ptrCast(&self.functions.output.buffer),
+        .first = current.functions.count(),
+        .empty = &empty,
     };
 
-    const input: Input = .{
-        .exports = &.{
-            .source = &exports,
-            .types = &mapping,
-            .target = @ptrCast(&target),
-            .progress = @ptrCast(&progress),
-        },
-        .members = &.{
-            .cached = &cached,
-            .module = @backingInt(current.module),
-            .destination = &stage.destination,
-            .members = &stage.output.view,
-            .member_storage = @ptrCast(&stage.output.buffer),
-            .first = current.functions.count(),
-            .empty = &Stage.empty(std.meta.Child(@FieldType(Members, "empty"))),
-        },
-        .types = &ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), types),
-        .origins = zx.columns.pointer(@FieldType(Input, "origins"), output.origins),
-        .destination = &tail.target,
-    };
+    const tail: *const TypeTail.Target = &self.tail.target;
 
-    const namespace = rule.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
+    self.input = .{
+        .scope = @ptrCast(scope),
+        .resource = @ptrCast(&self.options.allocator),
+        .exports = &self.export_view,
+        .members = &self.member_view,
+        .bindings = &self.bindings.exports,
+        .native = &self.bindings.destination,
+        .destination = zx.columns.pointer(@FieldType(Target, "destination"), tail),
     };
+}
 
-    return .{
-        .types = current.types.view(),
-        .exports = @ptrCast(target),
-        .members = stage.members(),
-        .namespace = namespace,
-    };
+pub fn release(self: *const Self, allocator: std.mem.Allocator) void {
+    self.tail.release(&self.options);
+    self.bindings.release(allocator);
+
+    for (self.exports[0..@intCast(self.written[0])]) |item| allocator.free(item.name);
+
+    allocator.free(self.exports);
 }

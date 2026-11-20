@@ -11,6 +11,7 @@ pub const Current = struct {
     types: *ir.TypeStorage,
     origins: *Origins,
     functions: *ir.FunctionStorage,
+    modules: *ir.NativeModuleStorage,
     backing: std.mem.Allocator,
 };
 

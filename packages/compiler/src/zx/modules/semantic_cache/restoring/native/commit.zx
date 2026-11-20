@@ -1,0 +1,19 @@
+import publish from "../../../../analysis/semantic/merging/publication/publish"
+import install from "../../../native/publication/install"
+
+import type {
+    Input as Types
+} from "../../../../analysis/semantic/merging/publication/publish"
+import type { Input as Module } from "../../../native/publication/install"
+
+export type Input = {
+    types: Types,
+    module: Module
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    install(in.module)
+    publish(in.types)
+}

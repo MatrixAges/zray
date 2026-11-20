@@ -405,7 +405,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/semantic_cache/native_artifact/create.rx", .name = "native_artifact" },
     .{ .path = "zx/modules/semantic_cache/native_artifact/publish.rx", .name = "native_artifact_publication" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/restore.rx", .name = "native_restore" },
-    .{ .path = "zx/modules/semantic_cache/restoring/native/publish.rx", .name = "native_restore_publication" },
     .{ .path = "zx/modules/semantic_cache/restoring/transaction.rx", .name = "semantic_restore_transaction" },
     .{ .path = "zx/modules/semantic_cache/restoring/snapshot.zx", .name = "semantic_restore_snapshot" },
     .{ .path = "zx/modules/semantic_cache/restoring/rollback.zx", .name = "semantic_restore_rollback" },

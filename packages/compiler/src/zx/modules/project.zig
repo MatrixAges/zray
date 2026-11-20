@@ -690,16 +690,28 @@ const Project = struct {
         const unit = self.native_units.get(entry.key()) orelse blk: {
             const module_id = try self.nativeModule(entry.specifier, entry.identity, entry.module, item.span);
 
-            const loaded = if (self.semantic_cache) |cache|
-                try cache.native.load(self.allocator, entry, .{ .module = module_id, .types = &self.types, .origins = &self.nominal_origins, .functions = &self.functions, .backing = self.arena.child_allocator }, self.reporter, item.span)
-            else
-                try @import("native.zig").load(self.arena, entry, module_id, &self.types, &self.nominal_origins, &self.functions, self.reporter, item.span);
+            const loaded = if (self.semantic_cache) |cache| cached: {
+                const current: @import("semantic_cache/native.zig").Current = .{
+                    .module = module_id,
+                    .types = &self.types,
+                    .origins = &self.nominal_origins,
+                    .functions = &self.functions,
+                    .modules = &self.native_modules,
+                    .backing = self.arena.child_allocator,
+                };
+
+                break :cached try cache.native.load(self.allocator, entry, current, self.reporter, item.span);
+            } else fresh: {
+                const result = try @import("native.zig").load(self.arena, entry, module_id, &self.types, &self.nominal_origins, &self.functions, self.reporter, item.span);
+
+                if (comptime generated_parser) try @import("link/signature/publication/host.zig").finalizeNative(self.allocator, &self.native_modules, &self.functions, module_id, result, entry.namespace);
+
+                break :fresh result;
+            };
 
             const native_index = @backingInt(module_id);
 
             const members = if (comptime generated_parser) published: {
-                try @import("link/signature/publication/host.zig").finalizeNative(self.allocator, &self.native_modules, &self.functions, module_id, loaded, entry.namespace);
-
                 self.verified.functions = 0;
                 self.verified.native = false;
 

@@ -1,9 +1,8 @@
 <Module>
     <Type from="restore_input" as="Restore" />
-    <Type from="failed" as="Failed" />
     <Type from="result" as="Result" />
 
-    <Args in={Restore.Input} out={Failed.Output} />
+    <Args in={Restore.Input} out={Result.Status} />
 
     <If on={$in.admission != null}>
         <Call
@@ -15,21 +14,33 @@
         />
 
         <If on={!$ctx.admit}>
-            <Call fn="failed" in={Result.Status.InvalidModule} />
-
-            <Return value={$ctx.failed} />
+            <Return value={Result.Status.InvalidModule} />
         </If>
 
         <Call module="validate" in={$in.validation} />
 
         <If on={!$ctx.validate}>
-            <Call fn="failed" in={Result.Status.InvalidIr} />
-
-            <Return value={$ctx.failed} />
+            <Return value={Result.Status.InvalidIr} />
         </If>
     </If>
 
-    <Call module="merge" in={$in} />
+    <Call module="merge" in={$in.omit(["target"])} />
 
-    <Return value={$ctx.merge} />
+    <If on={$ctx.merge.value != null}>
+        <Call
+            module="publish"
+            in={{
+                ...$ctx.merge.value,
+                target: $in.target,
+                mapping: $in.mapping,
+                signatures: $in.validation.request.signatures,
+                exported: $in.validation.request.exports,
+                namespace: $in.validation.request.declaration.namespace
+            }}
+        />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Return value={$ctx.merge.status} />
 </Module>

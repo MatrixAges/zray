@@ -1,18 +1,26 @@
 import memory from "memory"
 
-import type { Destination } from "./finalize_model"
+import type { Bindings, Destination } from "./finalize_model"
 
 export type Input = {
     destination: Destination,
-    namespace: string[]
+    namespace: string[],
+    exports: Bindings
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { destination, namespace } = in
+    const { destination, namespace, exports } = in
     const { module } = destination
 
+    memory.writeStringList(
+        destination.type_names,
+        module,
+        memory.stringViews(exports.names)
+    )
+
+    memory.writeU32List(destination.type_ids, module, memory.u32Views(exports.ids))
     memory.writeStringList(destination.namespaces, module, namespace)
     memory.publishColumnLengths(destination.functions, destination.member_count)
 }
