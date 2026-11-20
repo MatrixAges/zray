@@ -1,0 +1,50 @@
+<Module>
+    <Type from="model" as="Special" />
+    <Type from="../index" as="IO" />
+
+    <Args in={Special.Input} out={bool} />
+
+    <Call fn="../index.checkSpecialSource" in={$in.check} />
+
+    <If on={!$ctx.checkSpecialSource}>
+        <Return value={false} />
+    </If>
+
+    <If on={$in.store}>
+        <Call fn="../index.collectLintStore" in={$in.check} />
+
+        <If on={!$ctx.collectLintStore}>
+            <Return value={false} />
+        </If>
+
+        <Call fn="../index.collectLintStoreTypes" in={$in.check} />
+
+        <If on={!$ctx.collectLintStoreTypes}>
+            <Return value={false} />
+        </If>
+
+        <Call fn="../index.checkLintStoreTypes" in={$in.check} />
+
+        <Return value={$ctx.checkLintStoreTypes} />
+    </If>
+
+    <Call fn="../index.analyzeLintGateway" in={$in.check} />
+
+    <If on={!$ctx.analyzeLintGateway}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.lintGatewayHasServices" in={$in.check} />
+
+    <If on={$ctx.lintGatewayHasServices}>
+        <Call fn="../index.checkLintServices" in={$in.check} />
+
+        <If on={!$ctx.checkLintServices}>
+            <Return value={false} />
+        </If>
+    </If>
+
+    <Call fn="../index.linkLintGateway" in={$in.check} />
+
+    <Return value={true} />
+</Module>

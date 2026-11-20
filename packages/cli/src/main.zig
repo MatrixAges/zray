@@ -35,6 +35,16 @@ pub const rx_checking = struct {
     pub const function = @import("cli/rx/function.zig");
 };
 
+pub const lint_workflow = struct {
+    pub const command = @import("cli/lint.zig");
+    pub const source = @import("cli/lint/source.zig");
+    pub const semantic = @import("cli/lint/semantic.zig");
+    pub const special = @import("cli/lint/rx.zig");
+    pub const workspace = @import("cli/lint/workspace.zig");
+    pub const reachable = @import("cli/lint/sources.zig");
+    pub const configuration = @import("cli/configuration/root.zig");
+};
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);

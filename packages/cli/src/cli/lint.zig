@@ -1,108 +1,89 @@
 const std = @import("std");
-const compiler = @import("compiler");
-const lint = @import("lint");
-const rx = @import("rx");
-const zx = @import("zx");
 const Compile = @import("compile.zig");
+const effects = @import("sources/effects.zig");
+const Error = effects.Error;
+
+const Command = struct {
+    context: *const Compile.Context,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *Command {
+        return effects.state(Command, handle);
+    }
+};
 
 pub fn run(context: Compile.Context) !Compile.Status {
-    if (context.options.workspace_lint) return @import("lint/workspace.zig").run(context);
-    if (context.options.semantic_lint) return @import("lint/semantic.zig").run(context);
+    var command: Command = .{ .context = &context };
+    const reference = &command;
+    const valid = @import("cli_source").lint_command.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return command.failure.unwrap(err);
 
+    return if (valid) .success else .failed;
+}
+
+pub const checkSource = @import("lint/source.zig").check;
+
+pub fn lintRequestsWorkspace(handle: *const anyopaque) bool {
+    return Command.get(handle).context.options.workspace_lint;
+}
+
+pub fn lintRequestsSemantics(handle: *const anyopaque) bool {
+    return Command.get(handle).context.options.semantic_lint;
+}
+
+pub fn lintIsConfiguration(handle: *const anyopaque) bool {
+    const options = &Command.get(handle).context.options;
+
+    return options.config_kind != null or @import("configuration/kind.zig").infer(options.input) != null;
+}
+
+pub fn lintIsSourceFile(handle: *const anyopaque) bool {
+    const path = Command.get(handle).context.options.input;
+
+    return std.mem.endsWith(u8, path, ".zx") or std.mem.endsWith(u8, path, ".rx");
+}
+
+pub fn lintConfiguration(handle: *const anyopaque) Error!bool {
+    const self = Command.get(handle);
+    const status = @import("configuration/root.zig").run(self.context.*) catch |err| return self.failure.save(err);
+
+    return status == .success;
+}
+
+pub fn lintSemantic(handle: *const anyopaque) Error!bool {
+    const self = Command.get(handle);
+    const status = @import("lint/semantic.zig").run(self.context.*) catch |err| return self.failure.save(err);
+
+    return status == .success;
+}
+
+pub fn lintWorkspace(handle: *const anyopaque) Error!bool {
+    const self = Command.get(handle);
+    const status = @import("lint/workspace.zig").run(self.context.*) catch |err| return self.failure.save(err);
+
+    return status == .success;
+}
+
+pub fn reportLintInput(handle: *const anyopaque) Error!void {
+    const self = Command.get(handle);
+
+    self.context.stderr.writeAll("lint requires ZX, RX, pkg.yaml, pkg.lock.json or an explicit --kind selection\n") catch |err| return self.failure.save(err);
+}
+
+pub fn lintSourceFile(handle: *const anyopaque) Error!bool {
+    const self = Command.get(handle);
+    const context = self.context.*;
     const path = context.options.input;
 
-    if (context.options.config_kind != null or @import("configuration/kind.zig").infer(path) != null) return @import("configuration/root.zig").run(context);
-
-    const is_rx = std.mem.endsWith(u8, path, ".rx");
-
-    if (!is_rx and !std.mem.endsWith(u8, path, ".zx")) {
-        try context.stderr.writeAll("lint requires ZX, RX, pkg.yaml, pkg.lock.json or an explicit --kind selection\n");
-
-        return .failed;
-    }
-
     const source = std.Io.Dir.cwd().readFileAlloc(context.io, path, context.allocator, .limited(16 * 1024 * 1024)) catch |err| {
-        if (err == error.OutOfMemory or err == error.Canceled) return err;
-        try context.stderr.print("{s}: {s}\n", .{ path, @errorName(err) });
+        if (err == error.OutOfMemory or err == error.Canceled) return self.failure.save(err);
 
-        return .failed;
+        context.stderr.print("{s}: {s}\n", .{ path, @errorName(err) }) catch |issue| return self.failure.save(issue);
+
+        return false;
     };
 
     defer context.allocator.free(source);
 
-    return checkSource(context, source);
-}
+    const status = checkSource(context, source) catch |err| return self.failure.save(err);
 
-pub fn checkSource(context: Compile.Context, source: []const u8) !Compile.Status {
-    const path = context.options.input;
-
-    if (std.mem.endsWith(u8, path, ".rx")) {
-        var parsed: ?rx.document.Parsed = try rx.document.parse(context.allocator, source, true);
-
-        defer rx.document.release(&parsed);
-
-        if (parsed.?.value == .diagnostic) return rxDiagnostic(context, parsed.?.value.diagnostic);
-
-        const node = rx.document.schemaRoot(&parsed.?);
-
-        {
-            var checked = try rx.validateView(context.allocator, path, node);
-
-            defer checked.deinit();
-
-            if (checked.value == .diagnostic) return rxDiagnostic(context, checked.value.diagnostic);
-        }
-
-        if (try @import("rx_analysis").expression.checkValues(context.allocator, node, path)) |diagnostic| {
-            defer diagnostic.issue.deinit();
-
-            try context.stderr.print("{s}:{d}:{d}: {t}: {s}\n", .{ path, diagnostic.location.line, diagnostic.location.column, diagnostic.issue.code, diagnostic.issue.message });
-
-            return .failed;
-        }
-
-        const formatted = try rx.document.formatParsed(context.allocator, source, &parsed);
-
-        defer context.allocator.free(formatted);
-
-        if (!std.mem.eql(u8, source, formatted)) {
-            try context.stderr.print("{s}: {s}\n", .{ path, lint.source.formatting_required });
-
-            return .failed;
-        }
-    } else {
-        if (try compiler.checkSource(context.allocator, source, path)) |diagnostic| {
-            defer diagnostic.deinit();
-
-            const location = zx.source.locate(source, diagnostic.span.start);
-
-            try context.stderr.print("{s}:{d}:{d}: {t}: {s}\n", .{ path, location.line, location.column, diagnostic.code, diagnostic.message });
-
-            return .failed;
-        }
-
-        const formatted = try compiler.format(context.allocator, source, path);
-
-        defer formatted.deinit(context.allocator);
-
-        if (!std.mem.eql(u8, source, formatted.source)) {
-            try context.stderr.print("{s}: {s}\n", .{ path, lint.source.formatting_required });
-
-            return .failed;
-        }
-
-        if (lint.length.check(source, context.options.max_lines orelse lint.length.default_maximum)) |exceeded| {
-            try context.stderr.print("{s}: length: {d} lines exceed the lint limit of {d}; split by responsibility or pass --max-lines\n", .{ path, exceeded.lines, exceeded.maximum });
-
-            return .failed;
-        }
-    }
-
-    return .success;
-}
-
-fn rxDiagnostic(context: Compile.Context, issue: rx.Diagnostic) !Compile.Status {
-    try context.stderr.print("{s}:{d}:{d}: {t}: {s}\n", .{ context.options.input, issue.location.line, issue.location.column, issue.code, issue.message });
-
-    return .failed;
+    return status == .success;
 }

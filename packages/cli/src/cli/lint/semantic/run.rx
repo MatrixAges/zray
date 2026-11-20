@@ -1,0 +1,82 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.SemanticLint} out={bool} />
+
+    <Call fn="../index.semanticLintManifest" in={$in} />
+
+    <If on={$ctx.semanticLintManifest}>
+        <Call fn="../index.checkSemanticManifest" in={$in} />
+
+        <If on={!$ctx.checkSemanticManifest}>
+            <Return value={false} />
+        </If>
+
+        <Else>
+            <Call fn="../index.semanticLintSource" in={$in} />
+
+            <If on={!$ctx.semanticLintSource}>
+                <Call fn="../index.rejectSemanticLintInput" in={$in} />
+            </If>
+        </Else>
+    </If>
+
+    <Call fn="../index.loadSemanticProject" in={$in} />
+
+    <If on={!$ctx.loadSemanticProject}>
+        <Return value={false} />
+    </If>
+
+    <If on={!$ctx.semanticLintManifest}>
+        <Call fn="../index.clearSemanticLibrary" in={$in} />
+    </If>
+
+    <Call
+        fn="../index.semanticEntry"
+        in={[
+            $in,
+            $ctx.semanticLintManifest
+        ]}
+    />
+
+    <If on={$ctx.semanticEntry != IO.Entry.Ordinary}>
+        <Call
+            fn="../index.checkSemanticSpecial"
+            in={[
+                $in,
+                $ctx.semanticLintManifest,
+                $ctx.semanticEntry == IO.Entry.Store
+            ]}
+        />
+
+        <Return value={$ctx.checkSemanticSpecial} />
+    </If>
+
+    <Call fn="../index.semanticHasExports" in={$in} />
+
+    <If on={!$ctx.semanticLintManifest || !$ctx.semanticHasExports}>
+        <Call
+            fn="../index.useSemanticEntryExport"
+            in={[
+                $in,
+                $ctx.semanticLintManifest
+            ]}
+        />
+    </If>
+
+    <Call fn="../index.analyzeSemanticLibrary" in={$in} />
+
+    <If on={!$ctx.analyzeSemanticLibrary}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.checkSemanticSources" in={$in} />
+
+    <If on={!$ctx.checkSemanticSources}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.linkSemanticLibrary" in={$in} />
+
+    <Return value={true} />
+</Module>

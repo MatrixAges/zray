@@ -1,0 +1,102 @@
+export type Command = opaque
+
+export type SourceLint = opaque
+
+export type SemanticLint = opaque
+
+export type SpecialLint = opaque
+
+export type WorkspaceLint = opaque
+
+export type ReachableLint = opaque
+
+export type Configuration = opaque
+
+export enum Entry {
+    Ordinary,
+    Store,
+    Gateway
+}
+
+export enum Layout {
+    Unknown,
+    Manifest,
+    Index,
+    Lock
+}
+
+
+export declare function lintRequestsWorkspace(check: Command): bool
+export declare function lintRequestsSemantics(check: Command): bool
+export declare function lintIsConfiguration(check: Command): bool
+export declare function lintIsSourceFile(check: Command): bool
+export declare function lintConfiguration(check: Command): bool throws { SourceLoadFailure }
+export declare function lintSemantic(check: Command): bool throws { SourceLoadFailure }
+export declare function lintWorkspace(check: Command): bool throws { SourceLoadFailure }
+export declare function reportLintInput(check: Command): void throws { SourceLoadFailure }
+export declare function lintSourceFile(check: Command): bool throws { SourceLoadFailure }
+
+export declare function lintSourceIsRx(check: SourceLint): bool
+export declare function parseLintRx(check: SourceLint): bool throws { SourceLoadFailure }
+export declare function validateLintRx(check: SourceLint): bool throws { SourceLoadFailure }
+export declare function checkLintRxValues(check: SourceLint): bool throws { SourceLoadFailure }
+export declare function formatLintRx(check: SourceLint): void throws { SourceLoadFailure }
+export declare function checkLintZx(check: SourceLint): bool throws { SourceLoadFailure }
+export declare function formatLintZx(check: SourceLint): void throws { SourceLoadFailure }
+export declare function checkLintFormatting(check: SourceLint): bool throws { SourceLoadFailure }
+export declare function checkLintLength(check: SourceLint): bool throws { SourceLoadFailure }
+
+export declare function semanticLintManifest(check: SemanticLint): bool
+export declare function semanticLintSource(check: SemanticLint): bool
+export declare function rejectSemanticLintInput(check: SemanticLint): void throws { SourceLoadFailure }
+export declare function checkSemanticManifest(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function loadSemanticProject(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function clearSemanticLibrary(check: SemanticLint): void
+export declare function semanticEntry(check: SemanticLint, manifest: bool): Entry
+export declare function checkSemanticSpecial(check: SemanticLint, manifest: bool, store: bool): bool throws { SourceLoadFailure }
+export declare function semanticHasExports(check: SemanticLint): bool
+export declare function useSemanticEntryExport(check: SemanticLint, manifest: bool): void throws { SourceLoadFailure }
+export declare function analyzeSemanticLibrary(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function checkSemanticSources(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function linkSemanticLibrary(check: SemanticLint): void throws { SourceLoadFailure }
+
+export declare function checkSpecialSource(check: SpecialLint): bool throws { SourceLoadFailure }
+export declare function collectLintStore(check: SpecialLint): bool throws { SourceLoadFailure }
+export declare function collectLintStoreTypes(check: SpecialLint): bool throws { SourceLoadFailure }
+export declare function checkLintStoreTypes(check: SpecialLint): bool throws { SourceLoadFailure }
+export declare function analyzeLintGateway(check: SpecialLint): bool throws { SourceLoadFailure }
+export declare function lintGatewayHasServices(check: SpecialLint): bool
+export declare function checkLintServices(check: SpecialLint): bool throws { SourceLoadFailure }
+export declare function linkLintGateway(check: SpecialLint): void throws { SourceLoadFailure }
+
+export declare function workspaceLintManifest(check: WorkspaceLint): void throws { SourceLoadFailure }
+export declare function discoverLintWorkspace(check: WorkspaceLint): bool throws { SourceLoadFailure }
+export declare function resolveLintWorkspace(check: WorkspaceLint): bool throws { SourceLoadFailure }
+export declare function locateLintWorkspace(check: WorkspaceLint): u64 throws { SourceLoadFailure }
+export declare function selectLintWorkspaceMember(check: WorkspaceLint, index: u64): bool throws { SourceLoadFailure }
+export declare function lintMemberSemantics(check: WorkspaceLint): bool throws { SourceLoadFailure }
+export declare function lintMemberConfiguration(check: WorkspaceLint): bool throws { SourceLoadFailure }
+export declare function releaseLintWorkspaceMember(check: WorkspaceLint): void
+
+export declare function reachableLintModuleCount(check: ReachableLint): u64
+export declare function selectReachableLintModule(check: ReachableLint, index: u64): u64
+export declare function admitReachableLintSource(check: ReachableLint, index: u64): bool throws { SourceLoadFailure }
+export declare function checkReachableLintSource(check: ReachableLint): bool throws { SourceLoadFailure }
+export declare function reachableLintStoreCount(check: ReachableLint): u64
+export declare function admitReachableLintStore(check: ReachableLint, index: u64): bool throws { SourceLoadFailure }
+export declare function checkReachableLintStore(check: ReachableLint): bool throws { SourceLoadFailure }
+
+export declare function configurationLayout(check: Configuration): Layout
+export declare function reportConfigurationKind(check: Configuration): void throws { SourceLoadFailure }
+export declare function readConfiguration(check: Configuration, layout: Layout): void throws { SourceLoadFailure }
+export declare function formatConfigurationManifest(check: Configuration): bool throws { SourceLoadFailure }
+export declare function validateConfigurationIndex(check: Configuration): void throws { SourceLoadFailure }
+export declare function formatConfigurationIndex(check: Configuration): void throws { SourceLoadFailure }
+export declare function validateConfigurationLock(check: Configuration): void throws { SourceLoadFailure }
+export declare function configurationLinting(check: Configuration): bool
+export declare function reportManagedLock(check: Configuration): void throws { SourceLoadFailure }
+export declare function configurationChecking(check: Configuration): bool
+export declare function checkConfigurationFormatting(check: Configuration): bool throws { SourceLoadFailure }
+export declare function configurationWriting(check: Configuration): bool
+export declare function writeConfiguration(check: Configuration): void throws { SourceLoadFailure }
+export declare function printConfiguration(check: Configuration): void throws { SourceLoadFailure }

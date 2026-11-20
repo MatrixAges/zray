@@ -1,0 +1,41 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Command} out={bool} />
+
+    <Call fn="index.lintRequestsWorkspace" in={$in} />
+
+    <If on={$ctx.lintRequestsWorkspace}>
+        <Call fn="index.lintWorkspace" in={$in} />
+
+        <Return value={$ctx.lintWorkspace} />
+    </If>
+
+    <Call fn="index.lintRequestsSemantics" in={$in} />
+
+    <If on={$ctx.lintRequestsSemantics}>
+        <Call fn="index.lintSemantic" in={$in} />
+
+        <Return value={$ctx.lintSemantic} />
+    </If>
+
+    <Call fn="index.lintIsConfiguration" in={$in} />
+
+    <If on={$ctx.lintIsConfiguration}>
+        <Call fn="index.lintConfiguration" in={$in} />
+
+        <Return value={$ctx.lintConfiguration} />
+    </If>
+
+    <Call fn="index.lintIsSourceFile" in={$in} />
+
+    <If on={!$ctx.lintIsSourceFile}>
+        <Call fn="index.reportLintInput" in={$in} />
+
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.lintSourceFile" in={$in} />
+
+    <Return value={$ctx.lintSourceFile} />
+</Module>

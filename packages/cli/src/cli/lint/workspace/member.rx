@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.Member} out={bool} />
+
+    <Call fn="../index.selectLintWorkspaceMember" in={$in} />
+
+    <If on={$ctx.selectLintWorkspaceMember}>
+        <Call fn="../index.lintMemberSemantics" in={$in[0]} />
+        <Call fn="../index.releaseLintWorkspaceMember" in={$in[0]} />
+
+        <Return value={$ctx.lintMemberSemantics} />
+    </If>
+
+    <Call fn="../index.lintMemberConfiguration" in={$in[0]} />
+    <Call fn="../index.releaseLintWorkspaceMember" in={$in[0]} />
+
+    <Return value={$ctx.lintMemberConfiguration} />
+</Module>

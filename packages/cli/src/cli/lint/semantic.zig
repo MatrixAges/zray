@@ -1,6 +1,22 @@
 const std = @import("std");
 const Compile = @import("../compile.zig");
+const project = @import("../project.zig");
 const model = @import("../../package/manifest/model.zig");
+const library = @import("../library/analyze.zig");
+const effects = @import("../sources/effects.zig");
+const Error = effects.Error;
+const Entry = @import("lint_workflow_abi").native.@"zig:lint_workflow_host".Entry;
+
+const State = struct {
+    context: *const Compile.Context,
+    loaded: project.Loaded = undefined,
+    fallback: [1]model.Export = undefined,
+    analyzed: ?library.Result = null,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return effects.state(State, handle);
+    }
+};
 
 pub fn run(context: Compile.Context) !Compile.Status {
     var arena = std.heap.ArenaAllocator.init(context.allocator);
@@ -20,55 +36,116 @@ pub fn run(context: Compile.Context) !Compile.Status {
 }
 
 fn execute(context: Compile.Context) !Compile.Status {
-    const path = context.options.input;
-    const manifest = std.mem.eql(u8, std.fs.path.basename(path), "pkg.yaml");
+    var state: State = .{ .context = &context };
+    const reference = &state;
 
-    if (!manifest and !std.mem.endsWith(u8, path, ".zx") and !std.mem.endsWith(u8, path, ".rx")) return error.InvalidSemanticInput;
+    defer if (state.analyzed) |*analyzed| analyzed.deinit();
 
-    if (manifest) {
-        if (try @import("../configuration/root.zig").run(context) != .success) return .failed;
+    const valid = @import("cli_source").lint_semantics.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+
+    return if (valid) .success else .failed;
+}
+
+pub fn semanticLintManifest(handle: *const anyopaque) bool {
+    const path = State.get(handle).context.options.input;
+
+    return std.mem.eql(u8, std.fs.path.basename(path), "pkg.yaml");
+}
+
+pub fn semanticLintSource(handle: *const anyopaque) bool {
+    const path = State.get(handle).context.options.input;
+
+    return std.mem.endsWith(u8, path, ".zx") or std.mem.endsWith(u8, path, ".rx");
+}
+
+pub fn rejectSemanticLintInput(handle: *const anyopaque) Error!void {
+    return State.get(handle).failure.save(error.InvalidSemanticInput);
+}
+
+pub fn checkSemanticManifest(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const status = @import("../configuration/root.zig").run(self.context.*) catch |err| return self.failure.save(err);
+
+    return status == .success;
+}
+
+pub fn loadSemanticProject(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+
+    self.loaded = project.load(context.io, context.allocator, context.options.input, context.options.project) catch |err| return self.failure.save(err);
+
+    if (self.loaded.diagnostic) |message| {
+        context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
+
+        return false;
     }
 
-    var loaded = try @import("../project.zig").load(context.io, context.allocator, path, context.options.project);
+    return true;
+}
 
-    if (loaded.diagnostic) |message| {
-        try context.stderr.print("{s}\n", .{message});
+pub fn clearSemanticLibrary(handle: *const anyopaque) void {
+    State.get(handle).loaded.config.library = null;
+}
 
-        return .failed;
-    }
+pub fn semanticEntry(handle: *const anyopaque, manifest: bool) Entry {
+    const loaded = &State.get(handle).loaded;
+    const selected = if (manifest) loaded.config.entry orelse return .Ordinary else loaded.project.entry;
 
-    if (!manifest) loaded.config.library = null;
+    if (std.mem.endsWith(u8, selected, ".store.rx")) return .Store;
+    if (std.mem.endsWith(u8, selected, ".gateway.rx")) return .Gateway;
 
-    const entry = if (manifest) loaded.config.entry else loaded.project.entry;
+    return .Ordinary;
+}
 
-    if (entry) |selected| {
-        if (std.mem.endsWith(u8, selected, ".gateway.rx") or std.mem.endsWith(u8, selected, ".store.rx")) {
-            loaded.project.entry = try std.fs.path.resolve(context.allocator, &.{ loaded.project.root_dir, selected });
+pub fn checkSemanticSpecial(handle: *const anyopaque, manifest: bool, store: bool) Error!bool {
+    const self = State.get(handle);
+    const selected = if (manifest) self.loaded.config.entry.? else self.loaded.project.entry;
+    self.loaded.project.entry = std.fs.path.resolve(self.context.allocator, &.{ self.loaded.project.root_dir, selected }) catch |err| return self.failure.save(err);
 
-            return @import("rx.zig").run(context, loaded);
-        }
-    }
+    const status = @import("rx.zig").run(self.context.*, &self.loaded, store) catch |err| return self.failure.save(err);
 
-    const fallback = [_]model.Export{.{
-        .path = ".",
-        .source = if (manifest) loaded.config.entry orelse "" else loaded.project.entry,
-    }};
+    return status == .success;
+}
 
-    if (!manifest or loaded.config.exports.len == 0) {
-        if (fallback[0].source.len == 0) return error.MissingPublicModules;
+pub fn semanticHasExports(handle: *const anyopaque) bool {
+    return State.get(handle).loaded.config.exports.len != 0;
+}
 
-        loaded.config.exports = &fallback;
-    }
+pub fn useSemanticEntryExport(handle: *const anyopaque, manifest: bool) Error!void {
+    const self = State.get(handle);
+    const selected = if (manifest) self.loaded.config.entry orelse "" else self.loaded.project.entry;
 
-    var analyzed = (try @import("../library/analyze.zig").run(context.allocator, .{ .io = context.io, .backing = context.backing, .loaded = loaded, .writer = context.stderr })) orelse return .failed;
+    if (selected.len == 0) return self.failure.save(error.MissingPublicModules);
 
-    defer analyzed.deinit();
+    self.fallback[0] = .{ .path = ".", .source = selected };
+    self.loaded.config.exports = &self.fallback;
+}
 
-    if (try @import("sources.zig").check(context, analyzed.modules, loaded.project.root_dir) != .success) return .failed;
+pub fn analyzeSemanticLibrary(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
 
-    var library = try analyzed.link(context.allocator);
+    self.analyzed = library.run(context.allocator, .{
+        .io = context.io,
+        .backing = context.backing,
+        .loaded = self.loaded,
+        .writer = context.stderr,
+    }) catch |err| return self.failure.save(err);
 
-    defer library.deinit();
+    return self.analyzed != null;
+}
 
-    return .success;
+pub fn checkSemanticSources(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const status = @import("sources.zig").check(self.context.*, self.analyzed.?.modules, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
+
+    return status == .success;
+}
+
+pub fn linkSemanticLibrary(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    var linked = self.analyzed.?.link(self.context.allocator) catch |err| return self.failure.save(err);
+
+    linked.deinit();
 }

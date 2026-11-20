@@ -1,0 +1,8 @@
+import type { ReachableLint } from "lint_workflow_host"
+
+export type Module = [ReachableLint, u64]
+
+export type Rows = {
+    check: ReachableLint,
+    count: u64
+}

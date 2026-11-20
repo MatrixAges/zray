@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Reachable" />
+
+    <Args in={Reachable.Module} out={bool} />
+
+    <Call fn="../index.selectReachableLintModule" in={$in} />
+
+    <Call
+        fn="source_rows"
+        in={{
+            check: $in[0],
+            count: $ctx.selectReachableLintModule
+        }}
+    />
+
+    <If on={!$ctx.source_rows}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.reachableLintStoreCount" in={$in[0]} />
+
+    <Call
+        fn="store_rows"
+        in={{
+            check: $in[0],
+            count: $ctx.reachableLintStoreCount
+        }}
+    />
+
+    <Return value={$ctx.store_rows} />
+</Module>

@@ -1,0 +1,28 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.SourceLint} out={bool} />
+
+    <Call fn="../index.parseLintRx" in={$in} />
+
+    <If on={!$ctx.parseLintRx}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.validateLintRx" in={$in} />
+
+    <If on={!$ctx.validateLintRx}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.checkLintRxValues" in={$in} />
+
+    <If on={!$ctx.checkLintRxValues}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.formatLintRx" in={$in} />
+    <Call fn="../index.checkLintFormatting" in={$in} />
+
+    <Return value={$ctx.checkLintFormatting} />
+</Module>

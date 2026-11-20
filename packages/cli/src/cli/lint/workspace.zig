@@ -1,5 +1,44 @@
 const std = @import("std");
 const Compile = @import("../compile.zig");
+const workspace = @import("../../package/workspace.zig");
+const graph = @import("../../package/graph.zig");
+const effects = @import("../sources/effects.zig");
+const Error = effects.Error;
+
+const State = struct {
+    context: *const Compile.Context,
+    workspace: ?workspace.Result = null,
+    graph: ?graph.Result = null,
+    root_manifest: ?[]const u8 = null,
+    member: ?[]const u8 = null,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return effects.state(State, handle);
+    }
+    fn releaseMember(self: *State) void {
+        if (self.member) |path| self.context.allocator.free(path);
+
+        self.member = null;
+    }
+
+    fn deinit(self: *State) void {
+        self.releaseMember();
+
+        if (self.root_manifest) |path| self.context.allocator.free(path);
+        if (self.graph) |*resolved| resolved.deinit();
+        if (self.workspace) |*discovered| discovered.deinit();
+    }
+    fn memberContext(self: *const State) Compile.Context {
+        var context = self.context.*;
+
+        context.options.input = self.member.?;
+        context.options.project = self.root_manifest.?;
+        context.options.workspace_lint = false;
+        context.options.semantic_lint = true;
+
+        return context;
+    }
+};
 
 pub fn run(context: Compile.Context) !Compile.Status {
     return execute(context) catch |err| {
@@ -11,55 +50,83 @@ pub fn run(context: Compile.Context) !Compile.Status {
 }
 
 fn execute(context: Compile.Context) !Compile.Status {
-    const path = context.options.input;
+    var state: State = .{ .context = &context };
+    const reference = &state;
 
-    if (!std.mem.eql(u8, std.fs.path.basename(path), "pkg.yaml")) return error.WorkspaceManifestRequired;
+    defer state.deinit();
 
-    var workspace = try @import("../../package/workspace.zig").load(context.io, context.allocator, path);
+    const valid = @import("cli_source").lint_workspace.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
 
-    defer workspace.deinit();
+    return if (valid) .success else .failed;
+}
 
-    if (workspace.diagnostic) |message| {
-        try context.stderr.print("{s}\n", .{message});
+pub fn workspaceLintManifest(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
 
-        return .failed;
+    if (!std.mem.eql(u8, std.fs.path.basename(self.context.options.input), "pkg.yaml")) return self.failure.save(error.WorkspaceManifestRequired);
+}
+
+pub fn discoverLintWorkspace(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+
+    self.workspace = workspace.load(context.io, context.allocator, context.options.input) catch |err| return self.failure.save(err);
+
+    if (self.workspace.?.diagnostic) |message| {
+        context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
+
+        return false;
     }
 
-    var graph = try @import("../../package/graph.zig").load(context.io, context.allocator, path);
+    return true;
+}
 
-    defer graph.deinit();
+pub fn resolveLintWorkspace(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
 
-    if (graph.diagnostic) |message| {
-        try context.stderr.print("{s}\n", .{message});
+    self.graph = graph.loadPrepared(context.io, context.allocator, .{ .path = context.options.input }, &self.workspace.?) catch |err| return self.failure.save(err);
 
-        return .failed;
+    if (self.graph.?.diagnostic) |message| {
+        context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
+
+        return false;
     }
 
-    const root_manifest = try std.Io.Dir.cwd().realPathFileAlloc(context.io, path, context.allocator);
+    return true;
+}
 
-    defer context.allocator.free(root_manifest);
+pub fn locateLintWorkspace(handle: *const anyopaque) Error!u64 {
+    const self = State.get(handle);
+    const context = self.context;
 
-    var succeeded = true;
+    self.root_manifest = std.Io.Dir.cwd().realPathFileAlloc(context.io, context.options.input, context.allocator) catch |err| return self.failure.save(err);
 
-    for (workspace.packages) |package| {
-        const member = try std.fs.path.resolve(context.allocator, &.{ graph.root, package.path, "pkg.yaml" });
+    return self.workspace.?.packages.len;
+}
 
-        defer context.allocator.free(member);
+pub fn selectLintWorkspaceMember(handle: *const anyopaque, index: u64) Error!bool {
+    const self = State.get(handle);
+    const package = &self.workspace.?.packages[@intCast(index)];
+    self.member = std.fs.path.resolve(self.context.allocator, &.{ self.graph.?.root, package.path, "pkg.yaml" }) catch |err| return self.failure.save(err);
 
-        var selected = context;
+    return package.manifest.entry != null or package.manifest.exports.len != 0;
+}
 
-        selected.options.input = member;
-        selected.options.project = root_manifest;
-        selected.options.workspace_lint = false;
-        selected.options.semantic_lint = true;
+pub fn lintMemberSemantics(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const status = @import("semantic.zig").run(self.memberContext()) catch |err| return self.failure.save(err);
 
-        const status = if (package.manifest.entry != null or package.manifest.exports.len != 0)
-            try @import("semantic.zig").run(selected)
-        else
-            try @import("../configuration/root.zig").run(selected);
+    return status == .success;
+}
 
-        succeeded = status == .success and succeeded;
-    }
+pub fn lintMemberConfiguration(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const status = @import("../configuration/root.zig").run(self.memberContext()) catch |err| return self.failure.save(err);
 
-    return if (succeeded) .success else .failed;
+    return status == .success;
+}
+
+pub fn releaseLintWorkspaceMember(handle: *const anyopaque) void {
+    State.get(handle).releaseMember();
 }

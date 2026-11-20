@@ -1,0 +1,30 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.WorkspaceLint} out={bool} />
+
+    <Call fn="../index.workspaceLintManifest" in={$in} />
+    <Call fn="../index.discoverLintWorkspace" in={$in} />
+
+    <If on={!$ctx.discoverLintWorkspace}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.resolveLintWorkspace" in={$in} />
+
+    <If on={!$ctx.resolveLintWorkspace}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.locateLintWorkspace" in={$in} />
+
+    <Call
+        fn="members"
+        in={{
+            check: $in,
+            count: $ctx.locateLintWorkspace
+        }}
+    />
+
+    <Return value={$ctx.members} />
+</Module>

@@ -1,32 +1,87 @@
 const std = @import("std");
 const Compile = @import("../compile.zig");
 const Module = @import("../library/analyze.zig").Module;
+const Source = @import("compiler").project.Source;
+const effects = @import("../sources/effects.zig");
+const Error = effects.Error;
+
+const State = struct {
+    context: *const Compile.Context,
+    modules: []const Module,
+    root: []const u8,
+    seen: std.StringHashMapUnmanaged(void) = .empty,
+    module: *const Module = undefined,
+    source: *const Source = undefined,
+    path: []const u8 = undefined,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return effects.state(State, handle);
+    }
+    fn admit(self: *State, path: []const u8) Error!bool {
+        const row = self.seen.getOrPut(self.context.allocator, path) catch |err| return self.failure.save(err);
+
+        return !row.found_existing;
+    }
+};
 
 pub fn check(context: Compile.Context, modules: []const Module, root: []const u8) !Compile.Status {
-    var seen: std.StringHashMapUnmanaged(void) = .empty;
+    var state: State = .{ .context = &context, .modules = modules, .root = root };
+    const reference = &state;
 
-    defer seen.deinit(context.allocator);
+    defer state.seen.deinit(context.allocator);
 
-    for (modules) |module| {
-        for (module.sources) |source| {
-            if ((try seen.getOrPut(context.allocator, source.path)).found_existing) continue;
+    const valid = @import("cli_source").lint_reachable.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
 
-            var selected = context;
+    return if (valid) .success else .failed;
+}
 
-            selected.options.input = source.path;
+pub fn reachableLintModuleCount(handle: *const anyopaque) u64 {
+    return State.get(handle).modules.len;
+}
 
-            if (try @import("../lint.zig").checkSource(selected, source.source) != .success) return .failed;
-        }
+pub fn selectReachableLintModule(handle: *const anyopaque, index: u64) u64 {
+    const self = State.get(handle);
 
-        for (module.store_definitions) |definition| {
-            const path = try std.fs.path.resolve(context.allocator, &.{ root, definition.source_path });
+    self.module = &self.modules[@intCast(index)];
 
-            if ((try seen.getOrPut(context.allocator, path)).found_existing) continue;
-            if (try file(context, path) != .success) return .failed;
-        }
-    }
+    return self.module.sources.len;
+}
 
-    return .success;
+pub fn admitReachableLintSource(handle: *const anyopaque, index: u64) Error!bool {
+    const self = State.get(handle);
+
+    self.source = &self.module.sources[@intCast(index)];
+
+    return self.admit(self.source.path);
+}
+
+pub fn checkReachableLintSource(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    var selected = self.context.*;
+    selected.options.input = self.source.path;
+    const status = @import("../lint.zig").checkSource(selected, self.source.source) catch |err| return self.failure.save(err);
+
+    return status == .success;
+}
+
+pub fn reachableLintStoreCount(handle: *const anyopaque) u64 {
+    return State.get(handle).module.store_definitions.len;
+}
+
+pub fn admitReachableLintStore(handle: *const anyopaque, index: u64) Error!bool {
+    const self = State.get(handle);
+    const definition = &self.module.store_definitions[@intCast(index)];
+
+    self.path = std.fs.path.resolve(self.context.allocator, &.{ self.root, definition.source_path }) catch |err| return self.failure.save(err);
+
+    return self.admit(self.path);
+}
+
+pub fn checkReachableLintStore(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const status = file(self.context.*, self.path) catch |err| return self.failure.save(err);
+
+    return status == .success;
 }
 
 pub fn file(context: Compile.Context, path: []const u8) !Compile.Status {

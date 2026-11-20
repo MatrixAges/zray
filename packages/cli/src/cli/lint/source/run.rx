@@ -1,0 +1,30 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.SourceLint} out={bool} />
+
+    <Call fn="../index.lintSourceIsRx" in={$in} />
+
+    <If on={$ctx.lintSourceIsRx}>
+        <Call module="rx" in={$in} />
+
+        <Return value={$ctx.rx} />
+    </If>
+
+    <Call fn="../index.checkLintZx" in={$in} />
+
+    <If on={!$ctx.checkLintZx}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.formatLintZx" in={$in} />
+    <Call fn="../index.checkLintFormatting" in={$in} />
+
+    <If on={!$ctx.checkLintFormatting}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.checkLintLength" in={$in} />
+
+    <Return value={$ctx.checkLintLength} />
+</Module>

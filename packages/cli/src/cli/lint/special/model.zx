@@ -1,0 +1,6 @@
+import type { SpecialLint } from "lint_workflow_host"
+
+export type Input = {
+    check: SpecialLint,
+    store: bool
+}

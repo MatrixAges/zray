@@ -78,6 +78,14 @@
         {
             "path": "rx_checking",
             "prefix": "rx/checking/"
+        },
+        {
+            "path": "lint_workflow",
+            "prefix": "lint/"
+        },
+        {
+            "path": "configuration_workflow",
+            "prefix": "configuration/"
         }
     ],
     "entries": [
@@ -364,6 +372,34 @@
         {
             "path": "rx/checking/function/run.rx",
             "name": "check_zx_function"
+        },
+        {
+            "path": "lint/run.rx",
+            "name": "lint_command"
+        },
+        {
+            "path": "lint/source/run.rx",
+            "name": "lint_source"
+        },
+        {
+            "path": "lint/semantic/run.rx",
+            "name": "lint_semantics"
+        },
+        {
+            "path": "lint/special/run.rx",
+            "name": "lint_special_rx"
+        },
+        {
+            "path": "lint/workspace/run.rx",
+            "name": "lint_workspace"
+        },
+        {
+            "path": "lint/reachable/run.zx",
+            "name": "lint_reachable"
+        },
+        {
+            "path": "configuration/run.rx",
+            "name": "configuration_workflow"
         }
     ],
     "packages": [
@@ -440,6 +476,10 @@
         {
             "path": "rx/checking/host.d.zx",
             "module": "rx_checking_host"
+        },
+        {
+            "path": "lint/host.d.zx",
+            "module": "lint_workflow_host"
         }
     ]
 }
