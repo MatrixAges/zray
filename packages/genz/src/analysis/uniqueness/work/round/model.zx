@@ -12,7 +12,8 @@ export type Input = {
 
 export type Take = {
     state: State,
-    phase: Phase
+    phase: Phase,
+    following: bool
 }
 
 export type Visit = {
@@ -21,7 +22,8 @@ export type Visit = {
     first: u64,
     prefix: u64,
     suffix: u64,
-    grew: bool
+    grew: bool,
+    prefetch: bool
 }
 
 export type Settlement = Notify.Omit("demand_body") & {

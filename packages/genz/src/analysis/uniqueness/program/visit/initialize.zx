@@ -1,0 +1,30 @@
+import columns from "memory/columns"
+
+import type { RowBuffer } from "memory/columns"
+
+export type Input = {
+    destination: RowBuffer,
+    active: bool[],
+    empty: u8[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = in.active.length - 1
+
+    columns.allocateRows(in.destination, count)
+
+    const result = loop({
+        body: 0
+    }, {
+        while: state => state.body < count,
+        next: state => {
+            if (!in.active[state.body]) {
+                columns.writeRow(in.destination, state.body, in.empty)
+            }
+
+            state.body += 1
+        }
+    })
+}

@@ -122,7 +122,7 @@ fn Visit(comptime kind: Memo.Kind) type {
                 .body = self.index,
                 .growth = &ctx.bodies.units[self.index].growth,
                 .scratch = self.round.allocator(),
-                .lasting = if (kind == .planned) ctx.temporary else ctx.rounds.?.ahead.kept(),
+                .lasting = if (kind == .planned) ctx.roundMemory() else ctx.rounds.?.ahead.kept(),
                 .owner = self.owner(persistent),
             });
 

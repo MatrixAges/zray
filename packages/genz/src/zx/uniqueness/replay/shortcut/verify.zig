@@ -15,8 +15,10 @@ const Error = std.mem.Allocator.Error;
 pub fn run(ctx: *Context) Error!?Analysis.Result {
     const trace = &ctx.memo.trace.?;
     var scratch = std.heap.ArenaAllocator.init(ctx.workspace);
+    var staged = std.heap.ArenaAllocator.init(ctx.workspace);
 
     defer scratch.deinit();
+    defer staged.deinit();
 
     var replacements: Replacements = .{};
     var cursor: Cursor = .{};
@@ -27,7 +29,7 @@ pub fn run(ctx: *Context) Error!?Analysis.Result {
 
         switch (cursor.phase) {
             .start => unreachable,
-            .done => return try Cursor.publish(ctx.allocator, trace, ctx.replay, replacements.rows()),
+            .done => return try Cursor.publish(ctx.allocator, trace, ctx.replay, replacements.rows(), ctx.calls.active),
             .reject => {
                 ctx.summaries.clearWants();
 
@@ -35,8 +37,7 @@ pub fn run(ctx: *Context) Error!?Analysis.Result {
             },
             inline .settled, .demanded, .planned => |phase| {
                 const kind = comptime @field(Memo.Kind, @tagName(phase));
-
-                agreed = try visit(kind, ctx, trace, &scratch, &replacements, cursor);
+                agreed = try visit(kind, ctx, trace, &scratch, staged.allocator(), &replacements, cursor);
             },
         }
     }
@@ -53,7 +54,7 @@ fn steps(comptime kind: Memo.Kind, comptime recompute: bool) []const std.meta.Ch
     });
 }
 
-fn visit(comptime kind: Memo.Kind, ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, replacements: *Replacements, cursor: Cursor) Error!bool {
+fn visit(comptime kind: Memo.Kind, ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor) Error!bool {
     const previous = &@field(trace, @tagName(kind)).entries[cursor.visit];
     var current: ?Memo.Result(kind) = null;
     var agreed = true;
@@ -65,7 +66,7 @@ fn visit(comptime kind: Memo.Kind, ctx: *Context, trace: *const Trace, scratch: 
             current = try recover(kind, ctx, cursor.body, previous.state, scratch.allocator()) orelse return false;
         },
         .CompareResult => agreed = try Trace.agree(kind, scratch.allocator(), previous.value, current.?),
-        .StagePlan => try replacements.append(ctx.temporary, .{ .visit = @intCast(cursor.visit), .value = current.? }),
+        .StagePlan => try replacements.append(staged, .{ .visit = @intCast(cursor.visit), .value = current.? }),
         else => unreachable,
     };
 
@@ -87,7 +88,7 @@ fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const 
                 .body = body,
                 .growth = &growth,
                 .scratch = scratch,
-                .lasting = ctx.temporary,
+                .lasting = ctx.roundMemory(),
                 .owner = owner,
             });
 

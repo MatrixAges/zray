@@ -666,6 +666,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/program/visit/select.zx", .name = "uniqueness_visit_select", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/sequence.rx", .name = "uniqueness_visit_sequence", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/demand.rx", .name = "uniqueness_visit_demand", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/program/visit/initialize.zx", .name = "uniqueness_visit_initialize", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/publish.zx", .name = "uniqueness_visit_publish", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/round/advance.rx", .name = "uniqueness_work_advance", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/ahead/scan.zx", .name = "uniqueness_ahead_scan", .owner = .genz },

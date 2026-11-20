@@ -63,9 +63,9 @@ fn nextSeed(self: Cursor, active: []const bool, trace: *const Trace, changed: []
 
 pub const Replacement = struct { visit: u32, value: @import("../memo.zig").Planned };
 
-pub fn publish(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace.Replay, replacements: []const Replacement) std.mem.Allocator.Error!@import("../root.zig").Result {
+pub fn publish(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace.Replay, replacements: []const Replacement, active: []const bool) std.mem.Allocator.Error!@import("../root.zig").Result {
     const PlanWriter = @import("../program/visit/plan_writer.zig");
-    var output = try PlanWriter.init(allocator, replay.changed.len - 1);
+    var output = try PlanWriter.init(allocator, active);
 
     if (@import("genz_options").generated_analysis) {
         try @import("shortcut/publication.zig").apply(allocator, trace, replay, replacements, &output);

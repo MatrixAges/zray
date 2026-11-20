@@ -116,7 +116,7 @@ fn pending(self: *const Self) Round.Window {
     return .{ .first = self.queue.items[self.head..] };
 }
 
-pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback) std.mem.Allocator.Error!Round.Claim {
+pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, following: bool) std.mem.Allocator.Error!Round.Claim {
     if (previous) |result| {
         const callers = frame.callers[result.body];
 
@@ -130,6 +130,7 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
     }
 
     const queued = self.pending();
+    const visit = try self.take(phase);
 
-    return .{ .visit = try self.take(phase), .pending = queued, .grew = self.grew };
+    return .{ .visit = visit, .pending = queued, .grew = self.grew, .prefetch = !following and visit == .body };
 }

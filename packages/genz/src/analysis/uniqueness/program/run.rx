@@ -1,43 +1,58 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Input} out={Program.Phase} />
+    <Args in={Program.Input} out={Program.Step} />
 
-    <Switch on={$in.phase}>
-        <Case value={Program.Phase.Start}>
+    <If
+        on={$in.step == Program.Step.Demand ||
+            $in.step == Program.Step.ConservativeDemand}
+    >
+        <If on={$in.grew}>
+            <Return value={Program.Step.Settle} />
+        </If>
+
+        <Return value={Program.Step.Plan} />
+    </If>
+
+    <Switch on={$in.step}>
+        <Case value={Program.Step.Start}>
             <If on={$in.following}>
-                <Return value={Program.Phase.Replay} />
+                <Return value={Program.Step.Replay} />
             </If>
 
-            <Return value={Program.Phase.Settle} />
+            <Return value={Program.Step.Open} />
         </Case>
 
-        <Case value={Program.Phase.Replay}>
+        <Case value={Program.Step.Replay}>
             <If on={$in.reused}>
-                <Return value={Program.Phase.Done} />
+                <Return value={Program.Step.Release} />
             </If>
 
-            <Return value={Program.Phase.Settle} />
+            <Return value={Program.Step.Open} />
         </Case>
 
-        <Case value={Program.Phase.Settle}>
-            <Return value={Program.Phase.Demand} />
+        <Case value={Program.Step.Open}>
+            <Return value={Program.Step.Settle} />
         </Case>
 
-        <Case value={Program.Phase.Demand}>
-            <If on={$in.grew}>
-                <Return value={Program.Phase.Settle} />
+        <Case value={Program.Step.Settle}>
+            <If on={$in.exhausted}>
+                <Return value={Program.Step.ConservativeDemand} />
             </If>
 
-            <Return value={Program.Phase.Plan} />
+            <Return value={Program.Step.Demand} />
         </Case>
 
-        <Case value={Program.Phase.Plan}>
-            <If on={$in.recording}>
-                <Return value={Program.Phase.Commit} />
+        <Case value={Program.Step.Plan}>
+            <Return value={Program.Step.Release} />
+        </Case>
+
+        <Case value={Program.Step.Release}>
+            <If on={!$in.reused && $in.recording}>
+                <Return value={Program.Step.Commit} />
             </If>
         </Case>
     </Switch>
 
-    <Return value={Program.Phase.Done} />
+    <Return value={Program.Step.Done} />
 </Module>

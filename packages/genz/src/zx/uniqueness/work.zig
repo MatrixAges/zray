@@ -55,7 +55,7 @@ pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, k
     return invoke(preparing, empty.allocator(), &input);
 }
 
-pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback) std.mem.Allocator.Error!Round.Claim {
+pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, following: bool) std.mem.Allocator.Error!Round.Claim {
     const flags = std.mem.sliceAsBytes(frame.dirty);
     const positions: []const u64 = &self.positions;
     const Input = std.meta.Child(advancing.Input);
@@ -71,6 +71,7 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
     const input: Input = .{
         .state = &self.queue(&positions),
         .phase = phase,
+        .following = following,
         .outputs = @ptrCast(&frame.outputs),
         .active = frame.active,
         .dirty = @ptrCast(&flags),
@@ -86,6 +87,7 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
         .visit = if (output.body) |body| .{ .body = @intCast(body) } else if (output.exhausted) .exhausted else .done,
         .pending = .{ .first = self.slots[first..][0..@intCast(output.prefix)], .second = self.slots[0..@intCast(output.suffix)] },
         .grew = output.grew,
+        .prefetch = output.prefetch,
     };
 }
 

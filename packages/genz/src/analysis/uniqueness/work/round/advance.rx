@@ -54,7 +54,8 @@
         fn="take"
         in={$in.pick([
             "state",
-            "phase"
+            "phase",
+            "following"
         ])}
     />
 

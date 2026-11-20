@@ -8,10 +8,24 @@ export enum Phase {
     Done
 }
 
+export enum Step {
+    Start,
+    Replay,
+    Open,
+    Settle,
+    Demand,
+    ConservativeDemand,
+    Plan,
+    Release,
+    Commit,
+    Done
+}
+
 export type Input = {
-    phase: Phase,
+    step: Step,
     following: bool,
     reused: bool,
     grew: bool,
+    exhausted: bool,
     recording: bool
 }

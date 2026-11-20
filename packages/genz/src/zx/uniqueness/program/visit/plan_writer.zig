@@ -2,16 +2,16 @@ const std = @import("std");
 const zx = @import("zx");
 const analysis = @import("../../root.zig");
 const Plan = analysis.Plan;
+const generated = @import("genz_options").generated_analysis;
 const Self = @This();
+const empty: Plan = .{ .flags = &.{} };
 
 rows: []Plan,
 column: zx.memory.WriteColumn,
 
-entry: Plan = .{ .flags = &.{} },
-pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
-    const rows = try allocator.alloc(Plan, count);
-
-    @memset(rows, .{ .flags = &.{} });
+entry: Plan = empty,
+pub fn init(allocator: std.mem.Allocator, active: []const bool) std.mem.Allocator.Error!Self {
+    const rows = try allocate(allocator, active);
 
     return .{
         .rows = rows,
@@ -24,8 +24,34 @@ pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!
     };
 }
 
+fn allocate(allocator: std.mem.Allocator, active: []const bool) std.mem.Allocator.Error![]Plan {
+    if (!generated) {
+        const rows = try allocator.alloc(Plan, active.len - 1);
+
+        @memset(rows, empty);
+
+        return rows;
+    }
+
+    const rule = @import("generated_uniqueness_visit_initialize");
+    var destination: zx.memory.RowBuffer = .empty(Plan);
+
+    const input: std.meta.Child(rule.Input) = .{
+        .destination = @ptrCast(&destination),
+        .active = active,
+        .empty = std.mem.asBytes(&empty),
+    };
+
+    zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    return destination.rows(Plan);
+}
+
 pub fn put(self: *Self, index: usize, value: Plan) void {
-    if (!@import("genz_options").generated_analysis) {
+    if (!generated) {
         if (index == self.rows.len) self.entry = value else self.rows[index] = value;
 
         return;
@@ -48,9 +74,9 @@ pub fn put(self: *Self, index: usize, value: Plan) void {
         .fields = std.mem.asBytes(&value),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-    zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
+    zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 }
 
 pub fn result(self: *const Self) analysis.Result {

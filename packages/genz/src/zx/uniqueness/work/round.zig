@@ -1,7 +1,7 @@
 const Level = @import("../level.zig").Level;
 
 pub const Phase = if (@import("genz_options").generated_analysis)
-    @FieldType(@import("std").meta.Child(@import("generated_uniqueness_program").Input), "phase")
+    @FieldType(@import("std").meta.Child(@import("generated_uniqueness_prepare_round").Input), "phase")
 
 else
     enum { Start, Replay, Settle, Demand, Plan, Commit, Done };
@@ -41,4 +41,4 @@ pub const Feedback = struct {
     grew: bool = false,
 };
 
-pub const Claim = struct { visit: Visit, pending: Window, grew: bool };
+pub const Claim = struct { visit: Visit, pending: Window, grew: bool, prefetch: bool };

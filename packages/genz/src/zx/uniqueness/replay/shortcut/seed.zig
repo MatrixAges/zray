@@ -51,7 +51,7 @@ pub fn run(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary
         }
     }
 
-    return try Shortcut.publish(allocator, trace, replay, replacements.items);
+    return try Shortcut.publish(allocator, trace, replay, replacements.items, active);
 }
 
 /// The result body `index` reaches in a recorded state: the memo's when it has one, or a new analysis in that state.
