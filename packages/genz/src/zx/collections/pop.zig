@@ -17,7 +17,7 @@ pub const Request = struct {
     retract: bool,
 };
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, args: Request) Lower.Error!node.ExpressionId {
     const entry = @import("generated_collection_pop");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
@@ -27,7 +27,6 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
     const serial = self.serial;
     const declarations = self.task_declarations.count();
     const statements = self.builder.nodes.statements.tags.items.len;
-    const roots = body.items.len;
     const dynamic = @import("../state_value/list.zig").selected(self, args.type_id);
     const layout = if (dynamic) try @import("../types.zig").get(self, self.state_types, args.type_id) else null;
     const decision = elements.choice(self, args.type_id, .Read, false);
@@ -50,7 +49,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
     const selected_result = self.state_active and self.state_plan.selected[@backingInt(args.result_type)];
 
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
-    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len and roots == body.items.len);
+    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len);
 
     const bases: Bases = .{
         .capture = if (self.capture) |value| &.{ .name = value.name, .label = value.label, .failure = @backingInt(value.failure) } else null,

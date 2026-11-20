@@ -87,7 +87,7 @@ pub fn reuse(self: *Lower, in_place: bool, selected: bool) Lower.Error!?node.Exp
     return @fromBackingInt(result.root);
 }
 
-pub fn expression(self: *Lower, body: *std.ArrayList(node.Statement), args: Expression) Lower.Error!Result {
+pub fn expression(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, args: Expression) Lower.Error!Result {
     const entry = @import("generated_sorting_expression");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));

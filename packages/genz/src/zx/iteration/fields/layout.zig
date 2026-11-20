@@ -11,7 +11,7 @@ pub const Input = struct {
     abi_type: node.ExpressionId,
 };
 
-pub fn build(self: *Lower, body: *std.ArrayList(node.Statement), args: Input) Lower.Error!node.ExpressionId {
+pub fn build(self: *Lower, body: anytype, args: Input) Lower.Error!node.ExpressionId {
     const entry = @import("generated_loop_fields_layout");
     const Parameters = std.meta.Child(entry.Input);
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Parameters, "types")), args.types);

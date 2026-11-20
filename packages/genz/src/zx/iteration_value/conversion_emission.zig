@@ -38,7 +38,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const layouts = try buffered.allocator().alloc(u32, plan.types.len);
     const elements = try buffered.allocator().alloc(u32, plan.types.len);
     const serial = self.serial;
-    const declarations = context.declarations.items.len;
+    const declarations = context.declarations.last;
 
     for (plan.types, plan.kinds, layouts, elements, 0..) |type_id, kind, *layout, *element, index| {
         const selected: ir.TypeId = @fromBackingInt(type_id);
@@ -46,7 +46,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         element.* = if (kind == .Buffer) @backingInt(try @import("types.zig").get(context, self.program.typeOf(selected).list)) else 0;
     }
 
-    std.debug.assert(serial == self.serial and declarations == context.declarations.items.len);
+    std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last));
 
     const emitter = @import("generated_conversion_emit");
     const Input = std.meta.Child(emitter.Input);

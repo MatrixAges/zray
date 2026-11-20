@@ -156,8 +156,8 @@ pub fn finish(self: *Lower, body: anytype, result: node.ExpressionId) Lower.Erro
     return finishStored(self, span, result, null);
 }
 
-pub fn finishGuarded(self: *Lower, body: *std.ArrayList(node.Statement), condition: node.ExpressionId, value: node.ExpressionId, fallback: node.ExpressionId) Lower.Error!node.ExpressionId {
-    const span = try self.builder.statements(body.items);
+pub fn finishGuarded(self: *Lower, body: anytype, condition: node.ExpressionId, value: node.ExpressionId, fallback: node.ExpressionId) Lower.Error!node.ExpressionId {
+    const span = try self.builder.finishStatements(body);
 
     return finishStored(self, span, value, .{ .condition = condition, .fallback = fallback });
 }

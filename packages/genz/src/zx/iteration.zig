@@ -7,6 +7,8 @@ const frame = @import("iteration/frame.zig");
 const renewal = @import("iteration/renewal.zig");
 const state_declaration = @import("iteration/state.zig");
 const step = @import("iteration/step.zig");
+const Context = @import("iteration_value/root.zig");
+const generated = @import("genz_options").generated_analysis;
 
 pub fn lower(self: *Lower, id: ir.ExprId, iteration: ir.Iteration) Lower.Error!node.ExpressionId {
     return (try lowerMode(self, id, iteration, .reference, null)).?;
@@ -32,8 +34,12 @@ const Mode = @import("iteration/result.zig").Mode;
 
 fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, consumer: ?@import("iteration_consumer.zig").Consumer) Lower.Error!?node.ExpressionId {
     const projected_output = if (consumer) |selected| try @import("iteration_value/result.zig").candidate(self.allocator, self.program, selected) else false;
-    var body: std.ArrayList(node.Statement) = .empty;
-    var loop: std.ArrayList(node.Statement) = .empty;
+    var body: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+    var loop: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+
+    defer if (generated) body.deinit();
+    defer if (generated) loop.deinit();
+
     const name = try self.fresh("state");
     const state = try self.builder.identifier(name);
     const selection = try @import("iteration_layout/select.zig").choose(self, id, iteration, mode, consumer, projected_output);
@@ -58,7 +64,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         .forwarded = selected_call != null,
     });
 
-    var context = @import("iteration_value/root.zig"){ .lowering = self, .declarations = &body, .inline_lists = preparation.buffered };
+    var context = Context{ .lowering = self, .declarations = &body, .inline_lists = preparation.buffered };
 
     const initial_expression = switch (preparation.evaluation) {
         .Reference => try self.expr(iteration.initial),
@@ -168,7 +174,10 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
 
         self.loop_fields = previous_fields;
 
-        var entered: std.ArrayList(node.Statement) = .empty;
+        var entered: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+
+        defer if (generated) entered.deinit();
+
         const growth = try renewals.store(self, type_id, .{ .reference = seed });
 
         try selected.maskBorrowed(self, &entered);
@@ -179,7 +188,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
             .initial = try selected.initial(self),
         });
 
-        const prefix = try self.builder.statements(entered.items);
+        const prefix = if (generated) try entered.block(self.allocator) else try self.builder.statements(entered.items);
 
         const update = try step.store(self, &loop, schedule, .{
             .type_id = type_id,
@@ -197,7 +206,9 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         const result = try finish.lower(self, &entered, restored, .{ .renewals = growth, .declarations = prefix, .frame = framed });
 
         if (first_condition) |first| {
-            var skipped: std.ArrayList(node.Statement) = .empty;
+            var skipped: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+
+            defer if (generated) skipped.deinit();
 
             return try aggregate.finishGuarded(self, &body, first, result, try finish.lower(self, &skipped, seed, .{}));
         }
@@ -228,7 +239,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
     });
 
     const entered = try renewals.store(self, type_id, .{ .reference = state });
-    const prefix = try self.builder.statements(body.items);
+    const prefix = if (generated) try body.block(self.allocator) else try self.builder.statements(body.items);
 
     const update = try step.store(self, &loop, schedule, .{
         .type_id = type_id,

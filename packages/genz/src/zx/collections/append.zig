@@ -19,21 +19,20 @@ pub const Request = struct {
     lazy: bool,
 };
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, args: Request) Lower.Error!node.ExpressionId {
     const entry = @import("generated_collection_append");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
     const serial = self.serial;
     const declarations = self.task_declarations.count();
     const statements = self.builder.nodes.statements.tags.items.len;
-    const roots = body.items.len;
     const minimum = if (self.loop_fields) |context| try context.minimum(self, args.operation) else null;
     const selected = @import("../state_value/list.zig").selected(self, args.type_id);
     const layout = if (selected) try @import("../types.zig").get(self, self.state_types, args.type_id) else null;
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../state_value/list_emission.zig").borrow(self));
 
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
-    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len and roots == body.items.len);
+    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len);
 
     const bases: Bases = .{
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,

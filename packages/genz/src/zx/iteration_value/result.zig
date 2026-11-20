@@ -59,7 +59,7 @@ pub fn lower(lowering: *Lower, selected: consumer.Consumer, state: node.Expressi
     return if (selected.layout) @import("../value_call/root.zig").expression(lowering, selected.result) else lowering.expr(selected.result);
 }
 
-pub fn buffered(context: *@import("root.zig"), body: *std.ArrayList(node.Statement), selected: consumer.Consumer, state: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn buffered(context: *@import("root.zig"), body: anytype, selected: consumer.Consumer, state: node.ExpressionId) Lower.Error!node.ExpressionId {
     const lowering = context.lowering;
     const projection = @import("projection.zig");
 

@@ -1,4 +1,3 @@
-const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
@@ -26,7 +25,10 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
     self.uses_io = self.uses_io or worker.io;
     self.uses_process = self.uses_process or worker.process;
 
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     const evaluated = try self.expr(value.target);
     const qualified = if (lists.selected(self, list_type)) try @import("../state_value/ownership.zig").clip(self, &body, value.target, evaluated) else evaluated;
     const source_value = try aggregate.bind(self, &body, qualified);

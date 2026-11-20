@@ -5,8 +5,14 @@ const Lower = @import("../lower.zig");
 const analysis = @import("../iteration_layout.zig");
 const Self = @This();
 
+pub const Statements = if (@import("genz_options").generated_analysis)
+    @import("../../node/blocks.zig").Sequence
+
+else
+    std.ArrayList(node.Statement);
 lowering: *Lower,
-declarations: *std.ArrayList(node.Statement),
+declarations: *Statements,
+
 inline_lists: bool = false,
 types: @import("../expression_map.zig").Map(ir.TypeId) = .empty,
 symbols: @import("../members.zig") = .empty,

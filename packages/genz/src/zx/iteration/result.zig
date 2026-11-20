@@ -4,6 +4,7 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
+const Context = @import("../iteration_value/root.zig");
 const generated = @import("genz_options").generated_analysis;
 const entry = if (generated) @import("generated_iteration_result_finish") else struct {};
 
@@ -24,7 +25,7 @@ pub const Prefix = struct {
 pub const Result = struct {
     consumer: ?@import("../iteration_consumer.zig").Consumer,
     deep: bool,
-    context: *@import("../iteration_value/root.zig"),
+    context: *Context,
     converted: bool,
     type_id: ir.TypeId,
     by_value: bool,
@@ -33,7 +34,7 @@ pub const Result = struct {
     initial: node.ExpressionId,
     changed_name: []const u8,
     mode: Mode,
-    pub fn lower(config: Result, self: *Lower, body: *std.ArrayList(node.Statement), state: node.ExpressionId, previous: Prefix) Lower.Error!node.ExpressionId {
+    pub fn lower(config: Result, self: *Lower, body: *Context.Statements, state: node.ExpressionId, previous: Prefix) Lower.Error!node.ExpressionId {
         const actions = config.plan();
         const prepared = try config.prepare(self, body, state, actions.preparation);
 
@@ -52,7 +53,7 @@ pub const Result = struct {
             .GuardConstruct => try self.construct(config.type_id, state),
         };
 
-        const appended = try self.builder.statements(body.items);
+        const appended = if (generated) try body.block(self.allocator) else try self.builder.statements(body.items);
 
         const final = try @import("../../node/blocks.zig").tail(
             self.allocator,
@@ -63,7 +64,7 @@ pub const Result = struct {
 
         return aggregate.finishStored(self, final, value, guard);
     }
-    fn prepare(config: Result, self: *Lower, body: *std.ArrayList(node.Statement), state: node.ExpressionId, action: Preparation) Lower.Error!node.ExpressionId {
+    fn prepare(config: Result, self: *Lower, body: *Context.Statements, state: node.ExpressionId, action: Preparation) Lower.Error!node.ExpressionId {
         return switch (action) {
             .BufferedConsumer => @import("../iteration_value/result.zig").buffered(config.context, body, config.consumer.?, state),
             .DeepConsumer => @import("../iteration_value/result.zig").lower(self, config.consumer.?, state),
@@ -85,7 +86,10 @@ pub const Result = struct {
                 break :reserved state;
             },
             .Block, .Layout, .Pointer => wrapped: {
-                var inner: std.ArrayList(node.Statement) = .empty;
+                var inner: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+
+                defer if (generated) inner.deinit();
+
                 const value = if (action == .Block) state else try @import("../state_value/conversion.zig").convert(self, &inner, config.type_id, state, if (action == .Layout) .layout else .pointer);
 
                 break :wrapped aggregate.finish(self, &inner, value);

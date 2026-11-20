@@ -26,7 +26,7 @@ pub fn elementType(self: *Lower, list: ir.TypeId) Lower.Error!node.ExpressionId 
     return @import("../types.zig").resource(self, @fromBackingInt(decision.type_id), decision.table);
 }
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), list: ir.TypeId, value: node.ExpressionId, operation: Operation) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: anytype, list: ir.TypeId, value: node.ExpressionId, operation: Operation) Lower.Error!node.ExpressionId {
     const decision = choice(self, list, operation, false);
 
     if (decision.passthrough) return value;
@@ -66,7 +66,7 @@ pub fn choice(self: *const Lower, list: ir.TypeId, operation: Operation, used: b
 
 const Result = struct { value: node.ExpressionId, name: []const u8 };
 
-fn execute(self: *Lower, body: *std.ArrayList(node.Statement), decision: Decision, value: node.ExpressionId, name: []const u8) Lower.Error!Result {
+fn execute(self: *Lower, body: anytype, decision: Decision, value: node.ExpressionId, name: []const u8) Lower.Error!Result {
     const entry = @import("generated_state_element_emit");
     const Input = std.meta.Child(entry.Input);
     const Choice = std.meta.Child(@FieldType(Input, "choice"));
@@ -99,11 +99,15 @@ fn execute(self: *Lower, body: *std.ArrayList(node.Statement), decision: Decisio
     };
 
     const output = entry.executeIn(allocator, &input) catch |err| return failure(err);
-    var prefix: std.ArrayList(node.Statement) = .empty;
-    const target = if (decision.capture) &prefix else body;
-    const result = try conversion.apply(self, target, target, output.result);
 
-    if (decision.capture) try body.insertSlice(self.allocator, 0, prefix.items);
+    const result = if (@TypeOf(body) == *std.ArrayList(node.Statement) and decision.capture) captured: {
+        var prefix: std.ArrayList(node.Statement) = .empty;
+        const prepared = try conversion.apply(self, &prefix, &prefix, output.result);
+
+        try body.insertSlice(self.allocator, 0, prefix.items);
+
+        break :captured prepared;
+    } else try conversion.apply(self, body, body, output.result);
 
     return .{ .value = result, .name = if (decision.capture) try self.allocator.dupe(u8, output.name) else name };
 }

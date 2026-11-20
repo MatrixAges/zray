@@ -5,7 +5,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const conversion = @import("../state_value/conversion_emission.zig");
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, type_id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const entry = @import("generated_collection_result");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
@@ -14,7 +14,6 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Typ
     const serial = self.serial;
     const declarations = self.task_declarations.count();
     const statements = self.builder.nodes.statements.tags.items.len;
-    const roots = body.items.len;
     const storage = self.referenceBatches();
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
@@ -44,7 +43,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Typ
     }
 
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
-    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len and roots == body.items.len);
+    std.debug.assert(statements == self.builder.nodes.statements.tags.items.len);
     std.debug.assert(storage == self.referenceBatches());
 
     const bases: Bases = .{

@@ -65,7 +65,7 @@ pub const Write = struct {
     fields: ?*const Fields = null,
 };
 
-pub fn store(self: *Lower, body: *std.ArrayList(node.Statement), schedule: Plan, write: Write, tracker: ?@import("state.zig").Tracker) Lower.Error!node.Block {
+pub fn store(self: *Lower, body: *@import("../iteration_value/root.zig").Statements, schedule: Plan, write: Write, tracker: ?@import("state.zig").Tracker) Lower.Error!node.Block {
     const value = switch (schedule.assignment) {
         .Direct => write.value,
         .Projected => try write.fields.?.qualify(self, body, write.origin, write.value),
@@ -84,7 +84,7 @@ pub fn store(self: *Lower, body: *std.ArrayList(node.Statement), schedule: Plan,
         return self.builder.statements(body.items);
     }
 
-    const prefix = try self.builder.statements(body.items);
+    const prefix = try self.builder.finishStatements(body);
 
     const count = try @import("assignment.zig").lower(self, .{
         .type_id = write.type_id,

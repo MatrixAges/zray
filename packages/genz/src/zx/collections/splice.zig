@@ -15,7 +15,7 @@ pub const Request = struct {
     removed_only: bool,
 };
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, args: Request) Lower.Error!node.ExpressionId {
     const entry = @import("generated_collection_splice");
     const Input = std.meta.Child(entry.Input);
     const Bases = std.meta.Child(@FieldType(Input, "bases"));

@@ -126,7 +126,11 @@ fn conditional(lowering: *Lower, selected: @FieldType(@FieldType(ir.ExpressionRo
 
 pub fn unpack(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const lowering = self.lowering;
-    var body: std.ArrayList(node.Statement) = .empty;
+    const generated = @import("genz_options").generated_analysis;
+    var body: Context.Statements = if (generated) lowering.builder.statementSequence(lowering.workspace) else .empty;
+
+    defer if (generated) body.deinit();
+
     const value = try aggregate.bind(lowering, &body, try lowering.regular(id));
 
     return aggregate.finish(lowering, &body, try @import("conversion.zig").convert(self, lowering.program.expression(id).type_id, value, false));

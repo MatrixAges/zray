@@ -24,7 +24,7 @@ pub fn read(self: *Lower, body: *std.ArrayList(node.Statement), list: ir.TypeId,
     return emission.lower(self, body, list, value, .Read);
 }
 
-pub fn write(self: *Lower, body: *std.ArrayList(node.Statement), list: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn write(self: *Lower, body: anytype, list: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     if (!generated) return seed.write(self, body, list, value);
 
     return emission.lower(self, body, list, value, .Write);

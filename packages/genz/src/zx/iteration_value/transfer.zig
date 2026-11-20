@@ -4,7 +4,7 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 
-pub fn lower(context: *Context, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, source: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.ExpressionId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("transfer_seed.zig").lower(context, body, type_id, source);
 
     const self = context.lowering;

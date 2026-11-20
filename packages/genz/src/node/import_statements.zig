@@ -7,7 +7,7 @@ const Tag = std.meta.Tag(node.Statement);
 const Sequence = @import("blocks.zig").Sequence;
 pub const Error = rows.Error;
 
-pub fn append(allocator: std.mem.Allocator, target: *std.ArrayList(node.Statement), source: anytype) Error!void {
+pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype) Error!void {
     return appendRows(allocator, target, source, false, false);
 }
 

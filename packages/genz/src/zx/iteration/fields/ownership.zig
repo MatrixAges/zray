@@ -8,13 +8,13 @@ const ownership = @import("../../state_value/ownership/projection.zig");
 const projection = @import("projection.zig");
 const entry = @import("generated_loop_fields_ownership");
 
-pub fn maskBorrowed(self: *Context, lowering: *Lower, body: *std.ArrayList(node.Statement)) Lower.Error!void {
+pub fn maskBorrowed(self: *Context, lowering: *Lower, body: anytype) Lower.Error!void {
     const masked = try rebuild(self, lowering, body, .{ .value = self.seed }) orelse return;
 
     self.seed = try aggregate.bind(lowering, body, masked);
 }
 
-pub fn qualify(self: *const Context, lowering: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn qualify(self: *const Context, lowering: *Lower, body: anytype, id: ir.ExprId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const source = try aggregate.bind(lowering, body, value);
 
     return (try rebuild(self, lowering, body, .{ .value = source, .origin = id, .layout = self.layout })).?;
@@ -26,7 +26,7 @@ const Request = struct {
     layout: ?node.ExpressionId = null,
 };
 
-fn rebuild(self: *const Context, lowering: *Lower, body: *std.ArrayList(node.Statement), request: Request) Lower.Error!?node.ExpressionId {
+fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Request) Lower.Error!?node.ExpressionId {
     const Input = std.meta.Child(entry.Input);
     const Facts = std.meta.Child(@FieldType(Input, "facts"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), lowering.program.types);

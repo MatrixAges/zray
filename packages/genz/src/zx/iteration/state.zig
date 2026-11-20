@@ -23,7 +23,7 @@ pub const Tracker = union(enum) {
     }
 };
 
-pub fn declare(self: *Lower, body: *std.ArrayList(node.Statement), args: Declaration) Lower.Error!?Tracker {
+pub fn declare(self: *Lower, body: *@import("../iteration_value/root.zig").Statements, args: Declaration) Lower.Error!?Tracker {
     if (!@import("genz_options").generated_analysis) return seed(self, body, args);
 
     const entry = @import("generated_iteration_state_declaration");

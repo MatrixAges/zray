@@ -73,7 +73,7 @@ fn emitObject(self: *Lower, comptime generated: type, input: anytype) Lower.Erro
     return @fromBackingInt(output.root);
 }
 
-pub fn prepare(context: *Context, body: *std.ArrayList(node.Statement), source: node.ExpressionId) Lower.Error!void {
+pub fn prepare(context: *Context, body: anytype, source: node.ExpressionId) Lower.Error!void {
     const self = context.lowering;
     const generated = @import("generated_iteration_buffer_prepare");
     const Input = std.meta.Child(generated.Input);

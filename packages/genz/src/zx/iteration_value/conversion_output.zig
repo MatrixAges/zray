@@ -54,7 +54,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const layouts = try temporary.alloc(u32, plan.types.len);
     const operands = try temporary.alloc(u32, plan.types.len);
     const serial = self.serial;
-    const declarations = context.declarations.items.len;
+    const declarations = context.declarations.last;
     const storage = self.referenceBatches();
 
     for (plan.types, prepared.requirements, layouts, operands, 0..) |raw, requirement, *layout, *operand, index| {
@@ -71,7 +71,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         };
     }
 
-    std.debug.assert(serial == self.serial and declarations == context.declarations.items.len and storage == self.referenceBatches());
+    std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last) and storage == self.referenceBatches());
 
     const ast = @import("../construction/ast.zig").borrow(std.meta.Child(@FieldType(Input, "ast")), self);
 

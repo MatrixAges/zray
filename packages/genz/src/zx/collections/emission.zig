@@ -1,9 +1,8 @@
-const std = @import("std");
 const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 
-pub fn apply(self: *Lower, body: *std.ArrayList(node.Statement), output: anytype) Lower.Error!node.ExpressionId {
+pub fn apply(self: *Lower, body: *@import("../../node/blocks.zig").Sequence, output: anytype) Lower.Error!node.ExpressionId {
     if (!output.valid) return error.OutOfMemory;
 
     const context = output.state.context;

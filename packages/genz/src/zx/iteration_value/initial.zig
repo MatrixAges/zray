@@ -1,4 +1,3 @@
-const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
@@ -10,8 +9,8 @@ const Self = @This();
 body: node.Block,
 condition: node.ExpressionId,
 result: node.ExpressionId,
-pub fn create(lowering: *Lower, body: *std.ArrayList(node.Statement), iteration: ir.Iteration, selected: ?consumer.Consumer, initial: node.ExpressionId, guard: Guard) Lower.Error!Self {
-    const outer = try lowering.builder.statements(body.items);
+pub fn create(lowering: *Lower, body: *@import("root.zig").Statements, iteration: ir.Iteration, selected: ?consumer.Consumer, initial: node.ExpressionId, guard: Guard) Lower.Error!Self {
+    const outer = if (@import("genz_options").generated_analysis) try body.block(lowering.allocator) else try lowering.builder.statements(body.items);
 
     body.clearRetainingCapacity();
 

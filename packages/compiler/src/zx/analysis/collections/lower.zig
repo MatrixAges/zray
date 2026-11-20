@@ -5,12 +5,14 @@ const Analyzer = @import("../analyzer.zig");
 const Types = @import("../types.zig");
 const Builder = @import("builder.zig");
 const Callback = @import("callback.zig").Result;
+const iteration_plan = @import("iteration_plan.zig");
 
 pub const Options = struct { tuple_result: bool = false, projection: ?u64 = null, span: zx.Span, kind: @FieldType(ir.Transform, "kind"), target: ir.ExprId, initial: ?ir.ExprId, ignored: ?ir.ExprId, callback: Callback, result_type: ir.TypeId };
 
 pub fn lower(analyzer: *Analyzer, options: Options) zx.Error!ir.ExprId {
     if (options.kind == .sort) return @import("sorting.zig").lower(analyzer, options);
 
+    const plan = iteration_plan.choose(options.kind, options.initial != null, options.tuple_result, options.projection);
     const builder = Builder{ .analyzer = analyzer, .span = options.span };
     const source_symbol = try builder.symbol("$collection_source", analyzer.node(options.target).type_id);
     const source = try builder.reference(source_symbol);
@@ -25,18 +27,18 @@ pub fn lower(analyzer: *Analyzer, options: Options) zx.Error!ir.ExprId {
         try bindings.append(analyzer.allocator, .{ .symbol = symbol, .value = ignored, .borrow = true });
     }
 
-    const initial_result = switch (options.kind) {
-        .sort => unreachable,
-        .map, .filter => try builder.expression(options.result_type, .{ .list = &.{} }),
-        .every, .some => try builder.expression(Types.scalarId(.bool), .{ .boolean = options.kind == .every }),
-        .reduce => options.initial orelse try builder.expression(options.result_type, .{ .index = .{ .target = source, .index = try builder.integer(0) } }),
+    const initial_result = switch (plan.initial) {
+        .Empty => try builder.expression(options.result_type, .{ .list = &.{} }),
+        .True, .False => try builder.expression(Types.scalarId(.bool), .{ .boolean = plan.initial == .True }),
+        .Given => options.initial.?,
+        .First => try builder.expression(options.result_type, .{ .index = .{ .target = source, .index = try builder.integer(0) } }),
     };
 
     var fields: std.ArrayList(Builder.Field) = .empty;
 
     try fields.appendSlice(analyzer.allocator, &.{
         .{ .name = "source", .value = source },
-        .{ .name = "index", .value = try builder.integer(@intFromBool(options.kind == .reduce and options.initial == null)) },
+        .{ .name = "index", .value = try builder.integer(@intFromBool(plan.initial == .First)) },
         .{ .name = "result", .value = initial_result },
     });
 
@@ -59,8 +61,8 @@ pub fn lower(analyzer: *Analyzer, options: Options) zx.Error!ir.ExprId {
         .initial = initial,
         .condition_parameter = condition_parameter,
         .parameter = parameter,
-        .condition = try condition(builder, options.kind, condition_parameter),
-        .body = try @import("step.zig").build(builder, options.kind, parameter, options.callback),
+        .condition = try condition(builder, plan.condition, condition_parameter),
+        .body = try @import("step.zig").build(builder, plan, parameter, options.callback),
         .postcondition = false,
     } });
 
@@ -68,19 +70,15 @@ pub fn lower(analyzer: *Analyzer, options: Options) zx.Error!ir.ExprId {
 
     try bindings.append(analyzer.allocator, .{ .symbol = result_symbol, .value = iteration });
 
-    var result = try builder.field(try builder.reference(result_symbol), "result");
+    const value = try builder.field(try builder.reference(result_symbol), "result");
 
-    if (options.tuple_result) {
-        if (options.projection) |slot| {
-            if (options.kind == .reduce) {
-                if (slot == 0) result = source;
-            } else if (slot == 1) result = try builder.expression(Types.scalarId(.void), .unit);
-        } else if (options.kind == .reduce) {
-            result = try builder.tuple(&.{ source, result });
-        } else {
-            result = try builder.tuple(&.{ result, try builder.expression(Types.scalarId(.void), .unit) });
-        }
-    }
+    const result = switch (plan.result) {
+        .Value => value,
+        .Source => source,
+        .Unit => try builder.expression(Types.scalarId(.void), .unit),
+        .SourceAndValue => try builder.tuple(&.{ source, value }),
+        .ValueAndUnit => try builder.tuple(&.{ value, try builder.expression(Types.scalarId(.void), .unit) }),
+    };
 
     return builder.expression(analyzer.node(result).type_id, .{ .scope = .{
         .bindings = try bindings.toOwnedSlice(analyzer.allocator),
@@ -88,15 +86,15 @@ pub fn lower(analyzer: *Analyzer, options: Options) zx.Error!ir.ExprId {
     } });
 }
 
-fn condition(builder: Builder, kind: @FieldType(ir.Transform, "kind"), parameter: ir.SymbolId) zx.Error!ir.ExprId {
+fn condition(builder: Builder, test_kind: @FieldType(iteration_plan.Plan, "condition"), parameter: ir.SymbolId) zx.Error!ir.ExprId {
     const current = try builder.reference(parameter);
     const length = try builder.expression(Types.scalarId(.u64), .{ .length = try builder.field(current, "source") });
     const bound = try builder.expression(Types.scalarId(.bool), .{ .binary = .{ .operator = .less, .left = try builder.field(current, "index"), .right = length } });
 
-    if (kind != .every and kind != .some) return bound;
+    if (test_kind == .Bound) return bound;
 
     const result = try builder.field(current, "result");
-    const continuing = if (kind == .every) result else try builder.expression(Types.scalarId(.bool), .{ .unary = .{ .operator = .not, .operand = result } });
+    const continuing = if (test_kind == .WhileTrue) result else try builder.expression(Types.scalarId(.bool), .{ .unary = .{ .operator = .not, .operand = result } });
 
     return builder.expression(Types.scalarId(.bool), .{ .binary = .{ .operator = .logical_and, .left = bound, .right = continuing } });
 }

@@ -31,22 +31,28 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
     const type_id = row.type_id;
     const operation: Operation = row.value.list_operation;
     const flags = self.plan.get(id);
-    var body: std.ArrayList(node.Statement) = .empty;
+    const generated = @import("genz_options").generated_analysis;
+    var direct = self.builder.statementSequence(self.workspace);
+    var legacy: std.ArrayList(node.Statement) = .empty;
+
+    defer if (generated) direct.deinit();
+
+    const body = if (generated) &direct else &legacy;
     const source_type = self.program.expression(operation.target).type_id;
     const provenance = @import("state_value/list.zig");
     const evaluated_source = try self.expr(operation.target);
-    const qualified_source = if (operation.kind != .slice and provenance.selected(self, source_type)) try @import("state_value/ownership.zig").clip(self, &body, operation.target, evaluated_source) else evaluated_source;
-    const source_value = try aggregate.bind(self, &body, qualified_source);
+    const qualified_source = if (operation.kind != .slice and provenance.selected(self, source_type)) try @import("state_value/ownership.zig").clip(self, body, operation.target, evaluated_source) else evaluated_source;
+    const source_value = try aggregate.bind(self, body, qualified_source);
     const source = try provenance.items(self, source_type, source_value);
 
     if (operation.kind == .slice) {
         const element = try @import("state_value/elements.zig").typeExpr(self, source_type);
         const length = try self.field(source, "len");
 
-        const owned = if (@import("genz_options").generated_analysis) owned: {
+        const owned = if (generated) owned: {
             const no_header = try self.builder.expression(.{ .boolean = false });
 
-            break :owned try @import("collections/reorder.zig").lower(self, &body, .{
+            break :owned try @import("collections/reorder.zig").lower(self, body, .{
                 .type_id = source_type,
                 .source = source,
                 .header = no_header,
@@ -58,24 +64,24 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
                 .operation = .slice,
             });
         } else owned: {
-            const buffer = try allocate(self, &body, element, length);
+            const buffer = try allocate(self, body, element, length);
 
-            try copy(self, &body, buffer, source);
+            try copy(self, body, buffer, source);
 
             break :owned try provenance.owned(self, source_type, buffer, try self.builder.expression(.{ .boolean = false }));
         };
 
-        return aggregate.finish(self, &body, if (layout) |target| try self.cast(target, owned) else owned);
+        return aggregate.finish(self, body, if (layout) |target| try self.cast(target, owned) else owned);
     }
 
     const source_headered = if (provenance.selected(self, source_type)) try provenance.headered(self, source_value) else try self.builder.expression(.{ .boolean = flags.frontier });
     const arguments = try self.allocator.alloc(node.ExpressionId, operation.arguments.len);
 
     for (operation.arguments, arguments) |argument, *value| {
-        const evaluated = try aggregate.bind(self, &body, try self.expr(argument));
+        const evaluated = try aggregate.bind(self, body, try self.expr(argument));
 
         value.* = if (operation.kind == .push)
-            try @import("state_value/elements.zig").write(self, &body, source_type, evaluated)
+            try @import("state_value/elements.zig").write(self, body, source_type, evaluated)
 
         else if (operation.kind == .concat or (operation.kind == .splice and argument == operation.arguments[2]))
             try provenance.items(self, self.program.expression(argument).type_id, evaluated)
@@ -92,8 +98,8 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
     switch (operation.kind) {
         .slice => unreachable,
         .pop => {
-            if (@import("genz_options").generated_analysis) {
-                result = try @import("collections/pop.zig").lower(self, &body, .{
+            if (generated) {
+                result = try @import("collections/pop.zig").lower(self, body, .{
                     .type_id = source_type,
                     .result_type = type_id,
                     .items = source,
@@ -129,8 +135,8 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
             }
         },
         .reverse, .sort => {
-            if (@import("genz_options").generated_analysis) {
-                result = try @import("collections/reorder.zig").lower(self, &body, .{
+            if (generated) {
+                result = try @import("collections/reorder.zig").lower(self, body, .{
                     .type_id = source_type,
                     .source = source,
                     .header = source_headered,
@@ -146,11 +152,11 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
                     try self.builtin(.constCast, &.{source})
 
                 else if (flags.grow)
-                    try growth.reserve(self, &body, child_type, source, length, false)
+                    try growth.reserve(self, body, child_type, source, length, false)
                 else
-                    try allocate(self, &body, child_type, length);
+                    try allocate(self, body, child_type, length);
 
-                if (!flags.in_place and !flags.grow) try copy(self, &body, mutable, source);
+                if (!flags.in_place and !flags.grow) try copy(self, body, mutable, source);
 
                 const call = if (operation.kind == .reverse) try intrinsic.standard(self, &.{ "mem", "reverse" }, &.{ child_type, mutable }, false) else blk: {
                     var found = false;
@@ -172,8 +178,8 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
             }
         },
         .push, .concat => {
-            if (@import("genz_options").generated_analysis) {
-                result = try @import("collections/append.zig").lower(self, &body, .{
+            if (generated) {
+                result = try @import("collections/append.zig").lower(self, body, .{
                     .operation = id,
                     .type_id = source_type,
                     .items = source,
@@ -188,7 +194,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
                 });
             } else {
                 const added = if (operation.kind == .push) try self.builder.integer(1) else try self.field(arguments[0], "len");
-                const count = try aggregate.bind(self, &body, try addLength(self, length, added));
+                const count = try aggregate.bind(self, body, try addLength(self, length, added));
                 var append: std.ArrayList(node.Statement) = .empty;
                 const minimum = if (self.loop_fields) |context| try context.minimum(self, id) else null;
 
@@ -224,8 +230,8 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
             }
         },
         .splice => {
-            if (@import("genz_options").generated_analysis) {
-                result = try @import("collections/splice.zig").lower(self, &body, .{
+            if (generated) {
+                result = try @import("collections/splice.zig").lower(self, body, .{
                     .type_id = source_type,
                     .source = source,
                     .header = source_headered,
@@ -236,18 +242,18 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
                     .removed_only = removed_only,
                 });
 
-                if (removed_only) return aggregate.finish(self, &body, result);
+                if (removed_only) return aggregate.finish(self, body, result);
             } else {
                 const start = arguments[0];
                 const count = arguments[1];
                 const replacement = arguments[2];
                 const outside = try intrinsic.binary(self, .logical_or, try intrinsic.binary(self, .greater, start, length), try intrinsic.binary(self, .greater, count, try intrinsic.binary(self, .subtract, length, start)));
 
-                try intrinsic.failIf(self, &body, outside, "IndexOutOfBounds");
+                try intrinsic.failIf(self, body, outside, "IndexOutOfBounds");
 
                 const size_type = try self.builder.expression(.{ .primitive = .usize });
-                const begin = try aggregate.bind(self, &body, try self.cast(size_type, try self.builtin(.intCast, &.{start})));
-                const removed = try aggregate.bind(self, &body, try self.cast(size_type, try self.builtin(.intCast, &.{count})));
+                const begin = try aggregate.bind(self, body, try self.cast(size_type, try self.builtin(.intCast, &.{start})));
+                const removed = try aggregate.bind(self, body, try self.cast(size_type, try self.builtin(.intCast, &.{count})));
                 const end = try intrinsic.binary(self, .add, begin, removed);
                 const inserted = try self.field(replacement, "len");
                 const total = try addLength(self, try intrinsic.binary(self, .subtract, length, removed), inserted);
@@ -262,15 +268,15 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
                 if (removed_only) {
                     try body.append(self.allocator, .{ .discard = total });
 
-                    return aggregate.finish(self, &body, try listResult(self, source_type, try slice(self, source, begin, end), try intrinsic.binary(self, .logical_and, source_headered, try intrinsic.binary(self, .equal, begin, try self.builder.integer(0)))));
+                    return aggregate.finish(self, body, try listResult(self, source_type, try slice(self, source, begin, end), try intrinsic.binary(self, .logical_and, source_headered, try intrinsic.binary(self, .equal, begin, try self.builder.integer(0)))));
                 }
 
-                const buffer = try allocate(self, &body, child_type, total);
+                const buffer = try allocate(self, body, child_type, total);
                 const tail = try slice(self, buffer, begin, null);
 
-                try copy(self, &body, try slice(self, buffer, null, begin), try slice(self, source, null, begin));
-                try copy(self, &body, try slice(self, tail, null, inserted), replacement);
-                try copy(self, &body, try slice(self, buffer, try intrinsic.binary(self, .add, begin, inserted), null), try slice(self, source, end, null));
+                try copy(self, body, try slice(self, buffer, null, begin), try slice(self, source, null, begin));
+                try copy(self, body, try slice(self, tail, null, inserted), replacement);
+                try copy(self, body, try slice(self, buffer, try intrinsic.binary(self, .add, begin, inserted), null), try slice(self, source, end, null));
 
                 result = try pair(self, try provenance.owned(self, source_type, buffer, try self.builder.expression(.{ .boolean = false })), try listResult(self, source_type, try slice(self, source, begin, end), try intrinsic.binary(self, .logical_and, source_headered, try intrinsic.binary(self, .equal, begin, try self.builder.integer(0)))));
             }
@@ -278,20 +284,20 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
     }
 
     if (self.state_active and !self.state_plan.selected[@backingInt(type_id)]) {
-        if (@import("genz_options").generated_analysis) {
-            result = try @import("collections/result.zig").lower(self, &body, type_id, result);
+        if (generated) {
+            result = try @import("collections/result.zig").lower(self, body, type_id, result);
         } else {
-            const tuple = try aggregate.bind(self, &body, result);
+            const tuple = try aggregate.bind(self, body, result);
             const members = self.program.typeOf(type_id).tuple;
             const values = try self.allocator.alloc(node.ExpressionId, members.len);
 
-            for (values, 0..) |*value, index| value.* = try @import("state_value/conversion.zig").convert(self, &body, members.at(index), try self.field(tuple, try std.fmt.allocPrint(self.allocator, "{d}", .{index})), .pointer);
+            for (values, 0..) |*value, index| value.* = try @import("state_value/conversion.zig").convert(self, body, members.at(index), try self.field(tuple, try std.fmt.allocPrint(self.allocator, "{d}", .{index})), .pointer);
 
             result = try self.builder.expression(.{ .tuple = values });
         }
     }
 
-    const constructed = if (@import("genz_options").generated_analysis)
+    const constructed = if (generated)
         try @import("collections/finalize.zig").lower(self, type_id, result, layout)
 
     else if (layout) |target|
@@ -299,7 +305,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
     else
         try self.construct(type_id, result);
 
-    return aggregate.finish(self, &body, constructed);
+    return aggregate.finish(self, body, constructed);
 }
 
 fn slice(self: *Lower, target: node.ExpressionId, start: ?node.ExpressionId, end: ?node.ExpressionId) Lower.Error!node.ExpressionId {

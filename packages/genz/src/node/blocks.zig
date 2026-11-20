@@ -14,6 +14,13 @@ pub const Sequence = struct {
     pub fn deinit(self: *Sequence) void {
         self.parts.deinit(self.scratch);
     }
+
+    pub fn clearRetainingCapacity(self: *Sequence) void {
+        self.parts.shrinkRetainingCapacity(0);
+
+        self.last = .{};
+    }
+
     pub fn append(self: *Sequence, span: node.Block) std.mem.Allocator.Error!void {
         if (span.len == 0) return;
 
@@ -29,7 +36,14 @@ pub const Sequence = struct {
     }
 
     pub fn finish(self: *Sequence, allocator: std.mem.Allocator) std.mem.Allocator.Error!node.Block {
+        return self.collectSpan(allocator, true);
+    }
+    pub fn block(self: *Sequence, allocator: std.mem.Allocator) std.mem.Allocator.Error!node.Block {
+        return self.collectSpan(allocator, false);
+    }
+    fn collectSpan(self: *Sequence, allocator: std.mem.Allocator, comptime at_tail: bool) std.mem.Allocator.Error!node.Block {
         if (self.parts.len == 0) {
+            if (!at_tail) return self.last;
             if (self.last.len == 0) return .{ .start = @intCast(self.storage.statements.tags.items.len) };
             if (self.last.start + self.last.len == self.storage.statements.tags.items.len) return self.last;
 
@@ -38,7 +52,9 @@ pub const Sequence = struct {
 
         try self.parts.append(self.scratch, self.last);
 
-        return tail(allocator, self.storage, self.parts.items(.start), self.parts.items(.len));
+        defer self.parts.shrinkRetainingCapacity(self.parts.len - 1);
+
+        return collect(allocator, self.storage, self.parts.items(.start), self.parts.items(.len), at_tail);
     }
 };
 

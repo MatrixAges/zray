@@ -5,7 +5,7 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Context = @import("root.zig");
 
-pub fn prepare(self: *Lower, iteration: ir.Iteration, type_id: ir.TypeId, body: *std.ArrayList(node.Statement), seed: node.ExpressionId) Lower.Error!?Context {
+pub fn prepare(self: *Lower, iteration: ir.Iteration, type_id: ir.TypeId, body: anytype, seed: node.ExpressionId) Lower.Error!?Context {
     if (!@import("genz_options").generated_analysis) return @import("prepare_seed.zig").prepare(self, iteration, type_id, body, seed);
     if (self.loop_fields != null or self.iteration_value != null or self.capture != null) return null;
     if (self.program.typeOf(type_id) != .object) return null;
