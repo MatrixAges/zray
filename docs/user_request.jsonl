@@ -511,3 +511,4 @@
 {"time": "2026-11-18 01:50:09", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "已经格式化的不用恢复"}
 {"time": "2026-11-18", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "在我没明确让你测量代码行数情况下，不要进行行数统计"}
 {"time": "2026-11-18", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "这是Google carbon返回的诊断建议，你看一下现在的实现是不是存在这些问题，并进行针对性优化和完善"}
+{"time": "2026-11-20", "session": "01a191be-ab9d-77e0-96cb-07bc2b11a953", "session_title": "zray 自举与冷编译内存优化", "source": "user", "text": "最新的论文来说明 如何通过类js语言实现rust级别的性能，而无需生命周期标注和指针（全在编译期间自动识别）\n深入研究这几篇论文 论文原文放到docs根目录 将之引用到zxc编译器中 深度优化现有的机制"}

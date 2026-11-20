@@ -55,6 +55,7 @@ export default function (in: Input): Output {
     }
 
     const root = input.source.symbols.length + parent
+    const effects = input.source.effects
 
     return loop({
         index: integers.widen(input.plan.first[root]),
@@ -65,11 +66,20 @@ export default function (in: Input): Output {
         next: state => {
             state.valid = input.plan.sites.role[state.index] == Role.observe
 
-            const parent = input.plan.sites.parent[state.index]
+            const observer = input.plan.sites.parent[state.index]
 
-            if (state.valid && parent != max_u32) {
-                state.valid = expressions.kinds[integers.widen(parent)] !=
-                    ExpressionKind.Call
+            if (state.valid && observer != max_u32) {
+                const node = integers.widen(observer)
+
+                if (expressions.kinds[node] == ExpressionKind.Call) {
+                    const payload = integers.widen(expressions.payloads[node])
+                    const callee = integers.widen(expressions.call_functions[payload])
+
+                    // The call must finish without exporting the loan. See
+                    // docs/所有权推导论文.md for the borrowing and reuse invariants.
+                    state.valid = effects.kind[callee] == Role.observe &&
+                        effects.borrow_only[callee]
+                }
             }
 
             state.index += 1
