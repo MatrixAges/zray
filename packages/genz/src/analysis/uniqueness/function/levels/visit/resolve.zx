@@ -102,6 +102,10 @@ export default function (in: Input): Output {
             }
 
         case ExpressionKind.Call:
+            if (metadata.output.length == 0) {
+                return current
+            }
+
             const callee = expressions.call_functions[payload]
             const values = metadata.output[integers.widen(callee)]
 

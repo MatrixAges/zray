@@ -4,11 +4,10 @@ const Level = @import("../level.zig").Level;
 const Summaries = @import("../summaries.zig");
 const Basis = @import("../basis.zig");
 const creating = @import("generated_uniqueness_summaries_create");
-const effects = @import("generated_uniqueness_effects");
 const lifecycle = @import("lifecycle.zig");
 pub const Model = @typeInfo(@typeInfo(@TypeOf(creating.executeValue)).@"fn".return_type.?).error_union.payload;
 
-pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis, scope: Summaries.Scope) std.mem.Allocator.Error!Summaries {
+pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis) std.mem.Allocator.Error!Summaries {
     const Parameter = @typeInfo(@TypeOf(creating.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
@@ -24,11 +23,6 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
         else => std.debug.panic("summary storage failed: {s}", .{@errorName(err)}),
     };
 
-    const held = effects.executeIn(allocator, &.{ .held = basis.flow.held, .written = basis.flow.written, .return_only = basis.return_only }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
     const split: usize = @intCast(storage.layout.input_count);
 
     const result = Summaries{
@@ -39,11 +33,11 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
         .held = basis.flow.held,
         .written = basis.flow.written,
         .return_only = basis.return_only,
-        .effects = held,
+        .effects = basis.effects,
         .storage = storage,
     };
 
-    if (scope == .program) lifecycle.apply(result, .Initialize, program.functions.native_modules, &.{});
+    lifecycle.apply(result, .Initialize, program.functions.native_modules, &.{});
 
     return result;
 }

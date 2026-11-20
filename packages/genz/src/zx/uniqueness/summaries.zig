@@ -4,26 +4,26 @@ const Level = @import("level.zig").Level;
 const Basis = @import("basis.zig");
 const Self = @This();
 const generated_analysis = @import("genz_options").generated_analysis;
-const Generated = if (generated_analysis) @import("generated_uniqueness_effects") else void;
 
 /// Per function: what every caller guarantees about each input list slot, what every return guarantees about each
 /// output list slot, which input slots the output can hold, and which input slots the function may write in place.
 /// `inputs` and `outputs` hold the properties some update downstream of each slot wants, so a growth copy pays off.
-input: [][]Level,
-output: [][]Level,
-inputs: [][]Level,
-outputs: [][]Level,
+input: [][]Level = &.{},
+output: [][]Level = &.{},
+inputs: [][]Level = &.{},
+outputs: [][]Level = &.{},
 held: []const []const bool,
 written: []const []const bool,
 return_only: []const bool,
 return_allocations: []const bool = &.{},
-effects: if (generated_analysis) Generated.Output else void,
-storage: if (generated_analysis) @import("summaries/storage.zig").Model else void,
-entry_dirty: u32 = 0,
-pub const Scope = enum { program, entry };
+effects: Basis.Effects,
+storage: if (generated_analysis) ?@import("summaries/storage.zig").Model else void = if (generated_analysis) null else {},
+pub fn independent(basis: *const Basis) Self {
+    return .{ .held = basis.flow.held, .written = basis.flow.written, .return_only = basis.return_only, .effects = basis.effects };
+}
 
-pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis, scope: Scope) std.mem.Allocator.Error!Self {
-    if (generated_analysis) return @import("summaries/storage.zig").create(allocator, program, basis, scope);
+pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis) std.mem.Allocator.Error!Self {
+    if (generated_analysis) return @import("summaries/storage.zig").create(allocator, program, basis);
 
     const slots = basis.slots;
     const count = program.functions.count();
@@ -37,7 +37,7 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
         input[index] = try allocator.alloc(Level, slots.count(function.input_type));
         output[index] = try allocator.alloc(Level, slots.count(function.output_type));
 
-        const initial: Level = if (scope == .program and function.external == null) .all else .none;
+        const initial: Level = if (function.external == null) .all else .none;
 
         @memset(input[index], initial);
         @memset(output[index], initial);

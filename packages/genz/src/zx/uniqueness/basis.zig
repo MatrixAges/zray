@@ -4,6 +4,9 @@ const Flow = @import("flow.zig");
 const Memo = @import("memo.zig");
 const Slots = @import("slots.zig");
 const Self = @This();
+const generated = @import("genz_options").generated_analysis;
+const analyzing_effects = if (generated) @import("generated_uniqueness_effects") else void;
+pub const Effects = if (generated) analyzing_effects.Output else void;
 
 /// What every body analysis of a program reads and none writes: the list slots of each type, and which input slots
 /// each function's output can hold and its updates may write in place. They depend only on the types and function
@@ -11,7 +14,7 @@ const Self = @This();
 slots: Slots,
 flow: Flow,
 return_only: []const bool,
-
+effects: Effects,
 /// The content of each function body, hashed when `memo` keeps analyses across programs; empty otherwise.
 contents: []const [32]u8 = &.{},
 /// The digest of the type table, taken with `contents`.
@@ -22,8 +25,25 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
     const kept = if (memo) |value| if (value.persistent) value else null else null;
     const contents = if (kept != null) try @import("identity.zig").contents(allocator, program) else &.{};
     const types: [32]u8 = if (kept != null) @import("identity.zig").types(program.types) else @splat(0);
+    const flow = try Flow.create(allocator, workspace, program, slots, built.texts, contents, types, kept);
+    const return_only = try @import("return_only.zig").create(allocator, workspace, program);
 
-    return .{ .slots = slots, .flow = try .create(allocator, workspace, program, slots, built.texts, contents, types, kept), .return_only = try @import("return_only.zig").create(allocator, workspace, program), .contents = contents, .types = types };
+    const effects = if (generated)
+        analyzing_effects.executeIn(allocator, &.{ .held = flow.held, .written = flow.written, .return_only = return_only }) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        }
+
+    else {};
+
+    return .{
+        .slots = slots,
+        .flow = flow,
+        .return_only = return_only,
+        .effects = effects,
+        .contents = contents,
+        .types = types,
+    };
 }
 
 pub fn lists(allocator: std.mem.Allocator, slots: Slots, type_id: ir.TypeId) std.mem.Allocator.Error![]const ir.TypeId {

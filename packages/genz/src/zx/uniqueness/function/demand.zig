@@ -17,13 +17,13 @@ pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.
 
     const source: Source = .{
         .kinds = function.slots.types.kinds,
-        .return_allocations = function.summaries.return_allocations,
-        .inputs = @ptrCast(&function.summaries.inputs),
-        .outputs = @ptrCast(&function.summaries.outputs),
+        .exchange = &.{
+            .return_allocations = function.summaries.return_allocations,
+            .inputs = @ptrCast(&function.summaries.inputs),
+            .outputs = @ptrCast(&function.summaries.outputs),
+            .deferred = function.deferred,
+        },
         .function_index = if (function.function) |index| @intCast(index) else null,
-        .deferred = function.deferred,
-        .record_marks = true,
-        .entry_dirty = null,
         .operations = @ptrCast(function.operations),
         .results = function.facts.results,
     };

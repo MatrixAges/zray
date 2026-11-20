@@ -23,16 +23,10 @@ constructed_outputs: []const bool = &.{},
 grows: []const bool = &.{},
 uniqueness: Uniqueness.Result,
 basis: *const Uniqueness.Basis,
-/// Replaces the entry plan with one for `program`, an entry body over the same types and functions the facts were
-/// computed for. The caller can share its scratch summaries across entries into those functions.
-pub fn reentry(self: *Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, summaries: ?*Uniqueness.Summaries) std.mem.Allocator.Error!void {
+/// Replaces the entry plan for a body sharing the types and functions of the original analysis.
+pub fn reentry(self: *Self, allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!void {
     self.entry_flags = try Entry.analyze(workspace, program, .{ .local = self.value.local, .pure = self.value.pure, .io = self.io, .process = self.process, .tasks = self.tasks });
-
-    self.uniqueness.entry = if (summaries) |shared|
-        try Uniqueness.analyzeEntryWith(allocator, workspace, program, self.basis, shared)
-
-    else
-        try Uniqueness.analyzeEntry(allocator, workspace, program, self.basis);
+    self.uniqueness.entry = try Uniqueness.analyzeEntry(allocator, workspace, program, self.basis);
 }
 
 pub fn hasValueEntry(self: Self) bool {

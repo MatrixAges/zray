@@ -1,28 +1,13 @@
-import type { AtomicRows } from "std:bytes"
-import type { EntryReset } from "../../summaries/model"
 import type { Source } from "../demand/model"
 import type { Context } from "../levels/model"
 import type { Decisions, Snapshot, Visit } from "../plan/model"
 
-export type Input = Visit & {
-    inputs: AtomicRows,
-    outputs: AtomicRows,
-    clear_demands: EntryReset
-}
-
-export type Demand =
-    Source.Omit(
-        "carried",
-        "function_index",
-        "deferred",
-        "record_marks",
-        "return_allocations"
-    )
+export type Input = Visit
 
 export type Solve = {
     context: Context,
     repeated: u32[],
-    source: Demand
+    source: Source.Pick("kinds", "operations", "results")
 }
 
 export type Solved = {

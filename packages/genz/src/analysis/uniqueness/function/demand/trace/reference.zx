@@ -22,21 +22,20 @@ export default function (in: Input): Output {
 
     if (definition == Definition.Input) {
         const function_index = in.source.function_index
+        const exchange = in.source.exchange
 
         const marked = match {
-            function_index == null => working,
-            _ => mark({
-                stage: {
-                    source: in.source,
-                    working
-                },
+            function_index != null && exchange != null => mark({
+                exchange,
+                working,
                 mark: {
                     output: false,
                     function_index,
                     slot: request.slot,
                     want: request.wanted
                 }
-            })
+            }),
+            _ => working
         }
 
         return {

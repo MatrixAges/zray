@@ -611,6 +611,8 @@ fn node(self: *Self, id: ir.ExprId, slot: u32) Level {
             break :blk result;
         },
         .call => |invocation| blk: {
+            if (self.summaries.output.len == 0) break :blk .none;
+
             const callee = @backingInt(invocation.function);
             const outputs = self.summaries.output[callee];
 
@@ -670,6 +672,8 @@ pub fn demand(self: *Self, owner: std.mem.Allocator) std.mem.Allocator.Error!Dem
                 .wanted = .fresh,
             }),
             .call => |invocation| {
+                if (self.summaries.inputs.len == 0) continue;
+
                 const callee = @backingInt(invocation.function);
 
                 for (0..self.summaries.inputs[callee].len) |slot| {

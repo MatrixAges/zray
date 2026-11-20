@@ -1,4 +1,4 @@
-import type { U8Buffer, U32Buffer } from "memory"
+import type { U8Buffer } from "memory"
 
 export type Shape = {
     counts: u32[],
@@ -38,8 +38,4 @@ export type Lifecycle = {
 export type Clear = {
     cells: U8Buffer,
     count: u64
-}
-
-export type EntryReset = Clear & {
-    dirty: U32Buffer
 }

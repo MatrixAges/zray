@@ -1,6 +1,5 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
 
 import join from "../../level/join"
 import decode from "../levels/decode"
@@ -8,31 +7,27 @@ import encode from "../levels/encode"
 import knowledge from "../levels/knowledge"
 import value from "../levels/value"
 
-import type { Stage, Mark, Working } from "./model"
+import type { Exchange, Mark, Working } from "./model"
 
 export type Input = {
-    stage: Stage,
+    exchange: Exchange,
+    working: Working,
     mark: Mark
 }
 
 export type Output = Working
 
 export default function (in: Input): Output {
-    const record = in.stage.source.record_marks
-
-    const working = match {
-        record => {
-            ...in.stage.working,
-            marks: in.stage.working.marks.push(in.mark)[0]
-        },
-        _ => in.stage.working
+    const working = {
+        ...in.working,
+        marks: in.working.marks.push(in.mark)[0]
     }
 
-    if (in.stage.source.deferred) {
+    if (in.exchange.deferred) {
         return working
     }
 
-    const rows = in.mark.output ? in.stage.source.outputs : in.stage.source.inputs
+    const rows = in.mark.output ? in.exchange.outputs : in.exchange.inputs
     const row = integers.widen(in.mark.function_index)
     const slot = integers.widen(in.mark.slot)
     const before = decode(bytes.loadAtomicCell(rows, row, slot))
@@ -46,17 +41,7 @@ export default function (in: Input): Output {
         return working
     }
 
-    const entry_dirty = in.stage.source.entry_dirty
-
-    if (entry_dirty != null) {
-        memory.writeU32(entry_dirty, 0, 1)
-    }
-
     bytes.storeAtomicCell(rows, row, slot, encode(next))
-
-    if (!record) {
-        return working
-    }
 
     return {
         ...working,

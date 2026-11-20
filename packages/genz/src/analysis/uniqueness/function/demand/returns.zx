@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 
-import { Knowledge } from "../levels/model"
+import { Knowledge, Table } from "../levels/model"
 import read from "./read"
 import trace from "./trace"
 
@@ -16,8 +16,16 @@ export type Input = {
 export type Output = Working
 
 export default function (in: Input): Output {
+    const exchange = in.source.exchange
+
+    if (exchange == null) {
+        return in.working
+    }
+
+    const outputs = exchange.outputs
+
     const count = bytes.atomicRowLength(
-        in.source.outputs,
+        outputs,
         integers.widen(in.function_index)
     )
 
@@ -28,6 +36,7 @@ export default function (in: Input): Output {
 
     const loop_scope = {
         input: in,
+        outputs,
         count
     }
 
@@ -36,11 +45,9 @@ export default function (in: Input): Output {
         next: state => {
             const slot = integers.narrow(state.slot)
             const wanted = read({
-                stage: {
-                    source: loop_scope.input.source,
-                    working: state.working
-                },
-                output: true,
+                rows: loop_scope.outputs,
+                working: state.working,
+                table: Table.Outputs,
                 function_index: loop_scope.input.function_index,
                 slot
             })

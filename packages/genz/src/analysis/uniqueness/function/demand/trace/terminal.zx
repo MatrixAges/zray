@@ -81,16 +81,12 @@ export default function (in: Input): Output {
     if (kind == ExpressionKind.Call) {
         const function_index = expressions.call_functions[payload]
         const callee = integers.widen(function_index)
-
-        const allows = callee < in.source.return_allocations.length &&
-            in.source.return_allocations[callee]
+        const exchange = in.source.exchange
 
         const marked = match {
-            allows => mark({
-                stage: {
-                    source: in.source,
-                    working
-                },
+            exchange != null && exchange.return_allocations[callee] => mark({
+                exchange,
+                working,
                 mark: {
                     output: true,
                     function_index,

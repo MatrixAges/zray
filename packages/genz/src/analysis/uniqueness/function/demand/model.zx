@@ -1,5 +1,4 @@
 import type { AtomicRows } from "std:bytes"
-import type { U32Buffer } from "memory"
 import type { Context, Knowledge, Read } from "../levels/model"
 import type { Seen } from "./seen/model"
 
@@ -10,16 +9,18 @@ export type Mark = {
     want: Knowledge
 }
 
-export type Source = {
-    kinds: u8[],
+export type Exchange = {
     return_allocations: bool[],
-    carried: Knowledge[][],
     inputs: AtomicRows,
     outputs: AtomicRows,
+    deferred: bool
+}
+
+export type Source = {
+    kinds: u8[],
+    carried: Knowledge[][],
+    exchange?: Exchange,
     function_index?: u32,
-    deferred: bool,
-    record_marks: bool,
-    entry_dirty?: U32Buffer,
     operations: u32[],
     results: u32[]
 }

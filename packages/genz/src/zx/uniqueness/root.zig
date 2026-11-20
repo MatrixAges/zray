@@ -87,7 +87,7 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer summary_memory.deinit();
 
-    var summaries = try Summaries.create(summary_memory.allocator(), program, basis, .program);
+    var summaries = try Summaries.create(summary_memory.allocator(), program, basis);
 
     summaries.return_allocations = return_allocations;
 
@@ -147,42 +147,27 @@ pub fn analyzeEntry(allocator: std.mem.Allocator, workspace: std.mem.Allocator, 
 
     defer scratch.deinit();
 
-    var summaries = try Summaries.create(scratch.allocator(), program, basis, .entry);
-
-    return analyzeEntryWith(allocator, workspace, program, basis, &summaries);
-}
-
-/// Entries into the same functions reuse `.entry` summaries. Callee facts stay unknown and only the demands reset.
-pub fn analyzeEntryWith(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, basis: *const Basis, summaries: *Summaries) std.mem.Allocator.Error!Plan {
-    if (program.type_only) return .{ .flags = &.{} };
-
-    var scratch = std.heap.ArenaAllocator.init(workspace);
-
-    defer scratch.deinit();
-
     const temporary = scratch.allocator();
     const slots = basis.slots;
     const generated = @import("genz_options").generated_analysis;
-
-    if (!generated) summaries.clearWants();
-
+    var summaries = Summaries.independent(basis);
     const unit = try prepare(temporary, .{ .symbols = program.symbols, .expressions = program.expressions, .input_type = program.input_type, .output_type = program.output_type, .input = &.{}, .function = null, .growth = undefined }, program.body.block(), &.{});
 
     if (generated) {
-        var function = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, false);
+        var function = try unit.initialize(temporary, temporary, program.functions, slots, &summaries, null, false);
 
         return @import("function/entry.zig").analyze(&function, allocator);
     }
 
     while (true) {
-        var analysis = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, false);
+        var analysis = try unit.initialize(temporary, temporary, program.functions, slots, &summaries, null, false);
 
         _ = try analysis.demand(temporary);
 
         if (!analysis.grew) break;
     }
 
-    var analysis = try unit.initialize(temporary, temporary, program.functions, slots, summaries, null, false);
+    var analysis = try unit.initialize(temporary, temporary, program.functions, slots, &summaries, null, false);
 
     return analysis.plan(allocator);
 }
