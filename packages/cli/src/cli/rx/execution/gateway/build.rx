@@ -1,0 +1,46 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.GatewayBuild} out={IO.Status} />
+
+    <Call fn="../index.permitsGatewayBuild" in={$in} />
+
+    <If on={!$ctx.permitsGatewayBuild}>
+        <Call fn="../index.reportGatewayBuildMode" in={$in} />
+
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="../index.loadGatewayBuild" in={$in} />
+
+    <If on={!$ctx.loadGatewayBuild}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="../index.linkGatewayBuild" in={$in} />
+    <Call fn="../index.bindGatewayBuildRoutes" in={$in} />
+    <Call fn="../index.openGatewayBuildCache" in={$in} />
+
+    <If on={$ctx.linkGatewayBuild}>
+        <Call fn="../index.collectGatewayBuildSources" in={$in} />
+        <Call fn="../index.emitGatewayBuildServices" in={$in} />
+
+        <If on={!$ctx.emitGatewayBuildServices}>
+            <Return value={IO.Status.Failed} />
+        </If>
+
+        <Call fn="../index.assembleGatewayBuild" in={$in} />
+
+        <Else>
+            <Call fn="../index.assembleEmptyGatewayBuild" in={$in} />
+        </Else>
+    </If>
+
+    <Call fn="../index.attachGatewayRunner" in={$in} />
+    <Call fn="../index.reportGatewayBuildCache" in={$in} />
+    <Call fn="../index.resolveGatewayToolchain" in={$in} />
+    <Call fn="../index.resolveGatewayNativeProject" in={$in} />
+    <Call fn="../index.runGatewayBackend" in={$in} />
+
+    <Return value={$ctx.runGatewayBackend} />
+</Module>

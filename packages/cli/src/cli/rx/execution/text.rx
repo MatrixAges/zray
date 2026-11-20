@@ -1,0 +1,23 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.RxApplication} out={IO.Status} />
+
+    <Call fn="index.emitRxApplicationText" in={$in} />
+
+    <If on={!$ctx.emitRxApplicationText}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.rxApplicationHasOutput" in={$in} />
+
+    <If on={$ctx.rxApplicationHasOutput}>
+        <Call fn="index.writeRxApplicationText" in={$in} />
+
+        <Else>
+            <Call fn="index.printRxApplicationText" in={$in} />
+        </Else>
+    </If>
+
+    <Return value={IO.Status.Success} />
+</Module>

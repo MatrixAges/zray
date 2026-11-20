@@ -80,6 +80,10 @@
             "prefix": "rx/checking/"
         },
         {
+            "path": "rx_execution",
+            "prefix": "rx/execution/"
+        },
+        {
             "path": "lint_workflow",
             "prefix": "lint/"
         },
@@ -374,6 +378,26 @@
             "name": "check_zx_function"
         },
         {
+            "path": "rx/execution/run.rx",
+            "name": "run_rx_application"
+        },
+        {
+            "path": "rx/execution/gateway/analyze.rx",
+            "name": "analyze_gateway_application"
+        },
+        {
+            "path": "rx/execution/gateway/build.rx",
+            "name": "build_gateway_application"
+        },
+        {
+            "path": "rx/execution/gateway/const.zx",
+            "name": "gateway_default_listen"
+        },
+        {
+            "path": "rx/execution/backend/run.rx",
+            "name": "build_native_application"
+        },
+        {
             "path": "lint/run.rx",
             "name": "lint_command"
         },
@@ -476,6 +500,10 @@
         {
             "path": "rx/checking/host.d.zx",
             "module": "rx_checking_host"
+        },
+        {
+            "path": "rx/execution/host.d.zx",
+            "module": "rx_execution_host"
         },
         {
             "path": "lint/host.d.zx",

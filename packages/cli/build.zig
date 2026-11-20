@@ -161,6 +161,16 @@ pub fn build(b: *std.Build) void {
     cli_source.addImport("lint_workflow_host", lint_workflow);
     host.addImport("lint_workflow_abi", cli_source.import_table.get("zxc_abi").?);
 
+    const rx_execution = b.createModule(.{
+        .root_source_file = b.path("src/cli/rx/execution/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_host", .module = host }},
+    });
+
+    cli_source.addImport("rx_execution_host", rx_execution);
+    host.addImport("rx_execution_abi", cli_source.import_table.get("zxc_abi").?);
+
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 
     const yaml_scanner = b.createModule(.{

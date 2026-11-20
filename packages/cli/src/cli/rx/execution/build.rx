@@ -1,0 +1,31 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.RxApplication} out={IO.Status} />
+
+    <Call fn="index.emitRxApplicationModules" in={$in} />
+
+    <If on={!$ctx.emitRxApplicationModules}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.rxApplicationHasStore" in={$in} />
+
+    <If on={$ctx.rxApplicationHasStore}>
+        <Call fn="index.collectRxInitializers" in={$in} />
+        <Call fn="index.emitRxInitializers" in={$in} />
+        <Call fn="index.emitRxState" in={$in} />
+    </If>
+
+    <Call fn="index.reportRxApplicationCache" in={$in} />
+    <Call fn="index.resolveRxToolchain" in={$in} />
+
+    <If on={!$ctx.resolveRxToolchain}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.resolveRxNativeProject" in={$in} />
+    <Call fn="index.runRxBackend" in={$in} />
+
+    <Return value={$ctx.runRxBackend} />
+</Module>

@@ -1,0 +1,35 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.NativeBuild} out={IO.Status} />
+
+    <Call fn="../index.watchesNativeBuild" in={$in} />
+
+    <If on={!$ctx.watchesNativeBuild}>
+        <Call fn="../index.runNativeBuild" in={$in} />
+
+        <If on={$ctx.runNativeBuild}>
+            <Return value={IO.Status.Success} />
+        </If>
+
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="../index.prepareObservedNativeBuild" in={$in} />
+    <Call fn="../index.runObservedNativeBuild" in={$in} />
+    <Call fn="../index.finishObservedNativeInputs" in={$in} />
+    <Call fn="../index.reportObservedNativeBuild" in={$in} />
+
+    <If on={!$ctx.reportObservedNativeBuild}>
+        <Return value={IO.Status.BackendFailed} />
+    </If>
+
+    <Call fn="../index.requireObservedNativeInputs" in={$in} />
+    <Call fn="../index.publishObservedNativeBuild" in={$in} />
+
+    <If on={!$ctx.publishObservedNativeBuild}>
+        <Return value={IO.Status.Retry} />
+    </If>
+
+    <Return value={IO.Status.Success} />
+</Module>

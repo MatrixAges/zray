@@ -45,6 +45,13 @@ pub const lint_workflow = struct {
     pub const configuration = @import("cli/configuration/root.zig");
 };
 
+pub const rx_execution = struct {
+    pub const application = @import("cli/rx/compile.zig");
+    pub const analysis = @import("cli/rx/gateway/analyze.zig");
+    pub const gateway = @import("cli/rx/gateway/compile.zig");
+    pub const backend = @import("cli/build/native.zig");
+};
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);

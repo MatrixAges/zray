@@ -1,121 +1,303 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const Compile = @import("../compile.zig");
+const project = @import("../project.zig");
+const analyze = @import("analyze.zig");
+const cache = @import("../generation_cache.zig");
+const toolchain = @import("../toolchain.zig");
+const native = @import("../build/native.zig");
+const effects = @import("../sources/effects.zig");
+const Error = effects.Error;
+
+const State = struct {
+    context: *const Compile.Context,
+    loaded: project.Loaded = undefined,
+    parsing: ?compiler.project.ParseCache = null,
+    prepared: ?analyze.Result = null,
+    cache: ?compiler.zig.GenerationCache = null,
+    type_output: std.Io.Writer.Allocating,
+    text: ?[]u8 = null,
+    bundle: ?compiler.zig.ModuleBundle = null,
+    store_memory: ?std.heap.ArenaAllocator = null,
+    initializers: []const compiler.zig.store_initializers.Initializer.Borrowed = &.{},
+    paths: toolchain.Paths = undefined,
+    native_project: project.Loaded = undefined,
+    failure: effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return effects.state(State, handle);
+    }
+    fn closeStore(self: *State) void {
+        if (self.store_memory) |*scratch| scratch.deinit();
+
+        self.store_memory = null;
+        self.initializers = &.{};
+    }
+
+    fn deinit(self: *State) void {
+        self.closeStore();
+
+        if (self.bundle) |*bundle| bundle.deinit();
+        if (self.text) |text| self.context.allocator.free(text);
+
+        self.type_output.deinit();
+
+        if (self.cache) |*generation| generation.deinit();
+        if (self.prepared) |*prepared| prepared.analysis.deinit();
+        if (self.parsing) |*parsing| parsing.deinit();
+    }
+    fn reportFailure(self: *State, err: anyerror) Error!bool {
+        if (err == error.OutOfMemory or err == error.Canceled) return self.failure.save(err);
+
+        self.context.stderr.print("{s}: {s}\n", .{ self.context.options.input, @errorName(err) }) catch |issue| return self.failure.save(issue);
+
+        return false;
+    }
+
+    fn inputs(self: *const State) ?*@import("watch_inputs").Inputs {
+        return if (self.context.watch) |attempt| attempt.inputs else null;
+    }
+
+    fn generationCache(self: *State) ?*compiler.zig.GenerationCache {
+        const options = &self.context.options;
+
+        return if (options.native and options.cache) &self.cache.? else null;
+    }
+
+    fn configuration(self: *State) compiler.CompileOptions {
+        const context = self.context;
+        const options = &context.options;
+
+        return .{
+            .io = context.io,
+            .concurrent_analysis = context.concurrent_analysis,
+            .sources = self.prepared.?.sources,
+            .project = self.loaded.project,
+            .generation_cache = self.generationCache(),
+            .solver = options.solver,
+            .verification_allocator = @import("../verify.zig").workspace_allocator,
+            .writer = context.stderr,
+            .type_output = if (options.output != null) &self.type_output.writer else null,
+        };
+    }
+    fn reportDiagnostic(self: *State, issue: compiler.Diagnostic) Error!bool {
+        defer issue.deinit();
+        self.context.stderr.print("{s}: {t}: {s}\n", .{ self.context.options.input, issue.code, issue.message }) catch |err| return self.failure.save(err);
+
+        return false;
+    }
+};
 
 pub fn run(context: Compile.Context) !Compile.Status {
-    const allocator = context.allocator;
-    const options = context.options;
-    const writer = context.stderr;
-    const inputs = if (context.watch) |attempt| attempt.inputs else null;
+    var state: State = .{ .context = &context, .type_output = .init(context.allocator) };
+    const reference = &state;
 
-    if (options.mode == .lib) {
-        try writer.writeAll("RX libraries require the unified package publishing entry\n");
+    defer state.deinit();
 
-        return .failed;
-    }
+    const result = @import("cli_source").run_rx_application.executeIn(context.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
 
-    const loaded = @import("../project.zig").loadWithInputs(context.io, allocator, options.input, options.project, inputs) catch |err| return failure(context, err);
-
-    if (loaded.diagnostic) |message| {
-        try writer.print("{s}\n", .{message});
-
-        return .failed;
-    }
-
-    if (std.mem.endsWith(u8, loaded.project.entry, ".gateway.rx")) return @import("gateway/compile.zig").run(context, loaded) catch |err| return failure(context, err);
-
-    var parsing = compiler.project.ParseCache{ .allocator = context.backing, .keeps_replaced = true };
-
-    defer parsing.deinit();
-
-    const watched_parses = if (context.watch) |attempt| attempt.parse_cache else null;
-    var prepared = (@import("analyze.zig").run(allocator, .{ .io = context.io, .project = loaded.project, .writer = writer, .parse_cache = watched_parses orelse &parsing, .inputs = inputs }) catch |err| return failure(context, err)) orelse return .failed;
-
-    defer prepared.analysis.deinit();
-
-    const program = prepared.analysis.value.ir;
-
-    if (options.verifying) {
-        const verified = compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, program, prepared.sources, loaded.project.entry, .{ .solver = options.solver, .output = options.output }, writer) catch |err| return failure(context, err);
-
-        return if (verified) .success else .failed;
-    }
-
-    if (options.fpga) {
-        const generated = @import("../fpga.zig").runProgram(context, program, prepared.sources, loaded.project.entry) catch |err| return failure(context, err);
-
-        return if (generated) .success else .failed;
-    }
-
-    var cache = try @import("../generation_cache.zig").init(context.io, allocator, loaded.project.root_dir);
-
-    defer cache.deinit();
-
-    var type_output: std.Io.Writer.Allocating = .init(allocator);
-
-    defer type_output.deinit();
-
-    const configuration = compiler.CompileOptions{ .io = context.io, .concurrent_analysis = context.concurrent_analysis, .sources = prepared.sources, .project = loaded.project, .generation_cache = if (options.native and options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../verify.zig").workspace_allocator, .writer = writer, .type_output = if (options.output != null) &type_output.writer else null };
-
-    if (!options.native) {
-        const emitted = try compiler.emitProgramVerified(allocator, configuration, &prepared.analysis);
-
-        defer emitted.deinit(allocator);
-
-        if (emitted == .diagnostic) {
-            try writer.print("{s}: {t}: {s}\n", .{ options.input, emitted.diagnostic.code, emitted.diagnostic.message });
-
-            return .failed;
-        }
-
-        if (options.output) |path| {
-            if (type_output.written().len != 0) try @import("../artifacts.zig").write(context.io, try std.fmt.allocPrint(allocator, "{s}.abi.zig", .{path}), type_output.written());
-            try @import("../artifacts.zig").write(context.io, path, emitted.source);
-        } else try context.stdout.writeAll(emitted.source);
-
-        return .success;
-    }
-
-    var generated = try compiler.emitModulesVerified(allocator, configuration, &prepared.analysis);
-
-    defer generated.deinit();
-
-    if (generated == .diagnostic) {
-        try writer.print("{s}: {t}: {s}\n", .{ options.input, generated.diagnostic.code, generated.diagnostic.message });
-
-        return .failed;
-    }
-
-    try @import("state.zig").append(&generated.bundle, &prepared, configuration.generation_cache);
-    try @import("../generation_cache.zig").report(&cache, options, writer);
-
-    const toolchain = @import("../toolchain.zig").resolve(context.io, allocator, context.environment) catch |err| return failure(context, err);
-    const bundle = generated.bundle;
-    const project = try @import("../standard.zig").resolve(allocator, loaded, bundle.native_modules.import_names, toolchain.standard, bundle.modules);
-
-    if (context.watch) |attempt| {
-        try attempt.prepareBackend(context.io);
-
-        var observed = try @import("../build.zig").runObserved(context.io, allocator, bundle, options, project, toolchain, context.environment, attempt.inputs);
-
-        defer observed.deinit();
-
-        try attempt.finishBackend(observed.input_paths);
-        try writer.writeAll(observed.response.stderr);
-        try observed.response.diagnostics.renderToWriter(.{}, writer);
-
-        if (!observed.response.succeeded) return .backend_failed;
-        if (!observed.response.inputs_complete) return error.IncompleteBackendInputs;
-        if (!try observed.publish(context.io, allocator, attempt.inputs, options)) return .retry;
-    } else if (!try @import("../build.zig").run(context.io, allocator, bundle, options, project, toolchain, context.environment)) return .failed;
-
-    return .success;
+    return native.status(result);
 }
 
-fn failure(context: Compile.Context, err: anyerror) !Compile.Status {
-    if (err == error.OutOfMemory or err == error.Canceled) return err;
+pub fn rxRequestsLibrary(handle: *const anyopaque) bool {
+    return State.get(handle).context.options.mode == .lib;
+}
 
-    try context.stderr.print("{s}: {s}\n", .{ context.options.input, @errorName(err) });
+pub fn reportRxLibraryEntry(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
 
-    return .failed;
+    self.context.stderr.writeAll("RX libraries require the unified package publishing entry\n") catch |err| return self.failure.save(err);
+}
+
+pub fn loadRxApplication(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+
+    self.loaded = project.loadWithInputs(context.io, context.allocator, context.options.input, context.options.project, self.inputs()) catch |err| return self.reportFailure(err);
+
+    if (self.loaded.diagnostic) |message| {
+        context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
+
+        return false;
+    }
+
+    return true;
+}
+
+pub fn rxApplicationIsGateway(handle: *const anyopaque) bool {
+    return std.mem.endsWith(u8, State.get(handle).loaded.project.entry, ".gateway.rx");
+}
+
+pub fn buildRxGateway(handle: *const anyopaque) Error!native.Status {
+    const self = State.get(handle);
+
+    const result = @import("gateway/compile.zig").run(self.context, &self.loaded) catch |err| {
+        _ = try self.reportFailure(err);
+
+        return .Failed;
+    };
+
+    return native.sourceStatus(result);
+}
+
+pub fn analyzeRxApplication(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+    const watched = if (context.watch) |attempt| attempt.parse_cache else null;
+    self.parsing = .{ .allocator = context.backing, .keeps_replaced = true };
+
+    self.prepared = analyze.run(context.allocator, .{
+        .io = context.io,
+        .project = self.loaded.project,
+        .writer = context.stderr,
+        .parse_cache = watched orelse &self.parsing.?,
+        .inputs = self.inputs(),
+    }) catch |err| return self.reportFailure(err);
+
+    return self.prepared != null;
+}
+
+pub fn rxApplicationVerifying(handle: *const anyopaque) bool {
+    return State.get(handle).context.options.verifying;
+}
+
+pub fn verifyRxApplication(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+    const prepared = &self.prepared.?;
+
+    return compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, prepared.analysis.value.ir, prepared.sources, self.loaded.project.entry, .{
+        .solver = context.options.solver,
+        .output = context.options.output,
+    }, context.stderr) catch |err| return self.reportFailure(err);
+}
+
+pub fn rxApplicationFpga(handle: *const anyopaque) bool {
+    return State.get(handle).context.options.fpga;
+}
+
+pub fn generateRxFpga(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const prepared = &self.prepared.?;
+
+    return @import("../fpga.zig").runProgram(self.context.*, prepared.analysis.value.ir, prepared.sources, self.loaded.project.entry) catch |err| return self.reportFailure(err);
+}
+
+pub fn openRxApplicationCache(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const context = self.context;
+
+    self.cache = cache.init(context.io, context.allocator, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
+}
+
+pub fn rxApplicationNative(handle: *const anyopaque) bool {
+    return State.get(handle).context.options.native;
+}
+
+pub fn emitRxApplicationText(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const result = compiler.emitProgramVerified(self.context.allocator, self.configuration(), &self.prepared.?.analysis) catch |err| return self.failure.save(err);
+
+    if (result == .diagnostic) return self.reportDiagnostic(result.diagnostic);
+
+    self.text = result.source;
+
+    return true;
+}
+
+pub fn rxApplicationHasOutput(handle: *const anyopaque) bool {
+    return State.get(handle).context.options.output != null;
+}
+
+pub fn writeRxApplicationText(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const context = self.context;
+    const path = context.options.output.?;
+    const artifacts = @import("../artifacts.zig");
+
+    if (self.type_output.written().len != 0) {
+        const abi_path = std.fmt.allocPrint(context.allocator, "{s}.abi.zig", .{path}) catch |err| return self.failure.save(err);
+
+        artifacts.write(context.io, abi_path, self.type_output.written()) catch |err| return self.failure.save(err);
+    }
+
+    artifacts.write(context.io, path, self.text.?) catch |err| return self.failure.save(err);
+}
+
+pub fn printRxApplicationText(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+
+    self.context.stdout.writeAll(self.text.?) catch |err| return self.failure.save(err);
+}
+
+pub fn emitRxApplicationModules(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const result = compiler.emitModulesVerified(self.context.allocator, self.configuration(), &self.prepared.?.analysis) catch |err| return self.failure.save(err);
+
+    if (result == .diagnostic) return self.reportDiagnostic(result.diagnostic);
+
+    self.bundle = result.bundle;
+
+    return true;
+}
+
+pub fn rxApplicationHasStore(handle: *const anyopaque) bool {
+    return State.get(handle).prepared.?.analysis.value.ir.stores.count() != 0;
+}
+
+pub fn collectRxInitializers(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const prepared = &self.prepared.?;
+
+    self.store_memory = .init(self.bundle.?.arena.child_allocator);
+    self.initializers = @import("rx_analysis").store.collectInitializers(self.store_memory.?.allocator(), prepared.store_definitions, &prepared.analysis.value.ir, &.{}) catch |err| return self.failure.save(err);
+}
+
+pub fn emitRxInitializers(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+
+    compiler.zig.store_initializers.append(&self.bundle.?, .{
+        .analysis = &self.prepared.?.analysis,
+        .borrowed_initializers = self.initializers,
+        .cache = self.generationCache(),
+    }) catch |err| return self.failure.save(err);
+}
+
+pub fn emitRxState(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+
+    compiler.zig.state.append(&self.bundle.?, .{
+        .analysis = &self.prepared.?.analysis,
+        .cache = self.generationCache(),
+    }) catch |err| return self.failure.save(err);
+
+    self.closeStore();
+}
+
+pub fn reportRxApplicationCache(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+
+    cache.report(&self.cache.?, self.context.options, self.context.stderr) catch |err| return self.failure.save(err);
+}
+
+pub fn resolveRxToolchain(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+
+    self.paths = toolchain.resolve(context.io, context.allocator, context.environment) catch |err| return self.reportFailure(err);
+
+    return true;
+}
+
+pub fn resolveRxNativeProject(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const bundle = &self.bundle.?;
+
+    self.native_project = @import("../standard.zig").resolve(self.context.allocator, self.loaded, bundle.native_modules.import_names, self.paths.standard, bundle.modules) catch |err| return self.failure.save(err);
+}
+
+pub fn runRxBackend(handle: *const anyopaque) Error!native.Status {
+    const self = State.get(handle);
+    const result = native.run(self.context, &self.bundle.?, &self.native_project, self.paths) catch |err| return self.failure.save(err);
+
+    return native.sourceStatus(result);
 }

@@ -1,0 +1,37 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.GatewayAnalysis} out={bool} />
+
+    <Call fn="../index.resolveGatewayOwner" in={$in} />
+    <Call fn="../index.requireGatewaySource" in={$in} />
+    <Call fn="../index.collectGatewayDocuments" in={$in} />
+
+    <If on={!$ctx.collectGatewayDocuments}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.analyzeGatewayDocument" in={$in} />
+
+    <If on={!$ctx.analyzeGatewayDocument}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.reserveGatewayServices" in={$in} />
+
+    <If on={$ctx.reserveGatewayServices == 0}>
+        <Return value={true} />
+    </If>
+
+    <Call
+        fn="services"
+        in={{
+            analysis: $in,
+            count: $ctx.reserveGatewayServices
+        }}
+    />
+
+    <Call fn="../index.analyzeGatewayServices" in={$in} />
+
+    <Return value={$ctx.analyzeGatewayServices} />
+</Module>

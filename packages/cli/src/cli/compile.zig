@@ -204,23 +204,10 @@ pub fn run(raw_context: Context) !Status {
                     return .failed;
                 };
 
-                const bundle = module_bundle.?;
+                const bundle = &module_bundle.?;
                 const native_project = try @import("standard.zig").resolve(allocator, loaded, bundle.native_modules.import_names, toolchain.standard, bundle.modules);
 
-                if (context.watch) |attempt| {
-                    try attempt.prepareBackend(context.io);
-
-                    var observed = try @import("build.zig").runObserved(context.io, allocator, bundle, options, native_project, toolchain, context.environment, attempt.inputs);
-
-                    defer observed.deinit();
-
-                    try attempt.finishBackend(observed.input_paths);
-                    try stderr.writeAll(observed.response.stderr);
-                    try observed.response.diagnostics.renderToWriter(.{}, stderr);
-                    if (!observed.response.succeeded) return .backend_failed;
-                    if (!observed.response.inputs_complete) return error.IncompleteBackendInputs;
-                    if (!try observed.publish(context.io, allocator, attempt.inputs, options)) return .retry;
-                } else if (!try @import("build.zig").run(context.io, allocator, bundle, options, native_project, toolchain, context.environment)) return .failed;
+                return @import("build/native.zig").run(&context, bundle, &native_project, toolchain);
             } else if (options.check) {
                 if (!std.mem.eql(u8, source, text)) {
                     try stderr.print("{s}: {s}\n", .{ input_path, @import("lint").source.formatting_required });

@@ -1,0 +1,74 @@
+export type RxApplication = opaque
+
+export type GatewayAnalysis = opaque
+
+export type GatewayBuild = opaque
+
+export type NativeBuild = opaque
+
+export enum Status {
+    Success,
+    Failed,
+    BackendFailed,
+    Retry
+}
+
+
+export declare function rxRequestsLibrary(check: RxApplication): bool
+export declare function reportRxLibraryEntry(check: RxApplication): void throws { SourceLoadFailure }
+export declare function loadRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function rxApplicationIsGateway(check: RxApplication): bool
+export declare function buildRxGateway(check: RxApplication): Status throws { SourceLoadFailure }
+export declare function analyzeRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function rxApplicationVerifying(check: RxApplication): bool
+export declare function verifyRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function rxApplicationFpga(check: RxApplication): bool
+export declare function generateRxFpga(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function openRxApplicationCache(check: RxApplication): void throws { SourceLoadFailure }
+export declare function rxApplicationNative(check: RxApplication): bool
+export declare function emitRxApplicationText(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function rxApplicationHasOutput(check: RxApplication): bool
+export declare function writeRxApplicationText(check: RxApplication): void throws { SourceLoadFailure }
+export declare function printRxApplicationText(check: RxApplication): void throws { SourceLoadFailure }
+export declare function emitRxApplicationModules(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function rxApplicationHasStore(check: RxApplication): bool
+export declare function collectRxInitializers(check: RxApplication): void throws { SourceLoadFailure }
+export declare function emitRxInitializers(check: RxApplication): void throws { SourceLoadFailure }
+export declare function emitRxState(check: RxApplication): void throws { SourceLoadFailure }
+export declare function reportRxApplicationCache(check: RxApplication): void throws { SourceLoadFailure }
+export declare function resolveRxToolchain(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function resolveRxNativeProject(check: RxApplication): void throws { SourceLoadFailure }
+export declare function runRxBackend(check: RxApplication): Status throws { SourceLoadFailure }
+
+export declare function resolveGatewayOwner(check: GatewayAnalysis): void throws { SourceLoadFailure }
+export declare function requireGatewaySource(check: GatewayAnalysis): void throws { SourceLoadFailure }
+export declare function collectGatewayDocuments(check: GatewayAnalysis): bool throws { SourceLoadFailure }
+export declare function analyzeGatewayDocument(check: GatewayAnalysis): bool throws { SourceLoadFailure }
+export declare function reserveGatewayServices(check: GatewayAnalysis): u64 throws { SourceLoadFailure }
+export declare function recordGatewayService(check: GatewayAnalysis, index: u64): void
+export declare function analyzeGatewayServices(check: GatewayAnalysis): bool throws { SourceLoadFailure }
+
+export declare function permitsGatewayBuild(check: GatewayBuild): bool
+export declare function reportGatewayBuildMode(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function loadGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
+export declare function linkGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
+export declare function bindGatewayBuildRoutes(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function openGatewayBuildCache(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function collectGatewayBuildSources(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function emitGatewayBuildServices(check: GatewayBuild): bool throws { SourceLoadFailure }
+export declare function assembleGatewayBuild(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function assembleEmptyGatewayBuild(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function attachGatewayRunner(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function reportGatewayBuildCache(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function resolveGatewayToolchain(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function resolveGatewayNativeProject(check: GatewayBuild): void throws { SourceLoadFailure }
+export declare function runGatewayBackend(check: GatewayBuild): Status throws { SourceLoadFailure }
+
+export declare function watchesNativeBuild(check: NativeBuild): bool
+export declare function runNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
+export declare function prepareObservedNativeBuild(check: NativeBuild): void throws { SourceLoadFailure }
+export declare function runObservedNativeBuild(check: NativeBuild): void throws { SourceLoadFailure }
+export declare function finishObservedNativeInputs(check: NativeBuild): void throws { SourceLoadFailure }
+export declare function reportObservedNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
+export declare function requireObservedNativeInputs(check: NativeBuild): void throws { SourceLoadFailure }
+export declare function publishObservedNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
