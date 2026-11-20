@@ -1,0 +1,42 @@
+import memory from "memory"
+
+import decode from "../decode"
+import key from "./key"
+
+import type { GrowthRows, Knowledge } from "../model"
+
+export type Input = {
+    rows: GrowthRows,
+    key: u64
+}
+
+export type Output = {
+    index: u64,
+    value?: Knowledge
+}
+
+export default function (in: Input): Output {
+    const index = loop({
+        index: 0
+    }, {
+        while: state => state.index < in.rows.count && key({
+            rows: in.rows,
+            index: state.index
+        }) != in.key,
+        next: state => {
+            state.index += 1
+        },
+        return: state => state.index
+    })
+
+    const value: Knowledge? = match {
+        index == in.rows.count => null,
+        in.rows.stored == null => in.rows.items[index].value,
+        _ => decode(memory.readColumnU8(in.rows.stored.wants, index))
+    }
+
+    return {
+        index,
+        value
+    }
+}

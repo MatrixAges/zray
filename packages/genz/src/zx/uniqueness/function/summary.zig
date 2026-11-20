@@ -13,7 +13,7 @@ const Settlement = std.meta.Child(settlement.Input);
 pub fn settle(function: *Function, owner: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Function.Settlement {
     var borrowed: Context = undefined;
 
-    try borrowed.init(function);
+    borrowed.init(function);
 
     const input: Settlement = .{
         .context = &borrowed.descriptor,

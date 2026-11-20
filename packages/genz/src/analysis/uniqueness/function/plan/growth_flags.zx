@@ -4,17 +4,18 @@ import { max_u32 } from "core/const"
 import lacks from "../../level/lacks"
 import { slot_stride } from "../../renewals/const"
 import { value_renewal } from "../levels/const"
+import get from "../levels/growth/get"
 import query from "../levels/query"
 import value from "../levels/value"
 import { normalize_flag, renew_flag } from "./const"
 
-import type { Growth } from "../levels/model"
+import type { GrowthRows } from "../levels/model"
 import type { Input as Source, Working } from "./model"
 
 export type Input = {
     source: Source,
     working: Working,
-    entries: Growth[],
+    entries: GrowthRows,
     normalized: bool
 }
 
@@ -25,9 +26,12 @@ export default function (in: Input): Output {
         index: 0,
         working: in.working
     }, {
-        while: state => state.index < in.entries.length,
+        while: state => state.index < in.entries.count,
         next: state => {
-            const entry = in.entries[state.index]
+            const entry = get({
+                rows: in.entries,
+                index: state.index
+            })
             const own_value = entry.key >= value_renewal
 
             if (in.normalized || own_value) {

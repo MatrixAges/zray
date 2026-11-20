@@ -1,6 +1,6 @@
 import type { Targets } from "../../growth/output"
 import type { Mark } from "../demand/model"
-import type { Growth, Knowledge, Read } from "../levels/model"
+import type { GrowthRows, Knowledge, Read } from "../levels/model"
 import type { Contribution } from "../summary/model"
 import type { ContributionTarget, MarkTarget, ReadTarget } from "./columns"
 
@@ -32,8 +32,8 @@ export type Demand = {
     marks: Mark[],
     before: Read[],
     after: Read[],
-    normalized: Growth[],
-    renewed: Growth[],
+    normalized: GrowthRows,
+    renewed: GrowthRows,
     mark_target: MarkTarget,
     read_target?: ReadTarget,
     growth?: Targets

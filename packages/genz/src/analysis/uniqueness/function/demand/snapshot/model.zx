@@ -1,14 +1,14 @@
 import type { Target, Targets } from "../../../growth/output"
-import type { Growth } from "../../levels/model"
+import type { GrowthRows } from "../../levels/model"
 
 export type Input = {
-    normalized: Growth[],
-    renewed: Growth[],
+    normalized: GrowthRows,
+    renewed: GrowthRows,
     targets: Targets
 }
 
 export type Write = {
-    rows: Growth[],
+    rows: GrowthRows,
     target: Target,
     wide: bool
 }

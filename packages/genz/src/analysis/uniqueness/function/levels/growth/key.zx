@@ -1,0 +1,26 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { GrowthRows } from "../model"
+
+export type Input = {
+    rows: GrowthRows,
+    index: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { rows, index } = in
+
+    if (rows.stored == null) {
+        return rows.items[index].key
+    }
+
+    const { keys, wide } = rows.stored
+
+    return match {
+        wide => memory.readColumnU64(keys, index),
+        _ => integers.widen(memory.readColumnU32(keys, index))
+    }
+}

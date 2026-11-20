@@ -60,7 +60,15 @@ export default function (in: Input): Output {
 
     return {
         ...in.context,
-        normalized: [],
-        renewed: values
+        normalized: {
+            count: 0,
+            stored: null,
+            items: []
+        },
+        renewed: {
+            count: values.length,
+            stored: null,
+            items: values
+        }
     }
 }

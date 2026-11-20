@@ -1,4 +1,5 @@
 import type { Expressions } from "core/expression_table/model"
+import type { ReadColumn } from "memory"
 import type { Definitions } from "../../order/plan"
 import type { Query, Usage } from "../../sites/model"
 import type { Layout } from "../../slots/model"
@@ -40,6 +41,19 @@ export type Growth = {
     value: Knowledge
 }
 
+export type GrowthColumns = {
+    keys: ReadColumn,
+    wants: ReadColumn,
+    bytes: u8[],
+    wide: bool
+}
+
+export type GrowthRows = {
+    count: u64,
+    stored?: GrowthColumns,
+    items: Growth[]
+}
+
 export type Metadata = {
     expressions: Expressions,
     definitions: Definitions,
@@ -57,8 +71,8 @@ export type Metadata = {
 
 export type Context = {
     metadata: Metadata,
-    normalized: Growth[],
-    renewed: Growth[]
+    normalized: GrowthRows,
+    renewed: GrowthRows
 }
 
 export type Request = {

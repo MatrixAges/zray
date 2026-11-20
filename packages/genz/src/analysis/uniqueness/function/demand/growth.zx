@@ -1,57 +1,61 @@
 import join from "../../level/join"
+import find from "../levels/growth/find"
+import materialize from "../levels/growth/materialize"
 import knowledge from "../levels/knowledge"
 import value from "../levels/value"
 
-import type { Growth, Knowledge } from "../levels/model"
+import type { GrowthRows, Knowledge } from "../levels/model"
 
 export type Input = {
-    entries: Growth[],
+    entries: GrowthRows,
     key: u64,
     want: Knowledge
 }
 
 export type Output = {
-    entries: Growth[],
+    entries: GrowthRows,
     grew: bool
 }
 
 export default function (in: Input): Output {
-    const index = loop({
-        index: 0
-    }, {
-        while: state => state.index < in.entries.length &&
-            in.entries[state.index].key != in.key,
-        next: state => {
-            state.index += 1
-        },
-        return: state => state.index
+    const found = find({
+        rows: in.entries,
+        key: in.key
     })
 
-    if (index == in.entries.length) {
+    const next = match {
+        found.value == null => in.want,
+        _ => knowledge(join({
+            left: value(found.value),
+            right: value(in.want)
+        }))
+    }
+
+    if (found.value != null && next == found.value) {
         return {
-            entries: in.entries.push({
-                key: in.key,
-                value: in.want
-            })[0],
-            grew: true
+            entries: in.entries,
+            grew: false
         }
     }
 
-    const before = in.entries[index].value
+    const items = materialize(in.entries)
 
-    const next = knowledge(join({
-        left: value(before),
-        right: value(in.want)
-    }))
+    const entry = {
+        key: in.key,
+        value: next
+    }
+
+    const updated = match {
+        found.value == null => items.push(entry)[0],
+        _ => items.with(found.index, entry)
+    }
 
     return {
-        entries: match {
-            next == before => in.entries,
-            _ => in.entries.with(index, {
-                key: in.key,
-                value: next
-            })
+        entries: {
+            count: updated.length,
+            stored: null,
+            items: updated
         },
-        grew: next != before
+        grew: true
     }
 }

@@ -5,6 +5,7 @@ import { ExpressionKind } from "core/expression_table/kinds"
 import lacks from "../../level/lacks"
 import { slot_stride, sort_owner_stride } from "../../renewals/const"
 import { value_renewal } from "../levels/const"
+import get from "../levels/growth/get"
 import query from "../levels/query"
 import value from "../levels/value"
 
@@ -21,10 +22,13 @@ export default function (in: Input): Output {
         writable
     }, {
         while: state =>
-            state.index < in.source.context.renewed.length,
+            state.index < in.source.context.renewed.count,
         next: state => {
             const source = in.source
-            const entry = source.context.renewed[state.index]
+            const entry = get({
+                rows: source.context.renewed,
+                index: state.index
+            })
             const own_value = entry.key >= value_renewal
             const packed = own_value ? entry.key - value_renewal : entry.key
             const node = packed / slot_stride

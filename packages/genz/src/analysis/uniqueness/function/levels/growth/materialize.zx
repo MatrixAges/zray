@@ -1,0 +1,28 @@
+import get from "./get"
+
+import type { GrowthRows as Input, Growth } from "../model"
+
+export type Output = Growth[]
+
+export default function (in: Input): Output {
+    if (in.stored == null) {
+        return in.items
+    }
+
+    const items: Growth[] = []
+
+    return loop({
+        index: 0,
+        items
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            state.items = state.items.push(get({
+                rows: in,
+                index: state.index
+            }))[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
+}

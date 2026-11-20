@@ -13,14 +13,20 @@ export default function (in: Input): Output {
 
     const { keys, wants } = target.columns
 
-    columns.allocateRows(target.storage, rows.length)
+    columns.allocateRows(target.storage, rows.count)
+
+    if (rows.stored != null) {
+        columns.copyRowPrefix(target.storage, rows.stored.bytes, rows.count)
+
+        return
+    }
 
     const first: u64 = 0
 
     const written = loop(first, {
-        while: index => index < rows.length,
+        while: index => index < rows.count,
         next: index => {
-            const row = rows[index]
+            const row = rows.items[index]
 
             if (wide) {
                 memory.writeColumnU64(keys, index, row.key)

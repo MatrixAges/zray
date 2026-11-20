@@ -9,7 +9,7 @@ const Input = std.meta.Child(generated.Input);
 pub fn analyze(function: *Function, allocator: std.mem.Allocator) std.mem.Allocator.Error!Function.Plan {
     var borrowed: Context = undefined;
 
-    try borrowed.init(function);
+    borrowed.init(function);
 
     const context: *const @TypeOf(borrowed.descriptor) = &borrowed.descriptor;
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), function.slots.types);

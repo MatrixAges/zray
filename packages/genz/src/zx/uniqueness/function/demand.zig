@@ -13,7 +13,7 @@ const Source = std.meta.Child(@FieldType(Input, "source"));
 pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.Error!Function.Demand {
     var borrowed: Context = undefined;
 
-    try borrowed.init(function);
+    borrowed.init(function);
 
     const source: Source = .{
         .kinds = function.slots.types.kinds,
@@ -58,8 +58,8 @@ pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.
         .marks = zx.columns.slice(@FieldType(Publication, "marks"), result.marks),
         .before = zx.columns.slice(@FieldType(Publication, "before"), result.before),
         .after = zx.columns.slice(@FieldType(Publication, "after"), result.after),
-        .normalized = zx.columns.slice(@FieldType(Publication, "normalized"), result.normalized),
-        .renewed = zx.columns.slice(@FieldType(Publication, "renewed"), result.renewed),
+        .normalized = zx.columns.pointer(@FieldType(Publication, "normalized"), result.normalized),
+        .renewed = zx.columns.pointer(@FieldType(Publication, "renewed"), result.renewed),
         .growth = if (result.grew) &.{
             .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
             .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },

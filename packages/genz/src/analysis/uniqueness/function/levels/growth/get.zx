@@ -1,0 +1,20 @@
+import memory from "memory"
+
+import decode from "../decode"
+import key from "./key"
+
+import type { Growth as Output } from "../model"
+import type { Input } from "./key"
+
+export default function (in: Input): Output {
+    const { rows, index } = in
+
+    if (rows.stored == null) {
+        return rows.items[index]
+    }
+
+    return {
+        key: key(in),
+        value: decode(memory.readColumnU8(rows.stored.wants, index))
+    }
+}

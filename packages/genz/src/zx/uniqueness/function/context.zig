@@ -1,9 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
 const Function = @import("../function.zig");
+const Level = @import("../level.zig").Level;
 const Input = std.meta.Child(@import("generated_uniqueness_function_settlement").Input);
 const Descriptor = std.meta.Child(@FieldType(Input, "context"));
-const Growth = std.meta.Child(std.meta.Child(@FieldType(Descriptor, "normalized")));
 const Self = @This();
 const Metadata = std.meta.Child(@FieldType(Descriptor, "metadata"));
 const Layout = std.meta.Child(@FieldType(Metadata, "layout"));
@@ -13,7 +13,9 @@ descriptor: Descriptor,
 metadata: Metadata,
 layout: Layout,
 usage: Usage,
-pub fn init(self: *Self, function: *const Function) std.mem.Allocator.Error!void {
+normalized: GrowthView,
+renewed: GrowthView,
+pub fn init(self: *Self, function: *const Function) void {
     const slots = function.slots;
     const facts = function.facts;
 
@@ -48,23 +50,42 @@ pub fn init(self: *Self, function: *const Function) std.mem.Allocator.Error!void
         .record = function.record_reads,
     };
 
+    self.normalized.init(function.growth.normalized);
+    self.renewed.init(function.growth.renewed);
+
     self.descriptor = .{
         .metadata = &self.metadata,
-        .normalized = try growth(function.allocator, function.growth.normalized),
-        .renewed = try growth(function.allocator, function.growth.renewed),
+        .normalized = &self.normalized.rows,
+        .renewed = &self.renewed.rows,
     };
 }
 
-fn growth(allocator: std.mem.Allocator, entries: anytype) std.mem.Allocator.Error![]const *const Growth {
-    const Item = std.meta.Elem(@TypeOf(entries));
-    const rows = try allocator.alloc(Growth, entries.len);
-    const pointers = try allocator.alloc(*const Growth, rows.len);
+const GrowthView = struct {
+    const Rows = std.meta.Child(@FieldType(Descriptor, "normalized"));
+    const Stored = std.meta.Child(@typeInfo(@FieldType(Rows, "stored")).optional.child);
 
-    for (entries, rows, pointers) |entry, *row, *pointer| {
-        const key = if (comptime @hasField(Item, "id")) @backingInt(entry.id) else entry.key;
-        row.* = .{ .key = key, .value = @fromBackingInt(@as(u3, @bitCast(entry.want))) };
-        pointer.* = row;
+    keys: zx.memory.ReadColumn,
+    wants: zx.memory.ReadColumn,
+    stored: Stored,
+    rows: Rows,
+    fn init(self: *GrowthView, entries: anytype) void {
+        self.rows = .{ .count = entries.len, .stored = null, .items = &.{} };
+
+        if (entries.len == 0) return;
+
+        const Item = std.meta.Elem(@TypeOf(entries));
+        const narrow = @hasField(Item, "id");
+        const member = if (narrow) "id" else "key";
+        self.keys = zx.memory.borrowReadColumn(@FieldType(Item, member), member, entries);
+        self.wants = zx.memory.borrowReadColumn(Level, "want", entries);
+
+        self.stored = .{
+            .keys = @ptrCast(&self.keys),
+            .wants = @ptrCast(&self.wants),
+            .bytes = std.mem.sliceAsBytes(entries),
+            .wide = !narrow,
+        };
+
+        self.rows.stored = &self.stored;
     }
-
-    return pointers;
-}
+};

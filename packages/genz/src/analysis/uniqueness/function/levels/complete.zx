@@ -35,7 +35,7 @@ export default function (in: Input): Output {
     }
 
     const demanded = !in.request.raw &&
-        (in.context.normalized.length != 0 || in.context.renewed.length != 0)
+        (in.context.normalized.count != 0 || in.context.renewed.count != 0)
 
     const value = match {
         demanded => materialize({
