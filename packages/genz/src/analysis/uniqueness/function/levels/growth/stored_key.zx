@@ -1,0 +1,19 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { GrowthColumns } from "../model"
+
+export type Input = GrowthColumns.Pick("keys", "wide") & {
+    index: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { keys, wide, index } = in
+
+    return match {
+        wide => memory.readColumnU64(keys, index),
+        _ => integers.widen(memory.readColumnU32(keys, index))
+    }
+}

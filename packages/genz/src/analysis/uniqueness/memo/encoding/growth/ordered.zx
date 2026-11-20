@@ -1,0 +1,38 @@
+import storedKey from "../../../function/levels/growth/stored_key"
+
+import type { Rows as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (in.count < 2) {
+        return true
+    }
+
+    const { count } = in
+    const { keys, wide } = in.columns
+
+    return loop({
+        index: 1,
+        ordered: true,
+        previous: storedKey({
+            keys,
+            wide,
+            index: 0
+        })
+    }, {
+        while: state => state.ordered && state.index < count,
+        next: state => {
+            const key = storedKey({
+                keys,
+                wide,
+                index: state.index
+            })
+
+            state.ordered = state.previous <= key
+            state.previous = key
+            state.index += 1
+        },
+        return: state => state.ordered
+    })
+}

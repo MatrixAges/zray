@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Level = @import("level.zig").Level;
 const generated = @import("genz_options").generated_analysis;
 pub const Normalized = struct { id: ir.ExprId, want: Level };
@@ -8,6 +9,23 @@ pub const Renewed = struct { key: u64, want: Level };
 pub const Rows = struct {
     normalized: []const Normalized = &.{},
     renewed: []const Renewed = &.{},
+};
+
+pub const Columns = struct {
+    keys: zx.memory.ReadColumn,
+    wants: zx.memory.ReadColumn,
+    wide: bool,
+    pub fn borrow(entries: anytype) Columns {
+        const Item = std.meta.Elem(@TypeOf(entries));
+        const wide = @hasField(Item, "key");
+        const member = if (wide) "key" else "id";
+
+        return .{
+            .keys = zx.memory.borrowReadColumn(@FieldType(Item, member), member, entries),
+            .wants = zx.memory.borrowReadColumn(Level, "want", entries),
+            .wide = wide,
+        };
+    }
 };
 
 pub const Store = if (generated) Rows else Seed;

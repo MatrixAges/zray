@@ -68,7 +68,7 @@ changed: bool = false,
 /// The visits of the last analysis, which the next analysis of the same program follows; it is not saved.
 trace: ?Trace = null,
 pub fn init(backing: std.mem.Allocator, persistent: bool) Self {
-    return .{ .arena = .init(backing), .persistent = persistent, .record_trace = persistent, .encoding = if (generated_encoding) Encoding.init() else {} };
+    return .{ .arena = .init(backing), .persistent = persistent, .record_trace = persistent, .encoding = if (generated_encoding) Encoding.init(backing) else {} };
 }
 
 pub fn deinit(self: *Self) void {
@@ -77,6 +77,7 @@ pub fn deinit(self: *Self) void {
     if (generated_encoding) {
         const owner = self.arena.child_allocator;
 
+        self.encoding.deinit();
         inline for (.{ &self.settled, &self.demanded, &self.planned, &self.flowed }) |table| table.deinit(owner);
     }
 

@@ -1,0 +1,43 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import storedKey from "../../../function/levels/growth/stored_key"
+import { renewal_key_width, word_width } from "../const"
+import record from "../record"
+
+import type { State as Output } from "../model"
+import type { Emit as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { columns, count, order } = in
+    const { keys, wants, wide } = columns
+
+    const width = wide ? renewal_key_width : word_width
+
+    return loop({
+        state: in.state,
+        index: 0
+    }, {
+        while: current => current.index < count,
+        next: current => {
+            const offset = match {
+                order == null => current.index,
+                _ => integers.widen(memory.readU32(order, current.index))
+            }
+
+            current.state = record({
+                state: current.state,
+                value: storedKey({
+                    keys,
+                    wide,
+                    index: offset
+                }),
+                width,
+                want: memory.readColumnU8(wants, offset)
+            })
+
+            current.index += 1
+        },
+        return: current => current.state
+    })
+}

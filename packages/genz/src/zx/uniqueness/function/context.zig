@@ -1,7 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const Function = @import("../function.zig");
-const Level = @import("../level.zig").Level;
+const Growth = @import("../growth.zig");
 const Input = std.meta.Child(@import("generated_uniqueness_function_settlement").Input);
 const Descriptor = std.meta.Child(@FieldType(Input, "context"));
 const Self = @This();
@@ -64,8 +64,7 @@ const GrowthView = struct {
     const Rows = std.meta.Child(@FieldType(Descriptor, "normalized"));
     const Stored = std.meta.Child(@typeInfo(@FieldType(Rows, "stored")).optional.child);
 
-    keys: zx.memory.ReadColumn,
-    wants: zx.memory.ReadColumn,
+    columns: Growth.Columns,
     stored: Stored,
     rows: Rows,
     fn init(self: *GrowthView, entries: anytype) void {
@@ -73,17 +72,13 @@ const GrowthView = struct {
 
         if (entries.len == 0) return;
 
-        const Item = std.meta.Elem(@TypeOf(entries));
-        const narrow = @hasField(Item, "id");
-        const member = if (narrow) "id" else "key";
-        self.keys = zx.memory.borrowReadColumn(@FieldType(Item, member), member, entries);
-        self.wants = zx.memory.borrowReadColumn(Level, "want", entries);
+        self.columns = .borrow(entries);
 
         self.stored = .{
-            .keys = @ptrCast(&self.keys),
-            .wants = @ptrCast(&self.wants),
+            .keys = @ptrCast(&self.columns.keys),
+            .wants = @ptrCast(&self.columns.wants),
             .bytes = std.mem.sliceAsBytes(entries),
-            .wide = !narrow,
+            .wide = self.columns.wide,
         };
 
         self.rows.stored = &self.stored;

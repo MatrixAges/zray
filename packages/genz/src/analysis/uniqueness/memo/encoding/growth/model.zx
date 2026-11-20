@@ -1,0 +1,26 @@
+import type { U32Buffer } from "memory"
+import type { Order, RecordColumns, Records, State } from "../model"
+
+export type Group = {
+    state: State,
+    rows: Records,
+    order: Order
+}
+
+export type Rows = Records
+
+export type Sort = Rows & {
+    order: Order
+}
+
+export type Heap = {
+    columns: RecordColumns,
+    indices: U32Buffer,
+    limit: u64,
+    root: u64
+}
+
+export type Emit = Rows & {
+    state: State,
+    order?: U32Buffer
+}

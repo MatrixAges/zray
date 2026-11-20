@@ -1,0 +1,59 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import sift from "./sift"
+
+import type { Sort as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { columns, count, order } = in
+    const { indices, scratch } = order
+
+    memory.growU32Scratch(scratch, count, false)
+
+    const first: u64 = 0
+
+    const seeded = loop(first, {
+        while: index => index < count,
+        next: index => {
+            memory.writeU32(indices, index, integers.narrow(index))
+            index += 1
+        }
+    })
+
+    const prepared = loop(count / 2, {
+        while: position => position != 0,
+        next: position => {
+            position -= 1
+
+            sift({
+                columns,
+                indices,
+                limit: count,
+                root: position
+            })
+        }
+    })
+
+    const sorted = loop(count, {
+        while: limit => limit > 1,
+        next: limit => {
+            limit -= 1
+
+            const last = memory.readU32(indices, limit)
+            const largest = memory.readU32(indices, first)
+
+            memory.writeU32(indices, first, last)
+            memory.writeU32(indices, limit, largest)
+
+            sift({
+                columns,
+                indices,
+                limit,
+                root: first
+            })
+        }
+    })
+}

@@ -1,0 +1,12 @@
+export type Input = {
+    index: u64,
+    rows: u8[][]
+}
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const empty: u8[] = []
+
+    return in.index < in.rows.length ? in.rows[in.index] : empty
+}

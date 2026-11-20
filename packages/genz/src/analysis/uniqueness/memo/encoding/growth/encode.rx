@@ -1,0 +1,51 @@
+<Module>
+    <Type from="../model" as="Encoding" />
+    <Type from="model" as="Growth" />
+
+    <Args in={Growth.Group} out={Encoding.State} />
+
+    <Call
+        fn="../word"
+        in={{
+            state: $in.state,
+            value: $in.rows.count
+        }}
+    />
+
+    <If on={$in.rows.count == 0}>
+        <Return value={$ctx.word} />
+    </If>
+
+    <Call fn="ordered" in={$in.rows} />
+
+    <If on={$ctx.ordered}>
+        <Call
+            fn="write"
+            in={{
+                state: $ctx.word,
+                ...$in.rows
+            }}
+        />
+
+        <Return value={$ctx.write} />
+    </If>
+
+    <Call
+        fn="arrange"
+        in={{
+            ...$in.rows,
+            order: $in.order
+        }}
+    />
+
+    <Call
+        fn="write"
+        in={{
+            state: $ctx.word,
+            ...$in.rows,
+            order: $in.order.indices
+        }}
+    />
+
+    <Return value={$ctx.write} />
+</Module>

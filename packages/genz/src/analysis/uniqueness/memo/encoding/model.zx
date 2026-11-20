@@ -1,4 +1,5 @@
-import type { Normalized, Renewed } from "../../replay/ordered/model"
+import type { U32Buffer, U32Scratch } from "memory"
+import type { GrowthColumns } from "../../function/levels/model"
 
 export type State = {
     buffer: u8[],
@@ -53,6 +54,18 @@ export type GrowthLevel = Integer & {
     want: u8
 }
 
+export type Order = {
+    indices: U32Buffer,
+    scratch: U32Scratch
+}
+
+export type RecordColumns = GrowthColumns.Omit("bytes")
+
+export type Records = {
+    count: u64,
+    columns: RecordColumns
+}
+
 export type Key = {
     state: State,
     identity: u8[],
@@ -61,10 +74,11 @@ export type Key = {
     callees: u32[],
     own_input: u8[],
     called_outputs: u8[][],
-    own_output_wants: u8[],
+    output_wants: u8[][],
     called_input_wants: u8[][],
-    normalized: Normalized[],
-    renewed: Renewed[]
+    normalized: Records,
+    renewed: Records,
+    order: Order
 }
 
 export type Facts = {

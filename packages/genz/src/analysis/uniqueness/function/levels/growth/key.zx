@@ -1,5 +1,4 @@
-import integers from "std:integer"
-import memory from "memory"
+import storedKey from "./stored_key"
 
 import type { GrowthRows } from "../model"
 
@@ -17,10 +16,9 @@ export default function (in: Input): Output {
         return rows.items[index].key
     }
 
-    const { keys, wide } = rows.stored
-
-    return match {
-        wide => memory.readColumnU64(keys, index),
-        _ => integers.widen(memory.readColumnU32(keys, index))
-    }
+    return storedKey({
+        keys: rows.stored.keys,
+        wide: rows.stored.wide,
+        index
+    })
 }
