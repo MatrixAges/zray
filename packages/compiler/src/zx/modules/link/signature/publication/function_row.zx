@@ -1,11 +1,11 @@
 import { ColumnStoreMode } from "memory/columns"
 
 import type { FunctionRow as Output, SignatureRow } from "memory/columns"
-import type { OpaqueBody } from "./model"
+import type { BodyColumns } from "./model"
 
 export type Input = {
     signature: SignatureRow,
-    empty: OpaqueBody
+    empty: BodyColumns
 }
 
 export default function (in: Input): Output {

@@ -7,6 +7,7 @@ const Edges = @import("../../dependencies/traversal/view.zig").Columns;
 const admission = @import("../admission/host.zig");
 const dependencies = @import("../../dependencies/host.zig");
 const native = @import("../../native/host.zig");
+const function_destination = @import("../../signature/publication/destination.zig");
 const Binding = dependencies.Binding;
 const Body = std.meta.Child(@FieldType(Binding, "body"));
 const Control = std.meta.Child(@typeInfo(@FieldType(Body, "control")).optional.child);
@@ -19,7 +20,6 @@ const Native = std.meta.Child(@FieldType(Input, "native"));
 const Modules = std.meta.Child(@typeInfo(@FieldType(Native, "shape")).optional.child);
 const Linked = std.meta.Child(@typeInfo(@FieldType(Input, "linked_shape")).optional.child);
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
-const Layout = std.meta.Child(std.meta.Child(@FieldType(Destination, "shape")));
 const Request = std.meta.Child(@typeInfo(@FieldType(Binding, "source")).optional.child);
 const Source = std.meta.Child(@FieldType(Request, "source"));
 const Attributes = std.meta.Child(@FieldType(Source, "attributes"));
@@ -30,25 +30,25 @@ const view_budget = 64 * 1024;
 
 pub fn bind(self: *Builder, setup: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, owned: *std.heap.ArenaAllocator) Builder.Error!?abi.Retained {
     var providers: dependencies.Providers = undefined;
-    var target: Target = undefined;
+    var target: function_destination.View(Destination) = undefined;
     var inline_depths: [inline_depth_slots]u32 = undefined;
-    var scope: memory.ArenaScope = .{ .active = owned };
+    var scope: memory.ArenaScope = .{ .active = owned.allocator() };
     const order = self.plan.registration;
     const capacity = @min(order.len, @max(1, view_budget / (@sizeOf(View) + @sizeOf(abi.Row))));
     const views = try setup.alloc(View, capacity);
     const rows = try setup.alloc(abi.Row, capacity);
 
     providers.init(self);
-    target.init(self);
+    target.init(&self.allocator, &self.functions);
 
     var input: abi.Input = .{
         .rows = &.{},
         .scope = @ptrCast(&scope),
         .scratch = @ptrCast(scratch),
         .owned = @ptrCast(owned),
-        .storage = @ptrCast(&target.writable),
+        .storage = target.input.storage,
         .linked = @ptrCast(&self.module_functions),
-        .empty = &empty,
+        .empty = &function_destination.empty(Empty),
     };
 
     var first: usize = 0;
@@ -58,21 +58,21 @@ pub fn bind(self: *Builder, setup: std.mem.Allocator, scratch: *std.heap.ArenaAl
         const count = @min(capacity, order.len - first);
 
         for (order[first..][0..count], views[0..count], rows[0..count]) |index, *view, *row| {
-            view.borrow(self, @intCast(index), &providers, &target.destination, &inline_depths);
+            view.borrow(self, @intCast(index), &providers, &target.input, &inline_depths);
 
             view.record = .{ .module = index, .binding = &view.input };
             row.* = &view.record;
         }
 
         input.rows = rows[0..count];
-        entry = try install(self, scope.allocator(), &input);
+        entry = try execute(scope.allocator(), &input);
         first += count;
     }
 
     return entry;
 }
 
-fn install(self: *Builder, allocator: std.mem.Allocator, input: *const abi.Input) Builder.Error!?abi.Retained {
+fn execute(allocator: std.mem.Allocator, input: *const abi.Input) Builder.Error!?abi.Retained {
     const result = abi.entry.executeIn(allocator, input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
@@ -85,47 +85,8 @@ fn install(self: *Builder, allocator: std.mem.Allocator, input: *const abi.Input
         .Full => return error.OutOfMemory,
     }
 
-    for (result.bodies) |patch| {
-        const index: usize = @intCast(patch.row);
-        const body = patch.entry.body;
-        const storage = &self.functions;
-
-        storage.symbols.items[index] = zx.columns.pointer(*const ir.SymbolTable, body.symbols);
-        storage.expressions.items[index] = zx.columns.pointer(*const ir.ExpressionTable, body.expressions);
-        storage.contracts.items[index] = zx.columns.pointer(*const ir.ContractTable, body.contracts);
-        storage.stores.items[index] = if (patch.entry.stores) |stores| zx.columns.pointer(*const ir.StoreTable, stores) else &ir.FunctionStorage.empty_stores;
-        storage.control.items[index] = if (body.control) |control| zx.columns.pointer(*const ir.ControlTable, control) else (ir.ControlBody{}).control;
-        storage.roots.items[index] = body.root;
-        storage.store_modes.items[index] = @fromBackingInt(@intCast(@backingInt(patch.entry.ports.store_mode)));
-    }
-
     return result.entry;
 }
-
-const empty: Empty = .{
-    .symbols = @ptrCast(&ir.FunctionStorage.empty_symbols),
-    .expressions = @ptrCast(&ir.FunctionStorage.empty_expressions),
-    .contracts = @ptrCast(&ir.FunctionStorage.empty_contracts),
-    .control = @ptrCast((ir.ControlBody{}).control),
-    .stores = @ptrCast(&ir.FunctionStorage.empty_stores),
-};
-
-const Target = struct {
-    write_slots: [@typeInfo(Layout).@"struct".field_names.len]*anyopaque,
-    writable: memory.ColumnSet,
-    destination: Destination,
-    fn init(self: *Target, builder: *Builder) void {
-        self.write_slots = memory.bindColumnSet(Layout, true, &builder.functions);
-        self.writable = &self.write_slots;
-
-        self.destination = .{
-            .storage = @ptrCast(&self.writable),
-            .shape = null,
-            .maximum_count = std.math.maxInt(u32),
-            .resource = @ptrCast(&builder.allocator),
-        };
-    }
-};
 
 const View = struct {
     record: std.meta.Child(abi.Row),

@@ -4,21 +4,16 @@ import type { Expressions } from "core/expression_table/model"
 import type { StoreMode } from "core/function_table/complete"
 import type { Stores } from "core/store_table/model"
 import type { Ownership, Symbols } from "core/symbol_table/model"
-import type { FunctionRow } from "memory/columns"
 import type { Input as ArtifactSurface } from "../../../artifact/surface/model"
 import type { Output as Wrapper } from "../../../forward_entry/model"
-import type { Destination } from "../../signature/publication/model"
-
-export type Forward = {
-    symbols: Symbols,
-    input_type: u32,
-    output_type: u32,
-    function_id: u32
-}
+import type { BodyColumns, Destination } from "../../signature/publication/model"
 
 export type Registration = {
     destination: Destination,
-    row: FunctionRow
+    entry: Entry,
+    file: string,
+    stores?: Stores,
+    empty: BodyColumns
 }
 
 export type Ports = {
@@ -41,16 +36,22 @@ export type Entry = {
     body: Body
 }
 
+export type Retained = Entry & {
+    file: string,
+    recursive?: u32,
+    stores?: Stores
+}
+
 export type Surface = {
     surface: ArtifactSurface,
     path: string,
-    forward?: Forward
+    retained?: Retained
 }
 
 export type Input = Surface & {
     store_source: Stores,
-    registration?: Registration,
-    entry?: Entry
+    destination: Destination,
+    empty: BodyColumns
 }
 
 export type Published = {
@@ -59,7 +60,7 @@ export type Published = {
 }
 
 export type Selection = {
-    entry?: Entry,
+    entry?: Retained,
     wrapper?: Wrapper
 }
 

@@ -110,6 +110,12 @@ pub const RowGrowth = struct {
     }
 };
 
+pub fn refreshReads(target: *const anyopaque) void {
+    const growth: *const RowGrowth = @ptrCast(@alignCast(target));
+
+    growth.refresh();
+}
+
 pub fn growRows(allocator: std.mem.Allocator, target: *const anyopaque, used: u64) std.mem.Allocator.Error!u64 {
     const growth: *const RowGrowth = @ptrCast(@alignCast(target));
     const buffer = growth.target;

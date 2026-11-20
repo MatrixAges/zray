@@ -6,39 +6,53 @@
     <Call module="../../../artifact/materializing/own_function" in={$in.request.body} />
 
     <If on={$ctx.own_function != null}>
+        <Call
+            fn="retain"
+            in={{
+                value: $ctx.own_function,
+                attributes: $in.request.attributes
+            }}
+        />
+
         <If on={$in.request.append != null}>
             <Call
-                fn="publish_header"
+                fn="../../result/publication/row"
                 in={{
-                    ...$in.omit(["request"]),
-                    value: $ctx.own_function,
-                    row: $in.request.append,
-                    ownership: $in.request.attributes.ownership
+                    ports: $ctx.retain.ports,
+                    body: $ctx.retain.body,
+                    file: $ctx.retain.file,
+                    stores: $ctx.retain.stores,
+                    empty: $in.empty
+                }}
+            />
+
+            <Call
+                fn="../../result/publication/append"
+                in={{
+                    storage: $in.storage,
+                    row: $ctx.row
+                }}
+            />
+
+            <Call
+                fn="slot"
+                in={{
+                    first: $in.request.append,
+                    slot: $in.module,
+                    target: $in.linked
+                }}
+            />
+
+            <Return
+                value={{
+                    entry: null
                 }}
             />
         </If>
 
         <Return
             value={{
-                row: $in.request.append,
-                entry: {
-                    file: $ctx.own_function.file,
-                    recursive: $ctx.own_function.recursive,
-                    stores: $ctx.own_function.store_table,
-                    ports: {
-                        input_type: $ctx.own_function.ports.input,
-                        output_type: $ctx.own_function.ports.output,
-                        ownership: $in.request.attributes.ownership,
-                        store_mode: $in.request.attributes.store_mode
-                    },
-                    body: {
-                        symbols: $ctx.own_function.symbols,
-                        expressions: $ctx.own_function.expressions,
-                        contracts: $ctx.own_function.contracts,
-                        control: $ctx.own_function.control,
-                        root: $in.request.attributes.root
-                    }
-                }
+                entry: $ctx.retain
             }}
         />
     </If>

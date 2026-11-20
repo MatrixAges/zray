@@ -6,9 +6,12 @@ import type { Table } from "core/type_table/model"
 import type {
     Input as TypeWrite
 } from "../../../../analysis/semantic/merging/publication/model"
+import type { Output as Verified } from "../../../../ir/canonical/validation/prefix"
 import type { FunctionInput } from "../../../artifact/remapping/model"
 import type { Input as Surface } from "../../../artifact/surface/model"
 import type { Unit } from "../../../link/result/publication/model"
+import type { BodyColumns, Destination } from "../../../link/signature/publication/model"
+import type { Request as Verification } from "./verification"
 
 export type Attributes = {
     ownership: Ownership,
@@ -27,7 +30,11 @@ export type Input = {
     stores: Stores,
     types: Types,
     reuse_store_types: bool,
-    surface: Surface
+    surface: Surface,
+    functions: Destination,
+    empty: BodyColumns,
+    path: string,
+    verification: Verification
 }
 
 export type Entry = Unit & {
@@ -36,4 +43,8 @@ export type Entry = Unit & {
 
 export type Plan = Entry & {
     stores: Stores
+}
+
+export type Committed = Plan & {
+    verified?: Verified
 }

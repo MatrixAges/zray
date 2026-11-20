@@ -1,0 +1,55 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Allocator, ArenaScope } from "memory"
+import type { ColumnSet, ColumnView, RowGrowth } from "memory/columns"
+import type { Context, Program } from "../../../../ir/canonical/validation/model"
+
+export type Views = {
+    context: Context.Omit("table", "functions"),
+    type_storage: ColumnSet,
+    type_view: ColumnView,
+    function_storage: ColumnSet,
+    function_view: ColumnView,
+    constants?: RowGrowth
+}
+
+export type Request = Program.Pick("version", "exports", "constant_exports") & {
+    views: Views,
+    scope: ArenaScope,
+    scratch: Allocator,
+    payload: Allocator
+}
+
+export type Input = Request.Pick("views", "scope", "scratch")
+
+export type Output = Context
+
+export default function (in: Input): Output {
+    const { views, scope, scratch } = in
+
+    const {
+        context,
+        constants,
+        type_storage,
+        type_view,
+        function_storage,
+        function_view
+    } = views
+
+    memory.selectAllocator(scope, scratch)
+
+    if (constants != null) {
+        columns.refreshRowReads(constants)
+    }
+
+    return {
+        ...context,
+        table: columns.readTypeColumns(type_storage, type_view, null),
+        functions: columns.readFunctionColumns(
+            function_storage,
+            function_view,
+            null
+        )
+    }
+}

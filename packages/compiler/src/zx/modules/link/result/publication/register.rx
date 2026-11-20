@@ -4,5 +4,23 @@
     <Args in={Result.Registration} out={void} />
 
     <Call fn="../../signature/publication/reserve" in={$in.destination} />
-    <Call fn="append" in={$in} />
+
+    <Call
+        fn="row"
+        in={{
+            ports: $in.entry.ports,
+            body: $in.entry.body,
+            file: $in.file,
+            stores: $in.stores,
+            empty: $in.empty
+        }}
+    />
+
+    <Call
+        fn="append"
+        in={{
+            storage: $in.destination.storage,
+            row: $ctx.row
+        }}
+    />
 </Module>

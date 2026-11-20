@@ -2,19 +2,18 @@ import type { Table } from "core/signature_table/model"
 import type { OptionalU32Buffer } from "memory"
 import type {
     ColumnAllocator,
-    ColumnObject,
     ColumnSet,
     FunctionRow
 } from "memory/columns"
 import type { Ports } from "../../../artifact/remapping/model"
 
-export type OpaqueBody = {
-    symbols: ColumnObject,
-    expressions: ColumnObject,
-    contracts: ColumnObject,
-    control: ColumnObject,
-    stores: ColumnObject
-}
+export type BodyColumns = FunctionRow.Pick(
+    "symbols",
+    "expressions",
+    "contracts",
+    "control",
+    "stores"
+)
 
 export type Record = {
     source: Table,
@@ -31,7 +30,7 @@ export type Destination = {
 
 export type Input = Record & {
     destination: Destination,
-    empty: OpaqueBody,
+    empty: BodyColumns,
     mapping: OptionalU32Buffer,
     id: u64
 }

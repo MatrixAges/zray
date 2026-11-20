@@ -3,7 +3,7 @@ import type { RowBuffer } from "memory/columns"
 import type { Input as External } from "../../artifact/materializing/copy_external"
 import type { Flags } from "../../artifact/materializing/publication/model"
 import type { Target } from "../../artifact/surface/bindings"
-import type { Destination, OpaqueBody } from "../../link/signature/publication/model"
+import type { BodyColumns, Destination } from "../../link/signature/publication/model"
 import type { Member } from "../interface/members"
 
 export type Cache = {
@@ -38,7 +38,7 @@ export type Staging = {
     members: Target,
     member_storage: RowBuffer,
     first: u64,
-    empty: OpaqueBody
+    empty: BodyColumns
 }
 
 export type Input = Staging & {

@@ -4,22 +4,29 @@ const Alignment = std.mem.Alignment;
 const Arena = std.heap.ArenaAllocator;
 const Self = @This();
 
-active: *Arena,
+active: Allocator,
 pub fn allocator(self: *Self) Allocator {
     return .{ .ptr = self, .vtable = &.{ .alloc = allocate, .resize = resize, .remap = remap, .free = free } };
 }
 
 pub fn select(source: *const anyopaque, arena: *const anyopaque) void {
     // After switching arenas, allocations from the preceding phase are read-only.
+    const next: *Arena = @ptrCast(@alignCast(@constCast(arena)));
     const self: *Self = @ptrCast(@alignCast(@constCast(source)));
 
-    self.active = @ptrCast(@alignCast(@constCast(arena)));
+    self.active = next.allocator();
+}
+
+pub fn selectAllocator(source: *const anyopaque, resource: *const anyopaque) void {
+    const self: *Self = @ptrCast(@alignCast(@constCast(source)));
+    const next: *const Allocator = @ptrCast(@alignCast(resource));
+    self.active = next.*;
 }
 
 fn target(context: *anyopaque) Allocator {
     const self: *const Self = @ptrCast(@alignCast(context));
 
-    return self.active.allocator();
+    return self.active;
 }
 
 fn allocate(context: *anyopaque, size: usize, alignment: Alignment, address: usize) ?[*]u8 {

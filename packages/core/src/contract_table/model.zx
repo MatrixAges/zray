@@ -1,16 +1,3 @@
-import type { Expressions } from "../expression_table/model"
-import type { Symbols } from "../symbol_table/model"
+export { ContractKind } from "memory/columns"
 
-export enum ContractKind {
-    Requires,
-    Ensures
-}
-
-export type Contracts = {
-    kinds: ContractKind[],
-    predicates: u32[],
-    symbols: Symbols[],
-    expressions: Expressions[],
-    span_start: u64[],
-    span_end: u64[]
-}
+export type { Contracts } from "memory/columns"

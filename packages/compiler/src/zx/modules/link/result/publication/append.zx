@@ -1,11 +1,14 @@
 import memory from "memory/columns"
 
-import type { Registration } from "./model"
+import type { ColumnSet, FunctionRow } from "memory/columns"
 
-export type Input = Registration
+export type Input = {
+    storage: ColumnSet,
+    row: FunctionRow
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.appendColumnSet(in.destination.storage, in.row)
+    memory.appendColumnSet(in.storage, in.row)
 }

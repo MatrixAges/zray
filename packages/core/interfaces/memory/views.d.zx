@@ -34,6 +34,8 @@ export declare function resetArena(
 
 export declare function selectArena(scope: ArenaScope, arena: Arena): void
 
+export declare function selectAllocator(scope: ArenaScope, allocator: Allocator): void
+
 export declare function publishColumnLengths(
     target: ColumnLengths,
     count: u64
@@ -43,6 +45,10 @@ export declare function restoreColumnLengths(
     target: ColumnLengths,
     counts: u64[]
 ): void
+
+export declare function captureColumnLengths(source: ColumnLengths, target: U64Buffer): void
+
+export declare function firstColumnLength(source: ColumnLengths): u64
 
 export declare function truncateColumnLengths(
     target: ColumnLengths,

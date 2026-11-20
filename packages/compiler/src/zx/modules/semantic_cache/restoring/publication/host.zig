@@ -5,7 +5,8 @@ const Artifact = @import("../../../artifact/model.zig");
 const Nodes = @import("../../../artifact/nodes.zig");
 const remap = @import("../../../artifact/nodes/remap.zig");
 const result = @import("../../../link/result/host.zig");
-const registration = @import("../../../link/result/publication/registration.zig");
+const destination = @import("../../../link/signature/publication/destination.zig");
+const verification = @import("verification.zig");
 const Surface = @import("../../../artifact/surface.zig").Publication;
 const Current = @import("../../restore.zig").Current;
 const TypePlan = @import("../rebind/host.zig").TypePlan;
@@ -20,9 +21,11 @@ const Attributes = std.meta.Child(@typeInfo(@FieldType(Input, "attributes")).opt
 const Types = std.meta.Child(@FieldType(Input, "types"));
 const Table = std.meta.Child(@FieldType(Types, "delta"));
 const Nominal = std.meta.Child(@FieldType(Types, "origins"));
+const Destination = std.meta.Child(@FieldType(Input, "functions"));
+const Empty = std.meta.Child(@FieldType(Input, "empty"));
 const Restored = @import("../../restore.zig").Restored;
 
-pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const Current, types: TypePlan, candidate: ?ir.FunctionId, structure: Nodes.Structure) Artifact.Error!Restored {
+pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const Current, temporary: std.mem.Allocator, types: TypePlan, candidate: ?ir.FunctionId, structure: Nodes.Structure) Artifact.Error!Restored {
     const delta = zx.columns.view(ir.TypeTable, types.delta);
 
     const options: TypeTail.Options = .{
@@ -83,6 +86,20 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const
     surface.init(module.exports, module.constant_exports, nodes.types);
     errdefer surface.release(nodes.allocator);
 
+    var functions: destination.View(Destination) = undefined;
+
+    functions.init(&target.allocator, target.functions);
+
+    var arena = std.heap.ArenaAllocator.init(temporary);
+
+    defer arena.deinit();
+
+    const scratch = arena.allocator();
+    var scope: zx.memory.ArenaScope = .{ .active = nodes.allocator };
+    var validation: verification.View(std.meta.Child(@FieldType(Input, "verification"))) = undefined;
+
+    validation.init(target, &surface, &scope, &scratch, &nodes.allocator);
+
     const input: Input = .{
         .body = if (source != null) &view.input else null,
         .control = control_source,
@@ -91,14 +108,25 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const
         .types = &type_request,
         .reuse_store_types = if (source) |value| sameColumn(module.stores.types, value.stores.types) else false,
         .surface = &surface.input,
+        .functions = &functions.input,
+        .empty = &destination.empty(Empty),
+        .path = target.path,
+        .verification = &validation.input,
     };
 
-    const prepared = generated.executeIn(nodes.allocator, &input) catch |err| switch (err) {
+    const prepared = generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
     const plan = prepared orelse return error.InvalidModule;
+    const verified = plan.verified orelse return error.InvalidIr;
+
+    target.verified.* = .{
+        .functions = @intCast(verified.functions),
+        .types = zx.columns.view(@import("../../../../ir/validate.zig").TypePrefix, verified.types),
+        .native = verified.native,
+    };
 
     const tables: result.Tables = .{
         .types = target.types.view(),
@@ -106,24 +134,10 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const
         .native_modules = target.native_modules,
     };
 
-    var program = result.fromPublication(target.path, plan, tables, surface.exports(), surface.constants());
-
-    if (plan.recursive) |id| {
-        const body = plan.body.?;
-
-        try registration.append(target.allocator, target.functions, &program, .{
-            .symbols = zx.columns.pointer(*const ir.SymbolTable, body.symbols),
-            .expressions = zx.columns.pointer(*const ir.ExpressionTable, body.expressions),
-            .stores = zx.columns.pointer(*const ir.StoreTable, plan.stores),
-            .contracts = zx.columns.pointer(*const ir.ContractTable, body.contracts),
-        });
-
-        program.functions = target.functions.view();
-
-        return .{ .program = program, .recursive = @fromBackingInt(id) };
-    }
-
-    return .{ .program = program, .recursive = null };
+    return .{
+        .program = result.fromPublication(target.path, plan, tables, surface.exports(), surface.constants()),
+        .recursive = if (plan.recursive) |id| @fromBackingInt(id) else null,
+    };
 }
 
 fn sameColumn(left: []const u32, right: []const u32) bool {

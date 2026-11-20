@@ -3,12 +3,12 @@ import memory from "memory/columns"
 import complete from "./function_row"
 import signature from "./signature_row"
 
-import type { Destination, OpaqueBody } from "./model"
+import type { BodyColumns, Destination } from "./model"
 import type { Output as Prepared } from "./prepare"
 
 export type Input = {
     destination: Destination,
-    empty: OpaqueBody,
+    empty: BodyColumns,
     prepared: Prepared
 }
 

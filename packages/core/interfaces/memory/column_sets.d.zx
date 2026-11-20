@@ -10,7 +10,6 @@ export type RowBuffer = opaque
 export type RowGrowth = opaque
 export type ColumnSet = opaque
 export type ColumnView = opaque
-export type ColumnObject = opaque
 export type ColumnAllocator = opaque
 export type ColumnU32s = opaque
 export type SliceColumns = opaque
@@ -57,7 +56,7 @@ export type FunctionRow = {
     output_types: u32,
     ownership: ColumnOwnership,
     store_modes: ColumnStoreMode,
-    contracts: ColumnObject,
+    contracts: Contracts,
     native_inputs?: ColumnNames,
     native_modules?: u32,
     native_members: string[],
@@ -69,11 +68,11 @@ export type FunctionRow = {
     native_fallible: bool,
     native_errors: ColumnErrors,
     native_concurrent: bool,
-    symbols: ColumnObject,
-    expressions: ColumnObject,
-    control: ColumnObject,
+    symbols: Symbols,
+    expressions: Expressions,
+    control: Control,
     roots?: u32,
-    stores: ColumnObject
+    stores: Stores
 }
 
 export type SignatureRow = {
@@ -128,4 +127,35 @@ export type NominalColumns = {
     kinds: u8[],
     owners: string[],
     members: string[]
+}
+
+
+export enum StoreMode {
+    transaction,
+    orchestration
+}
+
+export type Complete = {
+    files: string[]
+    input_types: u32[]
+    output_types: u32[]
+    ownership: Ownership[]
+    store_modes: StoreMode[]
+    contracts: Contracts[]
+    native_inputs: ColumnNames?[]
+    native_modules: u32?[]
+    native_members: string[][]
+    native_exports: string?[]
+    native_allocators: bool[]
+    native_io: bool[]
+    native_process: bool[]
+    native_tuples: bool[]
+    native_fallible: bool[]
+    native_errors: ColumnErrors[]
+    native_concurrent: bool[]
+    symbols: Symbols[]
+    expressions: Expressions[]
+    control: Control[]
+    roots: u32?[]
+    stores: Stores[]
 }

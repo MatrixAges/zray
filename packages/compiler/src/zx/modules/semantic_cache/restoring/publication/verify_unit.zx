@@ -1,0 +1,42 @@
+import { StoreMode } from "core/function_table/complete"
+
+import type { Unit as Output } from "../../../../ir/canonical/validation/model"
+import type { Body } from "../../../link/result/publication/model"
+import type { BodyColumns } from "../../../link/signature/publication/model"
+import type { Plan } from "./model"
+
+export type Input = {
+    program: Plan,
+    empty: BodyColumns
+}
+
+export default function (in: Input): Output {
+    const { program, empty } = in
+    const { ports, body, stores } = program
+
+    const missing: Body = {
+        symbols: empty.symbols,
+        expressions: empty.expressions,
+        control: empty.control,
+        contracts: empty.contracts,
+        root: null
+    }
+
+    const payload = body ?? missing
+
+    return {
+        body: {
+            symbols: payload.symbols,
+            expressions: payload.expressions,
+            control: payload.control ?? empty.control,
+            root: payload.root,
+            stores
+        },
+        contracts: payload.contracts,
+        input_type: ports.input_type,
+        output_type: ports.output_type,
+        output_ownership: ports.ownership,
+        transaction: ports.store_mode == StoreMode.transaction,
+        type_only: body == null
+    }
+}

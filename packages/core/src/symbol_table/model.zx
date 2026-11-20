@@ -1,13 +1,3 @@
-export enum Ownership {
-    Copy,
-    Borrowed,
-    Owned
-}
+export { Ownership } from "memory/columns"
 
-export type Symbols = {
-    names: string[]
-    types: u32[]
-    span_start: u64[]
-    span_end: u64[]
-    ownership: Ownership[]
-}
+export type { Symbols } from "memory/columns"

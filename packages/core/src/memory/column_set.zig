@@ -30,6 +30,19 @@ pub fn restoreLengths(target: *const anyopaque, counts: []const u64) void {
     }
 }
 
+pub fn captureLengths(source: *const anyopaque, target: *const anyopaque) void {
+    const lengths: *const Lengths = @ptrCast(@alignCast(source));
+    const counts: *const []u64 = @ptrCast(@alignCast(target));
+
+    for (lengths.*, counts.*) |length, *count| count.* = length.*;
+}
+
+pub fn firstLength(source: *const anyopaque) u64 {
+    const lengths: *const Lengths = @ptrCast(@alignCast(source));
+
+    return lengths.*[0].*;
+}
+
 pub fn truncateLengths(target: *const anyopaque, count: u64) void {
     const lengths: *const Lengths = @ptrCast(@alignCast(target));
     const limit: usize = @intCast(count);

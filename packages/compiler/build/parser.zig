@@ -68,10 +68,10 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             .module = "zxc_string",
         },
         .{ .path = declarations.index_path, .module = "memory" },
+        .{ .path = declarations.columns_path, .module = memory_columns },
     };
 
     const main_interfaces = interfaces ++ [_]manifest.Interface{
-        .{ .path = declarations.columns_path, .module = memory_columns },
         .{ .path = b.fmt("{s}/zx/modules/path/lexical.d.zx", .{directories[0]}), .module = lexical_path },
     };
 
@@ -124,9 +124,9 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         run.addFileArg(manifest_path);
         run.addFileInput(b.dependency("zxc_std", .{}).path("interfaces/string.d.zx"));
         run.addFileInput(declarations.index);
+        run.addFileInput(declarations.columns);
 
         if (set == .main) {
-            run.addFileInput(declarations.columns);
             run.addFileInput(roots[0].path(b, "zx/modules/path/lexical.d.zx"));
         }
 

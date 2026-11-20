@@ -1,8 +1,7 @@
-import type { Stores } from "core/store_table/model"
 import type { OptionalU32Buffer } from "memory"
 import type { ColumnSet } from "memory/columns"
-import type { Entry } from "../../result/publication/model"
-import type { OpaqueBody } from "../../signature/publication/model"
+import type { Retained } from "../../result/publication/model"
+import type { BodyColumns } from "../../signature/publication/model"
 import type { Output as Prepared } from "./request"
 
 export type Input = {
@@ -10,16 +9,9 @@ export type Input = {
     storage: ColumnSet,
     linked: OptionalU32Buffer,
     module: u64,
-    empty: OpaqueBody
+    empty: BodyColumns
 }
 
 export type Output = {
-    row?: u64,
-    entry: Retained
-}
-
-export type Retained = Entry & {
-    file: string,
-    recursive?: u32,
-    stores?: Stores
+    entry?: Retained
 }

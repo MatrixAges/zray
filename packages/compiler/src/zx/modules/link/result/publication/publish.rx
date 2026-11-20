@@ -3,8 +3,20 @@
 
     <Args in={Result.Input} out={Result.Output?} />
 
-    <If on={$in.registration != null}>
-        <Call module="register" in={$in.registration} />
+    <If on={$in.retained != null && $in.retained.recursive != null}>
+        <Call
+            module="register"
+            in={{
+                destination: $in.destination,
+                entry: $in.retained.pick([
+                    "ports",
+                    "body"
+                ]),
+                file: $in.retained.file,
+                stores: $in.retained.stores,
+                empty: $in.empty
+            }}
+        />
     </If>
 
     <Call
@@ -21,14 +33,14 @@
             in={$in.pick([
                 "surface",
                 "path",
-                "forward"
+                "retained"
             ])}
         />
 
         <Call
             module="entry"
             in={{
-                entry: $in.entry,
+                entry: $in.retained,
                 wrapper: $ctx.surface.wrapper
             }}
         />

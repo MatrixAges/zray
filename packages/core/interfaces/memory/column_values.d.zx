@@ -19,6 +19,8 @@ export declare function reserveRows(
 
 export declare function rowBufferBytes(target: RowBuffer): u8[]
 
+export declare function refreshRowReads(target: RowGrowth): void
+
 export declare function allocateRowsWithAllocator(
     resource: ColumnAllocator,
     target: RowBuffer,

@@ -13,7 +13,7 @@ import type { External } from "../native/signature/model"
 import type { Providers } from "../source_signature/model"
 import type { Status } from "./decision"
 import type { Ports } from "./ports"
-import type { Destination, OpaqueBody } from "./publication/model"
+import type { BodyColumns, Destination } from "./publication/model"
 
 export type Request = {
     path: string,
@@ -61,5 +61,5 @@ export type Batch = Request.Omit(
     read_columns: ColumnSet,
     linked_shape?: LinkedSignatureColumns,
     snapshot: ColumnView,
-    empty: OpaqueBody
+    empty: BodyColumns
 }

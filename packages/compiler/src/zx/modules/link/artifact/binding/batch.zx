@@ -4,20 +4,18 @@ import memory from "memory"
 
 import { Status } from "../binding"
 
-import type { Retained } from "../body/publication"
-import type { Input, Output, Patch } from "./batch_model"
+import type { Retained } from "../../result/publication/model"
+import type { Input, Output } from "./batch_model"
 
 export default function (in: Input): Output {
     const { rows, scope, scratch, owned, storage, linked, empty } = in
 
     const entry: Retained? = null
-    const bodies: Patch[] = []
 
     return loop({
         position: 0,
         status: Status.Ready,
-        entry,
-        bodies
+        entry
     }, {
         while: state => state.status == Status.Ready && state.position < rows.length,
         next: state => {
@@ -43,14 +41,7 @@ export default function (in: Input): Output {
                 if (written == null) {
                     state.status = Status.Invalid
                 } else {
-                    if (written.row == null) {
-                        state.entry = written.entry
-                    } else {
-                        state.bodies = state.bodies.push({
-                            row: written.row,
-                            entry: written.entry
-                        })[0]
-                    }
+                    state.entry = written.entry
                 }
             }
 

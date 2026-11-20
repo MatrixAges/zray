@@ -50,6 +50,12 @@ export declare function readColumnSet(
     shape: LinkedSignatureColumns?
 ): LinkedSignatureColumns
 
+export declare function readFunctionColumns(
+    source: ColumnSet,
+    buffer: ColumnView,
+    shape: Complete?
+): Complete
+
 export declare function appendColumnSet(
     target: ColumnSet,
     row: FunctionRow

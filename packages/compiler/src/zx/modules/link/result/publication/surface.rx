@@ -7,8 +7,16 @@
 
     <Call fn="../../../artifact/path" in={$in.path} />
 
-    <If on={$in.forward != null}>
-        <Call fn="forward" in={$in.forward} />
+    <If on={$in.retained != null && $in.retained.recursive != null}>
+        <Call
+            fn="forward"
+            in={{
+                symbols: $in.retained.body.symbols,
+                input_type: $in.retained.ports.input_type,
+                output_type: $in.retained.ports.output_type,
+                function_id: $in.retained.recursive
+            }}
+        />
 
         <Call module="../../../forward_entry/build" />
 
