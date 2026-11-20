@@ -1,0 +1,69 @@
+import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
+import { ExpressionKind } from "core/expression_table/kinds"
+import { StoreMode } from "core/function_table/complete"
+import { kind_task } from "core/type_table/const"
+import memory from "memory"
+
+import { fuse_route, store_route, task_route } from "./const"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { control, values } = in
+
+    const stores = in.mode == StoreMode.orchestration && in.store_count != 0
+
+    const planned = loop({
+        index: 0,
+        previous_store: false
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            const row = in.first + state.index
+            const statement = control.statement_kinds[row]
+            const payload = integers.widen(control.statement_payloads[row])
+
+            const node: u32? = match statement {
+                StatementKind.Constant => control.constant_values[payload],
+                StatementKind.Evaluate => control.evaluations[payload],
+                _ => null
+            }
+
+            const expression = match {
+                stores && node != null => values.kinds[integers.widen(node)],
+                _ => ExpressionKind.Unit
+            }
+
+            const store_candidate = expression == ExpressionKind.StoreGet ||
+                expression == ExpressionKind.Call
+            const begin = stores && !state.previous_store && store_candidate
+            const type_id: u32? = match {
+                statement == StatementKind.Constant && node != null =>
+                    values.types[integers.widen(node)],
+                _ => null
+            }
+
+            const task = type_id != null &&
+                values.type_kinds[integers.widen(type_id)] == kind_task
+
+            const tail = statement == StatementKind.Result &&
+                state.index + 1 == in.count
+
+            const has_previous = tail && state.index != 0
+            const has_result = has_previous && control.results[payload] != null
+            const fuse = has_result &&
+                control.statement_kinds[row - 1] == StatementKind.Constant
+
+            const before = begin ? store_route : 0
+            const binding = task ? task_route : 0
+            const returned = fuse ? fuse_route : 0
+
+            memory.writeU8(in.target, state.index, before + binding + returned)
+            state.previous_store = expression == ExpressionKind.StoreGet
+            state.index += 1
+        }
+    })
+}

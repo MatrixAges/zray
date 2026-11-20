@@ -36,33 +36,30 @@ pub fn lower(self: *Lower, selection: Selection) Lower.Error![]const node.Statem
     defer scratch.deinit();
 
     const allocator = buffered.allocator();
+    const positions = try allocator.alloc(u32, std.math.mul(usize, selection.cases.len, 2) catch return error.OutOfMemory);
+    const labels = positions[0..selection.cases.len];
+    const rows_by_case = positions[selection.cases.len..];
+    const named = try partition(selection.cases, labels, rows_by_case);
     var fallback: ?node.Block = null;
-    var conditions: std.ArrayList(u32) = .empty;
+    var default_cursor = selection.cases.len;
 
-    for (0..selection.cases.len) |index| {
-        const item = selection.cases.at(index);
-
-        if (item.value == null) fallback = try self.builder.statements(try services.lower(self, item.body));
+    while (default_cursor > named) {
+        default_cursor -= 1;
+        const item = selection.cases.at(rows_by_case[default_cursor]);
+        fallback = try self.builder.statements(try services.lower(self, item.body));
     }
 
-    for (0..selection.cases.len) |index| {
-        if (selection.cases.at(index).value) |value| try conditions.append(allocator, @backingInt(value));
-    }
+    const selected = try @import("../../selection.zig").labels(self, selection.subject, labels[0..named]);
+    const starts = try allocator.alloc(u32, named);
+    const counts = try allocator.alloc(u32, named);
+    const comparisons = try allocator.alloc(u32, named);
+    const literals = try allocator.alloc(?u32, named);
+    var remaining = named;
 
-    const selected = try @import("../../selection.zig").labels(self, selection.subject, conditions.items);
-    const starts = try allocator.alloc(u32, conditions.items.len);
-    const counts = try allocator.alloc(u32, conditions.items.len);
-    const comparisons = try allocator.alloc(u32, conditions.items.len);
-    const literals = try allocator.alloc(?u32, conditions.items.len);
-    var remaining = conditions.items.len;
-    var position = selection.cases.len;
-
-    while (position != 0) {
-        position -= 1;
-        const item = selection.cases.at(position);
-        const label = item.value orelse continue;
-
+    while (remaining != 0) {
         remaining -= 1;
+        const item = selection.cases.at(rows_by_case[remaining]);
+        const label: ir.ExprId = @fromBackingInt(labels[remaining]);
         comparisons[remaining] = 0;
         literals[remaining] = null;
 
@@ -74,7 +71,7 @@ pub fn lower(self: *Lower, selection: Selection) Lower.Error![]const node.Statem
         counts[remaining] = body.len;
 
         if (selected) {
-            if (remaining + 1 == conditions.items.len) {
+            if (remaining + 1 == named) {
                 comparisons[remaining] = @backingInt(try self.binary(.{ .operator = .equal, .left = selection.subject, .right = label }));
             } else {
                 literals[remaining] = @backingInt(try @import("../../selection.zig").literal(self, label));
@@ -130,6 +127,21 @@ pub fn lower(self: *Lower, selection: Selection) Lower.Error![]const node.Statem
     statements.appendBlock(self.allocator, &result, self.builder.nodes, .{ .start = output.tail.start, .len = output.tail.count }) catch |err| return failure(err);
 
     return result.toOwnedSlice(self.allocator);
+}
+
+fn partition(cases: @FieldType(Selection, "cases"), labels: []u32, rows_by_case: []u32) Lower.Error!usize {
+    const entry = @import("generated_switch_partition");
+
+    const input: std.meta.Child(entry.Input) = .{
+        .values = cases.values[0..cases.len],
+        .labels = @ptrCast(&labels),
+        .rows = @ptrCast(&rows_by_case),
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch |err| return failure(err);
+
+    return @intCast(result);
 }
 
 fn failure(err: anyerror) Lower.Error {

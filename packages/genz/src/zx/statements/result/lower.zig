@@ -7,13 +7,13 @@ const statements = @import("../../../node/import_statements.zig");
 const Lower = @import("../../lower.zig");
 const generated = @import("genz_options").generated_analysis;
 
-pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize, value: ?ir.ExprId) Lower.Error!bool {
+pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize, value: ?ir.ExprId, fuse: bool) Lower.Error!bool {
     if (!generated) return @import("seed.zig").append(self, output, values, offset, value);
 
     var returned: ?node.ExpressionId = null;
     var consumed_previous = false;
 
-    if (try eligible(values, offset, value != null)) {
+    if (fuse) {
         const binding = values.at(offset - 1).constant;
         returned = try @import("../../iteration_consumer.zig").lower(self, binding.symbol, binding.value, value.?, self.value_output);
         consumed_previous = returned != null;
@@ -32,23 +32,6 @@ pub fn append(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.B
     try emit(self, output, returned);
 
     return consumed_previous;
-}
-
-fn eligible(values: ir.Block, offset: usize, has_value: bool) Lower.Error!bool {
-    const entry = @import("generated_result_eligible");
-    const Input = std.meta.Child(entry.Input);
-
-    const input: Input = .{
-        .control = zx.columns.pointer(@FieldType(Input, "control"), values.control),
-        .first = values.first,
-        .count = values.len,
-        .offset = offset,
-        .has_value = has_value,
-    };
-
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
 }
 
 fn emit(self: *Lower, output: *std.ArrayList(node.Statement), value: ?node.ExpressionId) Lower.Error!void {

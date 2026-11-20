@@ -43,8 +43,6 @@ pub fn statement(self: *Lower, statements: ir.Block, index: usize) Lower.Error!?
         .control = &control,
         .values = &values,
         .function_modes = zx.columns.slice(@FieldType(Input, "function_modes"), self.program.functions.store_modes),
-        .mode = @fromBackingInt(@backingInt(self.program.store_mode)),
-        .store_count = self.program.stores.count(),
         .first = statements.first,
         .count = statements.len,
         .index = index,

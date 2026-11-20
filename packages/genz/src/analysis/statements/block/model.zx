@@ -1,0 +1,24 @@
+import type { ExpressionKind } from "core/expression_table/kinds"
+import type { StoreMode } from "core/function_table/complete"
+import type { U8Buffer } from "memory"
+import type { Control as Statements } from "../../store/begin/model"
+
+export type Control = Statements & {
+    results: u32?[]
+}
+
+export type Values = {
+    kinds: ExpressionKind[],
+    types: u32[],
+    type_kinds: u8[]
+}
+
+export type Input = {
+    control: Control,
+    values: Values,
+    first: u64,
+    count: u64,
+    mode: StoreMode,
+    store_count: u64,
+    target: U8Buffer
+}

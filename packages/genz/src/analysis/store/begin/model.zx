@@ -27,8 +27,6 @@ export type Input = {
     control: Control,
     values: Values,
     function_modes: StoreMode[],
-    mode: StoreMode,
-    store_count: u64,
     first: u64,
     count: u64,
     index: u64,

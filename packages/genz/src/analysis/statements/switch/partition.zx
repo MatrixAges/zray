@@ -1,0 +1,40 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+
+export type Input = {
+    values: u32?[],
+    labels: U32Buffer,
+    rows: U32Buffer
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { values, rows, labels } = in
+
+    return loop({
+        index: 0,
+        named: 0,
+        defaults: values.length
+    }, {
+        while: state => state.index < values.length,
+        next: state => {
+            const value = values[state.index]
+            const row = integers.narrow(state.index)
+
+            if (value == null) {
+                state.defaults -= 1
+                memory.writeU32(rows, state.defaults, row)
+            } else {
+                memory.writeU32(labels, state.named, value)
+                memory.writeU32(rows, state.named, row)
+                state.named += 1
+            }
+
+            state.index += 1
+        },
+        return: state => state.named
+    })
+}
