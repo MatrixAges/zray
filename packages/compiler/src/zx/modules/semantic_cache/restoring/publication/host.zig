@@ -6,7 +6,7 @@ const Nodes = @import("../../../artifact/nodes.zig");
 const remap = @import("../../../artifact/nodes/remap.zig");
 const result = @import("../../../link/result/host.zig");
 const destination = @import("../../../link/signature/publication/destination.zig");
-const verification = @import("verification.zig");
+const verification = @import("../../../artifact/validation/view.zig");
 const Surface = @import("../../../artifact/surface.zig").Publication;
 const Current = @import("../../restore.zig").Current;
 const TypePlan = @import("../rebind/host.zig").TypePlan;
@@ -98,7 +98,12 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const
     var scope: zx.memory.ArenaScope = .{ .active = nodes.allocator };
     var validation: verification.View(std.meta.Child(@FieldType(Input, "verification"))) = undefined;
 
-    validation.init(target, &surface, &scope, &scratch, &nodes.allocator);
+    validation.init(.{
+        .types = target.types,
+        .functions = target.functions,
+        .native_modules = &target.native_modules,
+        .verified = target.verified.*,
+    }, &surface, &scope, &scratch, &nodes.allocator);
 
     const input: Input = .{
         .body = if (source != null) &view.input else null,
@@ -114,11 +119,7 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const
         .verification = &validation.input,
     };
 
-    const prepared = generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
+    const prepared = generated.executeIn(scope.allocator(), &input) catch |err| return verification.failure(&scope, scratch, err);
     const plan = prepared orelse return error.InvalidModule;
     const verified = plan.verified orelse return error.InvalidIr;
 

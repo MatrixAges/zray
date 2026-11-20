@@ -2,12 +2,28 @@ const std = @import("std");
 const zx = @import("zx");
 const memory = zx.memory;
 const ir = zx.ir;
-const Current = @import("../../restore.zig").Current;
+const Error = @import("../model.zig").Error;
+const Verified = @import("../../../ir/validate.zig").Verified;
 const validation = @import("generated_ir_validation");
 const Validation = std.meta.Child(validation.Input);
 const Context = std.meta.Child(@FieldType(Validation, "context"));
 const Table = std.meta.Child(@FieldType(Context, "table"));
 const Complete = std.meta.Child(@FieldType(Context, "functions"));
+
+pub const State = struct {
+    types: *ir.TypeStorage,
+    functions: *ir.FunctionStorage,
+    native_modules: *const ir.NativeModuleTable,
+    verified: Verified = .{},
+};
+
+pub fn failure(scope: *const memory.ArenaScope, scratch: std.mem.Allocator, err: anyerror) Error {
+    return switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        // The verifier switches to scratch after publication and restores the allocator on return.
+        else => if (scope.active.ptr == scratch.ptr) error.InvalidIr else error.InvalidModule,
+    };
+}
 
 pub fn View(comptime Input: type) type {
     const Views = std.meta.Child(@FieldType(Input, "views"));
@@ -34,20 +50,20 @@ pub fn View(comptime Input: type) type {
         constants: Constants,
         views: Views,
         input: Input,
-        pub fn init(self: *@This(), target: *const Current, surface: anytype, scope: *memory.ArenaScope, scratch: *const std.mem.Allocator, payload: *const std.mem.Allocator) void {
-            self.type_slots = memory.bindColumnSet(Table, false, target.types);
-            self.function_slots = memory.bindColumnSet(Complete, false, target.functions);
+        pub fn init(self: *@This(), state: State, surface: anytype, scope: *memory.ArenaScope, scratch: *const std.mem.Allocator, payload: *const std.mem.Allocator) void {
+            self.type_slots = memory.bindColumnSet(Table, false, state.types);
+            self.function_slots = memory.bindColumnSet(Complete, false, state.functions);
             self.type_storage = &self.type_slots;
             self.function_storage = &self.function_slots;
             self.depths = .{ .allocator = scratch.* };
             self.workspace = self.depths.borrow(Workspace, false);
 
-            const verified = target.verified.*;
+            const verified = state.verified;
 
             if (verified.types) |prefix| self.prefix = zx.columns.view(Prefix, prefix);
 
             self.base = .{
-                .modules = zx.columns.pointer(@FieldType(Base, "modules"), &target.native_modules),
+                .modules = zx.columns.pointer(@FieldType(Base, "modules"), state.native_modules),
                 .max_offset = std.math.maxInt(usize),
                 .scalar_count = std.enums.values(ir.Scalar).len,
                 .maximum_count = std.math.maxInt(u32),

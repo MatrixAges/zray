@@ -1,12 +1,11 @@
 import { StoreMode } from "core/function_table/complete"
 
-import type { Unit as Output } from "../../../../ir/canonical/validation/model"
-import type { Body } from "../../../link/result/publication/model"
-import type { BodyColumns } from "../../../link/signature/publication/model"
-import type { Plan } from "./model"
+import type { Unit as Output } from "../../../ir/canonical/validation/model"
+import type { BodyColumns } from "../../link/signature/publication/model"
+import type { Body, Program } from "./body"
 
 export type Input = {
-    program: Plan,
+    program: Program,
     empty: BodyColumns
 }
 

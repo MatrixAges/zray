@@ -1,0 +1,48 @@
+<Module>
+    <Type from="context" as="Verification" />
+    <Type from="unit" as="Unit" />
+    <Type from="../../../ir/canonical/validation/prefix" as="Prefix" />
+
+    <Args in={Verification.Request & Unit.Input} out={Prefix.Output?} />
+
+    <Call
+        fn="context"
+        in={$in.pick([
+            "views",
+            "scope",
+            "scratch"
+        ])}
+    />
+
+    <Call
+        fn="unit"
+        in={$in.pick([
+            "program",
+            "empty"
+        ])}
+    />
+
+    <Call
+        module="../../../ir/canonical/validation/validate"
+        in={{
+            version: $in.version,
+            expected_version: $in.version,
+            context: $ctx.context,
+            unit: $ctx.unit,
+            exports: $in.exports,
+            constant_exports: $in.constant_exports
+        }}
+    />
+
+    <Call
+        fn="complete"
+        in={{
+            scope: $in.scope,
+            payload: $in.payload,
+            context: $ctx.context,
+            stores_owned: $ctx.validate
+        }}
+    />
+
+    <Return value={$ctx.complete} />
+</Module>

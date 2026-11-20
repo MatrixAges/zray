@@ -3,7 +3,7 @@ import columns from "memory/columns"
 
 import type { Allocator, ArenaScope } from "memory"
 import type { ColumnSet, ColumnView, RowGrowth } from "memory/columns"
-import type { Context, Program } from "../../../../ir/canonical/validation/model"
+import type { Context, Program } from "../../../ir/canonical/validation/model"
 
 export type Views = {
     context: Context.Omit("table", "functions"),

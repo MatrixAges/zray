@@ -76,16 +76,15 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 
     _ = module_scratch.reset(.free_all);
 
-    var tables: result.Tables = .{
-        .types = types.items.view(),
-        .functions = .{},
-        .native_modules = builder.native_modules.view(),
-    };
-
     const selected = &modules[plan.entry];
+    const native_modules = builder.native_modules.view();
 
     const program = if (comptime generated)
-        try @import("link/result/publication/host.zig").finish(owned, selected, function, tables, &builder.functions, mappings[plan.entry])
+        try @import("link/result/publication/host.zig").finish(owned, scratch, selected, function, .{
+            .types = &types.items,
+            .functions = &builder.functions,
+            .native_modules = &native_modules,
+        }, mappings[plan.entry])
 
     else seed: {
         const retained = if (function) |*found| found else null;
@@ -94,12 +93,18 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
 
         if (recursive != null) try builder.functions.append(owned, body.?.*);
 
-        tables.functions = builder.functions.view();
+        const tables: result.Tables = .{
+            .types = types.items.view(),
+            .functions = builder.functions.view(),
+            .native_modules = native_modules,
+        };
 
-        break :seed try result.materialize(owned, selected, body, recursive, tables, mappings[plan.entry]);
+        const program = try result.materialize(owned, selected, body, recursive, tables, mappings[plan.entry]);
+
+        if (try @import("../ir/validate.zig").validate(scratch, program) != null) return error.InvalidIr;
+
+        break :seed program;
     };
-
-    if (try @import("../ir/validate.zig").validate(scratch, program) != null) return error.InvalidIr;
 
     return .{ .arena = arena, .program = program, .nominal_types = types.origins.items.view() };
 }

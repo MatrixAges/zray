@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Result" />
+    <Type from="../../../artifact/validation/body" as="Body" />
 
-    <Args in={Result.Selection} out={Result.Unit} />
+    <Args in={Result.Selection} out={Body.Unit} />
 
     <If on={$in.entry != null}>
         <If on={$in.wrapper != null}>

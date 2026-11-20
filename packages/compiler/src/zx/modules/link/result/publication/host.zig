@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Model = @import("../../../artifact/model.zig");
 const Surface = @import("../../../artifact/surface.zig").Publication;
+const verification = @import("../../../artifact/validation/view.zig");
 const Retained = @import("../../artifact/binding/abi.zig").Retained;
 const program = @import("../host.zig");
 const destination = @import("../../signature/publication/destination.zig");
@@ -12,8 +13,10 @@ const Store = std.meta.Child(@FieldType(Input, "store_source"));
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Empty = std.meta.Child(@FieldType(Input, "empty"));
 const Entry = @typeInfo(@FieldType(Input, "retained")).optional.child;
+const Verification = std.meta.Child(@FieldType(Input, "verification"));
+const empty = destination.empty(Empty);
 
-pub fn finish(allocator: std.mem.Allocator, module: *const Model.Module, function: ?Retained, tables: program.Tables, functions: *ir.FunctionStorage, mapping: []const ir.TypeId) Model.Error!ir.Program {
+pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module: *const Model.Module, function: ?Retained, state: verification.State, mapping: []const ir.TypeId) Model.Error!ir.Program {
     const source_stores = zx.columns.columns(Store, module.stores);
     var surface: Surface(std.meta.Child(@FieldType(Input, "surface"))) = undefined;
 
@@ -22,28 +25,37 @@ pub fn finish(allocator: std.mem.Allocator, module: *const Model.Module, functio
 
     var target: destination.View(Destination) = undefined;
 
-    target.init(&allocator, functions);
+    target.init(&allocator, state.functions);
+
+    var arena = std.heap.ArenaAllocator.init(temporary);
+
+    defer arena.deinit();
+
+    const scratch = arena.allocator();
+    var scope: zx.memory.ArenaScope = .{ .active = allocator };
+    var validation: verification.View(Verification) = undefined;
+
+    validation.init(state, &surface, &scope, &scratch, &allocator);
 
     const request: Input = .{
         .store_source = &source_stores,
         .surface = &surface.input,
         .path = module.path,
         .destination = &target.input,
-        .empty = &destination.empty(Empty),
+        .empty = &empty,
         .retained = if (function) |value| zx.columns.pointer(Entry, value) else null,
+        .verification = &validation.input,
     };
 
-    const outcome = rule.executeIn(allocator, &request) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-
+    const outcome = rule.executeIn(scope.allocator(), &request) catch |err| return verification.failure(&scope, scratch, err);
     const published = outcome orelse return error.InvalidModule;
 
+    if (!published.valid) return error.InvalidIr;
+
     const linked_tables: program.Tables = .{
-        .types = tables.types,
-        .functions = functions.view(),
-        .native_modules = tables.native_modules,
+        .types = state.types.view(),
+        .functions = state.functions.view(),
+        .native_modules = state.native_modules.*,
     };
 
     return program.fromPublication(published.path, published, linked_tables, surface.exports(), surface.constants());

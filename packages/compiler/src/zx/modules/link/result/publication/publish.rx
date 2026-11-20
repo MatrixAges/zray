@@ -45,11 +45,24 @@
             }}
         />
 
+        <Call
+            module="../../../artifact/validation/verify"
+            in={{
+                ...$in.verification,
+                program: {
+                    ...$ctx.entry,
+                    stores: $ctx.remap
+                },
+                empty: $in.empty
+            }}
+        />
+
         <Return
             value={{
                 ...$ctx.entry,
                 path: $ctx.surface.path,
-                stores: $ctx.remap
+                stores: $ctx.remap,
+                valid: $ctx.verify != null
             }}
         />
     </If>

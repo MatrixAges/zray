@@ -1,10 +1,7 @@
-import type { Contracts } from "core/contract_table/model"
-import type { Control } from "core/control_table/model"
-import type { Expressions } from "core/expression_table/model"
-import type { StoreMode } from "core/function_table/complete"
 import type { Stores } from "core/store_table/model"
-import type { Ownership, Symbols } from "core/symbol_table/model"
 import type { Input as ArtifactSurface } from "../../../artifact/surface/model"
+import type { Body, Program, Unit } from "../../../artifact/validation/body"
+import type { Request as Verification } from "../../../artifact/validation/context"
 import type { Output as Wrapper } from "../../../forward_entry/model"
 import type { BodyColumns, Destination } from "../../signature/publication/model"
 
@@ -16,23 +13,7 @@ export type Registration = {
     empty: BodyColumns
 }
 
-export type Ports = {
-    input_type: u32,
-    output_type: u32,
-    ownership: Ownership,
-    store_mode: StoreMode
-}
-
-export type Body = {
-    symbols: Symbols,
-    expressions: Expressions,
-    control?: Control,
-    root?: u32,
-    contracts: Contracts
-}
-
-export type Entry = {
-    ports: Ports,
+export type Entry = Unit.Omit("body") & {
     body: Body
 }
 
@@ -51,7 +32,8 @@ export type Surface = {
 export type Input = Surface & {
     store_source: Stores,
     destination: Destination,
-    empty: BodyColumns
+    empty: BodyColumns,
+    verification: Verification
 }
 
 export type Published = {
@@ -64,12 +46,7 @@ export type Selection = {
     wrapper?: Wrapper
 }
 
-export type Unit = {
-    ports: Ports,
-    body?: Body
-}
-
-export type Output = Unit & {
+export type Output = Program & {
     path: string,
-    stores: Stores
+    valid: bool
 }

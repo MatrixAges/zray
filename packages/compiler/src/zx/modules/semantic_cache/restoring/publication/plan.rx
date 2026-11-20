@@ -57,29 +57,25 @@
     </If>
 
     <Call
-        module="verify"
+        module="../../../artifact/validation/verify"
         in={{
             ...$in.verification,
             program: {
-                ...$ctx.entry,
+                ...$ctx.entry.pick([
+                    "ports",
+                    "body"
+                ]),
                 stores: $ctx.stores
             },
             empty: $in.empty
         }}
     />
 
-    <Call
-        fn="commit"
-        in={{
-            scope: $in.verification.scope,
-            payload: $in.verification.payload,
-            program: {
-                ...$ctx.entry,
-                stores: $ctx.stores
-            },
+    <Return
+        value={{
+            ...$ctx.entry,
+            stores: $ctx.stores,
             verified: $ctx.verify
         }}
     />
-
-    <Return value={$ctx.commit} />
 </Module>
