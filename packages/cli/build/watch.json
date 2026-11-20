@@ -1,0 +1,25 @@
+{
+    "roots": [
+        {
+            "path": "driver",
+            "prefix": "driver/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "driver/const.zx",
+            "name": "constants"
+        },
+        {
+            "path": "driver/run.rx",
+            "name": "run"
+        }
+    ],
+    "packages": [],
+    "interfaces": [
+        {
+            "path": "driver/host.d.zx",
+            "module": "watch_host"
+        }
+    ]
+}

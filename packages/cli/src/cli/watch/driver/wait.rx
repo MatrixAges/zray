@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.Watch} out={bool} />
+
+    <Call fn="index.lastStatus" in={$in} />
+
+    <If on={$ctx.lastStatus == Driver.Status.Retry}>
+        <Call fn="index.delayRetry" in={$in} />
+
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.clearScanError" in={$in} />
+
+    <Call
+        fn="poll_until"
+        in={{
+            watch: $in,
+            retry_backend: $ctx.lastStatus == Driver.Status.BackendFailed
+        }}
+    />
+
+    <Return value={$ctx.poll_until} />
+</Module>

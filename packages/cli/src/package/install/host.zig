@@ -30,7 +30,7 @@ pub const State = struct {
 
         if (discovered.diagnostic != null) return error.InvalidWorkspace;
 
-        const cache = try @import("../../cli/toolchain/cache.zig").root(allocator, environment);
+        const cache = try @import("toolchain_cache").root(allocator, environment);
         const previous = try files.load(io, allocator, root, null);
 
         return .{

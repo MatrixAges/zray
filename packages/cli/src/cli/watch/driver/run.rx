@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.Input} out={void} />
+
+    <Call fn="index.announce" in={$in.watch} />
+    <Call fn="iterate" in={$in} />
+</Module>

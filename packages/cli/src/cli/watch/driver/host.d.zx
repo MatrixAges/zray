@@ -1,0 +1,41 @@
+export type Watch = opaque
+
+export enum Status {
+    Success,
+    Failed,
+    Retry,
+    BackendFailed
+}
+
+export enum Scan {
+    Unchanged,
+    Changed,
+    RepeatedError,
+    NewError
+}
+
+export declare function announce(watch: Watch): void throws { WatchFailure }
+export declare function interrupted(watch: Watch): bool
+export declare function hasBaseline(watch: Watch): bool
+export declare function lastStatus(watch: Watch): Status
+export declare function delayPoll(watch: Watch): void throws { WatchFailure }
+export declare function delayRetry(watch: Watch): void throws { WatchFailure }
+export declare function checkCanceled(watch: Watch): void throws { WatchFailure }
+export declare function pollApplication(watch: Watch): void throws { WatchFailure }
+export declare function scanInputs(watch: Watch): Scan throws { WatchFailure }
+export declare function reportScanError(watch: Watch): void throws { WatchFailure }
+export declare function clearScanError(watch: Watch): void
+export declare function clearDiagnostic(watch: Watch): void
+export declare function begin(watch: Watch, cache: bool): void throws { WatchFailure }
+export declare function compile(watch: Watch): Status throws { WatchFailure }
+export declare function refreshParseCache(watch: Watch): void
+export declare function adoptBackend(watch: Watch): void
+export declare function reportDiagnostic(watch: Watch, normalize: bool): void throws { WatchFailure }
+export declare function commitSuccess(watch: Watch): void throws { WatchFailure }
+export declare function announceBuilt(watch: Watch): void throws { WatchFailure }
+export declare function restart(watch: Watch): void throws { WatchFailure }
+export declare function priorCount(watch: Watch): u64
+export declare function reobserve(watch: Watch, index: u64): void throws { WatchFailure }
+export declare function commitFailure(watch: Watch): void throws { WatchFailure }
+export declare function flush(watch: Watch): void throws { WatchFailure }
+export declare function releaseTurn(watch: Watch): void

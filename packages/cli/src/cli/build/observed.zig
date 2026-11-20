@@ -12,7 +12,7 @@ pub const Cache = struct {
     global: []const u8,
     pub fn init(io: std.Io, allocator: std.mem.Allocator, environment: *const std.process.Environ.Map) !Cache {
         const cwd = try std.Io.Dir.cwd().realPathFileAlloc(io, ".", allocator);
-        const global = environment.get("ZIG_GLOBAL_CACHE_DIR") orelse try std.fs.path.join(allocator, &.{ try @import("../toolchain/cache.zig").root(allocator, environment), "backend" });
+        const global = environment.get("ZIG_GLOBAL_CACHE_DIR") orelse try std.fs.path.join(allocator, &.{ try @import("toolchain_cache").root(allocator, environment), "backend" });
 
         return .{
             .cwd = cwd,

@@ -1,0 +1,69 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.Input} out={bool} />
+
+    <If on={$in.run_application}>
+        <Call fn="index.interrupted" in={$in.watch} />
+
+        <If on={$ctx.interrupted}>
+            <Return value={false} />
+        </If>
+    </If>
+
+    <Call fn="index.hasBaseline" in={$in.watch} />
+
+    <If on={$ctx.hasBaseline}>
+        <Call module="wait" in={$in.watch} />
+
+        <If on={$ctx.wait}>
+            <Call fn="index.clearDiagnostic" in={$in.watch} />
+        </If>
+    </If>
+
+    <Call
+        fn="index.begin"
+        in={[
+            $in.watch,
+            $in.cache
+        ]}
+    />
+
+    <Call fn="index.compile" in={$in.watch} />
+    <Call fn="index.refreshParseCache" in={$in.watch} />
+    <Call fn="index.adoptBackend" in={$in.watch} />
+
+    <Call
+        fn="index.reportDiagnostic"
+        in={[
+            $in.watch,
+            $ctx.compile == Driver.Status.BackendFailed
+        ]}
+    />
+
+    <If on={$ctx.compile == Driver.Status.Success}>
+        <Call fn="index.commitSuccess" in={$in.watch} />
+        <Call fn="index.announceBuilt" in={$in.watch} />
+
+        <If on={$in.run_application}>
+            <Call fn="index.interrupted" in={$in.watch} />
+
+            <If on={$ctx.interrupted}>
+                <Return value={false} />
+            </If>
+
+            <Call fn="index.flush" in={$in.watch} />
+            <Call fn="index.restart" in={$in.watch} />
+        </If>
+
+        <Else>
+            <Call fn="restore" in={$in.watch} />
+            <Call fn="index.commitFailure" in={$in.watch} />
+        </Else>
+    </If>
+
+    <Call fn="index.flush" in={$in.watch} />
+    <Call fn="index.releaseTurn" in={$in.watch} />
+
+    <Return value={true} />
+</Module>

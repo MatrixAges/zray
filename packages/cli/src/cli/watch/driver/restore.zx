@@ -1,0 +1,20 @@
+import host from "watch_host"
+
+import type { Watch as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const count = host.priorCount(in)
+
+    const restored = loop({
+        index: 0
+    }, {
+        while: current => current.index < count,
+        next: current => {
+            host.reobserve(in, current.index)
+
+            current.index += 1
+        }
+    })
+}

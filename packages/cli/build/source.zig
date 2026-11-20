@@ -11,6 +11,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     _ = files.addCopyDirectory(b.path("src/cli/native_sources"), "native_sources", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/library"), "library", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/build/command"), "command", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/cli/watch/diagnostics"), "watch_diagnostics", .{ .include_extensions = &.{".zx"} });
     _ = files.addCopyDirectory(b.path("src/cli/standard"), "standard", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyDirectory(b.path("src/cli/project/scopes"), "scopes", .{ .include_extensions = &.{ ".rx", ".zx" } });
     _ = files.addCopyFile(compiler.namedLazyPath("memory_interface"), "memory/index.d.zx");
@@ -115,7 +116,7 @@ pub fn toolchain(b: *std.Build, compiler: *std.Build.Dependency, target: std.Bui
         .imports = &.{.{ .name = "cli_host", .module = host }},
     });
 
-    return b.createModule(.{
+    const source = b.createModule(.{
         .root_source_file = generated.path(b, "root.zig"),
         .target = target,
         .optimize = optimize,
@@ -123,6 +124,44 @@ pub fn toolchain(b: *std.Build, compiler: *std.Build.Dependency, target: std.Bui
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
             .{ .name = "toolchain_environment", .module = effects },
             .{ .name = "toolchain_host", .module = effects },
+        },
+    });
+
+    const cache = b.addModule("toolchain_cache", .{
+        .root_source_file = b.path("src/cli/toolchain/cache.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_toolchain", .module = source }},
+    });
+
+    host.addImport("toolchain_cache", cache);
+
+    return source;
+}
+
+pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, host: *std.Build.Module) *std.Build.Module {
+    const files = b.addWriteFiles();
+    _ = files.addCopyDirectory(b.path("src/cli/watch/driver"), "driver", .{ .include_extensions = &.{ ".rx", ".zx" } });
+
+    const generated = generate(b, compiler, files, "build/watch.json", "watch");
+    const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
+
+    const effects = b.createModule(.{
+        .root_source_file = b.path("src/cli/watch/driver/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "cli_host", .module = host }},
+    });
+
+    host.addImport("cli_watch_abi", abi);
+
+    return b.createModule(.{
+        .root_source_file = generated.path(b, "root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zxc_abi", .module = abi },
+            .{ .name = "watch_host", .module = effects },
         },
     });
 }

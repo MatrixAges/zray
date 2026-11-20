@@ -1,0 +1,5 @@
+export const unix_backend_temporary: string = ".zxc/cache/backend/tmp/"
+
+export const windows_backend_temporary: string = ".zxc\\cache\\backend\\tmp\\"
+
+export const temporary_name_length: u64 = 16

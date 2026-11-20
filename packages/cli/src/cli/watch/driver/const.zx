@@ -1,0 +1,5 @@
+export const retry_delay_ms: u64 = 200
+
+export const poll_delay_ms: u64 = 500
+
+export const backend_retry_polls: u64 = 4

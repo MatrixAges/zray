@@ -1,0 +1,74 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import { ascii_asterisk, ascii_backslash, ascii_slash } from "core/ascii/const"
+
+import { unix_backend_temporary, windows_backend_temporary } from "./const"
+import hexName from "./hex_name"
+
+import type { Writer } from "std:bytes"
+
+export type Input = {
+    writer: Writer,
+    message: string,
+    windows: bool
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { writer, message, windows } = in
+
+    const text = bytes.fromText(message)
+    const prefix = windows ? windows_backend_temporary : unix_backend_temporary
+    const separator = windows ? ascii_backslash : ascii_slash
+    const prefix_length = bytes.fromText(prefix).length
+
+    const normalized = loop({
+        search: 0,
+        written: 0,
+        done: false
+    }, {
+        while: state => !state.done && state.search < text.length,
+        next: state => {
+            const found = bytes.indexOfText(text, state.search, prefix)
+
+            if (found == null) {
+                state.done = true
+            } else {
+                const start = found + prefix_length
+                const end = bytes.indexOfScalar(text, start, separator)
+
+                if (end == null) {
+                    state.done = true
+                } else {
+                    if (hexName({
+                        bytes: text,
+                        start,
+                        end
+                    })) {
+                        const before =
+                            encoding.sliceBytes(message, state.written, start)
+
+                        bytes.write(writer, bytes.fromText(before))
+                        bytes.writeByte(writer, ascii_asterisk)
+
+                        state.written = end
+                    }
+
+                    state.search = end
+                }
+            }
+        },
+        return: state => state.written
+    })
+
+    if (normalized == 0) {
+        return false
+    }
+
+    const tail = encoding.sliceBytes(message, normalized, text.length)
+
+    bytes.write(writer, bytes.fromText(tail))
+
+    return true
+}

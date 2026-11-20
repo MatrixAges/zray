@@ -1,0 +1,16 @@
+import cycle from "./cycle.rx"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const finished = loop({
+        running: true
+    }, {
+        while: current => current.running,
+        next: current => {
+            current.running = cycle(in)
+        }
+    })
+}

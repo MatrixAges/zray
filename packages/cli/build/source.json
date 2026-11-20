@@ -36,6 +36,10 @@
             "prefix": "command/"
         },
         {
+            "path": "watch_diagnostics",
+            "prefix": "watch_diagnostics/"
+        },
+        {
             "path": "standard",
             "prefix": "standard/"
         },
@@ -49,6 +53,10 @@
         }
     ],
     "entries": [
+        {
+            "path": "watch_diagnostics/normalize.zx",
+            "name": "normalize_backend_diagnostic"
+        },
         {
             "path": "parse.rx",
             "name": "arguments"

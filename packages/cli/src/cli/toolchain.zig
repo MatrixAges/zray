@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const source = @import("cli_toolchain");
-pub const cache = @import("toolchain/cache.zig");
+pub const cache = @import("toolchain_cache");
 pub const workflow = @import("toolchain/workflow/storage.zig");
 pub const constants = source.constants.@"zx.constants";
 pub const Paths = struct { root: []const u8, executable: []const u8, library: []const u8, standard: []const u8 };

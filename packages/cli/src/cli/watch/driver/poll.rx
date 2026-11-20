@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.Watch} out={Driver.Scan} />
+
+    <Call fn="index.delayPoll" in={$in} />
+    <Call fn="index.checkCanceled" in={$in} />
+    <Call fn="index.pollApplication" in={$in} />
+    <Call fn="index.scanInputs" in={$in} />
+
+    <If on={$ctx.scanInputs == Driver.Scan.NewError}>
+        <Call fn="index.reportScanError" in={$in} />
+    </If>
+
+    <Return value={$ctx.scanInputs} />
+</Module>

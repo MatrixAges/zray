@@ -1,0 +1,40 @@
+import { ascii_lower_f, ascii_upper_f } from "core/ascii/const"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_lower_first,
+    ascii_upper_first
+} from "core/const"
+
+import { temporary_name_length } from "./const"
+
+export type Input = {
+    bytes: u8[],
+    start: u64,
+    end: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (in.end - in.start != temporary_name_length) {
+        return false
+    }
+
+    return loop({
+        index: in.start,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < in.end,
+        next: state => {
+            const byte = in.bytes[state.index]
+            const decimal = byte >= ascii_digit_first && byte <= ascii_digit_last
+            const lower = byte >= ascii_lower_first && byte <= ascii_lower_f
+            const upper = byte >= ascii_upper_first && byte <= ascii_upper_f
+
+            state.valid = decimal || lower || upper
+            state.index += 1
+        },
+        return: state => state.valid
+    })
+}

@@ -333,6 +333,7 @@ pub fn build(b: *std.Build) void {
         .imports = &.{
             .{ .name = "cli_source", .module = cli_dependency.module("cli_source") },
             .{ .name = "compiler", .module = compiler.module("compiler") },
+            .{ .name = "toolchain_cache", .module = cli_dependency.module("toolchain_cache") },
         },
         .target = target,
         .optimize = optimize,
