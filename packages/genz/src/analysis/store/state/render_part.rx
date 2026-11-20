@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="State" />
+
+    <Args in={State.Fragment} out={bool} />
+
+    <If on={!$in.snapshot.valid}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="snapshot" in={$in} />
+
+    <Call
+        module="../../../printer/render"
+        in={{
+            source: $ctx.snapshot,
+            output: $in.writer
+        }}
+    />
+
+    <Return value={true} />
+</Module>

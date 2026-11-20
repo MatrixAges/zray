@@ -1,12 +1,34 @@
 <Module>
     <Type from="model" as="Storage" />
 
-    <Args in={Storage.Input} out={Storage.Output} />
+    <Args in={Storage.Render} out={bool} />
 
-    <Call fn="initialize" in={$in} />
+    <Call fn="../entry/bases" in={{}} />
+
+    <Call
+        fn="initialize"
+        in={{
+            bases: $ctx.bases,
+            modules: $in.modules
+        }}
+    />
 
     <Call fn="items" />
     <Call fn="structure" />
 
-    <Return value={$ctx.structure} />
+    <If on={!$ctx.structure.valid}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="snapshot" in={$ctx.structure} />
+
+    <Call
+        module="../../../printer/render"
+        in={{
+            source: $ctx.snapshot,
+            output: $in.writer
+        }}
+    />
+
+    <Return value={true} />
 </Module>

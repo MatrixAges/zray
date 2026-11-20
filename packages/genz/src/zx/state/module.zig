@@ -1,6 +1,5 @@
 const std = @import("std");
 const zx = @import("zx");
-const Builder = @import("../../builder.zig");
 const state = @import("../state.zig");
 
 pub fn render(allocator: std.mem.Allocator, objects: []const state.Object, requirements: state.Requirements, execute: bool) std.mem.Allocator.Error![]u8 {
@@ -8,48 +7,28 @@ pub fn render(allocator: std.mem.Allocator, objects: []const state.Object, requi
 
     defer arena.deinit();
 
-    const builder = try Builder.init(arena.allocator());
+    var writer: zx.memory.ByteWriter = .{ .allocator = allocator };
 
-    const selected = scope: {
-        const entry = @import("generated_store_state");
-        const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
-        const indirect = @typeInfo(Parameter) == .pointer;
-        const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
+    defer writer.deinit();
 
-        const input: Input = .{
-            .objects = zx.columns.slice(@FieldType(Input, "objects"), objects),
-            .execute = execute,
-            .io = requirements.io,
-            .process = requirements.process,
-        };
+    const entry = @import("generated_store_state");
+    const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
+    const indirect = @typeInfo(Parameter) == .pointer;
+    const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
 
-        const output = entry.executeValue(builder.allocator, if (indirect) &input else input) catch |err| return failure(err);
-
-        if (!output.valid) return error.OutOfMemory;
-
-        const parts = output.parts orelse return error.OutOfMemory;
-        const values = if (@typeInfo(@TypeOf(parts)) == .pointer) parts.* else parts;
-        const Output = payload(entry.Output);
-        const Parts = payload(@FieldType(Output, "parts"));
-
-        inline for (@typeInfo(Parts).@"struct".field_names) |name| {
-            @import("../../node/import_module.zig").appendBorrowed(builder.allocator, builder.nodes, payload(@FieldType(Parts, name)), @field(values, name)) catch |err| return failure(err);
-        }
-
-        const roots = zx.columns.view(struct { roots: @FieldType(Output, "roots") }, output).roots;
-
-        break :scope builder.nodes.selectDeclarations(builder.allocator, roots) catch |err| return failure(err);
+    const input: Input = .{
+        .writer = @ptrCast(&writer),
+        .objects = zx.columns.slice(@FieldType(Input, "objects"), objects),
+        .execute = execute,
+        .io = requirements.io,
+        .process = requirements.process,
     };
 
-    return @import("../../render.zig").renderStored(allocator, builder.nodes, selected);
-}
+    const valid = entry.executeValue(arena.allocator(), if (indirect) &input else input) catch |err| return failure(err);
 
-fn payload(comptime T: type) type {
-    return switch (@typeInfo(T)) {
-        .pointer => |pointer| if (pointer.size == .one) payload(pointer.child) else T,
-        .optional => |optional| payload(optional.child),
-        else => T,
-    };
+    if (!valid) return error.OutOfMemory;
+
+    return writer.finish();
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

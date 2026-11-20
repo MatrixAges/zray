@@ -1,4 +1,5 @@
 import context from "../../../ast/context/initialize"
+import declarations from "../../../ast/declarations/builder/initialize"
 
 import type { Input, State as Output } from "./model"
 
@@ -10,7 +11,7 @@ export default function (in: Input): Output {
         field_values: [],
         field_defaults: [],
         field_comptime: [],
-        constants: [],
+        declarations: declarations(0),
         optional_type: []
     }
 }

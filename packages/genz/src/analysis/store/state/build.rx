@@ -1,86 +1,92 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Input} out={State.Output} />
+    <Args in={State.Input} out={bool} />
 
     <Call fn="initialize" in={$in} />
 
-    <Task name="storage" out={$ctx.build}>
+    <Task name="storage" out={$ctx.render_part}>
         <Call module="../storage/build" in={$ctx.initialize} />
+
+        <Call
+            module="render_part"
+            in={{
+                snapshot: $ctx.build,
+                writer: $in.writer
+            }}
+        />
     </Task>
 
-    <If on={!$ctx.task.storage.valid}>
-        <Call fn="invalid" in={{}} />
-
-        <Return value={$ctx.invalid} />
+    <If on={!$ctx.task.storage}>
+        <Return value={false} />
     </If>
 
-    <Call
-        fn="after_storage"
-        in={{
-            source: $in,
-            storage: $ctx.task.storage
-        }}
-    />
+    <Task name="lifecycle" out={$ctx.render_part}>
+        <Call
+            module="../lifecycle/build"
+            in={{
+                objects: $in.objects,
+                bases: $ctx.initialize.bases
+            }}
+        />
 
-    <Task name="lifecycle" out={$ctx.build}>
-        <Call module="../lifecycle/build" in={$ctx.after_storage} />
+        <Call
+            module="render_part"
+            in={{
+                snapshot: $ctx.build,
+                writer: $in.writer
+            }}
+        />
     </Task>
 
-    <If on={!$ctx.task.lifecycle.valid}>
-        <Call fn="invalid" in={{}} />
-
-        <Return value={$ctx.invalid} />
+    <If on={!$ctx.task.lifecycle}>
+        <Return value={false} />
     </If>
 
-    <Call
-        fn="after_lifecycle"
-        in={{
-            source: $in,
-            storage_count: $ctx.task.storage.declarations.tags.length,
-            lifecycle: $ctx.task.lifecycle
-        }}
-    />
+    <Task name="regions" out={$ctx.render_part}>
+        <Call
+            module="../regions/build"
+            in={{
+                objects: $in.objects,
+                bases: $ctx.initialize.bases,
+                declaration_base: 0
+            }}
+        />
 
-    <Task name="regions" out={$ctx.build}>
-        <Call module="../regions/build" in={$ctx.after_lifecycle} />
+        <Call
+            module="render_part"
+            in={{
+                snapshot: $ctx.build,
+                writer: $in.writer
+            }}
+        />
     </Task>
 
-    <If on={!$ctx.task.regions.valid}>
-        <Call fn="invalid" in={{}} />
-
-        <Return value={$ctx.invalid} />
+    <If on={!$ctx.task.regions}>
+        <Return value={false} />
     </If>
 
-    <Call
-        fn="after_regions"
-        in={{
-            source: $in,
-            storage_count: $ctx.task.storage.declarations.tags.length,
-            lifecycle_count: $ctx.task.lifecycle.declarations.tags.length,
-            regions: $ctx.task.regions
-        }}
-    />
+    <Task name="request" out={$ctx.render_part}>
+        <Call
+            module="../request/build"
+            in={{
+                objects: $in.objects,
+                bases: $ctx.initialize.bases,
+                declaration_base: 0,
+                execute: $in.execute,
+                io: $in.io,
+                process: $in.process
+            }}
+        />
 
-    <Task name="request" out={$ctx.build}>
-        <Call module="../request/build" in={$ctx.after_regions} />
+        <Call
+            module="render_part"
+            in={{
+                snapshot: $ctx.build,
+                writer: $in.writer
+            }}
+        />
     </Task>
 
-    <If on={!$ctx.task.request.valid}>
-        <Call fn="invalid" in={{}} />
-
-        <Return value={$ctx.invalid} />
-    </If>
-
-    <Call
-        fn="publish"
-        in={{
-            storage: $ctx.task.storage,
-            lifecycle: $ctx.task.lifecycle,
-            regions: $ctx.task.regions,
-            request: $ctx.task.request
-        }}
-    />
-
-    <Return value={$ctx.publish} />
+    <Return value={$ctx.task.request} />
 </Module>

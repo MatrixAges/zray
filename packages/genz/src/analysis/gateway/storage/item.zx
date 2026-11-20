@@ -4,6 +4,7 @@ import field from "../../../ast/context/field"
 import identifier from "../../../ast/context/identifier"
 import importPath from "../../../ast/context/import_path"
 import nullValue from "../../../ast/context/null_value"
+import constant from "../../../ast/declarations/builder/constant"
 import optionalType from "../../../ast/expressions/optional_type"
 import integer from "../../../printer/text/integer"
 import { initial_prefix } from "../../store/lifecycle/const"
@@ -61,12 +62,13 @@ export default function (in: Input): Output {
         ...in.state,
         context: context.state,
         optional_type: optional.table.optional_type,
-        constants: in.state.constants.push({
+        declarations: constant({
+            state: in.state.declarations,
             name,
             value: imported.id,
             type_expr: null,
             exported: false
-        })[0],
+        }),
         field_names: in.state.field_names.push(slotName(in.index))[0],
         field_values: in.state.field_values.push(optional.id)[0],
         field_defaults: in.state.field_defaults.push(context.id)[0],

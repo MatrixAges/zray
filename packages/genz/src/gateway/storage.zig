@@ -1,6 +1,5 @@
 const std = @import("std");
-const node = @import("../node.zig");
-const Builder = @import("../builder.zig");
+const zx = @import("zx");
 
 pub fn render(allocator: std.mem.Allocator, modules: []const []const u8) std.mem.Allocator.Error![]u8 {
     if (comptime !@import("genz_options").generated_analysis) return @import("storage_seed.zig").render(allocator, modules);
@@ -9,36 +8,25 @@ pub fn render(allocator: std.mem.Allocator, modules: []const []const u8) std.mem
 
     defer arena.deinit();
 
-    const builder = try Builder.init(arena.allocator());
-    const entry = @import("generated_gateway_storage");
-    const Input = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
-    const Bases = std.meta.Child(@FieldType(Input, "bases"));
+    var writer: zx.memory.ByteWriter = .{ .allocator = allocator };
 
-    const bases: Bases = .{
-        .capture = null,
-        .expression_base = @intCast(builder.nodes.expressions.tags.items.len),
-        .statement_base = @intCast(builder.nodes.statements.tags.items.len),
-        .field_base = @intCast(builder.nodes.field_columns.count()),
-        .serial = 0,
+    defer writer.deinit();
+
+    const entry = @import("generated_gateway_storage");
+    const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
+    const indirect = @typeInfo(Parameter) == .pointer;
+    const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
+
+    const input: Input = .{
+        .writer = @ptrCast(&writer),
+        .modules = modules,
     };
 
-    const input: Input = .{ .bases = &bases, .modules = modules };
-    const output = entry.executeValue(builder.allocator, input) catch |err| return failure(err);
+    const valid = entry.executeValue(arena.allocator(), if (indirect) &input else input) catch |err| return failure(err);
 
-    if (!output.valid) return error.OutOfMemory;
+    if (!valid) return error.OutOfMemory;
 
-    const Value = @TypeOf(output);
-    const Module = if (@typeInfo(Value) == .pointer) std.meta.Child(Value) else Value;
-
-    @import("../node/import_module.zig").appendBorrowed(builder.allocator, builder.nodes, Module, output) catch |err| return failure(err);
-
-    const Constants = @TypeOf(output.constants);
-    const constants = if (@typeInfo(Constants) == .@"struct") output.constants.items else output.constants;
-    var declarations: std.ArrayList(node.Declaration) = .empty;
-
-    @import("../node/import_constants.zig").appendValuesBorrowingText(builder.allocator, &declarations, constants) catch |err| return failure(err);
-
-    return @import("../render.zig").render(allocator, builder.nodes, declarations.items);
+    return writer.finish();
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

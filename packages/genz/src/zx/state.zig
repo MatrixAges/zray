@@ -29,9 +29,9 @@ fn renderConfigured(allocator: std.mem.Allocator, objects: []const Object, requi
     const builder = try @import("../builder.zig").init(temporary);
     var declarations: std.ArrayList(@import("../node.zig").Declaration) = .empty;
 
-    try @import("state/storage.zig").lower(builder, &declarations, objects);
-    try @import("state/lifecycle.zig").lower(builder, &declarations, objects);
-    try @import("state/request.zig").lower(builder, &declarations, objects, requirements, execute);
+    try @import("state/storage_seed.zig").lower(builder, &declarations, objects);
+    try @import("state/lifecycle_seed.zig").lower(builder, &declarations, objects);
+    try @import("state/request_seed.zig").lower(builder, &declarations, objects, requirements, execute);
 
     return @import("../render.zig").render(allocator, builder.nodes, declarations.items);
 }

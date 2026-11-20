@@ -1,0 +1,48 @@
+import integers from "std:integer"
+
+import type { Source as Output } from "../../../printer/model"
+import type { Fragment as Input } from "./model"
+
+export default function (in: Input): Output {
+    const snapshot = in.snapshot
+    const declarations = snapshot.declarations
+    const roots = snapshot.roots
+    const all = roots.length == 0
+    const length = integers.narrow(declarations.tags.length)
+
+    const selected = loop({
+        tags: declarations.tags,
+        offsets: declarations.offsets,
+        index: 0
+    }, {
+        while: current => current.index < roots.length,
+        next: current => {
+            const root = integers.widen(roots[current.index])
+
+            current.tags = current.tags.push(declarations.tags[root])[0]
+            current.offsets = current.offsets.push(declarations.offsets[root])[0]
+            current.index += 1
+        },
+        return: current => current.omit(["index"])
+    })
+
+    return {
+        ...snapshot.pick([
+            "expressions",
+            "statements",
+            "fields"
+        ]),
+        declarations: {
+            ...declarations,
+            tags: selected.tags,
+            offsets: selected.offsets
+        },
+        arms: {
+            value: [],
+            capture: [],
+            result: []
+        },
+        first: all ? 0 : length,
+        count: all ? length : integers.narrow(roots.length)
+    }
+}
