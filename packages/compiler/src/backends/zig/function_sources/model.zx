@@ -4,7 +4,8 @@ export type Disk = {
     kinds: ReadColumn,
     stored: u8,
     invalid: u8,
-    failed: u8
+    failed: u8,
+    writer_active: bool
 }
 
 export type Lookup = {
@@ -25,9 +26,11 @@ export type Output = {
     pending: u64,
     size: u64,
     stored: u64,
+    held: u64,
     discarded: u64,
     failures: u64,
-    last_failure?: u64
+    last_failure?: u64,
+    ordered: bool
 }
 
 export type Copy = {

@@ -12,7 +12,7 @@ export default function (in: Input): Output {
 
     const first_failure: u64? = null
 
-    return loop({
+    const result = loop({
         index: 0,
         reused: 0,
         pending: 0,
@@ -60,15 +60,25 @@ export default function (in: Input): Output {
             }
 
             state.index += 1
-        },
-        return: state => ({
-            reused: state.reused,
-            pending: state.pending,
-            size: state.size,
-            stored: state.stored,
-            discarded: state.discarded,
-            failures: state.failures,
-            last_failure: state.last_failure
-        })
+        }
     })
+
+    const has_ordered_error = (
+        - result.stored != 0
+        - and result.last_failure != null
+    )
+
+    const ordered = disk != null && disk.writer_active && has_ordered_error
+
+    return {
+        reused: result.reused,
+        pending: result.pending,
+        size: result.size,
+        stored: result.stored,
+        held: result.reused - result.stored,
+        discarded: result.discarded,
+        failures: result.failures,
+        last_failure: result.last_failure,
+        ordered
+    }
 }

@@ -5,11 +5,13 @@ const Batch = @import("batch.zig");
 const function_sources = @import("function_sources.zig");
 const indexing = @import("generated_regular_calls_index");
 const scanning = @import("generated_regular_calls_scan");
+const ranging = @import("generated_regular_calls_ranges");
 const selection = @import("generated_regular_calls_select");
 const publication = @import("generated_regular_calls_publish");
 const BuildInput = std.meta.Child(indexing.Input);
 const ScanInput = std.meta.Child(scanning.Input);
 const Sources = std.meta.Child(@FieldType(ScanInput, "sources"));
+const Ranges = std.meta.Child(@FieldType(ScanInput, "ranges"));
 const Table = std.meta.Child(@FieldType(BuildInput, "table"));
 const Candidates = std.meta.Child(@FieldType(BuildInput, "candidates"));
 
@@ -52,16 +54,19 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
     const cells: [][]u8 = &rows;
     const initial_sources = zx.memory.borrowTextColumn("source", initializers);
     var inputs: Sources = .{ .roots = roots, .initializers = @ptrCast(&initial_sources), .initializer_count = initializers.len, .functions = sources };
+    var first = true;
 
     while (true) {
-        var scan = Scan{ .sources = &inputs, .table = &table, .wanted = @ptrCast(&cells) };
+        const range_request: std.meta.Child(ranging.Input) = .{ .sources = &inputs, .first = first };
+        const ranges = zx.columns.invoke(ranging.executeValue, fixed, &range_request) catch |err| return failure(err);
+        var scan = Scan{ .sources = &inputs, .ranges = zx.columns.view(Ranges, ranges), .table = &table, .wanted = @ptrCast(&cells) };
 
         try scan.run();
 
         const request: std.meta.Child(selection.Input) = .{ .candidates = &candidates, .wanted = @ptrCast(&cells), .count = count, .regular = @ptrCast(&flags), .positions = @ptrCast(&positions) };
         const selected = zx.columns.invoke(selection.executeValue, fixed, &request) catch |err| return failure(err);
 
-        if (selected.ready == 0) return;
+        if (selected.wave == .Converged) return;
 
         const ready = positions[0..@intCast(selected.ready)];
         const regenerated = try function_sources.createJobs(owned, .{ .batch = batch, .functions = units, .positions = ready });
@@ -69,24 +74,23 @@ pub fn complete(owned: std.mem.Allocator, batch: *const Batch, roots: []const []
 
         zx.columns.invoke(publication.executeValue, fixed, &publish) catch |err| return failure(err);
 
+        if (selected.wave == .Publish) return;
+
         count = selected.pending;
-
-        if (count == 0) return;
-
-        inputs.roots = &.{};
-        inputs.initializer_count = 0;
+        first = false;
         inputs.functions = regenerated;
     }
 }
 
 const Scan = struct {
     sources: *const Sources,
+    ranges: Ranges,
     table: *const Table,
     wanted: *const anyopaque,
     next: std.atomic.Value(usize) = .init(0),
     error_code: std.atomic.Value(u16) = .init(0),
     fn run(self: *Scan) std.mem.Allocator.Error!void {
-        const count = self.sources.roots.len + self.sources.initializer_count + self.sources.functions.len;
+        const count: usize = @intCast(self.ranges.end);
 
         if (count == 0) return;
 
@@ -98,14 +102,14 @@ const Scan = struct {
     }
     fn work(self: *Scan, _: usize) void {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const count = self.sources.roots.len + self.sources.initializer_count + self.sources.functions.len;
+        const count: usize = @intCast(self.ranges.end);
 
         while (self.error_code.load(.monotonic) == 0) {
             const position = self.next.fetchAdd(1, .monotonic);
 
             if (position >= count) return;
 
-            const input: ScanInput = .{ .sources = self.sources, .position = position, .table = zx.columns.pointer(@FieldType(ScanInput, "table"), self.table), .wanted = @ptrCast(self.wanted) };
+            const input: ScanInput = .{ .sources = self.sources, .ranges = &self.ranges, .position = position, .table = zx.columns.pointer(@FieldType(ScanInput, "table"), self.table), .wanted = @ptrCast(self.wanted) };
 
             zx.columns.invoke(scanning.executeValue, empty.allocator(), &input) catch |err| {
                 const problem = failure(err);

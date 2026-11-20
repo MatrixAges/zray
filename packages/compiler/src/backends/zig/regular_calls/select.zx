@@ -2,13 +2,14 @@ import bytes from "std:bytes"
 import memory from "memory"
 
 import { marked } from "./const"
+import { Wave } from "./model"
 
 import type { Selection as Input, Selected as Output } from "./model"
 
 export default function (in: Input): Output {
     const { pending, groups } = in.candidates
 
-    return loop({
+    const result = loop({
         read: 0,
         pending: 0,
         ready: 0
@@ -32,10 +33,18 @@ export default function (in: Input): Output {
             }
 
             current.read += 1
-        },
-        return: current => current.pick([
-            "pending",
-            "ready"
-        ])
+        }
     })
+
+    const wave = match {
+        result.ready == 0 => Wave.Converged,
+        result.pending == 0 => Wave.Publish,
+        _ => Wave.Rescan
+    }
+
+    return {
+        pending: result.pending,
+        ready: result.ready,
+        wave
+    }
 }

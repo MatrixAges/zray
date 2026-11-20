@@ -4,6 +4,7 @@ const Batch = @import("batch.zig");
 const Cache = @import("cache.zig");
 const publication = @import("function_sources/publication.zig");
 const generated = @import("parser_options").generated_parser;
+const zx = @import("zx");
 /// One unit to generate and the batch whose program and facts it comes from.
 const Job = struct { batch: *const Batch, unit: generating.Unit };
 
@@ -20,7 +21,7 @@ pub const Jobs = struct {
 
         return self.entries.len + @intFromBool(self.types) + functions;
     }
-    fn at(self: Jobs, position: usize) Job {
+    fn seedAt(self: Jobs, position: usize) Job {
         if (position < self.entries.len) return .{ .batch = &self.entries[position], .unit = .entry };
 
         const offset = position - self.entries.len;
@@ -34,9 +35,47 @@ pub const Jobs = struct {
     }
 };
 
+const Dispatch = struct {
+    const rule = if (generated) @import("generated_function_sources_job") else void;
+    const Input = if (generated) std.meta.Child(rule.Input) else void;
+
+    jobs: Jobs,
+    ids: if (generated) zx.memory.ReadColumn else void,
+    regular: if (generated) zx.memory.ReadColumn else void,
+    fn init(jobs: Jobs) Dispatch {
+        return .{
+            .jobs = jobs,
+            .ids = if (generated) zx.memory.borrowReadColumn(zx.ir.FunctionId, "id", jobs.functions) else {},
+            .regular = if (generated) zx.memory.borrowReadColumn(bool, "regular", jobs.functions) else {},
+        };
+    }
+    fn at(self: *const Dispatch, position: usize) Job {
+        const jobs = &self.jobs;
+
+        if (comptime !generated) return jobs.seedAt(position);
+
+        const functions: std.meta.Child(@FieldType(Input, "functions")) = .{
+            .ids = @ptrCast(&self.ids),
+            .regular = @ptrCast(&self.regular),
+            .count = jobs.functions.len,
+        };
+
+        const input: Input = .{ .entries = jobs.entries.len, .types = jobs.types, .functions = &functions, .selected = jobs.positions, .position = position };
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+        const route = zx.columns.invoke(rule.executeValue, fixed.allocator(), &input) catch unreachable;
+
+        return switch (route.kind) {
+            .Entry => .{ .batch = &jobs.entries[@intCast(route.index)], .unit = .entry },
+            .Types => .{ .batch = jobs.batch, .unit = .types },
+            .Function => .{ .batch = jobs.batch, .unit = .{ .function = @fromBackingInt(@intCast(route.index)) } },
+            .Regular => .{ .batch = jobs.batch, .unit = .{ .regular = @fromBackingInt(@intCast(route.index)) } },
+        };
+    }
+};
+
 /// Identifies every unit and fetches its cached source.
 const Search = struct {
-    jobs: Jobs,
+    dispatch: *const Dispatch,
     lookups: []Batch.Lookup,
     fetched: []Cache.Fetched,
     next: std.atomic.Value(usize) = .init(0),
@@ -45,7 +84,7 @@ const Search = struct {
         while (self.failure.load(.monotonic) == 0) {
             const position = self.next.fetchAdd(1, .monotonic);
 
-            if (position >= self.jobs.count()) return;
+            if (position >= self.lookups.len) return;
 
             self.step(arena.allocator(), position) catch |err| {
                 _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
@@ -55,7 +94,7 @@ const Search = struct {
         }
     }
     fn step(self: *Search, allocator: std.mem.Allocator, position: usize) generating.Error!void {
-        const job = self.jobs.at(position);
+        const job = self.dispatch.at(position);
         const cache = job.batch.cache orelse return;
         const found = try job.batch.identify(allocator, job.unit);
         self.lookups[position] = found;
@@ -65,7 +104,7 @@ const Search = struct {
 
 /// Generates every unit no cached source covers.
 const Work = struct {
-    jobs: Jobs,
+    dispatch: *const Dispatch,
     pending: ?[]const u64,
     results: []publication.Result,
     next: std.atomic.Value(usize) = .init(0),
@@ -85,7 +124,7 @@ const Work = struct {
             if (position >= self.results.len) return;
 
             defer _ = scratch.reset(.{ .retain_with_limit = 32 << 20 });
-            const job = self.jobs.at(if (self.pending) |positions| @intCast(positions[position]) else position);
+            const job = self.dispatch.at(if (self.pending) |positions| @intCast(positions[position]) else position);
 
             self.results[position].source = generate(job, arena.allocator(), scratch.allocator(), &types) catch |err| {
                 _ = self.failure.cmpxchgStrong(0, @intFromError(err), .monotonic, .monotonic);
@@ -114,27 +153,29 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
-    const sources = try owned.alloc([]const u8, jobs.count());
-    const arenas = try temporary.alloc(std.heap.ArenaAllocator, @import("zx").parallel.width());
+    const count = jobs.count();
+    const dispatch = Dispatch.init(jobs);
+    const sources = try owned.alloc([]const u8, count);
+    const arenas = try temporary.alloc(std.heap.ArenaAllocator, zx.parallel.width());
 
     for (arenas) |*arena| arena.* = .init(std.heap.smp_allocator);
 
     defer for (arenas) |*arena| arena.deinit();
 
     const cache = jobs.batch.cache orelse {
-        try produce(owned, temporary, jobs, null, null, arenas, sources);
+        try produce(owned, temporary, &dispatch, null, null, arenas, sources);
 
         return sources;
     };
 
-    var search = Search{ .jobs = jobs, .lookups = try temporary.alloc(Batch.Lookup, jobs.count()), .fetched = try temporary.alloc(Cache.Fetched, jobs.count()) };
+    var search = Search{ .dispatch = &dispatch, .lookups = try temporary.alloc(Batch.Lookup, count), .fetched = try temporary.alloc(Cache.Fetched, count) };
 
     @memset(search.fetched, .{});
     errdefer for (search.fetched) |fetched| cache.releaseFetched(fetched);
 
-    try spread(Search, &search, arenas[0..@min(arenas.len, jobs.count())]);
+    try spread(Search, &search, arenas[0..@min(arenas.len, count)]);
 
-    const plan = try @import("function_sources_plan.zig").create(temporary, search.fetched, cache.storage != null);
+    const plan = try @import("function_sources_plan.zig").create(temporary, search.fetched, cache);
 
     // Copy borrowed cache bytes before record can replace and release cache entries.
     if (comptime generated) {
@@ -149,14 +190,14 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
         try recordFetched(cache, search.lookups, search.fetched);
     }
 
-    try produce(owned, temporary, jobs, plan.pending, search.lookups, arenas, sources);
+    try produce(owned, temporary, &dispatch, plan.pending, search.lookups, arenas, sources);
 
     return sources;
 }
 
 fn recordSearch(cache: *Cache, search: *Search, plan: @import("function_sources_plan.zig").Plan) std.mem.Allocator.Error!void {
     // The first disk adoption joins a pending writer, which can replace the last I/O error.
-    if (cache.writer != null and plan.stored.len != 0 and plan.last_failure != null) {
+    if (plan.ordered) {
         return recordFetched(cache, search.lookups, search.fetched);
     }
 
@@ -174,7 +215,7 @@ fn recordSearch(cache: *Cache, search: *Search, plan: @import("function_sources_
         };
     }
 
-    cache.reused += plan.reused.len - plan.stored.len;
+    cache.reused += plan.held;
     cache.discarded += plan.discarded;
     cache.io_errors += plan.failures;
 
@@ -185,10 +226,10 @@ fn recordFetched(cache: *Cache, lookups: []const Batch.Lookup, results: []Cache.
     for (lookups, results) |found, *fetched| _ = try cache.record(found.name, found.key, fetched);
 }
 
-fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: Jobs, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
-    const count = if (pending) |positions| positions.len else jobs.count();
+fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, dispatch: *const Dispatch, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
+    const count = if (pending) |positions| positions.len else sources.len;
     const results = try temporary.alloc(publication.Result, count);
-    var work = Work{ .jobs = jobs, .pending = pending, .results = results };
+    var work = Work{ .dispatch = dispatch, .pending = pending, .results = results };
 
     if (generated and pending != null) @memset(results, .{ .source = null });
 
@@ -212,7 +253,7 @@ fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: Jobs, p
 
     if (pending) |positions| {
         for (positions, results) |position, *result| {
-            const cache = jobs.batch.cache.?;
+            const cache = dispatch.jobs.batch.cache.?;
             const found = lookups.?[position];
 
             if (comptime generated) {
@@ -221,7 +262,7 @@ fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, jobs: Jobs, p
                 try cache.putShared(found.name, found.key, @constCast(result.source.?));
 
                 result.source = null;
-            } else try jobs.batch.remember(found, sources[position]);
+            } else try dispatch.jobs.batch.remember(found, sources[position]);
         }
     }
 }
@@ -240,7 +281,7 @@ pub fn spread(comptime Task: type, task: *Task, arenas: []std.heap.ArenaAllocato
 
     var shared = Shared{ .task = task, .arenas = arenas };
 
-    @import("zx").parallel.spread(Shared, &shared, Shared.run, arenas.len);
+    zx.parallel.spread(Shared, &shared, Shared.run, arenas.len);
 
     if (task.failure.load(.monotonic) != 0) return @errorCast(@errorFromInt(task.failure.load(.monotonic)));
 }

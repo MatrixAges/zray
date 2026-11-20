@@ -1,28 +1,25 @@
 import memory from "memory"
 
-import type { Scan, Sources } from "./model"
+import type { Ranges, Scan, Sources } from "./model"
 
 export type Input = Scan.Omit("source") & {
     sources: Sources,
+    ranges: Ranges,
     position: u64
 }
 
 export type Output = string
 
 export default function (in: Input): Output {
-    const { sources, position } = in
+    const { sources, position, ranges } = in
 
-    const first = sources.roots.length
-
-    if (position < first) {
+    if (position < ranges.roots) {
         return sources.roots[position]
     }
 
-    const later = position - first
-
-    if (later < sources.initializer_count) {
-        return memory.readTextColumn(sources.initializers, later)
+    if (position < ranges.initializers) {
+        return memory.readTextColumn(sources.initializers, position - ranges.roots)
     }
 
-    return sources.functions[later - sources.initializer_count]
+    return sources.functions[position - ranges.initializers]
 }

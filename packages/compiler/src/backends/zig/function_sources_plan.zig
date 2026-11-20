@@ -12,12 +12,14 @@ pub const Plan = struct {
     offsets: []const u64,
     size: usize,
     stored: []const u64 = &.{},
+    held: usize = 0,
     discarded: usize = 0,
     failures: usize = 0,
     last_failure: ?usize = null,
+    ordered: bool = false,
 };
 
-pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, persistent: bool) std.mem.Allocator.Error!Plan {
+pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, cached: *const Cache) std.mem.Allocator.Error!Plan {
     if (comptime !@import("parser_options").generated_parser) return @import("function_sources_seed.zig").create(allocator, fetched);
 
     const count = fetched.len;
@@ -35,10 +37,11 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, pers
         .stored = @backingInt(Cache.Fetched.Kind.stored),
         .invalid = @backingInt(Cache.Fetched.Kind.invalid),
         .failed = @backingInt(Cache.Fetched.Kind.failed),
+        .writer_active = cached.writer != null,
     };
 
     const lookup: Lookup = .{
-        .disk = if (persistent) &disk else null,
+        .disk = if (cached.storage != null) &disk else null,
         .reused = @ptrCast(&reused),
         .pending = @ptrCast(&pending),
     };
@@ -52,9 +55,11 @@ pub fn create(allocator: std.mem.Allocator, fetched: []const Cache.Fetched, pers
         .offsets = offsets[0..hits],
         .size = std.math.cast(usize, output.size) orelse return error.OutOfMemory,
         .stored = pending[count - @as(usize, @intCast(output.stored)) ..],
+        .held = @intCast(output.held),
         .discarded = @intCast(output.discarded),
         .failures = @intCast(output.failures),
         .last_failure = if (output.last_failure) |index| @intCast(index) else null,
+        .ordered = output.ordered,
     };
 }
 

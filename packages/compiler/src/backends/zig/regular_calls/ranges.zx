@@ -1,0 +1,19 @@
+import type { Ranges as Output, Sources } from "./model"
+
+export type Input = {
+    sources: Sources,
+    first: bool
+}
+
+export default function (in: Input): Output {
+    const { sources } = in
+
+    const roots = in.first ? sources.roots.length : 0
+    const initializers = in.first ? roots + sources.initializer_count : 0
+
+    return {
+        roots,
+        initializers,
+        end: initializers + sources.functions.length
+    }
+}
