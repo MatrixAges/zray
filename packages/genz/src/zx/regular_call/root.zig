@@ -1,4 +1,3 @@
-const std = @import("std");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const seed = @import("seed.zig");
@@ -18,7 +17,10 @@ pub fn lower(self: *Lower, invocation: seed.Operation) Lower.Error!node.Expressi
 
     const plan = selected.regular.?;
     const function = self.program.functions.at(@backingInt(invocation.function));
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     const allocator = try self.builder.identifier("allocator");
 
     const argument = switch (plan.argument) {
@@ -54,5 +56,7 @@ pub fn lower(self: *Lower, invocation: seed.Operation) Lower.Error!node.Expressi
         result = try conversion.convert(self, &body, function.output_type, result, .value);
     }
 
-    return if (body.items.len == 0) result else try aggregate.finish(self, &body, result);
+    const block = try body.finish(self.allocator);
+
+    return if (block.len == 0) result else try aggregate.finishStored(self, block, result, null);
 }

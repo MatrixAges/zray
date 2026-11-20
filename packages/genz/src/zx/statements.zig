@@ -74,10 +74,15 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
 
                 if (task) break :binding_block try @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false);
 
-                const borrowed = try locals.optionalCall(self, &output, binding.symbol, binding.value, self.program.output_type);
+                var sequence = self.builder.statementSequence(self.workspace);
+
+                defer if (generated) sequence.deinit();
+
+                const local = if (generated) &sequence else &output;
+                const borrowed = try locals.optionalCall(self, local, binding.symbol, binding.value, self.program.output_type);
                 const value = borrowed orelse if (self.stack_symbols.contains(binding.symbol)) try @import("value_call/root.zig").expression(self, binding.value) else try self.expr(binding.value);
 
-                break :binding_block try @import("binding.zig").publish(self, &output, .{
+                break :binding_block try @import("binding.zig").publish(self, local, .{
                     .symbol = binding.symbol,
                     .value = value,
                     .by_value = self.stack_symbols.contains(binding.symbol),

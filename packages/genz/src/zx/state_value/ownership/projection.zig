@@ -6,7 +6,7 @@ const Lower = @import("../../lower.zig");
 const rows = @import("../../../node/import_rows.zig");
 const view = @import("../../../node/view.zig");
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32, required: bool) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32, required: bool) Lower.Error!node.ExpressionId {
     const planner = @import("generated_ownership_projection_plan");
     const PlanInput = std.meta.Child(planner.Input);
     const Outline = std.meta.Child(@FieldType(PlanInput, "source"));
@@ -95,8 +95,6 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
         }
     }
 
-    try appendBody(self, body, output.binding);
-
     const statements = view.join(result.statements.*, result.variables.*);
     const storage = view.join(result.storage.*, result.variables.*);
     @import("../../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return imported(err);
@@ -109,6 +107,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
         try self.task_declarations.appendFunction(self.allocator, declaration.columns, parameters.start);
     }
 
+    try appendBody(self, body, output.binding);
     try appendBody(self, body, output.body);
 
     self.serial = @intCast(result.serial);
@@ -116,7 +115,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
     return @fromBackingInt(output.root);
 }
 
-fn appendBody(self: *Lower, target: *std.ArrayList(node.Statement), source: anytype) Lower.Error!void {
+fn appendBody(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
     const statements = view.join(source.statements.*, source.variables.*);
     const importing = @import("../../../node/import_statements.zig");
 

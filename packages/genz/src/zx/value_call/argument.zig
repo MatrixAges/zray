@@ -11,7 +11,7 @@ const generated = @import("genz_options").generated_analysis;
 const routing = if (generated) @import("generated_value_argument_route") else void;
 const Route = if (generated) @typeInfo(@typeInfo(@TypeOf(routing.executeValue)).@"fn".return_type.?).error_union.payload else enum { Existing, Object, Tuple, Call };
 
-pub fn borrow(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Lower.Error!node.ExpressionId {
+pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.ExpressionId {
     switch (route(self, id)) {
         .Object => return object(self, body, id),
         .Tuple => {
@@ -95,7 +95,7 @@ fn route(self: *const Lower, id: ir.ExprId) Route {
     return zx.columns.invoke(routing.executeValue, storage.allocator(), &input) catch unreachable;
 }
 
-fn object(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Lower.Error!node.ExpressionId {
+fn object(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const expression = self.program.expression(id);
     const value = expression.value.object;
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -152,7 +152,7 @@ fn object(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Low
     } });
 }
 
-fn existing(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Lower.Error!node.ExpressionId {
+fn existing(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const value = try self.expr(id);
     const type_id = self.program.expression(id).type_id;
 

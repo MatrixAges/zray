@@ -7,6 +7,7 @@ const generated = @import("genz_options").generated_analysis;
 const seed = @import("seed.zig");
 const policy = @import("policy.zig");
 const emission = @import("emission.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 pub const analysis = @import("analysis.zig");
 pub const functions = analysis.functions;
 pub const containsDescendant = analysis.containsDescendant;
@@ -41,28 +42,32 @@ pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
 pub fn invocation(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
     if (!generated) return seed.invocation(self, value);
 
-    var body: std.ArrayList(node.Statement) = .empty;
-    const result = try lowerInvocation(self, &body, value, false, .layout);
-
-    return emission.emit(self, &body, .Block, .{ .value = result });
-}
-
-pub fn borrowInvocation(self: *Lower, body: *std.ArrayList(node.Statement), value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
-    if (!generated) return seed.borrowInvocation(self, body, value);
-
-    return lowerInvocation(self, body, value, true, .layout);
+    return invokeBlock(self, value, .layout);
 }
 
 pub fn pointerInvocation(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
     if (!generated) return seed.pointerInvocation(self, value);
 
-    var body: std.ArrayList(node.Statement) = .empty;
-    const result = try lowerInvocation(self, &body, value, false, .pointer);
-
-    return emission.emit(self, &body, .Block, .{ .value = result });
+    return invokeBlock(self, value, .pointer);
 }
 
-fn lowerInvocation(self: *Lower, body: *std.ArrayList(node.Statement), value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), borrowed: bool, result_mode: @import("../state_value/conversion.zig").Mode) Lower.Error!node.ExpressionId {
+pub fn borrowInvocation(self: *Lower, body: if (generated) *Sequence else *std.ArrayList(node.Statement), value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
+    if (!generated) return seed.borrowInvocation(self, body, value);
+
+    return lowerInvocation(self, body, value, true, .layout);
+}
+
+fn invokeBlock(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), result_mode: @import("../state_value/conversion.zig").Mode) Lower.Error!node.ExpressionId {
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
+    const result = try lowerInvocation(self, &body, value, false, result_mode);
+
+    return aggregate.finish(self, &body, result);
+}
+
+fn lowerInvocation(self: *Lower, body: *Sequence, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), borrowed: bool, result_mode: @import("../state_value/conversion.zig").Mode) Lower.Error!node.ExpressionId {
     const plan = policy.invocation(self, value, borrowed, result_mode == .pointer);
     const function = self.program.functions.at(@backingInt(value.function));
 
@@ -79,7 +84,7 @@ fn lowerInvocation(self: *Lower, body: *std.ArrayList(node.Statement), value: @F
     }
 
     if (plan.transition) {
-        argument = try emission.emit(self, body, .Bind, .{ .value = argument });
+        argument = try aggregate.bind(self, body, argument);
         argument = try @import("../state_value/conversion.zig").convert(self, body, function.input_type, argument, if (plan.input_value) .value else .borrow);
     }
 

@@ -5,7 +5,7 @@ const Lower = @import("../lower.zig");
 const Form = enum { bind, block, guarded };
 pub const Guard = struct { condition: node.ExpressionId, fallback: node.ExpressionId };
 
-pub fn bind(self: *Lower, body: *std.ArrayList(node.Statement), value: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn bind(self: *Lower, body: anytype, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     return lower(self, .bind, body, value, null);
 }
 
@@ -17,7 +17,7 @@ pub fn finishGuarded(self: *Lower, body: node.Block, value: node.ExpressionId, g
     return lower(self, .guarded, body, value, guard);
 }
 
-fn lower(self: *Lower, comptime form: Form, body: if (form == .bind) *std.ArrayList(node.Statement) else node.Block, value: node.ExpressionId, guard: ?Guard) Lower.Error!node.ExpressionId {
+fn lower(self: *Lower, comptime form: Form, body: anytype, value: node.ExpressionId, guard: ?Guard) Lower.Error!node.ExpressionId {
     const generated = switch (form) {
         .bind => @import("generated_operand_binding"),
         .block => @import("generated_result_block"),

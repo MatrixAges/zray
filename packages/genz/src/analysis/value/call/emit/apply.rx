@@ -4,12 +4,6 @@
     <Args in={Emission.Work} out={Emission.Work} />
 
     <Switch on={$in.source.operation}>
-        <Case value={Emission.Operation.Bind}>
-            <Call fn="bind" in={$in} />
-
-            <Return value={$ctx.bind} />
-        </Case>
-
         <Case value={Emission.Operation.Invoke}>
             <Call module="invocation" in={$in} />
 
@@ -32,12 +26,6 @@
             <Call fn="conditional" in={$in} />
 
             <Return value={$ctx.conditional} />
-        </Case>
-
-        <Case value={Emission.Operation.Block}>
-            <Call fn="block" in={$in} />
-
-            <Return value={$ctx.block} />
         </Case>
     </Switch>
 </Module>

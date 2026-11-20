@@ -51,6 +51,16 @@ pub fn statements(self: Self, values: []const node.Statement) std.mem.Allocator.
     return self.nodes.block(self.allocator, values);
 }
 
+pub fn statementSequence(self: Self, scratch: std.mem.Allocator) @import("node/blocks.zig").Sequence {
+    return .{ .storage = self.nodes, .scratch = scratch };
+}
+
+pub fn finishStatements(self: Self, output: anytype) std.mem.Allocator.Error!node.Block {
+    if (@TypeOf(output) == *@import("node/blocks.zig").Sequence) return output.finish(self.allocator);
+
+    return self.statements(output.items);
+}
+
 pub fn publishStatements(self: Self, prefix: []const node.Statement, columns: anytype) std.mem.Allocator.Error!node.Block {
     const first = try self.statements(prefix);
     const table = &self.nodes.statements;

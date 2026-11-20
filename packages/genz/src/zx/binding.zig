@@ -55,7 +55,7 @@ fn after(self: *const Lower, declaration: Declaration) Plan {
     return zx.columns.invoke(after_rule.executeValue, memory.allocator(), &input) catch unreachable;
 }
 
-pub fn publish(self: *Lower, output: *std.ArrayList(node.Statement), declaration: Declaration) Lower.Error!node.Block {
+pub fn publish(self: *Lower, output: anytype, declaration: Declaration) Lower.Error!node.Block {
     const plan = after(self, declaration);
 
     const type_expr: ?node.ExpressionId = switch (plan.type_mode) {
@@ -92,5 +92,10 @@ pub fn publish(self: *Lower, output: *std.ArrayList(node.Statement), declaration
     var memory = std.heap.FixedBufferAllocator.init(&buffer);
     const rows = zx.columns.view(std.meta.Child(entry.Output), try zx.columns.invoke(entry.executeValue, memory.allocator(), &input));
 
-    return self.builder.publishStatements(output.items, &rows);
+    @import("../node/import_statements.zig").appendBorrowingText(self.allocator, output, &rows) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
+
+    return self.builder.finishStatements(output);
 }

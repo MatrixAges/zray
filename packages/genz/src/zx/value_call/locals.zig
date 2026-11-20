@@ -128,7 +128,7 @@ pub fn borrowed(self: *Lower, symbol: ir.SymbolId, value: ir.ExprId) Lower.Error
     return output.borrowed;
 }
 
-pub fn optionalCall(self: *Lower, body: *std.ArrayList(node.Statement), symbol: ir.SymbolId, value: ir.ExprId, boundary: ir.TypeId) Lower.Error!?node.ExpressionId {
+pub fn optionalCall(self: *Lower, body: if (generated) *@import("../../node/blocks.zig").Sequence else *std.ArrayList(node.Statement), symbol: ir.SymbolId, value: ir.ExprId, boundary: ir.TypeId) Lower.Error!?node.ExpressionId {
     if (!generated) return seed.optionalCall(self, body, symbol, value, boundary);
 
     const entry = @import("generated_value_local_optional");

@@ -5,6 +5,43 @@ const Storage = @import("storage.zig");
 const generated = @import("genz_options").generated_analysis;
 const Layout = struct { start: u64, count: u64, contiguous: bool };
 
+/// Collect committed statement spans in execution order.
+pub const Sequence = struct {
+    storage: *Storage,
+    scratch: std.mem.Allocator,
+    parts: std.MultiArrayList(node.Block) = .empty,
+    last: node.Block = .{},
+    pub fn deinit(self: *Sequence) void {
+        self.parts.deinit(self.scratch);
+    }
+    pub fn append(self: *Sequence, span: node.Block) std.mem.Allocator.Error!void {
+        if (span.len == 0) return;
+
+        if (self.last.len == 0) {
+            self.last = span;
+        } else if (self.last.start + self.last.len == span.start) {
+            self.last.len += span.len;
+        } else {
+            try self.parts.append(self.scratch, self.last);
+
+            self.last = span;
+        }
+    }
+
+    pub fn finish(self: *Sequence, allocator: std.mem.Allocator) std.mem.Allocator.Error!node.Block {
+        if (self.parts.len == 0) {
+            if (self.last.len == 0) return .{ .start = @intCast(self.storage.statements.tags.items.len) };
+            if (self.last.start + self.last.len == self.storage.statements.tags.items.len) return self.last;
+
+            return tail(allocator, self.storage, &.{self.last.start}, &.{self.last.len});
+        }
+
+        try self.parts.append(self.scratch, self.last);
+
+        return tail(allocator, self.storage, self.parts.items(.start), self.parts.items(.len));
+    }
+};
+
 /// The supplied spans refer to previously committed statements.
 pub fn join(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!node.Block {
     return collect(allocator, storage, starts, counts, false);

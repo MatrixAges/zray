@@ -21,7 +21,7 @@ pub fn bind(self: *Lower, scratch: std.mem.Allocator, body: *std.ArrayList(node.
     try emit(self, scratch, body, entry, &input);
 }
 
-pub fn retire(self: *Lower, scratch: std.mem.Allocator, body: *std.ArrayList(node.Statement), observation: Observation) Lower.Error!void {
+pub fn retire(self: *Lower, scratch: std.mem.Allocator, body: anytype, observation: Observation) Lower.Error!void {
     if (observation.evaluation.len == 0) return;
 
     if (!generated) {
@@ -45,7 +45,7 @@ pub fn retire(self: *Lower, scratch: std.mem.Allocator, body: *std.ArrayList(nod
     try emit(self, scratch, body, entry, &input);
 }
 
-fn emit(self: *Lower, scratch: std.mem.Allocator, body: *std.ArrayList(node.Statement), comptime entry: type, input: *const std.meta.Child(entry.Input)) Lower.Error!void {
+fn emit(self: *Lower, scratch: std.mem.Allocator, body: anytype, comptime entry: type, input: *const std.meta.Child(entry.Input)) Lower.Error!void {
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch);
     const output = zx.columns.invoke(entry.executeValue, memory.allocator(), input) catch |err| return failure(err);

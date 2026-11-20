@@ -11,11 +11,11 @@ const PlanningMode = @FieldType(PlanInput, "mode");
 const resources = @import("generated_state_conversion_resources");
 const ResourceInput = std.meta.Child(resources.Input);
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: anytype, id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     return lowerWithStorage(self, body, body, id, value, mode);
 }
 
-pub fn lowerWithStorage(self: *Lower, borrow_storage: *std.ArrayList(node.Statement), body: *std.ArrayList(node.Statement), id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
+pub fn lowerWithStorage(self: *Lower, borrow_storage: anytype, body: anytype, id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -127,7 +127,7 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, plan: *const Plan, value:
     };
 }
 
-pub fn apply(self: *Lower, borrow_storage: *std.ArrayList(node.Statement), body: *std.ArrayList(node.Statement), output: anytype) Lower.Error!node.ExpressionId {
+pub fn apply(self: *Lower, borrow_storage: anytype, body: anytype, output: anytype) Lower.Error!node.ExpressionId {
     if (!output.valid) return error.OutOfMemory;
 
     const expressions = view.join(output.expressions.*, output.forms.*);

@@ -12,7 +12,7 @@ pub const Source = union(enum) {
     object: struct { request: object_fields.Request, scratch: std.mem.Allocator },
 };
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), source: Source) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: anytype, source: Source) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) {
         const value = switch (source) {
             .value => |value| value,

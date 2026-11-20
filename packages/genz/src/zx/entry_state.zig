@@ -35,14 +35,17 @@ fn view(self: *Lower, state: node.Function) Lower.Error!node.Declaration {
     const input_type = try types.get(self, self.view_types, self.program.input_type);
     const prepared = try emit.prepare(self, state.parameters, input_type);
     const arguments = prepared.arguments;
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     arguments[1] = try conversion.convert(self, &body, self.program.input_type, arguments[1], .view_value);
 
     const result = try aggregate.bind(self, &body, try emit.call(self, state.name, arguments));
     const returned = try conversion.convert(self, &body, self.program.output_type, result, .view_layout);
     const output_type = try types.get(self, self.view_types, self.program.output_type);
     const references = try self.referenceBlock();
-    const values = try self.builder.statements(body.items);
+    const values = try body.finish(self.allocator);
     const ending = try emit.finish(self, state, returned, output_type);
 
     const statements = try @import("../node/blocks.zig").join(

@@ -4,6 +4,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const policy = @import("policy.zig");
 const view = @import("../../node/view.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const entry = @import("generated_value_call_emit");
 const Input = std.meta.Child(entry.Input);
 const Context = std.meta.Child(@FieldType(Input, "context"));
@@ -20,7 +21,7 @@ pub const Arguments = struct {
     plan: ?policy.Plan = null,
 };
 
-pub fn emit(self: *Lower, body: ?*std.ArrayList(node.Statement), operation: Operation, arguments: Arguments) Lower.Error!node.ExpressionId {
+pub fn emit(self: *Lower, body: ?*Sequence, operation: Operation, arguments: Arguments) Lower.Error!node.ExpressionId {
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -28,9 +29,7 @@ pub fn emit(self: *Lower, body: ?*std.ArrayList(node.Statement), operation: Oper
     defer scratch.deinit();
 
     const allocator = buffered.allocator();
-    const first: u32 = @intCast(self.builder.nodes.statements.tags.items.len);
-    const count: u32 = if (operation == .Block) @intCast(body.?.items.len) else 0;
-    const statement_base = std.math.add(u32, first, count) catch return error.OutOfMemory;
+    const statement_base: u32 = @intCast(self.builder.nodes.statements.tags.items.len);
     var boundary: Capture = undefined;
 
     const capture = if (self.capture) |captured| capture: {
@@ -57,8 +56,6 @@ pub fn emit(self: *Lower, body: ?*std.ArrayList(node.Statement), operation: Oper
         .condition = @backingInt(arguments.condition),
         .yes = @backingInt(arguments.yes),
         .no = @backingInt(arguments.no),
-        .body_first = first,
-        .body_count = count,
         .plan = if (arguments.plan != null) &plan else null,
     };
 
@@ -67,7 +64,6 @@ pub fn emit(self: *Lower, body: ?*std.ArrayList(node.Statement), operation: Oper
     if (!output.context.valid) return error.OutOfMemory;
 
     var expressions = output.context.expressions.*;
-    var statements = output.context.statements.*;
     var selected_body = output.body.*;
     const name = if (output.name.len == 0) &.{} else try self.allocator.dupe(u8, output.name);
     const names = [_][]const u8{name};
@@ -83,27 +79,12 @@ pub fn emit(self: *Lower, body: ?*std.ArrayList(node.Statement), operation: Oper
             expressions.identifier = identifiers;
         }
 
-        if (expressions.block_label.len != 0) expressions.block_label = &names;
-        if (statements.break_value_label.len != 0) statements.break_value_label = &names;
         if (selected_body.constant_name.len != 0) selected_body.constant_name = &names;
-    }
-
-    if (operation == .Block) {
-        std.debug.assert(self.builder.nodes.statements.tags.items.len == first);
-
-        const span = try self.builder.statements(body.?.items);
-
-        std.debug.assert(span.start == first and span.len == count);
     }
 
     const joined = view.join(expressions, output.context.forms.*);
 
     @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &joined) catch |err| return failure(err);
-
-    if (statements.tags.len != 0) {
-        const global = view.join(statements, output.context.variables.*);
-        @import("../../node/import_rows.zig").appendBorrowingText(self.allocator, &self.builder.nodes.statements, &global) catch |err| return failure(err);
-    }
 
     if (selected_body.tags.len != 0) {
         const local = view.join(selected_body, output.context.variables.*);

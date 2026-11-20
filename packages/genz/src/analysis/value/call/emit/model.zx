@@ -4,11 +4,9 @@ import type { Columns } from "../../../../ast/statements/model"
 import type { Output as Policy, Result } from "../model"
 
 export enum Operation {
-    Bind,
     Invoke,
     Dereference,
-    Conditional,
-    Block
+    Conditional
 }
 
 export type Input = {
@@ -19,8 +17,6 @@ export type Input = {
     condition: u32,
     yes: u32,
     no: u32,
-    body_first: u32,
-    body_count: u32,
     plan?: Policy
 }
 

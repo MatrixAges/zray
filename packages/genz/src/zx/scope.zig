@@ -3,6 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const Reuse = @import("scope/reuse.zig");
+const generated = @import("genz_options").generated_analysis;
 
 pub fn lower(self: *Lower, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
     return lowerMode(self, scope, false);
@@ -93,8 +94,13 @@ fn publishBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: i
     if (route == .Skip) return .{};
     if (route == .Task) return @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol.?)], binding.value, false);
 
+    var sequence = self.builder.statementSequence(self.workspace);
+
+    defer if (generated) sequence.deinit();
+
+    const local = if (generated) &sequence else output;
     const by_value = if (binding.symbol) |symbol| self.stack_symbols.contains(symbol) else false;
-    const borrowed = if (binding.symbol) |symbol| try @import("value_call/locals.zig").optionalCall(self, output, symbol, binding.value, result_type) else null;
+    const borrowed = if (binding.symbol) |symbol| try @import("value_call/locals.zig").optionalCall(self, local, symbol, binding.value, result_type) else null;
 
     const value = borrowed orelse if (binding.symbol == null)
         try @import("iteration.zig").discard(self, binding.value)
@@ -104,7 +110,7 @@ fn publishBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: i
     else
         try self.expr(binding.value);
 
-    return @import("binding.zig").publish(self, output, .{
+    return @import("binding.zig").publish(self, local, .{
         .symbol = binding.symbol,
         .value = value,
         .by_value = by_value,

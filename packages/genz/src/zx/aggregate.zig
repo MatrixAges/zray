@@ -144,14 +144,14 @@ fn sequenceMode(self: *Lower, value: ir.ExpressionRow, items: []const ir.ExprId,
     return finish(self, &body, if (value.value == .list) try @import("state_value/list.zig").wrap(self, value.type_id, result, false) else result);
 }
 
-pub fn bind(self: *Lower, body: *std.ArrayList(node.Statement), expression: node.ExpressionId) Lower.Error!node.ExpressionId {
+pub fn bind(self: *Lower, body: anytype, expression: node.ExpressionId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("aggregate/binding_seed.zig").bind(self, body, expression);
 
     return @import("aggregate/binding.zig").bind(self, body, expression);
 }
 
-pub fn finish(self: *Lower, body: *std.ArrayList(node.Statement), result: node.ExpressionId) Lower.Error!node.ExpressionId {
-    const span = try self.builder.statements(body.items);
+pub fn finish(self: *Lower, body: anytype, result: node.ExpressionId) Lower.Error!node.ExpressionId {
+    const span = try self.builder.finishStatements(body);
 
     return finishStored(self, span, result, null);
 }
