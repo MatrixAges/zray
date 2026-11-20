@@ -1,0 +1,42 @@
+import type { Response } from "backend_frames"
+
+export enum Status {
+    Success,
+    SuccessWithDigest,
+    SuccessWithInputs,
+    BackendFailed,
+    InvalidBackendProtocol,
+    BackendVersionMismatch,
+    IncompleteBackendResponse
+}
+
+export enum Tag {
+    Version,
+    Config,
+    Inputs,
+    Digest,
+    Diagnostics,
+    Invalid
+}
+
+export type Input = {
+    response: Response,
+    bytes: string,
+    version: string,
+    config_size: u64,
+    digest_size: u64,
+    translation: bool,
+    exited: bool
+}
+
+export type Frame = {
+    response: Response,
+    tag: Tag,
+    body: string,
+    size: u64,
+    version: string,
+    config_size: u64,
+    digest_size: u64,
+    saw_version: bool,
+    saw_digest: bool
+}

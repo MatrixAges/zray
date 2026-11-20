@@ -1,5 +1,5 @@
 const std = @import("std");
-const protocol = @import("../backend/protocol.zig");
+const protocol = @import("backend_protocol");
 const Cache = @import("observed.zig").Cache;
 const Self = @This();
 

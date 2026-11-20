@@ -1,0 +1,37 @@
+{
+    "roots": [
+        {
+            "path": "source",
+            "prefix": "backend/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "backend/frames/decode.rx",
+            "name": "decode"
+        },
+        {
+            "path": "backend/frames/const.zx",
+            "name": "frame_constants"
+        },
+        {
+            "path": "backend/diagnostics/validate.rx",
+            "name": "validate"
+        },
+        {
+            "path": "backend/diagnostics/const.zx",
+            "name": "diagnostic_constants"
+        }
+    ],
+    "packages": [],
+    "interfaces": [
+        {
+            "path": "backend/frames/host.d.zx",
+            "module": "backend_frames"
+        },
+        {
+            "path": "backend/diagnostics/host.d.zx",
+            "module": "backend_diagnostics"
+        }
+    ]
+}

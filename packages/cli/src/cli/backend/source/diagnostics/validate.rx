@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Diagnostics" />
+
+    <Args in={Diagnostics.Input} out={Diagnostics.Status} />
+
+    <If on={$in.words.length == 0}>
+        <If on={$in.strings.length != 0}>
+            <Return value={Diagnostics.Status.InvalidBackendProtocol} />
+        </If>
+
+        <Return value={Diagnostics.Status.Valid} />
+    </If>
+
+    <Call fn="roots" in={$in} />
+
+    <If on={$ctx.roots != Diagnostics.Status.Valid}>
+        <Return value={$ctx.roots} />
+    </If>
+
+    <Call fn="walk" in={$in} />
+
+    <If on={$ctx.walk != Diagnostics.Status.Valid}>
+        <Return value={$ctx.walk} />
+    </If>
+
+    <Call fn="total" in={$in.omit(["strings"])} />
+
+    <Return value={$ctx.total} />
+</Module>

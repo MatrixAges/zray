@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
     host.addImport("cli_packages", @import("build/source.zig").packages(b, compiler, target, optimize, installation_host));
     host.addImport("package_store", @import("build/source.zig").store(b, compiler, target, optimize, pkgs.module("pkgs"), host.import_table.get("cli_source").?));
     host.addImport("cli_toolchain", @import("build/source.zig").toolchain(b, compiler, target, optimize, host));
+    host.addImport("backend_protocol", @import("build/source.zig").backend(b, compiler, target, optimize));
     host.addImport("watch_inputs", @import("build/source.zig").observations(b, compiler, target, optimize, host.import_table.get("cli_source").?));
     host.addImport("cli_watch", @import("build/source.zig").watch(b, compiler, target, optimize, host));
     host.addImport("manifest_output", b.modules.get("manifest_output").?);

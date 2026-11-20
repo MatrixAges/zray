@@ -1,0 +1,53 @@
+import host from "backend_diagnostics"
+
+import { max_depth, max_expanded, word_range } from "./const"
+import { Status } from "./model"
+
+import type { Graph } from "backend_diagnostics"
+
+export type Input = {
+    graph: Graph,
+    key: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { graph, key } = in
+
+    const children = host.finishChildren(graph, key)
+
+    const record = loop({
+        index: 0,
+        height: 1,
+        expanded: 1,
+        overflow: false
+    }, {
+        while: state => !state.overflow && state.index < children.length,
+        next: state => {
+            const metrics = host.metrics(graph, children[state.index])
+            const expanded = metrics % word_range
+            const height = metrics / word_range + 1
+
+            if (height > state.height) {
+                state.height = height
+            }
+
+            if (expanded > max_expanded - state.expanded) {
+                state.overflow = true
+            } else {
+                state.expanded += expanded
+            }
+
+            state.index += 1
+        }
+    })
+
+    if (record.overflow || record.height > max_depth) {
+        return Status.BackendDiagnosticsTooComplex
+    }
+
+    host.finish(graph, record.height * word_range + record.expanded)
+
+    return Status.Valid
+}

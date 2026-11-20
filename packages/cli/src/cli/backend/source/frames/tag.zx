@@ -1,0 +1,23 @@
+import {
+    config_tag,
+    emit_digest_tag,
+    error_bundle_tag,
+    inputs_tag,
+    version_tag
+} from "./const"
+import { Tag } from "./model"
+
+export type Input = u32
+
+export type Output = Tag
+
+export default function (in: Input): Output {
+    return match in {
+        version_tag => Tag.Version,
+        config_tag => Tag.Config,
+        inputs_tag => Tag.Inputs,
+        emit_digest_tag => Tag.Digest,
+        error_bundle_tag => Tag.Diagnostics,
+        _ => Tag.Invalid
+    }
+}

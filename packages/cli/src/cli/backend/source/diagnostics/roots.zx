@@ -1,0 +1,59 @@
+import integer from "std:integer"
+import host from "backend_diagnostics"
+
+import {
+    max_expanded,
+    root_compile_log,
+    root_length,
+    root_start,
+    root_words
+} from "./const"
+import { Status } from "./model"
+import validString from "./string"
+
+import type { Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { graph, words, strings } = in
+
+    if (words.length < root_words || strings.length == 0) {
+        return Status.InvalidBackendProtocol
+    }
+
+    if (strings[0] != 0) {
+        return Status.InvalidBackendProtocol
+    }
+
+    const start = integer.widen(words[root_start])
+    const count = integer.widen(words[root_length])
+
+    if (start > words.length || count > words.length - start) {
+        return Status.InvalidBackendProtocol
+    }
+
+    if (!validString({
+        strings,
+        index: integer.widen(words[root_compile_log])
+    })) {
+        return Status.InvalidBackendProtocol
+    }
+
+    if (count > max_expanded) {
+        return Status.BackendDiagnosticsTooComplex
+    }
+
+    const queued = loop({
+        at: start
+    }, {
+        while: state => state.at < start + count,
+        next: state => {
+            host.schedule(graph, integer.widen(words[state.at]))
+
+            state.at += 1
+        }
+    })
+
+    return Status.Valid
+}

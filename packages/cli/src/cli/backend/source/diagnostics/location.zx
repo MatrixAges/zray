@@ -1,0 +1,88 @@
+import integer from "std:integer"
+
+import {
+    max_expanded,
+    source_column,
+    source_key,
+    source_line_number,
+    source_line_text,
+    source_path,
+    source_span_main,
+    source_span_start,
+    source_trace_length,
+    source_words,
+    trace_words,
+    word_range
+} from "./const"
+import { Status } from "./model"
+import validString from "./string"
+import traces from "./traces"
+
+import type { Node as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { graph, words, strings } = in
+
+    const index = in.key - source_key
+
+    if (index == 0 || index > words.length) {
+        return Status.InvalidBackendProtocol
+    }
+
+    if (source_words > words.length - index) {
+        return Status.InvalidBackendProtocol
+    }
+
+    const start = index + source_words
+    const count = integer.widen(words[index + source_trace_length])
+
+    if (count > (words.length - start) / trace_words) {
+        return Status.InvalidBackendProtocol
+    }
+
+    if (count > max_expanded) {
+        return Status.BackendDiagnosticsTooComplex
+    }
+
+    const line = integer.widen(words[index + source_line_number])
+    const column = integer.widen(words[index + source_column])
+
+    if (line == word_range - 1 || column == word_range - 1) {
+        return Status.InvalidBackendProtocol
+    }
+
+    if (!validString({
+        strings,
+        index: integer.widen(words[index + source_path])
+    })) {
+        return Status.InvalidBackendProtocol
+    }
+
+    const text = words[index + source_line_text]
+
+    if (text != 0) {
+        if (!validString({
+            strings,
+            index: integer.widen(text)
+        })) {
+            return Status.InvalidBackendProtocol
+        }
+
+        const begin = words[index + source_span_start]
+        const main = words[index + source_span_main]
+
+        if (main < begin || column < integer.widen(main - begin)) {
+            return Status.InvalidBackendProtocol
+        }
+    }
+
+    return traces({
+        graph,
+        words,
+        strings,
+        start,
+        count
+    })
+}

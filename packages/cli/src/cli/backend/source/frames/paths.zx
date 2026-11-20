@@ -1,0 +1,41 @@
+import bytes from "std:bytes"
+
+import { word_range } from "../diagnostics/const"
+import { path_prefix_limit } from "./const"
+
+export type Input = string
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const data = bytes.fromText(in)
+
+    return loop({
+        at: 0,
+        count: 0,
+        length: 0,
+        valid: true
+    }, {
+        while: state => state.at < data.length && state.valid,
+        next: state => {
+            const prefix = data[state.at]
+
+            if (prefix == 0) {
+                state.at += 1
+            } else {
+                const first = state.at + 1
+                const end = bytes.indexOfScalar(data, first, 0) ?? data.length
+
+                state.valid = prefix <= path_prefix_limit && first < end
+                state.count += 1
+                state.length += end - first
+                state.at = end + 1
+            }
+        },
+        return: state => {
+            const layout = state.count * word_range + state.length
+
+            return state.valid ? layout : null
+        }
+    })
+}

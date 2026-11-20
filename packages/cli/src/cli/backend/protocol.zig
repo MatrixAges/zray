@@ -28,107 +28,68 @@ pub fn decodeTranslation(allocator: std.mem.Allocator, stdout: []const u8, stder
     return decodeMode(allocator, stdout, stderr, termination, true);
 }
 
+const source = @import("backend_source");
+const frame_constants = source.frame_constants.@"zx.constants";
+pub const diagnostics = @import("error_bundle.zig");
+pub const frames = @import("source/frames/storage.zig");
+
+comptime {
+    if (@sizeOf(Message.Header) != frame_constants.frame_header_size or
+        @sizeOf(Message.ErrorBundle) != frame_constants.error_bundle_header_size or
+        @sizeOf(u32) != frame_constants.word_size or
+        @backingInt(Message.Tag.zig_version) != frame_constants.version_tag or
+        @backingInt(Message.Tag.error_bundle) != frame_constants.error_bundle_tag or
+        @backingInt(Message.Tag.emit_digest) != frame_constants.emit_digest_tag or
+        @backingInt(Message.Tag.file_system_inputs) != frame_constants.inputs_tag or
+        @backingInt(Message.Tag.config) != frame_constants.config_tag)
+    {
+        @compileError("Unexpected Zig backend frame layout");
+    }
+
+    const prefixes = @typeInfo(Message.PathPrefix).@"enum";
+
+    if (prefixes.field_names.len != frame_constants.path_prefix_limit) @compileError("Unexpected Zig backend path prefix count");
+
+    for (prefixes.field_values, 0..) |value, index| {
+        if (value != index) @compileError("Unexpected Zig backend path prefix order");
+    }
+}
+
 fn decodeMode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const u8, termination: std.process.Child.Term, translation: bool) !Result {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
 
     const owned = arena.allocator();
-    var inputs: std.ArrayList(Input) = .empty;
-    var diagnostics: std.zig.ErrorBundle = .empty;
-    var digest: ?[std.Build.Cache.bin_digest_len]u8 = null;
-    var cached = false;
-    var version_seen = false;
-    var inputs_seen = false;
-    var finished = false;
-    var offset: usize = 0;
+    var context: frames.Context = .{ .owned = owned, .temporary = allocator };
 
-    while (offset < stdout.len) {
-        if (finished or stdout.len - offset < 8) return error.InvalidBackendProtocol;
+    const outcome = source.decode.executeValue(owned, &.{
+        .response = @ptrCast(&context),
+        .bytes = stdout,
+        .version = builtin.zig_version_string,
+        .config_size = @sizeOf(Message.Config),
+        .digest_size = std.Build.Cache.bin_digest_len,
+        .translation = translation,
+        .exited = termination == .exited and termination.exited == 0,
+    }) catch |err| return if (err == error.BackendProtocolFailure) context.failure.? else err;
 
-        const tag: Message.Tag = @enumFromInt(std.mem.readInt(u32, stdout[offset..][0..4], .little));
-        const length = std.mem.readInt(u32, stdout[offset + 4 ..][0..4], .little);
-        offset += 8;
-
-        if (length > stdout.len - offset) return error.InvalidBackendProtocol;
-
-        const body = stdout[offset..][0..length];
-
-        offset += length;
-
-        if (!version_seen and tag != .zig_version) return error.InvalidBackendProtocol;
-
-        switch (tag) {
-            .zig_version => {
-                if (version_seen) return error.InvalidBackendProtocol;
-                if (!std.mem.eql(u8, builtin.zig_version_string, body)) return error.BackendVersionMismatch;
-
-                version_seen = true;
-            },
-            .config => {
-                if (body.len != @sizeOf(Message.Config)) return error.InvalidBackendProtocol;
-            },
-            .file_system_inputs => {
-                inputs_seen = true;
-
-                inputs.clearRetainingCapacity();
-
-                var paths = std.mem.tokenizeScalar(u8, body, 0);
-
-                while (paths.next()) |path| {
-                    if (path.len < 2) return error.InvalidBackendProtocol;
-
-                    const prefix = std.enums.fromInt(Message.PathPrefix, path[0] - 1) orelse return error.InvalidBackendProtocol;
-
-                    try inputs.append(owned, .{ .prefix = prefix, .path = try owned.dupe(u8, path[1..]) });
-                }
-            },
-            .emit_digest => {
-                if (digest != null or body.len != 1 + std.Build.Cache.bin_digest_len or body[0] & 0xfe != 0) return error.InvalidBackendProtocol;
-
-                cached = body[0] & 1 != 0;
-                digest = body[1..][0..std.Build.Cache.bin_digest_len].*;
-
-                if (translation) finished = true;
-            },
-            .error_bundle => {
-                try validateErrorBundle(body);
-
-                diagnostics = try std.zig.Server.allocErrorBundle(owned, body);
-
-                try @import("error_bundle.zig").validate(allocator, diagnostics);
-
-                finished = true;
-            },
-            else => return error.InvalidBackendProtocol,
-        }
+    switch (outcome) {
+        .InvalidBackendProtocol => return error.InvalidBackendProtocol,
+        .BackendVersionMismatch => return error.BackendVersionMismatch,
+        .IncompleteBackendResponse => return error.IncompleteBackendResponse,
+        .Success, .SuccessWithInputs, .BackendFailed => {},
+        .SuccessWithDigest => unreachable,
     }
-
-    if (!version_seen or !finished) return error.IncompleteBackendResponse;
-
-    const owned_inputs = try inputs.toOwnedSlice(owned);
-    const owned_stderr = try owned.dupe(u8, stderr);
-    const succeeded = termination == .exited and termination.exited == 0 and diagnostics.errorMessageCount() == 0 and digest != null;
 
     return .{
         .arena = arena,
-        .inputs = owned_inputs,
-        .diagnostics = diagnostics,
-        .digest = digest,
-        .cached = cached,
-        .succeeded = succeeded,
-        .inputs_complete = succeeded and inputs_seen,
+        .inputs = context.inputs,
+        .diagnostics = context.diagnostics,
+        .digest = context.digest,
+        .cached = context.cached,
+        .succeeded = outcome != .BackendFailed,
+        .inputs_complete = outcome == .SuccessWithInputs,
         .termination = termination,
-        .stderr = owned_stderr,
+        .stderr = try owned.dupe(u8, stderr),
     };
-}
-
-fn validateErrorBundle(body: []const u8) !void {
-    if (body.len < 8) return error.InvalidBackendProtocol;
-
-    const extra_length = std.mem.readInt(u32, body[0..4], .little);
-    const strings_length = std.mem.readInt(u32, body[4..8], .little);
-    const expected = 8 + @as(u64, extra_length) * 4 + strings_length;
-
-    if (expected != body.len or (extra_length != 0 and extra_length < 3)) return error.InvalidBackendProtocol;
 }

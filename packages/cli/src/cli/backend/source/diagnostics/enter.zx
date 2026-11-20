@@ -1,0 +1,51 @@
+import host from "backend_diagnostics"
+import { Visit } from "backend_diagnostics"
+
+import { finish_key, source_key } from "./const"
+import location from "./location"
+import message from "./message"
+import { Status } from "./model"
+
+import type { Node as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { graph, key } = in
+
+    const previous = host.visitStatus(graph, key)
+
+    if (previous == Visit.Finished) {
+        return Status.Valid
+    }
+
+    if (previous == Visit.Visiting) {
+        return Status.InvalidBackendProtocol
+    }
+
+    host.startChildren(graph)
+
+    const outcome = key >= source_key ? location(in) : message(in)
+
+    if (outcome != Status.Valid) {
+        return outcome
+    }
+
+    host.record(graph, key)
+    host.schedule(graph, key + finish_key)
+
+    const children = host.newChildren(graph)
+
+    const queued = loop({
+        index: 0
+    }, {
+        while: state => state.index < children.length,
+        next: state => {
+            host.schedule(graph, children[state.index])
+
+            state.index += 1
+        }
+    })
+
+    return Status.Valid
+}

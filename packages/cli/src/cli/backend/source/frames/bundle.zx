@@ -1,0 +1,23 @@
+import bytes from "std:bytes"
+import integer from "std:integer"
+
+import { root_words } from "../diagnostics/const"
+import { error_bundle_header_size, word_size } from "./const"
+
+export type Input = string
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const data = bytes.fromText(in)
+
+    if (data.length < error_bundle_header_size) {
+        return false
+    }
+
+    const extra = integer.widen(bytes.readU32(data, 0, true))
+    const strings = integer.widen(bytes.readU32(data, word_size, true))
+    const size = error_bundle_header_size + extra * word_size + strings
+
+    return size == data.length && (extra == 0 || extra >= root_words)
+}

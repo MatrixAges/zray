@@ -300,12 +300,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(codec_step);
 
     const backend_step = b.step("test-backend-protocol", "Validate backend framing ownership and malformed diagnostics");
-
-    const backend_protocol = b.createModule(.{
-        .root_source_file = cli_dependency.path("src/cli/backend/protocol.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    const backend_protocol = cli_dependency.module("backend_protocol");
 
     for ([_][]const u8{ "state", "invalid", "edges", "resources", "graph", "source" }) |name| {
         const backend_tests = b.addTest(.{
@@ -335,6 +330,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "toolchain_cache", .module = cli_dependency.module("toolchain_cache") },
             .{ .name = "watch_inputs", .module = cli_dependency.module("watch_inputs") },
+            .{ .name = "backend_protocol", .module = backend_protocol },
         },
         .target = target,
         .optimize = optimize,

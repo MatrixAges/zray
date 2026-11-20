@@ -1,0 +1,45 @@
+import integer from "std:integer"
+import host from "backend_diagnostics"
+
+import { source_key, trace_source, trace_text, trace_words, word_range } from "./const"
+import { Status } from "./model"
+import validString from "./string"
+
+import type { Input as Bundle } from "./model"
+
+export type Input = Bundle & {
+    start: u64,
+    count: u64
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { graph, words, strings, start, count } = in
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < count,
+        next: state => {
+            const at = start + state.index * trace_words
+            const name = integer.widen(words[at + trace_text])
+            const source = integer.widen(words[at + trace_source])
+
+            if (source == 0) {
+                state.valid = name < word_range - count
+            } else if (validString({
+                strings,
+                index: name
+            })) {
+                host.appendChild(graph, source_key + source)
+            } else {
+                state.valid = false
+            }
+
+            state.index += 1
+        },
+        return: state => state.valid ? Status.Valid : Status.InvalidBackendProtocol
+    })
+}

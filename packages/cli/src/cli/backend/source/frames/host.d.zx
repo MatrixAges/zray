@@ -1,0 +1,10 @@
+export type Response = opaque
+
+export declare function commitInputs(response: Response, body: string, layout: u64?): void
+export declare function commitDigest(response: Response, body: string, cached: bool?): void
+export declare function commitDiagnostics(response: Response, body: string): void throws {
+    BackendProtocolFailure
+}
+export declare function hasDiagnostics(response: Response): bool
+export declare function hasInputs(response: Response): bool
+export declare function materializeInputs(response: Response): void throws { BackendProtocolFailure }

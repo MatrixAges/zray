@@ -1,0 +1,47 @@
+export const root_words: u64 = 3
+
+export const root_length: u64 = 0
+
+export const root_start: u64 = 1
+
+export const root_compile_log: u64 = 2
+
+export const message_words: u64 = 4
+
+export const message_text: u64 = 0
+
+export const message_source: u64 = 2
+
+export const message_notes: u64 = 3
+
+export const source_words: u64 = 8
+
+export const source_path: u64 = 0
+
+export const source_line_number: u64 = 1
+
+export const source_column: u64 = 2
+
+export const source_span_start: u64 = 3
+
+export const source_span_main: u64 = 4
+
+export const source_line_text: u64 = 6
+
+export const source_trace_length: u64 = 7
+
+export const trace_words: u64 = 2
+
+export const trace_text: u64 = 0
+
+export const trace_source: u64 = 1
+
+export const word_range: u64 = 4294967296
+
+export const source_key: u64 = word_range
+
+export const finish_key: u64 = 2 * word_range
+
+export const max_depth: u64 = 256
+
+export const max_expanded: u64 = 1048576

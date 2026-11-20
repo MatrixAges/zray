@@ -1,0 +1,90 @@
+<Module>
+    <Type from="model" as="Protocol" />
+
+    <Args in={Protocol.Frame} out={Protocol.Status} />
+
+    <If on={!$in.saw_version && $in.tag != Protocol.Tag.Version}>
+        <Return value={Protocol.Status.InvalidBackendProtocol} />
+    </If>
+
+    <Switch on={$in.tag}>
+        <Case value={Protocol.Tag.Version}>
+            <If on={$in.saw_version}>
+                <Return value={Protocol.Status.InvalidBackendProtocol} />
+            </If>
+
+            <If on={$in.body != $in.version}>
+                <Return value={Protocol.Status.BackendVersionMismatch} />
+            </If>
+        </Case>
+
+        <Case value={Protocol.Tag.Config}>
+            <If on={$in.size != $in.config_size}>
+                <Return value={Protocol.Status.InvalidBackendProtocol} />
+            </If>
+        </Case>
+
+        <Case value={Protocol.Tag.Inputs}>
+            <Call fn="paths" in={$in.body} />
+
+            <If on={$ctx.paths == null}>
+                <Return value={Protocol.Status.InvalidBackendProtocol} />
+            </If>
+
+            <Call
+                fn="index.commitInputs"
+                in={[
+                    $in.response,
+                    $in.body,
+                    $ctx.paths
+                ]}
+            />
+        </Case>
+
+        <Case value={Protocol.Tag.Digest}>
+            <Call
+                fn="digest"
+                in={{
+                    body: $in.body,
+                    size: $in.digest_size,
+                    seen: $in.saw_digest
+                }}
+            />
+
+            <If on={$ctx.digest == null}>
+                <Return value={Protocol.Status.InvalidBackendProtocol} />
+            </If>
+
+            <Call
+                fn="index.commitDigest"
+                in={[
+                    $in.response,
+                    $in.body,
+                    $ctx.digest
+                ]}
+            />
+        </Case>
+
+        <Case value={Protocol.Tag.Diagnostics}>
+            <Call fn="bundle" in={$in.body} />
+
+            <If on={!$ctx.bundle}>
+                <Return value={Protocol.Status.InvalidBackendProtocol} />
+            </If>
+
+            <Call
+                fn="index.commitDiagnostics"
+                in={[
+                    $in.response,
+                    $in.body
+                ]}
+            />
+        </Case>
+
+        <Case value={Protocol.Tag.Invalid}>
+            <Return value={Protocol.Status.InvalidBackendProtocol} />
+        </Case>
+    </Switch>
+
+    <Return value={Protocol.Status.Success} />
+</Module>

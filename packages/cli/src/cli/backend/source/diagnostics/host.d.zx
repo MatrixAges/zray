@@ -1,0 +1,18 @@
+export type Graph = opaque
+
+export enum Visit {
+    New,
+    Visiting,
+    Finished
+}
+
+export declare function schedule(graph: Graph, key: u64): void throws { OutOfMemory }
+export declare function pop(graph: Graph): u64?
+export declare function visitStatus(graph: Graph, key: u64): Visit
+export declare function startChildren(graph: Graph): void
+export declare function appendChild(graph: Graph, key: u64): void throws { OutOfMemory }
+export declare function record(graph: Graph, key: u64): void throws { OutOfMemory }
+export declare function newChildren(graph: Graph): u64[]
+export declare function finishChildren(graph: Graph, key: u64): u64[]
+export declare function metrics(graph: Graph, key: u64): u64
+export declare function finish(graph: Graph, metrics: u64): void

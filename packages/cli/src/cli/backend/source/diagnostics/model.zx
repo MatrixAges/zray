@@ -1,0 +1,22 @@
+import type { Graph } from "backend_diagnostics"
+
+export enum Status {
+    Valid,
+    InvalidBackendProtocol,
+    BackendDiagnosticsTooComplex
+}
+
+export type Input = {
+    graph: Graph,
+    words: u32[],
+    strings: u8[]
+}
+
+export type Node = Input & {
+    key: u64
+}
+
+export type Root = {
+    graph: Graph,
+    words: u32[]
+}

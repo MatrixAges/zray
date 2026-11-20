@@ -1,0 +1,40 @@
+import integer from "std:integer"
+import host from "backend_diagnostics"
+
+import { max_expanded, root_length, root_start, word_range } from "./const"
+import { Status } from "./model"
+
+import type { Root as Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { graph, words } = in
+
+    const start = integer.widen(words[root_start])
+    const end = start + integer.widen(words[root_length])
+
+    return loop({
+        at: start,
+        sum: 0,
+        overflow: false
+    }, {
+        while: state => !state.overflow && state.at < end,
+        next: state => {
+            const key = integer.widen(words[state.at])
+            const expanded = host.metrics(graph, key) % word_range
+
+            if (expanded > max_expanded - state.sum) {
+                state.overflow = true
+            } else {
+                state.sum += expanded
+            }
+
+            state.at += 1
+        },
+        return: state => match {
+            state.overflow => Status.BackendDiagnosticsTooComplex,
+            _ => Status.Valid
+        }
+    })
+}

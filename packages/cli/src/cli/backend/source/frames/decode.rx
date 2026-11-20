@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Protocol" />
+
+    <Args in={Protocol.Input} out={Protocol.Status} />
+
+    <Call fn="read" in={$in} />
+
+    <If
+        on={$ctx.read != Protocol.Status.Success &&
+            $ctx.read != Protocol.Status.SuccessWithDigest}
+    >
+        <Return value={$ctx.read} />
+    </If>
+
+    <Call fn="index.materializeInputs" in={$in.response} />
+    <Call fn="index.hasDiagnostics" in={$in.response} />
+
+    <If
+        on={!$in.exited || $ctx.read != Protocol.Status.SuccessWithDigest ||
+            $ctx.hasDiagnostics}
+    >
+        <Return value={Protocol.Status.BackendFailed} />
+    </If>
+
+    <Call fn="index.hasInputs" in={$in.response} />
+
+    <If on={$ctx.hasInputs}>
+        <Return value={Protocol.Status.SuccessWithInputs} />
+    </If>
+
+    <Return value={Protocol.Status.Success} />
+</Module>

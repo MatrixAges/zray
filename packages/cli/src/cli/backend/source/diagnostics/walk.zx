@@ -1,0 +1,41 @@
+import host from "backend_diagnostics"
+
+import { finish_key } from "./const"
+import enter from "./enter"
+import expand from "./expand"
+import { Status } from "./model"
+
+import type { Input } from "./model"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { graph, words, strings } = in
+
+    return loop({
+        active: true,
+        status: Status.Valid
+    }, {
+        while: state => state.active && state.status == Status.Valid,
+        next: state => {
+            const node = host.pop(graph)
+
+            if (node == null) {
+                state.active = false
+            } else if (node >= finish_key) {
+                state.status = expand({
+                    graph,
+                    key: node - finish_key
+                })
+            } else {
+                state.status = enter({
+                    graph,
+                    words,
+                    strings,
+                    key: node
+                })
+            }
+        },
+        return: state => state.status
+    })
+}

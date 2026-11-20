@@ -1,0 +1,19 @@
+export const frame_header_size: u64 = 8
+
+export const word_size: u64 = 4
+
+export const version_tag: u32 = 0
+
+export const error_bundle_tag: u32 = 1
+
+export const emit_digest_tag: u32 = 2
+
+export const inputs_tag: u32 = 6
+
+export const config_tag: u32 = 13
+
+export const path_prefix_limit: u8 = 5
+
+export const cached_flag: u8 = 1
+
+export const error_bundle_header_size: u64 = 8
