@@ -45,7 +45,7 @@ pub fn publish(function: *const Function, allocator: std.mem.Allocator, borrowed
         .flags = @ptrCast(result.flags),
         .renewals = .{ .keys = result.renewals.keys, .paths = result.renewals.paths },
         .transfers = result.transfers,
-        .slot_first = try allocator.dupe(u32, function.facts.usage.plan.slot_first[function.symbol_count..]),
+        .slot_first = result.slot_first,
     };
 }
 

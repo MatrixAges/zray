@@ -4,6 +4,7 @@ const Function = @import("../function.zig");
 const Slots = @import("../slots.zig");
 const Summaries = @import("../summaries.zig");
 const generated = @import("generated_uniqueness_function_prepare");
+const publishing = @import("generated_uniqueness_function_publish");
 const Input = std.meta.Child(generated.Input);
 pub const Facts = std.meta.Child(generated.Output);
 
@@ -37,36 +38,10 @@ pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, unit: *cons
         else => unreachable,
     };
 
-    return retain(owner, output.*);
-}
+    const published = publishing.executeIn(owner, zx.columns.pointer(publishing.Input, output)) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-/// Only the published column descriptors and their scalar slices survive the preparation arena.
-fn retain(owner: std.mem.Allocator, value: anytype) std.mem.Allocator.Error!@TypeOf(value) {
-    const T = @TypeOf(value);
-
-    switch (@typeInfo(T)) {
-        .@"struct" => |record| {
-            var result: T = undefined;
-
-            inline for (record.field_names) |name| @field(result, name) = try retain(owner, @field(value, name));
-
-            return result;
-        },
-        .pointer => |pointer| switch (pointer.size) {
-            .one => {
-                const result = try owner.create(pointer.child);
-
-                result.* = try retain(owner, value.*);
-
-                return result;
-            },
-            .slice => return switch (@typeInfo(pointer.child)) {
-                .int, .bool, .@"enum" => try owner.dupe(pointer.child, value),
-                else => @compileError("expected a scalar fact column"),
-            },
-            else => @compileError("expected a fact descriptor or column"),
-        },
-        .int, .bool, .@"enum" => return value,
-        else => @compileError("unexpected function fact"),
-    }
+    return zx.columns.view(Facts, published.*);
 }

@@ -50,8 +50,9 @@ export type Finish = {
 
 export type Published = {
     flags: u8[],
-    renewals: Renewals
-    transfers: u64[]
+    renewals: Renewals,
+    transfers: u64[],
+    slot_first: u32[]
 }
 
 export type Visit = Input.Omit("state")

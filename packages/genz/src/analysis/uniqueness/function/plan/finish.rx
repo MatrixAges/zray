@@ -23,11 +23,20 @@
 
     <Call fn="pack_flags" in={$in.flags} />
 
+    <Call
+        fn="publish_slots"
+        in={{
+            slot_first: $in.metadata.usage.plan.slot_first,
+            symbols: $in.metadata.usage.symbols
+        }}
+    />
+
     <Return
         value={{
             flags: $ctx.pack_flags,
             renewals: $ctx.renewal_paths,
-            transfers: $ctx.build
+            transfers: $ctx.build,
+            slot_first: $ctx.publish_slots
         }}
     />
 </Module>

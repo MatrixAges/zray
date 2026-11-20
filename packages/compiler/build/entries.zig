@@ -673,6 +673,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/function/result/settlement.rx", .name = "uniqueness_result_settlement", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/result/demand.rx", .name = "uniqueness_result_demand", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/prepare/build.rx", .name = "uniqueness_function_prepare", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/function/prepare/publish.zx", .name = "uniqueness_function_publish", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/flow/body/build.rx", .name = "uniqueness_flow_facts", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/flow/body/visit.rx", .name = "uniqueness_flow_visit", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/flow/fixpoint/create.rx", .name = "uniqueness_flow_queue", .owner = .genz },

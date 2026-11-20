@@ -1,0 +1,20 @@
+import memory from "memory"
+
+export type Input = {
+    slot_first: u32[],
+    symbols: u64
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const expressions = memory.borrowU32Range(
+        in.slot_first,
+        in.symbols,
+        in.slot_first.length - in.symbols
+    )
+
+    const empty: u32[] = []
+
+    return empty.concat(expressions)[0]
+}
