@@ -1,20 +1,22 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const object_fields = @import("../aggregate/object.zig");
 const operands = @import("../aggregate/operands.zig");
 const borrowed_argument = @import("borrowed_argument.zig");
+const generated = @import("genz_options").generated_analysis;
+const routing = if (generated) @import("generated_value_argument_route") else void;
+const Route = if (generated) @typeInfo(@typeInfo(@TypeOf(routing.executeValue)).@"fn".return_type.?).error_union.payload else enum { Existing, Object, Tuple, Call };
 
 pub fn borrow(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Lower.Error!node.ExpressionId {
-    if (self.cache.contains(id)) return existing(self, body, id);
-
-    const expression = self.program.expression(id);
-
-    switch (expression.value) {
-        .object => return object(self, body, id),
-        .tuple => |items| {
+    switch (route(self, id)) {
+        .Object => return object(self, body, id),
+        .Tuple => {
+            const expression = self.program.expression(id);
+            const items = expression.value.tuple;
             const values = try self.allocator.alloc(node.ExpressionId, items.len);
 
             for (items, values) |item, *value| value.* = try aggregate.bind(self, body, try borrow(self, body, item));
@@ -23,9 +25,8 @@ pub fn borrow(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId)
 
             return borrowed_argument.lower(self, body, .{ .tuple = .{ .layout = layout, .values = values } });
         },
-        .call => |invocation| {
-            if (!self.value_functions[@backingInt(invocation.function)] or !self.constructed_outputs[@backingInt(invocation.function)]) return existing(self, body, id);
-
+        .Call => {
+            const invocation = self.program.expression(id).value.call;
             const argument = try borrow(self, body, invocation.argument);
             const active = self.state_active;
             const types = self.types;
@@ -46,8 +47,52 @@ pub fn borrow(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId)
 
             return @import("root.zig").borrowInvocation(self, body, invocation);
         },
-        else => return existing(self, body, id),
+        .Existing => return existing(self, body, id),
     }
+}
+
+fn route(self: *const Lower, id: ir.ExprId) Route {
+    const row = @backingInt(id);
+    const expressions = &self.program.expressions;
+    const kind = expressions.kinds[row];
+    const callee = expressions.callee(row);
+
+    if (comptime !generated) {
+        if (self.cache.contains(id)) return .Existing;
+
+        if (callee) |function| {
+            const index = @backingInt(function);
+
+            return if (self.value_functions[index] and self.constructed_outputs[index]) .Call else .Existing;
+        }
+
+        return switch (kind) {
+            .Object => .Object,
+            .Tuple => .Tuple,
+            else => .Existing,
+        };
+    }
+
+    const Input = std.meta.Child(routing.Input);
+
+    const cache: std.meta.Child(@FieldType(Input, "cache")) = .{
+        .count = self.cache.state.count,
+        .metadata = self.cache.state.metadata.items,
+        .keys = self.cache.state.keys.items,
+        .key = row,
+    };
+
+    const input: Input = .{
+        .cache = &cache,
+        .kind = zx.columns.view(@FieldType(Input, "kind"), kind),
+        .callee = if (callee) |function| @backingInt(function) else null,
+        .value_functions = self.value_functions,
+        .constructed_outputs = self.constructed_outputs,
+    };
+
+    var storage = std.heap.FixedBufferAllocator.init(&.{});
+
+    return zx.columns.invoke(routing.executeValue, storage.allocator(), &input) catch unreachable;
 }
 
 fn object(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Lower.Error!node.ExpressionId {
@@ -96,14 +141,15 @@ fn object(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Low
 
     const object_type = try @import("../types.zig").get(self, self.abi_layouts, expression.type_id);
 
-    const value_expr = try object_fields.lower(self, temporary, .{
-        .type_expr = object_type,
-        .names = field_names,
-        .indices = value.fields.indices,
-        .fields = fields,
-    });
-
-    return borrowed_argument.lower(self, body, .{ .value = value_expr });
+    return borrowed_argument.lower(self, body, .{ .object = .{
+        .scratch = temporary,
+        .request = .{
+            .type_expr = object_type,
+            .names = field_names,
+            .indices = value.fields.indices,
+            .fields = fields,
+        },
+    } });
 }
 
 fn existing(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Lower.Error!node.ExpressionId {

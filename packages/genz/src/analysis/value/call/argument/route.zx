@@ -1,0 +1,43 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import lookup from "core/integer/map/lookup"
+
+import type { Lookup } from "core/integer/map/model"
+
+export enum Output {
+    Existing,
+    Object,
+    Tuple,
+    Call
+}
+
+export type Input = {
+    cache: Lookup,
+    kind: ExpressionKind,
+    callee?: u32,
+    value_functions: bool[],
+    constructed_outputs: bool[]
+}
+
+export default function (in: Input): Output {
+    if (lookup(in.cache) != null) {
+        return Output.Existing
+    }
+
+    const { callee } = in
+
+    if (callee != null) {
+        const function_id = integers.widen(callee)
+
+        const eligible = in.value_functions[function_id] &&
+            in.constructed_outputs[function_id]
+
+        return eligible ? Output.Call : Output.Existing
+    }
+
+    return match in.kind {
+        ExpressionKind.Object => Output.Object,
+        ExpressionKind.Tuple => Output.Tuple,
+        _ => Output.Existing
+    }
+}

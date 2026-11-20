@@ -4,13 +4,17 @@
     <Args in={Borrow.Input} out={Borrow.Output} />
 
     <Call fn="prepare" in={$in} />
+
+    <Call module="object" in={$in.pick(["object"])} />
+
     <Call fn="../../../aggregate/binding/bind" in={$ctx.prepare.binding} />
 
     <Call
         fn="reference"
         in={{
             prepared: $ctx.prepare,
-            bound: $ctx.bind
+            bound: $ctx.bind,
+            object: $ctx.object
         }}
     />
 

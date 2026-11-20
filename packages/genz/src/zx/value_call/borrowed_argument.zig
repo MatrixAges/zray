@@ -4,10 +4,12 @@ const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
+const object_fields = @import("../aggregate/object.zig");
 
 pub const Source = union(enum) {
     value: node.ExpressionId,
     tuple: struct { layout: node.ExpressionId, values: []const node.ExpressionId },
+    object: struct { request: object_fields.Request, scratch: std.mem.Allocator },
 };
 
 pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), source: Source) Lower.Error!node.ExpressionId {
@@ -15,6 +17,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), source: Source)
         const value = switch (source) {
             .value => |value| value,
             .tuple => |tuple| try self.cast(tuple.layout, try self.builder.expression(.{ .tuple = tuple.values })),
+            .object => |object| try object_fields.lower(self, object.scratch, object.request),
         };
 
         const reference = try aggregate.bind(self, body, value);
@@ -25,6 +28,21 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), source: Source)
     const entry = @import("generated_value_argument_borrow");
     const Input = std.meta.Child(entry.Input);
     const Output = std.meta.Child(entry.Output);
+    const Object = std.meta.Child(@typeInfo(@FieldType(Input, "object")).optional.child);
+    const Selection = std.meta.Child(@FieldType(Object, "selection"));
+
+    const selection: Selection = if (source == .object) .{
+        .names = source.object.request.names,
+        .first = 0,
+        .indices = source.object.request.indices,
+        .values = source.object.request.fields,
+    } else undefined;
+
+    const object: Object = if (source == .object) .{
+        .type_expr = @backingInt(source.object.request.type_expr),
+        .first = @intCast(self.builder.nodes.field_columns.count()),
+        .selection = &selection,
+    } else undefined;
 
     const input: Input = .{
         .value = if (source == .value) @backingInt(source.value) else 0,
@@ -32,11 +50,20 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), source: Source)
         .values = if (source == .tuple) view.slice(@FieldType(Input, "values"), source.tuple.values) else &.{},
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .serial = self.serial,
+        .object = if (source == .object) &object else null,
     };
 
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.FixedBufferAllocator.init(&buffer);
-    const output = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
+    var buffered: std.heap.BufferFirstAllocator = undefined;
+
+    const temporary = if (source == .object) object_allocator: {
+        buffered = .init(&buffer, source.object.scratch);
+
+        break :object_allocator buffered.allocator();
+    } else memory.allocator();
+
+    const output = zx.columns.invoke(entry.executeValue, temporary, &input) catch |err| return failure(err);
 
     if (!output.valid) return error.OutOfMemory;
 
@@ -54,6 +81,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), source: Source)
         expressions.builtin_arguments = &arguments;
     }
 
+    if (output.fields) |fields| try @import("../../node/import_fields.zig").appendObject(self.allocator, &self.builder.nodes.field_columns, fields);
     @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);
     @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
 

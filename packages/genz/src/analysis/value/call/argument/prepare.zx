@@ -7,8 +7,9 @@ export default function (in: Input): Output {
     const base = integers.widen(in.expression_base)
     const tuple = in.layout != null
 
-    const start = match tuple {
-        true => base + 2,
+    const start = match {
+        tuple => base + 2,
+        in.object != null => base + 1,
         _ => base
     }
 
@@ -21,6 +22,7 @@ export default function (in: Input): Output {
 
     const value = match {
         tuple && valid => integers.narrow(base + 1),
+        in.object != null => in.expression_base,
         _ => in.value
     }
 

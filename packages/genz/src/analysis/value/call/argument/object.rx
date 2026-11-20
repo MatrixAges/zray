@@ -1,0 +1,13 @@
+<Module>
+    <Type from="model" as="Borrow" />
+
+    <Args in={Borrow.ObjectInput} out={Borrow.ObjectOutput} />
+
+    <If on={$in.object != null}>
+        <Call module="../../../aggregate/object/build" in={$in.object} />
+
+        <Return value={$ctx.build} />
+    </If>
+
+    <Return value={null} />
+</Module>

@@ -1,3 +1,4 @@
+import type { Columns as ObjectColumns } from "../../../../ast/expressions/object"
 import type {
     ExpressionsBuiltinName,
     ExpressionsKind
@@ -7,14 +8,24 @@ import type {
     Output as Bound,
     Statements
 } from "../../../aggregate/binding/model"
+import type {
+    Fields as ObjectFields,
+    Input as Object,
+    Output as ObjectRows
+} from "../../../aggregate/object/model"
 
 export type Input = {
     value: u32,
     layout?: u32,
     values: u32[],
     expression_base: u32,
-    serial: u64
+    serial: u64,
+    object?: Object
 }
+
+export type ObjectInput = Input.Pick("object")
+
+export type ObjectOutput = ObjectRows?
 
 export type Prepared = {
     source: Input,
@@ -24,10 +35,11 @@ export type Prepared = {
 
 export type Reference = {
     prepared: Prepared,
-    bound: Bound
+    bound: Bound,
+    object?: ObjectRows
 }
 
-export type Expressions = {
+export type BindingExpressions = {
     tags: ExpressionsKind[],
     offsets: u32[],
     tuple: u32[][],
@@ -37,9 +49,14 @@ export type Expressions = {
     address_of: u32[]
 }
 
+export type ObjectExpression = ObjectColumns.Omit("tags", "offsets")
+
+export type Expressions = BindingExpressions & ObjectExpression
+
 export type Output = {
     expressions: Expressions,
     statements: Statements,
+    fields?: ObjectFields,
     name: u8[],
     serial: u64,
     root: u32,
