@@ -42,12 +42,11 @@ export enum Action {
     ValueArm
 }
 
-export type Node = {
-    id: u32,
-    time: u32,
-    finish: u32,
-    region: u32,
-    repeated: u32
+export type Nodes = {
+    time: u32[],
+    finish: u32[],
+    region: u32[],
+    repeated: u32[]
 }
 
 export type Region = {
@@ -89,7 +88,7 @@ export type Graph = {
 
 export type Trace = {
     seen: bool[],
-    completed: Node[],
+    nodes: Nodes,
     graph: Graph
 }
 

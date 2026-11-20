@@ -15,19 +15,11 @@
         }}
     />
 
-    <Call
-        fn="nodes"
-        in={{
-            kinds: $in.expressions.kinds,
-            values: $ctx.traverse.completed
-        }}
-    />
-
     <Call fn="publish" in={$ctx.traverse.graph} />
 
     <Return
         value={{
-            nodes: $ctx.nodes,
+            nodes: $ctx.traverse.nodes,
             graph: $ctx.publish
         }}
     />

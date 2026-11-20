@@ -1,11 +1,6 @@
-import type { Definition, Role } from "./model"
+import type { Definition, Nodes, Role } from "./model"
 
-export type Nodes = {
-    time: u32[],
-    finish: u32[],
-    region: u32[],
-    repeated: u32[]
-}
+export type { Nodes } from "./model"
 
 export type Regions = {
     parent: u32[],

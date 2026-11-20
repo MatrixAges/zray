@@ -11,19 +11,24 @@ import parts from "./walk/parts"
 import repetition from "./walk/repetition"
 import scope from "./walk/scope"
 
-import type { Walk as Input, Node, Trace as Output } from "./model"
+import type { ExpressionKind } from "core/expression_table/kinds"
+import type { Walk as Input, Trace as Output } from "./model"
 
 export default function (in: Input): Output {
-    const source = in.source
+    const { source, returns, detailed } = in
 
-    const { returns, detailed } = in
-
-    const completed: Node[] = []
+    const tracked: ExpressionKind[] = match {
+        detailed => source.expressions.kinds,
+        _ => []
+    }
 
     const result = loop({
         ...in.state.graph,
-        seen: in.source.expressions.kinds.map(kind => false)[0],
-        completed,
+        seen: source.expressions.kinds.map(kind => false)[0],
+        node_time: tracked.map(kind => max_u32)[0],
+        node_finish: tracked.map(kind => max_u32)[0],
+        node_region: tracked.map(kind => integers.narrow(0))[0],
+        node_loop: tracked.map(kind => max_u32)[0],
         stack: in.state.stack,
         clock: in.state.clock,
         forks: in.state.forks,
@@ -117,13 +122,10 @@ export default function (in: Input): Output {
                     }
 
                 case Action.Finish:
-                    current.completed = current.completed.push({
-                        id: first,
-                        time: second,
-                        finish: current.clock,
-                        region: third,
-                        repeated: fourth
-                    })[0]
+                    current.node_time[index] = second
+                    current.node_finish[index] = current.clock
+                    current.node_region[index] = third
+                    current.node_loop[index] = fourth
 
                 case Action.RestoreRegion:
                     current.active_region = first
@@ -220,7 +222,12 @@ export default function (in: Input): Output {
 
     return {
         seen: result.seen,
-        completed: result.completed,
+        nodes: {
+            time: result.node_time,
+            finish: result.node_finish,
+            region: result.node_region,
+            repeated: result.node_loop
+        },
         graph: {
             regions: result.regions,
             edges: result.edges,
