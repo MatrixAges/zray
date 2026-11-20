@@ -40,7 +40,9 @@
         <Call
             fn="publish"
             in={{
-                ...$ctx.build,
+                trace: $ctx.walk,
+                roles: $ctx.resolve_roles,
+                marks: $ctx.build,
                 edge_count: $in.edges.parent.length,
                 slot_first: $ctx.slots
             }}

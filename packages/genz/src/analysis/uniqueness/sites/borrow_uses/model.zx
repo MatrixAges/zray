@@ -12,7 +12,25 @@ export type Selected = {
     site: u64
 }
 
-export type Expansion = {
+export type Candidate = {
+    site: u32,
+    node: u32,
+    start: u32,
+    finish: u32
+}
+
+export type Mark = {
+    site: u32,
+    boundary: u32
+}
+
+export type Candidates = {
     source: Input,
-    candidates: u32[]
+    candidates: Candidate[]
+}
+
+export type Completion = {
+    source: Input,
+    ends: u32[],
+    node: u32
 }

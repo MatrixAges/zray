@@ -1,32 +1,21 @@
 <Module>
     <Type from="model" as="Borrow" />
-    <Type from="../model" as="Sites" />
 
-    <Args in={Borrow.Input} out={Sites.Resolved} />
+    <Args in={Borrow.Input} out={Borrow.Mark[]} />
 
     <Call fn="candidates" in={$in} />
 
     <If on={$ctx.candidates.length == 0}>
-        <Return
-            value={{
-                trace: $in.trace,
-                roles: $in.roles
-            }}
-        />
+        <Return value={[]} />
     </If>
 
     <Call
-        fn="expand"
+        fn="solve"
         in={{
             source: $in,
             candidates: $ctx.candidates
         }}
     />
 
-    <Return
-        value={{
-            trace: $ctx.expand,
-            roles: null
-        }}
-    />
+    <Return value={$ctx.solve} />
 </Module>

@@ -4,7 +4,6 @@ import { ExpressionKind } from "core/expression_table/kinds"
 
 import { Role } from "../../order/model"
 import hasEffect from "./has_effect"
-import observes from "./observes"
 
 import type { Selected as Input } from "./model"
 
@@ -55,28 +54,8 @@ export default function (in: Input): Output {
         return false
     }
 
-    if (!effects.borrow_only[callee] && hasEffect({
+    return effects.borrow_only[callee] || !hasEffect({
         ...range,
         slots: input.source.written[callee]
-    })) {
-        return false
-    }
-
-    const root = input.source.symbols.length + parent
-
-    return loop({
-        index: integers.widen(input.trace.first[root]),
-        valid: true
-    }, {
-        while: state => state.valid &&
-            state.index < integers.widen(input.trace.first[root + 1]),
-        next: state => {
-            state.valid = observes({
-                source: input,
-                site: state.index
-            })
-            state.index += 1
-        },
-        return: state => state.valid
     })
 }

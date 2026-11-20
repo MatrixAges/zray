@@ -1,0 +1,5 @@
+export const before: i64 = -1
+
+export const equal: i64 = 0
+
+export const after: i64 = 1

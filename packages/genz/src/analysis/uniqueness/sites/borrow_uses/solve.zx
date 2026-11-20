@@ -1,0 +1,66 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+import completion from "./completion"
+import { before, equal, after } from "./const"
+
+import type { Candidates as Input, Mark } from "./model"
+
+export type Output = Mark[]
+
+export default function (in: Input): Output {
+    const candidates = in.candidates.sort(
+        (left, right) => match {
+            left.finish > right.finish => before,
+            left.finish < right.finish => after,
+            left.start < right.start => before,
+            left.start > right.start => after,
+            _ => equal
+        }
+    )[0]
+
+    const expressions = in.source.source.expressions
+    const ends = expressions.call_functions.map(fn_id => max_u32)[0]
+    const marks: Mark[] = []
+
+    // A forwarded result must already have a proof in reverse evaluation order.
+    // Equal finish points put enclosing expressions before their operands.
+    // See docs/所有权推导论文.md for the lifetime and reuse invariants.
+    return loop({
+        ends,
+        marks,
+        previous: max_u32,
+        index: 0
+    }, {
+        while: state => state.index < candidates.length,
+        next: state => {
+            const candidate = candidates[state.index]
+            const payload = integers.widen(
+                expressions.payloads[integers.widen(
+                    candidate.node
+                )]
+            )
+
+            if (state.previous != candidate.node) {
+                state.ends[payload] = completion({
+                    source: in.source,
+                    ends: state.ends,
+                    node: candidate.node
+                })
+                state.previous = candidate.node
+            }
+
+            const boundary = state.ends[payload]
+
+            if (boundary != max_u32) {
+                state.marks = state.marks.push({
+                    site: candidate.site,
+                    boundary
+                })[0]
+            }
+
+            state.index += 1
+        },
+        return: state => state.marks
+    })
+}

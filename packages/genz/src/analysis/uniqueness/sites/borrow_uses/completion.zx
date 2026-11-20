@@ -1,0 +1,55 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+import eligible from "./eligible"
+import observes from "./observes"
+
+import type { Completion as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { source, trace } = in.source
+
+    const node = integers.widen(in.node)
+    const root = source.symbols.length + node
+    const repeated = source.nodes.repeated[node]
+    const end = integers.widen(trace.first[root + 1])
+
+    return loop({
+        site: integers.widen(trace.first[root]),
+        latest: in.node
+    }, {
+        while: state => state.site < end && state.latest != max_u32,
+        next: state => {
+            const use = trace.sites[state.site]
+            const boundary = use.parent == max_u32 ? use.top : use.parent
+            const id = integers.widen(boundary)
+            const context = source.nodes.repeated[id] == repeated
+
+            const selected = {
+                source: in.source,
+                site: state.site
+            }
+
+            const completion = match {
+                !context => max_u32,
+                observes(selected) => boundary,
+                eligible(selected) =>
+                    in.ends[integers.widen(source.expressions.payloads[id])],
+                _ => max_u32
+            }
+
+            const last = integers.widen(state.latest)
+
+            state.latest = match {
+                completion == max_u32 => max_u32,
+                source.nodes.finish[integers.widen(completion)] >
+                    source.nodes.finish[last] => completion,
+                _ => state.latest
+            }
+            state.site += 1
+        },
+        return: state => state.latest
+    })
+}

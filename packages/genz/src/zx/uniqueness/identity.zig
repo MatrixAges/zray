@@ -13,7 +13,7 @@ pub fn program(value: ir.Program, basis: *const Basis, return_allocations: []con
 
     var self = Self{};
 
-    self.bytes("zxc.uniqueness.program.v20");
+    self.bytes("zxc.uniqueness.program.v21");
     self.bytes(&basis.types);
     self.write(value.functions.count());
 

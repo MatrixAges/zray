@@ -4,57 +4,85 @@ const Role = @import("../order/seed.zig").Role;
 const none = @import("../order/seed.zig").none;
 const Site = Seed.Site;
 
+const Candidate = struct {
+    site: usize,
+    node: u32,
+    start: u32,
+    finish: u32,
+    fn later(_: void, left: Candidate, right: Candidate) bool {
+        if (left.finish != right.finish) return left.finish > right.finish;
+
+        return left.start < right.start;
+    }
+};
+
 pub fn normalize(allocator: std.mem.Allocator, source: *Seed) std.mem.Allocator.Error!void {
-    var candidates: std.ArrayList(usize) = .empty;
+    var candidates: std.ArrayList(Candidate) = .empty;
 
-    for (source.sites, 0..) |site, index| if (eligible(source, site)) try candidates.append(allocator, index);
-    if (candidates.items.len == 0) return;
+    defer candidates.deinit(allocator);
 
-    const first = try allocator.alloc(u32, source.first.len);
-    var sites: std.ArrayList(Site) = .empty;
-    var candidate: usize = 0;
-    var serial = source.order.edgeCount();
+    for (source.sites, 0..) |site, index| {
+        if (!eligible(source, site)) continue;
 
-    for (first[0 .. first.len - 1], 0..) |*start, root| {
-        start.* = @intCast(sites.items.len);
-
-        for (source.sites[source.first[root]..source.first[root + 1]], source.first[root]..) |original, index| {
-            const selected = candidate < candidates.items.len and candidates.items[candidate] == index;
-            var site = original;
-            site.role = resolved(source, original);
-
-            if (selected) {
-                site.role = .observe;
-                site.edge = std.math.cast(u32, serial) orelse return error.OutOfMemory;
-                serial += 1;
-            }
-
-            try sites.append(allocator, site);
-
-            if (!selected) continue;
-
-            candidate += 1;
-            const result = source.nodeRoot(@fromBackingInt(original.parent));
-
-            for (source.sites[source.first[result]..source.first[result + 1]]) |observation| {
-                var use = original;
-                use.top = observation.top;
-                use.parent = observation.parent;
-                use.region = observation.region;
-                use.arms = observation.arms;
-                use.role = .observe;
-                use.edge = std.math.cast(u32, serial) orelse return error.OutOfMemory;
-
-                try sites.append(allocator, use);
-
-                serial += 1;
-            }
-        }
+        try candidates.append(allocator, .{
+            .site = index,
+            .node = site.parent,
+            .start = source.order.timeAt(site.parent),
+            .finish = source.order.finishAt(site.parent),
+        });
     }
 
-    first[first.len - 1] = @intCast(sites.items.len);
-    source.first = first;
-    source.sites = sites.items;
+    if (candidates.items.len == 0) return;
+
+    std.mem.sort(Candidate, candidates.items, {}, Candidate.later);
+
+    const ends = try allocator.alloc(u32, source.expressions.call_functions.len);
+
+    defer allocator.free(ends);
+    @memset(ends, none);
+
+    var previous: u32 = none;
+
+    for (candidates.items) |candidate| {
+        if (previous == candidate.node) continue;
+
+        ends[source.expressions.payloads[candidate.node]] = completion(source, ends, candidate.node);
+        previous = candidate.node;
+    }
+
+    var serial = source.order.edgeCount();
+
+    for (candidates.items) |candidate| {
+        const boundary = ends[source.expressions.payloads[candidate.node]];
+
+        if (boundary == none) continue;
+
+        const site = &source.sites[candidate.site];
+
+        site.role = .observe;
+        site.parent = boundary;
+        site.edge = std.math.cast(u32, serial) orelse return error.OutOfMemory;
+        serial += 1;
+    }
+}
+
+fn completion(source: *const Seed, ends: []const u32, node: u32) u32 {
+    const root = source.nodeRoot(@fromBackingInt(node));
+    const repeated = source.order.loopAt(node);
+    var latest = node;
+
+    for (source.sites[source.first[root]..source.first[root + 1]]) |site| {
+        const boundary = if (site.parent == none) @backingInt(site.top) else site.parent;
+
+        if (source.order.loopAt(boundary) != repeated) return none;
+
+        const end = if (observes(source, site)) boundary else if (eligible(source, site)) ends[source.expressions.payloads[boundary]] else none;
+
+        if (end == none) return none;
+        if (source.order.finishAt(end) > source.order.finishAt(latest)) latest = end;
+    }
+
+    return latest;
 }
 
 fn borrowOnly(source: *const Seed, callee: usize) bool {
@@ -104,16 +132,8 @@ fn eligible(source: *const Seed, site: Site) bool {
     const first: usize = @intCast(@as(i64, site.lo) + site.delta);
     const end: usize = @intCast(@as(i64, site.hi) + site.delta);
 
-    if (std.mem.indexOfScalar(bool, source.summaries.written[callee][first..end], true) != null or
-        std.mem.indexOfScalar(bool, source.summaries.held[callee][first..end], true) == null) return false;
-
-    const result = source.nodeRoot(@fromBackingInt(site.parent));
-
-    for (source.sites[source.first[result]..source.first[result + 1]]) |use| {
-        if (!observes(source, use)) return false;
-    }
-
-    return true;
+    return std.mem.indexOfScalar(bool, source.summaries.written[callee][first..end], true) == null and
+        std.mem.indexOfScalar(bool, source.summaries.held[callee][first..end], true) != null;
 }
 
 fn observes(source: *const Seed, site: Site) bool {

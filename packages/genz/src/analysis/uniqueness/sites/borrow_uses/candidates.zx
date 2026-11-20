@@ -2,12 +2,12 @@ import integers from "std:integer"
 
 import eligible from "./eligible"
 
-import type { Input } from "./model"
+import type { Candidate, Input } from "./model"
 
-export type Output = u32[]
+export type Output = Candidate[]
 
 export default function (in: Input): Output {
-    const candidates: u32[] = []
+    const candidates: Candidate[] = []
 
     return loop({
         candidates,
@@ -19,8 +19,15 @@ export default function (in: Input): Output {
                 source: in,
                 site: state.index
             })) {
-                state.candidates =
-                    state.candidates.push(integers.narrow(state.index))[0]
+                const node = in.trace.sites[state.index].parent
+                const index = integers.widen(node)
+
+                state.candidates = state.candidates.push({
+                    site: integers.narrow(state.index),
+                    node,
+                    start: in.source.nodes.time[index],
+                    finish: in.source.nodes.finish[index]
+                })[0]
             }
 
             state.index += 1

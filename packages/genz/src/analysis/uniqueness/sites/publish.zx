@@ -1,9 +1,38 @@
-import type { Plan as Output, Resolved } from "./model"
+import integers from "std:integer"
 
-export type Input = Resolved & Output.Pick("edge_count", "slot_first")
+import { Role } from "../order/model"
+
+import type { Mark } from "./borrow_uses/model"
+import type { Plan as Output, Trace } from "./model"
+
+export type Input = Output.Pick("edge_count", "slot_first") & {
+    trace: Trace,
+    roles: Role[],
+    marks: Mark[]
+}
 
 export default function (in: Input): Output {
     const { sites } = in.trace
+
+    const roles: Role[] = in.roles
+
+    const columns = loop({
+        parent: sites.map(site => site.parent)[0],
+        edge: sites.map(site => site.edge)[0],
+        role: roles,
+        index: 0
+    }, {
+        while: state => state.index < in.marks.length,
+        next: state => {
+            const mark = in.marks[state.index]
+            const index = integers.widen(mark.site)
+
+            state.parent[index] = mark.boundary
+            state.edge[index] = integers.narrow(in.edge_count + state.index)
+            state.role[index] = Role.observe
+            state.index += 1
+        }
+    })
 
     return {
         edge_count: in.edge_count,
@@ -20,9 +49,9 @@ export default function (in: Input): Output {
             c: sites.map(site => site.c)[0],
             d: sites.map(site => site.d)[0],
             arms: sites.map(site => site.arms)[0],
-            edge: sites.map(site => site.edge)[0],
-            parent: sites.map(site => site.parent)[0],
-            role: in.roles ?? sites.map(site => site.role)[0]
+            edge: columns.edge,
+            parent: columns.parent,
+            role: columns.role
         }
     }
 }

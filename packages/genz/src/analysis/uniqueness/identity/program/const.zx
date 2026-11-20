@@ -1,4 +1,4 @@
-export const identity_domain: string = "zxc.uniqueness.program.v20"
+export const identity_domain: string = "zxc.uniqueness.program.v21"
 
 export const source_function: u8 = 0
 
