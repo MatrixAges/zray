@@ -27,6 +27,9 @@ pub const Planned = struct {
     transfers: []const u64 = &.{},
     slot_first: []const u32 = &.{},
     used: bool = true,
+    pub fn fromPlan(value: Function.Plan) Planned {
+        return .{ .flags = value.flags, .renewals = value.renewals, .transfers = value.transfers, .slot_first = value.slot_first };
+    }
     pub fn plan(self: Planned) Function.Plan {
         return .{ .flags = self.flags, .renewals = self.renewals, .transfers = self.transfers, .slot_first = self.slot_first };
     }
@@ -211,7 +214,7 @@ pub fn getPlanned(self: *Self, summaries: *const Summaries, state: State) std.me
 
 /// Records a plan whose slices already belong to this memo's arena.
 pub fn putOwnedPlan(self: *Self, key: Digest, plan: Function.Plan) std.mem.Allocator.Error!Planned {
-    const value = Planned{ .flags = plan.flags, .renewals = plan.renewals, .transfers = plan.transfers, .slot_first = plan.slot_first };
+    const value = Planned.fromPlan(plan);
 
     try self.planned.put(self.indexAllocator(), key, value);
 

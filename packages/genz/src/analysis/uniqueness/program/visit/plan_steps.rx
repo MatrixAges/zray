@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Visit" />
+
+    <Args in={Visit.PlanRequest} out={Visit.Step[]} />
+
+    <If on={!$in.persistent}>
+        <If on={$in.origin == Visit.Origin.Ahead}>
+            <Return value={[Visit.Step.AdoptAhead]} />
+        </If>
+
+        <Return
+            value={[
+                Visit.Step.ResetScratch,
+                Visit.Step.Analyze
+            ]}
+        />
+    </If>
+
+    <If on={$in.origin == Visit.Origin.Cached}>
+        <Return
+            value={[
+                Visit.Step.UseCached,
+                Visit.Step.RecordTrace,
+                Visit.Step.RetainOutput
+            ]}
+        />
+    </If>
+
+    <If on={$in.origin == Visit.Origin.Ahead}>
+        <Return
+            value={[
+                Visit.Step.AdoptAhead,
+                Visit.Step.SaveOwned,
+                Visit.Step.RecordTrace,
+                Visit.Step.RetainOutput
+            ]}
+        />
+    </If>
+
+    <Return
+        value={[
+            Visit.Step.ResetScratch,
+            Visit.Step.Analyze,
+            Visit.Step.SaveOwned,
+            Visit.Step.RecordTrace,
+            Visit.Step.RetainOutput
+        ]}
+    />
+</Module>

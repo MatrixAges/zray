@@ -111,7 +111,7 @@ pub fn kept(self: *const Self) std.mem.Allocator {
     return self.pool.workers[0].lasting.allocator();
 }
 
-fn Found(comptime kind: Memo.Kind) type {
+pub fn Found(comptime kind: Memo.Kind) type {
     return switch (kind) {
         .settled => Settled,
         .demanded => Demanded,

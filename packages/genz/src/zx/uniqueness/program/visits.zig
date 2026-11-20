@@ -1,112 +1,183 @@
 const std = @import("std");
+const zx = @import("zx");
 const Context = @import("host.zig").Context;
+const Ahead = @import("../ahead.zig");
 const Function = @import("../function.zig");
-const Plan = Function.Plan;
-const Feedback = @import("../work/round.zig").Feedback;
-const Error = std.mem.Allocator.Error;
+const Memo = @import("../memo.zig");
+const Round = @import("../work/round.zig");
 const select = @import("visit/select.zig");
-const applyDemand = @import("visit/demand.zig").apply;
+const sequence = @import("generated_uniqueness_visit_sequence");
+const Error = std.mem.Allocator.Error;
 
-pub fn settle(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Feedback {
-    const rounds = &ctx.rounds.?;
-    const recalled = (try ctx.replay.recall(.settled, index)) orelse try ctx.memo.getSettled(ctx.summaries, ctx.bodies.state(ctx.summaries, index));
-    const early = try rounds.ahead.take(.settled, index);
-    const origin = select.choose(recalled != null, early != null);
-    var changed: []const u64 = undefined;
-
-    const settled = switch (origin) {
-        .Cached, .Ahead => replayed: {
-            const record = if (origin == .Cached) recalled.? else try ctx.memo.putSettled(ctx.memo.key, early.?.passed, early.?.output);
-            changed = try Function.replay(round.allocator(), ctx.summaries, record.passed);
-
-            break :replayed record;
-        },
-        .Analyze => analyzed: {
-            var function = try ctx.bodies.analyze(round.allocator(), rounds.ahead.kept(), ctx.slots, ctx.summaries, index, null, false);
-            const result = try function.settle(ctx.memo.arena.allocator(), if (index == ctx.bodies.program.functions.count()) 0 else ctx.summaries.output[index].len);
-            changed = result.changed;
-
-            break :analyzed try ctx.memo.putOwnedSettled(ctx.memo.key, result.passed, result.output);
-        },
-    };
-
-    try ctx.replay.met(.settled, index, settled, ctx.memo);
-
-    return .{ .body = index, .changed = changed, .levels = settled.output };
+pub fn settle(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Round.Feedback {
+    return run(.settled, true, ctx, round, index);
 }
 
-pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Feedback {
-    const rounds = &ctx.rounds.?;
-    const state = ctx.bodies.state(ctx.summaries, index);
-    const growth = &ctx.bodies.units[index].growth;
-    const recalled = (try ctx.replay.recall(.demanded, index)) orelse try ctx.memo.getDemanded(ctx.summaries, state);
-    const early = try rounds.ahead.take(.demanded, index);
-    const origin = select.choose(recalled != null, early != null);
-    var changed: []const u64 = undefined;
-
-    const demanded = switch (origin) {
-        .Cached => replayed: {
-            const record = recalled.?;
-            changed = try applyDemand(round.allocator(), ctx.summaries, growth, .{ .normalized = record.normalized, .renewed = record.renewed }, record.marks, origin);
-
-            break :replayed record;
-        },
-        .Ahead => ahead: {
-            const found = early.?;
-
-            const rows = if (@import("genz_options").generated_analysis and found.grew)
-                try @import("../retain.zig").growth(ctx.memo.arena.allocator(), found.growth)
-            else
-                found.growth;
-
-            changed = try applyDemand(round.allocator(), ctx.summaries, growth, rows, found.marks, origin);
-
-            break :ahead try ctx.memo.putDemanded(ctx.memo.key, found.marks, growth, found.grew);
-        },
-        .Analyze => analyzed: {
-            var function = try ctx.bodies.analyze(round.allocator(), rounds.ahead.kept(), ctx.slots, ctx.summaries, index, null, false);
-            const result = try function.demand(ctx.memo.arena.allocator());
-            changed = result.changed;
-
-            break :analyzed try ctx.memo.putOwnedDemanded(ctx.memo.key, result.marks, growth, function.grew);
-        },
-    };
-
-    try ctx.replay.met(.demanded, index, demanded, ctx.memo);
-
-    return .{ .body = index, .changed = changed, .grew = demanded.grew };
+pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Round.Feedback {
+    return run(.demanded, true, ctx, round, index);
 }
 
-pub fn plan(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Plan {
-    const rounds = &ctx.rounds.?;
-    const plan_owner = if (ctx.memo.persistent) ctx.memo.arena.allocator() else ctx.allocator;
-
-    const recalled = if (ctx.memo.persistent)
-        (try ctx.replay.recall(.planned, index)) orelse try ctx.memo.getPlanned(ctx.summaries, ctx.bodies.state(ctx.summaries, index))
-
-    else
-        null;
-
-    const early = try rounds.ahead.take(.planned, index);
-    const origin = select.choose(recalled != null, early != null);
-
-    const built = switch (origin) {
-        .Cached => recalled.?.plan(),
-        .Ahead => try early.?.copy(plan_owner),
-        .Analyze => fresh: {
-            _ = round.reset(.retain_capacity);
-
-            var function = try ctx.bodies.analyze(round.allocator(), ctx.temporary, ctx.slots, ctx.summaries, index, null, false);
-
-            break :fresh try function.plan(plan_owner);
-        },
+pub fn plan(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Function.Plan {
+    return switch (ctx.memo.persistent) {
+        inline else => |persistent| run(.planned, persistent, ctx, round, index),
     };
+}
 
-    return if (ctx.memo.persistent) stored: {
-        const record = if (origin == .Cached) recalled.? else try ctx.memo.putOwnedPlan(ctx.memo.key, built);
+fn Output(comptime kind: Memo.Kind) type {
+    return if (kind == .planned) Function.Plan else Round.Feedback;
+}
 
-        try ctx.replay.met(.planned, index, record, ctx.memo);
+fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Output(kind) {
+    var visit: Visit(kind) = .{ .ctx = ctx, .round = round, .index = index };
 
-        break :stored try built.copy(ctx.allocator);
-    } else built;
+    try visit.execute(persistent, null);
+
+    switch (select.choose(visit.cached != null, visit.ahead != null)) {
+        inline else => |origin| try visit.execute(persistent, origin),
+    }
+
+    return visit.output();
+}
+
+fn Visit(comptime kind: Memo.Kind) type {
+    return struct {
+        ctx: *Context,
+        round: *std.heap.ArenaAllocator,
+        index: usize,
+        cached: ?Memo.Result(kind) = null,
+        ahead: ?Ahead.Found(kind) = null,
+        record: Memo.Result(kind) = undefined,
+        changed: []const u64 = &.{},
+        const Self = @This();
+
+        const phase: Round.Phase = switch (kind) {
+            .settled => .Settle,
+            .demanded => .Demand,
+            .planned => .Plan,
+        };
+        fn execute(self: *Self, comptime persistent: bool, comptime origin: ?select.Origin) Error!void {
+            const steps = comptime zx.staticSequence(sequence, &.{
+                .phase = phase,
+                .origin = origin,
+                .persistent = persistent,
+            });
+
+            inline for (steps) |step| switch (step) {
+                .Recall => self.cached = try self.ctx.replay.recall(kind, self.index),
+                .ReadMemoOnMiss => if (self.cached == null) {
+                    self.cached = try self.lookup();
+                },
+                .TakeAhead => self.ahead = try self.ctx.rounds.?.ahead.take(kind, self.index),
+                .UseCached => self.record = self.cached.?,
+                .AdoptAhead => try self.adopt(persistent),
+                .ResetScratch => _ = self.round.reset(.retain_capacity),
+                .Analyze => try self.analyze(persistent),
+                .Apply => try self.apply(origin.?),
+                .SaveBorrowed => try self.save(false),
+                .SaveOwned => try self.save(true),
+                .RecordTrace => try self.ctx.replay.met(kind, self.index, self.record, self.ctx.memo),
+                .RetainOutput => self.record = Memo.Planned.fromPlan(try self.record.plan().copy(self.ctx.allocator)),
+            };
+        }
+
+        fn lookup(self: *Self) Error!?Memo.Result(kind) {
+            const ctx = self.ctx;
+            const state = ctx.bodies.state(ctx.summaries, self.index);
+
+            const get = comptime switch (kind) {
+                .settled => Memo.getSettled,
+                .demanded => Memo.getDemanded,
+                .planned => Memo.getPlanned,
+            };
+
+            return get(ctx.memo, ctx.summaries, state);
+        }
+        fn owner(self: *Self, comptime persistent: bool) std.mem.Allocator {
+            return if (persistent) self.ctx.memo.arena.allocator() else self.ctx.allocator;
+        }
+        fn adopt(self: *Self, comptime persistent: bool) Error!void {
+            const found = self.ahead.?;
+
+            self.record = switch (kind) {
+                .settled => .{ .passed = found.passed, .output = found.output },
+                .demanded => adopted: {
+                    const growth = if (found.grew)
+                        try @import("../retain.zig").growth(self.owner(persistent), found.growth)
+                    else
+                        found.growth;
+
+                    break :adopted .{ .marks = found.marks, .normalized = growth.normalized, .renewed = growth.renewed, .grew = found.grew };
+                },
+                .planned => Memo.Planned.fromPlan(try found.copy(self.owner(persistent))),
+            };
+        }
+        fn analyze(self: *Self, comptime persistent: bool) Error!void {
+            const ctx = self.ctx;
+            const scratch = self.round.allocator();
+            const lasting = if (kind == .planned) ctx.temporary else ctx.rounds.?.ahead.kept();
+            const retained = self.owner(persistent);
+            var function = try ctx.bodies.analyze(scratch, lasting, ctx.slots, ctx.summaries, self.index, null, false);
+
+            self.record = switch (kind) {
+                .settled => settled: {
+                    const count = if (self.index < ctx.summaries.output.len) ctx.summaries.output[self.index].len else 0;
+                    const result = try function.settle(retained, count);
+                    self.changed = result.changed;
+
+                    break :settled .{ .passed = result.passed, .output = result.output };
+                },
+                .demanded => demanded: {
+                    const result = try function.demand(retained);
+                    const growth = ctx.bodies.units[self.index].growth;
+                    self.changed = result.changed;
+
+                    break :demanded .{ .marks = result.marks, .normalized = growth.normalized, .renewed = growth.renewed, .grew = function.grew };
+                },
+                .planned => Memo.Planned.fromPlan(try function.plan(retained)),
+            };
+        }
+
+        fn apply(self: *Self, origin: select.Origin) Error!void {
+            const ctx = self.ctx;
+            const scratch = self.round.allocator();
+            const record = self.record;
+
+            self.changed = switch (kind) {
+                .settled => try Function.replay(scratch, ctx.summaries, record.passed),
+                .demanded => try @import("visit/demand.zig").apply(
+                    scratch,
+                    ctx.summaries,
+                    &ctx.bodies.units[self.index].growth,
+                    .{ .normalized = record.normalized, .renewed = record.renewed },
+                    record.marks,
+                    origin,
+                ),
+                .planned => unreachable,
+            };
+        }
+        fn save(self: *Self, comptime owned: bool) Error!void {
+            const memo = self.ctx.memo;
+            const record = self.record;
+
+            self.record = switch (kind) {
+                .settled => try (if (owned) Memo.putOwnedSettled else Memo.putSettled)(memo, memo.key, record.passed, record.output),
+                .demanded => try (if (owned) Memo.putOwnedDemanded else Memo.putDemanded)(
+                    memo,
+                    memo.key,
+                    record.marks,
+                    &self.ctx.bodies.units[self.index].growth,
+                    record.grew,
+                ),
+                .planned => try memo.putOwnedPlan(memo.key, record.plan()),
+            };
+        }
+
+        fn output(self: *const Self) Output(kind) {
+            return switch (kind) {
+                .settled => .{ .body = self.index, .changed = self.changed, .levels = self.record.output },
+                .demanded => .{ .body = self.index, .changed = self.changed, .grew = self.record.grew },
+                .planned => self.record.plan(),
+            };
+        }
+    };
 }

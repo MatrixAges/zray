@@ -1,0 +1,66 @@
+<Module>
+    <Type from="model" as="Visit" />
+    <Type from="../model" as="Program" />
+
+    <Args in={Visit.Request} out={Visit.Step[]} />
+
+    <If on={$in.origin == null}>
+        <If on={$in.phase == Program.Phase.Plan && !$in.persistent}>
+            <Return value={[Visit.Step.TakeAhead]} />
+        </If>
+
+        <Return
+            value={[
+                Visit.Step.Recall,
+                Visit.Step.ReadMemoOnMiss,
+                Visit.Step.TakeAhead
+            ]}
+        />
+    </If>
+
+    <If on={$in.phase == Program.Phase.Plan}>
+        <Call module="plan_steps" in={$in.omit(["phase"])} />
+
+        <Return value={$ctx.plan_steps} />
+    </If>
+
+    <If on={$in.origin == Visit.Origin.Cached}>
+        <Return
+            value={[
+                Visit.Step.UseCached,
+                Visit.Step.Apply,
+                Visit.Step.RecordTrace
+            ]}
+        />
+    </If>
+
+    <If on={$in.origin == Visit.Origin.Ahead}>
+        <If on={$in.phase == Program.Phase.Settle}>
+            <Return
+                value={[
+                    Visit.Step.AdoptAhead,
+                    Visit.Step.SaveBorrowed,
+                    Visit.Step.Apply,
+                    Visit.Step.RecordTrace
+                ]}
+            />
+        </If>
+
+        <Return
+            value={[
+                Visit.Step.AdoptAhead,
+                Visit.Step.Apply,
+                Visit.Step.SaveBorrowed,
+                Visit.Step.RecordTrace
+            ]}
+        />
+    </If>
+
+    <Return
+        value={[
+            Visit.Step.Analyze,
+            Visit.Step.SaveOwned,
+            Visit.Step.RecordTrace
+        ]}
+    />
+</Module>

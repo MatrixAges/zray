@@ -1,5 +1,6 @@
 import type { WriteColumn } from "memory"
 import type { Input as Marks } from "../../function/updates/marks"
+import type { Phase } from "../model"
 
 export enum Origin {
     Cached,
@@ -11,6 +12,29 @@ export type Available = {
     cached: bool,
     ahead: bool
 }
+
+export enum Step {
+    Recall,
+    ReadMemoOnMiss,
+    TakeAhead,
+    UseCached,
+    AdoptAhead,
+    ResetScratch,
+    Analyze,
+    Apply,
+    SaveBorrowed,
+    SaveOwned,
+    RecordTrace,
+    RetainOutput
+}
+
+export type Request = {
+    phase: Phase,
+    origin?: Origin,
+    persistent: bool
+}
+
+export type PlanRequest = Request.Omit("phase")
 
 export type Growth = {
     target: WriteColumn,
