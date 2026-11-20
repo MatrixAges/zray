@@ -11,6 +11,7 @@ const visits = @import("visits.zig");
 const driver = if (generated) @import("generated_uniqueness_program") else void;
 const Round = @import("../work/round.zig");
 const Phase = Round.Phase;
+const PlanWriter = @import("visit/plan_writer.zig");
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -115,13 +116,7 @@ pub const Context = struct {
         rounds.ahead.begin(kind);
         defer rounds.ahead.finish();
 
-        const plans = if (kind == .planned) try self.allocator.alloc(analysis.Plan, self.program.functions.count()) else {};
-
-        if (kind == .planned) {
-            @memset(plans, .{ .flags = &.{} });
-
-            result.functions = plans;
-        }
+        var plans = if (kind == .planned) try PlanWriter.init(self.allocator, self.program.functions.count()) else {};
 
         const frame = Round.Frame{
             .program = self.program,
@@ -138,7 +133,11 @@ pub const Context = struct {
             if (self.replay.trace == null) try rounds.ahead.request(kind, self.memo, claim.pending);
 
             const index = switch (claim.visit) {
-                .done => return .{ .grew = claim.grew },
+                .done => {
+                    if (kind == .planned) result.* = plans.result();
+
+                    return .{ .grew = claim.grew };
+                },
                 .exhausted => return .{ .exhausted = true },
                 .body => |index| index,
             };
@@ -149,11 +148,7 @@ pub const Context = struct {
             switch (kind) {
                 .settled => feedback = try visits.settle(self, &round, index),
                 .demanded => feedback = try visits.demand(self, &round, index),
-                .planned => {
-                    const plan = try visits.plan(self, &round, index);
-
-                    if (index == plans.len) result.entry = plan else plans[index] = plan;
-                },
+                .planned => plans.put(index, try visits.plan(self, &round, index)),
             }
         }
     }

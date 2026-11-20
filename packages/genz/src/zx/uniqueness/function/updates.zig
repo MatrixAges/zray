@@ -18,22 +18,6 @@ pub fn contributions(allocator: std.mem.Allocator, summaries: *Summaries, values
     return entry.executeValue(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return replayError(err);
 }
 
-pub fn marks(allocator: std.mem.Allocator, summaries: *Summaries, values: []const Function.Mark) std.mem.Allocator.Error![]const u64 {
-    if (values.len == 0) return &.{};
-
-    const entry = @import("generated_uniqueness_replay_marks");
-    const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
-    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-
-    const input: Input = .{
-        .inputs = @ptrCast(&summaries.inputs),
-        .outputs = @ptrCast(&summaries.outputs),
-        .marks = storage.view(@FieldType(Input, "marks"), values),
-    };
-
-    return entry.executeValue(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return replayError(err);
-}
-
 fn replayError(err: anyerror) std.mem.Allocator.Error {
     if (err == error.OutOfMemory) return error.OutOfMemory;
 

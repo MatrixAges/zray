@@ -7,6 +7,7 @@ const Order = @import("order/seed.zig");
 const Identity = @import("identity.zig");
 const Trace = @import("trace.zig");
 const Shortcut = @import("replay/shortcut.zig");
+const PlanWriter = @import("program/visit/plan_writer.zig");
 pub const Memo = @import("memo.zig");
 const Sites = @import("sites/seed.zig");
 const Topology = @import("topology.zig");
@@ -210,22 +211,25 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
         }
     }
 
-    const plans = try allocator.alloc(Plan, program.functions.count());
-    var entry_plan: Plan = undefined;
+    var plans = try PlanWriter.init(allocator, program.functions.count());
     var first: usize = 0;
     var replacement: usize = 0;
 
     while (first < units.len) {
         const span = Shortcut.range(trace.planned.starts, replay.changed, first, replacement);
 
-        for (first..span.end, 0..) |index, offset| {
-            const target = if (index == plans.len) &entry_plan else &plans[index];
+        switch (span.source) {
+            .empty => {},
+            .recorded => for (first..span.end, 0..) |index, offset| {
+                const record = trace.planned.entries[span.plan_first + offset];
 
-            target.* = switch (span.source) {
-                .empty => .{ .flags = &.{} },
-                .recorded => try trace.planned.entries[span.plan_first + offset].value.plan().copy(allocator),
-                .replacement => try replacements.items[span.plan_first + offset].value.plan().copy(allocator),
-            };
+                plans.put(index, try record.value.plan().copy(allocator));
+            },
+            .replacement => for (first..span.end, 0..) |index, offset| {
+                const record = replacements.items[span.plan_first + offset];
+
+                plans.put(index, try record.value.plan().copy(allocator));
+            },
         }
 
         replacement = span.next_replacement;
@@ -236,7 +240,7 @@ pub fn shortcut(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temp
 
     @memcpy(trace.identities, replay.identities);
 
-    return .{ .functions = plans, .entry = entry_plan };
+    return plans.result();
 }
 
 /// The result body `index` reaches in a recorded state: the memo's when it has one, or a new analysis in that state.

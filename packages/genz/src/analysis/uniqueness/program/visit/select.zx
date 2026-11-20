@@ -1,0 +1,13 @@
+import { Origin } from "./model"
+
+import type { Available as Input } from "./model"
+
+export type Output = Origin
+
+export default function (in: Input): Output {
+    return match {
+        in.cached => Origin.Cached,
+        in.ahead => Origin.Ahead,
+        _ => Origin.Analyze
+    }
+}

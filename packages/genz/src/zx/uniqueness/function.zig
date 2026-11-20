@@ -955,9 +955,7 @@ fn mark(self: *Self, value: Mark) std.mem.Allocator.Error!void {
     if (!self.deferred) try applyMark(self.allocator, self.summaries, value, self.changed.?);
 }
 
-pub fn replayMarks(allocator: std.mem.Allocator, summaries: *Summaries, marks: []const Mark) std.mem.Allocator.Error![]const u64 {
-    if (generated_analysis) return @import("function/updates.zig").marks(allocator, summaries, marks);
-
+pub fn replayMarksSeed(allocator: std.mem.Allocator, summaries: *Summaries, marks: []const Mark) std.mem.Allocator.Error![]const u64 {
     var changed: std.ArrayList(u64) = .empty;
 
     for (marks) |value| try applyMark(allocator, summaries, value, &changed);

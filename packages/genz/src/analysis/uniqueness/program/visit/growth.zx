@@ -1,0 +1,9 @@
+import memory from "memory"
+
+import type { Growth as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.copyColumnValue(in.target, 0, in.rows)
+}

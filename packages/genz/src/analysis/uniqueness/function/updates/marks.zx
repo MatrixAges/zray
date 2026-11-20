@@ -1,14 +1,23 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import cell from "./cell"
 
 import type { AtomicRows } from "std:bytes"
-import type { Mark } from "../../replay/ordered/model"
+import type { ReadColumn } from "memory"
+
+export type Marks = {
+    output: ReadColumn,
+    functions: ReadColumn,
+    slots: ReadColumn,
+    wants: ReadColumn,
+    count: u64
+}
 
 export type Input = {
     inputs: AtomicRows,
     outputs: AtomicRows,
-    marks: Mark[]
+    marks: Marks
 }
 
 export type Output = u64[]
@@ -22,16 +31,17 @@ export default function (in: Input): Output {
         changed,
         index: 0
     }, {
-        while: state => state.index < marks.length,
+        while: state => state.index < marks.count,
         next: state => {
-            const mark = marks[state.index]
-            const rows = mark.output ? outputs : inputs
-            const row = integers.widen(mark.function)
+            const index = state.index
+            const output = memory.readColumnBool(marks.output, index)
+            const rows = output ? outputs : inputs
+            const row = integers.widen(memory.readColumnU32(marks.functions, index))
             const updated = cell({
                 rows,
                 row,
-                slot: integers.widen(mark.slot),
-                level: mark.want,
+                slot: integers.widen(memory.readColumnU32(marks.slots, index)),
+                level: memory.readColumnU8(marks.wants, index),
                 joining: true
             })
 
