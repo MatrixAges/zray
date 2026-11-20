@@ -1,0 +1,34 @@
+import columns from "memory/columns"
+
+import reserve from "./reserve"
+
+import type { Input as Rows } from "./reserve"
+
+export type Input = {
+    owners: Rows.Omit("used"),
+    entries: Rows.Omit("used"),
+    owner: u8[],
+    entry: u8[],
+    used: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { owners, entries, owner, entry, used } = in
+
+    reserve({
+        ...owners,
+        used
+    })
+
+    reserve({
+        ...entries,
+        used
+    })
+
+    columns.writeRow(entries.rows, used, entry)
+    columns.writeRow(owners.rows, used, owner)
+
+    return used + 1
+}

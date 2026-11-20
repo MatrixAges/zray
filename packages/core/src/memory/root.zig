@@ -85,6 +85,10 @@ pub fn allocateU32Views(allocator: std.mem.Allocator, target: *const anyopaque, 
     try allocateViews(u32, allocator, target, count);
 }
 
+pub fn allocateU64Views(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    try allocateViews(u64, allocator, target, count);
+}
+
 fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     const output: *[]T = @ptrCast(@alignCast(@constCast(target)));
     output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);
@@ -209,6 +213,7 @@ pub const writeRowList = column.writeRowList;
 pub const moveRowList = column.moveRowList;
 pub const writeNamedRowList = column.writeNamedRowList;
 pub const copyRow = column.copyRow;
+pub const writeRow = column.writeRow;
 
 pub inline fn allocateRowsWithAllocator(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     return column.allocateRows(column_set.borrowAllocator(resource), target, count);

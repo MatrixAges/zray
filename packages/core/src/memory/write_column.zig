@@ -17,6 +17,15 @@ pub const RowBuffer = struct {
     columns: []Column,
     const Field = struct { offset: usize, width: usize };
 
+    pub fn empty(comptime Row: type) RowBuffer {
+        return .{
+            .stride = @sizeOf(Row),
+            .alignment = .of(Row),
+            .fields = &.{},
+            .columns = &.{},
+        };
+    }
+
     fn init(comptime Row: type, comptime fields: []const Field, columns: *[fields.len]Column) RowBuffer {
         return .{
             .stride = @sizeOf(Row),
@@ -231,6 +240,17 @@ pub fn copyRowPrefix(target: *const anyopaque, source: []const u8, count: u64) I
     if (size > output.bytes.len or size > source.len) return error.IndexOutOfBounds;
 
     @memcpy(output.bytes[0..size], source[0..size]);
+}
+
+pub fn writeRow(target: *const anyopaque, index: u64, source: []const u8) IndexError!void {
+    const output: *const RowBuffer = @ptrCast(@alignCast(target));
+    const width = output.stride;
+
+    if (index >= output.bytes.len / width or source.len != width) return error.IndexOutOfBounds;
+
+    const offset = @as(usize, @intCast(index)) * width;
+
+    @memcpy(output.bytes[offset..][0..width], source);
 }
 
 /// The caller lends a mutable field of each row exclusively until the generated call returns.

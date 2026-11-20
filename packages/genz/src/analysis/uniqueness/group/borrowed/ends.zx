@@ -8,6 +8,11 @@ export type Output = void
 export default function (in: Input): Output {
     const { owners, first, count } = in
 
+    const length = count + 1
+
+    memory.allocateU32Views(first, length)
+    memory.clearU32Buffer(first, length)
+
     const start: u64 = 0
     const first_end: u64 = 1
 

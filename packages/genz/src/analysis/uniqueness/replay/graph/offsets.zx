@@ -7,6 +7,7 @@ export type Input = Capture.Omit("edges")
 export type Output = u64
 
 export default function (in: Input): Output {
+    memory.allocateU64Views(in.starts, in.callees.length + 1)
     memory.writeU64(in.starts, 0, 0)
 
     return loop({

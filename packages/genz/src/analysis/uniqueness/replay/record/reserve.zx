@@ -1,0 +1,31 @@
+import { max_u64 } from "core/const"
+import columns from "memory/columns"
+
+import type { RowBuffer } from "memory/columns"
+
+export type Input = {
+    rows: RowBuffer,
+    available: u64,
+    granule: u64,
+    used: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { rows, available, granule, used } = in
+
+    if (used < available) {
+        return
+    }
+
+    const need = used + 1
+    const extra = need / 2 + granule
+
+    const capacity = match {
+        max_u64 - need < extra => max_u64,
+        _ => need + extra
+    }
+
+    columns.reserveRows(rows, used, capacity)
+}

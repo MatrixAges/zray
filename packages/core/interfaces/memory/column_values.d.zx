@@ -57,6 +57,12 @@ export declare function copyRowPrefix(
     count: u64
 ): void throws { IndexOutOfBounds }
 
+export declare function writeRow(
+    target: RowBuffer,
+    index: u64,
+    source: u8[]
+): void throws { IndexOutOfBounds }
+
 export declare function projectListColumns(
     target: ListProjection,
     index: u64

@@ -2,7 +2,9 @@ const std = @import("std");
 const Memo = @import("memo.zig");
 const generated = @import("genz_options").generated_analysis;
 const Self = @This();
-const Control = if (@import("genz_options").generated_analysis) @import("replay/root.zig") else @import("replay/seed.zig");
+const Seed = @import("replay/seed.zig");
+const Control = if (generated) @import("replay/root.zig") else Seed;
+const Log = if (generated) @import("replay/record.zig").Log else Seed.Log;
 /// The results every body met in one analysis of a program, visit by visit, with the states it met them in. An
 /// analysis is deterministic, so a later analysis of the same program shape takes the same path as long as its changed
 /// bodies meet the results recorded for them: the unchanged bodies are then handed their recorded results without
@@ -31,21 +33,6 @@ fn Visits(comptime Result: type) type {
     return struct {
         starts: []u32,
         entries: []Log(Result).Entry,
-    };
-}
-
-fn Log(comptime Value: type) type {
-    return struct {
-        owners: std.ArrayList(u32) = .empty,
-        entries: std.ArrayList(Entry) = .empty,
-        const Entry = struct { value: Value, state: []const u8 };
-
-        fn append(self: *@This(), allocator: std.mem.Allocator, owner: u32, value: Value, state: []const u8) std.mem.Allocator.Error!void {
-            try self.owners.ensureUnusedCapacity(allocator, 1);
-            try self.entries.append(allocator, .{ .value = value, .state = state });
-
-            self.owners.appendAssumeCapacity(owner);
-        }
     };
 }
 
@@ -114,36 +101,15 @@ pub const Replay = struct {
     pub fn finish(self: *Replay) std.mem.Allocator.Error!Self {
         const arena = &self.recording.?;
         const allocator = arena.allocator();
-        const columns = self.identities.len + 1;
-        const starts = try allocator.alloc(u32, std.math.mul(usize, columns, @typeInfo(Kind).@"enum".field_names.len) catch return error.OutOfMemory);
-
-        @memset(starts, 0);
-
         var result: Self = undefined;
-        result.key = self.key;
-
-        result.identities = if (generated)
-            @constCast(std.mem.bytesAsSlice(Digest, try @import("retain.zig").state(allocator, std.mem.sliceAsBytes(self.identities))))
-
-        else
-            try allocator.dupe(Digest, self.identities);
-
-        inline for (@typeInfo(Kind).@"enum".field_names, 0..) |kind, index| {
-            const log = @field(self, kind);
-            const Entry = std.meta.Child(@TypeOf(log.entries.items));
-
-            @field(result, kind) = .{
-                .starts = starts[index * columns ..][0..columns],
-                .entries = try allocator.alloc(Entry, log.entries.items.len),
-            };
-        }
 
         if (generated) {
             try @import("replay/publication.zig").capture(allocator, self, &result);
         } else {
-            try @import("replay/seed.zig").capture(allocator, self, &result);
+            try Seed.capture(allocator, self, &result);
         }
 
+        result.key = self.key;
         result.arena = arena.*;
         self.recording = null;
 

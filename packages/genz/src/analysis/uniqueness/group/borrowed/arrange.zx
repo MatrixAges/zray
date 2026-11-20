@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import memory from "memory"
+import columns from "memory/columns"
 
 import type { Arrange as Input } from "./model"
 
@@ -7,6 +8,8 @@ export type Output = void
 
 export default function (in: Input): Output {
     const { owners, first, width, source, target } = in
+
+    columns.allocateRows(target, owners.length)
 
     const grouped = loop(owners.length, {
         while: index => index != 0,
@@ -16,17 +19,11 @@ export default function (in: Input): Output {
             const owner = integers.widen(owners[index])
             const position = memory.readU32(first, owner) - 1
             const offset = index * width
-            const destination = integers.widen(position) * width
+            const row = memory.borrowU8Range(source, offset, width)
 
             memory.writeU32(first, owner, position)
 
-            const copied = memory.copyBytes(
-                target,
-                destination,
-                source,
-                offset,
-                offset + width
-            )
+            columns.writeRow(target, integers.widen(position), row)
         }
     })
 }

@@ -39,7 +39,40 @@ pub fn select(self: *Self, allocator: std.mem.Allocator, comptime kind: anytype,
     return .{ .following = true, .cursor = selected };
 }
 
+pub fn Log(comptime Value: type) type {
+    return struct {
+        owners: std.ArrayList(u32) = .empty,
+        entries: std.ArrayList(Entry) = .empty,
+        pub const Entry = struct { value: Value, state: []const u8 };
+
+        pub fn append(self: *@This(), allocator: std.mem.Allocator, owner: u32, value: Value, state: []const u8) std.mem.Allocator.Error!void {
+            try self.owners.ensureUnusedCapacity(allocator, 1);
+            try self.entries.append(allocator, .{ .value = value, .state = state });
+
+            self.owners.appendAssumeCapacity(owner);
+        }
+    };
+}
+
 pub fn capture(allocator: std.mem.Allocator, replay: anytype, trace: anytype) std.mem.Allocator.Error!void {
+    const names = @typeInfo(@import("../memo.zig").Kind).@"enum".field_names;
+    const columns = replay.identities.len + 1;
+    const starts = try allocator.alloc(u32, std.math.mul(usize, columns, names.len) catch return error.OutOfMemory);
+
+    @memset(starts, 0);
+
+    trace.identities = try allocator.dupe([32]u8, replay.identities);
+
+    inline for (names, 0..) |name, index| {
+        const log = @field(replay, name);
+        const Entry = std.meta.Child(@TypeOf(log.entries.items));
+
+        @field(trace, name) = .{
+            .starts = starts[index * columns ..][0..columns],
+            .entries = try allocator.alloc(Entry, log.entries.items.len),
+        };
+    }
+
     const rows = try allocator.alloc([]const u32, replay.callees.len);
 
     for (rows, replay.callees) |*target, source| target.* = try allocator.dupe(u32, source);

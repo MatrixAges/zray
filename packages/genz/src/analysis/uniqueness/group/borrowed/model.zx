@@ -1,4 +1,5 @@
-import type { U8Buffer, U32Buffer } from "memory"
+import type { U32Buffer } from "memory"
+import type { RowBuffer } from "memory/columns"
 
 export type Count = {
     count: u64,
@@ -8,7 +9,7 @@ export type Count = {
 
 export type Input = Count & {
     source: u8[],
-    target: U8Buffer,
+    target: RowBuffer,
     width: u64
 }
 

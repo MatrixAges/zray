@@ -637,6 +637,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/topology/collect.rx", .name = "uniqueness_calls", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/create.rx", .name = "uniqueness_replay_create", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/select.zx", .name = "uniqueness_replay_select", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/replay/record/append.zx", .name = "uniqueness_trace_append", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/identity/combine.zx", .name = "uniqueness_identity_combine", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/publication/build.rx", .name = "uniqueness_trace_publication", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/shortcut/advance.rx", .name = "uniqueness_shortcut_advance", .owner = .genz },
