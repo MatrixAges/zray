@@ -1,0 +1,6 @@
+import type { Compilation } from "rx_execution_host"
+
+export type Query = {
+    compilation: Compilation,
+    proof: bool
+}

@@ -1,0 +1,25 @@
+import { diskSemanticDirty, saveDiskSemanticEntry } from "rx_execution_host"
+
+import type { SemanticDiskWrite } from "rx_execution_host"
+
+export type Input = {
+    disk: SemanticDiskWrite,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { disk, count } = in
+
+    const written = loop(0, {
+        while: row => row < count,
+        next: row => {
+            if (diskSemanticDirty(disk, row)) {
+                saveDiskSemanticEntry(disk, row)
+            }
+
+            row += 1
+        }
+    })
+}

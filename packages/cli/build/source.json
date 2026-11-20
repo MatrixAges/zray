@@ -84,6 +84,10 @@
             "prefix": "rx/execution/"
         },
         {
+            "path": "compilation",
+            "prefix": "compilation/"
+        },
+        {
             "path": "lint_workflow",
             "prefix": "lint/"
         },
@@ -396,6 +400,22 @@
         {
             "path": "rx/execution/backend/run.rx",
             "name": "build_native_application"
+        },
+        {
+            "path": "compilation/run.rx",
+            "name": "compile_command"
+        },
+        {
+            "path": "compilation/cache/read_entries.zx",
+            "name": "load_disk_semantic_cache"
+        },
+        {
+            "path": "compilation/cache/write.rx",
+            "name": "save_disk_semantic_cache"
+        },
+        {
+            "path": "compilation/fpga/run.rx",
+            "name": "run_fpga_program"
         },
         {
             "path": "lint/run.rx",

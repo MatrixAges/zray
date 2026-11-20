@@ -4,6 +4,8 @@ const zx = @import("zx");
 const SemanticCache = compiler.project.SemanticCache;
 const identity = @import("cache_identity").digest;
 const Self = @This();
+const Effects = @import("sources/effects.zig");
+const Error = Effects.Error;
 const Kind = enum { source, native };
 
 io: std.Io,
@@ -28,28 +30,50 @@ pub fn deinit(self: *Self) void {
     self.* = undefined;
 }
 
+const Read = struct {
+    disk: *Self,
+    sources: []const compiler.project.Source,
+    project: *const compiler.project.Options,
+    cache: *SemanticCache,
+    seen: std.StringHashMapUnmanaged(void) = .empty,
+    failure: Effects.Failure = .{},
+    fn get(handle: *const anyopaque) *Read {
+        return Effects.state(Read, handle);
+    }
+};
+
 pub fn load(self: *Self, sources: []const compiler.project.Source, project: compiler.project.Options, cache: *SemanticCache) !void {
-    var seen: std.StringHashMapUnmanaged(void) = .empty;
+    var state: Read = .{ .disk = self, .sources = sources, .project = &project, .cache = cache };
+    const reference = &state;
 
-    defer seen.deinit(self.allocator);
+    defer state.seen.deinit(self.allocator);
+    @import("cli_source").load_disk_semantic_cache.executeIn(self.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+}
 
-    for (sources) |source| {
-        const path = try std.fs.path.resolve(self.allocator, &.{ project.root_dir, source.path });
+pub fn diskSemanticSourceCount(handle: *const anyopaque) u64 {
+    return Read.get(handle).sources.len;
+}
 
-        defer self.allocator.free(path);
+pub fn loadDiskSemanticSource(handle: *const anyopaque, index: u64) Error!void {
+    const self = Read.get(handle);
+    const disk = self.disk;
+    const cache = self.cache;
+    const source = &self.sources[@intCast(index)];
+    const path = std.fs.path.resolve(disk.allocator, &.{ self.project.root_dir, source.path }) catch |err| return self.failure.save(err);
 
-        if (try self.loadEntry(cache.allocator, &cache.entries, path, .source)) self.loaded += 1;
+    defer disk.allocator.free(path);
 
-        const parsed = try cache.parse_cache.getModule(source.source, path);
+    if (disk.loadEntry(cache.allocator, &cache.entries, path, .source) catch |err| return self.failure.save(err)) disk.loaded += 1;
 
-        if (parsed.diagnostic() != null) continue;
+    const parsed = cache.parse_cache.getModule(source.source, path) catch |err| return self.failure.save(err);
 
-        const imports: ImportLoader = .{ .disk = self, .cache = cache, .seen = &seen };
+    if (parsed.diagnostic() != null) return;
 
-        switch (parsed.*) {
-            .native => |result| try SemanticCache.prefetch(zx.syntax.header.Native{ .program = result.value.parsed.ast }, path, &project, imports),
-            .indexed => |*result| if (compiler.project.ParseCache.indexed_enabled) try SemanticCache.prefetch(result.header(), path, &project, imports) else unreachable,
-        }
+    const imports: ImportLoader = .{ .disk = disk, .cache = cache, .seen = &self.seen };
+
+    switch (parsed.*) {
+        .native => |result| SemanticCache.prefetch(zx.syntax.header.Native{ .program = result.value.parsed.ast }, path, self.project, imports) catch |err| return self.failure.save(err),
+        .indexed => |*result| if (compiler.project.ParseCache.indexed_enabled) SemanticCache.prefetch(result.header(), path, self.project, imports) catch |err| return self.failure.save(err) else unreachable,
     }
 }
 
@@ -91,46 +115,66 @@ fn loadEntry(self: *Self, allocator: std.mem.Allocator, entries: *SemanticCache.
     return true;
 }
 
+const Write = struct {
+    disk: *Self,
+    cache: *SemanticCache,
+    entries: *SemanticCache.entry_store.Map = undefined,
+    kind: Kind = undefined,
+    failure: Effects.Failure = .{},
+    fn get(handle: *const anyopaque) *Write {
+        return Effects.state(Write, handle);
+    }
+    fn select(self: *Write, kind: Kind) usize {
+        self.kind = kind;
+        self.entries = if (kind == .native) &self.cache.native.items else &self.cache.entries;
+
+        return self.entries.keys.items.len;
+    }
+};
+
 pub fn save(self: *Self, cache: *SemanticCache) !void {
-    try self.saveEntries(&cache.entries, .source);
-    try self.saveEntries(&cache.native.items, .native);
+    var state: Write = .{ .disk = self, .cache = cache };
+    const reference = &state;
+
+    @import("cli_source").save_disk_semantic_cache.executeIn(self.allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
 }
 
-fn saveEntries(self: *Self, entries: *SemanticCache.entry_store.Map, kind: Kind) !void {
-    for (entries.keys.items, entries.values.items) |key, entry| {
-        if (!entry.dirty) continue;
+pub fn selectDiskSemanticSources(handle: *const anyopaque) u64 {
+    return Write.get(handle).select(.source);
+}
 
-        const location = try self.filePath(key, kind);
+pub fn selectDiskSemanticNatives(handle: *const anyopaque) u64 {
+    return Write.get(handle).select(.native);
+}
 
-        defer self.allocator.free(location);
+pub fn diskSemanticDirty(handle: *const anyopaque, index: u64) bool {
+    return Write.get(handle).entries.values.items[@intCast(index)].dirty;
+}
 
-        try SemanticCache.codec.encodeInto(&self.buffer, entry.result.value, entry.context_digest, identity());
+pub fn saveDiskSemanticEntry(handle: *const anyopaque, index: u64) Error!void {
+    const self = Write.get(handle);
+    const disk = self.disk;
+    const row: usize = @intCast(index);
+    const key = self.entries.keys.items[row];
+    const entry = self.entries.values.items[row];
+    const location = disk.filePath(key, self.kind) catch |err| return self.failure.save(err);
 
-        const bytes = self.buffer.writer.buffered();
+    defer disk.allocator.free(location);
+    SemanticCache.codec.encodeInto(&disk.buffer, entry.result.value, entry.context_digest, identity()) catch |err| return self.failure.save(err);
 
-        if (bytes.len >= SemanticCache.maximum_file_size) continue;
-        try @import("artifacts.zig").write(self.io, location, bytes);
+    const bytes = disk.buffer.writer.buffered();
 
-        entry.dirty = false;
+    if (bytes.len >= SemanticCache.maximum_file_size) return;
 
-        if (kind == .native) self.native_written += 1 else self.written += 1;
-    }
+    @import("artifacts.zig").write(disk.io, location, bytes) catch |err| return self.failure.save(err);
+
+    entry.dirty = false;
+
+    if (self.kind == .native) disk.native_written += 1 else disk.written += 1;
 }
 
 pub fn report(self: *const Self, cache: *const SemanticCache, writer: *std.Io.Writer) !void {
     try writer.print("zxc cache: analyzed={d} reused={d} loaded={d} written={d} discarded={d} uncacheable={d} native_analyzed={d} native_reused={d} native_loaded={d} native_written={d}\n", .{ cache.analyzed, cache.reused, self.loaded, self.written, self.discarded, cache.uncacheable, cache.native.analyzed, cache.native.reused, self.native_loaded, self.native_written });
-}
-
-pub fn finish(self: *Self, cache: *SemanticCache, options: @import("options.zig").Options, writer: *std.Io.Writer) !void {
-    if (options.cache) self.save(cache) catch |err| {
-        if (err == error.OutOfMemory) return error.OutOfMemory;
-
-        try writer.print("zxc cache write: {s}\n", .{@errorName(err)});
-    };
-
-    if (options.cache_stats) {
-        if (options.cache) try self.report(cache, writer) else try writer.writeAll("zxc cache: disabled\n");
-    }
 }
 
 fn filePath(self: *const Self, source: []const u8, kind: Kind) std.mem.Allocator.Error![]u8 {

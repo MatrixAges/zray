@@ -1,0 +1,65 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Compilation} out={IO.Status} />
+
+    <Call fn="index.readCompilationSource" in={$in} />
+
+    <If on={!$ctx.readCompilationSource}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.openCompilationCaches" in={$in} />
+    <Call fn="index.readCompilationDependencies" in={$in} />
+
+    <If on={!$ctx.readCompilationDependencies}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.compilationHasRxImport" in={$in} />
+
+    <If on={$ctx.compilationHasRxImport}>
+        <Call fn="index.runCompilationRx" in={$in} />
+
+        <Return value={$ctx.runCompilationRx} />
+    </If>
+
+    <Call fn="index.adoptCompilationInputs" in={$in} />
+
+    <Call module="cache/load" in={$in} />
+
+    <Call fn="index.compilationVerifying" in={$in} />
+    <Call fn="index.compilationFpga" in={$in} />
+
+    <If on={$ctx.compilationVerifying || $ctx.compilationFpga}>
+        <Call
+            module="query"
+            in={{
+                compilation: $in,
+                proof: $ctx.compilationVerifying
+            }}
+        />
+
+        <Return value={$ctx.query} />
+    </If>
+
+    <Call fn="index.openCompilationGeneration" in={$in} />
+    <Call fn="index.compilationNative" in={$in} />
+
+    <If on={$ctx.compilationNative}>
+        <Call module="native" in={$in} />
+
+        <Return value={$ctx.native} />
+    </If>
+
+    <Call fn="index.emitCompilationText" in={$in} />
+
+    <If on={!$ctx.emitCompilationText}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call module="cache/finish" in={$in} />
+    <Call module="output" in={$in} />
+
+    <Return value={$ctx.output} />
+</Module>

@@ -1,0 +1,29 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.SemanticDiskWrite} out={void} />
+
+    <Call fn="../index.selectDiskSemanticSources" in={$in} />
+
+    <If on={$ctx.selectDiskSemanticSources > 0}>
+        <Call
+            fn="write_entries"
+            in={{
+                disk: $in,
+                count: $ctx.selectDiskSemanticSources
+            }}
+        />
+    </If>
+
+    <Call fn="../index.selectDiskSemanticNatives" in={$in} />
+
+    <If on={$ctx.selectDiskSemanticNatives > 0}>
+        <Call
+            fn="write_entries"
+            in={{
+                disk: $in,
+                count: $ctx.selectDiskSemanticNatives
+            }}
+        />
+    </If>
+</Module>

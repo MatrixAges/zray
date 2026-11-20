@@ -1,0 +1,70 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Compilation} out={IO.Status} />
+
+    <Call fn="index.compilationLinting" in={$in} />
+
+    <If on={$ctx.compilationLinting}>
+        <Call fn="index.runCompilationLint" in={$in} />
+
+        <Return value={$ctx.runCompilationLint} />
+    </If>
+
+    <Call fn="index.compilationFormatting" in={$in} />
+
+    <If on={$ctx.compilationFormatting}>
+        <Call module="format" in={$in} />
+
+        <Return value={$ctx.format} />
+    </If>
+
+    <Call fn="index.compilationIsLibrary" in={$in} />
+    <Call fn="index.compilationWatching" in={$in} />
+
+    <If on={$ctx.compilationIsLibrary && !$ctx.compilationWatching}>
+        <Call fn="index.openCompilationInputs" in={$in} />
+    </If>
+
+    <Call fn="index.resolveCompilationEntry" in={$in} />
+    <Call fn="index.compilationIsRx" in={$in} />
+
+    <If on={$ctx.compilationIsRx && !$ctx.compilationIsLibrary}>
+        <Call fn="index.runCompilationRx" in={$in} />
+
+        <Return value={$ctx.runCompilationRx} />
+    </If>
+
+    <Call fn="index.loadCompilationProject" in={$in} />
+
+    <If on={!$ctx.loadCompilationProject}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.compilationVerifying" in={$in} />
+    <Call fn="index.compilationIsManifest" in={$in} />
+
+    <If on={$ctx.compilationVerifying && $ctx.compilationIsManifest}>
+        <Call fn="index.runCompilationLibraryProof" in={$in} />
+
+        <Return value={$ctx.runCompilationLibraryProof} />
+    </If>
+
+    <Call fn="index.compilationNative" in={$in} />
+
+    <If on={$ctx.compilationNative && $ctx.compilationIsLibrary}>
+        <Call fn="index.runCompilationLibraryBuild" in={$in} />
+
+        <Return value={$ctx.runCompilationLibraryBuild} />
+    </If>
+
+    <If on={$ctx.compilationIsRx}>
+        <Call fn="index.runCompilationRx" in={$in} />
+
+        <Return value={$ctx.runCompilationRx} />
+    </If>
+
+    <Call module="application" in={$in} />
+
+    <Return value={$ctx.application} />
+</Module>

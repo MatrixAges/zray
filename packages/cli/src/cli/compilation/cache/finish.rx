@@ -1,0 +1,23 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.Compilation} out={void} />
+
+    <Call fn="../index.compilationCacheEnabled" in={$in} />
+
+    <If on={$ctx.compilationCacheEnabled}>
+        <Call fn="../index.saveCompilationCache" in={$in} />
+    </If>
+
+    <Call fn="../index.compilationCacheStats" in={$in} />
+
+    <If on={$ctx.compilationCacheStats}>
+        <If on={$ctx.compilationCacheEnabled}>
+            <Call fn="../index.reportCompilationCache" in={$in} />
+
+            <Else>
+                <Call fn="../index.reportCompilationCacheDisabled" in={$in} />
+            </Else>
+        </If>
+    </If>
+</Module>

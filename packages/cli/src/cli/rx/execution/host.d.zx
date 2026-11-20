@@ -6,6 +6,14 @@ export type GatewayBuild = opaque
 
 export type NativeBuild = opaque
 
+export type Compilation = opaque
+
+export type SemanticDiskRead = opaque
+
+export type SemanticDiskWrite = opaque
+
+export type FpgaProgram = opaque
+
 export enum Status {
     Success,
     Failed,
@@ -72,3 +80,70 @@ export declare function finishObservedNativeInputs(check: NativeBuild): void thr
 export declare function reportObservedNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
 export declare function requireObservedNativeInputs(check: NativeBuild): void throws { SourceLoadFailure }
 export declare function publishObservedNativeBuild(check: NativeBuild): bool throws { SourceLoadFailure }
+
+export declare function compilationLinting(check: Compilation): bool
+export declare function runCompilationLint(check: Compilation): Status throws { SourceLoadFailure }
+export declare function compilationFormatting(check: Compilation): bool
+export declare function compilationIsConfiguration(check: Compilation): bool
+export declare function runCompilationConfiguration(check: Compilation): Status throws { SourceLoadFailure }
+export declare function compilationIsLibrary(check: Compilation): bool
+export declare function compilationWatching(check: Compilation): bool
+export declare function openCompilationInputs(check: Compilation): void throws { SourceLoadFailure }
+export declare function resolveCompilationEntry(check: Compilation): void throws { SourceLoadFailure }
+export declare function compilationIsRx(check: Compilation): bool
+export declare function runCompilationRx(check: Compilation): Status throws { SourceLoadFailure }
+export declare function loadCompilationProject(check: Compilation): bool throws { SourceLoadFailure }
+export declare function compilationIsManifest(check: Compilation): bool
+export declare function compilationVerifying(check: Compilation): bool
+export declare function compilationNative(check: Compilation): bool
+export declare function runCompilationLibraryProof(check: Compilation): Status throws { SourceLoadFailure }
+export declare function runCompilationLibraryBuild(check: Compilation): Status throws { SourceLoadFailure }
+export declare function readCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
+export declare function openCompilationCaches(check: Compilation): void throws { SourceLoadFailure }
+export declare function readCompilationDependencies(check: Compilation): bool throws { SourceLoadFailure }
+export declare function compilationHasRxImport(check: Compilation): bool
+export declare function adoptCompilationInputs(check: Compilation): void
+
+export declare function compilationCacheEnabled(check: Compilation): bool
+export declare function compilationCacheStats(check: Compilation): bool
+export declare function compilationHasCompiledLibraries(check: Compilation): bool
+export declare function reportCompilationCacheBypass(check: Compilation): void throws { SourceLoadFailure }
+export declare function loadCompilationCache(check: Compilation): void throws { SourceLoadFailure }
+export declare function saveCompilationCache(check: Compilation): void throws { SourceLoadFailure }
+export declare function reportCompilationCache(check: Compilation): void throws { SourceLoadFailure }
+export declare function reportCompilationCacheDisabled(check: Compilation): void throws { SourceLoadFailure }
+export declare function compilationFpga(check: Compilation): bool
+export declare function analyzeCompilationCached(check: Compilation): void throws { SourceLoadFailure }
+export declare function analyzeCompilationUncached(check: Compilation): void throws { SourceLoadFailure }
+export declare function checkCompilationAnalysis(check: Compilation, proof: bool): bool throws { SourceLoadFailure }
+export declare function verifyCompilationProgram(check: Compilation): bool throws { SourceLoadFailure }
+export declare function generateCompilationFpga(check: Compilation): bool throws { SourceLoadFailure }
+export declare function closeCompilationAnalysis(check: Compilation): void
+export declare function flushCompilationDiagnostics(check: Compilation): void throws { SourceLoadFailure }
+export declare function openCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
+export declare function formatCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
+export declare function emitCompilationText(check: Compilation): bool throws { SourceLoadFailure }
+export declare function emitCompilationModules(check: Compilation): bool throws { SourceLoadFailure }
+export declare function reportCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
+export declare function resolveCompilationToolchain(check: Compilation): bool throws { SourceLoadFailure }
+export declare function buildCompilationModules(check: Compilation): Status throws { SourceLoadFailure }
+export declare function compilationCheckingText(check: Compilation): bool
+export declare function checkCompilationText(check: Compilation): bool throws { SourceLoadFailure }
+export declare function compilationWritingText(check: Compilation): bool
+export declare function writeCompilationText(check: Compilation): void throws { SourceLoadFailure }
+export declare function printCompilationText(check: Compilation): void throws { SourceLoadFailure }
+
+export declare function diskSemanticSourceCount(check: SemanticDiskRead): u64
+export declare function loadDiskSemanticSource(check: SemanticDiskRead, index: u64): void throws { SourceLoadFailure }
+export declare function selectDiskSemanticSources(check: SemanticDiskWrite): u64
+export declare function selectDiskSemanticNatives(check: SemanticDiskWrite): u64
+export declare function diskSemanticDirty(check: SemanticDiskWrite, index: u64): bool
+export declare function saveDiskSemanticEntry(check: SemanticDiskWrite, index: u64): void throws { SourceLoadFailure }
+
+export declare function fpgaLocalProofRequired(check: FpgaProgram): bool
+export declare function fpgaFunctionCount(check: FpgaProgram): u64
+export declare function fpgaFunctionHasContract(check: FpgaProgram, index: u64): bool
+export declare function verifyFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
+export declare function lowerFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
+export declare function renderFpgaProgram(check: FpgaProgram): void throws { SourceLoadFailure }
+export declare function publishFpgaProgram(check: FpgaProgram): void throws { SourceLoadFailure }

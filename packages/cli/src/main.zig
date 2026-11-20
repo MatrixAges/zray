@@ -50,6 +50,10 @@ pub const rx_execution = struct {
     pub const analysis = @import("cli/rx/gateway/analyze.zig");
     pub const gateway = @import("cli/rx/gateway/compile.zig");
     pub const backend = @import("cli/build/native.zig");
+    pub const compilation = @import("cli/compilation/state.zig");
+    pub const emit = @import("cli/compilation/emit.zig");
+    pub const cache = @import("cli/cache.zig");
+    pub const fpga = @import("cli/fpga.zig");
 };
 
 pub fn main(init: std.process.Init) !void {

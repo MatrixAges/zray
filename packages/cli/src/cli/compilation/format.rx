@@ -1,0 +1,30 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Compilation} out={IO.Status} />
+
+    <Call fn="index.compilationIsConfiguration" in={$in} />
+
+    <If on={$ctx.compilationIsConfiguration}>
+        <Call fn="index.runCompilationConfiguration" in={$in} />
+
+        <Return value={$ctx.runCompilationConfiguration} />
+    </If>
+
+    <Call fn="index.resolveCompilationEntry" in={$in} />
+    <Call fn="index.readCompilationSource" in={$in} />
+
+    <If on={!$ctx.readCompilationSource}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.formatCompilationSource" in={$in} />
+
+    <If on={!$ctx.formatCompilationSource}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call module="output" in={$in} />
+
+    <Return value={$ctx.output} />
+</Module>

@@ -179,7 +179,7 @@ pub fn generateRxFpga(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
     const prepared = &self.prepared.?;
 
-    return @import("../fpga.zig").runProgram(self.context.*, prepared.analysis.value.ir, prepared.sources, self.loaded.project.entry) catch |err| return self.reportFailure(err);
+    return @import("../fpga.zig").runProgram(self.context.*, &prepared.analysis.value.ir, prepared.sources, self.loaded.project.entry) catch |err| return self.reportFailure(err);
 }
 
 pub fn openRxApplicationCache(handle: *const anyopaque) Error!void {

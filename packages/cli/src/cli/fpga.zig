@@ -2,53 +2,90 @@ const std = @import("std");
 const compiler = @import("compiler");
 const Context = @import("compile.zig").Context;
 const artifacts = @import("artifacts.zig");
+const Effects = @import("sources/effects.zig");
+const Error = Effects.Error;
 
-pub fn run(context: Context, sources: []const compiler.project.Source, project: compiler.project.Options, cache: *compiler.project.SemanticCache) !bool {
-    const allocator = context.allocator;
-    var analyzed = if (context.options.cache) try compiler.analyzeProjectIncremental(allocator, sources, project, cache) else try compiler.analyzeProjectWithCache(allocator, sources, project, &cache.parse_cache);
-
-    defer analyzed.deinit();
-
-    if (analyzed.value == .diagnostic) {
-        try context.stderr.print("fpga: {s}\n", .{analyzed.value.diagnostic.message});
-
-        return false;
+const State = struct {
+    context: *const Context,
+    program: *const compiler.ir.Program,
+    sources: []const compiler.project.Source,
+    entry: []const u8,
+    generated: ?compiler.hardware.Result = null,
+    text: ?[]const u8 = null,
+    failure: Effects.Failure = .{},
+    fn get(handle: *const anyopaque) *State {
+        return Effects.state(State, handle);
     }
+    fn deinit(self: *State) void {
+        if (self.text) |text| self.context.allocator.free(text);
+        if (self.generated) |*generated| generated.deinit();
+    }
+};
 
-    return runProgram(context, analyzed.value.ir, sources, project.entry);
+pub fn runProgram(context: Context, program: *const compiler.ir.Program, sources: []const compiler.project.Source, entry: []const u8) !bool {
+    var state: State = .{ .context = &context, .program = program, .sources = sources, .entry = entry };
+    const reference = &state;
+
+    defer state.deinit();
+
+    return @import("cli_source").run_fpga_program.executeIn(context.allocator, @ptrCast(&reference)) catch |err| state.failure.unwrap(err);
 }
 
-pub fn runProgram(context: Context, program: compiler.ir.Program, sources: []const compiler.project.Source, entry: []const u8) !bool {
-    const io = context.io;
+pub fn fpgaLocalProofRequired(handle: *const anyopaque) bool {
+    const self = State.get(handle);
+
+    return self.program.contracts.count() != 0 or self.context.options.solver != null;
+}
+
+pub fn fpgaFunctionCount(handle: *const anyopaque) u64 {
+    return State.get(handle).program.functions.count();
+}
+
+pub fn fpgaFunctionHasContract(handle: *const anyopaque, index: u64) bool {
+    return State.get(handle).program.functions.at(@intCast(index)).contracts.count() != 0;
+}
+
+pub fn verifyFpgaProgram(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+
+    return compiler.verification.check(context.io, @import("verify.zig").workspace_allocator, self.program.*, self.sources, self.entry, .{
+        .solver = context.options.solver,
+    }, context.stderr) catch |err| self.failure.save(err);
+}
+
+pub fn lowerFpgaProgram(handle: *const anyopaque) Error!bool {
+    const self = State.get(handle);
+    const context = self.context;
+
+    self.generated = compiler.hardware.generate(context.allocator, self.program.*) catch |err| return self.failure.save(err);
+
+    const generated = &self.generated.?.value;
+
+    if (generated.* != .diagnostic) return true;
+
+    context.stderr.print("fpga: {s}\n", .{generated.diagnostic.message}) catch |err| return self.failure.save(err);
+
+    return false;
+}
+
+pub fn renderFpgaProgram(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const context = self.context;
+
+    self.text = compiler.verilog.emit(context.allocator, self.generated.?.value.module, context.options.clocked) catch |err| return self.failure.save(err);
+}
+
+pub fn publishFpgaProgram(handle: *const anyopaque) Error!void {
+    const self = State.get(handle);
+    const context = self.context;
     const allocator = context.allocator;
-    const options = context.options;
-    const writer = context.stderr;
-    var requires_verification = program.contracts.count() != 0 or options.solver != null;
+    const options = &context.options;
+    const output = options.output.?;
 
-    for (0..program.functions.count()) |function_row| {
-        const function = program.functions.at(function_row);
-
-        requires_verification = requires_verification or function.contracts.count() != 0;
-    }
-
-    if (requires_verification and !try compiler.verification.check(io, @import("verify.zig").workspace_allocator, program, sources, entry, .{ .solver = options.solver }, writer)) return false;
-
-    var generated = try compiler.hardware.generate(allocator, program);
-
-    defer generated.deinit();
-
-    if (generated.value == .diagnostic) {
-        try writer.print("fpga: {s}\n", .{generated.value.diagnostic.message});
-
-        return false;
-    }
-
-    const module = generated.value.module;
-    const source = try compiler.verilog.emit(allocator, module, options.clocked);
-
-    const manifest = try std.json.Stringify.valueAlloc(allocator, .{
+    const manifest = std.json.Stringify.valueAlloc(allocator, .{
         .format_version = 1,
-        .source_ir_version = program.version,
+        .source_ir_version = self.program.version,
         .top = "zxc_kernel",
         .clocked = options.clocked,
         .latency_cycles = @as(u32, if (options.clocked) 1 else 0),
@@ -56,13 +93,15 @@ pub fn runProgram(context: Context, program: compiler.ir.Program, sources: []con
         .handshake = if (options.clocked) @as(?[]const u8, "accept on input_valid && input_ready; output becomes valid after the accepting edge and remains stable until output_ready; reset requires a clock edge") else null,
         .reset = if (options.clocked) @as(?[]const u8, "synchronous_active_high") else null,
         .fault = "output data is invalid when fault is high",
-        .sources = sources,
-        .hardware = module,
-    }, .{ .whitespace = .indent_2 });
+        .sources = self.sources,
+        .hardware = self.generated.?.value.module,
+    }, .{ .whitespace = .indent_2 }) catch |err| return self.failure.save(err);
 
-    try artifacts.write(io, options.output.?, source);
-    try artifacts.write(io, try std.fmt.allocPrint(allocator, "{s}.json", .{options.output.?}), manifest);
-    try writer.print("fpga: generated {s} and port/graph manifest\n", .{options.output.?});
+    defer allocator.free(manifest);
+    artifacts.write(context.io, output, self.text.?) catch |err| return self.failure.save(err);
 
-    return true;
+    const path = std.fmt.allocPrint(allocator, "{s}.json", .{output}) catch |err| return self.failure.save(err);
+
+    artifacts.write(context.io, path, manifest) catch |err| return self.failure.save(err);
+    context.stderr.print("fpga: generated {s} and port/graph manifest\n", .{output}) catch |err| return self.failure.save(err);
 }

@@ -1,0 +1,24 @@
+<Module>
+    <Type from="index" as="IO" />
+
+    <Args in={IO.Compilation} out={IO.Status} />
+
+    <Call fn="index.emitCompilationModules" in={$in} />
+
+    <If on={!$ctx.emitCompilationModules}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call module="cache/finish" in={$in} />
+
+    <Call fn="index.reportCompilationGeneration" in={$in} />
+    <Call fn="index.resolveCompilationToolchain" in={$in} />
+
+    <If on={!$ctx.resolveCompilationToolchain}>
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <Call fn="index.buildCompilationModules" in={$in} />
+
+    <Return value={$ctx.buildCompilationModules} />
+</Module>

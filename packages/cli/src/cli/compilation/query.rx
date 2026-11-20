@@ -1,0 +1,57 @@
+<Module>
+    <Type from="index" as="IO" />
+    <Type from="model" as="Query" />
+
+    <Args in={Query.Query} out={IO.Status} />
+
+    <Call fn="index.compilationCacheEnabled" in={$in.compilation} />
+
+    <If on={$ctx.compilationCacheEnabled}>
+        <Call fn="index.analyzeCompilationCached" in={$in.compilation} />
+
+        <Else>
+            <Call fn="index.analyzeCompilationUncached" in={$in.compilation} />
+        </Else>
+    </If>
+
+    <Call
+        fn="index.checkCompilationAnalysis"
+        in={[
+            $in.compilation,
+            $in.proof
+        ]}
+    />
+
+    <If on={!$ctx.checkCompilationAnalysis}>
+        <Call fn="index.closeCompilationAnalysis" in={$in.compilation} />
+        <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
+
+        <Return value={IO.Status.Failed} />
+    </If>
+
+    <If on={$in.proof}>
+        <Call fn="index.verifyCompilationProgram" in={$in.compilation} />
+        <Call fn="index.closeCompilationAnalysis" in={$in.compilation} />
+
+        <If on={!$ctx.verifyCompilationProgram}>
+            <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
+
+            <Return value={IO.Status.Failed} />
+        </If>
+
+        <Else>
+            <Call fn="index.generateCompilationFpga" in={$in.compilation} />
+            <Call fn="index.closeCompilationAnalysis" in={$in.compilation} />
+
+            <If on={!$ctx.generateCompilationFpga}>
+                <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
+
+                <Return value={IO.Status.Failed} />
+            </If>
+        </Else>
+    </If>
+
+    <Call module="cache/finish" in={$in.compilation} />
+
+    <Return value={IO.Status.Success} />
+</Module>

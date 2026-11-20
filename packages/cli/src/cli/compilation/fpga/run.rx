@@ -1,0 +1,26 @@
+<Module>
+    <Type from="../index" as="IO" />
+
+    <Args in={IO.FpgaProgram} out={bool} />
+
+    <Call fn="proof_required" in={$in} />
+
+    <If on={$ctx.proof_required}>
+        <Call fn="../index.verifyFpgaProgram" in={$in} />
+
+        <If on={!$ctx.verifyFpgaProgram}>
+            <Return value={false} />
+        </If>
+    </If>
+
+    <Call fn="../index.lowerFpgaProgram" in={$in} />
+
+    <If on={!$ctx.lowerFpgaProgram}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.renderFpgaProgram" in={$in} />
+    <Call fn="../index.publishFpgaProgram" in={$in} />
+
+    <Return value={true} />
+</Module>
