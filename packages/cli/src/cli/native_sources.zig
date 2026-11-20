@@ -1,7 +1,7 @@
 const std = @import("std");
 const references = @import("native_references.zig");
 const artifacts = @import("artifacts.zig");
-const paths_rule = @import("native_sources/path.zig");
+const paths_rule = @import("publication_host").paths;
 const rules = @import("cli_source");
 const NativeModule = @import("project.zig").NativeModule;
 pub const collect = @import("native_sources/collect.zig");

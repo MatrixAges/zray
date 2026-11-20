@@ -36,24 +36,33 @@ pub fn deinit(self: Self, io: std.Io) void {
 }
 
 pub fn publish(self: Self, io: std.Io, allocator: std.mem.Allocator, options: Options) !void {
-    if (self.assembly) |path| try std.Io.Dir.cwd().copyFile(path, .cwd(), options.assembly.?, io, .{ .make_path = true });
+    const host = @import("publication_host");
+    var failure: host.Failure = .{};
 
-    var directory = try std.Io.Dir.cwd().openDir(io, std.fs.path.dirname(self.binary).?, .{ .iterate = true });
+    var publication: host.application = .{
+        .io = io,
+        .allocator = allocator,
+        .failure = &failure,
+        .binary = .{ .source = self.binary, .destination = options.output },
+        .assembly = .{ .source = self.assembly, .destination = options.assembly },
+    };
 
-    defer directory.close(io);
+    var directory: host.directory = .{
+        .io = io,
+        .allocator = allocator,
+        .failure = &failure,
+        .source = std.fs.path.dirname(self.binary).?,
+        .destination = std.fs.path.dirname(options.output.?) orelse ".",
+    };
 
-    var walker = try directory.walk(allocator);
+    defer directory.deinit();
 
-    defer walker.deinit();
+    const published = @import("cli_source").publish_staged.executeIn(allocator, &.{
+        .publication = @ptrCast(&publication),
+        .directory = @ptrCast(&directory),
+        .primary = std.fs.path.basename(self.binary),
+        .assembly = self.assembly != null,
+    }) catch |err| return failure.unwrap(err);
 
-    while (try walker.next(io)) |entry| {
-        if (entry.kind == .directory or std.mem.eql(u8, entry.path, std.fs.path.basename(self.binary))) continue;
-        if (entry.kind != .file) return error.UnsupportedBuildArtifact;
-
-        const destination = try std.fs.path.join(allocator, &.{ std.fs.path.dirname(options.output.?) orelse ".", entry.path });
-
-        try directory.copyFile(entry.path, .cwd(), destination, io, .{ .make_path = true });
-    }
-
-    try std.Io.Dir.cwd().copyFile(self.binary, .cwd(), options.output.?, io, .{ .make_path = true });
+    if (!published) return error.UnsupportedBuildArtifact;
 }

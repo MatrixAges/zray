@@ -1,0 +1,33 @@
+import host from "publication_host"
+
+import within from "../../native_sources/path/within"
+
+import type { Input as Request } from "./model"
+
+export type Input = Request.Pick("library", "separator")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { library, separator } = in
+
+    const count = host.inputCount(library)
+
+    return loop({
+        index: 0,
+        disjoint: true
+    }, {
+        while: state => state.disjoint && state.index < count,
+        next: state => {
+            const path = host.relativeInput(library, state.index)
+
+            state.disjoint = !within({
+                path,
+                absolute: host.absolutePath(path),
+                separator
+            })
+            state.index += 1
+        },
+        return: state => state.disjoint
+    })
+}

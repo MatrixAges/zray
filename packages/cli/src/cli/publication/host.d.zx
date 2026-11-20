@@ -1,0 +1,42 @@
+export type Directory = opaque
+export type Output = opaque
+export type Library = opaque
+export type Verification = opaque
+export type InputPaths = opaque
+
+export declare function copyAssembly(output: Output): void throws { PublicationFailure }
+export declare function copyBinary(output: Output): void throws { PublicationFailure }
+
+export declare function openDirectory(directory: Directory): void throws { PublicationFailure }
+export declare function nextEntry(directory: Directory, name: string): u8 throws { PublicationFailure }
+export declare function copyEntry(directory: Directory): void throws { PublicationFailure }
+
+export declare function capture(verification: Verification): void throws { PublicationFailure }
+export declare function verify(verification: Verification): bool throws { PublicationFailure }
+export declare function retain(verification: Verification): void
+
+export declare function checkBinary(output: Output): string throws { PublicationFailure }
+export declare function checkAssembly(output: Output): string throws { PublicationFailure }
+export declare function checkBindings(output: Output): void throws { PublicationFailure }
+export declare function writeBindings(output: Output): void throws { PublicationFailure }
+
+export declare function inputCount(library: Library): u64
+export declare function relativeInput(library: Library, index: u64): string throws {
+    PublicationFailure
+}
+export declare function prepareRetirement(library: Library): void throws { PublicationFailure }
+export declare function validateEntry(library: Library, inventory: bool): void throws {
+    PublicationFailure
+}
+export declare function contentCount(library: Library): u64
+export declare function copyContent(library: Library, index: u64): void throws { PublicationFailure }
+export declare function retiredCount(library: Library): u64
+export declare function removeRetired(library: Library, index: u64): void throws {
+    PublicationFailure
+}
+export declare function copyInventory(library: Library): void throws { PublicationFailure }
+export declare function absolutePath(path: string): bool
+
+export declare function nextInput(paths: InputPaths): bool
+export declare function logicalPath(paths: InputPaths): string
+export declare function physicalPath(paths: InputPaths): string

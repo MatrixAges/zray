@@ -1,0 +1,34 @@
+import host from "publication_host"
+
+import type { InputPaths } from "publication_host"
+
+export type Input = {
+    paths: InputPaths,
+    logical: string,
+    physical: string
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { paths, logical, physical } = in
+
+    return loop({
+        more: true,
+        found: false
+    }, {
+        while: state => state.more,
+        next: state => {
+            if (host.nextInput(paths)) {
+                const candidate = host.logicalPath(paths)
+
+                state.found =
+                    candidate == logical || host.physicalPath(paths) == physical
+                state.more = !state.found
+            } else {
+                state.more = false
+            }
+        },
+        return: state => state.found
+    })
+}

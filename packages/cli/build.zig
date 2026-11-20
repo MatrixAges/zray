@@ -58,6 +58,21 @@ pub fn build(b: *std.Build) void {
     host.addImport("backend_input_host", dependency_host);
     host.import_table.get("cli_source").?.addImport("backend_input_host", dependency_host);
 
+    const publication = b.addModule("publication_host", .{
+        .root_source_file = b.path("src/cli/publication.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "watch_inputs", .module = host.import_table.get("watch_inputs").? },
+            .{ .name = "cli_source", .module = host.import_table.get("cli_source").? },
+            .{ .name = "artifact_io", .module = host.import_table.get("artifact_io").? },
+            .{ .name = "zx", .module = host.import_table.get("zx").? },
+        },
+    });
+
+    host.addImport("publication_host", publication);
+    host.import_table.get("cli_source").?.addImport("publication_host", publication);
+
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
 
     const yaml_scanner = b.createModule(.{

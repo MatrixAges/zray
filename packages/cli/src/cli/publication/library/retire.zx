@@ -1,0 +1,22 @@
+import host from "publication_host"
+
+import type { Library as Input } from "publication_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+    const count = host.retiredCount(in)
+
+    loop({
+        library: in,
+        count,
+        index: first
+    }, {
+        while: row => row.index < row.count,
+        next: row => {
+            host.removeRetired(row.library, row.index)
+            row.index += 1
+        }
+    })
+}

@@ -1,0 +1,47 @@
+<Module>
+    <Type from="model" as="Library" />
+
+    <Args in={Library.Input} out={Library.Output} />
+
+    <Call fn="../index.capture" in={$in.verification} />
+
+    <Call
+        fn="disjoint"
+        in={$in.pick([
+            "library",
+            "separator"
+        ])}
+    />
+
+    <If on={!$ctx.disjoint}>
+        <Return value={Library.Output.Overlap} />
+    </If>
+
+    <Call fn="../index.verify" in={$in.verification} />
+
+    <If on={!$ctx.verify}>
+        <Return value={Library.Output.Changed} />
+    </If>
+
+    <Call fn="../index.prepareRetirement" in={$in.library} />
+    <Call fn="../index.openDirectory" in={$in.directory} />
+
+    <Call
+        fn="preflight"
+        in={$in.pick([
+            "library",
+            "directory"
+        ])}
+    />
+
+    <If on={!$ctx.preflight}>
+        <Return value={Library.Output.MissingInventory} />
+    </If>
+
+    <Call fn="copy_content" in={$in.library} />
+    <Call fn="retire" in={$in.library} />
+    <Call fn="../index.copyInventory" in={$in.library} />
+    <Call fn="../index.retain" in={$in.verification} />
+
+    <Return value={Library.Output.Published} />
+</Module>

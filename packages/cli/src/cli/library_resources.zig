@@ -121,12 +121,3 @@ const Targets = struct {
         return retained;
     }
 };
-
-pub fn remove(io: std.Io, paths: []const []const u8) !void {
-    for (paths) |path| {
-        std.Io.Dir.cwd().deleteFile(io, path) catch |err| switch (err) {
-            error.FileNotFound => {},
-            else => return err,
-        };
-    }
-}

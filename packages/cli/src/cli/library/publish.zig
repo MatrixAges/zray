@@ -5,7 +5,7 @@ const Config = @import("../project.zig").Config;
 const Inputs = @import("watch_inputs").Inputs;
 const artifacts = @import("../artifacts.zig");
 const config_writer = @import("../library_config.zig");
-const inventory = @import("inventory.zig");
+const inventory = @import("publication_host").inventory;
 const constants = @import("cli_source").library_publication_constants.@"zx.constants";
 
 pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, library: *const compiler.library.Result, bundle: compiler.zig.LibraryBundle, loaded: Loaded, inputs: ?*Inputs) ![]const inventory.File {

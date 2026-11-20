@@ -1,76 +1,36 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
-const inventory = @import("../library/inventory.zig");
-const retirement = @import("../library_resources.zig");
-const paths = @import("../native_sources/path.zig");
-const item = @import("cli_source").library_publication_item;
-const columns = @import("zx").columns;
+const host = @import("publication_host");
 
-pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, output: []const u8, managed: []const inventory.File, inputs: *Inputs) !bool {
+pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, output: []const u8, managed: []const host.inventory.File, inputs: *Inputs) !bool {
     var arena = std.heap.ArenaAllocator.init(backing);
 
     defer arena.deinit();
 
     const allocator = arena.allocator();
     const destination = try std.fs.path.resolve(allocator, &.{ inputs.cwd, output });
-    var observed = try inputs.observed(backing);
-    var retained = false;
+    var failure: host.Failure = .{};
+    var directory: host.directory = .{ .io = io, .allocator = allocator, .failure = &failure, .source = staging, .destination = destination };
 
-    defer if (!retained) observed.deinit();
+    defer directory.deinit();
 
-    for (observed.entries) |entry| {
-        const relative = try std.fs.path.relative(allocator, destination, null, destination, entry.path);
+    var verification: host.verification = .{ .io = io, .allocator = backing, .snapshot_allocator = backing, .inputs = inputs, .failure = &failure };
 
-        if (paths.within(relative)) return error.OutputOverlapsInput;
-    }
+    defer verification.deinit();
 
-    if (!try inputs.verify(io, backing, observed)) return false;
+    var library: host.library = .{ .directory = &directory, .verification = &verification, .managed = managed };
 
-    const retired = try retirement.retired(io, allocator, backing, destination, managed, inputs);
-    var directory = try std.Io.Dir.openDirAbsolute(io, staging, .{ .iterate = true });
+    const status = @import("cli_source").publish_library.executeIn(allocator, &.{
+        .library = @ptrCast(&library),
+        .directory = @ptrCast(&directory),
+        .verification = @ptrCast(&verification),
+        .separator = std.fs.path.sep,
+    }) catch |err| return failure.unwrap(err);
 
-    defer directory.close(io);
-
-    var walker = try directory.walk(allocator);
-
-    defer walker.deinit();
-
-    var files: std.ArrayList([]const u8) = .empty;
-    var manifest = false;
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    while (try walker.next(io)) |entry| {
-        const role = columns.invoke(item.executeValue, empty.allocator(), &.{
-            .path = @as([]const u8, entry.path),
-            .regular = entry.kind == .file,
-        }) catch unreachable;
-
-        if (role == .Ignore) continue;
-
-        const target = try std.fs.path.join(allocator, &.{ destination, entry.path });
-        const physical = try @import("output.zig").check(io, allocator, inputs, target);
-
-        allocator.free(physical);
-
-        if (role == .Inventory) {
-            manifest = true;
-        } else {
-            try files.append(allocator, try allocator.dupe(u8, entry.path));
-        }
-    }
-
-    if (!manifest) return error.MissingLibraryInventory;
-
-    for (files.items) |path| {
-        const target = try std.fs.path.join(allocator, &.{ destination, path });
-
-        try directory.copyFile(path, .cwd(), target, io, .{ .make_path = true });
-    }
-
-    try retirement.remove(io, retired);
-    try directory.copyFile(inventory.name, .cwd(), try std.fs.path.join(allocator, &.{ destination, inventory.name }), io, .{ .make_path = true });
-
-    retained = inputs.retainPublished(observed);
-
-    return true;
+    return switch (status) {
+        .Changed => false,
+        .Overlap => error.OutputOverlapsInput,
+        .MissingInventory => error.MissingLibraryInventory,
+        .Published => true,
+    };
 }

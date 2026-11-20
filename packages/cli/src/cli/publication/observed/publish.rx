@@ -1,0 +1,43 @@
+<Module>
+    <Type from="model" as="Observed" />
+
+    <Args in={Observed.Input} out={Observed.Output} />
+
+    <If on={!$in.succeeded || !$in.complete || $in.new_inputs}>
+        <Return value={Observed.Output.Skipped} />
+    </If>
+
+    <Call fn="../index.checkBinary" in={$in.publication} />
+
+    <If on={$in.requested_assembly}>
+        <Call fn="../index.checkAssembly" in={$in.publication} />
+
+        <If on={$ctx.checkBinary == $ctx.checkAssembly}>
+            <Return value={Observed.Output.ConflictingPaths} />
+        </If>
+    </If>
+
+    <If on={$in.bindings}>
+        <Call fn="../index.checkBindings" in={$in.publication} />
+    </If>
+
+    <Call fn="../index.capture" in={$in.verification} />
+    <Call fn="../index.verify" in={$in.verification} />
+
+    <If on={!$ctx.verify}>
+        <Return value={Observed.Output.Skipped} />
+    </If>
+
+    <If on={$in.bindings}>
+        <Call fn="../index.writeBindings" in={$in.publication} />
+    </If>
+
+    <If on={$in.emitted_assembly}>
+        <Call fn="../index.copyAssembly" in={$in.publication} />
+    </If>
+
+    <Call fn="../index.copyBinary" in={$in.publication} />
+    <Call fn="../index.retain" in={$in.verification} />
+
+    <Return value={Observed.Output.Published} />
+</Module>

@@ -1,6 +1,6 @@
 const std = @import("std");
 const references = @import("../native_references.zig");
-const paths = @import("path.zig");
+const paths = @import("publication_host").paths;
 const rules = @import("cli_source");
 const Inputs = @import("watch_inputs").Inputs;
 const NativeModule = @import("../project.zig").NativeModule;

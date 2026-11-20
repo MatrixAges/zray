@@ -42,7 +42,7 @@ input_paths: []const []const u8,
 new_inputs: bool,
 binary: ?[]const u8,
 assembly: ?[]const u8,
-bindings: ?@import("../node/bindings.zig") = null,
+bindings: ?@import("publication_host").application.Bindings = null,
 pub fn deinit(self: *Self) void {
     self.response.deinit();
 
@@ -91,41 +91,45 @@ pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Res
 }
 
 pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inputs: *Inputs, options: Options) !bool {
-    if (!self.response.succeeded or !self.response.inputs_complete or self.new_inputs) return false;
+    const host_publication = @import("publication_host");
+    var failure: host_publication.Failure = .{};
 
-    const output = try @import("../watch/output.zig").check(io, allocator, inputs, options.output.?);
+    var publication: host_publication.application = .{
+        .io = io,
+        .allocator = allocator,
+        .failure = &failure,
+        .inputs = inputs,
+        .binary = .{ .source = self.binary, .destination = options.output },
+        .assembly = .{ .source = self.assembly, .destination = options.assembly },
+        .bindings = self.bindings,
+    };
 
-    defer allocator.free(output);
+    defer publication.deinit();
 
-    if (options.assembly) |path| {
-        const assembly = try @import("../watch/output.zig").check(io, allocator, inputs, path);
+    var verification: host_publication.verification = .{
+        .io = io,
+        .allocator = allocator,
+        .snapshot_allocator = if (inputs.retain_versions) inputs.arena.child_allocator else allocator,
+        .inputs = inputs,
+        .failure = &failure,
+    };
 
-        defer allocator.free(assembly);
+    defer verification.deinit();
 
-        if (std.mem.eql(u8, output, assembly)) return error.ConflictingOutputPaths;
-    }
+    const result = source.publish_observed.executeIn(allocator, &.{
+        .publication = @ptrCast(&publication),
+        .verification = @ptrCast(&verification),
+        .succeeded = self.response.succeeded,
+        .complete = self.response.inputs_complete,
+        .new_inputs = self.new_inputs,
+        .requested_assembly = options.assembly != null,
+        .emitted_assembly = self.assembly != null,
+        .bindings = self.bindings != null,
+    }) catch |err| return failure.unwrap(err);
 
-    if (self.bindings) |files| {
-        try files.check(io, allocator, options);
-
-        for ([_][]const u8{ files.module_path, files.declaration_path }) |path| {
-            const checked = try @import("../watch/output.zig").check(io, allocator, inputs, path);
-
-            allocator.free(checked);
-        }
-    }
-
-    var observed = try inputs.observed(if (inputs.retain_versions) inputs.arena.child_allocator else allocator);
-    var retained = false;
-
-    defer if (!retained) observed.deinit();
-
-    if (!try inputs.verify(io, allocator, observed)) return false;
-    if (self.bindings) |files| try files.publish(io);
-    if (self.assembly) |path| try std.Io.Dir.cwd().copyFile(path, .cwd(), options.assembly.?, io, .{ .make_path = true });
-    try std.Io.Dir.cwd().copyFile(self.binary.?, .cwd(), options.output.?, io, .{ .make_path = true });
-
-    retained = inputs.retainPublished(observed);
-
-    return true;
+    return switch (result) {
+        .Skipped => false,
+        .ConflictingPaths => error.ConflictingOutputPaths,
+        .Published => true,
+    };
 }

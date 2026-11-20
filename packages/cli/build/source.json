@@ -58,6 +58,10 @@
         {
             "path": "backend_dependencies",
             "prefix": "backend_dependencies/"
+        },
+        {
+            "path": "publication",
+            "prefix": "publication/"
         }
     ],
     "entries": [
@@ -178,10 +182,6 @@
             "name": "library_retirement_verify"
         },
         {
-            "path": "library/publication/item.zx",
-            "name": "library_publication_item"
-        },
-        {
             "path": "library/publication/const.zx",
             "name": "library_publication_constants"
         },
@@ -288,6 +288,26 @@
         {
             "path": "backend_dependencies/const.zx",
             "name": "backend_cache_constants"
+        },
+        {
+            "path": "publication/const.zx",
+            "name": "publication_constants"
+        },
+        {
+            "path": "publication/observed/publish.rx",
+            "name": "publish_observed"
+        },
+        {
+            "path": "publication/staged/publish.rx",
+            "name": "publish_staged"
+        },
+        {
+            "path": "publication/library/publish.rx",
+            "name": "publish_library"
+        },
+        {
+            "path": "publication/overlap.zx",
+            "name": "publication_overlap"
         }
     ],
     "packages": [
@@ -332,6 +352,10 @@
         {
             "path": "backend_dependencies/host.d.zx",
             "module": "backend_input_host"
+        },
+        {
+            "path": "publication/host.d.zx",
+            "module": "publication_host"
         }
     ]
 }

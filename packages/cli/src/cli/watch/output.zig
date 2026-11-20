@@ -29,17 +29,16 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, pa
         }
     }
 
-    var entries = inputs.entries.iterator();
+    var cursor: Cursor = .{ .entries = inputs.entries.iterator() };
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    while (entries.next()) |entry| {
-        const physical = switch (entry.value_ptr.state) {
-            .file => |file| file.physical_path,
-            .directory => |directory| directory.physical_path,
-            else => entry.key_ptr.*,
-        };
+    const overlaps = @import("cli_source").publication_overlap.executeIn(empty.allocator(), &.{
+        .paths = @ptrCast(&cursor),
+        .logical = absolute,
+        .physical = target,
+    }) catch unreachable;
 
-        if (std.mem.eql(u8, absolute, entry.key_ptr.*) or std.mem.eql(u8, target, physical)) return error.OutputOverlapsInput;
-    }
+    if (overlaps) return error.OutputOverlapsInput;
 
     return target;
 }
@@ -54,5 +53,35 @@ fn physicalDirectory(io: std.Io, allocator: std.mem.Allocator, path: []const u8)
         defer allocator.free(physical);
 
         return std.fs.path.joinZ(allocator, &.{ physical, std.fs.path.basename(path) });
+    };
+}
+
+const Cursor = struct {
+    entries: Inputs.Observations.Iterator,
+    current: Inputs.Observations.Entry = undefined,
+    fn get(handle: *const anyopaque) *Cursor {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+pub fn nextInput(handle: *const anyopaque) bool {
+    const self = Cursor.get(handle);
+
+    self.current = self.entries.next() orelse return false;
+
+    return true;
+}
+
+pub fn logicalPath(handle: *const anyopaque) []const u8 {
+    return Cursor.get(handle).current.key_ptr.*;
+}
+
+pub fn physicalPath(handle: *const anyopaque) []const u8 {
+    const entry = Cursor.get(handle).current;
+
+    return switch (entry.value_ptr.state) {
+        .file => |file| file.physical_path,
+        .directory => |directory| directory.physical_path,
+        else => entry.key_ptr.*,
     };
 }

@@ -1,0 +1,11 @@
+import type { Directory, Output as Publication } from "publication_host"
+
+export type Sidecars = {
+    directory: Directory,
+    primary: string
+}
+
+export type Input = Sidecars & {
+    publication: Publication,
+    assembly: bool
+}

@@ -1,0 +1,18 @@
+import type { Output as Publication, Verification } from "publication_host"
+
+export type Input = {
+    publication: Publication,
+    verification: Verification,
+    succeeded: bool,
+    complete: bool,
+    new_inputs: bool,
+    requested_assembly: bool,
+    emitted_assembly: bool,
+    bindings: bool
+}
+
+export enum Output {
+    Skipped,
+    ConflictingPaths,
+    Published
+}

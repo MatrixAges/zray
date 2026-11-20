@@ -1,0 +1,18 @@
+import type { Directory, Library, Verification } from "publication_host"
+
+export type Inventory = {
+    library: Library,
+    directory: Directory
+}
+
+export type Input = Inventory & {
+    verification: Verification,
+    separator: u8
+}
+
+export enum Output {
+    Changed,
+    Overlap,
+    MissingInventory,
+    Published
+}

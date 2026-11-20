@@ -13,7 +13,7 @@ const Emission = union(enum) { staged: Staged, observed: Cache };
 pub fn run(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler").zig.ModuleBundle, options: Options, loaded: Loaded, toolchain: @import("toolchain.zig").Paths, environment: *const std.process.Environ.Map) !bool {
     const bindings = try @import("node/bindings.zig").create(allocator, bundle, options);
 
-    if (bindings) |files| try files.check(io, allocator, options);
+    if (bindings) |files| try files.check(io, allocator, options.assembly);
 
     const staged = try Staged.init(io, allocator, options);
 
@@ -44,7 +44,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
     if (termination != .exited or termination.exited != 0) return false;
 
     if (bindings) |files| {
-        try files.check(io, allocator, options);
+        try files.check(io, allocator, options.assembly);
         try files.stage(io, allocator, std.fs.path.dirname(staged.binary).?);
     }
 

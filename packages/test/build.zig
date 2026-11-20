@@ -321,7 +321,7 @@ pub fn build(b: *std.Build) void {
     const publish_step = b.step("test-backend-publish", "Validate real artifact publication gates and preserved outputs");
     const observed_sources = b.addWriteFiles();
     _ = observed_sources.addCopyDirectory(cli_dependency.path("src"), "source", .{});
-    const observed_root = observed_sources.add("root.zig", "pub const Output = @import(\"source/cli/watch/output.zig\");\npub const Backend = @import(\"source/cli/backend/process.zig\");\npub const Observed = @import(\"source/cli/build/observed.zig\");\npub const Inputs = @import(\"watch_inputs\").Inputs;\npub const Options = @import(\"source/cli/options.zig\").Options;\n");
+    const observed_root = observed_sources.add("root.zig", "pub const Output = @import(\"publication_host\").output;\npub const Backend = @import(\"source/cli/backend/process.zig\");\npub const Observed = @import(\"source/cli/build/observed.zig\");\npub const Inputs = @import(\"watch_inputs\").Inputs;\npub const Options = @import(\"source/cli/options.zig\").Options;\n");
 
     const observed = b.createModule(.{
         .root_source_file = observed_root,
@@ -333,6 +333,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "artifact_io", .module = cli_dependency.module("artifact_io") },
             .{ .name = "backend_protocol", .module = backend_protocol },
             .{ .name = "backend_input_host", .module = cli_dependency.module("backend_input_host") },
+            .{ .name = "publication_host", .module = cli_dependency.module("publication_host") },
         },
         .target = target,
         .optimize = optimize,

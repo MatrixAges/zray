@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Staged" />
+
+    <Args in={Staged.Input} out={bool} />
+
+    <If on={$in.assembly}>
+        <Call fn="../index.copyAssembly" in={$in.publication} />
+    </If>
+
+    <Call fn="../index.openDirectory" in={$in.directory} />
+
+    <Call
+        fn="sidecars"
+        in={$in.pick([
+            "directory",
+            "primary"
+        ])}
+    />
+
+    <If on={!$ctx.sidecars}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="../index.copyBinary" in={$in.publication} />
+
+    <Return value={true} />
+</Module>

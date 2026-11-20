@@ -1,0 +1,32 @@
+import host from "publication_host"
+
+import { inventory_name } from "../../library/publication/const"
+import { end_of_directory, named_regular_entry, regular_entry } from "../const"
+
+import type { Inventory as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { library, directory } = in
+
+    return loop({
+        reading: true,
+        inventory: false
+    }, {
+        while: state => state.reading,
+        next: state => {
+            const kind = host.nextEntry(directory, inventory_name)
+
+            if (kind == end_of_directory) {
+                state.reading = false
+            } else if (kind == regular_entry || kind == named_regular_entry) {
+                const inventory = kind == named_regular_entry
+
+                host.validateEntry(library, inventory)
+                state.inventory = state.inventory || inventory
+            }
+        },
+        return: state => state.inventory
+    })
+}
