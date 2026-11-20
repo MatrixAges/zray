@@ -80,7 +80,7 @@ fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const 
     inline for (comptime steps(kind, true)) |step| switch (step) {
         .RestoreState => if (!try Memo.restore(kind, scratch, state, ctx.summaries, body, ctx.bodies.callees[body], &growth)) return null,
         .Analyze => {
-            const result = try compute.run(kind, .{
+            const result = try compute.run(kind, false, .{
                 .bodies = ctx.bodies,
                 .slots = ctx.slots,
                 .summaries = ctx.summaries,

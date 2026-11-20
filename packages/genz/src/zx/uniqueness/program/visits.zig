@@ -115,7 +115,7 @@ fn Visit(comptime kind: Memo.Kind) type {
         fn analyze(self: *Self, comptime persistent: bool) Error!void {
             const ctx = self.ctx;
 
-            const result = try compute.run(kind, .{
+            const result = try compute.run(kind, false, .{
                 .bodies = ctx.bodies,
                 .slots = ctx.slots,
                 .summaries = ctx.summaries,

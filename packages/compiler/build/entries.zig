@@ -671,6 +671,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/work/ahead/scan.zx", .name = "uniqueness_ahead_scan", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/ahead/transition.zx", .name = "uniqueness_ahead_transition", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/ahead/take.zx", .name = "uniqueness_ahead_take", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/work/ahead/workflow/sequence.rx", .name = "uniqueness_ahead_sequence", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/pool/const.zx", .name = "uniqueness_pool_limits", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/pool/reserve.zx", .name = "uniqueness_pool_reserve", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/pool/submit.rx", .name = "uniqueness_pool_submit", .owner = .genz },

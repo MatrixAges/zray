@@ -7,7 +7,12 @@ const Pool = @import("pool.zig");
 const Slots = @import("slots.zig");
 const Summaries = @import("summaries.zig");
 const Bodies = @import("program/bodies.zig");
-const Schedule = if (@import("genz_options").generated_analysis) @import("ahead/schedule.zig") else @import("ahead/seed.zig");
+const generated = @import("genz_options").generated_analysis;
+const Schedule = if (generated) @import("ahead/schedule.zig") else @import("ahead/seed.zig");
+const workflow = @import("ahead/workflow.zig");
+const compute = @import("program/visit/compute.zig");
+const Window = @import("work/round.zig").Window;
+const Error = std.mem.Allocator.Error;
 const Self = @This();
 
 /// Body analyses run ahead of the worklist on background threads. The worklist visits one body at a time, and a visit
@@ -25,14 +30,14 @@ states: []u32,
 recursive: []const bool,
 /// Bodies whose summaries changed since their analysis ahead was requested, so that it is likely stale.
 dirty: []bool,
-settled: []Settled,
-demanded: []Demanded,
-planned: []Function.Plan,
-pub const Settled = struct { passed: []const Function.Contribution, output: []const Level, reads: []const Function.Read };
+/// A round publishes only one kind of result. It drains its workers before the table changes kind.
+results: []Result,
+const Result = union { settled: Settled, demanded: Demanded, planned: Function.Plan };
 
+pub const Settled = struct { passed: []const Function.Contribution, output: []const Level, reads: []const Function.Read };
 pub const Demanded = struct { marks: []const Function.Mark, grew: bool, growth: Growth.Rows, reads: []const Function.Read };
 
-pub fn init(allocator: std.mem.Allocator, pool: *Pool, slots: Slots, summaries: *Summaries, bodies: *const Bodies, recursive: []const bool) std.mem.Allocator.Error!Self {
+pub fn init(allocator: std.mem.Allocator, pool: *Pool, slots: Slots, summaries: *Summaries, bodies: *const Bodies, recursive: []const bool) Error!Self {
     const count = bodies.units.len;
     const states = try allocator.alloc(u32, count);
     const dirty = try allocator.alloc(bool, count);
@@ -47,9 +52,7 @@ pub fn init(allocator: std.mem.Allocator, pool: *Pool, slots: Slots, summaries: 
         .states = states,
         .recursive = recursive,
         .dirty = dirty,
-        .settled = try allocator.alloc(Settled, count),
-        .demanded = try allocator.alloc(Demanded, count),
-        .planned = try allocator.alloc(Function.Plan, count),
+        .results = try allocator.alloc(Result, if (pool.count() == 0) 0 else count),
     };
 }
 
@@ -68,42 +71,62 @@ pub fn finish(self: *Self) void {
 
 /// Queues the bodies of `indices` that have no analysis ahead or one that a summary change made stale, skipping those
 /// whose result the memo already holds.
-pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: @import("work/round.zig").Window) std.mem.Allocator.Error!void {
+pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: Window) Error!void {
     const workers = self.pool.count();
 
     if (workers == 0 or indices.first.len == 0) return;
+    if (kind != .planned) return self.offer(kind, true, memo, indices, workers);
 
+    switch (memo.persistent) {
+        inline else => |persistent| try self.offer(kind, persistent, memo, indices, workers),
+    }
+}
+
+fn offer(self: *Self, comptime kind: Memo.Kind, comptime persistent: bool, memo: *Memo, indices: Window, workers: usize) Error!void {
     var first: usize = 0;
 
-    while (Schedule.scan(self.states, self.dirty, self.recursive, indices, first, workers)) |pos| {
+    offers: while (Schedule.scan(self.states, self.dirty, self.recursive, indices, first, workers)) |pos| {
         const index: usize = @intCast(indices.at(pos));
+        var submitted: bool = undefined;
 
         first = pos + 1;
 
-        if ((kind != .planned or memo.persistent) and try memo.holds(kind, self.summaries, self.bodies.state(self.summaries, index))) {
-            _ = Schedule.transition(self.states, index, .Hold);
+        inline for (comptime workflow.steps(.Request, kind, persistent)) |step| switch (step) {
+            .CheckMemo => if (try memo.holds(kind, self.summaries, self.bodies.state(self.summaries, index))) {
+                _ = Schedule.transition(self.states, index, .Hold);
 
-            continue;
-        }
+                continue :offers;
+            },
+            .Reserve => _ = Schedule.transition(self.states, index, .Queue),
+            .Submit => submitted = self.pool.submit(@intCast(index)),
+            .WithdrawOnFull => if (!submitted) {
+                // An older ring entry can claim the new reservation before submit observes a full ring.
+                _ = Schedule.transition(self.states, index, .Withdraw);
 
-        _ = Schedule.transition(self.states, index, .Queue);
-
-        if (!self.pool.submit(@intCast(index))) {
-            // An older ring entry can claim the new reservation before submit observes a full ring.
-            _ = Schedule.transition(self.states, index, .Withdraw);
-
-            return;
-        }
+                return;
+            },
+            else => unreachable,
+        };
     }
 }
 
 /// The result analyzed ahead for body `index` if every level it read still holds; waits while it is analyzed.
-pub fn take(self: *Self, comptime kind: Memo.Kind, index: usize) std.mem.Allocator.Error!?Found(kind) {
-    if (self.pool.count() == 0 or !try Schedule.take(self.states, self.dirty, index)) return null;
+pub fn take(self: *Self, comptime kind: Memo.Kind, index: usize) Error!?Found(kind) {
+    if (self.pool.count() == 0) return null;
 
-    const found = @field(self, @tagName(kind))[index];
+    var found: Found(kind) = undefined;
 
-    return if (kind == .planned or Function.unchanged(self.summaries, found.reads)) found else null;
+    inline for (comptime workflow.steps(.Collect, kind, true)) |step| switch (step) {
+        .Wait => {
+            if (!try Schedule.take(self.states, self.dirty, index)) return null;
+
+            found = @field(self.results[index], @tagName(kind));
+        },
+        .CheckReads => if (!Function.unchanged(self.summaries, found.reads)) return null,
+        else => unreachable,
+    };
+
+    return found;
 }
 
 /// Where the calling thread builds the passes over a body it analyzes itself.
@@ -122,47 +145,54 @@ pub fn Found(comptime kind: Memo.Kind) type {
 fn Task(comptime kind: Memo.Kind) type {
     return struct {
         fn run(self: *Self, worker: *Pool.Worker, index: u32) void {
-            if (!Schedule.transition(self.states, index, .Claim)) return;
-
-            @field(self, @tagName(kind))[index] = analyze(self, worker, index) catch {
+            execute(self, worker, index) catch {
                 _ = Schedule.transition(self.states, index, .Fail);
+            };
+        }
+        fn execute(self: *Self, worker: *Pool.Worker, index: usize) Error!void {
+            var result: Found(kind) = undefined;
+            var growth: Growth.Store = undefined;
 
-                return;
+            var input: compute.Input = .{
+                .bodies = self.bodies,
+                .slots = self.slots,
+                .summaries = self.summaries,
+                .body = index,
+                .growth = null,
+                .scratch = worker.scratch.allocator(),
+                .lasting = worker.lasting.allocator(),
+                .owner = worker.kept.allocator(),
             };
 
-            _ = Schedule.transition(self.states, index, .Complete);
+            inline for (comptime workflow.steps(.Analyze, kind, true)) |step| switch (step) {
+                .Claim => if (!Schedule.transition(self.states, index, .Claim)) return,
+                .ReadGrowth => {
+                    // A speculative demand can replace its own growth views before the foreground adopts them.
+                    const current = &self.bodies.units[index].growth;
+                    growth = if (generated) current.* else try current.clone(input.scratch);
+                    input.growth = &growth;
+                },
+                .AnalyzeDeferred, .AnalyzePlan => result = try analyze(step == .AnalyzeDeferred, input),
+                .Publish => self.results[index] = @unionInit(Result, @tagName(kind), result),
+                .Complete => _ = Schedule.transition(self.states, index, .Complete),
+                else => unreachable,
+            };
         }
-        fn analyze(ahead: *Self, worker: *Pool.Worker, index: usize) std.mem.Allocator.Error!Found(kind) {
-            const summaries = ahead.summaries;
-            const scratch = worker.scratch.allocator();
-            const keep = worker.kept.allocator();
-            const lasting = worker.lasting.allocator();
 
-            switch (kind) {
-                .settled => {
-                    var analysis = try ahead.bodies.analyze(scratch, lasting, ahead.slots, summaries, index, null, true);
+        fn analyze(comptime deferred: bool, input: compute.Input) Error!Found(kind) {
+            const result = try compute.run(kind, deferred, input);
+            const record = result.record;
 
-                    analysis.deferred = true;
-                    const result = try analysis.settle(keep, if (index < summaries.output.len) summaries.output[index].len else 0);
-
-                    return .{ .passed = result.passed, .output = result.output, .reads = result.reads };
+            return switch (kind) {
+                .settled => .{ .passed = record.passed, .output = record.output, .reads = result.reads },
+                .demanded => .{
+                    .marks = record.marks,
+                    .grew = record.grew,
+                    .growth = .{ .normalized = record.normalized, .renewed = record.renewed },
+                    .reads = result.reads,
                 },
-                .demanded => {
-                    // The growth copies a demand pass leaves are its own; the body's stay as they were until its visit.
-                    const generated = @import("genz_options").generated_analysis;
-                    var growth = if (generated) ahead.bodies.units[index].growth else try ahead.bodies.units[index].growth.clone(scratch);
-                    var analysis = try ahead.bodies.analyze(scratch, lasting, ahead.slots, summaries, index, &growth, true);
-                    analysis.deferred = true;
-                    const result = try analysis.demand(keep);
-
-                    return .{ .marks = result.marks, .grew = analysis.grew, .growth = if (generated) growth else try growth.capture(keep), .reads = result.reads };
-                },
-                .planned => {
-                    var analysis = try ahead.bodies.analyze(scratch, lasting, ahead.slots, summaries, index, null, false);
-
-                    return analysis.plan(keep);
-                },
-            }
+                .planned => record.plan(),
+            };
         }
     };
 }

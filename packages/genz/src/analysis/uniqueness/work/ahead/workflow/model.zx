@@ -1,0 +1,28 @@
+import type { Phase } from "../../../program/model"
+
+export enum Activity {
+    Request,
+    Analyze,
+    Collect
+}
+
+export enum Step {
+    CheckMemo,
+    Reserve,
+    Submit,
+    WithdrawOnFull,
+    Claim,
+    ReadGrowth,
+    AnalyzeDeferred,
+    AnalyzePlan,
+    Publish,
+    Complete,
+    Wait,
+    CheckReads
+}
+
+export type Request = {
+    activity: Activity,
+    phase: Phase,
+    persistent: bool
+}
