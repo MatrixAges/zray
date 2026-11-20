@@ -1,0 +1,61 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import { Role } from "../../order/model"
+import retains from "./retains"
+
+import type { Selected as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const source = in.source.source
+    const plan = in.source.plan
+    const role = plan.sites.role[in.site]
+
+    if (role != Role.observe && role != Role.argument) {
+        return false
+    }
+
+    const site = in.source.rows[in.site]
+
+    if (site.parent == max_u32) {
+        return role == Role.observe
+    }
+
+    const parent = integers.widen(site.parent)
+    const expressions = source.expressions
+
+    if (expressions.kinds[parent] != ExpressionKind.Call) {
+        return role == Role.observe
+    }
+
+    const payload = integers.widen(expressions.payloads[parent])
+    const callee = integers.widen(expressions.call_functions[payload])
+    const effects = source.effects
+
+    if (!effects.borrow_only[callee]) {
+        return false
+    }
+
+    if (role == Role.observe) {
+        return true
+    }
+
+    // A different field can flow to the result without extending this loan.
+    // See docs/所有权推导论文.md for the projection and lifetime invariants.
+    const first = integers.widenSigned(site.lo) + site.delta
+    const end = integers.widenSigned(site.hi) + site.delta
+    const limit = integers.widenSigned(effects.limit[callee])
+
+    if (first < 0 || end > limit) {
+        return false
+    }
+
+    return !retains({
+        held: source.held[callee],
+        first: integers.narrowSigned(first),
+        end: integers.narrowSigned(end)
+    })
+}

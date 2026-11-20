@@ -3,6 +3,8 @@ import { max_u32 } from "core/const"
 import { ExpressionKind } from "core/expression_table/kinds"
 
 import { Role } from "../../order/model"
+import observes from "./observes"
+import retains from "./retains"
 
 import type { Selected as Input } from "./model"
 
@@ -34,28 +36,21 @@ export default function (in: Input): Output {
     const end = integers.widenSigned(site.hi) + site.delta
     const held = input.source.held[callee]
 
-    if (first < 0 || end > integers.widenSigned(integers.narrow(held.length))) {
+    const limit = integers.widenSigned(input.source.effects.limit[callee])
+
+    if (first < 0 || end > limit) {
         return false
     }
 
-    const retained = loop({
-        slot: integers.narrowSigned(first),
-        found: false
-    }, {
-        while: state => !state.found && integers.widenSigned(state.slot) < end,
-        next: state => {
-            state.found = held[integers.widen(state.slot)]
-            state.slot += 1
-        },
-        return: state => state.found
-    })
-
-    if (!retained) {
+    if (!retains({
+        held,
+        first: integers.narrowSigned(first),
+        end: integers.narrowSigned(end)
+    })) {
         return false
     }
 
     const root = input.source.symbols.length + parent
-    const effects = input.source.effects
 
     return loop({
         index: integers.widen(input.plan.first[root]),
@@ -64,24 +59,10 @@ export default function (in: Input): Output {
         while: state => state.valid &&
             state.index < integers.widen(input.plan.first[root + 1]),
         next: state => {
-            state.valid = input.plan.sites.role[state.index] == Role.observe
-
-            const observer = input.plan.sites.parent[state.index]
-
-            if (state.valid && observer != max_u32) {
-                const node = integers.widen(observer)
-
-                if (expressions.kinds[node] == ExpressionKind.Call) {
-                    const payload = integers.widen(expressions.payloads[node])
-                    const callee = integers.widen(expressions.call_functions[payload])
-
-                    // The call must finish without exporting the loan. See
-                    // docs/所有权推导论文.md for the borrowing and reuse invariants.
-                    state.valid = effects.kind[callee] == Role.observe &&
-                        effects.borrow_only[callee]
-                }
-            }
-
+            state.valid = observes({
+                source: input,
+                site: state.index
+            })
             state.index += 1
         },
         return: state => state.valid

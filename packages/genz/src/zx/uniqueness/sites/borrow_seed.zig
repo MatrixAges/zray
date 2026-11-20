@@ -109,19 +109,29 @@ fn eligible(source: *const Seed, site: Site) bool {
     const result = source.nodeRoot(@fromBackingInt(site.parent));
 
     for (source.sites[source.first[result]..source.first[result + 1]]) |use| {
-        if (resolved(source, use) != .observe) return false;
-        if (use.parent == none) continue;
-
-        const parent = source.expressions.get(@fromBackingInt(use.parent)).value;
-
-        if (parent == .call) {
-            const observer = @backingInt(parent.call.function);
-            const held = source.summaries.held[observer];
-
-            if (held.len == 0 or !borrowOnly(source, observer) or
-                !known(source, use, observer) or std.mem.indexOfScalar(bool, held, true) != null) return false;
-        }
+        if (!observes(source, use)) return false;
     }
 
     return true;
+}
+
+fn observes(source: *const Seed, site: Site) bool {
+    const role = resolved(source, site);
+
+    if (role != .observe and role != .argument) return false;
+    if (site.parent == none) return role == .observe;
+
+    const parent = source.expressions.get(@fromBackingInt(site.parent)).value;
+
+    if (parent != .call) return role == .observe;
+
+    const callee = @backingInt(parent.call.function);
+
+    if (!borrowOnly(source, callee) or !known(source, site, callee)) return false;
+    if (role == .observe) return true;
+
+    const first: usize = @intCast(@as(i64, site.lo) + site.delta);
+    const end: usize = @intCast(@as(i64, site.hi) + site.delta);
+
+    return std.mem.indexOfScalar(bool, source.summaries.held[callee][first..end], true) == null;
 }
