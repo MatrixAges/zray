@@ -1,0 +1,23 @@
+<Module>
+    <Type from="index" as="Analysis" />
+
+    <Args in={Analysis.Input} out={bool} />
+
+    <Call module="discover" in={$in} />
+
+    <If on={$ctx.discover}>
+        <Call fn="index.inferLibraryRx" in={$in} />
+
+        <If on={!$ctx.inferLibraryRx}>
+            <Return value={false} />
+        </If>
+
+        <Else>
+            <Call fn="index.inferLibraryZx" in={$in} />
+        </Else>
+    </If>
+
+    <Call fn="index.recordLibraryAnalysis" in={$in} />
+
+    <Return value={$ctx.recordLibraryAnalysis} />
+</Module>

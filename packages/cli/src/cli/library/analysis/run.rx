@@ -1,0 +1,33 @@
+<Module>
+    <Type from="index" as="Analysis" />
+
+    <Args in={Analysis.Input} out={bool} />
+
+    <Call fn="index.analysisExportCount" in={$in} />
+
+    <If on={$ctx.analysisExportCount == 0}>
+        <Call fn="index.missingLibraryExports" in={$in} />
+
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.isCompiledLibrary" in={$in} />
+
+    <If on={$ctx.isCompiledLibrary}>
+        <Call fn="index.loadCompiledLibrary" in={$in} />
+
+        <Return value={true} />
+    </If>
+
+    <Call fn="index.beginLibraryAnalysis" in={$in} />
+
+    <Call
+        fn="entries"
+        in={{
+            analysis: $in,
+            count: $ctx.analysisExportCount
+        }}
+    />
+
+    <Return value={$ctx.entries} />
+</Module>

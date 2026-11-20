@@ -1,0 +1,17 @@
+<Module>
+    <Type from="index" as="Link" />
+
+    <Args in={Link.Input} out={void} />
+
+    <Call fn="index.linkHasCompiled" in={$in} />
+
+    <If on={$ctx.linkHasCompiled}>
+        <Call fn="index.takeCompiledLibrary" in={$in} />
+
+        <Else>
+            <Call fn="index.allocateLinkInputs" in={$in} />
+            <Call fn="collect" in={$in} />
+            <Call fn="index.linkLibraryInputs" in={$in} />
+        </Else>
+    </If>
+</Module>

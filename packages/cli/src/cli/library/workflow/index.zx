@@ -1,0 +1,19 @@
+export {
+    hasBuildExports,
+    configureLibraryEntry,
+    analyzeLibraryBuild,
+    linkLibraryBuild,
+    collectBuildSources,
+    openLibraryBuildCache,
+    generateLibraryBundle,
+    reportLibraryBuildCache,
+    resolveLibraryToolchain,
+    resolveLibraryNativeProject,
+    createLibraryStaging,
+    stageLibraryBuild,
+    publishLibraryBuild,
+    libraryBuildWatching,
+    rejectChangedLibraryBuild
+} from "library_workflow_host"
+
+export type { Build, BuildStatus } from "library_workflow_host"

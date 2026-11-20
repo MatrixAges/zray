@@ -1,0 +1,15 @@
+<Module>
+    <Type from="index" as="Analysis" />
+
+    <Args in={Analysis.Input} out={bool} />
+
+    <Call fn="is_rx" in={$in} />
+
+    <If on={$ctx.is_rx}>
+        <Return value={true} />
+    </If>
+
+    <Call fn="index.readLibraryDependencies" in={$in} />
+
+    <Return value={$ctx.readLibraryDependencies} />
+</Module>

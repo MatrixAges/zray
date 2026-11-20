@@ -1,0 +1,28 @@
+import { selectLibraryExport } from "library_workflow_host"
+
+import entry from "./entry.rx"
+
+import type { Analysis } from "library_workflow_host"
+
+export type Input = {
+    analysis: Analysis,
+    count: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: current => current.index < in.count && current.valid,
+        next: current => {
+            selectLibraryExport(in.analysis, current.index)
+
+            current.valid = entry(in.analysis)
+            current.index += 1
+        },
+        return: current => current.valid
+    })
+}

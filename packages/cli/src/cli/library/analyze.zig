@@ -1,11 +1,11 @@
 const std = @import("std");
 const compiler = @import("compiler");
-const zx = @import("zx");
 const store = @import("rx_analysis").store;
 const Loaded = @import("../project.zig").Loaded;
 const Inputs = @import("watch_inputs").Inputs;
-const Sources = @import("../sources.zig");
-const Text = @import("../sources/text.zig");
+const workflow = @import("cli_source").library_analyze;
+const State = @import("analysis/rows.zig").State;
+const linking = @import("link/inputs.zig");
 
 pub const Module = struct {
     name: []const u8,
@@ -34,28 +34,11 @@ pub const Result = struct {
     }
 
     pub fn link(self: *Result, allocator: std.mem.Allocator) !compiler.library.Result {
-        if (self.compiled) |library| {
-            self.compiled = null;
+        return linking.run(self, allocator);
+    }
 
-            return library;
-        }
-
-        var temporary = std.heap.ArenaAllocator.init(allocator);
-
-        defer temporary.deinit();
-
-        const scratch = temporary.allocator();
-        const inputs = try scratch.alloc(compiler.library.Input, self.modules.len);
-
-        for (self.modules, inputs) |*module, *input| {
-            if (module.analysis.value != .ir) return error.InvalidAnalysis;
-
-            const initializers = try store.collectInitializers(scratch, module.store_definitions, &module.analysis.value.ir, module.analysis.public_functions);
-
-            input.* = .{ .name = module.name, .analysis = &module.analysis, .borrowed_initializers = initializers };
-        }
-
-        return compiler.library.link(allocator, inputs);
+    pub fn collectSources(self: *const Result, allocator: std.mem.Allocator) !std.ArrayList(compiler.project.Source) {
+        return linking.sources(self.modules, allocator);
     }
 };
 
@@ -70,81 +53,12 @@ pub const Options = struct {
 };
 
 pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
-    if (options.loaded.config.exports.len == 0) return error.MissingPublicModules;
-    if (options.loaded.config.library != null) return try @import("compiled.zig").load(allocator, options);
+    var analysis: State = .{ .allocator = allocator, .options = &options };
+    const reference = &analysis;
 
-    const arena = try allocator.create(std.heap.ArenaAllocator);
-    arena.* = std.heap.ArenaAllocator.init(allocator);
+    defer analysis.deinit();
 
-    var transferred = false;
-    var count: usize = 0;
-    const owned = arena.allocator();
-    var modules: []Module = &.{};
-    var parse_cache: ?*compiler.project.ParseCache = null;
+    const ready = workflow.executeIn(allocator, @ptrCast(&reference)) catch |err| return analysis.failure.unwrap(err);
 
-    defer if (!transferred) {
-        for (modules[0..count]) |*module| module.analysis.deinit();
-        if (parse_cache) |cache| cache.deinit();
-
-        arena.deinit();
-        allocator.destroy(arena);
-    };
-
-    modules = try owned.alloc(Module, options.loaded.config.exports.len);
-
-    const cache = options.parse_cache orelse local: {
-        const local = try owned.create(compiler.project.ParseCache);
-
-        local.* = .{ .allocator = allocator, .keeps_replaced = true };
-        parse_cache = local;
-
-        break :local local;
-    };
-
-    var libraries = @import("inputs.zig"){ .allocator = owned };
-    var texts = Text.Cache{ .allocator = owned };
-
-    defer libraries.deinit();
-    defer texts.deinit();
-
-    for (options.loaded.config.exports, modules) |exported, *module| {
-        var project = options.loaded.project;
-
-        project.entry = try std.fs.path.resolve(owned, &.{ project.root_dir, exported.source });
-
-        if (std.mem.endsWith(u8, project.entry, ".rx")) {
-            const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }}, .texts = &texts }) orelse return null;
-            module.* = .{ .name = exported.path, .analysis = prepared.analysis, .sources = prepared.sources, .store_definitions = prepared.store_definitions };
-        } else {
-            const detected = try Sources.readLibrary(options.io, owned, project, cache, options.inputs, &libraries, &texts);
-
-            project.compiled_libraries = libraries.libraries.items;
-
-            if (detected.has_rx) {
-                const prepared = try @import("../rx/analyze.zig").run(owned, .{ .io = options.io, .project = project, .writer = options.writer, .parse_cache = cache, .inputs = options.inputs, .exports = &.{.{ .name = exported.path, .path = project.entry }}, .texts = &texts }) orelse return null;
-                module.* = .{ .name = exported.path, .analysis = prepared.analysis, .sources = prepared.sources, .store_definitions = prepared.store_definitions };
-            } else {
-                const analyzed = try compiler.analyzeProjectWithCache(owned, detected.sources, project, cache);
-
-                module.* = .{ .name = exported.path, .analysis = analyzed, .sources = detected.sources };
-            }
-        }
-
-        count += 1;
-        module.name = try owned.dupe(u8, module.name);
-
-        if (module.analysis.value == .diagnostic) {
-            const issue = module.analysis.value.diagnostic;
-            const source = module.sources[issue.source_index orelse 0];
-            const location = zx.source.locate(source.original orelse source.source, issue.span.start);
-
-            try options.writer.print("{s}:{d}:{d}: {t}: {s}\n", .{ source.path, location.line, location.column, issue.code, issue.message });
-
-            return null;
-        }
-    }
-
-    transferred = true;
-
-    return .{ .arena = arena, .modules = modules, .parse_cache = parse_cache };
+    return if (ready) analysis.take() else null;
 }

@@ -1,0 +1,26 @@
+<Module>
+    <Type from="index" as="Proof" />
+
+    <Args in={Proof.Input} out={bool} />
+
+    <Call fn="index.hasExecutableProof" in={$in} />
+
+    <If on={!$ctx.hasExecutableProof}>
+        <Call fn="index.confirmProofInterface" in={$in} />
+
+        <Return value={true} />
+    </If>
+
+    <Call fn="output" in={$in} />
+    <Call fn="index.writeProofHeading" in={$in} />
+
+    <Call
+        fn="index.verifyPublicExport"
+        in={[
+            $in,
+            $ctx.output
+        ]}
+    />
+
+    <Return value={$ctx.verifyPublicExport} />
+</Module>

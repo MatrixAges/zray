@@ -5,6 +5,13 @@ pub const toolchain = @import("cli/toolchain.zig");
 pub const installation = @import("package/install/host.zig");
 pub const library_stage = @import("cli/library/publish.zig");
 
+pub const library_workflow = struct {
+    pub const build = @import("cli/library/build.zig");
+    pub const analysis = @import("cli/library/analysis/rows.zig");
+    pub const link = @import("cli/library/link/inputs.zig");
+    pub const proof = @import("cli/library/verify.zig");
+};
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);

@@ -150,6 +150,26 @@
             "name": "native_directory_files"
         },
         {
+            "path": "library/workflow/build.rx",
+            "name": "library_build"
+        },
+        {
+            "path": "library/analysis/run.rx",
+            "name": "library_analyze"
+        },
+        {
+            "path": "library/link/run.rx",
+            "name": "library_link"
+        },
+        {
+            "path": "library/link/sources.zx",
+            "name": "library_sources"
+        },
+        {
+            "path": "library/proof/entries.zx",
+            "name": "library_public_proof"
+        },
+        {
             "path": "library/stage/write.rx",
             "name": "library_stage_write"
         },
@@ -336,6 +356,10 @@
         {
             "path": "backend_dependencies/host.d.zx",
             "module": "backend_input_host"
+        },
+        {
+            "path": "library/workflow/host.d.zx",
+            "module": "library_workflow_host"
         },
         {
             "path": "library/stage/host.d.zx",

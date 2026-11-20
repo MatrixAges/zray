@@ -1,0 +1,1 @@
+export const proof_extension: string = "smt2"

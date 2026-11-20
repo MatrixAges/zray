@@ -1,4 +1,3 @@
-const std = @import("std");
 const compiler = @import("compiler");
 const Compile = @import("../../compile.zig");
 const Loaded = @import("../../project.zig").Loaded;
@@ -32,9 +31,9 @@ pub fn run(context: Compile.Context, loaded: Loaded) !Compile.Status {
     defer cache.deinit();
 
     var bundle = if (linked) |*library| blk: {
-        var sources: std.ArrayList(compiler.project.Source) = .empty;
+        var sources = try analyzed.services.?.collectSources(allocator);
 
-        for (analyzed.services.?.modules) |module| try sources.appendSlice(allocator, module.sources);
+        defer sources.deinit(allocator);
 
         var emitted = try compiler.emitLibraryVerified(allocator, .{ .io = context.io, .sources = sources.items, .project = loaded.project, .generation_cache = if (options.cache) &cache else null, .solver = options.solver, .verification_allocator = @import("../../verify.zig").workspace_allocator, .writer = writer }, library);
 

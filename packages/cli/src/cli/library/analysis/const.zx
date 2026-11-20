@@ -1,0 +1,1 @@
+export const rx_suffix: string = ".rx"
