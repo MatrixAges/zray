@@ -1,29 +1,30 @@
-import type { State as Cache } from "core/integer/map/model"
+import type { State as Map } from "core/integer/map/model"
 import type { Query } from "../queries/model"
 
-export type Facts = {
-    count: u64,
-    metadata: u8[],
-    keys: u32[],
-    values: u32[],
+export type Facts = Map.Omit("values") & {
     types: u32[],
     queries: Query[]
 }
 
-export type Conversion = {
-    key: u32,
-    value: u32,
-    layout?: u32
+export type Views = {
+    types: u32[],
+    layouts: u32[],
+    active: bool
 }
 
-export type Walk = {
-    cache: Cache,
-    cursor: u64,
-    work?: Conversion
+export type Jobs = {
+    slots: u64[],
+    layouts: u32?[]
 }
 
 export type Input = {
     source: Facts,
-    state: Walk,
-    converted?: u32
+    current: Views,
+    represented: Views.Omit("active")
+}
+
+export type Output = {
+    previous?: Views,
+    next: Views,
+    jobs: Jobs
 }

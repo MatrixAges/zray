@@ -5,23 +5,26 @@ const Lower = @import("../lower.zig");
 pub const Analysis = @import("analysis.zig");
 pub const conversion = @import("conversion.zig");
 const Self = @This();
+const Cache = @import("../expression_map.zig").Map(ir.ExprId);
+
+pub const Saved = struct {
+    types: []node.ExpressionId,
+    layouts: []node.ExpressionId,
+    cache: Cache,
+    active: bool,
+};
 
 lowering: *Lower,
-types: []node.ExpressionId,
-layouts: []node.ExpressionId,
-cache: @import("../expression_map.zig").Map(ir.ExprId),
-active: bool,
+previous: ?Saved,
 pub fn enter(lowering: *Lower) Lower.Error!Self {
-    const self = Self{ .lowering = lowering, .types = lowering.types, .layouts = lowering.layouts, .cache = lowering.cache, .active = lowering.state_active };
+    if (@import("genz_options").generated_analysis) return @import("entry.zig").enter(lowering);
+    if (lowering.state_active) return .{ .lowering = lowering, .previous = null };
 
-    if (self.active) return self;
+    const saved: Saved = .{ .types = lowering.types, .layouts = lowering.layouts, .cache = lowering.cache, .active = lowering.state_active };
+    var cache: Cache = .empty;
+    var entries = saved.cache.state.iterator();
 
-    var cache: @import("../expression_map.zig").Map(ir.ExprId) = .empty;
-    var entries = self.cache.iterator();
-
-    if (@import("genz_options").generated_analysis) {
-        cache = try @import("entry.zig").lower(lowering, &self.cache);
-    } else while (entries.next()) |entry| {
+    while (entries.next()) |entry| {
         var body: std.ArrayList(node.Statement) = .empty;
         const value = try conversion.convert(lowering, &body, lowering.program.expression(entry.key_ptr.*).type_id, entry.value_ptr.*, .value);
 
@@ -33,16 +36,16 @@ pub fn enter(lowering: *Lower) Lower.Error!Self {
     lowering.layouts = lowering.state_layouts;
     lowering.state_active = true;
 
-    return self;
+    return .{ .lowering = lowering, .previous = saved };
 }
 
 pub fn restore(self: Self) void {
-    if (self.active) return;
+    const previous = self.previous orelse return;
 
-    self.lowering.types = self.types;
-    self.lowering.layouts = self.layouts;
-    self.lowering.cache = self.cache;
-    self.lowering.state_active = self.active;
+    self.lowering.types = previous.types;
+    self.lowering.layouts = previous.layouts;
+    self.lowering.cache = previous.cache;
+    self.lowering.state_active = previous.active;
 }
 
 pub fn selected(lowering: *const Lower, id: ir.TypeId) bool {

@@ -1,4 +1,4 @@
-import lookup from "./lookup"
+import read from "./read"
 
 import type { State } from "./model"
 
@@ -12,15 +12,8 @@ export type Output = u32?[]
 export default function (in: Input): Output {
     const state = in.state
 
-    return in.keys.map(key => {
-        const slot = lookup({
-            ...state.omit(["values"]),
-            key
-        })
-
-        return match {
-            slot == null => null,
-            _ => state.values[slot]
-        }
-    })[0]
+    return in.keys.map(key => read({
+        state,
+        key
+    }))[0]
 }

@@ -20,9 +20,7 @@ pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
     const temporary = memory.allocator();
     var entered: std.ArrayList(ir.SymbolId) = .empty;
 
-    defer for (entered.items) |id| {
-        _ = self.symbols.remove(id);
-    };
+    defer self.symbols.removeMany(entered.items);
 
     for (try locals(self, temporary, scope.bindings.symbols)) |raw| {
         const symbol: ir.SymbolId = @fromBackingInt(raw);

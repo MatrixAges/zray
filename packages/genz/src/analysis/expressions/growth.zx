@@ -1,0 +1,19 @@
+import integers from "std:integer"
+
+import { normalize_flag, renew_flag } from "../uniqueness/function/plan/const"
+
+export type Input = u64
+
+export enum Output {
+    Keep,
+    Normalize,
+    Renew
+}
+
+export default function (in: Input): Output {
+    if (integers.andBits(in, normalize_flag) != 0) {
+        return Output.Normalize
+    }
+
+    return integers.andBits(in, renew_flag) != 0 ? Output.Renew : Output.Keep
+}

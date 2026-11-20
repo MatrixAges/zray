@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Input} out={Entry.Output} />
+
+    <If on={$in.current.active}>
+        <Return
+            value={{
+                previous: null,
+                next: $in.current,
+                jobs: {
+                    slots: [],
+                    layouts: []
+                }
+            }}
+        />
+    </If>
+
+    <Call fn="schedule" in={$in.source} />
+
+    <Return
+        value={{
+            previous: $in.current,
+            next: {
+                ...$in.represented,
+                active: true
+            },
+            jobs: $ctx.schedule
+        }}
+    />
+</Module>

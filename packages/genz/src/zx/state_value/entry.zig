@@ -3,45 +3,84 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const Scope = @import("root.zig");
 const conversion = @import("conversion_emission.zig");
-const advancing = @import("generated_state_entry_advance");
-const Parameter = @typeInfo(@TypeOf(advancing.executeState)).@"fn".param_types[1].?;
-const Input = Child(Parameter);
-const Walk = @FieldType(Input, "state");
+const preparation = @import("generated_state_entry_prepare");
+const Input = std.meta.Child(preparation.Input);
+const Facts = std.meta.Child(@FieldType(Input, "source"));
+const Views = std.meta.Child(@FieldType(Input, "current"));
+const Represented = std.meta.Child(@FieldType(Input, "represented"));
 const Cache = @import("../expression_map.zig").Map(ir.ExprId);
 
-pub fn lower(self: *Lower, previous: *const Cache) Lower.Error!Cache {
-    const Facts = std.meta.Child(@FieldType(Input, "source"));
+pub fn enter(self: *Lower) Lower.Error!Scope {
+    var arena = std.heap.ArenaAllocator.init(self.workspace);
+    var storage: [1024]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&storage, arena.allocator());
+
+    defer arena.deinit();
+
+    const scratch = memory.allocator();
+    const map = &self.cache.state;
 
     const source: Facts = .{
-        .count = previous.state.count,
-        .metadata = previous.state.metadata.items,
-        .keys = previous.state.keys.items,
-        .values = previous.state.values.items,
+        .count = map.count,
+        .metadata = map.metadata.items,
+        .keys = map.keys.items,
         .types = self.program.expressions.types,
         .queries = zx.columns.slice(@FieldType(Facts, "queries"), self.state_plan.queries),
     };
 
-    const empty: Cache = .empty;
+    const current: Views = .{ .types = ids(self.types), .layouts = ids(self.layouts), .active = self.state_active };
+    const represented: Represented = .{ .types = ids(self.state_types), .layouts = ids(self.state_layouts) };
+    const input: Input = .{ .source = &source, .current = &current, .represented = &represented };
+    const plan = preparation.executeIn(scratch, &input) catch |err| return failure(err);
+    const previous = plan.previous orelse return .{ .lowering = self, .previous = null };
 
-    var state: Walk = .{
-        .cache = zx.columns.view(@FieldType(Walk, "cache"), empty.state),
-        .cursor = 0,
-        .work = null,
+    const saved: Scope.Saved = .{
+        .types = column(previous.types),
+        .layouts = column(previous.layouts),
+        .cache = self.cache,
+        .active = previous.active,
     };
 
-    var converted: ?u32 = null;
+    const slots = plan.jobs.slots;
+    var cache: Cache = .empty;
 
-    while (true) {
-        const input: Input = .{ .source = &source, .state = state, .converted = converted };
+    if (slots.len != 0) {
+        const converted = try scratch.alloc(u32, slots.len);
 
-        state = advancing.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
-        const work = state.work orelse break;
-        const layout: ?ir.TypeId = if (work.layout) |id| @fromBackingInt(id) else null;
-        converted = @backingInt(try emit(self, layout, @fromBackingInt(work.value)));
+        for (slots, plan.jobs.layouts, converted) |slot, layout, *value| {
+            const id: ?ir.TypeId = if (layout) |type_id| @fromBackingInt(type_id) else null;
+            value.* = @backingInt(try emit(self, id, @fromBackingInt(saved.cache.state.values.items[slot])));
+        }
+
+        cache = try publish(self.allocator, source.keys, slots, converted);
     }
 
-    return .{ .state = zx.columns.view(@TypeOf(empty.state), state.cache) };
+    self.cache = cache;
+    self.types = column(plan.next.types);
+    self.layouts = column(plan.next.layouts);
+    self.state_active = plan.next.active;
+
+    return .{ .lowering = self, .previous = saved };
+}
+
+fn publish(allocator: std.mem.Allocator, keys: []const u32, slots: []const u64, values: []const u32) Lower.Error!Cache {
+    const entry = @import("generated_state_entry_publish");
+    const input: std.meta.Child(entry.Input) = .{ .keys = keys, .slots = slots, .values = values };
+    const output = entry.executeState(allocator, &input) catch |err| return failure(err);
+
+    return .{ .state = zx.columns.view(@FieldType(Cache, "state"), output) };
+}
+
+fn ids(values: []const node.ExpressionId) []const u32 {
+    comptime std.debug.assert(@typeInfo(node.ExpressionId).@"enum".tag_type == u32);
+
+    return @as([*]const u32, @ptrCast(values.ptr))[0..values.len];
+}
+
+fn column(values: []const u32) []node.ExpressionId {
+    return @as([*]node.ExpressionId, @ptrCast(@constCast(values.ptr)))[0..values.len];
 }
 
 fn emit(self: *Lower, layout: ?ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
@@ -72,10 +111,6 @@ fn emit(self: *Lower, layout: ?ir.TypeId, value: node.ExpressionId) Lower.Error!
     var body: std.ArrayList(node.Statement) = .empty;
 
     return conversion.apply(self, &body, &body, output);
-}
-
-fn Child(comptime Value: type) type {
-    return if (@typeInfo(Value) == .pointer) std.meta.Child(Value) else Value;
 }
 
 fn failure(err: anyerror) Lower.Error {

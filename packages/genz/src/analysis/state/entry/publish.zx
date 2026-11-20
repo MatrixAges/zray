@@ -1,0 +1,36 @@
+import put from "core/integer/map/put"
+
+import type { State as Output } from "core/integer/map/model"
+
+export type Input = {
+    keys: u32[],
+    slots: u64[],
+    values: u32[]
+}
+
+export default function (in: Input): Output {
+    const cache: Output = {
+        count: 0,
+        metadata: [],
+        keys: [],
+        values: []
+    }
+
+    return loop({
+        cache,
+        index: 0
+    }, {
+        while: state => state.index < in.slots.length,
+        next: state => {
+            const slot = in.slots[state.index]
+
+            state.cache = put({
+                state: state.cache,
+                key: in.keys[slot],
+                value: in.values[state.index]
+            })
+            state.index += 1
+        },
+        return: state => state.cache
+    })
+}

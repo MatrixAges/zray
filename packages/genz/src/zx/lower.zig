@@ -260,20 +260,16 @@ fn prototypeWithErrors(self: *Self, name: []const u8, exported: bool, errors: ?[
 
 pub fn expr(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
     const value = if (self.iteration_value) |context| try context.expression(id) orelse try self.regular(id) else try self.regular(id);
-    const flags = self.plan.get(id);
 
-    if (flags.normalize) return @import("growth.zig").normalize(self, id, value);
-    if (flags.renew) return @import("growth.zig").renewValue(self, id, value);
-
-    return value;
+    return switch (@import("expressions/growth.zig").select(self.plan.get(id))) {
+        .Keep => value,
+        .Normalize => @import("growth.zig").normalize(self, id, value),
+        .Renew => @import("growth.zig").renewValue(self, id, value),
+    };
 }
 
 pub fn regular(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
-    if (self.cache.get(id)) |cached| {
-        self.cache_reads[@backingInt(id)] += 1;
-
-        return cached;
-    }
+    if (self.cache.read(id, self.cache_reads)) |cached| return cached;
 
     const value = self.program.expression(id);
     const value_type = try self.typeExpr(value.type_id);

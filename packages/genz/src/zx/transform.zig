@@ -9,9 +9,7 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
 
     const state_symbols = try @import("state_value/locals.zig").parameters(self, value);
 
-    defer for (state_symbols) |symbol| {
-        _ = self.state_symbols.remove(symbol);
-    };
+    defer self.state_symbols.removeMany(state_symbols);
 
     if (value.kind == .every or value.kind == .some) return @import("predicates.zig").lower(self, value);
     if (try @import("simd/root.zig").lower(self, id, value)) |result| return result;

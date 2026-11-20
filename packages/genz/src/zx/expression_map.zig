@@ -98,10 +98,36 @@ pub fn Map(comptime Key: type) type {
         }
         pub fn get(self: *const Self, key: Key) ?node.ExpressionId {
             if (!generated) return self.state.get(key);
+            if (self.state.count == 0) return null;
 
-            const slot = self.lookup(key) orelse return null;
+            const entry = @import("generated_cache_read");
+            const Input = std.meta.Child(entry.Input);
+            const state = self.view(std.meta.Child(@FieldType(Input, "state")));
+            const input: Input = .{ .state = &state, .key = @backingInt(key) };
+            var fixed = std.heap.FixedBufferAllocator.init(&.{});
+            const value = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 
-            return @fromBackingInt(self.state.values.items[slot]);
+            return if (value) |id| @fromBackingInt(id) else null;
+        }
+        pub fn read(self: *const Self, key: Key, reads: []u64) ?node.ExpressionId {
+            if (!generated) {
+                const value = self.state.get(key) orelse return null;
+
+                reads[@backingInt(key)] += 1;
+
+                return value;
+            }
+
+            if (self.state.count == 0) return null;
+
+            const entry = @import("generated_expression_cache_read");
+            const Input = std.meta.Child(entry.Input);
+            const state = self.view(std.meta.Child(@FieldType(Input, "state")));
+            const input: Input = .{ .state = &state, .key = @backingInt(key), .reads = @ptrCast(&reads) };
+            var fixed = std.heap.FixedBufferAllocator.init(&.{});
+            const value = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+
+            return if (value) |id| @fromBackingInt(id) else null;
         }
 
         pub fn contains(self: *const Self, key: Key) bool {
@@ -187,24 +213,6 @@ pub fn Map(comptime Key: type) type {
             const result = zx.columns.invoke(querying.executeValue, fixed.allocator(), &input) catch unreachable;
 
             return if (result) |slot| @intCast(slot) else null;
-        }
-        pub const Iterator = if (!generated) State.Iterator else struct {
-            owner: *const Self,
-            slot: u64 = 0,
-            pub fn next(self: *@This()) ?struct { key_ptr: *const Key, value_ptr: *const node.ExpressionId } {
-                const querying = @import("generated_cache_next");
-                const Input = std.meta.Child(querying.Input);
-                const input: Input = .{ .metadata = self.owner.state.metadata.items, .count = self.owner.state.count, .start = self.slot };
-                var fixed = std.heap.FixedBufferAllocator.init(&.{});
-                const result = zx.columns.invoke(querying.executeValue, fixed.allocator(), &input) catch unreachable;
-                self.slot = result.next;
-                const slot = result.position orelse return null;
-
-                return .{ .key_ptr = @ptrCast(&self.owner.state.keys.items[slot]), .value_ptr = @ptrCast(&self.owner.state.values.items[slot]) };
-            }
-        };
-        pub fn iterator(self: *const Self) Iterator {
-            return if (!generated) self.state.iterator() else .{ .owner = self };
         }
     };
 }

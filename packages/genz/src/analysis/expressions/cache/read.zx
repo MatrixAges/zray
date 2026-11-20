@@ -1,0 +1,25 @@
+import integers from "std:integer"
+import read from "core/integer/map/read"
+import memory from "memory"
+
+import type { Key } from "core/integer/map/model"
+import type { U64Buffer } from "memory"
+
+export type Input = Key & {
+    reads: U64Buffer
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const value = read(in.omit(["reads"]))
+
+    if (value != null) {
+        const index = integers.widen(in.key)
+        const count = memory.readU64(in.reads, index)
+
+        memory.writeU64(in.reads, index, count + 1)
+    }
+
+    return value
+}

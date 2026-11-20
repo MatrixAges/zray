@@ -1,0 +1,18 @@
+import lookup from "./lookup"
+
+import type { Key as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const slot = lookup({
+        ...in.state.omit(["values"]),
+        key: in.key
+    })
+
+    if (slot == null) {
+        return null
+    }
+
+    return in.state.values[slot]
+}

@@ -1,0 +1,46 @@
+import integers from "std:integer"
+import next from "core/integer/map/next"
+
+import { Property } from "../queries/model"
+import read from "../queries/read"
+
+import type { Facts as Input, Jobs as Output } from "./model"
+
+export default function (in: Input): Output {
+    const slots: u64[] = []
+    const layouts: u32?[] = []
+
+    return loop({
+        cursor: 0,
+        slots,
+        layouts
+    }, {
+        while: state =>
+            state.slots.length < in.count && state.cursor < in.metadata.length,
+        next: state => {
+            const item = next({
+                count: in.count,
+                metadata: in.metadata,
+                start: state.cursor
+            })
+
+            if (item.position != null) {
+                const key = integers.widen(in.keys[item.position])
+                const id = in.types[key]
+                const represented = read({
+                    value: in.queries[integers.widen(id)],
+                    property: Property.Represented
+                })
+
+                state.slots = state.slots.push(item.position)[0]
+                state.layouts = state.layouts.push(represented ? id : null)[0]
+            }
+
+            state.cursor = item.next
+        },
+        return: state => state.pick([
+            "slots",
+            "layouts"
+        ])
+    })
+}

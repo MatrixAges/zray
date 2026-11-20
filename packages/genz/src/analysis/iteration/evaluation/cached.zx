@@ -1,4 +1,5 @@
 import lookup from "core/integer/map/lookup"
+import read from "core/integer/map/read"
 
 import { Route } from "./model"
 
@@ -13,15 +14,15 @@ export default function (in: Input): Output {
         }
     }
 
-    const local = lookup({
-        ...in.cache.omit(["values"]),
+    const local = read({
+        state: in.cache,
         key: in.id
     })
 
     if (local != null) {
         return {
             route: Route.Cached,
-            value: in.cache.values[local],
+            value: local,
             regular: false
         }
     }
