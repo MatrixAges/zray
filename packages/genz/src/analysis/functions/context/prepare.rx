@@ -1,0 +1,37 @@
+<Module>
+    <Type from="../allocation" as="Allocation" />
+    <Type from="../symbol_names/publish" as="Names" />
+    <Type from="initialize" as="Initialize" />
+
+    <Args
+        in={Allocation.Input & Names.Target & Initialize.Input}
+        out={Allocation.Output}
+    />
+
+    <Call
+        fn="../allocation"
+        in={{
+            errors: $in.errors
+        }}
+    />
+
+    <Call
+        module="../symbol_names/build"
+        in={$in.pick([
+            "count",
+            "target"
+        ])}
+    />
+
+    <Call
+        fn="initialize"
+        in={$in.pick([
+            "used",
+            "used_bytes",
+            "reads",
+            "read_bytes"
+        ])}
+    />
+
+    <Return value={$ctx.allocation} />
+</Module>

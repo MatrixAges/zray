@@ -40,7 +40,7 @@ fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    var lower = try initialize(temporary, backing, program, names, facts, null);
+    var lower = try initialize(temporary, backing, program, names, facts, null, false);
     var output = publication.init(lower.builder.nodes, lower.workspace);
 
     defer if (generated) output.deinit();
@@ -139,7 +139,7 @@ pub fn publicEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, pro
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    var lower = try initialize(temporary, backing, program, names, facts, null);
+    var lower = try initialize(temporary, backing, program, names, facts, null, !program.type_only);
     const prefix = try lower.declarations();
     const suffix = try @import("public_exports.zig").append(&lower, names, members);
 
@@ -197,7 +197,7 @@ fn entryPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, progr
 
     defer arena.deinit();
 
-    var lower = try initialize(arena.allocator(), backing, program, names, facts, null);
+    var lower = try initialize(arena.allocator(), backing, program, names, facts, null, !program.type_only);
 
     return @import("../render.zig").renderStored(allocator, lower.builder.nodes, try lower.declarations());
 }
@@ -207,7 +207,7 @@ fn typesPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, progr
 
     defer arena.deinit();
 
-    var lower = try initialize(arena.allocator(), backing, program, names, facts, null);
+    var lower = try initialize(arena.allocator(), backing, program, names, facts, null, false);
 
     lower.shared_types = false;
 
@@ -226,14 +226,13 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
     defer if (working) |storage| storage.reset();
 
     const temporary = arena.allocator();
-    var lower = try initialize(temporary, backing, program, names, facts, working);
+    var lower = try initialize(temporary, backing, program, names, facts, working, false);
     const selected = try selectFunction(&lower, id);
 
     lower.plan = lower.plans[@backingInt(id)];
-    lower.names = try temporary.alloc([]const u8, selected.symbols.count());
     lower.may_grow = if (@backingInt(id) < lower.growth_functions.len) lower.growth_functions[@backingInt(id)] else true;
-    lower.used = try temporary.alloc(bool, selected.symbols.count());
-    lower.cache_reads = try temporary.alloc(u64, selected.expressions.count());
+
+    if (selected.external == null) try @import("functions/context.zig").reserve(&lower);
 
     const workflow = @import("module/workflow.zig");
     const form = workflow.functionForm(selected.external != null, lower.value_functions[@backingInt(id)], regular);
@@ -302,10 +301,10 @@ fn functionDeclarations(lower: *Lower, selected: ir.Function, id: ir.FunctionId,
     return task_declarations.assemble(temporary, lower.builder.nodes, &output, &suffix);
 }
 
-fn initialize(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, scratch: ?*TypeScratch) Error!Lower {
+fn initialize(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, scratch: ?*TypeScratch, body: bool) Error!Lower {
     if (names.types.len != program.types.count() or names.functions.len != program.functions.count()) return error.InvalidNames;
 
-    var lower = try @import("render.zig").initializeAnalyzed(allocator, backing, program, facts, scratch);
+    var lower = try @import("render.zig").initializeAnalyzed(allocator, backing, program, facts, scratch, body);
 
     lower.type_names = names.types;
     lower.function_modules = names.functions;

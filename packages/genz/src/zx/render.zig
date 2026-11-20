@@ -91,14 +91,14 @@ fn initializePreparedWithConcurrency(temporary: std.mem.Allocator, workspace: st
     else
         try Analysis.analyze(temporary, workspace, program, &.{}, basis, null);
 
-    return initializeAnalyzed(temporary, workspace, program, facts, null);
+    return initializeAnalyzed(temporary, workspace, program, facts, null, !program.type_only);
 }
 
-pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: @import("function_analysis.zig"), scratch: ?*@import("types/scratch.zig")) std.mem.Allocator.Error!Lower {
+pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: @import("function_analysis.zig"), scratch: ?*@import("types/scratch.zig"), body: bool) std.mem.Allocator.Error!Lower {
     const count = program.types.count();
     const shared = if (scratch) |storage| try storage.prepare(count) else null;
 
-    return .{
+    var lowering: Lower = .{
         .allocator = temporary,
         .workspace = workspace,
         .program = program,
@@ -111,9 +111,6 @@ pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Alloc
         .layout_types = facts.layout_types,
         .slot_counts = facts.basis.slots.counts,
         .growth_functions = facts.grows,
-        .names = try temporary.alloc([]const u8, program.symbols.count()),
-        .cache_reads = try temporary.alloc(u64, program.expressions.count()),
-        .used = try temporary.alloc(bool, program.symbols.count()),
         .io_functions = facts.io,
         .process_functions = facts.process,
         .task_functions = facts.tasks,
@@ -127,4 +124,8 @@ pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Alloc
         .plans = facts.uniqueness.functions,
         .plan = facts.uniqueness.entry,
     };
+
+    if (body) try @import("functions/context.zig").reserve(&lowering);
+
+    return lowering;
 }

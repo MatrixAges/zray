@@ -28,10 +28,10 @@ state_plan: @import("state_value/analysis.zig"),
 state_active: bool = false,
 deferred_lists: bool = false,
 state_symbols: @import("members.zig") = .empty,
-names: [][]const u8,
+names: [][]const u8 = &.{},
 native_names: []const []const u8 = &.{},
-used: []bool,
-cache_reads: []u64,
+used: []bool = &.{},
+cache_reads: []u64 = &.{},
 cache: @import("expression_map.zig").Map(ir.ExprId) = .empty,
 plans: []const @import("uniqueness/root.zig").Plan = &.{},
 plan: @import("uniqueness/root.zig").Plan = .{ .flags = &.{} },
@@ -193,15 +193,10 @@ pub fn function(self: *Self, name: []const u8, exported: bool) Error!node.Declar
     self.uses_process = false;
 
     const errors = try @import("error_effects.zig").program(self);
-    self.allows_allocation = @import("functions/policy.zig").allowsAllocation(errors);
-
     const needs_io = self.entry_flags.io;
     const needs_process = self.entry_flags.process;
 
-    try @import("functions/symbol_names.zig").initialize(self.allocator, self.names);
-
-    @memset(self.used, false);
-    @memset(self.cache_reads, 0);
+    try @import("functions/context.zig").prepare(self, errors);
 
     const body = try self.statements(self.program.body.block());
     const preconditions = try @import("contracts.zig").preconditions(self);

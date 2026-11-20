@@ -3,7 +3,7 @@ const zx = @import("zx");
 const node = @import("../node.zig");
 const Storage = @import("storage.zig");
 const generated = @import("genz_options").generated_analysis;
-const Layout = struct { start: u64, count: u64, contiguous: bool };
+const Layout = struct { start: u64, count: u64, append: bool };
 pub const Sequence = Spans(node.Block, "statements");
 pub const DeclarationSpans = Spans(@import("stored.zig").Declarations, "declaration_rows");
 
@@ -75,15 +75,9 @@ fn collect(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, sta
     std.debug.assert(starts.len == counts.len);
 
     const start = rows.tags.items.len;
+    const layout = measure(starts, counts, start, at_tail);
 
-    const layout: Layout = switch (counts.len) {
-        0 => return .{ .start = if (at_tail) @intCast(start) else 0, .len = 0 },
-        1 => .{ .start = starts[0], .count = counts[0], .contiguous = true },
-        else => measure(starts, counts),
-    };
-
-    if (layout.count == 0) return .{ .start = if (at_tail) @intCast(start) else 0, .len = 0 };
-    if (layout.contiguous and (!at_tail or layout.start + layout.count == start)) return .{ .start = @intCast(layout.start), .len = @intCast(layout.count) };
+    if (!layout.append) return .{ .start = @intCast(layout.start), .len = @intCast(layout.count) };
     if (layout.count > std.math.maxInt(u32) - start) return error.OutOfMemory;
 
     const length: usize = @intCast(layout.count);
@@ -128,28 +122,34 @@ fn collect(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, sta
     return .{ .start = @intCast(start), .len = @intCast(length) };
 }
 
-fn measure(starts: []const u32, counts: []const u32) Layout {
+fn measure(starts: []const u32, counts: []const u32, end: usize, comptime at_tail: bool) Layout {
     if (generated) {
         const entry = @import("generated_node_block_layout");
-        const input: std.meta.Child(entry.Input) = .{ .starts = starts, .counts = counts };
+        const input: std.meta.Child(entry.Input) = .{ .starts = starts, .counts = counts, .end = end, .at_tail = at_tail };
         var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
         return zx.columns.view(Layout, zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable);
     }
 
-    var result: Layout = .{ .start = 0, .count = 0, .contiguous = true };
+    var first: u64 = 0;
+    var length: u64 = 0;
+    var contiguous = true;
 
     for (starts, counts) |start, count| {
         if (count == 0) continue;
 
-        if (result.count == 0) {
-            result.start = start;
-        } else if (start != result.start + result.count) {
-            result.contiguous = false;
+        if (length == 0) {
+            first = start;
+        } else if (start != first + length) {
+            contiguous = false;
         }
 
-        result.count += count;
+        length += count;
     }
 
-    return result;
+    if (length == 0) return .{ .start = if (at_tail) end else 0, .count = 0, .append = false };
+
+    const borrow = contiguous and (!at_tail or first + length == end);
+
+    return .{ .start = if (borrow) first else end, .count = length, .append = !borrow };
 }

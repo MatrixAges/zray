@@ -1,1 +1,16 @@
-<Module fn="pack" />
+<Module>
+    <Type from="publish" as="Names" />
+
+    <Args in={Names.Target} out={Names.Output} />
+
+    <Call fn="pack" in={$in.count} />
+
+    <Call
+        fn="publish"
+        in={{
+            bytes: $ctx.pack,
+            count: $in.count,
+            target: $in.target
+        }}
+    />
+</Module>

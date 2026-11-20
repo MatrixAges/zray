@@ -5,10 +5,15 @@ export type Blocks = {
     counts: u32[]
 }
 
+export type LayoutRequest = Blocks & {
+    end: u64,
+    at_tail: bool
+}
+
 export type Layout = {
     start: u64,
     count: u64,
-    contiguous: bool
+    append: bool
 }
 
 export type Destination = Blocks & {

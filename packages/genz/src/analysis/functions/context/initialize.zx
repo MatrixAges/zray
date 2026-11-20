@@ -1,0 +1,17 @@
+import memory from "memory"
+
+import type { U8Buffer } from "memory"
+
+export type Input = {
+    used: U8Buffer,
+    used_bytes: u64,
+    reads: U8Buffer,
+    read_bytes: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.fillByteRange(in.used, 0, in.used_bytes, 0)
+    memory.fillByteRange(in.reads, 0, in.read_bytes, 0)
+}

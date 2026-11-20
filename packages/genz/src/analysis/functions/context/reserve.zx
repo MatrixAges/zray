@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import type { BoolBuffer, StringBuffer, U64Buffer } from "memory"
+
+export type Input = {
+    names: StringBuffer,
+    used: BoolBuffer,
+    reads: U64Buffer,
+    symbols: u64,
+    expressions: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.allocateStringViews(in.names, in.symbols)
+    memory.allocateBoolViews(in.used, in.symbols)
+    memory.allocateU64Views(in.reads, in.expressions)
+}

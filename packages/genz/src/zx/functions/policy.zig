@@ -28,21 +28,13 @@ pub fn value(self: *const Lower) Mode {
 }
 
 pub fn allowsAllocation(errors: ?[]const []const u8) bool {
-    if (!generated) {
-        const names = errors orelse return true;
+    const names = errors orelse return true;
 
-        for (names) |name| {
-            if (std.mem.eql(u8, name, "OutOfMemory")) return true;
-        }
-
-        return false;
+    for (names) |name| {
+        if (std.mem.eql(u8, name, "OutOfMemory")) return true;
     }
 
-    const entry = @import("generated_function_allocation");
-    const input: std.meta.Child(entry.Input) = .{ .errors = errors };
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch unreachable;
+    return false;
 }
 
 fn seed(self: *const Lower) Mode {

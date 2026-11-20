@@ -19,6 +19,7 @@ pub fn lower(self: *Lower, previous: *const Cache) Lower.Error!Cache {
         .keys = previous.state.keys.items,
         .values = previous.state.values.items,
         .types = self.program.expressions.types,
+        .queries = zx.columns.slice(@FieldType(Facts, "queries"), self.state_plan.queries),
     };
 
     const empty: Cache = .empty;
@@ -26,11 +27,7 @@ pub fn lower(self: *Lower, previous: *const Cache) Lower.Error!Cache {
     var state: Walk = .{
         .cache = zx.columns.view(@FieldType(Walk, "cache"), empty.state),
         .cursor = 0,
-        .complete = false,
-        .pending = false,
-        .key = 0,
-        .value = 0,
-        .type_id = 0,
+        .work = null,
     };
 
     var converted: ?u32 = null;
@@ -39,16 +36,15 @@ pub fn lower(self: *Lower, previous: *const Cache) Lower.Error!Cache {
         const input: Input = .{ .source = &source, .state = state, .converted = converted };
 
         state = advancing.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
-
-        if (state.complete) break;
-
-        converted = @backingInt(try emit(self, @fromBackingInt(state.type_id), @fromBackingInt(state.value)));
+        const work = state.work orelse break;
+        const layout: ?ir.TypeId = if (work.layout) |id| @fromBackingInt(id) else null;
+        converted = @backingInt(try emit(self, layout, @fromBackingInt(work.value)));
     }
 
     return .{ .state = zx.columns.view(@TypeOf(empty.state), state.cache) };
 }
 
-fn emit(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
+fn emit(self: *Lower, layout: ?ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const entry = @import("generated_state_entry_emit");
     const EmitInput = std.meta.Child(entry.Input);
     const Context = std.meta.Child(@FieldType(EmitInput, "context"));
@@ -61,7 +57,7 @@ fn emit(self: *Lower, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.
     const allocator = buffered.allocator();
     var boundary: conversion.Capture = undefined;
     const capture = conversion.captureBoundary(self, &boundary);
-    const common = if (self.state_plan.represented(self.program, id)) try conversion.prepareMode(self, allocator, id, value, .Value, capture) else null;
+    const common = if (layout) |id| try conversion.prepareMode(self, allocator, id, value, .Value, capture) else null;
 
     const context: Context = .{
         .capture = capture,

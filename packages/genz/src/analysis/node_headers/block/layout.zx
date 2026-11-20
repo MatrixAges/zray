@@ -1,9 +1,9 @@
 import integers from "std:integer"
 
-import type { Blocks as Input, Layout as Output } from "./model"
+import type { LayoutRequest as Input, Layout as Output } from "./model"
 
 export default function (in: Input): Output {
-    return loop({
+    const ranges = loop({
         start: 0,
         count: 0,
         contiguous: true,
@@ -33,4 +33,21 @@ export default function (in: Input): Output {
             "contiguous"
         ])
     })
+
+    if (ranges.count == 0) {
+        return {
+            start: in.at_tail ? in.end : 0,
+            count: 0,
+            append: false
+        }
+    }
+
+    const at_end = ranges.start + ranges.count == in.end
+    const borrow = ranges.contiguous && (at_end || !in.at_tail)
+
+    return {
+        start: borrow ? ranges.start : in.end,
+        count: ranges.count,
+        append: !borrow
+    }
 }

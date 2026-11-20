@@ -1,5 +1,3 @@
-import { ascii_null } from "core/ascii/const"
-
 import integer from "../../../printer/text/integer"
 import { input_name, local_prefix } from "./const"
 
@@ -25,7 +23,6 @@ export default function (in: Input): Output {
                 })
             }
 
-            current.output = current.output.push(ascii_null)[0]
             current.index += 1
         },
         return: state => state.output

@@ -2,13 +2,18 @@ import integers from "std:integer"
 import next from "core/integer/map/next"
 import put from "core/integer/map/put"
 
+import { Property } from "../queries/model"
+import read from "../queries/read"
+
 import type { Input, Walk as Output } from "./model"
 
 export default function (in: Input): Output {
+    const work = in.state.work
+
     const cache = match {
-        in.state.pending && in.converted != null => put({
+        work != null && in.converted != null => put({
             state: in.state.cache,
-            key: in.state.key,
+            key: work.key,
             value: in.converted
         }),
         _ => in.state.cache
@@ -24,23 +29,27 @@ export default function (in: Input): Output {
 
     if (position == null) {
         return {
-            ...in.state,
             cache,
             cursor: found.next,
-            pending: false,
-            complete: true
+            work: null
         }
     }
 
     const key = in.source.keys[position]
+    const type_id = in.source.types[integers.widen(key)]
+
+    const represented = read({
+        value: in.source.queries[integers.widen(type_id)],
+        property: Property.Represented
+    })
 
     return {
         cache,
         cursor: found.next,
-        pending: true,
-        complete: false,
-        key,
-        value: in.source.values[position],
-        type_id: in.source.types[integers.widen(key)]
+        work: {
+            key,
+            value: in.source.values[position],
+            layout: represented ? type_id : null
+        }
     }
 }

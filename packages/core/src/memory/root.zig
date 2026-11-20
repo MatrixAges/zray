@@ -87,6 +87,10 @@ pub fn allocateStringViews(allocator: std.mem.Allocator, target: *const anyopaqu
     try allocateViews([]const u8, allocator, target, count);
 }
 
+pub fn allocateBoolViews(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    try allocateViews(bool, allocator, target, count);
+}
+
 pub fn allocateU32Views(allocator: std.mem.Allocator, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
     try allocateViews(u32, allocator, target, count);
 }
