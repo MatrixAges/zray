@@ -1,0 +1,31 @@
+import type { U32Buffer, U8Buffer } from "memory"
+
+export type Headers = {
+    tags: u8[],
+    offsets: u32[],
+    mask: u64
+}
+
+export type Layout = Headers & {
+    counts: U32Buffer,
+    variants: u64,
+    limits?: u64[]
+}
+
+export type Rebase = Headers & {
+    bases: u32[],
+    target: U32Buffer
+}
+
+export type Selected = Headers.Pick("tags", "mask") & {
+    bases: U32Buffer,
+    target: U32Buffer
+}
+
+export type References = {
+    tags: u8[],
+    offsets: u32[],
+    indices: u32[],
+    target_tags: U8Buffer,
+    target_offsets: U32Buffer
+}

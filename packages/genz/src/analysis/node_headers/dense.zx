@@ -1,0 +1,25 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Layout as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { counts, tags, offsets, mask } = in
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < tags.length,
+        next: state => {
+            const byte = integers.widenByte(tags[state.index])
+            const tag = integers.andBits(byte, mask)
+
+            state.valid = offsets[state.index] < memory.readU32(counts, tag)
+            state.index += 1
+        },
+        return: state => state.valid
+    })
+}

@@ -1,7 +1,10 @@
 const std = @import("std");
 const view = @import("view.zig");
 const owned = @import("owned.zig");
-pub const Error = std.mem.Allocator.Error || error{InvalidAst};
+const headers = @import("headers.zig");
+const Counts = headers.Counts;
+
+pub const Error = headers.Error;
 
 pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype) Error!void {
     return appendRows(allocator, target, source, true, false);
@@ -28,16 +31,11 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
 
     comptime view.compatible(Tag, std.meta.Child(@FieldType(View, "tags")));
 
-    if (source.tags.len != source.offsets.len) return error.InvalidAst;
-    if (source.tags.len > std.math.maxInt(u32) - target.tags.items.len) return error.OutOfMemory;
+    try headers.capacity(target.tags.items.len, source.tags.len, source.offsets.len);
 
-    var counts: [names.len]usize = @splat(0);
+    var counts: Counts(@TypeOf(target)) = @splat(0);
 
-    for (source.tags) |tag| counts[@backingInt(tag)] += 1;
-
-    for (source.tags, source.offsets) |tag, offset| {
-        if (offset >= counts[@backingInt(tag)]) return error.InvalidAst;
-    }
+    try headers.check(source.tags, source.offsets, &counts, null);
 
     comptime var column_count: usize = 2;
     var valid = true;
@@ -53,12 +51,6 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
     if (!valid) return error.InvalidAst;
 
     return counts;
-}
-
-fn Counts(comptime Target: type) type {
-    const Payloads = @FieldType(std.meta.Child(Target), "payloads");
-
-    return [@typeInfo(Payloads).@"struct".field_names.len]usize;
 }
 
 fn appendRows(allocator: std.mem.Allocator, target: anytype, source: anytype, comptime copy_payloads: bool, comptime borrow_text: bool) Error!void {
@@ -110,21 +102,10 @@ fn appendRows(allocator: std.mem.Allocator, target: anytype, source: anytype, co
 
     const tags = @as([*]const Tag, @ptrCast(prepared.tags.ptr))[0..prepared.tags.len];
 
-    commitHeaders(target, tags, prepared.offsets);
+    headers.rebase(target, tags, prepared.offsets, &counts);
 
     inline for (names, 0..) |name, index| {
         if (counts[index] != 0) commit(&@field(target.payloads, name), prepared, name, counts[index]);
-    }
-}
-
-fn commitHeaders(target: anytype, tags: []const std.meta.Child(@TypeOf(target.tags.items)), offsets: anytype) void {
-    for (tags, offsets) |tag, offset| {
-        const base = switch (tag) {
-            inline else => |selected| @field(target.payloads, @tagName(selected)).count(),
-        };
-
-        target.tags.appendAssumeCapacity(tag);
-        target.offsets.appendAssumeCapacity(@intCast(base + offset));
     }
 }
 

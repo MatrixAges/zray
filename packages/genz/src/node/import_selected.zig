@@ -1,13 +1,9 @@
 const std = @import("std");
 const view = @import("view.zig");
 const owned = @import("owned.zig");
-const Error = @import("import_rows.zig").Error;
-
-fn Counts(comptime Target: type) type {
-    const Payloads = @FieldType(std.meta.Child(Target), "payloads");
-
-    return [@typeInfo(Payloads).@"struct".field_names.len]usize;
-}
+const headers = @import("headers.zig");
+const Counts = headers.Counts;
+const Error = headers.Error;
 
 /// Headers select rows from shared payload columns; unselected payloads are not imported.
 pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
@@ -19,8 +15,7 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
 
     comptime view.compatible(Tag, std.meta.Child(@FieldType(View, "tags")));
 
-    if (source.tags.len != source.offsets.len) return error.InvalidAst;
-    if (source.tags.len > std.math.maxInt(u32) - target.tags.items.len) return error.OutOfMemory;
+    try headers.capacity(target.tags.items.len, source.tags.len, source.offsets.len);
 
     comptime var columns: usize = 2;
 
@@ -29,16 +24,13 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
     if (comptime columns != @typeInfo(View).@"struct".field_names.len) @compileError("AST selection has unknown columns");
 
     var counts: Counts(@TypeOf(target)) = @splat(0);
+    var limits: [names.len]u64 = undefined;
 
-    for (source.tags, source.offsets) |item, offset| {
-        const tag: Tag = @fromBackingInt(@backingInt(item));
-
-        switch (tag) {
-            inline else => |selected| try validate(&@field(target.payloads, @tagName(selected)), source, @tagName(selected), offset),
-        }
-
-        counts[@backingInt(tag)] += 1;
+    inline for (names, &limits) |name, *limit| {
+        limit.* = available(@TypeOf(@field(target.payloads, name)), source, name);
     }
+
+    try headers.check(source.tags, source.offsets, &counts, &limits);
 
     return counts;
 }
@@ -64,24 +56,26 @@ fn appendRows(allocator: std.mem.Allocator, target: anytype, source: anytype, co
         if (counts[index] != 0) try @field(target.payloads, name).reserve(allocator, counts[index]);
     }
 
-    for (source.tags, source.offsets) |item, offset| {
-        const tag: Tag = @fromBackingInt(@backingInt(item));
+    var bases = headers.payloadBases(target, &counts);
+    var written: usize = 0;
+    const tags = @as([*]const Tag, @ptrCast(source.tags.ptr))[0..source.tags.len];
 
-        const base = switch (tag) {
-            inline else => |selected| value: {
+    // If copying fails, the failed row is rolled back before the completed prefix is published.
+    defer headers.publishSelected(target, tags[0..written], &bases);
+
+    for (tags, source.offsets) |tag, offset| {
+        switch (tag) {
+            inline else => |selected| {
                 const column = &@field(target.payloads, @tagName(selected));
                 const index = column.count();
 
                 errdefer rollback(allocator, column, index, borrow_text);
 
                 try commit(allocator, column, source, @tagName(selected), offset, borrow_text);
-
-                break :value index;
             },
-        };
+        }
 
-        target.tags.appendAssumeCapacity(tag);
-        target.offsets.appendAssumeCapacity(@intCast(base));
+        written += 1;
     }
 }
 
@@ -119,19 +113,23 @@ fn schema(comptime View: type, comptime Column: type, comptime prefix: []const u
     return 1;
 }
 
-fn validate(column: anytype, source: anytype, comptime prefix: []const u8, offset: u32) Error!void {
-    const Column = std.meta.Child(@TypeOf(column));
+fn available(comptime Column: type, source: anytype, comptime prefix: []const u8) u64 {
     const View = std.meta.Child(@TypeOf(source));
 
     if (@hasField(Column, "fields")) {
-        inline for (@typeInfo(@TypeOf(column.fields)).@"struct".field_names) |name| {
-            try validate(&@field(column.fields, name), source, prefix ++ "_" ++ name, offset);
+        const Fields = @FieldType(Column, "fields");
+        var count: u64 = std.math.maxInt(u64);
+
+        inline for (@typeInfo(Fields).@"struct".field_names) |name| {
+            count = @min(count, available(@FieldType(Fields, name), source, prefix ++ "_" ++ name));
         }
-    } else if (std.meta.Child(@TypeOf(column.values.items)) != void) {
-        if (comptime @hasField(View, prefix)) {
-            if (offset >= @field(source, prefix).len) return error.InvalidAst;
-        } else return error.InvalidAst;
+
+        return count;
     }
+
+    if (std.meta.Child(@FieldType(@FieldType(Column, "values"), "items")) == void) return std.math.maxInt(u64);
+
+    return if (@hasField(View, prefix)) @field(source, prefix).len else 0;
 }
 
 fn commit(allocator: std.mem.Allocator, column: anytype, source: anytype, comptime prefix: []const u8, offset: u32, comptime borrow_text: bool) Error!void {

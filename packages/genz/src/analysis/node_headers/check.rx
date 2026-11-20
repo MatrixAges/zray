@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Headers" />
+
+    <Args in={Headers.Layout} out={bool} />
+
+    <If on={$in.tags.length != $in.offsets.length}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="count" in={$in} />
+
+    <If on={!$ctx.count}>
+        <Return value={false} />
+    </If>
+
+    <If on={$in.limits != null}>
+        <Return value={true} />
+    </If>
+
+    <Call fn="dense" in={$in} />
+
+    <Return value={$ctx.dense} />
+</Module>

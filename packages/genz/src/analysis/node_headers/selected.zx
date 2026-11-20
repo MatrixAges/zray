@@ -1,0 +1,23 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Selected as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { bases, tags, mask, target } = in
+
+    const written = loop(0, {
+        while: index => index < tags.length,
+        next: index => {
+            const byte = integers.widenByte(tags[index])
+            const tag = integers.andBits(byte, mask)
+            const offset = memory.readU32(bases, tag)
+
+            memory.writeU32(target, index, offset)
+            memory.writeU32(bases, tag, offset + 1)
+            index += 1
+        }
+    })
+}

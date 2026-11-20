@@ -1,0 +1,21 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { References as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { indices } = in
+
+    const written = loop(0, {
+        while: index => index < indices.length,
+        next: index => {
+            const source = integers.widen(indices[index])
+
+            memory.writeU8(in.target_tags, index, in.tags[source])
+            memory.writeU32(in.target_offsets, index, in.offsets[source])
+            index += 1
+        }
+    })
+}
