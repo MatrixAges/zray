@@ -223,6 +223,20 @@ pub fn putOwnedPlan(self: *Self, key: Digest, plan: Function.Plan) std.mem.Alloc
     return value;
 }
 
+pub fn putVisit(self: *Self, comptime kind: Kind, record: Result(kind), comptime owned: bool) std.mem.Allocator.Error!Result(kind) {
+    return switch (kind) {
+        .settled => (if (owned) putOwnedSettled else putSettled)(self, self.key, record.passed, record.output),
+        .demanded => (if (owned) putOwnedDemanded else putDemanded)(
+            self,
+            self.key,
+            record.marks,
+            &.{ .normalized = record.normalized, .renewed = record.renewed },
+            record.grew,
+        ),
+        .planned => self.putOwnedPlan(self.key, record.plan()),
+    };
+}
+
 /// The flow of the body `key` names; it only reads, so the bodies of one layer look up at once.
 pub fn getFlowed(self: *const Self, key: Digest) ?Flowed {
     return self.flowed.get(key);

@@ -1,0 +1,18 @@
+import columns from "memory/columns"
+
+import reserve from "../../record/reserve"
+
+import type { Input as Rows } from "../../record/reserve"
+
+export type Input = Rows & {
+    value: u8[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    reserve(in.omit(["value"]))
+    columns.writeRow(in.rows, in.used, in.value)
+
+    return in.used + 1
+}

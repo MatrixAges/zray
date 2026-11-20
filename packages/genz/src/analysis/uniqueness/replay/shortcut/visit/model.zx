@@ -1,0 +1,18 @@
+import type { Phase } from "../model"
+
+export enum Step {
+    ResetScratch,
+    FindRecord,
+    RecoverOnMiss,
+    RestoreState,
+    Analyze,
+    RetainRestoredGrowth,
+    SaveRecord,
+    CompareResult,
+    StagePlan
+}
+
+export type Input = {
+    phase: Phase,
+    recompute: bool
+}

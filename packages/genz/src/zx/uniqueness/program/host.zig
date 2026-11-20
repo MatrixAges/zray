@@ -50,8 +50,13 @@ pub const Context = struct {
             switch (phase) {
                 .Start => unreachable,
                 .Replay => {
-                    if (try analysis.shortcut(self.allocator, self.workspace, self.temporary, self.slots, self.summaries, self.bodies, self.calls.active, self.memo, self.replay)) |found| {
-                        result = found;
+                    const found = if (generated)
+                        try @import("../replay/shortcut/verify.zig").run(self)
+                    else
+                        try @import("../replay/shortcut/seed.zig").run(self.allocator, self.workspace, self.temporary, self.slots, self.summaries, self.bodies, self.calls.active, self.memo, self.replay);
+
+                    if (found) |accepted| {
+                        result = accepted;
                         reused = true;
                     }
                 },
