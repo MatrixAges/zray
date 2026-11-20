@@ -1,0 +1,28 @@
+import integers from "std:integer"
+import {
+    kind_optional,
+    kind_scalar,
+    kind_enumeration,
+    scalar_string
+} from "core/type_table/const"
+
+import type { Input as Invocation } from "../model"
+
+export type Input = Invocation.Pick("types", "input_type")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const types = in.types
+
+    const index = loop(integers.widen(in.input_type), {
+        while: current => types.kinds[current] == kind_optional,
+        next: current => { current = integers.widen(types.first[current]) }
+    })
+
+    return match types.kinds[index] {
+        kind_scalar => types.first[index] == scalar_string,
+        kind_enumeration => false,
+        _ => true
+    }
+}

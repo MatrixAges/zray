@@ -22,6 +22,7 @@ export type Member = {
 }
 
 export type Descriptors = {
+    input_types: U32Buffer,
     output_types: U32Buffer,
     requires_io: U8Buffer,
     requires_process: U8Buffer

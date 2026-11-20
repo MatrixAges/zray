@@ -9,6 +9,8 @@
         <Return value={$ctx.context} />
     </If>
 
+    <Call fn="writes_store" in={$in.slots} />
+
     <Call
         module="invoke"
         in={{
@@ -17,10 +19,12 @@
                 bases: $in.bases,
                 declaration_base: 0,
                 index: $in.index,
+                writes_store: $ctx.writes_store,
                 slot_count: $in.slots.length,
                 requires_io: $in.requires_io,
                 requires_process: $in.requires_process,
                 types: $in.types,
+                input_type: $in.input_type,
                 output_type: $in.output_type
             }
         }}

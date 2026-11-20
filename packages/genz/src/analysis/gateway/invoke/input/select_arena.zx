@@ -1,0 +1,107 @@
+import bytes from "std:bytes"
+
+import address from "../../../../ast/context/address"
+import binary from "../../../../ast/context/binary"
+import builtin from "../../../../ast/context/builtin"
+import conditional from "../../../../ast/context/conditional"
+import member from "../../../../ast/context/member_path"
+import text from "../../../../ast/context/text"
+import {
+    ExpressionsBinaryOperator as B,
+    ExpressionsBuiltinName as F,
+    ExpressionsKind as K
+} from "../../../../printer/model/expressions"
+import {
+    content_length_name,
+    head_name,
+    none_name,
+    transfer_encoding_name
+} from "../../http/const"
+
+import type { State, Node as Output } from "../../../../ast/context/model"
+
+export type Input = {
+    state: State,
+    request: u32,
+    request_arena: u32,
+    body_arena: u32,
+    arena_type: u32,
+    zero: u32
+}
+
+export default function (in: Input): Output {
+    const encoding = member({
+        state: in.state,
+        target: in.request,
+        path: [
+            head_name,
+            transfer_encoding_name
+        ]
+    })
+
+    const none = text({
+        state: encoding.state,
+        kind: K.EnumLiteral,
+        value: bytes.fromText(none_name)
+    })
+
+    const plain = binary({
+        state: none.state,
+        operator: B.Equal,
+        left: encoding.id,
+        right: none.id
+    })
+
+    const declared = member({
+        state: plain.state,
+        target: in.request,
+        path: [
+            head_name,
+            content_length_name
+        ]
+    })
+
+    const length = binary({
+        state: declared.state,
+        operator: B.Coalesce,
+        left: declared.id,
+        right: in.zero
+    })
+
+    const limit = builtin({
+        state: length.state,
+        name: F.SizeOf,
+        arguments: [in.arena_type]
+    })
+
+    const small = binary({
+        state: limit.state,
+        operator: B.LessEqual,
+        left: length.id,
+        right: limit.id
+    })
+
+    const inline_body = binary({
+        state: small.state,
+        operator: B.LogicalAnd,
+        left: plain.id,
+        right: small.id
+    })
+
+    const request = address({
+        state: inline_body.state,
+        value: in.request_arena
+    })
+
+    const local = address({
+        state: request.state,
+        value: in.body_arena
+    })
+
+    return conditional({
+        state: local.state,
+        condition: inline_body.id,
+        yes: request.id,
+        no: local.id
+    })
+}

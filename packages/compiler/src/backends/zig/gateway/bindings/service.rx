@@ -60,6 +60,7 @@
             in={{
                 target: $in.state.source.descriptors,
                 position: $in.position,
+                input_type: $ctx.signature.input_type,
                 output_type: $ctx.signature.output_type,
                 requires_io: $in.member.requires_io,
                 requires_process: $in.member.requires_process

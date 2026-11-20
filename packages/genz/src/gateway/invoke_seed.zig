@@ -20,8 +20,20 @@ pub fn lower(builder: Builder, service: Service, index: usize) std.mem.Allocator
     if (!service.requires_io) try statements.append(allocator, .{ .discard = try builder.identifier("io") });
     if (!service.requires_process) try statements.append(allocator, .{ .discard = try builder.identifier("process") });
 
+    const input_arena = if (separateBody(service)) isolated: {
+        const scratch = try builder.identifier("body_arena");
+        const backing = try builder.field(arena, "child_allocator");
+
+        try statements.appendSlice(allocator, &.{
+            .{ .variable = .{ .name = "body_arena", .value = try builder.call(try builder.path(&.{ "std", "heap", "ArenaAllocator", "init" }), &.{backing}) } },
+            .{ .defer_expression = try builder.call(try builder.field(scratch, "deinit"), &.{}) },
+        });
+
+        break :isolated try selectInputArena(builder, arena, scratch);
+    } else arena;
+
     try statements.appendSlice(allocator, &.{
-        .{ .constant = .{ .name = "allocator", .value = try builder.call(try builder.field(arena, "allocator"), &.{}) } },
+        .{ .constant = .{ .name = "allocator", .value = try builder.call(try builder.field(input_arena, "allocator"), &.{}) } },
         .{ .constant = .{ .name = "body", .value = try builder.binary(.coalesce, try builder.expression(.{ .try_value = try builder.call(try builder.identifier("readBody"), &.{ alloc, try builder.identifier("request") }) }), try builder.expression(.{ .return_value = null })) } },
     });
 
@@ -89,6 +101,35 @@ pub fn lower(builder: Builder, service: Service, index: usize) std.mem.Allocator
         .return_type = try builder.expression(.{ .error_union = .{ .inferred = true, .payload = void_type } }),
         .body = try builder.statements(statements.items),
     } };
+}
+
+fn selectInputArena(builder: Builder, arena: node.ExpressionId, scratch: node.ExpressionId) std.mem.Allocator.Error!node.ExpressionId {
+    const encoding = try builder.path(&.{ "request", "head", "transfer_encoding" });
+    const plain = try builder.binary(.equal, encoding, try builder.expression(.{ .enum_literal = "none" }));
+    const length = try builder.binary(.coalesce, try builder.path(&.{ "request", "head", "content_length" }), try builder.integer(0));
+    const limit = try builder.builtin(.sizeOf, &.{try builder.path(&.{ "std", "heap", "ArenaAllocator" })});
+    const small = try builder.binary(.less_equal, length, limit);
+
+    return builder.expression(.{ .conditional = .{
+        .condition = try builder.binary(.logical_and, plain, small),
+        .yes = try builder.expression(.{ .address_of = arena }),
+        .no = try builder.expression(.{ .address_of = scratch }),
+    } });
+}
+
+fn separateBody(service: Service) bool {
+    for (service.slots) |slot| {
+        if (slot.writable) break;
+    } else return false;
+
+    var id = service.input_type;
+
+    while (true) switch (service.output.types.get(id)) {
+        .optional => |child| id = child,
+        .scalar => |scalar| return scalar != .string,
+        .enumeration => return true,
+        else => return false,
+    };
 }
 
 fn encode(builder: Builder, statements: *std.ArrayList(node.Statement), arena: node.ExpressionId, empty: node.ExpressionId) std.mem.Allocator.Error!node.ExpressionId {

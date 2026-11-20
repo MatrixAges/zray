@@ -31,6 +31,7 @@ export default function (in: Input): Output {
                     requires_io: bound.requires_io[index],
                     requires_process: bound.requires_process[index],
                     types: bound.types,
+                    input_type: bound.input_types[index],
                     output_type: bound.output_types[index]
                 })
             } else {

@@ -57,6 +57,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
             .name = facade.name,
             .module_name = facade.file.name,
             .slots = bindings,
+            .input_type = program.input_type,
             .output = .{ .types = program.types, .id = program.output_type },
             .requires_io = requirements.io,
             .requires_process = requirements.process,

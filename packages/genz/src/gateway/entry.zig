@@ -9,6 +9,7 @@ pub const ServiceColumns = struct {
     requires_io: []const bool,
     requires_process: []const bool,
     types: zx.ir.TypeTable,
+    input_types: []const u32,
     output_types: []const u32,
 };
 
@@ -46,6 +47,7 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
             .requires_io = value.requires_io,
             .requires_process = value.requires_process,
             .types = &table,
+            .input_types = value.input_types,
             .output_types = value.output_types,
         };
     }
@@ -102,6 +104,7 @@ fn services(comptime Target: type, allocator: std.mem.Allocator, values: []const
             .requires_io = value.requires_io,
             .requires_process = value.requires_process,
             .types = table,
+            .input_type = @backingInt(value.input_type),
             .output_type = @backingInt(value.output.id),
         };
 

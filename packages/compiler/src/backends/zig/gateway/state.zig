@@ -14,7 +14,7 @@ pub const Result = struct {
 
 pub const Error = @import("state_seed.zig").Error;
 
-const Descriptor = struct { output_type: u32, requires_io: bool, requires_process: bool };
+const Descriptor = struct { input_type: u32, output_type: u32, requires_io: bool, requires_process: bool };
 
 pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bundle) Error!Result {
     if (comptime !@import("parser_options").generated_parser) return @import("state_seed.zig").create(allocator, library, bundle);
@@ -58,6 +58,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
 
     try descriptors.resize(allocator, library.exports.len);
 
+    const input_types = descriptors.items(.input_type);
     const output_types = descriptors.items(.output_type);
     const requires_io = descriptors.items(.requires_io);
     const requires_process = descriptors.items(.requires_process);
@@ -75,6 +76,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
         .initializers = &initializers.input(Initializers),
         .independent = independent,
         .descriptors = &Descriptors{
+            .input_types = @ptrCast(&input_types),
             .output_types = @ptrCast(&output_types),
             .requires_io = @ptrCast(&io_bytes),
             .requires_process = @ptrCast(&process_bytes),
@@ -106,6 +108,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
             .requires_io = requires_io,
             .requires_process = requires_process,
             .types = library.program.types,
+            .input_types = input_types,
             .output_types = output_types,
         },
     };

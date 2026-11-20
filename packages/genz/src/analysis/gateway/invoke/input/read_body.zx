@@ -33,7 +33,7 @@ export default function (in: Input): Output {
 
     const allocator = method({
         state: in.context,
-        target: in.symbols.arena,
+        target: in.input_arena,
         path: [allocator_name],
         arguments: []
     })

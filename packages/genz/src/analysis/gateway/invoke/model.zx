@@ -17,9 +17,11 @@ export type Input = {
     declaration_base: u32,
     index: u64,
     slot_count: u64,
+    writes_store: bool,
     requires_io: bool,
     requires_process: bool,
     types: Table,
+    input_type: u32,
     output_type: u32
 }
 
@@ -80,6 +82,7 @@ export type State = {
     arguments: u32[],
     empty_input: u32,
     parsed_input: u32,
+    input_arena: u32,
     encoded: u32,
     failure_first: u32,
     failure_count: u32,

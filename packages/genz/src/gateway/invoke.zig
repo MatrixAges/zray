@@ -37,9 +37,13 @@ pub fn lowerStored(builder: Builder, service: Service, index: usize) std.mem.All
         .declaration_base = @intCast(builder.nodes.declaration_rows.tags.items.len),
         .index = index,
         .slot_count = service.slots.len,
+        .writes_store = for (service.slots) |slot| {
+            if (slot.writable) break true;
+        } else false,
         .requires_io = service.requires_io,
         .requires_process = service.requires_process,
         .types = &types,
+        .input_type = @backingInt(service.input_type),
         .output_type = @backingInt(service.output.id),
     };
 

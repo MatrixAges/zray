@@ -70,6 +70,7 @@ export default function (in: Input): Output {
         arguments: [],
         empty_input: 0,
         parsed_input: 0,
+        input_arena: 0,
         encoded: 0,
         failure_first: 0,
         failure_count: 0,

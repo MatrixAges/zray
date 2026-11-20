@@ -5,6 +5,7 @@ import type { Descriptors } from "./model"
 export type Input = {
     target: Descriptors,
     position: u64,
+    input_type: u32,
     output_type: u32,
     requires_io?: bool,
     requires_process: bool
@@ -19,6 +20,7 @@ export default function (in: Input): Output {
         return false
     }
 
+    memory.writeU32(target.input_types, position, in.input_type)
     memory.writeU32(target.output_types, position, in.output_type)
     memory.writeU8(target.requires_io, position, requires_io ? 1 : 0)
     memory.writeU8(target.requires_process, position, in.requires_process ? 1 : 0)

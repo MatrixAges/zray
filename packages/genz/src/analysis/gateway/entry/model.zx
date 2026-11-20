@@ -11,6 +11,7 @@ export type Service = {
     requires_io: bool,
     requires_process: bool,
     types: Table,
+    input_type: u32,
     output_type: u32
 }
 
@@ -20,6 +21,7 @@ export type ServiceColumns = {
     requires_io: bool[],
     requires_process: bool[],
     types: Table,
+    input_types: u32[],
     output_types: u32[]
 }
 

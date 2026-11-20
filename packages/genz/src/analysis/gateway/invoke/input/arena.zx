@@ -1,0 +1,104 @@
+import bytes from "std:bytes"
+
+import call from "../../../../ast/context/call"
+import identifier from "../../../../ast/context/identifier"
+import member from "../../../../ast/context/member_path"
+import method from "../../../../ast/context/method"
+import standard from "../../../../ast/context/standard_field"
+import binding from "../../../../ast/statements/builder/binding"
+import header from "../../../../ast/statements/builder/header"
+import { StatementsKind as S } from "../../../../printer/model/statements"
+import { arena_allocator_name, heap_name } from "../../../store/storage/const"
+import {
+    body_arena_name,
+    child_allocator_name,
+    deinit_name,
+    init_name
+} from "../const"
+import borrowsBody from "./borrows_body"
+import selectArena from "./select_arena"
+
+import type { State as Input, State as Output } from "../model"
+
+export default function (in: Input): Output {
+    const source = in.source
+
+    const needs_request_arena = !source.writes_store || borrowsBody({
+        types: source.types,
+        input_type: source.input_type
+    })
+
+    if (needs_request_arena) {
+        return {
+            ...in,
+            input_arena: in.symbols.arena
+        }
+    }
+
+    const backing = member({
+        state: in.context,
+        target: in.symbols.arena,
+        path: [child_allocator_name]
+    })
+
+    const arena_type = standard({
+        state: backing.state,
+        path: [
+            heap_name,
+            arena_allocator_name
+        ]
+    })
+
+    const initialize = member({
+        state: arena_type.state,
+        target: arena_type.id,
+        path: [init_name]
+    })
+
+    const created = call({
+        state: initialize.state,
+        callee: initialize.id,
+        arguments: [backing.id],
+        fallible: false
+    })
+
+    const bound = binding({
+        state: in.statements,
+        name: bytes.fromText(body_arena_name),
+        value: created.id,
+        mutable: true
+    })
+
+    const arena = identifier({
+        state: created.state,
+        name: bytes.fromText(body_arena_name)
+    })
+
+    const cleanup = method({
+        state: arena.state,
+        target: arena.id,
+        path: [deinit_name],
+        arguments: []
+    })
+
+    const selected = selectArena({
+        state: cleanup.state,
+        request: in.symbols.request,
+        request_arena: in.symbols.arena,
+        body_arena: arena.id,
+        arena_type: arena_type.id,
+        zero: in.symbols.zero
+    })
+
+    return {
+        ...in,
+        context: selected.state,
+        statements: header({
+            state: bound,
+            kind: S.DeferExpression,
+            offset: in.deferred.length
+        }),
+        deferred: in.deferred.push(cleanup.id)[0],
+        input_arena: selected.id
+    }
+}
