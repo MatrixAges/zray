@@ -1,6 +1,5 @@
 const std = @import("std");
 const zx = @import("zx");
-const ir = zx.ir;
 const Round = @import("work/round.zig");
 const Summaries = @import("summaries.zig");
 const SummaryState = @import("summaries/lifecycle.zig");
@@ -39,13 +38,13 @@ fn queue(self: *const Self, positions: *const []const u64) Queue {
     };
 }
 
-pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
+pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
     const state = SummaryState.Borrowed.init(summaries);
-    const facts = state.input(.Reset, program.functions.native_modules, known);
+    const facts = state.input(.Reset, active, known);
     const positions: []const u64 = &self.positions;
 
     const input: std.meta.Child(preparing.Input) = .{
-        .queue = &.{ .state = &self.queue(&positions), .native_modules = program.functions.native_modules, .type_only = program.type_only },
+        .queue = &.{ .state = &self.queue(&positions), .active = active },
         .facts = &facts,
         .phase = phase,
         .exhausted = exhausted,
@@ -73,8 +72,7 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
         .state = &self.queue(&positions),
         .phase = phase,
         .outputs = @ptrCast(&frame.outputs),
-        .native_modules = frame.program.functions.native_modules,
-        .type_only = frame.program.type_only,
+        .active = frame.active,
         .dirty = @ptrCast(&flags),
         .callers = frame.callers,
         .previous = if (previous != null) &feedback else null,

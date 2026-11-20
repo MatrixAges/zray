@@ -4,11 +4,11 @@ const ir = zx.ir;
 const generated = @import("generated_uniqueness_content_identity");
 const Input = std.meta.Child(generated.Input);
 
-pub fn build(symbols: ir.SymbolTable, expressions: ir.ExpressionTable, block: ir.Block, input_type: ir.TypeId, output_type: ir.TypeId) [32]u8 {
+pub fn build(symbols: *const ir.SymbolTable, expressions: *const ir.ExpressionTable, block: ir.Block, input_type: ir.TypeId, output_type: ir.TypeId) [32]u8 {
     var pending: [4096]u8 = undefined;
     var hash: std.Io.Writer.Hashing(zx.Sha256) = .init(&pending);
-    const borrowed_symbols = zx.columns.borrow(std.meta.Child(@FieldType(Input, "symbols")), &symbols);
-    const borrowed_expressions = zx.columns.borrow(std.meta.Child(@FieldType(Input, "expressions")), &expressions);
+    const borrowed_symbols = zx.columns.borrow(std.meta.Child(@FieldType(Input, "symbols")), symbols);
+    const borrowed_expressions = zx.columns.borrow(std.meta.Child(@FieldType(Input, "expressions")), expressions);
     const control = zx.columns.borrow(std.meta.Child(@FieldType(Input, "control")), block.control);
 
     const input: Input = .{

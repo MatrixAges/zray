@@ -16,10 +16,7 @@ export default function (in: Input): Output {
         while: row => row.body < queue.capacity,
         next: row => {
             const body = row.body
-            const active = match {
-                body < in.native_modules.length => in.native_modules[body] == null,
-                _ => !in.type_only
-            }
+            const active = in.active[body]
 
             memory.writeU8(queue.queued, body, active ? queued_flag : clear_flag)
 

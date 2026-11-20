@@ -15,13 +15,12 @@
         }}
     />
 
-    <If on={$in.body < $in.native_modules.length}>
+    <If on={$in.body + 1 < $in.active.length}>
         <Call
             fn="publish_output"
             in={$in.omit([
                 "changed",
-                "type_only",
-                "native_modules"
+                "active"
             ])}
         />
     </If>

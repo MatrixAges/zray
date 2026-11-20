@@ -20,21 +20,21 @@ pub const Borrowed = struct {
         };
     }
 
-    pub fn input(self: *const Borrowed, mode: Mode, native_modules: []const ?u32, known: []const bool) Input {
+    pub fn input(self: *const Borrowed, mode: Mode, active: []const bool, known: []const bool) Input {
         return .{
             .mode = mode,
             .layout = &self.layout,
             .guarantees = @ptrCast(&self.guarantees),
             .demands = @ptrCast(&self.demands),
-            .native_modules = native_modules,
+            .active = active,
             .known = known,
         };
     }
 };
 
-pub fn apply(summaries: Summaries, mode: Mode, native_modules: []const ?u32, known: []const bool) void {
+pub fn apply(summaries: Summaries, mode: Mode, active: []const bool, known: []const bool) void {
     const state = Borrowed.init(&summaries);
-    const input = state.input(mode, native_modules, known);
+    const input = state.input(mode, active, known);
     var memory = std.heap.FixedBufferAllocator.init(&.{});
 
     zx.columns.invoke(applying.executeValue, memory.allocator(), &input) catch |err| {

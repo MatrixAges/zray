@@ -1,4 +1,3 @@
-const ir = @import("zx").ir;
 const Level = @import("../level.zig").Level;
 
 pub const Phase = if (@import("genz_options").generated_analysis)
@@ -19,7 +18,7 @@ pub const Window = struct {
 };
 
 pub const Settlement = struct {
-    program: *const ir.Program,
+    active: []const bool,
     outputs: [][]Level,
     dirty: []bool,
     changed: []const u64,
@@ -29,7 +28,7 @@ pub const Settlement = struct {
 };
 
 pub const Frame = struct {
-    program: *const ir.Program,
+    active: []const bool,
     outputs: [][]Level,
     dirty: []bool,
     callers: []const []const u64,

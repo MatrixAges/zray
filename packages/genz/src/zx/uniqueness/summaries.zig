@@ -22,8 +22,8 @@ pub fn independent(basis: *const Basis) Self {
     return .{ .held = basis.flow.held, .written = basis.flow.written, .return_only = basis.return_only, .effects = basis.effects };
 }
 
-pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis) std.mem.Allocator.Error!Self {
-    if (generated_analysis) return @import("summaries/storage.zig").create(allocator, program, basis);
+pub fn create(allocator: std.mem.Allocator, program: *const ir.Program, basis: *const Basis, active: []const bool) std.mem.Allocator.Error!Self {
+    if (generated_analysis) return @import("summaries/storage.zig").create(allocator, program, basis, active);
 
     const slots = basis.slots;
     const count = program.functions.count();
@@ -33,11 +33,10 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
     const outputs = try allocator.alloc([]Level, count);
 
     for (0..count) |index| {
-        const function = program.functions.at(index);
-        input[index] = try allocator.alloc(Level, slots.count(function.input_type));
-        output[index] = try allocator.alloc(Level, slots.count(function.output_type));
+        input[index] = try allocator.alloc(Level, slots.count(@fromBackingInt(program.functions.input_types[index])));
+        output[index] = try allocator.alloc(Level, slots.count(@fromBackingInt(program.functions.output_types[index])));
 
-        const initial: Level = if (function.external == null) .all else .none;
+        const initial: Level = if (active[index]) .all else .none;
 
         @memset(input[index], initial);
         @memset(output[index], initial);
@@ -65,11 +64,11 @@ pub fn mayMutate(self: Self, function: ir.FunctionId, slot: u32) bool {
 }
 
 /// With exclusive access, resets optimistic facts. Inputs stay unknown unless every caller is a known call site.
-pub fn reset(self: Self, program: ir.Program, known: []const bool) void {
-    if (generated_analysis) return @import("summaries/lifecycle.zig").apply(self, .Reset, program.functions.native_modules, known);
+pub fn reset(self: Self, active: []const bool, known: []const bool) void {
+    if (generated_analysis) return @import("summaries/lifecycle.zig").apply(self, .Reset, active, known);
 
     for (self.input, self.output, known[0..self.input.len], 0..) |input, output, callers, index| {
-        const internal = program.functions.at(index).external == null;
+        const internal = active[index];
 
         @memset(input, if (internal and callers) .all else .none);
         @memset(output, if (internal) .all else .none);

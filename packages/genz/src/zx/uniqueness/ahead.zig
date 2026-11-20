@@ -1,5 +1,4 @@
 const std = @import("std");
-const ir = @import("zx").ir;
 const Function = @import("function.zig");
 const Level = @import("level.zig").Level;
 const Growth = @import("growth.zig");
@@ -7,7 +6,7 @@ const Memo = @import("memo.zig");
 const Pool = @import("pool.zig");
 const Slots = @import("slots.zig");
 const Summaries = @import("summaries.zig");
-const Unit = @import("root.zig").Unit;
+const Bodies = @import("program/bodies.zig");
 const Schedule = if (@import("genz_options").generated_analysis) @import("ahead/schedule.zig") else @import("ahead/seed.zig");
 const Self = @This();
 
@@ -18,10 +17,9 @@ const Self = @This();
 /// levels and reach the same result again, which keeps every result and the order of the worklist those of visiting
 /// one body at a time. A body that calls itself reads what its own visit changes, so it is never analyzed ahead.
 pool: *Pool,
-functions: ir.FunctionTable,
 slots: Slots,
 summaries: *Summaries,
-units: []const ?*Unit,
+bodies: *const Bodies,
 /// Where each body's analysis ahead stands; a background thread owns the body while it runs.
 states: []u32,
 recursive: []const bool,
@@ -34,24 +32,24 @@ pub const Settled = struct { passed: []const Function.Contribution, output: []co
 
 pub const Demanded = struct { marks: []const Function.Mark, grew: bool, growth: Growth.Rows, reads: []const Function.Read };
 
-pub fn init(allocator: std.mem.Allocator, pool: *Pool, functions: ir.FunctionTable, slots: Slots, summaries: *Summaries, units: []const ?*Unit, recursive: []const bool) std.mem.Allocator.Error!Self {
-    const states = try allocator.alloc(u32, units.len);
-    const dirty = try allocator.alloc(bool, units.len);
+pub fn init(allocator: std.mem.Allocator, pool: *Pool, slots: Slots, summaries: *Summaries, bodies: *const Bodies, recursive: []const bool) std.mem.Allocator.Error!Self {
+    const count = bodies.units.len;
+    const states = try allocator.alloc(u32, count);
+    const dirty = try allocator.alloc(bool, count);
 
     Schedule.reset(states, dirty);
 
     return .{
         .pool = pool,
-        .functions = functions,
         .slots = slots,
         .summaries = summaries,
-        .units = units,
+        .bodies = bodies,
         .states = states,
         .recursive = recursive,
         .dirty = dirty,
-        .settled = try allocator.alloc(Settled, units.len),
-        .demanded = try allocator.alloc(Demanded, units.len),
-        .planned = try allocator.alloc(Function.Plan, units.len),
+        .settled = try allocator.alloc(Settled, count),
+        .demanded = try allocator.alloc(Demanded, count),
+        .planned = try allocator.alloc(Function.Plan, count),
     };
 }
 
@@ -82,7 +80,7 @@ pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: @imp
 
         first = pos + 1;
 
-        if ((kind != .planned or memo.persistent) and try memo.holds(kind, self.summaries, self.units[index].?.state(index))) {
+        if ((kind != .planned or memo.persistent) and try memo.holds(kind, self.summaries, self.bodies.state(self.summaries, index))) {
             _ = Schedule.transition(self.states, index, .Hold);
 
             continue;
@@ -135,7 +133,6 @@ fn Task(comptime kind: Memo.Kind) type {
             _ = Schedule.transition(self.states, index, .Complete);
         }
         fn analyze(ahead: *Self, worker: *Pool.Worker, index: usize) std.mem.Allocator.Error!Found(kind) {
-            const unit = ahead.units[index].?;
             const summaries = ahead.summaries;
             const scratch = worker.scratch.allocator();
             const keep = worker.kept.allocator();
@@ -143,7 +140,7 @@ fn Task(comptime kind: Memo.Kind) type {
 
             switch (kind) {
                 .settled => {
-                    var analysis = try unit.initialize(scratch, lasting, ahead.functions, ahead.slots, summaries, null, true);
+                    var analysis = try ahead.bodies.analyze(scratch, lasting, ahead.slots, summaries, index, null, true);
 
                     analysis.deferred = true;
                     const result = try analysis.settle(keep, if (index < summaries.output.len) summaries.output[index].len else 0);
@@ -153,16 +150,15 @@ fn Task(comptime kind: Memo.Kind) type {
                 .demanded => {
                     // The growth copies a demand pass leaves are its own; the body's stay as they were until its visit.
                     const generated = @import("genz_options").generated_analysis;
-                    var growth = if (generated) unit.growth else try unit.growth.clone(scratch);
-                    var analysis = try unit.initialize(scratch, lasting, ahead.functions, ahead.slots, summaries, &growth, true);
-
+                    var growth = if (generated) ahead.bodies.units[index].growth else try ahead.bodies.units[index].growth.clone(scratch);
+                    var analysis = try ahead.bodies.analyze(scratch, lasting, ahead.slots, summaries, index, &growth, true);
                     analysis.deferred = true;
                     const result = try analysis.demand(keep);
 
                     return .{ .marks = result.marks, .grew = analysis.grew, .growth = if (generated) growth else try growth.capture(keep), .reads = result.reads };
                 },
                 .planned => {
-                    var analysis = try unit.initialize(scratch, lasting, ahead.functions, ahead.slots, summaries, null, false);
+                    var analysis = try ahead.bodies.analyze(scratch, lasting, ahead.slots, summaries, index, null, false);
 
                     return analysis.plan(keep);
                 },

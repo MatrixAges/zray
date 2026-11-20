@@ -23,7 +23,7 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
     const built = try Slots.init(allocator, program.types);
     const slots = built.slots;
     const kept = if (memo) |value| if (value.persistent) value else null else null;
-    const contents = if (kept != null) try @import("identity.zig").contents(allocator, program) else &.{};
+    const contents = if (kept != null) try @import("identity.zig").contents(allocator, &program) else &.{};
     const types: [32]u8 = if (kept != null) @import("identity.zig").types(program.types) else @splat(0);
     const flow = try Flow.create(allocator, workspace, program, slots, built.texts, contents, types, kept);
     const return_only = try @import("return_only.zig").create(allocator, workspace, program);

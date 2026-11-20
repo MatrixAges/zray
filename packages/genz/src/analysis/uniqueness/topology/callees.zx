@@ -1,6 +1,3 @@
-import integers from "std:integer"
-import { ExpressionKind } from "core/expression_table/kinds"
-
 import type { Expressions as Input } from "core/expression_table/model"
 
 export type Output = u32[]
@@ -12,17 +9,12 @@ export default function (in: Input): Output {
         values,
         index: 0
     }, {
-        while: state => state.index < in.kinds.length,
+        while: state => state.index < in.call_functions.length,
         next: state => {
-            if (in.kinds[state.index] == ExpressionKind.Call) {
-                const callee = in
-                    .call_functions[integers.widen(
-                        in.payloads[state.index]
-                    )]
+            const callee = in.call_functions[state.index]
 
-                if (!state.values.some(value => value == callee)) {
-                    state.values = state.values.push(callee)[0]
-                }
+            if (!state.values.some(value => value == callee)) {
+                state.values = state.values.push(callee)[0]
             }
 
             state.index += 1

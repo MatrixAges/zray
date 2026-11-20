@@ -7,15 +7,14 @@ body: usize = 0,
 visit: usize = 0,
 
 phase: enum { start, settled, demanded, planned, done, reject } = .start,
-pub fn next(self: Cursor, program: *const zx.ir.Program, trace: *const Trace, changed: []const bool) Cursor {
-    if (!@import("genz_options").generated_analysis) return self.nextSeed(program, trace, changed);
+pub fn next(self: Cursor, active: []const bool, trace: *const Trace, changed: []const bool) Cursor {
+    if (!@import("genz_options").generated_analysis) return self.nextSeed(active, trace, changed);
 
     const entry = @import("generated_uniqueness_shortcut_advance");
     const Input = std.meta.Child(entry.Input);
 
     const input: Input = .{
-        .native_modules = program.functions.native_modules,
-        .type_only = program.type_only,
+        .active = active,
         .settled = trace.settled.starts,
         .demanded = trace.demanded.starts,
         .planned = trace.planned.starts,
@@ -29,23 +28,19 @@ pub fn next(self: Cursor, program: *const zx.ir.Program, trace: *const Trace, ch
     return .{ .body = @intCast(result.body), .visit = @intCast(result.visit), .phase = @fromBackingInt(@intCast(@backingInt(result.phase))) };
 }
 
-fn nextSeed(self: Cursor, program: *const zx.ir.Program, trace: *const Trace, changed: []const bool) Cursor {
+fn nextSeed(self: Cursor, active: []const bool, trace: *const Trace, changed: []const bool) Cursor {
     var body = self.body;
 
     if (self.phase == .start or self.phase == .planned) {
         if (self.phase == .planned) body += 1;
 
-        const native = program.functions.native_modules;
-
-        while (body <= native.len) : (body += 1) {
-            const active = if (body < native.len) native[body] == null else !program.type_only;
-
-            if (!active) continue;
+        while (body < active.len) : (body += 1) {
+            if (!active[body]) continue;
             if (trace.planned.starts[body + 1] - trace.planned.starts[body] != 1) return .{ .body = body, .phase = .reject };
             if (changed[body]) break;
         }
 
-        if (body > native.len) return .{ .body = body, .phase = .done };
+        if (body == active.len) return .{ .body = body, .phase = .done };
     }
 
     if (self.phase != .demanded) {

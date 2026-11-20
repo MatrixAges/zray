@@ -10,8 +10,7 @@
         <Call
             fn="remaining"
             in={$in.omit([
-                "native_modules",
-                "type_only",
+                "active",
                 "changed"
             ])}
         />

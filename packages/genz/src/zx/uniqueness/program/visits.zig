@@ -9,8 +9,7 @@ const applyDemand = @import("visit/demand.zig").apply;
 
 pub fn settle(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Feedback {
     const rounds = &ctx.rounds.?;
-    const unit = ctx.units[index].?;
-    const recalled = (try ctx.replay.recall(.settled, index)) orelse try ctx.memo.getSettled(ctx.summaries, unit.state(index));
+    const recalled = (try ctx.replay.recall(.settled, index)) orelse try ctx.memo.getSettled(ctx.summaries, ctx.bodies.state(ctx.summaries, index));
     const early = try rounds.ahead.take(.settled, index);
     const origin = select.choose(recalled != null, early != null);
     var changed: []const u64 = undefined;
@@ -23,8 +22,8 @@ pub fn settle(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Erro
             break :replayed record;
         },
         .Analyze => analyzed: {
-            var function = try unit.initialize(round.allocator(), rounds.ahead.kept(), ctx.program.functions, ctx.slots, ctx.summaries, null, false);
-            const result = try function.settle(ctx.memo.arena.allocator(), if (index == ctx.program.functions.count()) 0 else ctx.summaries.output[index].len);
+            var function = try ctx.bodies.analyze(round.allocator(), rounds.ahead.kept(), ctx.slots, ctx.summaries, index, null, false);
+            const result = try function.settle(ctx.memo.arena.allocator(), if (index == ctx.bodies.program.functions.count()) 0 else ctx.summaries.output[index].len);
             changed = result.changed;
 
             break :analyzed try ctx.memo.putOwnedSettled(ctx.memo.key, result.passed, result.output);
@@ -38,8 +37,8 @@ pub fn settle(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Erro
 
 pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Feedback {
     const rounds = &ctx.rounds.?;
-    const unit = ctx.units[index].?;
-    const state = unit.state(index);
+    const state = ctx.bodies.state(ctx.summaries, index);
+    const growth = &ctx.bodies.units[index].growth;
     const recalled = (try ctx.replay.recall(.demanded, index)) orelse try ctx.memo.getDemanded(ctx.summaries, state);
     const early = try rounds.ahead.take(.demanded, index);
     const origin = select.choose(recalled != null, early != null);
@@ -48,7 +47,7 @@ pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Erro
     const demanded = switch (origin) {
         .Cached => replayed: {
             const record = recalled.?;
-            changed = try applyDemand(round.allocator(), ctx.summaries, &unit.growth, .{ .normalized = record.normalized, .renewed = record.renewed }, record.marks, origin);
+            changed = try applyDemand(round.allocator(), ctx.summaries, growth, .{ .normalized = record.normalized, .renewed = record.renewed }, record.marks, origin);
 
             break :replayed record;
         },
@@ -60,16 +59,16 @@ pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Erro
             else
                 found.growth;
 
-            changed = try applyDemand(round.allocator(), ctx.summaries, &unit.growth, rows, found.marks, origin);
+            changed = try applyDemand(round.allocator(), ctx.summaries, growth, rows, found.marks, origin);
 
-            break :ahead try ctx.memo.putDemanded(ctx.memo.key, found.marks, &unit.growth, found.grew);
+            break :ahead try ctx.memo.putDemanded(ctx.memo.key, found.marks, growth, found.grew);
         },
         .Analyze => analyzed: {
-            var function = try unit.initialize(round.allocator(), rounds.ahead.kept(), ctx.program.functions, ctx.slots, ctx.summaries, null, false);
+            var function = try ctx.bodies.analyze(round.allocator(), rounds.ahead.kept(), ctx.slots, ctx.summaries, index, null, false);
             const result = try function.demand(ctx.memo.arena.allocator());
             changed = result.changed;
 
-            break :analyzed try ctx.memo.putOwnedDemanded(ctx.memo.key, result.marks, &unit.growth, function.grew);
+            break :analyzed try ctx.memo.putOwnedDemanded(ctx.memo.key, result.marks, growth, function.grew);
         },
     };
 
@@ -81,10 +80,9 @@ pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Erro
 pub fn plan(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Plan {
     const rounds = &ctx.rounds.?;
     const plan_owner = if (ctx.memo.persistent) ctx.memo.arena.allocator() else ctx.allocator;
-    const unit = ctx.units[index].?;
 
     const recalled = if (ctx.memo.persistent)
-        (try ctx.replay.recall(.planned, index)) orelse try ctx.memo.getPlanned(ctx.summaries, unit.state(index))
+        (try ctx.replay.recall(.planned, index)) orelse try ctx.memo.getPlanned(ctx.summaries, ctx.bodies.state(ctx.summaries, index))
 
     else
         null;
@@ -98,7 +96,7 @@ pub fn plan(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!
         .Analyze => fresh: {
             _ = round.reset(.retain_capacity);
 
-            var function = try unit.initialize(round.allocator(), ctx.temporary, ctx.program.functions, ctx.slots, ctx.summaries, null, false);
+            var function = try ctx.bodies.analyze(round.allocator(), ctx.temporary, ctx.slots, ctx.summaries, index, null, false);
 
             break :fresh try function.plan(plan_owner);
         },

@@ -1,6 +1,7 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const Basis = @import("basis.zig");
+const Body = @import("program/bodies.zig").View;
 const Hash = @import("zx").Sha256;
 const Self = @This();
 
@@ -44,20 +45,20 @@ pub fn types(value: ir.TypeTable) [32]u8 {
 }
 
 /// A body by itself, apart from the program it sits in.
-pub fn content(symbols: ir.SymbolTable, expressions: ir.ExpressionTable, block: ir.Block, input_type: ir.TypeId, output_type: ir.TypeId) [32]u8 {
+fn content(symbols: *const ir.SymbolTable, expressions: *const ir.ExpressionTable, block: ir.Block, input_type: ir.TypeId, output_type: ir.TypeId) [32]u8 {
     if (@import("genz_options").generated_analysis) return @import("identity/content.zig").build(symbols, expressions, block, input_type, output_type);
 
     var self = Self{};
 
-    self.write(.{ .symbols = symbols, .expressions = expressions, .block = block, .input_type = input_type, .output_type = output_type });
+    self.write(.{ .symbols = symbols.*, .expressions = expressions.*, .block = block, .input_type = input_type, .output_type = output_type });
 
     return self.finish();
 }
 
 /// The content of every function body, hashed on all cores; external functions have none.
-pub fn contents(allocator: std.mem.Allocator, value: ir.Program) std.mem.Allocator.Error![]const [32]u8 {
+pub fn contents(allocator: std.mem.Allocator, value: *const ir.Program) std.mem.Allocator.Error![]const [32]u8 {
     const Hashing = struct {
-        program: ir.Program,
+        program: *const ir.Program,
         result: [][32]u8,
         next: std.atomic.Value(usize) = .init(0),
         fn run(work: *@This(), _: usize) void {
@@ -66,8 +67,7 @@ pub fn contents(allocator: std.mem.Allocator, value: ir.Program) std.mem.Allocat
 
                 if (index >= work.result.len) return;
 
-                const function = work.program.functions.at(index);
-                work.result[index] = if (function.external != null) @splat(0) else content(function.symbols, function.expressions, function.body.block(), function.input_type, function.output_type);
+                work.result[index] = if (work.program.functions.native_modules[index] != null) @splat(0) else hashBody(work.program, index);
             }
         }
     };
@@ -77,6 +77,50 @@ pub fn contents(allocator: std.mem.Allocator, value: ir.Program) std.mem.Allocat
     @import("zx").parallel.spread(Hashing, &work, Hashing.run, work.result.len);
 
     return work.result;
+}
+
+pub fn bodies(allocator: std.mem.Allocator, program_view: *const ir.Program, active: []const bool, shared: *const [32]u8, known: []const [32]u8) std.mem.Allocator.Error![]const [32]u8 {
+    const Hashing = struct {
+        program: *const ir.Program,
+        active: []const bool,
+        shared: *const [32]u8,
+        known: []const [32]u8,
+        result: [][32]u8,
+        next: std.atomic.Value(usize) = .init(0),
+        fn run(work: *@This(), _: usize) void {
+            while (true) {
+                const index = work.next.fetchAdd(1, .monotonic);
+
+                if (index >= work.result.len) return;
+
+                if (work.active[index]) {
+                    const digest = if (index < work.known.len) work.known[index] else hashBody(work.program, index);
+
+                    work.result[index] = combine(work.shared, &digest);
+                } else {
+                    work.result[index] = @splat(0);
+                }
+            }
+        }
+    };
+
+    var work = Hashing{
+        .program = program_view,
+        .active = active,
+        .shared = shared,
+        .known = known,
+        .result = try allocator.alloc([32]u8, active.len),
+    };
+
+    @import("zx").parallel.spread(Hashing, &work, Hashing.run, active.len);
+
+    return work.result;
+}
+
+fn hashBody(program_view: *const ir.Program, index: usize) [32]u8 {
+    const body = Body.at(program_view, index);
+
+    return content(body.symbols, body.expressions, body.control.block(), body.input_type, body.output_type);
 }
 
 /// Combines the program digest with a body digest or the raw exported function IDs.

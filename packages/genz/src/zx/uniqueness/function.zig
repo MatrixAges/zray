@@ -17,14 +17,14 @@ pub const Passes = if (generated_analysis) @import("function/prepared.zig").Fact
     rows: []const ir.ExpressionRow,
 };
 
+pub const PassesRef = if (generated_analysis) *const Passes else *Passes;
+
 /// Levels of the list slots of one function body, given what its callers and callees guarantee: loop state reaches its
 /// greatest fixpoint, a reference keeps `unique` only while its value is used linearly, and a read inside a task or
 /// parallel branch of a value from outside it knows nothing, since another body may extend the same buffer.
 pub const Unit = struct {
-    symbols: ir.SymbolTable,
-    expressions: ir.ExpressionTable,
-    input_type: ir.TypeId,
-    output_type: ir.TypeId,
+    symbols: *const ir.SymbolTable,
+    expressions: *const ir.ExpressionTable,
     input: []const Level,
     function: ?usize,
     growth: *Growth.Store,
@@ -59,8 +59,7 @@ pub fn collectOperations(allocator: std.mem.Allocator, order: *const Order, expr
 }
 
 allocator: std.mem.Allocator,
-functions: ir.FunctionTable,
-expressions: ir.ExpressionTable,
+expressions: *const ir.ExpressionTable,
 order: if (generated_analysis) void else *const Order,
 sites: if (generated_analysis) void else *Sites,
 facts: if (generated_analysis) *const Passes else void,
@@ -89,10 +88,10 @@ reads: if (generated_analysis) void else std.ArrayList(Read) = if (generated_ana
 /// Set when recording a read ran out of memory. Levels recurse deeply and only that record allocates, so they return
 /// plain levels and each public step reports the failure once it returns.
 failed: bool = false,
-pub fn initialize(allocator: std.mem.Allocator, functions: ir.FunctionTable, unit: Unit, passes: *Passes, slots: Slots, summaries: *Summaries, record_reads: bool) std.mem.Allocator.Error!Self {
+pub fn initialize(allocator: std.mem.Allocator, unit: Unit, passes: PassesRef, slots: Slots, summaries: *Summaries, record_reads: bool) std.mem.Allocator.Error!Self {
     const levels: []Known = if (generated_analysis) &.{} else try allocator.alloc(Known, passes.sites.slot_first[passes.sites.slot_first.len - 1] - passes.sites.slot_first[unit.symbols.count()]);
 
-    return .{ .allocator = allocator, .functions = functions, .expressions = unit.expressions, .order = if (generated_analysis) {} else &passes.order, .sites = if (generated_analysis) {} else &passes.sites, .facts = if (generated_analysis) passes else {}, .symbol_count = unit.symbols.count(), .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .growth = unit.growth, .operations = if (generated_analysis) @ptrCast(passes.operations) else passes.operations, .rows = if (generated_analysis) &.{} else passes.rows, .levels = levels, .record_reads = record_reads };
+    return .{ .allocator = allocator, .expressions = unit.expressions, .order = if (generated_analysis) {} else &passes.order, .sites = if (generated_analysis) {} else &passes.sites, .facts = if (generated_analysis) passes else {}, .symbol_count = unit.symbols.count(), .slots = slots, .summaries = summaries, .input = unit.input, .function = unit.function, .growth = unit.growth, .operations = if (generated_analysis) @ptrCast(passes.operations) else passes.operations, .rows = if (generated_analysis) &.{} else passes.rows, .levels = levels, .record_reads = record_reads };
 }
 
 fn close(self: *Self) std.mem.Allocator.Error!void {
@@ -634,7 +633,7 @@ fn node(self: *Self, id: ir.ExprId, slot: u32) Level {
 /// Whether a splice starts at the front, so the part it removes is a prefix of the target's own buffer, as a pop's rest
 /// is.
 fn prefix(self: Self, operation: anytype) bool {
-    return @import("basis.zig").prefix(self.expressions, operation);
+    return @import("basis.zig").prefix(self.expressions.*, operation);
 }
 
 /// Demand for growth copies: appends want a header and element writes want a unique buffer. Each demand traces back to

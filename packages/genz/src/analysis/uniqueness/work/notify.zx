@@ -8,7 +8,7 @@ export type Input = Notify
 export type Output = void
 
 export default function (in: Input): Output {
-    const { changed, native_modules, type_only, demand_body, callers, dirty } = in
+    const { changed, active, demand_body, callers, dirty } = in
 
     const start: u64 = 0
 
@@ -23,19 +23,12 @@ export default function (in: Input): Output {
                     dirty,
                     indices: callers
                 })
-            } else {
-                const active = match {
-                    body < native_modules.length => native_modules[body] == null,
-                    _ => !type_only
-                }
-
-                if (active) {
-                    invalidate({
-                        state: in.state,
-                        dirty,
-                        index: body
-                    })
-                }
+            } else if (active[body]) {
+                invalidate({
+                    state: in.state,
+                    dirty,
+                    index: body
+                })
             }
 
             index += 1

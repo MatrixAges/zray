@@ -37,7 +37,7 @@ export type Feedback = {
     grew: bool
 }
 
-export type Advance = Take & Notify.Pick("dirty", "native_modules", "type_only") & {
+export type Advance = Take & Notify.Pick("dirty", "active") & {
     outputs: AtomicRows,
     callers: u64[][],
     previous?: Feedback

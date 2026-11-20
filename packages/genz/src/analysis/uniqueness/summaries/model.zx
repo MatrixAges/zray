@@ -31,7 +31,7 @@ export type Lifecycle = {
     layout: Layout,
     guarantees: U8Buffer,
     demands: U8Buffer,
-    native_modules: u32?[],
+    active: bool[],
     known: bool[]
 }
 

@@ -20,8 +20,7 @@ export type Visits = {
 }
 
 export type Scan = {
-    native_modules: u32?[],
-    type_only: bool,
+    active: bool[],
     planned: u32[],
     changed: bool[],
     cursor: Cursor

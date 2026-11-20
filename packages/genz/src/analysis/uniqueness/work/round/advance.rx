@@ -13,8 +13,7 @@
                         ...$in.pick([
                             "state",
                             "dirty",
-                            "native_modules",
-                            "type_only",
+                            "active",
                             "outputs"
                         ]),
                         ...$in.previous.pick([
@@ -35,8 +34,7 @@
                             ...$in.pick([
                                 "state",
                                 "dirty",
-                                "native_modules",
-                                "type_only"
+                                "active"
                             ]),
                             changed: $in.previous.changed,
                             callers: $in.callers[$in.previous.body],

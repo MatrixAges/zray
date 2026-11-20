@@ -5,25 +5,19 @@ import { Phase } from "./model"
 import type { Scan as Input, Cursor as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { native_modules, type_only, planned, changed, cursor } = in
+    const { active, planned, changed, cursor } = in
 
     const first = cursor.phase == Phase.Planned ? cursor.body + 1 : cursor.body
-    const count = native_modules.length + 1
 
     return loop({
         body: first,
         phase: Phase.Done,
         visit: 0
     }, {
-        while: state => state.phase == Phase.Done && state.body < count,
+        while: state => state.phase == Phase.Done && state.body < active.length,
         next: state => {
             const body = state.body
-            const active = match {
-                body < native_modules.length => native_modules[body] == null,
-                _ => !type_only
-            }
-
-            if (active) {
+            if (active[body]) {
                 const start = integers.widen(planned[body])
                 const end = integers.widen(planned[body + 1])
 

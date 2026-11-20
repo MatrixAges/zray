@@ -7,7 +7,7 @@ const creating = @import("generated_uniqueness_summaries_create");
 const lifecycle = @import("lifecycle.zig");
 pub const Model = @typeInfo(@typeInfo(@TypeOf(creating.executeValue)).@"fn".return_type.?).error_union.payload;
 
-pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const Basis) std.mem.Allocator.Error!Summaries {
+pub fn create(allocator: std.mem.Allocator, program: *const ir.Program, basis: *const Basis, active: []const bool) std.mem.Allocator.Error!Summaries {
     const Parameter = @typeInfo(@TypeOf(creating.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
@@ -37,7 +37,7 @@ pub fn create(allocator: std.mem.Allocator, program: ir.Program, basis: *const B
         .storage = storage,
     };
 
-    lifecycle.apply(result, .Initialize, program.functions.native_modules, &.{});
+    lifecycle.apply(result, .Initialize, active, &.{});
 
     return result;
 }

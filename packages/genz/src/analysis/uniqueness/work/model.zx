@@ -9,8 +9,7 @@ export type State = {
 
 export type Fill = {
     state: State,
-    native_modules: u32?[],
-    type_only: bool
+    active: bool[]
 }
 
 export type Push = {
@@ -26,8 +25,7 @@ export type Enqueue = {
 
 export type Notify = Enqueue.Omit("indices") & {
     changed: u64[],
-    native_modules: u32?[],
-    type_only: bool,
+    active: bool[],
     callers: u64[],
     demand_body?: u64
 }

@@ -1,6 +1,10 @@
 import callees from "./callees"
 
-import type { Bodies as Input } from "./model"
+import type { Bodies } from "./model"
+
+export type Input = Bodies.Pick("expressions", "entry") & {
+    active: bool[]
+}
 
 export type Output = u32[][]
 
@@ -19,10 +23,10 @@ export default function (in: Input): Output {
     }
 
     const functions = loop(functions_initial, {
-        while: state => state.index < functions_scope.input.native_modules.length,
+        while: state => state.index < functions_scope.input.expressions.length,
         next: state => {
             const row = match {
-                functions_scope.input.native_modules[state.index] == null =>
+                functions_scope.input.active[state.index] =>
                     callees(functions_scope.input.expressions[state.index]),
                 _ => functions_scope.empty
             }
@@ -33,5 +37,10 @@ export default function (in: Input): Output {
         return: state => state.rows
     })
 
-    return functions.push(in.type_only ? empty : callees(in.entry))[0]
+    const entry = match {
+        in.active[in.expressions.length] => callees(in.entry),
+        _ => empty
+    }
+
+    return functions.push(entry)[0]
 }

@@ -4,6 +4,7 @@ const ir = zx.ir;
 const seed = @import("topology/seed.zig");
 
 pub const Calls = struct {
+    active: []const bool,
     callees: []const []const u32,
     recursive: []const bool,
 };
@@ -32,6 +33,7 @@ pub fn collect(allocator: std.mem.Allocator, program: ir.Program) std.mem.Alloca
     };
 
     return .{
+        .active = output.active,
         .callees = output.callees,
         .recursive = output.recursive,
     };

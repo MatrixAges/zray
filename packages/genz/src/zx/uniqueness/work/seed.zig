@@ -1,5 +1,4 @@
 const std = @import("std");
-const ir = @import("zx").ir;
 const Round = @import("round.zig");
 const Summaries = @import("../summaries.zig");
 const Level = @import("../level.zig").Level;
@@ -20,27 +19,25 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.queued);
 }
 
-pub fn prepare(self: *Self, program: *const ir.Program, summaries: *const Summaries, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
-    if (phase == .Settle) summaries.reset(program.*, known);
+pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
+    if (phase == .Settle) summaries.reset(active, known);
     if (phase == .Demand and exhausted) summaries.clear();
-    try self.fill(program);
+    try self.fill(active);
 
     self.budget = 64 * @as(u64, self.queued.len);
     self.grew = false;
 }
 
-fn fill(self: *Self, program: *const ir.Program) std.mem.Allocator.Error!void {
+fn fill(self: *Self, active: []const bool) std.mem.Allocator.Error!void {
     self.queue.clearRetainingCapacity();
 
     self.head = 0;
 
     @memset(self.queued, false);
 
-    for (program.functions.native_modules, 0..) |native, index| {
-        if (native == null) try self.push(index);
+    for (active, 0..) |enabled, index| {
+        if (enabled) try self.push(index);
     }
-
-    if (!program.type_only) try self.push(program.functions.count());
 }
 
 pub fn push(self: *Self, index: usize) std.mem.Allocator.Error!void {
@@ -61,22 +58,20 @@ pub fn enqueue(self: *Self, dirty: []bool, indices: []const u64) std.mem.Allocat
     }
 }
 
-pub fn notify(self: *Self, dirty: []bool, program: ir.Program, changed: []const u64, callers: []const u64, demand_body: ?usize) std.mem.Allocator.Error!void {
-    const natives = program.functions.native_modules;
-
+pub fn notify(self: *Self, dirty: []bool, active: []const bool, changed: []const u64, callers: []const u64, demand_body: ?usize) std.mem.Allocator.Error!void {
     for (changed) |value| {
         const index: usize = @intCast(value);
 
         if (demand_body == index) {
             try self.enqueue(dirty, callers);
-        } else if (if (index < natives.len) natives[index] == null else !program.type_only) {
+        } else if (active[index]) {
             try self.enqueue(dirty, &.{value});
         }
     }
 }
 
 pub fn publish(self: *Self, settlement: Round.Settlement) std.mem.Allocator.Error!void {
-    try self.notify(settlement.dirty, settlement.program.*, settlement.changed, &.{}, null);
+    try self.notify(settlement.dirty, settlement.active, settlement.changed, &.{}, null);
     if (settlement.body >= settlement.outputs.len) return;
 
     var weakened = false;
@@ -126,9 +121,9 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
         const callers = frame.callers[result.body];
 
         if (phase == .Settle) {
-            try self.publish(.{ .program = frame.program, .outputs = frame.outputs, .dirty = frame.dirty, .changed = result.changed, .callers = callers, .body = result.body, .levels = result.levels });
+            try self.publish(.{ .active = frame.active, .outputs = frame.outputs, .dirty = frame.dirty, .changed = result.changed, .callers = callers, .body = result.body, .levels = result.levels });
         } else {
-            try self.notify(frame.dirty, frame.program.*, result.changed, callers, result.body);
+            try self.notify(frame.dirty, frame.active, result.changed, callers, result.body);
         }
 
         self.grew = self.grew or result.grew;

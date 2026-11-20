@@ -8,6 +8,7 @@ const Replay = @import("../trace.zig").Replay;
 const generated = @import("genz_options").generated_analysis;
 const Error = std.mem.Allocator.Error;
 const visits = @import("visits.zig");
+const Bodies = @import("bodies.zig");
 const driver = if (generated) @import("generated_uniqueness_program") else void;
 const Round = @import("../work/round.zig");
 const Phase = Round.Phase;
@@ -17,10 +18,9 @@ pub const Context = struct {
     allocator: std.mem.Allocator,
     workspace: std.mem.Allocator,
     temporary: std.mem.Allocator,
-    program: *const ir.Program,
     slots: analysis.Slots,
     summaries: *analysis.Summaries,
-    units: []const ?*analysis.Unit,
+    bodies: *const Bodies,
     calls: Topology.Calls,
     exported: []const ir.FunctionId,
     memo: *analysis.Memo,
@@ -50,7 +50,7 @@ pub const Context = struct {
             switch (phase) {
                 .Start => unreachable,
                 .Replay => {
-                    if (try analysis.shortcut(self.allocator, self.workspace, self.temporary, self.program.*, self.slots, self.summaries, self.units, self.memo, self.replay)) |found| {
+                    if (try analysis.shortcut(self.allocator, self.workspace, self.temporary, self.slots, self.summaries, self.bodies, self.calls.active, self.memo, self.replay)) |found| {
                         result = found;
                         reused = true;
                     }
@@ -88,11 +88,11 @@ pub const Context = struct {
     }
     fn open(self: *Context) Error!void {
         self.pool = try Pool.init(self.temporary, self.concurrent);
-        const ahead = try Ahead.init(self.temporary, &self.pool.?, self.program.functions, self.slots, self.summaries, self.units, self.calls.recursive);
+        const ahead = try Ahead.init(self.temporary, &self.pool.?, self.slots, self.summaries, self.bodies, self.calls.recursive);
         const reverse = try Topology.build(self.temporary, self.calls.callees, self.exported);
 
         self.rounds = .{
-            .work = try analysis.Work.init(self.workspace, self.units.len),
+            .work = try analysis.Work.init(self.workspace, self.calls.active.len),
             .reverse = reverse,
             .ahead = ahead,
         };
@@ -108,7 +108,7 @@ pub const Context = struct {
 
         const rounds = &self.rounds.?;
 
-        try rounds.work.prepare(self.program, self.summaries, rounds.reverse.known, phase, exhausted);
+        try rounds.work.prepare(self.summaries, self.calls.active, rounds.reverse.known, phase, exhausted);
 
         var round = std.heap.ArenaAllocator.init(self.workspace);
 
@@ -116,10 +116,10 @@ pub const Context = struct {
         rounds.ahead.begin(kind);
         defer rounds.ahead.finish();
 
-        var plans = if (kind == .planned) try PlanWriter.init(self.allocator, self.program.functions.count()) else {};
+        var plans = if (kind == .planned) try PlanWriter.init(self.allocator, self.bodies.program.functions.count()) else {};
 
         const frame = Round.Frame{
-            .program = self.program,
+            .active = self.calls.active,
             .outputs = self.summaries.output,
             .dirty = rounds.ahead.dirty,
             .callers = rounds.reverse.callers,

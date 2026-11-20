@@ -3,12 +3,30 @@
 
     <Args in={Graph.Bodies} out={Graph.Calls} />
 
-    <Call fn="collect" in={$in} />
+    <Call
+        fn="active"
+        in={$in.pick([
+            "native_modules",
+            "type_only"
+        ])}
+    />
+
+    <Call
+        fn="collect"
+        in={{
+            ...$in.pick([
+                "expressions",
+                "entry"
+            ]),
+            active: $ctx.active
+        }}
+    />
 
     <Call fn="recursive" />
 
     <Return
         value={{
+            active: $ctx.active,
             callees: $ctx.collect,
             recursive: $ctx.recursive
         }}

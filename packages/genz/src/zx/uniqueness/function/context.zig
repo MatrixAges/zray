@@ -23,7 +23,7 @@ pub fn init(self: *Self, function: *const Function) std.mem.Allocator.Error!void
         .plan = zx.columns.pointer(@FieldType(Usage, "plan"), facts.usage.plan),
         .nodes = zx.columns.pointer(@FieldType(Usage, "nodes"), facts.nodes),
         .regions = zx.columns.pointer(@FieldType(Usage, "regions"), facts.regions),
-        .expressions = zx.columns.pointer(@FieldType(Usage, "expressions"), &function.expressions),
+        .expressions = zx.columns.pointer(@FieldType(Usage, "expressions"), function.expressions),
         .def_loop = facts.definitions.repeated,
         .symbols = function.symbol_count,
         .held = function.summaries.held,
@@ -34,7 +34,7 @@ pub fn init(self: *Self, function: *const Function) std.mem.Allocator.Error!void
     };
 
     self.metadata = .{
-        .expressions = zx.columns.pointer(@FieldType(Metadata, "expressions"), &function.expressions),
+        .expressions = zx.columns.pointer(@FieldType(Metadata, "expressions"), function.expressions),
         .definitions = zx.columns.pointer(@FieldType(Metadata, "definitions"), facts.definitions),
         .layout = &self.layout,
         .counts = slots.counts,
