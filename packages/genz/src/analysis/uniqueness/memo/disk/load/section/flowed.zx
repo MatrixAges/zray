@@ -1,0 +1,51 @@
+import memory from "memory"
+
+import decode from "../flow.rx"
+import claim from "./claim"
+import complete from "./complete"
+
+import type { FlowedSection as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { index, source, start, count, target } = in
+
+    return loop({
+        offset: start,
+        remaining: count,
+        used: memory.readU32(index.used, 0)
+    }, {
+        while: state => state.remaining != 0 && state.offset != 0,
+        next: state => {
+            const record = decode({
+                source,
+                start: state.offset
+            })
+
+            if (record == null) {
+                state.offset = 0
+            } else {
+                const row = claim({
+                    index,
+                    digest: record.digest,
+                    used: state.used
+                })
+
+                memory.writeColumnBytes(target.held, row, record.held)
+                memory.writeColumnBytes(target.text_held, row, record.text_held)
+                memory.writeColumnBytes(target.written, row, record.written)
+                memory.writeColumnBool(target.used, row, false)
+
+                state.used = complete({
+                    target: index.used,
+                    used: state.used,
+                    row
+                })
+                state.offset = record.end
+                state.remaining -= 1
+            }
+        },
+        return: state => state.remaining == 0
+    })
+}

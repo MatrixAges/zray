@@ -1,0 +1,58 @@
+import type { Table } from "core/bytes/index/digest/model"
+import type { U32Buffer, WriteColumn } from "memory"
+import type { WriteColumn as ListTarget } from "memory/columns"
+import type { PlanWrites } from "../../../../replay/shortcut/model"
+import type { Input, Span } from "../../model"
+import type { Demand, Settlement } from "../model"
+
+export type Index = {
+    lookup: Table,
+    keys: WriteColumn,
+    used: U32Buffer
+}
+
+export type Section = Input & Span.Pick("start", "count") & {
+    index: Index
+}
+
+export type SettlementColumns = {
+    passed: ListTarget,
+    output: WriteColumn,
+    used: WriteColumn
+}
+
+export type DemandColumns = {
+    marks: ListTarget,
+    normalized: ListTarget,
+    renewed: ListTarget,
+    grew: WriteColumn,
+    used: WriteColumn
+}
+
+export type PlanColumns = PlanWrites & {
+    used: WriteColumn
+}
+
+export type FlowColumns = {
+    held: WriteColumn,
+    text_held: WriteColumn,
+    written: WriteColumn,
+    used: WriteColumn
+}
+
+export type SettledSection = Section & Settlement.Pick("passed") & {
+    target: SettlementColumns
+}
+
+export type DemandedSection =
+    Section & Demand.Pick("marks", "normalized", "renewed") & {
+        target: DemandColumns
+    }
+
+export type PlannedSection = Section & {
+    target: PlanColumns
+}
+
+export type FlowedSection = Section & {
+    target: FlowColumns
+}

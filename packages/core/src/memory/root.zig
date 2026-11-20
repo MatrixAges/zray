@@ -204,6 +204,7 @@ pub const growRows = column.growRows;
 pub const allocateRows = column.allocateRows;
 pub const allocateRowList = column.allocateRowList;
 pub const writeRowList = column.writeRowList;
+pub const moveRowList = column.moveRowList;
 pub const writeNamedRowList = column.writeNamedRowList;
 pub const copyRow = column.copyRow;
 

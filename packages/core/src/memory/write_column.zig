@@ -169,6 +169,14 @@ pub fn writeRowList(column: *const anyopaque, index: u64, source: *const anyopaq
     try write([]const u8, column, index, output.bytes.ptr[0..count]);
 }
 
+pub fn moveRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
+    try writeRowList(column, index, source);
+
+    const output: *RowBuffer = @ptrCast(@alignCast(@constCast(source)));
+
+    output.bind(&.{});
+}
+
 pub fn writeNamedRowList(column: *const anyopaque, index: u64, source: *const anyopaque) IndexError!void {
     const output: *const []@import("rows.zig").NamedId = @ptrCast(@alignCast(source));
 

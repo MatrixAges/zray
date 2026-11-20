@@ -1,5 +1,5 @@
 const std = @import("std");
-const columns = @import("zx").columns;
+const zx = @import("zx");
 const rows = @import("../row_output.zig");
 const Memo = @import("../memo.zig");
 const disk = @import("disk.zig");
@@ -8,121 +8,132 @@ const Error = std.mem.Allocator.Error;
 pub fn load(memo: *Memo, source: []const u8) Error!void {
     const owner = memo.arena.child_allocator;
     const layout = (try disk.inspect(owner, source)) orelse return;
-    const payload = memo.arena.allocator();
+    const loader: Loader = .{ .owner = owner, .payload = memo.arena.allocator(), .source = source };
 
-    try section(owner, payload, source, layout.settled_start, layout.settled_count, &memo.settled, settled);
-    try section(owner, payload, source, layout.demanded_start, layout.demanded_count, &memo.demanded, demanded);
-    try section(owner, payload, source, layout.planned_start, layout.planned_count, &memo.planned, planned);
-    try section(owner, payload, source, layout.flowed_start, layout.flowed_count, &memo.flowed, flowed);
+    try loader.settled(&memo.settled, .{ .start = layout.settled_start, .count = layout.settled_count });
+    try loader.demanded(&memo.demanded, .{ .start = layout.demanded_start, .count = layout.demanded_count });
+
+    try loader.section(@import("generated_uniqueness_memo_load_plan"), &memo.planned, .{
+        .start = layout.planned_start,
+        .count = layout.planned_count,
+    }, .{
+        .flags = &.{"flags"},
+        .keys = &.{ "renewals", "keys" },
+        .paths = &.{ "renewals", "paths" },
+        .transfers = &.{"transfers"},
+        .slot_first = &.{"slot_first"},
+        .used = &.{"used"},
+    }, .{});
+
+    try loader.section(@import("generated_uniqueness_memo_load_flow"), &memo.flowed, .{
+        .start = layout.flowed_start,
+        .count = layout.flowed_count,
+    }, .{
+        .held = &.{"held"},
+        .text_held = &.{"text_held"},
+        .written = &.{"written"},
+        .used = &.{"used"},
+    }, .{});
 }
 
-fn section(owner: std.mem.Allocator, payload: std.mem.Allocator, source: []const u8, start: u64, count: u32, map: anytype, comptime materialize: anytype) Error!void {
-    try map.ensureUnusedCapacity(owner, count);
+const Span = struct { start: u64, count: u32 };
 
-    var at = start;
+const Loader = struct {
+    owner: std.mem.Allocator,
+    payload: std.mem.Allocator,
+    source: []const u8,
+    fn settled(self: Loader, table: anytype, bounds: Span) Error!void {
+        const entry = @import("generated_uniqueness_memo_load_settlement");
+        const Input = std.meta.Child(entry.Input);
+        var passed: rows.Contributions(Input, "passed") = undefined;
 
-    for (0..count) |_| {
-        const row = try materialize(payload, source, at);
+        passed.init();
 
-        map.putAssumeCapacity(row.digest[0..@sizeOf(Memo.Digest)].*, row.value);
-
-        at = row.end;
+        try self.section(entry, table, bounds, .{
+            .passed = &.{"passed"},
+            .output = &.{"output"},
+            .used = &.{"used"},
+        }, .{ .passed = &passed });
     }
-}
+    fn demanded(self: Loader, table: anytype, bounds: Span) Error!void {
+        const entry = @import("generated_uniqueness_memo_load_demand");
+        const Input = std.meta.Child(entry.Input);
+        var marks: rows.Marks(Input, "marks") = undefined;
+        var normalized: rows.Normalized(Input) = undefined;
+        var renewed: rows.Renewed(Input) = undefined;
 
-fn Row(comptime T: type) type {
-    return struct { value: T, end: u64, digest: []const u8 };
-}
+        marks.init();
+        normalized.init();
+        renewed.init();
 
-fn settled(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Settled) {
-    const entry = @import("generated_uniqueness_memo_load_settlement");
-    const Input = std.meta.Child(entry.Input);
-    var passed: rows.Contributions(Input, "passed") = undefined;
+        try self.section(entry, table, bounds, .{
+            .marks = &.{"marks"},
+            .normalized = &.{"normalized"},
+            .renewed = &.{"renewed"},
+            .grew = &.{"grew"},
+            .used = &.{"used"},
+        }, .{ .marks = &marks, .normalized = &normalized, .renewed = &renewed });
+    }
+    fn section(self: Loader, comptime entry: type, table: anytype, bounds: Span, comptime fields: anytype, buffers: anytype) Error!void {
+        if (bounds.count == 0) return;
+        try table.ensureUnusedCapacity(self.owner, bounds.count);
 
-    passed.init();
+        const Input = std.meta.Child(entry.Input);
+        const Columns = std.meta.Child(@FieldType(Input, "target"));
+        const Value = std.meta.Elem(@TypeOf(table.values.items));
+        var target: zx.memory.RowOutput(Value, Columns, fields) = undefined;
 
-    const input: Input = .{
-        .source = source,
-        .start = start,
-        .passed = &.{ .storage = @ptrCast(&passed.buffer), .columns = &passed.view },
-    };
+        target.init();
+        target.bind(table.values.allocatedSlice());
 
-    const row = try decode(entry, allocator, input) orelse unreachable;
+        const keys = table.keys.allocatedSlice();
+        const digest_width = @sizeOf(Memo.Digest);
 
-    return .{
-        .value = .{ .passed = passed.rows(), .output = @ptrCast(row.output), .used = false },
-        .end = row.end,
-        .digest = row.digest,
-    };
-}
+        const digests: zx.memory.WriteColumn = .{
+            .items = @ptrCast(keys.ptr),
+            .count = keys.len,
+            .stride = digest_width,
+            .width = digest_width,
+        };
 
-fn demanded(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Demanded) {
-    const entry = @import("generated_uniqueness_memo_load_demand");
-    const Input = std.meta.Child(entry.Input);
-    var marks: rows.Marks(Input, "marks") = undefined;
-    var normalized: rows.Normalized(Input) = undefined;
-    var renewed: rows.Renewed(Input) = undefined;
+        var used = [1]u32{@intCast(table.keys.items.len)};
+        const used_view: []u32 = &used;
 
-    marks.init();
-    normalized.init();
-    renewed.init();
+        defer {
+            table.keys.items.len = used[0];
+            table.values.items.len = used[0];
+        }
 
-    const input: Input = .{
-        .source = source,
-        .start = start,
-        .marks = &.{ .storage = @ptrCast(&marks.buffer), .columns = &marks.view },
-        .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
-        .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
-    };
+        var input: Input = undefined;
 
-    const row = try decode(entry, allocator, input) orelse unreachable;
+        input.source = self.source;
+        input.start = bounds.start;
+        input.count = bounds.count;
+        input.target = &target.view;
 
-    return .{
-        .value = .{ .marks = marks.rows(), .normalized = normalized.rows(), .renewed = renewed.rows(), .grew = row.grew, .used = false },
-        .end = row.end,
-        .digest = row.digest,
-    };
-}
+        input.index = &.{
+            .lookup = &.{
+                .keys = std.mem.sliceAsBytes(keys),
+                .buckets = @ptrCast(&table.buckets),
+                .capacity = table.buckets.len,
+            },
+            .keys = @ptrCast(&digests),
+            .used = @ptrCast(&used_view),
+        };
 
-fn planned(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Planned) {
-    const row = try decode(@import("generated_uniqueness_memo_load_plan"), allocator, .{ .source = source, .start = start }) orelse unreachable;
+        inline for (@typeInfo(@TypeOf(buffers)).@"struct".field_names) |name| {
+            const buffer = @field(buffers, name);
 
-    return .{
-        .value = .{
-            .flags = @ptrCast(row.flags),
-            .renewals = .{ .keys = row.renewals.keys, .paths = row.renewals.paths },
-            .transfers = row.transfers,
-            .slot_first = row.slot_first,
-            .used = false,
-        },
-        .end = row.end,
-        .digest = row.digest,
-    };
-}
+            @field(input, name) = &.{ .storage = @ptrCast(&buffer.buffer), .columns = &buffer.view };
+        }
 
-fn flowed(allocator: std.mem.Allocator, source: []const u8, start: u64) Error!Row(Memo.Flowed) {
-    const row = try decode(@import("generated_uniqueness_memo_load_flow"), allocator, .{ .source = source, .start = start }) orelse unreachable;
+        const borrowed: *const Input = &input;
 
-    return .{
-        .value = .{
-            .held = @ptrCast(row.held),
-            .text_held = @ptrCast(row.text_held),
-            .written = @ptrCast(row.written),
-            .used = false,
-        },
-        .end = row.end,
-        .digest = row.digest,
-    };
-}
+        const valid = zx.columns.invoke(entry.executeValue, self.payload, borrowed) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => std.debug.panic("validated memo section could not be decoded: {s}", .{@errorName(err)}),
+        };
 
-fn decode(comptime entry: type, memory: std.mem.Allocator, source: anytype) Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {
-    const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
-    const indirect = @typeInfo(Parameter) == .pointer;
-    const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
-    const input = columns.view(Input, source);
-
-    return entry.executeValue(memory, if (indirect) &input else input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => error.OutOfMemory,
-        else => std.debug.panic("validated memo row could not be decoded: {s}", .{@errorName(err)}),
-    };
-}
+        if (!valid) @panic("validated memo section ended early");
+    }
+};

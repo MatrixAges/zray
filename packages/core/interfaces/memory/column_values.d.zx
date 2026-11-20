@@ -30,6 +30,12 @@ export declare function writeRowList(
     source: RowBuffer
 ): void throws { IndexOutOfBounds }
 
+export declare function moveRowList(
+    column: WriteColumn,
+    index: u64,
+    source: RowBuffer
+): void throws { IndexOutOfBounds }
+
 export declare function copyRow(
     target: RowBuffer,
     source: u64,

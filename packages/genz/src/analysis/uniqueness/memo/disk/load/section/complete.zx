@@ -1,0 +1,24 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+
+export type Input = {
+    target: U32Buffer,
+    used: u32,
+    row: u64
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    if (in.row != integers.widen(in.used)) {
+        return in.used
+    }
+
+    const count = in.used + 1
+
+    memory.writeU32(in.target, 0, count)
+
+    return count
+}
