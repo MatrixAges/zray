@@ -25,7 +25,6 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
 
     if (!generated) try body.append(self.allocator, .{ .variable = .{ .name = accumulator, .type_expr = args.layout, .value = initial } });
 
-    var entered: std.ArrayList(node.Statement) = .empty;
     var renewal_scope = std.heap.ArenaAllocator.init(self.workspace);
     var renewal_buffer: [256]u8 = undefined;
     var renewal_memory = std.heap.BufferFirstAllocator.init(&renewal_buffer, renewal_scope.allocator());
@@ -35,13 +34,14 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
     const renewals = try @import("../iteration/renewal.zig").plan(self, renewal_memory.allocator(), .{
         .owner = args.operation,
         .type_id = type_id,
+        .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
     });
 
-    try renewals.emit(self, &entered, type_id, .{ .name = accumulator });
+    const entered = try renewals.store(self, type_id, .{ .name = accumulator });
 
-    if (!generated and entered.items.len != 0) try body.append(self.allocator, .{ .branch = .{
+    if (!generated and entered.len != 0) try body.append(self.allocator, .{ .branch = .{
         .condition = try self.builder.expression(.{ .binary = .{ .operator = .not_equal, .left = try self.field(args.source, "len"), .right = try self.builder.integer(0) } }),
-        .yes = try self.builder.statements(entered.items),
+        .yes = entered,
         .no = .{},
     } });
 
@@ -75,7 +75,8 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
         .label = label,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .entered_count = entered.items.len,
+        .entered_start = entered.start,
+        .entered_count = entered.len,
         .element_count = loop.items.len,
         .outer_count = body.items.len,
     };
@@ -94,7 +95,6 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), args: Request) 
 
     try append(self, &self.builder.nodes.expressions, output.expressions);
 
-    _ = try self.builder.statements(entered.items);
     _ = try self.builder.statements(loop.items[0..before_assignment]);
 
     try append(self, &self.builder.nodes.statements, output.update);

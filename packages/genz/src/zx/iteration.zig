@@ -169,8 +169,8 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         self.loop_fields = previous_fields;
 
         var entered: std.ArrayList(node.Statement) = .empty;
+        const growth = try renewals.store(self, type_id, .{ .reference = seed });
 
-        try renewals.emit(self, &entered, type_id, .{ .reference = seed });
         try selected.maskBorrowed(self, &entered);
 
         _ = try state_declaration.declare(self, &entered, .{
@@ -189,17 +189,17 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
             .fields = selected,
         }, tracker);
 
-        const framed = try frame.lower(self, &.{}, update, .{ .condition = next.condition, .after_step = schedule.after_step });
+        const framed = try frame.lower(self, .{}, update, .{ .condition = next.condition, .after_step = schedule.after_step });
 
         entered.clearRetainingCapacity();
 
         const restored = if (schedule.restore_projected) try aggregate.bind(self, &entered, try selected.restore(self, state)) else state;
-        const result = try finish.lower(self, &entered, restored, .{ prefix, framed });
+        const result = try finish.lower(self, &entered, restored, .{ .renewals = growth, .declarations = prefix, .frame = framed });
 
         if (first_condition) |first| {
             var skipped: std.ArrayList(node.Statement) = .empty;
 
-            return try aggregate.finishGuarded(self, &body, first, result, try finish.lower(self, &skipped, seed, .{ .{}, .{} }));
+            return try aggregate.finishGuarded(self, &body, first, result, try finish.lower(self, &skipped, seed, .{}));
         }
 
         return try aggregate.finish(self, &body, result);
@@ -227,10 +227,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         .tracking = tracking,
     });
 
-    var entered: std.ArrayList(node.Statement) = .empty;
-
-    try renewals.emit(self, &entered, type_id, .{ .reference = state });
-
+    const entered = try renewals.store(self, type_id, .{ .reference = state });
     const prefix = try self.builder.statements(body.items);
 
     const update = try step.store(self, &loop, schedule, .{
@@ -240,7 +237,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         .value = next.value,
     }, tracker);
 
-    const framed = try frame.lower(self, entered.items, update, .{
+    const framed = try frame.lower(self, entered, update, .{
         .condition = next.condition,
         .after_step = schedule.after_step,
         .guarded_initial = initial_guard != null,
@@ -248,7 +245,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
 
     body.clearRetainingCapacity();
 
-    const result = try finish.lower(self, &body, state, .{ prefix, framed });
+    const result = try finish.lower(self, &body, state, .{ .declarations = prefix, .frame = framed });
 
     if (initial_guard) |*guard| return try guard.finish(self, result);
 

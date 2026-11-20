@@ -12,6 +12,7 @@ pub const Plan = struct {
     first: usize = 0,
     end: usize = 0,
     delayed: bool = false,
+    filters_inline: bool = false,
     skipped: []const u64 = &.{},
     pub fn needsEntries(self: Plan, lowering: *const Lower) bool {
         if (generated) return self.first != self.end;
@@ -22,16 +23,28 @@ pub const Plan = struct {
 
         return false;
     }
-    pub fn emit(self: Plan, lowering: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, target: Target) Lower.Error!void {
+    pub fn store(self: Plan, lowering: *Lower, type_id: ir.TypeId, target: Target) Lower.Error!node.Block {
         if (generated) {
-            if (self.end - self.first == self.skipped.len) return;
+            if (self.end - self.first == self.skipped.len) return .{};
 
-            return renewal.appendEntry(lowering, body, type_id, target, lowering.plan.renewals.keys[self.first..self.end], lowering.plan.renewals.paths[self.first..self.end], self.skipped);
+            return renewal.entry(
+                lowering,
+                type_id,
+                target,
+                lowering.plan.renewals.keys[self.first..self.end],
+                lowering.plan.renewals.paths[self.first..self.end],
+                self.skipped,
+                !self.filters_inline and if (lowering.iteration_value) |context| context.inline_lists else false,
+            );
         }
+
+        var body: std.ArrayList(node.Statement) = .empty;
 
         for (lowering.plan.renewals) |record| {
-            if (record.owner == @backingInt(self.owner) and !record.value) try renew(lowering, body, type_id, target, record.path, record.writable);
+            if (record.owner == @backingInt(self.owner) and !record.value) try renew(lowering, &body, type_id, target, record.path, record.writable);
         }
+
+        return lowering.builder.statements(body.items);
     }
 };
 
@@ -90,6 +103,7 @@ pub fn plan(self: *const Lower, temporary: std.mem.Allocator, request: Request) 
         .first = @intCast(output.first),
         .end = @intCast(output.end),
         .delayed = output.delayed,
+        .filters_inline = request.inline_lists,
         .skipped = if (output.skipped.len == 0) &.{} else try temporary.dupe(u64, output.skipped),
     };
 }

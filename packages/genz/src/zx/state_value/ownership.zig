@@ -30,7 +30,7 @@ pub fn erase(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.Typ
 pub fn projected(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("ownership/projected_seed.zig").lower(self, body, id, type_id, value, slot);
 
-    return @import("ownership/projection.zig").lower(self, body, id, type_id, value, slot);
+    return @import("ownership/projection.zig").lower(self, body, id, type_id, value, slot, false);
 }
 
 pub fn count(self: *const Lower, id: ir.TypeId) u32 {

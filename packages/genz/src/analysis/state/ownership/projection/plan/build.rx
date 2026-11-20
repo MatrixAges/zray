@@ -3,10 +3,12 @@
 
     <Args in={Plan.Input} out={Plan.Output} />
 
-    <Call fn="../../needed" in={$in.source.source} />
+    <If on={!$in.required}>
+        <Call fn="../../needed" in={$in.source.source} />
 
-    <If on={!$ctx.needed}>
-        <Return value={null} />
+        <If on={!$ctx.needed}>
+            <Return value={null} />
+        </If>
     </If>
 
     <Call fn="qualified" in={$in.serial} />

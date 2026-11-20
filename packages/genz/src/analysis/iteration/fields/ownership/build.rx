@@ -4,18 +4,16 @@
     <Args in={Ownership.Prepare} out={Ownership.Prepared?} />
 
     <Call
-        module="plan"
-        in={{
-            ...$in.pick([
-                "facts",
-                "type_id",
-                "borrowed"
-            ]),
-            mask: $in.origin == null
-        }}
+        fn="field_slots"
+        in={$in.pick([
+            "facts",
+            "type_id",
+            "borrowed",
+            "origin"
+        ])}
     />
 
-    <If on={$ctx.plan.length == 0}>
+    <If on={$ctx.field_slots.reads == 0}>
         <Return value={null} />
     </If>
 
@@ -23,7 +21,7 @@
         fn="read"
         in={{
             source: $in,
-            slots: $ctx.plan
+            selection: $ctx.field_slots
         }}
     />
 

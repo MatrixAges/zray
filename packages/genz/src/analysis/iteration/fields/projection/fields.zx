@@ -16,17 +16,24 @@ export default function (in: Input): Output {
 
     return loop({
         state: in,
-        index: 0
+        index: 0,
+        next_edit: 0
     }, {
         while: current => current.index < count,
         next: current => {
             const name =
                 bytes.fromText(source.types.field_names[first + current.index])
 
+            const edit = current.next_edit < source.changed.length &&
+                integers.widen(source.changed[current.next_edit]) == current.index
+
             const value: Node = match {
                 source.mode == Mode.Rebuild => {
                     state: current.state,
-                    id: source.values[current.index]
+                    id: match {
+                        edit => source.replacements[current.next_edit],
+                        _ => source.values[current.index]
+                    }
                 },
                 _ => wrap({
                     node: field({
@@ -47,6 +54,10 @@ export default function (in: Input): Output {
                     default_value: null,
                     comptime_parameter: false
                 })
+            }
+
+            if (edit) {
+                current.next_edit += 1
             }
 
             current.index += 1

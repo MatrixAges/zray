@@ -96,7 +96,7 @@ fn execute(self: *Lower, body: *std.ArrayList(node.Statement), comptime module: 
     return publish(self, body, emitted);
 }
 
-pub fn publish(self: *Lower, body: *std.ArrayList(node.Statement), emitted: anytype) Lower.Error!node.ExpressionId {
+pub fn publish(self: *Lower, body: ?*std.ArrayList(node.Statement), emitted: anytype) Lower.Error!node.ExpressionId {
     const wrapped = @hasField(std.meta.Child(@TypeOf(emitted)), "result");
     const output = if (wrapped) emitted.result else emitted;
 
@@ -106,7 +106,12 @@ pub fn publish(self: *Lower, body: *std.ArrayList(node.Statement), emitted: anyt
 
     try apply.expressions(self, output);
     try apply.rows(self, &self.builder.nodes.statements, output.statements);
-    try apply.flat(self, body, output.body);
+
+    if (body) |target| {
+        try apply.flat(self, target, output.body);
+    } else {
+        try apply.rows(self, &self.builder.nodes.statements, output.body);
+    }
 
     if (wrapped) {
         try self.builder.nodes.field_columns.reserve(self.allocator, emitted.fields.len);

@@ -27,12 +27,14 @@ export default function (in: Input): Output {
             } else {
                 const path = source.paths[index]
 
-                if (!buffered({
+                const inline = source.filter_inline && buffered({
                     types,
                     type_id,
                     path,
-                    inline_lists: source.inline_lists
-                })) {
+                    inline_lists: true
+                })
+
+                if (!inline) {
                     state.growth = append({
                         source: {
                             types,

@@ -27,7 +27,7 @@ export default function (in: Input): Output {
         index: 0,
         valid: true
     }, {
-        while: state => state.valid && state.index < in.slots.length,
+        while: state => state.valid && state.index < in.selection.reads,
         next: state => {
             const name = bytes.fromText(types.field_names[first + state.index])
 
@@ -53,7 +53,7 @@ export default function (in: Input): Output {
         },
         return: state => ({
             ...state.omit(["index"]),
-            slots: in.slots,
+            requests: in.selection.requests,
             origin: origin == null ? max_u32 : origin
         })
     })

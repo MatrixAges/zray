@@ -11,7 +11,7 @@ pub const Check = struct {
 
 pub fn lower(
     self: *Lower,
-    prefix: []const node.Statement,
+    prefix: node.Block,
     body: node.Block,
     check: Check,
 ) Lower.Error!node.Block {
@@ -56,7 +56,7 @@ pub fn lower(
         try appendRows(self, &nodes.statements, &stop);
     }
 
-    _ = try self.builder.statements(prefix);
+    _ = try @import("../../node/blocks.zig").tail(self.allocator, nodes, &.{prefix.start}, &.{prefix.len});
 
     try appendRows(self, &self.builder.nodes.statements, &statement);
 
@@ -70,7 +70,7 @@ pub fn lower(
     return .{ .start = output.start, .len = output.count };
 }
 
-fn seed(self: *Lower, prefix: []const node.Statement, body: node.Block, check: Check) Lower.Error!node.Block {
+fn seed(self: *Lower, prefix: node.Block, body: node.Block, check: Check) Lower.Error!node.Block {
     const renewed = prefix.len != 0;
     const trailing = check.after_step or renewed or check.guarded_initial;
     var statements = body;
@@ -91,7 +91,7 @@ fn seed(self: *Lower, prefix: []const node.Statement, body: node.Block, check: C
         condition = try self.builder.expression(.{ .boolean = true });
     }
 
-    var entered = try self.builder.statements(prefix);
+    var entered = try @import("../../node/blocks.zig").tail(self.allocator, self.builder.nodes, &.{prefix.start}, &.{prefix.len});
 
     _ = try self.builder.statements(&.{.{ .while_loop = .{ .condition = condition, .body = statements } }});
     entered.len += 1;

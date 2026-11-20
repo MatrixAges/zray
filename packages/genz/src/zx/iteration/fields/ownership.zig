@@ -4,7 +4,7 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Context = @import("root.zig");
 const aggregate = @import("../../aggregate.zig");
-const ownership = @import("../../state_value/ownership.zig");
+const ownership = @import("../../state_value/ownership/projection.zig");
 const projection = @import("projection.zig");
 const entry = @import("generated_loop_fields_ownership");
 
@@ -61,23 +61,33 @@ fn rebuild(self: *const Context, lowering: *Lower, body: *std.ArrayList(node.Sta
 
     @import("../../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, planned.expressions) catch |err| return failure(err);
 
-    const fields = lowering.program.typeOf(self.type_id).object;
-    const values = try temporary.alloc(u32, planned.values.len);
+    const count = planned.requests.len;
+    const edits = try temporary.alloc(u32, std.math.mul(usize, count, 2) catch return error.OutOfMemory);
+    const changed = edits[0..count];
+    const replacements = edits[count..];
     const origin: ir.ExprId = @fromBackingInt(planned.origin);
 
-    for (values, planned.values, planned.slots, 0..) |*value, raw, slot, index| {
-        const child: node.ExpressionId = @fromBackingInt(raw);
+    for (planned.requests, changed, replacements) |edit, *field, *replacement| {
+        field.* = edit.field;
 
-        value.* = if (slot) |offset|
-            @backingInt(try ownership.projected(lowering, body, origin, fields.at(index).type_id, child, offset))
-
-        else
-            raw;
+        replacement.* = @backingInt(try ownership.lower(
+            lowering,
+            body,
+            origin,
+            @fromBackingInt(edit.type_id),
+            @fromBackingInt(planned.values[edit.field]),
+            edit.slot,
+            true,
+        ));
     }
 
     const layout = request.layout orelse try lowering.layoutExpr(self.type_id);
 
-    return try projection.rebuild(self, lowering, request.value, layout, values);
+    return try projection.rebuild(self, lowering, request.value, layout, .{
+        .values = planned.values,
+        .changed = changed,
+        .replacements = replacements,
+    });
 }
 
 fn failure(err: anyerror) Lower.Error {

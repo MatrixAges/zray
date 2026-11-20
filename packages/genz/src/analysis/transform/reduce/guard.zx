@@ -33,7 +33,7 @@ export default function (in: Input): Output {
         table: nonempty.state.statements,
         base: in.generated_start,
         condition: nonempty.id,
-        yes_start: in.source.statement_base,
+        yes_start: in.source.entered_start,
         yes_count: integers.narrow(in.source.entered_count),
         no_start: 0,
         no_count: 0

@@ -9,7 +9,7 @@ const Input = std.meta.Child(generated.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
 pub const Target = union(enum) { reference: node.ExpressionId, name: []const u8 };
 
-pub fn appendEntry(self: *Lower, body: *std.ArrayList(node.Statement), type_id: ir.TypeId, target: Target, keys: []const u64, paths: []const []const u32, skipped: []const u64) Lower.Error!void {
+pub fn entry(self: *Lower, type_id: ir.TypeId, target: Target, keys: []const u64, paths: []const []const u32, skipped: []const u64, filter_inline: bool) Lower.Error!node.Block {
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
 
     var source = calls.prepare(self, .Renew, .{
@@ -34,7 +34,7 @@ pub fn appendEntry(self: *Lower, body: *std.ArrayList(node.Statement), type_id: 
         .paths = paths,
         .skipped = skipped,
         .name = if (target == .name) target.name else null,
-        .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
+        .filter_inline = filter_inline,
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -50,7 +50,12 @@ pub fn appendEntry(self: *Lower, body: *std.ArrayList(node.Statement), type_id: 
 
     std.debug.assert(output.serial == self.serial);
 
-    _ = try calls.publish(self, body, output);
+    _ = try calls.publish(self, null, output);
+
+    const count = output.body.tags.len;
+    const end = self.builder.nodes.statements.tags.items.len;
+
+    return .{ .start = @intCast(end - count), .len = @intCast(count) };
 }
 
 pub fn appendValue(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, reference: node.ExpressionId) Lower.Error!void {

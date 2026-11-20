@@ -12,6 +12,7 @@ export type Input = {
     label: u8[],
     expression_base: u32,
     statement_base: u32,
+    entered_start: u32,
     entered_count: u64,
     element_count: u64,
     outer_count: u64

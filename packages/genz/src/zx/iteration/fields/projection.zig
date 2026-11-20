@@ -5,12 +5,18 @@ const Lower = @import("../../lower.zig");
 const Context = @import("root.zig");
 const Mode = if (@import("genz_options").generated_analysis) @FieldType(std.meta.Child(@import("generated_loop_fields_projection").Input), "mode") else enum { Initial, Restore, Minimum, Rebuild };
 
+pub const Fields = struct {
+    values: []const u32 = &.{},
+    changed: []const u32 = &.{},
+    replacements: []const u32 = &.{},
+};
+
 const Request = struct {
     mode: Mode,
     value: node.ExpressionId,
     layout: node.ExpressionId = @fromBackingInt(0),
     operation: ir.ExprId = @fromBackingInt(0),
-    values: []const u32 = &.{},
+    fields: Fields = .{},
 };
 
 pub fn initial(context: *const Context, lowering: *Lower) Lower.Error!node.ExpressionId {
@@ -27,8 +33,8 @@ pub fn minimum(context: *const Context, lowering: *Lower, operation: ir.ExprId) 
     return build(context, lowering, .{ .mode = .Minimum, .value = context.seed, .operation = operation });
 }
 
-pub fn rebuild(context: *const Context, lowering: *Lower, source: node.ExpressionId, layout: node.ExpressionId, values: []const u32) Lower.Error!node.ExpressionId {
-    return (try build(context, lowering, .{ .mode = .Rebuild, .value = source, .layout = layout, .values = values })).?;
+pub fn rebuild(context: *const Context, lowering: *Lower, source: node.ExpressionId, layout: node.ExpressionId, fields: Fields) Lower.Error!node.ExpressionId {
+    return (try build(context, lowering, .{ .mode = .Rebuild, .value = source, .layout = layout, .fields = fields })).?;
 }
 
 fn build(context: *const Context, lowering: *Lower, request: Request) Lower.Error!?node.ExpressionId {
@@ -47,7 +53,9 @@ fn build(context: *const Context, lowering: *Lower, request: Request) Lower.Erro
         .operation = @backingInt(request.operation),
         .active = lowering.state_active,
         .selected = lowering.state_plan.selected,
-        .values = request.values,
+        .values = request.fields.values,
+        .changed = request.fields.changed,
+        .replacements = request.fields.replacements,
         .expression_base = @intCast(lowering.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(lowering.builder.nodes.field_columns.count()),
     };

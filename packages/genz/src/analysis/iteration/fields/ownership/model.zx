@@ -1,14 +1,16 @@
 import type { ExpressionsKind } from "../../../../printer/model/expressions"
 import type { Facts } from "../../../state/ownership/model"
 
-export type Input = {
-    facts: Facts,
+export type Request = {
+    field: u32,
     type_id: u32,
-    borrowed: bool[],
-    mask: bool
+    slot: u32
 }
 
-export type Output = u32?[]
+export type Selection = {
+    reads: u64,
+    requests: Request[]
+}
 
 export type Prepare = {
     facts: Facts,
@@ -19,9 +21,16 @@ export type Prepare = {
     expression_base: u32
 }
 
+export type Query = Prepare.Pick(
+    "facts",
+    "type_id",
+    "borrowed",
+    "origin"
+)
+
 export type Read = {
     source: Prepare,
-    slots: Output
+    selection: Selection
 }
 
 export type Expressions = {
@@ -34,7 +43,7 @@ export type Expressions = {
 export type Prepared = {
     expressions: Expressions,
     values: u32[],
-    slots: Output,
+    requests: Request[],
     origin: u32,
     valid: bool
 }

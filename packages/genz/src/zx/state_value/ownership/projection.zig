@@ -6,7 +6,7 @@ const Lower = @import("../../lower.zig");
 const rows = @import("../../../node/import_rows.zig");
 const view = @import("../../../node/view.zig");
 
-pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32, required: bool) Lower.Error!node.ExpressionId {
     const planner = @import("generated_ownership_projection_plan");
     const PlanInput = std.meta.Child(planner.Input);
     const Outline = std.meta.Child(@FieldType(PlanInput, "source"));
@@ -33,6 +33,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
         .names = self.type_names,
         .key = &self.state_plan.keys[@backingInt(type_id)],
         .serial = self.serial,
+        .required = required,
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);

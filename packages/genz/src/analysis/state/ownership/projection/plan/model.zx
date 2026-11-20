@@ -8,7 +8,8 @@ export type Input = {
     hash: Sha256State,
     names?: string[],
     key: u8[],
-    serial: u64
+    serial: u64,
+    required: bool
 }
 
 export type Request = {

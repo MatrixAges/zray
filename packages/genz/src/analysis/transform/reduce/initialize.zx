@@ -6,7 +6,7 @@ import empty from "../../../ast/statements/empty"
 import type { Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const loop_start = integers.widen(in.statement_base) + in.entered_count
+    const loop_start = integers.widen(in.statement_base)
     const loop_count = in.element_count + 1
     const outer_start = loop_start + loop_count
     const generated_start = integers.narrow(outer_start + in.outer_count)
