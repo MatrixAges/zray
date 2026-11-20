@@ -1,0 +1,16 @@
+import type { Cache } from "package_cache_host"
+
+export enum Status {
+    Ready,
+    PackageNotCached,
+    CorruptPackageStore
+}
+
+export type Handle = Cache
+
+export type Input = {
+    cache: Cache,
+    offline: bool
+}
+
+export type Output = Status

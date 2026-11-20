@@ -1,0 +1,17 @@
+export type Archive = opaque
+
+export declare function nextTar(archive: Archive): bool throws { ArchiveHostFailure }
+export declare function tarName(archive: Archive): string
+export declare function tarDirectory(archive: Archive): bool
+export declare function tarFile(archive: Archive): bool
+export declare function tarExecutable(archive: Archive): bool
+export declare function normalizeArchivePath(path: string, directory: bool): string throws {
+    InvalidPackageArchivePath
+}
+export declare function claimTarPath(archive: Archive, path: string): bool throws {
+    ArchiveHostFailure
+}
+export declare function makeTarDirectory(archive: Archive): void throws { ArchiveHostFailure }
+export declare function writeTarFile(archive: Archive, executable: bool): void throws {
+    ArchiveHostFailure
+}

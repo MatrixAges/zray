@@ -1,0 +1,9 @@
+export type { Archive as Input } from "package_extract_host"
+
+export enum Status {
+    Valid,
+    DuplicatePackageArchivePath,
+    UnsupportedPackageTarEntry
+}
+
+export type Output = Status

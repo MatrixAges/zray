@@ -1,0 +1,29 @@
+import host from "package_receipt_host"
+
+import { digest_width } from "../const"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const count = host.fileCount(in)
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < count,
+        next: state => {
+            const row = state.row
+            const path = host.filePath(in, row)
+            const normal = host.normalizeArchivePath(path, false)
+            const digest = host.fileHash(in, row)
+
+            state.valid = normal == path && digest.length == digest_width &&
+                host.claimFile(in, row, normal)
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+}

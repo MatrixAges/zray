@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Receipt" />
+
+    <Args in={Receipt.Input} out={Receipt.Output} />
+
+    <Call fn="index.receiptIsFile" in={$in} />
+
+    <If on={!$ctx.receiptIsFile}>
+        <Return value={Receipt.Status.InvalidPackageReceipt} />
+    </If>
+
+    <Call fn="index.loadReceipt" in={$in} />
+    <Call fn="header" in={$in} />
+
+    <If on={!$ctx.header}>
+        <Return value={Receipt.Status.InvalidPackageReceipt} />
+    </If>
+
+    <Call fn="paths" in={$in} />
+
+    <If on={!$ctx.paths}>
+        <Return value={Receipt.Status.InvalidPackageReceipt} />
+    </If>
+
+    <Call fn="index.openTree" in={$in} />
+    <Call fn="scan" in={$in} />
+
+    <Return value={$ctx.scan} />
+</Module>

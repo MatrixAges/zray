@@ -1,0 +1,21 @@
+export const cache_directory: string = "packages"
+
+export const cache_version: string = "v1"
+
+export const content_directory: string = "contents"
+
+export const archive_directory: string = "archives"
+
+export const package_directory: string = "package"
+
+export const receipt_file: string = "receipt.json"
+
+export const receipt_version: u32 = 1
+
+export const maximum_archive: u64 = 134217728
+
+export const maximum_unpacked: u64 = 536870912
+
+export const maximum_entries: u64 = 65536
+
+export const digest_width: u64 = 64

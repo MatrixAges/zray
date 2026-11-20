@@ -1,0 +1,57 @@
+import host from "package_receipt_host"
+
+import { maximum_entries, maximum_unpacked } from "../const"
+import file from "./file"
+import { Status } from "./model"
+
+import type { Entries, Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const count = host.fileCount(in)
+
+    const initial: Entries = {
+        files: 0,
+        bytes: 0,
+        visited: 0,
+        more: true,
+        status: Status.Valid
+    }
+
+    return loop(initial, {
+        while: current => current.more && current.status == Status.Valid,
+        next: current => {
+            current.more = host.nextTreeEntry(in)
+
+            if (current.more) {
+                if (current.visited == maximum_entries) {
+                    current.status = Status.TooManyPackageEntries
+                } else {
+                    current.visited += 1
+
+                    if (!host.treeDirectory(in)) {
+                        if (host.treeFile(in)) {
+                            const bytes = file({
+                                receipt: in,
+                                remaining: maximum_unpacked - current.bytes
+                            })
+
+                            if (bytes == null) {
+                                current.status = Status.CorruptPackageStore
+                            } else {
+                                current.bytes += bytes
+                                current.files += 1
+                            }
+                        } else {
+                            current.status = Status.CorruptPackageStore
+                        }
+                    }
+                }
+            }
+        },
+        return: current => match {
+            current.status != Status.Valid => current.status,
+            current.files != count => Status.CorruptPackageStore,
+            _ => Status.Valid
+        }
+    })
+}

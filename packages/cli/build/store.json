@@ -1,0 +1,45 @@
+{
+    "roots": [
+        {
+            "path": "store",
+            "prefix": "store/"
+        },
+        {
+            "path": "extract",
+            "prefix": "extract/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "store/const.zx",
+            "name": "constants"
+        },
+        {
+            "path": "store/cache/prepare.rx",
+            "name": "prepare"
+        },
+        {
+            "path": "store/receipt/verify.rx",
+            "name": "receipt"
+        },
+        {
+            "path": "extract/unpack.zx",
+            "name": "unpack"
+        }
+    ],
+    "packages": [],
+    "interfaces": [
+        {
+            "path": "store/cache/host.d.zx",
+            "module": "package_cache_host"
+        },
+        {
+            "path": "store/receipt/host.d.zx",
+            "module": "package_receipt_host"
+        },
+        {
+            "path": "extract/host.d.zx",
+            "module": "package_extract_host"
+        }
+    ]
+}

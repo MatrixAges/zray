@@ -1,0 +1,32 @@
+import host from "package_extract_host"
+
+import { Status } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const directory = host.tarDirectory(in)
+    const path = host.normalizeArchivePath(host.tarName(in), directory)
+
+    if (path == "") {
+        return Status.Valid
+    }
+
+    if (!host.claimTarPath(in, path)) {
+        return Status.DuplicatePackageArchivePath
+    }
+
+    if (directory) {
+        host.makeTarDirectory(in)
+
+        return Status.Valid
+    }
+
+    if (!host.tarFile(in)) {
+        return Status.UnsupportedPackageTarEntry
+    }
+
+    host.writeTarFile(in, host.tarExecutable(in))
+
+    return Status.Valid
+}

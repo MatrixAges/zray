@@ -62,6 +62,45 @@ pub fn packages(b: *std.Build, compiler: *std.Build.Dependency, target: std.Buil
     });
 }
 
+pub fn store(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, pkgs: *std.Build.Module, cli_source: *std.Build.Module) *std.Build.Module {
+    const files = b.addWriteFiles();
+    _ = files.addCopyDirectory(b.path("src/package/store"), "store", .{ .include_extensions = &.{ ".rx", ".zx" } });
+    _ = files.addCopyDirectory(b.path("src/package/archive/extract"), "extract", .{ .include_extensions = &.{ ".rx", ".zx" } });
+
+    const generated = generate(b, compiler, files, "build/store.json", "store");
+
+    const host = b.addModule("package_store", .{
+        .root_source_file = b.path("src/package/store.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "pkgs", .module = pkgs },
+            .{ .name = "cli_source", .module = cli_source },
+        },
+    });
+
+    const effects = b.createModule(.{
+        .root_source_file = b.path("src/package/store/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "package_store", .module = host }},
+    });
+
+    host.addAnonymousImport("package_cache", .{
+        .root_source_file = generated.path(b, "root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
+            .{ .name = "package_cache_host", .module = effects },
+            .{ .name = "package_extract_host", .module = effects },
+            .{ .name = "package_receipt_host", .module = effects },
+        },
+    });
+
+    return host;
+}
+
 fn generate(b: *std.Build, compiler: *std.Build.Dependency, files: *std.Build.Step.WriteFile, manifest: []const u8, output: []const u8) std.Build.LazyPath {
     const run = std.Build.Step.Run.create(b, "generate CLI source modules");
 

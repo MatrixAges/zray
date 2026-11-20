@@ -1,0 +1,22 @@
+import host from "package_receipt_host"
+
+import { maximum_entries, receipt_version } from "../const"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const version = host.formatVersion(in)
+    const recorded = host.archiveHash(in)
+    const expected = host.requiredHash(in)
+    const count = host.fileCount(in)
+
+    const valid = (
+        - version == receipt_version
+        - and recorded == expected
+        - and count <= maximum_entries
+    )
+
+    return valid
+}

@@ -1,0 +1,18 @@
+export type { Receipt as Input } from "package_receipt_host"
+
+export enum Status {
+    Valid,
+    InvalidPackageReceipt,
+    CorruptPackageStore,
+    TooManyPackageEntries
+}
+
+export type Output = Status
+
+export type Entries = {
+    files: u64,
+    bytes: u64,
+    visited: u64,
+    more: bool,
+    status: Status
+}

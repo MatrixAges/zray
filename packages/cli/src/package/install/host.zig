@@ -65,7 +65,7 @@ pub const State = struct {
     }
 
     pub fn fetch(self: *State, release: pkgs.Index.Release, base: []const u8) ![]const u8 {
-        return @import("../store.zig").prepare(self.io, self.allocator, release, base, self.cache, self.options.offline);
+        return @import("package_store").prepare(self.io, self.allocator, release, base, self.cache, self.options.offline);
     }
 };
 

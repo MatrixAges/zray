@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Input} out={Cache.Output} />
+
+    <Call fn="index.cached" in={$in.cache} />
+
+    <If on={$ctx.cached}>
+        <Return value={Cache.Status.Ready} />
+    </If>
+
+    <Call fn="index.readBlob" in={$in.cache} />
+
+    <If on={!$ctx.readBlob}>
+        <If on={$in.offline}>
+            <Return value={Cache.Status.PackageNotCached} />
+        </If>
+
+        <Call fn="index.download" in={$in.cache} />
+    </If>
+
+    <Call module="stage" in={$in.cache} />
+
+    <If on={!$ctx.readBlob}>
+        <Call fn="index.publishBlob" in={$in.cache} />
+    </If>
+
+    <Call fn="index.publishStaging" in={$in.cache} />
+
+    <If on={!$ctx.publishStaging}>
+        <Call fn="index.winnerAvailable" in={$in.cache} />
+
+        <If on={!$ctx.winnerAvailable}>
+            <Return value={Cache.Status.CorruptPackageStore} />
+        </If>
+    </If>
+
+    <Return value={Cache.Status.Ready} />
+</Module>

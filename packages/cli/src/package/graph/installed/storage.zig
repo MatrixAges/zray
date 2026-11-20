@@ -4,6 +4,7 @@ const graph = @import("../../graph.zig");
 const files = @import("../../install/files.zig");
 const model = @import("../../install/model.zig");
 const host = @import("../host.zig");
+const store = @import("package_store");
 
 pub fn openLock(handle: *const anyopaque) host.Error!bool {
     const self = host.State.get(handle);
@@ -74,14 +75,14 @@ pub fn verifyReceipt(handle: *const anyopaque, parent: []const u8, digest: []con
     const self = host.State.get(handle);
     const io = self.io;
     const allocator = self.allocator;
-    const receipt = std.fs.path.join(allocator, &.{ parent, "receipt.json" }) catch |err| return self.fail(err);
+    const receipt = std.fs.path.join(allocator, &.{ parent, store.constants.receipt_file }) catch |err| return self.fail(err);
 
     if (self.inputs) |observed| observed.add(io, receipt) catch |err| return self.fail(err);
 
     var directory = std.Io.Dir.cwd().openDir(io, parent, .{ .follow_symlinks = false }) catch |err| return self.fail(err);
 
     defer directory.close(io);
-    @import("../../store/receipt.zig").verify(io, allocator, directory, digest) catch |err| return self.fail(err);
+    store.receipt.verify(io, allocator, directory, digest) catch |err| return self.fail(err);
 }
 
 pub fn readArchive(handle: *const anyopaque, path: []const u8) host.Error!void {

@@ -12,10 +12,11 @@ pub const Result = struct {
     }
 };
 
-pub const maximum_archive = 128 * 1024 * 1024;
-pub const maximum_unpacked = 512 * 1024 * 1024;
-pub const maximum_entries = 65536;
-const Verified = struct { source: []const u8 };
+const constants = @import("package_cache").constants.@"zx.constants";
+pub const maximum_archive: usize = constants.maximum_archive;
+pub const maximum_unpacked: usize = constants.maximum_unpacked;
+pub const maximum_entries: usize = constants.maximum_entries;
+pub const Verified = struct { source: []const u8 };
 
 pub fn verify(source: []const u8, expected: [32]u8) !Verified {
     if (source.len > maximum_archive) return error.PackageArchiveTooLarge;
@@ -42,50 +43,29 @@ pub fn unpack(io: std.Io, allocator: std.mem.Allocator, verified: Verified, dire
 
     errdefer arena.deinit();
 
-    const owned = arena.allocator();
-    var paths: std.StringHashMapUnmanaged(void) = .empty;
-    var files: std.ArrayList(File) = .empty;
     var input: std.Io.Reader = .fixed(unpacked);
     var names: [std.fs.max_path_bytes]u8 = undefined;
     var links: [std.fs.max_path_bytes]u8 = undefined;
     var iterator = std.tar.Iterator.init(&input, .{ .file_name_buffer = &names, .link_name_buffer = &links });
 
-    while (try iterator.next()) |entry| {
-        const name = try @import("archive/path.zig").normalize(entry.name, entry.kind == .directory);
+    var state: extraction.State = .{
+        .io = io,
+        .directory = directory,
+        .allocator = arena.allocator(),
+        .iterator = &iterator,
+    };
 
-        if (name.len == 0) continue;
+    const status = @import("package_cache").unpack.executeValue(state.allocator, @ptrCast(&state)) catch |err| switch (err) {
+        error.ArchiveHostFailure => return state.failure.?,
+        else => |failure| return failure,
+    };
 
-        const path = try owned.dupe(u8, name);
-        const previous = try paths.getOrPut(owned, path);
-
-        if (previous.found_existing) return error.DuplicatePackageArchivePath;
-
-        switch (entry.kind) {
-            .directory => try directory.createDirPath(io, path),
-            .sym_link => return error.UnsupportedPackageTarEntry,
-            .file => {
-                if (std.fs.path.dirname(path)) |parent| try directory.createDirPath(io, parent);
-
-                const executable = entry.mode & 0o100 != 0;
-                const file = try directory.createFile(io, path, .{ .exclusive = true, .permissions = if (executable) .executable_file else .default_file });
-
-                defer file.close(io);
-
-                var output_buffer: [65536]u8 = undefined;
-                var hash_buffer: [65536]u8 = undefined;
-                var output = file.writer(io, &output_buffer);
-                var hashed = std.Io.Writer.Hashed(Sha256).initHasher(&output.interface, .init(.{}), &hash_buffer);
-
-                try iterator.streamRemaining(entry, &hashed.writer);
-                try hashed.writer.flush();
-                try output.interface.flush();
-
-                const hex = std.fmt.bytesToHex(hashed.hasher.finalResult(), .lower);
-
-                try files.append(owned, .{ .path = path, .sha256 = try owned.dupe(u8, &hex), .executable = executable });
-            },
-        }
+    switch (status) {
+        .Valid => {},
+        inline else => |reason| return @field(anyerror, @tagName(reason)),
     }
 
-    return .{ .arena = arena, .files = try files.toOwnedSlice(owned) };
+    return .{ .arena = arena, .files = try state.files.toOwnedSlice(state.allocator) };
 }
+
+pub const extraction = @import("archive/extract/storage.zig");

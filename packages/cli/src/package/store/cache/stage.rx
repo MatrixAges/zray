@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Handle} out={void} />
+
+    <Call fn="index.verifyBlob" in={$in} />
+    <Call fn="index.createStaging" in={$in} />
+    <Call fn="index.unpack" in={$in} />
+    <Call fn="index.writeReceipt" in={$in} />
+    <Call fn="index.checkStaging" in={$in} />
+    <Call fn="index.closeStaging" in={$in} />
+</Module>

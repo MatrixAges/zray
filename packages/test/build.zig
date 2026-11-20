@@ -791,14 +791,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(@import("build/manifest_resources.zig").add(b, cli_dependency, compiler, pkgs.module("pkgs"), target, optimize));
 
     const archive_step = b.step("test-package-archive", "Validate package archive integrity paths extraction and resources");
-
-    const archive_module = b.createModule(.{
-        .root_source_file = cli_dependency.path("src/package/archive.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    archive_module.addImport("cli_source", cli_dependency.module("cli_source"));
+    const store_module = cli_dependency.module("package_store");
 
     for ([_][]const u8{ "content", "structure", "paths" }) |name| {
         const archive_tests = b.addTest(.{
@@ -806,7 +799,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path(b.fmt("tests/package_archive/{s}_test.zig", .{name})),
                 .target = target,
                 .optimize = optimize,
-                .imports = &.{.{ .name = "package_archive", .module = archive_module }},
+                .imports = &.{.{ .name = "package_store", .module = store_module }},
             }),
         });
 
@@ -878,15 +871,6 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(index_step);
 
     const store_step = b.step("test-package-store", "Validate package store publication offline cache integrity and resources");
-
-    const store_module = b.createModule(.{
-        .root_source_file = cli_dependency.path("src/package/store.zig"),
-        .target = target,
-        .optimize = optimize,
-        .imports = &.{.{ .name = "pkgs", .module = pkgs.module("pkgs") }},
-    });
-
-    store_module.addImport("cli_source", cli_dependency.module("cli_source"));
 
     const archive_data = b.createModule(.{
         .root_source_file = b.path("tests/package_archive/data.zig"),

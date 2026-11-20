@@ -1,6 +1,6 @@
 const std = @import("std");
 const allocation_testing = @import("allocation_testing");
-const archive = @import("package_archive");
+const archive = @import("package_store").archive;
 const fixture = @import("fixture.zig");
 const io = std.testing.io;
 const allocator = std.testing.allocator;

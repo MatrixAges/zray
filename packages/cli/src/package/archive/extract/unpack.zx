@@ -1,0 +1,23 @@
+import host from "package_extract_host"
+
+import entry from "./entry"
+import { Status } from "./model"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    return loop({
+        more: true,
+        status: Status.Valid
+    }, {
+        while: current => current.more && current.status == Status.Valid,
+        next: current => {
+            current.more = host.nextTar(in)
+
+            if (current.more) {
+                current.status = entry(in)
+            }
+        },
+        return: current => current.status
+    })
+}

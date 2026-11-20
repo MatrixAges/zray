@@ -1,0 +1,41 @@
+import host from "package_receipt_host"
+
+import type { Input as Receipt } from "./model"
+
+export type Input = {
+    receipt: Receipt,
+    remaining: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { receipt, remaining } = in
+
+    const index = host.lookupFile(receipt)
+
+    if (index == null) {
+        return null
+    }
+
+    const executable = host.expectedExecutable(receipt, index)
+
+    host.openTreeFile(receipt)
+
+    if (!host.permissionsMatch(receipt, executable)) {
+        return null
+    }
+
+    const length = host.hashTreeFile(receipt, remaining)
+
+    if (length == null) {
+        return null
+    }
+
+    const digest = host.currentHash(receipt)
+    const expected = host.fileHash(receipt, index)
+
+    host.closeTreeFile(receipt)
+
+    return digest == expected ? length : null
+}

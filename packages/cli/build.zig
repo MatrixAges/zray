@@ -37,6 +37,7 @@ pub fn build(b: *std.Build) void {
     });
 
     host.addImport("cli_packages", @import("build/source.zig").packages(b, compiler, target, optimize, installation_host));
+    host.addImport("package_store", @import("build/source.zig").store(b, compiler, target, optimize, pkgs.module("pkgs"), host.import_table.get("cli_source").?));
     host.addImport("manifest_output", b.modules.get("manifest_output").?);
 
     const yaml = @import("build/yaml.zig").link(b, host, target, optimize);
