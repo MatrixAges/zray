@@ -1,5 +1,5 @@
 const std = @import("std");
-const Inputs = @import("inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Self = @This();
 
 allocator: std.mem.Allocator,

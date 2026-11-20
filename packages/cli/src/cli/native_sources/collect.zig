@@ -2,7 +2,7 @@ const std = @import("std");
 const references = @import("../native_references.zig");
 const paths = @import("path.zig");
 const rules = @import("cli_source");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const NativeModule = @import("../project.zig").NativeModule;
 pub const File = struct { path: []const u8, kind: references.Kind, bytes: [:0]const u8, referenced_from: ?[]const u8 };
 

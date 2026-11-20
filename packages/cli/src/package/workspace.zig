@@ -1,5 +1,5 @@
 const std = @import("std");
-const Inputs = @import("../cli/watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const compiler = @import("compiler");
 const zx = @import("zx");
 const source = @import("manifest/input.zig");

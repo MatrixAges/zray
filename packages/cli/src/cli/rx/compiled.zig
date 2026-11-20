@@ -3,7 +3,7 @@ const compiler = @import("compiler");
 const rx = @import("rx");
 const zx = @import("zx");
 const Libraries = @import("../library/inputs.zig");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 
 pub const Options = struct {
     io: std.Io,

@@ -1,7 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const zx = @import("zx");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 
 pub fn prepare(io: std.Io, allocator: std.mem.Allocator, source: compiler.project.Source, project: compiler.project.Options, inputs: ?*Inputs) !compiler.project.Source {
     var reporter: zx.Reporter = .{};

@@ -53,7 +53,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler")
     return true;
 }
 
-pub fn runObserved(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler").zig.ModuleBundle, options: Options, loaded: Loaded, toolchain: @import("toolchain.zig").Paths, environment: *const std.process.Environ.Map, inputs: *@import("watch/inputs.zig")) !Observed {
+pub fn runObserved(io: std.Io, allocator: std.mem.Allocator, bundle: @import("compiler").zig.ModuleBundle, options: Options, loaded: Loaded, toolchain: @import("toolchain.zig").Paths, environment: *const std.process.Environ.Map, inputs: *@import("watch_inputs").Inputs) !Observed {
     const cache = try Cache.init(io, allocator, environment);
     var backend_environment = try environmentFor(allocator, environment, toolchain.library);
 

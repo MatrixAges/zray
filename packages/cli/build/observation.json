@@ -1,0 +1,41 @@
+{
+    "roots": [
+        {
+            "path": "observation",
+            "prefix": "observation/"
+        }
+    ],
+    "entries": [
+        {
+            "path": "observation/add.rx",
+            "name": "add"
+        },
+        {
+            "path": "observation/record.rx",
+            "name": "record"
+        },
+        {
+            "path": "observation/capture.rx",
+            "name": "capture"
+        },
+        {
+            "path": "observation/scan.rx",
+            "name": "scan"
+        },
+        {
+            "path": "observation/read.rx",
+            "name": "read"
+        },
+        {
+            "path": "observation/same.zx",
+            "name": "same"
+        }
+    ],
+    "packages": [],
+    "interfaces": [
+        {
+            "path": "observation/host.d.zx",
+            "module": "snapshot_host"
+        }
+    ]
+}

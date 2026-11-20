@@ -1,0 +1,24 @@
+export { Admission, PathKind } from "snapshot_host"
+
+import type { Observation, Registration, Scan } from "snapshot_host"
+
+export type { Capture, Registration, Scan } from "snapshot_host"
+
+export type ScanInput = {
+    scan: Scan,
+    consistent: bool,
+    versioned: bool,
+    reuse_versions: bool
+}
+
+export type ScanRows = ScanInput.Omit("consistent")
+
+export type ReadInput = {
+    observation: Observation,
+    directory_entries: bool
+}
+
+export type AddInput = {
+    registration: Registration,
+    directory_entries: bool
+}

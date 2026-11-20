@@ -1,6 +1,6 @@
 const std = @import("std");
 const Lock = @import("pkgs").Lock;
-const Inputs = @import("../../cli/watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 pub const Loaded = struct { lock: Lock, source: []const u8 };
 pub const Installation = struct { format_version: u32, lock_sha256: []const u8, paths: []const []const u8 };
 

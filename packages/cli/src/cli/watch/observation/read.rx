@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Snapshot" />
+
+    <Args in={Snapshot.ReadInput} out={void} />
+
+    <Call fn="index.classify" in={$in.observation} />
+
+    <Switch on={$ctx.classify}>
+        <Case value={Snapshot.PathKind.Directory}>
+            <If on={$in.directory_entries}>
+                <Call fn="index.fullDirectory" in={$in.observation} />
+
+                <Else>
+                    <Call fn="index.workspaceDirectory" in={$in.observation} />
+                </Else>
+            </If>
+        </Case>
+
+        <Case value={Snapshot.PathKind.File}>
+            <Call fn="index.readFile" in={$in.observation} />
+        </Case>
+    </Switch>
+</Module>

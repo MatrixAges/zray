@@ -3,7 +3,7 @@ const compiler = @import("compiler");
 const zx = @import("zx");
 const store = @import("rx_analysis").store;
 const Loaded = @import("../project.zig").Loaded;
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Sources = @import("../sources.zig");
 const Text = @import("../sources/text.zig");
 

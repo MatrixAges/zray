@@ -1,7 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const resolve = compiler.project.compiled.resolve;
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Self = @This();
 
 allocator: std.mem.Allocator,

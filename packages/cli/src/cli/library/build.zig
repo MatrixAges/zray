@@ -2,7 +2,7 @@ const std = @import("std");
 const compiler = @import("compiler");
 const Compile = @import("../compile.zig");
 const Loaded = @import("../project.zig").Loaded;
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 
 pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.Status {
     const allocator = context.allocator;

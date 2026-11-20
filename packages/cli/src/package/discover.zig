@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const Inputs = @import("../cli/watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const source = @import("manifest/input.zig");
 const workspace = @import("workspace.zig");
 const decision = @import("cli_source").workspace_discovery_decision;

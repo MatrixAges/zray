@@ -1,5 +1,5 @@
 const std = @import("std");
-const Inputs = @import("inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 
 pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, path: []const u8) ![:0]u8 {
     const absolute = try std.fs.path.resolve(allocator, &.{ inputs.cwd, path });

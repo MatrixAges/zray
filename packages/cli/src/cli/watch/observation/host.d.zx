@@ -1,0 +1,46 @@
+export type Scan = opaque
+export type Observation = opaque
+export type Registration = opaque
+export type Capture = opaque
+
+export enum PathKind {
+    Classified,
+    Directory,
+    File
+}
+
+export enum Admission {
+    Unchanged,
+    New,
+    Upgrade
+}
+
+export declare function scanCount(scan: Scan): u64
+export declare function startVersions(scan: Scan): void
+export declare function versionMatches(scan: Scan, index: u64): bool throws { ObservationFailure }
+export declare function readRow(scan: Scan, index: u64, versioned: bool): bool throws {
+    ObservationFailure
+}
+
+export declare function classify(observation: Observation): PathKind throws { ObservationFailure }
+export declare function fullDirectory(observation: Observation): void throws { ObservationFailure }
+export declare function workspaceDirectory(observation: Observation): void throws { ObservationFailure }
+export declare function readFile(observation: Observation): void throws { ObservationFailure }
+
+export declare function admit(registration: Registration, directory_entries: bool): Admission throws {
+    ObservationFailure
+}
+export declare function reusePrior(registration: Registration): bool throws { ObservationFailure }
+export declare function readCurrent(registration: Registration, directory_entries: bool): void throws {
+    ObservationFailure
+}
+export declare function comparePrevious(registration: Registration): void throws { ObservationFailure }
+export declare function commit(registration: Registration, directory_entries: bool): void
+
+export declare function recordFile(registration: Registration): bool throws { ObservationFailure }
+export declare function compareRecorded(registration: Registration): void
+export declare function commitRecorded(registration: Registration): void
+
+export declare function captureCount(capture: Capture): u64
+export declare function captureEntry(capture: Capture, index: u64): void throws { ObservationFailure }
+export declare function sortCapture(capture: Capture): void

@@ -2,7 +2,7 @@ const std = @import("std");
 const rx = @import("rx");
 const compiler = @import("compiler");
 const gateway = @import("rx_analysis").gateway;
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Text = @import("../sources/text.zig");
 
 pub const Options = struct {

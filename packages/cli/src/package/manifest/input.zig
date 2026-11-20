@@ -1,6 +1,6 @@
 const std = @import("std");
 const manifest = @import("../manifest.zig");
-const Inputs = @import("../../cli/watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Manifest = @import("model.zig").Manifest;
 const manifest_limit = 4 * 1024 * 1024;
 

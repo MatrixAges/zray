@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Snapshot" />
+
+    <Args in={Snapshot.Capture} out={void} />
+
+    <Call fn="capture_entries" in={$in} />
+    <Call fn="index.sortCapture" in={$in} />
+</Module>

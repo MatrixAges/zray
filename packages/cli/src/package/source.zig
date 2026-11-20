@@ -1,6 +1,6 @@
 const std = @import("std");
 const compiler = @import("compiler");
-const Inputs = @import("../cli/watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 
 pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, scopes: []const compiler.project.PackageScope) !void {
     return validateWithInputs(io, allocator, path, scopes, null);

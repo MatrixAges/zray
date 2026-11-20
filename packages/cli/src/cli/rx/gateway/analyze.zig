@@ -4,7 +4,7 @@ const gateway = @import("rx_analysis").gateway;
 const collection = @import("../collection.zig");
 const services = @import("../../library/analyze.zig");
 const Loaded = @import("../../project.zig").Loaded;
-const Inputs = @import("../../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Export = @import("../../../package/manifest/model.zig").Export;
 pub const Options = struct { io: std.Io, loaded: Loaded, writer: *std.Io.Writer, inputs: ?*Inputs = null, parse_cache: ?*compiler.project.ParseCache = null };
 

@@ -1,6 +1,6 @@
 const std = @import("std");
 const compiler = @import("compiler");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const codec = compiler.library.codec;
 const constants = @import("cli_source").compiled_artifact_constants.@"zx.constants";
 

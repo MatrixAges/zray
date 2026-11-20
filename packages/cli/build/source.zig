@@ -166,6 +166,45 @@ pub fn watch(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.R
     });
 }
 
+pub fn observations(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, cli_source: *std.Build.Module) *std.Build.Module {
+    const files = b.addWriteFiles();
+    _ = files.addCopyDirectory(b.path("src/cli/watch/observation"), "observation", .{ .include_extensions = &.{ ".rx", ".zx" } });
+
+    const generated = generate(b, compiler, files, "build/observation.json", "observation");
+    const abi = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") });
+
+    const observations_module = b.addModule("watch_inputs", .{
+        .root_source_file = b.path("src/watch_inputs.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "compiler", .module = compiler.module("compiler") },
+            .{ .name = "cli_source", .module = cli_source },
+            .{ .name = "watch_observation_abi", .module = abi },
+        },
+    });
+
+    const effects = b.createModule(.{
+        .root_source_file = b.path("src/cli/watch/observation/bindings.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "watch_inputs", .module = observations_module }},
+    });
+
+    observations_module.addAnonymousImport("watch_observation", .{
+        .root_source_file = generated.path(b, "root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zxc_abi", .module = abi },
+            .{ .name = "zxc_standard", .module = compiler.module("generated_standard") },
+            .{ .name = "snapshot_host", .module = effects },
+        },
+    });
+
+    return observations_module;
+}
+
 fn generate(b: *std.Build, compiler: *std.Build.Dependency, files: *std.Build.Step.WriteFile, manifest: []const u8, output: []const u8) std.Build.LazyPath {
     const run = std.Build.Step.Run.create(b, "generate CLI source modules");
 

@@ -14,7 +14,7 @@ package_scope: ?compiler.project.ImportScope = null,
 queue: *std.ArrayList([]const u8),
 queued: *std.StringHashMapUnmanaged(void),
 io: std.Io,
-inputs: ?*@import("../../watch/inputs.zig"),
+inputs: ?*@import("watch_inputs").Inputs,
 libraries: ?*@import("../../library/inputs.zig"),
 writer: *std.Io.Writer,
 fn scope(self: *Self) compiler.project.ImportScope {

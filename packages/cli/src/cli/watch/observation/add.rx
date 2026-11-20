@@ -1,0 +1,47 @@
+<Module>
+    <Type from="model" as="Snapshot" />
+
+    <Args in={Snapshot.AddInput} out={Snapshot.Admission} />
+
+    <Call
+        fn="index.admit"
+        in={[
+            $in.registration,
+            $in.directory_entries
+        ]}
+    />
+
+    <If on={$ctx.admit == Snapshot.Admission.Unchanged}>
+        <Return value={$ctx.admit} />
+    </If>
+
+    <If on={!$in.directory_entries && $ctx.admit == Snapshot.Admission.New}>
+        <Call fn="index.reusePrior" in={$in.registration} />
+
+        <If on={$ctx.reusePrior}>
+            <Return value={$ctx.admit} />
+        </If>
+    </If>
+
+    <Call
+        fn="index.readCurrent"
+        in={[
+            $in.registration,
+            $in.directory_entries
+        ]}
+    />
+
+    <If on={$ctx.admit == Snapshot.Admission.Upgrade}>
+        <Call fn="index.comparePrevious" in={$in.registration} />
+    </If>
+
+    <Call
+        fn="index.commit"
+        in={[
+            $in.registration,
+            $in.directory_entries
+        ]}
+    />
+
+    <Return value={$ctx.admit} />
+</Module>

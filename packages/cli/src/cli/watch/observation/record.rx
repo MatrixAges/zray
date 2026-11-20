@@ -1,0 +1,13 @@
+<Module>
+    <Type from="model" as="Snapshot" />
+
+    <Args in={Snapshot.Registration} out={void} />
+
+    <Call fn="index.recordFile" in={$in} />
+
+    <If on={$ctx.recordFile}>
+        <Call fn="index.compareRecorded" in={$in} />
+    </If>
+
+    <Call fn="index.commitRecorded" in={$in} />
+</Module>

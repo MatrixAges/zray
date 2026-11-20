@@ -1,7 +1,7 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const zx = @import("zx");
-const Inputs = @import("watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Libraries = @import("library/inputs.zig");
 const Text = @import("sources/text.zig");
 

@@ -1,5 +1,5 @@
 const std = @import("std");
-const Inputs = @import("../cli/watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const workspace = @import("workspace.zig");
 const Manifest = @import("manifest/model.zig").Manifest;
 const pkgs = @import("pkgs");

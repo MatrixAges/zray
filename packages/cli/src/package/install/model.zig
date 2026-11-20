@@ -2,7 +2,7 @@ const std = @import("std");
 const Lock = @import("pkgs").Lock;
 const source = @import("../manifest/input.zig");
 const Manifest = @import("../manifest/model.zig").Manifest;
-const Inputs = @import("../../cli/watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 
 pub const Prepared = struct { lock: Lock, paths: []const []const u8, source: ?[]const u8 = null };
 

@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Options = @import("../options.zig").Options;
 const Response = @import("../backend/protocol.zig").Result;
 const Self = @This();

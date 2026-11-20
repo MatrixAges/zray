@@ -326,7 +326,7 @@ pub fn build(b: *std.Build) void {
     const publish_step = b.step("test-backend-publish", "Validate real artifact publication gates and preserved outputs");
     const observed_sources = b.addWriteFiles();
     _ = observed_sources.addCopyDirectory(cli_dependency.path("src"), "source", .{});
-    const observed_root = observed_sources.add("root.zig", "pub const Output = @import(\"source/cli/watch/output.zig\");\npub const Backend = @import(\"source/cli/backend/process.zig\");\npub const Observed = @import(\"source/cli/build/observed.zig\");\npub const Inputs = @import(\"source/cli/watch/inputs.zig\");\npub const Options = @import(\"source/cli/options.zig\").Options;\n");
+    const observed_root = observed_sources.add("root.zig", "pub const Output = @import(\"source/cli/watch/output.zig\");\npub const Backend = @import(\"source/cli/backend/process.zig\");\npub const Observed = @import(\"source/cli/build/observed.zig\");\npub const Inputs = @import(\"watch_inputs\").Inputs;\npub const Options = @import(\"source/cli/options.zig\").Options;\n");
 
     const observed = b.createModule(.{
         .root_source_file = observed_root,
@@ -334,6 +334,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "cli_source", .module = cli_dependency.module("cli_source") },
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "toolchain_cache", .module = cli_dependency.module("toolchain_cache") },
+            .{ .name = "watch_inputs", .module = cli_dependency.module("watch_inputs") },
         },
         .target = target,
         .optimize = optimize,

@@ -3,7 +3,7 @@ const compiler = @import("compiler");
 const analysis = @import("rx_analysis");
 const collection = @import("collection.zig");
 const Sources = @import("../sources.zig");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Text = @import("../sources/text.zig");
 pub const Result = struct { analysis: compiler.AnalysisResult, sources: []const compiler.project.Source, store_definitions: []const analysis.store.Definition };
 

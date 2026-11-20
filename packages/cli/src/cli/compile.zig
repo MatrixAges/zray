@@ -27,7 +27,7 @@ pub fn run(raw_context: Context) !Status {
     var options = context.options;
     const stdout = context.stdout;
     const stderr = context.stderr;
-    var library_inputs = if (context.watch == null and options.mode == .lib) try @import("watch/inputs.zig").init(context.io, allocator) else null;
+    var library_inputs = if (context.watch == null and options.mode == .lib) try @import("watch_inputs").Inputs.init(context.io, allocator) else null;
 
     defer if (library_inputs) |*observed| observed.deinit();
 

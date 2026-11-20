@@ -1,5 +1,5 @@
 const std = @import("std");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 
 pub fn files(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs) ![]const []const u8 {
     if (inputs) |observed| try observed.add(io, path);

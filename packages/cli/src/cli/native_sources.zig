@@ -14,7 +14,7 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
     return writeWithInputs(io, allocator, directory, project_root, module, null);
 }
 
-pub fn writeWithInputs(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, project_root: []const u8, module: NativeModule, inputs: ?*@import("watch/inputs.zig")) !Result {
+pub fn writeWithInputs(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, project_root: []const u8, module: NativeModule, inputs: ?*@import("watch_inputs").Inputs) !Result {
     if (module.header) |header| {
         if (std.fs.path.isAbsolute(header)) return error.AbsoluteNativeHeaderCannotBeBundled;
     }
@@ -79,7 +79,7 @@ pub fn writeWithInputs(io: std.Io, allocator: std.mem.Allocator, directory: []co
     };
 }
 
-fn relocateIncludes(io: std.Io, allocator: std.mem.Allocator, project_root: []const u8, source: *const collect.Result, destination: []const u8, paths: []const []const u8, inputs: ?*@import("watch/inputs.zig")) !Includes {
+fn relocateIncludes(io: std.Io, allocator: std.mem.Allocator, project_root: []const u8, source: *const collect.Result, destination: []const u8, paths: []const []const u8, inputs: ?*@import("watch_inputs").Inputs) !Includes {
     const relocated = try allocator.alloc([]const u8, paths.len);
     var relocations: std.ArrayList(Include) = .empty;
     var memory = std.heap.FixedBufferAllocator.init(&.{});

@@ -1,6 +1,6 @@
 const std = @import("std");
 const compiler = @import("compiler");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 const Config = @import("../../package/manifest/model.zig").Manifest;
 
 pub fn load(io: std.Io, allocator: std.mem.Allocator, root_dir: []const u8, config: Config, inputs: ?*Inputs) ![]compiler.project.NativeInterface {

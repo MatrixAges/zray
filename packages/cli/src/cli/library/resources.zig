@@ -2,7 +2,7 @@ const std = @import("std");
 const project_config = @import("../project.zig");
 const artifacts = @import("../artifacts.zig");
 const native_sources = @import("../native_sources.zig");
-const Inputs = @import("../watch/inputs.zig");
+const Inputs = @import("watch_inputs").Inputs;
 pub const Dependency = struct { name: []const u8, header: ?[]const u8, c_imports: bool = false, dynamic_resources: bool = false, include_relocations: []const native_sources.Include = &.{} };
 
 pub const Result = struct {
