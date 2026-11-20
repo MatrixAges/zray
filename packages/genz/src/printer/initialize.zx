@@ -1,8 +1,5 @@
-import { Action, ByteSource } from "./model"
-import { Token } from "./model/token"
-
 import type { ByteWriter } from "memory"
-import type { Source, State, Frame } from "./model"
+import type { Source, State } from "./model"
 
 export type Input = {
     source: Source,
@@ -12,41 +9,11 @@ export type Input = {
 export type Output = State
 
 export default function (in: Input): Output {
-    const initial: State = {
+    return {
         source: in.source,
         stack: [],
         output: in.output,
-        depth: 0
+        depth: 0,
+        next: 0
     }
-
-    const frame: Frame = {
-        action: Action.Declaration,
-        token: Token.Empty,
-        bytes: ByteSource.None,
-        id: 0,
-        count: 0,
-        index: 0,
-        number: 0
-    }
-
-    return loop({
-        state: initial,
-        remaining: in.source.count,
-        frame
-    }, {
-        while: current => current.remaining != 0,
-        next: current => {
-            current.remaining -= 1
-            current.state.stack = current.state.stack.push({
-                ...current.frame,
-                action: Action.Text,
-                token: Token.Newline
-            })[0]
-            current.state.stack = current.state.stack.push({
-                ...current.frame,
-                id: current.state.source.first + current.remaining
-            })[0]
-        },
-        return: state => state.state
-    })
 }

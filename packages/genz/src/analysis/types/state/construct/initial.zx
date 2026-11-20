@@ -1,3 +1,5 @@
+import emptyDeclarations from "../../../../ast/declarations/empty"
+
 import type { Plan, Build } from "../model"
 
 export type Input = Plan
@@ -44,7 +46,7 @@ export default function (in: Input): Output {
         enum_type_base: [],
         struct_type_start: [],
         struct_type_len: [],
-        declarations: [],
+        declarations: emptyDeclarations({}),
         records: [],
         values: [],
         layouts: [],

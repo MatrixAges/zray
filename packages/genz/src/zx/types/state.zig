@@ -5,7 +5,7 @@ const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const generated = @import("generated_state_types");
 
-pub fn build(self: *Lower, declarations: *std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
+pub fn build(self: *Lower, declarations: ?*std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
     const Input = std.meta.Child(generated.Input);
     const Output = std.meta.Child(@FieldType(std.meta.Child(generated.Output), "types"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);

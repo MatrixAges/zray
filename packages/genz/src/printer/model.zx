@@ -81,6 +81,7 @@ export type State = {
     stack: Frame[]
     output: ByteWriter
     depth: u32
+    next: u32
 }
 
 export type Step = {

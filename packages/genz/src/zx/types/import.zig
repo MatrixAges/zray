@@ -1,12 +1,13 @@
 const std = @import("std");
 const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
+const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-
 pub const Payloads = enum { copy, borrow_text, retain };
+pub const Pending = std.ArrayList(node.Declaration);
 
 /// Field names must outlive the AST; retained payloads already belong to its allocator.
-pub fn append(self: *Lower, declarations: anytype, comptime Output: type, output: anytype, fields: anytype, payloads: Payloads) Lower.Error!void {
+pub fn append(self: *Lower, declarations: ?*Pending, comptime Output: type, output: anytype, fields: anytype, payloads: Payloads) Lower.Error!void {
     const Expressions = std.meta.Child(@FieldType(Output, "expressions"));
     const Definitions = std.meta.Child(@FieldType(Output, "definitions"));
     var expressions: Expressions = undefined;
@@ -35,16 +36,32 @@ pub fn append(self: *Lower, declarations: anytype, comptime Output: type, output
         error.InvalidAst => unreachable,
     };
 
-    try declarations.ensureUnusedCapacity(self.allocator, output.declarations.len);
+    const constants = output.declarations;
 
-    for (output.declarations) |item| {
-        const name = if (payloads != .copy) item.name else try self.allocator.dupe(u8, item.name);
+    const staged = declarations orelse {
+        const destination = &self.builder.nodes.declaration_rows;
 
-        declarations.appendAssumeCapacity(.{ .constant = .{
+        const result = if (payloads == .copy)
+            rows.append(self.allocator, destination, constants)
+        else
+            rows.appendBorrowed(self.allocator, destination, constants);
+
+        return result catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.InvalidAst => unreachable,
+        };
+    };
+
+    try staged.ensureUnusedCapacity(self.allocator, constants.constant_name.len);
+
+    for (constants.constant_name, constants.constant_type_expr, constants.constant_value, constants.constant_exported) |text, type_expr, value, exported| {
+        const name = if (payloads == .copy) try self.allocator.dupe(u8, text) else text;
+
+        staged.appendAssumeCapacity(.{ .constant = .{
             .name = name,
-            .type_expr = if (item.type_expr) |value| @fromBackingInt(value) else null,
-            .value = @fromBackingInt(item.value),
-            .exported = item.exported,
+            .type_expr = if (type_expr) |id| @fromBackingInt(id) else null,
+            .value = @fromBackingInt(value),
+            .exported = exported,
         } });
     }
 }

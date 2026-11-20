@@ -1,11 +1,15 @@
 const std = @import("std");
 const zx = @import("zx");
-const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 
 pub fn declarations(self: *Lower) Lower.Error!@import("../node/stored.zig").Declarations {
     if (!@import("genz_options").generated_analysis) return self.builder.nodes.declarations(self.allocator, try @import("type_bundle/seed.zig").declarations(self));
 
+    const first = self.builder.nodes.declaration_rows.tags.items.len;
+
+    try @import("types.zig").lower(self, null, true);
+
+    const declaration_base = self.builder.nodes.declaration_rows.tags.items.len;
     const generated = @import("generated_native_namespaces");
     const Input = std.meta.Child(generated.Input);
     const Modules = std.meta.Child(@FieldType(Input, "modules"));
@@ -30,10 +34,6 @@ pub fn declarations(self: *Lower) Lower.Error!@import("../node/stored.zig").Decl
         else => unreachable,
     };
 
-    var prefix: std.ArrayList(node.Declaration) = .empty;
-
-    try @import("types.zig").lower(self, &prefix, true);
-
     const emitter = @import("generated_native_declarations");
     const EmitInput = std.meta.Child(emitter.Input);
 
@@ -41,11 +41,11 @@ pub fn declarations(self: *Lower) Lower.Error!@import("../node/stored.zig").Decl
         .plan = plan,
         .modules = &modules,
         .functions = &functions,
-        .types = @import("../node/view.zig").slice(@FieldType(EmitInput, "types"), @as([]const node.ExpressionId, self.types)),
-        .layouts = @import("../node/view.zig").slice(@FieldType(EmitInput, "layouts"), @as([]const node.ExpressionId, self.layouts)),
+        .types = @ptrCast(self.types),
+        .layouts = @ptrCast(self.layouts),
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
-        .declaration_base = @intCast(self.builder.nodes.declaration_rows.tags.items.len),
-        .prefix_count = @intCast(prefix.items.len),
+        .declaration_base = @intCast(declaration_base),
+        .prefix_count = @intCast(declaration_base - first),
     };
 
     const output = emitter.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
@@ -67,12 +67,13 @@ pub fn declarations(self: *Lower) Lower.Error!@import("../node/stored.zig").Decl
         error.InvalidAst => unreachable,
     };
 
-    const selected = try self.builder.nodes.declarations(self.allocator, prefix.items);
-
     rows.appendBorrowed(self.allocator, &self.builder.nodes.declaration_rows, output.roots) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidAst => unreachable,
     };
 
-    return .{ .start = selected.start, .len = @intCast(prefix.items.len + output.roots.tags.len) };
+    return self.builder.nodes.selectDeclarations(self.allocator, output.selected) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
 }

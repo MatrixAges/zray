@@ -4,7 +4,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 
 /// The value layouts of a file that declares its own types; files importing the shared bundle build them on use.
-pub fn lower(self: *Lower, output: *std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
+pub fn lower(self: *Lower, output: ?*std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
     self.abi_types = self.types;
     self.abi_layouts = self.layouts;
 
@@ -68,7 +68,7 @@ pub fn lower(self: *Lower, output: *std.ArrayList(node.Declaration), exported: b
                 else => unreachable,
             };
 
-            if (!(try declared.getOrPut(self.allocator, name)).found_existing) try output.append(self.allocator, .{ .constant = .{ .name = name, .value = definition, .exported = exported } });
+            if (!(try declared.getOrPut(self.allocator, name)).found_existing) try output.?.append(self.allocator, .{ .constant = .{ .name = name, .value = definition, .exported = exported } });
 
             break :blk try self.builder.identifier(name);
         };
@@ -131,7 +131,7 @@ pub fn lower(self: *Lower, output: *std.ArrayList(node.Declaration), exported: b
 
             const view_name = try std.fmt.allocPrint(self.allocator, "view_{s}", .{name});
 
-            if (!(try declared.getOrPut(self.allocator, view_name)).found_existing) try output.append(self.allocator, .{ .constant = .{ .name = view_name, .value = definition, .exported = exported } });
+            if (!(try declared.getOrPut(self.allocator, view_name)).found_existing) try output.?.append(self.allocator, .{ .constant = .{ .name = view_name, .value = definition, .exported = exported } });
 
             self.view_types[index] = if (changed) try self.builder.identifier(view_name) else selected;
         }

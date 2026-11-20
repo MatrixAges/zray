@@ -4,7 +4,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const generated = @import("generated_abi_definitions");
 
-pub fn build(self: *Lower, declarations: *std.ArrayList(node.Declaration), exported: bool) Lower.Error!bool {
+pub fn build(self: *Lower, declarations: ?*std.ArrayList(node.Declaration), exported: bool) Lower.Error!bool {
     const Input = std.meta.Child(generated.Input);
     const Output = std.meta.Child(@FieldType(std.meta.Child(generated.Output), "types"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);

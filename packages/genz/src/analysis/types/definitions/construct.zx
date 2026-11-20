@@ -4,9 +4,8 @@ import { scalar_string } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import {
-    ExpressionsKind
-} from "../../../printer/model/expressions"
+import appendDeclaration from "../../../ast/declarations/append_constant"
+import { ExpressionsKind } from "../../../printer/model/expressions"
 import position from "../../names/position"
 import { leaf_nodes, wrapped_nodes, pointer_nodes, task_nodes } from "../abi/const"
 import members from "../abi/members"
@@ -91,12 +90,17 @@ export default function (in: Input): Output {
                     if (
                         current.source.names == null || !current.claimed[slot]
                     ) {
-                        current.declarations = current.declarations.push({
-                            name,
-                            type_expr: null,
-                            value: start,
-                            exported: current.source.exported
-                        })[0]
+                        const declaration = appendDeclaration({
+                            table: current.declarations,
+                            value: {
+                                name,
+                                type_expr: null,
+                                value: start,
+                                exported: current.source.exported
+                            }
+                        })
+                        current.declarations = declaration.table
+                        current.valid = current.valid && declaration.valid
 
                         if (current.source.names != null) {
                             current.claimed[slot] = true

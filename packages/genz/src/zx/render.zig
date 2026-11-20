@@ -54,7 +54,7 @@ fn bundleWithConcurrency(allocator: std.mem.Allocator, program: zx.ir.Program, c
 
     const temporary = arena.allocator();
     var lower = try initializePreparedWithConcurrency(temporary, allocator, try prepareWithWorkspace(temporary, allocator, program), concurrent);
-    const types = try @import("../render.zig").renderStored(allocator, lower.builder.nodes, try @import("type_bundle.zig").declarations(&lower));
+    const types = try @import("../render.zig").renderStoredScoped(allocator, allocator, lower.builder.nodes, try @import("type_bundle.zig").declarations(&lower));
 
     errdefer allocator.free(types);
 

@@ -28,5 +28,6 @@ export type Output = {
     expressions: Expressions,
     declarations: Declarations,
     roots: Declarations,
+    selected: u32[],
     valid: bool
 }

@@ -1,5 +1,5 @@
 import type { Table } from "core/type_table/model"
-import type { Constant } from "../../../ast/declarations/model"
+import type { Columns as DeclarationColumns } from "../../../ast/declarations/model"
 import type { Columns as FieldColumns } from "../../../ast/fields/model"
 import type {
     ExpressionsKind,
@@ -39,7 +39,7 @@ export type Record = {
 export type Types = {
     expressions: Expressions,
     definitions: Definitions,
-    declarations: Constant[],
+    declarations: DeclarationColumns,
     records: Record[],
     values: u32[],
     layouts: u32[],
@@ -72,7 +72,7 @@ export type Build = {
     enum_type_base: u32?[],
     struct_type_start: u32[],
     struct_type_len: u32[],
-    declarations: Constant[],
+    declarations: DeclarationColumns,
     records: Record[],
     values: u32[],
     layouts: u32[],

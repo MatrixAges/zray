@@ -135,13 +135,15 @@ const Work = struct {
     }
 
     fn generate(job: Job, output: std.mem.Allocator, scratch: std.mem.Allocator, types: *generating.TypeScratch) generating.Error![]const u8 {
+        const backing = if (generated and job.unit == .types) job.batch.backing else scratch;
+
         if (generated and job.batch.cache != null) {
-            const source = try job.batch.generate(scratch, scratch, job.unit, types);
+            const source = try job.batch.generate(scratch, backing, job.unit, types);
 
             return std.heap.smp_allocator.dupe(u8, source);
         }
 
-        return job.batch.generate(output, scratch, job.unit, types);
+        return job.batch.generate(output, backing, job.unit, types);
     }
 };
 

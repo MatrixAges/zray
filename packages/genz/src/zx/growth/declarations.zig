@@ -1,8 +1,21 @@
 const std = @import("std");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const Stored = @import("../../node/stored.zig").Declarations;
+const count = 6;
 
-pub fn lower(self: *Lower, exported: bool) Lower.Error![6]node.Declaration {
+pub fn lower(self: *Lower, exported: bool) Lower.Error![count]node.Declaration {
+    const stored = try publish(self, exported);
+    var result: [count]node.Declaration = undefined;
+
+    for (&result, 0..) |*declaration, index| {
+        declaration.* = try self.builder.nodes.materializeDeclaration(self.allocator, stored.start + @as(u32, @intCast(index)));
+    }
+
+    return result;
+}
+
+pub fn publish(self: *Lower, exported: bool) Lower.Error!Stored {
     const entry = @import("generated_growth_declarations");
     const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
@@ -30,15 +43,14 @@ pub fn lower(self: *Lower, exported: bool) Lower.Error![6]node.Declaration {
 
     const first = self.builder.nodes.declaration_rows.tags.items.len;
     const Output = std.meta.Child(entry.Output);
+
     @import("../../node/import_module.zig").appendBorrowed(self.allocator, self.builder.nodes, Output, output) catch |err| return failure(err);
 
-    var result: [6]node.Declaration = undefined;
-
-    for (&result, 0..) |*declaration, index| declaration.* = try self.builder.nodes.materializeDeclaration(self.allocator, @intCast(first + index));
+    std.debug.assert(output.declarations.tags.len == count);
 
     self.uses_allocator = self.uses_allocator or output.uses_allocator;
 
-    return result;
+    return .{ .start = @intCast(first), .len = count };
 }
 
 fn failure(err: anyerror) Lower.Error {

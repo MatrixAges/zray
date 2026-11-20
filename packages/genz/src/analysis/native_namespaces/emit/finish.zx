@@ -18,11 +18,8 @@ export default function (in: Input): Output {
         base: in.state.source.declaration_base
     })
 
-    const base = integers.narrow(
-        integers.widen(in.state.source.declaration_base) +
-            in.state.declarations.length +
-            integers.widen(in.state.source.prefix_count)
-    )
+    const base = integers.widen(in.state.source.declaration_base) +
+        in.state.declarations.length
 
     const values: Constant[] = [
         {
@@ -41,13 +38,36 @@ export default function (in: Input): Output {
 
     const roots = constants({
         values,
-        base
+        base: integers.narrow(base)
+    })
+
+    const prefix = integers.widen(in.state.source.prefix_count)
+    const first = integers.widen(in.state.source.declaration_base) - prefix
+    const count = prefix + roots.table.tags.length
+    const indices: u32[] = []
+
+    const selected = loop({
+        indices,
+        index: 0
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const row = match {
+                state.index < prefix => first + state.index,
+                _ => base + state.index - prefix
+            }
+
+            state.indices = state.indices.push(integers.narrow(row))[0]
+            state.index += 1
+        },
+        return: state => state.indices
     })
 
     return {
         expressions: in.state.expressions,
         declarations: declarations.table,
         roots: roots.table,
+        selected,
         valid: in.state.valid && declarations.valid && roots.valid
     }
 }

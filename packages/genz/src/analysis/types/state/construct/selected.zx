@@ -4,6 +4,7 @@ import strings from "std:string"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
+import appendDeclaration from "../../../../ast/declarations/append_constant"
 import { ExpressionsKind } from "../../../../printer/model/expressions"
 import { view_prefix } from "../const"
 import aggregate from "./aggregate"
@@ -40,19 +41,26 @@ export default function (in: Input): Output {
         })
     }
 
-    const declarations = match {
-        fresh => constructed.declarations.push({
-            name: bytes.fromText(name),
-            type_expr: null,
-            value: in.value - 1,
-            exported: source.exported
-        })[0],
-        _ => constructed.declarations
+    const declaration = match {
+        fresh => appendDeclaration({
+            table: constructed.declarations,
+            value: {
+                name: bytes.fromText(name),
+                type_expr: null,
+                value: in.value - 1,
+                exported: source.exported
+            }
+        }),
+        _ => {
+            table: constructed.declarations,
+            valid: true
+        }
     }
 
     const named = {
         ...constructed,
-        declarations,
+        declarations: declaration.table,
+        valid: constructed.valid && declaration.valid,
         tags: constructed.tags.push(ExpressionsKind.Identifier)[0],
         offsets:
             constructed.offsets.push(integers.narrow(constructed.identifier.length))[0],
@@ -79,18 +87,32 @@ export default function (in: Input): Output {
         _ => named
     }
 
-    const published = match {
-        !viewed.view_claimed[in.slot] => {
-            ...viewed,
-            declarations: viewed.declarations.push({
+    const fresh_view = !viewed.view_claimed[in.slot]
+
+    const view_declaration = match {
+        fresh_view => appendDeclaration({
+            table: viewed.declarations,
+            value: {
                 name: bytes.fromText(view_name),
                 type_expr: null,
                 value: changed ? in.view - 1 : in.value,
                 exported: source.exported
-            })[0],
-            view_claimed: viewed.view_claimed.with(in.slot, true)
-        },
-        _ => viewed
+            }
+        }),
+        _ => {
+            table: viewed.declarations,
+            valid: true
+        }
+    }
+
+    const published = {
+        ...viewed,
+        declarations: view_declaration.table,
+        valid: viewed.valid && view_declaration.valid,
+        view_claimed: match {
+            fresh_view => viewed.view_claimed.with(in.slot, true),
+            _ => viewed.view_claimed
+        }
     }
 
     if (!changed) {

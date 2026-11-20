@@ -5,15 +5,22 @@ const Lower = @import("lower.zig");
 /// A type expression not built yet: a file that imports the shared type bundle builds each one when first used.
 const unset = @import("types/scratch.zig").unset;
 
-pub fn lower(self: *Lower, output: *std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
-    if (self.shared_types) return shared(self, output);
+pub fn lower(self: *Lower, output: ?*std.ArrayList(node.Declaration), exported: bool) Lower.Error!void {
+    if (self.shared_types) return shared(self, output.?);
 
     const has_lists = if (@import("genz_options").generated_analysis)
         try @import("types/definitions.zig").build(self, output, exported)
     else
-        try seedDefinitions(self, output, exported);
+        try seedDefinitions(self, output.?, exported);
     try @import("state_value/types.zig").lower(self, output, exported);
-    if (has_lists) try output.appendSlice(self.allocator, &try @import("growth.zig").declarations(self, exported));
+
+    if (has_lists) {
+        if (output) |pending| {
+            try pending.appendSlice(self.allocator, &try @import("growth.zig").declarations(self, exported));
+        } else if (@import("genz_options").generated_analysis) {
+            _ = try @import("growth/declarations.zig").publish(self, exported);
+        }
+    }
 }
 
 fn seedDefinitions(self: *Lower, output: *std.ArrayList(node.Declaration), exported: bool) Lower.Error!bool {
