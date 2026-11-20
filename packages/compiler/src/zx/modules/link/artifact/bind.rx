@@ -5,12 +5,16 @@
     <Type from="../signature/decision" as="Signature" />
     <Type from="../dependencies/model" as="Dependencies" />
 
-    <Args in={Binding.Input} out={Binding.Status} />
+    <Args in={Binding.Input} out={Binding.Output} />
 
     <Call module="admission/check" in={$in.admission} />
 
     <If on={!$ctx.check}>
-        <Return value={Binding.Status.Invalid} />
+        <Return
+            value={{
+                status: Binding.Status.Invalid
+            }}
+        />
     </If>
 
     <If on={$in.native != null}>
@@ -19,15 +23,27 @@
         <If on={$ctx.link != null}>
             <Switch on={$ctx.link}>
                 <Case value={Native.Status.Conflict}>
-                    <Return value={Binding.Status.Conflict} />
+                    <Return
+                        value={{
+                            status: Binding.Status.Conflict
+                        }}
+                    />
                 </Case>
 
                 <Case value={Native.Status.Full}>
-                    <Return value={Binding.Status.Full} />
+                    <Return
+                        value={{
+                            status: Binding.Status.Full
+                        }}
+                    />
                 </Case>
 
                 <Default>
-                    <Return value={Binding.Status.Invalid} />
+                    <Return
+                        value={{
+                            status: Binding.Status.Invalid
+                        }}
+                    />
                 </Default>
             </Switch>
         </If>
@@ -37,22 +53,38 @@
         <Call fn="../signature/batch" in={$in.signatures} />
 
         <If on={$ctx.batch == Signature.Status.Conflict}>
-            <Return value={Binding.Status.Conflict} />
+            <Return
+                value={{
+                    status: Binding.Status.Conflict
+                }}
+            />
         </If>
 
         <If on={$ctx.batch != Signature.Status.Reuse}>
-            <Return value={Binding.Status.Invalid} />
+            <Return
+                value={{
+                    status: Binding.Status.Invalid
+                }}
+            />
         </If>
     </If>
 
     <Call module="../dependencies/traversal/walk" in={$in.dependencies} />
 
     <If on={$ctx.walk == Dependencies.Status.Conflict}>
-        <Return value={Binding.Status.Conflict} />
+        <Return
+            value={{
+                status: Binding.Status.Conflict
+            }}
+        />
     </If>
 
     <If on={$ctx.walk != Dependencies.Status.Ready}>
-        <Return value={Binding.Status.Invalid} />
+        <Return
+            value={{
+                status: Binding.Status.Invalid
+            }}
+        />
     </If>
 
     <Call
@@ -63,21 +95,40 @@
         }}
     />
 
-    <Switch on={$ctx.prepare}>
-        <Case value={Body.Placement.Absent}>
-            <Return value={Binding.Status.Absent} />
-        </Case>
+    <If on={$ctx.prepare == Body.Placement.Absent}>
+        <Return
+            value={{
+                status: Binding.Status.Ready
+            }}
+        />
+    </If>
 
-        <Case value={Body.Placement.Append}>
-            <Return value={Binding.Status.Append} />
-        </Case>
+    <If on={$in.source != null}>
+        <If
+            on={$ctx.prepare == Body.Placement.Append ||
+                $ctx.prepare == Body.Placement.Retain}
+        >
+            <Call
+                fn="body/request"
+                in={{
+                    ...$in.source,
+                    first: $in.dependencies.walk.checks.linked.files.length,
+                    append: $ctx.prepare == Body.Placement.Append
+                }}
+            />
 
-        <Case value={Body.Placement.Retain}>
-            <Return value={Binding.Status.Retain} />
-        </Case>
+            <Return
+                value={{
+                    status: Binding.Status.Ready,
+                    body: $ctx.request
+                }}
+            />
+        </If>
+    </If>
 
-        <Default>
-            <Return value={Binding.Status.Invalid} />
-        </Default>
-    </Switch>
+    <Return
+        value={{
+            status: Binding.Status.Invalid
+        }}
+    />
 </Module>

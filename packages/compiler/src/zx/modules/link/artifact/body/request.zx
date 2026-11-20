@@ -1,0 +1,72 @@
+import integers from "std:integer"
+
+import { Kind } from "../../../artifact/remapping/model"
+import sparse from "../../../artifact/remapping/sparse"
+
+import type { OptionalU32Buffer } from "memory"
+import type {
+    Input as Materialize
+} from "../../../artifact/materializing/function_model"
+import type { Attributes } from "../../../artifact/materializing/publication/model"
+import type { Root } from "../../../artifact/materializing/publication/source_model"
+
+export type Input = {
+    source: Root.Omit("external", "native_module"),
+    types: u32[],
+    functions: OptionalU32Buffer,
+    natives: OptionalU32Buffer,
+    max_offset: u64,
+    first: u64,
+    append: bool
+}
+
+export type Output = {
+    body: Materialize,
+    attributes: Attributes,
+    append?: u64
+}
+
+export default function (in: Input): Output {
+    const { source, first, append, max_offset, functions, natives, types } = in
+    const { attributes, control, stores } = source
+
+    return {
+        append: append ? first : null,
+        attributes,
+        body: {
+            admission: {
+                source: {
+                    ports: {
+                        input: source.input_type,
+                        output: source.output_type,
+                        native_module: null
+                    },
+                    symbols: source.symbols,
+                    expressions: source.expressions,
+                    stores: stores.types,
+                    contracts: source.contracts,
+                    types: {
+                        kind: Kind.Dense,
+                        dense: types,
+                        sparse: [],
+                        planned: [],
+                        first: 0,
+                        prefix: 0,
+                        count: 0
+                    },
+                    functions: sparse(functions),
+                    natives: sparse(natives),
+                    candidate: append ? null : integers.narrow(first)
+                },
+                stores,
+                checked: false,
+                max_offset
+            },
+            control: attributes.root == null ? null : control,
+            metadata: {
+                file: source.file,
+                external: null
+            }
+        }
+    }
+}

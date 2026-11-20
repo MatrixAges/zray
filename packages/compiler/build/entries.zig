@@ -198,8 +198,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/link/initializer/prepare.rx", .name = "source_initializer_prepare" },
     .{ .path = "zx/modules/link/initializer/publish.rx", .name = "source_initializer_publish" },
     .{ .path = "zx/modules/link/artifact/bind.rx", .name = "artifact_module_binding" },
-    .{ .path = "zx/modules/link/workflow/link.rx", .name = "artifact_link_sequence" },
-    .{ .path = "zx/modules/link/workflow/row.rx", .name = "artifact_link_row" },
     .{ .path = "zx/modules/link/artifact/body/publish.rx", .name = "artifact_body_publication" },
     .{ .path = "zx/modules/link/result/publication/publish.rx", .name = "artifact_program_publication" },
     .{ .path = "zx/modules/compiled/initializer_registry/scan.zx", .name = "initializer_registry" },

@@ -4,21 +4,17 @@ const ir = zx.ir;
 const Nodes = @import("../../../artifact/nodes.zig");
 const Model = @import("../../../artifact/model.zig");
 const Surface = @import("../../../artifact/surface.zig").Publication;
+const Retained = @import("../../artifact/body/host.zig").Retained;
 const program = @import("../host.zig");
 const RegistrationView = @import("registration.zig").View;
 const rule = @import("generated_artifact_program_publication");
 const Input = std.meta.Child(rule.Input);
 const Store = std.meta.Child(@FieldType(Input, "store_source"));
 const Forward = std.meta.Child(@typeInfo(@FieldType(Input, "forward")).optional.child);
-const Symbols = std.meta.Child(@FieldType(Forward, "symbols"));
 const Entry = std.meta.Child(@typeInfo(@FieldType(Input, "entry")).optional.child);
-const Body = std.meta.Child(@FieldType(Entry, "body"));
-const Ports = std.meta.Child(@FieldType(Entry, "ports"));
-const Expressions = std.meta.Child(@FieldType(Body, "expressions"));
-const Contracts = std.meta.Child(@FieldType(Body, "contracts"));
 const Registration = std.meta.Child(@typeInfo(@FieldType(Input, "registration")).optional.child);
 
-pub fn finish(allocator: std.mem.Allocator, module: *const Model.Module, function: ?*const Nodes.FunctionEntry, tables: program.Tables, functions: *ir.FunctionStorage, mapping: []const ir.TypeId) Model.Error!ir.Program {
+pub fn finish(allocator: std.mem.Allocator, module: *const Model.Module, function: ?Retained, tables: program.Tables, functions: *ir.FunctionStorage, mapping: []const ir.TypeId) Model.Error!ir.Program {
     const source_stores = zx.columns.columns(Store, module.stores);
     var surface: Surface(std.meta.Child(@FieldType(Input, "surface"))) = undefined;
 
@@ -26,35 +22,12 @@ pub fn finish(allocator: std.mem.Allocator, module: *const Model.Module, functio
     errdefer surface.release(allocator);
 
     var entry: Entry = undefined;
-    var ports: Ports = undefined;
-    var body: Body = undefined;
-    var symbols: Symbols = undefined;
-    var expressions: Expressions = undefined;
-    var contracts: Contracts = undefined;
 
     if (function) |found| {
-        const value = &found.body;
-
-        symbols = zx.columns.columns(Symbols, value.symbols);
-        expressions = zx.columns.columns(Expressions, value.expressions);
-        contracts = zx.columns.columns(Contracts, value.contracts);
-
-        ports = .{
-            .input_type = @backingInt(value.input_type),
-            .output_type = @backingInt(value.output_type),
-            .ownership = @fromBackingInt(@intCast(@backingInt(value.output_ownership))),
-            .store_mode = @fromBackingInt(@intCast(@backingInt(value.store_mode))),
+        entry = .{
+            .ports = zx.columns.pointer(@FieldType(Entry, "ports"), found.ports),
+            .body = zx.columns.pointer(@FieldType(Entry, "body"), found.body),
         };
-
-        body = .{
-            .symbols = zx.columns.pointer(@FieldType(Body, "symbols"), @as(*const Symbols, &symbols)),
-            .expressions = &expressions,
-            .contracts = &contracts,
-            .control = if (value.body.root != null) zx.columns.pointer(@typeInfo(@FieldType(Body, "control")).optional.child, value.body.control) else null,
-            .root = if (value.body.root) |id| @backingInt(id) else null,
-        };
-
-        entry = .{ .ports = &ports, .body = &body };
     }
 
     const recursive = if (function) |found| found.recursive else null;
@@ -63,14 +36,28 @@ pub fn finish(allocator: std.mem.Allocator, module: *const Model.Module, functio
 
     if (recursive) |id| {
         const found = function.?;
+        const body = found.body;
+        const ports = found.ports;
 
-        registration.init(&allocator, functions, &found.body, found.descriptors.?);
+        registration.init(&allocator, functions, &.{
+            .file_name = found.file,
+            .input_type = @as(ir.TypeId, @fromBackingInt(ports.input_type)),
+            .output_type = @as(ir.TypeId, @fromBackingInt(ports.output_type)),
+            .output_ownership = @as(@FieldType(ir.Function, "output_ownership"), @fromBackingInt(@intCast(@backingInt(ports.ownership)))),
+            .store_mode = @as(ir.StoreMode, @fromBackingInt(@intCast(@backingInt(ports.store_mode)))),
+            .body = Nodes.controlBody(if (body.root) |root| @fromBackingInt(root) else null, body.control),
+        }, .{
+            .symbols = zx.columns.pointer(*const ir.SymbolTable, body.symbols),
+            .expressions = zx.columns.pointer(*const ir.ExpressionTable, body.expressions),
+            .stores = if (found.stores) |stores| zx.columns.pointer(*const ir.StoreTable, stores) else null,
+            .contracts = zx.columns.pointer(*const ir.ContractTable, body.contracts),
+        });
 
         forward = .{
-            .symbols = &symbols,
+            .symbols = zx.columns.pointer(@FieldType(Forward, "symbols"), body.symbols),
             .input_type = ports.input_type,
             .output_type = ports.output_type,
-            .function_id = @backingInt(id),
+            .function_id = id,
         };
     }
 

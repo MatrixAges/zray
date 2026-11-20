@@ -37,79 +37,69 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     const owned = arena.allocator();
     const scratch = temporary.allocator();
     const workspace = module_scratch.allocator();
-    const sequence = if (generated) @import("generated_artifact_link_sequence") else void;
-    const Stage = if (generated) std.meta.Child(sequence.Output) else enum { OrderModules, RegisterTypes, BindModules, PublishProgram, ValidateProgram };
-    const stages: []const Stage = comptime if (generated) zx.staticSequence(sequence, {}) else &.{ .OrderModules, .RegisterTypes, .BindModules, .PublishProgram, .ValidateProgram };
-    var plan: graph.Plan = undefined;
-    var types: Types = undefined;
-    var mappings: [][]const ir.TypeId = undefined;
-    var builder: Builder = undefined;
-    var function: ?@import("artifact/nodes.zig").FunctionEntry = undefined;
-    var program: ir.Program = undefined;
+    const plan = try graph.prepare(scratch, modules, entry);
+    const mappings = try scratch.alloc([]const ir.TypeId, modules.len);
+    const function_ids = try scratch.alloc(?ir.FunctionId, modules.len);
+    var types = try Types.init(owned);
 
-    inline for (stages) |stage| switch (stage) {
-        .OrderModules => plan = try graph.prepare(scratch, modules, entry),
-        .RegisterTypes => {
-            mappings = try scratch.alloc([]const ir.TypeId, modules.len);
+    @memset(function_ids, null);
 
-            const function_ids = try scratch.alloc(?ir.FunctionId, modules.len);
+    if (comptime generated) {
+        try @import("link/registration/host.zig").register(&types, modules, plan.registration, mappings, scratch, &module_scratch);
+    } else {
+        for (plan.registration) |row| {
+            const index: usize = @intCast(row);
 
-            types = try Types.init(owned);
+            mappings[index] = try types.appendTemporary(scratch, workspace, &modules[index]);
 
-            @memset(function_ids, null);
+            if (!module_scratch.reset(.retain_capacity)) return error.OutOfMemory;
+        }
+    }
 
-            if (comptime generated) {
-                try @import("link/registration/host.zig").register(&types, modules, plan.registration, mappings, scratch, &module_scratch);
-            } else {
-                for (plan.registration) |row| {
-                    const index: usize = @intCast(row);
-
-                    mappings[index] = try types.appendTemporary(scratch, workspace, &modules[index]);
-
-                    if (!module_scratch.reset(.retain_capacity)) return error.OutOfMemory;
-                }
-            }
-
-            builder = .{ .allocator = owned, .temporary = workspace, .modules = modules, .plan = plan, .type_mappings = mappings, .module_functions = function_ids };
-        },
-        .BindModules => {
-            function = if (comptime generated)
-                try @import("link/artifact/binding/host.zig").bind(&builder, &module_scratch)
-
-            else seed: {
-                for (plan.dependencies) |index| try linkDependencySeed(&builder, @intCast(index), &module_scratch);
-
-                break :seed try builder.moduleSeed(plan.entry, true);
-            };
-
-            _ = module_scratch.reset(.free_all);
-        },
-        .PublishProgram => {
-            var tables: result.Tables = .{
-                .types = types.items.view(),
-                .functions = .{},
-                .native_modules = builder.native_modules.view(),
-            };
-
-            const selected = &modules[plan.entry];
-            const retained = if (function) |*found| found else null;
-
-            program = if (comptime generated)
-                try @import("link/result/publication/host.zig").finish(owned, selected, retained, tables, &builder.functions, mappings[plan.entry])
-
-            else seed: {
-                const body = if (retained) |value| &value.body else null;
-                const recursive = if (retained) |value| value.recursive else null;
-
-                if (recursive != null) try builder.functions.append(owned, body.?.*);
-
-                tables.functions = builder.functions.view();
-
-                break :seed try result.materialize(owned, selected, body, recursive, tables, mappings[plan.entry]);
-            };
-        },
-        .ValidateProgram => if (try @import("../ir/validate.zig").validate(scratch, program) != null) return error.InvalidIr,
+    var builder: Builder = .{
+        .allocator = owned,
+        .temporary = workspace,
+        .modules = modules,
+        .plan = plan,
+        .type_mappings = mappings,
+        .module_functions = function_ids,
     };
+
+    const function = if (comptime generated)
+        try @import("link/artifact/binding/host.zig").bind(&builder, &module_scratch)
+
+    else seed: {
+        for (plan.dependencies) |index| try linkDependencySeed(&builder, @intCast(index), &module_scratch);
+
+        break :seed try builder.moduleSeed(plan.entry, true);
+    };
+
+    _ = module_scratch.reset(.free_all);
+
+    var tables: result.Tables = .{
+        .types = types.items.view(),
+        .functions = .{},
+        .native_modules = builder.native_modules.view(),
+    };
+
+    const selected = &modules[plan.entry];
+
+    const program = if (comptime generated)
+        try @import("link/result/publication/host.zig").finish(owned, selected, function, tables, &builder.functions, mappings[plan.entry])
+
+    else seed: {
+        const retained = if (function) |*found| found else null;
+        const body = if (retained) |value| &value.body else null;
+        const recursive = if (retained) |value| value.recursive else null;
+
+        if (recursive != null) try builder.functions.append(owned, body.?.*);
+
+        tables.functions = builder.functions.view();
+
+        break :seed try result.materialize(owned, selected, body, recursive, tables, mappings[plan.entry]);
+    };
+
+    if (try @import("../ir/validate.zig").validate(scratch, program) != null) return error.InvalidIr;
 
     return .{ .arena = arena, .program = program, .nominal_types = types.origins.items.view() };
 }

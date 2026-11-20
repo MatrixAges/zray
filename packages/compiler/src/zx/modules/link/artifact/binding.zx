@@ -4,11 +4,10 @@ import type { Input as NativePublication } from "../native/publication/model"
 import type { Batch } from "../signature/model"
 import type { Input as Admission } from "./admission/model"
 import type { Preparation as Body } from "./body/model"
+import type { Input as PrepareBody, Output as PreparedBody } from "./body/request"
 
 export enum Status {
-    Absent,
-    Append,
-    Retain,
+    Ready,
     Invalid,
     Conflict,
     Full
@@ -24,5 +23,11 @@ export type Input = {
     native?: Native,
     signatures?: Batch
     dependencies: Dependencies,
-    body: Body.Omit("first")
+    body: Body.Omit("first"),
+    source?: PrepareBody.Omit("first", "append")
+}
+
+export type Output = {
+    status: Status,
+    body?: PreparedBody
 }

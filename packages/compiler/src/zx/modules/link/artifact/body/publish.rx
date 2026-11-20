@@ -3,7 +3,7 @@
 
     <Args in={Publication.Input} out={Publication.Output?} />
 
-    <Call module="../../../artifact/materializing/own_function" in={$in.body} />
+    <Call module="../../../artifact/materializing/own_function" in={$in.request.body} />
 
     <If on={$ctx.own_function != null}>
         <If on={$in.tail != null}>
@@ -22,7 +22,7 @@
                         control: $ctx.own_function.control ?? $in.empty.control,
                         store_table: $ctx.own_function.store_table ?? $in.empty.stores
                     },
-                    attributes: $in.attributes,
+                    attributes: $in.request.attributes,
                     row: 0
                 }}
             />
@@ -39,7 +39,24 @@
 
         <Return
             value={{
-                retained: $ctx.own_function,
+                retained: {
+                    file: $ctx.own_function.file,
+                    recursive: $ctx.own_function.recursive,
+                    stores: $ctx.own_function.store_table,
+                    ports: {
+                        input_type: $ctx.own_function.ports.input,
+                        output_type: $ctx.own_function.ports.output,
+                        ownership: $in.request.attributes.ownership,
+                        store_mode: $in.request.attributes.store_mode
+                    },
+                    body: {
+                        symbols: $ctx.own_function.symbols,
+                        expressions: $ctx.own_function.expressions,
+                        contracts: $ctx.own_function.contracts,
+                        control: $ctx.own_function.control,
+                        root: $in.request.attributes.root
+                    }
+                },
                 tables: null
             }}
         />

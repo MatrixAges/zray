@@ -2,13 +2,11 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const memory = zx.memory;
-const Nodes = @import("../../../artifact/nodes.zig");
 const Builder = @import("../../build.zig");
 const Edges = @import("../../dependencies/traversal/view.zig").Columns;
 const admission = @import("../admission/host.zig");
 const dependencies = @import("../../dependencies/host.zig");
 const native = @import("../../native/host.zig");
-const row = @import("generated_artifact_link_row");
 const Binding = dependencies.Binding;
 const Body = std.meta.Child(@FieldType(Binding, "body"));
 const Control = std.meta.Child(@typeInfo(@FieldType(Body, "control")).optional.child);
@@ -22,43 +20,25 @@ const Modules = std.meta.Child(@typeInfo(@FieldType(Native, "shape")).optional.c
 const Linked = std.meta.Child(@typeInfo(@FieldType(Input, "linked_shape")).optional.child);
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Layout = std.meta.Child(std.meta.Child(@FieldType(Destination, "shape")));
+const Request = std.meta.Child(@typeInfo(@FieldType(Binding, "source")).optional.child);
+const Source = std.meta.Child(@FieldType(Request, "source"));
+const Attributes = std.meta.Child(@FieldType(Source, "attributes"));
 const BodyHost = @import("../body/host.zig");
 
-pub fn bind(self: *Builder, scratch: *std.heap.ArenaAllocator) Builder.Error!?Nodes.FunctionEntry {
+pub fn bind(self: *Builder, scratch: *std.heap.ArenaAllocator) Builder.Error!?BodyHost.Retained {
     var providers: dependencies.Providers = undefined;
     var view: View = undefined;
 
     providers.init(self);
+    view.init(self);
 
-    const Cursor = std.meta.Child(row.Input);
-    var position: u64 = 0;
-
-    while (true) {
-        const cursor: Cursor = .{ .dependencies = self.plan.dependencies, .entry = self.plan.entry, .position = position };
-
-        const current = zx.columns.invoke(row.executeValue, self.temporary, &cursor) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => return error.InvalidModule,
-        };
-
-        const index: usize = @intCast(current.index);
-
-        view.init(self, index, &providers, current.following == null);
-
-        const placement = try dependencies.run(self.temporary, &view.input);
-
-        const function = if (self.modules[index].function) |*value| owned: {
-            const nodes = view.nodes(self, index);
-
-            break :owned try BodyHost.publish(&nodes, value, &self.functions, self.module_functions, index, placement);
-        } else null;
-
-        const following = current.following orelse return function;
+    for (self.plan.dependencies) |row| {
+        _ = try view.bindOne(self, @intCast(row), &providers, false);
 
         if (!scratch.reset(.retain_capacity)) return error.OutOfMemory;
-
-        position = following;
     }
+
+    return view.bindOne(self, self.plan.entry, &providers, true);
 }
 
 const View = struct {
@@ -77,7 +57,21 @@ const View = struct {
     workspace: Workspace,
     control: Control,
     body: Body,
-    fn init(self: *View, builder: *Builder, index: usize, providers: *const dependencies.Providers, entry: bool) void {
+    request: Request,
+    source: Source,
+    attributes: Attributes,
+    fn init(self: *View, builder: *Builder) void {
+        self.write_slots = memory.bindColumnSet(Layout, true, &builder.functions);
+        self.writable = &self.write_slots;
+
+        self.destination = .{
+            .storage = @ptrCast(&self.writable),
+            .shape = null,
+            .maximum_count = std.math.maxInt(u32),
+            .resource = @ptrCast(&builder.allocator),
+        };
+    }
+    fn bindOne(self: *View, builder: *Builder, index: usize, providers: *const dependencies.Providers, entry: bool) Builder.Error!?BodyHost.Retained {
         const module = &builder.modules[index];
         const types: []const u32 = @ptrCast(builder.type_mappings[index]);
 
@@ -91,17 +85,6 @@ const View = struct {
 
         const linked = module.function != null or module.functions.count() != 0;
 
-        if (linked) self.write_slots = memory.bindColumnSet(Layout, true, &builder.functions);
-
-        self.writable = &self.write_slots;
-
-        self.destination = .{
-            .storage = @ptrCast(&self.writable),
-            .shape = null,
-            .maximum_count = std.math.maxInt(u32),
-            .resource = @ptrCast(&builder.allocator),
-        };
-
         self.scratch = .{ .allocator = builder.temporary, .items = &self.buffer };
 
         if (module.function) |*value| {
@@ -112,6 +95,38 @@ const View = struct {
                 .control = zx.columns.pointer(@FieldType(Control, "control"), value.body.control),
                 .root = if (value.body.root) |id| @backingInt(id) else null,
                 .workspace = &self.workspace,
+            };
+
+            self.attributes = .{
+                .ownership = @fromBackingInt(@intCast(@backingInt(value.output_ownership))),
+                .store_mode = @fromBackingInt(@intCast(@backingInt(value.store_mode))),
+                .root = self.control.root,
+                .allocator_argument = false,
+                .io_argument = false,
+                .process_argument = false,
+                .expand_tuple = false,
+                .fallible = false,
+                .concurrent = false,
+            };
+
+            self.source = .{
+                .file = value.file_name,
+                .input_type = @backingInt(value.input_type),
+                .output_type = @backingInt(value.output_type),
+                .attributes = &self.attributes,
+                .stores = zx.columns.pointer(@FieldType(Source, "stores"), &value.stores),
+                .symbols = zx.columns.pointer(@FieldType(Source, "symbols"), &value.symbols),
+                .expressions = zx.columns.pointer(@FieldType(Source, "expressions"), &value.expressions),
+                .contracts = zx.columns.pointer(@FieldType(Source, "contracts"), &value.contracts),
+                .control = zx.columns.pointer(@FieldType(Source, "control"), value.body.control),
+            };
+
+            self.request = .{
+                .source = &self.source,
+                .types = types,
+                .functions = @ptrCast(&self.mappings.functions),
+                .natives = @ptrCast(&self.mappings.modules),
+                .max_offset = std.math.maxInt(usize),
             };
         }
 
@@ -135,15 +150,13 @@ const View = struct {
             .body = &self.body,
             .signatures = if (module.functions.count() != 0) &self.signatures.input else null,
             .dependencies = &self.dependency_view.input,
+            .source = if (module.function != null) &self.request else null,
         };
-    }
-    fn nodes(self: *const View, builder: *const Builder, index: usize) Nodes {
-        return .{
-            .allocator = builder.allocator,
-            .types = .{ .mapped = builder.type_mappings[index] },
-            .functions = .{ .indexed = self.mappings.functions },
-            .native_modules = .{ .indexed = self.mappings.modules },
-        };
+
+        const result = try dependencies.run(builder.temporary, &self.input);
+        const body = result.body orelse return null;
+
+        return BodyHost.publish(builder.allocator, &builder.functions, builder.module_functions, index, body);
     }
 };
 
