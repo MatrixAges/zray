@@ -18,6 +18,7 @@ pub const formatNative = @import("frontend/native_layout.zig").format;
 pub const parseExpressionXml = @import("frontend/attribute.zig").parseXml;
 pub const xml_document = @import("frontend/format_xml.zig");
 pub const parseIndexedXml = @import("frontend/attribute.zig").parseIndexedXml;
+pub const parseBorrowedIndexedXml = @import("frontend/attribute.zig").parseBorrowedIndexedXml;
 pub const IndexedXml = @import("frontend/attribute.zig").IndexedXml;
 pub const xml_references = @import("frontend/attribute.zig").references;
 pub const stringExpression = @import("frontend/attribute.zig").string;

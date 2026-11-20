@@ -165,7 +165,7 @@ fn loadIn(result: *Result, backing: std.mem.Allocator, options: Options) !?Data 
             continue;
         }
 
-        const document = try rx.parseIndexedXml(allocator, source);
+        const document = try Text.parseRx(allocator, texts, absolute, text);
         const parsed = document.xml;
 
         if (parsed.value == .diagnostic) {

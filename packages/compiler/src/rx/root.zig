@@ -4,6 +4,7 @@ pub const ast = dsl.ast;
 pub const parseXml = @import("frontend").parseExpressionXml;
 pub const document = @import("frontend").xml_document;
 pub const parseIndexedXml = @import("frontend").parseIndexedXml;
+pub const parseBorrowedIndexedXml = @import("frontend").parseBorrowedIndexedXml;
 pub const XmlResult = dsl.XmlResult;
 pub const attributeLocation = @import("attribute_position.zig").locate;
 pub const sourceLocation = @import("attribute_position.zig").sourceLocation;

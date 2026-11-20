@@ -7,14 +7,19 @@ pub const references = adapter.references;
 pub const IndexedXml = struct { xml: dsl.XmlResult, references: ?*const references.Index = null };
 
 pub fn parseXml(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!dsl.XmlResult {
-    return (try parseDocument(allocator, source, false)).xml;
+    return (try parseDocument(allocator, source, false, false)).xml;
 }
 
 pub fn parseIndexedXml(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!IndexedXml {
-    return parseDocument(allocator, source, true);
+    return parseDocument(allocator, source, true, false);
 }
 
-fn parseDocument(allocator: std.mem.Allocator, source: []const u8, comptime indexed: bool) std.mem.Allocator.Error!IndexedXml {
+/// The caller keeps the immutable source bytes alive for the returned document.
+pub fn parseBorrowedIndexedXml(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!IndexedXml {
+    return parseDocument(allocator, source, true, true);
+}
+
+fn parseDocument(allocator: std.mem.Allocator, source: []const u8, comptime indexed: bool, comptime borrow_source: bool) std.mem.Allocator.Error!IndexedXml {
     if (!@import("parser_options").generated_parser) return .{ .xml = try dsl.parseXmlWith(allocator, source, boundary) };
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -32,7 +37,7 @@ fn parseDocument(allocator: std.mem.Allocator, source: []const u8, comptime inde
         return .{ .xml = .{ .arena = arena, .source = "", .value = .{ .diagnostic = issue } } };
     }
 
-    const owned_source = try arena.allocator().dupe(u8, source);
+    const text = if (borrow_source) source else try arena.allocator().dupe(u8, source);
 
     const document = try adapter.convert(
         @import("generated_xml_slots").executeValue,
@@ -40,11 +45,11 @@ fn parseDocument(allocator: std.mem.Allocator, source: []const u8, comptime inde
         if (indexed) @import("generated_xml_references").executeValue else null,
         arena.allocator(),
         parsed.arena.allocator(),
-        owned_source,
+        text,
         parsed.value.document,
     );
 
-    return .{ .xml = .{ .arena = arena, .source = owned_source, .value = .{ .node = document.node } }, .references = document.references };
+    return .{ .xml = .{ .arena = arena, .source = text, .value = .{ .node = document.node } }, .references = document.references };
 }
 
 fn boundary(source: []const u8, start: usize) dsl.ExpressionBoundary {
