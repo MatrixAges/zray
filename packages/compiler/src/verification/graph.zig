@@ -154,7 +154,7 @@ pub fn select(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, condit
     }
 
     if (yes != .fields or no != .fields or yes.fields.len != no.fields.len) return error.InvalidSource;
-    if (yes.fields.len == 0) return yes;
+    if (yes.fields.len == 0 or yes.fields.ptr == no.fields.ptr) return yes;
 
     const target = program.typeOf(type_id);
     const fields = try self.allocator.alloc(terms.Value, yes.fields.len);
