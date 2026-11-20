@@ -7,7 +7,7 @@ io: std.Io,
 allocator: std.mem.Allocator,
 failure: *effects.Failure,
 source: []const u8,
-destination: []const u8,
+destination: []const u8 = &.{},
 
 opened: bool = false,
 directory: std.Io.Dir = undefined,
@@ -23,9 +23,11 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn openDirectory(handle: *const anyopaque) effects.Error!void {
-    const self = effects.borrow(Self, handle);
+    return effects.state(Self, handle).open(true);
+}
 
-    self.directory = std.Io.Dir.cwd().openDir(self.io, self.source, .{ .iterate = true }) catch |err| return self.failure.save(err);
+pub fn open(self: *Self, follow_symlinks: bool) effects.Error!void {
+    self.directory = std.Io.Dir.cwd().openDir(self.io, self.source, .{ .iterate = true, .follow_symlinks = follow_symlinks }) catch |err| return self.failure.save(err);
 
     errdefer self.directory.close(self.io);
 
@@ -33,16 +35,25 @@ pub fn openDirectory(handle: *const anyopaque) effects.Error!void {
     self.opened = true;
 }
 
-pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!u8 {
-    const self = effects.borrow(Self, handle);
+pub fn advance(self: *Self) effects.Error!?std.Io.File.Kind {
     // The macOS arm64 ReleaseSmall build can hoist the path-buffer pointer
     // across its initial allocation when the walker is inlined here.
-    const item = (@call(.never_inline, std.Io.Dir.Walker.next, .{ &self.walker, self.io }) catch |err| return self.failure.save(err)) orelse return constants.end_of_directory;
+    const item = (@call(.never_inline, std.Io.Dir.Walker.next, .{ &self.walker, self.io }) catch |err| return self.failure.save(err)) orelse return null;
+
     self.path = item.path;
 
-    const named = std.mem.eql(u8, item.path, name);
+    return item.kind;
+}
 
-    return switch (item.kind) {
+pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!u8 {
+    return effects.state(Self, handle).nextNamed(name);
+}
+
+pub fn nextNamed(self: *Self, name: []const u8) effects.Error!u8 {
+    const kind = (try self.advance()) orelse return constants.end_of_directory;
+    const named = std.mem.eql(u8, self.path, name);
+
+    return switch (kind) {
         .directory => constants.directory_entry,
         .file => if (named) constants.named_regular_entry else constants.regular_entry,
         else => if (named) constants.named_other_entry else constants.other_entry,
@@ -50,7 +61,7 @@ pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!u8 {
 }
 
 pub fn copyEntry(handle: *const anyopaque) effects.Error!void {
-    const self = effects.borrow(Self, handle);
+    const self = effects.state(Self, handle);
     const target = std.fs.path.join(self.allocator, &.{ self.destination, self.path }) catch |err| return self.failure.save(err);
 
     defer self.allocator.free(target);

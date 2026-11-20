@@ -1,0 +1,5 @@
+export { ResourceKind } from "publication_host"
+
+export type { ResourceWalk as Input } from "publication_host"
+
+export type Output = bool

@@ -10,5 +10,6 @@ export {
     checkBindings,
     writeBindings,
     prepareRetirement,
-    copyInventory
+    copyInventory,
+    absolutePath
 } from "publication_host"

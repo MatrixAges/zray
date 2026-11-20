@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Resource" />
+
+    <Args in={Resource.Input} out={Resource.Output} />
+
+    <Call fn="index.resourceRoot" in={$in} />
+
+    <If on={$ctx.resourceRoot == Resource.ResourceKind.Regular}>
+        <Call fn="index.keepResource" in={$in} />
+
+        <Return value={true} />
+    </If>
+
+    <If on={$ctx.resourceRoot != Resource.ResourceKind.Directory}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.openResources" in={$in} />
+    <Call fn="walk" in={$in} />
+
+    <Return value={$ctx.walk} />
+</Module>

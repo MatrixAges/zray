@@ -1,3 +1,4 @@
+import type { Retirement } from "publication_host"
 import type { Input as InventoryPath } from "../../native_sources/inventory/model"
 
 export type Input = InventoryPath & {
@@ -10,14 +11,23 @@ export enum Selection {
     Inspect
 }
 
-export enum Kind {
-    Missing,
-    Regular,
-    Other
-}
-
 export enum Inspection {
     Skip,
     Resolve,
     Modified
+}
+
+export type Plan = Retirement
+
+export type Candidate = {
+    retirement: Retirement,
+    index: u64,
+    native_only: bool
+}
+
+export enum Status {
+    Ready,
+    InvalidInventory,
+    Modified,
+    OutsideOutput
 }

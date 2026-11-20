@@ -1,0 +1,12 @@
+export {
+    readRetirement,
+    reserveTargets,
+    selectRetirementRow,
+    retirementSpellingMatches,
+    retirementOldKind,
+    resolveRetirementRow,
+    checkRetirementInput,
+    retirementDigest,
+    retirementExpectedDigest,
+    keepRetirement
+} from "publication_host"

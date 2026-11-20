@@ -1,0 +1,10 @@
+<Module>
+    <Type from="model" as="Inventory" />
+
+    <Args in={Inventory.Input} out={bool} />
+
+    <Call fn="index.openInventory" in={$in} />
+    <Call fn="scan" in={$in} />
+
+    <Return value={$ctx.scan} />
+</Module>

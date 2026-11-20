@@ -4,6 +4,24 @@ export type Library = opaque
 export type Verification = opaque
 export type InputPaths = opaque
 
+export type ResourceWalk = opaque
+export type InventoryCollector = opaque
+export type Retirement = opaque
+
+export enum ResourceKind {
+    End,
+    Directory,
+    Regular,
+    Symlink,
+    Other
+}
+
+export enum RetirementFile {
+    Missing,
+    Regular,
+    Other
+}
+
 export declare function copyAssembly(output: Output): void throws { PublicationFailure }
 export declare function copyBinary(output: Output): void throws { PublicationFailure }
 
@@ -40,3 +58,32 @@ export declare function absolutePath(path: string): bool
 export declare function nextInput(paths: InputPaths): bool
 export declare function logicalPath(paths: InputPaths): string
 export declare function physicalPath(paths: InputPaths): string
+
+export declare function resourceRoot(walk: ResourceWalk): ResourceKind throws { PublicationFailure }
+export declare function openResources(walk: ResourceWalk): void throws { PublicationFailure }
+export declare function nextResource(walk: ResourceWalk): ResourceKind throws { PublicationFailure }
+export declare function observeResource(walk: ResourceWalk, is_directory: bool): void throws { PublicationFailure }
+export declare function resourceLinkIsFile(walk: ResourceWalk): bool throws { PublicationFailure }
+export declare function keepResource(walk: ResourceWalk): void throws { PublicationFailure }
+
+export declare function openInventory(collector: InventoryCollector): void throws { PublicationFailure }
+export declare function nextInventory(collector: InventoryCollector): u8 throws { PublicationFailure }
+export declare function inventoryPath(collector: InventoryCollector): string throws { PublicationFailure }
+export declare function addInventoryFile(collector: InventoryCollector, path: string): void throws { PublicationFailure }
+
+export declare function readRetirement(plan: Retirement): bool throws { PublicationFailure }
+export declare function reserveTargets(plan: Retirement): void throws { PublicationFailure }
+export declare function retirementTargetCount(plan: Retirement): u64
+export declare function registerRetirementTarget(plan: Retirement, index: u64): void throws { PublicationFailure }
+export declare function retirementOldCount(plan: Retirement): u64
+export declare function retirementNativeOnly(plan: Retirement): bool
+export declare function selectRetirementRow(plan: Retirement, index: u64): string throws { PublicationFailure }
+export declare function retirementSpellingMatches(plan: Retirement): bool
+export declare function retirementOldKind(plan: Retirement): RetirementFile throws { PublicationFailure }
+export declare function retirementTargetKind(plan: Retirement, index: u64): RetirementFile throws { PublicationFailure }
+export declare function resolveRetirementRow(plan: Retirement): bool throws { PublicationFailure }
+export declare function retirementPhysicalMatches(plan: Retirement, index: u64): bool throws { PublicationFailure }
+export declare function checkRetirementInput(plan: Retirement): void throws { PublicationFailure }
+export declare function retirementDigest(plan: Retirement): string throws { PublicationFailure }
+export declare function retirementExpectedDigest(plan: Retirement): string
+export declare function keepRetirement(plan: Retirement): void throws { PublicationFailure }

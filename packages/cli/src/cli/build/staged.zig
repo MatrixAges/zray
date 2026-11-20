@@ -57,9 +57,11 @@ pub fn publish(self: Self, io: std.Io, allocator: std.mem.Allocator, options: Op
 
     defer directory.deinit();
 
+    const cursor = &directory;
+
     const published = @import("cli_source").publish_staged.executeIn(allocator, &.{
         .publication = @ptrCast(&publication),
-        .directory = @ptrCast(&directory),
+        .directory = @ptrCast(&cursor),
         .primary = std.fs.path.basename(self.binary),
         .assembly = self.assembly != null,
     }) catch |err| return failure.unwrap(err);

@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Retirement" />
+
+    <Args in={Retirement.Plan} out={Retirement.Status} />
+
+    <Call fn="index.readRetirement" in={$in} />
+
+    <If on={!$ctx.readRetirement}>
+        <Return value={Retirement.Status.Ready} />
+    </If>
+
+    <Call fn="index.reserveTargets" in={$in} />
+    <Call fn="targets" in={$in} />
+    <Call fn="walk" in={$in} />
+
+    <Return value={$ctx.walk} />
+</Module>

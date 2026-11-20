@@ -72,6 +72,7 @@ pub fn build(b: *std.Build) void {
 
     host.addImport("publication_host", publication);
     host.import_table.get("cli_source").?.addImport("publication_host", publication);
+    publication.addImport("publication_abi", host.import_table.get("cli_source").?.import_table.get("zxc_abi").?);
 
     const native_resources = b.createModule(.{
         .root_source_file = b.path("src/cli/native_sources.zig"),

@@ -1,0 +1,29 @@
+import host from "publication_host"
+import { RetirementFile } from "publication_host"
+
+import type { Retirement as Input } from "publication_host"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const count = host.retirementTargetCount(in)
+
+    return loop({
+        index: 0,
+        found: false
+    }, {
+        while: row => row.index < count,
+        next: row => {
+            if (
+                host.retirementTargetKind(in, row.index) == RetirementFile.Regular
+            ) {
+                const matches = host.retirementPhysicalMatches(in, row.index)
+
+                row.found = row.found || matches
+            }
+
+            row.index += 1
+        },
+        return: row => row.found
+    })
+}

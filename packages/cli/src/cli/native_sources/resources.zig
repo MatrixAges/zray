@@ -1,50 +1,104 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
+const Directory = @import("../publication/directory.zig");
+const effects = @import("../publication/effects.zig");
+const rule = @import("cli_source").native_directory_files;
+const Kind = @import("publication_abi").native.@"zig:publication_host".ResourceKind;
+const Error = effects.Error;
+
+const Walk = struct {
+    directory: Directory,
+    inputs: ?*Inputs,
+    paths: std.ArrayList([]const u8) = .empty,
+    current: []const u8 = undefined,
+};
 
 pub fn files(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs) ![]const []const u8 {
-    if (inputs) |observed| try observed.add(io, path);
+    var failure: effects.Failure = .{};
 
-    const stat = try std.Io.Dir.cwd().statFile(io, path, .{});
-    var paths: std.ArrayList([]const u8) = .empty;
+    var walk: Walk = .{
+        .directory = .{ .io = io, .allocator = allocator, .failure = &failure, .source = path },
+        .inputs = inputs,
+    };
 
-    if (stat.kind == .file) {
-        try paths.append(allocator, path);
+    defer walk.directory.deinit();
+    errdefer walk.paths.deinit(allocator);
 
-        return paths.items;
+    const state = &walk;
+    const supported = rule.executeIn(allocator, @ptrCast(&state)) catch |err| return failure.unwrap(err);
+
+    if (!supported) return error.UnsupportedNativeResource;
+
+    std.mem.sort([]const u8, walk.paths.items, {}, lessThan);
+
+    return walk.paths.items;
+}
+
+pub fn resourceRoot(handle: *const anyopaque) Error!Kind {
+    const self = effects.state(Walk, handle);
+    const directory = &self.directory;
+
+    self.current = directory.source;
+
+    if (self.inputs) |observed| observed.add(directory.io, directory.source) catch |err| return directory.failure.save(err);
+
+    const stat = std.Io.Dir.cwd().statFile(directory.io, directory.source, .{}) catch |err| return directory.failure.save(err);
+
+    return classify(stat.kind);
+}
+
+pub fn openResources(handle: *const anyopaque) Error!void {
+    const self = effects.state(Walk, handle);
+    const directory = &self.directory;
+
+    if (self.inputs) |observed| observed.addDirectory(directory.io, directory.source) catch |err| return directory.failure.save(err);
+
+    return directory.open(false);
+}
+
+pub fn nextResource(handle: *const anyopaque) Error!Kind {
+    const self = effects.state(Walk, handle);
+    const directory = &self.directory;
+    const kind = (try directory.advance()) orelse return .End;
+
+    // A directory path is used only when an input observer needs it.
+    if (kind != .directory or self.inputs != null) {
+        self.current = std.fs.path.join(directory.allocator, &.{ directory.source, directory.path }) catch |err| return directory.failure.save(err);
     }
 
-    if (stat.kind != .directory) return error.UnsupportedNativeResource;
-    if (inputs) |observed| try observed.addDirectory(io, path);
+    return classify(kind);
+}
 
-    var directory = try std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true, .follow_symlinks = false });
+pub fn observeResource(handle: *const anyopaque, is_directory: bool) Error!void {
+    const self = effects.state(Walk, handle);
+    const inputs = self.inputs orelse return;
+    const directory = &self.directory;
 
-    defer directory.close(io);
+    (if (is_directory) inputs.addDirectory(directory.io, self.current) else inputs.add(directory.io, self.current)) catch |err| return directory.failure.save(err);
+}
 
-    var walker = try directory.walk(allocator);
+pub fn resourceLinkIsFile(handle: *const anyopaque) Error!bool {
+    const self = effects.state(Walk, handle);
+    const directory = &self.directory;
+    const stat = std.Io.Dir.cwd().statFile(directory.io, self.current, .{}) catch |err| return directory.failure.save(err);
 
-    defer walker.deinit();
+    return stat.kind == .file;
+}
 
-    while (try walker.next(io)) |entry| {
-        const absolute = try std.fs.path.join(allocator, &.{ path, entry.path });
+pub fn keepResource(handle: *const anyopaque) Error!void {
+    const self = effects.state(Walk, handle);
+    const directory = &self.directory;
 
-        if (entry.kind == .directory) {
-            if (inputs) |observed| try observed.addDirectory(io, absolute);
+    self.paths.append(directory.allocator, self.current) catch |err| return directory.failure.save(err);
+}
 
-            continue;
-        }
-
-        if (inputs) |observed| try observed.add(io, absolute);
-
-        if (entry.kind != .file) {
-            if (entry.kind != .sym_link or (try std.Io.Dir.cwd().statFile(io, absolute, .{})).kind != .file) return error.UnsupportedNativeResource;
-        }
-
-        try paths.append(allocator, absolute);
-    }
-
-    std.mem.sort([]const u8, paths.items, {}, lessThan);
-
-    return paths.items;
+fn classify(kind: std.Io.File.Kind) Kind {
+    return switch (kind) {
+        .file => .Regular,
+        .directory => .Directory,
+        .sym_link => .Symlink,
+        else => .Other,
+    };
 }
 
 fn lessThan(_: void, left: []const u8, right: []const u8) bool {

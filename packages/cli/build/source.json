@@ -146,24 +146,20 @@
             "name": "native_resource_within"
         },
         {
-            "path": "native_sources/inventory/admit.rx",
-            "name": "library_inventory_path"
+            "path": "native_sources/resources/discover.rx",
+            "name": "native_directory_files"
+        },
+        {
+            "path": "library/inventory/collect.rx",
+            "name": "library_inventory_collect"
+        },
+        {
+            "path": "library/retirement/plan.rx",
+            "name": "library_retirement_plan"
         },
         {
             "path": "native_sources/inventory/version.zx",
             "name": "library_inventory_version"
-        },
-        {
-            "path": "library/retirement/select.rx",
-            "name": "library_retirement_select"
-        },
-        {
-            "path": "library/retirement/inspect.zx",
-            "name": "library_retirement_inspect"
-        },
-        {
-            "path": "library/retirement/verify.zx",
-            "name": "library_retirement_verify"
         },
         {
             "path": "library/publication/const.zx",

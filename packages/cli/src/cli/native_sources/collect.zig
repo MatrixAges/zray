@@ -1,6 +1,6 @@
 const std = @import("std");
 const paths = @import("publication_host").paths;
-const resources = @import("resources.zig");
+const resources = @import("publication_host").resources;
 const storage = @import("storage.zig");
 const Context = storage.Context;
 const Error = storage.Error;

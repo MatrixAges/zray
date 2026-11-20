@@ -1,0 +1,79 @@
+<Module>
+    <Type from="model" as="Retirement" />
+
+    <Args in={Retirement.Candidate} out={Retirement.Status} />
+
+    <Call
+        fn="index.selectRetirementRow"
+        in={[
+            $in.retirement,
+            $in.index
+        ]}
+    />
+
+    <Call fn="../../publication/index.absolutePath" />
+
+    <Call fn="index.retirementSpellingMatches" in={$in.retirement} />
+
+    <Call
+        module="select"
+        in={{
+            path: $ctx.selectRetirementRow,
+            absolute: $ctx.absolutePath,
+            native_only: $in.native_only,
+            retained: $ctx.retirementSpellingMatches
+        }}
+    />
+
+    <If on={$ctx.select == Retirement.Selection.Invalid}>
+        <Return value={Retirement.Status.InvalidInventory} />
+    </If>
+
+    <If on={$ctx.select == Retirement.Selection.Retain}>
+        <Return value={Retirement.Status.Ready} />
+    </If>
+
+    <Call fn="index.retirementOldKind" in={$in.retirement} />
+
+    <Call fn="inspect" />
+
+    <If on={$ctx.inspect == Retirement.Inspection.Skip}>
+        <Return value={Retirement.Status.Ready} />
+    </If>
+
+    <If on={$ctx.inspect == Retirement.Inspection.Modified}>
+        <Return value={Retirement.Status.Modified} />
+    </If>
+
+    <Call fn="index.resolveRetirementRow" in={$in.retirement} />
+
+    <If on={!$ctx.resolveRetirementRow}>
+        <Return value={Retirement.Status.OutsideOutput} />
+    </If>
+
+    <Call fn="search" in={$in.retirement} />
+
+    <If on={$ctx.search}>
+        <Return value={Retirement.Status.Ready} />
+    </If>
+
+    <Call fn="index.checkRetirementInput" in={$in.retirement} />
+    <Call fn="index.retirementDigest" in={$in.retirement} />
+    <Call fn="index.retirementExpectedDigest" in={$in.retirement} />
+
+    <Call
+        fn="verify"
+        in={{
+            actual: $ctx.retirementDigest,
+            expected: $ctx.retirementExpectedDigest
+        }}
+    />
+
+    <If on={!$ctx.verify}>
+        <Return value={Retirement.Status.Modified} />
+    </If>
+
+    <Call fn="index.keepRetirement" in={$in.retirement} />
+
+    <Return value={Retirement.Status.Ready} />
+</Module>

@@ -3,7 +3,7 @@ const effects = @import("effects.zig");
 const Directory = @import("directory.zig");
 const Verification = @import("verification.zig");
 const inventory = @import("../library/inventory.zig");
-const retirement = @import("../library_resources.zig");
+const retirement = @import("../library/retirement/storage.zig");
 const output = @import("../watch/output.zig");
 const Self = @This();
 

@@ -1,0 +1,1 @@
+export type { InventoryCollector as Input } from "publication_host"

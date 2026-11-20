@@ -14,6 +14,7 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
 
     defer directory.deinit();
 
+    const cursor = &directory;
     var verification: host.verification = .{ .io = io, .allocator = backing, .snapshot_allocator = backing, .inputs = inputs, .failure = &failure };
 
     defer verification.deinit();
@@ -22,7 +23,7 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
 
     const status = @import("cli_source").publish_library.executeIn(allocator, &.{
         .library = @ptrCast(&library),
-        .directory = @ptrCast(&directory),
+        .directory = @ptrCast(&cursor),
         .verification = @ptrCast(&verification),
         .separator = std.fs.path.sep,
     }) catch |err| return failure.unwrap(err);
