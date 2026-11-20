@@ -5,6 +5,7 @@ const Artifact = @import("../../../artifact/model.zig");
 const FunctionImport = @import("../../../function_import.zig");
 const Current = @import("../../restore.zig").Current;
 const names = @import("../../../../ir/canonical/validation/names/view.zig");
+const Preflight = @import("../preflight/host.zig");
 const generated = @import("generated_semantic_restore_transaction");
 const Transaction = std.meta.Child(generated.Input);
 const Input = std.meta.Child(@FieldType(Transaction, "rebind"));
@@ -68,7 +69,17 @@ pub fn prepare(temporary: std.mem.Allocator, module: *const Artifact.Module, cur
         .linked_count = linked.count(),
     };
 
-    const transaction: Transaction = .{ .types = types_request, .rebind = &input, .buffers = &maps.view() };
+    var preflight: Preflight = undefined;
+
+    preflight.init(temporary, module, current, types_request.decoded, &previous_modules, &current_modules, &previous_signatures);
+    defer preflight.depths.deinit();
+
+    const transaction: Transaction = .{
+        .preflight = &preflight.input,
+        .types = types_request,
+        .rebind = &input,
+        .buffers = &maps.view(),
+    };
 
     const prepared = zx.columns.invoke(generated.executeValue, temporary, &transaction) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,

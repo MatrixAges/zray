@@ -3,6 +3,8 @@
 
     <Args in={Publication.Input} out={Publication.Plan?} />
 
+    <Call module="types" in={$in.types} />
+
     <Call fn="../../../../ir/canonical/stores/validate" in={$in.stores} />
 
     <If on={!$ctx.validate}>

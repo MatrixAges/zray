@@ -4,8 +4,8 @@ const Artifact = @import("../../../artifact/model.zig");
 const Current = @import("../../restore.zig").Current;
 const Record = @import("../../../module_record.zig");
 const RecordColumns = @import("../../../module_record/columns.zig");
-const generated = @import("generated_semantic_restore_preflight");
-const Input = std.meta.Child(generated.Input);
+const Transaction = std.meta.Child(@import("generated_semantic_restore_transaction").Input);
+const Input = std.meta.Child(@FieldType(Transaction, "preflight"));
 const Modules = std.meta.Child(@FieldType(Input, "cached_modules"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Dependencies = std.meta.Child(@FieldType(Input, "dependencies"));
@@ -14,37 +14,46 @@ const Header = std.meta.Child(@FieldType(Columns, "header"));
 const Control = std.meta.Child(@typeInfo(@FieldType(Input, "control")).optional.child);
 const Workspace = std.meta.Child(@FieldType(Control, "workspace"));
 
-pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, decoded: bool) std.mem.Allocator.Error!bool {
-    const previous_modules = zx.columns.columns(Modules, module.native_modules);
-    const current_modules = zx.columns.columns(Modules, current.native_modules);
-    const previous_signatures = zx.columns.columns(Signatures, module.functions);
-    var depths: zx.memory.U32Scratch = .{ .allocator = temporary };
+depths: zx.memory.U32Scratch,
+workspace: Workspace,
+control: Control,
+previous: Rows,
+incoming: Rows,
+previous_header: Header,
+incoming_header: Header,
+previous_rows: Columns,
+incoming_rows: Columns,
+dependencies: Dependencies,
+input: Input,
+const Self = @This();
 
-    defer depths.deinit();
+pub fn init(self: *Self, temporary: std.mem.Allocator, module: *const Artifact.Module, current: *const Current, decoded: bool, previous_modules: anytype, current_modules: anytype, previous_signatures: anytype) void {
+    const unchecked = if (decoded) null else if (module.function) |*value| value else null;
 
-    const workspace = depths.borrow(Workspace, true);
-    var control: Control = undefined;
-    const unchecked = if (decoded) null else if (module.function) |*body| body else null;
+    self.depths = .{ .allocator = temporary };
 
-    if (unchecked) |body| {
-        control = .{
-            .control = zx.columns.pointer(@FieldType(Control, "control"), body.body.control),
-            .root = if (body.body.root) |root| @backingInt(root) else null,
-            .workspace = &workspace,
+    if (unchecked) |value| {
+        self.workspace = self.depths.borrow(Workspace, true);
+
+        self.control = .{
+            .control = zx.columns.pointer(@FieldType(Control, "control"), value.body.control),
+            .root = if (value.body.root) |root| @backingInt(root) else null,
+            .workspace = &self.workspace,
         };
     }
 
-    const previous = Rows.borrow(module.dependencies);
-    const incoming = Rows.borrow(current.dependencies);
-    const previous_header = previous.header.view(Header);
-    const incoming_header = incoming.header.view(Header);
-    const previous_rows = previous.view(&previous_header);
-    const incoming_rows = incoming.view(&incoming_header);
+    self.previous = .borrow(module.dependencies);
+    self.incoming = .borrow(current.dependencies);
+    self.previous_header = self.previous.header.view(Header);
+    self.incoming_header = self.incoming.header.view(Header);
+    self.previous_rows = self.previous.view(&self.previous_header);
+    self.incoming_rows = self.incoming.view(&self.incoming_header);
+    self.dependencies = .{ .previous = &self.previous_rows, .current = &self.incoming_rows };
 
-    const input: Input = .{
-        .signatures = &previous_signatures,
-        .cached_modules = &previous_modules,
-        .current_modules = &current_modules,
+    self.input = .{
+        .signatures = zx.columns.pointer(*const Signatures, previous_signatures),
+        .cached_modules = zx.columns.pointer(*const Modules, previous_modules),
+        .current_modules = zx.columns.pointer(*const Modules, current_modules),
         .types = module.type_imports.len,
         .current_types = current.aliases.len,
         .functions = module.function_imports.len,
@@ -55,13 +64,8 @@ pub fn check(temporary: std.mem.Allocator, module: *const Artifact.Module, curre
         .current_members = current.members.len,
         .decoded = decoded,
         .verified_native = current.verified.native,
-        .dependencies = &.{ .previous = &previous_rows, .current = &incoming_rows },
-        .control = if (unchecked != null) &control else null,
-    };
-
-    return zx.columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-        else => false,
+        .dependencies = &self.dependencies,
+        .control = if (unchecked != null) &self.control else null,
     };
 }
 

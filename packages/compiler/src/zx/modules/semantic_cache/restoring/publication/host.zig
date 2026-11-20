@@ -7,22 +7,57 @@ const remap = @import("../../../artifact/nodes/remap.zig");
 const result = @import("../../../link/result/host.zig");
 const registration = @import("../../../link/result/publication/registration.zig");
 const Surface = @import("../../../artifact/surface.zig").Publication;
+const Current = @import("../../restore.zig").Current;
+const TypePlan = @import("../rebind/host.zig").TypePlan;
+const TypeTail = @import("../../../../analysis/semantic/merging/publication/view.zig");
+const scalar_rows = @import("../../../../analysis/type_table.zig").scalar_rows;
 const generated = @import("generated_semantic_restore_publication");
 const Input = std.meta.Child(generated.Input);
 const Body = std.meta.Child(@typeInfo(@FieldType(Input, "body")).optional.child);
 const Control = @typeInfo(@FieldType(Input, "control")).optional.child;
 const Stores = std.meta.Child(@FieldType(Input, "stores"));
 const Attributes = std.meta.Child(@typeInfo(@FieldType(Input, "attributes")).optional.child);
+const Types = std.meta.Child(@FieldType(Input, "types"));
+const Table = std.meta.Child(@FieldType(Types, "delta"));
+const Nominal = std.meta.Child(@FieldType(Types, "origins"));
 const Restored = @import("../../restore.zig").Restored;
 
-pub const Target = struct {
-    allocator: std.mem.Allocator,
-    functions: *ir.FunctionStorage,
-    tables: result.Tables,
-    path: []const u8,
-};
+pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: *const Current, types: TypePlan, candidate: ?ir.FunctionId, structure: Nodes.Structure) Artifact.Error!Restored {
+    const delta = zx.columns.view(ir.TypeTable, types.delta);
 
-pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: Target, candidate: ?ir.FunctionId, structure: Nodes.Structure) Artifact.Error!Restored {
+    const options: TypeTail.Options = .{
+        .allocator = target.allocator,
+        .payload = nodes.allocator,
+        .types = target.types,
+        .origins = &target.origins.items,
+        .offsets = &TypeTail.offsets(target.types),
+    };
+
+    var type_tail: TypeTail = undefined;
+
+    type_tail.init(&options, delta, types.origins);
+
+    const nominal: Nominal = .{
+        .ids = types.origins.ids,
+        .kinds = types.origins.kinds,
+        .owners = types.origins.owners,
+        .members = types.origins.members,
+    };
+
+    const type_request: Types = .{
+        .target = zx.columns.pointer(@FieldType(Types, "target"), type_tail.target.target),
+        .nominal = zx.columns.pointer(@FieldType(Types, "nominal"), type_tail.target.nominal),
+        .offsets = zx.columns.pointer(@typeInfo(@FieldType(Types, "offsets")).optional.child, options.offsets.?),
+        .base_labels = type_tail.target.base_labels,
+        .text_mode = @fromBackingInt(@backingInt(type_tail.target.text_mode)),
+        .progress = type_tail.target.progress,
+        .destination = zx.columns.pointer(@FieldType(Types, "destination"), type_tail.target.destination),
+        .payload = type_tail.target.payload,
+        .delta = &ir.TypeTable.borrow(Table, delta),
+        .origins = &nominal,
+        .scalars = if (target.types.count() == 0) &ir.TypeTable.borrow(Table, scalar_rows) else null,
+    };
+
     const source = if (module.function) |*value| value else null;
     var view: remap.FunctionView(Body) = undefined;
     var control_source: ?Control = null;
@@ -53,17 +88,25 @@ pub fn materialize(nodes: *Nodes, module: *const Artifact.Module, target: Target
         .control = control_source,
         .attributes = if (source != null) &attributes else null,
         .stores = &stores,
+        .types = &type_request,
         .reuse_store_types = if (source) |value| sameColumn(module.stores.types, value.stores.types) else false,
         .surface = &surface.input,
     };
 
-    const prepared = zx.columns.invoke(generated.executeValue, nodes.allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+    const prepared = generated.executeIn(nodes.allocator, &input) catch |err| switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
     const plan = prepared orelse return error.InvalidModule;
-    var program = result.fromPublication(target.path, plan, target.tables, surface.exports(), surface.constants());
+
+    const tables: result.Tables = .{
+        .types = target.types.view(),
+        .functions = target.functions.view(),
+        .native_modules = target.native_modules,
+    };
+
+    var program = result.fromPublication(target.path, plan, tables, surface.exports(), surface.constants());
 
     if (plan.recursive) |id| {
         const body = plan.body.?;

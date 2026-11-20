@@ -46,16 +46,3 @@ pub fn prepare(scratch: std.mem.Allocator, module: *const Artifact.Module, curre
 
     return rebind.prepare(scratch, module, current, maps, &input);
 }
-
-pub fn commit(current: *const Current, payload: std.mem.Allocator, plan: rebind.TypePlan) std.mem.Allocator.Error!void {
-    if (current.types.count() == 0) try type_table.initializeScalars(current.allocator, current.types);
-
-    try @import("../../../../analysis/semantic/merging/commit.zig").appendWithPayload(
-        current.allocator,
-        payload,
-        current.types,
-        &current.origins.items,
-        plan.delta,
-        plan.origins,
-    );
-}

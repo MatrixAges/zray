@@ -410,8 +410,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/semantic_cache/restoring/native/restore.rx", .name = "native_restore" },
     .{ .path = "zx/modules/semantic_cache/restoring/native/publish.rx", .name = "native_restore_publication" },
     .{ .path = "zx/modules/semantic_cache/restoring/transaction.rx", .name = "semantic_restore_transaction" },
-    .{ .path = "zx/modules/semantic_cache/restoring/preflight/check.rx", .name = "semantic_restore_preflight" },
-    .{ .path = "zx/modules/semantic_cache/restoring/sequence.rx", .name = "semantic_restore_steps" },
     .{ .path = "zx/modules/semantic_cache/restoring/rollback.zx", .name = "semantic_restore_rollback" },
     .{ .path = "zx/modules/semantic_cache/restoring/publication/plan.rx", .name = "semantic_restore_publication" },
     .{ .path = "zx/modules/link/result/publication/register.rx", .name = "artifact_entry_registration" },

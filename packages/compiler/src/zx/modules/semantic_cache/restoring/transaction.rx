@@ -4,6 +4,16 @@
 
     <Args in={Restore.Input} out={Restore.Output} />
 
+    <Call module="preflight/admit" in={$in.preflight} />
+
+    <If on={!$ctx.admit}>
+        <Return
+            value={{
+                status: Rebind.Status.Invalid
+            }}
+        />
+    </If>
+
     <Call
         fn="rebind/reserve"
         in={{

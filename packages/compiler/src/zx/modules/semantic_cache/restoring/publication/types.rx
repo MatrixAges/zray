@@ -1,0 +1,53 @@
+<Module>
+    <Type from="model" as="Publication" />
+    <Type from="../../../../analysis/semantic/merging/publication/model" as="Tail" />
+
+    <Args in={Publication.Types} out={void} />
+
+    <If on={$in.scalars != null}>
+        <Call
+            fn="../../../../analysis/semantic/merging/publication/size"
+            in={{
+                delta: $in.scalars,
+                origins: $in.origins,
+                destination: {
+                    ...$in.destination,
+                    nominal_ranges: null
+                }
+            }}
+        />
+
+        <Call
+            module="../../../../analysis/semantic/merging/publication/write"
+            in={{
+                ...$in.omit(["scalars"]),
+                delta: $in.scalars,
+                origins: {
+                    ids: [],
+                    kinds: [],
+                    owners: [],
+                    members: []
+                },
+                destination: {
+                    ...$in.destination,
+                    nominal_ranges: null
+                },
+                text_mode: Tail.TextMode.Borrow
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../../../analysis/semantic/merging/publication/size"
+        in={{
+            delta: $in.delta,
+            origins: $in.origins,
+            destination: $in.destination
+        }}
+    />
+
+    <Call
+        module="../../../../analysis/semantic/merging/publication/write"
+        in={$in.omit(["scalars"])}
+    />
+</Module>

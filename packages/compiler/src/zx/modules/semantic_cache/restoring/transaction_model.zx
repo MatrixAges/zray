@@ -1,7 +1,9 @@
+import type { Input as Preflight } from "./preflight/model"
 import type { MappingBuffers, Source as Rebind, Result } from "./rebind/model"
 import type { Input as TypeRequest, Plan } from "./types/model"
 
 export type Input = {
+    preflight: Preflight,
     types: TypeRequest.Omit("type_ids"),
     rebind: Rebind,
     buffers: MappingBuffers

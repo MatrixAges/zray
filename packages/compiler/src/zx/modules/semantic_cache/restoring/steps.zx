@@ -1,7 +1,0 @@
-export enum Step {
-    Preflight,
-    Checkpoint,
-    Rebind,
-    Materialize,
-    Verify
-}
