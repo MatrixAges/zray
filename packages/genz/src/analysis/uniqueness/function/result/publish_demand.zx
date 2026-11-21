@@ -8,6 +8,8 @@ export default function (in: Input): Output {
     const { scope, scratch, owner } = in.arenas
     const { result, targets } = in
 
+    const retained_growth = result.grew || in.restored_growth
+
     memory.selectAllocator(scope, owner)
 
     publish({
@@ -16,13 +18,14 @@ export default function (in: Input): Output {
             "changed"
         ]),
         ...targets.omit(["growth"]),
-        growth: result.grew ? targets.growth : null
+        growth: retained_growth ? targets.growth : null
     })
 
     memory.selectAllocator(scope, scratch)
 
-    return result.pick([
-        "grew",
-        "changed"
-    ])
+    return {
+        grew: result.grew,
+        changed: result.changed,
+        retained_growth
+    }
 }

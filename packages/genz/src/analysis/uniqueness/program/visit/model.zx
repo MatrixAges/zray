@@ -1,5 +1,7 @@
 import type { WriteColumn } from "memory"
+import type { WriteColumn as Column } from "memory/columns"
 import type { Input as Marks } from "../../function/updates/marks"
+import type { Growth as GrowthRetention } from "../../retain/model"
 import type { Phase } from "../model"
 
 export enum Origin {
@@ -38,7 +40,15 @@ export type PlanRequest = Request.Omit("phase")
 
 export type Growth = {
     target: WriteColumn,
-    rows: u8[]
+    rows: u8[],
+    snapshot?: GrowthSnapshot
+}
+
+export type GrowthSnapshot = {
+    grew: bool,
+    rows: GrowthRetention,
+    normalized: Column,
+    renewed: Column
 }
 
 export type Demand = Marks & {

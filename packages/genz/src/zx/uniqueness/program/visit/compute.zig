@@ -16,6 +16,7 @@ pub const Input = struct {
     scratch: std.mem.Allocator,
     lasting: std.mem.Allocator,
     owner: std.mem.Allocator,
+    restored_growth: bool = false,
 };
 
 pub fn Output(comptime kind: Memo.Kind, comptime deferred: bool) type {
@@ -42,7 +43,11 @@ pub fn run(comptime kind: Memo.Kind, comptime deferred: bool, in: Input) std.mem
             };
         },
         .demanded => demanded: {
-            const result = try function.demand(in.owner);
+            const result = if (generated)
+                try @import("../../function/demand.zig").analyze(&function, in.owner, in.restored_growth)
+            else
+                try function.demand(in.owner);
+
             const growth = if (generated) in.growth.?.* else try in.growth.?.capture(in.owner);
 
             break :demanded .{

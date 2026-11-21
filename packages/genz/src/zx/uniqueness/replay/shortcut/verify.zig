@@ -87,14 +87,10 @@ fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const 
                 .scratch = scratch,
                 .lasting = ctx.roundMemory(),
                 .owner = owner,
+                .restored_growth = kind == .demanded,
             });
 
             record = result.record;
-        },
-        .RetainRestoredGrowth => if (!record.grew) {
-            const retained = try @import("../../retain.zig").growth(owner, growth);
-            record.normalized = retained.normalized;
-            record.renewed = retained.renewed;
         },
         .SaveRecord => record = try ctx.memo.putVisit(kind, record, true),
         else => unreachable,

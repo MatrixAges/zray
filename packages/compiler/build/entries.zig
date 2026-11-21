@@ -680,7 +680,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/function/result/demand_visit.rx", .name = "uniqueness_function_demand", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/result/retain.zx", .name = "uniqueness_result_retain", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/retain/plan.rx", .name = "uniqueness_retain_plan", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/retain/growth.rx", .name = "uniqueness_retain_growth", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/retain/rows.zx", .name = "uniqueness_retain_rows", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/retain/flow.zx", .name = "uniqueness_retain_flow", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/prepare/build.rx", .name = "uniqueness_function_prepare", .owner = .genz },

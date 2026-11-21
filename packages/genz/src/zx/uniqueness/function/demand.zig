@@ -10,7 +10,7 @@ const Source = std.meta.Child(@FieldType(Analysis, "source"));
 const Publication = std.meta.Child(@FieldType(Input, "targets"));
 const Targets = rows.Target(Publication, "growth");
 
-pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.Error!Function.Demand {
+pub fn analyze(function: *Function, owner: std.mem.Allocator, restored_growth: bool) std.mem.Allocator.Error!Function.Demand {
     var borrowed: Context = undefined;
 
     borrowed.init(function);
@@ -60,6 +60,7 @@ pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.
             .read_target = if (function.record_reads) &.{ .storage = @ptrCast(&reads.buffer), .columns = &reads.view } else null,
         },
         .arenas = &.{ .scope = @ptrCast(&scope), .scratch = @ptrCast(&scratch), .owner = @ptrCast(&owner) },
+        .restored_growth = restored_growth,
     };
 
     const result = zx.columns.invoke(generated.executeValue, scope.allocator(), &input) catch |err| switch (err) {
@@ -69,7 +70,7 @@ pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.
 
     function.grew = function.grew or result.grew;
 
-    if (result.grew) function.growth.* = .{ .normalized = normalized.rows(), .renewed = renewed.rows() };
+    if (result.retained_growth) function.growth.* = .{ .normalized = normalized.rows(), .renewed = renewed.rows() };
 
     return .{ .marks = marks.rows(), .changed = result.changed, .reads = reads.rows() };
 }

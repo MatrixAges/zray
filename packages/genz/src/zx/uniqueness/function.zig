@@ -641,7 +641,7 @@ fn prefix(self: Self, operation: anytype) bool {
 /// initial state, a plain input or an opaque producer then gets one growth copy there, so the updates that follow work
 /// in place instead of copying on every step. Lists the functions whose demand grew.
 pub fn demand(self: *Self, owner: std.mem.Allocator) std.mem.Allocator.Error!Demand {
-    if (generated_analysis) return @import("function/demand.zig").analyze(self, owner);
+    if (generated_analysis) return @import("function/demand.zig").analyze(self, owner, false);
     try self.close();
 
     var changed: std.ArrayList(u64) = .empty;

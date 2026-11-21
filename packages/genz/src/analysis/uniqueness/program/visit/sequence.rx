@@ -60,7 +60,6 @@
         <Return
             value={[
                 Visit.Step.AdoptAhead,
-                Visit.Step.Apply,
                 Visit.Step.SaveBorrowed,
                 Visit.Step.RecordTrace
             ]}

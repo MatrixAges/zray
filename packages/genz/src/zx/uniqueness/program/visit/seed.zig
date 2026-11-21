@@ -5,7 +5,17 @@ const Plan = Function.Plan;
 const Feedback = @import("../../work/round.zig").Feedback;
 const Error = std.mem.Allocator.Error;
 const select = @import("select.zig");
-const applyDemand = @import("demand.zig").apply;
+const Growth = @import("../../growth.zig");
+
+fn applyDemand(ctx: *Context, allocator: std.mem.Allocator, growth: *Growth.Store, rows: Growth.Rows, marks: []const Function.Mark, origin: select.Origin) Error![]const u64 {
+    if (origin == .Ahead) try Growth.restore(growth, rows);
+
+    const changed = try Function.replayMarksSeed(allocator, ctx.summaries, marks);
+
+    if (origin == .Cached) try Growth.restore(growth, rows);
+
+    return changed;
+}
 
 pub fn settle(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Feedback {
     const rounds = &ctx.rounds.?;
@@ -47,13 +57,14 @@ pub fn demand(ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Erro
     const demanded = switch (origin) {
         .Cached => replayed: {
             const record = recalled.?;
-            changed = try applyDemand(round.allocator(), ctx.summaries, growth, .{ .normalized = record.normalized, .renewed = record.renewed }, record.marks, origin);
+            changed = try applyDemand(ctx, round.allocator(), growth, .{ .normalized = record.normalized, .renewed = record.renewed }, record.marks, origin);
 
             break :replayed record;
         },
         .Ahead => ahead: {
             const found = early.?;
-            changed = try applyDemand(round.allocator(), ctx.summaries, growth, found.growth, found.marks, origin);
+
+            changed = try applyDemand(ctx, round.allocator(), growth, found.growth, found.marks, origin);
 
             break :ahead try ctx.memo.putDemanded(ctx.memo.key, found.marks, growth, found.grew);
         },

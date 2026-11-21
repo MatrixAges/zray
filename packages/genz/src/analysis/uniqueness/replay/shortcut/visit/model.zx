@@ -6,7 +6,6 @@ export enum Step {
     RecoverOnMiss,
     RestoreState,
     Analyze,
-    RetainRestoredGrowth,
     SaveRecord,
     CompareResult,
     StagePlan

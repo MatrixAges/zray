@@ -65,7 +65,8 @@ export type SettleVisit = {
 export type DemandVisit = {
     analysis: DemandInput,
     targets: DemandTargets,
-    arenas: Arenas
+    arenas: Arenas,
+    restored_growth: bool
 }
 
 export type PublishSettlement = SettleVisit.Omit("analysis") & {
@@ -81,4 +82,6 @@ export type PublishedSettlement = {
     changed: u64[]
 }
 
-export type PublishedDemand = Demanded.Pick("grew", "changed")
+export type PublishedDemand = Demanded.Pick("grew", "changed") & {
+    retained_growth: bool
+}

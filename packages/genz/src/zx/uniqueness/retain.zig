@@ -2,7 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 const storage = zx.columns.storage;
 const Function = @import("function.zig");
-const Growth = @import("growth.zig");
 const Memo = @import("memo.zig");
 const Error = std.mem.Allocator.Error;
 
@@ -19,38 +18,17 @@ pub fn plan(owner: std.mem.Allocator, source: *const Function.Plan) Error!Functi
     return Function.Plan.fromColumns(result);
 }
 
-pub fn growth(owner: std.mem.Allocator, source: Growth.Rows) Error!Growth.Rows {
-    const entry = @import("generated_uniqueness_retain_growth");
-    const Input = std.meta.Child(entry.Input);
-    const Rows = std.meta.Child(@FieldType(Input, "normalized"));
-    var normalized = rowBuffer(Growth.Normalized);
-    var renewed = rowBuffer(Growth.Renewed);
-
-    const input: Input = .{
-        .normalized = &rowInput(Rows, &normalized, source.normalized),
-        .renewed = &rowInput(Rows, &renewed, source.renewed),
-    };
-
-    try retain(entry, owner, input);
-
-    return .{ .normalized = normalized.rows(Growth.Normalized), .renewed = renewed.rows(Growth.Renewed) };
-}
-
 pub fn marks(owner: std.mem.Allocator, source: []const Function.Mark) Error![]const Function.Mark {
     const entry = @import("generated_uniqueness_retain_rows");
-    var buffer = rowBuffer(Function.Mark);
+    var buffer = zx.memory.RowBuffer.empty(Function.Mark);
 
-    try retain(entry, owner, rowInput(std.meta.Child(entry.Input), &buffer, source));
+    try retain(entry, owner, rowInput(std.meta.Child(entry.Input), &buffer, source, &owner));
 
     return buffer.rows(Function.Mark);
 }
 
-fn rowBuffer(comptime Row: type) zx.memory.RowBuffer {
-    return .{ .stride = @sizeOf(Row), .alignment = .of(Row), .fields = &.{}, .columns = &.{} };
-}
-
-fn rowInput(comptime Input: type, buffer: *zx.memory.RowBuffer, source: anytype) Input {
-    return .{ .source = std.mem.sliceAsBytes(source), .target = @ptrCast(buffer), .count = source.len };
+pub fn rowInput(comptime Input: type, buffer: *zx.memory.RowBuffer, source: anytype, owner: *const std.mem.Allocator) Input {
+    return .{ .source = std.mem.sliceAsBytes(source), .target = @ptrCast(buffer), .count = source.len, .owner = @ptrCast(owner) };
 }
 
 pub fn flow(owner: std.mem.Allocator, held: []const bool, text_held: []const bool, written: []const bool) Error!Memo.Flowed {

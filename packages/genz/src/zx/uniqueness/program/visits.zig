@@ -7,6 +7,7 @@ const Memo = @import("../memo.zig");
 const Round = @import("../work/round.zig");
 const select = @import("visit/select.zig");
 const compute = @import("visit/compute.zig");
+const demand_visit = @import("visit/demand.zig");
 const sequence = @import("generated_uniqueness_visit_sequence");
 const Error = std.mem.Allocator.Error;
 
@@ -102,10 +103,9 @@ fn Visit(comptime kind: Memo.Kind) type {
             self.record = switch (kind) {
                 .settled => .{ .passed = found.passed, .output = found.output },
                 .demanded => adopted: {
-                    const growth = if (found.grew)
-                        try @import("../retain.zig").growth(self.owner(persistent), found.growth)
-                    else
-                        found.growth;
+                    const ctx = self.ctx;
+                    const growth = &ctx.bodies.units[self.index].growth;
+                    self.changed = try demand_visit.apply(self.round.allocator(), self.owner(persistent), ctx.summaries, growth, found.growth, found.marks, .Ahead, found.grew);
 
                     break :adopted .{ .marks = found.marks, .normalized = growth.normalized, .renewed = growth.renewed, .grew = found.grew };
                 },
@@ -130,24 +130,27 @@ fn Visit(comptime kind: Memo.Kind) type {
             self.changed = result.changed;
         }
 
-        fn apply(self: *Self, origin: select.Origin) Error!void {
+        fn apply(self: *Self, comptime origin: select.Origin) Error!void {
             const ctx = self.ctx;
             const scratch = self.round.allocator();
             const record = self.record;
 
             self.changed = switch (kind) {
                 .settled => try Function.replay(scratch, ctx.summaries, record.passed),
-                .demanded => try @import("visit/demand.zig").apply(
+                .demanded => try demand_visit.apply(
+                    scratch,
                     scratch,
                     ctx.summaries,
                     &ctx.bodies.units[self.index].growth,
                     .{ .normalized = record.normalized, .renewed = record.renewed },
                     record.marks,
                     origin,
+                    false,
                 ),
                 .planned => unreachable,
             };
         }
+
         fn save(self: *Self, comptime owned: bool) Error!void {
             self.record = try self.ctx.memo.putVisit(kind, self.record, owned);
         }
