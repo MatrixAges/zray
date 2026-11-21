@@ -1,0 +1,10 @@
+<Module>
+    <Type from="model" as="Call" />
+
+    <Args in={Call.Iteration} out={Call.Output} />
+
+    <Call fn="iteration_input" in={$in} />
+    <Call fn="iteration_emit" in={$in} />
+
+    <Return value={$ctx.iteration_emit} />
+</Module>

@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Call" />
+
+    <Args in={Call.Input} out={Call.Output} />
+
+    <Call fn="prepare" in={$in} />
+
+    <Call
+        fn="emit"
+        in={{
+            ...$in.pick([
+                "call",
+                "stores",
+                "convert",
+                "finish"
+            ]),
+            value: $ctx.prepare
+        }}
+    />
+
+    <Return value={$ctx.emit} />
+</Module>

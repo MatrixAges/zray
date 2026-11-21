@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Loop" />
+
+    <Args in={Loop.Input} out={Loop.Output} />
+
+    <Call fn="initial" in={$in} />
+
+    <If on={$ctx.initial == Loop.Admission.Reject}>
+        <Return value={null} />
+    </If>
+
+    <If on={$ctx.initial == Loop.Admission.Dereference}>
+        <Call fn="dereference" in={$in} />
+
+        <Return value={$ctx.dereference} />
+    </If>
+
+    <Call fn="parameters" in={$in.loop_frame} />
+    <Call fn="evaluate" in={$in} />
+    <Call fn="emit" in={$in.loop_frame} />
+
+    <Return value={$ctx.emit} />
+</Module>

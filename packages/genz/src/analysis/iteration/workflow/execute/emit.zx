@@ -1,0 +1,16 @@
+import host from "lowering_host"
+
+import type { LoopFrame } from "lowering_host"
+
+export type Input = LoopFrame
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    host.enterLoweredLoop(in)
+    host.writeLoopUpdate(in)
+    host.frameLoweredLoop(in)
+    host.recoverLoweredLoop(in)
+
+    return host.finishLoweredLoop(in)
+}

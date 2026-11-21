@@ -1,0 +1,41 @@
+export declare function lowerCallTuple(call: CallFrame): u32 throws { OutOfMemory }
+
+export declare function lowerCallBorrow(call: CallFrame): u32 throws { OutOfMemory }
+
+export declare function lowerCallStack(call: CallFrame): u32
+    throws { OutOfMemory }
+
+export declare function adaptCallArgument(call: CallFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function clipCallArgument(call: CallFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function lowerCallStore(call: CallFrame): u32 throws { OutOfMemory }
+
+export declare function emitLoweredCall(call: CallFrame, value: u32, store: u32?): u32
+    throws { OutOfMemory }
+
+export declare function convertCallResult(call: CallFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function finishLoweredCall(call: CallFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function openIterationCall(call: IterationCallFrame, value: u32): void
+    throws { OutOfMemory }
+
+export declare function invokeIterationCall(call: IterationCallFrame): u32
+    throws { OutOfMemory }
+
+export declare function convertIterationCall(call: IterationCallFrame, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function startParallelBranch(
+    group: ParallelFrame,
+    index: u64,
+    task: u32
+): void throws { OutOfMemory }
+
+export declare function finishParallel(group: ParallelFrame): u32
+    throws { OutOfMemory }

@@ -4,7 +4,6 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Fields = @import("fields/root.zig");
-const Parameters = @import("parameters.zig");
 const generated = @import("genz_options").generated_analysis;
 const entry = if (generated) @import("generated_iteration_step") else struct {};
 
@@ -52,50 +51,6 @@ pub fn plan(input: Input) Plan {
 }
 
 pub const Values = struct { condition: node.ExpressionId, value: node.ExpressionId, first: ?node.ExpressionId };
-
-pub const Scope = union(enum) {
-    projected: struct { fields: *const Fields, name: []const u8, seed: []const u8 },
-    ordinary: bool,
-};
-
-pub fn lower(self: *Lower, schedule: Plan, parameters: *const Parameters, scope: Scope) Lower.Error!Values {
-    const frame = @import("../state_value/scope.zig");
-
-    switch (scope) {
-        .projected => |projected| {
-            const first = if (schedule.first_test) |condition| initial: {
-                parameters.rename(projected.seed);
-                defer parameters.rename(projected.name);
-
-                break :initial try self.expr(@fromBackingInt(condition));
-            } else null;
-
-            const saved = frame.enter(self, .Projected, .{ .loop_fields = projected.fields });
-
-            defer saved.restore();
-
-            return evaluate(self, schedule, first);
-        },
-        .ordinary => |deferred| {
-            const saved = frame.enter(self, .Deferred, .{ .deferred_lists = deferred });
-
-            defer {
-                saved.restore();
-                parameters.restoreContext();
-            }
-
-            return evaluate(self, schedule, null);
-        },
-    }
-}
-
-fn evaluate(self: *Lower, schedule: Plan, first: ?node.ExpressionId) Lower.Error!Values {
-    const test_value = try self.expr(@fromBackingInt(schedule.condition));
-    const body: ir.ExprId = @fromBackingInt(schedule.step);
-    const value = if (schedule.by_value) try @import("../value_call/root.zig").expression(self, body) else try self.expr(body);
-
-    return .{ .condition = test_value, .value = value, .first = first };
-}
 
 pub const Write = struct {
     type_id: ir.TypeId,

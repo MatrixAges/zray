@@ -1,0 +1,26 @@
+export declare function decideLoopConsumer(
+    consumer: LoopConsumer,
+    phase: ConsumerPhase
+): ConsumerAction throws { OutOfMemory }
+
+export declare function nextLoopConsumer(consumer: LoopConsumer): ConsumerPhase?
+
+export declare function consumeVectorLoop(consumer: LoopConsumer): u32?
+    throws { OutOfMemory }
+
+export declare function consumeLoop(consumer: LoopConsumer, scalar: bool): u32?
+    throws { OutOfMemory }
+
+export declare function projectLoopPath(
+    frame: Lowering,
+    row: u32,
+    target: u32,
+    length_type: u32?
+): u32 throws { OutOfMemory }
+
+export declare function convertLoopPath(
+    frame: Lowering,
+    row: u32,
+    value: u32,
+    conversion: PathConversion
+): u32 throws { OutOfMemory }

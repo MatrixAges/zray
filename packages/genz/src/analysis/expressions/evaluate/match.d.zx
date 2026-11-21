@@ -3,3 +3,15 @@ export declare function lowerMatchEquality(frame: Lowering, left: u32, right: u3
 
 export declare function lowerMatchLiteral(frame: Lowering, id: u32): u32
     throws { OutOfMemory }
+
+export declare function publishMatchSubject(
+    selection: MatchFrame,
+    value: u32,
+    discard: bool
+): void throws { OutOfMemory }
+
+export declare function lowerMatchArms(selection: MatchFrame, fallback: u32): u32
+    throws { OutOfMemory }
+
+export declare function finishMatchResult(selection: MatchFrame, value: u32): u32
+    throws { OutOfMemory }

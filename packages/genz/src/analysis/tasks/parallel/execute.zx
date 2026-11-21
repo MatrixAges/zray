@@ -1,0 +1,27 @@
+import host from "lowering_host"
+
+import type { ParallelFrame } from "lowering_host"
+
+export type Input = {
+    group: ParallelFrame,
+    tasks: u32[]
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { group, tasks } = in
+
+    const queued = loop({
+        index: 0
+    }, {
+        while: state => state.index < tasks.length,
+        next: state => {
+            host.startParallelBranch(group, state.index, tasks[state.index])
+            state.index = state.index + 1
+        },
+        return: state => state.index
+    })
+
+    return host.finishParallel(group)
+}

@@ -1,0 +1,38 @@
+import host from "lowering_host"
+import { PathConversion } from "lowering_host"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    rows: u32[],
+    representations: PathConversion[],
+    length_type?: u32,
+    state: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, rows, representations, length_type } = in
+
+    return loop({
+        index: rows.length,
+        value: in.state
+    }, {
+        while: state => state.index != 0,
+        next: state => {
+            const index = state.index - 1
+            const row = rows[index]
+            const value = host.projectLoopPath(frame, row, state.value, length_type)
+            const conversion = representations[index]
+
+            state.value = match conversion {
+                PathConversion.Plain => value,
+                _ => host.convertLoopPath(frame, row, value, conversion)
+            }
+            state.index = index
+        },
+        return: state => state.value
+    })
+}

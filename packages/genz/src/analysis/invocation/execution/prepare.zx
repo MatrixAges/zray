@@ -1,0 +1,27 @@
+import host from "lowering_host"
+import { CallArgument } from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, call, operand } = in
+
+    const value = match in.argument {
+        CallArgument.Tuple => host.lowerCallTuple(call),
+        CallArgument.Borrow => host.lowerCallBorrow(call),
+        CallArgument.Stack => host.lowerCallStack(call),
+        _ => host.lowerExpression(frame, operand, false, null)
+    }
+
+    const adapted = match {
+        in.adapt => host.adaptCallArgument(call, value),
+        _ => value
+    }
+
+    return match {
+        in.clip => host.clipCallArgument(call, adapted),
+        _ => adapted
+    }
+}

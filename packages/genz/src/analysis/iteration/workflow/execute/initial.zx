@@ -1,0 +1,36 @@
+import host from "lowering_host"
+import { LoopAdmission, LoopInitial } from "lowering_host"
+
+import type { Admission, Input } from "./model"
+
+export type Output = Admission
+
+export default function (in: Input): Output {
+    const { frame, loop_frame, initial } = in
+
+    const admission = host.beginLoweredLoop(loop_frame)
+
+    if (admission != LoopAdmission.Proceed) {
+        return admission
+    }
+
+    const route = host.prepareLoopInitial(loop_frame)
+    const deep = route == LoopInitial.Deep
+
+    if (deep) {
+        host.setLoopInitialScope(loop_frame, true)
+    }
+
+    const value = match route {
+        LoopInitial.Value => host.lowerValueExpression(frame, initial),
+        _ => host.lowerExpression(frame, initial, false, null)
+    }
+
+    if (deep) {
+        host.setLoopInitialScope(loop_frame, false)
+    }
+
+    host.saveLoopInitial(loop_frame, value)
+
+    return admission
+}

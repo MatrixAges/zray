@@ -1,0 +1,30 @@
+import host from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, loop_frame } = in
+
+    const projected = host.loopProjects(loop_frame)
+
+    if (projected) {
+        host.declareLoopState(loop_frame)
+    }
+
+    const first = host.lowerLoopFirstTest(loop_frame)
+    const operands = host.enterLoopUpdate(loop_frame)
+    const condition = host.lowerExpression(frame, operands.condition, false, null)
+
+    const value = match {
+        operands.by_value => host.lowerValueExpression(frame, operands.body),
+        _ => host.lowerExpression(frame, operands.body, false, null)
+    }
+
+    host.saveLoopUpdate(loop_frame, condition, value, first)
+
+    if (!projected) {
+        host.declareLoopState(loop_frame)
+    }
+}

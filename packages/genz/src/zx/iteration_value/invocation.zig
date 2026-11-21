@@ -1,79 +1,82 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
+const evaluation = @import("../expressions/evaluate.zig");
+const Cache = @import("../expression_map.zig").Map(ir.ExprId);
 const generated = @import("genz_options").generated_analysis;
-const workflow = if (generated) @import("generated_call_workflow") else void;
-const Form = if (generated) workflow.Input else enum { IterationInput, IterationCall, IterationRestore };
 
-const Step = if (generated) std.meta.Child(workflow.Output) else enum {
-    Evaluate,
-    Bind,
-    View,
-    Invoke,
-    Convert,
-    Finish,
-    RestoreCache,
-    RestoreArgument,
+const Frame = struct {
+    context: *Context,
+    call_id: ir.ExprId,
+    row: ir.ExpressionRow,
+    value_call: bool,
+    previous: @FieldType(Context, "argument"),
+    body: std.ArrayList(node.Statement) = .empty,
+    cached: ?Cache.Binding = null,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn restore(self: *Frame) void {
+        if (self.cached) |saved| saved.restore();
+
+        self.context.argument = self.previous;
+    }
 };
 
 pub fn lower(self: *Context, id: ir.ExprId, row: ir.ExpressionRow, value_call: bool) Lower.Error!node.ExpressionId {
-    const lowering = self.lowering;
-    const call = row.value.call;
-    const argument = call.argument;
-    const input_type: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[@backingInt(argument)]);
-    var body: std.ArrayList(node.Statement) = .empty;
-    var input: node.ExpressionId = undefined;
+    var frame: Frame = .{ .context = self, .call_id = id, .row = row, .value_call = value_call, .previous = self.argument };
 
-    inline for (comptime steps(.IterationInput)) |step| switch (step) {
-        .Evaluate => input = try lowering.expr(argument),
-        .Bind => input = try aggregate.bind(lowering, &body, input),
-        .View => input = try @import("borrow.zig").lower(self, &body, input_type, input),
-        else => @compileError("Invalid iteration input step"),
-    };
+    defer frame.restore();
 
-    const previous = self.argument;
+    if (!generated) {
+        const value = try self.lowering.expr(row.value.call.argument);
 
-    const cached = installed: {
-        self.argument = .{ .id = argument, .value = input };
-        errdefer self.argument = previous;
+        try openIterationCall(@ptrCast(&frame), @backingInt(value));
 
-        break :installed try lowering.cache.bind(lowering.allocator, argument, input);
-    };
-
-    defer {
-        inline for (comptime steps(.IterationRestore)) |step| switch (step) {
-            .RestoreCache => cached.restore(),
-            .RestoreArgument => self.argument = previous,
-            else => @compileError("Invalid iteration restore step"),
-        };
+        return @fromBackingInt(try convertIterationCall(@ptrCast(&frame), try invokeIterationCall(@ptrCast(&frame))));
     }
 
-    var result: node.ExpressionId = undefined;
+    const entry = @import("generated_lower_iteration_call");
 
-    inline for (comptime steps(.IterationCall)) |step| switch (step) {
-        .Invoke => result = if (value_call)
-            try @import("../value_call/root.zig").invocation(lowering, call)
-        else
-            try lowering.regular(id),
-        .Bind => result = try aggregate.bind(lowering, &body, result),
-        .Convert => result = try @import("conversion.zig").convert(self, row.type_id, result, false),
-        .Finish => result = try aggregate.finish(lowering, &body, result),
-        else => @compileError("Invalid iteration invocation step"),
+    const input: std.meta.Child(entry.Input) = .{
+        .frame = @ptrCast(self.lowering),
+        .call = @ptrCast(&frame),
+        .operand = @backingInt(row.value.call.argument),
     };
 
-    return result;
+    return evaluation.invoke(entry, &input);
 }
 
-fn steps(comptime form: Form) []const Step {
-    if (generated) return zx.staticSequence(workflow, form);
+pub fn openIterationCall(handle: *const anyopaque, value: u32) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.context.lowering;
+    const argument = frame.row.value.call.argument;
+    const input_type: ir.TypeId = @fromBackingInt(self.program.expressions.types[@backingInt(argument)]);
+    const bound = try aggregate.bind(self, &frame.body, @fromBackingInt(value));
+    const input = try @import("borrow.zig").lower(frame.context, &frame.body, input_type, bound);
 
-    return switch (form) {
-        .IterationInput => &.{ .Evaluate, .Bind, .View },
-        .IterationCall => &.{ .Invoke, .Bind, .Convert, .Finish },
-        .IterationRestore => &.{ .RestoreCache, .RestoreArgument },
-    };
+    frame.context.argument = .{ .id = argument, .value = input };
+    frame.cached = try self.cache.bind(self.allocator, argument, input);
+}
+
+pub fn invokeIterationCall(handle: *const anyopaque) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.context.lowering;
+
+    return @backingInt(if (frame.value_call)
+        try @import("../value_call/root.zig").invocation(self, frame.row.value.call)
+    else
+        try self.regular(frame.call_id));
+}
+
+pub fn convertIterationCall(handle: *const anyopaque, value: u32) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.context.lowering;
+    const bound = try aggregate.bind(self, &frame.body, @fromBackingInt(value));
+    const converted = try @import("conversion.zig").convert(frame.context, frame.row.type_id, bound, false);
+
+    return @backingInt(try aggregate.finish(self, &frame.body, converted));
 }

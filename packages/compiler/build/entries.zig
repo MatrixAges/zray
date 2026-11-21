@@ -724,7 +724,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/aggregate/binding/guard/build.rx", .name = "guarded_result_block", .owner = .genz },
     .{ .path = "genz/analysis/invocation/call.zx", .name = "invocation_call", .owner = .genz },
     .{ .path = "genz/analysis/invocation/builtin.zx", .name = "invocation_builtin", .owner = .genz },
-    .{ .path = "genz/analysis/invocation/workflow/plan.rx", .name = "call_workflow", .owner = .genz },
     .{ .path = "genz/analysis/invocation/regular/build.rx", .name = "regular_call_plan", .owner = .genz },
     .{ .path = "genz/analysis/invocation/regular/emission/build.rx", .name = "regular_call_emit", .owner = .genz },
     .{ .path = "genz/analysis/access/store.zx", .name = "store_access", .owner = .genz },
@@ -898,7 +897,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/iteration/initial/plan.rx", .name = "iteration_initial", .owner = .genz },
     .{ .path = "genz/analysis/iteration/parameters/enter.rx", .name = "iteration_parameters", .owner = .genz },
     .{ .path = "genz/analysis/iteration/parameters/rename.zx", .name = "iteration_parameters_rename", .owner = .genz },
-    .{ .path = "genz/analysis/iteration/workflow/plan.rx", .name = "iteration_workflow", .owner = .genz },
     .{ .path = "genz/analysis/iteration/step/plan.rx", .name = "iteration_step", .owner = .genz },
     .{ .path = "genz/analysis/iteration/evaluation/plan.rx", .name = "iteration_evaluation", .owner = .genz },
     .{ .path = "genz/analysis/iteration/scope/locals.zx", .name = "iteration_scope_locals", .owner = .genz },
@@ -1027,6 +1025,14 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/invocation/execution/run.rx", .name = "lower_invocation", .owner = .genz },
+    .{ .path = "genz/analysis/invocation/execution/iteration.rx", .name = "lower_iteration_call", .owner = .genz },
+    .{ .path = "genz/analysis/tasks/parallel/execute.zx", .name = "lower_parallel", .owner = .genz },
+    .{ .path = "genz/analysis/consumer/execute/run.zx", .name = "lower_loop_consumer", .owner = .genz },
+    .{ .path = "genz/analysis/consumer/read/execute.zx", .name = "lower_loop_path", .owner = .genz },
+    .{ .path = "genz/analysis/iteration/layout/execute.zx", .name = "execute_loop_layout", .owner = .genz },
+    .{ .path = "genz/analysis/iteration/workflow/execute/run.rx", .name = "lower_loop", .owner = .genz },
+    .{ .path = "genz/analysis/match/execute.zx", .name = "lower_match_result", .owner = .genz },
     .{ .path = "genz/analysis/scope/bindings/run.zx", .name = "lower_scope_bindings", .owner = .genz },
     .{ .path = "genz/analysis/expressions/aggregate/execute/sequence.zx", .name = "lower_sequence_elements", .owner = .genz },
     .{ .path = "genz/analysis/expressions/aggregate/execute/object.zx", .name = "lower_object_elements", .owner = .genz },

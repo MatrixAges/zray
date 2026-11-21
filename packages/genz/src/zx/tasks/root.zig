@@ -67,23 +67,5 @@ fn complete(self: *Lower, child: ir.ExprId, canceling: bool) Lower.Error!node.Ex
 pub fn parallel(self: *Lower, type_id: ir.TypeId, branches: @FieldType(@FieldType(ir.ExpressionRow, "value"), "parallel")) Lower.Error!node.ExpressionId {
     if (!generated) return seed.parallel(self, type_id, branches);
 
-    var scratch = std.heap.ArenaAllocator.init(self.workspace);
-
-    defer scratch.deinit();
-
-    const temporary = scratch.allocator();
-    const futures = try temporary.alloc([]const u8, branches.len);
-    var body = self.builder.statementSequence(temporary);
-
-    for (branches.tasks[0..branches.len], futures) |task, *future| {
-        future.* = (try emit.open(self, true)).?;
-
-        try body.append(try bind(self, future.*, @fromBackingInt(task), true));
-    }
-
-    const completed = try @import("parallel.zig").complete(self, type_id, futures, branches.fields[0..branches.len], temporary);
-
-    try body.append(completed.block);
-
-    return @import("../aggregate.zig").finishStored(self, try body.finish(self.allocator), completed.value, null);
+    return @import("parallel.zig").lower(self, type_id, branches);
 }

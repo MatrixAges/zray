@@ -1,0 +1,12 @@
+import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
+
+export type Admission = LoopAdmission
+
+export type Input = {
+    frame: Lowering,
+    loop_frame: LoopFrame,
+    id: u32,
+    initial: u32
+}
+
+export type Output = u32?

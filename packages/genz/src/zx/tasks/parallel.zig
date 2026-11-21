@@ -4,8 +4,68 @@ const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const emit = @import("emitting.zig");
+const Branches = @FieldType(@FieldType(zx.ir.ExpressionRow, "value"), "parallel");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 
-pub fn complete(self: *Lower, type_id: zx.ir.TypeId, futures: []const []const u8, fields: []const ?u32, temporary: std.mem.Allocator) Lower.Error!emit.Started {
+const Frame = struct {
+    lowering: *Lower,
+    type_id: zx.ir.TypeId,
+    fields: []const ?u32,
+    futures: [][]const u8,
+    temporary: std.mem.Allocator,
+    body: Sequence,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+pub fn lower(self: *Lower, type_id: zx.ir.TypeId, branches: Branches) Lower.Error!node.ExpressionId {
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+
+    defer scratch.deinit();
+
+    const temporary = scratch.allocator();
+
+    var frame: Frame = .{
+        .lowering = self,
+        .type_id = type_id,
+        .fields = branches.fields[0..branches.len],
+        .futures = try temporary.alloc([]const u8, branches.len),
+        .temporary = temporary,
+        .body = self.builder.statementSequence(temporary),
+    };
+
+    const entry = @import("generated_lower_parallel");
+
+    const input: std.meta.Child(entry.Input) = .{
+        .group = @ptrCast(&frame),
+        .tasks = branches.tasks[0..branches.len],
+    };
+
+    return @import("../expressions/evaluate.zig").invoke(entry, &input);
+}
+
+pub fn startParallelBranch(handle: *const anyopaque, index: u64, task: u32) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const future = (try emit.open(self, true)).?;
+
+    frame.futures[@intCast(index)] = future;
+
+    try frame.body.append(try @import("root.zig").bind(self, future, @fromBackingInt(task), true));
+}
+
+pub fn finishParallel(handle: *const anyopaque) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const completed = try complete(self, frame.type_id, frame.futures, frame.fields, frame.temporary);
+
+    try frame.body.append(completed.block);
+
+    return @backingInt(try @import("../aggregate.zig").finishStored(self, try frame.body.finish(self.allocator), completed.value, null));
+}
+
+fn complete(self: *Lower, type_id: zx.ir.TypeId, futures: []const []const u8, fields: []const ?u32, temporary: std.mem.Allocator) Lower.Error!emit.Started {
     const results = try temporary.alloc([]const u8, fields.len);
     const values = try temporary.alloc([]const u8, fields.len);
     const labels = @import("generated_task_parallel_labels");

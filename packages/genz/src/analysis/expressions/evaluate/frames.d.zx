@@ -1,0 +1,78 @@
+export type CallFrame = opaque
+
+export type IterationCallFrame = opaque
+
+export type ParallelFrame = opaque
+
+export type LoopConsumer = opaque
+
+export type LoopLayout = opaque
+
+export type LoopFrame = opaque
+
+export type MatchFrame = opaque
+
+export enum CallArgument {
+    Value,
+    Tuple,
+    Borrow,
+    Stack
+}
+
+export enum ConsumerPhase {
+    Initial,
+    AfterSimd,
+    Fallback
+}
+
+export enum ConsumerAction {
+    None,
+    Simd,
+    Scalar,
+    Eligible,
+    Consume
+}
+
+export enum PathConversion {
+    Plain,
+    BorrowList,
+    Convert,
+    ReadElement
+}
+
+export enum LayoutAction {
+    CheckPure,
+    CheckLocal,
+    CheckForwarding,
+    CheckBuffers,
+    CheckDeep,
+    CheckAbi,
+    CheckShallow,
+    CheckProjection,
+    CheckInitial,
+    Dereference,
+    Reject,
+    Plain,
+    Stack,
+    State,
+    Deep,
+    Buffered
+}
+
+export enum LoopAdmission {
+    Proceed,
+    Dereference,
+    Reject
+}
+
+export enum LoopInitial {
+    Reference,
+    Value,
+    Deep
+}
+
+export type LoopOperands = {
+    condition: u32,
+    body: u32,
+    by_value: bool
+}

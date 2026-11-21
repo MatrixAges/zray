@@ -4,6 +4,7 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
+const evaluation = @import("../expressions/evaluate.zig");
 const lists = @import("../state_value/list.zig");
 const entry = @import("generated_consumer_read");
 const Input = std.meta.Child(entry.Input);
@@ -36,41 +37,55 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.Exp
 
     std.debug.assert(plan.valid);
 
-    const length_type = if (plan.length_type) |raw| try self.typeExpr(@fromBackingInt(raw)) else null;
-    var current = state;
-    var remaining = plan.rows.len;
+    const evaluate = @import("generated_lower_loop_path");
+    const Arguments = std.meta.Child(evaluate.Input);
 
-    while (remaining != 0) {
-        remaining -= 1;
-        const value = self.program.expression(@fromBackingInt(plan.rows[remaining]));
+    const arguments: Arguments = .{
+        .frame = @ptrCast(self),
+        .rows = plan.rows,
+        .representations = zx.columns.slice(@FieldType(Arguments, "representations"), plan.representations),
+        .length_type = if (plan.length_type) |raw| @backingInt(try self.typeExpr(@fromBackingInt(raw))) else null,
+        .state = @backingInt(state),
+    };
 
-        const projected = switch (value.value) {
-            .field => |field| try self.field(current, self.program.typeOf(self.program.expression(field.target).type_id).object.at(field.index).name),
-            .tuple_field => |field| try self.field(current, try std.fmt.allocPrint(self.allocator, "{d}", .{field.index})),
-            .index => |item| try @import("../intrinsics.zig").index(self, try lists.items(self, self.program.expression(item.target).type_id, current), try self.expr(item.index)),
-            .length => |child| try self.cast(length_type.?, try self.field(try lists.items(self, self.program.expression(child).type_id, current), "len")),
-            else => unreachable,
-        };
+    return evaluation.invoke(evaluate, &arguments);
+}
 
-        current = switch (plan.representations[remaining]) {
-            .Plain => projected,
-            .BorrowList => try lists.borrowed(self, value.type_id, projected),
-            .ReadElement => converted: {
-                var body: std.ArrayList(node.Statement) = .empty;
-                const list = self.program.expression(value.value.index.target).type_id;
-                const converted = try @import("../state_value/elements.zig").read(self, &body, list, projected);
+pub fn projectLoopPath(handle: *const anyopaque, row: u32, target: u32, length_type: ?u32) Lower.Error!u32 {
+    const self = evaluation.borrow(handle);
+    const current: node.ExpressionId = @fromBackingInt(target);
+    const value = self.program.expression(@fromBackingInt(row));
 
-                break :converted try aggregate.finish(self, &body, converted);
-            },
-            .Convert => converted: {
-                var body: std.ArrayList(node.Statement) = .empty;
-                const source = try aggregate.bind(self, &body, projected);
-                const converted = try @import("../state_value/conversion.zig").convert(self, &body, value.type_id, source, .value);
+    return @backingInt(switch (value.value) {
+        .field => |field| try self.field(current, self.program.typeOf(self.program.expression(field.target).type_id).object.at(field.index).name),
+        .tuple_field => |field| try self.field(current, try std.fmt.allocPrint(self.allocator, "{d}", .{field.index})),
+        .index => |item| try @import("../intrinsics.zig").index(self, try lists.items(self, self.program.expression(item.target).type_id, current), try self.expr(item.index)),
+        .length => |child| try self.cast(@fromBackingInt(length_type.?), try self.field(try lists.items(self, self.program.expression(child).type_id, current), "len")),
+        else => unreachable,
+    });
+}
 
-                break :converted try aggregate.finish(self, &body, converted);
-            },
-        };
-    }
+pub fn convertLoopPath(handle: *const anyopaque, row: u32, id: u32, conversion: evaluation.Api.PathConversion) Lower.Error!u32 {
+    const self = evaluation.borrow(handle);
+    const value = self.program.expression(@fromBackingInt(row));
+    const projected: node.ExpressionId = @fromBackingInt(id);
 
-    return current;
+    return @backingInt(switch (conversion) {
+        .Plain => unreachable,
+        .BorrowList => try lists.borrowed(self, value.type_id, projected),
+        .ReadElement => converted: {
+            var body: std.ArrayList(node.Statement) = .empty;
+            const list = self.program.expression(value.value.index.target).type_id;
+            const element = try @import("../state_value/elements.zig").read(self, &body, list, projected);
+
+            break :converted try aggregate.finish(self, &body, element);
+        },
+        .Convert => converted: {
+            var body: std.ArrayList(node.Statement) = .empty;
+            const source = try aggregate.bind(self, &body, projected);
+            const result = try @import("../state_value/conversion.zig").convert(self, &body, value.type_id, source, .value);
+
+            break :converted try aggregate.finish(self, &body, result);
+        },
+    });
 }

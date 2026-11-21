@@ -1,0 +1,11 @@
+import host from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const value = host.lowerIteration(in.frame, in.id, false)
+
+    return host.dereferenceLoweredLoop(in.frame, value)
+}

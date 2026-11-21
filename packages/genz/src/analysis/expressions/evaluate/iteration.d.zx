@@ -1,0 +1,58 @@
+export declare function chooseLoopLayout(layout: LoopLayout): LayoutAction
+
+export declare function checkLoopLayout(layout: LoopLayout, action: LayoutAction): void
+    throws { OutOfMemory }
+
+export declare function beginLoweredLoop(loop_frame: LoopFrame): LoopAdmission
+    throws { OutOfMemory }
+
+export declare function dereferenceLoweredLoop(frame: Lowering, value: u32): u32
+    throws { OutOfMemory }
+
+export declare function prepareLoopInitial(loop_frame: LoopFrame): LoopInitial
+
+export declare function setLoopInitialScope(loop_frame: LoopFrame, active: bool): void
+
+export declare function saveLoopInitial(loop_frame: LoopFrame, value: u32): void
+    throws { OutOfMemory }
+
+export declare function prepareLoopState(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function openLoopParameters(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function prepareLoopUpdate(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function loopProjects(loop_frame: LoopFrame): bool
+
+export declare function lowerLoopFirstTest(loop_frame: LoopFrame): u32?
+    throws { OutOfMemory }
+
+export declare function enterLoopUpdate(loop_frame: LoopFrame): LoopOperands
+
+export declare function saveLoopUpdate(
+    loop_frame: LoopFrame,
+    condition: u32,
+    value: u32,
+    first: u32?
+): void
+
+export declare function declareLoopState(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function enterLoweredLoop(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function writeLoopUpdate(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function frameLoweredLoop(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function recoverLoweredLoop(loop_frame: LoopFrame): void
+    throws { OutOfMemory }
+
+export declare function finishLoweredLoop(loop_frame: LoopFrame): u32
+    throws { OutOfMemory }

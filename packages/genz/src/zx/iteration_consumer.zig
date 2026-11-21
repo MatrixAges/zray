@@ -8,24 +8,7 @@ pub const Consumer = struct { symbol: ir.SymbolId, result: ir.ExprId, layout: bo
 pub fn lower(self: *Lower, symbol: ir.SymbolId, value: ir.ExprId, result: ir.ExprId, layout: bool) Lower.Error!?node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("iteration_consumer/seed.zig").lower(self, symbol, value, result, layout);
 
-    const policy = @import("iteration_consumer/policy.zig");
-    const selected: Consumer = .{ .symbol = symbol, .result = result, .layout = layout };
-    var phase: policy.Phase = .Initial;
-
-    while (true) {
-        const decision = try policy.decide(self, selected, value, phase);
-
-        const lowered = switch (decision.action) {
-            .None => return null,
-            .Simd => try @import("simd/iteration.zig").lower(self, value, selected),
-            .Eligible, .Consume => try @import("iteration.zig").consume(self, value, selected),
-            .Scalar => try @import("iteration.zig").consume(self, value, .{ .symbol = symbol, .result = result }),
-        };
-
-        if (lowered) |expression| return expression;
-
-        phase = decision.next orelse return null;
-    }
+    return @import("iteration_consumer/execute.zig").lower(self, .{ .symbol = symbol, .result = result, .layout = layout }, value);
 }
 
 pub fn projection(program: ir.Program, result: ir.ExprId, symbol: ir.SymbolId) bool {

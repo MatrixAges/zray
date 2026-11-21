@@ -1,0 +1,25 @@
+import type { CallArgument, CallFrame, IterationCallFrame, Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    call: CallFrame,
+    operand: u32,
+    argument: CallArgument,
+    adapt: bool,
+    clip: bool,
+    stores: bool,
+    convert: bool,
+    finish: bool
+}
+
+export type Output = u32
+
+export type Emission = Input.Pick("call", "stores", "convert", "finish") & {
+    value: u32
+}
+
+export type Iteration = {
+    frame: Lowering,
+    call: IterationCallFrame,
+    operand: u32
+}
