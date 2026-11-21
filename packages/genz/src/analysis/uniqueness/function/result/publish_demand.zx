@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import publish from "./demand.rx"
+
+import type { PublishedDemand as Output, PublishDemand as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { scope, scratch, owner } = in.arenas
+    const { result, targets } = in
+
+    memory.selectAllocator(scope, owner)
+
+    publish({
+        ...result.omit([
+            "grew",
+            "changed"
+        ]),
+        ...targets.omit(["growth"]),
+        growth: result.grew ? targets.growth : null
+    })
+
+    memory.selectAllocator(scope, scratch)
+
+    return result.pick([
+        "grew",
+        "changed"
+    ])
+}

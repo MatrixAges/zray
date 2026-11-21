@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.DemandVisit} out={Result.PublishedDemand} />
+
+    <Call module="../demand/visit" in={$in.analysis} />
+
+    <Call
+        fn="publish_demand"
+        in={{
+            ...$in.omit(["analysis"]),
+            result: $ctx.visit
+        }}
+    />
+
+    <Return value={$ctx.publish_demand} />
+</Module>

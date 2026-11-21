@@ -5,12 +5,23 @@
     <Args in={Visit.Request} out={Visit.Step[]} />
 
     <If on={$in.origin == null}>
-        <If on={$in.phase == Program.Phase.Plan && !$in.persistent}>
-            <Return value={[Visit.Step.TakeAhead]} />
+        <If on={$in.phase == Program.Phase.Plan}>
+            <If on={!$in.persistent}>
+                <Return value={[Visit.Step.TakeAhead]} />
+            </If>
+
+            <Return
+                value={[
+                    Visit.Step.Recall,
+                    Visit.Step.ReadMemoOnMiss,
+                    Visit.Step.TakeAhead
+                ]}
+            />
         </If>
 
         <Return
             value={[
+                Visit.Step.ResetScratch,
                 Visit.Step.Recall,
                 Visit.Step.ReadMemoOnMiss,
                 Visit.Step.TakeAhead

@@ -3,12 +3,12 @@ const zx = @import("zx");
 const Function = @import("../function.zig");
 const Context = @import("context.zig");
 const rows = @import("../row_output.zig");
-const publishing = @import("generated_uniqueness_result_demand");
-const Publication = std.meta.Child(publishing.Input);
-const Targets = rows.Target(Publication, "growth");
 const generated = @import("generated_uniqueness_function_demand");
 const Input = std.meta.Child(generated.Input);
-const Source = std.meta.Child(@FieldType(Input, "source"));
+const Analysis = std.meta.Child(@FieldType(Input, "analysis"));
+const Source = std.meta.Child(@FieldType(Analysis, "source"));
+const Publication = std.meta.Child(@FieldType(Input, "targets"));
+const Targets = rows.Target(Publication, "growth");
 
 pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.Error!Function.Demand {
     var borrowed: Context = undefined;
@@ -28,18 +28,6 @@ pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.
         .results = function.facts.results,
     };
 
-    const input: Input = .{
-        .context = &borrowed.descriptor,
-        .repeated = function.facts.repeated.owner,
-        .source = &source,
-    };
-
-    const result = zx.columns.invoke(generated.executeValue, function.allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => std.debug.panic("function demand failed: {s}", .{@errorName(err)}),
-    };
-
-    function.grew = function.grew or result.grew;
     var normalized: rows.Normalized(Targets) = undefined;
     var renewed: rows.Renewed(Targets) = undefined;
     var reads: rows.Reads(Publication) = undefined;
@@ -54,24 +42,32 @@ pub fn analyze(function: *Function, owner: std.mem.Allocator) std.mem.Allocator.
     errdefer owner.free(reads.rows());
     errdefer owner.free(marks.rows());
 
-    const input_rows: Publication = .{
-        .marks = zx.columns.slice(@FieldType(Publication, "marks"), result.marks),
-        .before = zx.columns.slice(@FieldType(Publication, "before"), result.before),
-        .after = zx.columns.slice(@FieldType(Publication, "after"), result.after),
-        .normalized = zx.columns.pointer(@FieldType(Publication, "normalized"), result.normalized),
-        .renewed = zx.columns.pointer(@FieldType(Publication, "renewed"), result.renewed),
-        .growth = if (result.grew) &.{
-            .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
-            .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
-        } else null,
-        .mark_target = &.{ .storage = @ptrCast(&marks.buffer), .columns = &marks.view },
-        .read_target = if (function.record_reads) &.{ .storage = @ptrCast(&reads.buffer), .columns = &reads.view } else null,
+    const scratch = function.allocator;
+    var scope = zx.memory.ArenaScope{ .active = scratch };
+
+    const input: Input = .{
+        .analysis = &.{
+            .context = &borrowed.descriptor,
+            .repeated = function.facts.repeated.owner,
+            .source = &source,
+        },
+        .targets = &.{
+            .growth = &.{
+                .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
+                .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
+            },
+            .mark_target = &.{ .storage = @ptrCast(&marks.buffer), .columns = &marks.view },
+            .read_target = if (function.record_reads) &.{ .storage = @ptrCast(&reads.buffer), .columns = &reads.view } else null,
+        },
+        .arenas = &.{ .scope = @ptrCast(&scope), .scratch = @ptrCast(&scratch), .owner = @ptrCast(&owner) },
     };
 
-    zx.columns.invoke(publishing.executeValue, owner, &input_rows) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(generated.executeValue, scope.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
-        else => std.debug.panic("demand publication failed: {s}", .{@errorName(err)}),
+        else => std.debug.panic("function demand failed: {s}", .{@errorName(err)}),
     };
+
+    function.grew = function.grew or result.grew;
 
     if (result.grew) function.growth.* = .{ .normalized = normalized.rows(), .renewed = renewed.rows() };
 

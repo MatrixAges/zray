@@ -7,7 +7,7 @@
         on={$in.step == Program.Step.Demand ||
             $in.step == Program.Step.ConservativeDemand}
     >
-        <If on={$in.grew}>
+        <If on={$in.condition}>
             <Return value={Program.Step.Settle} />
         </If>
 
@@ -16,7 +16,7 @@
 
     <Switch on={$in.step}>
         <Case value={Program.Step.Start}>
-            <If on={$in.following}>
+            <If on={$in.condition}>
                 <Return value={Program.Step.Replay} />
             </If>
 
@@ -24,8 +24,8 @@
         </Case>
 
         <Case value={Program.Step.Replay}>
-            <If on={$in.reused}>
-                <Return value={Program.Step.Release} />
+            <If on={$in.condition}>
+                <Return value={Program.Step.ReleaseReused} />
             </If>
 
             <Return value={Program.Step.Open} />
@@ -36,7 +36,7 @@
         </Case>
 
         <Case value={Program.Step.Settle}>
-            <If on={$in.exhausted}>
+            <If on={$in.condition}>
                 <Return value={Program.Step.ConservativeDemand} />
             </If>
 
@@ -48,7 +48,7 @@
         </Case>
 
         <Case value={Program.Step.Release}>
-            <If on={!$in.reused && $in.recording}>
+            <If on={$in.condition}>
                 <Return value={Program.Step.Commit} />
             </If>
         </Case>

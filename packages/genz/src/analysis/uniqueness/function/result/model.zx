@@ -1,7 +1,12 @@
+import type { Allocator, ArenaScope } from "memory"
 import type { Targets } from "../../growth/output"
-import type { Mark } from "../demand/model"
+import type { Demanded, Mark, Visit as DemandInput } from "../demand/model"
 import type { GrowthRows, Knowledge, Read } from "../levels/model"
-import type { Contribution } from "../summary/model"
+import type {
+    Contribution,
+    Settled,
+    Settlement as SettlementInput
+} from "../summary/model"
 import type { ContributionTarget, MarkTarget, ReadTarget } from "./columns"
 
 export type Reads = {
@@ -38,3 +43,42 @@ export type Demand = {
     read_target?: ReadTarget,
     growth?: Targets
 }
+
+export type Arenas = {
+    scope: ArenaScope,
+    scratch: Allocator,
+    owner: Allocator
+}
+
+export type SettlementTargets = Settlement.Pick("contributions", "read_target")
+
+export type DemandTargets = Demand.Pick("mark_target", "read_target") & {
+    growth: Targets
+}
+
+export type SettleVisit = {
+    analysis: SettlementInput,
+    targets: SettlementTargets,
+    arenas: Arenas
+}
+
+export type DemandVisit = {
+    analysis: DemandInput,
+    targets: DemandTargets,
+    arenas: Arenas
+}
+
+export type PublishSettlement = SettleVisit.Omit("analysis") & {
+    result: Settled
+}
+
+export type PublishDemand = DemandVisit.Omit("analysis") & {
+    result: Demanded
+}
+
+export type PublishedSettlement = {
+    levels: u8[],
+    changed: u64[]
+}
+
+export type PublishedDemand = Demanded.Pick("grew", "changed")

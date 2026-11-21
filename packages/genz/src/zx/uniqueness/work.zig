@@ -3,6 +3,8 @@ const zx = @import("zx");
 const Round = @import("work/round.zig");
 const Summaries = @import("summaries.zig");
 const SummaryState = @import("summaries/lifecycle.zig");
+const Topology = @import("topology.zig");
+const opening = @import("generated_uniqueness_open_program");
 const preparing = @import("generated_uniqueness_prepare_round");
 const advancing = @import("generated_uniqueness_work_advance");
 const Queue = std.meta.Child(@FieldType(std.meta.Child(advancing.Input), "state"));
@@ -14,14 +16,29 @@ slots: []u64,
 queued: []u8,
 
 positions: [position_count]u64 = undefined,
-pub fn init(allocator: std.mem.Allocator, size: usize) std.mem.Allocator.Error!Self {
-    const slots = try allocator.alloc(u64, size);
+pub fn open(owner: std.mem.Allocator, scratch: std.mem.Allocator, called: []const []const u32, exported: []const zx.ir.FunctionId) std.mem.Allocator.Error!struct { work: Self, reverse: Topology.Plan } {
+    var slots: zx.memory.RowBuffer = .empty(u64);
+    var queued: zx.memory.RowBuffer = .empty(u8);
 
-    errdefer allocator.free(slots);
+    errdefer owner.free(slots.rows(u64));
+    errdefer owner.free(queued.rows(u8));
 
-    const queued = try allocator.alloc(u8, size);
+    const input: std.meta.Child(opening.Input) = .{
+        .callees = called,
+        .exported = @ptrCast(exported),
+        .queue = &.{
+            .owner = @ptrCast(&owner),
+            .slots = @ptrCast(&slots),
+            .queued = @ptrCast(&queued),
+        },
+    };
 
-    return .{ .allocator = allocator, .slots = slots, .queued = queued };
+    const reverse = try invoke(opening, scratch, &input);
+
+    return .{
+        .work = .{ .allocator = owner, .slots = slots.rows(u64), .queued = queued.rows(u8) },
+        .reverse = .{ .callers = reverse.callers, .known = reverse.known },
+    };
 }
 
 pub fn deinit(self: *Self) void {

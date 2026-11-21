@@ -1,6 +1,7 @@
 import type { Allocator, ArenaScope } from "memory"
 import type { Cells, Create } from "../summaries/model"
-import type { Bodies, Calls } from "../topology/model"
+import type { Bodies, Calls, Input as Graph } from "../topology/model"
+import type { Buffers } from "../work/allocate"
 
 export type Arenas = {
     scope: ArenaScope,
@@ -16,6 +17,10 @@ export type Prepare = Create & {
 export type Prepared = {
     topology: Calls,
     storage: Cells
+}
+
+export type Open = Graph & {
+    queue: Buffers
 }
 
 export enum Phase {
@@ -37,15 +42,12 @@ export enum Step {
     ConservativeDemand,
     Plan,
     Release,
+    ReleaseReused,
     Commit,
     Done
 }
 
 export type Input = {
     step: Step,
-    following: bool,
-    reused: bool,
-    grew: bool,
-    exhausted: bool,
-    recording: bool
+    condition: bool
 }

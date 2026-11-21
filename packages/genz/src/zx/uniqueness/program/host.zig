@@ -9,21 +9,7 @@ const generated = @import("genz_options").generated_analysis;
 const Error = std.mem.Allocator.Error;
 const visits = if (generated) @import("visits.zig") else @import("visit/seed.zig");
 const Bodies = @import("bodies.zig");
-const driver = if (generated) @import("generated_uniqueness_program") else void;
-
-const Step = if (generated) driver.Output else enum {
-    Start,
-    Replay,
-    Open,
-    Settle,
-    Demand,
-    ConservativeDemand,
-    Plan,
-    Release,
-    Commit,
-    Done,
-};
-
+const transition = @import("transition.zig");
 const Round = @import("../work/round.zig");
 const Phase = Round.Phase;
 const PlanWriter = @import("visit/plan_writer.zig");
@@ -49,68 +35,59 @@ pub const Context = struct {
         ahead: Ahead,
     };
     pub fn run(self: *Context) Error!analysis.Result {
-        defer self.release();
+        errdefer self.release();
 
         var result = analysis.Result{ .functions = &.{}, .entry = .{ .flags = &.{} } };
-        var step: Step = .Start;
-        var reused = false;
-        var outcome: Round.Outcome = .{};
+        var step: transition.Step = .Start;
+        var condition = self.replay.trace != null;
 
         while (true) {
-            step = self.next(step, reused, outcome);
+            step = transition.next(step, condition);
 
-            switch (step) {
+            condition = switch (step) {
                 .Start => unreachable,
-                .Replay => {
+                .Replay => replayed: {
                     const found = if (generated)
                         try @import("../replay/shortcut/verify.zig").run(self)
                     else
                         try @import("../replay/shortcut/seed.zig").run(self.allocator, self.workspace, self.temporary, self.slots, self.summaries, self.bodies, self.calls.active, self.memo, self.replay);
 
-                    if (found) |accepted| {
-                        result = accepted;
-                        reused = true;
-                    }
+                    result = found orelse break :replayed false;
+
+                    break :replayed true;
                 },
-                .Open => try self.open(),
-                .Settle => outcome = try self.visitRound(.Settle, false, &result),
-                .Demand, .ConservativeDemand => outcome = try self.visitRound(.Demand, step == .ConservativeDemand, &result),
-                .Plan => outcome = try self.visitRound(.Plan, false, &result),
-                .Release => self.release(),
-                .Commit => try self.commit(),
+                .Open => opened: {
+                    try self.open();
+
+                    break :opened false;
+                },
+                .Settle => (try self.visitRound(.Settle, false, &result)).exhausted,
+                .Demand, .ConservativeDemand => (try self.visitRound(.Demand, step == .ConservativeDemand, &result)).grew,
+                .Plan => planned: {
+                    _ = try self.visitRound(.Plan, false, &result);
+
+                    break :planned false;
+                },
+                .Release => released: {
+                    self.release();
+
+                    break :released self.replay.recording != null;
+                },
+                .ReleaseReused => {
+                    self.release();
+
+                    return result;
+                },
+                .Commit => {
+                    try self.commit();
+
+                    return result;
+                },
                 .Done => return result,
-            }
+            };
         }
     }
 
-    fn next(self: *const Context, step: Step, reused: bool, outcome: Round.Outcome) Step {
-        const following = self.replay.trace != null;
-        const recording = self.replay.recording != null;
-
-        if (!generated) return switch (step) {
-            .Start => if (following) .Replay else .Open,
-            .Replay => if (reused) .Release else .Open,
-            .Open => .Settle,
-            .Settle => if (outcome.exhausted) .ConservativeDemand else .Demand,
-            .Demand, .ConservativeDemand => if (outcome.grew) .Settle else .Plan,
-            .Plan => .Release,
-            .Release => if (!reused and recording) .Commit else .Done,
-            .Commit, .Done => .Done,
-        };
-
-        const input: std.meta.Child(driver.Input) = .{
-            .step = step,
-            .following = following,
-            .reused = reused,
-            .grew = outcome.grew,
-            .exhausted = outcome.exhausted,
-            .recording = recording,
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        return @import("zx").columns.invoke(driver.executeValue, empty.allocator(), &input) catch unreachable;
-    }
     pub fn roundMemory(self: *Context) std.mem.Allocator {
         if (self.round_memory == null) self.round_memory = .init(self.workspace);
 
@@ -119,13 +96,21 @@ pub const Context = struct {
     fn open(self: *Context) Error!void {
         const memory = self.roundMemory();
         self.pool = try Pool.init(memory, self.concurrent);
-
         const ahead = try Ahead.init(memory, &self.pool.?, self.slots, self.summaries, self.bodies, self.calls.recursive);
-        const reverse = try Topology.build(memory, self.calls.callees, self.exported);
+
+        const prepared = if (generated)
+            try analysis.Work.open(self.workspace, memory, self.calls.callees, self.exported)
+
+        else seed: {
+            const reverse = try Topology.buildSeed(memory, self.calls.callees, self.exported);
+            const work = try analysis.Work.init(self.workspace, self.calls.active.len);
+
+            break :seed .{ .work = work, .reverse = reverse };
+        };
 
         self.rounds = .{
-            .work = try analysis.Work.init(self.workspace, self.calls.active.len),
-            .reverse = reverse,
+            .work = prepared.work,
+            .reverse = prepared.reverse,
             .ahead = ahead,
         };
     }
@@ -187,7 +172,7 @@ pub const Context = struct {
             };
 
             // The previous visit's changed rows are borrowed until advance has published them.
-            if (kind != .planned) _ = round.reset(.retain_capacity);
+            if (!generated and kind != .planned) _ = round.reset(.retain_capacity);
 
             switch (kind) {
                 .settled => feedback = try visits.settle(self, &round, index),

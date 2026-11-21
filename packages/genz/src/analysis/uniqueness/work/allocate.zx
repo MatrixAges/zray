@@ -1,0 +1,20 @@
+import columns from "memory/columns"
+
+import type { ColumnAllocator, RowBuffer } from "memory/columns"
+
+export type Buffers = {
+    owner: ColumnAllocator,
+    slots: RowBuffer,
+    queued: RowBuffer
+}
+
+export type Input = Buffers & {
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    columns.allocateRowsWithAllocator(in.owner, in.slots, in.count)
+    columns.allocateRowsWithAllocator(in.owner, in.queued, in.count)
+}
