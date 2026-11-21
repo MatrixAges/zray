@@ -21,14 +21,16 @@ pub fn of(comptime Layout: type, comptime Syntax: type) Layout {
 }
 
 fn tables(comptime Layout: type, comptime Syntax: type) Layout {
+    const Order = std.meta.Child(@FieldType(Syntax, "type_order"));
     var result: Layout = undefined;
-    var base: u64 = 0;
+    var base = allocation(Order);
 
-    inline for (.{ "types", "type_order", "expressions", "blocks" }) |name| {
+    result.order = &slice(std.meta.Child(@FieldType(Layout, "order")), @FieldType(Order, "heads"));
+
+    inline for (.{ "types", "expressions", "blocks" }) |name| {
         const Table = std.meta.Child(@FieldType(Syntax, name));
-        const key = if (std.mem.eql(u8, name, "type_order")) "order" else name;
 
-        @field(result, key) = &columns(std.meta.Child(@FieldType(Layout, key)), Table);
+        @field(result, name) = &columns(std.meta.Child(@FieldType(Layout, name)), Table);
 
         base += allocation(Table);
     }

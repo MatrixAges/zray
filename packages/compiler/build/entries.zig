@@ -32,6 +32,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/frontend/parser/expression_text.rx", .name = "expression" },
     .{ .path = "zx/frontend/parser/syntax/retention/program.zx", .name = "program_retention_size" },
     .{ .path = "zx/frontend/parser/syntax/retention/expression.zx", .name = "expression_retention_size" },
+    .{ .path = "zx/frontend/parser/types/order/write.zx", .name = "parser_type_order_write" },
     .{ .path = "zx/frontend/syntax/program/order/size.zx", .name = "syntax_order_size" },
     .{ .path = "zx/frontend/syntax/program/order/build.rx", .name = "syntax_order_build" },
     .{ .path = "rx/syntax/parse.rx", .name = "xml" },
@@ -1016,6 +1017,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "zx/frontend/retention/order.zx", .name = "parser_publish_orders" },
     .{ .path = "zx/analysis/publication/module/publish.rx", .name = "analysis_publish_module" },
     .{ .path = "zx/analysis/publication/entry/finish.rx", .name = "analysis_finish_entry" },
     .{ .path = "rx/analysis/project/workflow/infer/run.rx", .name = "rx_execute_inference", .owner = .rx_analysis },

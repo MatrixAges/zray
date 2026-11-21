@@ -22,7 +22,7 @@ export default function (in: Input): Output {
     })
 
     const order = orderSize({
-        tree: syntax.type_order,
+        tree: syntax.types,
         layout: layout.order
     })
 

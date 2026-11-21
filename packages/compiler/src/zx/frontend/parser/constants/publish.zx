@@ -1,14 +1,12 @@
 import { Kind, Symbol } from "../../lexer/token_model"
 
 import type { Parsed } from "../expressions/result"
-import type { Order } from "../types/model"
 import type { Annotation } from "./model"
 import type { Result } from "./model"
 
 export type Input = {
     annotation: Annotation,
-    parsed: Parsed,
-    order: Order
+    parsed: Parsed
 }
 
 export type Output = Result
@@ -79,7 +77,11 @@ export default function (in: Input): Output {
             annotation: in.annotation.annotation,
             value: control.result,
             types: parsed.types.tree,
-            type_order: in.order,
+            type_order: {
+                heads: [],
+                fields: [],
+                items: []
+            },
             expressions: parsed.tree,
             blocks: parsed.body
         },

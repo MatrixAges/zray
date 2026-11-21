@@ -1,6 +1,6 @@
 import type { BlockTree } from "../../body/model"
 import type { ExprTree } from "../../expressions/state/model"
-import type { Order, TypeTree } from "../../types/model"
+import type { TypeTree } from "../../types/model"
 
 export type RowLayout = {
     stride: u64,
@@ -9,12 +9,6 @@ export type RowLayout = {
 
 export type TypeRows = {
     nodes: RowLayout,
-    fields: RowLayout,
-    items: RowLayout
-}
-
-export type OrderRows = {
-    heads: RowLayout,
     fields: RowLayout,
     items: RowLayout
 }
@@ -39,7 +33,7 @@ export type BlockRows = {
 export type Tables = {
     base: u64,
     types: TypeRows,
-    order: OrderRows,
+    order: RowLayout,
     expressions: ExpressionRows,
     blocks: BlockRows
 }
@@ -68,8 +62,8 @@ export type TypeInput = {
 }
 
 export type OrderInput = {
-    tree: Order,
-    layout: OrderRows
+    tree: TypeTree,
+    layout: RowLayout
 }
 
 export type ExpressionInput = {

@@ -20,6 +20,8 @@ export type AnalysisPublication = opaque
 
 export type AnalysisEntry = opaque
 
+export type SyntaxOrders = opaque
+
 export enum LibraryResolution {
     Found,
     Missing,
@@ -31,6 +33,9 @@ export enum CacheWrite {
     MissingOrigin,
     Invalid
 }
+
+export declare function publishSyntaxOrder(output: SyntaxOrders, constant: u64?): void
+    throws { OutOfMemory }
 
 export declare function initializeAnalysisTypes(
     publication: AnalysisPublication,

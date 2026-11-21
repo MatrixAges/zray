@@ -1,5 +1,4 @@
 import publishIssue from "../../diagnostic/present"
-import order from "../types/order"
 import diagnostic from "./diagnostic"
 
 import type { Expression } from "../syntax/model"
@@ -15,7 +14,11 @@ export default function (in: Input): Output {
 
     return {
         types: in.types.tree,
-        type_order: order(in.types.tree),
+        type_order: {
+            heads: [],
+            fields: [],
+            items: []
+        },
         expressions: in.tree,
         blocks: in.body,
         tokens: lexical.tokens,

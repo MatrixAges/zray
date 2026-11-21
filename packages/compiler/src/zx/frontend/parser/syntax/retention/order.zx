@@ -7,16 +7,10 @@ export type Output = u64
 export default function (in: Input): Output {
     const { tree, layout } = in
 
+    const length = tree.nodes.length + tree.fields.length + tree.items.length
+
     return rows([
-        tree.heads.length,
-        layout.heads
-    ]) +
-        rows([
-            tree.fields.length,
-            layout.fields
-        ]) +
-        rows([
-            tree.items.length,
-            layout.items
-        ])
+        length,
+        layout
+    ])
 }

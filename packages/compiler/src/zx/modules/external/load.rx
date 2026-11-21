@@ -8,11 +8,16 @@
     <Call fn="declaration_only" />
 
     <If on={$ctx.declaration_only}>
+        <Call fn="../../frontend/parser/types/order" in={$ctx.program.types} />
+
         <Call
             module="signature"
             in={{
                 input: $in,
-                syntax: $ctx.program
+                syntax: {
+                    ...$ctx.program,
+                    type_order: $ctx.order
+                }
             }}
         />
 

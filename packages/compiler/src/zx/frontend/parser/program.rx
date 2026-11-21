@@ -12,12 +12,14 @@
     <Call fn="program/diagnostic" />
     <Call fn="../diagnostic/present" />
 
-    <Call fn="types/order" in={$ctx.body.body.expression.types.tree} />
-
     <Return
         value={{
             types: $ctx.body.body.expression.types.tree,
-            type_order: $ctx.order,
+            type_order: {
+                heads: [],
+                fields: [],
+                items: []
+            },
             expressions: $ctx.body.body.expression.tree,
             blocks: $ctx.body.body.tree,
             tokens: $ctx.body.body.expression.prepared.lexical.lexed.tokens,

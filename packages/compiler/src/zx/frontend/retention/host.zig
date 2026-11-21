@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const compact = @import("../compact_output.zig");
 const layout = @import("layout.zig");
+const order = @import("order.zig");
 
 pub fn retain(comptime rule: type, allocator: std.mem.Allocator, source: []const u8, syntax: anytype) std.mem.Allocator.Error!struct { arena: zx.Arena, output: @TypeOf(syntax) } {
     const Input = std.meta.Child(rule.Input);
@@ -20,6 +21,8 @@ pub fn retain(comptime rule: type, allocator: std.mem.Allocator, source: []const
     errdefer arena.deinit();
 
     const output = try compact.copy(arena.allocator(), source, syntax);
+
+    try order.publish(arena.allocator(), output, .retained);
 
     std.debug.assert(arena.queryCapacity() == capacity);
 

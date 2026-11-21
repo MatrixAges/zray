@@ -10,14 +10,12 @@
 
         <If on={$ctx.annotation.diagnostic.message == ""}>
             <Call fn="initializer" in={$ctx.annotation} />
-            <Call fn="../types/order" in={$ctx.initializer.types.tree} />
 
             <Call
                 fn="publish"
                 in={{
                     annotation: $ctx.annotation,
-                    parsed: $ctx.initializer,
-                    order: $ctx.order
+                    parsed: $ctx.initializer
                 }}
             />
 

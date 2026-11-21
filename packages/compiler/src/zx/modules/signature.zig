@@ -17,7 +17,8 @@ pub fn resolve(allocator: std.mem.Allocator, entry: External, span: zx.Span, exi
             else => return invalid(reporter, span),
         };
 
-        if (output.diagnostic.message.len != 0 or output.body != null or output.imports.len != 0 or output.constants.len != 0) return invalid(reporter, span);
+        if (output.diagnostic != null or output.body != null or output.imports.len != 0 or output.constants.len != 0) return invalid(reporter, span);
+        try @import("../frontend/retention/order.zig").publish(scratch.allocator(), output, .temporary);
 
         const View = @import("type_views").Indexed(@TypeOf(output));
 

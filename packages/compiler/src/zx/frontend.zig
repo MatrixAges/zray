@@ -40,6 +40,7 @@ pub const Context = @import("analysis/analyze.zig").Context;
 pub const project = @import("modules/project.zig");
 const analysis_publication = @import("analysis/analyzer/host/publish.zig");
 const analysis_entry = @import("analysis/publication/entry/host.zig");
+pub const publishSyntaxOrder = @import("frontend/retention/order.zig").publishSyntaxOrder;
 const project_walk = @import("modules/project/execution/load.zig");
 const project_body = @import("modules/project/execution/body.zig");
 const project_entry = @import("modules/project/execution/entry.zig");

@@ -1,0 +1,24 @@
+import host from "project_host"
+
+import type { SyntaxOrders } from "project_host"
+
+export type Input = {
+    output: SyntaxOrders,
+    constants: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { output, constants } = in
+
+    host.publishSyntaxOrder(output, null)
+
+    const completed = loop(0, {
+        while: row => row < constants,
+        next: row => {
+            host.publishSyntaxOrder(output, row)
+            row += 1
+        }
+    })
+}
