@@ -1,0 +1,35 @@
+import type { Control } from "core/control_table/model"
+import type { SymbolicBlock, SymbolicSession } from "verification_host"
+
+export type Scope = {
+    control: Control,
+    expression_payloads: u32[],
+    call_arguments: u32[]
+}
+
+export type Path = {
+    block: SymbolicBlock,
+    session: SymbolicSession,
+    scope: Scope,
+    path: string
+}
+
+export type Input = Path & {
+    first: u64,
+    count: u64
+}
+
+export type Statement = Path & {
+    row: u64
+}
+
+export type Payload = Path & {
+    payload: u64
+}
+
+export type Cases = {
+    row: u64,
+    unmatched: string,
+    continuation: string,
+    fallback?: u32
+}

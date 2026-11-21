@@ -1,0 +1,27 @@
+import integers from "std:integer"
+import host from "verification_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { block, scope, payload } = in
+
+    const control = scope.control
+    const first = integers.widen(control.parallel_first[payload])
+    const count = integers.widen(control.parallel_count[payload])
+
+    const completed = loop(0, {
+        while: index => index < count,
+        next: index => {
+            const symbol = control.parallel_symbols[first + index]
+
+            if (symbol != null) {
+                host.bindSymbolicParallel(block, index, symbol)
+            }
+
+            index += 1
+        }
+    })
+}

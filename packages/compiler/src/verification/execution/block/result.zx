@@ -1,0 +1,30 @@
+import host from "verification_host"
+
+import guard from "./guard"
+
+import type { SymbolicBlock, SymbolicSession } from "verification_host"
+
+export type Input = {
+    block: SymbolicBlock,
+    session: SymbolicSession,
+    path: string,
+    expression?: u32
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { block, session, path, expression } = in
+
+    const safe = host.evaluateSymbolicStatement(block, expression)
+
+    const completed = guard({
+        session,
+        path,
+        safe
+    })
+
+    host.publishSymbolicStatementReturn(block, completed)
+
+    return null
+}

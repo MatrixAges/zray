@@ -1,0 +1,7 @@
+import type { Payload } from "../block/model"
+
+export type Input = Payload
+
+export type Calls = Input & {
+    launch: string
+}

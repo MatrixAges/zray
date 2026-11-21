@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Parallel" />
+
+    <Args in={Parallel.Input} out={string} />
+
+    <Call fn="parameters" in={$in} />
+
+    <Call
+        fn="calls"
+        in={{
+            ...$in,
+            launch: $ctx.parameters
+        }}
+    />
+
+    <Call fn="bind" in={$in} />
+
+    <Return value={$ctx.calls} />
+</Module>

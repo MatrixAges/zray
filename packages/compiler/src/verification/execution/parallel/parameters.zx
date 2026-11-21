@@ -1,0 +1,37 @@
+import integers from "std:integer"
+import host from "verification_host"
+
+import guard from "../block/guard"
+
+import type { Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { block, session, scope, payload } = in
+
+    const control = scope.control
+    const first = integers.widen(control.parallel_first[payload])
+    const end = first + integers.widen(control.parallel_count[payload])
+
+    return loop({
+        row: first,
+        path: in.path
+    }, {
+        while: state => state.row < end,
+        next: state => {
+            const call = integers.widen(control.parallel_values[state.row])
+            const argument = integers.widen(scope.expression_payloads[call])
+            const safe =
+                host.evaluateSymbolicStatement(block, scope.call_arguments[argument])
+
+            state.path = guard({
+                session,
+                path: state.path,
+                safe
+            })
+            state.row += 1
+        },
+        return: state => state.path
+    })
+}

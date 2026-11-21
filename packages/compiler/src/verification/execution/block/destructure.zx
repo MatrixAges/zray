@@ -1,0 +1,40 @@
+import integers from "std:integer"
+import host from "verification_host"
+
+import guard from "./guard"
+
+import type { Payload as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { block, session, path, scope, payload } = in
+
+    const control = scope.control
+
+    const safe =
+        host.evaluateSymbolicStatement(block, control.destructure_values[payload])
+
+    const next = guard({
+        session,
+        path,
+        safe
+    })
+
+    const first = integers.widen(control.destructure_first[payload])
+    const count = integers.widen(control.destructure_count[payload])
+
+    return loop(0, {
+        while: field => field < count,
+        next: field => {
+            const symbol = control.destructure_symbols[first + field]
+
+            if (symbol != null) {
+                host.bindSymbolicStatementField(block, symbol, field)
+            }
+
+            field += 1
+        },
+        return: field => next
+    })
+}

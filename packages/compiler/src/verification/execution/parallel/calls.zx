@@ -1,0 +1,47 @@
+import integers from "std:integer"
+import host from "verification_host"
+
+import require from "../../contracts/require"
+import conjunction from "../../scalar/conjunction"
+
+import type { Calls as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { block, session, scope, payload, launch } = in
+
+    const control = scope.control
+    const first = integers.widen(control.parallel_first[payload])
+    const count = integers.widen(control.parallel_count[payload])
+
+    host.reserveSymbolicParallel(block, count)
+
+    return loop({
+        index: 0,
+        path: launch
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const safe = host.evaluateSymbolicStatement(
+                block,
+                control.parallel_values[first + state.index]
+            )
+
+            host.saveSymbolicParallel(block, state.index)
+            require({
+                session,
+                path: launch,
+                predicate: safe
+            })
+
+            const joined = conjunction({
+                left: state.path,
+                right: safe
+            })
+            state.path = host.bindSymbolicBoolean(session, joined)
+            state.index += 1
+        },
+        return: state => state.path
+    })
+}

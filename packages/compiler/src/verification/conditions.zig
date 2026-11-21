@@ -103,6 +103,8 @@ fn parameter(self: *Self, type_id: ir.TypeId, path: []const u8, port_allocator: 
 }
 
 fn block(self: *Self, statements: ir.Block, environment: []?Value, initial: []const u8) zx.Error![]const u8 {
+    if (comptime generated) return @import("execution/block.zig").execute(self, statements, environment, initial);
+
     const checkpoint = self.scratch.checkpoint();
 
     defer self.scratch.rewindRetainingCapacity(checkpoint);
@@ -293,7 +295,7 @@ fn preconditions(self: *Self, comptime boundary: Boundary) zx.Error![]const u8 {
     return path;
 }
 
-fn postconditions(self: *Self, path: []const u8, value: Value) zx.Error!void {
+pub fn postconditions(self: *Self, path: []const u8, value: Value) zx.Error!void {
     if (comptime generated) {
         _ = try execution.apply(self, .Returned, path, value);
 

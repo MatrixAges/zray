@@ -1,0 +1,31 @@
+import host from "verification_host"
+
+import require from "../../contracts/require"
+import conjunction from "../../scalar/conjunction"
+
+import type { SymbolicSession } from "verification_host"
+
+export type Input = {
+    session: SymbolicSession,
+    path: string,
+    safe: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { session, path, safe } = in
+
+    require({
+        session,
+        path,
+        predicate: safe
+    })
+
+    const checked = conjunction({
+        left: path,
+        right: safe
+    })
+
+    return host.bindSymbolicBoolean(session, checked)
+}

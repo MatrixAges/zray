@@ -7,7 +7,7 @@ const merge_result = @import("generated_merge_symbolic_returns");
 const Mode = @FieldType(std.meta.Child(clauses.Input), "mode");
 const native = @import("output_execution_abi").layouts.@"zig:verification_host";
 
-const Frame = struct {
+pub const Frame = struct {
     conditions: *Conditions,
     value: ?terms.Value,
     clause: native.ClauseTerm = undefined,
@@ -90,7 +90,7 @@ pub fn selectSymbolicReturn(handle: *const anyopaque, row: u64) zx.Error![]const
     return current.path;
 }
 
-fn failure(err: anyerror) zx.Error {
+pub fn failure(err: anyerror) zx.Error {
     return switch (err) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
         error.InvalidSource, error.IndexOutOfBounds => error.InvalidSource,

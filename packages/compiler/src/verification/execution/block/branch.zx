@@ -1,0 +1,54 @@
+import host from "verification_host"
+
+import exclude from "../../predicate/exclude"
+import conjunction from "../../scalar/conjunction"
+import disjunction from "../../scalar/disjunction"
+import guard from "./guard"
+
+import type { Payload as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { block, session, scope, payload } = in
+
+    const control = scope.control
+
+    const safe =
+        host.evaluateSymbolicStatement(block, control.branch_conditions[payload])
+
+    const condition = host.symbolicStatementText(block)
+
+    const path = guard({
+        session,
+        path: in.path,
+        safe
+    })
+
+    const positive = conjunction({
+        left: path,
+        right: condition
+    })
+
+    const yes_entry = host.bindSymbolicBoolean(session, positive)
+    const yes = host.runSymbolicChild(block, control.branch_yes[payload], yes_entry)
+
+    const negative = exclude({
+        left: path,
+        right: condition
+    })
+
+    const no_entry = host.bindSymbolicBoolean(session, negative)
+    const no = host.runSymbolicChild(block, control.branch_no[payload], no_entry)
+
+    if (yes == yes_entry && no == no_entry) {
+        return path
+    }
+
+    const joined = disjunction({
+        left: yes,
+        right: no
+    })
+
+    return host.bindSymbolicBoolean(session, joined)
+}

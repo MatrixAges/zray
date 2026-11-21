@@ -6,6 +6,8 @@ export type SymbolicTarget = opaque
 
 export type SymbolicSession = opaque
 
+export type SymbolicBlock = opaque
+
 export type ClauseTerm = {
     safe: string,
     predicate: string
@@ -48,3 +50,31 @@ export declare function publishClauseViolation(session: SymbolicSession, term: s
 
 export declare function selectSymbolicReturn(session: SymbolicSession, row: u64): string
     throws { OutOfMemory, InvalidSource }
+
+export declare function evaluateSymbolicStatement(block: SymbolicBlock, expression: u32?): string
+    throws { OutOfMemory, InvalidSource }
+
+export declare function symbolicStatementText(block: SymbolicBlock): string
+
+export declare function bindSymbolicStatement(block: SymbolicBlock, symbol: u32): void
+
+export declare function bindSymbolicStatementField(block: SymbolicBlock, symbol: u32, field: u64): void
+
+export declare function publishSymbolicStatementReturn(block: SymbolicBlock, path: string): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function runSymbolicChild(block: SymbolicBlock, body: u32, path: string): string
+    throws { OutOfMemory, InvalidSource }
+
+export declare function runSymbolicParallel(block: SymbolicBlock, payload: u64, path: string): string
+    throws { OutOfMemory, InvalidSource }
+
+export declare function reserveSymbolicParallel(block: SymbolicBlock, count: u64): void
+    throws { OutOfMemory }
+
+export declare function saveSymbolicParallel(block: SymbolicBlock, index: u64): void
+
+export declare function bindSymbolicParallel(block: SymbolicBlock, index: u64, symbol: u32): void
+
+export declare function rejectSymbolicStatement(block: SymbolicBlock): string?
+    throws { InvalidSource }

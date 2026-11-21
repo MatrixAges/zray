@@ -1,0 +1,100 @@
+import integers from "std:integer"
+import host from "verification_host"
+
+import connect from "../../predicate/connect"
+import exclude from "../../predicate/exclude"
+import { Operator } from "../../predicate/model"
+import conjunction from "../../scalar/conjunction"
+import { smt_false, smt_true } from "../../scalar/const"
+import disjunction from "../../scalar/disjunction"
+import guard from "./guard"
+
+import type { Cases, Payload as Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { block, session, scope, payload } = in
+
+    const control = scope.control
+
+    const safe =
+        host.evaluateSymbolicStatement(block, control.selection_subjects[payload])
+
+    const subject = host.symbolicStatementText(block)
+
+    const path = guard({
+        session,
+        path: in.path,
+        safe
+    })
+
+    const first = integers.widen(control.selection_first[payload])
+    const end = first + integers.widen(control.selection_count[payload])
+
+    const seed: Cases = {
+        row: first,
+        unmatched: smt_true,
+        continuation: smt_false,
+        fallback: null
+    }
+
+    return loop(seed, {
+        while: state => state.row < end,
+        next: state => {
+            const label = control.case_values[state.row]
+            const body = control.case_bodies[state.row]
+
+            if (label != null) {
+                const label_safety = host.evaluateSymbolicStatement(block, label)
+                const matches = connect({
+                    left: subject,
+                    right: host.symbolicStatementText(block),
+                    operator: Operator.Equal
+                })
+                const entry = conjunction({
+                    left: path,
+                    right: matches
+                })
+                const bound = host.bindSymbolicBoolean(session, entry)
+                const remaining = host.runSymbolicChild(block, body, bound)
+
+                const continued = disjunction({
+                    left: state.continuation,
+                    right: remaining
+                })
+                state.continuation = host.bindSymbolicBoolean(session, continued)
+
+                const still_unmatched = exclude({
+                    left: state.unmatched,
+                    right: matches
+                })
+                state.unmatched = host.bindSymbolicBoolean(session, still_unmatched)
+            } else {
+                state.fallback = body
+            }
+
+            state.row += 1
+        },
+        return: state => {
+            const otherwise = conjunction({
+                left: path,
+                right: state.unmatched
+            })
+
+            const default_path = host.bindSymbolicBoolean(session, otherwise)
+
+            const remaining = match {
+                state.fallback == null => default_path,
+                _ => host.runSymbolicChild(block, state.fallback, default_path)
+            }
+
+            const joined = disjunction({
+                left: state.continuation,
+                right: remaining
+            })
+
+            return host.bindSymbolicBoolean(session, joined)
+        }
+    })
+}

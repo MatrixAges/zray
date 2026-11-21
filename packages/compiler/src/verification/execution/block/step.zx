@@ -1,0 +1,57 @@
+import integers from "std:integer"
+import { StatementKind } from "core/control_table/model"
+import host from "verification_host"
+
+import bind from "./bind"
+import branch from "./branch"
+import destructure from "./destructure"
+import result from "./result"
+import select from "./select"
+
+import type { Statement as Input } from "./model"
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { block, session, path, scope, row } = in
+
+    const control = scope.control
+    const payload = integers.widen(control.statement_payloads[row])
+
+    return match control.statement_kinds[row] {
+        StatementKind.Evaluate => bind({
+            block,
+            session,
+            path,
+            expression: control.evaluations[payload],
+            symbol: null
+        }),
+        StatementKind.Constant => bind({
+            block,
+            session,
+            path,
+            expression: control.constant_values[payload],
+            symbol: control.constant_symbols[payload]
+        }),
+        StatementKind.Destructure => destructure({
+            ...in.omit(["row"]),
+            payload
+        }),
+        StatementKind.Result => result({
+            block,
+            session,
+            path,
+            expression: control.results[payload]
+        }),
+        StatementKind.Branch => branch({
+            ...in.omit(["row"]),
+            payload
+        }),
+        StatementKind.Switch => select({
+            ...in.omit(["row"]),
+            payload
+        }),
+        StatementKind.Parallel => host.runSymbolicParallel(block, payload, path),
+        _ => host.rejectSymbolicStatement(block)
+    }
+}
