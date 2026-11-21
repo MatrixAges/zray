@@ -21,11 +21,5 @@
 
             <Return value={$ctx.unary} />
         </Case>
-
-        <Case value={Emission.Operation.Conditional}>
-            <Call fn="conditional" in={$in} />
-
-            <Return value={$ctx.conditional} />
-        </Case>
     </Switch>
 </Module>

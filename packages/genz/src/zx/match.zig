@@ -16,23 +16,32 @@ pub fn lowerValue(self: *Lower, selection: ir.MatchRow) Lower.Error!node.Express
 fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return if (layout) @import("match/seed.zig").lowerValue(self, selection) else @import("match/seed.zig").lower(self, selection);
 
+    const prepared = bridge.prepare(selection, layout);
+    const subject: ?ir.ExprId = if (prepared.subject) |id| @fromBackingInt(id) else null;
+    const previous = if (subject) |id| self.cache.get(id) else null;
     var body: std.ArrayList(node.Statement) = .empty;
-    const previous = if (selection.subject) |subject| self.cache.get(subject) else null;
 
-    if (selection.subject) |subject| {
-        const saved = try aggregate.bind(self, &body, try self.expr(subject));
+    defer body.deinit(self.allocator);
 
-        try self.cache.put(self.allocator, subject, saved);
-        if (selection.arms.len == 0) try body.append(self.allocator, .{ .discard = saved });
-    }
+    const binding: ?node.ExpressionId = if (subject) |id| binding: {
+        const saved = try aggregate.bind(self, &body, try self.expr(id));
 
-    defer {
-        if (selection.subject) |subject| {
-            if (previous) |value| self.cache.put(self.allocator, subject, value) catch unreachable else _ = self.cache.remove(subject);
-        }
-    }
+        try self.cache.put(self.allocator, id, saved);
 
-    const fallback = if (layout) try @import("value_call/root.zig").expression(self, selection.fallback) else try self.expr(selection.fallback);
+        break :binding saved;
+    } else null;
+
+    defer if (subject) |id| self.cache.restoreEntry(self.allocator, id, previous);
+
+    if (prepared.discard) try body.append(self.allocator, .{ .discard = binding.? });
+
+    const fallback = try evaluate(self, prepared.result, prepared.fallback, 0);
+    const result = if (prepared.has_arms) try lowerArms(self, selection, prepared.result, fallback) else fallback;
+
+    return if (subject == null) result else aggregate.finish(self, &body, result);
+}
+
+fn lowerArms(self: *Lower, selection: ir.MatchRow, mode: bridge.ResultMode, fallback: node.ExpressionId) Lower.Error!node.ExpressionId {
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -40,22 +49,26 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
     defer scratch.deinit();
 
     const allocator = buffered.allocator();
-    const plan = try bridge.plan(self, allocator, selection, layout);
+    const plan = try bridge.plan(self, allocator, selection, mode);
 
     if (!plan.valid) return error.OutOfMemory;
 
     const values = try allocator.alloc(node.ExpressionId, plan.operations.len);
 
     for (plan.operations, plan.first, plan.second, values) |operation, first, second, *value| {
-        value.* = switch (operation) {
-            .Expression => try self.expr(@fromBackingInt(first)),
-            .Value => try @import("value_call/root.zig").expression(self, @fromBackingInt(first)),
-            .Equality => try self.binary(.{ .operator = .equal, .left = @fromBackingInt(first), .right = @fromBackingInt(second) }),
-            .Literal => try @import("selection.zig").literal(self, @fromBackingInt(first)),
-        };
+        value.* = try evaluate(self, operation, first, second);
     }
 
-    const result = try bridge.emit(self, allocator, plan.selected, plan.count, values, fallback);
+    return bridge.emit(self, allocator, plan.selected, plan.count, values, fallback);
+}
 
-    return if (selection.subject == null) result else aggregate.finish(self, &body, result);
+fn evaluate(self: *Lower, operation: anytype, first: u32, second: u32) Lower.Error!node.ExpressionId {
+    const id: ir.ExprId = @fromBackingInt(first);
+
+    return switch (operation) {
+        .Expression => self.expr(id),
+        .Value => @import("value_call/root.zig").expression(self, id),
+        .Equality => self.binary(.{ .operator = .equal, .left = id, .right = @fromBackingInt(second) }),
+        .Literal => @import("selection.zig").literal(self, id),
+    };
 }

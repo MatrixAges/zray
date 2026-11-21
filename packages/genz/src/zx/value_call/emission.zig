@@ -15,9 +15,6 @@ pub const Operation = @FieldType(Input, "operation");
 pub const Arguments = struct {
     value: node.ExpressionId = @fromBackingInt(0),
     callee: node.ExpressionId = @fromBackingInt(0),
-    condition: node.ExpressionId = @fromBackingInt(0),
-    yes: node.ExpressionId = @fromBackingInt(0),
-    no: node.ExpressionId = @fromBackingInt(0),
     plan: ?policy.Plan = null,
 };
 
@@ -53,9 +50,6 @@ pub fn emit(self: *Lower, body: ?*Sequence, operation: Operation, arguments: Arg
         .operation = operation,
         .value = @backingInt(arguments.value),
         .callee = @backingInt(arguments.callee),
-        .condition = @backingInt(arguments.condition),
-        .yes = @backingInt(arguments.yes),
-        .no = @backingInt(arguments.no),
         .plan = if (arguments.plan != null) &plan else null,
     };
 

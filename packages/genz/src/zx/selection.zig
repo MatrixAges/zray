@@ -14,7 +14,7 @@ pub fn literal(self: *Lower, id: ir.ExprId) Lower.Error!@import("../node.zig").E
 
     if (previous != null) _ = self.cache.remove(id);
 
-    defer if (previous) |value| self.cache.put(self.allocator, id, value) catch unreachable;
+    defer if (previous != null) self.cache.restoreEntry(self.allocator, id, previous);
 
     return self.regular(id);
 }

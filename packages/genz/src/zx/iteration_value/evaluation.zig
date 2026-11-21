@@ -42,7 +42,7 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!?node.ExpressionId {
         .Binary => lowering.regular(id),
         .Aggregate => @import("aggregate.zig").lower(self, id),
         .Collection => collections.lowerValue(lowering, id, try @import("types.zig").get(self, value.type_id)),
-        .Conditional => conditional(lowering, value.value.conditional),
+        .Conditional => @import("../selection/conditional.zig").lower(lowering, value.value.conditional),
         .Match => @import("../match.zig").lower(lowering, value.value.match_expr),
         else => unreachable,
     };
@@ -114,14 +114,6 @@ fn length(lowering: *Lower, type_id: ir.TypeId, child: ir.ExprId) Lower.Error!no
     const items = try lowering.field(try lowering.expr(child), "items");
 
     return lowering.cast(type_expr, try lowering.field(items, "len"));
-}
-
-fn conditional(lowering: *Lower, selected: @FieldType(@FieldType(ir.ExpressionRow, "value"), "conditional")) Lower.Error!node.ExpressionId {
-    return lowering.builder.expression(.{ .conditional = .{
-        .condition = try lowering.expr(selected.condition),
-        .yes = try lowering.expr(selected.yes),
-        .no = try lowering.expr(selected.no),
-    } });
 }
 
 pub fn unpack(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {

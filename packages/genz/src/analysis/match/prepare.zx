@@ -1,0 +1,26 @@
+import { Operation } from "./model"
+
+export type Input = {
+    subject?: u32,
+    fallback: u32,
+    count: u64,
+    layout: bool
+}
+
+export type Output = Input.Omit("layout", "count") & {
+    discard: bool,
+    has_arms: bool,
+    result: Operation
+}
+
+export default function (in: Input): Output {
+    return {
+        ...in.pick([
+            "subject",
+            "fallback"
+        ]),
+        discard: in.subject != null && in.count == 0,
+        has_arms: in.count != 0,
+        result: in.layout ? Operation.Value : Operation.Expression
+    }
+}

@@ -5,8 +5,7 @@ import type { Output as Policy, Result } from "../model"
 
 export enum Operation {
     Invoke,
-    Dereference,
-    Conditional
+    Dereference
 }
 
 export type Input = {
@@ -14,9 +13,6 @@ export type Input = {
     operation: Operation,
     value: u32,
     callee: u32,
-    condition: u32,
-    yes: u32,
-    no: u32,
     plan?: Policy
 }
 

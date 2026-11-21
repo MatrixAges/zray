@@ -1,0 +1,23 @@
+export enum Step {
+    Condition,
+    Yes,
+    No,
+    ValueYes,
+    ValueNo
+}
+
+export type Input = bool
+
+export type Output = {
+    first: Step,
+    second: Step,
+    third: Step
+}
+
+export default function (in: Input): Output {
+    return {
+        first: Step.Condition,
+        second: in ? Step.ValueYes : Step.Yes,
+        third: in ? Step.ValueNo : Step.No
+    }
+}

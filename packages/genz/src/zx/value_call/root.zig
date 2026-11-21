@@ -28,13 +28,7 @@ pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
         .Scope => @import("../scope.zig").lowerValue(self, value.value.scope),
         .Iteration => @import("../iteration.zig").lowerValue(self, id, value.value.iteration),
         .Match => @import("../match.zig").lowerValue(self, value.value.match_expr),
-        .Conditional => conditional: {
-            const condition = try self.expr(value.value.conditional.condition);
-            const yes = try expression(self, value.value.conditional.yes);
-            const no = try expression(self, value.value.conditional.no);
-
-            break :conditional emission.emit(self, null, .Conditional, .{ .condition = condition, .yes = yes, .no = no });
-        },
+        .Conditional => @import("../selection/conditional.zig").lowerValue(self, value.value.conditional),
         .Invocation => invocation(self, value.value.call),
     };
 }

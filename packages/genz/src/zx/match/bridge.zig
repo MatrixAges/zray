@@ -5,9 +5,27 @@ const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const planning = @import("generated_match_plan");
+const preparation = @import("generated_match_prepare");
 const Plan = @typeInfo(@typeInfo(@TypeOf(planning.executeValue)).@"fn".return_type.?).error_union.payload;
+const Prepared = @typeInfo(@typeInfo(@TypeOf(preparation.executeValue)).@"fn".return_type.?).error_union.payload;
+pub const ResultMode = @FieldType(Prepared, "result");
 
-pub fn plan(self: *Lower, allocator: std.mem.Allocator, selection: ir.MatchRow, layout: bool) Lower.Error!Plan {
+pub fn prepare(selection: ir.MatchRow, layout: bool) Prepared {
+    const Input = std.meta.Child(preparation.Input);
+
+    const input: Input = .{
+        .subject = if (selection.subject) |id| @backingInt(id) else null,
+        .fallback = @backingInt(selection.fallback),
+        .count = selection.arms.len,
+        .layout = layout,
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    return zx.columns.invoke(preparation.executeValue, fixed.allocator(), &input) catch unreachable;
+}
+
+pub fn plan(self: *Lower, allocator: std.mem.Allocator, selection: ir.MatchRow, result: ResultMode) Lower.Error!Plan {
     const Input = std.meta.Child(planning.Input);
     const Labels = std.meta.Child(@FieldType(Input, "source"));
     const Expressions = std.meta.Child(@FieldType(Labels, "expressions"));
@@ -21,7 +39,11 @@ pub fn plan(self: *Lower, allocator: std.mem.Allocator, selection: ir.MatchRow, 
         .conditions = selection.arms.conditions[0..selection.arms.len],
     };
 
-    const input: Input = .{ .source = &labels, .results = selection.arms.results[0..selection.arms.len], .layout = layout };
+    const input: Input = .{
+        .source = &labels,
+        .results = selection.arms.results[0..selection.arms.len],
+        .result = zx.columns.view(@FieldType(Input, "result"), result),
+    };
 
     return zx.columns.invoke(planning.executeValue, allocator, @as(*const Input, &input)) catch |err| return failure(err);
 }

@@ -11,7 +11,7 @@ export enum Operation {
 export type Input = {
     source: Labels,
     results: u32[],
-    layout: bool
+    result: Operation
 }
 
 export type Plan = {
