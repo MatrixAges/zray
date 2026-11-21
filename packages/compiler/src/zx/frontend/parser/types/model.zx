@@ -1,5 +1,6 @@
 import type { Diagnostic } from "../../lexer/model"
 import type { Span, Token } from "../../lexer/token_model"
+import type { Placement } from "../../storage"
 
 export enum TypeKind {
     Named,
@@ -73,6 +74,7 @@ export type Frame = {
 
 export type Control = {
     phase: Phase
+    placement?: Placement
     index: u64
     start: u64
     depth: u64

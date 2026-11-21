@@ -52,6 +52,7 @@ pub fn create(b: *std.Build, compiler: *std.Build.Dependency, target: std.Build.
     }
 
     generate.addFileInput(compiler.path("src/zx/frontend/lexical.rx"));
+    generate.addFileInput(compiler.path("src/zx/frontend/storage.zx"));
     generate.addFileInput(b.path("tests/bootstrap/expression_preparation/source.rx"));
     generate.addFileInput(b.path("tests/bootstrap/type_parser/source.rx"));
 

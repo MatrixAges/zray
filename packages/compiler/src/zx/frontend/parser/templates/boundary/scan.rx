@@ -1,6 +1,6 @@
 <Module>
     <Type from="empty" as="Empty" />
-    <Type from="../../../lexer/storage" as="Storage" />
+    <Type from="../../../storage" as="Storage" />
 
     <Args in={Storage.Input} out={Empty.Output} />
 

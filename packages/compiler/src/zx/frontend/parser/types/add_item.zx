@@ -1,7 +1,9 @@
+import memory from "memory"
+
 import copyFrame from "./copy_frame"
 import replaceFrame from "./replace_frame"
 
-import type { State } from "./model"
+import type { Item, State } from "./model"
 
 export type Input = State
 
@@ -12,10 +14,22 @@ export default function (in: Input): Output {
     const head = in.tree.items.length + 1
     const count = frame.count + 1
 
-    const items = in.tree.items.push({
+    const placement = in.control.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const item: Item = {
         value: in.control.result,
         previous: frame.head
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const items = in.tree.items.push(item)[0]
 
     const state = {
         tree: {

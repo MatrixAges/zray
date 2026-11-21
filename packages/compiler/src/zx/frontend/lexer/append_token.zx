@@ -1,6 +1,6 @@
 import memory from "memory"
 
-import type { Placement } from "./storage"
+import type { Placement } from "../storage"
 import type { Span, Token } from "./token_model"
 
 export type Draft = Token.Omit("span") & Span

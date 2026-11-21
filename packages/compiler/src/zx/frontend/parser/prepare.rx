@@ -1,6 +1,6 @@
 <Module>
     <Type from="expressions/prepare/model" as="Model" />
-    <Type from="../lexer/storage" as="Storage" />
+    <Type from="../storage" as="Storage" />
 
     <Args in={Storage.Input} out={Model.PreparedInput} />
 
@@ -12,6 +12,7 @@
     <Return
         value={{
             source: $in.source,
+            placement: $in.placement,
             lexical: $ctx.prepare,
             hints: $ctx.scan,
             interpolation_hints: $ctx.interpolations

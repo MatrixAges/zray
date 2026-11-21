@@ -1,9 +1,11 @@
+import memory from "memory"
+
 import addNode from "./add_node"
 import copyFrame from "./copy_frame"
 import { TypeKind } from "./model"
 import replaceFrame from "./replace_frame"
 
-import type { State } from "./model"
+import type { Field, State } from "./model"
 
 export type Input = State
 
@@ -32,14 +34,26 @@ export default function (in: Input): Output {
     const head = state.tree.fields.length + 1
     const count = frame.count + 1
 
-    const fields = state.tree.fields.push({
+    const placement = state.control.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const field: Field = {
         name: {
             start: frame.field.start,
             end: frame.field.end
         },
         value: state.control.result,
         previous: frame.head
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const fields = state.tree.fields.push(field)[0]
 
     const updated = {
         tree: {

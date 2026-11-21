@@ -1,6 +1,6 @@
 import initial from "../../../lexer/initial"
 
-import type { Input as LexicalInput } from "../../../lexer/storage"
+import type { Input as LexicalInput } from "../../../storage"
 import type { Template, Part, Event } from "../model"
 import type { State, Frame } from "./model"
 

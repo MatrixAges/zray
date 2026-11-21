@@ -32,7 +32,7 @@ fn tables(comptime Layout: type, comptime Syntax: type) Layout {
     inline for (.{ "types", "expressions", "blocks" }) |name| {
         const Table = std.meta.Child(@FieldType(Syntax, name));
 
-        @field(result, name) = &columns(std.meta.Child(@FieldType(Layout, name)), Table);
+        @field(result, name) = &columns(std.meta.Child(@FieldType(Layout, name)), Table, std.mem.eql(u8, name, "types"));
 
         base += allocation(Table);
     }
@@ -42,11 +42,14 @@ fn tables(comptime Layout: type, comptime Syntax: type) Layout {
     return result;
 }
 
-fn columns(comptime Layout: type, comptime Table: type) Layout {
+fn columns(comptime Layout: type, comptime Table: type, comptime rows_owned: bool) Layout {
     var result: Layout = undefined;
 
     inline for (@typeInfo(Layout).@"struct".field_names) |name| {
-        @field(result, name) = &slice(std.meta.Child(@FieldType(Layout, name)), @FieldType(Table, name));
+        const Item = std.meta.Child(@FieldType(Layout, name));
+        const Slice = @FieldType(Table, name);
+
+        @field(result, name) = &(if (rows_owned) index(Item, Slice) else slice(Item, Slice));
     }
 
     return result;

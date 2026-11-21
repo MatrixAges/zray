@@ -1,6 +1,6 @@
 <Module>
     <Type from="expressions/parse" as="Parse" />
-    <Type from="../lexer/storage" as="Storage" />
+    <Type from="../storage" as="Storage" />
 
     <Args
         in={{

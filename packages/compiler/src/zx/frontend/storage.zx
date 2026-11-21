@@ -2,8 +2,9 @@ import type { Allocator, ArenaScope } from "memory"
 
 export type Placement = {
     scope: ArenaScope,
-    comments: Allocator,
+    comments?: Allocator,
     tokens?: Allocator,
+    rows: Allocator,
     scratch: Allocator
 }
 

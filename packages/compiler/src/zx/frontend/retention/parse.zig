@@ -3,11 +3,11 @@ const zx = @import("zx");
 
 pub const Mode = enum { full, comments, none };
 
-pub fn parse(comptime parser: type, comptime mode: Mode, scratch: std.mem.Allocator, lexical: ?*zx.Arena, source: []const u8) @typeInfo(@TypeOf(parser.executeIn)).@"fn".return_type.? {
+pub fn execute(comptime parser: type, comptime mode: Mode, scratch: std.mem.Allocator, rows: ?*zx.Arena, source: []const u8) @typeInfo(@TypeOf(parser.executeIn)).@"fn".return_type.? {
     const Input = std.meta.Child(parser.Input);
     const Placement = std.meta.Child(@typeInfo(@FieldType(Input, "placement")).optional.child);
 
-    const arena = lexical orelse return parser.executeIn(scratch, &.{
+    const arena = rows orelse return parser.executeIn(scratch, &.{
         .source = source,
         .placement = null,
         .omit_tokens = mode != .full,
@@ -19,8 +19,9 @@ pub fn parse(comptime parser: type, comptime mode: Mode, scratch: std.mem.Alloca
 
     const placement: Placement = .{
         .scope = @ptrCast(&scope),
-        .comments = @ptrCast(&result),
+        .comments = if (mode != .none) @ptrCast(&result) else null,
         .tokens = if (mode == .full) @ptrCast(&result) else null,
+        .rows = @ptrCast(&result),
         .scratch = @ptrCast(&scratch),
     };
 

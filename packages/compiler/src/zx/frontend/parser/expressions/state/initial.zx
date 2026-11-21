@@ -21,7 +21,8 @@ export default function (in: Input): Output {
         tree: emptyTree(),
         types: typeInitial({
             start: 0,
-            depth: 0
+            depth: 0,
+            placement: in.prepared.placement
         }),
         start: in.start,
         depth: in.depth,

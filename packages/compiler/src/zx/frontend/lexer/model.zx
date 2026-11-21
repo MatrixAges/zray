@@ -1,7 +1,7 @@
 import { Symbol } from "./token_model"
 
+import type { Placement } from "../storage"
 import type { State } from "./number/number_state"
-import type { Placement } from "./storage"
 import type { Token, Span } from "./token_model"
 
 export enum Mode {

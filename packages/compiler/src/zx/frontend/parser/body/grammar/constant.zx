@@ -44,7 +44,8 @@ export default function (in: Input): Output {
 
         const initial = typeInitial({
             start: index,
-            depth: in.frame.depth
+            depth: in.frame.depth,
+            placement: in.expression.types.control.placement
         })
 
         const types = {

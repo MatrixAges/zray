@@ -24,7 +24,7 @@ export default function (in: Input): Output {
     const placement = in.state.placement
 
     if (in.comment) {
-        if (placement != null) {
+        if (placement != null && placement.comments != null) {
             memory.selectAllocator(placement.scope, placement.comments)
         }
 
@@ -33,7 +33,7 @@ export default function (in: Input): Output {
             end: in.end
         }
 
-        if (placement != null) {
+        if (placement != null && placement.comments != null) {
             memory.selectAllocator(placement.scope, placement.scratch)
         }
 

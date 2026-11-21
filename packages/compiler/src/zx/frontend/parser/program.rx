@@ -1,6 +1,6 @@
 <Module>
     <Type from="syntax/model" as="Model" />
-    <Type from="../lexer/storage" as="Storage" />
+    <Type from="../storage" as="Storage" />
 
     <Args in={Storage.Request} out={Model.Program} />
 

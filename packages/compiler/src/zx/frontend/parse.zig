@@ -5,7 +5,7 @@ const lex = @import("lexer").lex;
 const compact = @import("compact_output.zig");
 const diagnostic = @import("diagnostic.zig");
 const retention = @import("retention/host.zig");
-const lexical = @import("retention/lexical.zig");
+const parse_storage = @import("retention/parse.zig");
 
 pub const Parsed = struct {
     source: []const u8,
@@ -73,13 +73,13 @@ fn parseWithMode(comptime mode: Mode, allocator: std.mem.Allocator, scratch: *zx
     if (@import("parser_options").generated_parser) {
         const generated = @import("generated_parser");
         const adapter = @import("program_adapter/root.zig");
-        var lexical_arena = zx.Arena.initSmall(allocator);
-        var retained_lexical = false;
+        var row_arena = zx.Arena.initSmall(allocator);
+        var retained_rows = false;
 
         defer scratch.reset(scratch_limit);
-        defer if (!retained_lexical) lexical_arena.deinit();
+        defer if (!retained_rows) row_arena.deinit();
 
-        const output = lexical.parse(generated, if (mode == .analysis) .comments else .full, scratch.allocator(), if (mode == .native) null else &lexical_arena, owned_source) catch |err| {
+        const output = parse_storage.execute(generated, if (mode == .analysis) .comments else .full, scratch.allocator(), if (mode == .native) null else &row_arena, owned_source) catch |err| {
             const issue = try diagnostic.generatedFailure(arena.allocator(), "parser", err);
 
             return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = issue } } };
@@ -94,11 +94,11 @@ fn parseWithMode(comptime mode: Mode, allocator: std.mem.Allocator, scratch: *zx
         if (mode != .native) {
             const retained = try retention.retain(@import("generated_program_retention_size"), allocator, owned_source, output);
 
-            retained_lexical = true;
+            retained_rows = true;
 
             return .{ .indexed = .{
                 .arena = arena,
-                .lexical_arena = lexical_arena,
+                .row_arena = row_arena,
                 .syntax_arena = retained.arena,
                 .source = owned_source,
                 .file_name = owned_name,

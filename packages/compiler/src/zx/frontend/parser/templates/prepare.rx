@@ -1,6 +1,6 @@
 <Module>
     <Type from="model" as="Model" />
-    <Type from="../../lexer/storage" as="Storage" />
+    <Type from="../../storage" as="Storage" />
 
     <Args in={Storage.Input} out={Model.Prepared} />
 

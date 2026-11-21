@@ -2,8 +2,8 @@ import { Mode } from "./model"
 import { Phase } from "./number/number_state"
 import { Symbol } from "./token_model"
 
+import type { Placement } from "../storage"
 import type { LexerState, Frame } from "./model"
-import type { Placement } from "./storage"
 import type { Token, Span } from "./token_model"
 
 export type Input = {
