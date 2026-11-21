@@ -784,6 +784,9 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/functions/value_mode/plan.rx", .name = "function_value_mode", .owner = .genz },
     .{ .path = "genz/analysis/functions/context/prepare.rx", .name = "function_context_prepare", .owner = .genz },
     .{ .path = "genz/analysis/functions/context/reserve.zx", .name = "function_context_reserve", .owner = .genz },
+    .{ .path = "genz/analysis/functions/context/initialize.zx", .name = "function_context_clear", .owner = .genz },
+    .{ .path = "genz/analysis/functions/context/scope.zx", .name = "function_context_scope", .owner = .genz },
+    .{ .path = "genz/analysis/functions/context/body.zx", .name = "function_context_body", .owner = .genz },
     .{ .path = "genz/analysis/functions/prelude/task_required.zx", .name = "function_task_allocator", .owner = .genz },
     .{ .path = "genz/analysis/allocator/build.rx", .name = "allocator_type", .owner = .genz },
     .{ .path = "genz/analysis/parallel/worker/build.rx", .name = "parallel_worker", .owner = .genz },
@@ -1013,6 +1016,7 @@ pub const growth = [_]Entry{
 pub const collections = [_]Entry{
     .{ .path = "genz/analysis/state/locals/statements.zx", .name = "state_locals_statements", .owner = .genz },
     .{ .path = "genz/analysis/state/locals/scope.zx", .name = "state_locals_scope", .owner = .genz },
+    .{ .path = "genz/analysis/state/locals/owned.zx", .name = "state_locals_owned", .owner = .genz },
     .{ .path = "genz/analysis/state/locals/parameters.rx", .name = "state_locals_parameters", .owner = .genz },
     .{ .path = "genz/analysis/iteration/transfer/history/append.zx", .name = "transfer_append", .owner = .genz },
     .{ .path = "core/integer/counter/increment.zx", .name = "counter_increment", .owner = .genz },

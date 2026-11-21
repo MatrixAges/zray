@@ -67,6 +67,27 @@ pub fn parameters(self: *Lower, value: ir.Transform) Lower.Error![]const ir.Symb
     return apply(self, entry, input);
 }
 
+pub fn registerOwned(self: *Lower, symbols: []const ir.SymbolId) Lower.Error!void {
+    if (!self.state_active) return;
+
+    const entry = @import("generated_state_locals_owned");
+    const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+    const InputType = Child(Parameter);
+
+    const input: InputType = .{
+        .symbol_types = self.program.symbols.types,
+        .queries = zx.columns.slice(@FieldType(InputType, "queries"), self.state_plan.queries),
+        .symbols = @import("../../node/view.zig").slice(@FieldType(InputType, "symbols"), symbols),
+    };
+
+    const index = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    self.state_symbols.state = zx.columns.view(@FieldType(@TypeOf(self.state_symbols), "state"), index);
+}
+
 fn facts(self: *Lower, comptime entry: type) Child(@FieldType(Input(entry), "facts")) {
     const Facts = Child(@FieldType(Input(entry), "facts"));
 

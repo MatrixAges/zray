@@ -128,14 +128,36 @@ pub fn publish(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.
 }
 
 fn names(lowering: *Lower, state: *const Active, restoring: bool) void {
+    applyNames(lowering, .{ .symbols = state.alias_symbols, .saved = state.saved }, state.alias_sources, &.{}, restoring);
+}
+
+pub const Names = struct {
+    symbols: []const u32,
+    saved: [][]const u8,
+    pub fn restore(self: Names, lowering: *Lower) void {
+        applyNames(lowering, self, &.{}, &.{}, true);
+    }
+};
+
+pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: []const []const u8, saved: [][]const u8) Names {
+    const binding: Names = .{ .symbols = view.slice([]const u32, symbols), .saved = saved };
+
+    applyNames(lowering, binding, &.{}, replacements, false);
+
+    return binding;
+}
+
+fn applyNames(lowering: *Lower, binding: Names, sources: []const u32, replacements: []const []const u8, restoring: bool) void {
+    if (binding.symbols.len == 0) return;
+
     const entry = @import("generated_scope_reuse_names");
 
     const input: std.meta.Child(entry.Input) = .{
-        .symbols = state.alias_symbols,
-        .sources = state.alias_sources,
-        .replacements = &.{},
+        .symbols = binding.symbols,
+        .sources = sources,
+        .replacements = replacements,
         .names = @ptrCast(&lowering.names),
-        .saved = @ptrCast(&state.saved),
+        .saved = @ptrCast(&binding.saved),
         .restore = restoring,
     };
 

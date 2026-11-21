@@ -63,7 +63,7 @@ fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
 
         if ((try emitted.getOrPut(temporary, name)).found_existing) continue;
 
-        var selected = lower;
+        var selected = if (generated) @import("functions/scope.zig").inherit(&lower, .Signature) else lower;
         const function_value = try selectFunction(&selected, id);
 
         if (comptime @import("genz_options").generated_analysis) {
@@ -229,8 +229,7 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
     var lower = try initialize(temporary, backing, program, names, facts, working, false);
     const selected = try selectFunction(&lower, id);
 
-    lower.plan = lower.plans[@backingInt(id)];
-    lower.may_grow = if (@backingInt(id) < lower.growth_functions.len) lower.growth_functions[@backingInt(id)] else true;
+    @import("functions/context.zig").selectPlan(&lower, id);
 
     if (selected.external == null) try @import("functions/context.zig").reserve(&lower);
 

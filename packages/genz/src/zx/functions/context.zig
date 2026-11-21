@@ -1,6 +1,7 @@
 const std = @import("std");
 const Lower = @import("../lower.zig");
 const generated = @import("genz_options").generated_analysis;
+const allocating = @import("generated_function_context_reserve");
 
 pub fn reserve(self: *Lower) Lower.Error!void {
     const symbols = self.program.symbols.count();
@@ -14,17 +15,41 @@ pub fn reserve(self: *Lower) Lower.Error!void {
         return;
     }
 
-    const entry = @import("generated_function_context_reserve");
+    return allocate(self, self.allocator, .Own, symbols, expressions);
+}
 
-    const input: std.meta.Child(entry.Input) = .{
+pub fn allocate(self: *Lower, allocator: std.mem.Allocator, names: @FieldType(std.meta.Child(allocating.Input), "name_source"), symbols: usize, expressions: usize) Lower.Error!void {
+    const input: std.meta.Child(allocating.Input) = .{
         .names = @ptrCast(&self.names),
         .used = @ptrCast(&self.used),
         .reads = @ptrCast(&self.cache_reads),
         .symbols = symbols,
         .expressions = expressions,
+        .name_source = names,
+    };
+
+    @import("zx").columns.invoke(allocating.executeValue, allocator, &input) catch |err| return failure(err);
+}
+
+pub fn clear(self: *Lower) Lower.Error!void {
+    const entry = @import("generated_function_context_clear");
+    const used = std.mem.sliceAsBytes(self.used);
+    const reads = std.mem.sliceAsBytes(self.cache_reads);
+
+    const input: std.meta.Child(entry.Input) = .{
+        .used = @ptrCast(&used),
+        .used_bytes = used.len,
+        .reads = @ptrCast(&reads),
+        .read_bytes = reads.len,
     };
 
     @import("zx").columns.invoke(entry.executeValue, self.allocator, &input) catch |err| return failure(err);
+}
+
+pub fn selectPlan(self: *Lower, id: @import("zx").ir.FunctionId) void {
+    const index = @backingInt(id);
+    self.plan = self.plans[index];
+    self.may_grow = if (index < self.growth_functions.len) self.growth_functions[index] else true;
 }
 
 pub fn prepare(self: *Lower, errors: ?[]const []const u8) Lower.Error!void {

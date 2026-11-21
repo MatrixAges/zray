@@ -3,6 +3,7 @@ const zx = @import("zx");
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const generated = @import("genz_options").generated_analysis;
+const scope = @import("functions/scope.zig");
 
 pub fn preconditions(self: *Lower) Lower.Error!node.Block {
     var statements: std.ArrayList(node.Statement) = .empty;
@@ -17,23 +18,18 @@ pub fn preconditions(self: *Lower) Lower.Error!node.Block {
         if (!generated and contracts.kinds[index] != .Requires) continue;
 
         const contract = contracts.at(index);
-        var predicate = self.*;
-        predicate.state_symbols = self.state_symbols.inherit();
-        predicate.program.symbols = contract.symbols;
-        predicate.program.expressions = contract.expressions;
+        var predicate: Lower = undefined;
 
-        try predicate.refreshEntry();
+        if (generated) {
+            predicate = scope.inherit(self, .Predicate);
 
-        predicate.names = try self.allocator.dupe([]const u8, &.{"in"});
-        predicate.used = try self.allocator.alloc(bool, 1);
-        predicate.cache_reads = try self.allocator.alloc(u64, contract.expressions.count());
-        predicate.cache = .empty;
-        predicate.stack_symbols = .empty;
-        predicate.uses_allocator = false;
-        predicate.uses_io = false;
+            scope.install(&predicate.program, &contract, .Predicate);
 
-        @memset(predicate.used, false);
-        @memset(predicate.cache_reads, 0);
+            try predicate.refreshEntry();
+            try scope.reserve(&predicate, self.allocator, .Predicate);
+        } else {
+            predicate = try seed(self, &contract);
+        }
 
         const value = try predicate.expr(contract.predicate);
 
@@ -43,14 +39,40 @@ pub fn preconditions(self: *Lower) Lower.Error!node.Block {
             try @import("intrinsics.zig").failIf(self, &statements, try self.builder.expression(.{ .unary = .{ .operator = .not, .operand = value } }), "PreconditionFailed");
         }
 
-        self.used[0] = self.used[0] or predicate.used[0];
-        self.uses_allocator = self.uses_allocator or predicate.uses_allocator;
-        self.uses_io = self.uses_io or predicate.uses_io;
-        self.serial = predicate.serial;
-        self.reference_storage = predicate.reference_storage;
+        if (generated) {
+            scope.publish(self, &predicate, .Predicate);
+        } else {
+            self.used[0] = self.used[0] or predicate.used[0];
+            self.uses_allocator = self.uses_allocator or predicate.uses_allocator;
+            self.uses_io = self.uses_io or predicate.uses_io;
+            self.serial = predicate.serial;
+            self.reference_storage = predicate.reference_storage;
+        }
     }
 
     return self.builder.statements(statements.items);
+}
+
+fn seed(self: *Lower, contract: *const zx.ir.Contract) Lower.Error!Lower {
+    var predicate = self.*;
+    predicate.state_symbols = self.state_symbols.inherit();
+    predicate.program.symbols = contract.symbols;
+    predicate.program.expressions = contract.expressions;
+
+    try predicate.refreshEntry();
+
+    predicate.names = try self.allocator.dupe([]const u8, &.{"in"});
+    predicate.used = try self.allocator.alloc(bool, 1);
+    predicate.cache_reads = try self.allocator.alloc(u64, contract.expressions.count());
+    predicate.cache = .empty;
+    predicate.stack_symbols = .empty;
+    predicate.uses_allocator = false;
+    predicate.uses_io = false;
+
+    @memset(predicate.used, false);
+    @memset(predicate.cache_reads, 0);
+
+    return predicate;
 }
 
 fn next(kinds: []const zx.ir.ContractTable.Kind, start: usize) ?usize {

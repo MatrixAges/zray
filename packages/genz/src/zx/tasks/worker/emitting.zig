@@ -69,44 +69,13 @@ pub fn prepare(self: *Lower, captures: []const ir.SymbolId, process: bool) Lower
     return .{ .first = result.first, .count = result.count, .capture_first = result.capture_first };
 }
 
-pub const CaptureNames = struct {
-    symbols: []const ir.SymbolId,
-    saved: [][]const u8,
-    pub fn restore(self: CaptureNames, lower: *Lower) void {
-        self.apply(lower, &.{}, true);
-    }
-    fn apply(self: CaptureNames, lower: *Lower, replacements: []const []const u8, restoring: bool) void {
-        if (self.symbols.len == 0) return;
+const name_scope = @import("../../scope/reuse.zig");
 
-        const entry = @import("generated_scope_reuse_names");
-        const Input = std.meta.Child(entry.Input);
-
-        const input: Input = .{
-            .symbols = view.slice(@FieldType(Input, "symbols"), self.symbols),
-            .sources = &.{},
-            .replacements = replacements,
-            .names = @ptrCast(&lower.names),
-            .saved = @ptrCast(&self.saved),
-            .restore = restoring,
-        };
-
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-        entry.executeIn(fixed.allocator(), &input) catch unreachable;
-    }
-};
-
-pub fn captureNames(lower: *Lower, temporary: std.mem.Allocator, symbols: []const ir.SymbolId, first: u32) Lower.Error!CaptureNames {
-    const scope: CaptureNames = .{
-        .symbols = symbols,
-        .saved = try temporary.alloc([]const u8, symbols.len),
-    };
-
+pub fn captureNames(lower: *Lower, temporary: std.mem.Allocator, symbols: []const ir.SymbolId, first: u32) Lower.Error!name_scope.Names {
+    const saved = try temporary.alloc([]const u8, symbols.len);
     const names = lower.builder.nodes.field_columns.fields.name.values.items;
 
-    scope.apply(lower, names[first..][0..symbols.len], false);
-
-    return scope;
+    return name_scope.bindNames(lower, symbols, names[first..][0..symbols.len], saved);
 }
 
 pub fn discard(self: *Lower, worker: *const Lower, captures: []const ir.SymbolId, process: bool) Lower.Error!void {

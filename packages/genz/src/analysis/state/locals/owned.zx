@@ -1,0 +1,41 @@
+import integers from "std:integer"
+import empty from "core/integer/index/empty"
+import insert from "core/integer/index/insert"
+
+import { Property } from "../queries/model"
+import query from "../queries/read"
+
+import type { Index as Output } from "core/integer/index/model"
+import type { Facts } from "./model"
+
+export type Input = Facts & {
+    symbols: u32[]
+}
+
+export default function (in: Input): Output {
+    const { symbols, symbol_types, queries } = in
+
+    return loop({
+        index: empty({}),
+        position: 0
+    }, {
+        while: state => state.position < symbols.length,
+        next: state => {
+            const symbol = symbols[state.position]
+            const type_id = integers.widen(symbol_types[integers.widen(symbol)])
+
+            if (query({
+                property: Property.Represented,
+                value: queries[type_id]
+            })) {
+                state.index = insert({
+                    index: state.index,
+                    key: symbol
+                }).index
+            }
+
+            state.position += 1
+        },
+        return: state => state.index
+    })
+}

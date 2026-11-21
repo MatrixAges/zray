@@ -1,5 +1,8 @@
 import memory from "memory"
 
+import { input_name } from "../symbol_names/const"
+import { Names } from "./scope"
+
 import type { BoolBuffer, StringBuffer, U64Buffer } from "memory"
 
 export type Input = {
@@ -7,13 +10,22 @@ export type Input = {
     used: BoolBuffer,
     reads: U64Buffer,
     symbols: u64,
-    expressions: u64
+    expressions: u64,
+    name_source: Names
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.allocateStringViews(in.names, in.symbols)
+    if (in.name_source == Names.Own) {
+        memory.allocateStringViews(in.names, in.symbols)
+    }
+
+    if (in.name_source == Names.Input) {
+        memory.allocateStringViews(in.names, 1)
+        memory.writeString(in.names, 0, input_name)
+    }
+
     memory.allocateBoolViews(in.used, in.symbols)
     memory.allocateU64Views(in.reads, in.expressions)
 }

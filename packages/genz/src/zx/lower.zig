@@ -84,14 +84,19 @@ pub fn refreshEntry(self: *Self) Error!void {
 
 /// Select a function body while retaining the program's shared type and function tables.
 pub fn selectFunction(self: *Self, id: ir.FunctionId, selected: ir.Function) Error!void {
-    self.program.symbols = selected.symbols;
-    self.program.expressions = selected.expressions;
-    self.program.body = selected.body;
-    self.program.input_type = selected.input_type;
-    self.program.output_type = selected.output_type;
-    self.program.stores = selected.stores;
-    self.program.store_mode = selected.store_mode;
-    self.program.contracts = selected.contracts;
+    if (generated) {
+        @import("functions/scope.zig").install(&self.program, &selected, .Function);
+    } else {
+        self.program.symbols = selected.symbols;
+        self.program.expressions = selected.expressions;
+        self.program.body = selected.body;
+        self.program.input_type = selected.input_type;
+        self.program.output_type = selected.output_type;
+        self.program.stores = selected.stores;
+        self.program.store_mode = selected.store_mode;
+        self.program.contracts = selected.contracts;
+    }
+
     self.self_function = id;
 
     try self.refreshEntry();

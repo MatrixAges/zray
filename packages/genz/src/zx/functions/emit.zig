@@ -2,6 +2,8 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Lower = @import("../lower.zig");
 const Requests = @import("requests.zig");
+const generated = @import("genz_options").generated_analysis;
+const scope = @import("scope.zig");
 
 pub fn append(self: *Lower, output: *@import("../../node/declarations.zig").Output, request: Requests.Request) Lower.Error!void {
     switch (request.form) {
@@ -18,26 +20,26 @@ fn emit(self: *Lower, output: *@import("../../node/declarations.zig").Output, id
     inline for (comptime Requests.steps(form)) |step| switch (step) {
         .Native => try output.append(self.allocator, try @import("../external.zig").lower(self, function, index)),
         .Enter => {
-            helper = self.*;
+            helper = if (generated) scope.inherit(self, .Function) else self.*;
 
             try helper.selectFunction(id, function);
-
-            helper.plan = self.plans[index];
+            @import("context.zig").selectPlan(&helper, id);
             helper.pending_name = try std.fmt.allocPrint(self.allocator, "zx_pending_{d}", .{index});
-            helper.may_grow = if (index < self.growth_functions.len) self.growth_functions[index] else true;
 
             try @import("context.zig").reserve(&helper);
 
-            helper.cache = .empty;
-            helper.stack_symbols = .empty;
-            helper.state_symbols = .empty;
-            helper.state_active = false;
-            helper.value_output = false;
-            helper.public_value_output = false;
-            helper.iteration_value = null;
-            helper.loop_fields = null;
-            helper.capture = null;
-            helper.serial = 0;
+            if (!generated) {
+                helper.cache = .empty;
+                helper.stack_symbols = .empty;
+                helper.state_symbols = .empty;
+                helper.state_active = false;
+                helper.value_output = false;
+                helper.public_value_output = false;
+                helper.iteration_value = null;
+                helper.loop_fields = null;
+                helper.capture = null;
+                helper.serial = 0;
+            }
         },
         .Store => try @import("../store.zig").declaration(&helper, output),
         .Regular, .Value => {
@@ -50,6 +52,8 @@ fn emit(self: *Lower, output: *@import("../../node/declarations.zig").Output, id
                 try helper.functionValue(name);
             try output.append(self.allocator, declaration);
         },
-        .Parallel => self.uses_parallel = self.uses_parallel or helper.uses_parallel,
+        .Parallel => if (generated) scope.publish(self, &helper, .Function) else {
+            self.uses_parallel = self.uses_parallel or helper.uses_parallel;
+        },
     };
 }

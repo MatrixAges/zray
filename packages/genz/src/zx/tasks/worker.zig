@@ -4,6 +4,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const emitting = @import("worker/emitting.zig");
 const blocks = @import("../../node/blocks.zig");
+const scope = @import("../functions/scope.zig");
 
 pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("worker_seed.zig").lower(self, id, process);
@@ -18,21 +19,9 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
-    var worker = self.*;
-    worker.state_symbols = self.state_symbols.inherit();
-    worker.used = try temporary.alloc(bool, self.used.len);
-    worker.cache_reads = try temporary.alloc(u64, self.cache_reads.len);
-    worker.cache = .empty;
-    worker.stack_symbols = .empty;
-    worker.reference_storage = .empty;
-    worker.iteration_value = null;
-    worker.capture = null;
-    worker.uses_allocator = false;
-    worker.uses_io = false;
-    worker.uses_process = false;
+    var worker = scope.inherit(self, .Task);
 
-    @memset(worker.used, false);
-    @memset(worker.cache_reads, 0);
+    try scope.reserve(&worker, temporary, .Task);
 
     const parameters = try emitting.prepare(self, task.captures, process);
     const names = try emitting.captureNames(self, temporary, task.captures, parameters.capture_first);

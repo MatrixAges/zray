@@ -1,0 +1,81 @@
+export enum Form {
+    Function,
+    Signature,
+    Task,
+    Sort,
+    Predicate
+}
+
+export enum Names {
+    Own,
+    Borrow,
+    Input
+}
+
+export enum Members {
+    Empty,
+    Borrow,
+    Keep
+}
+
+export type Publication = {
+    input: bool,
+    uses_allocator: bool,
+    uses_io: bool,
+    uses_parallel: bool,
+    references: bool,
+    serial: bool
+}
+
+export type Input = Form
+
+export type Output = {
+    names: Names,
+    members: Members,
+    cache: bool,
+    representation: bool,
+    locals: bool,
+    loop_fields: bool,
+    references: bool,
+    serial: bool,
+    local_effects: bool,
+    process: bool,
+    publish: Publication
+}
+
+export default function (in: Input): Output {
+    const new_function = in == Form.Function
+    const signature = in == Form.Signature
+    const predicate = in == Form.Predicate
+    const worker = in == Form.Task || in == Form.Sort
+
+    return {
+        names: match in {
+            Form.Function => Names.Own,
+            Form.Predicate => Names.Input,
+            _ => Names.Borrow
+        },
+        members: match in {
+            Form.Signature => Members.Keep,
+            Form.Task => Members.Borrow,
+            Form.Predicate => Members.Borrow,
+            _ => Members.Empty
+        },
+        cache: signature,
+        representation: !new_function,
+        locals: signature || predicate,
+        loop_fields: !new_function,
+        references: !worker,
+        serial: !new_function,
+        local_effects: new_function || signature,
+        process: !worker,
+        publish: {
+            input: predicate,
+            uses_allocator: predicate,
+            uses_io: predicate,
+            uses_parallel: new_function,
+            references: predicate,
+            serial: predicate
+        }
+    }
+}

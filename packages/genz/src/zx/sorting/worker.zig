@@ -3,6 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const emitting = @import("worker/emitting.zig");
+const scope = @import("../functions/scope.zig");
 
 pub const Result = struct { declaration: node.Declaration, io: bool, process: bool };
 
@@ -13,31 +14,17 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
         return .{ .declaration = result.declaration, .io = result.io, .process = result.process };
     }
 
-    var worker = self.*;
+    var worker = scope.inherit(self, .Sort);
 
-    worker.names = try self.allocator.dupe([]const u8, self.names);
-    worker.used = try self.allocator.alloc(bool, self.used.len);
-    worker.cache_reads = try self.allocator.alloc(u64, self.cache_reads.len);
-    worker.cache = .empty;
-    worker.stack_symbols = .empty;
-    worker.reference_storage = .empty;
-    worker.state_symbols = .empty;
-    worker.iteration_value = null;
-    worker.capture = null;
-    worker.uses_allocator = false;
-    worker.uses_io = false;
-    worker.uses_process = false;
-
-    @memset(worker.used, false);
-    @memset(worker.cache_reads, 0);
+    try scope.reserve(&worker, self.allocator, .Sort);
 
     const prepared = try emitting.prepare(self);
+    var saved: [prepared.names.len][]const u8 = undefined;
+    const names = @import("../scope/reuse.zig").bindNames(self, value.parameters, &prepared.names, &saved);
 
-    for (value.parameters, prepared.names) |symbol, name| {
-        worker.names[@backingInt(symbol)] = name;
+    defer names.restore(self);
 
-        if (worker.state_active and worker.state_plan.represented(worker.program, worker.program.symbols.at(@backingInt(symbol)).type_id)) try worker.state_symbols.put(self.allocator, symbol, {});
-    }
+    try @import("../state_value/locals.zig").registerOwned(&worker, value.parameters);
 
     const result = try worker.expr(value.body);
     var helpers: [2]std.ArrayList(node.Statement) = @splat(.empty);
