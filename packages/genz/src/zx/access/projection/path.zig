@@ -32,8 +32,12 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
         .types = table.types,
         .payloads = table.payloads,
         .projection_targets = table.projection_targets,
+        .projection_indices = table.projection_indices,
         .index_targets = table.index_targets,
+        .index_values = table.index_values,
         .type_kinds = self.program.types.kinds,
+        .type_first = self.program.types.first,
+        .field_names = self.program.types.field_names,
         .queries = zx.columns.slice(@FieldType(Input, "queries"), self.state_plan.queries),
         .flags = std.mem.sliceAsBytes(self.plan.flags),
         .cache = &cache,
@@ -41,7 +45,7 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
     };
 
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
-    var buffer: [512]u8 = undefined;
+    var buffer: [1024]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
@@ -53,23 +57,16 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
 
     const base: ir.ExprId = @fromBackingInt(plan.anchor orelse return null);
     var value = if (plan.managed) try @import("../../state_value/list.zig").expression(self, base) else try anchor(self, base);
-    var remaining: usize = @intCast(plan.count);
+    var remaining: usize = @intCast(plan.key_count);
+    var fields: usize = @intCast(plan.field_count);
 
     while (remaining != 0) {
         remaining -= 1;
-
-        const step: ir.ExprId = @fromBackingInt(plan.steps[remaining]);
-
-        switch (self.program.expression(step).value) {
-            .field => |selected| {
-                const fields = self.program.typeOf(self.program.expression(selected.target).type_id).object;
-
-                value = try self.field(value, fields.at(selected.index).name);
-            },
-            .index => |selected| value = try @import("../../intrinsics.zig").index(self, value, try self.expr(selected.index)),
-            else => unreachable,
-        }
+        const boundary: usize = @intCast(plan.boundaries[remaining]);
+        value = try @import("../emit.zig").fieldPath(self, value, plan.fields[boundary..fields]);
+        value = try @import("../../intrinsics.zig").index(self, value, try self.expr(@fromBackingInt(plan.keys[remaining])));
+        fields = boundary;
     }
 
-    return value;
+    return try @import("../emit.zig").fieldPath(self, value, plan.fields[0..fields]);
 }

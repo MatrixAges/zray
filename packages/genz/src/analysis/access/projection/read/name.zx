@@ -1,0 +1,22 @@
+import integers from "std:integer"
+
+import decimal from "../../../../printer/text/integer"
+
+import type { Member } from "./model"
+
+export type Input = Member
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const position = integers.widen(in.position)
+
+    if (in.tuple) {
+        return decimal({
+            output: [],
+            value: position
+        })
+    }
+
+    return in.names[integers.widen(in.first) + position]
+}

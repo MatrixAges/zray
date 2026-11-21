@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const node = @import("../node.zig");
 const Builder = @import("../builder.zig");
-const projection_path = @import("access/projection/path.zig");
+const access = @import("access/emit.zig");
 const projection_read = @import("access/projection/read.zig");
 const ir = zx.ir;
 const Self = @This();
@@ -280,20 +280,15 @@ pub fn regular(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
         .cancel_task => |child| @import("tasks/root.zig").cancel(self, child),
         .parallel => |branches| @import("tasks/root.zig").parallel(self, value.type_id, branches),
         .capture => |child| @import("capture.zig").lower(self, value.type_id, child),
-        .optional_value => |child| self.builder.expression(.{ .optional_unwrap = try self.expr(child) }),
+        .optional_value => |child| access.optional(self, null, try self.expr(child)),
         .integer, .negative_integer, .float, .boolean, .string, .unit, .none, .enum_value, .error_value => @import("literals.zig").lower(self, id, value_type),
-        .some => |child| self.cast(value_type, try self.expr(child)),
+        .some => |child| access.optional(self, value_type, try self.expr(child)),
         .store_get => |slot| @import("access/store.zig").lower(self, slot, value.type_id),
         .reference => |symbol| @import("access/reference.zig").lower(self, symbol, value.type_id),
-        .field => |item| projection_read.field(self, value.type_id, item),
-        .tuple_field => |item| projection_read.tuple(self, value.type_id, item),
-        .index => |item| projection_read.index(self, value.type_id, item.target, item.index),
-        .length => |child| blk: {
-            const raw = try projection_path.nested(self, child);
-            const source = raw orelse try @import("state_value/list.zig").expression(self, child);
-
-            break :blk @import("access/emit.zig").length(self, source, value_type);
-        },
+        .field => |item| projection_read.field(self, value.type_id, item, false),
+        .tuple_field => |item| projection_read.tuple(self, value.type_id, item, false),
+        .index => |item| projection_read.index(self, value.type_id, item.target, item.index, false),
+        .length => |child| projection_read.length(self, child, value_type, false),
         .unary => |unary| @import("operators/unary.zig").lower(self, unary),
         .binary => |operation| self.binary(operation),
         .match_expr => |selection| @import("match.zig").lower(self, selection),

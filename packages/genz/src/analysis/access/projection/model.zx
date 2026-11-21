@@ -21,8 +21,12 @@ export type Input = {
     types: u32[],
     payloads: u32[],
     projection_targets: u32[],
+    projection_indices: u32[],
     index_targets: u32[],
+    index_values: u32[],
     type_kinds: u8[],
+    type_first: u32[],
+    field_names: u8[][],
     queries: Query[],
     flags: u8[],
     cache: Cache,
@@ -32,13 +36,19 @@ export type Input = {
 export type Walk = {
     anchor?: u32,
     fallback?: u32,
-    fallback_count: u64,
-    steps: u32[]
+    fallback_fields: u64,
+    fallback_keys: u64,
+    fields: u8[][],
+    keys: u32[],
+    boundaries: u64[]
 }
 
 export type Path = {
     anchor?: u32,
-    steps: u32[],
-    count: u64,
+    fields: u8[][],
+    keys: u32[],
+    boundaries: u64[],
+    field_count: u64,
+    key_count: u64,
     managed: bool
 }

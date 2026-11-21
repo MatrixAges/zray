@@ -8,7 +8,9 @@ import route from "./route"
 import type { Input, Walk as Output } from "./model"
 
 export default function (in: Input): Output {
-    const steps: u32[] = []
+    const fields: u8[][] = []
+    const keys: u32[] = []
+    const boundaries: u64[] = []
     const anchor: u32? = null
     const fallback: u32? = null
 
@@ -16,8 +18,11 @@ export default function (in: Input): Output {
         id: in.id,
         anchor,
         fallback,
-        fallback_count: 0,
-        steps,
+        fallback_fields: 0,
+        fallback_keys: 0,
+        fields,
+        keys,
+        boundaries,
         walking: true
     }, {
         while: state => state.walking,
@@ -38,18 +43,29 @@ export default function (in: Input): Output {
                 const row = integers.widen(id)
                 const payload = integers.widen(in.payloads[row])
 
-                state.steps = state.steps.push(id)[0]
-
                 if (selected == Route.Field) {
-                    state.id = in.projection_targets[payload]
+                    const target = in.projection_targets[payload]
+                    const type_id = in.types[integers.widen(target)]
+                    const first = in.type_first[integers.widen(type_id)]
+                    const position = in.projection_indices[payload]
+                    const name = in
+                        .field_names[
+                            integers.widen(first) + integers.widen(position)
+                        ]
+
+                    state.fields = state.fields.push(name)[0]
+                    state.id = target
                 } else {
+                    state.boundaries = state.boundaries.push(state.fields.length)[0]
+                    state.keys = state.keys.push(in.index_values[payload])[0]
                     state.id = in.index_targets[payload]
 
                     const type_id = integers.widen(in.types[row])
 
                     if (kind(in.type_kinds[type_id]) == Kind.Object) {
                         state.fallback = state.id
-                        state.fallback_count = state.steps.length
+                        state.fallback_fields = state.fields.length
+                        state.fallback_keys = state.keys.length
                     }
                 }
             }

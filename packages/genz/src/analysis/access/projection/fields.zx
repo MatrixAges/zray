@@ -1,0 +1,68 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+import { ExpressionsKind } from "../../../printer/model/expressions"
+
+export type Input = {
+    names: u8[][],
+    target: u32,
+    base: u32
+}
+
+export type Rows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    field_target: u32[],
+    field_name: u8[][]
+}
+
+export type Output = {
+    rows: Rows,
+    root: u32,
+    valid: bool
+}
+
+export default function (in: Input): Output {
+    const initial: Rows = {
+        tags: [],
+        offsets: [],
+        field_target: [],
+        field_name: []
+    }
+
+    if (in.names.length > integers.widen(max_u32 - in.base)) {
+        return {
+            rows: initial,
+            root: in.target,
+            valid: false
+        }
+    }
+
+    return loop({
+        rows: initial,
+        root: in.target,
+        remaining: in.names.length
+    }, {
+        while: current => current.remaining != 0,
+        next: current => {
+            current.remaining -= 1
+
+            const offset = integers.narrow(current.rows.tags.length)
+
+            current.rows.tags = current.rows.tags.push(ExpressionsKind.Field)[0]
+            current.rows.offsets = current.rows.offsets.push(offset)[0]
+            current.rows.field_target =
+                current.rows.field_target.push(current.root)[0]
+            current.rows.field_name =
+                current.rows.field_name.push(in.names[current.remaining])[0]
+            current.root = in.base + offset
+        },
+        return: current => {
+            return {
+                rows: current.rows,
+                root: current.root,
+                valid: true
+            }
+        }
+    })
+}

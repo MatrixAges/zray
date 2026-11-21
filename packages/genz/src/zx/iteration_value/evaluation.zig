@@ -6,6 +6,8 @@ const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const collections = @import("../collections.zig");
+const read = @import("../access/projection/read.zig");
+const access = @import("../access/emit.zig");
 
 pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!?node.ExpressionId {
     const lowering = self.lowering;
@@ -27,18 +29,18 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!?node.ExpressionId {
 
     return try switch (plan.route) {
         .Reference => reference(lowering, value.value.reference),
-        .Field => field(lowering, value.value.field),
-        .Unwrap => lowering.builder.expression(.{ .optional_unwrap = try lowering.expr(value.value.optional_value) }),
-        .TupleField => tuple(lowering, value.value.tuple_field),
+        .Field => read.field(lowering, value.type_id, value.value.field, true),
+        .Unwrap => access.optional(lowering, null, try lowering.expr(value.value.optional_value)),
+        .TupleField => read.tuple(lowering, value.type_id, value.value.tuple_field, true),
         .Scope => @import("scope.zig").lower(self, value.value.scope),
-        .Index => index(lowering, value.value.index.target, value.value.index.index),
-        .Length => length(lowering, value.type_id, value.value.length),
+        .Index => read.index(lowering, value.type_id, value.value.index.target, value.value.index.index, true),
+        .Length => read.length(lowering, value.value.length, try lowering.typeExpr(value.type_id), true),
         .Update => @import("mutation.zig").update(self, id),
         .Mutation => @import("mutation.zig").operation(self, id),
         .List => @import("list.zig").lower(self, value.type_id, value.value.list),
         .Call => @import("invocation.zig").lower(self, id, value.value.call.argument),
-        .None => lowering.cast(try @import("types.zig").get(self, value.type_id), try lowering.builder.expression(.null_value)),
-        .Some => lowering.cast(try @import("types.zig").get(self, value.type_id), try lowering.expr(value.value.some)),
+        .None => access.optional(lowering, try @import("types.zig").get(self, value.type_id), null),
+        .Some => access.optional(lowering, try @import("types.zig").get(self, value.type_id), try lowering.expr(value.value.some)),
         .Binary => lowering.regular(id),
         .Aggregate => @import("aggregate.zig").lower(self, id),
         .Collection => collections.lowerValue(lowering, id, try @import("types.zig").get(self, value.type_id)),
@@ -84,36 +86,6 @@ fn reference(lowering: *Lower, symbol: ir.SymbolId) Lower.Error!node.ExpressionI
     lowering.used[row] = true;
 
     return lowering.builder.identifier(lowering.names[row]);
-}
-
-fn field(lowering: *Lower, item: ir.Projection) Lower.Error!node.ExpressionId {
-    const target = try lowering.expr(item.target);
-    const target_type = lowering.program.expression(item.target).type_id;
-    const name = lowering.program.typeOf(target_type).object.at(item.index).name;
-
-    return lowering.field(target, name);
-}
-
-fn tuple(lowering: *Lower, item: ir.Projection) Lower.Error!node.ExpressionId {
-    if (try collections.projection(lowering, item.target, item.index)) |selected| return selected;
-
-    const target = try lowering.expr(item.target);
-    const name = try std.fmt.allocPrint(lowering.allocator, "{d}", .{item.index});
-
-    return lowering.field(target, name);
-}
-
-fn index(lowering: *Lower, target: ir.ExprId, key: ir.ExprId) Lower.Error!node.ExpressionId {
-    const items = try lowering.field(try lowering.expr(target), "items");
-
-    return @import("../intrinsics.zig").index(lowering, items, try lowering.expr(key));
-}
-
-fn length(lowering: *Lower, type_id: ir.TypeId, child: ir.ExprId) Lower.Error!node.ExpressionId {
-    const type_expr = try lowering.typeExpr(type_id);
-    const items = try lowering.field(try lowering.expr(child), "items");
-
-    return lowering.cast(type_expr, try lowering.field(items, "len"));
 }
 
 pub fn unpack(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {

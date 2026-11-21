@@ -9,8 +9,11 @@
         <Return
             value={{
                 anchor: $ctx.walk.anchor,
-                steps: $ctx.walk.steps,
-                count: $ctx.walk.steps.length,
+                fields: $ctx.walk.fields,
+                keys: $ctx.walk.keys,
+                boundaries: $ctx.walk.boundaries,
+                field_count: $ctx.walk.fields.length,
+                key_count: $ctx.walk.keys.length,
                 managed: false
             }}
         />
@@ -19,8 +22,11 @@
     <Return
         value={{
             anchor: $ctx.walk.fallback,
-            steps: $ctx.walk.steps,
-            count: $ctx.walk.fallback_count,
+            fields: $ctx.walk.fields,
+            keys: $ctx.walk.keys,
+            boundaries: $ctx.walk.boundaries,
+            field_count: $ctx.walk.fallback_fields,
+            key_count: $ctx.walk.fallback_keys,
             managed: true
         }}
     />

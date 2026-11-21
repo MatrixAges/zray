@@ -1,5 +1,6 @@
 import type { Result } from "../model"
 import type { Input as Value } from "../result"
+import type { Output as Access } from "./field"
 
 export type Borrow = {
     states: bool[],
@@ -10,10 +11,19 @@ export type Borrow = {
 
 export type Input = {
     value: Value,
+    member: Member,
+    source: u32,
+    base: u32,
     projection?: Borrow
 }
 
-export type Output = {
-    result: Result,
-    dereference: bool
+export type Output = Access & {
+    result: Result
+}
+
+export type Member = {
+    names: u8[][],
+    first: u32,
+    position: u32,
+    tuple: bool
 }

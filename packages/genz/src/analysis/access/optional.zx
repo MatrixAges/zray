@@ -1,0 +1,87 @@
+import { max_u32 } from "core/const"
+
+import {
+    ExpressionsKind,
+    ExpressionsBuiltinName
+} from "../../printer/model/expressions"
+
+export type Input = {
+    base: u32,
+    type_expr?: u32,
+    value?: u32
+}
+
+export type Rows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    optional_unwrap: u32[],
+    builtin_name: ExpressionsBuiltinName[],
+    builtin_arguments: u32[][]
+}
+
+export type Output = {
+    rows: Rows,
+    root: u32,
+    valid: bool
+}
+
+export default function (in: Input): Output {
+    const { type_expr, value } = in
+
+    if (type_expr == null) {
+        const operands = match {
+            value != null => [value],
+            _ => []
+        }
+
+        return {
+            rows: {
+                tags: [ExpressionsKind.OptionalUnwrap],
+                offsets: [0],
+                optional_unwrap: operands,
+                builtin_name: [],
+                builtin_arguments: []
+            },
+            root: in.base,
+            valid: value != null && in.base < max_u32
+        }
+    }
+
+    if (value != null) {
+        return {
+            rows: {
+                tags: [ExpressionsKind.Builtin],
+                offsets: [0],
+                optional_unwrap: [],
+                builtin_name: [ExpressionsBuiltinName.As],
+                builtin_arguments: [[
+                    type_expr,
+                    value
+                ]]
+            },
+            root: in.base,
+            valid: in.base < max_u32
+        }
+    }
+
+    return {
+        rows: {
+            tags: [
+                ExpressionsKind.NullValue,
+                ExpressionsKind.Builtin
+            ],
+            offsets: [
+                0,
+                0
+            ],
+            optional_unwrap: [],
+            builtin_name: [ExpressionsBuiltinName.As],
+            builtin_arguments: [[
+                type_expr,
+                in.base
+            ]]
+        },
+        root: in.base < max_u32 ? in.base + 1 : in.base,
+        valid: in.base < max_u32 - 1
+    }
+}

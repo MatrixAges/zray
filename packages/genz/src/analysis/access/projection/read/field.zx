@@ -1,12 +1,16 @@
+import { max_u32 } from "core/const"
+
 import { ExpressionsKind } from "../../../../printer/model/expressions"
+import field from "../../field"
 
 export type Input = {
     target: u32,
     name: u8[],
-    base: u32
+    base: u32,
+    dereference: bool
 }
 
-export type Output = {
+export type Rows = {
     tags: ExpressionsKind[],
     offsets: u32[],
     field_target: u32[],
@@ -14,18 +18,43 @@ export type Output = {
     dereference: u32[]
 }
 
+export type Output = {
+    rows: Rows,
+    root: u32,
+    valid: bool
+}
+
 export default function (in: Input): Output {
+    const direct = field({
+        target: in.target,
+        name: in.name
+    })
+
+    if (!in.dereference || in.base > max_u32 - 2) {
+        return {
+            rows: {
+                ...direct,
+                dereference: []
+            },
+            root: in.base,
+            valid: !in.dereference && in.base < max_u32
+        }
+    }
+
     return {
-        tags: [
-            ExpressionsKind.Field,
-            ExpressionsKind.Dereference
-        ],
-        offsets: [
-            0,
-            0
-        ],
-        field_target: [in.target],
-        field_name: [in.name],
-        dereference: [in.base]
+        rows: {
+            ...direct,
+            tags: [
+                ExpressionsKind.Field,
+                ExpressionsKind.Dereference
+            ],
+            offsets: [
+                0,
+                0
+            ],
+            dereference: [in.base]
+        },
+        root: in.base + 1,
+        valid: true
     }
 }
