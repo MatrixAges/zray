@@ -3,36 +3,64 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Lower = @import("../lower.zig");
 const Projection = @import("../iteration/fields/root.zig");
+const generated = @import("genz_options").generated_analysis;
+const entry = @import("generated_object_layout_plan");
+const Output = if (generated) std.meta.Child(entry.Output) else void;
+const Route = if (generated) @typeInfo(@FieldType(Output, "routes")).pointer.child else enum { Direct, Pointer, Borrowed };
 
 pub const Plan = struct {
     projection: ?*const Projection = null,
-    convert_fields: bool = false,
+    plain: Route = .Direct,
+    routes: []const Route = &.{},
     construct: bool,
+    pub fn field(self: Plan, ordinal: usize, index: u32) Route {
+        if (!generated) {
+            if (self.projection) |projection| {
+                if (projection.borrowed[index]) return .Borrowed;
+            }
+
+            return self.plain;
+        }
+
+        return if (self.routes.len == 0) self.plain else self.routes[ordinal];
+    }
 };
 
-pub fn plan(self: *const Lower, id: ir.ExprId, type_id: ir.TypeId, layout_only: bool, updated: bool) Plan {
-    const selected = self.state_plan.selected[@backingInt(type_id)];
+pub const Request = struct {
+    id: ir.ExprId,
+    type_id: ir.TypeId,
+    layout_only: bool,
+    updated: bool,
+    indices: []const u32,
+};
 
-    if (!@import("genz_options").generated_analysis) return seed(self, id, layout_only, updated, selected);
+pub fn plan(self: *const Lower, scratch: std.mem.Allocator, request: Request) Lower.Error!Plan {
+    const selected = self.state_plan.selected[@backingInt(request.type_id)];
 
-    const entry = @import("generated_object_layout_plan");
+    if (!generated) return seed(self, request.id, request.layout_only, request.updated, selected);
+
     const Input = std.meta.Child(entry.Input);
 
     const input: Input = .{
-        .expression = @backingInt(id),
+        .expression = @backingInt(request.id),
         .loop_states = if (self.loop_fields) |context| context.states else null,
         .state_active = self.state_active,
         .selected = selected,
-        .layout_only = layout_only,
-        .updated = updated,
+        .layout_only = request.layout_only,
+        .updated = request.updated,
+        .indices = request.indices,
+        .borrowed = if (self.loop_fields) |context| context.borrowed else null,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const output = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+    const output = zx.columns.invoke(entry.executeValue, scratch, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     return .{
         .projection = if (output.project) self.loop_fields else null,
-        .convert_fields = output.convert_fields,
+        .plain = output.plain,
+        .routes = output.routes,
         .construct = output.construct,
     };
 }
@@ -44,7 +72,7 @@ fn seed(self: *const Lower, id: ir.ExprId, layout_only: bool, updated: bool, sel
 
     return .{
         .projection = context,
-        .convert_fields = self.state_active and !selected,
+        .plain = if (self.state_active and !selected) .Pointer else .Direct,
         .construct = !layout_only and context == null,
     };
 }

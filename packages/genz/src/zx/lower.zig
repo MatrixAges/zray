@@ -299,7 +299,7 @@ pub fn regular(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
         .match_expr => |selection| @import("match.zig").lower(self, selection),
         .conditional => |conditional| @import("selection/conditional.zig").lower(self, conditional),
         .object => |object| @import("aggregate.zig").object(self, id, object),
-        .list, .tuple, .template => |items| @import("aggregate.zig").sequence(self, value, items),
+        .list, .tuple, .template => |items| @import("aggregate/sequence.zig").lower(self, id, value, items, false),
         .list_operation => @import("collections.zig").lower(self, id),
         .transform => |transform| @import("transform.zig").lower(self, id, transform),
         .scope => |scope| @import("scope.zig").lower(self, scope),

@@ -27,7 +27,7 @@ pub fn lower(self: *Lower, invocation: Operation) Lower.Error!node.ExpressionId 
 
     arguments[1] = if (callee_function.external != null and callee_function.external.?.expand_tuple and self.program.expression(invocation.argument).value == .tuple and !self.cache.contains(invocation.argument)) temporary: {
         const argument_value = self.program.expression(invocation.argument);
-        const layout = try @import("../aggregate.zig").tupleValue(self, argument_value, argument_value.value.tuple);
+        const layout = try @import("../aggregate/sequence.zig").lower(self, invocation.argument, argument_value, argument_value.value.tuple, true);
         const argument = try @import("../aggregate.zig").bind(self, &body, try self.cast(try self.layoutExpr(argument_value.type_id), layout));
 
         break :temporary try self.builder.expression(.{ .address_of = argument });

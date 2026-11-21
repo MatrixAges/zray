@@ -1,15 +1,21 @@
+import fields from "./fields"
+import { Route } from "./fields"
+
+import type { Output as Fields } from "./fields"
+
 export type Input = {
     expression: u64,
     loop_states?: bool[],
     state_active: bool,
     selected: bool,
     layout_only: bool,
-    updated: bool
+    updated: bool,
+    indices: u32[],
+    borrowed?: bool[]
 }
 
-export type Output = {
+export type Output = Fields & {
     project: bool,
-    convert_fields: bool,
     construct: bool
 }
 
@@ -17,7 +23,8 @@ export default function (in: Input): Output {
     if (in.updated) {
         return {
             project: false,
-            convert_fields: false,
+            plain: Route.Direct,
+            routes: [],
             construct: !in.layout_only && !in.selected
         }
     }
@@ -29,9 +36,15 @@ export default function (in: Input): Output {
         _ => states[in.expression]
     }
 
+    const routes = fields({
+        indices: in.indices,
+        borrowed: project ? in.borrowed : null,
+        convert: in.state_active && !in.selected
+    })
+
     return {
+        ...routes,
         project,
-        convert_fields: in.state_active && !in.selected,
         construct: !in.layout_only && !project
     }
 }

@@ -50,7 +50,7 @@ pub noinline fn lower(context: *Context, args: Request) Lower.Error!node.Express
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
     const prepared: Prepared = .{ .names = args.bindings.names, .values = args.bindings.values, .references = args.bindings.references };
-    const index: Index = .{ .count = context.reads.state.index.count, .keys = context.reads.state.index.keys.items, .buckets = context.reads.state.index.buckets.items };
+    const index = context.reads.indexView(Index);
     const reads: Counter = .{ .index = &index, .values = context.reads.state.values.items };
 
     const bases: Bases = .{

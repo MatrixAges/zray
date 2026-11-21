@@ -36,9 +36,14 @@ pub fn retire(self: *Lower, scratch: std.mem.Allocator, body: anytype, observati
     const Input = std.meta.Child(entry.Input);
 
     const input: Input = .{
+        .tags = &.{},
+        .offsets = &.{},
+        .discard = &.{},
+        .valid = true,
         .evaluation = view.slice(@FieldType(Input, "evaluation"), observation.evaluation),
         .prior = observation.prior,
-        .reads = self.cache_reads,
+        .dense = self.cache_reads,
+        .sparse = null,
         .references = view.slice(@FieldType(Input, "references"), observation.references),
     };
 
@@ -49,9 +54,16 @@ fn emit(self: *Lower, scratch: std.mem.Allocator, body: anytype, comptime entry:
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch);
     const output = zx.columns.invoke(entry.executeValue, memory.allocator(), input) catch |err| return failure(err);
-    const statements = zx.columns.view(std.meta.Child(entry.Output), output);
+    const Columns = std.meta.Child(entry.Output);
+
+    const statements = if (@hasField(Columns, "valid")) columns: {
+        if (!output.valid) return error.OutOfMemory;
+
+        break :columns .{ .tags = output.tags, .offsets = output.offsets, .discard = output.discard };
+    } else zx.columns.view(Columns, output);
 
     if (statements.tags.len == 0) return;
+
     @import("../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);
 }
 

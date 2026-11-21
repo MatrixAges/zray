@@ -18,6 +18,12 @@ state: State = if (generated) .{
 
 pub const empty: Self = .{};
 
+pub fn indexView(self: *const Self, comptime Index: type) Index {
+    const index = &self.state.index;
+
+    return .{ .count = index.count, .keys = index.keys.items, .buckets = index.buckets.items };
+}
+
 pub fn increment(self: *Self, allocator: std.mem.Allocator, key: ir.ExprId) std.mem.Allocator.Error!void {
     if (!generated) {
         const count = try self.state.getOrPut(allocator, key);
@@ -44,7 +50,7 @@ pub fn get(self: *const Self, key: ir.ExprId) ?usize {
     const Input = std.meta.Child(querying.Input);
     const View = std.meta.Child(@FieldType(Input, "state"));
     const Index = std.meta.Child(@FieldType(View, "index"));
-    const index: Index = .{ .count = self.state.index.count, .keys = self.state.index.keys.items, .buckets = self.state.index.buckets.items };
+    const index = self.indexView(Index);
     const state: View = .{ .index = &index, .values = self.state.values.items };
     const input: Input = .{ .state = &state, .key = @backingInt(key) };
     var fixed = std.heap.FixedBufferAllocator.init(&.{});

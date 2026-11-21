@@ -41,9 +41,7 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {
 
         bindings.set(index, value);
 
-        count.* = self.reads.get(item) orelse 0;
-
-        try self.cache.put(lowering.allocator, item, value.reference);
+        count.* = try self.cache.observe(lowering.allocator, item, value.reference, null, &self.reads);
     }
 
     const values = try allocator.alloc(u32, object.fields.len);

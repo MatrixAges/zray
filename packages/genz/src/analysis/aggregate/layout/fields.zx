@@ -1,0 +1,49 @@
+import integers from "std:integer"
+
+export enum Route {
+    Direct,
+    Pointer,
+    Borrowed
+}
+
+export type Input = {
+    indices: u32[],
+    borrowed?: bool[],
+    convert: bool
+}
+
+export type Output = {
+    plain: Route,
+    routes: Route[]
+}
+
+export default function (in: Input): Output {
+    const plain = in.convert ? Route.Pointer : Route.Direct
+    const borrowed = in.borrowed
+    const routes: Route[] = []
+
+    if (borrowed == null) {
+        return {
+            plain,
+            routes
+        }
+    }
+
+    return loop({
+        routes,
+        index: 0
+    }, {
+        while: state => state.index < in.indices.length,
+        next: state => {
+            const field = integers.widen(in.indices[state.index])
+            const route = borrowed[field] ? Route.Borrowed : plain
+
+            state.routes = state.routes.push(route)[0]
+            state.index += 1
+        },
+        return: state => ({
+            plain,
+            routes: state.routes
+        })
+    })
+}

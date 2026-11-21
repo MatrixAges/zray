@@ -26,7 +26,7 @@ pub fn lower(self: *Lower, invocation: seed.Operation) Lower.Error!node.Expressi
     const argument = switch (plan.argument) {
         .ExternalTuple => tuple: {
             const value = self.program.expression(invocation.argument);
-            const layout = try aggregate.tupleValue(self, value, value.value.tuple);
+            const layout = try @import("../aggregate/sequence.zig").lower(self, invocation.argument, value, value.value.tuple, true);
             const argument = try aggregate.bind(self, &body, try self.cast(try self.layoutExpr(value.type_id), layout));
 
             break :tuple try self.builder.expression(.{ .address_of = argument });

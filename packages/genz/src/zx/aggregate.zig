@@ -41,13 +41,17 @@ fn objectMode(self: *Lower, id: ir.ExprId, value: @FieldType(@FieldType(ir.Expre
             values[index] = @backingInt(expression);
         } else try body.append(self.allocator, .{ .constant = .{ .name = name, .value = expression } });
 
-        counts[index] = self.cache_reads[@backingInt(item)];
-
         const reference = try self.builder.identifier(name);
 
         references[index] = reference;
 
-        try self.cache.put(self.allocator, item, reference);
+        counts[index] = if (operands.generated) try self.cache.observe(self.allocator, item, reference, self.cache_reads, null) else prior: {
+            const prior = self.cache_reads[@backingInt(item)];
+
+            try self.cache.put(self.allocator, item, reference);
+
+            break :prior prior;
+        };
     }
 
     if (operands.generated) try operands.bind(self, temporary, &body, names, values);
@@ -60,7 +64,14 @@ fn objectMode(self: *Lower, id: ir.ExprId, value: @FieldType(@FieldType(ir.Expre
 
     const updated = try @import("object_update.zig").lower(self, temporary, id, &body);
     const type_id = self.program.expression(id).type_id;
-    const plan = @import("aggregate/layout.zig").plan(self, id, type_id, layout, updated != null);
+
+    const plan = try @import("aggregate/layout.zig").plan(self, temporary, .{
+        .id = id,
+        .type_id = type_id,
+        .layout_only = layout,
+        .updated = updated != null,
+        .indices = value.fields.indices[0..value.fields.len],
+    });
 
     if (updated) |result| {
         try operands.retire(self, temporary, &body, observation);
@@ -73,21 +84,15 @@ fn objectMode(self: *Lower, id: ir.ExprId, value: @FieldType(@FieldType(ir.Expre
 
     for (0..value.fields.len) |index| {
         const field = value.fields.at(index);
+        const expression = try self.expr(field.value);
 
-        if (plan.projection) |projection| if (projection.borrowed[field.index]) {
-            const name = field_names[field.index];
-            const expression = try self.expr(field.value);
-            const borrowed = try @import("aggregate/borrowed.zig").field(self, expression, projection.seed, name);
-            fields[index] = object_fields.operand(field_names, field.index, borrowed);
-
-            continue;
+        const represented = switch (plan.field(index, field.index)) {
+            .Direct => expression,
+            .Borrowed => try @import("aggregate/borrowed.zig").field(self, expression, plan.projection.?.seed, field_names[field.index]),
+            .Pointer => try @import("state_value/conversion.zig").convert(self, &body, self.program.expression(field.value).type_id, try bind(self, &body, expression), .pointer),
         };
 
-        var expression = try self.expr(field.value);
-
-        if (plan.convert_fields) expression = try @import("state_value/conversion.zig").convert(self, &body, self.program.expression(field.value).type_id, try bind(self, &body, expression), .pointer);
-
-        fields[index] = object_fields.operand(field_names, field.index, expression);
+        fields[index] = object_fields.operand(field_names, field.index, represented);
     }
 
     try operands.retire(self, temporary, &body, observation);
@@ -102,46 +107,6 @@ fn objectMode(self: *Lower, id: ir.ExprId, value: @FieldType(@FieldType(ir.Expre
     });
 
     return finish(self, &body, if (plan.construct) try self.construct(type_id, result) else result);
-}
-
-pub fn sequence(self: *Lower, value: ir.ExpressionRow, items: []const ir.ExprId) Lower.Error!node.ExpressionId {
-    return sequenceMode(self, value, items, false);
-}
-
-pub fn tupleValue(self: *Lower, value: ir.ExpressionRow, items: []const ir.ExprId) Lower.Error!node.ExpressionId {
-    return sequenceMode(self, value, items, true);
-}
-
-fn sequenceMode(self: *Lower, value: ir.ExpressionRow, items: []const ir.ExprId, layout: bool) Lower.Error!node.ExpressionId {
-    if (value.value == .list) if (try @import("static_list.zig").lower(self, value, items)) |literal| return @import("state_value/list.zig").wrap(self, value.type_id, literal, false);
-
-    var body: std.ArrayList(node.Statement) = .empty;
-    const expressions = try self.allocator.alloc(node.ExpressionId, items.len);
-
-    for (items, 0..) |item, index| {
-        var expression = try bind(self, &body, try self.expr(item));
-
-        if (value.value == .list) {
-            expression = try @import("state_value/elements.zig").write(self, &body, value.type_id, expression);
-        } else if (self.state_active and value.value == .tuple and !self.state_plan.selected[@backingInt(value.type_id)]) {
-            expression = try @import("state_value/conversion.zig").convert(self, &body, self.program.expression(item).type_id, expression, .pointer);
-        }
-
-        expressions[index] = expression;
-    }
-
-    const result = switch (value.value) {
-        .tuple => blk: {
-            const tuple = try @import("aggregate/literals.zig").tuple(self, expressions);
-
-            break :blk if (layout) try @import("state_value/origin.zig").tuple(self, value.type_id, tuple) else try self.construct(value.type_id, tuple);
-        },
-        .list => try @import("aggregate/list.zig").literal(self, value.type_id, expressions),
-        .template => try @import("templates.zig").lower(self, items, expressions),
-        else => unreachable,
-    };
-
-    return finish(self, &body, if (value.value == .list) try @import("state_value/list.zig").wrap(self, value.type_id, result, false) else result);
 }
 
 pub fn bind(self: *Lower, body: anytype, expression: node.ExpressionId) Lower.Error!node.ExpressionId {

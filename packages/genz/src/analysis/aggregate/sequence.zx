@@ -1,0 +1,43 @@
+import { ExpressionKind } from "core/expression_table/kinds"
+
+export enum Element {
+    Direct,
+    List,
+    Pointer
+}
+
+export enum Result {
+    List,
+    Tuple,
+    LayoutTuple,
+    Template
+}
+
+export type Input = {
+    kind: ExpressionKind,
+    layout: bool,
+    state_active: bool,
+    selected: bool
+}
+
+export type Output = {
+    element: Element,
+    result: Result
+}
+
+export default function (in: Input): Output {
+    return match in.kind {
+        ExpressionKind.List => {
+            element: Element.List,
+            result: Result.List
+        },
+        ExpressionKind.Tuple => {
+            element: in.state_active && !in.selected ? Element.Pointer : Element.Direct,
+            result: in.layout ? Result.LayoutTuple : Result.Tuple
+        },
+        _ => {
+            element: Element.Direct,
+            result: Result.Template
+        }
+    }
+}

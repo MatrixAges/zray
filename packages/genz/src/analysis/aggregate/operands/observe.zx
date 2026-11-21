@@ -1,0 +1,32 @@
+import put from "core/integer/map/put"
+
+import read from "./read"
+
+import type { Put, State } from "core/integer/map/model"
+import type { Input as Read } from "./read"
+
+export type Input = Put & Read.Omit("key")
+
+export type Output = {
+    state: State,
+    prior: u64
+}
+
+export default function (in: Input): Output {
+    const prior = read(in.pick([
+        "key",
+        "dense",
+        "sparse"
+    ]))
+
+    const state = put(in.pick([
+        "state",
+        "key",
+        "value"
+    ]))
+
+    return {
+        state,
+        prior
+    }
+}

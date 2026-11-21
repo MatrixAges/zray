@@ -34,6 +34,40 @@ pub fn Map(comptime Key: type) type {
                 unreachable;
             };
         }
+        pub fn observe(self: *Self, allocator: std.mem.Allocator, key: Key, value: node.ExpressionId, dense: ?[]const u64, sparse: ?*const @import("counter.zig")) std.mem.Allocator.Error!u64 {
+            const entry = @import("generated_aggregate_observe_operand");
+            const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+            const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+            const Counter = std.meta.Child(@typeInfo(@FieldType(Input, "sparse")).optional.child);
+            const Index = std.meta.Child(@FieldType(Counter, "index"));
+            const index = if (sparse) |reads| reads.indexView(Index) else undefined;
+            const counter: Counter = if (sparse) |reads| .{ .index = &index, .values = reads.state.values.items } else undefined;
+
+            const input: Input = .{
+                .state = zx.columns.view(@FieldType(Input, "state"), self.state),
+                .key = @backingInt(key),
+                .value = @backingInt(value),
+                .dense = if (dense) |reads| .{ .items = reads, .storage = .plain } else null,
+                .sparse = if (sparse != null) &counter else null,
+            };
+
+            const result = entry.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| {
+                if (err == error.OutOfMemory and self.overwrite(key, value)) {
+                    if (dense) |reads| return reads[@backingInt(key)];
+
+                    return sparse.?.get(@fromBackingInt(@backingInt(key))) orelse 0;
+                }
+
+                return switch (err) {
+                    error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+                    else => unreachable,
+                };
+            };
+
+            self.state = zx.columns.view(State, result.state);
+
+            return result.prior;
+        }
         pub fn exchange(self: *Self, allocator: std.mem.Allocator, key: Key, value: node.ExpressionId) std.mem.Allocator.Error!?node.ExpressionId {
             if (!generated) {
                 const previous = self.get(key);

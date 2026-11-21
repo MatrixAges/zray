@@ -1,41 +1,54 @@
-import integers from "std:integer"
-
+import header from "../../../ast/statements/header"
 import { StatementsKind } from "../../../printer/model/statements"
+import read from "./read"
 
-export type Input = {
+import type { Statements } from "./model"
+import type { Input as Read } from "./read"
+
+export type Rows = Statements.Pick("tags", "offsets", "discard")
+
+export type Output = Rows & {
+    valid: bool
+}
+
+export type Input = Output & Read.Omit("key") & {
     evaluation: u32[],
     prior: u64[],
-    reads: u64[],
     references: u32[]
 }
 
-export type Output = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    discard: u32[]
-}
-
 export default function (in: Input): Output {
-    const tags: StatementsKind[] = []
-    const offsets: u32[] = []
-    const discard: u32[] = []
-
     return loop({
-        tags,
-        offsets,
-        discard,
+        ...in.pick([
+            "tags",
+            "offsets",
+            "discard",
+            "valid"
+        ]),
         index: 0
     }, {
-        while: current => current.index < in.evaluation.length,
+        while: current => current.valid && current.index < in.evaluation.length,
         next: current => {
             const index = current.index
-            const key = integers.widen(in.evaluation[index])
 
-            if (in.reads[key] == in.prior[index]) {
-                const offset = integers.narrow(current.discard.length)
+            const count = read({
+                key: in.evaluation[index],
+                dense: in.dense,
+                sparse: in.sparse
+            })
 
-                current.tags = current.tags.push(StatementsKind.Discard)[0]
-                current.offsets = current.offsets.push(offset)[0]
+            if (count == in.prior[index]) {
+                const value = header({
+                    tags: current.tags,
+                    offsets: current.offsets,
+                    base: 0,
+                    kind: StatementsKind.Discard,
+                    offset: current.discard.length
+                })
+
+                current.tags = value.tags
+                current.offsets = value.offsets
+                current.valid = value.valid
                 current.discard = current.discard.push(in.references[index])[0]
             }
 

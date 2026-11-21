@@ -1,0 +1,29 @@
+import integers from "std:integer"
+import get from "core/integer/counter/get"
+
+import type { State as Counter } from "core/integer/counter/model"
+
+export type Input = {
+    key: u32,
+    dense?: u64[],
+    sparse?: Counter
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in.dense != null) {
+        return in.dense[integers.widen(in.key)]
+    }
+
+    const sparse = in.sparse
+
+    if (sparse == null) {
+        return 0
+    }
+
+    return get({
+        state: sparse,
+        key: in.key
+    }) ?? 0
+}

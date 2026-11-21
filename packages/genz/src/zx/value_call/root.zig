@@ -23,7 +23,7 @@ pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
         .Dereference => emission.emit(self, null, .Dereference, .{ .value = try self.expr(id) }),
         .Capture => @import("../capture.zig").lowerValue(self, value.type_id, value.value.capture),
         .Object => aggregate.objectValue(self, id),
-        .Tuple => aggregate.tupleValue(self, value, value.value.tuple),
+        .Tuple => @import("../aggregate/sequence.zig").lower(self, id, value, value.value.tuple, true),
         .Collection => @import("../collections.zig").lowerValue(self, id, try self.layoutExpr(value.type_id)),
         .Scope => @import("../scope.zig").lowerValue(self, value.value.scope),
         .Iteration => @import("../iteration.zig").lowerValue(self, id, value.value.iteration),
