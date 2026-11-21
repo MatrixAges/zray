@@ -31,6 +31,8 @@
             in={{
                 state: $ctx.task.summary,
                 rows: $in.normalized,
+                count: $in.normalized_count,
+                wide: false,
                 order: $in.order
             }}
         />
@@ -42,6 +44,8 @@
             in={{
                 state: $ctx.task.normalized,
                 rows: $in.renewed,
+                count: $in.renewed_count,
+                wide: true,
                 order: $in.order
             }}
         />

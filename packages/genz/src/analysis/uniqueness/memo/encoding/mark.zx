@@ -1,8 +1,10 @@
+import memory from "memory"
+
 import type { State as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
     return {
         ...in,
-        state_end: in.end
+        state_end: memory.byteWriterLength(in.buffer)
     }
 }

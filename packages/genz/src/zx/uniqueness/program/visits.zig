@@ -84,15 +84,8 @@ fn Visit(comptime kind: Memo.Kind) type {
 
         fn lookup(self: *Self) Error!?Memo.Result(kind) {
             const ctx = self.ctx;
-            const state = ctx.bodies.state(ctx.summaries, self.index);
 
-            const get = comptime switch (kind) {
-                .settled => Memo.getSettled,
-                .demanded => Memo.getDemanded,
-                .planned => Memo.getPlanned,
-            };
-
-            return get(ctx.memo, ctx.summaries, state);
+            return ctx.memo.getBody(kind, ctx.summaries, &ctx.rounds.?.ahead.memo_rows, self.index);
         }
         fn owner(self: *Self, comptime persistent: bool) std.mem.Allocator {
             return if (persistent) self.ctx.memo.arena.allocator() else self.ctx.allocator;

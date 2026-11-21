@@ -18,10 +18,7 @@
                 "digest",
                 "table"
             ]),
-            ...$ctx.key.pick([
-                "buffer",
-                "end"
-            ])
+            buffer: $ctx.key.buffer
         }}
     />
 

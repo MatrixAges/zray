@@ -1,0 +1,33 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Body as Input, Fields as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { rows, summaries, index } = in
+    const { growth, identities, empty_identity } = rows
+    const { projection, normalized, renewed } = growth
+
+    columns.projectListColumns(projection, index)
+
+    const identity = match {
+        index < memory.columnLength(identities) =>
+            memory.readFixedBytes(identities, index, empty_identity.length),
+        _ => empty_identity
+    }
+
+    const own_input = match {
+        index < summaries.inputs.length => summaries.inputs[index],
+        _ => []
+    }
+
+    return {
+        identity,
+        callees: rows.callees[index],
+        own_input,
+        normalized,
+        normalized_count: memory.columnLength(normalized.keys),
+        renewed,
+        renewed_count: memory.columnLength(renewed.keys)
+    }
+}

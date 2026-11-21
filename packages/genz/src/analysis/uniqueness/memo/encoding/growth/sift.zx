@@ -8,8 +8,8 @@ import type { Heap as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { columns, indices, limit, root } = in
-    const { keys, wide } = columns
+    const { columns, wide, indices, limit, root } = in
+    const { keys } = columns
 
     const held = memory.readU32(indices, root)
 

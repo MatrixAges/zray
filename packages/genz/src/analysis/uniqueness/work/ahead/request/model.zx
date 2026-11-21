@@ -1,0 +1,25 @@
+import type { Probe } from "../../../memo/encoding/body/model"
+import type { State as Encoding } from "../../../memo/encoding/model"
+import type { State as Channel } from "../../pool/model"
+import type { Input as Window } from "../scan"
+
+export type Offer = Probe.Omit("state", "index")
+
+export type Input = {
+    window: Window,
+    channel: Channel,
+    encoding: Encoding,
+    memo?: Offer,
+    needs_start: bool
+}
+
+export type Pending = {
+    index: u32,
+    position: u32
+}
+
+export type Output = {
+    encoding: Encoding,
+    next: u64,
+    pending?: Pending
+}

@@ -113,6 +113,8 @@ pub const Context = struct {
             .reverse = prepared.reverse,
             .ahead = ahead,
         };
+
+        if (generated) self.rounds.?.ahead.memo_rows.init(self.bodies);
     }
 
     fn release(self: *Context) void {

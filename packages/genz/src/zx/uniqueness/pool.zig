@@ -63,11 +63,15 @@ pub fn submit(self: *Self, index: u32) bool {
 
     const position = self.ring.reserve() orelse return false;
 
+    self.publishReserved(position, index);
+
+    return true;
+}
+
+pub fn publishReserved(self: *Self, position: u32, index: u32) void {
     if (self.started < self.threads.len) self.start();
 
     self.ring.publish(position, index);
-
-    return true;
 }
 
 /// Drops every request no worker took and waits for the workers that hold one.

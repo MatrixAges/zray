@@ -8,22 +8,31 @@
         fn="../word"
         in={{
             state: $in.state,
-            value: $in.rows.count
+            value: $in.count
         }}
     />
 
-    <If on={$in.rows.count == 0}>
+    <If on={$in.count == 0}>
         <Return value={$ctx.word} />
     </If>
 
-    <Call fn="ordered" in={$in.rows} />
+    <Call
+        fn="ordered"
+        in={{
+            columns: $in.rows,
+            count: $in.count,
+            wide: $in.wide
+        }}
+    />
 
     <If on={$ctx.ordered}>
         <Call
             fn="write"
             in={{
                 state: $ctx.word,
-                ...$in.rows
+                columns: $in.rows,
+                count: $in.count,
+                wide: $in.wide
             }}
         />
 
@@ -33,7 +42,9 @@
     <Call
         fn="arrange"
         in={{
-            ...$in.rows,
+            columns: $in.rows,
+            count: $in.count,
+            wide: $in.wide,
             order: $in.order
         }}
     />
@@ -42,7 +53,9 @@
         fn="write"
         in={{
             state: $ctx.word,
-            ...$in.rows,
+            columns: $in.rows,
+            count: $in.count,
+            wide: $in.wide,
             order: $in.order.indices
         }}
     />

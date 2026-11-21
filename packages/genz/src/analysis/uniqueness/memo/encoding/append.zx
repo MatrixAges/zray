@@ -1,26 +1,9 @@
+import memory from "memory"
+
 import type { Append as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const loop_initial = {
-        state: in.state,
-        index: 0
-    }
+    memory.appendBytes(in.state.buffer, in.bytes)
 
-    const readonly_bytes = in.bytes
-
-    return loop(loop_initial, {
-        while: current => current.index < readonly_bytes.length,
-        next: current => {
-            const value = readonly_bytes[current.index]
-
-            current.state.buffer = match {
-                current.state.end < current.state.buffer.length =>
-                    current.state.buffer.with(current.state.end, value),
-                _ => current.state.buffer.push(value)[0]
-            }
-            current.state.end += 1
-            current.index += 1
-        },
-        return: current => current.state
-    })
+    return in.state
 }

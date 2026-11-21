@@ -1,0 +1,42 @@
+import type { ReadColumn } from "memory"
+import type { ListProjection } from "memory/columns"
+import type { Key, RecordColumns, Target } from "../model"
+
+export type Growth = {
+    projection: ListProjection,
+    normalized: RecordColumns,
+    renewed: RecordColumns
+}
+
+export type Rows = {
+    identities: ReadColumn,
+    empty_identity: u8[],
+    callees: u32[][],
+    growth: Growth
+}
+
+export type Summaries = Key.Pick(
+    "called_outputs",
+    "called_input_wants",
+    "output_wants"
+) & {
+    inputs: u8[][]
+}
+
+export type Body = {
+    rows: Rows,
+    summaries: Summaries,
+    index: u64
+}
+
+export type Probe = Body & Target & Key.Pick("order", "state", "kind")
+
+export type Fields = Key.Pick(
+    "identity",
+    "callees",
+    "own_input",
+    "normalized",
+    "normalized_count",
+    "renewed",
+    "renewed_count"
+)

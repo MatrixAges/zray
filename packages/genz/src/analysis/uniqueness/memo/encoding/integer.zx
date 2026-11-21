@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import { byte_radix } from "./const"
 
@@ -6,27 +7,22 @@ import type { Integer as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
     const loop_initial = {
-        state: in.state,
         value: in.value,
         index: 0
     }
 
-    const readonly_width = in.width
+    const { state, width } = in
 
     return loop(loop_initial, {
-        while: current => current.index < readonly_width,
+        while: current => current.index < width,
         next: current => {
             const byte = integers.narrowByte(current.value % byte_radix)
 
-            current.state.buffer = match {
-                current.state.end < current.state.buffer.length =>
-                    current.state.buffer.with(current.state.end, byte),
-                _ => current.state.buffer.push(byte)[0]
-            }
-            current.state.end += 1
+            memory.appendByte(state.buffer, byte)
+
             current.value /= byte_radix
             current.index += 1
         },
-        return: current => current.state
+        return: current => state
     })
 }

@@ -1,9 +1,12 @@
+import memory from "memory"
+
 import type { State as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
+    memory.clearByteWriter(in.buffer)
+
     return {
         ...in,
-        end: 0,
         state_end: 0
     }
 }

@@ -9,8 +9,8 @@ import type { State as Output } from "../model"
 import type { Emit as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { columns, count, order } = in
-    const { keys, wants, wide } = columns
+    const { columns, count, order, wide } = in
+    const { keys, wants } = columns
 
     const width = wide ? renewal_key_width : word_width
 

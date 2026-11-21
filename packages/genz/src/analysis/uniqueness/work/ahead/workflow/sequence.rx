@@ -5,27 +5,6 @@
     <Args in={Ahead.Request} out={Ahead.Step[]} />
 
     <Switch on={$in.activity}>
-        <Case value={Ahead.Activity.Request}>
-            <If on={$in.phase == Program.Phase.Plan && !$in.persistent}>
-                <Return
-                    value={[
-                        Ahead.Step.Reserve,
-                        Ahead.Step.Submit,
-                        Ahead.Step.WithdrawOnFull
-                    ]}
-                />
-            </If>
-
-            <Return
-                value={[
-                    Ahead.Step.CheckMemo,
-                    Ahead.Step.Reserve,
-                    Ahead.Step.Submit,
-                    Ahead.Step.WithdrawOnFull
-                ]}
-            />
-        </Case>
-
         <Case value={Ahead.Activity.Analyze}>
             <Switch on={$in.phase}>
                 <Case value={Program.Phase.Demand}>

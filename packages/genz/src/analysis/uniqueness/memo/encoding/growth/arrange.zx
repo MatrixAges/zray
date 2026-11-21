@@ -8,7 +8,7 @@ import type { Sort as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { columns, count, order } = in
+    const { columns, count, order, wide } = in
     const { indices, scratch } = order
 
     memory.growU32Scratch(scratch, count, false)
@@ -30,6 +30,7 @@ export default function (in: Input): Output {
 
             sift({
                 columns,
+                wide,
                 indices,
                 limit: count,
                 root: position
@@ -50,6 +51,7 @@ export default function (in: Input): Output {
 
             sift({
                 columns,
+                wide,
                 indices,
                 limit,
                 root: first

@@ -27,6 +27,14 @@ pub fn length(target: *const anyopaque) u64 {
     return borrow(target).buffer.items.len;
 }
 
+pub fn borrowBytes(target: *const anyopaque) []const u8 {
+    return borrow(target).buffer.items;
+}
+
+pub fn clear(target: *const anyopaque) void {
+    borrow(target).buffer.clearRetainingCapacity();
+}
+
 pub fn reverseTail(target: *const anyopaque, start: u64) void {
     std.mem.reverse(u8, borrow(target).buffer.items[@intCast(start)..]);
 }

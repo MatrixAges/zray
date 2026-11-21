@@ -12,6 +12,7 @@ const Schedule = if (generated) @import("ahead/schedule.zig") else @import("ahea
 const workflow = @import("ahead/workflow.zig");
 const compute = @import("program/visit/compute.zig");
 const Window = @import("work/round.zig").Window;
+const BodyRows = @import("memo/body_rows.zig");
 const Error = std.mem.Allocator.Error;
 const Self = @This();
 
@@ -32,6 +33,7 @@ recursive: []const bool,
 dirty: []bool,
 /// A round publishes only one kind of result. It drains its workers before the table changes kind.
 results: []Result,
+memo_rows: if (generated) BodyRows else void = if (generated) undefined else {},
 const Result = union { settled: Settled, demanded: Demanded, planned: Function.Plan };
 
 pub const Settled = struct { passed: []const Function.Contribution, output: []const Level, reads: []const Function.Read };
@@ -75,6 +77,7 @@ pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: Wind
     const workers = self.pool.count();
 
     if (workers == 0 or indices.first.len == 0) return;
+    if (generated) return @import("ahead/request.zig").run(self, memo, kind, indices, workers);
     if (kind != .planned) return self.offer(kind, true, memo, indices, workers);
 
     switch (memo.persistent) {

@@ -15,6 +15,5 @@ pub fn steps(comptime activity: Activity, comptime kind: Memo.Kind, comptime per
             .demanded => .Demand,
             .planned => .Plan,
         },
-        .persistent = persistent,
     });
 }

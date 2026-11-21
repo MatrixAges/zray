@@ -12,18 +12,25 @@ export type Input = Buffers & {
     workers: u64
 }
 
-export type Output = u64?
+export type Candidate = {
+    position: u64,
+    index: u64
+}
+
+export type Output = Candidate?
 
 export default function (in: Input): Output {
     const width = in.workers * requests_per_worker
     const length = in.indices.length + in.wrapped.length
     const end = width < length ? width : length
 
+    const candidate: Output = null
+
     return loop({
         pos: in.first,
-        found: false
+        candidate
     }, {
-        while: state => !state.found && state.pos < end,
+        while: state => state.candidate == null && state.pos < end,
         next: state => {
             const index = match {
                 state.pos < in.indices.length => in.indices[state.pos],
@@ -37,16 +44,21 @@ export default function (in: Input): Output {
                 _ => false
             }
 
-            state.found = eligible && !in.recursive[index]
+            const found = eligible && !in.recursive[index]
 
-            if (state.found || status == queued) {
+            if (found || status == queued) {
                 memory.writeU8(in.dirty, index, clean)
             }
 
-            if (!state.found) {
+            if (found) {
+                state.candidate = {
+                    position: state.pos,
+                    index
+                }
+            } else {
                 state.pos += 1
             }
         },
-        return: state => state.found ? state.pos : null
+        return: state => state.candidate
     })
 }

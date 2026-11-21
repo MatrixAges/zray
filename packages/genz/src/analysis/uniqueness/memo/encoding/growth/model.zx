@@ -1,13 +1,19 @@
 import type { U32Buffer } from "memory"
-import type { Order, RecordColumns, Records, State } from "../model"
+import type { Order, RecordColumns, State } from "../model"
 
 export type Group = {
     state: State,
-    rows: Records,
+    rows: RecordColumns,
+    count: u64,
+    wide: bool,
     order: Order
 }
 
-export type Rows = Records
+export type Rows = {
+    columns: RecordColumns,
+    count: u64,
+    wide: bool
+}
 
 export type Sort = Rows & {
     order: Order
@@ -15,6 +21,7 @@ export type Sort = Rows & {
 
 export type Heap = {
     columns: RecordColumns,
+    wide: bool,
     indices: U32Buffer,
     limit: u64,
     root: u64

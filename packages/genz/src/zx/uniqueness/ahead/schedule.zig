@@ -1,26 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
-const scanning = @import("generated_uniqueness_ahead_scan");
 const changing = @import("generated_uniqueness_ahead_transition");
 const taking = @import("generated_uniqueness_ahead_take");
 const resetting = @import("generated_uniqueness_ahead_reset");
 pub const Event = @FieldType(std.meta.Child(changing.Input), "event");
-
-pub fn scan(words: []u32, dirty: []bool, recursive: []const bool, indices: @import("../work/round.zig").Window, first: usize, workers: usize) ?usize {
-    const flags = std.mem.sliceAsBytes(dirty);
-
-    const input: std.meta.Child(scanning.Input) = .{
-        .words = @ptrCast(&words),
-        .dirty = @ptrCast(&flags),
-        .recursive = recursive,
-        .indices = indices.first,
-        .wrapped = indices.second,
-        .first = first,
-        .workers = workers,
-    };
-
-    return @intCast(invoke(scanning, &input) orelse return null);
-}
 
 pub fn transition(words: []u32, index: usize, event: Event) bool {
     const input: std.meta.Child(changing.Input) = .{ .words = @ptrCast(&words), .index = index, .event = event };

@@ -2,17 +2,17 @@ import memory from "memory"
 
 import touch from "../table/touch"
 
+import type { ByteWriter } from "memory"
 import type { Target } from "./model"
 
 export type Input = Target & {
-    buffer: u8[],
-    end: u64
+    buffer: ByteWriter
 }
 
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const encoded = memory.borrowU8Range(in.buffer, 0, in.end)
+    const encoded = memory.borrowByteWriterBytes(in.buffer)
     const key = memory.sha256Into(in.digest, encoded)
 
     return touch({

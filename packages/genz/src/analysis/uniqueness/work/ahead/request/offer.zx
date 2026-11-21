@@ -1,0 +1,95 @@
+import integers from "std:integer"
+
+import probe from "../../../memo/encoding/body/probe.rx"
+import reserve from "../../pool/reserve"
+import submit from "../../pool/submit.rx"
+import { Event } from "../model"
+import scan from "../scan"
+import transition from "../transition"
+
+import type { Found } from "../../../memo/encoding/model"
+import type { Input, Output, Pending } from "./model"
+
+export default function (in: Input): Output {
+    const { window, channel, memo, needs_start } = in
+
+    const pending: Pending? = null
+
+    return loop({
+        first: window.first,
+        encoding: in.encoding,
+        pending,
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const next = scan({
+                ...window,
+                first: state.first
+            })
+
+            if (next == null) {
+                state.done = true
+            } else {
+                const { index, position } = next
+                state.first = position + 1
+
+                const cached: Found? = match {
+                    memo == null => null,
+                    _ => probe({
+                        ...memo,
+                        state: state.encoding,
+                        index
+                    })
+                }
+
+                if (cached != null) {
+                    state.encoding = cached.state
+                }
+
+                if (cached != null && cached.row != null) {
+                    const held = transition({
+                        words: window.words,
+                        event: Event.Hold,
+                        index
+                    })
+                } else {
+                    const queued = transition({
+                        words: window.words,
+                        event: Event.Queue,
+                        index
+                    })
+
+                    const reserved = reserve(channel.counters)
+
+                    if (reserved == null) {
+                        const withdrawn = transition({
+                            words: window.words,
+                            event: Event.Withdraw,
+                            index
+                        })
+
+                        state.done = true
+                    } else if (needs_start) {
+                        state.pending = {
+                            index: integers.narrow(index),
+                            position: reserved
+                        }
+                        state.done = true
+                    } else {
+                        submit({
+                            ...channel,
+                            position: reserved,
+                            index: integers.narrow(index)
+                        })
+                    }
+                }
+            }
+        },
+        return: state => ({
+            encoding: state.encoding,
+            next: state.first,
+            pending: state.pending
+        })
+    })
+}

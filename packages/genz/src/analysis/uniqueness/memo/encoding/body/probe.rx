@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Body" />
+    <Type from="../model" as="Memo" />
+
+    <Args in={Body.Probe} out={Memo.Found} />
+
+    <Call
+        fn="fields"
+        in={$in.pick([
+            "rows",
+            "summaries",
+            "index"
+        ])}
+    />
+
+    <Call
+        module="../lookup"
+        in={{
+            ...$ctx.fields,
+            ...$in.omit([
+                "rows",
+                "summaries"
+            ]),
+            ...$in.summaries.omit(["inputs"])
+        }}
+    />
+
+    <Return value={$ctx.lookup} />
+</Module>

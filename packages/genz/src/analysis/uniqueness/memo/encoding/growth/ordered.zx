@@ -9,8 +9,8 @@ export default function (in: Input): Output {
         return true
     }
 
-    const { count } = in
-    const { keys, wide } = in.columns
+    const { count, wide } = in
+    const { keys } = in.columns
 
     return loop({
         index: 1,

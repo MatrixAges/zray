@@ -201,6 +201,10 @@ export declare function appendText(
 
 export declare function byteWriterLength(target: ByteWriter): u64
 
+export declare function borrowByteWriterBytes(target: ByteWriter): u8[]
+
+export declare function clearByteWriter(target: ByteWriter): void
+
 export declare function reverseByteWriterTail(target: ByteWriter, start: u64): void
 
 export declare function readU8(

@@ -8,6 +8,7 @@ const Hash = @import("zx").Sha256;
 const Self = @This();
 const generated_encoding = @import("genz_options").generated_analysis;
 const Encoding = @import("memo/encoding.zig");
+const BodyRows = @import("memo/body_rows.zig");
 const Table = @import("memo/table.zig").Table;
 /// Results of body analyses by the exact state they read: the body's identity, its own input summary, the output
 /// summaries of its callees, and its growth copies. An analysis is a pure function of that state, so a body met again
@@ -132,7 +133,6 @@ pub fn getSettled(self: *Self, summaries: *const Summaries, state: State) std.me
 pub fn holds(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!bool {
     const table = &@field(self, @tagName(kind));
 
-    if (generated_encoding) return (try self.encoding.probe(self.arena.allocator(), kind, summaries, &state, table, &self.key, false)) != null;
     try self.keyedSeed(kind, summaries, state);
 
     return table.contains(self.key);
@@ -141,15 +141,16 @@ pub fn holds(self: *Self, comptime kind: Kind, summaries: *const Summaries, stat
 fn lookup(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: *const State) std.mem.Allocator.Error!?Result(kind) {
     const table = &@field(self, @tagName(kind));
 
-    if (generated_encoding) {
-        const row = (try self.encoding.probe(self.arena.allocator(), kind, summaries, state, table, &self.key, true)) orelse return null;
-
-        return table.values.items[row];
-    }
-
     try self.keyedSeed(kind, summaries, state.*);
 
     return use(Result(kind), table, self.key);
+}
+
+pub fn getBody(self: *Self, comptime kind: Kind, summaries: *const Summaries, rows: *const BodyRows, body: usize) std.mem.Allocator.Error!?Result(kind) {
+    const table = &@field(self, @tagName(kind));
+    const row = (try self.encoding.probe(self.arena.allocator(), kind, summaries, rows, body, table, &self.key)) orelse return null;
+
+    return table.values.items[row];
 }
 
 fn keyedSeed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
