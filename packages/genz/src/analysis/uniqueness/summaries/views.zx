@@ -1,0 +1,35 @@
+import rows from "./rows"
+
+import type { Cells, Views } from "./model"
+
+export type Input = {
+    cells: Cells,
+    views: Views
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { cells, views } = in
+    const { layout, guarantees, demands } = cells
+
+    rows({
+        first: layout.input_first,
+        base: 0,
+        count: layout.input_count,
+        guarantee_rows: views.input,
+        demand_rows: views.inputs,
+        guarantees,
+        demands
+    })
+
+    rows({
+        first: layout.output_first,
+        base: layout.input_count,
+        count: layout.output_count,
+        guarantee_rows: views.output,
+        demand_rows: views.outputs,
+        guarantees,
+        demands
+    })
+}

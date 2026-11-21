@@ -1,3 +1,23 @@
+import type { Allocator, ArenaScope } from "memory"
+import type { Cells, Create } from "../summaries/model"
+import type { Bodies, Calls } from "../topology/model"
+
+export type Arenas = {
+    scope: ArenaScope,
+    temporary: Allocator,
+    summaries: Allocator
+}
+
+export type Prepare = Create & {
+    bodies: Bodies,
+    arenas: Arenas
+}
+
+export type Prepared = {
+    topology: Calls,
+    storage: Cells
+}
+
 export enum Phase {
     Start,
     Replay,

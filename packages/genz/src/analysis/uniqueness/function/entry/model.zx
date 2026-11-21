@@ -1,8 +1,8 @@
 import type { Source } from "../demand/model"
 import type { Context } from "../levels/model"
-import type { Decisions, Snapshot, Visit } from "../plan/model"
+import type { Generation, Published, Snapshot } from "../plan/model"
 
-export type Input = Visit
+export type Input = Generation
 
 export type Solve = {
     context: Context,
@@ -15,4 +15,4 @@ export type Solved = {
     state: Snapshot
 }
 
-export type Output = Decisions
+export type Output = Published

@@ -14,31 +14,6 @@ pub const Plan = struct {
     known: []const bool,
 };
 
-pub fn collect(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!Calls {
-    if (!@import("genz_options").generated_analysis) return seed.collect(allocator, program);
-
-    const generated = @import("generated_uniqueness_calls");
-    const Input = std.meta.Child(generated.Input);
-
-    const input: Input = .{
-        .expressions = zx.columns.slice(@FieldType(Input, "expressions"), program.functions.expressions),
-        .native_modules = program.functions.native_modules,
-        .entry = zx.columns.pointer(@FieldType(Input, "entry"), &program.expressions),
-        .type_only = program.type_only,
-    };
-
-    const output = @import("zx").columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => std.debug.panic("call topology failed: {s}", .{@errorName(err)}),
-    };
-
-    return .{
-        .active = output.active,
-        .callees = output.callees,
-        .recursive = output.recursive,
-    };
-}
-
 pub fn build(allocator: std.mem.Allocator, called: []const []const u32, exported: []const ir.FunctionId) std.mem.Allocator.Error!Plan {
     if (!@import("genz_options").generated_analysis) return seed.build(allocator, called, exported);
 

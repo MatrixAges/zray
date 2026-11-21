@@ -3,16 +3,25 @@ const zx = @import("zx");
 const Function = @import("../function.zig");
 const Context = @import("context.zig");
 const analysis = @import("generated_uniqueness_function_plan");
-const publication = @import("generated_uniqueness_function_plan_finish");
-const Input = std.meta.Child(analysis.Input);
-const Finish = std.meta.Child(publication.Input);
+const independent = @import("generated_uniqueness_function_entry");
 
 pub fn build(function: *Function, allocator: std.mem.Allocator) std.mem.Allocator.Error!Function.Plan {
+    return generate(analysis, function, allocator);
+}
+
+pub fn entry(function: *Function, allocator: std.mem.Allocator) std.mem.Allocator.Error!Function.Plan {
+    return generate(independent, function, allocator);
+}
+
+fn generate(comptime workflow: type, function: *Function, allocator: std.mem.Allocator) std.mem.Allocator.Error!Function.Plan {
+    const Input = std.meta.Child(workflow.Input);
     var borrowed: Context = undefined;
 
     borrowed.init(function);
 
     const context: *const @TypeOf(borrowed.descriptor) = &borrowed.descriptor;
+    const scratch = function.allocator;
+    var scope = zx.memory.ArenaScope{ .active = scratch };
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), function.slots.types);
 
     const input: Input = .{
@@ -22,30 +31,18 @@ pub fn build(function: *Function, allocator: std.mem.Allocator) std.mem.Allocato
         .operations = @ptrCast(function.operations),
         .repeated = function.facts.repeated.owner,
         .results = function.facts.results,
+        .arenas = &.{
+            .scope = @ptrCast(&scope),
+            .scratch = @ptrCast(&scratch),
+            .owner = @ptrCast(&allocator),
+        },
     };
 
-    const facts = zx.columns.invoke(analysis.executeValue, function.allocator, &input) catch |err| return failure(err);
+    const result = workflow.executeValue(scope.allocator(), &input) catch |err| {
+        if (err == error.OutOfMemory) return error.OutOfMemory;
 
-    return publish(function, allocator, &borrowed, facts);
-}
-
-pub fn publish(function: *const Function, allocator: std.mem.Allocator, borrowed: *const Context, facts: anytype) std.mem.Allocator.Error!Function.Plan {
-    const finish: Finish = .{
-        .metadata = zx.columns.pointer(@FieldType(Finish, "metadata"), &borrowed.metadata),
-        .type_kinds = function.slots.types.kinds,
-        .flags = facts.flags,
-        .keys = facts.keys,
-        .writable = facts.writable,
-        .needed = facts.needed,
+        std.debug.panic("function plan failed: {s}", .{@errorName(err)});
     };
-
-    const result = zx.columns.invoke(publication.executeValue, allocator, &finish) catch |err| return failure(err);
 
     return Function.Plan.fromColumns(result);
-}
-
-fn failure(err: anyerror) std.mem.Allocator.Error {
-    if (err == error.OutOfMemory) return error.OutOfMemory;
-
-    std.debug.panic("function plan failed: {s}", .{@errorName(err)});
 }

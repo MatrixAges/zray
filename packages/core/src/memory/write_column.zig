@@ -259,6 +259,10 @@ pub fn writeRow(target: *const anyopaque, index: u64, source: []const u8) IndexE
     @memcpy(output.bytes[offset..][0..width], source);
 }
 
+pub inline fn writeRowByteView(target: *const anyopaque, index: u64, source: []const u8) IndexError!void {
+    try writeRow(target, index, std.mem.asBytes(&source));
+}
+
 /// The caller lends a mutable field of each row exclusively until the generated call returns.
 pub inline fn borrow(comptime T: type, comptime field: []const u8, rows: anytype) Column {
     return borrowNested(T, &.{field}, rows);

@@ -3,7 +3,7 @@ import bytes from "std:bytes"
 import encode from "../function/levels/encode"
 import { Knowledge } from "../function/levels/model"
 
-import type { Layout as Input, Storage as Output } from "./model"
+import type { Layout as Input, Cells as Output } from "./model"
 
 export default function (in: Input): Output {
     const empty = encode(Knowledge.None)

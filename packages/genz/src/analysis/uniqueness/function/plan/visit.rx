@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Plan" />
 
-    <Args in={Plan.Visit} out={Plan.Decisions} />
+    <Args in={Plan.Generation} out={Plan.Published} />
 
     <Call
         module="../levels/close"
@@ -14,7 +14,7 @@
     <Call
         module="plan"
         in={{
-            ...$in,
+            ...$in.omit(["arenas"]),
             state: $ctx.close.pick([
                 "known",
                 "carried"
@@ -22,12 +22,20 @@
         }}
     />
 
-    <Return
-        value={$ctx.plan.pick([
-            "flags",
-            "keys",
-            "writable",
-            "needed"
-        ])}
+    <Call
+        fn="publish"
+        in={{
+            ...$ctx.plan.pick([
+                "flags",
+                "keys",
+                "writable",
+                "needed"
+            ]),
+            metadata: $in.context.metadata,
+            type_kinds: $in.types.kinds,
+            arenas: $in.arenas
+        }}
     />
+
+    <Return value={$ctx.publish} />
 </Module>

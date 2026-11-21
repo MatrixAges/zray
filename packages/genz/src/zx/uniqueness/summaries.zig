@@ -22,9 +22,7 @@ pub fn independent(basis: *const Basis) Self {
     return .{ .held = basis.flow.held, .written = basis.flow.written, .return_only = basis.return_only, .effects = basis.effects };
 }
 
-pub fn create(allocator: std.mem.Allocator, program: *const ir.Program, basis: *const Basis, active: []const bool) std.mem.Allocator.Error!Self {
-    if (generated_analysis) return @import("summaries/storage.zig").create(allocator, program, basis, active);
-
+pub fn createSeed(allocator: std.mem.Allocator, program: *const ir.Program, basis: *const Basis, active: []const bool) std.mem.Allocator.Error!Self {
     const slots = basis.slots;
     const count = program.functions.count();
     const input = try allocator.alloc([]Level, count);

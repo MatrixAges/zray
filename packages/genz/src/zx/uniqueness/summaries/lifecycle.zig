@@ -11,7 +11,7 @@ pub const Borrowed = struct {
     guarantees: []u8,
     demands: []u8,
     pub fn init(summaries: *const Summaries) Borrowed {
-        const storage = &summaries.storage.?;
+        const storage = summaries.storage.?;
 
         return .{
             .layout = zx.columns.view(Layout, storage.layout),

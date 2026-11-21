@@ -1,0 +1,54 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { RowBuffer } from "memory/columns"
+import type { Cells } from "./model"
+
+export type Input = Cells.Omit("layout") & {
+    first: u64[],
+    base: u64,
+    count: u64,
+    guarantee_rows: RowBuffer,
+    demand_rows: RowBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { first, guarantee_rows, demand_rows } = in
+
+    const length = first.length
+
+    columns.allocateRows(guarantee_rows, length)
+    columns.allocateRows(demand_rows, length)
+
+    const initial: u64 = 0
+
+    const populated = loop(initial, {
+        while: index => index < length,
+        next: index => {
+            const next = index + 1
+            const start = first[index]
+            const end = match {
+                next == length => in.count,
+                _ => first[next]
+            }
+
+            const offset = in.base + start
+            const width = end - start
+
+            columns.writeRowByteView(
+                guarantee_rows,
+                index,
+                memory.borrowU8Range(in.guarantees, offset, width)
+            )
+            columns.writeRowByteView(
+                demand_rows,
+                index,
+                memory.borrowU8Range(in.demands, offset, width)
+            )
+
+            index = next
+        }
+    })
+}

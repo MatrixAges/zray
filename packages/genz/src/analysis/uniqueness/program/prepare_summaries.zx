@@ -1,0 +1,22 @@
+import memory from "memory"
+
+import create from "../summaries/create.rx"
+
+import type { Cells } from "../summaries/model"
+import type { Prepare } from "./model"
+
+export type Input = Prepare.Omit("bodies")
+
+export type Output = Cells
+
+export default function (in: Input): Output {
+    const { scope, temporary, summaries } = in.arenas
+
+    memory.selectAllocator(scope, summaries)
+
+    const storage = create(in.omit(["arenas"]))
+
+    memory.selectAllocator(scope, temporary)
+
+    return storage
+}

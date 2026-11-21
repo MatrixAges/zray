@@ -1,61 +1,77 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Level = @import("../level.zig").Level;
 const Summaries = @import("../summaries.zig");
 const Basis = @import("../basis.zig");
-const creating = @import("generated_uniqueness_summaries_create");
+const creating = @import("generated_uniqueness_prepare_program");
 const lifecycle = @import("lifecycle.zig");
-pub const Model = @typeInfo(@typeInfo(@TypeOf(creating.executeValue)).@"fn".return_type.?).error_union.payload;
+const Calls = @import("../topology.zig").Calls;
+const Output = @typeInfo(@typeInfo(@TypeOf(creating.executeValue)).@"fn".return_type.?).error_union.payload;
+pub const Model = @FieldType(Output, "storage");
 
-pub fn create(allocator: std.mem.Allocator, program: *const ir.Program, basis: *const Basis, active: []const bool) std.mem.Allocator.Error!Summaries {
-    const Parameter = @typeInfo(@TypeOf(creating.executeValue)).@"fn".param_types[1].?;
-    const indirect = @typeInfo(Parameter) == .pointer;
-    const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
-
-    const input: Input = .{
-        .counts = basis.slots.counts,
-        .input_types = program.functions.input_types,
-        .output_types = program.functions.output_types,
-    };
-
-    const storage = creating.executeValue(allocator, if (indirect) &input else input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => std.debug.panic("summary storage failed: {s}", .{@errorName(err)}),
-    };
-
-    const split: usize = @intCast(storage.layout.input_count);
-
-    const result = Summaries{
-        .input = try rows(allocator, storage.guarantees[0..split], storage.layout.input_first),
-        .output = try rows(allocator, storage.guarantees[split..], storage.layout.output_first),
-        .inputs = try rows(allocator, storage.demands[0..split], storage.layout.input_first),
-        .outputs = try rows(allocator, storage.demands[split..], storage.layout.output_first),
-        .held = basis.flow.held,
-        .written = basis.flow.written,
-        .return_only = basis.return_only,
-        .effects = basis.effects,
-        .storage = storage,
-    };
-
-    lifecycle.apply(result, .Initialize, active, &.{});
-
-    return result;
-}
-
-fn rows(allocator: std.mem.Allocator, values: []const u8, first: []const u64) std.mem.Allocator.Error![][]Level {
+pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, program: *const ir.Program, basis: *const Basis) std.mem.Allocator.Error!struct { calls: Calls, summaries: Summaries } {
     comptime {
         std.debug.assert(@sizeOf(Level) == @sizeOf(u8));
         std.debug.assert(@alignOf(Level) == @alignOf(u8));
     }
 
-    const result = try allocator.alloc([]Level, first.len);
-    const cells: []Level = @ptrCast(@constCast(values));
+    const Input = std.meta.Child(creating.Input);
+    const Bodies = std.meta.Child(@FieldType(Input, "bodies"));
+    var scope = zx.memory.ArenaScope{ .active = temporary };
+    var input_rows: zx.memory.RowBuffer = .empty([]Level);
+    var output_rows: zx.memory.RowBuffer = .empty([]Level);
+    var input_wants: zx.memory.RowBuffer = .empty([]Level);
+    var output_wants: zx.memory.RowBuffer = .empty([]Level);
 
-    for (result, 0..) |*row, index| {
-        const end = if (index + 1 < first.len) first[index + 1] else cells.len;
+    const input: Input = .{
+        .bodies = &.{
+            .expressions = zx.columns.slice(@FieldType(Bodies, "expressions"), program.functions.expressions),
+            .native_modules = program.functions.native_modules,
+            .entry = zx.columns.pointer(@FieldType(Bodies, "entry"), &program.expressions),
+            .type_only = program.type_only,
+        },
+        .shape = &.{
+            .counts = basis.slots.counts,
+            .input_types = program.functions.input_types,
+            .output_types = program.functions.output_types,
+        },
+        .views = &.{
+            .input = @ptrCast(&input_rows),
+            .output = @ptrCast(&output_rows),
+            .inputs = @ptrCast(&input_wants),
+            .outputs = @ptrCast(&output_wants),
+        },
+        .arenas = &.{
+            .scope = @ptrCast(&scope),
+            .temporary = @ptrCast(&temporary),
+            .summaries = @ptrCast(&summary_memory),
+        },
+    };
 
-        row.* = cells[@intCast(first[index])..@intCast(end)];
-    }
+    const prepared = creating.executeValue(scope.allocator(), &input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => std.debug.panic("ownership preparation failed: {s}", .{@errorName(err)}),
+    };
 
-    return result;
+    const result = Summaries{
+        .input = input_rows.rows([]Level),
+        .output = output_rows.rows([]Level),
+        .inputs = input_wants.rows([]Level),
+        .outputs = output_wants.rows([]Level),
+        .held = basis.flow.held,
+        .written = basis.flow.written,
+        .return_only = basis.return_only,
+        .effects = basis.effects,
+        .storage = prepared.storage,
+    };
+
+    const topology = prepared.topology;
+
+    lifecycle.apply(result, .Initialize, topology.active, &.{});
+
+    return .{
+        .calls = .{ .active = topology.active, .callees = topology.callees, .recursive = topology.recursive },
+        .summaries = result,
+    };
 }

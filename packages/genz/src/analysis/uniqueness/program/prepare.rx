@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Program" />
+
+    <Args in={Program.Prepare} out={Program.Prepared} />
+
+    <Call module="../topology/collect" in={$in.bodies} />
+
+    <Call
+        fn="prepare_summaries"
+        in={{
+            shape: $in.shape,
+            views: $in.views,
+            arenas: $in.arenas
+        }}
+    />
+
+    <Return
+        value={{
+            topology: $ctx.collect,
+            storage: $ctx.prepare_summaries
+        }}
+    />
+</Module>

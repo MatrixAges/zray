@@ -1,4 +1,5 @@
 import type { U8Buffer } from "memory"
+import type { RowBuffer } from "memory/columns"
 
 export type Shape = {
     counts: u32[],
@@ -13,10 +14,22 @@ export type Layout = {
     output_count: u64
 }
 
-export type Storage = {
+export type Cells = {
     layout: Layout,
     guarantees: u8[],
     demands: u8[]
+}
+
+export type Views = {
+    input: RowBuffer,
+    output: RowBuffer,
+    inputs: RowBuffer,
+    outputs: RowBuffer
+}
+
+export type Create = {
+    shape: Shape,
+    views: Views
 }
 
 export enum Mode {

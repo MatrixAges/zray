@@ -5,7 +5,6 @@ const Identity = @import("identity.zig");
 const Trace = @import("trace.zig");
 pub const Memo = @import("memo.zig");
 const Bodies = @import("program/bodies.zig");
-const Topology = @import("topology.zig");
 pub const Basis = @import("basis.zig");
 pub const Slots = @import("slots.zig");
 pub const Summaries = @import("summaries.zig");
@@ -46,9 +45,18 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     defer summary_memory.deinit();
 
-    const topology = try Topology.collect(temporary, program);
-    var summaries = try Summaries.create(summary_memory.allocator(), &program, basis, topology.active);
+    const prepared = if (@import("genz_options").generated_analysis)
+        try @import("summaries/storage.zig").prepare(temporary, summary_memory.allocator(), &program, basis)
 
+    else seed: {
+        const calls = try @import("topology/seed.zig").collect(temporary, program);
+        const summaries = try Summaries.createSeed(summary_memory.allocator(), &program, basis, calls.active);
+
+        break :seed .{ .calls = calls, .summaries = summaries };
+    };
+
+    const topology = prepared.calls;
+    var summaries = prepared.summaries;
     summaries.return_allocations = return_allocations;
 
     var replay = Trace.Replay{ .allocator = temporary };
@@ -107,7 +115,7 @@ pub fn analyzeEntry(allocator: std.mem.Allocator, workspace: std.mem.Allocator, 
     if (generated) {
         var function = try unit.analyze(temporary, temporary, body, slots, &summaries, null, false);
 
-        return @import("function/entry.zig").analyze(&function, allocator);
+        return @import("function/plan.zig").entry(&function, allocator);
     }
 
     while (true) {

@@ -30,12 +30,20 @@
         }}
     />
 
-    <Return
-        value={$ctx.plan.pick([
-            "flags",
-            "keys",
-            "writable",
-            "needed"
-        ])}
+    <Call
+        fn="../plan/publish"
+        in={{
+            ...$ctx.plan.pick([
+                "flags",
+                "keys",
+                "writable",
+                "needed"
+            ]),
+            metadata: $in.context.metadata,
+            type_kinds: $in.types.kinds,
+            arenas: $in.arenas
+        }}
     />
+
+    <Return value={$ctx.publish} />
 </Module>
