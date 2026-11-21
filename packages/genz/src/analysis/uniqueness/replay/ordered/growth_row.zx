@@ -1,0 +1,31 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { level_modulus } from "./const"
+
+import type { Growth } from "./columns"
+
+export type Input = {
+    source: Growth,
+    row: u64,
+    index: u64
+}
+
+export type Output = {
+    key: u64,
+    want: u8
+}
+
+export default function (in: Input): Output {
+    const { source, row, index } = in
+
+    const key = match source.wide {
+        true => memory.readListU64(source.keys, row, index),
+        _ => integers.widen(memory.readListU32(source.keys, row, index))
+    }
+
+    return {
+        key,
+        want: memory.readListU8(source.wants, row, index) % level_modulus
+    }
+}

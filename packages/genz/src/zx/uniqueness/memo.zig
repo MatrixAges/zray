@@ -106,13 +106,6 @@ pub fn Result(comptime kind: Kind) type {
 /// Looks up a trace state and sets the key for publishing a replacement.
 pub fn findReplay(self: *Self, comptime kind: Kind, identity: *const Digest, state: []const u8) ?Result(kind) {
     const table = &@field(self, @tagName(kind));
-
-    if (generated_encoding) {
-        const row = @import("memo/replay_key.zig").probe(@backingInt(kind), identity, state, table, &self.key) orelse return null;
-
-        return table.values.items[row];
-    }
-
     var hash = Hash.init(.{});
 
     hash.update(identity);

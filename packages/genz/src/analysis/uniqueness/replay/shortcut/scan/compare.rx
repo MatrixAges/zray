@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Scan" />
+    <Type from="../model" as="Trace" />
+
+    <Args in={Scan.Compare} out={bool} />
+
+    <If on={$in.cursor.phase == Trace.Phase.Settled}>
+        <Call
+            fn="../../ordered/settled"
+            in={{
+                previous: $in.cursor.visit,
+                current: $in.row,
+                left: $in.tables.settled.trace,
+                right: $in.tables.settled.memo
+            }}
+        />
+
+        <Return value={$ctx.settled} />
+    </If>
+
+    <Call
+        fn="../../ordered/demanded"
+        in={{
+            previous: $in.cursor.visit,
+            current: $in.row,
+            left: $in.tables.demanded.trace,
+            right: $in.tables.demanded.memo
+        }}
+    />
+
+    <Return value={$ctx.demanded} />
+</Module>

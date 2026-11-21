@@ -1,0 +1,88 @@
+import type {
+    Allocator,
+    Arena,
+    ArenaScope,
+    ListColumn,
+    ReadColumn,
+    U8Buffer,
+    WriteColumn
+} from "memory"
+import type { RowBuffer } from "memory/columns"
+import type { Probe } from "../../../memo/table/model"
+import type { Demand, Settlement } from "../../ordered/columns"
+import type { Advance, Cursor } from "../model"
+
+export type Index = {
+    table: Probe,
+    states: ListColumn
+}
+
+export type Settlements = {
+    index: Index,
+    trace: Settlement,
+    memo: Settlement
+}
+
+export type Demands = {
+    index: Index,
+    trace: Demand,
+    memo: Demand
+}
+
+export type Plans = {
+    index: Index,
+    values: ReadColumn,
+    width: u64
+}
+
+export type Tables = {
+    settled: Settlements,
+    demanded: Demands,
+    planned: Plans,
+    identities: ReadColumn,
+    digest: U8Buffer,
+    digest_width: u64
+}
+
+export type Replacements = {
+    rows: RowBuffer,
+    positions: WriteColumn,
+    values: WriteColumn,
+    width: u64,
+    granule: u64
+}
+
+export type Arenas = {
+    scope: ArenaScope,
+    scratch: Arena,
+    staged: Allocator
+}
+
+export type Input = {
+    replay: Advance,
+    tables: Tables,
+    replacements: Replacements,
+    arenas: Arenas,
+    count: u64
+}
+
+export type Output = {
+    cursor: Cursor,
+    count: u64
+}
+
+export type Lookup = {
+    tables: Tables,
+    cursor: Cursor
+}
+
+export type Compare = Lookup & {
+    row: u64
+}
+
+export type Append = {
+    target: Replacements,
+    visit: u32,
+    value: u8[],
+    used: u64
+}

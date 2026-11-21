@@ -1,0 +1,28 @@
+import growth from "./growth"
+import marks from "./marks"
+
+import type { DemandPair as Input } from "./columns"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (!marks(in)) {
+        return false
+    }
+
+    const { previous, current, left, right } = in
+
+    const normalized = growth({
+        previous,
+        current,
+        left: left.normalized,
+        right: right.normalized
+    })
+
+    return normalized && growth({
+        previous,
+        current,
+        left: left.renewed,
+        right: right.renewed
+    })
+}

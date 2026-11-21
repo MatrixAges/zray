@@ -1,0 +1,56 @@
+import integers from "std:integer"
+
+import advance from "../advance.rx"
+import { Phase } from "../model"
+import consume from "./consume"
+import lookup from "./lookup"
+
+import type { Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const { replay, tables, replacements, arenas } = in
+
+    return loop({
+        cursor: advance(replay),
+        count: in.count,
+        missed: false
+    }, {
+        while: state => !state.missed && state.cursor.phase != Phase.Done &&
+            state.cursor.phase != Phase.Reject,
+        next: state => {
+            const { cursor } = state
+
+            const hit = lookup({
+                tables,
+                cursor
+            })
+
+            if (hit == null) {
+                state.missed = true
+            } else {
+                const result = consume({
+                    tables,
+                    cursor,
+                    row: integers.widen(hit),
+                    replacements,
+                    arenas,
+                    count: state.count
+                })
+
+                state.count = result.count
+                state.cursor = advance({
+                    ...replay.omit([
+                        "cursor",
+                        "agreed"
+                    ]),
+                    cursor,
+                    agreed: result.agreed
+                })
+            }
+        },
+        return: state => state.pick([
+            "cursor",
+            "count"
+        ])
+    })
+}

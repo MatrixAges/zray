@@ -1,36 +1,13 @@
 <Module>
     <Type from="model" as="Visit" />
-    <Type from="../model" as="Shortcut" />
 
-    <Args in={Visit.Input} out={Visit.Step[]} />
-
-    <If on={$in.recompute}>
-        <Return
-            value={[
-                Visit.Step.RestoreState,
-                Visit.Step.Analyze,
-                Visit.Step.SaveRecord
-            ]}
-        />
-    </If>
-
-    <If on={$in.phase == Shortcut.Phase.Planned}>
-        <Return
-            value={[
-                Visit.Step.ResetScratch,
-                Visit.Step.FindRecord,
-                Visit.Step.RecoverOnMiss,
-                Visit.Step.StagePlan
-            ]}
-        />
-    </If>
+    <Args in={void} out={Visit.Step[]} />
 
     <Return
         value={[
-            Visit.Step.ResetScratch,
-            Visit.Step.FindRecord,
-            Visit.Step.RecoverOnMiss,
-            Visit.Step.CompareResult
+            Visit.Step.RestoreState,
+            Visit.Step.Analyze,
+            Visit.Step.SaveRecord
         ]}
     />
 </Module>

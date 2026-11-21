@@ -1,0 +1,47 @@
+import type { ListColumn, ReadColumn } from "memory"
+
+export type Settlement = {
+    callees: ListColumn,
+    levels: ListColumn,
+    output: ListColumn
+}
+
+export type Marks = {
+    output: ListColumn,
+    functions: ListColumn,
+    slots: ListColumn,
+    wants: ListColumn
+}
+
+export type Growth = {
+    keys: ListColumn,
+    wants: ListColumn,
+    wide: bool
+}
+
+export type Demand = {
+    marks: Marks,
+    normalized: Growth,
+    renewed: Growth,
+    grew: ReadColumn
+}
+
+export type Positions = {
+    previous: u64,
+    current: u64
+}
+
+export type SettlementPair = Positions & {
+    left: Settlement,
+    right: Settlement
+}
+
+export type DemandPair = Positions & {
+    left: Demand,
+    right: Demand
+}
+
+export type GrowthPair = Positions & {
+    left: Growth,
+    right: Growth
+}

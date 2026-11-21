@@ -1,0 +1,34 @@
+import memory from "memory"
+
+import { Kind } from "../../../memo/encoding/model"
+import probe from "../../../memo/encoding/replay_key"
+import { Phase } from "../model"
+
+import type { Lookup as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { tables, cursor } = in
+
+    const index = match cursor.phase {
+        Phase.Settled => tables.settled.index,
+        Phase.Demanded => tables.demanded.index,
+        _ => tables.planned.index
+    }
+
+    const kind = match cursor.phase {
+        Phase.Settled => Kind.Settled,
+        Phase.Demanded => Kind.Demanded,
+        _ => Kind.Planned
+    }
+
+    return probe({
+        kind,
+        identity:
+            memory.readFixedBytes(tables.identities, cursor.body, tables.digest_width),
+        state: memory.borrowListBytes(index.states, cursor.visit),
+        digest: tables.digest,
+        table: index.table
+    })
+}

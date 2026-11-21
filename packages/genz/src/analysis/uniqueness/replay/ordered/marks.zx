@@ -1,16 +1,26 @@
+import memory from "memory"
+
 import { level_modulus } from "./const"
 
-import type { Mark } from "./model"
-
-export type Input = {
-    left: Mark[],
-    right: Mark[]
-}
+import type { DemandPair as Input } from "./columns"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    if (in.left.length != in.right.length) {
+    const { previous, current } = in
+
+    if (
+        memory.readColumnBool(in.left.grew, previous) !=
+            memory.readColumnBool(in.right.grew, current)
+    ) {
+        return false
+    }
+
+    const left = in.left.marks
+    const right = in.right.marks
+    const count = memory.listLength(left.output, previous)
+
+    if (count != memory.listLength(right.output, current)) {
         return false
     }
 
@@ -18,19 +28,25 @@ export default function (in: Input): Output {
         index: 0,
         equal: true
     }, {
-        while: state => state.equal && state.index < in.left.length,
+        while: state => state.equal && state.index < count,
         next: state => {
-            const left = in.left[state.index]
-            const right = in.right[state.index]
-            const same_function = left.function == right.function
-            const left_level = left.want % level_modulus
-            const right_level = right.want % level_modulus
+            const { index } = state
+            const out_before = memory.readListBool(left.output, previous, index)
+            const out_after = memory.readListBool(right.output, current, index)
+            const fn_before = memory.readListU32(left.functions, previous, index)
+            const fn_after = memory.readListU32(right.functions, current, index)
+            const slot_before = memory.readListU32(left.slots, previous, index)
+            const slot_after = memory.readListU32(right.slots, current, index)
+            const want_before = memory.readListU8(left.wants, previous, index)
+            const want_after = memory.readListU8(right.wants, current, index)
+            const level_before = want_before % level_modulus
+            const level_after = want_after % level_modulus
 
             const condition = (
-                - left.output == right.output
-                - and same_function
-                - and left.slot == right.slot
-                - and left_level == right_level
+                - out_before == out_after
+                - and fn_before == fn_after
+                - and slot_before == slot_after
+                - and level_before == level_after
             )
 
             state.equal = condition

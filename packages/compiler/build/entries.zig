@@ -632,7 +632,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/replay/record/publish.rx", .name = "uniqueness_trace_append", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/identity/combine.zx", .name = "uniqueness_identity_combine", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/publication/build.rx", .name = "uniqueness_trace_publication", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/replay/shortcut/advance.rx", .name = "uniqueness_shortcut_advance", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/replay/shortcut/scan/run.zx", .name = "uniqueness_shortcut_scan", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/shortcut/visit/sequence.rx", .name = "uniqueness_shortcut_visit", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/shortcut/replacements/append.zx", .name = "uniqueness_shortcut_append", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/shortcut/publish.rx", .name = "uniqueness_shortcut_publish", .owner = .genz },
@@ -642,7 +642,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/memo/table/publish.zx", .name = "uniqueness_memo_publish", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/table/touch.zx", .name = "uniqueness_memo_touch", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/table/unused.zx", .name = "uniqueness_memo_unused", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/memo/encoding/replay_key.zx", .name = "uniqueness_memo_replay_key", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/encoding/create.zx", .name = "uniqueness_memo_create", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/restore/run.rx", .name = "uniqueness_memo_restore", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/disk/inspect.rx", .name = "uniqueness_memo_disk_inspect", .owner = .genz },
@@ -1042,8 +1041,8 @@ pub const collections = [_]Entry{
 };
 
 pub const ordered = [_]Entry{
-    .{ .path = "genz/analysis/uniqueness/replay/ordered/demanded.rx", .name = "uniqueness_replay_demanded", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/replay/ordered/settled.rx", .name = "uniqueness_replay_settled", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/replay/ordered/demanded.zx", .name = "uniqueness_replay_demanded", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/replay/ordered/settled.zx", .name = "uniqueness_replay_settled", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/ordered/planned.rx", .name = "uniqueness_replay_planned", .owner = .genz },
 };
 

@@ -1,0 +1,45 @@
+import { sort_less, sort_equal, sort_greater } from "./const"
+import read from "./growth_row"
+
+import type { Growth } from "./columns"
+import type { Output as Row } from "./growth_row"
+
+export type Input = {
+    source: Growth,
+    row: u64,
+    count: u64
+}
+
+export type Output = Row[]
+
+export default function (in: Input): Output {
+    const { source, row, count } = in
+
+    const empty: Row[] = []
+
+    const items = loop({
+        index: 0,
+        rows: empty
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const item = read({
+                source,
+                row,
+                index: state.index
+            })
+
+            state.rows = state.rows.push(item)[0]
+            state.index += 1
+        },
+        return: state => state.rows
+    })
+
+    return items.sort(
+        (left, right) => match {
+            left.key < right.key => sort_less,
+            left.key == right.key => sort_equal,
+            _ => sort_greater
+        }
+    )[0]
+}

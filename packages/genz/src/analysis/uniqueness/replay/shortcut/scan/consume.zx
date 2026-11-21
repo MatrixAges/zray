@@ -1,0 +1,53 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { Phase } from "../model"
+import append from "./append"
+import compare from "./compare.rx"
+
+import type { Compare, Input as Scan } from "./model"
+
+export type Input = Compare & Scan.Pick("replacements", "arenas", "count")
+
+export type Output = {
+    agreed: bool,
+    count: u64
+}
+
+export default function (in: Input): Output {
+    const { tables, cursor, row, arenas, count } = in
+
+    if (cursor.phase == Phase.Planned) {
+        const plan =
+            memory.readFixedBytes(tables.planned.values, row, tables.planned.width)
+
+        const written = append({
+            target: in.replacements,
+            visit: integers.narrow(cursor.visit),
+            value: plan,
+            used: count
+        })
+
+        return {
+            agreed: true,
+            count: written
+        }
+    }
+
+    const reset = try memory.resetArena(arenas.scratch)
+
+    memory.selectArena(arenas.scope, arenas.scratch)
+
+    const agreed = compare({
+        tables,
+        cursor,
+        row
+    })
+
+    memory.selectAllocator(arenas.scope, arenas.staged)
+
+    return {
+        agreed,
+        count
+    }
+}

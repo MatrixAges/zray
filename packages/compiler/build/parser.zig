@@ -354,6 +354,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .strip = strip,
         .imports = &.{
             .{ .name = "zxc_abi", .module = ordered_abi },
+            .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
             .{ .name = "memory", .module = memory },
         },

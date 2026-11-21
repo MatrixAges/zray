@@ -9,6 +9,7 @@ const Trace = @import("../../trace.zig");
 const Cursor = @import("../shortcut.zig");
 const Replacements = @import("replacements.zig");
 const sequence = @import("generated_uniqueness_shortcut_visit");
+const scan = @import("scan.zig");
 const Error = std.mem.Allocator.Error;
 
 /// Recomputes changed visits in their recorded state before allowing the trace to publish.
@@ -25,7 +26,7 @@ pub fn run(ctx: *Context) Error!?Analysis.Result {
     var agreed = true;
 
     while (true) {
-        cursor = cursor.next(ctx.calls.active, trace, ctx.replay.changed, agreed, ctx.summaries);
+        cursor = try scan.advance(ctx, trace, &scratch, staged.allocator(), &replacements, cursor, agreed);
 
         switch (cursor.phase) {
             .start => unreachable,
@@ -40,34 +41,17 @@ pub fn run(ctx: *Context) Error!?Analysis.Result {
     }
 }
 
-fn steps(comptime kind: Memo.Kind, comptime recompute: bool) []const std.meta.Child(sequence.Output) {
-    return zx.staticSequence(sequence, &.{
-        .phase = switch (kind) {
-            .settled => .Settled,
-            .demanded => .Demanded,
-            .planned => .Planned,
-        },
-        .recompute = recompute,
-    });
-}
-
 fn visit(comptime kind: Memo.Kind, ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor) Error!bool {
     const previous = &@field(trace, @tagName(kind)).entries[cursor.visit];
-    var current: ?Memo.Result(kind) = null;
-    var agreed = true;
 
-    inline for (comptime steps(kind, false)) |step| switch (step) {
-        .ResetScratch => _ = scratch.reset(.retain_capacity),
-        .FindRecord => current = ctx.memo.findReplay(kind, &ctx.bodies.identities[cursor.body], previous.state),
-        .RecoverOnMiss => if (current == null) {
-            current = try recover(kind, ctx, cursor.body, previous.state, scratch.allocator()) orelse return false;
-        },
-        .CompareResult => agreed = try Trace.agree(kind, scratch.allocator(), previous.value, current.?),
-        .StagePlan => try replacements.append(staged, .{ .visit = @intCast(cursor.visit), .value = current.? }),
-        else => unreachable,
-    };
+    _ = scratch.reset(.retain_capacity);
 
-    return agreed;
+    const value = try recover(kind, ctx, cursor.body, previous.state, scratch.allocator()) orelse return false;
+
+    if (kind != .planned) return Trace.agree(kind, scratch.allocator(), previous.value, value);
+    try replacements.append(staged, .{ .visit = @intCast(cursor.visit), .value = value });
+
+    return true;
 }
 
 fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const u8, scratch: std.mem.Allocator) Error!?Memo.Result(kind) {
@@ -75,7 +59,7 @@ fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const 
     var growth: Growth.Store = undefined;
     var record: Memo.Result(kind) = undefined;
 
-    inline for (comptime steps(kind, true)) |step| switch (step) {
+    inline for (comptime zx.staticSequence(sequence, {})) |step| switch (step) {
         .RestoreState => if (!try Memo.restore(kind, scratch, state, ctx.summaries, body, ctx.bodies.callees[body], &growth)) return null,
         .Analyze => {
             const result = try compute.run(kind, false, .{
@@ -93,7 +77,6 @@ fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const 
             record = result.record;
         },
         .SaveRecord => record = try ctx.memo.putVisit(kind, record, true),
-        else => unreachable,
     };
 
     return record;

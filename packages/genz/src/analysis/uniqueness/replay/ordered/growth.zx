@@ -1,0 +1,73 @@
+import memory from "memory"
+
+import read from "./growth_row"
+import sort from "./sort_growth"
+
+import type { GrowthPair as Input } from "./columns"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { left, right, previous, current } = in
+
+    const count = memory.listLength(left.keys, previous)
+
+    if (count != memory.listLength(right.keys, current)) {
+        return false
+    }
+
+    const ordered = loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < count,
+        next: state => {
+            const before = read({
+                source: left,
+                row: previous,
+                index: state.index
+            })
+
+            const after = read({
+                source: right,
+                row: current,
+                index: state.index
+            })
+
+            state.equal = before.key == after.key && before.want == after.want
+            state.index += 1
+        },
+        return: state => state.equal
+    })
+
+    if (ordered) {
+        return true
+    }
+
+    const before = sort({
+        source: left,
+        row: previous,
+        count
+    })
+
+    const after = sort({
+        source: right,
+        row: current,
+        count
+    })
+
+    return loop({
+        index: 0,
+        equal: true
+    }, {
+        while: state => state.equal && state.index < count,
+        next: state => {
+            const a = before[state.index]
+            const b = after[state.index]
+
+            state.equal = a.key == b.key && a.want == b.want
+            state.index += 1
+        },
+        return: state => state.equal
+    })
+}
