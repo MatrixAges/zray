@@ -1,27 +1,33 @@
 import remove from "core/integer/index/remove"
 
-import type { Index as Output } from "core/integer/index/model"
+import type { Mutable } from "core/integer/index/model"
 
 export type Input = {
-    index: Output,
+    index: Mutable,
     keys: u32[]
 }
 
+export type Output = u64
+
 export default function (in: Input): Output {
     return loop({
-        index: in.index,
+        count: in.index.count,
         position: 0
     }, {
         while: state => state.position < in.keys.length,
         next: state => {
             const removed = remove({
-                index: state.index,
+                ...in.index,
+                count: state.count,
                 key: in.keys[state.position]
             })
 
-            state.index = removed.index
+            if (removed != null) {
+                state.count -= 1
+            }
+
             state.position += 1
         },
-        return: state => state.index
+        return: state => state.count
     })
 }

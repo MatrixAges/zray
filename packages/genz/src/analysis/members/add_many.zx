@@ -1,0 +1,46 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import probe from "core/integer/index/probe"
+import memory from "memory"
+
+import type { Mutable } from "core/integer/index/model"
+
+export type Input = {
+    index: Mutable,
+    keys: u32[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const keys = memory.u32Views(in.index.keys)
+    const buckets = memory.u32Views(in.index.buckets)
+
+    return loop({
+        count: in.index.count,
+        position: 0
+    }, {
+        while: state => state.position < in.keys.length,
+        next: state => {
+            const key = in.keys[state.position]
+            const bucket = probe({
+                keys,
+                buckets,
+                key
+            })
+
+            if (memory.readU32(in.index.buckets, bucket) == max_u32) {
+                memory.writeU32(in.index.keys, state.count, key)
+                memory.writeU32(
+                    in.index.buckets,
+                    bucket,
+                    integers.narrow(state.count)
+                )
+                state.count += 1
+            }
+
+            state.position += 1
+        },
+        return: state => state.count
+    })
+}

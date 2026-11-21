@@ -105,11 +105,11 @@ pub fn payloadBases(target: anytype, counts: *const Counts(@TypeOf(target))) Cou
     return bases;
 }
 
-pub fn publishSelected(target: anytype, tags: anytype, bases: []u32) void {
-    if (tags.len == 0) return;
+pub fn publishSelected(target: anytype, tags: anytype, written: usize, bases: []u32) void {
+    if (written == 0) return;
 
     if (!generated) {
-        for (tags) |tag| {
+        for (tags[0..written]) |tag| {
             const index = @backingInt(tag);
 
             target.tags.appendAssumeCapacity(tag);
@@ -121,22 +121,24 @@ pub fn publishSelected(target: anytype, tags: anytype, bases: []u32) void {
         return;
     }
 
-    const output = target.offsets.unusedCapacitySlice()[0..tags.len];
+    const output_tags = std.mem.sliceAsBytes(target.tags.unusedCapacitySlice()[0..written]);
+    const output_offsets = target.offsets.unusedCapacitySlice()[0..written];
+    const lengths: zx.memory.ColumnLengths = &.{ &target.tags.items.len, &target.offsets.items.len };
     const entry = @import("generated_node_header_selected");
 
     const input: std.meta.Child(entry.Input) = .{
         .tags = bytes(tags),
         .mask = mask(std.meta.Elem(@TypeOf(tags))),
+        .count = written,
         .bases = @ptrCast(&bases),
-        .target = @ptrCast(&output),
+        .target_tags = @ptrCast(&output_tags),
+        .target_offsets = @ptrCast(&output_offsets),
+        .lengths = @ptrCast(&lengths),
     };
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-    target.tags.appendSliceAssumeCapacity(tags);
-
-    target.offsets.items.len += tags.len;
 }
 
 pub fn validateReferences(indices: []const u32, count: usize) Error!void {

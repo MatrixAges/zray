@@ -6,18 +6,22 @@ import type { Selected as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { bases, tags, mask, target } = in
+    const { bases, tags, mask, target_tags, target_offsets, count, lengths } = in
 
     const written = loop(0, {
-        while: index => index < tags.length,
+        while: index => index < count,
         next: index => {
             const byte = integers.widenByte(tags[index])
             const tag = integers.andBits(byte, mask)
             const offset = memory.readU32(bases, tag)
 
-            memory.writeU32(target, index, offset)
+            memory.writeU32(target_offsets, index, offset)
             memory.writeU32(bases, tag, offset + 1)
             index += 1
         }
     })
+
+    const copied = memory.copyBytes(target_tags, 0, tags, 0, count)
+
+    memory.publishColumnLengths(lengths, count)
 }

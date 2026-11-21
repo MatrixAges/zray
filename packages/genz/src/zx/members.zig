@@ -35,26 +35,66 @@ pub fn put(self: *Self, allocator: std.mem.Allocator, key: ir.SymbolId, value: v
 pub fn remove(self: *Self, key: ir.SymbolId) bool {
     if (!generated) return self.state.remove(key);
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const state = self.current();
-    const result = @import("generated_members_remove").executeState(fixed.allocator(), .{ .index = state.*, .key = @backingInt(key) }) catch unreachable;
+    const entry = @import("generated_members_remove");
+    const Input = std.meta.Child(entry.Input);
 
-    state.* = result.index;
+    const input: Input = .{
+        .count = state.count,
+        .keys = @ptrCast(&state.keys.items),
+        .buckets = @ptrCast(&state.buckets.items),
+        .key = @backingInt(key),
+    };
 
-    return result.position != null;
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const position = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+
+    state.count -= @intFromBool(position != null);
+
+    return position != null;
 }
 
-/// Register keys absent from this index and roll back the successful prefix on error.
+/// Reserve the complete batch before writing live keys and buckets.
 pub fn addMany(self: *Self, allocator: std.mem.Allocator, keys: []const ir.SymbolId) std.mem.Allocator.Error!void {
-    var added: usize = 0;
+    if (!generated) {
+        var added: usize = 0;
 
-    errdefer self.removeMany(keys[0..added]);
+        errdefer self.removeMany(keys[0..added]);
 
-    for (keys) |key| {
-        try self.put(allocator, key, {});
+        for (keys) |key| {
+            try self.put(allocator, key, {});
 
-        added += 1;
+            added += 1;
+        }
+
+        return;
     }
+
+    if (keys.len == 0) return;
+    if (keys.len == 1) return self.put(allocator, keys[0], {});
+
+    const entry = @import("generated_members_reserve");
+    const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
+    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+    const state = self.current();
+
+    const input: Input = .{
+        .count = state.count,
+        .keys = zx.columns.view(@FieldType(Input, "keys"), state.keys),
+        .buckets = zx.columns.view(@FieldType(Input, "buckets"), state.buckets),
+        .additional = keys.len,
+    };
+
+    const reserved = entry.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    var next = zx.columns.view(State, reserved);
+
+    edit(&next, keys, @import("generated_members_add_many"));
+
+    state.* = next;
 }
 
 pub fn removeMany(self: *Self, keys: []const ir.SymbolId) void {
@@ -66,22 +106,27 @@ pub fn removeMany(self: *Self, keys: []const ir.SymbolId) void {
 
     if (keys.len == 0) return;
 
-    const entry = @import("generated_members_remove_many");
-    const Parameter = @typeInfo(@TypeOf(entry.executeState)).@"fn".param_types[1].?;
-    const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const state = self.current();
+    edit(self.current(), keys, @import("generated_members_remove_many"));
+}
 
-    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
+fn edit(state: *State, keys: []const ir.SymbolId, comptime entry: type) void {
+    const Input = std.meta.Child(entry.Input);
+
+    // Member scopes borrow the index by pointer. Its backing columns remain writable.
+    const index: std.meta.Child(@FieldType(Input, "index")) = .{
+        .count = state.count,
+        .keys = @ptrCast(&state.keys.items),
+        .buckets = @ptrCast(&state.buckets.items),
+    };
 
     const input: Input = .{
-        .index = zx.columns.view(@FieldType(Input, "index"), state.*),
-        .keys = .{ .items = @as([*]const u32, @ptrCast(keys.ptr))[0..keys.len], .storage = .plain },
+        .index = &index,
+        .keys = @import("../node/view.zig").slice(@FieldType(Input, "keys"), keys),
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const result = entry.executeState(fixed.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch unreachable;
 
-    state.* = zx.columns.view(@TypeOf(state.*), result);
+    state.count = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 }
 
 pub fn contains(self: *const Self, key: ir.SymbolId) bool {

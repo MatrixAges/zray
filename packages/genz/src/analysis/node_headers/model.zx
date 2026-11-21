@@ -1,4 +1,4 @@
-import type { U32Buffer, U8Buffer } from "memory"
+import type { ColumnLengths, U32Buffer, U8Buffer } from "memory"
 
 export type Headers = {
     tags: u8[],
@@ -18,8 +18,11 @@ export type Rebase = Headers & {
 }
 
 export type Selected = Headers.Pick("tags", "mask") & {
+    count: u64,
     bases: U32Buffer,
-    target: U32Buffer
+    target_tags: U8Buffer,
+    target_offsets: U32Buffer,
+    lengths: ColumnLengths
 }
 
 export type References = {

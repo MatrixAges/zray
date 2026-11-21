@@ -48,8 +48,9 @@ pub fn enter(lowering: *Lower, iteration: ir.Iteration, layout: Layout, name: []
         .Deep => &context.symbols,
     };
 
-    if (plan.add_condition) try symbols.put(lowering.allocator, condition, {});
-    if (plan.add_step) try symbols.put(lowering.allocator, step, {});
+    const ids = [_]ir.SymbolId{ condition, step };
+
+    try symbols.addMany(lowering.allocator, members(&ids, plan.add_condition, plan.add_step));
     if (layout == .Deep) scope.context = scope_state.enter(lowering, .Iteration, .{ .iteration_value = context });
 
     return scope;
@@ -81,10 +82,15 @@ pub fn restore(self: Self) void {
 
 fn removeMembers(self: Self, symbols: *@import("../members.zig"), condition: bool, step: bool) void {
     const ids = [_]ir.SymbolId{ self.condition, self.step };
-    const first = @intFromBool(!condition);
-    const end = ids.len - @intFromBool(!step);
 
-    for (ids[first..end]) |id| _ = symbols.remove(id);
+    symbols.removeMany(members(&ids, condition, step));
+}
+
+fn members(ids: *const [2]ir.SymbolId, have_condition: bool, have_step: bool) []const ir.SymbolId {
+    const first = @intFromBool(!have_condition);
+    const end = ids.len - @intFromBool(!have_step);
+
+    return ids[first..end];
 }
 
 fn writeNames(self: Self, condition: []const u8, step: []const u8) void {

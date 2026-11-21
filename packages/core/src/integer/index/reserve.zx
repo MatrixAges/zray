@@ -1,0 +1,50 @@
+import integers from "std:integer"
+
+import {
+    capacity_growth,
+    initial_capacity,
+    load_denominator,
+    load_numerator
+} from "./const"
+import grow from "./grow"
+
+import type { Index as Output } from "./model"
+
+export type Input = Output & {
+    additional: u64
+}
+
+export default function (in: Input): Output {
+    const required = integers.widen(integers.narrow(in.count + in.additional))
+    const previous = in.buckets.length
+    const first = previous == 0 ? initial_capacity : previous
+
+    const capacity = loop(first, {
+        while: size => required > size * load_numerator / load_denominator,
+        next: size => {
+            size *= capacity_growth
+        }
+    })
+
+    const buckets = match {
+        previous == capacity => in.buckets,
+        _ => grow({
+            count: in.count,
+            keys: in.keys,
+            capacity
+        })
+    }
+
+    const keys = loop(in.keys, {
+        while: keys => keys.length < required,
+        next: keys => {
+            keys = keys.push(0)[0]
+        }
+    })
+
+    return {
+        count: in.count,
+        keys,
+        buckets
+    }
+}

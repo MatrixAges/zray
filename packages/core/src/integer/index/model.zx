@@ -1,3 +1,5 @@
+import type { U32Buffer } from "memory"
+
 export type Index = {
     count: u64,
     keys: u32[],
@@ -15,7 +17,8 @@ export type Key = {
     key: u32
 }
 
-export type Removed = {
-    index: Index,
-    position?: u64
+export type Mutable = {
+    count: u64,
+    keys: U32Buffer,
+    buckets: U32Buffer
 }

@@ -1032,6 +1032,8 @@ pub const collections = [_]Entry{
     .{ .path = "core/integer/map/snapshot.zx", .name = "cache_snapshot", .owner = .genz },
     .{ .path = "core/integer/map/restore.zx", .name = "cache_restore", .owner = .genz },
     .{ .path = "genz/analysis/members/add.zx", .name = "members_add", .owner = .genz },
+    .{ .path = "core/integer/index/reserve.zx", .name = "members_reserve", .owner = .genz },
+    .{ .path = "genz/analysis/members/add_many.zx", .name = "members_add_many", .owner = .genz },
     .{ .path = "core/integer/index/get.zx", .name = "members_get", .owner = .genz },
     .{ .path = "core/integer/index/remove.zx", .name = "members_remove", .owner = .genz },
     .{ .path = "genz/analysis/members/remove_many.zx", .name = "members_remove_many", .owner = .genz },

@@ -61,7 +61,7 @@ fn appendRows(allocator: std.mem.Allocator, target: anytype, source: anytype, co
     const tags = @as([*]const Tag, @ptrCast(source.tags.ptr))[0..source.tags.len];
 
     // If copying fails, the failed row is rolled back before the completed prefix is published.
-    defer headers.publishSelected(target, tags[0..written], &bases);
+    defer headers.publishSelected(target, tags, written, &bases);
 
     for (tags, source.offsets) |tag, offset| {
         switch (tag) {
