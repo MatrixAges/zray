@@ -1,0 +1,41 @@
+import bytes from "std:bytes"
+
+import call from "../../../ast/context/call"
+import field from "../../../ast/context/field"
+import identifier from "../../../ast/context/identifier"
+import { allocator_name, length_member } from "../../iteration/transfer/const"
+import { alloc_member } from "../../simd/emit/const"
+
+import type { Node as Output } from "../../../ast/context/model"
+import type { Prepared as Input } from "./model"
+
+export default function (in: Input): Output {
+    const source = in.source
+
+    const allocator = identifier({
+        state: in.context,
+        name: bytes.fromText(allocator_name)
+    })
+
+    const member = field({
+        state: allocator.state,
+        target: allocator.id,
+        name: bytes.fromText(alloc_member)
+    })
+
+    const length = field({
+        state: member.state,
+        target: source.source,
+        name: bytes.fromText(length_member)
+    })
+
+    return call({
+        state: length.state,
+        callee: member.id,
+        arguments: [
+            source.element,
+            length.id
+        ],
+        fallible: true
+    })
+}

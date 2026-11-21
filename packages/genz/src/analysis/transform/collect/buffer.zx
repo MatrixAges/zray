@@ -1,0 +1,62 @@
+import bytes from "std:bytes"
+
+import call from "../../../ast/context/call"
+import standard from "../../../ast/context/standard_field"
+import variable from "../../../ast/context/variable"
+import header from "../../../ast/expressions/header"
+import { ExpressionsKind } from "../../../printer/model/expressions"
+import { array_list, empty_name } from "../../iteration/conversion/const"
+
+import type { Node as Output } from "../../../ast/context/model"
+import type { Prepared as Input } from "./model"
+
+export default function (in: Input): Output {
+    const declaration = standard({
+        state: in.context,
+        path: [array_list]
+    })
+
+    const layout = call({
+        state: declaration.state,
+        callee: declaration.id,
+        arguments: [in.source.element],
+        fallible: false
+    })
+
+    const context = layout.state
+
+    const empty = header({
+        ...context.expressions.pick([
+            "tags",
+            "offsets"
+        ]),
+        base: context.source.expression_base,
+        kind: ExpressionsKind.EnumLiteral,
+        offset: context.forms.enum_literal.length
+    })
+
+    const state = variable({
+        state: {
+            ...context,
+            expressions: {
+                ...context.expressions,
+                tags: empty.tags,
+                offsets: empty.offsets
+            },
+            forms: {
+                ...context.forms,
+                enum_literal:
+                    context.forms.enum_literal.push(bytes.fromText(empty_name))[0]
+            },
+            valid: context.valid && empty.valid
+        },
+        name: in.source.name,
+        type_expr: layout.id,
+        value: empty.id
+    })
+
+    return {
+        id: empty.id,
+        state
+    }
+}

@@ -1,0 +1,41 @@
+import integers from "std:integer"
+
+import identifier from "../../../ast/context/identifier"
+import subscript from "../../../ast/context/subscript"
+import assignment from "../../../ast/statements/assignment"
+import empty from "../../../ast/statements/empty"
+
+import type { Body as Input, Update as Output } from "./model"
+
+export default function (in: Input): Output {
+    const source = in.source
+
+    const index = identifier({
+        state: in.context,
+        name: source.index ?? []
+    })
+
+    const target = subscript({
+        state: index.state,
+        target: source.result,
+        index: index.id
+    })
+
+    const update = assignment({
+        table: empty({}),
+        base: integers.narrow(
+            integers.widen(source.bases.statement_base) + source.element_count
+        ),
+        target: target.id,
+        value: source.value
+    })
+
+    return {
+        source,
+        context: target.state,
+        branch_body: empty({}),
+        update: update.table,
+        result: source.result,
+        valid: target.state.valid && update.valid
+    }
+}

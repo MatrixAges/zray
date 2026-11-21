@@ -16,7 +16,8 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
 
     var body: std.ArrayList(node.Statement) = .empty;
     const source = try aggregate.bind(self, &body, try @import("state_value/list.zig").expression(self, value.target));
-    const result_type = try self.typeExpr(self.program.expression(id).type_id);
+    const type_id = self.program.expression(id).type_id;
+    const result_type = try self.typeExpr(type_id);
     const callback = try self.expr(value.body);
 
     if (value.kind == .reduce) return @import("transform/reduce.zig").lower(self, &body, .{
@@ -24,6 +25,13 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
         .transform = value,
         .source = source,
         .layout = result_type,
+        .callback = callback,
+    });
+
+    if (@import("genz_options").generated_analysis) return @import("transform/collect.zig").lower(self, &body, .{
+        .transform = value,
+        .source = source,
+        .type_id = type_id,
         .callback = callback,
     });
 

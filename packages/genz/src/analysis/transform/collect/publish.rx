@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Collect" />
+
+    <Args in={Collect.Publish} out={Collect.Output} />
+
+    <Call fn="../../../ast/context/initialize" in={$in.bases} />
+
+    <If on={$in.index != null}>
+        <Call
+            fn="store"
+            in={{
+                source: $in,
+                context: $ctx.initialize
+            }}
+        />
+
+        <Call fn="finish" />
+
+        <Return value={$ctx.finish} />
+    </If>
+
+    <Call
+        fn="append"
+        in={{
+            source: $in,
+            context: $ctx.initialize
+        }}
+    />
+
+    <Call fn="finish" />
+
+    <Return value={$ctx.finish} />
+</Module>

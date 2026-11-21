@@ -1,0 +1,36 @@
+import integers from "std:integer"
+
+import forLoop from "../../../ast/statements/for_loop"
+
+import type { Update as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const source = in.source
+
+    const start =
+        integers.widen(source.bases.statement_base) + in.branch_body.tags.length
+
+    const count = source.element_count + in.update.tags.length
+    const outer = start + count
+
+    const loop_row = forLoop({
+        table: in.context.statements,
+        base: integers.narrow(outer + source.outer_count),
+        iterable: source.source,
+        capture: source.capture,
+        start: integers.narrow(start),
+        count: integers.narrow(count),
+        index: source.index
+    })
+
+    return {
+        ...in.omit(["source"]),
+        context: {
+            ...in.context,
+            statements: loop_row.table
+        },
+        outer_start: integers.narrow(outer),
+        outer_count: integers.narrow(source.outer_count + loop_row.table.tags.length),
+        valid: in.valid && loop_row.valid
+    }
+}

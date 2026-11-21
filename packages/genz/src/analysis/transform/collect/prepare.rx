@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Collect" />
+    <Type from="../../../ast/context/model" as="Ast" />
+
+    <Args in={Collect.Prepare} out={Ast.Node} />
+
+    <Call fn="../../../ast/context/initialize" in={$in.bases} />
+
+    <If on={$in.map}>
+        <Call
+            fn="allocate"
+            in={{
+                source: $in,
+                context: $ctx.initialize
+            }}
+        />
+
+        <Return value={$ctx.allocate} />
+    </If>
+
+    <Call
+        fn="buffer"
+        in={{
+            source: $in,
+            context: $ctx.initialize
+        }}
+    />
+
+    <Return value={$ctx.buffer} />
+</Module>

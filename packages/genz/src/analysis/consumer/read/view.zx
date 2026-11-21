@@ -1,0 +1,67 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+
+import stored from "../../state/locals/inline_stored"
+import { Property } from "../../state/queries/model"
+import read from "../../state/queries/read"
+import { Representation } from "./model"
+
+import type { Input as Source } from "./model"
+
+export type Input = {
+    source: Source,
+    child: u32,
+    type_id: u32,
+    operation: ExpressionKind
+}
+
+export type Output = Representation
+
+export default function (in: Input): Output {
+    const { source, operation, type_id } = in
+
+    if (!source.active || operation == ExpressionKind.Length) {
+        return Representation.Plain
+    }
+
+    const represented = read({
+        value: source.queries[integers.widen(type_id)],
+        property: Property.Represented
+    })
+
+    if (!represented) {
+        return Representation.Plain
+    }
+
+    if (operation == ExpressionKind.Index) {
+        return Representation.ReadElement
+    }
+
+    const parent = source.table.types[integers.widen(in.child)]
+
+    const parent_represented = read({
+        value: source.queries[integers.widen(parent)],
+        property: Property.Represented
+    })
+
+    if (parent_represented) {
+        return Representation.Plain
+    }
+
+    const target = kind(source.types.kinds[integers.widen(type_id)])
+
+    if (target == Kind.List && !stored({
+        ...source.pick([
+            "types",
+            "selected",
+            "element_storage"
+        ]),
+        list: type_id
+    })) {
+        return Representation.BorrowList
+    }
+
+    return Representation.Convert
+}

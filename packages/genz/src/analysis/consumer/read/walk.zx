@@ -1,0 +1,63 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+
+import view from "./view"
+
+import type { Input, Output, Representation } from "./model"
+
+export default function (in: Input): Output {
+    const rows: u32[] = []
+    const representations: Representation[] = []
+    const length_type: u32? = null
+    const table = in.table
+
+    return loop({
+        rows,
+        representations,
+        length_type,
+        current: in.root,
+        valid: false,
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const index = integers.widen(state.current)
+            const operation = table.kinds[index]
+            const payload = integers.widen(table.payloads[index])
+
+            const child: u32? = match operation {
+                ExpressionKind.Field => table.projection_targets[payload],
+                ExpressionKind.TupleField => table.projection_targets[payload],
+                ExpressionKind.Index => table.index_targets[payload],
+                ExpressionKind.Length => table.lengths[payload],
+                _ => null
+            }
+
+            if (child == null) {
+                state.valid = operation == ExpressionKind.Reference &&
+                    table.references[payload] == in.symbol
+                state.done = true
+            } else {
+                const type_id = table.types[index]
+                const representation = view({
+                    source: in,
+                    child,
+                    type_id,
+                    operation
+                })
+
+                state.rows = state.rows.push(state.current)[0]
+                state.representations = state.representations.push(representation)[0]
+                state.current = child
+
+                if (operation == ExpressionKind.Length) {
+                    state.length_type = type_id
+                }
+            }
+        },
+        return: state => state.omit([
+            "current",
+            "done"
+        ])
+    })
+}

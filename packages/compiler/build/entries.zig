@@ -855,6 +855,8 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/functions/requests/reference/build.rx", .name = "function_reference", .owner = .genz },
     .{ .path = "genz/analysis/predicates/build.rx", .name = "predicate_emit", .owner = .genz },
     .{ .path = "genz/analysis/transform/reduce/build.rx", .name = "reduce_emit", .owner = .genz },
+    .{ .path = "genz/analysis/transform/collect/prepare.rx", .name = "transform_collect_prepare", .owner = .genz },
+    .{ .path = "genz/analysis/transform/collect/publish.rx", .name = "transform_collect_publish", .owner = .genz },
     .{ .path = "genz/analysis/iteration/frame/build.rx", .name = "iteration_frame", .owner = .genz },
     .{ .path = "genz/analysis/iteration/state/build.rx", .name = "iteration_state_declaration", .owner = .genz },
     .{ .path = "genz/analysis/scope/reads/collect.rx", .name = "scope_reads", .owner = .genz },
@@ -956,6 +958,7 @@ pub const main = [_]Entry{
 pub const growth = [_]Entry{
     .{ .path = "genz/analysis/consumer/decision/build.rx", .name = "consumer_decision", .owner = .genz },
     .{ .path = "genz/analysis/consumer/projection.zx", .name = "consumer_projection", .owner = .genz },
+    .{ .path = "genz/analysis/consumer/read/walk.zx", .name = "consumer_read", .owner = .genz },
     .{ .path = "genz/analysis/consumer/independent.zx", .name = "consumer_independent", .owner = .genz },
     .{ .path = "genz/analysis/value/locals/scope/build.rx", .name = "value_scope_initialize", .owner = .genz },
     .{ .path = "genz/analysis/value/locals/scope/step.rx", .name = "value_scope_step", .owner = .genz },

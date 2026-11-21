@@ -1,0 +1,45 @@
+import type { Input as Bases, State as Context } from "../../../ast/context/model"
+import type { Columns as Statements } from "../../../ast/statements/model"
+
+export type Prepare = {
+    bases: Bases,
+    map: bool,
+    source: u32,
+    element: u32,
+    name: u8[]
+}
+
+export type Prepared = {
+    source: Prepare,
+    context: Context
+}
+
+export type Publish = {
+    bases: Bases,
+    source: u32,
+    value: u32,
+    result: u32,
+    callback: u32,
+    capture: u8[],
+    index?: u8[],
+    name: u8[],
+    element_count: u64,
+    outer_count: u64
+}
+
+export type Body = {
+    source: Publish,
+    context: Context
+}
+
+export type Update = Body & {
+    branch_body: Statements,
+    update: Statements,
+    result: u32,
+    valid: bool
+}
+
+export type Output = Update.Omit("source") & {
+    outer_start: u32,
+    outer_count: u32
+}

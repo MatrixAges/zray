@@ -1,0 +1,84 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import call from "../../../ast/context/call"
+import field from "../../../ast/context/field"
+import identifier from "../../../ast/context/identifier"
+import branch from "../../../ast/statements/branch"
+import empty from "../../../ast/statements/empty"
+import { StatementsKind } from "../../../printer/model/statements"
+import { append_member } from "../../iteration/mutation/const"
+import { allocator_name, transfer_member } from "../../iteration/transfer/const"
+
+import type { Body as Input, Update as Output } from "./model"
+
+export default function (in: Input): Output {
+    const source = in.source
+
+    const buffer = identifier({
+        state: in.context,
+        name: source.name
+    })
+
+    const append = field({
+        state: buffer.state,
+        target: buffer.id,
+        name: bytes.fromText(append_member)
+    })
+
+    const allocator = identifier({
+        state: append.state,
+        name: bytes.fromText(allocator_name)
+    })
+
+    const write = call({
+        state: allocator.state,
+        callee: append.id,
+        arguments: [
+            allocator.id,
+            source.value
+        ],
+        fallible: true
+    })
+
+    const member = field({
+        state: write.state,
+        target: buffer.id,
+        name: bytes.fromText(transfer_member)
+    })
+
+    const finished = call({
+        state: member.state,
+        callee: member.id,
+        arguments: [allocator.id],
+        fallible: true
+    })
+
+    const table = empty({})
+    const first = integers.widen(source.bases.statement_base)
+
+    const update = branch({
+        table,
+        base: integers.narrow(first + source.element_count + 1),
+        condition: source.callback,
+        yes_start: source.bases.statement_base,
+        yes_count: 1,
+        no_start: 0,
+        no_count: 0,
+        capture: null
+    })
+
+    return {
+        source,
+        context: finished.state,
+        branch_body: {
+            ...table,
+            tags: [StatementsKind.Expression],
+            offsets: [0],
+            expression: [write.id]
+        },
+        update: update.table,
+        result: finished.id,
+        valid: finished.state.valid && update.valid
+    }
+}

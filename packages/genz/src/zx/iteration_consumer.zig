@@ -42,12 +42,18 @@ pub fn independent(program: ir.Program, id: ir.ExprId, symbol: ir.SymbolId) bool
 }
 
 pub fn read(self: *Lower, consumer: Consumer, id: ir.ExprId, state: node.ExpressionId) Lower.Error!node.ExpressionId {
+    if (@import("genz_options").generated_analysis) return @import("iteration_consumer/read.zig").lower(self, consumer.symbol, id, state);
+
+    return readSeed(self, consumer, id, state);
+}
+
+fn readSeed(self: *Lower, consumer: Consumer, id: ir.ExprId, state: node.ExpressionId) Lower.Error!node.ExpressionId {
     const expression = self.program.expression(id);
 
     return switch (expression.value) {
         .reference => |symbol| if (symbol == consumer.symbol) state else unreachable,
         .field, .tuple_field => |field| value: {
-            const target = try read(self, consumer, field.target, state);
+            const target = try readSeed(self, consumer, field.target, state);
             const type_id = self.program.expression(field.target).type_id;
             const kind = self.program.typeOf(type_id);
             const name = if (expression.value == .field) kind.object.at(field.index).name else try std.fmt.allocPrint(self.allocator, "{d}", .{field.index});
@@ -58,7 +64,7 @@ pub fn read(self: *Lower, consumer: Consumer, id: ir.ExprId, state: node.Express
             break :value fromAbi(self, expression.type_id, projected);
         },
         .index => |item| value: {
-            const projected = try @import("intrinsics.zig").index(self, try @import("state_value/list.zig").items(self, self.program.expression(item.target).type_id, try read(self, consumer, item.target, state)), try self.expr(item.index));
+            const projected = try @import("intrinsics.zig").index(self, try @import("state_value/list.zig").items(self, self.program.expression(item.target).type_id, try readSeed(self, consumer, item.target, state)), try self.expr(item.index));
 
             if (!self.state_active or !self.state_plan.represented(self.program, expression.type_id)) break :value projected;
 
@@ -67,7 +73,7 @@ pub fn read(self: *Lower, consumer: Consumer, id: ir.ExprId, state: node.Express
 
             break :value @import("aggregate.zig").finish(self, &body, converted);
         },
-        .length => |child| self.cast(try self.typeExpr(expression.type_id), try self.field(try @import("state_value/list.zig").items(self, self.program.expression(child).type_id, try read(self, consumer, child, state)), "len")),
+        .length => |child| self.cast(try self.typeExpr(expression.type_id), try self.field(try @import("state_value/list.zig").items(self, self.program.expression(child).type_id, try readSeed(self, consumer, child, state)), "len")),
         else => unreachable,
     };
 }
