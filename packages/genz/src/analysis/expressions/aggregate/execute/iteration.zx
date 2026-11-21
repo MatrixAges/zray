@@ -1,0 +1,48 @@
+import host from "lowering_host"
+
+import type { IterationOperands, Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    batch: IterationOperands,
+    operands: u32[],
+    fields?: u32[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, batch, operands, fields } = in
+
+    const bound = loop({
+        index: 0
+    }, {
+        while: state => state.index < operands.length,
+        next: state => {
+            const item = operands[state.index]
+            const value = host.lowerExpression(frame, item, false, null)
+
+            host.publishIterationOperand(batch, state.index, item, value)
+            state.index = state.index + 1
+        },
+        return: state => state.index
+    })
+
+    if (fields != null) {
+        host.prepareIterationFields(batch, fields.length)
+
+        const lowered = loop({
+            index: 0
+        }, {
+            while: state => state.index < fields.length,
+            next: state => {
+                const value =
+                    host.lowerExpression(frame, fields[state.index], false, null)
+
+                host.publishIterationField(batch, state.index, value)
+                state.index = state.index + 1
+            },
+            return: state => state.index
+        })
+    }
+}

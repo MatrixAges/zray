@@ -1,0 +1,40 @@
+import host from "lowering_host"
+import memory from "memory"
+
+import { Operation } from "./model"
+
+import type { Lowering } from "lowering_host"
+import type { U32Buffer } from "memory"
+import type { Plan } from "./model"
+
+export type Input = Plan.Pick("operations", "first", "second") & {
+    frame: Lowering,
+    values: U32Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, operations, first, second, values } = in
+
+    const lowered = loop({
+        index: 0
+    }, {
+        while: state => state.index < operations.length,
+        next: state => {
+            const index = state.index
+            const item = first[index]
+            const value = match operations[index] {
+                Operation.Expression => host.lowerExpression(frame, item, false, null),
+                Operation.Value => host.lowerValueExpression(frame, item),
+                Operation.Equality =>
+                    host.lowerMatchEquality(frame, item, second[index]),
+                _ => host.lowerMatchLiteral(frame, item)
+            }
+
+            memory.writeU32(values, index, value)
+            state.index = index + 1
+        },
+        return: state => state.index
+    })
+}

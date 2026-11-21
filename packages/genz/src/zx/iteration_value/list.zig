@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
-const Operand = @import("operand.zig");
+const operands = @import("operands.zig");
 const emitting = @import("literals.zig");
 const recursive_scratch_bytes = 1024;
 
@@ -18,9 +18,9 @@ pub fn lower(self: *Context, id: ir.TypeId, items: []const ir.ExprId) Lower.Erro
 
     defer scratch.deinit();
 
-    const bindings = try emitting.Bindings.init(memory.allocator(), items.len);
-
-    for (items, 0..) |item, index| bindings.set(index, try Operand.lower(lowering, item));
+    const allocator = memory.allocator();
+    const bindings = try emitting.Bindings.init(allocator, items.len);
+    _ = try operands.lower(lowering, allocator, bindings, items, null, null);
 
     const layout = try @import("types.zig").get(self, id);
 

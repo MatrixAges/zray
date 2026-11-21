@@ -1,0 +1,61 @@
+import host from "lowering_host"
+import { ScopeAction } from "lowering_host"
+
+import execute from "./execute"
+
+import type { Lowering, ScopeFrame } from "lowering_host"
+
+export type Candidate = {
+    symbol: u32,
+    value: u32
+}
+
+export type Input = {
+    frame: Lowering,
+    scope: ScopeFrame,
+    result: u32,
+    layout: bool,
+    count: u64,
+    consumed_count: u64,
+    candidate?: Candidate
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, scope, layout, candidate } = in
+
+    const consumed = match {
+        candidate == null => null,
+        _ => host.consumeScopeResult(scope, candidate.symbol, candidate.value, layout)
+    }
+
+    const result: u32 = consumed ?? match {
+        layout => host.lowerValueExpression(frame, in.result),
+        _ => host.lowerExpression(frame, in.result, false, null)
+    }
+
+    host.beginScopeBindings(scope, consumed != null ? in.consumed_count : in.count)
+
+    const finished = loop({
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const action = host.advanceScopeBinding(scope)
+
+            if (action != ScopeAction.Done) {
+                execute({
+                    frame,
+                    scope,
+                    action
+                })
+            }
+
+            state.done = action == ScopeAction.Done
+        },
+        return: state => state.done
+    })
+
+    return host.finishScopeBindings(scope, result)
+}

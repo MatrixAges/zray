@@ -1,3 +1,24 @@
+export type SequenceFrame = opaque
+
+export type ObjectFrame = opaque
+
+export type IterationOperands = opaque
+
+export type ScopeFrame = opaque
+
+export enum ScopeAction {
+    Reuse,
+    Skip,
+    Task,
+    Discard,
+    Value,
+    Ordinary,
+    Iteration,
+    Type,
+    Begin,
+    Done
+}
+
 export type Lowering = opaque
 
 export enum Representation {

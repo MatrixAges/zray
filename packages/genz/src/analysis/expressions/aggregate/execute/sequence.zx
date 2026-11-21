@@ -1,0 +1,29 @@
+import host from "lowering_host"
+
+import type { Lowering, SequenceFrame } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    batch: SequenceFrame,
+    items: u32[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, batch, items } = in
+
+    const traversed = loop({
+        index: 0
+    }, {
+        while: state => state.index < items.length,
+        next: state => {
+            const item = items[state.index]
+            const value = host.lowerExpression(frame, item, false, null)
+
+            host.publishSequenceElement(batch, state.index, item, value)
+            state.index = state.index + 1
+        },
+        return: state => state.index
+    })
+}

@@ -12,6 +12,14 @@ const Policy = if (generated) @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@
     result: enum { List, Tuple, LayoutTuple, Template },
 };
 
+const Frame = struct {
+    lowering: *Lower,
+    body: *std.ArrayList(node.Statement),
+    expressions: []node.ExpressionId,
+    type_id: ir.TypeId,
+    element: @FieldType(Policy, "element"),
+};
+
 pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []const ir.ExprId, layout: bool) Lower.Error!node.ExpressionId {
     const plan = policy(self, id, value, layout);
 
@@ -23,15 +31,15 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
 
     var body: std.ArrayList(node.Statement) = .empty;
     const expressions = try self.allocator.alloc(node.ExpressionId, items.len);
+    var frame: Frame = .{ .lowering = self, .body = &body, .expressions = expressions, .type_id = value.type_id, .element = plan.element };
 
-    for (items, expressions) |item, *expression| {
-        const bound = try aggregate.bind(self, &body, try self.expr(item));
+    if (generated) {
+        const execute = @import("generated_lower_sequence_elements");
+        const input: std.meta.Child(execute.Input) = .{ .frame = @ptrCast(self), .batch = @ptrCast(&frame), .items = @ptrCast(items) };
 
-        expression.* = switch (plan.element) {
-            .Direct => bound,
-            .List => try @import("../state_value/elements.zig").write(self, &body, value.type_id, bound),
-            .Pointer => try @import("../state_value/conversion.zig").convert(self, &body, self.program.expression(item).type_id, bound, .pointer),
-        };
+        try @import("../expressions/evaluate.zig").execute(execute, &input);
+    } else {
+        for (items, 0..) |item, index| try bindElement(&frame, index, item, try self.expr(item));
     }
 
     const result = switch (plan.result) {
@@ -49,6 +57,23 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
     };
 
     return aggregate.finish(self, &body, result);
+}
+
+pub fn publishSequenceElement(handle: *const anyopaque, index: u64, item: u32, value: u32) Lower.Error!void {
+    const frame: *Frame = @ptrCast(@alignCast(@constCast(handle)));
+
+    return bindElement(frame, @intCast(index), @fromBackingInt(item), @fromBackingInt(value));
+}
+
+fn bindElement(frame: *Frame, index: usize, item: ir.ExprId, value: node.ExpressionId) Lower.Error!void {
+    const self = frame.lowering;
+    const bound = try aggregate.bind(self, frame.body, value);
+
+    frame.expressions[index] = switch (frame.element) {
+        .Direct => bound,
+        .List => try @import("../state_value/elements.zig").write(self, frame.body, frame.type_id, bound),
+        .Pointer => try @import("../state_value/conversion.zig").convert(self, frame.body, self.program.expression(item).type_id, bound, .pointer),
+    };
 }
 
 fn policy(self: *const Lower, id: ir.ExprId, value: ir.ExpressionRow, layout: bool) Policy {

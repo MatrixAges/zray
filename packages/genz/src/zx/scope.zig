@@ -33,6 +33,8 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     defer if (reuse) |*aliases| aliases.restore(self);
 
+    if (generated) return @import("scope/execute.zig").regular(self, scope, layout, plan, &reuse);
+
     const consumed = if (plan.candidate) |last|
         try @import("iteration_consumer.zig").lower(self, last.symbol, last.value, scope.result, layout)
     else
@@ -56,35 +58,18 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     defer output.deinit(self.allocator);
 
-    if (generated) {
-        const tables: schedule.Spans = .{ .starts = starts, .counts = counts };
-        const changes = if (reuse) |active| active.state.changes else &.{};
-        var request = schedule.begin(count);
-        var span: node.Block = .{};
+    var offset = count;
 
-        while (true) {
-            request = schedule.advance(self, scope, changes, &tables, &request, span);
+    while (offset != 0) {
+        output.clearRetainingCapacity();
 
-            if (request.action == .Done) break;
+        offset -= 1;
 
-            output.clearRetainingCapacity();
+        const reused = if (reuse) |*active| try active.publish(self, &output, offset) else null;
+        const span = reused orelse try lowerBinding(self, &output, schedule.seedNext(self, scope, offset + 1), plan.type_id, &reuse);
 
-            span = try lowerBinding(self, &output, schedule.binding(request), plan.type_id, &reuse);
-        }
-    } else {
-        var offset = count;
-
-        while (offset != 0) {
-            output.clearRetainingCapacity();
-
-            offset -= 1;
-
-            const reused = if (reuse) |*active| try active.publish(self, &output, offset) else null;
-            const span = reused orelse try lowerBinding(self, &output, schedule.seedNext(self, scope, offset + 1), plan.type_id, &reuse);
-
-            starts[offset] = span.start;
-            counts[offset] = span.len;
-        }
+        starts[offset] = span.start;
+        counts[offset] = span.len;
     }
 
     const body = try @import("../node/blocks.zig").tail(self.allocator, self.builder.nodes, starts, counts);

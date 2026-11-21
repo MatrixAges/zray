@@ -83,5 +83,19 @@ pub fn binary(self: *Lower, term: @FieldType(@FieldType(ir.ExpressionRow, "value
 pub fn invoke(comptime entry: type, input: entry.Input) Lower.Error!node.ExpressionId {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return @fromBackingInt(try entry.executeIn(empty.allocator(), input));
+    return @fromBackingInt(entry.executeIn(empty.allocator(), input) catch |err| return executionFailure(err));
+}
+
+pub fn execute(comptime entry: type, input: entry.Input) Lower.Error!void {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    entry.executeIn(empty.allocator(), input) catch |err| return executionFailure(err);
+}
+
+fn executionFailure(err: anyerror) Lower.Error {
+    return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.IndexOutOfBounds => unreachable,
+        else => unreachable,
+    };
 }

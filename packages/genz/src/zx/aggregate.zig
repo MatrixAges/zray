@@ -25,36 +25,24 @@ fn objectMode(self: *Lower, id: ir.ExprId, value: @FieldType(@FieldType(ir.Expre
 
     defer self.cache.restore(self.allocator, value.evaluation, saved);
 
+    if (operands.generated) return @import("aggregate/object_execution.zig").lower(self, temporary, id, value, layout);
+
     var body: std.ArrayList(node.Statement) = .empty;
     const length = value.evaluation.len;
     const counts = try temporary.alloc(u64, length);
     const references = try temporary.alloc(node.ExpressionId, length);
-    const names = if (operands.generated) try temporary.alloc([]const u8, length) else &.{};
-    const values = if (operands.generated) try temporary.alloc(u32, length) else &.{};
 
-    for (value.evaluation, 0..) |item, index| {
+    for (value.evaluation, counts, references) |item, *count, *reference| {
         const name = try self.fresh("operand");
         const expression = try self.expr(item);
 
-        if (operands.generated) {
-            names[index] = name;
-            values[index] = @backingInt(expression);
-        } else try body.append(self.allocator, .{ .constant = .{ .name = name, .value = expression } });
+        try body.append(self.allocator, .{ .constant = .{ .name = name, .value = expression } });
 
-        const reference = try self.builder.identifier(name);
+        reference.* = try self.builder.identifier(name);
+        count.* = self.cache_reads[@backingInt(item)];
 
-        references[index] = reference;
-
-        counts[index] = if (operands.generated) try self.cache.observe(self.allocator, item, reference, self.cache_reads, null) else prior: {
-            const prior = self.cache_reads[@backingInt(item)];
-
-            try self.cache.put(self.allocator, item, reference);
-
-            break :prior prior;
-        };
+        try self.cache.put(self.allocator, item, reference.*);
     }
-
-    if (operands.generated) try operands.bind(self, temporary, &body, names, values);
 
     const observation: operands.Observation = .{
         .evaluation = value.evaluation,

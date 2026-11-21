@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
-const Operand = @import("operand.zig");
+const operands = @import("operands.zig");
 const emitting = @import("literals.zig");
 const recursive_scratch_bytes = 1024;
 
@@ -23,8 +23,7 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {
 
     if (expression.value == .tuple) {
         const bindings = try emitting.Bindings.init(allocator, expression.value.tuple.len);
-
-        for (expression.value.tuple, 0..) |item, index| bindings.set(index, try Operand.lower(lowering, item));
+        _ = try operands.lower(lowering, allocator, bindings, expression.value.tuple, null, null);
 
         return emitting.lower(self, .{ .mode = .Tuple, .type_id = expression.type_id, .layout = type_expr, .bindings = bindings });
     }
@@ -36,17 +35,10 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {
 
     defer self.cache.restore(lowering.allocator, object.evaluation, saved);
 
-    for (object.evaluation, counts, 0..) |item, *count, index| {
-        const value = try Operand.lower(lowering, item);
-
-        bindings.set(index, value);
-
-        count.* = try self.cache.observe(lowering.allocator, item, value.reference, null, &self.reads);
-    }
-
-    const values = try allocator.alloc(u32, object.fields.len);
-
-    for (0..object.fields.len, values) |index, *value| value.* = @backingInt(try lowering.expr(object.fields.at(index).value));
+    const values = try operands.lower(lowering, allocator, bindings, object.evaluation, object.fields.values[0..object.fields.len], .{
+        .context = self,
+        .counts = counts,
+    });
 
     return emitting.lower(self, .{
         .mode = .Object,

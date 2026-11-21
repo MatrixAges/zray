@@ -36,7 +36,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const manifest = @import("generation_manifest.zig");
     const internal = @import("memory_interfaces.zig");
     const execution_interfaces_dir = b.addWriteFiles();
-    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency, "src/" ++ lowering_declarations, &.{ "native.d.zx", "read.d.zx" }));
+    const lowering = execution_interfaces_dir.add("lowering.d.zx", internal.join(b, genz_dependency, "src/" ++ lowering_declarations, &.{ "native.d.zx", "read.d.zx", "scope.d.zx", "aggregate.d.zx", "match.d.zx" }));
     const lowering_prefix = b.fmt("{s}/{s}", .{ directories[3], lowering_declarations });
 
     const declarations = internal.create(b, core_dependency, manifests.getDirectory(), directories[2], .{

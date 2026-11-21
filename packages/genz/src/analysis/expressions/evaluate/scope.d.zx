@@ -1,0 +1,33 @@
+export declare function consumeScopeResult(
+    scope: ScopeFrame,
+    symbol: u32,
+    value: u32,
+    layout: bool
+): u32? throws { OutOfMemory }
+
+export declare function beginScopeBindings(scope: ScopeFrame, count: u64): void
+    throws { OutOfMemory }
+
+export declare function advanceScopeBinding(scope: ScopeFrame): ScopeAction
+
+export declare function scopeBindingOperand(scope: ScopeFrame): u32
+
+export declare function scopeBindingType(scope: ScopeFrame): u32
+
+export declare function reuseScopeBinding(scope: ScopeFrame): void throws { OutOfMemory }
+
+export declare function emitScopeTask(scope: ScopeFrame): void throws { OutOfMemory }
+
+export declare function prepareScopeBinding(scope: ScopeFrame): u32?
+    throws { OutOfMemory }
+
+export declare function discardScopeOperand(frame: Lowering, operand: u32): u32
+    throws { OutOfMemory }
+
+export declare function publishScopeBinding(scope: ScopeFrame, value: u32, layout: bool): void
+    throws { OutOfMemory }
+
+export declare function publishIterationBinding(scope: ScopeFrame, value: u32): void
+
+export declare function finishScopeBindings(scope: ScopeFrame, result: u32): u32
+    throws { OutOfMemory }

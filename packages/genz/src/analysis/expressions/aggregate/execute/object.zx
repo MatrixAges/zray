@@ -1,0 +1,55 @@
+import host from "lowering_host"
+
+import type { Lowering, ObjectFrame } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    batch: ObjectFrame,
+    evaluation: u32[],
+    fields: u32[]
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, batch, evaluation, fields } = in
+
+    const operands = loop({
+        index: 0
+    }, {
+        while: state => state.index < evaluation.length,
+        next: state => {
+            const item = evaluation[state.index]
+
+            host.reserveObjectOperand(batch, state.index)
+
+            const value = host.lowerExpression(frame, item, false, null)
+
+            host.publishObjectOperand(batch, state.index, item, value)
+            state.index = state.index + 1
+        },
+        return: state => state.index
+    })
+
+    host.publishObjectOperands(batch)
+
+    const updated = host.prepareObjectFields(batch)
+
+    if (updated == null) {
+        const lowered = loop({
+            index: 0
+        }, {
+            while: state => state.index < fields.length,
+            next: state => {
+                const item = fields[state.index]
+                const value = host.lowerExpression(frame, item, false, null)
+
+                host.publishObjectField(batch, state.index, item, value)
+                state.index = state.index + 1
+            },
+            return: state => state.index
+        })
+    }
+
+    return host.finishObject(batch, updated)
+}

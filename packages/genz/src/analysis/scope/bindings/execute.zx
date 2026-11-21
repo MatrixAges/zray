@@ -1,0 +1,57 @@
+import host from "lowering_host"
+import { ScopeAction } from "lowering_host"
+
+import type { Lowering, ScopeFrame } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    scope: ScopeFrame,
+    action: ScopeAction
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, scope, action } = in
+
+    if (action == ScopeAction.Reuse) {
+        host.reuseScopeBinding(scope)
+
+        return
+    }
+
+    if (action == ScopeAction.Task) {
+        host.emitScopeTask(scope)
+
+        return
+    }
+
+    if (action == ScopeAction.Type) {
+        const type_id = host.scopeBindingType(scope)
+        const value = host.lowerType(frame, type_id, true)
+
+        host.publishIterationBinding(scope, value)
+
+        return
+    }
+
+    const operand = host.scopeBindingOperand(scope)
+
+    if (action == ScopeAction.Iteration) {
+        const value = host.lowerExpression(frame, operand, false, null)
+
+        host.publishIterationBinding(scope, value)
+
+        return
+    }
+
+    const borrowed = host.prepareScopeBinding(scope)
+
+    const value: u32 = borrowed ?? match {
+        action == ScopeAction.Discard => host.discardScopeOperand(frame, operand),
+        action == ScopeAction.Value => host.lowerValueExpression(frame, operand),
+        _ => host.lowerExpression(frame, operand, false, null)
+    }
+
+    host.publishScopeBinding(scope, value, action == ScopeAction.Value)
+}

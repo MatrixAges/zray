@@ -1027,6 +1027,11 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/scope/bindings/run.zx", .name = "lower_scope_bindings", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/aggregate/execute/sequence.zx", .name = "lower_sequence_elements", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/aggregate/execute/object.zx", .name = "lower_object_elements", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/aggregate/execute/iteration.zx", .name = "lower_iteration_elements", .owner = .genz },
+    .{ .path = "genz/analysis/match/evaluate.zx", .name = "lower_match_arms", .owner = .genz },
     .{ .path = "genz/analysis/expressions/evaluate/regular.zx", .name = "lower_regular", .owner = .genz },
     .{ .path = "genz/analysis/expressions/evaluate/value.zx", .name = "lower_value", .owner = .genz },
     .{ .path = "genz/analysis/expressions/evaluate/iteration.zx", .name = "lower_iteration", .owner = .genz },

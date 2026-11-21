@@ -1,8 +1,10 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
+const evaluation = @import("expressions/evaluate.zig");
 const bridge = @import("match/bridge.zig");
 
 pub fn lower(self: *Lower, selection: ir.MatchRow) Lower.Error!node.ExpressionId {
@@ -35,7 +37,8 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
 
     if (prepared.discard) try body.append(self.allocator, .{ .discard = binding.? });
 
-    const fallback = try evaluate(self, prepared.result, prepared.fallback, 0);
+    const fallback_id: ir.ExprId = @fromBackingInt(prepared.fallback);
+    const fallback = if (prepared.result == .Value) try @import("value_call/root.zig").expression(self, fallback_id) else try self.expr(fallback_id);
     const result = if (prepared.has_arms) try lowerArms(self, selection, prepared.result, fallback) else fallback;
 
     return if (subject == null) result else aggregate.finish(self, &body, result);
@@ -54,21 +57,27 @@ fn lowerArms(self: *Lower, selection: ir.MatchRow, mode: bridge.ResultMode, fall
     if (!plan.valid) return error.OutOfMemory;
 
     const values = try allocator.alloc(node.ExpressionId, plan.operations.len);
+    const entry = @import("generated_lower_match_arms");
+    const Input = std.meta.Child(entry.Input);
+    const storage: []u32 = @ptrCast(values);
 
-    for (plan.operations, plan.first, plan.second, values) |operation, first, second, *value| {
-        value.* = try evaluate(self, operation, first, second);
-    }
+    const input: Input = .{
+        .frame = @ptrCast(self),
+        .operations = zx.columns.slice(@FieldType(Input, "operations"), plan.operations),
+        .first = plan.first,
+        .second = plan.second,
+        .values = @ptrCast(&storage),
+    };
+
+    try evaluation.execute(entry, &input);
 
     return bridge.emit(self, allocator, plan.selected, plan.count, values, fallback);
 }
 
-fn evaluate(self: *Lower, operation: anytype, first: u32, second: u32) Lower.Error!node.ExpressionId {
-    const id: ir.ExprId = @fromBackingInt(first);
+pub fn lowerMatchEquality(handle: *const anyopaque, left: u32, right: u32) Lower.Error!u32 {
+    return @backingInt(try evaluation.borrow(handle).binary(.{ .operator = .equal, .left = @fromBackingInt(left), .right = @fromBackingInt(right) }));
+}
 
-    return switch (operation) {
-        .Expression => self.expr(id),
-        .Value => @import("value_call/root.zig").expression(self, id),
-        .Equality => self.binary(.{ .operator = .equal, .left = id, .right = @fromBackingInt(second) }),
-        .Literal => @import("selection.zig").literal(self, id),
-    };
+pub fn lowerMatchLiteral(handle: *const anyopaque, id: u32) Lower.Error!u32 {
+    return @backingInt(try @import("selection.zig").literal(evaluation.borrow(handle), @fromBackingInt(id)));
 }

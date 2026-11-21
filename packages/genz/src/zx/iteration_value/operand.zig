@@ -15,7 +15,7 @@ pub fn lower(lowering: *Lower, id: ir.ExprId) Lower.Error!Self {
     return bind(lowering, try lowering.expr(id));
 }
 
-noinline fn bind(lowering: *Lower, value: node.ExpressionId) Lower.Error!Self {
+pub noinline fn bind(lowering: *Lower, value: node.ExpressionId) Lower.Error!Self {
     const entry = @import("generated_operand_reference");
     const Input = std.meta.Child(entry.Input);
 

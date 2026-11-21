@@ -5,7 +5,6 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const rows = @import("../../node/import_rows.zig");
-const schedule = @import("../scope/schedule.zig");
 const recursive_scratch_bytes = 1024;
 
 pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
@@ -23,10 +22,7 @@ pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
 
     defer self.symbols.removeMany(entered);
 
-    const result = try lowering.expr(scope.result);
-    const bindings = try prepare(self, temporary, scope);
-
-    return emit(lowering, temporary, result, &bindings);
+    return @import("../scope/execute.zig").iteration(self, temporary, scope);
 }
 
 fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) Lower.Error![]const ir.SymbolId {
@@ -61,33 +57,7 @@ const scope_entry = @import("generated_iteration_scope");
 const ScopeInput = std.meta.Child(scope_entry.Input);
 const Bindings = std.meta.Child(@FieldType(ScopeInput, "bindings"));
 
-fn prepare(self: *Context, temporary: std.mem.Allocator, scope: ir.ScopeRow) Lower.Error!Bindings {
-    const lowering = self.lowering;
-
-    const tables: schedule.Values = .{
-        .values = try temporary.alloc(?u32, scope.bindings.len),
-        .types = try temporary.alloc(?u32, scope.bindings.len),
-        .names = try temporary.alloc([]const u8, scope.bindings.len),
-    };
-
-    var request = schedule.begin(scope.bindings.len);
-    var emitted: node.Block = .{};
-
-    while (true) {
-        request = schedule.advance(lowering, scope, &.{}, &tables, &request, emitted);
-
-        switch (request.action) {
-            .Done => break,
-            .Iteration => emitted.start = @backingInt(try lowering.expr(@fromBackingInt(request.value))),
-            .Type => emitted.start = @backingInt(try @import("types.zig").get(self, @fromBackingInt(request.type_id.?))),
-            else => unreachable,
-        }
-    }
-
-    return .{ .symbols = scope.bindings.symbols, .values = tables.values, .types = tables.types, .names = tables.names };
-}
-
-noinline fn emit(lowering: *Lower, temporary: std.mem.Allocator, result: node.ExpressionId, bindings: *const Bindings) Lower.Error!node.ExpressionId {
+pub noinline fn emit(lowering: *Lower, temporary: std.mem.Allocator, result: node.ExpressionId, bindings: *const Bindings) Lower.Error!node.ExpressionId {
     const input: ScopeInput = .{
         .bindings = bindings,
         .result = @backingInt(result),
