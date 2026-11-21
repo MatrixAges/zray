@@ -8,6 +8,7 @@ const seed = @import("seed.zig");
 const policy = @import("policy.zig");
 const emission = @import("emission.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
+const Probe = @import("../expression_map.zig").Probe;
 pub const analysis = @import("analysis.zig");
 pub const functions = analysis.functions;
 pub const containsDescendant = analysis.containsDescendant;
@@ -16,13 +17,19 @@ pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     if (!generated) return seed.expression(self, id);
 
     const selected = policy.dispatch(self, id);
+    const probe: Probe = .{ .checked = selected.probe.checked, .value = selected.probe.value };
+
+    switch (selected.route) {
+        .Value => return self.exprWithCache(id, probe),
+        .Dereference => return emission.emit(self, null, .{ .value = try self.exprWithCache(id, probe) }),
+        .Object => return aggregate.objectValue(self, id),
+        else => {},
+    }
+
     const value = self.program.expression(id);
 
-    return switch (selected) {
-        .Value => self.expr(id),
-        .Dereference => emission.emit(self, null, .{ .value = try self.expr(id) }),
+    return switch (selected.route) {
         .Capture => @import("../capture.zig").lowerValue(self, value.type_id, value.value.capture),
-        .Object => aggregate.objectValue(self, id),
         .Tuple => @import("../aggregate/sequence.zig").lower(self, id, value, value.value.tuple, true),
         .Collection => @import("../collections.zig").lowerValue(self, id, try self.layoutExpr(value.type_id)),
         .Scope => @import("../scope.zig").lowerValue(self, value.value.scope),
@@ -30,6 +37,7 @@ pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
         .Match => @import("../match.zig").lowerValue(self, value.value.match_expr),
         .Conditional => @import("../selection/conditional.zig").lowerValue(self, value.value.conditional),
         .Invocation => invocation(self, value.value.call),
+        .Value, .Dereference, .Object => unreachable,
     };
 }
 

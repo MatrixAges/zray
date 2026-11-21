@@ -21,7 +21,7 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!?node.ExpressionId {
     if (lowering.cache.contains(id)) {
         if (!self.represented(value.type_id)) return null;
 
-        return try unpack(self, id);
+        return try unpack(self, id, try lowering.regular(id));
     }
 
     switch (value.value) {
@@ -46,7 +46,7 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!?node.ExpressionId {
         .list_operation => |operation| if (self.buffered(lowering.program.expression(operation.target).type_id)) return try @import("mutation.zig").operation(self, id),
         .list => |items| if (self.buffered(value.type_id)) return try @import("list.zig").lower(self, value.type_id, items),
         .call => |call| {
-            if (analysis.represented(lowering, lowering.program.expression(call.argument).type_id)) return try @import("invocation.zig").lower(self, id, call.argument);
+            if (analysis.represented(lowering, lowering.program.expression(call.argument).type_id)) return try @import("invocation.zig").lower(self, id, value, lowering.value_functions[@backingInt(call.function)]);
         },
         else => {},
     }
@@ -65,6 +65,6 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!?node.ExpressionId {
             .no = try lowering.expr(conditional.no),
         } }),
         .match_expr => |selection| try @import("../match.zig").lower(lowering, selection),
-        else => try unpack(self, id),
+        else => try unpack(self, id, try lowering.regular(id)),
     };
 }

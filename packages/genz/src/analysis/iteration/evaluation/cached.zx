@@ -1,16 +1,16 @@
-import lookup from "core/integer/map/lookup"
 import read from "core/integer/map/read"
 
 import { Route } from "./model"
 
-import type { Input, Lookup as Output } from "./model"
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
     if (in.argument == in.id) {
         return {
             route: Route.Argument,
             value: null,
-            regular: false
+            probe: in.probe,
+            value_call: false
         }
     }
 
@@ -23,16 +23,26 @@ export default function (in: Input): Output {
         return {
             route: Route.Cached,
             value: local,
-            regular: false
+            probe: in.probe,
+            value_call: false
         }
+    }
+
+    const regular = match {
+        in.probe.checked => in.probe.value,
+        _ => read({
+            state: in.regular,
+            key: in.id
+        })
     }
 
     return {
         route: Route.Inspect,
         value: null,
-        regular: lookup({
-            ...in.regular.omit(["values"]),
-            key: in.id
-        }) != null
+        probe: {
+            checked: true,
+            value: regular
+        },
+        value_call: false
     }
 }

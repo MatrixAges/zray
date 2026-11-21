@@ -6,21 +6,33 @@
     <Call fn="cached" in={$in} />
 
     <If on={$ctx.cached.route != Evaluation.Route.Inspect}>
-        <Return value={$ctx.cached.omit(["regular"])} />
+        <Return value={$ctx.cached} />
     </If>
 
     <Call
         fn="select"
         in={{
             source: $in,
-            regular: $ctx.cached.regular
+            regular: $ctx.cached.probe.value != null
         }}
     />
 
+    <If on={$ctx.select == Evaluation.Route.Call}>
+        <Call fn="callee" in={$in} />
+
+        <Return
+            value={{
+                ...$ctx.cached,
+                route: $ctx.select,
+                value_call: $ctx.callee
+            }}
+        />
+    </If>
+
     <Return
         value={{
-            route: $ctx.select,
-            value: null
+            ...$ctx.cached,
+            route: $ctx.select
         }}
     />
 </Module>

@@ -1,6 +1,7 @@
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Index } from "core/integer/index/model"
 import type { State as Cache } from "core/integer/map/model"
+import type { Probe } from "../../expressions/cache/model"
 import type { Layout } from "../../types/layout"
 
 export enum Route {
@@ -38,7 +39,8 @@ export type Expressions = {
     lengths: u32[],
     update_targets: u32[],
     collection_targets: u32[],
-    call_arguments: u32[]
+    call_arguments: u32[],
+    call_functions: u32[]
 }
 
 export type Input = {
@@ -48,20 +50,18 @@ export type Input = {
     inline_lists: bool,
     cache: Cache,
     regular: Cache,
+    probe: Probe,
     symbols: Index,
+    value_functions: bool[],
     argument?: u32,
     id: u32
 }
 
 export type Output = {
     route: Route,
-    value?: u32
-}
-
-export type Lookup = {
-    route: Route,
     value?: u32,
-    regular: bool
+    probe: Probe,
+    value_call: bool
 }
 
 export type Selection = {

@@ -43,8 +43,3 @@ pub fn bufferedPath(self: *const Self, id: ir.TypeId, path: []const u32) bool {
 
     return self.buffered(current);
 }
-
-pub const expression = if (@import("genz_options").generated_analysis)
-    @import("evaluation.zig").lower
-else
-    @import("evaluation_seed.zig").lower;

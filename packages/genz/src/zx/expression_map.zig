@@ -4,6 +4,14 @@ const node = @import("../node.zig");
 const generated = @import("genz_options").generated_analysis;
 const writing = @import("generated_cache_put");
 
+pub const Probe = struct {
+    checked: bool = false,
+    value: ?u32 = null,
+    pub fn view(self: Probe, comptime Target: type) Target {
+        return .{ .checked = self.checked, .value = self.value };
+    }
+};
+
 pub fn Map(comptime Key: type) type {
     comptime {
         const info = @typeInfo(Key);
@@ -162,6 +170,19 @@ pub fn Map(comptime Key: type) type {
             const value = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 
             return if (value) |id| @fromBackingInt(id) else null;
+        }
+        pub fn countRead(key: Key, reads: []u64) void {
+            if (!generated) {
+                reads[@backingInt(key)] += 1;
+
+                return;
+            }
+
+            const entry = @import("generated_expression_cache_count");
+            const input: std.meta.Child(entry.Input) = .{ .key = @backingInt(key), .reads = @ptrCast(&reads) };
+            var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+            zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
         }
 
         pub fn contains(self: *const Self, key: Key) bool {

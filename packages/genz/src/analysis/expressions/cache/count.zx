@@ -1,0 +1,18 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { U64Buffer } from "memory"
+
+export type Input = {
+    key: u32,
+    reads: U64Buffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const index = integers.widen(in.key)
+    const count = memory.readU64(in.reads, index)
+
+    memory.writeU64(in.reads, index, count + 1)
+}

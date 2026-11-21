@@ -1,13 +1,11 @@
-import integers from "std:integer"
 import read from "core/integer/map/read"
-import memory from "memory"
+
+import count from "./count"
 
 import type { Key } from "core/integer/map/model"
-import type { U64Buffer } from "memory"
+import type { Input as Count } from "./count"
 
-export type Input = Key & {
-    reads: U64Buffer
-}
+export type Input = Key & Count
 
 export type Output = u32?
 
@@ -15,10 +13,7 @@ export default function (in: Input): Output {
     const value = read(in.omit(["reads"]))
 
     if (value != null) {
-        const index = integers.widen(in.key)
-        const count = memory.readU64(in.reads, index)
-
-        memory.writeU64(in.reads, index, count + 1)
+        count(in.omit(["state"]))
     }
 
     return value

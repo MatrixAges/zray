@@ -258,19 +258,50 @@ fn prototypeWithErrors(self: *Self, name: []const u8, exported: bool, errors: ?[
     return @import("signature/build.zig").build(self, name, exported, errors);
 }
 
-pub fn expr(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
-    const value = if (self.iteration_value) |context| try context.expression(id) orelse try self.regular(id) else try self.regular(id);
+const Probe = @import("expression_map.zig").Probe;
 
-    return switch (@import("expressions/growth.zig").select(self.plan.get(id))) {
-        .Keep => value,
-        .Normalize => @import("growth.zig").normalize(self, id, value),
-        .Renew => @import("growth.zig").renewValue(self, id, value),
-    };
+pub fn expr(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
+    const value = try evaluate(self, id, null);
+
+    return @import("expressions/growth.zig").finish(self, id, value);
+}
+
+pub fn exprWithCache(self: *Self, id: ir.ExprId, probe: Probe) Error!node.ExpressionId {
+    if (!probe.checked) return self.expr(id);
+
+    const value = try evaluate(self, id, probe);
+
+    return @import("expressions/growth.zig").finish(self, id, value);
+}
+
+inline fn evaluate(self: *Self, id: ir.ExprId, prior: ?Probe) Error!node.ExpressionId {
+    if (self.iteration_value) |context| {
+        if (generated) return @import("iteration_value/evaluation.zig").lower(context, id, prior orelse .{});
+        if (try @import("iteration_value/evaluation_seed.zig").lower(context, id)) |value| return value;
+    }
+
+    return if (prior) |probe| regularWithCache(self, id, probe) else self.regular(id);
 }
 
 pub fn regular(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
     if (self.cache.read(id, self.cache_reads)) |cached| return cached;
 
+    return lowerUncached(self, id);
+}
+
+pub fn regularWithCache(self: *Self, id: ir.ExprId, probe: Probe) Error!node.ExpressionId {
+    if (!probe.checked) return self.regular(id);
+
+    if (probe.value) |value| {
+        @TypeOf(self.cache).countRead(id, self.cache_reads);
+
+        return @fromBackingInt(value);
+    }
+
+    return lowerUncached(self, id);
+}
+
+fn lowerUncached(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
     const value = self.program.expression(id);
     const value_type = try self.typeExpr(value.type_id);
 

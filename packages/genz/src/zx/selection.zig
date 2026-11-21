@@ -10,13 +10,9 @@ pub fn constantLabels(self: *Lower, selection: ir.MatchRow) Lower.Error!bool {
 }
 
 pub fn literal(self: *Lower, id: ir.ExprId) Lower.Error!@import("../node.zig").ExpressionId {
-    const previous = self.cache.get(id);
+    if (!@import("genz_options").generated_analysis) return @import("selection/seed.zig").literal(self, id);
 
-    if (previous != null) _ = self.cache.remove(id);
-
-    defer if (previous != null) self.cache.restoreEntry(self.allocator, id, previous);
-
-    return self.regular(id);
+    return self.regularWithCache(id, .{ .checked = true });
 }
 
 pub fn labels(self: *Lower, subject: ir.ExprId, conditions: []const u32) Lower.Error!bool {

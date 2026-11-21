@@ -10,19 +10,23 @@ pub const Plan = Result(planning);
 pub fn dispatch(self: *const Lower, id: ir.ExprId) Expression {
     const Input = std.meta.Child(dispatching.Input);
     const row = @backingInt(id);
-    const value = self.program.expression(id);
+    const expressions = &self.program.expressions;
+    const category = expressions.kinds[row];
+    const type_id = expressions.types[row];
     const flags = self.plan.get(id);
-    const cached = cache(self, std.meta.Child(@FieldType(Input, "cache")), id);
+    const Cache = std.meta.Child(@FieldType(Input, "cache"));
+    const state = self.cache.view(std.meta.Child(@FieldType(Cache, "state")));
+    const cached: Cache = .{ .state = &state, .key = row };
 
     const input: Input = .{
-        .kind = zx.columns.view(@FieldType(Input, "kind"), self.program.expressions.kinds[row]),
-        .type_kind = self.program.types.kinds[@backingInt(value.type_id)],
-        .query = zx.columns.view(@FieldType(Input, "query"), self.state_plan.queries[@backingInt(value.type_id)]),
+        .kind = zx.columns.view(@FieldType(Input, "kind"), category),
+        .type_kind = self.program.types.kinds[type_id],
+        .query = zx.columns.view(@FieldType(Input, "query"), self.state_plan.queries[type_id]),
         .normalize = flags.normalize,
         .renew = flags.renew,
         .active = self.state_active,
         .cache = &cached,
-        .value_function = if (value.value == .call) self.value_functions[@backingInt(value.value.call.function)] else false,
+        .value_function = if (category == .Call) self.value_functions[expressions.call_functions[expressions.payloads[row]]] else false,
     };
 
     return invoke(dispatching, &input);

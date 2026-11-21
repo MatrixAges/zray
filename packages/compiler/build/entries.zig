@@ -976,6 +976,7 @@ pub const growth = [_]Entry{
     .{ .path = "genz/analysis/state/entry/publish.zx", .name = "state_entry_publish", .owner = .genz },
     .{ .path = "genz/analysis/state/entry/emit/build.rx", .name = "state_entry_emit", .owner = .genz },
     .{ .path = "genz/analysis/expressions/cache/read.zx", .name = "expression_cache_read", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/cache/count.zx", .name = "expression_cache_count", .owner = .genz },
     .{ .path = "genz/analysis/expressions/growth.zx", .name = "expression_growth", .owner = .genz },
     .{ .path = "genz/analysis/state/locals/inline_stored.zx", .name = "state_inline_stored", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/query.zx", .name = "state_element_query", .owner = .genz },
