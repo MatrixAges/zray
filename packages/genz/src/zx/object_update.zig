@@ -16,12 +16,3 @@ pub fn lower(lowering: *Lower, scratch: std.mem.Allocator, id: ir.ExprId, body: 
 
     return try @import("object_update/emit.zig").expression(lowering, scratch, plan, body);
 }
-
-pub fn match(lowering: *const Lower, id: ir.ExprId) ?Change {
-    if (!@import("genz_options").generated_analysis) return @import("object_update/seed.zig").match(lowering, id);
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const result = @import("object_update/matching.zig").match(lowering, fixed.allocator(), id, false) catch unreachable;
-
-    return if (result) |plan| plan.change else null;
-}

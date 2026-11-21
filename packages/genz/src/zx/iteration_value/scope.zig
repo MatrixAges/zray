@@ -60,53 +60,31 @@ fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) L
 const scope_entry = @import("generated_iteration_scope");
 const ScopeInput = std.meta.Child(scope_entry.Input);
 const Bindings = std.meta.Child(@FieldType(ScopeInput, "bindings"));
-const Action = std.meta.Child(@FieldType(Bindings, "actions"));
-const binding_entry = @import("generated_iteration_scope_binding");
-const BindingInput = std.meta.Child(binding_entry.Input);
 
 fn prepare(self: *Context, temporary: std.mem.Allocator, scope: ir.ScopeRow) Lower.Error!Bindings {
     const lowering = self.lowering;
-    const actions = try temporary.alloc(Action, scope.bindings.len);
-    const values = try temporary.alloc(u32, scope.bindings.len);
-    const types = try temporary.alloc(?u32, scope.bindings.len);
-    const names = try temporary.alloc([]const u8, scope.bindings.len);
-    var offset = scope.bindings.len;
 
-    while (offset != 0) {
-        const binding = schedule.next(lowering, scope, offset, &.{}, true);
+    const tables: schedule.Values = .{
+        .values = try temporary.alloc(?u32, scope.bindings.len),
+        .types = try temporary.alloc(?u32, scope.bindings.len),
+        .names = try temporary.alloc([]const u8, scope.bindings.len),
+    };
 
-        offset = binding.position;
-        types[offset] = null;
-        names[offset] = &.{};
+    var request = schedule.begin(scope.bindings.len);
+    var emitted: node.Block = .{};
 
-        if (binding.action == .Skip) {
-            actions[offset] = .Skip;
-            values[offset] = 0;
+    while (true) {
+        request = schedule.advance(lowering, scope, &.{}, &tables, &request, emitted);
 
-            continue;
-        }
-
-        values[offset] = @backingInt(try lowering.expr(binding.value));
-
-        const input: BindingInput = .{
-            .symbol = if (binding.symbol) |id| @backingInt(id) else null,
-            .used = lowering.used,
-            .names = lowering.names,
-            .types = lowering.program.symbols.types,
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const declaration = zx.columns.invoke(binding_entry.executeValue, empty.allocator(), &input) catch unreachable;
-
-        actions[offset] = zx.columns.view(Action, declaration.action);
-        names[offset] = declaration.name;
-
-        if (declaration.type_id) |type_id| {
-            types[offset] = @backingInt(try @import("types.zig").get(self, @fromBackingInt(type_id)));
+        switch (request.action) {
+            .Done => break,
+            .Iteration => emitted.start = @backingInt(try lowering.expr(@fromBackingInt(request.value))),
+            .Type => emitted.start = @backingInt(try @import("types.zig").get(self, @fromBackingInt(request.type_id.?))),
+            else => unreachable,
         }
     }
 
-    return .{ .actions = actions, .values = values, .types = types, .names = names };
+    return .{ .symbols = scope.bindings.symbols, .values = tables.values, .types = tables.types, .names = tables.names };
 }
 
 noinline fn emit(lowering: *Lower, temporary: std.mem.Allocator, result: node.ExpressionId, bindings: *const Bindings) Lower.Error!node.ExpressionId {

@@ -1,15 +1,17 @@
 <Module>
     <Type from="model" as="Reuse" />
 
-    <Args in={Reuse.Input} out={Reuse.Output} />
+    <Args in={Reuse.Source} out={Reuse.Output} />
 
-    <Call fn="has" in={$in} />
+    <Call fn="scan" in={$in} />
+
+    <Call fn="has" />
 
     <If on={$ctx.has}>
         <Call
             module="../reads/collect"
             in={{
-                expressions: $in.expressions,
+                expressions: $ctx.scan.expressions,
                 bindings: $in.bindings,
                 result: $in.result
             }}
@@ -18,14 +20,19 @@
         <Call
             fn="initialize"
             in={{
-                source: $in,
+                source: $ctx.scan,
                 last: $ctx.collect
             }}
         />
 
         <Call fn="plan" />
 
-        <Return value={$ctx.plan} />
+        <Return
+            value={{
+                ...$ctx.plan,
+                candidates: $ctx.scan.candidates
+            }}
+        />
 
         <Else>
             <Return value={null} />

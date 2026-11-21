@@ -4,37 +4,12 @@ import get from "core/integer/index/get"
 
 import before from "../../binding/before"
 import { Route } from "../../binding/model"
+import { Action } from "./model"
 
-import type { Index } from "core/integer/index/model"
+import type { Binding as Output, Selection } from "./model"
 
-export enum Action {
-    Reuse,
-    Skip,
-    Task,
-    Discard,
-    Value,
-    Ordinary,
-    Iteration
-}
-
-export type Input = {
-    symbols: u32?[],
-    values: u32[],
-    kinds: ExpressionKind[],
-    types: u32[],
-    type_kinds: u8[],
-    used: bool[],
-    stack: Index,
-    changes: u32?[],
-    iteration: bool,
+export type Input = Selection & {
     remaining: u64
-}
-
-export type Output = {
-    position: u64,
-    symbol?: u32,
-    value: u32,
-    action: Action
 }
 
 export default function (in: Input): Output {

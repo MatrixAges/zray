@@ -40,7 +40,7 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     const result = consumed orelse if (layout) try values.expression(self, scope.result) else try self.expr(scope.result);
     var inline_spans: [64]u32 = undefined;
-    const count = plan.count - @intFromBool(consumed != null);
+    const count = if (consumed != null) plan.consumed_count else plan.count;
 
     const spans = if (count <= inline_spans.len / 2)
         inline_spans[0 .. count * 2]
@@ -56,44 +56,50 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     defer output.deinit(self.allocator);
 
-    var offset = count;
+    if (generated) {
+        const tables: schedule.Spans = .{ .starts = starts, .counts = counts };
+        const changes = if (reuse) |active| active.state.changes else &.{};
+        var request = schedule.begin(count);
+        var span: node.Block = .{};
 
-    while (offset > 0) {
-        output.clearRetainingCapacity();
+        while (true) {
+            request = schedule.advance(self, scope, changes, &tables, &request, span);
 
-        if (!generated) {
-            if (reuse) |*changes| {
-                const position = offset - 1;
+            if (request.action == .Done) break;
 
-                if (try changes.publish(self, &output, position)) |span| {
-                    starts[position] = span.start;
-                    counts[position] = span.len;
-                    offset = position;
+            output.clearRetainingCapacity();
 
-                    continue;
-                }
-            }
+            span = try lowerBinding(self, &output, schedule.binding(request), plan.type_id, &reuse);
         }
+    } else {
+        var offset = count;
 
-        const changes = if (generated and reuse != null) reuse.?.state.changes else &.{};
-        const binding = schedule.next(self, scope, offset, changes, false);
+        while (offset != 0) {
+            output.clearRetainingCapacity();
 
-        const span = switch (binding.action) {
-            .Reuse => (try reuse.?.publish(self, &output, binding.position)).?,
-            .Skip => node.Block{},
-            .Task => try @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol.?)], binding.value, false),
-            .Discard, .Value, .Ordinary => try publishBinding(self, &output, binding, plan.type_id, reuse != null and reuse.?.variables[binding.position]),
-            .Iteration => unreachable,
-        };
+            offset -= 1;
 
-        offset = binding.position;
-        starts[offset] = span.start;
-        counts[offset] = span.len;
+            const reused = if (reuse) |*active| try active.publish(self, &output, offset) else null;
+            const span = reused orelse try lowerBinding(self, &output, schedule.seedNext(self, scope, offset + 1), plan.type_id, &reuse);
+
+            starts[offset] = span.start;
+            counts[offset] = span.len;
+        }
     }
 
     const body = try @import("../node/blocks.zig").tail(self.allocator, self.builder.nodes, starts, counts);
 
     return @import("aggregate.zig").finishStored(self, body, result, null);
+}
+
+fn lowerBinding(self: *Lower, output: *std.ArrayList(node.Statement), binding: schedule.Binding, result_type: ir.TypeId, reuse: *const ?Reuse) Lower.Error!node.Block {
+    return switch (binding.action) {
+        .Reuse => (try reuse.*.?.publish(self, output, binding.position)).?,
+        .Skip => .{},
+        .Task => @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol.?)], binding.value, false),
+        .Discard, .Value, .Ordinary => publishBinding(self, output, binding, result_type, reuse.* != null and reuse.*.?.variables[binding.position]),
+        .Iteration => unreachable,
+    };
 }
 
 fn publishBinding(self: *Lower, output: *std.ArrayList(node.Statement), binding: schedule.Binding, result_type: ir.TypeId, mutable: bool) Lower.Error!node.Block {

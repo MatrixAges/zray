@@ -1,18 +1,29 @@
 import type { Expressions } from "core/expression_table/model"
+import type { Environment } from "../../object_update/match/model"
 import type { Last } from "../reads/model"
 
 export type Candidates = {
     bindings: u32[],
     previous: u32[],
-    types: u32[]
+    types: u32[],
+    references: u32[],
+    field_indices: u32[],
+    field_values: u32[]
 }
 
-export type Input = {
-    expressions: Expressions,
+export type Bindings = {
     bindings: u32[],
     symbols: u32?[],
+    result: u32
+}
+
+export type Source = Bindings & {
+    matching: Environment
+}
+
+export type Input = Bindings & {
+    expressions: Expressions,
     symbol_types: u32[],
-    result: u32,
     candidates: Candidates
 }
 
@@ -23,7 +34,11 @@ export type Plan = {
     alias_sources: u32[]
 }
 
-export type Output = Plan?
+export type Active = Plan & {
+    candidates: Candidates
+}
+
+export type Output = Active?
 
 export type Preparation = {
     source: Input,

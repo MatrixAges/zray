@@ -3,13 +3,6 @@ import type { StatementsKind } from "../../../printer/model/statements"
 import type { Output as Block } from "../../aggregate/binding/model"
 import type { Layout } from "../../types/layout"
 
-export enum Action {
-    Skip,
-    Expression,
-    Discard,
-    Constant
-}
-
 export type Locals = {
     symbols: u32?[],
     symbol_types: u32[],
@@ -20,8 +13,8 @@ export type Locals = {
 }
 
 export type Bindings = {
-    actions: Action[],
-    values: u32[],
+    symbols: u32?[],
+    values: u32?[],
     types: u32?[],
     names: u8[][]
 }

@@ -15,7 +15,8 @@ export type Candidate = {
 export type Output = {
     type_id: u32,
     candidate?: Candidate,
-    count: u64
+    count: u64,
+    consumed_count: u64
 }
 
 export default function (in: Input): Output {
@@ -26,6 +27,7 @@ export default function (in: Input): Output {
         return {
             type_id,
             count,
+            consumed_count: 0,
             candidate: null
         }
     }
@@ -44,6 +46,7 @@ export default function (in: Input): Output {
     return {
         type_id,
         candidate,
-        count
+        count,
+        consumed_count: last
     }
 }

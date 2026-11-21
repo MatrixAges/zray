@@ -1,0 +1,64 @@
+import integers from "std:integer"
+
+import candidate from "../../object_update/match/candidate.rx"
+
+import type { Candidates, Input as Output, Source as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { matching, symbols, bindings, result } = in
+
+    const empty: Candidates = {
+        bindings: [],
+        previous: [],
+        types: [],
+        references: [],
+        field_indices: [],
+        field_values: []
+    }
+
+    const candidates = loop({
+        row: 0,
+        found: empty
+    }, {
+        while: state => state.row < symbols.length,
+        next: state => {
+            if (symbols[state.row] != null) {
+                const change = candidate({
+                    ...matching,
+                    id: bindings[state.row],
+                    evaluated: false
+                })
+
+                if (change != null) {
+                    state.found.bindings = state.found.bindings.push(
+                        integers.narrow(state.row)
+                    )[0]
+                    state.found.previous =
+                        state.found.previous.push(change.previous)[0]
+                    state.found.types = state.found.types.push(change.type_id)[0]
+                    state.found.references = state.found.references.push(
+                        change.reference
+                    )[0]
+                    state.found.field_indices = state.found.field_indices.push(
+                        change.field_index
+                    )[0]
+                    state.found.field_values = state.found.field_values.push(
+                        change.field_value
+                    )[0]
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.found
+    })
+
+    return {
+        expressions: matching.expressions,
+        symbol_types: matching.symbol_types,
+        symbols,
+        bindings,
+        result,
+        candidates
+    }
+}

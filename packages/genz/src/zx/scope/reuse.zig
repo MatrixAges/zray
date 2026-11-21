@@ -8,9 +8,12 @@ const Self = @This();
 const Change = @import("../object_update.zig").Change;
 const generated = @import("genz_options").generated_analysis;
 const Seed = @import("reuse/seed.zig");
+const entry = @import("generated_scope_reuse");
+const Input = std.meta.Child(entry.Input);
+const Plan = std.meta.Child(std.meta.Child(entry.Output));
 
 const Active = struct {
-    facts: std.MultiArrayList(Fact).Slice,
+    candidates: @FieldType(Plan, "candidates"),
     changes: []const ?u32,
     alias_symbols: []const u32,
     alias_sources: []const u32,
@@ -38,45 +41,14 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
 
     if (!(enabled.executeIn(fixed.allocator(), &flags) catch unreachable)) return null;
 
-    const entry = @import("generated_scope_reuse");
-    const Input = std.meta.Child(entry.Input);
-    const Candidates = std.meta.Child(@FieldType(Input, "candidates"));
-    var facts: std.MultiArrayList(Fact) = .empty;
-
-    for (0..scope.bindings.len) |index| {
-        const binding = scope.bindings.at(index);
-
-        if (binding.symbol == null) continue;
-
-        if (@import("../object_update.zig").match(lowering, binding.value)) |change| {
-            try facts.append(scratch, .{
-                .binding = @intCast(index),
-                .previous = change.previous,
-                .reference = change.reference,
-                .field_index = change.field.index,
-                .field_value = change.field.value,
-                .type_id = change.type_id,
-            });
-        }
-    }
-
-    if (facts.len == 0) return null;
-
-    const candidates: Candidates = .{
-        .bindings = facts.items(.binding),
-        .previous = view.slice(@FieldType(Candidates, "previous"), facts.items(.previous)),
-        .types = view.slice(@FieldType(Candidates, "types"), facts.items(.type_id)),
-    };
-
-    const program: *const ir.Program = &lowering.program;
+    var storage: @import("../object_update/matching.zig").Borrow = undefined;
+    const matching = storage.view(lowering);
 
     const input: Input = .{
-        .expressions = zx.columns.pointer(@FieldType(Input, "expressions"), &program.expressions),
+        .matching = &matching,
         .bindings = scope.bindings.values,
         .symbols = scope.bindings.symbols,
-        .symbol_types = program.symbols.types,
         .result = @backingInt(scope.result),
-        .candidates = &candidates,
     };
 
     const result = entry.executeIn(scratch, &input) catch |err| switch (err) {
@@ -89,7 +61,7 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
     if (plan.alias_symbols.len == 0) return null;
 
     const state: Active = .{
-        .facts = facts.slice(),
+        .candidates = plan.candidates,
         .changes = plan.changes,
         .alias_symbols = plan.alias_symbols,
         .alias_sources = plan.alias_sources,
@@ -115,13 +87,13 @@ pub fn publish(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.
     }
 
     const row = self.state.changes[index] orelse return null;
-    const facts = self.state.facts.get(row);
+    const facts = self.state.candidates;
 
     const change: Change = .{
-        .previous = facts.previous,
-        .reference = facts.reference,
-        .field = .{ .index = facts.field_index, .value = facts.field_value },
-        .type_id = facts.type_id,
+        .previous = @fromBackingInt(facts.previous[row]),
+        .reference = @fromBackingInt(facts.references[row]),
+        .field = .{ .index = facts.field_indices[row], .value = @fromBackingInt(facts.field_values[row]) },
+        .type_id = @fromBackingInt(facts.types[row]),
     };
 
     return try @import("../object_update/emit.zig").statementBlock(lowering, output.items, change);
@@ -150,9 +122,9 @@ pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: [
 fn applyNames(lowering: *Lower, binding: Names, sources: []const u32, replacements: []const []const u8, restoring: bool) void {
     if (binding.symbols.len == 0) return;
 
-    const entry = @import("generated_scope_reuse_names");
+    const install = @import("generated_scope_reuse_names");
 
-    const input: std.meta.Child(entry.Input) = .{
+    const input: std.meta.Child(install.Input) = .{
         .symbols = binding.symbols,
         .sources = sources,
         .replacements = replacements,
@@ -163,14 +135,5 @@ fn applyNames(lowering: *Lower, binding: Names, sources: []const u32, replacemen
 
     var memory = std.heap.FixedBufferAllocator.init(&.{});
 
-    entry.executeIn(memory.allocator(), &input) catch unreachable;
+    install.executeIn(memory.allocator(), &input) catch unreachable;
 }
-
-const Fact = struct {
-    binding: u32,
-    previous: ir.SymbolId,
-    reference: ir.ExprId,
-    field_index: u32,
-    field_value: ir.ExprId,
-    type_id: ir.TypeId,
-};

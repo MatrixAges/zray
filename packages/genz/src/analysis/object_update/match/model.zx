@@ -3,7 +3,7 @@ import type { Index } from "core/integer/index/model"
 import type { State as Cache } from "core/integer/map/model"
 import type { Table } from "core/type_table/model"
 
-export type Input = {
+export type Environment = {
     expressions: Expressions,
     types: Table,
     state_members: Index,
@@ -12,12 +12,15 @@ export type Input = {
     flags: u8[],
     selected: bool[],
     borrowed: bool[],
-    id: u32,
     state_active: bool,
     iteration: bool,
     loop_fields: bool,
-    evaluated: bool,
     cache: Cache
+}
+
+export type Input = Environment & {
+    id: u32,
+    evaluated: bool
 }
 
 export type Root = {

@@ -1,0 +1,49 @@
+import memory from "memory"
+
+import { Action } from "./model"
+import next from "./next"
+
+import type { Advance as Input, Request as Output } from "./model"
+
+export default function (in: Input): Output {
+    const symbol: u32? = null
+
+    const { spans, values } = in
+
+    return loop({
+        position: in.previous.position,
+        action: Action.Done,
+        value: in.value,
+        symbol
+    }, {
+        while: state => state.position != 0 && state.action == Action.Done,
+        next: state => {
+            const binding = next({
+                ...in.selection,
+                remaining: state.position
+            })
+
+            state.position = binding.position
+
+            if (binding.action == Action.Skip) {
+                if (spans != null) {
+                    memory.writeU32(spans.starts, binding.position, 0)
+                    memory.writeU32(spans.counts, binding.position, 0)
+                } else if (values != null) {
+                    memory.writeOptionalU32(values.values, binding.position, null)
+                    memory.writeOptionalU32(values.types, binding.position, null)
+                    memory.writeU8List(values.names, binding.position, [])
+                }
+            } else {
+                state.action = binding.action
+                state.value = binding.value
+                state.symbol = binding.symbol
+            }
+        },
+        return: state => ({
+            ...state,
+            name: [],
+            type_id: null
+        })
+    })
+}

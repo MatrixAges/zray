@@ -1,0 +1,62 @@
+import type { ExpressionKind } from "core/expression_table/kinds"
+import type { Index } from "core/integer/index/model"
+import type { OptionalU32Buffer, U32Buffer, U8ListBuffer } from "memory"
+
+export enum Action {
+    Reuse,
+    Skip,
+    Task,
+    Discard,
+    Value,
+    Ordinary,
+    Iteration,
+    Type,
+    Begin,
+    Done
+}
+
+export type Selection = {
+    symbols: u32?[],
+    values: u32[],
+    kinds: ExpressionKind[],
+    types: u32[],
+    type_kinds: u8[],
+    used: bool[],
+    stack: Index,
+    changes: u32?[],
+    iteration: bool
+}
+
+export type Binding = {
+    position: u64,
+    symbol?: u32,
+    value: u32,
+    action: Action
+}
+
+export type Request = Binding & {
+    name: u8[],
+    type_id?: u32
+}
+
+export type Spans = {
+    starts: U32Buffer,
+    counts: U32Buffer
+}
+
+export type Values = {
+    values: OptionalU32Buffer,
+    types: OptionalU32Buffer,
+    names: U8ListBuffer
+}
+
+export type Advance = {
+    selection: Selection,
+    previous: Request,
+    value: u32,
+    count: u32,
+    spans?: Spans,
+    values?: Values,
+    names: u8[][],
+    symbol_types: u32[]
+}

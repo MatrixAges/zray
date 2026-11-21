@@ -87,7 +87,7 @@ pub fn append(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.S
 
 fn candidate(lowering: *const Lower, binding: ir.ScopeBinding) ?Change {
     const symbol = binding.symbol orelse return null;
-    const change = @import("../../object_update.zig").match(lowering, binding.value) orelse return null;
+    const change = @import("../../object_update/seed.zig").match(lowering, binding.value) orelse return null;
 
     if (change.previous == symbol) return null;
     if (lowering.program.symbols.at(@backingInt(symbol)).type_id != change.type_id) return null;
