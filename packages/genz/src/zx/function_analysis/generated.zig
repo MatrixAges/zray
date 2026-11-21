@@ -3,8 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const columns = zx.columns;
 const generated = @import("generated_function_facts");
-const error_publication = @import("generated_function_facts_errors");
-const allocation_policy = @import("generated_function_return_allocations");
 const Input = std.meta.Child(generated.Input);
 const Program = std.meta.Child(@FieldType(Input, "program"));
 const Functions = std.meta.Child(@FieldType(Program, "functions"));
@@ -25,7 +23,7 @@ pub const Facts = struct {
     grows: []const bool,
 };
 
-/// Borrows the program columns for the generated facts and copies the results into the caller allocator.
+/// Borrowed program views remain available until the analyzed result has been published.
 pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, exported: []const ir.FunctionId) std.mem.Allocator.Error!Facts {
     var scratch = std.heap.ArenaAllocator.init(workspace);
 
@@ -69,30 +67,24 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .exported = @ptrCast(exported),
     };
 
-    const input = Input{ .program = &view, .errors = &error_sources, .boundaries = &boundaries };
+    var scope = zx.memory.ArenaScope{ .active = temporary };
+    const Allocators = std.meta.Child(@FieldType(Input, "allocators"));
 
-    const output = generated.execute(&scratch, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
+    const allocators: Allocators = .{
+        .scope = @ptrCast(&scope),
+        .scratch = @ptrCast(&temporary),
+        .owned = @ptrCast(&allocator),
+        .names = @ptrCast(&allocator),
     };
 
-    const grouped = try temporary.alloc([]const []const u8, output.errors.names.len);
-
-    for (grouped, output.errors.names) |*target, source| target.* = try allocator.dupe([]const u8, source);
-
-    const errors = columns.invoke(error_publication.executeValue, allocator, &.{
-        .components = output.errors.components,
-        .names = @as([]const []const []const u8, grouped),
-        .unknown = output.errors.unknown,
-    }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
+    const input: Input = .{
+        .program = &view,
+        .errors = &error_sources,
+        .boundaries = &boundaries,
+        .allocators = &allocators,
     };
 
-    const return_allocations = columns.invoke(allocation_policy.executeValue, allocator, &.{
-        .errors = errors,
-        .native_modules = program.functions.native_modules,
-    }) catch |err| switch (err) {
+    const output = generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
@@ -106,7 +98,7 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
                 .element_storage = try allocator.dupe(bool, output.element_storage),
                 .selected = try allocator.dupe(bool, output.selected),
                 .borrowed = try allocator.dupe(bool, output.borrowed),
-                .queries = try allocator.dupe(@import("../state_value/queries.zig").Kind, output.state_queries),
+                .queries = output.state_queries,
                 .keys = try allocator.dupe([32]u8, std.mem.bytesAsSlice([32]u8, output.keys)),
             },
         },
@@ -117,8 +109,8 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .fresh_outputs = try allocator.dupe(bool, output.fresh_outputs),
         .constructed_outputs = try allocator.dupe(bool, output.constructed_outputs),
         .identity_free = try allocator.dupe(bool, output.identity_free),
-        .errors = errors,
-        .return_allocations = return_allocations,
-        .layout_types = try allocator.dupe(@import("../iteration_layout/generated.zig").Type, output.layout_types),
+        .errors = output.errors,
+        .return_allocations = output.return_allocations,
+        .layout_types = output.layout_types,
     };
 }

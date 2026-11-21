@@ -13,7 +13,7 @@ import type { Unit } from "../unit"
 
 export type Rebuilt = {
     unit: u64,
-    symbols: Symbols,
+    symbols?: Symbols,
     expressions: Expressions,
     control: Control,
     root: u32
@@ -25,10 +25,14 @@ export type Input = {
     plan: u64[]
 }
 
-export type Output = Rebuilt[]
+export type Output = {
+    functions: Rebuilt[],
+    entry?: Rebuilt
+}
 
 export default function (in: Input): Output {
-    const results: Rebuilt[] = []
+    const functions: Rebuilt[] = []
+    const entry: Rebuilt? = null
 
     const void_type = scalar({
         kinds: in.types.kinds,
@@ -48,7 +52,8 @@ export default function (in: Input): Output {
         plan: in.plan,
         void_type,
         bool_type,
-        results,
+        functions,
+        entry,
         index: 0
     }, {
         while: current => current.index < current.units.length,
@@ -79,19 +84,30 @@ export default function (in: Input): Output {
                     })
 
                     if (!rebuilt.failed) {
-                        current.results = current.results.push({
+                        const updated =
+                            rebuilt.symbols.names.length != unit.symbols.names.length
+                        const replacement: Rebuilt = {
                             unit: index,
-                            symbols: rebuilt.symbols,
+                            symbols: updated ? rebuilt.symbols : null,
                             expressions: rebuilt.expressions,
                             control: rebuilt.control,
                             root: rebuilt.root
-                        })[0]
+                        }
+
+                        if (index + 1 == current.units.length) {
+                            current.entry = replacement
+                        } else {
+                            current.functions = current.functions.push(replacement)[0]
+                        }
                     }
                 }
             }
 
             current.index += 1
         },
-        return: state => state.results
+        return: state => state.pick([
+            "functions",
+            "entry"
+        ])
     })
 }

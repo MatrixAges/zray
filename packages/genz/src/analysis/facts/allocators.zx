@@ -1,0 +1,9 @@
+import type { Allocator, ArenaScope } from "memory"
+import type { ColumnAllocator } from "memory/columns"
+
+export type Buffers = {
+    scope: ArenaScope,
+    scratch: Allocator,
+    owned: Allocator,
+    names: ColumnAllocator
+}

@@ -49,26 +49,22 @@ pub fn prepare(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         else => unreachable,
     };
 
-    if (output.len == 0) return program;
-
     var result = program;
-    var function_changes = output;
-    const last = unwrap(output[output.len - 1]);
 
-    if (last.unit == program.functions.count()) {
-        const owned = try own(allocator, last);
-        result.symbols = owned.symbols;
-        result.expressions = owned.expressions;
-        result.body = owned.body;
-        function_changes = output[0 .. output.len - 1];
+    if (output.entry) |entry| {
+        const rebuilt = try own(allocator, unwrap(entry));
+
+        result.symbols = rebuilt.symbols orelse program.symbols;
+        result.expressions = rebuilt.expressions;
+        result.body = rebuilt.body;
     }
 
-    if (function_changes.len != 0) result.functions = try publishFunctions(allocator, program.functions, function_changes);
+    if (output.functions.len != 0) result.functions = try publishFunctions(allocator, program.functions, output.functions);
 
     return result;
 }
 
-const Owned = struct { symbols: ir.SymbolTable, expressions: ir.ExpressionTable, body: ir.ControlBody };
+const Owned = struct { symbols: ?ir.SymbolTable, expressions: ir.ExpressionTable, body: ir.ControlBody };
 
 fn publishFunctions(allocator: std.mem.Allocator, source: ir.FunctionTable, changes: anytype) std.mem.Allocator.Error!ir.FunctionTable {
     const symbols = try allocator.dupe(*const ir.SymbolTable, source.symbols);
@@ -80,8 +76,11 @@ fn publishFunctions(allocator: std.mem.Allocator, source: ir.FunctionTable, chan
     for (changes, owned) |change, *row| {
         const rebuilt = unwrap(change);
         const index: usize = @intCast(rebuilt.unit);
+
         row.* = try own(allocator, rebuilt);
-        symbols[index] = &row.symbols;
+
+        if (row.symbols) |*replacement| symbols[index] = replacement;
+
         expressions[index] = &row.expressions;
         control[index] = row.body.control;
         roots[index] = rebuilt.root;
@@ -103,7 +102,7 @@ fn own(allocator: std.mem.Allocator, rebuilt: anytype) std.mem.Allocator.Error!O
     control.* = try columns.own(allocator, columns.columns(ir.ControlTable, rebuilt.control.*), .{});
 
     return .{
-        .symbols = try columns.own(allocator, columns.columns(ir.SymbolTable, rebuilt.symbols.*), .{}),
+        .symbols = if (rebuilt.symbols) |symbols| try columns.own(allocator, columns.columns(ir.SymbolTable, symbols.*), .{}) else null,
         .expressions = try columns.own(allocator, columns.columns(ir.ExpressionTable, rebuilt.expressions.*), .{}),
         .body = .{ .control = control, .root = @fromBackingInt(rebuilt.root) },
     };

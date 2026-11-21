@@ -2,16 +2,19 @@
     <Type from="../model" as="Model" />
     <Type from="../types/layout" as="Layout" />
     <Type from="../state/queries/build" as="StateQueries" />
+    <Type from="allocators" as="Allocators" />
     <Type from="core/error_effects/functions/model" as="Effects" />
 
     <Args
         in={{
+            allocators: Allocators.Buffers,
             boundaries: Model.Boundaries,
             errors: Effects.Sources,
             program: Model.Program
         }}
         out={{
-            errors: Effects.Result,
+            errors: string[]?[],
+            return_allocations: bool[],
             fresh_outputs: bool[],
             constructed_outputs: bool[],
             grows: bool[],
@@ -43,20 +46,19 @@
     />
 
     <Call
-        fn="../state/queries/build"
+        fn="owned_types"
         in={{
+            allocators: $in.allocators,
             types: $in.program.types,
             selected: $ctx.select.selected
         }}
     />
 
-    <Call fn="../types/layout" in={$in.program.types} />
-
     <Call
         fn="../value/summary"
         in={{
             program: $in.program,
-            queries: $ctx.build,
+            queries: $ctx.owned_types.state_queries,
             local: $ctx.local
         }}
     />
@@ -79,12 +81,20 @@
 
     <Call module="core/error_effects/functions" in={$in.errors} />
 
+    <Call
+        fn="function_errors"
+        in={{
+            source: $ctx.functions,
+            allocators: $in.allocators,
+            native_modules: $in.program.functions.native_modules
+        }}
+    />
+
     <Return
         value={{
             ...$ctx.summary,
             ...$ctx.select,
-            layout_types: $ctx.layout,
-            state_queries: $ctx.build,
+            ...$ctx.owned_types,
             io: $ctx.io,
             process: $ctx.process,
             tasks: $ctx.tasks,
@@ -92,7 +102,7 @@
             fresh_outputs: $ctx.fresh_outputs,
             constructed_outputs: $ctx.constructed_outputs,
             identity_free: $ctx.free,
-            errors: $ctx.functions
+            ...$ctx.function_errors
         }}
     />
 </Module>

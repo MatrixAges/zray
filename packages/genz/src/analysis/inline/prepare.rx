@@ -28,7 +28,12 @@
     />
 
     <If on={!$ctx.plan.available}>
-        <Return value={[]} />
+        <Return
+            value={{
+                functions: [],
+                entry: null
+            }}
+        />
     </If>
 
     <Call

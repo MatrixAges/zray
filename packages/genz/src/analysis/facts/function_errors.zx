@@ -1,17 +1,52 @@
 import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
 
-import type { Result as Input } from "core/error_effects/functions/model"
+import returnAllocations from "./return_allocations"
 
-export type Output = string[]?[]
+import type { Result } from "core/error_effects/functions/model"
+import type { Buffers } from "./allocators"
+
+export type Input = {
+    source: Result,
+    allocators: Buffers,
+    native_modules: u32?[]
+}
+
+export type Output = {
+    errors: string[]?[],
+    return_allocations: bool[]
+}
 
 export default function (in: Input): Output {
+    const { scope, scratch, owned, names } = in.allocators
+
     const unknown: string[]? = null
 
-    return in.components.map(
+    const groups = in.source.names.map(
+        group =>
+            columns.copyColumnTextViews(names, group)
+    )[0]
+
+    memory.selectAllocator(scope, owned)
+
+    const errors = in.source.components.map(
         component => {
             const group = integers.widen(component)
 
-            return in.unknown[group] ? unknown : in.names[group]
+            return in.source.unknown[group] ? unknown : groups[group]
         }
     )[0]
+
+    const return_allocations = returnAllocations({
+        errors,
+        native_modules: in.native_modules
+    })
+
+    memory.selectAllocator(scope, scratch)
+
+    return {
+        errors,
+        return_allocations
+    }
 }
