@@ -165,37 +165,15 @@ fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: boo
 }
 
 pub fn functionValue(self: *Self, name: []const u8) Error!node.Declaration {
-    return self.valueMode(name, false);
+    return @import("functions/value.zig").lower(self, name, false);
 }
 
 pub fn valuePrototype(self: *Self, name: []const u8) Error!node.Function {
-    return (try self.valueMode(name, true)).function;
-}
-
-fn valueMode(self: *Self, name: []const u8, prototype_only: bool) Error!node.Declaration {
-    const mode = @import("functions/policy.zig").value(self);
-    const state = if (mode.enter) try @import("state_value/root.zig").enter(self) else null;
-
-    defer if (state) |saved| saved.restore();
-
-    if (mode.bind_input) try self.state_symbols.put(self.allocator, @fromBackingInt(0), {});
-
-    defer _ = self.state_symbols.remove(@fromBackingInt(0));
-    const output = @import("state_value/scope.zig").enter(self, .Value, .{ .value_output = mode.value_output });
-
-    defer output.restore();
-
-    return if (prototype_only) .{ .function = try self.prototype(name, false) } else self.function(name, false);
+    return (try @import("functions/value.zig").lower(self, name, true)).function;
 }
 
 pub fn function(self: *Self, name: []const u8, exported: bool) Error!node.Declaration {
-    self.reference_storage = .empty;
-    self.projected_symbols = null;
-    self.input_aliases = null;
-    self.uses_allocator = false;
-    self.uses_context = false;
-    self.uses_io = false;
-    self.uses_process = false;
+    @import("functions/context.zig").reset(self, .Body);
 
     if (generated) return @import("functions/body.zig").lower(self, name, exported);
 
@@ -240,7 +218,26 @@ pub fn hoistReferences(self: *Self, source: anytype) Error!void {
         error.InvalidAst => unreachable,
     };
 
-    self.reference_storage.appendAssumeCapacity(.{ .start = @intCast(first), .len = @intCast(count) });
+    const entry = @import("generated_function_reference_publish");
+    const slot = self.reference_storage.len;
+    var capacity = self.reference_storage.slice();
+    capacity.len = capacity.capacity;
+
+    const starts: []u32 = capacity.items(.start)[slot..][0..1];
+    const counts: []u32 = capacity.items(.len)[slot..][0..1];
+    const lengths: zx.memory.ColumnLengths = &.{&self.reference_storage.len};
+
+    const input: std.meta.Child(entry.Input) = .{
+        .starts = @ptrCast(&starts),
+        .counts = @ptrCast(&counts),
+        .lengths = @ptrCast(&lengths),
+        .first = @intCast(first),
+        .count = @intCast(count),
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 }
 
 pub fn referenceBatches(self: *const Self) usize {

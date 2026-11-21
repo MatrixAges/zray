@@ -15,12 +15,7 @@ pub fn build(self: *Lower, id: ir.FunctionId) Lower.Error!?node.Declaration {
 
     defer saved.restore();
 
-    self.reference_storage = .empty;
-    self.uses_allocator = false;
-    self.uses_context = false;
-    self.uses_io = false;
-    self.uses_process = false;
-    self.allows_allocation = true;
+    @import("context.zig").reset(self, .Adapter);
 
     if (generated) {
         try @import("context.zig").clear(self);

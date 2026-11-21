@@ -2,7 +2,8 @@ const std = @import("std");
 const zx = @import("zx");
 const Lower = @import("../lower.zig");
 const generated = @import("genz_options").generated_analysis;
-const Mode = struct { enter: bool, bind_input: bool, value_output: bool };
+
+pub const Mode = struct { enter: bool, bind_input: bool, value_output: bool };
 
 pub fn value(self: *const Lower) Mode {
     if (!generated) return seed(self);

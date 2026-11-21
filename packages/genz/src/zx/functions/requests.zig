@@ -88,20 +88,20 @@ pub fn next(self: *Self, native_modules: []const ?u32) ?Request {
         return .{ .id = item.id, .form = form };
     }
 
+    const cursor: []u64 = @as(*[1]u64, @ptrCast(&self.state.next));
+
     const input: std.meta.Child(taking.Input) = .{
         .ids = self.state.ids.items,
-        .variants = self.state.variants.items,
-        .first = self.state.first.items,
+        .forms = self.state.forms.items,
         .next = self.state.next,
         .native_modules = native_modules,
+        .cursor = @ptrCast(&cursor),
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const result = zx.columns.invoke(taking.executeValue, fixed.allocator(), &input) catch unreachable;
 
     if (result.form == .Done) return null;
-
-    self.state.next = result.next;
 
     return .{ .id = @fromBackingInt(result.id), .form = result.form };
 }

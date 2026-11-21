@@ -1,6 +1,7 @@
 import integers from "std:integer"
+import memory from "memory"
 
-import { Form, Variant } from "./model"
+import { Form } from "./model"
 
 import type { Take as Input, Taken as Output } from "./model"
 
@@ -10,26 +11,18 @@ export default function (in: Input): Output {
     if (next == in.ids.length) {
         return {
             id: 0,
-            next,
             form: Form.Done
         }
     }
 
     const id = in.ids[next]
-    const first = in.first[next]
-    const regular = in.variants[next] == Variant.Regular
+    const local = in.native_modules[integers.widen(id)] == null
+    const form = local ? in.forms[next] : Form.Native
 
-    const form = match {
-        in.native_modules[integers.widen(id)] != null => Form.Native,
-        regular && first => Form.FirstRegular,
-        regular => Form.Regular,
-        first => Form.FirstValue,
-        _ => Form.Value
-    }
+    memory.writeU64(in.cursor, 0, next + 1)
 
     return {
         id,
-        next: next + 1,
         form
     }
 }

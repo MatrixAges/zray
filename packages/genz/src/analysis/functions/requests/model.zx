@@ -1,3 +1,5 @@
+import type { U64Buffer } from "memory"
+
 export enum Variant {
     Regular,
     Value
@@ -5,8 +7,7 @@ export enum Variant {
 
 export type State = {
     ids: u32[],
-    variants: Variant[],
-    first: bool[],
+    forms: Form[],
     seen: u8[],
     next: u64
 }
@@ -31,13 +32,13 @@ export enum Form {
     Value
 }
 
-export type Take = State.Pick("ids", "variants", "first", "next") & {
-    native_modules: u32?[]
+export type Take = State.Pick("ids", "forms", "next") & {
+    native_modules: u32?[],
+    cursor: U64Buffer
 }
 
 export type Taken = {
     id: u32,
-    next: u64,
     form: Form
 }
 

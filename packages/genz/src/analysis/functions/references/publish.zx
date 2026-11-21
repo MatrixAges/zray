@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import type { ColumnLengths, U32Buffer } from "memory"
+
+export type Input = {
+    starts: U32Buffer,
+    counts: U32Buffer,
+    lengths: ColumnLengths,
+    first: u32,
+    count: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU32(in.starts, 0, in.first)
+    memory.writeU32(in.counts, 0, in.count)
+    memory.publishColumnLengths(in.lengths, 1)
+}

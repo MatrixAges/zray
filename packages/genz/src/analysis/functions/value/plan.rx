@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Value" />
+
+    <Args in={Value.Form} out={Value.Step[]} />
+
+    <Switch on={$in}>
+        <Case value={Value.Form.Body}>
+            <Return
+                value={[
+                    Value.Step.Representation,
+                    Value.Step.Argument,
+                    Value.Step.Output,
+                    Value.Step.Body
+                ]}
+            />
+        </Case>
+
+        <Case value={Value.Form.Signature}>
+            <Return
+                value={[
+                    Value.Step.Representation,
+                    Value.Step.Argument,
+                    Value.Step.Output,
+                    Value.Step.Signature
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

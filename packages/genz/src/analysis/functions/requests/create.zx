@@ -16,8 +16,7 @@ export default function (in: Input): Output {
         },
         return: state => ({
             ids: [],
-            variants: [],
-            first: [],
+            forms: [],
             seen: state.seen,
             next: 0
         })

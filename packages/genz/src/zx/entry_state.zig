@@ -29,7 +29,7 @@ fn view(self: *Lower, state: node.Function) Lower.Error!node.Declaration {
 
     defer if (saved) |scope| scope.restore();
 
-    self.reference_storage = .empty;
+    @import("functions/context.zig").reset(self, .StateView);
 
     const input_type = try types.get(self, self.view_types, self.program.input_type);
     const prepared = try emit.prepare(self, state.parameters, input_type);

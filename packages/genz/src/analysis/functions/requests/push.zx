@@ -1,7 +1,7 @@
 import integers from "std:integer"
 
 import { regular_mask, value_mask } from "./const"
-import { Variant } from "./model"
+import { Form, Variant } from "./model"
 
 import type { Push as Input, State as Output } from "./model"
 
@@ -16,15 +16,23 @@ export default function (in: Input): Output {
         return in.state
     }
 
+    const first = previous == 0
+    const regular = in.variant == Variant.Regular
+
+    const form = match {
+        first && regular => Form.FirstRegular,
+        regular => Form.Regular,
+        first => Form.FirstValue,
+        _ => Form.Value
+    }
+
     const ids = in.state.ids.push(in.id)[0]
-    const variants = in.state.variants.push(in.variant)[0]
-    const first = in.state.first.push(previous == 0)[0]
+    const forms = in.state.forms.push(form)[0]
     const seen = integers.narrowByte(integers.orBits(previous, bit))
 
     return {
         ids,
-        variants,
-        first,
+        forms,
         seen: in.state.seen.with(index, seen),
         next: in.state.next
     }
