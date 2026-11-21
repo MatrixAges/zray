@@ -92,7 +92,7 @@ fn parseWithMode(comptime mode: Mode, allocator: std.mem.Allocator, scratch: *zx
         }
 
         if (mode != .native) {
-            const retained = try retention.retain(@import("generated_program_retention_size"), allocator, owned_source, output);
+            const retained = try retention.retain(@import("generated_program_retention_size"), allocator, output);
 
             retained_rows = true;
 

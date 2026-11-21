@@ -1,13 +1,21 @@
+import memory from "memory"
+
 import { Phase } from "./model"
 
-import type { State } from "./model"
+import type { Declaration, State } from "./model"
 
 export type Input = State
 
 export type Output = State
 
 export default function (in: Input): Output {
-    const declaration = {
+    const placement = in.types.control.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const declaration: Declaration = {
         name: {
             start: in.control.name.start,
             end: in.control.name.end
@@ -20,6 +28,10 @@ export default function (in: Input): Output {
         value: in.types.control.result,
         first: in.control.first,
         count: in.control.count
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const declarations = in.declarations.push(declaration)[0]

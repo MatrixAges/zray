@@ -3,9 +3,13 @@ import { Kind, Symbol } from "../../lexer/token_model"
 import { Phase } from "./model"
 
 import type { Span } from "../../lexer/token_model"
+import type { Placement } from "../../storage"
 import type { Import, State } from "./model"
 
-export type Input = u64
+export type Input = {
+    start: u64,
+    placement?: Placement
+}
 
 export type Output = State
 
@@ -19,8 +23,9 @@ export default function (in: Input): Output {
         sources: [],
         control: {
             phase: Phase.Start,
+            placement: in.placement,
             index: 0,
-            start: in,
+            start: in.start,
             token: {
                 kind: Kind.Eof,
                 word: Keyword.Root,

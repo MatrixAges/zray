@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import { Keyword } from "../../lexer/keyword_model"
 import { Kind } from "../../lexer/token_model"
 import { default_function_message } from "./const"
@@ -131,11 +133,30 @@ export default function (in: Input): Output {
     const next = index + 3
     const named = tokens[next].kind == Kind.Identifier
 
+    const placement = in.prefix.prepared.placement
+
+    if (named && placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const name: Span? = match {
+        named && placement != null => {
+            start: tokens[next].span.start,
+            end: tokens[next].span.end
+        },
+        named => tokens[next].span,
+        _ => null
+    }
+
+    if (named && placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
     return {
         index: named ? next + 1 : next,
         start: token.span.start,
         present: true,
-        name: named ? tokens[next].span : null,
+        name,
         diagnostic
     }
 }

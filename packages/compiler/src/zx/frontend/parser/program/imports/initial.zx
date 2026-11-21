@@ -10,6 +10,9 @@ export type Output = ImportStage
 export default function (in: Input): Output {
     return {
         prepared: in,
-        imports: initial(0)
+        imports: initial({
+            start: 0,
+            placement: in.placement
+        })
     }
 }

@@ -1,96 +1,59 @@
 const std = @import("std");
-/// Scratch backing for generated parser runs; a real heap so releasing the scratch arena returns its memory.
+/// Scratch backing for generated parser runs. Releasing the arena returns its memory to the heap.
 pub const scratch_backing = std.heap.smp_allocator;
+const Error = std.mem.Allocator.Error;
 
-pub fn retainSyntax(allocator: std.mem.Allocator, source: []const u8, value: anytype) std.mem.Allocator.Error!@TypeOf(value) {
-    const Syntax = std.meta.Child(@TypeOf(value));
+pub fn retainSyntax(allocator: std.mem.Allocator, input: anytype) Error!@TypeOf(input) {
+    const Syntax = std.meta.Child(@TypeOf(input));
     const output = try allocator.create(Syntax);
 
-    inline for (@typeInfo(Syntax).@"struct".field_names) |name| {
-        const field = @field(value.*, name);
+    output.* = input.*;
 
-        @field(output.*, name) = if (comptime std.mem.eql(u8, name, "tokens") or std.mem.eql(u8, name, "comments"))
-            try allocator.dupe(std.meta.Child(@TypeOf(field)), field)
-        else
-            try clone(Syntax, @TypeOf(field), allocator, source, field);
+    try retainTables(allocator, output);
+    try retainIndices(allocator, output, .{ "tokens", "comments" });
+
+    if (@hasField(Syntax, "constants")) {
+        try retainIndices(allocator, output, .{
+            "imports", "import_names", "import_sources", "declarations", "members", "contracts",
+        });
+
+        const constants = try allocator.alloc(std.meta.Child(@TypeOf(input.constants)), input.constants.len);
+
+        for (input.constants, constants) |source, *target| {
+            const constant = try allocator.create(std.meta.Child(@TypeOf(source)));
+            constant.* = source.*;
+
+            try retainTables(allocator, constant);
+
+            target.* = constant;
+        }
+
+        output.constants = constants;
     }
 
     return output;
 }
 
-fn clone(comptime Syntax: type, comptime T: type, allocator: std.mem.Allocator, source: []const u8, value: T) std.mem.Allocator.Error!T {
-    if (comptime !hasPointers(T)) return value;
+fn retainTables(allocator: std.mem.Allocator, syntax: anytype) Error!void {
+    inline for (.{ "types", "expressions", "blocks" }) |name| {
+        const source = @field(syntax.*, name);
+        const Table = std.meta.Child(@TypeOf(source));
+        const target = try allocator.create(Table);
 
-    if (T == @FieldType(Syntax, "types") or T == @FieldType(Syntax, "expressions") or T == @FieldType(Syntax, "blocks")) {
-        const Tree = std.meta.Child(T);
-        const target = try allocator.create(Tree);
+        target.* = source.*;
 
-        inline for (@typeInfo(Tree).@"struct".field_names) |name| {
-            const field = @field(value.*, name);
+        try retainIndices(allocator, target, @typeInfo(Table).@"struct".field_names);
 
-            @field(target.*, name) = try allocator.dupe(std.meta.Child(@TypeOf(field)), field);
-        }
-
-        return target;
+        @field(syntax.*, name) = target;
     }
 
-    switch (@typeInfo(T)) {
-        .pointer => |info| switch (info.size) {
-            .one => {
-                const target = try allocator.create(info.child);
+    syntax.type_order = try allocator.create(std.meta.Child(@TypeOf(syntax.type_order)));
+}
 
-                target.* = try clone(Syntax, info.child, allocator, source, value.*);
+fn retainIndices(allocator: std.mem.Allocator, target: anytype, comptime fields: anytype) Error!void {
+    inline for (fields) |name| {
+        const list = @field(target.*, name);
 
-                return target;
-            },
-            .slice => {
-                if (info.child == u8 and borrowed(source, value)) return value;
-                if (comptime !hasPointers(info.child)) return allocator.dupe(info.child, value);
-
-                const target = try allocator.alloc(info.child, value.len);
-
-                for (value, target) |item, *slot| slot.* = try clone(Syntax, info.child, allocator, source, item);
-
-                return target;
-            },
-            else => @compileError("unsupported generated parser pointer: " ++ @typeName(T)),
-        },
-        .optional => |info| return if (value) |item| try clone(Syntax, info.child, allocator, source, item) else null,
-        .@"struct" => |info| {
-            var target: T = undefined;
-
-            inline for (info.field_names) |name| @field(target, name) = try clone(Syntax, @FieldType(T, name), allocator, source, @field(value, name));
-
-            return target;
-        },
-        .array => |info| {
-            var target: T = undefined;
-
-            for (value, &target) |item, *slot| slot.* = try clone(Syntax, info.child, allocator, source, item);
-
-            return target;
-        },
-        else => @compileError("unsupported generated parser value: " ++ @typeName(T)),
+        @field(target.*, name) = try allocator.dupe(std.meta.Child(@TypeOf(list)), list);
     }
-}
-
-fn borrowed(source: []const u8, text: []const u8) bool {
-    if (text.len == 0) return true;
-
-    const start = @intFromPtr(source.ptr);
-    const first = @intFromPtr(text.ptr);
-
-    return first >= start and first + text.len <= start + source.len;
-}
-
-fn hasPointers(comptime T: type) bool {
-    return switch (@typeInfo(T)) {
-        .pointer => true,
-        .optional => |info| hasPointers(info.child),
-        .array => |info| hasPointers(info.child),
-        .@"struct" => |info| inline for (info.field_names) |name| {
-            if (hasPointers(@FieldType(T, name))) break true;
-        } else false,
-        else => false,
-    };
 }

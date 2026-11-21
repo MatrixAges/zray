@@ -11,12 +11,10 @@ pub fn of(comptime Layout: type, comptime Syntax: type) Layout {
 
         else if (comptime std.mem.eql(u8, name, "tables"))
             &tables(std.meta.Child(@FieldType(Layout, name)), Syntax)
-        else if (comptime std.mem.eql(u8, name, "function_name"))
-            row(@typeInfo(@FieldType(Syntax, name)).optional.child)
-        else if (comptime std.mem.eql(u8, name, "tokens") or std.mem.eql(u8, name, "comments"))
-            &index(std.meta.Child(@FieldType(Layout, name)), @FieldType(Syntax, name))
+        else if (comptime std.mem.eql(u8, name, "constants"))
+            &constantIndex(std.meta.Child(@FieldType(Layout, name)), @FieldType(Syntax, name))
         else
-            &slice(std.meta.Child(@FieldType(Layout, name)), @FieldType(Syntax, name));
+            &index(std.meta.Child(@FieldType(Layout, name)), @FieldType(Syntax, name));
     }
 
     return result;
@@ -27,7 +25,7 @@ fn tables(comptime Layout: type, comptime Syntax: type) Layout {
     var result: Layout = undefined;
     var base = allocation(Order);
 
-    result.order = &slice(std.meta.Child(@FieldType(Layout, "order")), @FieldType(Order, "heads"));
+    result.order = &index(std.meta.Child(@FieldType(Layout, "order")), @FieldType(Order, "heads"));
 
     inline for (.{ "types", "expressions", "blocks" }) |name| {
         const Table = std.meta.Child(@FieldType(Syntax, name));
@@ -55,35 +53,17 @@ fn columns(comptime Layout: type, comptime Table: type) Layout {
     return result;
 }
 
-fn slice(comptime Layout: type, comptime Slice: type) Layout {
+fn constantIndex(comptime Layout: type, comptime Slice: type) Layout {
     const Element = std.meta.Child(Slice);
+    const alignment = @alignOf(Element);
 
-    return .{ .stride = @sizeOf(Element) + row(Element), .padding = @alignOf(Element) - 1 };
+    return .{ .stride = @sizeOf(Element) + allocation(std.meta.Child(Element)), .padding = alignment - 1 };
 }
 
 fn index(comptime Layout: type, comptime Slice: type) Layout {
     const Element = std.meta.Child(Slice);
 
     return .{ .stride = @sizeOf(Element), .padding = @alignOf(Element) - 1 };
-}
-
-fn row(comptime Value: type) u64 {
-    return switch (@typeInfo(Value)) {
-        .pointer => |pointer| switch (pointer.size) {
-            .one => allocation(pointer.child) + row(pointer.child),
-            .slice => 0, // Its length is accounted for by the Source planner.
-            else => @compileError("unsupported syntax pointer: " ++ @typeName(Value)),
-        },
-        .@"struct" => |info| fields: {
-            var bytes: u64 = 0;
-
-            inline for (info.field_names) |name| bytes += row(@FieldType(Value, name));
-
-            break :fields bytes;
-        },
-        .bool, .int, .float, .@"enum" => 0,
-        else => @compileError("unsupported syntax row: " ++ @typeName(Value)),
-    };
 }
 
 fn allocation(comptime Value: type) u64 {

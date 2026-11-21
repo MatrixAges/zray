@@ -74,7 +74,7 @@ fn parseWithMode(comptime indexed: bool, copy_input: bool, allocator: std.mem.Al
         }
 
         if (indexed) {
-            const retained = try retention.retain(@import("generated_expression_retention_size"), allocator, owned_source, output);
+            const retained = try retention.retain(@import("generated_expression_retention_size"), allocator, output);
 
             retained_rows = true;
 

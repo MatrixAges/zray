@@ -4,7 +4,7 @@ const compact = @import("../compact_output.zig");
 const layout = @import("layout.zig");
 const order = @import("order.zig");
 
-pub fn retain(comptime rule: type, allocator: std.mem.Allocator, source: []const u8, syntax: anytype) std.mem.Allocator.Error!struct { arena: zx.Arena, output: @TypeOf(syntax) } {
+pub fn retain(comptime rule: type, allocator: std.mem.Allocator, syntax: anytype) std.mem.Allocator.Error!struct { arena: zx.Arena, output: @TypeOf(syntax) } {
     const Input = std.meta.Child(rule.Input);
     const Layout = std.meta.Child(@FieldType(Input, "layout"));
     const shape = comptime layout.of(Layout, std.meta.Child(@TypeOf(syntax)));
@@ -20,7 +20,7 @@ pub fn retain(comptime rule: type, allocator: std.mem.Allocator, source: []const
 
     errdefer arena.deinit();
 
-    const output = try compact.retainSyntax(arena.allocator(), source, syntax);
+    const output = try compact.retainSyntax(arena.allocator(), syntax);
 
     try order.publish(arena.allocator(), output, .retained);
 

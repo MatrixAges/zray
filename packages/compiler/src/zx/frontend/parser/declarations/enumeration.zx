@@ -1,9 +1,12 @@
+import memory from "memory"
+
 import { Kind, Symbol } from "../../lexer/token_model"
 import consume from "./consume"
 import fail from "./fail"
 import { Phase } from "./model"
 import publish from "./publish"
 
+import type { Span } from "../../lexer/token_model"
 import type { State } from "./model"
 
 export type Input = State
@@ -39,9 +42,19 @@ export default function (in: Input): Output {
         })
     }
 
-    const name = {
+    const placement = in.types.control.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const name: Span = {
         start: in.control.token.span.start,
         end: in.control.token.span.end
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const count = in.control.count + 1

@@ -1,10 +1,12 @@
+import memory from "memory"
+
 import { Keyword } from "../../lexer/keyword_model"
 import { Symbol } from "../../lexer/token_model"
 import parse from "../body/expression"
 import expect from "./expect"
 import { HeaderPhase } from "./model"
 
-import type { State } from "./model"
+import type { Contract, State } from "./model"
 
 export type Input = State
 
@@ -36,15 +38,6 @@ export default function (in: Input): Output {
         }
     }
 
-    const contract = {
-        ensures: in.control.ensures,
-        predicate: in.expression.control.result,
-        span: {
-            start: in.control.contract_start,
-            end: in.control.token.span.end
-        }
-    }
-
     const state = expect({
         state: in,
         word: Keyword.Root,
@@ -55,6 +48,25 @@ export default function (in: Input): Output {
 
     if (state.control.phase == HeaderPhase.Done) {
         return state
+    }
+
+    const placement = state.expression.prepared.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const contract: Contract = {
+        ensures: in.control.ensures,
+        predicate: in.expression.control.result,
+        span: {
+            start: in.control.contract_start,
+            end: in.control.token.span.end
+        }
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     return {

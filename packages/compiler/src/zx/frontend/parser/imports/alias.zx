@@ -1,9 +1,12 @@
+import memory from "memory"
+
 import { Keyword } from "../../lexer/keyword_model"
 import { Kind } from "../../lexer/token_model"
 import { expected_alias } from "./const"
 import fail from "./fail"
 import { Phase } from "./model"
 
+import type { Span } from "../../lexer/token_model"
 import type { State } from "./model"
 
 export type Input = State
@@ -17,9 +20,19 @@ export default function (in: Input): Output {
     const kind = state.control.token.kind
     const index = state.control.index + 1
 
-    const span = {
+    const placement = state.control.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const span: Span = {
         start: state.control.token.span.start,
         end: state.control.token.span.end
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
     }
 
     const exported = !(state.control.exported && word == Keyword.Default)

@@ -46,15 +46,13 @@ export default function (in: Input): Output {
                 layout: columns
             })
 
-            state.bytes += bytes - columns.base
+            state.bytes += bytes
             state.row += 1
         },
         return: state => state.bytes
     })
 
-    const function_name = syntax.function_name != null ? layout.function_name : 0
-
-    return layout.base + base + nested + function_name +
+    return layout.base + base + nested +
         rows([
             syntax.tokens.length,
             layout.tokens
