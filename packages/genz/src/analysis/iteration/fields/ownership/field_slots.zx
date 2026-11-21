@@ -3,7 +3,7 @@ import { max_u32 } from "core/const"
 
 import needed from "../../../state/ownership/needed"
 
-import type { Query as Input, Request, Selection as Output } from "./model"
+import type { Query as Input, Requests, Selection as Output } from "./model"
 
 export default function (in: Input): Output {
     const { facts, type_id, borrowed, origin } = in
@@ -11,7 +11,13 @@ export default function (in: Input): Output {
     const mask = origin == null
     const node = origin ?? max_u32
     const first = integers.widen(facts.types.first[integers.widen(type_id)])
-    const requests: Request[] = []
+
+    const requests: Requests = {
+        fields: [],
+        types: [],
+        slots: []
+    }
+
     const offset: u32 = 0
 
     const selected = loop({
@@ -32,11 +38,12 @@ export default function (in: Input): Output {
                 type_id: child,
                 slot
             })) {
-                state.requests = state.requests.push({
-                    field: integers.narrow(state.index),
-                    type_id: child,
-                    slot
-                })[0]
+                state.requests = {
+                    fields:
+                        state.requests.fields.push(integers.narrow(state.index))[0],
+                    types: state.requests.types.push(child)[0],
+                    slots: state.requests.slots.push(slot)[0]
+                }
             }
 
             if (!mask) {
@@ -49,7 +56,7 @@ export default function (in: Input): Output {
     })
 
     const reads = match {
-        mask && selected.length == 0 => 0,
+        mask && selected.fields.length == 0 => 0,
         _ => borrowed.length
     }
 

@@ -518,7 +518,6 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/cache/envelope/path.zx", .name = "generation_cache_path", .owner = .compiler },
     .{ .path = "backends/zig/cache/entries/lookup.zx", .name = "generation_cache_lookup", .owner = .compiler },
     .{ .path = "backends/zig/cache/entries/replace.zx", .name = "generation_cache_replace", .owner = .compiler },
-    .{ .path = "backends/zig/cache/writes/schedule.rx", .name = "generation_cache_schedule", .owner = .compiler },
     .{ .path = "backends/zig/cache/writes/retired.zx", .name = "generation_cache_retired", .owner = .compiler },
     .{ .path = "backends/zig/cache/resident.zx", .name = "generation_cache_resident", .owner = .compiler },
     .{ .path = "backends/zig/cache/write_results.zx", .name = "generation_cache_write_results", .owner = .compiler },
@@ -1011,6 +1010,10 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "backends/zig/cache/writes/workflow/run.rx", .name = "run_generation_cache_writer", .owner = .compiler },
+    .{ .path = "genz/analysis/iteration/fields/ownership/apply.zx", .name = "apply_loop_field_projection", .owner = .genz },
+    .{ .path = "backends/zig/function_sources/updates/record.zx", .name = "record_cached_sources", .owner = .compiler },
+    .{ .path = "backends/zig/function_sources/updates/commit.zx", .name = "commit_pending_sources", .owner = .compiler },
     .{ .path = "genz/analysis/state/conversion/view/satisfy.zx", .name = "state_view_satisfy", .owner = .genz },
     .{ .path = "genz/analysis/state/conversion/view/walk.zx", .name = "state_view_plan", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/projection/prepare_layouts.zx", .name = "prepare_ownership_layouts", .owner = .genz },

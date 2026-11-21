@@ -36,6 +36,7 @@ pub const appendAstHelper = publication.appendAstHelper;
 pub const appendAstBody = publication.appendAstBody;
 pub const appendAstFields = publication.appendAstFields;
 pub const finishAstPublication = publication.finishAstPublication;
+pub const projectLoopField = @import("zx/iteration/fields/ownership.zig").projectLoopField;
 pub const lowerLiteral = lowering.lowerLiteral;
 pub const lowerStore = lowering.lowerStore;
 pub const lowerTask = lowering.lowerTask;

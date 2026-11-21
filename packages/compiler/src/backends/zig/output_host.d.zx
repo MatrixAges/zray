@@ -1,0 +1,47 @@
+export type LibraryEntries = opaque
+
+export type CachedSourceRows = opaque
+
+export type GeneratedSourceRows = opaque
+
+export type CacheWriter = opaque
+
+export declare function analyzeLibraryExport(
+    entries: LibraryEntries,
+    index: u64,
+    first: u64,
+    end: u64
+): void throws {
+    OutOfMemory,
+    InvalidModule
+}
+
+export declare function publishLibraryExport(
+    entries: LibraryEntries,
+    index: u64,
+    first: u64,
+    end: u64
+): void throws { OutOfMemory }
+
+export declare function recordCachedSource(target: CachedSourceRows, row: u64): void
+    throws { OutOfMemory }
+
+export declare function tryRecordCachedSource(target: CachedSourceRows, row: u64): bool
+
+export declare function accountCachedSources(
+    target: CachedSourceRows,
+    held: u64,
+    discarded: u64,
+    failures: u64,
+    last: u64?
+): void
+
+export declare function commitGeneratedSource(
+    target: GeneratedSourceRows,
+    position: u64,
+    index: u64
+): void throws { OutOfMemory }
+
+export declare function finishCacheWriting(cache: CacheWriter, join: bool): void
+
+export declare function startCacheWriting(cache: CacheWriter, background: bool): bool

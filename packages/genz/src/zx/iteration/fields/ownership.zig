@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Context = @import("root.zig");
@@ -7,6 +8,7 @@ const aggregate = @import("../../aggregate.zig");
 const ownership = @import("../../state_value/ownership/projection.zig");
 const projection = @import("projection.zig");
 const entry = @import("generated_loop_fields_ownership");
+const Statements = @import("../../iteration_value/root.zig").Statements;
 
 pub fn maskBorrowed(self: *Context, lowering: *Lower, body: anytype) Lower.Error!void {
     const masked = try rebuild(self, lowering, body, .{ .value = self.seed }) orelse return;
@@ -61,33 +63,52 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     @import("../../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, planned.expressions) catch |err| return failure(err);
 
-    const count = planned.requests.len;
-    const edits = try temporary.alloc(u32, std.math.mul(usize, count, 2) catch return error.OutOfMemory);
-    const changed = edits[0..count];
-    const replacements = edits[count..];
-    const origin: ir.ExprId = @fromBackingInt(planned.origin);
+    const replacements = try temporary.alloc(u32, planned.requests.fields.len);
 
-    for (planned.requests, changed, replacements) |edit, *field, *replacement| {
-        field.* = edit.field;
+    if (replacements.len != 0) {
+        const frame: Frame = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) };
+        const apply = @import("generated_apply_loop_field_projection");
+        const Apply = std.meta.Child(apply.Input);
 
-        replacement.* = @backingInt(try ownership.lower(
-            lowering,
-            body,
-            origin,
-            @fromBackingInt(edit.type_id),
-            @fromBackingInt(planned.values[edit.field]),
-            edit.slot,
-            true,
-        ));
+        const edits: Apply = .{
+            .target = @ptrCast(&frame),
+            .requests = zx.columns.pointer(@FieldType(Apply, "requests"), planned.requests),
+            .values = planned.values,
+            .replacements = @ptrCast(&replacements),
+        };
+
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+        apply.executeIn(fixed.allocator(), &edits) catch |err| return failure(err);
     }
 
     const layout = request.layout orelse try lowering.layoutExpr(self.type_id);
 
     return try projection.rebuild(self, lowering, request.value, layout, .{
         .values = planned.values,
-        .changed = changed,
+        .changed = planned.requests.fields,
         .replacements = replacements,
     });
+}
+
+const Frame = struct {
+    lowering: *Lower,
+    body: *Statements,
+    origin: ir.ExprId,
+};
+
+pub fn projectLoopField(target: *const anyopaque, type_id: u32, value: u32, slot: u32) Lower.Error!u32 {
+    const frame: *const Frame = @ptrCast(@alignCast(target));
+
+    return @backingInt(try ownership.lower(
+        frame.lowering,
+        frame.body,
+        frame.origin,
+        @fromBackingInt(type_id),
+        @fromBackingInt(value),
+        slot,
+        true,
+    ));
 }
 
 fn failure(err: anyerror) Lower.Error {

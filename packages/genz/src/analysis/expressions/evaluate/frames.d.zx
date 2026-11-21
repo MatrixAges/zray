@@ -121,6 +121,8 @@ export enum SignatureForm {
 
 export type AstPublication = opaque
 
+export type FieldProjection = opaque
+
 export enum StoredType {
     None,
     AbiType,

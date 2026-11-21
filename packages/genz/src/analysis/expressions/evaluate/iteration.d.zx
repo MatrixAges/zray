@@ -56,3 +56,10 @@ export declare function recoverLoweredLoop(loop_frame: LoopFrame): void
 
 export declare function finishLoweredLoop(loop_frame: LoopFrame): u32
     throws { OutOfMemory }
+
+export declare function projectLoopField(
+    target: FieldProjection,
+    type_id: u32,
+    value: u32,
+    slot: u32
+): u32 throws { OutOfMemory }

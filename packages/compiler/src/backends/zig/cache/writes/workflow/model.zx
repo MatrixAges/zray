@@ -1,0 +1,11 @@
+import type { CacheWriter } from "output_host"
+import type { Action, Input as Schedule } from "../model"
+
+export type Input = Schedule & {
+    cache: CacheWriter
+}
+
+export type Transition = {
+    cache: CacheWriter,
+    action: Action
+}

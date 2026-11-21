@@ -17,8 +17,3 @@ export type Input = {
     threaded: bool,
     waiting: bool
 }
-
-export type Output = {
-    finish: Action,
-    start: Action
-}

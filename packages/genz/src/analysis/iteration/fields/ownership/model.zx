@@ -1,15 +1,15 @@
 import type { ExpressionsKind } from "../../../../printer/model/expressions"
 import type { Facts } from "../../../state/ownership/model"
 
-export type Request = {
-    field: u32,
-    type_id: u32,
-    slot: u32
+export type Requests = {
+    fields: u32[],
+    types: u32[],
+    slots: u32[]
 }
 
 export type Selection = {
     reads: u64,
-    requests: Request[]
+    requests: Requests
 }
 
 export type Prepare = {
@@ -43,7 +43,7 @@ export type Expressions = {
 export type Prepared = {
     expressions: Expressions,
     values: u32[],
-    requests: Request[],
+    requests: Requests,
     origin: u32,
     valid: bool
 }

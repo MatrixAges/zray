@@ -65,26 +65,13 @@ pub fn replace(previous: ?Previous, queue: anytype, persistent: bool, needs_writ
 }
 
 pub fn schedule(mode: Mode, active: bool, threaded: bool, waiting: bool) Schedule {
-    if (comptime !generated) {
-        return .{
-            .finish = if (threaded) .Join else if (active) .Drain else .Idle,
-            .start = if (waiting) switch (mode) {
-                .Wait => .Idle,
-                .Synchronous => .Drain,
-                .Background => .Spawn,
-            } else .Idle,
-        };
-    }
-
-    const rule = @import("generated_generation_cache_schedule");
-    const input: valueType(rule.Input) = .{ .mode = @fromBackingInt(@intCast(@backingInt(mode))), .active = active, .threaded = threaded, .waiting = waiting };
-    var buffer: [256]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
-
     return .{
-        .finish = @fromBackingInt(@intCast(@backingInt(result.finish))),
-        .start = @fromBackingInt(@intCast(@backingInt(result.start))),
+        .finish = if (threaded) .Join else if (active) .Drain else .Idle,
+        .start = if (waiting) switch (mode) {
+            .Wait => .Idle,
+            .Synchronous => .Drain,
+            .Background => .Spawn,
+        } else .Idle,
     };
 }
 

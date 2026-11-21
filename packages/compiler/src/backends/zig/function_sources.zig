@@ -3,6 +3,7 @@ const generating = @import("genz").zx.modules;
 const Batch = @import("batch.zig");
 const Cache = @import("cache.zig");
 const publication = @import("function_sources/publication.zig");
+const cache_updates = @import("function_sources/cache_updates.zig");
 const generated = @import("parser_options").generated_parser;
 const zx = @import("zx");
 /// One unit to generate and the batch whose program and facts it comes from.
@@ -187,7 +188,7 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
     }
 
     if (comptime generated) {
-        try recordSearch(cache, &search, plan);
+        try cache_updates.record(cache, search.lookups, search.fetched, plan);
     } else {
         try recordFetched(cache, search.lookups, search.fetched);
     }
@@ -195,33 +196,6 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
     try produce(owned, temporary, &dispatch, plan.pending, search.lookups, arenas, sources);
 
     return sources;
-}
-
-fn recordSearch(cache: *Cache, search: *Search, plan: @import("function_sources_plan.zig").Plan) std.mem.Allocator.Error!void {
-    // The first disk adoption joins a pending writer, which can replace the last I/O error.
-    if (plan.ordered) {
-        return recordFetched(cache, search.lookups, search.fetched);
-    }
-
-    var remaining = plan.stored.len;
-
-    while (remaining != 0) {
-        remaining -= 1;
-        const index: usize = @intCast(plan.stored[remaining]);
-        const found = search.lookups[index];
-
-        _ = cache.record(found.name, found.key, &search.fetched[index]) catch |err| {
-            recordFetched(cache, search.lookups[0..index], search.fetched[0..index]) catch unreachable;
-
-            return err;
-        };
-    }
-
-    cache.reused += plan.held;
-    cache.discarded += plan.discarded;
-    cache.io_errors += plan.failures;
-
-    if (plan.last_failure) |index| cache.last_io_error = search.fetched[index].failure.?;
 }
 
 fn recordFetched(cache: *Cache, lookups: []const Batch.Lookup, results: []Cache.Fetched) std.mem.Allocator.Error!void {
@@ -254,17 +228,10 @@ fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, dispatch: *co
     }
 
     if (pending) |positions| {
-        for (positions, results) |position, *result| {
-            const cache = dispatch.jobs.batch.cache.?;
-            const found = lookups.?[position];
-
-            if (comptime generated) {
-                cache.generated += 1;
-
-                try cache.putShared(found.name, found.key, @constCast(result.source.?));
-
-                result.source = null;
-            } else try dispatch.jobs.batch.remember(found, sources[position]);
+        if (comptime generated) {
+            try cache_updates.commit(dispatch.jobs.batch.cache.?, lookups.?, results, positions);
+        } else {
+            for (positions) |position| try dispatch.jobs.batch.remember(lookups.?[position], sources[position]);
         }
     }
 }

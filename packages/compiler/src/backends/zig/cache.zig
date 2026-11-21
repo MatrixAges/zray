@@ -1,6 +1,7 @@
 const std = @import("std");
 const Storage = @import("cache/storage.zig");
 const policy = @import("cache/policy.zig");
+const generated_parser = @import("parser_options").generated_parser;
 const Self = @This();
 const Owner = enum { cache, shared };
 const Entry = struct { key: [32]u8, source: []u8, pending: ?usize = null, owner: Owner = .cache };
@@ -181,26 +182,50 @@ fn runWriter(self: *Self, mode: policy.Mode) void {
 
     if (!active and (mode == .Wait or !waiting)) return;
 
+    if (comptime generated_parser) {
+        const entry = @import("generated_run_generation_cache_writer");
+        const Input = std.meta.Child(entry.Input);
+
+        const input: Input = .{
+            .cache = @ptrCast(self),
+            .mode = @enumFromInt(@intFromEnum(mode)),
+            .active = active,
+            .threaded = self.writer != null,
+            .waiting = waiting,
+        };
+
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+        entry.executeIn(fixed.allocator(), &input) catch unreachable;
+
+        return;
+    }
+
     const plan = policy.schedule(mode, active, self.writer != null, waiting);
 
     self.completeWrites(plan.finish);
 
     if (plan.start == .Idle) return;
+    if (!startCacheWriting(@ptrCast(self), plan.start == .Spawn)) self.completeWrites(.Drain);
+}
+
+pub fn finishCacheWriting(target: *const anyopaque, join: bool) void {
+    const self: *Self = @ptrCast(@alignCast(@constCast(target)));
+
+    self.completeWrites(if (join) .Join else .Drain);
+}
+
+pub fn startCacheWriting(target: *const anyopaque, background: bool) bool {
+    const self: *Self = @ptrCast(@alignCast(@constCast(target)));
 
     self.writing = .{ .queue = self.unwritten };
     self.unwritten = .{};
 
-    switch (plan.start) {
-        .Drain => self.completeWrites(.Drain),
-        .Spawn => {
-            self.writer = std.Thread.spawn(.{}, writeAllInto, .{ self.storage.?, &self.writing }) catch {
-                self.completeWrites(.Drain);
+    if (!background) return false;
 
-                return;
-            };
-        },
-        .Idle, .Join => unreachable,
-    }
+    self.writer = std.Thread.spawn(.{}, writeAllInto, .{ self.storage.?, &self.writing }) catch return false;
+
+    return true;
 }
 
 fn completeWrites(self: *Self, action: policy.Action) void {
