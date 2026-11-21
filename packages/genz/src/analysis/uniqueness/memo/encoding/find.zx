@@ -1,0 +1,22 @@
+import memory from "memory"
+
+import touch from "../table/touch"
+
+import type { Target } from "./model"
+
+export type Input = Target & {
+    buffer: u8[],
+    end: u64
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const encoded = memory.borrowU8Range(in.buffer, 0, in.end)
+    const key = memory.sha256Into(in.digest, encoded)
+
+    return touch({
+        ...in.table,
+        key
+    })
+}

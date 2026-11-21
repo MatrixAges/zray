@@ -24,11 +24,14 @@ pub fn deinit(self: *Self) void {
     self.order.deinit();
 }
 
-pub fn key(self: *Self, allocator: std.mem.Allocator, comptime kind: Memo.Kind, summaries: *const Summaries, body: *const Memo.State) std.mem.Allocator.Error!void {
+pub fn probe(self: *Self, allocator: std.mem.Allocator, comptime kind: Memo.Kind, summaries: *const Summaries, body: *const Memo.State, table: anytype, digest: *Memo.Digest, comptime mark: bool) std.mem.Allocator.Error!?u32 {
     comptime std.debug.assert(@sizeOf(Level) == @sizeOf(u8) and @alignOf(Level) == @alignOf(u8));
 
     const normalized = Growth.Columns.borrow(body.growth.normalized);
     const renewed = Growth.Columns.borrow(body.growth.renewed);
+    const Table = std.meta.Child(@FieldType(Input, "table"));
+    const target: []u8 = digest;
+    const used = if (mark) table.useColumn() else {};
 
     const input: Input = .{
         .state = self.state,
@@ -49,9 +52,15 @@ pub fn key(self: *Self, allocator: std.mem.Allocator, comptime kind: Memo.Kind, 
             .columns = &.{ .keys = @ptrCast(&renewed.keys), .wants = @ptrCast(&renewed.wants), .wide = renewed.wide },
         },
         .order = &.{ .indices = @ptrCast(&self.order.items), .scratch = @ptrCast(&self.order) },
+        .digest = @ptrCast(&target),
+        .table = &table.probe(Table, if (mark) &used else null),
     };
 
-    self.state = encoding.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+    const result = encoding.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
+
+    self.state = result.state;
+
+    return result.row;
 }
 
 pub fn stateEnd(self: *const Self) usize {

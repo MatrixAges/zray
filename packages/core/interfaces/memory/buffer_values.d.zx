@@ -56,6 +56,13 @@ export declare function allocateU32Buffer(
     count: u64
 ): void throws { OutOfMemory }
 
+export declare function allocateFilledU32Buffer(
+    resource: Allocator,
+    target: U32Buffer,
+    count: u64,
+    value: u32
+): void throws { OutOfMemory }
+
 export declare function writeU64(
     target: U64Buffer,
     index: u64,
@@ -200,80 +207,3 @@ export declare function readU8(
     target: U8Buffer,
     index: u64
 ): u8 throws { IndexOutOfBounds }
-
-export declare function loadU32Acquire(
-    target: U32Buffer,
-    index: u64
-): u32 throws { IndexOutOfBounds }
-
-export declare function storeU32Release(
-    target: U32Buffer,
-    index: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
-
-export declare function compareExchangeU32Acquire(
-    target: U32Buffer,
-    index: u64,
-    expected: u32,
-    value: u32
-): bool throws { IndexOutOfBounds }
-
-export declare function exchangeU32Release(
-    target: U32Buffer,
-    index: u64,
-    value: u32
-): u32 throws { IndexOutOfBounds }
-
-export declare function waitU32(
-    target: U32Buffer,
-    index: u64,
-    expected: u32
-): void throws { IndexOutOfBounds }
-
-export declare function wakeOneU32(
-    target: U32Buffer,
-    index: u64
-): void throws { IndexOutOfBounds }
-
-export declare function loadU32Sequential(
-    target: U32Buffer,
-    index: u64
-): u32 throws { IndexOutOfBounds }
-
-export declare function loadU32Relaxed(
-    target: U32Buffer,
-    index: u64
-): u32 throws { IndexOutOfBounds }
-
-export declare function storeU32Sequential(
-    target: U32Buffer,
-    index: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
-
-export declare function storeU32Relaxed(
-    target: U32Buffer,
-    index: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
-
-export declare function compareExchangeU32Sequential(
-    target: U32Buffer,
-    index: u64,
-    expected: u32,
-    value: u32
-): bool throws { IndexOutOfBounds }
-
-export declare function addU32Sequential(
-    target: U32Buffer,
-    index: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
-
-export declare function wakeAllU32(
-    target: U32Buffer,
-    index: u64
-): void throws { IndexOutOfBounds }
-
-export declare function spinHint(): void

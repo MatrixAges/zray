@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Encoding" />
+
+    <Args in={Encoding.Lookup} out={Encoding.Found} />
+
+    <Call
+        module="key"
+        in={$in.omit([
+            "digest",
+            "table"
+        ])}
+    />
+
+    <Call
+        fn="find"
+        in={{
+            ...$in.pick([
+                "digest",
+                "table"
+            ]),
+            ...$ctx.key.pick([
+                "buffer",
+                "end"
+            ])
+        }}
+    />
+
+    <Return
+        value={{
+            state: $ctx.key,
+            row: $ctx.find
+        }}
+    />
+</Module>

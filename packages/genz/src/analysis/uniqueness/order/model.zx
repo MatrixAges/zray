@@ -1,5 +1,6 @@
 import type { Control } from "core/control_table/model"
 import type { Expressions } from "core/expression_table/model"
+import type { U32Buffer } from "memory"
 
 export enum Role {
     observe,
@@ -49,6 +50,13 @@ export type Nodes = {
     repeated: u32[]
 }
 
+export type NodeBuffers = {
+    time: U32Buffer,
+    finish: U32Buffer,
+    region: U32Buffer,
+    repeated: U32Buffer
+}
+
 export type Region = {
     parent: u32,
     fork: u32,
@@ -88,7 +96,6 @@ export type Graph = {
 
 export type Trace = {
     seen: bool[],
-    nodes: Nodes,
     graph: Graph
 }
 
@@ -136,7 +143,11 @@ export type Input = {
 export type Traversal = {
     source: Input,
     returns: bool[],
-    detailed: bool
+    nodes?: NodeBuffers
+}
+
+export type Build = Traversal.Pick("source") & {
+    nodes: NodeBuffers
 }
 
 export type Walk = Traversal & {

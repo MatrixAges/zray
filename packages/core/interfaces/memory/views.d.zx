@@ -29,6 +29,15 @@ export type ColumnTransfers = opaque
 export type TypeRangeElements = [u8, u32, u32, string, u32, u32, string, string]
 export type NominalRangeElements = [u32, u8, string, string, string]
 
+export declare function sha256Into(target: U8Buffer, input: u8[]): u8[]
+
+export declare function sha256FramedInto(
+    target: U8Buffer,
+    prefix: u8[],
+    input: u8[],
+    suffix: u8[]
+): u8[]
+
 export declare function resetArena(
     arena: Arena
 ): void throws { OutOfMemory }

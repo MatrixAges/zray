@@ -105,20 +105,23 @@ pub fn Result(comptime kind: Kind) type {
 
 /// Looks up a trace state and sets the key for publishing a replacement.
 pub fn findReplay(self: *Self, comptime kind: Kind, identity: *const Digest, state: []const u8) ?Result(kind) {
-    self.key = if (generated_encoding)
-        @import("memo/replay_key.zig").build(@backingInt(kind), identity, state)
+    const table = &@field(self, @tagName(kind));
 
-    else seeded: {
-        var hash = Hash.init(.{});
+    if (generated_encoding) {
+        const row = @import("memo/replay_key.zig").probe(@backingInt(kind), identity, state, table, &self.key) orelse return null;
 
-        hash.update(identity);
-        hash.update(state);
-        hash.update(@tagName(kind));
+        return table.values.items[row];
+    }
 
-        break :seeded hash.finalResult();
-    };
+    var hash = Hash.init(.{});
 
-    return use(Result(kind), &@field(self, @tagName(kind)), self.key);
+    hash.update(identity);
+    hash.update(state);
+    hash.update(@tagName(kind));
+
+    self.key = hash.finalResult();
+
+    return use(Result(kind), table, self.key);
 }
 
 /// The state from the last ordinary lookup, without the body identity.
@@ -129,24 +132,35 @@ pub fn lastState(self: *const Self) []const u8 {
 }
 
 pub fn getSettled(self: *Self, summaries: *const Summaries, state: State) std.mem.Allocator.Error!?Settled {
-    try self.keyed(.settled, summaries, state);
-
-    return use(Settled, &self.settled, self.key);
+    return self.lookup(.settled, summaries, &state);
 }
 
 /// Whether a record of `kind` covers `state`, without marking it used.
 pub fn holds(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!bool {
-    try self.keyed(kind, summaries, state);
+    const table = &@field(self, @tagName(kind));
 
-    return @field(self, @tagName(kind)).contains(self.key);
+    if (generated_encoding) return (try self.encoding.probe(self.arena.allocator(), kind, summaries, &state, table, &self.key, false)) != null;
+    try self.keyedSeed(kind, summaries, state);
+
+    return table.contains(self.key);
 }
 
-/// Sets `key` to the digest of what a body of `kind` reads in `state`.
-fn keyed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
-    if (generated_encoding)
-        try self.encoding.key(self.arena.allocator(), kind, summaries, &state)
-    else
-        try self.encodeSeed(kind, summaries, state);
+fn lookup(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: *const State) std.mem.Allocator.Error!?Result(kind) {
+    const table = &@field(self, @tagName(kind));
+
+    if (generated_encoding) {
+        const row = (try self.encoding.probe(self.arena.allocator(), kind, summaries, state, table, &self.key, true)) orelse return null;
+
+        return table.values.items[row];
+    }
+
+    try self.keyedSeed(kind, summaries, state.*);
+
+    return use(Result(kind), table, self.key);
+}
+
+fn keyedSeed(self: *Self, comptime kind: Kind, summaries: *const Summaries, state: State) std.mem.Allocator.Error!void {
+    try self.encodeSeed(kind, summaries, state);
 
     Hash.hash(self.encodedBytes(), &self.key, .{});
 }
@@ -175,9 +189,7 @@ pub fn putOwnedSettled(self: *Self, key: Digest, passed: []const Function.Contri
 }
 
 pub fn getDemanded(self: *Self, summaries: *const Summaries, state: State) std.mem.Allocator.Error!?Demanded {
-    try self.keyed(.demanded, summaries, state);
-
-    return use(Demanded, &self.demanded, self.key);
+    return self.lookup(.demanded, summaries, &state);
 }
 
 /// Records the demand pass of the state `getDemanded` digested into `key`, with the growth copies it left.
@@ -207,9 +219,7 @@ pub fn putOwnedDemanded(self: *Self, key: Digest, marks: []const Function.Mark, 
 }
 
 pub fn getPlanned(self: *Self, summaries: *const Summaries, state: State) std.mem.Allocator.Error!?Planned {
-    try self.keyed(.planned, summaries, state);
-
-    return use(Planned, &self.planned, self.key);
+    return self.lookup(.planned, summaries, &state);
 }
 
 /// Records a plan whose slices already belong to this memo's arena.

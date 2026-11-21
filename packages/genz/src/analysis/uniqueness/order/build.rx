@@ -2,24 +2,24 @@
     <Type from="model" as="Order" />
     <Type from="plan" as="Published" />
 
-    <Args in={Order.Input} out={Published.Plan} />
+    <Args in={Order.Build} out={Published.Plan} />
 
-    <Call fn="../../../../core/control_table/terminates" in={$in.control} />
+    <Call fn="../../../../core/control_table/terminates" in={$in.source.control} />
 
     <Call
         module="traverse"
         in={{
-            source: $in,
-            returns: $ctx.terminates,
-            detailed: true
+            ...$in,
+            returns: $ctx.terminates
         }}
     />
 
     <Call fn="publish" in={$ctx.traverse.graph} />
+    <Call fn="node_views" in={$in.nodes} />
 
     <Return
         value={{
-            nodes: $ctx.traverse.nodes,
+            nodes: $ctx.node_views,
             graph: $ctx.publish
         }}
     />

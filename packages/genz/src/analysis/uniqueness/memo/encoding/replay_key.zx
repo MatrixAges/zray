@@ -1,24 +1,25 @@
-import crypto from "std:crypto"
+import memory from "memory"
 
+import touch from "../table/touch"
 import tag from "./tag"
 
-import type { Sha256State } from "std:crypto"
-import type { Kind } from "./model"
+import type { Kind, Target } from "./model"
 
-export type Input = {
-    hash: Sha256State,
+export type Input = Target & {
     identity: u8[],
     state: u8[],
     kind: Kind
 }
 
-export type Output = void
+export type Output = u32?
 
 export default function (in: Input): Output {
-    const { hash, identity, state, kind } = in
+    const { identity, state, kind } = in
 
-    crypto.resetSha256(hash)
-    crypto.updateSha256(hash, identity)
-    crypto.updateSha256(hash, state)
-    crypto.updateSha256(hash, tag(kind))
+    const key = memory.sha256FramedInto(in.digest, identity, state, tag(kind))
+
+    return touch({
+        ...in.table,
+        key
+    })
 }

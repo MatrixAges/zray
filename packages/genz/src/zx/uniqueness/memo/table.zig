@@ -41,10 +41,6 @@ pub fn Table(comptime Value: type) type {
         pub fn keep(self: *Self, key: Digest) void {
             _ = self.touch(key);
         }
-
-        pub fn contains(self: *const Self, key: Digest) bool {
-            return self.rowFor(&key) != null;
-        }
         pub fn put(self: *Self, allocator: std.mem.Allocator, key: Digest, value: Value) Error!void {
             try self.ensureUnusedCapacity(allocator, 1);
 
@@ -63,7 +59,7 @@ pub fn Table(comptime Value: type) type {
             return columns.invoke(unused.executeValue, scratch.allocator(), &input) catch unreachable;
         }
         fn touch(self: *Self, key: Digest) ?u32 {
-            const used = publication.writeColumn(self.values.items, "used");
+            const used = self.useColumn();
 
             const input: std.meta.Child(touching.Input) = .{
                 .keys = std.mem.sliceAsBytes(self.keys.items),
@@ -76,6 +72,17 @@ pub fn Table(comptime Value: type) type {
             var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
             return columns.invoke(touching.executeValue, scratch.allocator(), &input) catch unreachable;
+        }
+        pub fn useColumn(self: *Self) zx.memory.WriteColumn {
+            return publication.writeColumn(self.values.items, "used");
+        }
+        pub fn probe(self: *const Self, comptime View: type, used: ?*const zx.memory.WriteColumn) View {
+            return .{
+                .keys = std.mem.sliceAsBytes(self.keys.items),
+                .buckets = @ptrCast(&self.buckets),
+                .capacity = self.buckets.len,
+                .used = if (used) |column| @ptrCast(column) else null,
+            };
         }
         fn rowFor(self: *const Self, key: *const Digest) ?u32 {
             const input: std.meta.Child(exchange.Input) = .{

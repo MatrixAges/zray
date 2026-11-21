@@ -467,7 +467,7 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
     run.addArgs(stripped);
     run.addArgs(&.{ level, b.fmt("-Mzxc_string={s}", .{b.dependency("zxc_std", .{}).builder.root.joinString(b.allocator, "src/string.zig") catch @panic("out of memory")}) });
     run.addArgs(stripped);
-    run.addArg(level);
+    run.addArgs(&.{ level, "--dep", "sha256_backend" });
     run.addPrefixedFileArg("-Mmemory=", memory.path(b, "root.zig"));
     run.addArgs(stripped);
     run.addArgs(&.{ level, "--dep", "zxc_abi", "-Mzxc_signatures=%generated%/signatures.zig", level });

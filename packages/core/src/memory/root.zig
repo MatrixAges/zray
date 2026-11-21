@@ -1,4 +1,7 @@
 const std = @import("std");
+const sha256 = @import("sha256.zig");
+pub const sha256Into = sha256.into;
+pub const sha256FramedInto = sha256.framedInto;
 pub const ArenaScope = @import("arena_scope.zig");
 pub const selectArena = ArenaScope.select;
 pub const selectAllocator = ArenaScope.selectAllocator;
@@ -423,6 +426,10 @@ pub fn growU32Scratch(scratch: *const anyopaque, count: u64, precise: bool) std.
 }
 
 pub fn allocateU32Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    return allocateFilledU32Buffer(resource, target, count, 0);
+}
+
+pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *const anyopaque, count: u64, value: u32) std.mem.Allocator.Error!void {
     const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
     const output: *[]u32 = @ptrCast(@alignCast(@constCast(target)));
 
@@ -430,7 +437,7 @@ pub fn allocateU32Buffer(resource: *const anyopaque, target: *const anyopaque, c
 
     const items = try allocator.alloc(u32, std.math.cast(usize, count) orelse return error.OutOfMemory);
 
-    @memset(items, 0);
+    @memset(items, value);
 
     output.* = items;
 }

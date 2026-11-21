@@ -1,8 +1,14 @@
+import memory from "memory"
+
+import type { Allocator, ArenaScope } from "memory"
 import type { Definition, Role } from "../../order/model"
 import type { Usage } from "../../sites/model"
 import type { Output as Facts } from "./model"
 
-export type Input = Facts
+export type Input = Facts & {
+    scope: ArenaScope,
+    owner: Allocator
+}
 
 export type Output = Facts
 
@@ -10,6 +16,8 @@ export default function (in: Input): Output {
     const { regions, definitions, repeated, nodes, usage } = in
     const { plan } = usage
     const { sites } = plan
+
+    memory.selectAllocator(in.scope, in.owner)
 
     const words: u32[] = []
     const flags: bool[] = []
@@ -38,12 +46,7 @@ export default function (in: Input): Output {
             parent: words.concat(repeated.parent)[0],
             concurrent: flags.concat(repeated.concurrent)[0]
         },
-        nodes: {
-            time: words.concat(nodes.time)[0],
-            finish: words.concat(nodes.finish)[0],
-            region: words.concat(nodes.region)[0],
-            repeated: words.concat(nodes.repeated)[0]
-        },
+        nodes,
         usage: {
             plan: {
                 edge_count: plan.edge_count,

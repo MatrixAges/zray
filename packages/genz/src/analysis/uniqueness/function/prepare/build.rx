@@ -3,14 +3,38 @@
 
     <Args in={Function.Input} out={Function.Output} />
 
+    <Call
+        fn="allocate_nodes"
+        in={{
+            ...$in.pick([
+                "nodes",
+                "owner"
+            ]),
+            count: $in.source.expressions.kinds.length
+        }}
+    />
+
     <Task name="order" out={$ctx.build}>
-        <Call module="../../order/build" in={$in.source} />
+        <Call
+            module="../../order/build"
+            in={$in.pick([
+                "source",
+                "nodes"
+            ])}
+        />
     </Task>
 
     <Call
         module="../../sites/build"
         in={{
-            ...$in.omit(["source"]),
+            ...$in.pick([
+                "symbols",
+                "counts",
+                "layout",
+                "held",
+                "written",
+                "effects"
+            ]),
             expressions: $in.source.expressions,
             nodes: $ctx.task.order.nodes,
             regions: $ctx.task.order.graph.regions,
@@ -27,12 +51,17 @@
         }}
     />
 
-    <Return
-        value={{
+    <Call
+        fn="publish"
+        in={{
             ...$ctx.task.order.graph.omit(["edges"]),
             nodes: $ctx.task.order.nodes,
             usage: $ctx.build,
-            operations: $ctx.operations
+            operations: $ctx.operations,
+            scope: $in.scope,
+            owner: $in.owner
         }}
     />
+
+    <Return value={$ctx.publish} />
 </Module>

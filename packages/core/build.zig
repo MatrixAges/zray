@@ -6,6 +6,8 @@ pub fn build(b: *std.Build) void {
     const standard = b.dependency("zxc_std", .{ .target = target, .optimize = optimize });
     const memory = b.addModule("memory", .{ .root_source_file = b.path("src/memory/root.zig"), .target = target, .optimize = optimize });
 
+    memory.addImport("sha256_backend", standard.module("sha256_backend"));
+
     _ = b.addModule("core", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,

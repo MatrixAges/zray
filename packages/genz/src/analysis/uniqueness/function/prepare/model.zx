@@ -1,10 +1,14 @@
-import type { Input as Order } from "../../order/model"
+import type { Allocator, ArenaScope } from "memory"
+import type { Input as Order, NodeBuffers } from "../../order/model"
 import type { Graph, Nodes } from "../../order/plan"
 import type { Facts, Input as Sites } from "../../sites/model"
 
 export type Input =
     Sites.Pick("symbols", "counts", "layout", "held", "written", "effects") & {
-        source: Order
+        source: Order,
+        nodes: NodeBuffers,
+        owner: Allocator,
+        scope: ArenaScope
     }
 
 export type Output = Graph.Omit("edges") & {

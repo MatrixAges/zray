@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
+import memory from "memory"
 
 import alternatives from "./alternatives"
 import expression from "./expression"
@@ -11,24 +12,16 @@ import parts from "./walk/parts"
 import repetition from "./walk/repetition"
 import scope from "./walk/scope"
 
-import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Walk as Input, Trace as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { source, returns, detailed } = in
+    const { source, returns, nodes } = in
 
-    const tracked: ExpressionKind[] = match {
-        detailed => source.expressions.kinds,
-        _ => []
-    }
+    const detailed = nodes != null
 
     const result = loop({
         ...in.state.graph,
         seen: source.expressions.kinds.map(kind => false)[0],
-        node_time: tracked.map(kind => max_u32)[0],
-        node_finish: tracked.map(kind => max_u32)[0],
-        node_region: tracked.map(kind => integers.narrow(0))[0],
-        node_loop: tracked.map(kind => max_u32)[0],
         stack: in.state.stack,
         clock: in.state.clock,
         forks: in.state.forks,
@@ -122,10 +115,12 @@ export default function (in: Input): Output {
                     }
 
                 case Action.Finish:
-                    current.node_time[index] = second
-                    current.node_finish[index] = current.clock
-                    current.node_region[index] = third
-                    current.node_loop[index] = fourth
+                    if (nodes != null) {
+                        memory.writeU32(nodes.time, index, second)
+                        memory.writeU32(nodes.finish, index, current.clock)
+                        memory.writeU32(nodes.region, index, third)
+                        memory.writeU32(nodes.repeated, index, fourth)
+                    }
 
                 case Action.RestoreRegion:
                     current.active_region = first
@@ -222,12 +217,6 @@ export default function (in: Input): Output {
 
     return {
         seen: result.seen,
-        nodes: {
-            time: result.node_time,
-            finish: result.node_finish,
-            region: result.node_region,
-            repeated: result.node_loop
-        },
         graph: {
             regions: result.regions,
             edges: result.edges,

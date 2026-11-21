@@ -12,7 +12,7 @@ export default function (in: Input): Output {
         insert: null
     })
 
-    if (row != null) {
+    if (row != null && in.used != null) {
         memory.writeColumnBool(in.used, integers.widen(row), true)
     }
 

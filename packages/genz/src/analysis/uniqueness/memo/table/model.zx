@@ -15,9 +15,12 @@ export type Publication = {
     value: u8[]
 }
 
-export type Hit = Table & {
-    key: u8[],
-    used: WriteColumn
+export type Probe = Table & {
+    used?: WriteColumn
+}
+
+export type Hit = Probe & {
+    key: u8[]
 }
 
 export type Usage = {

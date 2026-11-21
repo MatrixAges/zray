@@ -1,5 +1,6 @@
-import type { U32Buffer, U32Scratch } from "memory"
+import type { U8Buffer, U32Buffer, U32Scratch } from "memory"
 import type { GrowthColumns } from "../../function/levels/model"
+import type { Probe } from "../table/model"
 
 export type State = {
     buffer: u8[],
@@ -79,6 +80,18 @@ export type Key = {
     normalized: Records,
     renewed: Records,
     order: Order
+}
+
+export type Target = {
+    digest: U8Buffer,
+    table: Probe
+}
+
+export type Lookup = Key & Target
+
+export type Found = {
+    state: State,
+    row?: u32
 }
 
 export type Facts = {
