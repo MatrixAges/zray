@@ -1,7 +1,10 @@
+import memory from "memory"
+
 import { FrameKind, Phase } from "../model"
+import appendBlock from "./append_block"
 import frame from "./frame"
 
-import type { State } from "../model"
+import type { State, Item, Statement } from "../model"
 
 export type Input = State
 
@@ -18,10 +21,9 @@ export default function (in: Input): Output {
 
     const phase = parent.phase
 
-    const span = {
-        start: in.frame.start,
-        end: in.expression.control.last_end
-    }
+    const placement = in.expression.prepared.placement
+    const start = in.frame.start
+    const end = in.expression.control.last_end
 
     if (in.frame.kind == FrameKind.Block) {
         const complete_phase =
@@ -32,11 +34,14 @@ export default function (in: Input): Output {
 
         const result = in.tree.blocks.length
 
-        const blocks = in.tree.blocks.push({
-            span,
+        const blocks = appendBlock({
+            blocks: in.tree.blocks,
+            placement,
+            start,
+            end,
             head: in.frame.head,
             count: in.frame.count
-        })[0]
+        })
 
         const next = match {
             parent.kind == FrameKind.Root => parent,
@@ -74,13 +79,20 @@ export default function (in: Input): Output {
 
     const result = in.tree.statements.length
 
-    const statements = in.tree.statements.push({
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const statement: Statement = {
         kind: in.frame.statement,
         span: {
-            start: span.start,
-            end: span.end
+            start,
+            end
         },
-        name: in.frame.name,
+        name: {
+            start: in.frame.name.start,
+            end: in.frame.name.end
+        },
         annotation: in.frame.annotation,
         first: in.frame.first,
         second: in.frame.second,
@@ -88,23 +100,32 @@ export default function (in: Input): Output {
         head: in.frame.head,
         count: in.frame.count,
         operator: in.frame.operator
-    })[0]
+    }
 
-    const head = in.tree.items.length + 1
-
-    const items = in.tree.items.push({
+    const item: Item = {
         value: result,
         previous: parent.kind == FrameKind.Statement ? 0 : parent.head
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const head = in.tree.items.length + 1
+    const statements = in.tree.statements.push(statement)[0]
+    const items = in.tree.items.push(item)[0]
 
     if (parent.kind == FrameKind.Statement) {
         const block = in.tree.blocks.length + 1
 
-        const blocks = in.tree.blocks.push({
-            span,
+        const blocks = appendBlock({
+            blocks: in.tree.blocks,
+            placement,
+            start,
+            end,
             head,
             count: 1
-        })[0]
+        })
 
         const tree = {
             statements,

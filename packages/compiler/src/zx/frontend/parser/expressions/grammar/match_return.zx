@@ -1,10 +1,12 @@
+import memory from "memory"
+
 import { Symbol } from "../../../lexer/token_model"
 import consume from "../state/consume"
 import fail from "../state/fail"
 import { Phase, FrameKind } from "../state/model"
 import finish from "./match_finish"
 
-import type { ExprState, ExprFrame, ExprControl } from "../state/model"
+import type { ExprState, ExprFrame, ExprControl, Arm } from "../state/model"
 
 export type Input = {
     state: ExprState,
@@ -93,11 +95,23 @@ export default function (in: Input): Output {
         const head = in.state.tree.arms.length + 1
         const count = in.frame.count + 1
 
-        const arms = in.state.tree.arms.push({
+        const placement = in.state.prepared.placement
+
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.rows)
+        }
+
+        const arm: Arm = {
             condition: in.frame.second,
             result,
             previous: in.frame.head
-        })[0]
+        }
+
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.scratch)
+        }
+
+        const arms = in.state.tree.arms.push(arm)[0]
 
         const frames = in.state.frames.push({
             ...in.frame,

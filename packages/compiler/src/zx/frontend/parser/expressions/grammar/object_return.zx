@@ -1,10 +1,12 @@
+import memory from "memory"
+
 import { Symbol } from "../../../lexer/token_model"
 import consume from "../state/consume"
 import fail from "../state/fail"
 import { Phase } from "../state/model"
 import finish from "./object_finish"
 
-import type { ExprState, ExprFrame } from "../state/model"
+import type { ExprState, ExprFrame, Field } from "../state/model"
 
 export type Input = {
     state: ExprState,
@@ -32,12 +34,27 @@ export default function (in: Input): Output {
     const depth = in.state.tree.nodes[result].depth
     const maximum = depth > in.frame.maximum ? depth : in.frame.maximum
 
-    const fields = in.state.tree.fields.push({
-        name,
+    const placement = in.state.prepared.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const field: Field = {
+        name: {
+            start: name.start,
+            end: name.end
+        },
         value: result,
         spread: in.frame.flag,
         previous: in.frame.head
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const fields = in.state.tree.fields.push(field)[0]
 
     const continuation = {
         ...in.frame,

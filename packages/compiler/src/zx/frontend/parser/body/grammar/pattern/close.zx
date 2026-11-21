@@ -1,7 +1,9 @@
+import memory from "memory"
+
 import { FrameKind, PatternKind, Phase } from "../../model"
 import consume from "../../state/consume"
 
-import type { State as Input, State as Output } from "../../model"
+import type { State as Input, State as Output, Name } from "../../model"
 
 export default function (in: Input): Output {
     const parent = in.frames[in.frames.length - 1]
@@ -19,17 +21,32 @@ export default function (in: Input): Output {
 
     const head = in.tree.names.length + 1
 
-    const names = in.tree.names.push({
+    const placement = in.expression.prepared.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const name: Name = {
         span: {
             start: in.frame.start,
             end: in.expression.control.token.span.end
         },
         previous: parent.kind == FrameKind.Pattern ? parent.head : 0,
         kind: in.frame.pattern_kind,
-        key,
+        key: {
+            start: key.start,
+            end: key.end
+        },
         head: in.frame.head,
         count: in.frame.count
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const names = in.tree.names.push(name)[0]
 
     const next = match parent.kind {
         FrameKind.Pattern => ({

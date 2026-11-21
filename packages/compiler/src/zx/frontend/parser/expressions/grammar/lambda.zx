@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import { Keyword } from "../../../lexer/keyword_model"
 import { Kind, Symbol } from "../../../lexer/token_model"
 import consume from "../state/consume"
@@ -5,7 +7,7 @@ import fail from "../state/fail"
 import { Phase } from "../state/model"
 import takeFrame from "../state/take_frame"
 
-import type { ExprState, ExprControl } from "../state/model"
+import type { ExprState, ExprControl, Parameter } from "../state/model"
 
 export type Input = ExprState
 
@@ -105,13 +107,25 @@ export default function (in: Input): Output {
     const head = taken.state.tree.parameters.length + 1
     const count = taken.frame.count + 1
 
-    const parameters = taken.state.tree.parameters.push({
+    const placement = taken.state.prepared.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const parameter: Parameter = {
         name: {
             start: taken.state.control.token.span.start,
             end: taken.state.control.token.span.end
         },
         previous: taken.frame.head
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const parameters = taken.state.tree.parameters.push(parameter)[0]
 
     const frames = taken.state.frames.push({
         ...taken.frame,

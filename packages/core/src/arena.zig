@@ -136,6 +136,30 @@ fn alloc(context: *anyopaque, len: usize, alignment: std.mem.Alignment, _: usize
 
     const previous = if (self.current) |chunk| chunk.size else 0;
     const size = @max(len + alignment.toByteUnits(), previous + previous / 2, self.minimum_chunk);
+
+    if (self.minimum_chunk == 0) {
+        if (self.current) |chunk| {
+            const start = alignment.forward(base(chunk) + self.end);
+            const required = start - base(chunk) + len;
+            const grown = @max(required, size);
+
+            const capacity = if (self.child.rawResize(bytes(chunk), .of(Chunk), header + grown, @returnAddress()))
+                grown
+
+            else if (grown != required and self.child.rawResize(bytes(chunk), .of(Chunk), header + required, @returnAddress()))
+                required
+            else
+                0;
+
+            if (capacity != 0) {
+                chunk.size = capacity;
+                self.end = required;
+
+                return @ptrFromInt(start);
+            }
+        }
+    }
+
     const memory = self.child.rawAlloc(header + size, .of(Chunk), @returnAddress()) orelse return null;
     const chunk: *Chunk = @ptrCast(@alignCast(memory));
 

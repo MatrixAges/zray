@@ -1,8 +1,10 @@
+import memory from "memory"
+
 import { Kind } from "../../../lexer/token_model"
 import fail from "../state/fail"
 import { Phase } from "../state/model"
 
-import type { ExprState, ExprFrame } from "../state/model"
+import type { ExprState, ExprFrame, Part } from "../state/model"
 
 export type Input = {
     state: ExprState,
@@ -32,7 +34,13 @@ export default function (in: Input): Output {
         _ => in.state.control.template_maximum
     }
 
-    const parts = in.state.tree.parts.push({
+    const placement = in.state.prepared.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const part: Part = {
         span: {
             start,
             end
@@ -40,7 +48,13 @@ export default function (in: Input): Output {
         value: in.state.control.result,
         expression: true,
         previous: in.state.control.template_head
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const parts = in.state.tree.parts.push(part)[0]
 
     const stream = in.frame.stream
     const index = in.frame.index

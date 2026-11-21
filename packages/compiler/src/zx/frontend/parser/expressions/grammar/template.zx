@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import { PartKind } from "../../templates/model"
 import emit from "../state/emit"
 import frame from "../state/frame"
@@ -5,7 +7,7 @@ import { Phase, FrameKind, ExprKind } from "../state/model"
 import node from "../state/node"
 import takeFrame from "../state/take_frame"
 
-import type { ExprState, ExprControl } from "../state/model"
+import type { ExprState, ExprControl, Part } from "../state/model"
 
 export type Input = ExprState
 
@@ -102,7 +104,13 @@ export default function (in: Input): Output {
         const head = taken.state.tree.parts.length + 1
         const count = taken.state.control.template_count + 1
 
-        const parts = taken.state.tree.parts.push({
+        const placement = taken.state.prepared.placement
+
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.rows)
+        }
+
+        const part: Part = {
             span: {
                 start,
                 end
@@ -110,7 +118,13 @@ export default function (in: Input): Output {
             value: 0,
             expression: false,
             previous: taken.state.control.template_head
-        })[0]
+        }
+
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.scratch)
+        }
+
+        const parts = taken.state.tree.parts.push(part)[0]
 
         const control = {
             ...taken.state.control,

@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import { Symbol } from "../../../../lexer/token_model"
 import { Connector } from "../../prepare/model"
 import fail from "../../state/fail"
@@ -7,7 +9,7 @@ import connector from "./connector"
 import { connector_message, closing_message } from "./const"
 import fold from "./fold"
 
-import type { ExprState, ExprFrame } from "../../state/model"
+import type { ExprState, ExprFrame, ExprNode } from "../../state/model"
 
 export type Input = {
     state: ExprState,
@@ -25,18 +27,29 @@ export default function (in: Input): Output {
 
     if (state.control.token.symbol == Symbol.CloseParen) {
         const root = state.tree.nodes[state.control.result]
+        const placement = state.prepared.placement
+
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.rows)
+        }
+
+        const node: ExprNode = {
+            ...root,
+            span: {
+                start: in.frame.start,
+                end: root.span.end
+            }
+        }
+
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.scratch)
+        }
 
         return {
             ...state,
             tree: {
                 ...state.tree,
-                nodes: state.tree.nodes.splice(state.control.result, 1, [{
-                    ...root,
-                    span: {
-                        start: in.frame.start,
-                        end: root.span.end
-                    }
-                }])[0]
+                nodes: state.tree.nodes.splice(state.control.result, 1, [node])[0]
             },
             control: {
                 ...state.control,

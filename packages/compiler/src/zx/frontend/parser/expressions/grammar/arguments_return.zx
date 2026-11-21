@@ -1,10 +1,12 @@
+import memory from "memory"
+
 import { Symbol } from "../../../lexer/token_model"
 import consume from "../state/consume"
 import fail from "../state/fail"
 import { Phase } from "../state/model"
 import finish from "./arguments_finish"
 
-import type { ExprState, ExprFrame } from "../state/model"
+import type { ExprState, ExprFrame, Item } from "../state/model"
 
 export type Input = {
     state: ExprState,
@@ -20,10 +22,22 @@ export default function (in: Input): Output {
     const count = in.frame.count + 1
     const closing = in.frame.flag ? Symbol.CloseParen : Symbol.CloseBracket
 
-    const items = in.state.tree.items.push({
+    const placement = in.state.prepared.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const item: Item = {
         value: in.state.control.result,
         previous: in.frame.head
-    })[0]
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const items = in.state.tree.items.push(item)[0]
 
     const continuation = {
         ...in.frame,

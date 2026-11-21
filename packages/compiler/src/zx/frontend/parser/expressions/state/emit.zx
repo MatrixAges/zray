@@ -1,4 +1,5 @@
 import { max_nesting_depth } from "core/const"
+import memory from "memory"
 
 import { Phase } from "./model"
 
@@ -35,7 +36,32 @@ export default function (in: Input): Output {
 
     const result = in.state.tree.nodes.length
 
-    const nodes = in.state.tree.nodes.push(in.node)[0]
+    const placement = in.state.prepared.placement
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.rows)
+    }
+
+    const node = match {
+        placement != null => {
+            ...in.node,
+            span: {
+                start: in.node.span.start,
+                end: in.node.span.end
+            },
+            name: {
+                start: in.node.name.start,
+                end: in.node.name.end
+            }
+        },
+        _ => in.node
+    }
+
+    if (placement != null) {
+        memory.selectAllocator(placement.scope, placement.scratch)
+    }
+
+    const nodes = in.state.tree.nodes.push(node)[0]
 
     return {
         prepared: in.state.prepared,
