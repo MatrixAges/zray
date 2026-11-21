@@ -3,23 +3,36 @@
 
     <Args in={Emission.Work} out={Emission.Work} />
 
-    <Switch on={$in.source.operation}>
-        <Case value={Emission.Operation.Invoke}>
-            <Call module="invocation" in={$in} />
+    <If on={$in.source.target != null}>
+        <Call
+            module="../../../functions/requests/reference/build"
+            in={{
+                target: $in.source.target,
+                base: $in.context.source.expression_base,
+                identifiers: 0
+            }}
+        />
 
-            <Return value={$ctx.invocation} />
-        </Case>
+        <Call
+            fn="link"
+            in={{
+                state: $in,
+                reference: $ctx.build
+            }}
+        />
 
-        <Case value={Emission.Operation.Dereference}>
-            <Call
-                fn="unary"
-                in={{
-                    state: $in,
-                    address: false
-                }}
-            />
+        <Call module="invocation" />
 
-            <Return value={$ctx.unary} />
-        </Case>
-    </Switch>
+        <Return value={$ctx.invocation} />
+    </If>
+
+    <Call
+        fn="unary"
+        in={{
+            state: $in,
+            address: false
+        }}
+    />
+
+    <Return value={$ctx.unary} />
 </Module>

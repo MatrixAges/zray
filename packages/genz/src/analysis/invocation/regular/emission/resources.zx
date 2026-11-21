@@ -1,35 +1,49 @@
 import bytes from "std:bytes"
 
 import { ExpressionsKind } from "../../../../printer/model/expressions"
+import { allocator_name } from "../../../construction/const"
 import { io_name, process_name } from "../../../functions/signature/const"
 
 import type { ResourceInput as Input, Resources as Output } from "./model"
 
 export default function (in: Input): Output {
-    const io_value: u32? = in.io ? in.base : null
-    const next = in.base + (in.io ? 1 : 0)
+    const allocator = in.base
+    const start = allocator + 1
+    const io_value: u32? = in.io ? start : null
+    const next = start + (in.io ? 1 : 0)
     const process_value: u32? = in.process ? next : null
     const base = next + (in.process ? 1 : 0)
 
     const names: u8[][] = match {
         in.io && in.process => [
+            bytes.fromText(allocator_name),
             bytes.fromText(io_name),
             bytes.fromText(process_name)
         ],
-        in.io => [bytes.fromText(io_name)],
-        in.process => [bytes.fromText(process_name)],
-        _ => []
+        in.io => [
+            bytes.fromText(allocator_name),
+            bytes.fromText(io_name)
+        ],
+        in.process => [
+            bytes.fromText(allocator_name),
+            bytes.fromText(process_name)
+        ],
+        _ => [bytes.fromText(allocator_name)]
     }
 
     const count = names.length
 
     const offsets: u32[] = match count {
+        3 => [
+            0,
+            1,
+            2
+        ],
         2 => [
             0,
             1
         ],
-        1 => [0],
-        _ => []
+        _ => [0]
     }
 
     return {
@@ -37,6 +51,7 @@ export default function (in: Input): Output {
         offsets,
         identifier: names,
         base,
+        allocator,
         io: io_value,
         process: process_value
     }

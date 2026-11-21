@@ -5,6 +5,7 @@ export default function (in: Input): Output {
         ...in.pick([
             "context",
             "root",
+            "request",
             "name",
             "name_index",
             "uses_allocator"

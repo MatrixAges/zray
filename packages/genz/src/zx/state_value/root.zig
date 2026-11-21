@@ -10,19 +10,19 @@ const Cache = @import("../expression_map.zig").Map(ir.ExprId);
 pub const Saved = struct {
     types: []node.ExpressionId,
     layouts: []node.ExpressionId,
-    cache: Cache,
+    cache: ?Cache,
     active: bool,
 };
 
 lowering: *Lower,
 previous: ?Saved,
 pub fn enter(lowering: *Lower) Lower.Error!Self {
-    if (@import("genz_options").generated_analysis) return @import("entry.zig").enter(lowering);
+    if (@import("genz_options").generated_analysis) return @import("entry.zig").enter(lowering, .represented);
     if (lowering.state_active) return .{ .lowering = lowering, .previous = null };
 
     const saved: Saved = .{ .types = lowering.types, .layouts = lowering.layouts, .cache = lowering.cache, .active = lowering.state_active };
     var cache: Cache = .empty;
-    var entries = saved.cache.state.iterator();
+    var entries = saved.cache.?.state.iterator();
 
     while (entries.next()) |entry| {
         var body: std.ArrayList(node.Statement) = .empty;
@@ -39,12 +39,26 @@ pub fn enter(lowering: *Lower) Lower.Error!Self {
     return .{ .lowering = lowering, .previous = saved };
 }
 
+pub fn enterBorrowed(lowering: *Lower) Lower.Error!Self {
+    if (@import("genz_options").generated_analysis) return @import("entry.zig").enter(lowering, .borrowed);
+
+    const saved: Saved = .{ .types = lowering.types, .layouts = lowering.layouts, .cache = null, .active = lowering.state_active };
+
+    lowering.types = lowering.abi_types;
+    lowering.layouts = lowering.abi_layouts;
+    lowering.state_active = false;
+
+    return .{ .lowering = lowering, .previous = saved };
+}
+
 pub fn restore(self: Self) void {
     const previous = self.previous orelse return;
 
     self.lowering.types = previous.types;
     self.lowering.layouts = previous.layouts;
-    self.lowering.cache = previous.cache;
+
+    if (previous.cache) |cache| self.lowering.cache = cache;
+
     self.lowering.state_active = previous.active;
 }
 

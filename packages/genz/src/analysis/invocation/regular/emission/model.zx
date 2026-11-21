@@ -11,7 +11,6 @@ import type { Output as Call } from "../../nodes"
 export type Input = {
     base: u32,
     target: Target,
-    allocator: u32,
     value: u32,
     store?: u32,
     io: bool,
@@ -26,6 +25,7 @@ export type Resources = {
     offsets: u32[],
     identifier: u8[][],
     base: u32,
+    allocator: u32,
     io?: u32,
     process?: u32
 }

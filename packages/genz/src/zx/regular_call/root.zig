@@ -21,8 +21,6 @@ pub fn lower(self: *Lower, invocation: seed.Operation) Lower.Error!node.Expressi
 
     defer body.deinit();
 
-    const allocator = try self.builder.identifier("allocator");
-
     const argument = switch (plan.argument) {
         .ExternalTuple => tuple: {
             const value = self.program.expression(invocation.argument);
@@ -44,7 +42,6 @@ pub fn lower(self: *Lower, invocation: seed.Operation) Lower.Error!node.Expressi
 
     var result = try @import("emission.zig").lower(self, .{
         .function = invocation.function,
-        .allocator = allocator,
         .value = argument,
         .store = store,
         .io = plan.io,

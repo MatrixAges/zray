@@ -7,23 +7,52 @@
 
     <Switch on={$ctx.gate}>
         <Case value={Consumer.Gate.None}>
-            <Return value={Consumer.Action.None} />
+            <Return
+                value={{
+                    action: Consumer.Action.None,
+                    next: null
+                }}
+            />
         </Case>
 
         <Case value={Consumer.Gate.Simd}>
-            <Return value={Consumer.Action.Simd} />
+            <Return
+                value={{
+                    action: Consumer.Action.Simd,
+                    next: Consumer.Phase.AfterSimd
+                }}
+            />
         </Case>
 
         <Case value={Consumer.Gate.Policy}>
             <Call module="policy" in={$in} />
 
-            <Return value={$ctx.policy} />
+            <If on={$ctx.policy == Consumer.Action.Eligible}>
+                <Return
+                    value={{
+                        action: $ctx.policy,
+                        next: Consumer.Phase.Fallback
+                    }}
+                />
+            </If>
+
+            <Return
+                value={{
+                    action: $ctx.policy,
+                    next: null
+                }}
+            />
         </Case>
 
         <Case value={Consumer.Gate.Fallback}>
             <Call module="fallback" in={$in} />
 
-            <Return value={$ctx.fallback} />
+            <Return
+                value={{
+                    action: $ctx.fallback,
+                    next: null
+                }}
+            />
         </Case>
     </Switch>
 </Module>

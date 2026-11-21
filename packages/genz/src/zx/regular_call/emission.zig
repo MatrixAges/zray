@@ -9,7 +9,6 @@ const Capture = std.meta.Child(@typeInfo(@FieldType(Input, "capture")).optional.
 
 pub const Request = struct {
     function: zx.ir.FunctionId,
-    allocator: node.ExpressionId,
     value: node.ExpressionId,
     store: ?node.ExpressionId,
     io: bool,
@@ -23,7 +22,6 @@ pub fn lower(self: *Lower, request: Request) Lower.Error!node.ExpressionId {
     const input: Input = .{
         .base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .target = zx.columns.pointer(@FieldType(Input, "target"), &target),
-        .allocator = @backingInt(request.allocator),
         .value = @backingInt(request.value),
         .store = if (request.store) |store| @backingInt(store) else null,
         .io = request.io,

@@ -1,0 +1,41 @@
+import { Variant } from "../../functions/requests/model"
+import { InputMode, Result, ReturnMode } from "./model"
+
+import type { Boundary, Transport as Output } from "./model"
+
+export type Input = {
+    boundary: Boundary,
+    result: Result,
+    pointer: bool
+}
+
+export default function (in: Input): Output {
+    const boundary = in.boundary
+
+    if (boundary.legacy) {
+        return {
+            input_mode: InputMode.Keep,
+            return_mode: ReturnMode.Keep,
+            variant: Variant.Regular
+        }
+    }
+
+    const input_mode = match {
+        !boundary.transition => InputMode.Keep,
+        boundary.input_value => InputMode.Value,
+        _ => InputMode.Borrow
+    }
+
+    const return_mode = match in.result {
+        Result.Borrow => ReturnMode.Borrow,
+        Result.Convert => in.pointer ? ReturnMode.Pointer : ReturnMode.Layout,
+        Result.Construct => ReturnMode.Construct,
+        _ => ReturnMode.Keep
+    }
+
+    return {
+        input_mode,
+        return_mode,
+        variant: Variant.Value
+    }
+}

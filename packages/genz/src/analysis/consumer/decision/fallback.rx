@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Consumer" />
 
-    <Args in={Consumer.Input} out={Consumer.Output} />
+    <Args in={Consumer.Input} out={Consumer.Action} />
 
     <Call fn="fallback" in={$in} />
 

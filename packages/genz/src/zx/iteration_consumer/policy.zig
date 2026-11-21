@@ -8,9 +8,9 @@ const entry = if (generated) @import("generated_consumer_decision") else struct 
 const Input = if (generated) std.meta.Child(entry.Input) else void;
 pub const Phase = if (generated) @FieldType(Input, "phase") else enum { Initial, AfterSimd, Fallback };
 
-const Action = if (generated) @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload else void;
+const Decision = if (generated) @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload else void;
 
-pub fn decide(self: *const Lower, selected: Consumer, value: ir.ExprId, phase: Phase) Lower.Error!Action {
+pub fn decide(self: *const Lower, selected: Consumer, value: ir.ExprId, phase: Phase) Lower.Error!Decision {
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
     const cache = self.cache.view(std.meta.Child(@FieldType(Input, "cache")));
 

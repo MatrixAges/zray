@@ -25,10 +25,10 @@
         fn="../../arguments"
         in={{
             ...$in.pick([
-                "allocator",
                 "value",
                 "store"
             ]),
+            allocator: $ctx.resources.allocator,
             io: $ctx.resources.io,
             process: $ctx.resources.process
         }}

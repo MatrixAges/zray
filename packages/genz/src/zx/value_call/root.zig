@@ -20,7 +20,7 @@ pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
 
     return switch (selected) {
         .Value => self.expr(id),
-        .Dereference => emission.emit(self, null, .Dereference, .{ .value = try self.expr(id) }),
+        .Dereference => emission.emit(self, null, .{ .value = try self.expr(id) }),
         .Capture => @import("../capture.zig").lowerValue(self, value.type_id, value.value.capture),
         .Object => aggregate.objectValue(self, id),
         .Tuple => @import("../aggregate/sequence.zig").lower(self, id, value, value.value.tuple, true),
@@ -36,33 +36,33 @@ pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
 pub fn invocation(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
     if (!generated) return seed.invocation(self, value);
 
-    return invokeBlock(self, value, .layout);
+    return invokeBlock(self, value, false);
 }
 
 pub fn pointerInvocation(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
     if (!generated) return seed.pointerInvocation(self, value);
 
-    return invokeBlock(self, value, .pointer);
+    return invokeBlock(self, value, true);
 }
 
 pub fn borrowInvocation(self: *Lower, body: if (generated) *Sequence else *std.ArrayList(node.Statement), value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
     if (!generated) return seed.borrowInvocation(self, body, value);
 
-    return lowerInvocation(self, body, value, true, .layout);
+    return lowerInvocation(self, body, value, true, false);
 }
 
-fn invokeBlock(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), result_mode: @import("../state_value/conversion.zig").Mode) Lower.Error!node.ExpressionId {
+fn invokeBlock(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), pointer: bool) Lower.Error!node.ExpressionId {
     var body = self.builder.statementSequence(self.workspace);
 
     defer body.deinit();
 
-    const result = try lowerInvocation(self, &body, value, false, result_mode);
+    const result = try lowerInvocation(self, &body, value, false, pointer);
 
     return aggregate.finish(self, &body, result);
 }
 
-fn lowerInvocation(self: *Lower, body: *Sequence, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), borrowed: bool, result_mode: @import("../state_value/conversion.zig").Mode) Lower.Error!node.ExpressionId {
-    const plan = policy.invocation(self, value, borrowed, result_mode == .pointer);
+fn lowerInvocation(self: *Lower, body: *Sequence, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), borrowed: bool, pointer: bool) Lower.Error!node.ExpressionId {
+    const plan = policy.invocation(self, value, borrowed, pointer);
     const function = self.program.functions.at(@backingInt(value.function));
 
     var argument = switch (plan.argument) {
@@ -71,26 +71,20 @@ fn lowerInvocation(self: *Lower, body: *Sequence, value: @FieldType(@FieldType(i
         .StackObject => try @import("borrowed_argument.zig").lower(self, body, .{ .value = try aggregate.objectValue(self, value.argument) }),
     };
 
-    if (plan.legacy) {
-        const callee = try self.functionReference(value.function);
-
-        return emission.emit(self, body, .Invoke, .{ .callee = callee, .value = argument, .plan = plan });
-    }
-
-    if (plan.transition) {
+    if (plan.input_mode != .Keep) {
         argument = try aggregate.bind(self, body, argument);
-        argument = try @import("../state_value/conversion.zig").convert(self, body, function.input_type, argument, if (plan.input_value) .value else .borrow);
+        argument = try @import("../state_value/conversion.zig").convert(self, body, function.input_type, argument, if (plan.input_mode == .Value) .value else .borrow);
     }
 
     if (plan.clip) argument = try @import("../state_value/ownership.zig").clip(self, body, value.argument, argument);
 
-    const callee = try self.requestFunction(value.function, .value);
-    const result = try emission.emit(self, body, .Invoke, .{ .callee = callee, .value = argument, .plan = plan });
+    const result = try emission.emit(self, body, .{ .function = value.function, .value = argument, .plan = plan });
 
-    return switch (plan.result) {
+    return switch (plan.return_mode) {
         .Borrow => @import("../state_value/conversion.zig").convert(self, body, function.output_type, result, .borrow),
-        .Convert => @import("../state_value/conversion.zig").convert(self, body, function.output_type, result, result_mode),
+        .Layout => @import("../state_value/conversion.zig").convert(self, body, function.output_type, result, .layout),
+        .Pointer => @import("../state_value/conversion.zig").convert(self, body, function.output_type, result, .pointer),
         .Construct => self.construct(function.output_type, result),
-        else => result,
+        .Keep => result,
     };
 }

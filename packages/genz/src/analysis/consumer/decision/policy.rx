@@ -2,7 +2,7 @@
     <Type from="model" as="Consumer" />
     <Type from="../../iteration/result/model" as="Result" />
 
-    <Args in={Consumer.Input} out={Consumer.Output} />
+    <Args in={Consumer.Input} out={Consumer.Action} />
 
     <Call fn="branch" in={$in} />
 

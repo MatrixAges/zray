@@ -28,18 +28,9 @@ pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.Expre
         .Call => {
             const invocation = self.program.expression(id).value.call;
             const argument = try borrow(self, body, invocation.argument);
-            const active = self.state_active;
-            const types = self.types;
-            const layouts = self.layouts;
-            self.state_active = false;
-            self.types = self.abi_types;
-            self.layouts = self.abi_layouts;
+            const scope = try @import("../state_value/root.zig").enterBorrowed(self);
 
-            defer {
-                self.state_active = active;
-                self.types = types;
-                self.layouts = layouts;
-            }
+            defer scope.restore();
 
             const cached = try self.cache.exchange(self.allocator, invocation.argument, argument);
 

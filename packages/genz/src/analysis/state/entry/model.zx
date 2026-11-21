@@ -20,11 +20,13 @@ export type Jobs = {
 export type Input = {
     source: Facts,
     current: Views,
-    represented: Views.Omit("active")
+    target: Views.Omit("active"),
+    borrowed: bool
 }
 
 export type Output = {
     previous?: Views,
     next: Views,
-    jobs: Jobs
+    jobs: Jobs,
+    replace_cache: bool
 }

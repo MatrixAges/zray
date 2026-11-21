@@ -9,10 +9,10 @@ const preparation = @import("generated_state_entry_prepare");
 const Input = std.meta.Child(preparation.Input);
 const Facts = std.meta.Child(@FieldType(Input, "source"));
 const Views = std.meta.Child(@FieldType(Input, "current"));
-const Represented = std.meta.Child(@FieldType(Input, "represented"));
+const Target = std.meta.Child(@FieldType(Input, "target"));
 const Cache = @import("../expression_map.zig").Map(ir.ExprId);
 
-pub fn enter(self: *Lower) Lower.Error!Scope {
+pub fn enter(self: *Lower, mode: enum { represented, borrowed }) Lower.Error!Scope {
     var arena = std.heap.ArenaAllocator.init(self.workspace);
     var storage: [1024]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&storage, arena.allocator());
@@ -31,15 +31,21 @@ pub fn enter(self: *Lower) Lower.Error!Scope {
     };
 
     const current: Views = .{ .types = ids(self.types), .layouts = ids(self.layouts), .active = self.state_active };
-    const represented: Represented = .{ .types = ids(self.state_types), .layouts = ids(self.state_layouts) };
-    const input: Input = .{ .source = &source, .current = &current, .represented = &represented };
+
+    const target: Target = if (mode == .borrowed)
+        .{ .types = ids(self.abi_types), .layouts = ids(self.abi_layouts) }
+
+    else
+        .{ .types = ids(self.state_types), .layouts = ids(self.state_layouts) };
+
+    const input: Input = .{ .source = &source, .current = &current, .target = &target, .borrowed = mode == .borrowed };
     const plan = preparation.executeIn(scratch, &input) catch |err| return failure(err);
     const previous = plan.previous orelse return .{ .lowering = self, .previous = null };
 
     const saved: Scope.Saved = .{
         .types = column(previous.types),
         .layouts = column(previous.layouts),
-        .cache = self.cache,
+        .cache = if (plan.replace_cache) self.cache else null,
         .active = previous.active,
     };
 
@@ -51,13 +57,14 @@ pub fn enter(self: *Lower) Lower.Error!Scope {
 
         for (slots, plan.jobs.layouts, converted) |slot, layout, *value| {
             const id: ?ir.TypeId = if (layout) |type_id| @fromBackingInt(type_id) else null;
-            value.* = @backingInt(try emit(self, id, @fromBackingInt(saved.cache.state.values.items[slot])));
+            value.* = @backingInt(try emit(self, id, @fromBackingInt(saved.cache.?.state.values.items[slot])));
         }
 
         cache = try publish(self.allocator, source.keys, slots, converted);
     }
 
-    self.cache = cache;
+    if (plan.replace_cache) self.cache = cache;
+
     self.types = column(plan.next.types);
     self.layouts = column(plan.next.layouts);
     self.state_active = plan.next.active;

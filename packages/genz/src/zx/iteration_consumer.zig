@@ -12,21 +12,20 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, value: ir.ExprId, result: ir.Exp
     const selected: Consumer = .{ .symbol = symbol, .result = result, .layout = layout };
     var phase: policy.Phase = .Initial;
 
-    while (true) switch (try policy.decide(self, selected, value, phase)) {
-        .None => return null,
-        .Simd => {
-            if (try @import("simd/iteration.zig").lower(self, value, selected)) |vector| return vector;
+    while (true) {
+        const decision = try policy.decide(self, selected, value, phase);
 
-            phase = .AfterSimd;
-        },
-        .Eligible => {
-            if (try @import("iteration.zig").consume(self, value, selected)) |local| return local;
+        const lowered = switch (decision.action) {
+            .None => return null,
+            .Simd => try @import("simd/iteration.zig").lower(self, value, selected),
+            .Eligible, .Consume => try @import("iteration.zig").consume(self, value, selected),
+            .Scalar => try @import("iteration.zig").consume(self, value, .{ .symbol = symbol, .result = result }),
+        };
 
-            phase = .Fallback;
-        },
-        .Consume => return @import("iteration.zig").consume(self, value, selected),
-        .Scalar => return @import("iteration.zig").consume(self, value, .{ .symbol = symbol, .result = result }),
-    };
+        if (lowered) |expression| return expression;
+
+        phase = decision.next orelse return null;
+    }
 }
 
 pub fn projection(program: ir.Program, result: ir.ExprId, symbol: ir.SymbolId) bool {

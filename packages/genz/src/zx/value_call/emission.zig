@@ -3,6 +3,8 @@ const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const policy = @import("policy.zig");
+const reference = @import("../functions/reference.zig");
+const Variant = @import("../functions/requests.zig").Variant;
 const view = @import("../../node/view.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 const entry = @import("generated_value_call_emit");
@@ -10,15 +12,15 @@ const Input = std.meta.Child(entry.Input);
 const Context = std.meta.Child(@FieldType(Input, "context"));
 const Capture = std.meta.Child(@typeInfo(@FieldType(Context, "capture")).optional.child);
 const Plan = std.meta.Child(@typeInfo(@FieldType(Input, "plan")).optional.child);
-pub const Operation = @FieldType(Input, "operation");
+const Target = std.meta.Child(@typeInfo(@FieldType(Input, "target")).optional.child);
 
 pub const Arguments = struct {
-    value: node.ExpressionId = @fromBackingInt(0),
-    callee: node.ExpressionId = @fromBackingInt(0),
+    value: node.ExpressionId,
+    function: ?zx.ir.FunctionId = null,
     plan: ?policy.Plan = null,
 };
 
-pub fn emit(self: *Lower, body: ?*Sequence, operation: Operation, arguments: Arguments) Lower.Error!node.ExpressionId {
+pub fn emit(self: *Lower, body: ?*Sequence, arguments: Arguments) Lower.Error!node.ExpressionId {
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -45,36 +47,40 @@ pub fn emit(self: *Lower, body: ?*Sequence, operation: Operation, arguments: Arg
 
     const plan: Plan = if (arguments.plan) |selected| zx.columns.view(Plan, selected) else undefined;
 
+    const variant: Variant = if (arguments.plan) |selected| switch (selected.variant) {
+        .Regular => .regular,
+        .Value => .value,
+    } else undefined;
+
+    const target: Target = if (arguments.function) |id| zx.columns.view(Target, reference.prepare(self, id, variant)) else undefined;
+
     const input: Input = .{
         .context = &context,
-        .operation = operation,
         .value = @backingInt(arguments.value),
-        .callee = @backingInt(arguments.callee),
+        .target = if (arguments.function != null) &target else null,
         .plan = if (arguments.plan != null) &plan else null,
     };
 
     const output = entry.executeIn(allocator, &input) catch |err| return failure(err);
 
     if (!output.context.valid) return error.OutOfMemory;
+    if (output.request) try self.function_requests.add(self.allocator, arguments.function.?, variant);
 
     var expressions = output.context.expressions.*;
     var selected_body = output.body.*;
     const name = if (output.name.len == 0) &.{} else try self.allocator.dupe(u8, output.name);
     const names = [_][]const u8{name};
 
-    if (name.len != 0) {
-        if (expressions.identifier.len != 0) {
-            const identifiers = try allocator.dupe([]const u8, expressions.identifier);
+    if (output.request or name.len != 0) {
+        const identifiers = try allocator.dupe([]const u8, expressions.identifier);
 
-            std.debug.assert(output.name_index < identifiers.len);
+        if (output.request) identifiers[0] = try self.allocator.dupe(u8, identifiers[0]);
+        if (name.len != 0) identifiers[@intCast(output.name_index)] = name;
 
-            identifiers[@intCast(output.name_index)] = name;
-
-            expressions.identifier = identifiers;
-        }
-
-        if (selected_body.constant_name.len != 0) selected_body.constant_name = &names;
+        expressions.identifier = identifiers;
     }
+
+    if (name.len != 0 and selected_body.constant_name.len != 0) selected_body.constant_name = &names;
 
     const joined = view.join(expressions, output.context.forms.*);
 

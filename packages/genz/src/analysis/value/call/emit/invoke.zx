@@ -27,7 +27,7 @@ export default function (in: Input): Output {
 
     const result = call({
         state: allocator.state,
-        callee: in.source.callee,
+        callee: in.callee,
         arguments: arguments({
             allocator: allocator.id,
             value: in.root,

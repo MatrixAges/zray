@@ -12,6 +12,8 @@ export default function (in: Input): Output {
             offsets: []
         },
         root: in.value,
+        callee: 0,
+        request: false,
         name: [],
         name_index: 0,
         uses_allocator: false,

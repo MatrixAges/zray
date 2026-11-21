@@ -16,15 +16,23 @@
         }}
     />
 
+    <Call
+        fn="transport"
+        in={{
+            boundary: $ctx.boundary,
+            result: $ctx.result,
+            pointer: $in.pointer
+        }}
+    />
+
     <Return
         value={{
             argument: $ctx.argument,
             ...$ctx.boundary.pick([
                 "legacy",
-                "transition",
-                "input_value",
                 "clip"
             ]),
+            ...$ctx.transport,
             legacy_deref: $ctx.boundary.product,
             result: $ctx.result
         }}

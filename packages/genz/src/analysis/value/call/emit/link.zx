@@ -1,0 +1,22 @@
+import type { Link as Input, Work as Output } from "./model"
+
+export default function (in: Input): Output {
+    const context = in.state.context
+
+    return {
+        ...in.state,
+        callee: in.reference.root,
+        request: in.reference.request,
+        context: {
+            ...context,
+            expressions: {
+                ...context.expressions,
+                ...in.reference.nodes.omit(["string"])
+            },
+            forms: {
+                ...context.forms,
+                string: in.reference.nodes.string
+            }
+        }
+    }
+}

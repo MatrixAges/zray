@@ -3,6 +3,23 @@
 
     <Args in={Entry.Input} out={Entry.Output} />
 
+    <If on={$in.borrowed}>
+        <Return
+            value={{
+                previous: $in.current,
+                next: {
+                    ...$in.target,
+                    active: false
+                },
+                jobs: {
+                    slots: [],
+                    layouts: []
+                },
+                replace_cache: false
+            }}
+        />
+    </If>
+
     <If on={$in.current.active}>
         <Return
             value={{
@@ -11,7 +28,8 @@
                 jobs: {
                     slots: [],
                     layouts: []
-                }
+                },
+                replace_cache: false
             }}
         />
     </If>
@@ -22,10 +40,11 @@
         value={{
             previous: $in.current,
             next: {
-                ...$in.represented,
+                ...$in.target,
                 active: true
             },
-            jobs: $ctx.schedule
+            jobs: $ctx.schedule,
+            replace_cache: true
         }}
     />
 </Module>
