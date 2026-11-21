@@ -24,6 +24,7 @@ export type OptionalListColumn = opaque
 export type WriteColumn = opaque
 export type ColumnRanges = opaque
 export type ColumnLengths = opaque
+export type ColumnTransfers = opaque
 
 export type TypeRangeElements = [u8, u32, u32, string, u32, u32, string, string]
 export type NominalRangeElements = [u32, u8, string, string, string]
@@ -164,72 +165,6 @@ export declare function readI32Bytes(
 ): i32 throws { IndexOutOfBounds } concurrent
 
 export declare function i32Bits(value: i32): u32 concurrent
-
-export declare function writeColumnU8(
-    target: WriteColumn,
-    index: u64,
-    value: u8
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnU32(
-    target: WriteColumn,
-    index: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnU64(
-    target: WriteColumn,
-    index: u64,
-    value: u64
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnIndex(
-    target: WriteColumn,
-    index: u64,
-    value: u64
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnBool(
-    target: WriteColumn,
-    index: u64,
-    value: bool
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnBytes(
-    target: WriteColumn,
-    index: u64,
-    value: u8[]
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnU32List(
-    target: WriteColumn,
-    index: u64,
-    value: u32[]
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnU64List(
-    target: WriteColumn,
-    index: u64,
-    value: u64[]
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnU32Lists(
-    target: WriteColumn,
-    index: u64,
-    value: u32[][]
-): void throws { IndexOutOfBounds }
-
-export declare function writeNamedRowList(
-    column: WriteColumn,
-    index: u64,
-    source: NamedRowBuffer
-): void throws { IndexOutOfBounds }
-
-export declare function copyColumnValue(
-    target: WriteColumn,
-    index: u64,
-    value: u8[]
-): void throws { IndexOutOfBounds }
 
 export declare function copyText(allocator, value: string): string throws {
     OutOfMemory

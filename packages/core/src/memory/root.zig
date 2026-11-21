@@ -62,6 +62,10 @@ pub const copyColumnText = column_set.copyText;
 pub const copyColumnTextViews = column_set.copyTextViews;
 pub const copyColumnTexts = column_set.copyTexts;
 pub const copyColumnOptionalTexts = column_set.copyTexts;
+pub const column_transfer = @import("column_transfer.zig");
+pub const copyColumnGroup = column_transfer.copy;
+pub const discardColumnGroup = column_transfer.discard;
+pub const publishColumnGroup = column_transfer.publish;
 
 pub inline fn reserveTypeRanges(resource: *const anyopaque, target: *const anyopaque, elements: anytype, limit: ?u64, precise: bool) std.mem.Allocator.Error!void {
     try column_set.reserveRanges(resource, target, elements, limit, precise, false);

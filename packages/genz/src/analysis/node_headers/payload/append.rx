@@ -1,0 +1,55 @@
+<Module>
+    <Type from="model" as="Payload" />
+
+    <Args in={Payload.Input} out={bool} />
+
+    <If on={$in.layout == Payload.Layout.Selected}>
+        <Call fn="copy_selected" in={$in} />
+
+        <Call
+            fn="../selected"
+            in={{
+                ...$in.pick([
+                    "tags",
+                    "mask",
+                    "bases",
+                    "target_tags",
+                    "target_offsets",
+                    "lengths"
+                ]),
+                count: $ctx.copy_selected
+            }}
+        />
+
+        <Return value={$ctx.copy_selected == $in.tags.length} />
+    </If>
+
+    <Call fn="dense" in={$in} />
+
+    <If on={!$ctx.dense}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "groups",
+            "counts"
+        ])}
+    />
+
+    <Call
+        fn="../rebase"
+        in={$in.pick([
+            "tags",
+            "offsets",
+            "mask",
+            "bases",
+            "target_tags",
+            "target_offsets",
+            "lengths"
+        ])}
+    />
+
+    <Return value={true} />
+</Module>

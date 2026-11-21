@@ -1,0 +1,30 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { tags, mask, offsets, groups, allocator } = in
+
+    return loop({
+        row: 0,
+        ready: true
+    }, {
+        while: state => state.ready && state.row < tags.length,
+        next: state => {
+            const byte = integers.widenByte(tags[state.row])
+            const group = integers.andBits(byte, mask)
+            const index = integers.widen(offsets[state.row])
+
+            state.ready = memory.copyColumnGroup(allocator, groups, group, index, 1)
+
+            if (state.ready) {
+                memory.publishColumnGroup(groups, group, 1)
+                state.row += 1
+            }
+        },
+        return: state => state.row
+    })
+}

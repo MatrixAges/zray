@@ -1,0 +1,23 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Columns as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { counts, groups } = in
+
+    const written = loop(0, {
+        while: index => index < counts.length,
+        next: index => {
+            const count = integers.widen(counts[index])
+
+            if (count != 0) {
+                memory.publishColumnGroup(groups, index, count)
+            }
+
+            index += 1
+        }
+    })
+}

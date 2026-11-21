@@ -19,7 +19,7 @@ export type Destination = {
 }
 
 export type Rebase = Headers & Destination & {
-    bases: u32[]
+    bases: U32Buffer
 }
 
 export type Selected = Headers.Pick("tags", "mask") & Destination & {

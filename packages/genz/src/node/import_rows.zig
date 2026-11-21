@@ -1,6 +1,6 @@
 const std = @import("std");
 const view = @import("view.zig");
-const owned = @import("owned.zig");
+const payloads = @import("import_payloads.zig");
 const headers = @import("headers.zig");
 const Counts = headers.Counts;
 
@@ -54,59 +54,9 @@ pub fn check(target: anytype, source: anytype) Error!Counts(@TypeOf(target)) {
 }
 
 fn appendRows(allocator: std.mem.Allocator, target: anytype, source: anytype, comptime copy_payloads: bool, comptime borrow_text: bool) Error!void {
-    @setEvalBranchQuota(100_000);
-
-    const View = std.meta.Child(@TypeOf(source));
-    const Payloads = @TypeOf(target.payloads);
-    const names = @typeInfo(Payloads).@"struct".field_names;
-    const Tag = std.meta.Child(@TypeOf(target.tags.items));
-    const fields = comptime copiedFields(View, copy_payloads, borrow_text);
     const counts = try check(target, source);
 
-    try reserveCounts(allocator, target, &counts, source.tags.len);
-
-    var storage: if (fields.len == 0) void else View = if (fields.len == 0) {} else source.*;
-    const prepared = if (fields.len == 0) source else &storage;
-    var copied: [fields.len]bool = @splat(false);
-
-    defer inline for (fields, 0..) |name, index| {
-        if (copied[index]) allocator.free(@field(prepared, name));
-    };
-
-    if (comptime fields.len != 0) {
-        const failure: ?Error = copying: {
-            inline for (fields, 0..) |name, index| {
-                if (@field(source, name).len != 0) {
-                    @field(prepared, name) = if (comptime borrow_text)
-                        owned.copyBorrowingText(allocator, @field(source, name)) catch |err| break :copying err
-                    else
-                        owned.copy(allocator, @field(source, name)) catch |err| break :copying err;
-
-                    copied[index] = true;
-                }
-            }
-
-            break :copying null;
-        };
-
-        if (failure) |err| {
-            inline for (fields, 0..) |name, index| {
-                if (copied[index]) for (@field(prepared, name)) |value| {
-                    if (comptime borrow_text) owned.releaseBorrowingText(allocator, value) else owned.release(allocator, value);
-                };
-            }
-
-            return err;
-        }
-    }
-
-    const tags = @as([*]const Tag, @ptrCast(prepared.tags.ptr))[0..prepared.tags.len];
-
-    headers.rebase(target, tags, prepared.offsets, &counts);
-
-    inline for (names, 0..) |name, index| {
-        if (counts[index] != 0) commit(&@field(target.payloads, name), prepared, name, counts[index]);
-    }
+    return payloads.append(allocator, target, source, &counts, .dense, copy_payloads, borrow_text);
 }
 
 fn present(comptime View: type, comptime Column: type, comptime prefix: []const u8) usize {
@@ -147,57 +97,4 @@ inline fn validateColumn(comptime Column: type, source: anytype, comptime prefix
     }
 
     return count == 0;
-}
-
-inline fn commit(column: anytype, source: anytype, comptime prefix: []const u8, count: usize) void {
-    const Column = std.meta.Child(@TypeOf(column));
-    const View = std.meta.Child(@TypeOf(source));
-
-    if (@hasField(Column, "fields")) {
-        inline for (@typeInfo(@TypeOf(column.fields)).@"struct".field_names) |name| {
-            commit(&@field(column.fields, name), source, prefix ++ "_" ++ name, count);
-        }
-    } else {
-        const Value = std.meta.Child(@TypeOf(column.values.items));
-
-        if (Value == void) {
-            commitVoid(column, count);
-        } else if (@hasField(View, prefix)) {
-            const values = @field(source, prefix);
-            const converted = @as([*]const Value, @ptrCast(values.ptr))[0..values.len];
-
-            commitValues(column, converted);
-        }
-    }
-}
-
-fn commitVoid(column: anytype, count: usize) void {
-    for (0..count) |_| column.append({});
-}
-
-fn commitValues(column: anytype, values: []const std.meta.Child(@TypeOf(column.values.items))) void {
-    column.values.appendSliceAssumeCapacity(values);
-}
-
-fn copiedFields(comptime View: type, comptime copy_payloads: bool, comptime borrow_text: bool) []const []const u8 {
-    if (!copy_payloads) return &.{};
-
-    var result: []const []const u8 = &.{};
-
-    for (@typeInfo(View).@"struct".field_names) |name| {
-        const Value = std.meta.Child(@FieldType(View, name));
-
-        if (owned.containsSlice(Value) and !(borrow_text and Value == []const u8)) result = result ++ &[_][]const u8{name};
-    }
-
-    return result;
-}
-
-fn reserveCounts(allocator: std.mem.Allocator, target: anytype, counts: *const Counts(@TypeOf(target)), additional: usize) Error!void {
-    try target.tags.ensureUnusedCapacity(allocator, additional);
-    try target.offsets.ensureUnusedCapacity(allocator, additional);
-
-    inline for (@typeInfo(@TypeOf(target.payloads)).@"struct".field_names, 0..) |name, index| {
-        if (counts[index] != 0) try @field(target.payloads, name).reserve(allocator, counts[index]);
-    }
 }

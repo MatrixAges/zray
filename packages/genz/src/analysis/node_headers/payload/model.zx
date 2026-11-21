@@ -1,0 +1,17 @@
+import type { Allocator, ColumnTransfers } from "memory"
+import type { Rebase } from "../model"
+
+export enum Layout {
+    Dense,
+    Selected
+}
+
+export type Columns = {
+    groups: ColumnTransfers,
+    counts: u32[]
+}
+
+export type Input = Rebase & Columns & {
+    allocator: Allocator,
+    layout: Layout
+}
