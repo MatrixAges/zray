@@ -1,0 +1,46 @@
+import type { AtomicRows } from "std:bytes"
+import type { Allocator, Arena, ArenaScope, ListColumn } from "memory"
+import type { Probe } from "../../../memo/encoding/body/model"
+import type { Step } from "../../../replay/model"
+import type { Input as Take } from "../../../work/ahead/take"
+import type { Origin } from "../model"
+
+export type Reads = {
+    tables: AtomicRows[],
+    kinds: ListColumn,
+    functions: ListColumn,
+    slots: ListColumn,
+    values: ListColumn
+}
+
+export type Pending = {
+    take: Take,
+    reads?: Reads
+}
+
+export type Cache = {
+    memo?: Probe,
+    history?: Step,
+    state_end: u64,
+    scope: ArenaScope,
+    owner: Allocator,
+    temporary: Allocator
+}
+
+export type Found = {
+    trace_row?: u64,
+    memo_row?: u32,
+    following: bool,
+    state_end: u64
+}
+
+export type Input = Cache & {
+    ahead?: Pending,
+    scratch: Arena,
+    reset: bool
+}
+
+export type Output = Found & {
+    origin: Origin,
+    failed: bool
+}

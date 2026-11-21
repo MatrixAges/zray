@@ -1,0 +1,51 @@
+<Module>
+    <Type from="model" as="Intake" />
+    <Type from="../../../work/ahead/model" as="Ahead" />
+
+    <Args in={Intake.Input} out={Intake.Output} />
+
+    <Call
+        fn="clear"
+        in={$in.pick([
+            "scratch",
+            "reset"
+        ])}
+    />
+
+    <Call
+        module="cache"
+        in={$in.omit([
+            "ahead",
+            "scratch",
+            "reset"
+        ])}
+    />
+
+    <If on={$in.ahead != null}>
+        <Call module="collect" in={$in.ahead} />
+
+        <Call
+            fn="complete"
+            in={{
+                ...$ctx.cache,
+                result: $ctx.collect,
+                scratch: $in.scratch,
+                reset: $in.reset
+            }}
+        />
+
+        <Return value={$ctx.complete} />
+    </If>
+
+    <Call
+        fn="complete"
+        in={{
+            ...$ctx.cache,
+            result: Ahead.Result.Missing,
+            scratch: $in.scratch,
+            reset: $in.reset
+        }}
+    />
+
+    <Return value={$ctx.complete} />
+</Module>

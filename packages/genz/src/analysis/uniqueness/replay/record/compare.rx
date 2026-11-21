@@ -1,0 +1,47 @@
+<Module>
+    <Type from="model" as="Record" />
+
+    <Args in={Record.Comparison} out={bool} />
+
+    <If on={$in.settled != null}>
+        <Call
+            fn="../ordered/settled"
+            in={{
+                ...$in.settled,
+                previous: $in.cursor,
+                current: 0
+            }}
+        />
+
+        <Return value={$ctx.settled} />
+    </If>
+
+    <If on={$in.demanded != null}>
+        <Call
+            fn="../ordered/demanded"
+            in={{
+                ...$in.demanded,
+                previous: $in.cursor,
+                current: 0
+            }}
+        />
+
+        <Return value={$ctx.demanded} />
+    </If>
+
+    <If on={$in.planned != null}>
+        <Call
+            fn="plan_pair"
+            in={{
+                ...$in.planned,
+                cursor: $in.cursor
+            }}
+        />
+
+        <Call module="../ordered/planned" />
+
+        <Return value={$ctx.planned} />
+    </If>
+
+    <Return value={false} />
+</Module>

@@ -47,14 +47,14 @@ pub fn run(ahead: *Ahead, memo: *Memo, comptime kind: Memo.Kind, advance: *const
     var claim: Round.Claim = undefined;
 
     while (true) {
-        const encoding = memo.encoding.binding();
+        const encoding = memo.encoding.binding(std.meta.Child(@FieldType(Prefetch, "encoding")));
 
         const input: Input = .{
             .round = round,
             .prefetch = &.{
                 .window = &window,
                 .channel = &.{ .counters = @ptrCast(&counters), .ring = @ptrCast(&pool.ring.ring) },
-                .encoding = &.{ .buffer = encoding.buffer, .state_end = encoding.state_end },
+                .encoding = &encoding,
                 .memo = if (use_memo) &offer else null,
                 .needs_start = pool.started < pool.threads.len,
             },

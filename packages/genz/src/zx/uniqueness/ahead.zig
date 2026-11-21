@@ -115,18 +115,11 @@ fn offer(self: *Self, comptime kind: Memo.Kind, comptime persistent: bool, memo:
 /// The result analyzed ahead for body `index` if every level it read still holds; waits while it is analyzed.
 pub fn take(self: *Self, comptime kind: Memo.Kind, index: usize) Error!?Found(kind) {
     if (self.pool.count() == 0) return null;
+    if (!try @import("ahead/seed.zig").take(self.states, self.dirty, index)) return null;
 
-    var found: Found(kind) = undefined;
+    const found = self.resultSlot(kind, index).*;
 
-    inline for (comptime workflow.steps(.Collect, kind, true)) |step| switch (step) {
-        .Wait => {
-            if (!try Schedule.take(self.states, self.dirty, index)) return null;
-
-            found = @field(self.results[index], @tagName(kind));
-        },
-        .CheckReads => if (!Function.unchanged(self.summaries, found.reads)) return null,
-        else => unreachable,
-    };
+    if (kind != .planned and !Function.unchanged(self.summaries, found.reads)) return null;
 
     return found;
 }
@@ -142,6 +135,10 @@ pub fn Found(comptime kind: Memo.Kind) type {
         .demanded => Demanded,
         .planned => Function.Plan,
     };
+}
+
+pub fn resultSlot(self: *const Self, comptime kind: Memo.Kind, index: usize) *const Found(kind) {
+    return &@field(self.results[index], @tagName(kind));
 }
 
 fn Task(comptime kind: Memo.Kind) type {

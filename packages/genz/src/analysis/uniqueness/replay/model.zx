@@ -34,5 +34,5 @@ export type Step = {
 
 export type Selection = {
     following: bool,
-    cursor?: u32
+    cursor?: u64
 }

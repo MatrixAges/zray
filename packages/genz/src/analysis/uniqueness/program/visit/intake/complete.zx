@@ -1,0 +1,39 @@
+import memory from "memory"
+
+import { Result } from "../../../work/ahead/model"
+import { Origin } from "../model"
+import choose from "../select"
+
+import type { Arena } from "memory"
+import type { Found, Output } from "./model"
+
+export type Input = Found & {
+    result: Result,
+    scratch: Arena,
+    reset: bool
+}
+
+export default function (in: Input): Output {
+    const origin = choose({
+        cached: in.trace_row != null || in.memo_row != null,
+        ahead: in.result == Result.Ready
+    })
+
+    const failed = in.result == Result.Failed
+
+    if (!in.reset && !failed) {
+        if (origin == Origin.Analyze) {
+            const released = memory.resetArenaRetainingCapacity(in.scratch)
+        }
+    }
+
+    return {
+        ...in.omit([
+            "result",
+            "scratch",
+            "reset"
+        ]),
+        origin,
+        failed
+    }
+}

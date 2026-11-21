@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Intake" />
+
+    <Args in={Intake.Cache} out={Intake.Found} />
+
+    <If on={$in.history != null}>
+        <Call fn="../../../replay/select" in={$in.history} />
+
+        <If on={$ctx.select.cursor != null}>
+            <Return
+                value={{
+                    trace_row: $ctx.select.cursor,
+                    memo_row: null,
+                    following: $ctx.select.following,
+                    state_end: $in.state_end
+                }}
+            />
+        </If>
+
+        <Call
+            fn="probe"
+            in={{
+                ...$in.omit(["history"]),
+                following: $ctx.select.following
+            }}
+        />
+
+        <Return value={$ctx.probe} />
+    </If>
+
+    <Call
+        fn="probe"
+        in={{
+            ...$in.omit(["history"]),
+            following: false
+        }}
+    />
+
+    <Return value={$ctx.probe} />
+</Module>

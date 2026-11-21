@@ -15,7 +15,7 @@ pub const Entry = struct {
     }
 };
 
-pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, ordered, collections, growth, body_view, host };
+pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, collections, growth, body_view, host };
 const constant_fold = Entry{ .path = "zx/analysis/constants/evaluate.rx", .name = "constant_fold" };
 const input_snapshot = Entry{ .path = "inputs/snapshot/reuse.rx", .name = "input_snapshot", .owner = .compiler };
 const partition_groups = Entry{ .path = "genz/analysis/partition/plan.rx", .name = "partition_groups", .owner = .genz };
@@ -624,17 +624,14 @@ pub const main = [_]Entry{
     .{ .path = "core/error_effects/cache/function.zx", .name = "function_error_cache", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/level/evaluate.zx", .name = "uniqueness_level", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/level/lacks.zx", .name = "uniqueness_level_lacks", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/function/reads/check.rx", .name = "uniqueness_function_reads", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/updates/contributions.zx", .name = "uniqueness_replay_contributions", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/prepare.rx", .name = "uniqueness_prepare_program", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/create.rx", .name = "uniqueness_replay_create", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/replay/select.zx", .name = "uniqueness_replay_select", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/record/publish.rx", .name = "uniqueness_trace_append", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/identity/combine.zx", .name = "uniqueness_identity_combine", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/publication/build.rx", .name = "uniqueness_trace_publication", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/shortcut/scan/run.zx", .name = "uniqueness_shortcut_scan", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/replay/shortcut/publish.rx", .name = "uniqueness_shortcut_publish", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/memo/encoding/body/probe.rx", .name = "uniqueness_memo_key", .owner = .genz },
     .{ .path = "core/bytes/index/digest/exchange.zx", .name = "uniqueness_memo_exchange", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/table/reserve.rx", .name = "uniqueness_memo_reserve", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/memo/table/store.rx", .name = "uniqueness_memo_store", .owner = .genz },
@@ -649,7 +646,7 @@ pub const main = [_]Entry{
     partition_groups,
     .{ .path = "genz/analysis/uniqueness/work/round/prepare.rx", .name = "uniqueness_prepare_round", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/run.rx", .name = "uniqueness_program", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/program/visit/select.zx", .name = "uniqueness_visit_select", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/program/visit/intake/run.rx", .name = "uniqueness_visit_intake", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/sequence.rx", .name = "uniqueness_visit_sequence", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/demand.rx", .name = "uniqueness_visit_demand", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/settlement.rx", .name = "uniqueness_visit_settlement", .owner = .genz },
@@ -657,7 +654,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/program/visit/initialize.zx", .name = "uniqueness_visit_initialize", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/round/dispatch.rx", .name = "uniqueness_work_dispatch", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/ahead/transition.zx", .name = "uniqueness_ahead_transition", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/work/ahead/take.zx", .name = "uniqueness_ahead_take", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/ahead/workflow/sequence.rx", .name = "uniqueness_ahead_sequence", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/pool/const.zx", .name = "uniqueness_pool_limits", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/work/pool/reserve.zx", .name = "uniqueness_pool_reserve", .owner = .genz },
@@ -1034,12 +1030,6 @@ pub const collections = [_]Entry{
     .{ .path = "genz/analysis/members/remove_many.zx", .name = "members_remove_many", .owner = .genz },
 };
 
-pub const ordered = [_]Entry{
-    .{ .path = "genz/analysis/uniqueness/replay/ordered/demanded.zx", .name = "uniqueness_replay_demanded", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/replay/ordered/settled.zx", .name = "uniqueness_replay_settled", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/replay/ordered/planned.rx", .name = "uniqueness_replay_planned", .owner = .genz },
-};
-
 pub const body_view = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/function/visit/context.zx", .name = "uniqueness_body_view", .owner = .genz },
 };
@@ -1092,7 +1082,6 @@ pub fn of(set: Set) []const Entry {
     return switch (set) {
         .main => &main,
         .checks => &checks,
-        .ordered => &ordered,
         .collections => &collections,
         .growth => &growth,
         .body_view => &body_view,
@@ -1113,7 +1102,7 @@ pub const ModuleEntry = struct {
 pub const module_entries = block: {
     @setEvalBranchQuota(10_000);
 
-    const sets = .{ Set.main, Set.ordered, Set.collections, Set.growth, Set.body_view, Set.host };
+    const sets = .{ Set.main, Set.collections, Set.growth, Set.body_view, Set.host };
     var count: usize = 0;
 
     for (sets) |set| {

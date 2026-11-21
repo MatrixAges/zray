@@ -82,20 +82,28 @@ pub const Replay = struct {
         const history = if (trace) |previous| @field(previous, @tagName(kind)) else null;
         const log = &@field(self, @tagName(kind));
 
-        const cursor = if (generated) selected: {
-            const selection = if (history) |visits| self.control.visit(kind, index, visits.starts, true) else null;
-            const result = try log.append(self.allocator, recording, @intCast(index), value, source, if (selection) |*row| row else null);
+        if (generated) {
+            const used = log.used;
 
-            if (!result.following) self.trace = null;
+            const old = if (history) |visits| &Log(Memo.Result(kind)).History{
+                .selection = self.control.visit(@import("replay/record.zig").Selection, kind, index, visits.starts, true),
+                .entries = visits.entries,
+            } else null;
 
-            break :selected result.cursor;
-        } else seeded: {
-            const state = try recording.dupe(u8, source);
+            defer if (log.used != used) {
+                self.recalled = null;
+            };
 
-            try log.append(self.allocator, @intCast(index), value, state);
+            if (!try log.append(kind, self.allocator, recording, @intCast(index), value, source, old)) self.trace = null;
 
-            break :seeded if (history) |visits| try self.select(kind, index, visits.starts, true) else null;
-        };
+            return;
+        }
+
+        const state = try recording.dupe(u8, source);
+
+        try log.append(self.allocator, @intCast(index), value, state);
+
+        const cursor = if (history) |visits| try self.select(kind, index, visits.starts, true) else null;
 
         self.recalled = null;
 
@@ -132,7 +140,6 @@ pub const Replay = struct {
 
 /// Whether two results of `kind` have the same effect: growth copies are sets, whatever order they were listed in.
 pub fn agree(comptime kind: Kind, allocator: std.mem.Allocator, left: Memo.Result(kind), right: Memo.Result(kind)) std.mem.Allocator.Error!bool {
-    if (@import("genz_options").generated_analysis) return @import("replay/ordered.zig").agree(kind, allocator, left, right);
     if (kind != .demanded) return same(left, right);
     if (left.grew != right.grew or !same(left.marks, right.marks)) return false;
 

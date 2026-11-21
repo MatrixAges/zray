@@ -21,12 +21,8 @@ export type Available = {
 }
 
 export enum Step {
-    Recall,
-    ReadMemoOnMiss,
-    TakeAhead,
     UseCached,
     AdoptAhead,
-    ResetScratch,
     Analyze,
     Apply,
     RecordTrace,
@@ -35,7 +31,7 @@ export enum Step {
 
 export type Request = {
     phase: Phase,
-    origin?: Origin,
+    origin: Origin,
     persistent: bool
 }
 

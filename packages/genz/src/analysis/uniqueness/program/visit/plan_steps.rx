@@ -8,12 +8,7 @@
             <Return value={[Visit.Step.AdoptAhead]} />
         </If>
 
-        <Return
-            value={[
-                Visit.Step.ResetScratch,
-                Visit.Step.Analyze
-            ]}
-        />
+        <Return value={[Visit.Step.Analyze]} />
     </If>
 
     <If on={$in.origin == Visit.Origin.Cached}>
@@ -38,7 +33,6 @@
 
     <Return
         value={[
-            Visit.Step.ResetScratch,
             Visit.Step.Analyze,
             Visit.Step.RecordTrace,
             Visit.Step.RetainOutput

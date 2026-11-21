@@ -1,11 +1,24 @@
-import type { Selection, Step } from "../model"
+import type { U64Buffer } from "memory"
+import type { Step } from "../model"
+import type { DemandPair, SettlementPair } from "../ordered/columns"
+import type { PlanReads } from "../shortcut/model"
 import type { Input as Append } from "./append"
+
+export type Plans = {
+    left: PlanReads,
+    right: PlanReads
+}
+
+export type Comparison = {
+    cursor: u64,
+    settled?: SettlementPair.Omit("previous", "current"),
+    demanded?: DemandPair.Omit("previous", "current"),
+    planned?: Plans
+}
 
 export type Input = {
     append: Append,
-    selection?: Step
-}
-
-export type Output = Selection & {
-    used: u64
+    selection?: Step,
+    comparison: Comparison.Omit("cursor"),
+    committed: U64Buffer
 }

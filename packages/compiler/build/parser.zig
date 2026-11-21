@@ -2,7 +2,7 @@ const std = @import("std");
 const entries = @import("entries.zig");
 const memory_columns = "memory/columns";
 const lexical_path = "lexical_path";
-pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, ordered: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, body_view: std.Build.LazyPath, host: std.Build.LazyPath };
+pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, body_view: std.Build.LazyPath, host: std.Build.LazyPath };
 
 pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []const u8, partitions: u32, executable: *std.Build.Step.Compile) Sources {
     const target = b.graph.host;
@@ -76,18 +76,11 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     };
 
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
-    for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .ordered, .collections, .growth, .body_view, .host }) |set| {
+    for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .collections, .growth, .body_view, .host }) |set| {
         const run = generatorRun(b, executable, stage0);
 
         const project = manifest.Project{
             .roots = switch (set) {
-                .ordered => &.{ .{
-                    .path = b.fmt("{s}/analysis/uniqueness/replay/ordered", .{directories[3]}),
-                    .prefix = "genz/analysis/uniqueness/replay/ordered/",
-                }, .{
-                    .path = b.fmt("{s}/analysis/uniqueness/renewals", .{directories[3]}),
-                    .prefix = "genz/analysis/uniqueness/renewals/",
-                } },
                 .collections => &.{ manifest_roots[2], .{
                     .path = b.fmt("{s}/analysis/state/locals", .{directories[3]}),
                     .prefix = "genz/analysis/state/locals/",
@@ -131,7 +124,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         }
 
         switch (set) {
-            .ordered => inline for (ordered_roots) |path| addSubtree(run, tracked[3], path),
             .collections => {
                 addSources(run, tracked[2]);
                 inline for (collection_roots) |path| addSubtree(run, tracked[3], path);
@@ -171,7 +163,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             switch (set) {
                 .main => sources.main = directory,
                 .checks => sources.checks = directory,
-                .ordered => sources.ordered = directory,
                 .collections => sources.collections = directory,
                 .growth => sources.growth = directory,
                 .body_view => sources.body_view = directory,
@@ -194,7 +185,6 @@ fn generatorRun(b: *std.Build, seed: *std.Build.Step.Compile, stage0: []const u8
     return run;
 }
 
-const ordered_roots = [_][]const u8{ "analysis/uniqueness/replay/ordered", "analysis/uniqueness/renewals" };
 const collection_roots = [_][]const u8{ "analysis/state/locals", "analysis/state/queries", "analysis/members", "analysis/iteration/transfer/history" };
 const SourceInput = struct { relative: []const u8, path: std.Build.LazyPath };
 
@@ -257,7 +247,7 @@ fn lessThan(_: void, left: []const u8, right: []const u8) bool {
 /// layout of Zig's own types only agrees within one backend, and only Apple's linker turns them into a runnable
 /// executable on macOS; artifacts that cannot meet both keep `objects`. Each set compiles only when an artifact uses it.
 /// They come as one directory holding `zxc_partition_<n>.o` for each partition.
-pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Module, ordered: *std.Build.Module, collections: *std.Build.Module, growth: *std.Build.Module, body_view: *std.Build.Module, objects: ?*std.Build.Module, self_hosted_objects: ?std.Build.LazyPath };
+pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Module, collections: *std.Build.Module, growth: *std.Build.Module, body_view: *std.Build.Module, objects: ?*std.Build.Module, self_hosted_objects: ?std.Build.LazyPath };
 
 pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, source: Sources, strip: ?bool, partitions: u32) Shared {
     const abi = b.createModule(.{ .root_source_file = source.main.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
@@ -350,21 +340,6 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         },
     });
 
-    const ordered_abi = b.createModule(.{ .root_source_file = source.ordered.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
-
-    const ordered = b.createModule(.{
-        .root_source_file = source.ordered.path(b, "root.zig"),
-        .target = target,
-        .optimize = optimize,
-        .strip = strip,
-        .imports = &.{
-            .{ .name = "zxc_abi", .module = ordered_abi },
-            .{ .name = "zxc_standard", .module = standard },
-            .{ .name = "zxc_string", .module = string },
-            .{ .name = "memory", .module = memory },
-        },
-    });
-
     const collections_abi = b.createModule(.{ .root_source_file = source.collections.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
 
     const collections = b.createModule(.{
@@ -407,7 +382,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         },
     });
 
-    return .{ .generated = generated, .checks = check_modules, .ordered = ordered, .collections = collections, .growth = growth, .body_view = body_view, .objects = objects, .self_hosted_objects = self_hosted_objects };
+    return .{ .generated = generated, .checks = check_modules, .collections = collections, .growth = growth, .body_view = body_view, .objects = objects, .self_hosted_objects = self_hosted_objects };
 }
 
 /// Each partition is its own compilation unit; final artifacts link them by importing the returned module.
@@ -513,7 +488,6 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     for (entries.module_entries, bindings) |metadata, *binding| {
         const directory = switch (metadata.set) {
             .main => source.main,
-            .ordered => source.ordered,
             .collections => source.collections,
             .growth => source.growth,
             .body_view => source.body_view,
@@ -523,7 +497,6 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
 
         const generated = switch (metadata.set) {
             .main => natives.generated,
-            .ordered => natives.ordered,
             .collections => natives.collections,
             .growth => natives.growth,
             .body_view => natives.body_view,

@@ -69,6 +69,35 @@ pub const Demanded = struct {
     }
 };
 
+pub const Planned = struct {
+    flags: memory.ListColumn,
+    keys: memory.ReadColumn,
+    paths: memory.ReadColumn,
+    transfers: memory.ReadColumn,
+    slot_first: memory.ReadColumn,
+    pub fn init(comptime prefix: []const []const u8, rows: anytype) Planned {
+        const renewals = prefix ++ [_][]const u8{"renewals"};
+
+        return .{
+            .flags = memory.borrowSliceColumn(prefix ++ [_][]const u8{"flags"}, rows),
+            .keys = memory.borrowNestedColumn([]const u64, renewals ++ [_][]const u8{"keys"}, rows),
+            .paths = memory.borrowNestedColumn([]const []const u32, renewals ++ [_][]const u8{"paths"}, rows),
+            .transfers = memory.borrowNestedColumn([]const u64, prefix ++ [_][]const u8{"transfers"}, rows),
+            .slot_first = memory.borrowNestedColumn([]const u32, prefix ++ [_][]const u8{"slot_first"}, rows),
+        };
+    }
+
+    pub fn view(self: *const Planned, comptime View: type) View {
+        return .{
+            .flags = @ptrCast(&self.flags),
+            .keys = @ptrCast(&self.keys),
+            .paths = @ptrCast(&self.paths),
+            .transfers = @ptrCast(&self.transfers),
+            .slot_first = @ptrCast(&self.slot_first),
+        };
+    }
+};
+
 const Marks = struct {
     output: memory.ListColumn,
     functions: memory.ListColumn,

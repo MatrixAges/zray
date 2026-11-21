@@ -1,3 +1,4 @@
+import integers from "std:integer"
 import memory from "memory"
 
 import type { Step as Input, Selection as Output } from "./model"
@@ -30,6 +31,6 @@ export default function (in: Input): Output {
 
     return {
         following: true,
-        cursor: position
+        cursor: integers.widen(position)
     }
 }

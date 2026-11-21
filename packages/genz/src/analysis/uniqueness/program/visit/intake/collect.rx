@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Intake" />
+    <Type from="../../../work/ahead/model" as="Ahead" />
+
+    <Args in={Intake.Pending} out={Ahead.Result} />
+
+    <Call fn="../../../work/ahead/take" in={$in.take} />
+
+    <If on={$ctx.take == Ahead.Result.Ready && $in.reads != null}>
+        <Call fn="unchanged" in={$in.reads} />
+
+        <If on={!$ctx.unchanged}>
+            <Return value={Ahead.Result.Missing} />
+        </If>
+    </If>
+
+    <Return value={$ctx.take} />
+</Module>

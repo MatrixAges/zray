@@ -1,0 +1,14 @@
+import memory from "memory"
+
+import type { U64Buffer } from "memory"
+
+export type Input = {
+    target: U64Buffer,
+    used: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.writeU64(in.target, 0, in.used)
+}

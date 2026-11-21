@@ -1,0 +1,23 @@
+import memory from "memory"
+
+import type { Planned as Output } from "../ordered/model"
+import type { PlanReads } from "../shortcut/model"
+
+export type Input = {
+    source: PlanReads,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { source, row } = in
+
+    return {
+        flags: memory.borrowListBytes(source.flags, row),
+        renewals: {
+            keys: memory.readColumnU64List(source.keys, row),
+            paths: memory.readColumnU32Lists(source.paths, row)
+        },
+        transfers: memory.readColumnU64List(source.transfers, row),
+        slot_first: memory.readColumnU32List(source.slot_first, row)
+    }
+}

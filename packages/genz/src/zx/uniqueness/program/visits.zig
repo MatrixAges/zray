@@ -5,7 +5,7 @@ const Ahead = @import("../ahead.zig");
 const Function = @import("../function.zig");
 const Memo = @import("../memo.zig");
 const Round = @import("../work/round.zig");
-const select = @import("visit/select.zig");
+const intake = @import("visit/intake.zig");
 const compute = @import("visit/compute.zig");
 const demand_visit = @import("visit/demand.zig");
 const settle_visit = @import("visit/settlement.zig");
@@ -32,11 +32,17 @@ fn Output(comptime kind: Memo.Kind) type {
 }
 
 fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, round: *std.heap.ArenaAllocator, index: usize) Error!Output(kind) {
-    var visit: Visit(kind) = .{ .ctx = ctx, .round = round, .index = index };
+    const choice = try intake.run(kind, persistent, ctx, round, index);
 
-    try visit.execute(persistent, null);
+    var visit: Visit(kind) = .{
+        .ctx = ctx,
+        .round = round,
+        .index = index,
+        .cached = choice.cached,
+        .ahead = choice.ahead,
+    };
 
-    switch (select.choose(visit.cached != null, visit.ahead != null)) {
+    switch (choice.origin) {
         inline else => |origin| try visit.execute(persistent, origin),
     }
 
@@ -59,7 +65,7 @@ fn Visit(comptime kind: Memo.Kind) type {
             .demanded => .Demand,
             .planned => .Plan,
         };
-        fn execute(self: *Self, comptime persistent: bool, comptime origin: ?select.Origin) Error!void {
+        fn execute(self: *Self, comptime persistent: bool, comptime origin: intake.Origin) Error!void {
             const steps = comptime zx.staticSequence(sequence, &.{
                 .phase = phase,
                 .origin = origin,
@@ -67,25 +73,13 @@ fn Visit(comptime kind: Memo.Kind) type {
             });
 
             inline for (steps) |step| switch (step) {
-                .Recall => self.cached = try self.ctx.replay.recall(kind, self.index),
-                .ReadMemoOnMiss => if (self.cached == null) {
-                    self.cached = try self.lookup();
-                },
-                .TakeAhead => self.ahead = try self.ctx.rounds.?.ahead.take(kind, self.index),
                 .UseCached => self.record = self.cached.?,
                 .AdoptAhead => try self.adopt(persistent),
-                .ResetScratch => _ = self.round.reset(.retain_capacity),
                 .Analyze => try self.analyze(persistent),
                 .Apply => try self.apply(),
                 .RecordTrace => try self.ctx.replay.met(kind, self.index, self.record, self.ctx.memo),
                 .RetainOutput => self.record = Memo.Planned.fromPlan(try self.record.plan().copy(self.ctx.allocator)),
             };
-        }
-
-        fn lookup(self: *Self) Error!?Memo.Result(kind) {
-            const ctx = self.ctx;
-
-            return ctx.memo.getBody(kind, ctx.summaries, &ctx.rounds.?.ahead.memo_rows, self.index);
         }
         fn owner(self: *Self, comptime persistent: bool) std.mem.Allocator {
             return if (persistent) self.ctx.memo.arena.allocator() else self.ctx.allocator;

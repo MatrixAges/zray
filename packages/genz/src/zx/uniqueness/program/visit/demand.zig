@@ -3,18 +3,17 @@ const zx = @import("zx");
 const Function = @import("../../function.zig");
 const Growth = @import("../../growth.zig");
 const Summaries = @import("../../summaries.zig");
-const Origin = @import("select.zig").Origin;
 const Level = @import("../../level.zig").Level;
 const rowInput = @import("../../retain.zig").rowInput;
 const rows = @import("../../row_output.zig");
 const Memo = @import("../../memo.zig");
 const record = @import("../../memo/record.zig");
-
+const entry = @import("generated_uniqueness_visit_demand");
+const Input = std.meta.Child(entry.Input);
+const Origin = @FieldType(Input, "origin");
 pub const Adopted = struct { changed: []const u64, stored: ?Memo.Demanded };
 
 pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: *Summaries, target: *Growth.Store, growth: Growth.Rows, marks: []const Function.Mark, comptime origin: Origin, grew: bool, memo: ?*Memo) std.mem.Allocator.Error!Adopted {
-    const entry = @import("generated_uniqueness_visit_demand");
-    const Input = std.meta.Child(entry.Input);
     const Binding = std.meta.Child(@FieldType(Input, "growth"));
     const Snapshot = std.meta.Child(@typeInfo(@FieldType(Binding, "snapshot")).optional.child);
     const Retention = std.meta.Child(@FieldType(Snapshot, "rows"));

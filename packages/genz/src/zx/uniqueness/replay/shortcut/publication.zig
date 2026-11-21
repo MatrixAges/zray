@@ -6,13 +6,15 @@ const Plan = @import("../../function.zig").Plan;
 const Planned = @import("../../memo.zig").Planned;
 const PlanWriter = @import("../../program/visit/plan_writer.zig");
 const Replacement = @import("../shortcut.zig").Replacement;
+const Reads = @import("../ordered/columns.zig").Planned;
 const publishing = @import("generated_uniqueness_shortcut_publish");
 const Input = std.meta.Child(publishing.Input);
 const Plans = std.meta.Child(@FieldType(Input, "plans"));
 
 pub fn apply(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace.Replay, replacements: []const Replacement, output: *PlanWriter) std.mem.Allocator.Error!void {
-    const recorded = Reads.init(trace.planned.entries);
-    const replacement = Reads.init(replacements);
+    const recorded = Reads.init(&.{"value"}, trace.planned.entries);
+    const replacement = Reads.init(&.{"value"}, replacements);
+    const View = std.meta.Child(@FieldType(Plans, "recorded"));
     const functions = Writes.init(output.rows);
     const entry = Writes.init(@as(*[1]Plan, @ptrCast(&output.entry)));
     const positions = memory.borrowReadColumn(u32, "visit", replacements);
@@ -24,8 +26,8 @@ pub fn apply(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace.R
         .plans = &.{
             .planned = trace.planned.starts,
             .changed = replay.changed,
-            .recorded = &recorded.view(),
-            .replacements = &replacement.view(),
+            .recorded = &recorded.view(View),
+            .replacements = &replacement.view(View),
             .functions = &functions.view(),
             .entry = &entry.view(),
         },
@@ -45,32 +47,6 @@ pub fn apply(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace.R
         else => unreachable,
     };
 }
-
-const Reads = struct {
-    flags: memory.ListColumn,
-    keys: memory.ReadColumn,
-    paths: memory.ReadColumn,
-    transfers: memory.ReadColumn,
-    slot_first: memory.ReadColumn,
-    const View = std.meta.Child(@FieldType(Plans, "recorded"));
-
-    fn init(rows: anytype) Reads {
-        return .{
-            .flags = memory.borrowSliceColumn(&.{ "value", "flags" }, rows),
-            .keys = memory.borrowNestedColumn([]const u64, &.{ "value", "renewals", "keys" }, rows),
-            .paths = memory.borrowNestedColumn([]const []const u32, &.{ "value", "renewals", "paths" }, rows),
-            .transfers = memory.borrowNestedColumn([]const u64, &.{ "value", "transfers" }, rows),
-            .slot_first = memory.borrowNestedColumn([]const u32, &.{ "value", "slot_first" }, rows),
-        };
-    }
-    fn view(self: *const Reads) View {
-        var result: View = undefined;
-
-        inline for (@typeInfo(View).@"struct".field_names) |name| @field(result, name) = @ptrCast(&@field(self, name));
-
-        return result;
-    }
-};
 
 const Writes = struct {
     flags: memory.WriteColumn,

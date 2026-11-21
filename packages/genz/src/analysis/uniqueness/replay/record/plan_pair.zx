@@ -1,0 +1,19 @@
+import read from "./read_plan"
+
+import type { Plan as Output } from "../ordered/model"
+import type { Comparison, Plans } from "./model"
+
+export type Input = Plans & Comparison.Pick("cursor")
+
+export default function (in: Input): Output {
+    return {
+        left: read({
+            source: in.left,
+            row: in.cursor
+        }),
+        right: read({
+            source: in.right,
+            row: 0
+        })
+    }
+}

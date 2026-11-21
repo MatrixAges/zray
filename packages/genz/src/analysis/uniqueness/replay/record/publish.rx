@@ -1,26 +1,43 @@
 <Module>
     <Type from="model" as="Record" />
 
-    <Args in={Record.Input} out={Record.Output} />
+    <Args in={Record.Input} out={bool} />
 
     <Call fn="append" in={$in.append} />
 
     <If on={$in.selection != null}>
         <Call fn="../select" in={$in.selection} />
 
-        <Return
-            value={{
-                ...$ctx.select,
+        <Call
+            fn="commit"
+            in={{
+                target: $in.committed,
                 used: $ctx.append
             }}
         />
+
+        <If on={$ctx.select.cursor != null}>
+            <Call
+                module="compare"
+                in={{
+                    ...$in.comparison,
+                    cursor: $ctx.select.cursor
+                }}
+            />
+
+            <Return value={$ctx.compare} />
+        </If>
+
+        <Return value={$ctx.select.following} />
     </If>
 
-    <Return
-        value={{
-            following: false,
-            cursor: null,
+    <Call
+        fn="commit"
+        in={{
+            target: $in.committed,
             used: $ctx.append
         }}
     />
+
+    <Return value={false} />
 </Module>
