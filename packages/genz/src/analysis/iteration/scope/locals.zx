@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import get from "core/integer/index/get"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
@@ -20,7 +21,10 @@ export default function (in: Input): Output {
         next: state => {
             const symbol = in.symbols[state.position]
 
-            if (symbol != null) {
+            if (symbol != null && get({
+                index: in.index,
+                key: symbol
+            }) == null) {
                 const type_id =
                     integers.widen(in.symbol_types[integers.widen(symbol)])
                 const represented = query({

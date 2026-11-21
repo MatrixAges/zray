@@ -1,24 +1,44 @@
-import { Action, Phase } from "./model"
+import integers from "std:integer"
+
+import { Action } from "./model"
 
 export type Input = {
-    phase: Phase,
-    named: bool,
-    used: bool,
-    reference: bool
+    symbol?: u32,
+    used: bool[],
+    names: u8[][],
+    types: u32[]
 }
 
-export type Output = Action
+export type Output = {
+    action: Action,
+    name: u8[],
+    type_id?: u32
+}
 
 export default function (in: Input): Output {
-    if (in.phase == Phase.Before) {
-        const skip = in.named && !in.used && in.reference
+    const symbol = in.symbol
 
-        return skip ? Action.Skip : Action.Evaluate
+    if (symbol == null) {
+        return {
+            action: Action.Expression,
+            name: [],
+            type_id: null
+        }
     }
 
-    if (!in.named) {
-        return Action.Expression
+    const row = integers.widen(symbol)
+
+    if (!in.used[row]) {
+        return {
+            action: Action.Discard,
+            name: [],
+            type_id: null
+        }
     }
 
-    return in.used ? Action.Constant : Action.Discard
+    return {
+        action: Action.Constant,
+        name: in.names[row],
+        type_id: in.types[row]
+    }
 }

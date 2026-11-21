@@ -3,6 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const Reuse = @import("scope/reuse.zig");
+const schedule = @import("scope/schedule.zig");
 const generated = @import("genz_options").generated_analysis;
 
 pub fn lower(self: *Lower, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
@@ -23,31 +24,23 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
     defer self.stack_symbols.removeMany(stacked);
 
-    const result_type = self.program.expression(scope.result).type_id;
+    const plan = schedule.result(self, scope);
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
 
     defer scratch.deinit();
 
     const reuse = try Reuse.create(self, scope, scratch.allocator());
 
-    defer if (reuse) |*plan| plan.restore(self);
+    defer if (reuse) |*aliases| aliases.restore(self);
 
-    var consumed_last = false;
-    var result: ?node.ExpressionId = null;
+    const consumed = if (plan.candidate) |last|
+        try @import("iteration_consumer.zig").lower(self, last.symbol, last.value, scope.result, layout)
+    else
+        null;
 
-    if (scope.bindings.len != 0) {
-        const binding = scope.bindings.at(scope.bindings.len - 1);
-
-        if (binding.symbol) |symbol| {
-            result = try @import("iteration_consumer.zig").lower(self, symbol, binding.value, scope.result, layout);
-            consumed_last = result != null;
-        }
-    }
-
-    if (result == null) result = if (layout) try values.expression(self, scope.result) else try self.expr(scope.result);
-
+    const result = consumed orelse if (layout) try values.expression(self, scope.result) else try self.expr(scope.result);
     var inline_spans: [64]u32 = undefined;
-    const count = scope.bindings.len - @intFromBool(consumed_last);
+    const count = plan.count - @intFromBool(consumed != null);
 
     const spans = if (count <= inline_spans.len / 2)
         inline_spans[0 .. count * 2]
@@ -66,51 +59,63 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
     var offset = count;
 
     while (offset > 0) {
-        offset -= 1;
-
         output.clearRetainingCapacity();
 
-        const span = try publishBinding(self, &output, scope, if (reuse) |*plan| plan else null, result_type, offset);
+        if (!generated) {
+            if (reuse) |*changes| {
+                const position = offset - 1;
 
+                if (try changes.publish(self, &output, position)) |span| {
+                    starts[position] = span.start;
+                    counts[position] = span.len;
+                    offset = position;
+
+                    continue;
+                }
+            }
+        }
+
+        const changes = if (generated and reuse != null) reuse.?.state.changes else &.{};
+        const binding = schedule.next(self, scope, offset, changes, false);
+
+        const span = switch (binding.action) {
+            .Reuse => (try reuse.?.publish(self, &output, binding.position)).?,
+            .Skip => node.Block{},
+            .Task => try @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol.?)], binding.value, false),
+            .Discard, .Value, .Ordinary => try publishBinding(self, &output, binding, plan.type_id, reuse != null and reuse.?.variables[binding.position]),
+            .Iteration => unreachable,
+        };
+
+        offset = binding.position;
         starts[offset] = span.start;
         counts[offset] = span.len;
     }
 
     const body = try @import("../node/blocks.zig").tail(self.allocator, self.builder.nodes, starts, counts);
 
-    return @import("aggregate.zig").finishStored(self, body, result.?, null);
+    return @import("aggregate.zig").finishStored(self, body, result, null);
 }
 
-fn publishBinding(self: *Lower, output: *std.ArrayList(node.Statement), scope: ir.ScopeRow, reuse: ?*const Reuse, result_type: ir.TypeId, offset: usize) Lower.Error!node.Block {
-    if (reuse) |plan| if (try plan.publish(self, output, offset)) |block| return block;
-
-    const binding = scope.bindings.at(offset);
-    const route = @import("binding.zig").before(self, binding.value, binding.symbol, true);
-
-    if (route == .Skip) return .{};
-    if (route == .Task) return @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol.?)], binding.value, false);
-
+fn publishBinding(self: *Lower, output: *std.ArrayList(node.Statement), binding: schedule.Binding, result_type: ir.TypeId, mutable: bool) Lower.Error!node.Block {
     var sequence = self.builder.statementSequence(self.workspace);
 
     defer if (generated) sequence.deinit();
 
     const local = if (generated) &sequence else output;
-    const by_value = if (binding.symbol) |symbol| self.stack_symbols.contains(symbol) else false;
     const borrowed = if (binding.symbol) |symbol| try @import("value_call/locals.zig").optionalCall(self, local, symbol, binding.value, result_type) else null;
 
-    const value = borrowed orelse if (binding.symbol == null)
-        try @import("iteration.zig").discard(self, binding.value)
-
-    else if (by_value)
-        try @import("value_call/root.zig").expression(self, binding.value)
-    else
-        try self.expr(binding.value);
+    const value = borrowed orelse switch (binding.action) {
+        .Discard => try @import("iteration.zig").discard(self, binding.value),
+        .Value => try @import("value_call/root.zig").expression(self, binding.value),
+        .Ordinary => try self.expr(binding.value),
+        else => unreachable,
+    };
 
     return @import("binding.zig").publish(self, local, .{
         .symbol = binding.symbol,
         .value = value,
-        .by_value = by_value,
+        .by_value = binding.action == .Value,
         .scope = true,
-        .mutable = reuse != null and reuse.?.variables[offset],
+        .mutable = mutable,
     });
 }

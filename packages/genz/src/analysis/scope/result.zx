@@ -1,0 +1,49 @@
+import integers from "std:integer"
+
+export type Input = {
+    symbols: u32?[],
+    values: u32[],
+    types: u32[],
+    result: u32
+}
+
+export type Candidate = {
+    symbol: u32,
+    value: u32
+}
+
+export type Output = {
+    type_id: u32,
+    candidate?: Candidate,
+    count: u64
+}
+
+export default function (in: Input): Output {
+    const count = in.symbols.length
+    const type_id = in.types[integers.widen(in.result)]
+
+    if (count == 0) {
+        return {
+            type_id,
+            count,
+            candidate: null
+        }
+    }
+
+    const last = count - 1
+    const symbol = in.symbols[last]
+
+    const candidate: Candidate? = match {
+        symbol != null => {
+            symbol,
+            value: in.values[last]
+        },
+        _ => null
+    }
+
+    return {
+        type_id,
+        candidate,
+        count
+    }
+}

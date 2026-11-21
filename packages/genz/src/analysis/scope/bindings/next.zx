@@ -1,0 +1,113 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import get from "core/integer/index/get"
+
+import before from "../../binding/before"
+import { Route } from "../../binding/model"
+
+import type { Index } from "core/integer/index/model"
+
+export enum Action {
+    Reuse,
+    Skip,
+    Task,
+    Discard,
+    Value,
+    Ordinary,
+    Iteration
+}
+
+export type Input = {
+    symbols: u32?[],
+    values: u32[],
+    kinds: ExpressionKind[],
+    types: u32[],
+    type_kinds: u8[],
+    used: bool[],
+    stack: Index,
+    changes: u32?[],
+    iteration: bool,
+    remaining: u64
+}
+
+export type Output = {
+    position: u64,
+    symbol?: u32,
+    value: u32,
+    action: Action
+}
+
+export default function (in: Input): Output {
+    const position = in.remaining - 1
+    const symbol = in.symbols[position]
+    const value = in.values[position]
+    const row = integers.widen(value)
+    const kind = in.kinds[row]
+
+    const used = match {
+        symbol != null => in.used[integers.widen(symbol)],
+        _ => false
+    }
+
+    const binding = {
+        position,
+        symbol,
+        value
+    }
+
+    if (in.iteration) {
+        const reference = kind == ExpressionKind.Reference
+
+        const skip = (
+            - symbol != null
+            - and !used
+            - and reference
+        )
+
+        return {
+            ...binding,
+            action: skip ? Action.Skip : Action.Iteration
+        }
+    }
+
+    if (position < in.changes.length && in.changes[position] != null) {
+        return {
+            ...binding,
+            action: Action.Reuse
+        }
+    }
+
+    const type_id = integers.widen(in.types[row])
+
+    const route = before({
+        kind,
+        type_kind: in.type_kinds[type_id],
+        scope: true,
+        has_symbol: symbol != null,
+        used
+    })
+
+    if (route == Route.Skip || route == Route.Task) {
+        return {
+            ...binding,
+            action: route == Route.Skip ? Action.Skip : Action.Task
+        }
+    }
+
+    if (symbol == null) {
+        return {
+            ...binding,
+            action: Action.Discard
+        }
+    }
+
+    const stacked = get({
+        index: in.stack,
+        key: symbol
+    }) != null
+
+    return {
+        ...binding,
+        action: stacked ? Action.Value : Action.Ordinary
+    }
+}

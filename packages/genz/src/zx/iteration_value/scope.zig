@@ -5,6 +5,7 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const rows = @import("../../node/import_rows.zig");
+const schedule = @import("../scope/schedule.zig");
 const recursive_scratch_bytes = 1024;
 
 pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
@@ -18,17 +19,9 @@ pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
     defer scratch.deinit();
 
     const temporary = memory.allocator();
-    var entered: std.ArrayList(ir.SymbolId) = .empty;
+    const entered = try locals(self, temporary, scope.bindings.symbols);
 
-    defer self.symbols.removeMany(entered.items);
-
-    for (try locals(self, temporary, scope.bindings.symbols)) |raw| {
-        const symbol: ir.SymbolId = @fromBackingInt(raw);
-
-        if (self.symbols.contains(symbol)) continue;
-        try entered.append(temporary, symbol);
-        try self.symbols.put(lowering.allocator, symbol, {});
-    }
+    defer self.symbols.removeMany(entered);
 
     const result = try lowering.expr(scope.result);
     const bindings = try prepare(self, temporary, scope);
@@ -36,10 +29,13 @@ pub fn lower(self: *Context, scope: ir.ScopeRow) Lower.Error!node.ExpressionId {
     return emit(lowering, temporary, result, &bindings);
 }
 
-fn locals(self: *const Context, temporary: std.mem.Allocator, symbols: []const ?u32) Lower.Error![]const u32 {
+fn locals(self: *Context, temporary: std.mem.Allocator, symbols: []const ?u32) Lower.Error![]const ir.SymbolId {
+    if (symbols.len == 0) return &.{};
+
     const entry = @import("generated_iteration_scope_locals");
     const Input = std.meta.Child(entry.Input);
     const lowering = self.lowering;
+    const index = self.symbols.view(std.meta.Child(@FieldType(Input, "index")));
 
     const input: Input = .{
         .symbols = symbols,
@@ -47,9 +43,18 @@ fn locals(self: *const Context, temporary: std.mem.Allocator, symbols: []const ?
         .type_kinds = lowering.program.types.kinds,
         .layouts = zx.columns.slice(@FieldType(Input, "layouts"), lowering.layout_types),
         .inline_lists = self.inline_lists,
+        .index = &index,
     };
 
-    return entry.executeIn(temporary, &input) catch |err| return failure(err);
+    const keys = entry.executeIn(temporary, &input) catch |err| return failure(err);
+
+    comptime std.debug.assert(@typeInfo(ir.SymbolId).@"enum".tag_type == u32);
+
+    const entered = @as([*]const ir.SymbolId, @ptrCast(keys.ptr))[0..keys.len];
+
+    try self.symbols.addMany(lowering.allocator, entered);
+
+    return entered;
 }
 
 const scope_entry = @import("generated_iteration_scope");
@@ -68,21 +73,13 @@ fn prepare(self: *Context, temporary: std.mem.Allocator, scope: ir.ScopeRow) Low
     var offset = scope.bindings.len;
 
     while (offset != 0) {
-        offset -= 1;
-        const binding = scope.bindings.at(offset);
-        const symbol = if (binding.symbol) |id| @backingInt(id) else null;
+        const binding = schedule.next(lowering, scope, offset, &.{}, true);
 
-        const first: BindingInput = .{
-            .phase = .Before,
-            .named = symbol != null,
-            .used = if (symbol) |id| lowering.used[id] else false,
-            .reference = lowering.program.expressions.kinds[@backingInt(binding.value)] == .Reference,
-        };
-
+        offset = binding.position;
         types[offset] = null;
         names[offset] = &.{};
 
-        if (classify(first) == .Skip) {
+        if (binding.action == .Skip) {
             actions[offset] = .Skip;
             values[offset] = 0;
 
@@ -91,30 +88,25 @@ fn prepare(self: *Context, temporary: std.mem.Allocator, scope: ir.ScopeRow) Low
 
         values[offset] = @backingInt(try lowering.expr(binding.value));
 
-        actions[offset] = classify(.{
-            .phase = .After,
-            .named = symbol != null,
-            .used = if (symbol) |id| lowering.used[id] else false,
-            .reference = false,
-        });
+        const input: BindingInput = .{
+            .symbol = if (binding.symbol) |id| @backingInt(id) else null,
+            .used = lowering.used,
+            .names = lowering.names,
+            .types = lowering.program.symbols.types,
+        };
 
-        if (actions[offset] == .Constant) {
-            const id = symbol.?;
-            const type_id: ir.TypeId = @fromBackingInt(lowering.program.symbols.types[id]);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const declaration = zx.columns.invoke(binding_entry.executeValue, empty.allocator(), &input) catch unreachable;
 
-            names[offset] = lowering.names[id];
-            types[offset] = @backingInt(try @import("types.zig").get(self, type_id));
+        actions[offset] = zx.columns.view(Action, declaration.action);
+        names[offset] = declaration.name;
+
+        if (declaration.type_id) |type_id| {
+            types[offset] = @backingInt(try @import("types.zig").get(self, @fromBackingInt(type_id)));
         }
     }
 
     return .{ .actions = actions, .values = values, .types = types, .names = names };
-}
-
-fn classify(input: BindingInput) Action {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(binding_entry.executeValue, empty.allocator(), &input) catch unreachable;
-
-    return @fromBackingInt(@backingInt(result));
 }
 
 noinline fn emit(lowering: *Lower, temporary: std.mem.Allocator, result: node.ExpressionId, bindings: *const Bindings) Lower.Error!node.ExpressionId {

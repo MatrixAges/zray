@@ -1,15 +1,10 @@
+import type { Index } from "core/integer/index/model"
 import type { StatementsKind } from "../../../printer/model/statements"
 import type { Output as Block } from "../../aggregate/binding/model"
 import type { Layout } from "../../types/layout"
 
-export enum Phase {
-    Before,
-    After
-}
-
 export enum Action {
     Skip,
-    Evaluate,
     Expression,
     Discard,
     Constant
@@ -20,7 +15,8 @@ export type Locals = {
     symbol_types: u32[],
     type_kinds: u8[],
     layouts: Layout[],
-    inline_lists: bool
+    inline_lists: bool,
+    index: Index
 }
 
 export type Bindings = {

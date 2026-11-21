@@ -864,6 +864,8 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/scope/reuse/enabled.zx", .name = "scope_reuse_enabled", .owner = .genz },
     .{ .path = "genz/analysis/scope/reuse/create.rx", .name = "scope_reuse", .owner = .genz },
     .{ .path = "genz/analysis/scope/names.zx", .name = "scope_reuse_names", .owner = .genz },
+    .{ .path = "genz/analysis/scope/result.zx", .name = "scope_result", .owner = .genz },
+    .{ .path = "genz/analysis/scope/bindings/next.zx", .name = "scope_next_binding", .owner = .genz },
     .{ .path = "genz/analysis/object_update/emit/expression.rx", .name = "object_update_expression", .owner = .genz },
     .{ .path = "genz/analysis/object_update/emit/statements.rx", .name = "object_update_statements", .owner = .genz },
     .{ .path = "genz/analysis/object_update/match/candidate.rx", .name = "object_update_candidate", .owner = .genz },

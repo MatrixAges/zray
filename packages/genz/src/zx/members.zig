@@ -44,6 +44,19 @@ pub fn remove(self: *Self, key: ir.SymbolId) bool {
     return result.position != null;
 }
 
+/// Register keys absent from this index and roll back the successful prefix on error.
+pub fn addMany(self: *Self, allocator: std.mem.Allocator, keys: []const ir.SymbolId) std.mem.Allocator.Error!void {
+    var added: usize = 0;
+
+    errdefer self.removeMany(keys[0..added]);
+
+    for (keys) |key| {
+        try self.put(allocator, key, {});
+
+        added += 1;
+    }
+}
+
 pub fn removeMany(self: *Self, keys: []const ir.SymbolId) void {
     if (!generated) {
         for (keys) |key| _ = self.remove(key);
