@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Scan" />
+
+    <Args in={Scan.Resume} out={Scan.Output} />
+
+    <Call
+        fn="consume"
+        in={{
+            ...$in.omit(["replay"]),
+            cursor: $in.replay.cursor
+        }}
+    />
+
+    <Call
+        module="../advance"
+        in={{
+            ...$in.replay,
+            agreed: $ctx.consume.agreed
+        }}
+    />
+
+    <Return
+        value={{
+            cursor: $ctx.advance,
+            count: $ctx.consume.count
+        }}
+    />
+</Module>

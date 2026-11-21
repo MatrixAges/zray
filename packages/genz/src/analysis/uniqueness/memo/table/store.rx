@@ -1,0 +1,58 @@
+<Module>
+    <Type from="model" as="Table" />
+
+    <Args in={Table.Store} out={Table.Stored} />
+
+    <If on={$in.current == $in.limit}>
+        <Call
+            module="reserve"
+            in={{
+                ...$in.pick([
+                    "keys",
+                    "values",
+                    "owner",
+                    "current"
+                ]),
+                buckets: $in.next_buckets,
+                additional: 1
+            }}
+        />
+
+        <Call
+            fn="publish"
+            in={{
+                ...$in.omit([
+                    "owner",
+                    "next_buckets",
+                    "current",
+                    "limit"
+                ]),
+                buckets: $in.next_buckets
+            }}
+        />
+
+        <Return
+            value={{
+                row: $ctx.publish,
+                limit: $ctx.reserve
+            }}
+        />
+    </If>
+
+    <Call
+        fn="publish"
+        in={$in.omit([
+            "owner",
+            "next_buckets",
+            "current",
+            "limit"
+        ])}
+    />
+
+    <Return
+        value={{
+            row: $ctx.publish,
+            limit: $in.limit
+        }}
+    />
+</Module>

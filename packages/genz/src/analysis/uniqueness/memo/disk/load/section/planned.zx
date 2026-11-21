@@ -27,7 +27,7 @@ export default function (in: Input): Output {
                 state.offset = 0
             } else {
                 const row = claim({
-                    index,
+                    ...index.omit(["used"]),
                     digest: record.digest,
                     used: state.used
                 })

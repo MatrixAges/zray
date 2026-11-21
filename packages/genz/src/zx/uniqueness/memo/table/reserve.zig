@@ -35,7 +35,7 @@ pub fn grow(table: anytype, allocator: std.mem.Allocator, additional: u32) std.m
     table.limit = @intCast(limit);
 }
 
-fn bind(list: anytype) zx.memory.RowBuffer {
+pub fn bind(list: anytype) zx.memory.RowBuffer {
     const Row = std.meta.Elem(@TypeOf(list.items));
 
     list.pointer_stability.assertUnlocked();
@@ -49,7 +49,7 @@ fn bind(list: anytype) zx.memory.RowBuffer {
     };
 }
 
-fn sync(list: anytype, buffer: *const zx.memory.RowBuffer) void {
+pub fn sync(list: anytype, buffer: *const zx.memory.RowBuffer) void {
     const Row = std.meta.Elem(@TypeOf(list.items));
     const rows = buffer.rows(Row);
 

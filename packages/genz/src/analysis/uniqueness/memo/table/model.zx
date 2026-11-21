@@ -1,18 +1,29 @@
 import type { Table } from "core/bytes/index/digest/model"
-import type { Allocator, ReadColumn, U32Buffer, WriteColumn } from "memory"
+import type { Allocator, ReadColumn, U8Buffer, U32Buffer, WriteColumn } from "memory"
 import type { RowBuffer } from "memory/columns"
 
-export type Index = {
-    lookup: Table,
-    keys: WriteColumn,
+export type Index = Table & {
+    rows: RowBuffer,
     used: U32Buffer
 }
 
-export type Publication = {
-    index: Index,
+export type Publication = Storage.Pick("keys", "values", "buckets") & {
     digest: u8[],
-    values: WriteColumn,
-    value: u8[]
+    value: u8[],
+    used: U32Buffer,
+    changed: U8Buffer
+}
+
+export type Store = Publication & {
+    owner: Allocator,
+    next_buckets: U32Buffer,
+    current: u64,
+    limit: u64
+}
+
+export type Stored = {
+    row: u64,
+    limit: u64
 }
 
 export type Probe = Table & {

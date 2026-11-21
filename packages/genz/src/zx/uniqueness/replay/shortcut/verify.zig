@@ -5,7 +5,6 @@ const Context = @import("../../program/host.zig").Context;
 const compute = @import("../../program/visit/compute.zig");
 const Memo = @import("../../memo.zig");
 const Growth = @import("../../growth.zig");
-const Trace = @import("../../trace.zig");
 const Cursor = @import("../shortcut.zig");
 const Replacements = @import("replacements.zig");
 const sequence = @import("generated_uniqueness_shortcut_visit");
@@ -23,10 +22,10 @@ pub fn run(ctx: *Context) Error!?Analysis.Result {
 
     var replacements: Replacements = .{};
     var cursor: Cursor = .{};
-    var agreed = true;
+    var recovered: ?u32 = null;
 
     while (true) {
-        cursor = try scan.advance(ctx, trace, &scratch, staged.allocator(), &replacements, cursor, agreed);
+        cursor = try scan.advance(ctx, trace, &scratch, staged.allocator(), &replacements, cursor, recovered);
 
         switch (cursor.phase) {
             .start => unreachable,
@@ -34,30 +33,20 @@ pub fn run(ctx: *Context) Error!?Analysis.Result {
             .reject => return null,
             inline .settled, .demanded, .planned => |phase| {
                 const kind = comptime @field(Memo.Kind, @tagName(phase));
+                const previous = &@field(trace, @tagName(phase)).entries[cursor.visit];
 
-                agreed = try visit(kind, ctx, trace, &scratch, staged.allocator(), &replacements, cursor);
+                _ = scratch.reset(.retain_capacity);
+                recovered = try recover(kind, ctx, cursor.body, previous.state, scratch.allocator());
             },
         }
     }
 }
 
-fn visit(comptime kind: Memo.Kind, ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor) Error!bool {
-    const previous = &@field(trace, @tagName(kind)).entries[cursor.visit];
-
-    _ = scratch.reset(.retain_capacity);
-
-    const value = try recover(kind, ctx, cursor.body, previous.state, scratch.allocator()) orelse return false;
-
-    if (kind != .planned) return Trace.agree(kind, scratch.allocator(), previous.value, value);
-    try replacements.append(staged, .{ .visit = @intCast(cursor.visit), .value = value });
-
-    return true;
-}
-
-fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const u8, scratch: std.mem.Allocator) Error!?Memo.Result(kind) {
+fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const u8, scratch: std.mem.Allocator) Error!?u32 {
     const owner = ctx.memo.arena.allocator();
     var growth: Growth.Store = undefined;
     var record: Memo.Result(kind) = undefined;
+    var row: u32 = undefined;
 
     inline for (comptime zx.staticSequence(sequence, {})) |step| switch (step) {
         .RestoreState => if (!try Memo.restore(kind, scratch, state, ctx.summaries, body, ctx.bodies.callees[body], &growth)) return null,
@@ -76,8 +65,8 @@ fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, state: []const 
 
             record = result.record;
         },
-        .SaveRecord => record = try ctx.memo.putVisit(kind, record, true),
+        .SaveRecord => row = (try ctx.memo.putVisit(kind, record, true)).row,
     };
 
-    return record;
+    return row;
 }

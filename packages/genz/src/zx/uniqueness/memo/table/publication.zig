@@ -1,34 +1,28 @@
 const std = @import("std");
 const zx = @import("zx");
-const entry = @import("generated_uniqueness_memo_publish");
+const reserve = @import("reserve.zig");
+const entry = @import("generated_uniqueness_memo_store");
 const Input = std.meta.Child(entry.Input);
 
 pub fn Frame(comptime Index: type) type {
-    const Lookup = std.meta.Child(@FieldType(Index, "lookup"));
-
     return struct {
         const Self = @This();
-        digests: zx.memory.WriteColumn,
+        digests: zx.memory.RowBuffer,
         used: [1]u32,
         count: []u32,
-        lookup: Lookup,
         index: Index,
         pub fn open(self: *Self, table: anytype) void {
             const keys = table.keys.allocatedSlice();
 
-            self.digests = writeColumn(keys, null);
+            self.digests = reserve.bind(&table.keys);
             self.used = .{@intCast(table.keys.items.len)};
             self.count = &self.used;
 
-            self.lookup = .{
+            self.index = .{
                 .keys = std.mem.sliceAsBytes(keys),
                 .buckets = @ptrCast(&table.buckets),
                 .capacity = table.buckets.len,
-            };
-
-            self.index = .{
-                .lookup = &self.lookup,
-                .keys = @ptrCast(&self.digests),
+                .rows = @ptrCast(&self.digests),
                 .used = @ptrCast(&self.count),
             };
         }
@@ -55,22 +49,50 @@ pub fn writeColumn(items: anytype, comptime field: ?[]const u8) zx.memory.WriteC
     };
 }
 
-pub fn put(table: anytype, key: anytype, value: anytype) void {
-    var frame: Frame(std.meta.Child(@FieldType(Input, "index"))) = undefined;
+pub fn put(table: anytype, allocator: std.mem.Allocator, key: anytype, value: anytype, changed: *bool) std.mem.Allocator.Error!u32 {
+    var keys = reserve.bind(&table.keys);
+    var values = reserve.bind(&table.values);
+    var next_buckets: []u32 = &.{};
+    var used = [1]u32{@intCast(table.keys.items.len)};
+    const count: []u32 = &used;
+    const dirty: []u8 = std.mem.asBytes(changed);
 
-    frame.open(table);
+    defer {
+        reserve.sync(&table.keys, &keys);
+        reserve.sync(&table.values, &values);
 
-    const values = writeColumn(table.values.allocatedSlice(), null);
+        table.keys.items.len = used[0];
+        table.values.items.len = used[0];
+    }
+
+    errdefer allocator.free(next_buckets);
 
     const input: Input = .{
-        .index = &frame.index,
-        .digest = key,
+        .keys = @ptrCast(&keys),
         .values = @ptrCast(&values),
+        .buckets = @ptrCast(&table.buckets),
+        .owner = @ptrCast(&allocator),
+        .next_buckets = @ptrCast(&next_buckets),
+        .current = used[0],
+        .limit = table.limit,
+        .used = @ptrCast(&count),
+        .changed = @ptrCast(&dirty),
+        .digest = key,
         .value = std.mem.asBytes(value),
     };
 
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const stored = zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => std.debug.panic("memo publication failed: {s}", .{@errorName(err)}),
+    };
 
-    zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-    frame.finish(table);
+    if (next_buckets.len != 0) {
+        allocator.free(table.buckets);
+
+        table.buckets = next_buckets;
+    }
+
+    table.limit = @intCast(stored.limit);
+
+    return @intCast(stored.row);
 }

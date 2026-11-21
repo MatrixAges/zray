@@ -145,7 +145,7 @@ fn Visit(comptime kind: Memo.Kind) type {
         }
 
         fn save(self: *Self, comptime owned: bool) Error!void {
-            self.record = try self.ctx.memo.putVisit(kind, self.record, owned);
+            self.record = (try self.ctx.memo.putVisit(kind, self.record, owned)).value;
         }
 
         fn output(self: *const Self) Output(kind) {

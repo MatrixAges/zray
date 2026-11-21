@@ -63,12 +63,17 @@ export type Input = {
     tables: Tables,
     replacements: Replacements,
     arenas: Arenas,
-    count: u64
+    count: u64,
+    recovered?: u32
 }
 
 export type Output = {
     cursor: Cursor,
     count: u64
+}
+
+export type Resume = Input.Omit("recovered") & {
+    row: u64
 }
 
 export type Lookup = {

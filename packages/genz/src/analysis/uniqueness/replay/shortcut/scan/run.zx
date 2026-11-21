@@ -4,15 +4,31 @@ import advance from "../advance.rx"
 import { Phase } from "../model"
 import consume from "./consume"
 import lookup from "./lookup"
+import resume from "./resume.rx"
 
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
     const { replay, tables, replacements, arenas } = in
+    const { recovered, count } = in
+
+    const start = match {
+        recovered == null => {
+            cursor: advance(replay),
+            count
+        },
+        _ => resume({
+            replay,
+            tables,
+            replacements,
+            arenas,
+            count,
+            row: integers.widen(recovered)
+        })
+    }
 
     return loop({
-        cursor: advance(replay),
-        count: in.count,
+        ...start,
         missed: false
     }, {
         while: state => !state.missed && state.cursor.phase != Phase.Done &&

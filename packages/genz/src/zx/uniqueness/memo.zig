@@ -175,9 +175,7 @@ pub fn putSettled(self: *Self, key: Digest, passed: []const Function.Contributio
 pub fn putOwnedSettled(self: *Self, key: Digest, passed: []const Function.Contribution, output: []const Level) std.mem.Allocator.Error!Settled {
     const value = Settled{ .passed = passed, .output = output };
 
-    try self.settled.put(self.indexAllocator(), key, value);
-
-    self.changed = true;
+    try self.store(&self.settled, key, value);
 
     return value;
 }
@@ -205,9 +203,7 @@ pub fn putOwnedDemanded(self: *Self, key: Digest, marks: []const Function.Mark, 
         .grew = grew,
     };
 
-    try self.demanded.put(self.indexAllocator(), key, value);
-
-    self.changed = true;
+    try self.store(&self.demanded, key, value);
 
     return value;
 }
@@ -220,25 +216,33 @@ pub fn getPlanned(self: *Self, summaries: *const Summaries, state: State) std.me
 pub fn putOwnedPlan(self: *Self, key: Digest, plan: Function.Plan) std.mem.Allocator.Error!Planned {
     const value = Planned.fromPlan(plan);
 
-    try self.planned.put(self.indexAllocator(), key, value);
-
-    self.changed = true;
+    try self.store(&self.planned, key, value);
 
     return value;
 }
 
-pub fn putVisit(self: *Self, comptime kind: Kind, record: Result(kind), comptime owned: bool) std.mem.Allocator.Error!Result(kind) {
-    return switch (kind) {
-        .settled => (if (owned) putOwnedSettled else putSettled)(self, self.key, record.passed, record.output),
-        .demanded => (if (owned) putOwnedDemanded else putDemanded)(
-            self,
-            self.key,
-            record.marks,
-            &.{ .normalized = record.normalized, .renewed = record.renewed },
-            record.grew,
-        ),
-        .planned => self.putOwnedPlan(self.key, record.plan()),
+pub fn Stored(comptime kind: Kind) type {
+    return struct { value: Result(kind), row: u32 };
+}
+
+pub fn putVisit(self: *Self, comptime kind: Kind, record: Result(kind), comptime owned: bool) std.mem.Allocator.Error!Stored(kind) {
+    const owner = self.arena.allocator();
+
+    const value: Result(kind) = if (owned) record else switch (kind) {
+        .settled => try @import("function/summary.zig").retain(owner, record.passed, record.output),
+        .demanded => .{
+            .marks = try @import("retain.zig").marks(owner, record.marks),
+            .normalized = record.normalized,
+            .renewed = record.renewed,
+            .grew = record.grew,
+        },
+        .planned => record,
     };
+
+    const table = &@field(self, @tagName(kind));
+    const row = try table.put(self.indexAllocator(), self.key, value, &self.changed);
+
+    return .{ .value = value, .row = row };
 }
 
 /// The flow of the body `key` names; it only reads, so the bodies of one layer look up at once.
@@ -260,7 +264,19 @@ pub fn putFlowed(self: *Self, key: Digest, held: []const bool, text_held: []cons
     else
         Flowed{ .held = try allocator.dupe(bool, held), .text_held = try allocator.dupe(bool, text_held), .written = try allocator.dupe(bool, written) };
 
-    try self.flowed.put(self.indexAllocator(), key, value);
+    try self.store(&self.flowed, key, value);
+}
+
+fn store(self: *Self, table: anytype, key: Digest, value: anytype) std.mem.Allocator.Error!void {
+    const owner = self.indexAllocator();
+
+    if (generated_encoding) {
+        _ = try table.put(owner, key, value, &self.changed);
+
+        return;
+    }
+
+    try table.put(owner, key, value);
 
     self.changed = true;
 }

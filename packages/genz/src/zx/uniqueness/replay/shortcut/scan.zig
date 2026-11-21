@@ -18,7 +18,7 @@ const Views = @import("../ordered/columns.zig");
 const Row = Cursor.Replacement;
 const Error = std.mem.Allocator.Error;
 
-pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor, agreed: bool) Error!Cursor {
+pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor, recovered: ?u32) Error!Cursor {
     var settled: BoundIndex = undefined;
     var demanded: BoundIndex = undefined;
     var planned: BoundIndex = undefined;
@@ -52,7 +52,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
             .demanded = trace.demanded.starts,
             .planned = trace.planned.starts,
             .changed = ctx.replay.changed,
-            .agreed = agreed,
+            .agreed = cursor.phase == .start,
             .demands = &.{ .cells = @ptrCast(demands), .count = demands.len },
             .cursor = &.{ .body = cursor.body, .visit = cursor.visit, .phase = @fromBackingInt(@intCast(@backingInt(cursor.phase))) },
         },
@@ -81,6 +81,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
         },
         .arenas = &.{ .scope = @ptrCast(&scope), .scratch = @ptrCast(scratch), .staged = @ptrCast(&staged) },
         .count = replacements.used,
+        .recovered = recovered,
     };
 
     const result = zx.columns.invoke(scanning.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {

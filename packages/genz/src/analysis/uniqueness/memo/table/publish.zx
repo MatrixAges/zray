@@ -1,28 +1,36 @@
 import memory from "memory"
+import columns from "memory/columns"
 
 import claim from "./claim"
 import complete from "./complete"
 
 import type { Publication as Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { index, digest, values, value } = in
+    const { keys, buckets, digest, values, value } = in
 
-    const used = memory.readU32(index.used, 0)
+    const used = memory.readU32(in.used, 0)
 
     const row = claim({
-        index,
+        keys: columns.rowBufferBytes(keys),
+        capacity: memory.u32BufferLength(buckets),
+        rows: keys,
+        buckets,
         digest,
         used
     })
 
-    memory.copyColumnValue(values, row, value)
+    columns.writeRow(values, row, value)
 
     const completed = complete({
-        target: index.used,
+        target: in.used,
         used,
         row
     })
+
+    memory.writeU8(in.changed, 0, 1)
+
+    return row
 }

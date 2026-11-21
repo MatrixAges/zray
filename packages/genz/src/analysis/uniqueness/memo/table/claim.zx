@@ -1,11 +1,10 @@
 import integers from "std:integer"
 import exchange from "core/bytes/index/digest/exchange"
-import memory from "memory"
+import columns from "memory/columns"
 
 import type { Index } from "./model"
 
-export type Input = {
-    index: Index,
+export type Input = Index.Omit("used") & {
     digest: u8[],
     used: u32
 }
@@ -13,10 +12,12 @@ export type Input = {
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { index, digest, used } = in
+    const { keys, buckets, capacity, rows, digest, used } = in
 
     const previous = exchange({
-        ...index.lookup,
+        keys,
+        buckets,
+        capacity,
         key: digest,
         insert: used
     })
@@ -27,7 +28,7 @@ export default function (in: Input): Output {
 
     const row = integers.widen(used)
 
-    memory.copyColumnValue(index.keys, row, digest)
+    columns.writeRow(rows, row, digest)
 
     return row
 }

@@ -41,10 +41,8 @@ pub fn Table(comptime Value: type) type {
         pub fn keep(self: *Self, key: Digest) void {
             _ = self.touch(key);
         }
-        pub fn put(self: *Self, allocator: std.mem.Allocator, key: Digest, value: Value) Error!void {
-            try self.ensureUnusedCapacity(allocator, 1);
-
-            publication.put(self, &key, &value);
+        pub fn put(self: *Self, allocator: std.mem.Allocator, key: Digest, value: Value, changed: *bool) Error!u32 {
+            return publication.put(self, allocator, &key, &value, changed);
         }
         pub fn ensureUnusedCapacity(self: *Self, allocator: std.mem.Allocator, additional: u32) Error!void {
             if (additional <= self.limit - self.keys.items.len) return;
