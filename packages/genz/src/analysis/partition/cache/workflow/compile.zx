@@ -1,0 +1,16 @@
+import host from "partition_host"
+
+import type {
+    PartitionSchedule as Input,
+    PartitionResults as Output
+} from "partition_host"
+
+export default function (in: Input): Output {
+    if (in.invalidate) {
+        host.publishPartitionState(in.target)
+    }
+
+    host.compilePartitionObjects(in.target)
+
+    return host.completePartitionObjects(in.target)
+}

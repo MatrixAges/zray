@@ -1,0 +1,3 @@
+import type { PartitionInputs } from "partition_host"
+
+export type Input = PartitionInputs

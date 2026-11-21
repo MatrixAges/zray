@@ -1,0 +1,68 @@
+export type PartitionDriver = opaque
+
+export type PartitionInputs = {
+    target: PartitionDriver,
+    external: string[],
+    offsets: u64[]
+}
+
+export type PartitionObjects = {
+    target: PartitionDriver,
+    paths: string[]
+}
+
+export type PartitionSchedule = {
+    target: PartitionDriver,
+    pending: u32[],
+    invalidate: bool
+}
+
+export type PartitionResults = {
+    target: PartitionDriver,
+    diagnostics: string?[],
+    failed: bool
+}
+
+export declare function startPartitionHash(target: PartitionDriver): void
+    throws { PartitionHost }
+
+export declare function hashExternalInput(target: PartitionDriver, path: string): void
+    throws { PartitionHost }
+
+export declare function allocatePartitionKeys(target: PartitionDriver, count: u64): void
+    throws { PartitionHost }
+
+export declare function hashPartitionMembers(
+    target: PartitionDriver,
+    row: u64,
+    first: u64,
+    end: u64
+): void
+
+export declare function loadPartitionObjects(
+    target: PartitionDriver,
+    state_file: string
+): PartitionObjects throws { PartitionHost }
+
+export declare function recordPartitionPresence(
+    target: PartitionDriver,
+    row: u64,
+    path: string
+): void
+
+export declare function schedulePartitionObjects(target: PartitionDriver): PartitionSchedule
+    throws { PartitionHost }
+
+export declare function publishPartitionState(target: PartitionDriver): void
+    throws { PartitionHost }
+
+export declare function compilePartitionObjects(target: PartitionDriver): void
+    throws { PartitionHost }
+
+export declare function completePartitionObjects(target: PartitionDriver): PartitionResults
+    throws { PartitionHost }
+
+export declare function reportPartitionDiagnostic(
+    target: PartitionDriver,
+    diagnostic: string
+): void throws { PartitionHost }

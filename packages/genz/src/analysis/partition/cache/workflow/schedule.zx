@@ -1,0 +1,22 @@
+import host from "partition_host"
+
+import { state_file } from "./const"
+
+import type {
+    PartitionDriver as Input,
+    PartitionSchedule as Output
+} from "partition_host"
+
+export default function (in: Input): Output {
+    const objects = host.loadPartitionObjects(in, state_file)
+
+    const position = loop(0, {
+        while: row => row < objects.paths.length,
+        next: row => {
+            host.recordPartitionPresence(objects.target, row, objects.paths[row])
+            row += 1
+        }
+    })
+
+    return host.schedulePartitionObjects(in)
+}

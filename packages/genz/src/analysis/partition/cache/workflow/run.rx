@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Objects" />
+
+    <Args in={Objects.Input} out={bool} />
+
+    <Call fn="external" in={$in} />
+    <Call fn="keys" in={$in} />
+    <Call fn="schedule" in={$in.target} />
+
+    <If on={$ctx.schedule.pending.length == 0}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="compile" in={$ctx.schedule} />
+
+    <Call fn="finish" />
+
+    <Return value={$ctx.finish} />
+</Module>

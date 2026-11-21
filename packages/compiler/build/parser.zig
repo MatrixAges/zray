@@ -4,6 +4,7 @@ const memory_columns = "memory/columns";
 const lexical_path = "lexical_path";
 const ownership_interface = "analysis/uniqueness/program/driver/native.d.zx";
 const lowering_declarations = "analysis/expressions/evaluate/";
+const partition_interface = "build/partition/driver.d.zx";
 
 pub const Sources = struct { standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, execution: std.Build.LazyPath, host: std.Build.LazyPath };
 
@@ -82,6 +83,10 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host" },
     };
 
+    const host_interfaces = interfaces ++ [_]manifest.Interface{
+        .{ .path = b.root.joinString(b.allocator, partition_interface) catch @panic("out of memory"), .module = "partition_host" },
+    };
+
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
     for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .collections, .growth, .execution, .host }) |set| {
         const run = generatorRun(b, executable, stage0);
@@ -110,6 +115,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             .interfaces = switch (set) {
                 .main => &main_interfaces,
                 .execution => &execution_interfaces,
+                .host => &host_interfaces,
                 else => &interfaces,
             },
         };
@@ -152,7 +158,12 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSources(run, tracked[2]);
                 addSubtree(run, tracked[3], "analysis");
             },
-            .growth, .host => for (tracked[2..]) |inputs| addSources(run, inputs),
+            .host => {
+                run.addFileInput(b.path(partition_interface));
+
+                for (tracked[2..]) |inputs| addSources(run, inputs);
+            },
+            .growth => for (tracked[2..]) |inputs| addSources(run, inputs),
             else => for (tracked) |inputs| addSources(run, inputs),
         }
 
@@ -449,20 +460,24 @@ fn cachedPartitionObjects(b: *std.Build, target: std.Build.ResolvedTarget, optim
 fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sources, partitions: u32, strip: ?bool, llvm: bool) std.Build.LazyPath {
     const rules = @import("host_metadata.zig").generated(b, source.host, b.graph.host, .small, true, null);
 
-    const tool = b.addExecutable(.{ .name = "partition-objects", .root_module = b.createModule(.{
+    const driver = b.createModule(.{
         .root_source_file = b.path("build/partition/compile.zig"),
         .target = b.graph.host,
         .optimize = .small,
         .imports = &.{
             .{ .name = "partition_rules", .module = rules },
+            .{ .name = "partition_abi", .module = rules.import_table.get("zxc_abi").? },
             .{ .name = "file_manifest", .module = b.createModule(.{
                 .root_source_file = b.path("src/backends/zig/output/manifest.zig"),
                 .target = b.graph.host,
                 .optimize = .small,
             }) },
         },
-    }) });
+    });
 
+    rules.addImport("partition_host", driver);
+
+    const tool = b.addExecutable(.{ .name = "partition-objects", .root_module = driver });
     const run = b.addRunArtifact(tool);
     const level = b.fmt("-O{s}", .{@tagName(optimize)});
     const stripped: []const []const u8 = if (strip) |value| &.{if (value) "-fstrip" else "-fno-strip"} else &.{};

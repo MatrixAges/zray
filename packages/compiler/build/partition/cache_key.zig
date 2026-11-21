@@ -103,21 +103,27 @@ fn external(hash: *HashWriter, path: []const u8, size: ?u64) void {
     rule.executeValue(empty.allocator(), &.{ .out = @ptrCast(&hash.writer), .path = path, .size = size }) catch unreachable;
 }
 
-pub fn partitions(allocator: std.mem.Allocator, shared: Blake3, manifest: Listed, ordered: Members, offsets: []const u64) ![]const []const u8 {
-    const names = try allocator.alloc(Encoded, offsets.len - 1);
-    const hex = try allocator.alloc([]const u8, names.len);
-
-    for (names, hex, offsets[0..names.len], offsets[1..]) |*name, *key, start, end| {
-        var digest: Digest = undefined;
-
-        members(shared, manifest, ordered[@intCast(start)..@intCast(end)], &digest);
-
-        name.* = std.fmt.bytesToHex(digest, .lower);
-        key.* = name;
+pub const Partitions = struct {
+    source: Blake3,
+    names: []Encoded,
+    hex: [][]const u8,
+    pub fn init(allocator: std.mem.Allocator, source: Blake3, count: usize) !Partitions {
+        return .{
+            .source = source,
+            .names = try allocator.alloc(Encoded, count),
+            .hex = try allocator.alloc([]const u8, count),
+        };
     }
 
-    return hex;
-}
+    pub fn hash(self: *Partitions, row: usize, manifest: Listed, group: Members) void {
+        var digest: Digest = undefined;
+
+        members(self.source, manifest, group, &digest);
+
+        self.names[row] = std.fmt.bytesToHex(digest, .lower);
+        self.hex[row] = &self.names[row];
+    }
+};
 
 fn members(shared: Blake3, manifest: Listed, group: Members, digest: *Digest) void {
     var buffer: [1024]u8 = undefined;

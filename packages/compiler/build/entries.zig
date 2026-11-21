@@ -1095,6 +1095,7 @@ pub const host = [_]Entry{
     .{ .path = "genz/analysis/partition/cache/arguments/render.zx", .name = "partition_arguments_render" },
     .{ .path = "genz/analysis/partition/cache/request/parse.zx", .name = "partition_request_parse" },
     .{ .path = "genz/analysis/partition/cache/request/object_paths.zx", .name = "partition_object_paths" },
+    .{ .path = "genz/analysis/partition/cache/workflow/run.rx", .name = "partition_objects" },
 } ++ host_bindings;
 
 /// Individual checkers that zxc reaches through the unified IR validation instead; only test builds import them.

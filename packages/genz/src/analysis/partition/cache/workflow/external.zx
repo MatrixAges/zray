@@ -1,0 +1,17 @@
+import host from "partition_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.startPartitionHash(in.target)
+
+    const position = loop(0, {
+        while: row => row < in.external.length,
+        next: row => {
+            host.hashExternalInput(in.target, in.external[row])
+            row += 1
+        }
+    })
+}
