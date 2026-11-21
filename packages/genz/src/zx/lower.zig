@@ -302,6 +302,8 @@ pub fn regularWithCache(self: *Self, id: ir.ExprId, probe: Probe) Error!node.Exp
 }
 
 fn lowerUncached(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
+    if (generated) return @import("expressions/dispatch.zig").lower(self, id);
+
     const value = self.program.expression(id);
     const value_type = try self.typeExpr(value.type_id);
 
@@ -320,7 +322,7 @@ fn lowerUncached(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
         .tuple_field => |item| projection_read.tuple(self, value.type_id, item, false),
         .index => |item| projection_read.index(self, value.type_id, item.target, item.index, false),
         .length => |child| projection_read.length(self, child, value_type, false),
-        .unary => |unary| @import("operators/unary.zig").lower(self, unary),
+        .unary => |unary| self.builder.expression(.{ .unary = .{ .operator = if (unary.operator == .not) .not else .negate, .operand = try self.expr(unary.operand) } }),
         .binary => |operation| self.binary(operation),
         .match_expr => |selection| @import("match.zig").lower(self, selection),
         .conditional => |conditional| @import("selection/conditional.zig").lower(self, conditional),
@@ -360,7 +362,7 @@ pub fn requestFunction(self: *Self, id: ir.FunctionId, variant: @import("functio
 pub fn binary(self: *Self, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "binary")) Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("operators/seed.zig").binary(self, value);
 
-    return @import("operators/binary.zig").lower(self, value);
+    return @import("operators/binary.zig").lower(self, value.operator, value.left, value.right);
 }
 
 /// The type expression of `id` in the current representation.

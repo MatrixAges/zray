@@ -5,9 +5,15 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 
 pub fn lower(self: *Lower, symbol: ir.SymbolId, type_id: ir.TypeId) Lower.Error!node.ExpressionId {
+    return lowerMode(self, symbol, type_id, false);
+}
+
+pub fn lowerMode(self: *Lower, symbol: ir.SymbolId, type_id: ir.TypeId, iteration: bool) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("reference_seed.zig").lower(self, symbol, type_id);
 
     self.used[@backingInt(symbol)] = true;
+
+    if (iteration) return self.builder.identifier(self.names[@backingInt(symbol)]);
 
     const generated = @import("generated_reference_access");
     const Input = std.meta.Child(generated.Input);

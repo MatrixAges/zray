@@ -6,7 +6,7 @@ const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const collections = @import("../collections.zig");
-const read = @import("../access/projection/read.zig");
+const dispatch = @import("../expressions/dispatch.zig");
 const access = @import("../access/emit.zig");
 const Probe = @import("../expression_map.zig").Probe;
 
@@ -24,27 +24,32 @@ pub fn lower(self: *Context, id: ir.ExprId, probe: Probe) Lower.Error!node.Expre
         },
         .Fallback, .Binary => return lowering.regularWithCache(id, checked),
         .Unpack => return unpack(self, id, try lowering.regularWithCache(id, checked)),
+        inline .Reference, .Field, .Unwrap, .TupleField, .Index, .Length => |action| {
+            return dispatch.readValue(lowering, id, @field(dispatch.Action, @tagName(action)), self, null);
+        },
+        .Some => return dispatch.readValue(lowering, id, .Wrap, self, null),
+        .None => {
+            const type_id: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[@backingInt(id)]);
+
+            return access.optional(lowering, try @import("types.zig").get(self, type_id), null);
+        },
+        .Update => return @import("mutation.zig").update(self, id),
+        .Mutation => return @import("mutation.zig").operation(self, id),
+        .Aggregate => return @import("aggregate.zig").lower(self, id),
+        .Collection => {
+            const type_id: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[@backingInt(id)]);
+
+            return collections.lowerValue(lowering, id, try @import("types.zig").get(self, type_id));
+        },
         else => {},
     }
 
     const value = lowering.program.expression(id);
 
     return try switch (plan.route) {
-        .Reference => reference(lowering, value.value.reference),
-        .Field => read.field(lowering, value.type_id, value.value.field, true),
-        .Unwrap => access.optional(lowering, null, try lowering.expr(value.value.optional_value)),
-        .TupleField => read.tuple(lowering, value.type_id, value.value.tuple_field, true),
         .Scope => @import("scope.zig").lower(self, value.value.scope),
-        .Index => read.index(lowering, value.type_id, value.value.index.target, value.value.index.index, true),
-        .Length => read.length(lowering, value.value.length, try lowering.typeExpr(value.type_id), true),
-        .Update => @import("mutation.zig").update(self, id),
-        .Mutation => @import("mutation.zig").operation(self, id),
         .List => @import("list.zig").lower(self, value.type_id, value.value.list),
         .Call => @import("invocation.zig").lower(self, id, value, plan.value_call),
-        .None => access.optional(lowering, try @import("types.zig").get(self, value.type_id), null),
-        .Some => access.optional(lowering, try @import("types.zig").get(self, value.type_id), try lowering.expr(value.value.some)),
-        .Aggregate => @import("aggregate.zig").lower(self, id),
-        .Collection => collections.lowerValue(lowering, id, try @import("types.zig").get(self, value.type_id)),
         .Conditional => @import("../selection/conditional.zig").lower(lowering, value.value.conditional),
         .Match => @import("../match.zig").lower(lowering, value.value.match_expr),
         else => unreachable,
@@ -82,14 +87,6 @@ fn select(self: *const Context, id: ir.ExprId, probe: Probe) Plan {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     return zx.columns.invoke(entry.executeValue, empty.allocator(), &input) catch unreachable;
-}
-
-fn reference(lowering: *Lower, symbol: ir.SymbolId) Lower.Error!node.ExpressionId {
-    const row = @backingInt(symbol);
-
-    lowering.used[row] = true;
-
-    return lowering.builder.identifier(lowering.names[row]);
 }
 
 pub fn unpack(self: *Context, id: ir.ExprId, input: node.ExpressionId) Lower.Error!node.ExpressionId {

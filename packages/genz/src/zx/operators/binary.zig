@@ -5,31 +5,28 @@ const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
 const Lower = @import("../lower.zig");
-const Operation = @FieldType(@FieldType(ir.ExpressionRow, "value"), "binary");
 
-pub fn lower(self: *Lower, value: Operation) Lower.Error!node.ExpressionId {
+pub fn lower(self: *Lower, operator: anytype, left: ir.ExprId, right: ir.ExprId) Lower.Error!node.ExpressionId {
     const generated = @import("generated_binary_emit");
     const Input = std.meta.Child(generated.Input);
     const Output = std.meta.Child(generated.Output);
     const Expressions = std.meta.Child(@FieldType(Input, "expressions"));
 
-    comptime view.compatible(@FieldType(Operation, "operator"), @FieldType(Input, "operator"));
+    comptime view.compatible(@TypeOf(operator), @FieldType(Input, "operator"));
 
-    const left = try self.expr(value.left);
-    const right = try self.expr(value.right);
-    const type_expr = try self.typeExpr(self.program.expression(value.left).type_id);
+    const operands = try @import("../expressions/operands.zig").evaluate(self, .Binary, &.{ left, right });
     const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
 
     const input: Input = .{
         .expressions = &expressions,
         .types = &types,
-        .operator = @fromBackingInt(@intCast(@backingInt(value.operator))),
-        .left_ir = @backingInt(value.left),
-        .right_ir = @backingInt(value.right),
-        .left = @backingInt(left),
-        .right = @backingInt(right),
-        .type_expr = @backingInt(type_expr),
+        .operator = @fromBackingInt(@intCast(@backingInt(operator))),
+        .left_ir = @backingInt(left),
+        .right_ir = @backingInt(right),
+        .left = @backingInt(operands[0]),
+        .right = @backingInt(operands[1]),
+        .type_expr = @backingInt(operands[2]),
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
         .serial = self.serial,

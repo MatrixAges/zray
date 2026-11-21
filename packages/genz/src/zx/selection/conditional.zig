@@ -16,27 +16,10 @@ pub fn lowerValue(self: *Lower, value: Operation) Lower.Error!node.ExpressionId 
 }
 
 fn evaluate(self: *Lower, value: Operation, comptime layout: bool) Lower.Error!node.ExpressionId {
-    const plan = comptime blk: {
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const form = if (layout) .ValueConditional else .Conditional;
+    const operands = try @import("../expressions/operands.zig").evaluate(self, form, &.{ value.condition, value.yes, value.no });
 
-        break :blk @import("generated_conditional_plan").executeValue(fixed.allocator(), layout) catch unreachable;
-    };
-
-    var condition: node.ExpressionId = undefined;
-    var yes: node.ExpressionId = undefined;
-    var no: node.ExpressionId = undefined;
-
-    inline for (.{ plan.first, plan.second, plan.third }) |step| {
-        switch (step) {
-            .Condition => condition = try self.expr(value.condition),
-            .Yes => yes = try self.expr(value.yes),
-            .No => no = try self.expr(value.no),
-            .ValueYes => yes = try @import("../value_call/root.zig").expression(self, value.yes),
-            .ValueNo => no = try @import("../value_call/root.zig").expression(self, value.no),
-        }
-    }
-
-    return construct(self, condition, yes, no);
+    return construct(self, operands[0], operands[1], operands[2]);
 }
 
 pub fn construct(self: *Lower, condition: node.ExpressionId, yes: node.ExpressionId, no: node.ExpressionId) Lower.Error!node.ExpressionId {
