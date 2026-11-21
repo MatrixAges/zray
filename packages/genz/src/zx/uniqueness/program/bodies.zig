@@ -53,22 +53,23 @@ pub const Unit = struct {
             .growth = growth orelse &self.growth,
         };
 
-        const passes = self.passes orelse try self.prepare(lasting, allocator, &unit, view.control.block(), slots, summaries);
+        const passes = try self.facts(lasting, allocator, view, slots, summaries);
 
         return Function.initialize(allocator, unit, passes, slots, summaries, record_reads);
     }
-
     /// The owner outlives all later visits. Only the visiting thread or its claimed worker builds the facts.
-    fn prepare(self: *Unit, owner: std.mem.Allocator, workspace: std.mem.Allocator, unit: *const Function.Unit, body: ir.Block, slots: Slots, summaries: *Summaries) Error!Function.PassesRef {
+    pub fn facts(self: *Unit, owner: std.mem.Allocator, workspace: std.mem.Allocator, view: View, slots: Slots, summaries: *const Summaries) Error!Function.PassesRef {
+        if (self.passes) |passes| return passes;
+
         const passes = if (@import("genz_options").generated_analysis)
-            try @import("../function/prepared.zig").build(owner, workspace, unit, body, slots, summaries)
+            try @import("../function/prepared.zig").build(owner, workspace, view, slots, summaries)
         else seed: {
             const kept = try owner.create(Function.Passes);
 
-            kept.order = try Order.create(owner, unit.symbols.*, unit.expressions.*, body);
-            kept.sites = try Sites.create(owner, &kept.order, slots, unit.symbols.*, unit.expressions.*, summaries);
-            kept.operations = try Function.collectOperations(owner, &kept.order, unit.expressions.*);
-            kept.rows = try Function.readRows(owner, unit.expressions.*);
+            kept.order = try Order.create(owner, view.symbols.*, view.expressions.*, view.control.block());
+            kept.sites = try Sites.create(owner, &kept.order, slots, view.symbols.*, view.expressions.*, summaries);
+            kept.operations = try Function.collectOperations(owner, &kept.order, view.expressions.*);
+            kept.rows = try Function.readRows(owner, view.expressions.*);
 
             break :seed kept;
         };

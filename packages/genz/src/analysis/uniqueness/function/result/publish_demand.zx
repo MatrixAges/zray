@@ -1,4 +1,5 @@
 import memory from "memory"
+import columns from "memory/columns"
 
 import publish from "./demand.rx"
 
@@ -17,15 +18,31 @@ export default function (in: Input): Output {
             "grew",
             "changed"
         ]),
-        ...targets.omit(["growth"]),
+        ...targets.omit([
+            "growth",
+            "install"
+        ]),
         growth: retained_growth ? targets.growth : null
     })
+
+    if (retained_growth) {
+        columns.writeRowList(
+            targets.install.normalized,
+            0,
+            targets.growth.normalized.storage
+        )
+
+        columns.writeRowList(
+            targets.install.renewed,
+            0,
+            targets.growth.renewed.storage
+        )
+    }
 
     memory.selectAllocator(scope, scratch)
 
     return {
         grew: result.grew,
-        changed: result.changed,
-        retained_growth
+        changed: result.changed
     }
 }

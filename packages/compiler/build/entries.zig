@@ -15,7 +15,7 @@ pub const Entry = struct {
     }
 };
 
-pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, ordered, collections, growth, host };
+pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, ordered, collections, growth, body_view, host };
 const constant_fold = Entry{ .path = "zx/analysis/constants/evaluate.rx", .name = "constant_fold" };
 const input_snapshot = Entry{ .path = "inputs/snapshot/reuse.rx", .name = "input_snapshot", .owner = .compiler };
 const partition_groups = Entry{ .path = "genz/analysis/partition/plan.rx", .name = "partition_groups", .owner = .genz };
@@ -673,10 +673,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/program/open.rx", .name = "uniqueness_open_program", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/topology/callees.rx", .name = "uniqueness_callees", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/summaries/lifecycle.rx", .name = "uniqueness_summaries_lifecycle", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/function/plan/visit.rx", .name = "uniqueness_function_plan", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/function/entry/analyze.rx", .name = "uniqueness_function_entry", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/function/result/settle_visit.rx", .name = "uniqueness_function_settlement", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/function/result/demand_visit.rx", .name = "uniqueness_function_demand", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/function/visit/run.rx", .name = "uniqueness_function_visit", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/result/retain.zx", .name = "uniqueness_result_retain", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/retain/plan.rx", .name = "uniqueness_retain_plan", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/retain/rows.zx", .name = "uniqueness_retain_rows", .owner = .genz },
@@ -1046,6 +1043,10 @@ pub const ordered = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/replay/ordered/planned.rx", .name = "uniqueness_replay_planned", .owner = .genz },
 };
 
+pub const body_view = [_]Entry{
+    .{ .path = "genz/analysis/uniqueness/function/visit/context.zx", .name = "uniqueness_body_view", .owner = .genz },
+};
+
 const host_bindings = [_]Entry{
     .{ .path = "genz/analysis/host/manifest/read.rx", .name = "output_manifest_read", .owner = .compiler },
     .{ .path = "genz/analysis/host/manifest/write.zx", .name = "output_manifest_write", .owner = .compiler },
@@ -1097,6 +1098,7 @@ pub fn of(set: Set) []const Entry {
         .ordered => &ordered,
         .collections => &collections,
         .growth => &growth,
+        .body_view => &body_view,
         .host => &host,
         .constant_seed => &.{constant_fold},
         .snapshot_seed => &.{input_snapshot},
@@ -1114,7 +1116,7 @@ pub const ModuleEntry = struct {
 pub const module_entries = block: {
     @setEvalBranchQuota(10_000);
 
-    const sets = .{ Set.main, Set.ordered, Set.collections, Set.growth, Set.host };
+    const sets = .{ Set.main, Set.ordered, Set.collections, Set.growth, Set.body_view, Set.host };
     var count: usize = 0;
 
     for (sets) |set| {

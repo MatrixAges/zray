@@ -112,11 +112,7 @@ pub fn analyzeEntry(allocator: std.mem.Allocator, workspace: std.mem.Allocator, 
     var unit = Bodies.Unit.init(temporary);
     const body = Bodies.View.at(&program, program.functions.count());
 
-    if (generated) {
-        var function = try unit.analyze(temporary, temporary, body, slots, &summaries, null, false);
-
-        return @import("function/plan.zig").entry(&function, allocator);
-    }
+    if (generated) return @import("program/visit/analysis.zig").entry(allocator, temporary, body, &unit, slots, &summaries);
 
     while (true) {
         var analysis = try unit.analyze(temporary, temporary, body, slots, &summaries, null, false);

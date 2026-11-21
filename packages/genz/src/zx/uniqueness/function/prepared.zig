@@ -1,13 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
-const Function = @import("../function.zig");
+const View = @import("../program/bodies.zig").View;
 const Slots = @import("../slots.zig");
 const Summaries = @import("../summaries.zig");
 const generated = @import("generated_uniqueness_function_prepare");
 const Input = std.meta.Child(generated.Input);
 pub const Facts = std.meta.Child(generated.Output);
 
-pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, unit: *const Function.Unit, block: zx.ir.Block, slots: Slots, summaries: *const Summaries) std.mem.Allocator.Error!*const Facts {
+pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, body: View, slots: Slots, summaries: *const Summaries) std.mem.Allocator.Error!*const Facts {
     var scratch = std.heap.ArenaAllocator.init(workspace);
 
     defer scratch.deinit();
@@ -24,18 +24,19 @@ pub fn build(owner: std.mem.Allocator, workspace: std.mem.Allocator, unit: *cons
     errdefer owner.free(repeated);
 
     const Source = std.meta.Child(@FieldType(Input, "source"));
+    const block = body.control.block();
 
     const source: Source = .{
-        .expressions = zx.columns.pointer(@FieldType(Source, "expressions"), unit.expressions),
+        .expressions = zx.columns.pointer(@FieldType(Source, "expressions"), body.expressions),
         .control = zx.columns.pointer(@FieldType(Source, "control"), block.control),
-        .symbols = unit.symbols.count(),
+        .symbols = body.symbols.count(),
         .first = @intCast(block.first),
         .count = @intCast(block.len),
     };
 
     const input: Input = .{
         .source = &source,
-        .symbols = unit.symbols.types,
+        .symbols = body.symbols.types,
         .counts = slots.counts,
         .layout = &.{ .offsets = slots.offsets, .members = @ptrCast(slots.members), .unwrapped = @ptrCast(slots.unwrapped) },
         .held = summaries.held,

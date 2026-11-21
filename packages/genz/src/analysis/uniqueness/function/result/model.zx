@@ -1,4 +1,5 @@
 import type { Allocator, ArenaScope } from "memory"
+import type { WriteColumn } from "memory/columns"
 import type { Targets } from "../../growth/output"
 import type { Demanded, Mark, Visit as DemandInput } from "../demand/model"
 import type { GrowthRows, Knowledge, Read } from "../levels/model"
@@ -53,7 +54,13 @@ export type Arenas = {
 export type SettlementTargets = Settlement.Pick("contributions", "read_target")
 
 export type DemandTargets = Demand.Pick("mark_target", "read_target") & {
-    growth: Targets
+    growth: Targets,
+    install: GrowthInstallation
+}
+
+export type GrowthInstallation = {
+    normalized: WriteColumn,
+    renewed: WriteColumn
 }
 
 export type SettleVisit = {
@@ -82,6 +89,4 @@ export type PublishedSettlement = {
     changed: u64[]
 }
 
-export type PublishedDemand = Demanded.Pick("grew", "changed") & {
-    retained_growth: bool
-}
+export type PublishedDemand = Demanded.Pick("grew", "changed")

@@ -1,0 +1,58 @@
+import type { AtomicRows } from "std:bytes"
+import type { Expressions } from "core/expression_table/model"
+import type { Table } from "core/type_table/model"
+import type { Layout } from "../../slots/model"
+import type { Exchange } from "../demand/model"
+import type { Context as FactsContext } from "../levels/model"
+import type { Published } from "../plan/model"
+import type { Output as Facts } from "../prepare/model"
+import type { Arenas, DemandTargets, SettlementTargets } from "../result/model"
+
+export type Body = FactsContext.Pick("normalized", "renewed") & {
+    facts: Facts,
+    expressions: Expressions,
+    layout: Layout,
+    counts: u32[],
+    symbols: u64,
+    index?: u32,
+    input: u8[][],
+    output: u8[][],
+    held: bool[][],
+    written: bool[][],
+    record: bool
+}
+
+export type Settlement = {
+    targets: SettlementTargets,
+    input: AtomicRows
+}
+
+export type Demand = {
+    targets: DemandTargets,
+    exchange: Exchange,
+    restored_growth: bool
+}
+
+export type View = {
+    context: FactsContext,
+    count: u64
+}
+
+export type Input = {
+    view: View,
+    facts: Facts,
+    index?: u32,
+    arenas: Arenas,
+    types: Table,
+    deferred: bool,
+    settlement?: Settlement,
+    demand?: Demand,
+    independent: bool
+}
+
+export type Output = {
+    levels: u8[],
+    changed: u64[],
+    grew: bool,
+    plan?: Published
+}

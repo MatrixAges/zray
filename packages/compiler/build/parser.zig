@@ -2,7 +2,7 @@ const std = @import("std");
 const entries = @import("entries.zig");
 const memory_columns = "memory/columns";
 const lexical_path = "lexical_path";
-pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, ordered: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, host: std.Build.LazyPath };
+pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, ordered: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, body_view: std.Build.LazyPath, host: std.Build.LazyPath };
 
 pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []const u8, partitions: u32, executable: *std.Build.Step.Compile) Sources {
     const target = b.graph.host;
@@ -76,7 +76,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     };
 
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
-    for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .ordered, .collections, .growth, .host }) |set| {
+    for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .ordered, .collections, .growth, .body_view, .host }) |set| {
         const run = generatorRun(b, executable, stage0);
 
         const project = manifest.Project{
@@ -101,7 +101,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                     .path = b.fmt("{s}/analysis/iteration/transfer/history", .{directories[3]}),
                     .prefix = "genz/analysis/iteration/transfer/history/",
                 } },
-                .growth, .host => manifest_roots[2..],
+                .growth, .body_view, .host => manifest_roots[2..],
                 else => &manifest_roots,
             },
             .entries = entries.of(set),
@@ -135,6 +135,10 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             .collections => {
                 addSources(run, tracked[2]);
                 inline for (collection_roots) |path| addSubtree(run, tracked[3], path);
+            },
+            .body_view => {
+                addSources(run, tracked[2]);
+                addSubtree(run, tracked[3], "analysis/uniqueness");
             },
             .growth, .host => for (tracked[2..]) |inputs| addSources(run, inputs),
             else => for (tracked) |inputs| addSources(run, inputs),
@@ -170,6 +174,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 .ordered => sources.ordered = directory,
                 .collections => sources.collections = directory,
                 .growth => sources.growth = directory,
+                .body_view => sources.body_view = directory,
                 .host => sources.host = directory,
                 .constant_seed, .snapshot_seed, .partition_seed => unreachable,
             }
@@ -252,7 +257,7 @@ fn lessThan(_: void, left: []const u8, right: []const u8) bool {
 /// layout of Zig's own types only agrees within one backend, and only Apple's linker turns them into a runnable
 /// executable on macOS; artifacts that cannot meet both keep `objects`. Each set compiles only when an artifact uses it.
 /// They come as one directory holding `zxc_partition_<n>.o` for each partition.
-pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Module, ordered: *std.Build.Module, collections: *std.Build.Module, growth: *std.Build.Module, objects: ?*std.Build.Module, self_hosted_objects: ?std.Build.LazyPath };
+pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Module, ordered: *std.Build.Module, collections: *std.Build.Module, growth: *std.Build.Module, body_view: *std.Build.Module, objects: ?*std.Build.Module, self_hosted_objects: ?std.Build.LazyPath };
 
 pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, source: Sources, strip: ?bool, partitions: u32) Shared {
     const abi = b.createModule(.{ .root_source_file = source.main.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
@@ -390,7 +395,19 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         },
     });
 
-    return .{ .generated = generated, .checks = check_modules, .ordered = ordered, .collections = collections, .growth = growth, .objects = objects, .self_hosted_objects = self_hosted_objects };
+    const body_view = b.createModule(.{
+        .root_source_file = source.body_view.path(b, "root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .strip = strip,
+        .imports = &.{
+            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = source.body_view.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip }) },
+            .{ .name = "zxc_standard", .module = standard },
+            .{ .name = "memory", .module = memory },
+        },
+    });
+
+    return .{ .generated = generated, .checks = check_modules, .ordered = ordered, .collections = collections, .growth = growth, .body_view = body_view, .objects = objects, .self_hosted_objects = self_hosted_objects };
 }
 
 /// Each partition is its own compilation unit; final artifacts link them by importing the returned module.
@@ -499,6 +516,7 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             .ordered => source.ordered,
             .collections => source.collections,
             .growth => source.growth,
+            .body_view => source.body_view,
             .host => source.host,
             else => unreachable,
         };
@@ -508,6 +526,7 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             .ordered => natives.ordered,
             .collections => natives.collections,
             .growth => natives.growth,
+            .body_view => natives.body_view,
             .host => host,
             else => unreachable,
         };

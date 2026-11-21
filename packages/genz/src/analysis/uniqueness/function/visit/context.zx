@@ -1,0 +1,58 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+import type { Metadata } from "../levels/model"
+import type { Body as Input, View as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { expressions, facts, index, input, output } = in
+
+    const function_index = index ?? max_u32
+    const row = integers.widen(function_index)
+
+    const levels = match {
+        row < input.length => input[row],
+        _ => []
+    }
+
+    const count = match {
+        row < output.length => output[row].length,
+        _ => 0
+    }
+
+    const metadata: Metadata = {
+        expressions,
+        definitions: facts.definitions,
+        layout: in.layout,
+        counts: in.counts,
+        parents: facts.repeated.parent,
+        concurrent: facts.repeated.concurrent,
+        usage: {
+            plan: facts.usage.plan,
+            nodes: facts.nodes,
+            regions: facts.regions,
+            expressions,
+            def_loop: facts.definitions.repeated,
+            symbols: in.symbols,
+            held: in.held,
+            written: in.written,
+            root: 0,
+            slot: 0,
+            observe: false
+        },
+        states: facts.usage.states,
+        input: levels,
+        output,
+        function_index,
+        record: in.record
+    }
+
+    return {
+        context: {
+            metadata,
+            normalized: in.normalized,
+            renewed: in.renewed
+        },
+        count
+    }
+}

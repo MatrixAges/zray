@@ -153,10 +153,28 @@ pub inline fn invoke(comptime function: anytype, allocator: std.mem.Allocator, s
 
 fn compatible(comptime Target: type, comptime Source: type) void {
     if (Target == Source) return;
-    if (@sizeOf(Target) != @sizeOf(Source) or @alignOf(Target) != @alignOf(Source)) @compileError("Incompatible column representation");
 
     const target = @typeInfo(Target);
     const source = @typeInfo(Source);
+
+    // Each independently generated ABI module declares its own nominal handle types.
+    if (target == .@"opaque" or source == .@"opaque") {
+        const name = @typeName(Target);
+
+        if (target != .@"opaque" or source != .@"opaque" or
+            !std.mem.startsWith(u8, name, "types.zx_type_") or !std.mem.eql(u8, name, @typeName(Source)))
+        {
+            @compileError("Incompatible opaque column: " ++ @typeName(Source) ++ " -> " ++ name);
+        }
+
+        return;
+    }
+
+    if (@sizeOf(Target) != @sizeOf(Source) or @alignOf(Target) != @alignOf(Source)) @compileError("Incompatible column representation");
+
+    if (target == .optional and source == .optional) {
+        return compatible(target.optional.child, source.optional.child);
+    }
 
     if (target == .pointer and source == .pointer) {
         const left = target.pointer;
@@ -182,7 +200,9 @@ fn compatible(comptime Target: type, comptime Source: type) void {
         return;
     }
 
-    if (target != .@"enum" or source != .@"enum" or target.@"enum".tag_type != source.@"enum".tag_type) @compileError("Incompatible column enum representation");
+    if (target != .@"enum" or source != .@"enum" or target.@"enum".tag_type != source.@"enum".tag_type) {
+        @compileError("Incompatible column representation: " ++ @typeName(Source) ++ " -> " ++ @typeName(Target));
+    }
 
     const expected = source.@"enum".field_names;
     const actual = target.@"enum".field_names;

@@ -1,0 +1,36 @@
+import converge from "../entry/converge"
+import close from "../levels/close.rx"
+
+import type { Solved as Output } from "../entry/model"
+import type { Generation } from "./model"
+
+export type Input = Generation.Omit("arenas", "time")
+
+export default function (in: Input): Output {
+    const { context, repeated, operations, results } = in
+
+    if (in.independent) {
+        return converge({
+            context,
+            repeated,
+            source: {
+                kinds: in.types.kinds,
+                operations,
+                results
+            }
+        })
+    }
+
+    const closure = close({
+        context,
+        repeated
+    })
+
+    return {
+        context,
+        state: closure.pick([
+            "known",
+            "carried"
+        ])
+    }
+}

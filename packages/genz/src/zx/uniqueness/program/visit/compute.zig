@@ -28,6 +28,8 @@ pub fn Output(comptime kind: Memo.Kind, comptime deferred: bool) type {
 }
 
 pub fn run(comptime kind: Memo.Kind, comptime deferred: bool, in: Input) std.mem.Allocator.Error!Output(kind, deferred) {
+    if (generated) return @import("analysis.zig").run(kind, deferred, in);
+
     var function = try in.bodies.analyze(in.scratch, in.lasting, in.slots, in.summaries, in.body, in.growth, deferred);
     function.deferred = deferred;
 
@@ -43,12 +45,8 @@ pub fn run(comptime kind: Memo.Kind, comptime deferred: bool, in: Input) std.mem
             };
         },
         .demanded => demanded: {
-            const result = if (generated)
-                try @import("../../function/demand.zig").analyze(&function, in.owner, in.restored_growth)
-            else
-                try function.demand(in.owner);
-
-            const growth = if (generated) in.growth.?.* else try in.growth.?.capture(in.owner);
+            const result = try function.demand(in.owner);
+            const growth = try in.growth.?.capture(in.owner);
 
             break :demanded .{
                 .record = .{

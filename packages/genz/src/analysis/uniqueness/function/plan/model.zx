@@ -60,7 +60,8 @@ export type Arenas = {
 }
 
 export type Generation = Visit & {
-    arenas: Arenas
+    arenas: Arenas,
+    independent: bool
 }
 
 export type Publication = Finish & {

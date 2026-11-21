@@ -1,0 +1,86 @@
+<Module>
+    <Type from="model" as="Visit" />
+
+    <Args in={Visit.Input} out={Visit.Output} />
+
+    <If on={$in.settlement != null}>
+        <Call
+            module="../result/settle_visit"
+            in={{
+                analysis: {
+                    context: $in.view.context,
+                    repeated: $in.facts.repeated.owner,
+                    operations: $in.facts.operations,
+                    inputs: $in.settlement.input,
+                    deferred: $in.deferred,
+                    results: $in.facts.results,
+                    count: $in.view.count
+                },
+                targets: $in.settlement.targets,
+                arenas: $in.arenas
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.settle_visit,
+                grew: false,
+                plan: null
+            }}
+        />
+    </If>
+
+    <If on={$in.demand != null}>
+        <Call
+            module="../result/demand_visit"
+            in={{
+                analysis: {
+                    context: $in.view.context,
+                    repeated: $in.facts.repeated.owner,
+                    source: {
+                        kinds: $in.types.kinds,
+                        exchange: $in.demand.exchange,
+                        function_index: $in.index,
+                        operations: $in.facts.operations,
+                        results: $in.facts.results
+                    }
+                },
+                targets: $in.demand.targets,
+                arenas: $in.arenas,
+                restored_growth: $in.demand.restored_growth
+            }}
+        />
+
+        <Return
+            value={{
+                levels: [],
+                changed: $ctx.demand_visit.changed,
+                grew: $ctx.demand_visit.grew,
+                plan: null
+            }}
+        />
+    </If>
+
+    <Call
+        module="../plan/visit"
+        in={{
+            context: $in.view.context,
+            types: $in.types,
+            time: $in.facts.nodes.time,
+            operations: $in.facts.operations,
+            repeated: $in.facts.repeated.owner,
+            results: $in.facts.results,
+            arenas: $in.arenas,
+            independent: $in.independent
+        }}
+    />
+
+    <Return
+        value={{
+            levels: [],
+            changed: [],
+            grew: false,
+            plan: $ctx.visit
+        }}
+    />
+</Module>

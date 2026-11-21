@@ -4,21 +4,24 @@
     <Args in={Plan.Generation} out={Plan.Published} />
 
     <Call
-        module="../levels/close"
-        in={$in.pick([
-            "context",
-            "repeated"
+        fn="state"
+        in={$in.omit([
+            "arenas",
+            "time"
         ])}
     />
 
     <Call
         module="plan"
         in={{
-            ...$in.omit(["arenas"]),
-            state: $ctx.close.pick([
-                "known",
-                "carried"
-            ])
+            ...$in.pick([
+                "types",
+                "time",
+                "operations",
+                "repeated",
+                "results"
+            ]),
+            ...$ctx.state
         }}
     />
 

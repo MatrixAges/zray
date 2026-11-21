@@ -8,7 +8,6 @@ const Slots = @import("slots.zig");
 const Summaries = @import("summaries.zig");
 const Self = @This();
 const generated_analysis = @import("genz_options").generated_analysis;
-const Summary = if (generated_analysis) @import("function/summary.zig") else void;
 
 pub const Passes = if (generated_analysis) @import("function/prepared.zig").Facts else struct {
     order: Order,
@@ -152,8 +151,6 @@ pub const Demand = struct {
 
 /// Retained results go to owner. Worklist notifications last for this analysis.
 pub fn settle(self: *Self, owner: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Settlement {
-    if (generated_analysis) return Summary.settle(self, owner, count);
-
     var changed: std.ArrayList(u64) = .empty;
     var passed: std.ArrayList(Contribution) = .empty;
     const values = try owner.alloc(Level, count);
@@ -375,7 +372,6 @@ pub const Plan = struct {
 };
 
 pub fn plan(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!Plan {
-    if (generated_analysis) return @import("function/plan.zig").build(self, allocator);
     try self.close();
 
     const values = try allocator.alloc(Flags, self.expressions.count());
@@ -641,7 +637,6 @@ fn prefix(self: Self, operation: anytype) bool {
 /// initial state, a plain input or an opaque producer then gets one growth copy there, so the updates that follow work
 /// in place instead of copying on every step. Lists the functions whose demand grew.
 pub fn demand(self: *Self, owner: std.mem.Allocator) std.mem.Allocator.Error!Demand {
-    if (generated_analysis) return @import("function/demand.zig").analyze(self, owner, false);
     try self.close();
 
     var changed: std.ArrayList(u64) = .empty;
