@@ -1,0 +1,10 @@
+import type { CacheReplacement, CacheSlot, NativeCacheLoad } from "project_host"
+
+export type Input = {
+    frame: NativeCacheLoad,
+    slot: CacheSlot
+}
+
+export type Publication = Input & {
+    existing?: CacheReplacement
+}

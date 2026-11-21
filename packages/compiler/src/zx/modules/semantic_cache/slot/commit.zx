@@ -1,0 +1,15 @@
+import host from "project_host"
+
+import type { Commit as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { slot, existing } = in
+
+    if (existing != null) {
+        host.replaceCacheSlot(slot, existing)
+    } else {
+        host.appendCacheSlot(slot)
+    }
+}

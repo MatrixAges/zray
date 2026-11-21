@@ -1017,6 +1017,10 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "zx/modules/project/execution/native/import.rx", .name = "project_execute_native" },
+    .{ .path = "zx/modules/project/execution/native/invalidate.zx", .name = "project_invalidate_native" },
+    .{ .path = "zx/modules/semantic_cache/using_native/load.rx", .name = "semantic_cache_load_native" },
+    .{ .path = "zx/modules/semantic_cache/slot/install.rx", .name = "semantic_cache_install_entry" },
     .{ .path = "zx/modules/project/execution/load.rx", .name = "project_execute_load" },
     .{ .path = "zx/modules/project/execution/body.rx", .name = "project_execute_body" },
     .{ .path = "zx/modules/project/execution/entry.rx", .name = "project_execute_entry" },

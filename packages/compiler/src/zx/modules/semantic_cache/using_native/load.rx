@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Input} out={void} />
+
+    <Call fn="restore" in={$in.frame} />
+
+    <If on={!$ctx.restore}>
+        <Call fn="stage" in={$in} />
+
+        <Call
+            fn="publish"
+            in={{
+                ...$in,
+                existing: $ctx.stage
+            }}
+        />
+    </If>
+</Module>

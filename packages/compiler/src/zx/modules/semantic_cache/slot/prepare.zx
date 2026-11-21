@@ -1,0 +1,21 @@
+import host from "project_host"
+
+import type { CacheReplacement, CacheSlot as Input } from "project_host"
+
+export type Output = CacheReplacement?
+
+export default function (in: Input): Output {
+    const existing = host.probeCacheSlot(in)
+
+    if (existing != null) {
+        return existing
+    }
+
+    if (host.reserveCacheSlot(in)) {
+        const refreshed = host.probeCacheSlot(in)
+    }
+
+    host.stageCacheSlot(in)
+
+    return null
+}

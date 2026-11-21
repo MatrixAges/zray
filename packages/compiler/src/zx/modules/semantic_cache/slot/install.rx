@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Install} out={void} />
+
+    <Call fn="prepare" in={$in.slot} />
+
+    <Call
+        fn="commit"
+        in={{
+            ...$in,
+            existing: $ctx.prepare
+        }}
+    />
+</Module>

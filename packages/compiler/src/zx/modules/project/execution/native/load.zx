@@ -1,0 +1,15 @@
+import host from "project_host"
+
+import type { Import } from "./model"
+
+export type Input = Import.Omit("verified")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (in.cached) {
+        host.loadCachedProjectNative(in.frame)
+    } else {
+        host.loadFreshProjectNative(in.frame)
+    }
+}

@@ -1,0 +1,9 @@
+import type { CacheReplacement, CacheSlot } from "project_host"
+
+export type Install = {
+    slot: CacheSlot
+}
+
+export type Commit = Install & {
+    existing?: CacheReplacement
+}

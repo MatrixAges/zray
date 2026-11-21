@@ -1,0 +1,8 @@
+<Module>
+    <Type from="model" as="Native" />
+
+    <Args in={Native.Import} out={void} />
+
+    <Call fn="load" in={$in.omit(["verified"])} />
+    <Call fn="invalidate" in={$in.verified} />
+</Module>

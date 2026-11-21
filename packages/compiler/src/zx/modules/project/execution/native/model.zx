@@ -1,0 +1,13 @@
+import type { ColumnLengths, U8Buffer } from "memory"
+import type { ProjectNative } from "project_host"
+
+export type Verification = {
+    functions: ColumnLengths,
+    native: U8Buffer
+}
+
+export type Import = {
+    frame: ProjectNative,
+    cached: bool,
+    verified: Verification
+}

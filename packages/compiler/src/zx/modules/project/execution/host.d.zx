@@ -4,6 +4,14 @@ export type ProjectBody = opaque
 
 export type ProjectEntry = opaque
 
+export type ProjectNative = opaque
+
+export type NativeCacheLoad = opaque
+
+export type CacheSlot = opaque
+
+export type CacheReplacement = opaque
+
 export enum CacheWrite {
     Stored,
     MissingOrigin,
@@ -71,3 +79,32 @@ export declare function storeProjectRecord(
 ): CacheWrite throws { OutOfMemory }
 
 export declare function recordMissingOrigin(entry: ProjectEntry): void
+
+export declare function loadFreshProjectNative(frame: ProjectNative): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function loadCachedProjectNative(frame: ProjectNative): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function restoreNativeCacheHit(frame: NativeCacheLoad): bool
+    throws { OutOfMemory }
+
+export declare function acceptNativeCacheHit(frame: NativeCacheLoad): void
+
+export declare function buildNativeCacheEntry(frame: NativeCacheLoad): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function validateNativeCacheEntry(frame: NativeCacheLoad): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function probeCacheSlot(slot: CacheSlot): CacheReplacement?
+
+export declare function reserveCacheSlot(slot: CacheSlot): bool
+    throws { OutOfMemory }
+
+export declare function stageCacheSlot(slot: CacheSlot): void
+    throws { OutOfMemory }
+
+export declare function appendCacheSlot(slot: CacheSlot): void
+
+export declare function replaceCacheSlot(slot: CacheSlot, existing: CacheReplacement): void

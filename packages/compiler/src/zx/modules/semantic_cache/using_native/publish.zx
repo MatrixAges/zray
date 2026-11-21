@@ -1,0 +1,16 @@
+import host from "project_host"
+
+import commit from "../slot/commit"
+
+import type { Publication as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.validateNativeCacheEntry(in.frame)
+
+    commit(in.pick([
+        "slot",
+        "existing"
+    ]))
+}

@@ -15,6 +15,7 @@ const ModuleRecord = @import("module_record.zig");
 const CachePublication = @import("semantic_cache/publication.zig");
 const Input = @import("module_input.zig");
 const Loading = @import("project/load/host.zig");
+const NativeExecution = @import("project/execution/native.zig");
 const generated_parser = @import("parser_options").generated_parser;
 const Interface = @import("project/interface/host.zig");
 const State = @import("project/state/host.zig");
@@ -556,46 +557,22 @@ pub const Project = struct {
         if (selected.existing) return id;
         try self.native_modules.append(self.allocator, .{ .specifier = try self.allocator.dupe(u8, source), .identity = if (identity) |key| try self.allocator.dupe(u8, key) else null, .import_name = try self.allocator.dupe(u8, name) });
 
-        self.verified.functions = 0;
-        self.verified.native = false;
+        NativeExecution.invalidate(&self.verified);
 
         return id;
     }
     fn importNative(self: *Project, entry: NativeInterface, item: anytype, imports: *std.ArrayList(FunctionImport), aliases: *std.ArrayList(ir.Export), constants: *std.ArrayList(ir.Constant)) zx.Error!void {
         const unit = self.native_units.get(entry.key()) orelse blk: {
             const module_id = try self.nativeModule(entry.specifier, entry.identity, entry.module, item.span);
-
-            const loaded = if (self.semantic_cache) |cache| cached: {
-                const current: @import("semantic_cache/native.zig").Current = .{
-                    .module = module_id,
-                    .types = &self.types,
-                    .origins = &self.nominal_origins,
-                    .functions = &self.functions,
-                    .modules = &self.native_modules,
-                    .backing = self.arena.child_allocator,
-                };
-
-                break :cached try cache.native.load(self.allocator, entry, current, self.reporter, item.span);
-            } else fresh: {
-                const result = try @import("native.zig").load(self.arena, entry, module_id, &self.types, &self.nominal_origins, &self.functions, self.reporter, item.span);
-
-                if (comptime generated_parser) try @import("link/signature/publication/host.zig").finalizeNative(self.allocator, &self.native_modules, &self.functions, module_id, result, entry.namespace);
-
-                break :fresh result;
-            };
-
+            const loaded = try NativeExecution.load(self, &entry, module_id, item.span);
             const native_index = @backingInt(module_id);
 
-            const members = if (comptime generated_parser) published: {
-                self.verified.functions = 0;
-                self.verified.native = false;
-
-                break :published loaded.members;
-            } else seed: {
+            const members = if (comptime generated_parser) loaded.members else seed: {
                 const namespace = loaded.namespace orelse try @import("compiled/host/native.zig").strings(self.allocator, entry.namespace);
                 const bindings = try ir.NativeBindings.fromValues(self.allocator, loaded.exports);
-                self.verified.functions = 0;
-                self.verified.native = false;
+
+                NativeExecution.invalidate(&self.verified);
+
                 self.native_modules.type_namespaces.items[native_index] = namespace;
                 self.native_modules.type_names.items[native_index] = bindings.names;
                 self.native_modules.type_ids.items[native_index] = bindings.type_ids;

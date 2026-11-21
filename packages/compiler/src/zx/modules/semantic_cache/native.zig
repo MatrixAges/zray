@@ -18,44 +18,110 @@ pub fn deinit(self: *Self) void {
     self.* = undefined;
 }
 
-pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: Current, reporter: *zx.Reporter, span: zx.Span) zx.Error!Loaded.Result {
-    const fingerprint = digest(entry);
-
-    if (entries.find(&self.items, entry.key(), &fingerprint, &empty_context)) |cached| {
-        const restored: ?Loaded.Result = restoring.restore(allocator, &cached.result.value, entry, current, cached.native_admitted) catch |err| retry: {
-            if (err == error.OutOfMemory) return error.OutOfMemory;
-
-            break :retry null;
-        };
-
-        if (restored) |result| {
-            cached.native_admitted = true;
-            self.reused += 1;
-
-            return result;
-        }
+const Request = struct {
+    cache: *Self,
+    allocator: std.mem.Allocator,
+    native: *const Native,
+    current: Current,
+    reporter: *zx.Reporter,
+    span: zx.Span,
+    fingerprint: [32]u8,
+    slot: entries.Pending,
+    hit: ?*entries.Entry = null,
+    result: Loaded.Result = undefined,
+    fn borrow(handle: *const anyopaque) *Request {
+        return @ptrCast(@alignCast(@constCast(handle)));
     }
+};
 
-    self.analyzed += 1;
-
-    var artifact = try @import("native_artifact.zig").create(self.allocator, entry, fingerprint, allocator, reporter, span);
-
-    errdefer artifact.deinit();
-
-    const publication = try entries.prepare(self.allocator, &self.items, artifact.value.path);
-
-    errdefer publication.cancel(self.allocator);
-
-    const restored = restoring.restore(allocator, &artifact.value, entry, current, false) catch |err| {
-        if (err == error.OutOfMemory) return error.OutOfMemory;
-        if (err == error.InvalidIr) return reporter.fail(.module, span, "native declarations produced invalid interface IR");
-
-        return reporter.fail(.module, span, "native interface artifact could not be mapped into the project");
+pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: Current, reporter: *zx.Reporter, span: zx.Span) zx.Error!Loaded.Result {
+    var request: Request = .{
+        .cache = self,
+        .allocator = allocator,
+        .native = &entry,
+        .current = current,
+        .reporter = reporter,
+        .span = span,
+        .fingerprint = digest(entry),
+        .slot = .{ .allocator = self.allocator, .entries = &self.items },
     };
 
-    publication.commit(&self.items, .{ .result = artifact, .context_digest = empty_context, .native_admitted = true });
+    errdefer if (request.slot.value) |*value| value.result.deinit();
+    errdefer request.slot.cancel();
 
-    return restored;
+    if (comptime @import("parser_options").generated_parser) {
+        const generated = @import("generated_semantic_cache_load_native");
+        const input: std.meta.Child(generated.Input) = .{ .frame = @ptrCast(&request), .slot = @ptrCast(&request.slot) };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        generated.executeIn(empty.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
+    } else {
+        try seed(&request);
+    }
+
+    return request.result;
+}
+
+fn seed(request: *Request) zx.Error!void {
+    if (try restoreNativeCacheHit(request)) {
+        acceptNativeCacheHit(request);
+
+        return;
+    }
+
+    try buildNativeCacheEntry(request);
+
+    const existing = try entries.prepareSeed(&request.slot);
+
+    try validateNativeCacheEntry(request);
+
+    entries.commitSeed(&request.slot, existing);
+}
+
+pub fn restoreNativeCacheHit(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+    const request = Request.borrow(handle);
+    const entry = request.native.*;
+    const cached = entries.find(&request.cache.items, entry.key(), &request.fingerprint, &empty_context) orelse return false;
+
+    request.result = restoring.restore(request.allocator, &cached.result.value, entry, request.current, cached.native_admitted) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return false,
+    };
+
+    request.hit = cached;
+
+    return true;
+}
+
+pub fn acceptNativeCacheHit(handle: *const anyopaque) void {
+    const request = Request.borrow(handle);
+
+    request.hit.?.native_admitted = true;
+    request.cache.reused += 1;
+}
+
+pub fn buildNativeCacheEntry(handle: *const anyopaque) zx.Error!void {
+    const request = Request.borrow(handle);
+    request.cache.analyzed += 1;
+
+    const artifact = try @import("native_artifact.zig").create(request.cache.allocator, request.native.*, request.fingerprint, request.allocator, request.reporter, request.span);
+
+    request.slot.value = .{
+        .result = artifact,
+        .context_digest = empty_context,
+        .native_admitted = true,
+    };
+}
+
+pub fn validateNativeCacheEntry(handle: *const anyopaque) zx.Error!void {
+    const request = Request.borrow(handle);
+    const artifact = &request.slot.value.?.result.value;
+
+    request.result = restoring.restore(request.allocator, artifact, request.native.*, request.current, false) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidIr => return request.reporter.fail(.module, request.span, "native declarations produced invalid interface IR"),
+        else => return request.reporter.fail(.module, request.span, "native interface artifact could not be mapped into the project"),
+    };
 }
 
 fn digest(entry: Native) [32]u8 {

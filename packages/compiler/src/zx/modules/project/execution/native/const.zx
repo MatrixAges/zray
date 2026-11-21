@@ -1,0 +1,3 @@
+export const empty_verified_prefix: u64 = 0
+
+export const unverified_native: u8 = 0

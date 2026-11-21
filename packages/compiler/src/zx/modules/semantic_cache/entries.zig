@@ -1,7 +1,10 @@
 const std = @import("std");
+const zx = @import("zx");
 const Artifact = @import("../artifact/model.zig");
 const State = @import("state/host.zig");
 const codec = @import("codec.zig");
+const generated = @import("parser_options").generated_parser;
+const Replacement = if (generated) *const @import("project_execution_abi").layouts.@"zig:project_host".CacheReplacement else *const anyopaque;
 
 pub const Entry = struct {
     dirty: bool = true,
@@ -54,43 +57,91 @@ pub fn load(allocator: std.mem.Allocator, entries: *Map, bytes: []const u8, comp
     });
 }
 
-pub const Publication = struct {
-    entry: *Entry,
-    key: ?[]const u8,
-    slot: usize = 0,
-    pub fn cancel(self: Publication, allocator: std.mem.Allocator) void {
-        if (self.key) |key| {
-            allocator.free(key);
-            allocator.destroy(self.entry);
-        }
+pub const Pending = struct {
+    allocator: std.mem.Allocator,
+    entries: *Map,
+    value: ?Entry = null,
+    position: usize = undefined,
+    added: ?NewSlot = null,
+    const NewSlot = struct { entry: *Entry, key: []const u8 };
+
+    fn borrow(handle: *const anyopaque) *Pending {
+        return @ptrCast(@alignCast(@constCast(handle)));
     }
-
-    pub fn commit(self: Publication, entries: *Map, value: Entry) void {
-        if (self.key) |key| {
-            entries.append(self.slot, key, self.entry);
-        } else {
-            self.entry.result.deinit();
+    pub fn cancel(self: *Pending) void {
+        if (self.added) |added| {
+            self.allocator.destroy(added.entry);
+            self.allocator.free(added.key);
         }
-
-        self.entry.* = value;
     }
 };
 
-pub fn prepare(allocator: std.mem.Allocator, entries: *Map, path: []const u8) std.mem.Allocator.Error!Publication {
-    var selected = entries.probe(path);
+pub fn probeCacheSlot(handle: *const anyopaque) ?Replacement {
+    const slot = Pending.borrow(handle);
+    const selected = slot.entries.probe(slot.value.?.result.value.path);
+    slot.position = selected.position;
 
-    if (selected.existing) |entry| return .{ .entry = entry, .key = null };
-    if (try entries.reserve(allocator)) selected = entries.probe(path);
+    return if (selected.existing) |entry| @ptrCast(entry) else null;
+}
 
-    const key = try allocator.dupe(u8, path);
+pub fn reserveCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+    const slot = Pending.borrow(handle);
 
-    errdefer allocator.free(key);
+    return slot.entries.reserve(slot.allocator);
+}
 
-    return .{ .entry = try allocator.create(Entry), .key = key, .slot = selected.position };
+pub fn stageCacheSlot(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const slot = Pending.borrow(handle);
+    const key = try slot.allocator.dupe(u8, slot.value.?.result.value.path);
+
+    errdefer slot.allocator.free(key);
+
+    const entry = try slot.allocator.create(Entry);
+    slot.added = .{ .entry = entry, .key = key };
+}
+
+pub fn appendCacheSlot(handle: *const anyopaque) void {
+    const slot = Pending.borrow(handle);
+    const added = slot.added.?;
+
+    slot.entries.append(slot.position, added.key, added.entry);
+
+    added.entry.* = slot.value.?;
+}
+
+pub fn replaceCacheSlot(handle: *const anyopaque, existing: *const anyopaque) void {
+    const slot = Pending.borrow(handle);
+    const entry: *Entry = @ptrCast(@alignCast(@constCast(existing)));
+
+    entry.result.deinit();
+
+    entry.* = slot.value.?;
+}
+
+pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!?*const anyopaque {
+    if (probeCacheSlot(slot)) |existing| return existing;
+    if (try reserveCacheSlot(slot)) _ = probeCacheSlot(slot);
+    try stageCacheSlot(slot);
+
+    return null;
+}
+
+pub fn commitSeed(slot: *Pending, existing: ?*const anyopaque) void {
+    if (existing) |entry| replaceCacheSlot(slot, entry) else appendCacheSlot(slot);
 }
 
 fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Allocator.Error!void {
-    const publication = try prepare(allocator, entries, value.result.value.path);
+    var slot: Pending = .{ .allocator = allocator, .entries = entries, .value = value };
 
-    publication.commit(entries, value);
+    errdefer slot.cancel();
+
+    if (comptime generated) {
+        const entry = @import("generated_semantic_cache_install_entry");
+        const input: std.meta.Child(entry.Input) = .{ .slot = @ptrCast(&slot) };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return zx.columns.invoke(entry.executeValue, empty.allocator(), &input);
+    }
+
+    commitSeed(&slot, try prepareSeed(&slot));
 }

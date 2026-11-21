@@ -1,0 +1,12 @@
+import memory from "memory"
+
+import { empty_verified_prefix, unverified_native } from "./const"
+
+import type { Verification as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.publishColumnLengths(in.functions, empty_verified_prefix)
+    memory.writeU8(in.native, 0, unverified_native)
+}
