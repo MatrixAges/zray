@@ -89,6 +89,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const execution_interfaces = interfaces ++ [_]manifest.Interface{
         .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host" },
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host" },
+        .{ .path = b.fmt("{s}/zx/modules/project/execution/host.d.zx", .{directories[0]}), .module = "project_host" },
     };
 
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
@@ -110,7 +111,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                     .path = b.fmt("{s}/analysis/iteration/transfer/history", .{directories[3]}),
                     .prefix = "genz/analysis/iteration/transfer/history/",
                 } },
-                .growth, .execution, .host => manifest_roots[2..],
+                .execution => &.{ manifest_roots[0], manifest_roots[2], manifest_roots[3] },
+                .growth, .host => manifest_roots[2..],
                 else => &manifest_roots,
             },
             .entries = entries.of(set),
@@ -151,6 +153,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
             .execution => {
                 run.addFileInput(roots[3].path(b, ownership_interface));
                 run.addFileInput(lowering);
+                addSubtree(run, tracked[0], "zx/modules");
                 addSources(run, tracked[2]);
                 addSubtree(run, tracked[3], "analysis");
             },

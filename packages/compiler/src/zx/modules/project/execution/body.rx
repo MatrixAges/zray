@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Body} out={void} />
+
+    <Call fn="body_input" in={$in} />
+    <Call fn="body_function" in={$in.body} />
+    <Call fn="body_record" in={$in.body} />
+</Module>

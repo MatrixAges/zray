@@ -1,0 +1,29 @@
+import host from "project_host"
+
+import type { Imports as Input } from "./model"
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { walk, completed } = in
+
+    const count = host.readProjectFrame(walk)
+    const first = completed == null ? 0 : host.suspendedProjectImport(walk)
+    const child: u64? = null
+
+    if (completed != null) {
+        host.resumeProjectImport(walk, first, completed)
+    }
+
+    return loop({
+        row: first + (completed == null ? 0 : 1),
+        child
+    }, {
+        while: state => state.row < count && state.child == null,
+        next: state => {
+            state.child = host.visitProjectImport(walk, state.row)
+            state.row += 1
+        },
+        return: state => state.child
+    })
+}

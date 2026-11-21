@@ -304,9 +304,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/project/interface/plan.zx", .name = "project_legacy_plan" },
     .{ .path = "zx/modules/project/target/scope/owner.zx", .name = "project_package_owner" },
     .{ .path = "zx/modules/project/target/scope/check.zx", .name = "project_package_boundary" },
-    .{ .path = "zx/modules/project/load/admit.zx", .name = "project_load_admit" },
-    .{ .path = "zx/modules/project/load/step.rx", .name = "project_load_step" },
-    .{ .path = "zx/modules/project/load/complete.zx", .name = "project_load_complete" },
     .{ .path = "zx/modules/project/load/source.rx", .name = "project_load_source" },
     .{ .path = "zx/modules/project/load/route.rx", .name = "project_load_route" },
     .{ .path = "zx/modules/module_record/names/alias.zx", .name = "module_record_alias" },
@@ -1020,6 +1017,9 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "zx/modules/project/execution/load.rx", .name = "project_execute_load" },
+    .{ .path = "zx/modules/project/execution/body.rx", .name = "project_execute_body" },
+    .{ .path = "zx/modules/project/execution/entry.rx", .name = "project_execute_entry" },
     .{ .path = "genz/analysis/functions/signature/execute/run.zx", .name = "lower_module_signatures", .owner = .genz },
     .{ .path = "genz/analysis/functions/body/execute/run.rx", .name = "lower_function_body", .owner = .genz },
     .{ .path = "genz/analysis/functions/value/execute/run.rx", .name = "lower_value_function", .owner = .genz },

@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Execution" />
+    <Type from="../load/model" as="Load" />
+
+    <Args in={Execution.Load} out={Load.Admission} />
+
+    <Call fn="../load/admit" in={$in.frame} />
+
+    <If on={$ctx.admit == Load.Admission.Push}>
+        <Call
+            fn="walk"
+            in={{
+                walk: $in.walk,
+                ...$in.frame.pick([
+                    "marks",
+                    "row",
+                    "depth"
+                ])
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.admit} />
+</Module>

@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Entry} out={bool} />
+
+    <Call
+        fn="entry_prefix"
+        in={$in.pick([
+            "entry",
+            "verified"
+        ])}
+    />
+
+    <If on={!$ctx.entry_prefix}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="entry_cache" in={$in.omit(["verified"])} />
+
+    <Return value={$ctx.entry_cache} />
+</Module>

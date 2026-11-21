@@ -20,38 +20,28 @@ pub const Context = struct {
     }
 };
 
-pub fn publish(allocator: std.mem.Allocator, cache: *Cache, result: *const Analysis.Result, records: []const usize, root: ?usize, context: *const Context) std.mem.Allocator.Error!?zx.Diagnostic {
-    if (records.len == 0) return null;
+pub const Status = enum { Stored, MissingOrigin, Invalid };
 
-    var scratch = zx.Arena.init(allocator);
+pub const invalid: zx.Diagnostic = .{
+    .code = .contract,
+    .span = .{ .start = 0, .end = 0 },
+    .message = "module artifact extraction requires valid project IR and module metadata",
+};
 
-    defer scratch.deinit();
+pub fn store(cache: *Cache, scratch: *zx.Arena, result: *const Analysis.Result, index: usize, root: bool, context: *const Context) std.mem.Allocator.Error!Status {
+    defer scratch.reset(std.math.maxInt(usize));
 
-    for (records) |index| {
-        const record = &result.modules[index];
+    var artifact = extract(cache.allocator, scratch.allocator(), result, result.modules[index]) catch |err| return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.MissingNominalOrigin => .MissingOrigin,
+        error.InvalidAnalysis, error.InvalidModule, error.InvalidIr => .Invalid,
+    };
 
-        defer scratch.reset(std.math.maxInt(usize));
+    errdefer artifact.deinit();
 
-        var artifact = extract(cache.allocator, scratch.allocator(), result, record.*) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.MissingNominalOrigin => {
-                cache.uncacheable += 1;
+    const digest = if (root) &context.root else &context.dependency.?;
 
-                continue;
-            },
-            error.InvalidAnalysis, error.InvalidModule, error.InvalidIr => return .{
-                .code = .contract,
-                .span = .{ .start = 0, .end = 0 },
-                .message = "module artifact extraction requires valid project IR and module metadata",
-            },
-        };
+    try cache.put(artifact, digest.*);
 
-        errdefer artifact.deinit();
-
-        const digest = if (root == index) &context.root else &context.dependency.?;
-
-        try cache.put(artifact, digest.*);
-    }
-
-    return null;
+    return .Stored;
 }

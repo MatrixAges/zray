@@ -53,6 +53,8 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
 
     if (parser) |generated| {
         frontend.addImport("zxc_standard", generated.standard);
+        frontend.addImport("project_execution_abi", generated.execution.import_table.get("zxc_abi").?);
+        generated.execution.addImport("project_host", frontend);
 
         for (generated.bindings) |binding| {
             if (binding.metadata.entry.owner == .frontend) frontend.addImport(binding.metadata.import_name, binding.module);

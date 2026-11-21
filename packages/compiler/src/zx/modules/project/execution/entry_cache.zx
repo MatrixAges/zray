@@ -1,0 +1,39 @@
+import host from "project_host"
+import { CacheWrite } from "project_host"
+
+import type { Entry } from "./model"
+
+export type Input = Entry.Omit("verified")
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { entry, records, root } = in
+
+    const position: u64 = 0
+
+    return loop({
+        position,
+        status: CacheWrite.Stored
+    }, {
+        while: state => {
+            const more = state.position < records
+            const valid = state.status != CacheWrite.Invalid
+
+            return more && valid
+        },
+        next: state => {
+            const index = host.projectCacheRecord(entry, state.position)
+            const is_root = root != null && root == index
+            const status = host.storeProjectRecord(entry, index, is_root)
+
+            if (status == CacheWrite.MissingOrigin) {
+                host.recordMissingOrigin(entry)
+            }
+
+            state.position += 1
+            state.status = status
+        },
+        return: state => state.status != CacheWrite.Invalid
+    })
+}
