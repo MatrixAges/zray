@@ -16,6 +16,7 @@ pub const Options = struct {
     types: *ir.TypeStorage,
     origins: ?*Origins.Storage,
     offsets: ?*const Offsets = null,
+    base_labels: ?*const []const []const u8 = null,
     text_mode: TextMode = .Own,
     precise: bool = false,
 };
@@ -88,7 +89,7 @@ pub fn init(self: *Self, options: *const Options, table: ir.TypeTable, bindings:
         .target = &self.columns,
         .nominal = &self.nominal,
         .offsets = options.offsets,
-        .base_labels = @ptrCast(&options.types.labels.items),
+        .base_labels = @ptrCast(options.base_labels orelse @as(*const []const []const u8, @ptrCast(&options.types.labels.items))),
         .text_mode = options.text_mode,
         .progress = @ptrCast(&self.progress),
         .payload = @ptrCast(&options.payload),

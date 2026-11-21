@@ -4,21 +4,23 @@ export type Input = {
     source: Table,
     target: Table,
     first: u64,
+    source_first: u64,
     complete: bool
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const not_length = in.first <= in.source.kinds.length
-    const not_length_2 = in.first <= in.target.kinds.length
+    const { first, source_first, source, target, complete } = in
 
-    const valid_complete =
-        !in.complete || in.first == 0 || in.first == in.target.kinds.length
+    const valid_start = source_first == 0 || source_first == first
+    const fits_source = valid_start && first - source_first <= source.kinds.length
+    const fits_target = first <= target.kinds.length
+    const valid_complete = !complete || first == target.kinds.length || first == 0
 
     return (
-        - not_length
-        - and not_length_2
-        - and (valid_complete)
+        - fits_source
+        - and fits_target
+        - and valid_complete
     )
 }

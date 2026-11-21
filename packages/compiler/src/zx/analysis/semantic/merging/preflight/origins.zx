@@ -7,6 +7,7 @@ import type { Bindings } from "core/type_table/nominal"
 
 export type Input = {
     source: Table,
+    source_first: u64,
     origins: Bindings,
     names: string[]
 }
@@ -30,20 +31,24 @@ export default function (in: Input): Output {
         while: current => current.valid && current.index < current.origins.ids.length,
         next: current => {
             const id = integers.widen(current.origins.ids[current.index])
-            const valid =
-                id < current.source.kinds.length && current.indices[id] == 0 &&
-                binding({
-                    table: current.source,
-                    origins: current.origins,
-                    names: current.names,
-                    index: current.index
-                })
+            const bound = binding({
+                table: current.source,
+                origins: current.origins,
+                names: current.names,
+                index: current.index,
+                source_first: in.source_first
+            })
 
-            if (valid) {
-                current.indices[id] = current.index + 1
+            if (bound) {
+                const row = id - in.source_first
+                current.valid = current.indices[row] == 0
+                if (current.valid) {
+                    current.indices[row] = current.index + 1
+                }
+            } else {
+                current.valid = false
             }
 
-            current.valid = valid
             current.index += 1
         }
     })

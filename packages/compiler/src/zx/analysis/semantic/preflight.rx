@@ -6,6 +6,7 @@
     <Args
         in={{
             first: u64,
+            source_first: u64,
             complete: bool,
             names: string[],
             origins: Origin.Output,
@@ -45,6 +46,7 @@
             fn="merging/preflight/origins"
             in={$in.pick([
                 "source",
+                "source_first",
                 "origins",
                 "names"
             ])}
@@ -57,6 +59,7 @@
                     "source",
                     "target",
                     "first",
+                    "source_first",
                     "complete"
                 ])}
             />

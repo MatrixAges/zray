@@ -90,7 +90,7 @@ pub fn analyze(state: *const State, temporary: std.mem.Allocator, prepared: Prep
 
     const base = state.functions.view();
 
-    const result = try frontend.analyzeResolvedIn(temporary, prepared.parsed, .{
+    const result = try frontend.analyzeSharedBody(temporary, prepared.parsed, .{
         .types = state.types.items.view(),
         .nominal_types = state.types.origins.items.view(),
         .native_modules = state.native_modules.view(),
@@ -151,6 +151,7 @@ pub fn link(state: *State, analyzed: Analyzed) State.Error!Source.Loaded {
         .members = analyzed.members,
         .owned_declarations = true,
         .base_types = plan.type_prefix,
+        .type_suffix = analyzed.result.type_suffix,
     }, destination) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 

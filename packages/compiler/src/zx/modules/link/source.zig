@@ -24,6 +24,7 @@ pub const Input = struct {
     /// The length of the shared type table the body was analyzed against, when the tables grew since; its base
     /// functions are then a prefix of the shared ones rather than all of them.
     base_types: ?usize = null,
+    type_suffix: ?ir.TypeTable = null,
 };
 
 pub const Loaded = struct {
@@ -37,7 +38,7 @@ pub const Loaded = struct {
 };
 
 pub fn append(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
-    if (input.function_suffix != null) return error.InvalidModule;
+    if (input.function_suffix != null or input.type_suffix != null) return error.InvalidModule;
 
     var nodes = try program_link.append(.{ .program = input.program, .nominal_types = input.nominal_types }, destination);
     const extended = if (input.base_functions) |base| input.program.functions.count() > base.count() else true;
@@ -80,6 +81,7 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
         .base = base.count(),
         .total = @intCast(extension.total),
         .tail = &tail,
+        .type_suffix = input.type_suffix,
     });
 
     return finish(&input, destination, &nodes, &tail, base.count(), type_prefix);

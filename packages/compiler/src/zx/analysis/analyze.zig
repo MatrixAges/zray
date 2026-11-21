@@ -32,6 +32,8 @@ pub const ResolvedResult = struct {
     store_initializers: []const @import("../modules/compiled.zig").StoreInitializer = &.{},
     entry_function: ?zx.ir.FunctionId = null,
     function_suffix: ?*const zx.ir.FunctionTable = null,
+    /// Rows added after the borrowed project prefix. References keep their analysis IDs.
+    type_suffix: ?zx.ir.TypeTable = null,
 };
 
 pub const StoreBinding = struct { handle: []const u8, path: []const u8, type_name: ?[]const u8 = null, type_id: ?zx.ir.TypeId = null, readable: bool = true, writable: bool = true };
@@ -53,9 +55,17 @@ pub fn analyzeModule(allocator: std.mem.Allocator, parsed: *const ModuleResult.R
 }
 
 pub fn analyzeResolvedIn(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input) std.mem.Allocator.Error!ResolvedResult {
+    return analyzeResolved(allocator, parsed, context, resolved, true);
+}
+
+pub fn analyzeSharedBody(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input) std.mem.Allocator.Error!ResolvedResult {
+    return analyzeResolved(allocator, parsed, context, resolved, @import("../ir/validate.zig").internal);
+}
+
+fn analyzeResolved(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input, retain_type_base: bool) std.mem.Allocator.Error!ResolvedResult {
     return switch (parsed.*) {
-        .native => |result| analyzeInputIn(allocator, Input.Native{ .value = result.value.parsed }, result.value.parsed.file_name, context, resolved),
-        .indexed => |*result| if (ModuleResult.indexed_enabled) analyzeInputIn(allocator, Input.Indexed{ .value = result }, result.file_name, context, resolved) else unreachable,
+        .native => |result| analyzeInputIn(allocator, Input.Native{ .value = result.value.parsed }, result.value.parsed.file_name, context, resolved, true),
+        .indexed => |*result| if (ModuleResult.indexed_enabled) analyzeInputIn(allocator, Input.Indexed{ .value = result }, result.file_name, context, resolved, retain_type_base) else unreachable,
     };
 }
 
@@ -64,12 +74,12 @@ fn analyzeInput(allocator: std.mem.Allocator, input: anytype, file_name: []const
 
     errdefer arena.deinit();
 
-    const result = try analyzeInputIn(arena.allocator(), input, file_name, context, null);
+    const result = try analyzeInputIn(arena.allocator(), input, file_name, context, null, true);
 
     return .{ .arena = arena, .value = result.value, .nominal_types = result.nominal_types, .store_initializers = result.store_initializers, .entry_function = result.entry_function };
 }
 
-fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []const u8, context: Context, resolved: ?Resolved.Input) std.mem.Allocator.Error!ResolvedResult {
+fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []const u8, context: Context, resolved: ?Resolved.Input, retain_type_base: bool) std.mem.Allocator.Error!ResolvedResult {
     var reporter: zx.Reporter = .{};
     var copied_types: zx.ir.TypeStorage = .{};
     var origins = Origins{ .allocator = allocator };
@@ -111,6 +121,7 @@ fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []con
     var analyzer = HostContext{
         .allocator = allocator,
         .mode = if (resolved != null) .resolved else .standalone,
+        .retain_type_base = retain_type_base,
         .base_types = context.types,
         .base_origins = context.nominal_types,
         .native_modules = context.native_modules,
@@ -149,6 +160,7 @@ fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []con
             .store_initializers = initializers,
             .entry_function = entry.entry,
             .function_suffix = entry.suffix,
+            .type_suffix = if (retain_type_base) null else copied_types.view(),
         };
     }
 

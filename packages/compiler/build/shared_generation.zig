@@ -60,13 +60,16 @@ pub fn run(target: Target, owned: std.mem.Allocator, entries: []const Entry, inp
     history.bodies_only = try history.bodiesOnly(inputs.sources, parse_cache);
 
     const selected = if (history.bodies_only) history.previous.?.modules else try @import("source_inputs.zig").reachable(owned, resident.gpa, inputs.modules, inputs.sources, roots, project, parse_cache);
+    // Retired analysis epochs can release their pages without keeping large blocks in malloc.
+    const analysis_allocator = if (resident.request != null) std.heap.page_allocator else resident.gpa;
 
-    var analyzed = try analysis.project.infer(resident.gpa, .{
+    var analyzed = try analysis.project.infer(analysis_allocator, .{
         .entry = roots[0],
         .exports = exports,
         .modules = selected,
         .sources = inputs.sources,
         .project = project,
+        .scratch_allocator = resident.gpa,
         .parse_cache = parse_cache,
         .history = history,
     });

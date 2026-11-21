@@ -26,6 +26,7 @@ pub const Extension = struct {
     base: usize,
     total: usize,
     tail: *const ir.FunctionTable,
+    type_suffix: ?ir.TypeTable = null,
 };
 
 pub fn append(input: Input, destination: Destination) Error!Nodes {

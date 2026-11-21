@@ -10,6 +10,7 @@ export type Input = {
     origins: Bindings,
     names: string[],
     index: u64
+    source_first: u64
 }
 
 export type Output = bool
@@ -17,11 +18,17 @@ export type Output = bool
 export default function (in: Input): Output {
     const id = integers.widen(in.origins.ids[in.index])
 
-    if (id >= in.table.kinds.length) {
+    if (id < in.source_first) {
         return false
     }
 
-    const type_kind = kind(in.table.kinds[id])
+    const row = id - in.source_first
+
+    if (row >= in.table.kinds.length) {
+        return false
+    }
+
+    const type_kind = kind(in.table.kinds[row])
 
     const condition = match type_kind {
         Kind.Enumeration => false,
@@ -33,5 +40,5 @@ export default function (in: Input): Output {
         return false
     }
 
-    return in.table.labels[id] == in.names[in.index]
+    return in.table.labels[row] == in.names[in.index]
 }

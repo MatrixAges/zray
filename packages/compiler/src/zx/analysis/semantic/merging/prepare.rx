@@ -7,6 +7,7 @@
         module="../preflight"
         in={{
             first: $in.request.first,
+            source_first: $in.request.source_first,
             complete: $in.complete,
             names: $in.names,
             origins: $in.request.origins,
@@ -23,7 +24,7 @@
                 in={{
                     resource: $in.resource,
                     mapping: $in.request.mapping,
-                    count: $in.request.source.kinds.length
+                    count: $in.request.source_first + $in.request.source.kinds.length
                 }}
             />
         </If>

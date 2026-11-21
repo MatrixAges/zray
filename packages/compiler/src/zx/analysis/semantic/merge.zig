@@ -19,6 +19,7 @@ pub const Request = struct {
     items: *ir.TypeStorage,
     nominal: *Origins.Storage,
     first: usize,
+    source_first: usize = 0,
     checked: bool,
     complete: bool,
 };
@@ -45,6 +46,7 @@ pub const View = struct {
             .base_origins = &self.base_origins,
             .mapping = @ptrCast(mapping),
             .first = request.first,
+            .source_first = request.source_first,
             .checked = request.checked,
         };
 
@@ -53,7 +55,7 @@ pub const View = struct {
             .names = request.origins.names,
             .resource = @ptrCast(&request.mapping_allocator),
             .complete = request.complete,
-            .validation = if (request.first == 0 or request.checked) &self.limits else null,
+            .validation = if (request.source_first == 0 and (request.first == 0 or request.checked)) &self.limits else null,
         };
     }
 };

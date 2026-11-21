@@ -7,7 +7,8 @@
         fn="types"
         in={$in.pick([
             "publication",
-            "mode"
+            "mode",
+            "retain_base"
         ])}
     />
 

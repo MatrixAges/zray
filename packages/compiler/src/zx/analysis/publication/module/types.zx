@@ -4,14 +4,14 @@ import { Mode } from "../../analyzer/admission/model"
 
 import type { Input as Publication } from "./model"
 
-export type Input = Publication.Pick("publication", "mode")
+export type Input = Publication.Pick("publication", "mode", "retain_base")
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { mode, publication } = in
+    const { mode, publication, retain_base } = in
 
-    if (mode != Mode.Project) {
+    if (retain_base && mode != Mode.Project) {
         host.initializeAnalysisTypes(publication, mode == Mode.Resolved)
     }
 

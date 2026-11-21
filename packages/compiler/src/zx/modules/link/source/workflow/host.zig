@@ -48,11 +48,16 @@ fn prepareStorage(comptime form: source.Form, program: *const ir.Program, origin
 
     if (complete) checked.init(temporary, program, .{});
 
+    const suffix = if (complete) null else extension.type_suffix;
+    const source_first = if (suffix != null) extension.types else 0;
+    const source_types = suffix orelse program.types;
+
     const registration: merge_types.Request = .{
         .allocator = destination.types.allocator,
         .mapping_allocator = type_allocator,
         .temporary = temporary,
-        .source = program.types,
+        .source = source_types,
+        .source_first = source_first,
         .origins = origins,
         .items = &destination.types.items,
         .nominal = &destination.types.origins.items,
@@ -110,7 +115,7 @@ fn prepareStorage(comptime form: source.Form, program: *const ir.Program, origin
             .preparation = borrow(@FieldType(Types, "preparation"), &mapping.input),
             .publication = borrow(@FieldType(Types, "publication"), &type_output.target),
         },
-        .range = &.{ .first = first, .count = count, .prefix = base, .types = program.types.count(), .native_modules = native_count },
+        .range = &.{ .first = first, .count = count, .prefix = base, .types = source_first + source_types.count(), .native_modules = native_count },
         .natives = if (has_natives) &bindings else null,
         .functions = &.{ .storage = @ptrCast(&storage), .resource = @ptrCast(&destination.allocator), .shape = null, .count = added },
     };

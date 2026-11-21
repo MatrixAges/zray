@@ -54,6 +54,7 @@ export default function (in: Input): Output {
                         base_origins: known,
                         mapping,
                         first: 0,
+                        source_first: 0,
                         checked: true
                     },
                     names: memory.readTextListColumn(state.names, row),

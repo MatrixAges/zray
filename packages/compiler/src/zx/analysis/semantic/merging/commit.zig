@@ -23,6 +23,16 @@ pub fn append(allocator: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*
     try appendWithPayload(allocator, allocator, target, origins, delta, bindings);
 }
 
+pub fn retainSuffix(allocator: std.mem.Allocator, target: *ir.TypeStorage, origins: *Origins.Storage, base_labels: *const []const []const u8, delta: anytype, bindings: anytype) std.mem.Allocator.Error!void {
+    try write(.publish, .{
+        .allocator = allocator,
+        .payload = allocator,
+        .types = target,
+        .origins = origins,
+        .base_labels = base_labels,
+    }, zx.columns.view(ir.TypeTable, delta), bindings, {});
+}
+
 pub fn appendWithPayload(allocator: std.mem.Allocator, payload: std.mem.Allocator, target: *ir.TypeStorage, origins: ?*Origins.Storage, delta: anytype, bindings: anytype) std.mem.Allocator.Error!void {
     const base = View.offsets(target);
 
