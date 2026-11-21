@@ -376,9 +376,7 @@ fn encodedBytes(self: *const Self) []const u8 {
 
 /// Writes a state `lastState` returned for a lookup of `kind` back into the summaries and growth copies of body `index`,
 /// so the body can be analyzed in it again; false when the bytes do not describe a state of this body.
-pub fn restore(comptime kind: Kind, owner: std.mem.Allocator, state: []const u8, summaries: *Summaries, index: usize, callees: []const u32, growth: *Growth.Store) std.mem.Allocator.Error!bool {
-    if (generated_encoding) return @import("memo/restore.zig").apply(owner, state, summaries, index, callees, kind == .demanded, growth);
-
+pub fn restoreSeed(comptime kind: Kind, state: []const u8, summaries: *Summaries, index: usize, callees: []const u32, growth: *Growth.Store) std.mem.Allocator.Error!bool {
     var reader: std.Io.Reader = .fixed(state);
 
     return restoreFrom(kind, &reader, summaries, index, callees, &growth.normalized, &growth.renewed) catch |err| switch (err) {

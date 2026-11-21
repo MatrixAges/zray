@@ -159,9 +159,14 @@ pub const Context = struct {
         var completed_plan: if (generated and kind == .planned) analysis.Plan else void = undefined;
 
         while (true) {
-            const claim = try rounds.work.advance(phase, &frame, feedback, self.replay.trace != null);
+            const following = self.replay.trace != null;
 
-            if (claim.prefetch) try rounds.ahead.request(kind, self.memo, claim.pending);
+            const claim = if (generated)
+                try rounds.work.advance(kind, phase, &frame, feedback, following, &rounds.ahead, self.memo)
+            else
+                try rounds.work.advance(phase, &frame, feedback, following);
+
+            if (!generated and claim.prefetch) try rounds.ahead.requestSeed(kind, self.memo, claim.pending);
 
             const index = switch (claim.visit) {
                 .done => {

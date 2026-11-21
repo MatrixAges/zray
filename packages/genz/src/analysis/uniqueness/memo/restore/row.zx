@@ -18,6 +18,10 @@ export type Input = {
 export type Output = u64?
 
 export default function (in: Input): Output {
+    if (in.offset > in.source.length || in.source.length - in.offset < word_width) {
+        return null
+    }
+
     const length = integers.widen(bytes.readU32(in.source, in.offset, true))
     const first = in.offset + word_width
     const end = first + (length + 1) / 2

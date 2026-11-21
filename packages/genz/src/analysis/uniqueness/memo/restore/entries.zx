@@ -1,6 +1,7 @@
 import { level_modulus } from "../../replay/ordered/const"
 import { normalized_width, renewed_width } from "../disk/const"
 import checked from "../disk/fields/checked"
+import { word_width } from "../encoding/const"
 
 import type { Span as Output } from "../disk/model"
 import type { Input as Cursor } from "../disk/rows/model"
@@ -11,6 +12,14 @@ export type Input = Cursor & {
 
 export default function (in: Input): Output {
     const { source, start, wide } = in
+
+    if (start > source.length || source.length - start < word_width) {
+        return {
+            start: 0,
+            end: 0,
+            count: 0
+        }
+    }
 
     return checked({
         source,

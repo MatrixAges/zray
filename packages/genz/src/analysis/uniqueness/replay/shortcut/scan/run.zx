@@ -1,9 +1,11 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import advance from "../advance.rx"
 import { Phase } from "../model"
 import consume from "./consume"
 import lookup from "./lookup"
+import restore from "./restore.rx"
 import resume from "./resume.rx"
 
 import type { Input, Output } from "./model"
@@ -41,13 +43,33 @@ export default function (in: Input): Output {
                 cursor
             })
 
-            if (hit == null) {
-                state.missed = true
+            if (hit.row == null) {
+                const reset = memory.resetArenaRetainingCapacity(arenas.scratch)
+
+                memory.selectArena(arenas.scope, arenas.scratch)
+
+                const valid = restore({
+                    ...in.recovery,
+                    cursor,
+                    source: hit.state
+                })
+
+                memory.selectAllocator(arenas.scope, arenas.staged)
+
+                if (valid) {
+                    state.missed = true
+                } else {
+                    state.cursor = advance({
+                        ...replay,
+                        cursor,
+                        agreed: false
+                    })
+                }
             } else {
                 const result = consume({
                     tables,
                     cursor,
-                    row: integers.widen(hit),
+                    row: integers.widen(hit.row),
                     replacements,
                     arenas,
                     count: state.count

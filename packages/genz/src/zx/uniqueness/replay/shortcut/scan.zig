@@ -5,6 +5,8 @@ const Memo = @import("../../memo.zig");
 const Trace = @import("../../trace.zig");
 const Cursor = @import("../shortcut.zig");
 const Replacements = @import("replacements.zig");
+const Growth = @import("../../growth.zig");
+const rows = @import("../../row_output.zig");
 const scanning = @import("generated_uniqueness_shortcut_scan");
 const Input = std.meta.Child(scanning.Input);
 const Tables = std.meta.Child(@FieldType(Input, "tables"));
@@ -14,11 +16,13 @@ const DemandBinding = Views.Demanded.Binding(std.meta.Child(@FieldType(Demand, "
 const Index = std.meta.Child(@FieldType(Settlement, "index"));
 const Probe = std.meta.Child(@FieldType(Index, "table"));
 const Targets = std.meta.Child(@FieldType(Input, "replacements"));
+const Recovery = std.meta.Child(@FieldType(Input, "recovery"));
 const Views = @import("../ordered/columns.zig");
 const Row = Cursor.Replacement;
 const Error = std.mem.Allocator.Error;
+pub const Prepared = struct { cursor: Cursor, growth: Growth.Rows };
 
-pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor, recovered: ?u32) Error!Cursor {
+pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAllocator, staged: std.mem.Allocator, replacements: *Replacements, cursor: Cursor, recovered: ?u32) Error!Prepared {
     var settled: BoundIndex = undefined;
     var demanded: BoundIndex = undefined;
     var planned: BoundIndex = undefined;
@@ -39,9 +43,13 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
     const demands = &ctx.summaries.storage.?.demands;
     var scope = zx.memory.ArenaScope{ .active = staged };
     var output: zx.memory.RowOutput(Row, Columns, .{ .positions = &.{"visit"}, .values = &.{"value"} }) = undefined;
+    var normalized: rows.Normalized(Recovery) = undefined;
+    var renewed: rows.Renewed(Recovery) = undefined;
 
     output.init();
     output.bind(replacements.buffer.rows(Row));
+    normalized.init();
+    renewed.init();
 
     defer replacements.buffer.bytes = output.buffer.bytes;
 
@@ -80,6 +88,17 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
             .granule = @max(1, std.atomic.cache_line / @sizeOf(Row)),
         },
         .arenas = &.{ .scope = @ptrCast(&scope), .scratch = @ptrCast(scratch), .staged = @ptrCast(&staged) },
+        .recovery = &.{
+            .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
+            .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
+            .callees = ctx.bodies.callees,
+            .summaries = &.{
+                .input = @ptrCast(&ctx.summaries.input),
+                .output = @ptrCast(&ctx.summaries.output),
+                .inputs = @ptrCast(&ctx.summaries.inputs),
+                .outputs = @ptrCast(&ctx.summaries.outputs),
+            },
+        },
         .count = replacements.used,
         .recovered = recovered,
     };
@@ -92,9 +111,12 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: *std.heap.ArenaAlloc
     replacements.used = @intCast(result.count);
 
     return .{
-        .body = @intCast(result.cursor.body),
-        .visit = @intCast(result.cursor.visit),
-        .phase = @fromBackingInt(@intCast(@backingInt(result.cursor.phase))),
+        .cursor = .{
+            .body = @intCast(result.cursor.body),
+            .visit = @intCast(result.cursor.visit),
+            .phase = @fromBackingInt(@intCast(@backingInt(result.cursor.phase))),
+        },
+        .growth = .{ .normalized = normalized.rows(), .renewed = renewed.rows() },
     };
 }
 

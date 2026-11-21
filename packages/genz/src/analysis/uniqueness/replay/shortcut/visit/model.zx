@@ -1,5 +1,0 @@
-export enum Step {
-    RestoreState,
-    Analyze,
-    SaveRecord
-}

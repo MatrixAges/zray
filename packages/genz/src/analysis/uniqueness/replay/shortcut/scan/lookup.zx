@@ -4,9 +4,7 @@ import { Kind } from "../../../memo/encoding/model"
 import probe from "../../../memo/encoding/replay_key"
 import { Phase } from "../model"
 
-import type { Lookup as Input } from "./model"
-
-export type Output = u32?
+import type { Found as Output, Lookup as Input } from "./model"
 
 export default function (in: Input): Output {
     const { tables, cursor } = in
@@ -23,12 +21,19 @@ export default function (in: Input): Output {
         _ => Kind.Planned
     }
 
-    return probe({
+    const state = memory.borrowListBytes(index.states, cursor.visit)
+
+    const row = probe({
         kind,
         identity:
             memory.readFixedBytes(tables.identities, cursor.body, tables.digest_width),
-        state: memory.borrowListBytes(index.states, cursor.visit),
+        state,
         digest: tables.digest,
         table: index.table
     })
+
+    return {
+        row,
+        state
+    }
 }

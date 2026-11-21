@@ -44,6 +44,8 @@ export declare function resetArena(
 
 export declare function selectArena(scope: ArenaScope, arena: Arena): void
 
+export declare function resetArenaRetainingCapacity(source: Arena): bool
+
 export declare function selectAllocator(scope: ArenaScope, allocator: Allocator): void
 
 export declare function publishColumnLengths(

@@ -8,6 +8,10 @@ import type {
     WriteColumn
 } from "memory"
 import type { RowBuffer } from "memory/columns"
+import type {
+    Input as RecordedState,
+    Restore as StateRestore
+} from "../../../memo/restore/model"
 import type { Probe } from "../../../memo/table/model"
 import type { Demand, Settlement } from "../../ordered/columns"
 import type { Advance, Cursor } from "../model"
@@ -63,6 +67,7 @@ export type Input = {
     tables: Tables,
     replacements: Replacements,
     arenas: Arenas,
+    recovery: Recovery,
     count: u64,
     recovered?: u32
 }
@@ -72,13 +77,28 @@ export type Output = {
     count: u64
 }
 
-export type Resume = Input.Omit("recovered") & {
+export type Resume = Input.Omit("recovered", "recovery") & {
     row: u64
+}
+
+export type Recovery = StateRestore.Omit("state") & {
+    summaries: RecordedState.Pick("input", "output", "inputs", "outputs"),
+    callees: u32[][]
+}
+
+export type Restore = Recovery & {
+    cursor: Cursor,
+    source: u8[]
 }
 
 export type Lookup = {
     tables: Tables,
     cursor: Cursor
+}
+
+export type Found = {
+    row?: u32,
+    state: u8[]
 }
 
 export type Compare = Lookup & {

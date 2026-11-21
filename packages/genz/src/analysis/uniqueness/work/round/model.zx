@@ -2,6 +2,7 @@ import type { AtomicRows } from "std:bytes"
 import type { WriteColumn } from "memory"
 import type { Phase } from "../../program/model"
 import type { Lifecycle } from "../../summaries/model"
+import type { Input as Prefetch, Output as Offered } from "../ahead/request/model"
 import type { Fill, Notify, State } from "../model"
 
 export type Input = {
@@ -53,4 +54,14 @@ export type Advance = Take & Notify.Pick("dirty", "active") & {
     outputs: AtomicRows,
     callers: u64[][],
     previous?: Feedback
+}
+
+export type Dispatch = {
+    round?: Advance,
+    prefetch: Prefetch
+}
+
+export type Dispatched = {
+    claim?: Visit,
+    offered?: Offered
 }

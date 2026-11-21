@@ -73,11 +73,10 @@ pub fn finish(self: *Self) void {
 
 /// Queues the bodies of `indices` that have no analysis ahead or one that a summary change made stale, skipping those
 /// whose result the memo already holds.
-pub fn request(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: Window) Error!void {
+pub fn requestSeed(self: *Self, comptime kind: Memo.Kind, memo: *Memo, indices: Window) Error!void {
     const workers = self.pool.count();
 
     if (workers == 0 or indices.first.len == 0) return;
-    if (generated) return @import("ahead/request.zig").run(self, memo, kind, indices, workers);
     if (kind != .planned) return self.offer(kind, true, memo, indices, workers);
 
     switch (memo.persistent) {

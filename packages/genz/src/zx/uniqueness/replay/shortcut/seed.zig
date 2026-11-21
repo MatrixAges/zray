@@ -60,7 +60,7 @@ fn revisit(comptime kind: Memo.Kind, temporary: std.mem.Allocator, lasting: std.
 
     const growth = &bodies.units[index].growth;
 
-    if (!try Memo.restore(kind, temporary, state, summaries, index, bodies.callees[index], growth)) return null;
+    if (!try Memo.restoreSeed(kind, state, summaries, index, bodies.callees[index], growth)) return null;
 
     var analysis = try bodies.analyze(temporary, lasting, slots, summaries, index, growth, false);
 

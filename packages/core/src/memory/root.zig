@@ -82,9 +82,13 @@ pub inline fn reserveNominalRanges(resource: *const anyopaque, target: *const an
 }
 
 pub fn resetArena(source: *const anyopaque) std.mem.Allocator.Error!void {
+    if (!resetArenaRetainingCapacity(source)) return error.OutOfMemory;
+}
+
+pub fn resetArenaRetainingCapacity(source: *const anyopaque) bool {
     const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(@constCast(source)));
 
-    if (!arena.reset(.retain_capacity)) return error.OutOfMemory;
+    return arena.reset(.retain_capacity);
 }
 
 pub inline fn stringViews(source: *const anyopaque) []const []const u8 {

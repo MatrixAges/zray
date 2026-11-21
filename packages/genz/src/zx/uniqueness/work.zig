@@ -4,10 +4,12 @@ const Round = @import("work/round.zig");
 const Summaries = @import("summaries.zig");
 const SummaryState = @import("summaries/lifecycle.zig");
 const Topology = @import("topology.zig");
+const Ahead = @import("ahead.zig");
+const Memo = @import("memo.zig");
+const dispatch = @import("work/dispatch.zig");
 const opening = @import("generated_uniqueness_open_program");
 const preparing = @import("generated_uniqueness_prepare_round");
-const advancing = @import("generated_uniqueness_work_advance");
-const Queue = std.meta.Child(@FieldType(std.meta.Child(advancing.Input), "state"));
+const Queue = std.meta.Child(@FieldType(dispatch.Advance, "state"));
 const Self = @This();
 const position_count = 4;
 
@@ -72,10 +74,10 @@ pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, k
     return invoke(preparing, empty.allocator(), &input);
 }
 
-pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, following: bool) std.mem.Allocator.Error!Round.Claim {
+pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame: *const Round.Frame, previous: ?Round.Feedback, following: bool, ahead: *Ahead, memo: *Memo) std.mem.Allocator.Error!Round.Claim {
     const flags = std.mem.sliceAsBytes(frame.dirty);
     const positions: []const u64 = &self.positions;
-    const Input = std.meta.Child(advancing.Input);
+    const Input = dispatch.Advance;
     const Feedback = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
     const Plan = std.meta.Child(@typeInfo(@FieldType(Feedback, "plan")).optional.child);
     const fields = if (previous) |value| value.plan else null;
@@ -112,15 +114,7 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
         .previous = if (previous != null) &feedback else null,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const output = try invoke(advancing, empty.allocator(), &input);
-
-    return .{
-        .visit = if (output.body) |body| .{ .body = @intCast(body) } else if (output.exhausted) .exhausted else .done,
-        .pending = .{ .first = output.first, .second = output.second },
-        .grew = output.grew,
-        .prefetch = output.prefetch,
-    };
+    return dispatch.run(ahead, memo, kind, &input);
 }
 
 inline fn invoke(comptime entry: type, allocator: std.mem.Allocator, input: entry.Input) std.mem.Allocator.Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {

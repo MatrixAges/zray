@@ -11,6 +11,13 @@ export type Input = {
 }
 
 export default function (in: Input): Output {
+    if (in.source.length < word_width) {
+        return {
+            end: 0,
+            valid: false
+        }
+    }
+
     const body = integers.widen(bytes.readU32(in.source, 0, true))
 
     return {
