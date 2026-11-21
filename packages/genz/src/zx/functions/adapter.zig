@@ -3,22 +3,17 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const plan = @import("adapter/plan.zig");
+const scope = @import("../state_value/scope.zig");
+const generated = @import("genz_options").generated_analysis;
 
 pub fn build(self: *Lower, id: ir.FunctionId) Lower.Error!?node.Declaration {
     if (!plan.eligible(self, id)) return null;
 
     const errors = try @import("../error_effects.zig").program(self);
     const argument = plan.argument(self, errors orelse &.{}) orelse return null;
-    const saved_cache = self.cache;
-    const saved_plan = self.plan;
+    const saved = scope.enter(self, .Adapter, .{ .cache = .empty, .plan = .{ .flags = &.{} } });
 
-    self.cache = .empty;
-    self.plan = .{ .flags = &.{} };
-
-    defer {
-        self.cache = saved_cache;
-        self.plan = saved_plan;
-    }
+    defer saved.restore();
 
     self.reference_storage = .empty;
     self.uses_allocator = false;
@@ -27,8 +22,12 @@ pub fn build(self: *Lower, id: ir.FunctionId) Lower.Error!?node.Declaration {
     self.uses_process = false;
     self.allows_allocation = true;
 
-    @memset(self.used, false);
-    @memset(self.cache_reads, 0);
+    if (generated) {
+        try @import("context.zig").clear(self);
+    } else {
+        @memset(self.used, false);
+        @memset(self.cache_reads, 0);
+    }
 
     self.used[0] = true;
 

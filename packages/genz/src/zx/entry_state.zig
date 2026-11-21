@@ -27,7 +27,7 @@ pub fn declarations(self: *Lower, output: *@import("../node/declarations.zig").O
 fn view(self: *Lower, state: node.Function) Lower.Error!node.Declaration {
     const saved = try @import("state_value/root.zig").enter(self);
 
-    defer saved.restore();
+    defer if (saved) |scope| scope.restore();
 
     self.reference_storage = .empty;
 

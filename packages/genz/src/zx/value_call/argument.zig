@@ -28,13 +28,13 @@ pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Lower.Error!node.Expre
         .Call => {
             const invocation = self.program.expression(id).value.call;
             const argument = try borrow(self, body, invocation.argument);
-            const scope = try @import("../state_value/root.zig").enterBorrowed(self);
+            const scope = @import("../state_value/root.zig").enterBorrowed(self);
 
             defer scope.restore();
 
-            const cached = try self.cache.exchange(self.allocator, invocation.argument, argument);
+            const cached = try self.cache.bind(self.allocator, invocation.argument, argument);
 
-            defer self.cache.restoreEntry(self.allocator, invocation.argument, cached);
+            defer cached.restore();
 
             return @import("root.zig").borrowInvocation(self, body, invocation);
         },

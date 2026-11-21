@@ -9,6 +9,7 @@ const state_declaration = @import("iteration/state.zig");
 const step = @import("iteration/step.zig");
 const Context = @import("iteration_value/root.zig");
 const generated = @import("genz_options").generated_analysis;
+const scope = @import("state_value/scope.zig");
 
 pub fn lower(self: *Lower, id: ir.ExprId, iteration: ir.Iteration) Lower.Error!node.ExpressionId {
     return (try lowerMode(self, id, iteration, .reference, null)).?;
@@ -70,9 +71,9 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         .Reference => try self.expr(iteration.initial),
         .Value => try @import("value_call/root.zig").expression(self, iteration.initial),
         .Deep => initial: {
-            const previous = self.iteration_value;
-            self.iteration_value = &context;
-            defer self.iteration_value = previous;
+            const view = scope.enter(self, .Iteration, .{ .iteration_value = &context });
+
+            defer view.restore();
 
             break :initial try self.expr(iteration.initial);
         },
@@ -87,7 +88,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
 
     const state_scope = if (preparation.state_scope) try @import("state_value/root.zig").enter(self) else null;
 
-    defer if (state_scope) |scope| scope.restore();
+    defer if (state_scope) |saved| saved.restore();
 
     const seed = try self.builder.identifier(try self.fresh("loop_seed"));
     var fields = if (preparation.project_fields) try @import("iteration/fields/prepare.zig").prepare(self, iteration, type_id, &body, seed) else null;
@@ -101,7 +102,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         .consumer = consumer,
         .deep = preparation.deep,
         .context = &context,
-        .converted = state_scope != null,
+        .converted = preparation.state_scope,
         .type_id = type_id,
         .by_value = preparation.by_value,
         .local = preparation.local,

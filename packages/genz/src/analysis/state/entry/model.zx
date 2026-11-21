@@ -6,27 +6,7 @@ export type Facts = Map.Omit("values") & {
     queries: Query[]
 }
 
-export type Views = {
-    types: u32[],
-    layouts: u32[],
-    active: bool
-}
-
 export type Jobs = {
     slots: u64[],
     layouts: u32?[]
-}
-
-export type Input = {
-    source: Facts,
-    current: Views,
-    target: Views.Omit("active"),
-    borrowed: bool
-}
-
-export type Output = {
-    previous?: Views,
-    next: Views,
-    jobs: Jobs,
-    replace_cache: bool
 }

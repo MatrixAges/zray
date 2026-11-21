@@ -69,7 +69,7 @@ fn forwarded(self: *const Lower) ?ir.FunctionId {
 fn view(self: *Lower, state: node.Function) Lower.Error!node.Declaration {
     const saved = try @import("../state_value/root.zig").enter(self);
 
-    defer saved.restore();
+    defer if (saved) |scope| scope.restore();
 
     self.reference_storage = .empty;
 

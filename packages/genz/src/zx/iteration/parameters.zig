@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const Lower = @import("../lower.zig");
 const Context = @import("../iteration_value/root.zig");
+const scope_state = @import("../state_value/scope.zig");
 const generated = @import("genz_options").generated_analysis;
 const entry = if (generated) @import("generated_iteration_parameters") else struct {};
 const Input = if (generated) std.meta.Child(entry.Input) else void;
@@ -24,18 +25,17 @@ const Self = @This();
 lowering: *Lower,
 condition: ir.SymbolId,
 step: ir.SymbolId,
-previous_context: ?*Context,
+context: ?scope_state.Frame(.Iteration) = null,
 plan: Plan,
 pub fn enter(lowering: *Lower, iteration: ir.Iteration, layout: Layout, name: []const u8, context: *Context) Lower.Error!Self {
     const condition = iteration.condition_parameter;
     const step = iteration.parameter;
     const plan = bindNames(lowering, layout, condition, step, name);
 
-    const scope: Self = .{
+    var scope: Self = .{
         .lowering = lowering,
         .condition = condition,
         .step = step,
-        .previous_context = lowering.iteration_value,
         .plan = plan,
     };
 
@@ -50,7 +50,7 @@ pub fn enter(lowering: *Lower, iteration: ir.Iteration, layout: Layout, name: []
 
     if (plan.add_condition) try symbols.put(lowering.allocator, condition, {});
     if (plan.add_step) try symbols.put(lowering.allocator, step, {});
-    if (layout == .Deep) lowering.iteration_value = context;
+    if (layout == .Deep) scope.context = scope_state.enter(lowering, .Iteration, .{ .iteration_value = context });
 
     return scope;
 }
@@ -60,7 +60,7 @@ pub fn rename(self: Self, name: []const u8) void {
 }
 
 pub fn restoreContext(self: Self) void {
-    self.lowering.iteration_value = self.previous_context;
+    if (self.context) |scope| scope.restore();
 }
 
 pub fn restore(self: Self) void {

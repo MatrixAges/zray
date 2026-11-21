@@ -181,9 +181,9 @@ fn valueMode(self: *Self, name: []const u8, prototype_only: bool) Error!node.Dec
     if (mode.bind_input) try self.state_symbols.put(self.allocator, @fromBackingInt(0), {});
 
     defer _ = self.state_symbols.remove(@fromBackingInt(0));
+    const output = @import("state_value/scope.zig").enter(self, .Value, .{ .value_output = mode.value_output });
 
-    self.value_output = mode.value_output;
-    defer self.value_output = false;
+    defer output.restore();
 
     return if (prototype_only) .{ .function = try self.prototype(name, false) } else self.function(name, false);
 }
@@ -372,12 +372,16 @@ pub fn binary(self: *Self, value: @FieldType(@FieldType(ir.ExpressionRow, "value
 
 /// The type expression of `id` in the current representation.
 pub fn typeExpr(self: *Self, id: ir.TypeId) Error!node.ExpressionId {
-    return @import("types.zig").get(self, self.types, id);
+    const types = if (generated and self.state_active) self.state_types else self.types;
+
+    return @import("types.zig").get(self, types, id);
 }
 
 /// The layout expression of `id` in the current representation.
 pub fn layoutExpr(self: *Self, id: ir.TypeId) Error!node.ExpressionId {
-    return @import("types.zig").get(self, self.layouts, id);
+    const layouts = if (generated and self.state_active) self.state_layouts else self.layouts;
+
+    return @import("types.zig").get(self, layouts, id);
 }
 
 pub fn field(self: *Self, target: node.ExpressionId, name: []const u8) Error!node.ExpressionId {

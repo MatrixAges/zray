@@ -1,0 +1,47 @@
+export enum Form {
+    Represented,
+    Borrowed,
+    Adapter,
+    Value,
+    Iteration,
+    Projected,
+    Deferred
+}
+
+export enum Field {
+    StateActive,
+    Cache,
+    Plan,
+    ValueOutput,
+    IterationValue,
+    LoopFields,
+    DeferredLists
+}
+
+export type Input = Form
+
+export type Output = {
+    first: Field,
+    second?: Field,
+    if_inactive: bool
+}
+
+export default function (in: Input): Output {
+    return {
+        first: match in {
+            Form.Represented => Field.Cache,
+            Form.Borrowed => Field.StateActive,
+            Form.Adapter => Field.Cache,
+            Form.Value => Field.ValueOutput,
+            Form.Iteration => Field.IterationValue,
+            Form.Projected => Field.LoopFields,
+            _ => Field.DeferredLists
+        },
+        second: match in {
+            Form.Represented => Field.StateActive,
+            Form.Adapter => Field.Plan,
+            _ => null
+        },
+        if_inactive: in == Form.Represented
+    }
+}

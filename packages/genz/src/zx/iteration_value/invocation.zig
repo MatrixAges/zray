@@ -18,9 +18,9 @@ pub fn lower(self: *Context, id: ir.ExprId, row: ir.ExpressionRow, value_call: b
     self.argument = .{ .id = argument, .value = view };
     defer self.argument = previous;
 
-    const cached = try lowering.cache.exchange(lowering.allocator, argument, view);
+    const cached = try lowering.cache.bind(lowering.allocator, argument, view);
 
-    defer lowering.cache.restoreEntry(lowering.allocator, argument, cached);
+    defer cached.restore();
 
     const invocation = if (value_call)
         try @import("../value_call/root.zig").invocation(lowering, call)

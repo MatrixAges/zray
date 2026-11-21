@@ -76,7 +76,21 @@ pub fn Map(comptime Key: type) type {
 
             return result.prior;
         }
-        pub fn exchange(self: *Self, allocator: std.mem.Allocator, key: Key, value: node.ExpressionId) std.mem.Allocator.Error!?node.ExpressionId {
+        pub const Binding = struct {
+            map: *Self,
+            allocator: std.mem.Allocator,
+            key: Key,
+            previous: ?node.ExpressionId,
+            pub inline fn restore(self: Binding) void {
+                self.map.restoreEntry(self.allocator, self.key, self.previous);
+            }
+        };
+        pub inline fn bind(self: *Self, allocator: std.mem.Allocator, key: Key, value: node.ExpressionId) std.mem.Allocator.Error!Binding {
+            const previous = try self.exchange(allocator, key, value);
+
+            return .{ .map = self, .allocator = allocator, .key = key, .previous = previous };
+        }
+        fn exchange(self: *Self, allocator: std.mem.Allocator, key: Key, value: node.ExpressionId) std.mem.Allocator.Error!?node.ExpressionId {
             if (!generated) {
                 const previous = self.get(key);
 

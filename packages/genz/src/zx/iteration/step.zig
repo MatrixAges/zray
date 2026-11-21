@@ -59,18 +59,10 @@ pub const Scope = union(enum) {
 };
 
 pub fn lower(self: *Lower, schedule: Plan, parameters: *const Parameters, scope: Scope) Lower.Error!Values {
-    const previous_fields = self.loop_fields;
-    const previous_deferred = self.deferred_lists;
+    const frame = @import("../state_value/scope.zig");
 
-    defer {
-        self.loop_fields = previous_fields;
-        self.deferred_lists = previous_deferred;
-
-        if (scope == .ordinary) parameters.restoreContext();
-    }
-
-    const first = switch (scope) {
-        .projected => |projected| first: {
+    switch (scope) {
+        .projected => |projected| {
             const first = if (schedule.first_test) |condition| initial: {
                 parameters.rename(projected.seed);
                 defer parameters.rename(projected.name);
@@ -78,17 +70,26 @@ pub fn lower(self: *Lower, schedule: Plan, parameters: *const Parameters, scope:
                 break :initial try self.expr(@fromBackingInt(condition));
             } else null;
 
-            self.loop_fields = projected.fields;
+            const saved = frame.enter(self, .Projected, .{ .loop_fields = projected.fields });
 
-            break :first first;
+            defer saved.restore();
+
+            return evaluate(self, schedule, first);
         },
-        .ordinary => |deferred| ordinary: {
-            self.deferred_lists = deferred;
+        .ordinary => |deferred| {
+            const saved = frame.enter(self, .Deferred, .{ .deferred_lists = deferred });
 
-            break :ordinary null;
+            defer {
+                saved.restore();
+                parameters.restoreContext();
+            }
+
+            return evaluate(self, schedule, null);
         },
-    };
+    }
+}
 
+fn evaluate(self: *Lower, schedule: Plan, first: ?node.ExpressionId) Lower.Error!Values {
     const test_value = try self.expr(@fromBackingInt(schedule.condition));
     const body: ir.ExprId = @fromBackingInt(schedule.step);
     const value = if (schedule.by_value) try @import("../value_call/root.zig").expression(self, body) else try self.expr(body);

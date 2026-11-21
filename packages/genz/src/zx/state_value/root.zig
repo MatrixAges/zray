@@ -2,25 +2,36 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
+const scope = @import("scope.zig");
+const generated = @import("genz_options").generated_analysis;
 pub const Analysis = @import("analysis.zig");
 pub const conversion = @import("conversion.zig");
-const Self = @This();
 const Cache = @import("../expression_map.zig").Map(ir.ExprId);
 
-pub const Saved = struct {
+const Seed = struct {
+    lowering: *Lower,
     types: []node.ExpressionId,
     layouts: []node.ExpressionId,
     cache: ?Cache,
     active: bool,
+    pub fn restore(self: Seed) void {
+        self.lowering.types = self.types;
+        self.lowering.layouts = self.layouts;
+
+        if (self.cache) |cache| self.lowering.cache = cache;
+
+        self.lowering.state_active = self.active;
+    }
 };
 
-lowering: *Lower,
-previous: ?Saved,
-pub fn enter(lowering: *Lower) Lower.Error!Self {
-    if (@import("genz_options").generated_analysis) return @import("entry.zig").enter(lowering, .represented);
-    if (lowering.state_active) return .{ .lowering = lowering, .previous = null };
+const Represented = if (generated) scope.Frame(.Represented) else Seed;
+const Borrowed = if (generated) scope.Frame(.Borrowed) else Seed;
 
-    const saved: Saved = .{ .types = lowering.types, .layouts = lowering.layouts, .cache = lowering.cache, .active = lowering.state_active };
+pub fn enter(lowering: *Lower) Lower.Error!?Represented {
+    if (!scope.applies(lowering, .Represented)) return null;
+    if (generated) return try @import("entry.zig").enter(lowering);
+
+    const saved: Seed = .{ .lowering = lowering, .types = lowering.types, .layouts = lowering.layouts, .cache = lowering.cache, .active = lowering.state_active };
     var cache: Cache = .empty;
     var entries = saved.cache.?.state.iterator();
 
@@ -36,30 +47,19 @@ pub fn enter(lowering: *Lower) Lower.Error!Self {
     lowering.layouts = lowering.state_layouts;
     lowering.state_active = true;
 
-    return .{ .lowering = lowering, .previous = saved };
+    return saved;
 }
 
-pub fn enterBorrowed(lowering: *Lower) Lower.Error!Self {
-    if (@import("genz_options").generated_analysis) return @import("entry.zig").enter(lowering, .borrowed);
+pub fn enterBorrowed(lowering: *Lower) Borrowed {
+    if (generated) return scope.enter(lowering, .Borrowed, .{ .state_active = false });
 
-    const saved: Saved = .{ .types = lowering.types, .layouts = lowering.layouts, .cache = null, .active = lowering.state_active };
+    const saved: Seed = .{ .lowering = lowering, .types = lowering.types, .layouts = lowering.layouts, .cache = null, .active = lowering.state_active };
 
     lowering.types = lowering.abi_types;
     lowering.layouts = lowering.abi_layouts;
     lowering.state_active = false;
 
-    return .{ .lowering = lowering, .previous = saved };
-}
-
-pub fn restore(self: Self) void {
-    const previous = self.previous orelse return;
-
-    self.lowering.types = previous.types;
-    self.lowering.layouts = previous.layouts;
-
-    if (previous.cache) |cache| self.lowering.cache = cache;
-
-    self.lowering.state_active = previous.active;
+    return saved;
 }
 
 pub fn selected(lowering: *const Lower, id: ir.TypeId) bool {
