@@ -133,6 +133,7 @@ fn names(lowering: *Lower, state: *const Active, restoring: bool) void {
     const input: std.meta.Child(entry.Input) = .{
         .symbols = state.alias_symbols,
         .sources = state.alias_sources,
+        .replacements = &.{},
         .names = @ptrCast(&lowering.names),
         .saved = @ptrCast(&state.saved),
         .restore = restoring,

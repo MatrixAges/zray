@@ -6,6 +6,7 @@
     <Call fn="arguments" in={$in} />
 
     <Call fn="invoke" />
+    <Call fn="finish" />
 
-    <Return value={$ctx.invoke} />
+    <Return value={$ctx.finish} />
 </Module>

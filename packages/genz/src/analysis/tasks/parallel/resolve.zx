@@ -1,21 +1,13 @@
-import initialize from "../../../ast/context/initialize"
 import item from "./result_item"
 
-import type { Input, State as Output } from "./model"
+import type { State as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const state: Output = {
-        source: in,
-        context: initialize(in.bases),
-        names: [],
-        values: []
-    }
-
     return loop({
-        state,
+        state: in,
         index: 0
     }, {
-        while: current => current.index < in.results.length,
+        while: current => current.index < in.source.results.length,
         next: current => {
             current.state = item({
                 state: current.state,

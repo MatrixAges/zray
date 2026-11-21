@@ -54,7 +54,9 @@ pub fn prepare(self: *Lower, captures: []const ir.SymbolId, process: bool) Lower
 
     const types = try memory.allocator().alloc(u32, captures.len);
 
-    for (captures, types) |symbol, *type_id| type_id.* = @backingInt(try self.typeExpr(self.program.symbols.at(@backingInt(symbol)).type_id));
+    for (captures, types) |symbol, *type_id| {
+        type_id.* = @backingInt(try self.typeExpr(@fromBackingInt(self.program.symbols.types[@backingInt(symbol)])));
+    }
 
     const bases = context(std.meta.Child(@FieldType(Input, "bases")), self);
     const input: Input = .{ .process = process, .symbols = view.slice(@FieldType(Input, "symbols"), captures), .types = types, .bases = &bases };
@@ -65,6 +67,46 @@ pub fn prepare(self: *Lower, captures: []const ir.SymbolId, process: bool) Lower
     @import("../../../node/import_fields.zig").append(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| return failure(err);
 
     return .{ .first = result.first, .count = result.count, .capture_first = result.capture_first };
+}
+
+pub const CaptureNames = struct {
+    symbols: []const ir.SymbolId,
+    saved: [][]const u8,
+    pub fn restore(self: CaptureNames, lower: *Lower) void {
+        self.apply(lower, &.{}, true);
+    }
+    fn apply(self: CaptureNames, lower: *Lower, replacements: []const []const u8, restoring: bool) void {
+        if (self.symbols.len == 0) return;
+
+        const entry = @import("generated_scope_reuse_names");
+        const Input = std.meta.Child(entry.Input);
+
+        const input: Input = .{
+            .symbols = view.slice(@FieldType(Input, "symbols"), self.symbols),
+            .sources = &.{},
+            .replacements = replacements,
+            .names = @ptrCast(&lower.names),
+            .saved = @ptrCast(&self.saved),
+            .restore = restoring,
+        };
+
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+        entry.executeIn(fixed.allocator(), &input) catch unreachable;
+    }
+};
+
+pub fn captureNames(lower: *Lower, temporary: std.mem.Allocator, symbols: []const ir.SymbolId, first: u32) Lower.Error!CaptureNames {
+    const scope: CaptureNames = .{
+        .symbols = symbols,
+        .saved = try temporary.alloc([]const u8, symbols.len),
+    };
+
+    const names = lower.builder.nodes.field_columns.fields.name.values.items;
+
+    scope.apply(lower, names[first..][0..symbols.len], false);
+
+    return scope;
 }
 
 pub fn discard(self: *Lower, worker: *const Lower, captures: []const ir.SymbolId, process: bool) Lower.Error!void {

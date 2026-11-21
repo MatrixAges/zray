@@ -6,6 +6,7 @@ import type { StringBuffer } from "memory"
 export type Input = {
     symbols: u32[],
     sources: u32[],
+    replacements: string[],
     names: StringBuffer,
     saved: StringBuffer,
     restore: bool
@@ -32,10 +33,13 @@ export default function (in: Input): Output {
             if (in.restore) {
                 memory.writeString(in.names, symbol, saved[index])
             } else {
-                const previous = integers.widen(in.sources[index])
+                const name = match {
+                    in.replacements.length != 0 => in.replacements[index],
+                    _ => names[integers.widen(in.sources[index])]
+                }
 
                 memory.writeString(in.saved, index, names[symbol])
-                memory.writeString(in.names, symbol, names[previous])
+                memory.writeString(in.names, symbol, name)
             }
 
             state.index += 1

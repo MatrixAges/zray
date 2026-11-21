@@ -1,0 +1,29 @@
+import type { Input as Bases, Node } from "../../../ast/context/model"
+import type { Columns as Expressions } from "../../../ast/expressions/model"
+import type { StatementsKind } from "../../../printer/model/statements"
+
+export type Input = {
+    value?: u32,
+    name?: u8[],
+    cancel: bool,
+    bases: Bases
+}
+
+export type Called = {
+    result: Node,
+    needs_block: bool
+}
+
+export type Statements = {
+    tags: StatementsKind[],
+    offsets: u32[],
+    discard_error: u32[]
+}
+
+export type Output = {
+    expressions: Expressions,
+    statements: Statements,
+    root: u32,
+    wrap: bool,
+    valid: bool
+}

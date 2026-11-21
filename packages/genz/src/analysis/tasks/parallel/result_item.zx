@@ -1,3 +1,5 @@
+import integers from "std:integer"
+
 import binding from "../../../ast/context/binding"
 import expression from "../../../ast/context/expression_statement"
 import identifier from "../../../ast/context/identifier"
@@ -24,10 +26,10 @@ export default function (in: Input): Output {
         valid: raw.state.valid && result.valid
     }
 
-    const name = in.state.source.values[in.index]
     const field = in.state.source.fields[in.index]
+    const fields = in.state.source.object_names
 
-    if (name == null || field == null) {
+    if (field == null || fields == null) {
         return {
             ...in.state,
             context: expression({
@@ -36,6 +38,9 @@ export default function (in: Input): Output {
             })
         }
     }
+
+    const name = in.state.source.values[in.index]
+    const field_name = fields[integers.widen(field)]
 
     const bound = binding({
         state: context,
@@ -51,7 +56,7 @@ export default function (in: Input): Output {
     return {
         ...in.state,
         context: reference.state,
-        names: in.state.names.push(field)[0],
+        names: in.state.names.push(field_name)[0],
         values: in.state.values.push(reference.id)[0]
     }
 }

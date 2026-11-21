@@ -1,0 +1,35 @@
+import bind from "../future/bind"
+
+import type { Invoked as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const name = in.name
+
+    if (name == null) {
+        return {
+            expressions: in.context.expressions,
+            forms: in.context.forms,
+            binding: null,
+            root: in.root,
+            valid: in.context.valid
+        }
+    }
+
+    const result = bind({
+        context: in.context,
+        name,
+        value: in.root
+    })
+
+    return {
+        expressions: result.expressions,
+        forms: in.context.forms,
+        binding: {
+            statements: result.statements,
+            first: result.first,
+            count: result.count
+        },
+        root: in.root,
+        valid: result.valid
+    }
+}

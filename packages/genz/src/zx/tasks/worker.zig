@@ -1,3 +1,4 @@
+const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
@@ -12,11 +13,15 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     const expression = self.program.expression(id);
     const task = expression.value.task;
     const task_type = self.program.typeOf(expression.type_id).task;
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+
+    defer scratch.deinit();
+
+    const temporary = scratch.allocator();
     var worker = self.*;
     worker.state_symbols = self.state_symbols.inherit();
-    worker.names = try self.allocator.dupe([]const u8, self.names);
-    worker.used = try self.allocator.alloc(bool, self.used.len);
-    worker.cache_reads = try self.allocator.alloc(u64, self.cache_reads.len);
+    worker.used = try temporary.alloc(bool, self.used.len);
+    worker.cache_reads = try temporary.alloc(u64, self.cache_reads.len);
     worker.cache = .empty;
     worker.stack_symbols = .empty;
     worker.reference_storage = .empty;
@@ -30,10 +35,9 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     @memset(worker.cache_reads, 0);
 
     const parameters = try emitting.prepare(self, task.captures, process);
+    const names = try emitting.captureNames(self, temporary, task.captures, parameters.capture_first);
 
-    for (task.captures, 0..) |symbol, index| {
-        worker.names[@backingInt(symbol)] = self.builder.nodes.field_columns.get(parameters.capture_first + index).name;
-    }
+    defer names.restore(self);
 
     const result = try worker.expr(task.body);
     const output_type = try self.typeExpr(task_type.result);

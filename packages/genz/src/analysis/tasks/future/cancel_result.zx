@@ -1,0 +1,20 @@
+import unit from "../../../ast/context/unit"
+import { StatementsKind } from "../../../printer/model/statements"
+
+import type { Called as Input, Output } from "./model"
+
+export default function (in: Input): Output {
+    const result = unit(in.result.state)
+
+    return {
+        expressions: result.state.expressions,
+        statements: {
+            tags: [StatementsKind.DiscardError],
+            offsets: [0],
+            discard_error: [in.result.id]
+        },
+        root: result.id,
+        wrap: true,
+        valid: result.state.valid
+    }
+}

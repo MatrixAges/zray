@@ -1,13 +1,19 @@
+import type { Index } from "core/integer/index/model"
+import type { U8Buffer } from "memory"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
+import type { Statements } from "../future/bind"
 
 export type Input = {
     worker: u32,
     process: bool,
     concurrent: bool,
+    symbols: u32[],
     names: u8[][],
-    addresses: bool[],
+    stack: Index,
+    used: U8Buffer,
+    name?: u8[],
     bases: Bases
 }
 
@@ -20,6 +26,19 @@ export type Prepared = {
 export type Output = {
     expressions: Expressions,
     forms: Forms,
+    binding?: Binding,
     root: u32,
     valid: bool
+}
+
+export type Invoked = {
+    name?: u8[],
+    context: Context,
+    root: u32
+}
+
+export type Binding = {
+    statements: Statements,
+    first: u32,
+    count: u32
 }

@@ -2,18 +2,17 @@ import integers from "std:integer"
 import { max_u32 } from "core/const"
 
 import identifier from "../../../ast/context/identifier"
-import initialize from "../../../ast/context/initialize"
 import { StatementsKind } from "../../../printer/model/statements"
 import invoke from "./invoke"
 import { Method } from "./invoke"
 
-import type { Input as Bases } from "../../../ast/context/model"
+import type { State as Context } from "../../../ast/context/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
 
 export type Input = {
     name: u8[],
     value: u32,
-    bases: Bases
+    context: Context
 }
 
 export type Statements = {
@@ -38,7 +37,7 @@ export type Output = {
 
 export default function (in: Input): Output {
     const future = identifier({
-        state: initialize(in.bases),
+        state: in.context,
         name: in.name
     })
 
@@ -48,6 +47,8 @@ export default function (in: Input): Output {
         method: Method.Cancel,
         fallible: false
     })
+
+    const base = in.context.source.statement_base
 
     const statements: Statements = {
         tags: [
@@ -65,11 +66,11 @@ export default function (in: Input): Output {
         variable_value: [in.value],
         variable_exported: [false],
         discard_error: [cleanup.id],
-        defer_scope_start: [in.bases.statement_base],
+        defer_scope_start: [base],
         defer_scope_len: [1]
     }
 
-    const first = integers.widen(in.bases.statement_base) + 1
+    const first = integers.widen(base) + 1
     const count = statements.tags.length - 1
     const valid = first + count <= integers.widen(max_u32)
 

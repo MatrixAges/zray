@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Future" />
+
+    <Args in={Future.Input} out={Future.Output} />
+
+    <Call fn="call" in={$in} />
+
+    <If on={$in.cancel}>
+        <Call fn="cancel_result" in={$ctx.call} />
+
+        <Return value={$ctx.cancel_result} />
+    </If>
+
+    <Return
+        value={{
+            expressions: $ctx.call.result.state.expressions,
+            statements: {
+                tags: [],
+                offsets: [],
+                discard_error: []
+            },
+            root: $ctx.call.result.id,
+            wrap: $ctx.call.needs_block,
+            valid: $ctx.call.result.state.valid
+        }}
+    />
+</Module>

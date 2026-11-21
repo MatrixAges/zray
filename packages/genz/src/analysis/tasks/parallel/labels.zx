@@ -1,0 +1,60 @@
+import memory from "memory"
+
+import label from "../future/label"
+import { Kind } from "../future/label"
+
+import type { U8ListBuffer } from "memory"
+
+export type Input = {
+    serial: u64,
+    fields: u32?[],
+    results: U8ListBuffer,
+    values: U8ListBuffer
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const results = loop({
+        index: 0,
+        serial: in.serial
+    }, {
+        while: current => current.index < in.fields.length,
+        next: current => {
+            const name = label({
+                serial: current.serial,
+                kind: Kind.Result
+            })
+
+            memory.writeU8List(in.results, current.index, name.name)
+
+            current.serial = name.serial
+            current.index += 1
+        },
+        return: current => current.serial
+    })
+
+    return loop({
+        index: 0,
+        serial: results
+    }, {
+        while: current => current.index < in.fields.length,
+        next: current => {
+            if (in.fields[current.index] != null) {
+                const name = label({
+                    serial: current.serial,
+                    kind: Kind.Value
+                })
+
+                memory.writeU8List(in.values, current.index, name.name)
+
+                current.serial = name.serial
+            } else {
+                memory.writeU8List(in.values, current.index, [])
+            }
+
+            current.index += 1
+        },
+        return: current => current.serial
+    })
+}

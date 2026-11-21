@@ -1,0 +1,31 @@
+import label from "./label"
+import { Kind } from "./label"
+
+export type Input = {
+    inline_task: bool,
+    serial: u64
+}
+
+export type Output = {
+    serial: u64,
+    name?: u8[]
+}
+
+export default function (in: Input): Output {
+    if (!in.inline_task) {
+        return {
+            serial: in.serial,
+            name: null
+        }
+    }
+
+    const result = label({
+        serial: in.serial,
+        kind: Kind.Future
+    })
+
+    return {
+        serial: result.serial,
+        name: result.name
+    }
+}

@@ -7,8 +7,10 @@ import fields from "../../../ast/fields/append_values"
 import type { State as Input, Output } from "./model"
 
 export default function (in: Input): Output {
+    const construct = in.source.object_names != null
+
     const result = match {
-        in.source.object => object({
+        construct => object({
             state: in.context,
             first: in.source.bases.field_base,
             count: integers.narrow(in.names.length)
@@ -31,6 +33,7 @@ export default function (in: Input): Output {
             values: in.values
         }),
         root: result.id,
+        construct,
         valid: result.state.valid
     }
 }

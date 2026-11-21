@@ -1,24 +1,9 @@
 import initialize from "../../../ast/context/initialize"
 import invoke from "./invoke"
+import { Method } from "./invoke"
 import target from "./target"
 
-import type { Input as Bases } from "../../../ast/context/model"
-import type { Columns as Expressions } from "../../../ast/expressions/model"
-import type { Method } from "./invoke"
-
-export type Input = {
-    value?: u32,
-    name?: u8[],
-    method: Method,
-    fallible: bool,
-    bases: Bases
-}
-
-export type Output = {
-    expressions: Expressions,
-    root: u32,
-    valid: bool
-}
+import type { Called as Output, Input } from "./model"
 
 export default function (in: Input): Output {
     const future = target({
@@ -30,13 +15,12 @@ export default function (in: Input): Output {
     const result = invoke({
         state: future.state,
         future: future.id,
-        method: in.method,
-        fallible: in.fallible
+        method: in.cancel ? Method.Cancel : Method.Await,
+        fallible: !in.cancel
     })
 
     return {
-        expressions: result.state.expressions,
-        root: result.id,
-        valid: result.state.valid
+        result,
+        needs_block: in.name != null
     }
 }

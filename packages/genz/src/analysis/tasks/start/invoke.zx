@@ -8,7 +8,7 @@ import { io_name } from "../../functions/signature/const"
 import { run_name } from "../../parallel/worker/const"
 import { async_name, concurrent_name } from "../future/const"
 
-import type { Prepared as Input, Output } from "./model"
+import type { Invoked as Output, Prepared as Input } from "./model"
 
 export default function (in: Input): Output {
     const io = identifier({
@@ -46,9 +46,8 @@ export default function (in: Input): Output {
     })
 
     return {
-        expressions: result.state.expressions,
-        forms: result.state.forms,
-        root: result.id,
-        valid: result.state.valid
+        name: in.source.name,
+        context: result.state,
+        root: result.id
     }
 }
