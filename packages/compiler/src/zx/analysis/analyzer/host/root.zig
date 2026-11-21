@@ -8,11 +8,15 @@ const borrow = @import("../../../ir/canonical/borrow.zig");
 const diagnostic = @import("../../../frontend/diagnostic.zig");
 
 pub fn analyze(analyzer: *Context, source: []const u8, syntax: anytype, file_name: []const u8) zx.Error!zx.ir.Program {
+    const view = borrow.pointer(@FieldType(model.Input, "syntax"), syntax);
+
+    if (analyzer.body_scratch) |scratch| return run(analyzer, scratch, source, view, null, file_name);
+
     var arena = zx.Arena.init(analyzer.allocator);
 
     defer arena.deinit();
 
-    return run(analyzer, &arena, source, borrow.pointer(@FieldType(model.Input, "syntax"), syntax), null, file_name);
+    return run(analyzer, &arena, source, view, null, file_name);
 }
 
 pub fn analyzeNative(analyzer: *Context, source: []const u8, program: zx.ast.Program, file_name: []const u8) zx.Error!zx.ir.Program {

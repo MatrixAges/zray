@@ -47,7 +47,11 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
     else
         &.{};
 
-    var analyzed = switch (try analyze(state, temporary, prepared, stores)) {
+    var scratch = zx.Arena.init(temporary);
+
+    defer scratch.deinit();
+
+    var analyzed = switch (try analyze(state, temporary, &scratch, prepared, stores)) {
         .analyzed => |value| value,
         .diagnostic => |issue| return diagnostic(state, prepared.source, issue),
     };
@@ -85,7 +89,7 @@ pub fn prepare(state: *State, bindings: std.mem.Allocator, cache: *frontend.proj
 
 /// Analyzes a prepared body against the shared tables, which it only reads, so bodies that depend on none of each
 /// other may run at once.
-pub fn analyze(state: *const State, temporary: std.mem.Allocator, prepared: Prepared, stores: @FieldType(frontend.Context, "stores")) std.mem.Allocator.Error!Outcome {
+pub fn analyze(state: *const State, temporary: std.mem.Allocator, scratch: *zx.Arena, prepared: Prepared, stores: @FieldType(frontend.Context, "stores")) std.mem.Allocator.Error!Outcome {
     if (!prepared.checked) if (try prepared.parsed.check(temporary)) |issue| return .{ .diagnostic = issue };
 
     const base = state.functions.view();
@@ -102,7 +106,7 @@ pub fn analyze(state: *const State, temporary: std.mem.Allocator, prepared: Prep
         .functions = base,
         .verified_functions = state.verifiedFunctions(),
         .store_initializers = state.initializers.items,
-    });
+    }, scratch);
 
     if (result.value == .diagnostic) return .{ .diagnostic = result.value.diagnostic };
 

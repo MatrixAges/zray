@@ -8,7 +8,7 @@ export type Input = {
     analysis: ModuleOutput,
     publication: AnalysisPublication,
     mode: Mode,
-    retain_base: bool,
+    borrow_body: bool,
     file_name: string,
 }
 

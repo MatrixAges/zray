@@ -167,11 +167,8 @@ const Transaction = struct {
         const index = next.index;
         const module = @import("mixed/zx.zig");
 
-        const loaded = if (self.ahead.take(state, next.prepared_row)) |analyzed| linked: {
-            _ = state.scratch.reset(.retain_capacity);
-
-            break :linked try module.link(state, analyzed);
-        } else try module.compile(state, self.cache, self.sources, index, null);
+        const loaded = try self.ahead.link(state, next.prepared_row) orelse
+            try module.compile(state, self.cache, self.sources, index, null);
 
         state.finished.set(index, loaded);
     }

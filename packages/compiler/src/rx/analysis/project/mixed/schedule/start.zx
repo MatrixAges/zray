@@ -1,0 +1,35 @@
+import host from "rx_project_host"
+
+import preview from "./preview"
+
+import type { Request, Started } from "./preparation"
+
+export type Input = Request.Pick("selection", "workspace", "minimum")
+
+export type Output = Started?
+
+export default function (in: Input): Output {
+    const { selection, workspace, minimum } = in
+
+    if (selection.end - selection.start < minimum) {
+        return null
+    }
+
+    const initial = preview({
+        ...selection,
+        capacity: minimum
+    })
+
+    if (initial.count < minimum) {
+        return null
+    }
+
+    const workers = host.reserveMixedWorkers(workspace)
+    const limit = workers >= minimum ? workers : minimum
+
+    return {
+        ...initial,
+        workers,
+        limit
+    }
+}

@@ -1,0 +1,41 @@
+<Module>
+    <Type from="preparation" as="Preparation" />
+    <Type from="prepared" as="Batch" />
+
+    <Args in={Preparation.Request} out={Batch.Output} />
+
+    <Call fn="start" in={$in.omit(["capacity"])} />
+
+    <If on={$ctx.start != null}>
+        <Call
+            fn="collect"
+            in={{
+                ...$in.omit(["minimum"]),
+                initial: $ctx.start
+            }}
+        />
+
+        <Call
+            fn="prepared"
+            in={{
+                positions: $ctx.collect,
+                first: $in.selection.start,
+                end: $in.selection.end,
+                workers: $ctx.start.workers,
+                limit: $ctx.start.limit,
+                minimum: $in.minimum
+            }}
+        />
+
+        <Return value={$ctx.prepared} />
+
+        <Else>
+            <Return
+                value={{
+                    consumed: $in.selection.end - $in.selection.start,
+                    participants: 0
+                }}
+            />
+        </Else>
+    </If>
+</Module>

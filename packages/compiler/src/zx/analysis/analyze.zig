@@ -55,17 +55,18 @@ pub fn analyzeModule(allocator: std.mem.Allocator, parsed: *const ModuleResult.R
 }
 
 pub fn analyzeResolvedIn(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input) std.mem.Allocator.Error!ResolvedResult {
-    return analyzeResolved(allocator, parsed, context, resolved, true);
+    return analyzeResolved(allocator, parsed, context, resolved, null);
 }
 
-pub fn analyzeSharedBody(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input) std.mem.Allocator.Error!ResolvedResult {
-    return analyzeResolved(allocator, parsed, context, resolved, @import("../ir/validate.zig").internal);
+/// The body borrows scratch until the caller finishes linking it with its signature declarations.
+pub fn analyzeSharedBody(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input, scratch: *zx.Arena) std.mem.Allocator.Error!ResolvedResult {
+    return analyzeResolved(allocator, parsed, context, resolved, if (@import("../ir/validate.zig").internal) null else scratch);
 }
 
-fn analyzeResolved(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input, retain_type_base: bool) std.mem.Allocator.Error!ResolvedResult {
+fn analyzeResolved(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input, scratch: ?*zx.Arena) std.mem.Allocator.Error!ResolvedResult {
     return switch (parsed.*) {
-        .native => |result| analyzeInputIn(allocator, Input.Native{ .value = result.value.parsed }, result.value.parsed.file_name, context, resolved, true),
-        .indexed => |*result| if (ModuleResult.indexed_enabled) analyzeInputIn(allocator, Input.Indexed{ .value = result }, result.file_name, context, resolved, retain_type_base) else unreachable,
+        .native => |result| analyzeInputIn(allocator, Input.Native{ .value = result.value.parsed }, result.value.parsed.file_name, context, resolved, null),
+        .indexed => |*result| if (ModuleResult.indexed_enabled) analyzeInputIn(allocator, Input.Indexed{ .value = result }, result.file_name, context, resolved, scratch) else unreachable,
     };
 }
 
@@ -74,12 +75,12 @@ fn analyzeInput(allocator: std.mem.Allocator, input: anytype, file_name: []const
 
     errdefer arena.deinit();
 
-    const result = try analyzeInputIn(arena.allocator(), input, file_name, context, null, true);
+    const result = try analyzeInputIn(arena.allocator(), input, file_name, context, null, null);
 
     return .{ .arena = arena, .value = result.value, .nominal_types = result.nominal_types, .store_initializers = result.store_initializers, .entry_function = result.entry_function };
 }
 
-fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []const u8, context: Context, resolved: ?Resolved.Input, retain_type_base: bool) std.mem.Allocator.Error!ResolvedResult {
+fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []const u8, context: Context, resolved: ?Resolved.Input, scratch: ?*zx.Arena) std.mem.Allocator.Error!ResolvedResult {
     var reporter: zx.Reporter = .{};
     var copied_types: zx.ir.TypeStorage = .{};
     var origins = Origins{ .allocator = allocator };
@@ -121,7 +122,7 @@ fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []con
     var analyzer = HostContext{
         .allocator = allocator,
         .mode = if (resolved != null) .resolved else .standalone,
-        .retain_type_base = retain_type_base,
+        .body_scratch = scratch,
         .base_types = context.types,
         .base_origins = context.nominal_types,
         .native_modules = context.native_modules,
@@ -160,7 +161,7 @@ fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []con
             .store_initializers = initializers,
             .entry_function = entry.entry,
             .function_suffix = entry.suffix,
-            .type_suffix = if (retain_type_base) null else copied_types.view(),
+            .type_suffix = if (scratch != null) copied_types.view() else null,
         };
     }
 

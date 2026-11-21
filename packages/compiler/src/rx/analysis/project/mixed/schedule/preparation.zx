@@ -1,0 +1,14 @@
+import type { MixedPreparation } from "rx_project_host"
+import type { Input as Preview, Output as Selected } from "./preview"
+
+export type Request = {
+    selection: Preview.Omit("capacity"),
+    workspace: MixedPreparation,
+    minimum: u64,
+    capacity: u64
+}
+
+export type Started = Selected & {
+    workers: u64,
+    limit: u64
+}

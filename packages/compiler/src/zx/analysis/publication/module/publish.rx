@@ -8,9 +8,19 @@
         in={$in.pick([
             "publication",
             "mode",
-            "retain_base"
+            "borrow_body"
         ])}
     />
+
+    <If on={$in.borrow_body}>
+        <Return
+            value={{
+                body: $in.analysis.body,
+                contracts: $in.analysis.contracts,
+                file_name: $in.file_name
+            }}
+        />
+    </If>
 
     <Call module="../body" in={$in.analysis.body} />
 

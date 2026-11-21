@@ -1,0 +1,58 @@
+import memory from "memory"
+import host from "rx_project_host"
+
+import preview from "./preview"
+
+import type { Request, Started } from "./preparation"
+
+export type Input = Request.Omit("minimum") & {
+    initial: Started
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const { selection, workspace, capacity, initial } = in
+    const { positions, order, signatures } = selection
+    const { limit } = initial
+
+    const collected = loop({
+        cursor: 0,
+        scan: initial.next,
+        count: initial.count,
+        accepted: 0
+    }, {
+        while: stage => stage.accepted < limit && stage.count != 0,
+        next: stage => {
+            const position = memory.readU64(positions, stage.cursor)
+            const index = order[position]
+            const is_zx = index < signatures.length
+
+            if (host.prepareMixedPosition(
+                workspace,
+                position,
+                index,
+                is_zx
+            )) {
+                stage.accepted += 1
+            }
+
+            stage.cursor += 1
+
+            if (stage.cursor == stage.count && stage.accepted < limit) {
+                const more = preview({
+                    ...selection,
+                    start: stage.scan,
+                    capacity
+                })
+
+                stage.cursor = 0
+                stage.count = more.count
+                stage.scan = more.next
+            }
+        },
+        return: stage => stage.accepted
+    })
+
+    return host.preparedMixedPositions(workspace)
+}

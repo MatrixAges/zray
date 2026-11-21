@@ -26,7 +26,7 @@ pub fn apply(analyzer: *Context, mode: @FieldType(model.Context, "mode"), output
         .publication = @ptrCast(&frame),
         .mode = @fromBackingInt(@backingInt(mode)),
         .file_name = file_name,
-        .retain_base = analyzer.retain_type_base,
+        .borrow_body = analyzer.body_scratch != null,
     };
 
     const published = zx.columns.invoke(entry.executeValue, analyzer.allocator, &input) catch |err| switch (@as(anyerror, err)) {
@@ -38,7 +38,7 @@ pub fn apply(analyzer: *Context, mode: @FieldType(model.Context, "mode"), output
 
     return .{
         .file_name = published.file_name,
-        .types = if (analyzer.retain_type_base) analyzer.types.view() else .{},
+        .types = if (analyzer.body_scratch == null) analyzer.types.view() else .{},
         .input_type = @fromBackingInt(output.input_type),
         .output_type = @fromBackingInt(output.output_type),
         .output_ownership = switch (output.output_ownership) {
@@ -74,7 +74,7 @@ pub fn appendAnalysisTypes(handle: *const anyopaque) std.mem.Allocator.Error!voi
     const output = frame.output;
     const storage = @import("../../semantic/merging/commit.zig");
 
-    if (analyzer.retain_type_base) {
+    if (analyzer.body_scratch == null) {
         try storage.append(analyzer.allocator, analyzer.types, &analyzer.origins.items, output.type_delta.*, output.nominal_delta.*);
     } else {
         try storage.retainSuffix(analyzer.allocator, analyzer.types, &analyzer.origins.items, &analyzer.base_types.labels, output.type_delta.*, output.nominal_delta.*);

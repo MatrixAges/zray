@@ -6,10 +6,9 @@ allocator: std.mem.Allocator,
 reporter: *zx.Reporter,
 mode: enum { standalone, resolved, project },
 
-retain_type_base: bool = true,
+body_scratch: ?*zx.Arena = null,
 base_types: zx.ir.TypeTable,
 base_origins: Origins.Table,
-
 native_modules: zx.ir.NativeModuleTable = .{},
 types: *zx.ir.TypeStorage,
 origins: *Origins,

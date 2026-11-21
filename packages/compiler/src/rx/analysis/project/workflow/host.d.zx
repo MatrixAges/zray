@@ -6,6 +6,8 @@ export type Solver = opaque
 
 export type Mixed = opaque
 
+export type MixedPreparation = opaque
+
 export enum MixedAction {
     Exhausted,
     Skip,
@@ -96,3 +98,15 @@ export declare function publishMixedExports(state: Mixed): void
     throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function retainMixedHistory(state: Mixed): void
+
+export declare function reserveMixedWorkers(state: MixedPreparation): u64
+    throws { OutOfMemory }
+
+export declare function prepareMixedPosition(
+    state: MixedPreparation,
+    position: u64,
+    index: u64,
+    is_zx: bool
+): bool throws { OutOfMemory }
+
+export declare function preparedMixedPositions(state: MixedPreparation): u64[]

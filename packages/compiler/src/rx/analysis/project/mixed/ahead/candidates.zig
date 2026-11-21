@@ -1,10 +1,8 @@
 const std = @import("std");
-const zx = @import("zx");
 const Body = @import("../body.zig");
 const Self = @This();
-const enabled = @import("rx_options").generated_graph and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
-const chunk_size = 8;
-
+pub const generated = @import("rx_options").generated_graph and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
+pub const chunk_size = 8;
 pub const Item = struct { position: usize, action: Body.Action };
 
 state: *const @import("../state.zig"),
@@ -22,7 +20,9 @@ pub fn next(self: *Self) ?Item {
     while (true) {
         if (self.first == self.count) {
             if (self.position == self.end) return null;
-            if (comptime enabled) self.fill() else self.fillSeed();
+
+            self.fillSeed();
+
             if (self.count == 0) return null;
         }
 
@@ -32,38 +32,10 @@ pub fn next(self: *Self) ?Item {
 
         self.first += 1;
 
-        if (enabled or !self.reuse.reusable(self.state, index, position)) {
+        if (!self.reuse.reusable(self.state, index, position)) {
             return .{ .position = position, .action = if (index < graph.sources.zx_count) .AnalyzeZX else .LowerRX };
         }
     }
-}
-
-fn fill(self: *Self) void {
-    const rule = @import("generated_rx_mixed_preview");
-    const Input = std.meta.Child(rule.Input);
-    const graph = &self.state.graph;
-    const output: []u64 = &self.positions;
-    const borrowed = if (self.reuse.aligned) self.reuse.prefix else null;
-
-    const input: Input = .{
-        .order = @ptrCast(graph.order),
-        .start = self.position,
-        .end = self.end,
-        .entry = graph.entry,
-        .signatures = self.state.signature_indices,
-        .local_calls = self.local_calls,
-        .compiled_dependencies = graph.modules.items(.compiled_dependency),
-        .history = if (borrowed) |prefix| zx.columns.pointer(@typeInfo(@FieldType(Input, "history")).optional.child, &prefix.history) else null,
-        .positions = @ptrCast(&output),
-        .capacity = output.len,
-    };
-
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-
-    self.position = @intCast(result.next);
-    self.first = 0;
-    self.count = @intCast(result.count);
 }
 
 fn fillSeed(self: *Self) void {
