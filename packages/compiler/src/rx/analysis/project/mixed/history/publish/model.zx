@@ -1,4 +1,4 @@
-import type { U8Buffer } from "memory"
+import type { U8Buffer, U64Buffer } from "memory"
 
 export type Column = {
     earlier: u8[],
@@ -13,10 +13,17 @@ export type Modules = {
     available: bool[]
 }
 
+export type Counters = {
+    verified: U64Buffer,
+    verified_end: u64,
+    reused: U64Buffer
+}
+
 export type Input = {
     rows: u64[],
     first: u64,
     end: u64,
     modules: Modules,
     checkpoints: Column
+    counters: Counters
 }

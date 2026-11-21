@@ -49,6 +49,7 @@ pub const main = [_]Entry{
     .{ .path = "rx/dependency_graph/edge/publish.rx", .name = "graph_edges", .owner = .rx },
     .{ .path = "core/bytes/index/fixed.zx", .name = "fixed_byte_index" },
     .{ .path = "core/bytes/index/slot.zx", .name = "byte_index_slot" },
+    .{ .path = "zx/modules/source_index/next_capacity.zx", .name = "source_index_next_capacity" },
     .{ .path = "core/bytes/index/rebuild.zx", .name = "byte_index_rebuild" },
     .{ .path = "core/bytes/index/unique.zx", .name = "byte_index_unique" },
     .{ .path = "rx/dependency_graph/reference/rule.zx", .name = "rx_reference_rule", .owner = .rx },
@@ -137,9 +138,8 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/mixed/history/assess.rx", .name = "rx_mixed_history_assess", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/history/reuse.rx", .name = "rx_mixed_history_reuse", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/history/signature.zx", .name = "rx_mixed_history_signature", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/mixed/history/prefix/scan.zx", .name = "rx_mixed_history_prefix", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/history/publish/prefix.rx", .name = "rx_mixed_history_publish", .owner = .rx_analysis },
-    .{ .path = "zx/ir/columns/write.zx", .name = "rx_history_column_write", .owner = .rx_analysis },
+    .{ .path = "zx/ir/columns/restore.zx", .name = "rx_history_column_write", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/history/link.rx", .name = "rx_mixed_history_link", .owner = .rx_analysis },
     .{ .path = "rx/analysis/source_map/module_at.zx", .name = "rx_source_module", .owner = .rx_analysis },
     .{ .path = "rx/syntax/attribute_position/coordinates.zx", .name = "rx_attribute_coordinates", .owner = .rx },
@@ -1016,6 +1016,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "rx/analysis/project/mixed/history/prefix/advance.zx", .name = "rx_mixed_history_advance", .owner = .rx_analysis },
     .{ .path = "zx/frontend/retention/order.zx", .name = "parser_publish_orders" },
     .{ .path = "zx/analysis/publication/module/publish.rx", .name = "analysis_publish_module" },
     .{ .path = "zx/analysis/publication/entry/finish.rx", .name = "analysis_finish_entry" },

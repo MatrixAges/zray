@@ -8,6 +8,8 @@ export type Mixed = opaque
 
 export type MixedPreparation = opaque
 
+export type HistoryReplay = opaque
+
 export enum MixedAction {
     Exhausted,
     Skip,
@@ -110,3 +112,5 @@ export declare function prepareMixedPosition(
 ): bool throws { OutOfMemory }
 
 export declare function preparedMixedPositions(state: MixedPreparation): u64[]
+
+export declare function sameHistoryStore(replay: HistoryReplay, index: u64): bool

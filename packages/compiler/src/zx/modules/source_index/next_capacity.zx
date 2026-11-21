@@ -1,0 +1,31 @@
+import { initial_capacity, capacity_growth } from "core/bytes/index/const"
+
+import { empty_bucket_ratio } from "./const"
+
+export type Input = {
+    entries: u64,
+    capacity: u64,
+    maximum: u64
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { entries, capacity, maximum } = in
+
+    const limit = capacity - capacity / empty_bucket_ratio
+
+    if (entries <= limit) {
+        return 0
+    }
+
+    if (capacity == 0) {
+        return initial_capacity
+    }
+
+    if (capacity > maximum / capacity_growth) {
+        return null
+    }
+
+    return capacity * capacity_growth
+}

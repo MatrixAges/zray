@@ -19,4 +19,12 @@
             "checkpoints"
         ])}
     />
+
+    <Call
+        fn="counters"
+        in={{
+            ...$in.counters,
+            count: $in.end - $in.first
+        }}
+    />
 </Module>

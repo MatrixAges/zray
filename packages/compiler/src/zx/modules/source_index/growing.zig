@@ -62,13 +62,10 @@ pub fn Map(comptime Value: type) type {
             try self.keys.ensureUnusedCapacity(allocator, 1);
             try self.values.ensureUnusedCapacity(allocator, 1);
 
-            const count = self.keys.items.len + 1;
-            const previous = self.buckets.len;
-            const limit = previous - previous / load_denominator;
+            const capacity = try nextCapacity(self.keys.items.len + 1, self.buckets.len);
 
-            if (count <= limit) return false;
+            if (capacity == 0) return false;
 
-            const capacity = if (previous == 0) initial_capacity else std.math.mul(usize, previous, capacity_growth) catch return error.OutOfMemory;
             const buckets = try allocator.alloc(u64, capacity);
 
             @memset(buckets, 0);
@@ -78,6 +75,29 @@ pub fn Map(comptime Value: type) type {
             self.buckets = buckets;
 
             return true;
+        }
+        fn nextCapacity(count: usize, previous: usize) std.mem.Allocator.Error!usize {
+            if (comptime generated) {
+                const entry = @import("generated_source_index_next_capacity");
+
+                const input: std.meta.Child(entry.Input) = .{
+                    .entries = count,
+                    .capacity = previous,
+                    .maximum = std.math.maxInt(usize),
+                };
+
+                var empty_buffer = std.heap.FixedBufferAllocator.init(&.{});
+                const selected = entry.executeValue(empty_buffer.allocator(), &input) catch unreachable;
+
+                return @intCast(selected orelse return error.OutOfMemory);
+            }
+
+            const limit = previous - previous / load_denominator;
+
+            if (count <= limit) return 0;
+            if (previous == 0) return initial_capacity;
+
+            return std.math.mul(usize, previous, capacity_growth) catch return error.OutOfMemory;
         }
         fn rebuild(self: *const Self, buckets: []u64) void {
             if (comptime generated) {

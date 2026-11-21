@@ -42,3 +42,4 @@ pub const recordMixedBody = mixed.recordMixedBody;
 pub const materializeMixedModule = mixed.materializeMixedModule;
 pub const publishMixedExports = mixed.publishMixedExports;
 pub const retainMixedHistory = mixed.retainMixedHistory;
+pub const sameHistoryStore = @import("project/mixed/history/admit.zig").sameHistoryStore;

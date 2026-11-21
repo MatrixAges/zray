@@ -6,10 +6,10 @@ const State = @import("../state.zig");
 const rule = @import("generated_rx_mixed_history_reuse");
 const Input = std.meta.Child(rule.Input);
 const Extent = std.meta.Child(@FieldType(Input, "before"));
-const prefix = @import("generated_rx_mixed_history_prefix");
+const prefix = @import("generated_rx_mixed_history_advance");
 const Prefix = std.meta.Child(prefix.Input);
-const PrefixResult = @typeInfo(@TypeOf(prefix.executeValue(undefined, undefined))).error_union.payload;
-pub const ScanHistory = std.meta.Child(@FieldType(Prefix, "history"));
+const Scan = std.meta.Child(@FieldType(Prefix, "prefix"));
+pub const ScanHistory = std.meta.Child(@FieldType(Scan, "history"));
 
 pub const Borrowed = struct {
     dependencies: std.meta.Child(@FieldType(ScanHistory, "dependencies")),
@@ -97,21 +97,40 @@ fn signatureColumns(table: *const @import("../../signatures.zig").Table) Signatu
     };
 }
 
-pub fn scan(state: *const State, history: *const ScanHistory, first: usize, end: usize) PrefixResult {
+const Replay = struct {
+    state: *const State,
+    current: *const History.Frame,
+    previous: *const History.Retained,
+};
+
+pub fn advance(state: *const State, current: *const History.Frame, previous: *const History.Retained, history: *const ScanHistory, first: usize, end: usize) usize {
     const graph = &state.graph;
+    const replay = Replay{ .state = state, .current = current, .previous = previous };
 
     const input: Prefix = .{
-        .order = @ptrCast(graph.order),
-        .first = first,
-        .end = end,
-        .entry = graph.entry,
-        .sources = &.{ .zx_count = graph.sources.zx_count, .rx_end = graph.sources.rx_end },
-        .history = history,
+        .prefix = &.{
+            .order = @ptrCast(graph.order),
+            .first = first,
+            .end = end,
+            .entry = graph.entry,
+            .sources = &.{ .zx_count = graph.sources.zx_count, .rx_end = graph.sources.rx_end },
+            .history = history,
+        },
+        .replay = @ptrCast(&replay),
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return zx.columns.invoke(prefix.executeValue, empty.allocator(), &input) catch unreachable;
+    return @intCast(zx.columns.invoke(prefix.executeValue, empty.allocator(), &input) catch unreachable);
+}
+
+pub fn sameHistoryStore(handle: *const anyopaque, index: u64) bool {
+    const replay: *const Replay = @ptrCast(@alignCast(handle));
+    const row: usize = @intCast(index);
+    const current = replay.state.graph.sources.at(row).store;
+    const earlier = replay.previous.derived.dependencies.sources.at(row).store;
+
+    return sameStore(replay.current, replay.previous, current, earlier);
 }
 
 pub fn reusable(state: *const State, current: *const History.Frame, previous: *const History.Retained, redone: []const bool, digests: History.SourceDigests, index: usize, position: usize) bool {

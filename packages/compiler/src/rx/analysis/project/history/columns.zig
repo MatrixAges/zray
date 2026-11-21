@@ -38,44 +38,48 @@ pub fn transplant(allocator: std.mem.Allocator, ranges: anytype) std.mem.Allocat
     if (comptime generated) {
         const rule = @import("generated_rx_history_column_write");
         const Input = std.meta.Child(rule.Input);
-        const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "writes")));
+        const Transfer = zx.memory.column_transfer;
         const capacity = comptime countColumns(@TypeOf(ranges));
-        var descriptions: [capacity]Column = undefined;
-        var writes: [capacity]*const Column = undefined;
-        var targets: [capacity][]u8 = undefined;
+        var columns: [capacity]Transfer.Column = undefined;
+        var bindings: [capacity][]const Transfer.Column = undefined;
+        var counts: [capacity]u64 = undefined;
         var count: usize = 0;
 
         inline for (ranges) |range| {
             inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
-                const source = @field(range.source, name)[range.start[index]..range.end[index]];
+                const first = range.start[index];
+                const end = range.end[index];
 
-                if (source.len != 0) {
-                    const tail = @field(range.storage, name).unusedCapacitySlice()[0..source.len];
-                    targets[count] = std.mem.sliceAsBytes(tail);
-                    descriptions[count] = .{ .source = std.mem.sliceAsBytes(source), .target = @ptrCast(&targets[count]) };
-                    writes[count] = &descriptions[count];
+                if (first != end) {
+                    const source = @field(range.source, name)[first..end];
+                    columns[count] = Transfer.bind(&@field(range.storage, name), source, false, true);
+                    bindings[count] = columns[count..][0..1];
+                    counts[count] = source.len;
                     count += 1;
                 }
             }
         }
 
-        if (count != 0) {
-            const input: Input = .{ .writes = writes[0..count] };
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
+        if (count == 0) return;
 
-            zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-        }
+        const groups: Transfer.Groups = bindings[0..count];
+
+        const input: Input = .{
+            .allocator = @ptrCast(&allocator),
+            .groups = @ptrCast(&groups),
+            .counts = counts[0..count],
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        if (!(zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable)) return error.OutOfMemory;
+
+        return;
     }
 
     inline for (ranges) |range| {
         inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
-            const column = &@field(range.storage, name);
-
-            if (comptime generated) {
-                column.items.len += range.end[index] - range.start[index];
-            } else {
-                column.appendSliceAssumeCapacity(@field(range.source, name)[range.start[index]..range.end[index]]);
-            }
+            @field(range.storage, name).appendSliceAssumeCapacity(@field(range.source, name)[range.start[index]..range.end[index]]);
         }
     }
 }

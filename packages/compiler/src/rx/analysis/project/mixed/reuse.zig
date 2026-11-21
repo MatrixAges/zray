@@ -93,19 +93,8 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
 
     if (comptime batch_reuse) {
         const admission = @import("history/admit.zig");
-        const retained = &self.prefix.?.history;
 
-        while (position < limit) : (position += 1) {
-            const prefix = admission.scan(state, retained, position, limit);
-
-            position = @intCast(prefix.position);
-
-            if (!prefix.inspect_store) break;
-
-            const index = order[position];
-
-            if (!admission.sameStore(&self.derived, previous, state.graph.sources.at(index).store, previous.derived.dependencies.sources.at(index).store)) break;
-        }
+        position = admission.advance(state, &self.derived, previous, &self.prefix.?.history, first, limit);
     } else {
         while (position < limit and self.reusable(state, order[position], position)) : (position += 1) {}
     }
@@ -127,15 +116,15 @@ pub fn reuse(self: *Self, state: *State, first: usize, limit: usize) std.mem.All
     });
 
     if (comptime batch_reuse) {
-        @import("history/publish.zig").copy(state, self.boundaries, previous, first, position);
+        @import("history/publish.zig").copy(state, self.boundaries, previous, first, position, &self.record.?.reused);
     } else {
         for (order[first..position]) |index| state.finished.retain(previous.finished, index);
 
         @memcpy(self.boundaries[first + 1 .. position + 1], previous.boundaries[first + 1 .. position + 1]);
-    }
 
-    state.verified = end.functions;
-    self.record.?.reused += position - first;
+        state.verified = end.functions;
+        self.record.?.reused += position - first;
+    }
 
     return position;
 }
