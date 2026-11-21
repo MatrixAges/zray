@@ -1,3 +1,4 @@
+import publishIssue from "../syntax/publish_issue"
 import order from "../types/order"
 import diagnostic from "./diagnostic"
 
@@ -9,7 +10,7 @@ export type Input = Parsed
 export type Output = Expression
 
 export default function (in: Input): Output {
-    const issue = diagnostic(in)
+    const issue = publishIssue(diagnostic(in))
     const lexical = in.prepared.lexical.lexed
 
     return {

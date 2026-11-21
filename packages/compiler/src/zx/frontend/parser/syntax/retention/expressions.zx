@@ -1,0 +1,34 @@
+import rows from "./rows"
+
+import type { ExpressionInput as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { tree, layout } = in
+
+    return rows([
+        tree.nodes.length,
+        layout.nodes
+    ]) +
+        rows([
+            tree.items.length,
+            layout.items
+        ]) +
+        rows([
+            tree.fields.length,
+            layout.fields
+        ]) +
+        rows([
+            tree.parameters.length,
+            layout.parameters
+        ]) +
+        rows([
+            tree.parts.length,
+            layout.parts
+        ]) +
+        rows([
+            tree.arms.length,
+            layout.arms
+        ])
+}

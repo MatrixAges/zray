@@ -1,0 +1,30 @@
+import rows from "./rows"
+
+import type { BlockInput as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { tree, layout } = in
+
+    return rows([
+        tree.statements.length,
+        layout.statements
+    ]) +
+        rows([
+            tree.blocks.length,
+            layout.blocks
+        ]) +
+        rows([
+            tree.items.length,
+            layout.items
+        ]) +
+        rows([
+            tree.names.length,
+            layout.names
+        ]) +
+        rows([
+            tree.cases.length,
+            layout.cases
+        ])
+}

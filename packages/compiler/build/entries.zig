@@ -30,6 +30,8 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/external/load.rx", .name = "external" },
     .{ .path = "zx/frontend/parser/program.rx", .name = "program", .import_name = "generated_parser" },
     .{ .path = "zx/frontend/parser/expression_text.rx", .name = "expression" },
+    .{ .path = "zx/frontend/parser/syntax/retention/program.zx", .name = "program_retention_size" },
+    .{ .path = "zx/frontend/parser/syntax/retention/expression.zx", .name = "expression_retention_size" },
     .{ .path = "zx/frontend/syntax/program/order/size.zx", .name = "syntax_order_size" },
     .{ .path = "zx/frontend/syntax/program/order/build.rx", .name = "syntax_order_build" },
     .{ .path = "rx/syntax/parse.rx", .name = "xml" },

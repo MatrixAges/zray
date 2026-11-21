@@ -1,0 +1,7 @@
+import type { Diagnostic as Input } from "../../lexer/model"
+
+export type Output = Input?
+
+export default function (in: Input): Output {
+    return in.message == "" ? null : in
+}

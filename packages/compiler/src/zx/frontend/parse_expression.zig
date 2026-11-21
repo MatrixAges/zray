@@ -3,6 +3,8 @@ const zx = @import("zx");
 const Parser = @import("parser.zig");
 const lex = @import("lexer").lex;
 const compact = @import("compact_output.zig");
+const diagnostic = @import("diagnostic.zig");
+const retention = @import("retention/host.zig");
 
 pub const Parsed = struct {
     source: []const u8,
@@ -55,39 +57,28 @@ fn parseWithMode(comptime indexed: bool, copy_input: bool, allocator: std.mem.Al
 
         defer scratch.deinit();
 
-        const output = generated.executeIn(scratch.allocator(), owned_source) catch |err| switch (err) {
-            error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-            else => {
-                const message = try std.fmt.allocPrint(temporary, "internal compiler error: generated expression parser failed with {s}", .{@errorName(err)});
+        const output = generated.executeIn(scratch.allocator(), owned_source) catch |err| {
+            const issue = try diagnostic.generatedFailure(temporary, "expression parser", err);
 
-                return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = .{
-                    .code = .contract,
-                    .span = .{ .start = 0, .end = 0 },
-                    .message = message,
-                } } } };
-            },
+            return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = issue } } };
         };
 
-        const issue = output.diagnostic;
+        if (output.diagnostic) |issue| {
+            const published = try diagnostic.publish(temporary, issue);
 
-        if (issue.message.len != 0) {
-            const message = try temporary.dupe(u8, issue.message);
-
-            return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = .{
-                .code = std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), issue.code) orelse unreachable,
-                .span = .{ .start = @intCast(issue.start), .end = @intCast(issue.end) },
-                .message = message,
-            } } } };
+            return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = published } } };
         }
 
         if (indexed) {
-            var syntax = try zx.Arena.initCapacity(allocator, compact.size(owned_source, output));
+            const retained = try retention.retain(@import("generated_expression_retention_size"), allocator, owned_source, output);
 
-            errdefer syntax.deinit();
-
-            const retained = try compact.copy(syntax.allocator(), owned_source, output);
-
-            return .{ .indexed = .{ .arena = arena, .syntax_arena = syntax, .source = owned_source, .file_name = owned_name, .output = retained } };
+            return .{ .indexed = .{
+                .arena = arena,
+                .syntax_arena = retained.arena,
+                .source = owned_source,
+                .file_name = owned_name,
+                .output = retained.output,
+            } };
         }
 
         const expression = try adapter.expression(temporary, owned_source, output);

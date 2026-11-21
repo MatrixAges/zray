@@ -1,0 +1,94 @@
+import rows from "./rows"
+import tableSize from "./tables"
+
+import type { Program } from "../model"
+import type { ProgramLayout } from "./model"
+
+export type Input = {
+    syntax: Program,
+    layout: ProgramLayout
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { syntax, layout } = in
+
+    const columns = layout.tables
+
+    const base = tableSize({
+        syntax: syntax.pick([
+            "types",
+            "type_order",
+            "expressions",
+            "blocks"
+        ]),
+        layout: columns
+    })
+
+    const constants = syntax.constants
+
+    const nested = loop({
+        row: 0,
+        bytes: 0
+    }, {
+        while: state => state.row < constants.length,
+        next: state => {
+            const constant = constants[state.row]
+
+            const bytes = tableSize({
+                syntax: constant.pick([
+                    "types",
+                    "type_order",
+                    "expressions",
+                    "blocks"
+                ]),
+                layout: columns
+            })
+
+            state.bytes += bytes - columns.base
+            state.row += 1
+        },
+        return: state => state.bytes
+    })
+
+    const function_name = syntax.function_name != null ? layout.function_name : 0
+
+    return layout.base + base + nested + function_name +
+        rows([
+            syntax.tokens.length,
+            layout.tokens
+        ]) +
+        rows([
+            syntax.comments.length,
+            layout.comments
+        ]) +
+        rows([
+            syntax.imports.length,
+            layout.imports
+        ]) +
+        rows([
+            syntax.import_names.length,
+            layout.import_names
+        ]) +
+        rows([
+            syntax.import_sources.length,
+            layout.import_sources
+        ]) +
+        rows([
+            syntax.declarations.length,
+            layout.declarations
+        ]) +
+        rows([
+            constants.length,
+            layout.constants
+        ]) +
+        rows([
+            syntax.members.length,
+            layout.members
+        ]) +
+        rows([
+            syntax.contracts.length,
+            layout.contracts
+        ])
+}

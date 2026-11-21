@@ -8,11 +8,14 @@ import type { Contract } from "../header/model"
 import type { Import } from "../imports/model"
 import type { TypeTree, Order } from "../types/model"
 
-export type Program = {
+export type Tables = {
     types: TypeTree
     type_order: Order
     expressions: ExprTree
     blocks: BlockTree
+}
+
+export type Program = Tables & {
     tokens: Token[]
     comments: Span[]
     imports: Import[]
@@ -26,16 +29,12 @@ export type Program = {
     function_start: u64
     function_name?: Span
     body?: u64
-    diagnostic: Diagnostic
+    diagnostic?: Diagnostic
 }
 
-export type Expression = {
-    types: TypeTree
-    type_order: Order
-    expressions: ExprTree
-    blocks: BlockTree
+export type Expression = Tables & {
     tokens: Token[]
     comments: Span[]
     result: u64
-    diagnostic: Diagnostic
+    diagnostic?: Diagnostic
 }

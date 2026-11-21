@@ -26,7 +26,6 @@ pub const empty_span: Span = .{ .start = 0, .end = 0 };
 
 pub const empty_types: std.meta.Child(@FieldType(Syntax, "types")) = .{ .nodes = &.{}, .fields = &.{}, .items = &.{} };
 pub const empty_order: std.meta.Child(@FieldType(Syntax, "type_order")) = .{ .heads = &.{}, .fields = &.{}, .items = &.{} };
-pub const empty_diagnostic: std.meta.Child(@FieldType(Syntax, "diagnostic")) = .{ .code = "", .message = "", .start = 0, .end = 0 };
 
 fn Item(comptime Table: type, comptime field: []const u8) type {
     return std.meta.Child(std.meta.Child(@FieldType(Table, field)));

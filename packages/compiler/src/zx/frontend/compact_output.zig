@@ -7,50 +7,6 @@ pub fn copy(allocator: std.mem.Allocator, source: []const u8, value: anytype) st
     return clone(@TypeOf(value), allocator, source, value);
 }
 
-/// The bytes `copy` allocates for `value`, with room to align each allocation, so the copy fits one block.
-pub fn size(source: []const u8, value: anytype) usize {
-    return measure(@TypeOf(value), source, value);
-}
-
-fn measure(comptime T: type, source: []const u8, value: T) usize {
-    if (comptime !hasPointers(T)) return 0;
-
-    switch (@typeInfo(T)) {
-        .pointer => |info| switch (info.size) {
-            .one => return @sizeOf(info.child) + @alignOf(info.child) - 1 + measure(info.child, source, value.*),
-            .slice => {
-                if (info.child == u8 and borrowed(source, value)) return 0;
-                if (value.len == 0) return 0;
-
-                var total = value.len * @sizeOf(info.child) + @alignOf(info.child) - 1;
-
-                if (comptime hasPointers(info.child)) for (value) |item| {
-                    total += measure(info.child, source, item);
-                };
-
-                return total;
-            },
-            else => @compileError("unsupported generated parser pointer: " ++ @typeName(T)),
-        },
-        .optional => |info| return if (value) |item| measure(info.child, source, item) else 0,
-        .@"struct" => |info| {
-            var total: usize = 0;
-
-            inline for (info.field_names) |name| total += measure(@FieldType(T, name), source, @field(value, name));
-
-            return total;
-        },
-        .array => |info| {
-            var total: usize = 0;
-
-            for (value) |item| total += measure(info.child, source, item);
-
-            return total;
-        },
-        else => @compileError("unsupported generated parser value: " ++ @typeName(T)),
-    }
-}
-
 fn clone(comptime T: type, allocator: std.mem.Allocator, source: []const u8, value: T) std.mem.Allocator.Error!T {
     if (comptime !hasPointers(T)) return value;
 

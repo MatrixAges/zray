@@ -90,7 +90,7 @@ pub fn convert(comptime contents: enum { header, full }, allocator: std.mem.Allo
         .has_store = program.has_store,
         .function_start = program.function_start,
         .body = body,
-        .diagnostic = &model.empty_diagnostic,
+        .diagnostic = null,
     };
 
     var syntax_value: model.Syntax = undefined;

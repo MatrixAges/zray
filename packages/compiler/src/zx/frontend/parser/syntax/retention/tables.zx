@@ -1,0 +1,40 @@
+import blockSize from "./blocks"
+import expressionSize from "./expressions"
+import orderSize from "./order"
+import typeSize from "./types"
+
+import type { Tables } from "../model"
+import type { Tables as Layout } from "./model"
+
+export type Input = {
+    syntax: Tables,
+    layout: Layout
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { syntax, layout } = in
+
+    const types = typeSize({
+        tree: syntax.types,
+        layout: layout.types
+    })
+
+    const order = orderSize({
+        tree: syntax.type_order,
+        layout: layout.order
+    })
+
+    const expressions = expressionSize({
+        tree: syntax.expressions,
+        layout: layout.expressions
+    })
+
+    const blocks = blockSize({
+        tree: syntax.blocks,
+        layout: layout.blocks
+    })
+
+    return layout.base + types + order + expressions + blocks
+}

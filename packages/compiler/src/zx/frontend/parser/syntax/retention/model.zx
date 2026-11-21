@@ -1,0 +1,83 @@
+import type { BlockTree } from "../../body/model"
+import type { ExprTree } from "../../expressions/state/model"
+import type { Order, TypeTree } from "../../types/model"
+
+export type RowLayout = {
+    stride: u64,
+    padding: u64
+}
+
+export type TypeRows = {
+    nodes: RowLayout,
+    fields: RowLayout,
+    items: RowLayout
+}
+
+export type OrderRows = {
+    heads: RowLayout,
+    fields: RowLayout,
+    items: RowLayout
+}
+
+export type ExpressionRows = {
+    nodes: RowLayout,
+    items: RowLayout,
+    fields: RowLayout,
+    parameters: RowLayout,
+    parts: RowLayout,
+    arms: RowLayout
+}
+
+export type BlockRows = {
+    statements: RowLayout,
+    blocks: RowLayout,
+    items: RowLayout,
+    names: RowLayout,
+    cases: RowLayout
+}
+
+export type Tables = {
+    base: u64,
+    types: TypeRows,
+    order: OrderRows,
+    expressions: ExpressionRows,
+    blocks: BlockRows
+}
+
+export type ExpressionLayout = {
+    base: u64,
+    tables: Tables,
+    tokens: RowLayout,
+    comments: RowLayout
+}
+
+export type ProgramLayout = ExpressionLayout & {
+    function_name: u64,
+    imports: RowLayout,
+    import_names: RowLayout,
+    import_sources: RowLayout,
+    declarations: RowLayout,
+    constants: RowLayout,
+    members: RowLayout,
+    contracts: RowLayout
+}
+
+export type TypeInput = {
+    tree: TypeTree,
+    layout: TypeRows
+}
+
+export type OrderInput = {
+    tree: Order,
+    layout: OrderRows
+}
+
+export type ExpressionInput = {
+    tree: ExprTree,
+    layout: ExpressionRows
+}
+
+export type BlockInput = {
+    tree: BlockTree,
+    layout: BlockRows
+}

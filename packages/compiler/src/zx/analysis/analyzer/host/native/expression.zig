@@ -21,7 +21,7 @@ pub fn convert(allocator: std.mem.Allocator, expression: *const zx.ast.Expressio
         .tokens = &.{},
         .comments = &.{},
         .result = result,
-        .diagnostic = borrow.pointer(@FieldType(Syntax, "diagnostic"), &model.empty_diagnostic),
+        .diagnostic = null,
     };
 
     return .{ .syntax = syntax, .native = borrow.pointer(@typeInfo(@FieldType(Input, "native")).optional.child, tables.native) };

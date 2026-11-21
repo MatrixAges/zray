@@ -10,6 +10,7 @@
     <Call fn="program/header" />
     <Call fn="program/body" />
     <Call fn="program/diagnostic" />
+    <Call fn="syntax/publish_issue" />
 
     <Call fn="types/order" in={$ctx.body.body.expression.types.tree} />
 
@@ -32,7 +33,7 @@
             function_start: $ctx.body.prefix.function_start,
             function_name: $ctx.body.prefix.function_name,
             body: $ctx.body.prefix.present ? $ctx.body.body.control.result : null,
-            diagnostic: $ctx.diagnostic
+            diagnostic: $ctx.publish_issue
         }}
     />
 </Module>

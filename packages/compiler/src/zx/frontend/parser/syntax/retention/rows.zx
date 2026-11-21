@@ -1,0 +1,15 @@
+import type { RowLayout } from "./model"
+
+export type Input = [u64, RowLayout]
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const [count, layout] = in
+
+    if (count == 0) {
+        return 0
+    }
+
+    return count * layout.stride + layout.padding
+}

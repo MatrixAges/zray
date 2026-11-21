@@ -1,0 +1,36 @@
+import rows from "./rows"
+import tableSize from "./tables"
+
+import type { Expression } from "../model"
+import type { ExpressionLayout } from "./model"
+
+export type Input = {
+    syntax: Expression,
+    layout: ExpressionLayout
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { syntax, layout } = in
+
+    const tables = tableSize({
+        syntax: syntax.pick([
+            "types",
+            "type_order",
+            "expressions",
+            "blocks"
+        ]),
+        layout: layout.tables
+    })
+
+    return layout.base + tables +
+        rows([
+            syntax.tokens.length,
+            layout.tokens
+        ]) +
+        rows([
+            syntax.comments.length,
+            layout.comments
+        ])
+}
