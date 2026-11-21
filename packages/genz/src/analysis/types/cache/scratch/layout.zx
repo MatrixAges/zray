@@ -1,0 +1,23 @@
+export enum Column {
+    AbiTypes,
+    AbiLayouts,
+    StateTypes,
+    StateLayouts,
+    Views,
+    Rows
+}
+
+export type Input = void
+
+export type Output = Column[]
+
+export default function (in: Input): Output {
+    return [
+        Column.AbiTypes,
+        Column.AbiLayouts,
+        Column.StateTypes,
+        Column.StateLayouts,
+        Column.Views,
+        Column.Rows
+    ]
+}

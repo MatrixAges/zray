@@ -1,0 +1,43 @@
+import integers from "std:integer"
+import kind from "core/type_table/kind"
+
+import type { Kind } from "core/type_table/model"
+
+export type Input = {
+    base: u8[],
+    delta: u8[],
+    id: u32,
+    target: Kind
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const index = integers.widen(in.id)
+    const count = in.base.length
+    const root = index < count ? in.base[index] : in.delta[index - count]
+
+    if (kind(root) == in.target) {
+        return index
+    }
+
+    const first: u64? = null
+
+    return loop({
+        first,
+        index: 0
+    }, {
+        while: current => current.first == null && current.index < index,
+        next: current => {
+            const row = current.index
+            const tag = row < count ? in.base[row] : in.delta[row - count]
+
+            if (kind(tag) == in.target) {
+                current.first = row
+            }
+
+            current.index += 1
+        },
+        return: current => current.first
+    })
+}

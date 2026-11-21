@@ -3,7 +3,8 @@ const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 /// A type expression not built yet: a file that imports the shared type bundle builds each one when first used.
-const unset = @import("types/scratch.zig").unset;
+const Scratch = @import("types/scratch.zig");
+const unset = Scratch.unset;
 
 pub fn lower(self: *Lower, output: ?*@import("../node/declarations.zig").Output, exported: bool) Lower.Error!void {
     if (self.shared_types) return shared(self, output.?);
@@ -116,21 +117,13 @@ fn shared(self: *Lower, output: *@import("../node/declarations.zig").Output) Low
     self.abi_types = self.types;
     self.abi_layouts = self.layouts;
 
-    if (self.type_scratch) |scratch| {
-        const columns = scratch.columns(self.types.len);
-
-        self.state_types = columns.state_types;
-        self.state_layouts = columns.state_layouts;
-        self.view_types = columns.views;
-
-        return;
-    }
+    if (self.type_scratch != null) return;
 
     self.state_types = try self.allocator.alloc(node.ExpressionId, self.types.len);
     self.state_layouts = try self.allocator.alloc(node.ExpressionId, self.types.len);
     self.view_types = try self.allocator.alloc(node.ExpressionId, self.types.len);
 
-    for ([_][]node.ExpressionId{ self.abi_types, self.abi_layouts, self.state_types, self.state_layouts, self.view_types }) |table| @memset(table, unset);
+    for ([_][]node.ExpressionId{ self.abi_types, self.abi_layouts, self.state_types, self.state_layouts, self.view_types }) |table| Scratch.fill(table);
 }
 
 fn abi(self: *Lower, index: usize) Lower.Error!void {

@@ -1,4 +1,8 @@
-import contains from "./contains"
+import integers from "std:integer"
+import { Kind } from "core/type_table/model"
+
+import firstTarget from "./first_target"
+import scan from "./scan"
 
 import type { Table } from "core/type_table/model"
 
@@ -11,6 +15,24 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
+    const index = integers.widen(in.id)
+    const target = in.native_references ? Kind.NativeReference : Kind.List
+
+    const first = firstTarget({
+        base: in.table.kinds,
+        delta: [],
+        id: in.id,
+        target
+    })
+
+    if (first == null) {
+        return false
+    }
+
+    if (first == index) {
+        return true
+    }
+
     const empty: Table = {
         kinds: [],
         first: [],
@@ -22,12 +44,13 @@ export default function (in: Input): Output {
         names: []
     }
 
-    return contains({
+    return scan({
         tables: {
             base: in.table,
             delta: empty
         },
-        id: in.id,
+        first,
+        limit: index + 1,
         native_references: in.native_references
     })
 }

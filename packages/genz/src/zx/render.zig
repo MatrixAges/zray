@@ -82,7 +82,6 @@ pub fn initializePrepared(temporary: std.mem.Allocator, workspace: std.mem.Alloc
 }
 
 fn initializePreparedWithConcurrency(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, comptime concurrent: bool) std.mem.Allocator.Error!Lower {
-    const Analysis = @import("function_analysis.zig");
     const basis = try temporary.create(Analysis.Uniqueness.Basis);
     basis.* = try .create(temporary, workspace, program, null);
 
@@ -94,38 +93,85 @@ fn initializePreparedWithConcurrency(temporary: std.mem.Allocator, workspace: st
     return initializeAnalyzed(temporary, workspace, program, facts, null, !program.type_only);
 }
 
-pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: @import("function_analysis.zig"), scratch: ?*@import("types/scratch.zig"), body: bool) std.mem.Allocator.Error!Lower {
-    const count = program.types.count();
-    const shared = if (scratch) |storage| try storage.prepare(count) else null;
+const TypeScratch = @import("types/scratch.zig");
+const Analysis = @import("function_analysis.zig");
+const generated = @import("genz_options").generated_analysis;
+const workspace_entry = if (generated) @import("generated_lowering_workspace") else void;
+const WorkspaceStep = if (generated) std.meta.Child(workspace_entry.Output) else enum { Borrow, Ast, Allocate, Bind, Context };
 
-    var lowering: Lower = .{
-        .allocator = temporary,
-        .workspace = workspace,
-        .program = program,
-        .entry_flags = facts.entry_flags,
-        .builder = try @import("../builder.zig").init(temporary),
-        .types = if (shared) |columns| columns.abi_types else try temporary.alloc(node.ExpressionId, count),
-        .layouts = if (shared) |columns| columns.abi_layouts else try temporary.alloc(node.ExpressionId, count),
-        .type_scratch = scratch,
-        .state_plan = facts.value.state,
-        .layout_types = facts.layout_types,
-        .slot_counts = facts.basis.slots.counts,
-        .growth_functions = facts.grows,
-        .io_functions = facts.io,
-        .process_functions = facts.process,
-        .task_functions = facts.tasks,
-        .function_errors = if (facts.errors.len == program.functions.count()) facts.errors else null,
-        .value_functions = facts.value.values,
-        .pure_functions = facts.value.pure,
-        .identity_free_functions = facts.identity_free,
-        .local_functions = facts.value.local,
-        .fresh_outputs = facts.fresh_outputs,
-        .constructed_outputs = facts.constructed_outputs,
-        .plans = facts.uniqueness.functions,
-        .plan = facts.uniqueness.entry,
+pub fn initializeAnalyzed(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: Analysis, scratch: ?*TypeScratch, body: bool) std.mem.Allocator.Error!Lower {
+    const options = @as(u2, @intFromBool(scratch != null)) << 1 | @intFromBool(body);
+
+    return switch (options) {
+        inline else => |form| initializeWorkspace(temporary, workspace, program, facts, scratch, form & 2 != 0, form & 1 != 0),
+    };
+}
+
+fn initializeWorkspace(temporary: std.mem.Allocator, workspace: std.mem.Allocator, program: zx.ir.Program, facts: Analysis, scratch: ?*TypeScratch, comptime reusable: bool, comptime body: bool) std.mem.Allocator.Error!Lower {
+    const count = program.types.count();
+    var builder: @import("../builder.zig") = undefined;
+    var lowering: Lower = undefined;
+    var type_values: []node.ExpressionId = undefined;
+    var type_layouts: []node.ExpressionId = undefined;
+    var state_types: []node.ExpressionId = &.{};
+    var state_layouts: []node.ExpressionId = &.{};
+    var views: []node.ExpressionId = &.{};
+
+    inline for (comptime workspaceSteps(reusable, body)) |step| switch (step) {
+        .Borrow => {
+            const columns = try scratch.?.prepare(count);
+
+            type_values = columns.abi_types;
+            type_layouts = columns.abi_layouts;
+            state_types = columns.state_types;
+            state_layouts = columns.state_layouts;
+            views = columns.views;
+        },
+        .Ast => builder = try @import("../builder.zig").init(temporary),
+        .Allocate => {
+            type_values = try temporary.alloc(node.ExpressionId, count);
+            type_layouts = try temporary.alloc(node.ExpressionId, count);
+        },
+        .Bind => lowering = .{
+                .allocator = temporary,
+                .workspace = workspace,
+                .program = program,
+                .entry_flags = facts.entry_flags,
+                .builder = builder,
+                .types = type_values,
+                .layouts = type_layouts,
+                .type_scratch = scratch,
+                .state_types = state_types,
+                .state_layouts = state_layouts,
+                .view_types = views,
+                .state_plan = facts.value.state,
+                .layout_types = facts.layout_types,
+                .slot_counts = facts.basis.slots.counts,
+                .growth_functions = facts.grows,
+                .io_functions = facts.io,
+                .process_functions = facts.process,
+                .task_functions = facts.tasks,
+                .function_errors = if (facts.errors.len == program.functions.count()) facts.errors else null,
+                .value_functions = facts.value.values,
+                .pure_functions = facts.value.pure,
+                .identity_free_functions = facts.identity_free,
+                .local_functions = facts.value.local,
+                .fresh_outputs = facts.fresh_outputs,
+                .constructed_outputs = facts.constructed_outputs,
+                .plans = facts.uniqueness.functions,
+                .plan = facts.uniqueness.entry,
+        },
+        .Context => try @import("functions/context.zig").reserve(&lowering),
     };
 
-    if (body) try @import("functions/context.zig").reserve(&lowering);
-
     return lowering;
+}
+
+fn workspaceSteps(comptime reusable: bool, comptime body: bool) []const WorkspaceStep {
+    if (generated) return zx.staticSequence(workspace_entry, &.{ .reusable = reusable, .body = body });
+
+    const setup: []const WorkspaceStep = if (reusable) &.{ .Borrow, .Ast } else &.{ .Ast, .Allocate };
+    const finish: []const WorkspaceStep = if (body) &.{ .Bind, .Context } else &.{.Bind};
+
+    return setup ++ finish;
 }

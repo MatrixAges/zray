@@ -17,6 +17,8 @@ pub fn build(self: *Lower, declarations: ?*@import("../../node/declarations.zig"
         .base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .field_base = @intCast(self.builder.nodes.field_columns.count()),
         .exported = exported,
+        .values = @ptrCast(&self.types),
+        .layouts = @ptrCast(&self.layouts),
     };
 
     const result = @import("zx").columns.invoke(generated.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
@@ -29,9 +31,6 @@ pub fn build(self: *Lower, declarations: ?*@import("../../node/declarations.zig"
     if (!output.valid) return error.OutOfMemory;
 
     try @import("import.zig").append(self, declarations, Output, output, result.fields, if (self.type_names != null) .borrow_text else .copy);
-
-    @memcpy(@as([]u32, @ptrCast(self.types)), output.values);
-    @memcpy(@as([]u32, @ptrCast(self.layouts)), output.layouts);
 
     return output.has_lists;
 }

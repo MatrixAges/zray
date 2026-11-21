@@ -1,0 +1,15 @@
+import { max_u8 } from "core/const"
+import memory from "memory"
+
+import type { U8Buffer } from "memory"
+
+export type Input = {
+    buffer: U8Buffer,
+    bytes: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.fillByteRange(in.buffer, 0, in.bytes, max_u8)
+}

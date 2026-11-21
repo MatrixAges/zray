@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import emptyDeclarations from "../../../../ast/declarations/empty"
 
 import type { Plan, Build } from "../model"
@@ -48,7 +50,6 @@ export default function (in: Input): Output {
         struct_type_start: [],
         struct_type_len: [],
         declarations: emptyDeclarations({}),
-        values: [],
-        layouts: []
+        values: memory.u32Views(in.source.values)
     }
 }

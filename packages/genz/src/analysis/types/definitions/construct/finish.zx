@@ -30,8 +30,6 @@ export default function (in: Input): Output {
         },
         declarations: in.declarations,
         has_lists: in.has_lists,
-        values: in.values,
-        layouts: in.layouts,
         valid: in.valid
     }
 }
