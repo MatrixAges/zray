@@ -9,6 +9,12 @@ pub fn publish(allocator: std.mem.Allocator, issue: anytype) std.mem.Allocator.E
     };
 }
 
+pub fn report(allocator: std.mem.Allocator, reporter: *zx.Reporter, issue: anytype) zx.Error {
+    const saved = try publish(allocator, issue);
+
+    return reporter.fail(saved.code, saved.span, saved.message);
+}
+
 pub fn generatedFailure(allocator: std.mem.Allocator, comptime stage: []const u8, err: anyerror) std.mem.Allocator.Error!zx.Diagnostic {
     return switch (err) {
         error.OutOfMemory, error.Overflow => error.OutOfMemory,

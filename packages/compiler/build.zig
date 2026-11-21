@@ -91,6 +91,7 @@ pub fn build(b: *std.Build) void {
     });
 
     rx_analysis.addImport("rx_options", rx_options_module);
+    parser_modules.execution.addImport("rx_project_host", rx_analysis);
 
     for (parser_modules.bindings) |binding| {
         const owner = switch (binding.metadata.entry.owner) {

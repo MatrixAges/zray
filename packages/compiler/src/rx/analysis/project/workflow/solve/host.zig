@@ -7,6 +7,7 @@ const Constraints = @import("../../constraints.zig");
 const Requests = @import("../../signatures/requests.zig");
 const workflow = @import("../schedule.zig");
 const Error = zx.Error;
+const generated = @import("rx_options").generated_graph;
 
 pub fn run(derivation: *Derivation) Error!void {
     const backing = derivation.backing;
@@ -35,12 +36,16 @@ pub fn run(derivation: *Derivation) Error!void {
     defer state.pending.deinit();
     defer state.resolver.deinit(backing);
 
-    inline for (comptime workflow.steps(.Solve)) |step| switch (step) {
-        .CollectConstraints => try state.collect(),
-        .FinishConstraints => try state.finish(),
-        .ResolveConstraints => try state.resolve(),
-        else => unreachable,
-    };
+    if (comptime generated) {
+        const entry = @import("generated_rx_execute_constraints");
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return entry.executeIn(empty.allocator(), @ptrCast(&state)) catch |err| workflow.errorSet(err);
+    }
+
+    try state.collect();
+    try state.finish();
+    try state.resolve();
 }
 
 const State = struct {
@@ -89,3 +94,19 @@ const State = struct {
         return error.InvalidSource;
     }
 };
+
+fn borrow(handle: *const anyopaque) *State {
+    return @ptrCast(@alignCast(@constCast(handle)));
+}
+
+pub fn collectFlowConstraints(handle: *const anyopaque) Error!void {
+    return borrow(handle).collect();
+}
+
+pub fn finishFlowConstraints(handle: *const anyopaque) Error!void {
+    return borrow(handle).finish();
+}
+
+pub fn resolveFlowConstraints(handle: *const anyopaque) Error!void {
+    return borrow(handle).resolve();
+}

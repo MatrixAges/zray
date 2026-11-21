@@ -1,0 +1,66 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+import memory from "memory"
+import columns from "memory/columns"
+
+import writeValue from "./value"
+
+import type { Values } from "core/constant/model"
+import type { RowBuffer } from "memory/columns"
+import type { Target } from "../../../modules/artifact/surface/constants"
+
+export type Input = {
+    scope?: Values,
+    first: u64,
+    storage: RowBuffer,
+    target: Target
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { scope, first, storage, target } = in
+
+    if (scope == null) {
+        return true
+    }
+
+    const count = scope.names.length - first
+
+    if (count == 0) {
+        return true
+    }
+
+    columns.allocateRows(storage, count)
+
+    return loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < count,
+        next: state => {
+            const index = first + state.row
+            const value = scope.values[index]
+
+            state.valid = writeValue({
+                target: target.values,
+                row: state.row,
+                value
+            })
+
+            if (state.valid) {
+                const name = strings.copy(scope.names[index])
+
+                memory.writeColumnBytes(
+                    target.names,
+                    state.row,
+                    bytes.fromText(name)
+                )
+                memory.writeColumnU32(target.types, state.row, value.type_id)
+
+                state.row += 1
+            }
+        },
+        return: state => state.valid
+    })
+}

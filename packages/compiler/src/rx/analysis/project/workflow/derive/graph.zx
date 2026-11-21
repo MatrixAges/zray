@@ -1,0 +1,10 @@
+import host from "rx_project_host"
+
+import type { Derivation as Input } from "rx_project_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.prepareDerivedModules(in)
+    host.collectDerivedGraph(in)
+}

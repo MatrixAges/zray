@@ -1,29 +1,42 @@
+const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Context = @import("context.zig");
 const publication = @import("../../publication/host.zig");
-const interface = @import("../../publication/interface.zig");
 const model = @import("model.zig");
+const interface = @import("../../publication/interface.zig");
 
-pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const u8) zx.Error!ir.Program {
-    const allocator = analyzer.allocator;
-
-    if (analyzer.mode != .project) {
-        const type_table = @import("../../type_table.zig");
-
-        // A resolved body's base table outlives its program, so the program borrows its names, as `analyze` does.
-        analyzer.types.* = try if (analyzer.mode == .resolved) type_table.columns(allocator, analyzer.base_types) else type_table.storage(allocator, analyzer.base_types);
-
-        try analyzer.origins.copyValidated(analyzer.types.view(), analyzer.base_origins);
+const Frame = struct {
+    analyzer: *Context,
+    output: *const model.Output,
+    exports: []const ir.Export = &.{},
+    constants: []const ir.Constant = &.{},
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
     }
+};
 
-    try @import("../../semantic/merging/commit.zig").append(allocator, analyzer.types, &analyzer.origins.items, output.type_delta.*, output.nominal_delta.*);
+pub fn apply(analyzer: *Context, mode: @FieldType(model.Context, "mode"), output: *const model.Output, file_name: []const u8) zx.Error!ir.Program {
+    const entry = @import("generated_analysis_publish_module");
+    const Input = std.meta.Child(entry.Input);
+    var frame: Frame = .{ .analyzer = analyzer, .output = output };
 
-    const body = try publication.body(allocator, output.body);
-    const exports = try interface.types(allocator, output.export_names, output.export_types);
+    const input: Input = .{
+        .analysis = zx.columns.pointer(@FieldType(Input, "analysis"), output),
+        .publication = @ptrCast(&frame),
+        .mode = @fromBackingInt(@backingInt(mode)),
+        .file_name = file_name,
+    };
+
+    const published = zx.columns.invoke(entry.executeValue, analyzer.allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    const body = publication.bodyView(published.body);
 
     return .{
-        .file_name = try allocator.dupe(u8, file_name),
+        .file_name = published.file_name,
         .types = analyzer.types.view(),
         .input_type = @fromBackingInt(output.input_type),
         .output_type = @fromBackingInt(output.output_type),
@@ -36,9 +49,42 @@ pub fn apply(analyzer: *Context, output: *const model.Output, file_name: []const
         .expressions = body.expressions,
         .body = body.control,
         .stores = body.stores,
-        .contracts = try publication.contracts(allocator, output.contracts),
-        .exports = exports,
-        .constant_exports = try interface.constants(allocator, output.constant_scope, output.constant_first),
+        .contracts = if (published.contracts) |rows| zx.columns.columns(ir.ContractTable, rows.*) else .{},
+        .exports = frame.exports,
+        .constant_exports = frame.constants,
         .type_only = output.type_only,
     };
+}
+
+pub fn initializeAnalysisTypes(handle: *const anyopaque, borrowed: bool) std.mem.Allocator.Error!void {
+    const analyzer = Frame.borrow(handle).analyzer;
+    const allocator = analyzer.allocator;
+    const table = @import("../../type_table.zig");
+
+    // The resolved project's type names outlive this program.
+    analyzer.types.* = try if (borrowed) table.columns(allocator, analyzer.base_types) else table.storage(allocator, analyzer.base_types);
+
+    try analyzer.origins.copyValidated(analyzer.types.view(), analyzer.base_origins);
+}
+
+pub fn appendAnalysisTypes(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+    const analyzer = frame.analyzer;
+    const output = frame.output;
+
+    try @import("../../semantic/merging/commit.zig").append(analyzer.allocator, analyzer.types, &analyzer.origins.items, output.type_delta.*, output.nominal_delta.*);
+}
+
+pub fn publishAnalysisExports(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+    const output = frame.output;
+
+    frame.exports = try interface.types(frame.analyzer.allocator, output.export_names, output.export_types);
+}
+
+pub fn publishAnalysisConstants(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+    const output = frame.output;
+
+    frame.constants = try interface.constants(frame.analyzer.allocator, output.constant_scope, output.constant_first);
 }

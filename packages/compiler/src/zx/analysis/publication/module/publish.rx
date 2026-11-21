@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={Publication.Output} />
+
+    <Call
+        fn="types"
+        in={$in.pick([
+            "publication",
+            "mode"
+        ])}
+    />
+
+    <Call module="../body" in={$in.analysis.body} />
+
+    <Call
+        fn="description"
+        in={$in.pick([
+            "publication",
+            "file_name"
+        ])}
+    />
+
+    <Call
+        fn="contract_rows"
+        in={{
+            publication: $in.publication,
+            contracts: $in.analysis.contracts
+        }}
+    />
+
+    <Return
+        value={{
+            body: $ctx.body,
+            contracts: $ctx.contract_rows,
+            file_name: $ctx.description
+        }}
+    />
+</Module>

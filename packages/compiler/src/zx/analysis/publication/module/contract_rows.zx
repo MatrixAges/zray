@@ -1,0 +1,23 @@
+import host from "project_host"
+
+import retain from "../contracts.rx"
+
+import type { Contracts } from "core/contract_table/model"
+import type { AnalysisPublication } from "project_host"
+
+export type Input = {
+    publication: AnalysisPublication,
+    contracts: Contracts
+}
+
+export type Output = Contracts?
+
+export default function (in: Input): Output {
+    const { publication, contracts } = in
+
+    const retained: Contracts? = contracts.kinds.length == 0 ? null : retain(contracts)
+
+    host.publishAnalysisConstants(publication)
+
+    return retained
+}

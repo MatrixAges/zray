@@ -1,0 +1,57 @@
+export type Inference = opaque
+
+export type Derivation = opaque
+
+export type Solver = opaque
+
+export declare function normalizeProjectSources(state: Inference): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function restoreDerivedFrame(state: Inference): void
+
+export declare function deriveProjectFrame(state: Inference, signatures: bool): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function compileProjectBodies(state: Inference): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishInferredStores(state: Inference, retained: bool): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function prepareDerivedModules(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function collectDerivedGraph(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function orderDerivedSignatures(state: Derivation): void
+    throws { OutOfMemory }
+
+export declare function readDerivedSignatures(state: Derivation, retained: bool): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function indexDerivedSignatures(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function loadDerivedStores(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function prepareDerivedFlow(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function solveDerivedFlow(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function completeDerivedShortcuts(state: Derivation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishDerivedFrame(state: Derivation): void
+
+export declare function collectFlowConstraints(state: Solver): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function finishFlowConstraints(state: Solver): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function resolveFlowConstraints(state: Solver): void
+    throws { OutOfMemory, InvalidSource }

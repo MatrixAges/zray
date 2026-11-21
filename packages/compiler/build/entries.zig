@@ -268,7 +268,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/analysis/project/prepare/sequence.rx", .name = "rx_prepare_sequence", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/prepare/flow/diagnostic.zx", .name = "rx_prepare_diagnostic", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/workflow/sequence.rx", .name = "rx_workflow_sequence", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/project/workflow/history.zx", .name = "rx_workflow_history", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/scalar/restrict.rx", .name = "rx_scalar_restriction", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/scalar/default.zx", .name = "rx_scalar_default", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/sequences/replay.zx", .name = "rx_sequence_replay", .owner = .rx_analysis },
@@ -374,7 +373,8 @@ pub const main = [_]Entry{
     .{ .path = "zx/analysis/publication/body.rx", .name = "analysis_publish_body" },
     .{ .path = "zx/analysis/publication/values.rx", .name = "analysis_publish_values" },
     .{ .path = "zx/analysis/publication/contracts.rx", .name = "analysis_publish_contracts" },
-    .{ .path = "zx/analysis/publication/declaration.zx", .name = "analysis_publish_declaration" },
+    .{ .path = "zx/analysis/publication/exports.zx", .name = "analysis_publish_types" },
+    .{ .path = "zx/analysis/publication/constants/write.zx", .name = "analysis_publish_constants" },
     .{ .path = "zx/modules/source_signature/analyze.rx", .name = "source_signature" },
     .{ .path = "zx/analysis/expression_program/compile.rx", .name = "expression_analysis" },
     .{ .path = "zx/analysis/expression_program/bindings/path/valid.zx", .name = "binding_path_valid" },
@@ -1019,6 +1019,10 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "zx/analysis/publication/module/publish.rx", .name = "analysis_publish_module" },
+    .{ .path = "rx/analysis/project/workflow/infer/run.rx", .name = "rx_execute_inference", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/workflow/derive/run.rx", .name = "rx_execute_derivation", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/workflow/solve/constraints.zx", .name = "rx_execute_constraints", .owner = .rx_analysis },
     .{ .path = "zx/modules/compiled/imports/load.rx", .name = "compiled_import_execute" },
     .{ .path = "zx/modules/link/entry/link.rx", .name = "artifact_link_execute" },
     .{ .path = "zx/modules/project/execution/native/import.rx", .name = "project_execute_native" },

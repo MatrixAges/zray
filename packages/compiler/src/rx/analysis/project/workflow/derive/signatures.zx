@@ -1,0 +1,18 @@
+import host from "rx_project_host"
+
+import type { Derivation } from "rx_project_host"
+
+export type Input = {
+    state: Derivation,
+    retained: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { state, retained } = in
+
+    host.orderDerivedSignatures(state)
+    host.readDerivedSignatures(state, retained)
+    host.indexDerivedSignatures(state)
+}

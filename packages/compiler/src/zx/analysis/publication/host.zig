@@ -3,15 +3,21 @@ const zx = @import("zx");
 const ir = zx.ir;
 const columns = zx.columns;
 
-pub fn body(allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!struct {
+const Body = struct {
     symbols: ir.SymbolTable,
     expressions: ir.ExpressionTable,
     stores: ir.StoreTable,
     control: ir.ControlBody,
-} {
+};
+
+pub fn body(allocator: std.mem.Allocator, source: anytype) std.mem.Allocator.Error!Body {
     const entry = @import("generated_analysis_publish_body");
     const result = columns.invoke(entry.executeValue, allocator, source) catch |err| return failure(err);
 
+    return bodyView(result);
+}
+
+pub fn bodyView(result: anytype) Body {
     return .{
         .symbols = columns.columns(ir.SymbolTable, result.symbols.*),
         .expressions = columns.columns(ir.ExpressionTable, result.expressions.*),

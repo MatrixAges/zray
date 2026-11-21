@@ -65,3 +65,19 @@ pub inline fn copyAt(source: *const anyopaque, index: u64, target: *const anyopa
 pub inline fn writeText(target: *const anyopaque, index: u64, value: []const u8) IndexError!void {
     return write(Value, target, index, .{ .string = value });
 }
+
+pub inline fn writeInteger(target: *const anyopaque, index: u64, value: u64, negative: bool) IndexError!void {
+    return write(Value, target, index, if (negative) .{ .negative_integer = value } else .{ .integer = value });
+}
+
+pub inline fn writeFloat(target: *const anyopaque, index: u64, value: f64) IndexError!void {
+    return write(Value, target, index, .{ .float = value });
+}
+
+pub inline fn writeBoolean(target: *const anyopaque, index: u64, value: bool) IndexError!void {
+    return write(Value, target, index, .{ .boolean = value });
+}
+
+pub inline fn writeEnumeration(target: *const anyopaque, index: u64, value: u32) IndexError!void {
+    return write(Value, target, index, .{ .enumeration = value });
+}

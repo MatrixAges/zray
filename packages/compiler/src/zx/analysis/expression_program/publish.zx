@@ -1,3 +1,5 @@
+import present from "../../frontend/diagnostic/present"
+
 import type { Analysis, Result } from "./model"
 
 export type Input = Analysis
@@ -5,6 +7,8 @@ export type Input = Analysis
 export type Output = Result
 
 export default function (in: Input): Output {
+    const diagnostic = present(in.state.diagnostic)
+
     return {
         value: in.value,
         type_delta: in.state.types.delta,
@@ -13,11 +17,11 @@ export default function (in: Input): Output {
             symbols: in.state.local.symbols,
             expressions: in.state.local.expressions,
             control: in.state.local.control,
-            root: in.state.diagnostic.message == "" ? in.root : null
+            root: diagnostic == null ? in.root : null
         },
         input_type: in.state.input_type,
         output_type: in.state.local.output_type,
         output_ownership: in.ownership,
-        diagnostic: in.state.diagnostic
+        diagnostic
     }
 }

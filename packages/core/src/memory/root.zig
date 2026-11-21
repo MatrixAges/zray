@@ -145,6 +145,9 @@ pub inline fn refreshLinkedPorts(source: *const anyopaque, target: *const anyopa
 
 const rows = @import("rows.zig");
 pub const NamedId = rows.NamedId;
+pub const NamedColumns = rows.NamedColumns;
+pub const readNamedColumnName = rows.readNamedColumnName;
+pub const readNamedColumnId = rows.readNamedColumnId;
 pub const borrowNamedRows = rows.borrow;
 pub const TextColumn = rows.TextColumn;
 const references = @import("reference_column.zig");
@@ -278,6 +281,10 @@ pub const readScalarText = scalar_column.readText;
 pub const copyScalar = scalar_column.copy;
 pub const copyScalarAt = scalar_column.copyAt;
 pub const writeScalarText = scalar_column.writeText;
+pub const writeScalarInteger = scalar_column.writeInteger;
+pub const writeScalarFloat = scalar_column.writeFloat;
+pub const writeScalarBoolean = scalar_column.writeBoolean;
+pub const writeScalarEnumeration = scalar_column.writeEnumeration;
 pub const borrowTextRange = borrowU8Range;
 
 pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {

@@ -16,6 +16,8 @@ export type CompiledImport = opaque
 
 export type ArtifactLink = opaque
 
+export type AnalysisPublication = opaque
+
 export enum LibraryResolution {
     Found,
     Missing,
@@ -27,6 +29,20 @@ export enum CacheWrite {
     MissingOrigin,
     Invalid
 }
+
+export declare function initializeAnalysisTypes(
+    publication: AnalysisPublication,
+    borrowed: bool
+): void throws { OutOfMemory }
+
+export declare function appendAnalysisTypes(publication: AnalysisPublication): void
+    throws { OutOfMemory }
+
+export declare function publishAnalysisExports(publication: AnalysisPublication): void
+    throws { OutOfMemory }
+
+export declare function publishAnalysisConstants(publication: AnalysisPublication): void
+    throws { OutOfMemory }
 
 export declare function openProjectFrame(walk: ProjectWalk, row: u64): void
     throws { OutOfMemory, InvalidSource }

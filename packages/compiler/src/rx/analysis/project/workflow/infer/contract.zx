@@ -1,0 +1,17 @@
+import host from "rx_project_host"
+
+import { Reuse } from "../model"
+
+import type { Inference } from "rx_project_host"
+
+export type Input = {
+    state: Inference,
+    reuse: Reuse
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.compileProjectBodies(in.state)
+    host.publishInferredStores(in.state, in.reuse == Reuse.Frame)
+}

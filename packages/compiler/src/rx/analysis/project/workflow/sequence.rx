@@ -4,55 +4,6 @@
     <Args in={Workflow.Phase} out={Workflow.Step[]} />
 
     <Switch on={$in}>
-        <Case value={Workflow.Phase.FreshProject}>
-            <Return
-                value={[
-                    Workflow.Step.NormalizeSources,
-                    Workflow.Step.DeriveFrame,
-                    Workflow.Step.CompileBodies,
-                    Workflow.Step.PublishStores
-                ]}
-            />
-        </Case>
-
-        <Case value={Workflow.Phase.RetainedProject}>
-            <Return
-                value={[
-                    Workflow.Step.NormalizeSources,
-                    Workflow.Step.RestoreFrame,
-                    Workflow.Step.CompileBodies,
-                    Workflow.Step.RetainStores
-                ]}
-            />
-        </Case>
-
-        <Case value={Workflow.Phase.Derive}>
-            <Return
-                value={[
-                    Workflow.Step.PrepareModules,
-                    Workflow.Step.CollectGraph,
-                    Workflow.Step.OrderSignatures,
-                    Workflow.Step.ReadSignatures,
-                    Workflow.Step.IndexSignatures,
-                    Workflow.Step.LoadStores,
-                    Workflow.Step.PrepareFlow,
-                    Workflow.Step.SolveFlow,
-                    Workflow.Step.CompleteShortcuts,
-                    Workflow.Step.PublishFrame
-                ]}
-            />
-        </Case>
-
-        <Case value={Workflow.Phase.Solve}>
-            <Return
-                value={[
-                    Workflow.Step.CollectConstraints,
-                    Workflow.Step.FinishConstraints,
-                    Workflow.Step.ResolveConstraints
-                ]}
-            />
-        </Case>
-
         <Case value={Workflow.Phase.Window}>
             <Return
                 value={[

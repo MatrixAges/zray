@@ -1,3 +1,5 @@
+import present from "../../../frontend/diagnostic/present"
+
 import type { ModuleOutput } from "../output"
 import type { Analysis } from "./model"
 
@@ -6,6 +8,8 @@ export type Input = Analysis
 export type Output = ModuleOutput
 
 export default function (in: Input): Output {
+    const diagnostic = present(in.state.diagnostic)
+
     return {
         type_delta: in.state.types.delta,
         nominal_delta: in.state.types.nominal_delta,
@@ -14,7 +18,7 @@ export default function (in: Input): Output {
             symbols: in.state.local.symbols,
             expressions: in.state.local.expressions,
             control: in.state.local.control,
-            root: in.state.diagnostic.message == "" ? in.root : null
+            root: diagnostic == null ? in.root : null
         },
         contracts: in.contracts,
         export_names: in.names,
@@ -25,6 +29,6 @@ export default function (in: Input): Output {
         output_type: in.state.local.output_type,
         output_ownership: in.ownership,
         type_only: in.type_only,
-        diagnostic: in.state.diagnostic
+        diagnostic
     }
 }

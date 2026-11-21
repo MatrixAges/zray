@@ -1,0 +1,10 @@
+<Module>
+    <Type from="signatures" as="Signatures" />
+
+    <Args in={Signatures.Input} out={void} />
+
+    <Call fn="graph" in={$in.state} />
+    <Call fn="signatures" in={$in} />
+    <Call fn="flow" in={$in.state} />
+    <Call fn="resolve" in={$in.state} />
+</Module>

@@ -9,6 +9,7 @@ const Frame = @import("../../history.zig").Frame;
 const registry = @import("../../../store/registry.zig");
 const workflow = @import("../schedule.zig");
 const Error = zx.Error;
+const generated = @import("rx_options").generated_graph;
 
 pub const State = struct {
     allocator: std.mem.Allocator,
@@ -20,12 +21,7 @@ pub const State = struct {
     result: ?Module.Value = null,
     issue: ?target.Diagnostic = null,
     pub fn run(self: *State) std.mem.Allocator.Error!Module.Value {
-        const history = self.options.history;
-        const reuse = workflow.select(if (history) |record| record.previous != null else false, if (history) |record| record.bodies_only else false, self.options.stores.len);
-
-        (switch (reuse) {
-            inline else => |mode| self.execute(mode),
-        }) catch |err| switch (err) {
+        self.execute() catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             error.InvalidSource => {
                 if (self.result) |result| return result;
@@ -36,21 +32,49 @@ pub const State = struct {
 
         return self.result.?;
     }
-    fn execute(self: *State, comptime mode: workflow.Reuse) Error!void {
-        inline for (comptime workflow.steps(if (mode == .Frame) .RetainedProject else .FreshProject)) |step| switch (step) {
-            .NormalizeSources => try self.normalize(),
-            .RestoreFrame => self.frame = self.options.history.?.previous.?.derived,
-            .DeriveFrame => try @import("../derive/host.zig").run(self.allocator, self.backing, &self.options, self.cache, self.inputs, &self.frame, &self.issue, mode == .Signatures),
-            .CompileBodies => try self.compile(),
-            .RetainStores, .PublishStores => {
-                const contract = &self.result.?.contract;
+    fn execute(self: *State) Error!void {
+        const history = self.options.history;
+        const previous = if (history) |record| record.previous != null else false;
+        const bodies_only = if (history) |record| record.bodies_only else false;
+        const stores = self.options.stores.len;
 
-                contract.store_definitions = try registry.publish(self.allocator, self.frame.definitions, contract, if (step == .RetainStores) .Retained else .Owned);
-            },
-            else => unreachable,
-        };
+        if (comptime generated) {
+            const entry = @import("generated_rx_execute_inference");
+
+            const input: std.meta.Child(entry.Input) = .{
+                .state = @ptrCast(self),
+                .history = &.{ .previous = previous, .bodies_only = bodies_only, .stores = stores },
+            };
+
+            var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+            return entry.executeIn(empty.allocator(), &input) catch |err| workflow.errorSet(err);
+        }
+
+        const retained = previous and bodies_only;
+
+        try self.normalize();
+        if (retained) self.restore() else try self.derive(previous and stores == 0);
+        try self.compile();
+        try self.publishStores(retained);
     }
 
+    fn restore(self: *State) void {
+        self.frame = self.options.history.?.previous.?.derived;
+    }
+
+    fn derive(self: *State, signatures: bool) Error!void {
+        return @import("../derive/host.zig").run(self.allocator, self.backing, &self.options, self.cache, self.inputs, &self.frame, &self.issue, signatures);
+    }
+    fn publishStores(self: *State, retained: bool) Error!void {
+        const contract = &self.result.?.contract;
+
+        contract.store_definitions = if (retained)
+            try registry.publish(self.allocator, self.frame.definitions, contract, .Retained)
+
+        else
+            try registry.publish(self.allocator, self.frame.definitions, contract, .Owned);
+    }
     fn normalize(self: *State) Error!void {
         self.options.sources = switch (try frontend.project.prepareSources(self.allocator, self.options.sources, self.options.project)) {
             .sources => |items| items,
@@ -81,3 +105,27 @@ pub const State = struct {
         self.result = result;
     }
 };
+
+fn state(handle: *const anyopaque) *State {
+    return @ptrCast(@alignCast(@constCast(handle)));
+}
+
+pub fn normalizeProjectSources(handle: *const anyopaque) Error!void {
+    return state(handle).normalize();
+}
+
+pub fn restoreDerivedFrame(handle: *const anyopaque) void {
+    state(handle).restore();
+}
+
+pub fn deriveProjectFrame(handle: *const anyopaque, signatures: bool) Error!void {
+    return state(handle).derive(signatures);
+}
+
+pub fn compileProjectBodies(handle: *const anyopaque) Error!void {
+    return state(handle).compile();
+}
+
+pub fn publishInferredStores(handle: *const anyopaque, retained: bool) Error!void {
+    return state(handle).publishStores(retained);
+}

@@ -1,4 +1,4 @@
-import publishIssue from "../syntax/publish_issue"
+import publishIssue from "../../diagnostic/present"
 import order from "../types/order"
 import diagnostic from "./diagnostic"
 

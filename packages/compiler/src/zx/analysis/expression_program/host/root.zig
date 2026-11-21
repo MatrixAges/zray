@@ -6,6 +6,7 @@ const Options = Expression.Options;
 const Result = @import("../../analyze.zig").Result;
 const generated = @import("generated_expression_analysis");
 const borrow = @import("../../../ir/canonical/borrow.zig");
+const diagnostic = @import("../../../frontend/diagnostic.zig");
 const Input = std.meta.Child(generated.Input);
 const Mode = @FieldType(Input, "mode");
 
@@ -92,11 +93,7 @@ fn execute(comptime mode: Mode, scratch: *std.heap.ArenaAllocator, allocator: st
         else => return reporter.fail(.contract, .{ .start = 0, .end = 0 }, try std.fmt.allocPrint(allocator, "internal compiler error: generated expression analysis failed with {s}", .{@errorName(err)})),
     };
 
-    if (output.diagnostic.message.len != 0) return reporter.fail(
-        std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), output.diagnostic.code) orelse unreachable,
-        .{ .start = @intCast(output.diagnostic.start), .end = @intCast(output.diagnostic.end) },
-        try allocator.dupe(u8, output.diagnostic.message),
-    );
+    if (output.diagnostic) |issue| return diagnostic.report(allocator, reporter, issue);
 
     return output;
 }

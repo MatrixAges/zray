@@ -12,6 +12,7 @@ const Inputs = @import("../../call_inputs.zig");
 const entry_source = @import("../../entry.zig");
 const workflow = @import("../schedule.zig");
 const Error = zx.Error;
+const generated = @import("rx_options").generated_graph;
 
 pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *const project.Options, cache: *frontend.project.ParseCache, inputs: *Inputs, frame: *Frame, issue: *?target.Diagnostic, check_signatures: bool) Error!void {
     var state: State = .{
@@ -31,19 +32,25 @@ pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *c
     defer state.paths.deinit(backing);
     defer if (state.entries.len != 0) backing.free(state.entries);
 
-    inline for (comptime workflow.steps(.Derive)) |step| switch (step) {
-        .PrepareModules => try state.modules(),
-        .CollectGraph => try state.graph(),
-        .OrderSignatures => state.entries = try source_graph.orderedRows(backing, &state.dependencies.?, .zx),
-        .ReadSignatures => try state.signatures(check_signatures),
-        .IndexSignatures => try state.index(),
-        .LoadStores => try state.stores(),
-        .PrepareFlow => try state.prepare(),
-        .SolveFlow => try @import("../solve/host.zig").run(&state),
-        .CompleteShortcuts => try preparation.completeShortcuts(allocator, state.prepared.?.modules, frame.resolved),
-        .PublishFrame => state.publish(),
-        else => unreachable,
-    };
+    if (comptime generated) {
+        const entry = @import("generated_rx_execute_derivation");
+        const input: std.meta.Child(entry.Input) = .{ .state = @ptrCast(&state), .retained = check_signatures };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        return entry.executeIn(empty.allocator(), &input) catch |err| workflow.errorSet(err);
+    }
+
+    try state.modules();
+    try state.graph();
+    try state.orderSignatures();
+    try state.signatures(check_signatures);
+    try state.index();
+    try state.stores();
+    try state.prepare();
+    try @import("../solve/host.zig").run(&state);
+    try state.completeShortcuts();
+
+    state.publish();
 }
 
 pub const State = struct {
@@ -167,6 +174,10 @@ pub const State = struct {
         self.signatures_data = result.value.data;
     }
 
+    fn orderSignatures(self: *State) std.mem.Allocator.Error!void {
+        self.entries = try source_graph.orderedRows(self.backing, &self.dependencies.?, .zx);
+    }
+
     fn index(self: *State) Error!void {
         self.backing.free(self.entries);
 
@@ -227,6 +238,10 @@ pub const State = struct {
         self.frame.signature_indices = self.indexed.?.indices;
     }
 
+    fn completeShortcuts(self: *State) Error!void {
+        return preparation.completeShortcuts(self.allocator, self.prepared.?.modules, self.frame.resolved);
+    }
+
     pub fn fail(self: *State, diagnostic: target.Diagnostic) Error {
         const value = try project.failure(self.allocator, diagnostic);
 
@@ -235,3 +250,47 @@ pub const State = struct {
         return error.InvalidSource;
     }
 };
+
+fn borrow(handle: *const anyopaque) *State {
+    return @ptrCast(@alignCast(@constCast(handle)));
+}
+
+pub fn prepareDerivedModules(handle: *const anyopaque) Error!void {
+    return borrow(handle).modules();
+}
+
+pub fn collectDerivedGraph(handle: *const anyopaque) Error!void {
+    return borrow(handle).graph();
+}
+
+pub fn orderDerivedSignatures(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    return borrow(handle).orderSignatures();
+}
+
+pub fn readDerivedSignatures(handle: *const anyopaque, retained: bool) Error!void {
+    return borrow(handle).signatures(retained);
+}
+
+pub fn indexDerivedSignatures(handle: *const anyopaque) Error!void {
+    return borrow(handle).index();
+}
+
+pub fn loadDerivedStores(handle: *const anyopaque) Error!void {
+    return borrow(handle).stores();
+}
+
+pub fn prepareDerivedFlow(handle: *const anyopaque) Error!void {
+    return borrow(handle).prepare();
+}
+
+pub fn solveDerivedFlow(handle: *const anyopaque) Error!void {
+    return @import("../solve/host.zig").run(borrow(handle));
+}
+
+pub fn completeDerivedShortcuts(handle: *const anyopaque) Error!void {
+    return borrow(handle).completeShortcuts();
+}
+
+pub fn publishDerivedFrame(handle: *const anyopaque) void {
+    borrow(handle).publish();
+}

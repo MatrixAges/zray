@@ -191,6 +191,31 @@ export declare function writeScalarText(
     value: string
 ): void throws { IndexOutOfBounds }
 
+export declare function writeScalarInteger(
+    target: WriteColumn,
+    index: u64,
+    value: u64,
+    negative: bool
+): void throws { IndexOutOfBounds }
+
+export declare function writeScalarFloat(
+    target: WriteColumn,
+    index: u64,
+    value: f64
+): void throws { IndexOutOfBounds }
+
+export declare function writeScalarBoolean(
+    target: WriteColumn,
+    index: u64,
+    value: bool
+): void throws { IndexOutOfBounds }
+
+export declare function writeScalarEnumeration(
+    target: WriteColumn,
+    index: u64,
+    value: u32
+): void throws { IndexOutOfBounds }
+
 export declare function readListOptionalU8(
     source: ListColumn,
     index: u64,

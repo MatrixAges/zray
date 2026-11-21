@@ -19,5 +19,5 @@ export type ModuleOutput = {
     output_type: u32
     output_ownership: Ownership
     type_only: bool
-    diagnostic: Diagnostic
+    diagnostic?: Diagnostic
 }

@@ -5,6 +5,7 @@ const Input = @import("input.zig");
 const model = @import("model.zig");
 const generated = @import("generated_analyzer");
 const borrow = @import("../../../ir/canonical/borrow.zig");
+const diagnostic = @import("../../../frontend/diagnostic.zig");
 
 pub fn analyze(analyzer: *Context, source: []const u8, syntax: anytype, file_name: []const u8) zx.Error!zx.ir.Program {
     var arena = zx.Arena.init(analyzer.allocator);
@@ -43,11 +44,7 @@ fn run(analyzer: *Context, arena: *zx.Arena, source: []const u8, syntax: @FieldT
         else => return analyzer.reporter.fail(.contract, .{ .start = 0, .end = 0 }, try std.fmt.allocPrint(analyzer.allocator, "internal compiler error: generated analyzer failed with {s}", .{@errorName(err)})),
     };
 
-    if (output.diagnostic.message.len != 0) return analyzer.reporter.fail(
-        std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), output.diagnostic.code) orelse unreachable,
-        .{ .start = @intCast(output.diagnostic.start), .end = @intCast(output.diagnostic.end) },
-        try analyzer.allocator.dupe(u8, output.diagnostic.message),
-    );
+    if (output.diagnostic) |issue| return diagnostic.report(analyzer.allocator, analyzer.reporter, issue);
 
-    return @import("publish.zig").apply(analyzer, output, file_name);
+    return @import("publish.zig").apply(analyzer, context.mode, output, file_name);
 }

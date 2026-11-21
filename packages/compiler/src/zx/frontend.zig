@@ -38,10 +38,14 @@ pub const isParallelSafeWithSuffix = @import("ir/parallel.zig").programPureWithS
 pub const analyzeWithContext = @import("analysis/analyze.zig").analyzeWithContext;
 pub const Context = @import("analysis/analyze.zig").Context;
 pub const project = @import("modules/project.zig");
+const analysis_publication = @import("analysis/analyzer/host/publish.zig");
 const project_walk = @import("modules/project/execution/load.zig");
 const project_body = @import("modules/project/execution/body.zig");
 const project_entry = @import("modules/project/execution/entry.zig");
-
+pub const initializeAnalysisTypes = analysis_publication.initializeAnalysisTypes;
+pub const appendAnalysisTypes = analysis_publication.appendAnalysisTypes;
+pub const publishAnalysisExports = analysis_publication.publishAnalysisExports;
+pub const publishAnalysisConstants = analysis_publication.publishAnalysisConstants;
 pub const openProjectFrame = project_walk.openProjectFrame;
 pub const readProjectFrame = project_walk.readProjectFrame;
 pub const suspendedProjectImport = project_walk.suspendedProjectImport;

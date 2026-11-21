@@ -90,6 +90,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host" },
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host" },
         .{ .path = b.fmt("{s}/zx/modules/project/execution/host.d.zx", .{directories[0]}), .module = "project_host" },
+        .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host" },
     };
 
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
@@ -403,7 +404,9 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .imports = &.{
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = source.execution.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip }) },
             .{ .name = "zxc_standard", .module = standard },
+            .{ .name = "zxc_string", .module = string },
             .{ .name = "memory", .module = memory },
+            .{ .name = memory_columns, .module = memory },
         },
     });
 

@@ -1,0 +1,15 @@
+<Module>
+    <Type from="frame" as="Frame" />
+
+    <Args in={Frame.Input} out={void} />
+
+    <Call fn="frame" in={$in} />
+
+    <Call
+        fn="contract"
+        in={{
+            state: $in.state,
+            reuse: $ctx.frame
+        }}
+    />
+</Module>

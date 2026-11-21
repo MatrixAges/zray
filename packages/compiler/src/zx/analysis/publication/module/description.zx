@@ -1,0 +1,14 @@
+import strings from "std:string"
+import host from "project_host"
+
+import type { Input as Publication } from "./model"
+
+export type Input = Publication.Pick("publication", "file_name")
+
+export type Output = string
+
+export default function (in: Input): Output {
+    host.publishAnalysisExports(in.publication)
+
+    return strings.copy(in.file_name)
+}

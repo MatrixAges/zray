@@ -1,0 +1,34 @@
+import strings from "std:string"
+import memory from "memory"
+
+import type { NamedColumns, NamedRowBuffer } from "memory"
+
+export type Input = {
+    source: NamedColumns,
+    count: u64,
+    target: NamedRowBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { source, count, target } = in
+
+    if (count == 0) {
+        return
+    }
+
+    memory.allocateNamedRows(target, count)
+
+    const written = loop(0, {
+        while: row => row < count,
+        next: row => {
+            const name = strings.copy(memory.readNamedColumnName(source, row))
+            const type_id = memory.readNamedColumnId(source, row)
+
+            memory.writeNamedRow(target, row, name, type_id)
+
+            row += 1
+        }
+    })
+}

@@ -1,4 +1,4 @@
-import type { Diagnostic as Input } from "../../lexer/model"
+import type { Diagnostic as Input } from "../lexer/model"
 
 export type Output = Input?
 

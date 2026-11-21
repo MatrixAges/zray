@@ -1,32 +1,9 @@
 export enum Phase {
-    FreshProject,
-    RetainedProject,
-    Derive,
-    Solve,
     Window,
     Finish
 }
 
 export enum Step {
-    NormalizeSources,
-    DeriveFrame,
-    CompileBodies,
-    PublishStores,
-    RestoreFrame,
-    RetainStores,
-    PrepareModules,
-    CollectGraph,
-    OrderSignatures,
-    ReadSignatures,
-    IndexSignatures,
-    LoadStores,
-    PrepareFlow,
-    SolveFlow,
-    CompleteShortcuts,
-    PublishFrame,
-    CollectConstraints,
-    FinishConstraints,
-    ResolveConstraints,
     PrepareWindow,
     RestorePrefix,
     DispatchBody,

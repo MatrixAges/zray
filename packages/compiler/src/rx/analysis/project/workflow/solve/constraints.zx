@@ -1,0 +1,13 @@
+import host from "rx_project_host"
+
+import type { Solver } from "rx_project_host"
+
+export type Input = Solver
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.collectFlowConstraints(in)
+    host.finishFlowConstraints(in)
+    host.resolveFlowConstraints(in)
+}
