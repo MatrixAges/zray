@@ -8,6 +8,7 @@ pub const ParserModules = struct {
     type_views: *std.Build.Module,
     nominal_data: *std.Build.Module,
     bindings: []const ModuleBinding,
+    ownership: *std.Build.Module,
     pub fn get(self: @This(), name: []const u8) *std.Build.Module {
         for (self.bindings) |binding| {
             if (std.mem.eql(u8, binding.metadata.entry.name, name)) return binding.module;
@@ -119,6 +120,11 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     if (parser) |generated| {
         genz.addImport("zxc_standard", generated.standard);
         module.addImport("zxc_standard", generated.standard);
+
+        if (!native_genz and rx_analysis) {
+            genz.addImport("ownership_abi", generated.ownership.import_table.get("zxc_abi").?);
+            generated.ownership.addImport("ownership_host", genz);
+        }
 
         for (generated.bindings) |binding| {
             if (binding.metadata.entry.owner == .compiler) module.addImport(binding.metadata.import_name, binding.module);

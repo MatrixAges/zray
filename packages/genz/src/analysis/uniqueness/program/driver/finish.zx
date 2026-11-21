@@ -1,0 +1,17 @@
+import host from "ownership_host"
+
+import type { Input as Execution } from "./model"
+
+export type Input = Execution & {
+    reused: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.releaseOwnership(in.frame)
+
+    if (in.recording && !in.reused) {
+        host.commitOwnership(in.frame)
+    }
+}

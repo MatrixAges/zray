@@ -1,0 +1,34 @@
+import host from "ownership_host"
+import { RoundKind, RoundOutcome } from "ownership_host"
+
+import round from "./round"
+
+import type { Execution as Input } from "ownership_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.openOwnership(in)
+
+    const converged = loop({
+        grew: true
+    }, {
+        while: state => state.grew,
+        next: state => {
+            const settled = round({
+                frame: in,
+                kind: RoundKind.Settle,
+                exhausted: false
+            })
+
+            const demanded = round({
+                frame: in,
+                kind: RoundKind.Demand,
+                exhausted: settled == RoundOutcome.Exhausted
+            })
+
+            state.grew = demanded == RoundOutcome.Grew
+        },
+        return: state => state.grew
+    })
+}

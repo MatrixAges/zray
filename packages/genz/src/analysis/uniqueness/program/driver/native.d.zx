@@ -1,0 +1,66 @@
+export type Execution = opaque
+
+export enum RoundKind {
+    Settle,
+    Demand,
+    Plan
+}
+
+export enum RoundOutcome {
+    Stable,
+    Grew,
+    Exhausted
+}
+
+export enum ReplayPhase {
+    Start,
+    Settled,
+    Demanded,
+    Planned,
+    Done,
+    Reject
+}
+
+export declare function openOwnership(in: Execution): void throws { OutOfMemory }
+
+export declare function releaseOwnership(in: Execution): void
+
+export declare function commitOwnership(in: Execution): void throws { OutOfMemory }
+
+export declare function beginOwnershipRound(
+    in: Execution,
+    kind: RoundKind,
+    exhausted: bool
+): void throws { OutOfMemory }
+
+export declare function claimOwnershipBody(
+    in: Execution,
+    kind: RoundKind
+): u64? throws { OutOfMemory }
+
+export declare function visitOwnershipBody(
+    in: Execution,
+    kind: RoundKind,
+    body: u64
+): void throws { OutOfMemory }
+
+export declare function finishOwnershipRound(in: Execution, publish: bool): void
+
+export declare function ownershipRoundOutcome(in: Execution): RoundOutcome
+
+export declare function beginOwnershipReplay(in: Execution): bool
+
+export declare function scanOwnershipReplay(
+    in: Execution,
+    phase: ReplayPhase,
+    recovered: u32?
+): ReplayPhase throws { OutOfMemory }
+
+export declare function recoverOwnershipVisit(
+    in: Execution,
+    phase: ReplayPhase
+): u32 throws { OutOfMemory }
+
+export declare function publishOwnershipReplay(in: Execution): void throws { OutOfMemory }
+
+export declare function finishOwnershipReplay(in: Execution): void

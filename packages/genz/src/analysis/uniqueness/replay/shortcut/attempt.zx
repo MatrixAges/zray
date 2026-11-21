@@ -1,0 +1,40 @@
+import host from "ownership_host"
+import { ReplayPhase } from "ownership_host"
+
+import type { Execution as Input } from "ownership_host"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    if (!host.beginOwnershipReplay(in)) {
+        return false
+    }
+
+    const recovered: u32? = null
+
+    const accepted = loop({
+        phase: ReplayPhase.Start,
+        recovered
+    }, {
+        while: state =>
+            state.phase != ReplayPhase.Done && state.phase != ReplayPhase.Reject,
+        next: state => {
+            const phase = host.scanOwnershipReplay(in, state.phase, state.recovered)
+
+            state.phase = phase
+
+            if (phase != ReplayPhase.Done && phase != ReplayPhase.Reject) {
+                state.recovered = host.recoverOwnershipVisit(in, phase)
+            }
+        },
+        return: state => state.phase == ReplayPhase.Done
+    })
+
+    if (accepted) {
+        host.publishOwnershipReplay(in)
+    }
+
+    host.finishOwnershipReplay(in)
+
+    return accepted
+}

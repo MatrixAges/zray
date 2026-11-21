@@ -1,58 +1,28 @@
 <Module>
-    <Type from="model" as="Program" />
+    <Type from="driver/model" as="Driver" />
 
-    <Args in={Program.Input} out={Program.Step} />
+    <Args in={Driver.Input} out={void} />
 
-    <If
-        on={$in.step == Program.Step.Demand ||
-            $in.step == Program.Step.ConservativeDemand}
-    >
-        <If on={$in.condition}>
-            <Return value={Program.Step.Settle} />
-        </If>
+    <Call fn="../replay/shortcut/attempt" in={$in.frame} />
 
-        <Return value={Program.Step.Plan} />
+    <If on={!$ctx.attempt}>
+        <Call fn="driver/converge" in={$in.frame} />
+
+        <Call
+            fn="driver/round"
+            in={{
+                frame: $in.frame,
+                kind: Driver.Kind.Plan,
+                exhausted: false
+            }}
+        />
     </If>
 
-    <Switch on={$in.step}>
-        <Case value={Program.Step.Start}>
-            <If on={$in.condition}>
-                <Return value={Program.Step.Replay} />
-            </If>
-
-            <Return value={Program.Step.Open} />
-        </Case>
-
-        <Case value={Program.Step.Replay}>
-            <If on={$in.condition}>
-                <Return value={Program.Step.ReleaseReused} />
-            </If>
-
-            <Return value={Program.Step.Open} />
-        </Case>
-
-        <Case value={Program.Step.Open}>
-            <Return value={Program.Step.Settle} />
-        </Case>
-
-        <Case value={Program.Step.Settle}>
-            <If on={$in.condition}>
-                <Return value={Program.Step.ConservativeDemand} />
-            </If>
-
-            <Return value={Program.Step.Demand} />
-        </Case>
-
-        <Case value={Program.Step.Plan}>
-            <Return value={Program.Step.Release} />
-        </Case>
-
-        <Case value={Program.Step.Release}>
-            <If on={$in.condition}>
-                <Return value={Program.Step.Commit} />
-            </If>
-        </Case>
-    </Switch>
-
-    <Return value={Program.Step.Done} />
+    <Call
+        fn="driver/finish"
+        in={{
+            ...$in,
+            reused: $ctx.attempt
+        }}
+    />
 </Module>

@@ -2,7 +2,9 @@ const std = @import("std");
 const entries = @import("entries.zig");
 const memory_columns = "memory/columns";
 const lexical_path = "lexical_path";
-pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, body_view: std.Build.LazyPath, host: std.Build.LazyPath };
+const ownership_interface = "analysis/uniqueness/program/driver/native.d.zx";
+
+pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, ownership: std.Build.LazyPath, host: std.Build.LazyPath };
 
 pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []const u8, partitions: u32, executable: *std.Build.Step.Compile) Sources {
     const target = b.graph.host;
@@ -75,8 +77,12 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/zx/modules/path/lexical.d.zx", .{directories[0]}), .module = lexical_path },
     };
 
+    const ownership_interfaces = interfaces ++ [_]manifest.Interface{
+        .{ .path = b.fmt("{s}/{s}", .{ directories[3], ownership_interface }), .module = "ownership_host" },
+    };
+
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.
-    for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .collections, .growth, .body_view, .host }) |set| {
+    for ([_]entries.Set{ .main, .checks, .constant_seed, .snapshot_seed, .partition_seed, .collections, .growth, .ownership, .host }) |set| {
         const run = generatorRun(b, executable, stage0);
 
         const project = manifest.Project{
@@ -94,12 +100,16 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                     .path = b.fmt("{s}/analysis/iteration/transfer/history", .{directories[3]}),
                     .prefix = "genz/analysis/iteration/transfer/history/",
                 } },
-                .growth, .body_view, .host => manifest_roots[2..],
+                .growth, .ownership, .host => manifest_roots[2..],
                 else => &manifest_roots,
             },
             .entries = entries.of(set),
             .packages = @import("source_packages.zig").entries,
-            .interfaces = if (set == .main) &main_interfaces else &interfaces,
+            .interfaces = switch (set) {
+                .main => &main_interfaces,
+                .ownership => &ownership_interfaces,
+                else => &interfaces,
+            },
         };
 
         const content = std.json.Stringify.valueAlloc(b.allocator, project, .{}) catch @panic("out of memory");
@@ -128,7 +138,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 addSources(run, tracked[2]);
                 inline for (collection_roots) |path| addSubtree(run, tracked[3], path);
             },
-            .body_view => {
+            .ownership => {
+                run.addFileInput(roots[3].path(b, ownership_interface));
                 addSources(run, tracked[2]);
                 addSubtree(run, tracked[3], "analysis/uniqueness");
             },
@@ -165,7 +176,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 .checks => sources.checks = directory,
                 .collections => sources.collections = directory,
                 .growth => sources.growth = directory,
-                .body_view => sources.body_view = directory,
+                .ownership => sources.ownership = directory,
                 .host => sources.host = directory,
                 .constant_seed, .snapshot_seed, .partition_seed => unreachable,
             }
@@ -247,7 +258,7 @@ fn lessThan(_: void, left: []const u8, right: []const u8) bool {
 /// layout of Zig's own types only agrees within one backend, and only Apple's linker turns them into a runnable
 /// executable on macOS; artifacts that cannot meet both keep `objects`. Each set compiles only when an artifact uses it.
 /// They come as one directory holding `zxc_partition_<n>.o` for each partition.
-pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Module, collections: *std.Build.Module, growth: *std.Build.Module, body_view: *std.Build.Module, objects: ?*std.Build.Module, self_hosted_objects: ?std.Build.LazyPath };
+pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Module, collections: *std.Build.Module, growth: *std.Build.Module, ownership: *std.Build.Module, objects: ?*std.Build.Module, self_hosted_objects: ?std.Build.LazyPath };
 
 pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, source: Sources, strip: ?bool, partitions: u32) Shared {
     const abi = b.createModule(.{ .root_source_file = source.main.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
@@ -370,19 +381,19 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         },
     });
 
-    const body_view = b.createModule(.{
-        .root_source_file = source.body_view.path(b, "root.zig"),
+    const ownership = b.createModule(.{
+        .root_source_file = source.ownership.path(b, "root.zig"),
         .target = target,
         .optimize = optimize,
         .strip = strip,
         .imports = &.{
-            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = source.body_view.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip }) },
+            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = source.ownership.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip }) },
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "memory", .module = memory },
         },
     });
 
-    return .{ .generated = generated, .checks = check_modules, .collections = collections, .growth = growth, .body_view = body_view, .objects = objects, .self_hosted_objects = self_hosted_objects };
+    return .{ .generated = generated, .checks = check_modules, .collections = collections, .growth = growth, .ownership = ownership, .objects = objects, .self_hosted_objects = self_hosted_objects };
 }
 
 /// Each partition is its own compilation unit; final artifacts link them by importing the returned module.
@@ -490,7 +501,7 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             .main => source.main,
             .collections => source.collections,
             .growth => source.growth,
-            .body_view => source.body_view,
+            .ownership => source.ownership,
             .host => source.host,
             else => unreachable,
         };
@@ -499,7 +510,7 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             .main => natives.generated,
             .collections => natives.collections,
             .growth => natives.growth,
-            .body_view => natives.body_view,
+            .ownership => natives.ownership,
             .host => host,
             else => unreachable,
         };
@@ -520,6 +531,7 @@ pub fn modules(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
         .type_views = type_views,
         .nominal_data = nominal_data,
         .bindings = bindings,
+        .ownership = natives.ownership,
         .standard = natives.generated.import_table.get("zxc_standard").?,
         .host_metadata = @import("host_metadata.zig").create(b, source.host),
     };

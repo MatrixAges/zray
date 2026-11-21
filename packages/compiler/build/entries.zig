@@ -15,7 +15,7 @@ pub const Entry = struct {
     }
 };
 
-pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, collections, growth, body_view, host };
+pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, collections, growth, ownership, host };
 const constant_fold = Entry{ .path = "zx/analysis/constants/evaluate.rx", .name = "constant_fold" };
 const input_snapshot = Entry{ .path = "inputs/snapshot/reuse.rx", .name = "input_snapshot", .owner = .compiler };
 const partition_groups = Entry{ .path = "genz/analysis/partition/plan.rx", .name = "partition_groups", .owner = .genz };
@@ -645,7 +645,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/uniqueness/memo/disk/write/run.rx", .name = "uniqueness_memo_write", .owner = .genz },
     partition_groups,
     .{ .path = "genz/analysis/uniqueness/work/round/prepare.rx", .name = "uniqueness_prepare_round", .owner = .genz },
-    .{ .path = "genz/analysis/uniqueness/program/run.rx", .name = "uniqueness_program", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/intake/run.rx", .name = "uniqueness_visit_intake", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/sequence.rx", .name = "uniqueness_visit_sequence", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/visit/demand.rx", .name = "uniqueness_visit_demand", .owner = .genz },
@@ -1030,7 +1029,8 @@ pub const collections = [_]Entry{
     .{ .path = "genz/analysis/members/remove_many.zx", .name = "members_remove_many", .owner = .genz },
 };
 
-pub const body_view = [_]Entry{
+pub const ownership = [_]Entry{
+    .{ .path = "genz/analysis/uniqueness/program/run.rx", .name = "uniqueness_program", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/visit/context.zx", .name = "uniqueness_body_view", .owner = .genz },
 };
 
@@ -1084,7 +1084,7 @@ pub fn of(set: Set) []const Entry {
         .checks => &checks,
         .collections => &collections,
         .growth => &growth,
-        .body_view => &body_view,
+        .ownership => &ownership,
         .host => &host,
         .constant_seed => &.{constant_fold},
         .snapshot_seed => &.{input_snapshot},
@@ -1102,7 +1102,7 @@ pub const ModuleEntry = struct {
 pub const module_entries = block: {
     @setEvalBranchQuota(10_000);
 
-    const sets = .{ Set.main, Set.collections, Set.growth, Set.body_view, Set.host };
+    const sets = .{ Set.main, Set.collections, Set.growth, Set.ownership, Set.host };
     var count: usize = 0;
 
     for (sets) |set| {
