@@ -17,6 +17,7 @@ export type NamedRowBuffer = opaque
 
 export type Allocator = opaque
 export type Arena = opaque
+export type ScratchArena = opaque
 export type ArenaScope = opaque
 export type TextColumn = opaque
 export type ReadColumn = opaque
@@ -42,6 +43,8 @@ export declare function sha256FramedInto(
 export declare function resetArena(
     arena: Arena
 ): void throws { OutOfMemory }
+
+export declare function rewindScratchArena(arena: ScratchArena): void
 
 export declare function selectArena(scope: ArenaScope, arena: Arena): void
 

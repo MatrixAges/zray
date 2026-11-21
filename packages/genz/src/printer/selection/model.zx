@@ -1,0 +1,20 @@
+import type { ByteWriter, ScratchArena } from "memory"
+import type { ReadColumn } from "memory/columns"
+import type { Source } from "../model"
+
+export type Destination = {
+    source: Source,
+    writer: ByteWriter,
+    scratch: ScratchArena
+}
+
+export type Ranges = {
+    starts: ReadColumn,
+    lengths: ReadColumn,
+    count: u64
+}
+
+export type SourceSelection = Destination & {
+    ranges?: Ranges,
+    indices?: u32[]
+}

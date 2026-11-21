@@ -1,0 +1,27 @@
+import memory from "memory"
+
+import walk from "../walk"
+
+import type { Destination } from "./model"
+
+export type Input = Destination & {
+    row: u32
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    walk({
+        source: {
+            ...in.source,
+            first: in.row,
+            count: 1
+        },
+        stack: [],
+        output: in.writer,
+        depth: 0,
+        next: 0
+    })
+
+    memory.rewindScratchArena(in.scratch)
+}

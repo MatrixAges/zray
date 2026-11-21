@@ -1,0 +1,38 @@
+import columns from "memory/columns"
+
+import one from "./one"
+
+import type { Destination, Ranges } from "./model"
+
+export type Input = {
+    target: Destination,
+    ranges: Ranges
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, ranges } = in
+
+    const rendered = loop(0, {
+        while: index => index < ranges.count,
+        next: index => {
+            const first = columns.readColumnU32(ranges.starts, index)
+            const count = columns.readColumnU32(ranges.lengths, index)
+
+            const range = loop(first, {
+                while: row => row - first < count,
+                next: row => {
+                    one({
+                        ...target,
+                        row
+                    })
+
+                    row += 1
+                }
+            })
+
+            index += 1
+        }
+    })
+}

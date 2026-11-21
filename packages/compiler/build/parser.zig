@@ -79,6 +79,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host" },
         .{ .path = b.fmt("{s}/zx/modules/project/execution/host.d.zx", .{directories[0]}), .module = "project_host" },
         .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host" },
+        .{ .path = b.fmt("{s}/backends/zig/library_entries/host.d.zx", .{directories[0]}), .module = "output_host" },
     };
 
     // Each entry set runs as its own step, so builds that never import the checks do not generate them.

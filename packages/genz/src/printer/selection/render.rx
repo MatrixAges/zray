@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Printer" />
+
+    <Args in={Printer.SourceSelection} out={bool} />
+
+    <If on={$in.ranges != null}>
+        <Call
+            fn="ranges"
+            in={{
+                target: $in.pick([
+                    "source",
+                    "writer",
+                    "scratch"
+                ]),
+                ranges: $in.ranges
+            }}
+        />
+
+        <Return value={true} />
+    </If>
+
+    <If on={$in.indices != null}>
+        <Call
+            fn="indices"
+            in={{
+                target: $in.pick([
+                    "source",
+                    "writer",
+                    "scratch"
+                ]),
+                indices: $in.indices
+            }}
+        />
+
+        <Return value={$ctx.indices} />
+    </If>
+
+    <Return value={true} />
+</Module>

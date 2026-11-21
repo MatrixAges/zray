@@ -55,10 +55,8 @@ fn renderStored(allocator: std.mem.Allocator, options: Options) std.mem.Allocato
 
     for (0..boundary.len) |index| try roots.append(builder.allocator, boundary.start + @as(u32, @intCast(index)));
 
-    const selected = builder.nodes.selectDeclarations(builder.allocator, roots.items) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
+    return @import("../render.zig").renderIndices(allocator, builder.nodes, roots.items) catch |err| switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
         error.InvalidAst => @panic("invalid Gateway declaration roots"),
     };
-
-    return @import("../render.zig").renderStored(allocator, builder.nodes, selected);
 }

@@ -106,51 +106,10 @@ fn create(allocator: std.mem.Allocator, output: std.mem.Allocator, library: *con
     var prepared_library = library.*;
     prepared_library.program = program;
 
-    // Each export reenters the analysis with its own entry plan; their entries, the types and every needed function
-    // are then generated together on all cores.
-    const public_modules = try owned.alloc(PublicModule, library.exports.len);
-    const public_batches = try workspace.alloc(modules.Batch, library.exports.len);
-    var member_first: usize = 0;
-
-    for (library.exports, publication.ends, public_modules, public_batches, 0..) |*exported, end, *public_module, *public_batch, index| {
-        const view = if (file_imports)
-            try @import("library_entry.zig").create(owned, &prepared_library, index)
-        else
-            try prepared_library.module(index);
-
-        const member_end: usize = @intCast(end);
-        const members = publication.members[member_first..member_end];
-        const member_ids = publication.member_ids[member_first..member_end];
-        public_batch.* = batch;
-        public_batch.program = view;
-        public_batch.public_members = members;
-
-        try public_batch.analysis.value.reentry(owned, allocator, view);
-
-        const imports = try references.imports(owned, allocator, view.expressions, view.contracts, identities.functions, member_ids);
-        const published = try @import("publication/identity.zig").create(owned, .Public, exported.name);
-
-        public_module.* = .{
-            .name = published.identity,
-            .value_entry = public_batch.analysis.value.hasValueEntry(),
-            .state_entry = public_batch.analysis.value.hasStateEntry(view),
-            .allocator_entry = public_batch.analysis.value.hasAllocatorEntry(),
-            .requirements = .{ .io = public_batch.analysis.value.entry_flags.io, .process = public_batch.analysis.value.entry_flags.process },
-            .file = .{
-                .name = published.module,
-                .source = &.{},
-                .imports = imports,
-            },
-        };
-
-        member_first = member_end;
-    }
-
-    const entry_roots = try workspace.alloc(*const @import("zx").ir.Program, public_batches.len);
-
-    for (entry_roots, public_batches) |*entry, *public_batch| entry.* = &public_batch.program;
-
-    const graph = try references.plan(workspace, allocator, program.functions, entry_roots, publication.member_ids);
+    const entries = try @import("library_entries.zig").create(owned, workspace, &prepared_library, &batch, publication, file_imports);
+    const public_modules = entries.modules;
+    const public_batches = entries.batches;
+    const graph = try references.plan(workspace, allocator, program.functions, entries.roots, publication.member_ids);
     const units = try @import("function_units.zig").create(workspace, graph, publication.regular);
     const generated = try @import("function_sources.zig").createJobs(owned, .{ .batch = &batch, .entries = public_batches, .types = true, .functions = units });
     @import("library_publication.zig").complete(library.exports, program.type_only, public_modules, generated[0..public_batches.len]);

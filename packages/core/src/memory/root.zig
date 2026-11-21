@@ -2,6 +2,7 @@ const std = @import("std");
 const sha256 = @import("sha256.zig");
 pub const sha256Into = sha256.into;
 pub const sha256FramedInto = sha256.framedInto;
+pub const ScratchArena = @import("arena.zig");
 pub const ArenaScope = @import("arena_scope.zig");
 pub const selectArena = ArenaScope.select;
 pub const selectAllocator = ArenaScope.selectAllocator;
@@ -89,6 +90,12 @@ pub fn resetArenaRetainingCapacity(source: *const anyopaque) bool {
     const arena: *std.heap.ArenaAllocator = @ptrCast(@alignCast(@constCast(source)));
 
     return arena.reset(.retain_capacity);
+}
+
+pub fn rewindScratchArena(source: *const anyopaque) void {
+    const arena: *ScratchArena = @ptrCast(@alignCast(@constCast(source)));
+
+    arena.rewindRetainingCapacity(.{ .chunk = null, .end = 0 });
 }
 
 pub inline fn stringViews(source: *const anyopaque) []const []const u8 {

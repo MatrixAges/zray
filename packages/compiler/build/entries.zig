@@ -602,6 +602,7 @@ pub const main = [_]Entry{
     .{ .path = "lint/imports/order/compare.rx", .name = "import_order", .owner = .lint },
     .{ .path = "lint/configuration/yaml/gap/resolve.rx", .name = "yaml_gap", .owner = .lint },
     .{ .path = "genz/printer/render.rx", .name = "printer", .owner = .genz },
+    .{ .path = "genz/printer/selection/render.rx", .name = "printer_selection", .owner = .genz },
     .{ .path = "genz/analysis/facts/analyze.rx", .name = "function_facts", .owner = .genz },
     .{ .path = "genz/analysis/value/input_aliases/analyze.rx", .name = "input_aliases", .owner = .genz },
     .{ .path = "genz/analysis/value/projections/analyze.rx", .name = "value_projections", .owner = .genz },
@@ -1016,6 +1017,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "backends/zig/library_entries/publish.zx", .name = "library_publish_entries", .owner = .compiler },
     .{ .path = "rx/analysis/project/mixed/history/prefix/advance.zx", .name = "rx_mixed_history_advance", .owner = .rx_analysis },
     .{ .path = "zx/frontend/retention/order.zx", .name = "parser_publish_orders" },
     .{ .path = "zx/analysis/publication/module/publish.rx", .name = "analysis_publish_module" },
@@ -1077,6 +1079,7 @@ pub const host = [_]Entry{
     .{ .path = "genz/analysis/host/metadata/catalog/build.rx", .name = "host_catalog", .owner = .genz },
     .{ .path = "genz/analysis/host/metadata/resources/build.rx", .name = "host_resources", .owner = .genz },
     .{ .path = "genz/printer/render.rx", .name = "printer", .owner = .genz },
+    .{ .path = "genz/printer/selection/render.rx", .name = "printer_selection", .owner = .genz },
     .{ .path = "genz/analysis/partition/cache/prefix.zx", .name = "partition_cache_prefix" },
     .{ .path = "genz/analysis/partition/cache/external.zx", .name = "partition_cache_external" },
     .{ .path = "genz/analysis/partition/cache/external_order.zx", .name = "partition_cache_external_order" },

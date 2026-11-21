@@ -122,6 +122,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     if (parser) |generated| {
         genz.addImport("zxc_standard", generated.standard);
         module.addImport("zxc_standard", generated.standard);
+        generated.execution.addImport("output_host", module);
 
         if (!native_genz and rx_analysis) {
             genz.addImport("execution_abi", generated.execution.import_table.get("zxc_abi").?);
