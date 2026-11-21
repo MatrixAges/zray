@@ -1,0 +1,89 @@
+const std = @import("std");
+const zx = @import("zx");
+const Graph = @import("../graph.zig");
+const Value = @import("../terms.zig").Value;
+const entry = @import("generated_select_symbolic_value");
+const native = @import("output_execution_abi").layouts.@"zig:verification_host";
+const generated = @import("parser_options").generated_parser;
+const Source = if (generated) native.SymbolicValue else anyopaque;
+const Target = if (generated) native.SymbolicTarget else anyopaque;
+
+const Frame = struct {
+    graph: *Graph,
+    program: *const zx.ir.Program,
+    span: zx.Span,
+};
+
+pub fn select(graph: *Graph, program: *const zx.ir.Program, type_id: zx.ir.TypeId, condition: []const u8, yes: *const Value, no: *const Value, span: zx.Span) zx.Error!Value {
+    const Request = std.meta.Child(entry.Input);
+    const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Request, "types")), program.types);
+    const frame: Frame = .{ .graph = graph, .program = program, .span = span };
+    var result: Value = undefined;
+
+    const input: Request = .{
+        .graph = @ptrCast(&frame),
+        .types = &types,
+        .type_id = @backingInt(type_id),
+        .condition = condition,
+        .yes = @ptrCast(yes),
+        .no = @ptrCast(no),
+        .result = @ptrCast(&result),
+    };
+
+    const valid = entry.executeIn(graph.allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.InvalidSource => return error.InvalidSource,
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    if (!valid) return error.InvalidSource;
+
+    return result;
+}
+
+pub fn symbolicText(handle: *const anyopaque) ?[]const u8 {
+    const value = read(handle);
+
+    return if (value.* == .scalar) value.scalar else null;
+}
+
+pub fn symbolicFieldCount(handle: *const anyopaque) u64 {
+    return read(handle).fields.len;
+}
+
+pub fn sameSymbolicFields(left: *const anyopaque, right: *const anyopaque) bool {
+    return read(left).fields.ptr == read(right).fields.ptr;
+}
+
+pub fn symbolicField(handle: *const anyopaque, index: u64) *const Source {
+    return @ptrCast(&read(handle).fields[@intCast(index)]);
+}
+
+pub fn targetSymbolicField(handle: *const anyopaque, index: u64) *const Target {
+    return @ptrCast(&read(handle).fields[@intCast(index)]);
+}
+
+pub fn reuseSymbolicFields(target: *const anyopaque, source: *const anyopaque) void {
+    write(target).* = read(source).*;
+}
+
+pub fn reserveSymbolicFields(graph: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!void {
+    const frame: *const Frame = @ptrCast(@alignCast(graph));
+    const fields = try frame.graph.allocator.alloc(Value, @intCast(count));
+
+    write(target).* = .{ .fields = fields };
+}
+
+pub fn publishSymbolicText(graph: *const anyopaque, target: *const anyopaque, type_id: u32, text: []const u8) zx.Error!void {
+    const frame: *const Frame = @ptrCast(@alignCast(graph));
+
+    write(target).* = try frame.graph.retain(frame.program.*, @fromBackingInt(type_id), .{ .scalar = text }, frame.span);
+}
+
+fn read(handle: *const anyopaque) *const Value {
+    return @ptrCast(@alignCast(handle));
+}
+
+fn write(handle: *const anyopaque) *Value {
+    return @constCast(read(handle));
+}

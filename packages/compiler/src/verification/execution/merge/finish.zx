@@ -1,0 +1,22 @@
+import host from "verification_host"
+
+import conjunction from "../../scalar/conjunction"
+
+import type { SymbolicSession } from "verification_host"
+
+export type Input = {
+    target: SymbolicSession,
+    returned: string,
+    safe: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const checked = conjunction({
+        left: in.safe,
+        right: in.returned
+    })
+
+    return host.bindSymbolicBoolean(in.target, checked)
+}

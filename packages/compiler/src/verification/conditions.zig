@@ -7,6 +7,8 @@ const Expressions = @import("expressions.zig");
 const Value = terms.Value;
 const Self = @This();
 const Graph = @import("graph.zig");
+const generated = @import("parser_options").generated_parser;
+const execution = @import("execution/context.zig");
 
 allocator: std.mem.Allocator,
 scratch: *zx.Arena,
@@ -40,21 +42,7 @@ pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.m
     if (self.program.type_only or self.program.stores.count() != 0) return self.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification requires an executable pure function without Store capabilities");
 
     self.input = try self.parameter(self.program.input_type, "in", result_allocator, .verification);
-
-    var precondition: []const u8 = "true";
-
-    for (0..self.program.contracts.count()) |contract_index| {
-        const contract = self.program.contracts.at(contract_index);
-
-        if (contract.kind != .requires) continue;
-
-        const evaluated = try self.evaluateContract(contract, null);
-
-        try self.require(precondition, evaluated.safe);
-
-        precondition = try self.conjunction(precondition, try self.conjunction(evaluated.safe, evaluated.value.scalar));
-    }
-
+    const precondition = try self.preconditions(.entry);
     // Terms only refer to earlier definitions. The body cannot add dependencies to the precondition.
     const precondition_count = self.graph.?.definitions.len;
     const environment = try self.scratch.allocator().alloc(?Value, self.program.symbols.count());
@@ -258,7 +246,7 @@ fn parallel(self: *Self, evaluator: *Expressions, invocations: @FieldType(ir.Sta
     return joined_path;
 }
 
-fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Error!terms.Evaluation {
+pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Error!terms.Evaluation {
     const checkpoint = self.scratch.checkpoint();
 
     defer self.scratch.rewindRetainingCapacity(checkpoint);
@@ -279,7 +267,39 @@ fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Error!t
     return evaluator.evaluate(clause.predicate);
 }
 
+const Boundary = enum { entry, called };
+
+fn preconditions(self: *Self, comptime boundary: Boundary) zx.Error![]const u8 {
+    if (comptime generated) return execution.apply(self, if (boundary == .entry) .Entry else .Called, "true", null);
+
+    var path: []const u8 = "true";
+
+    for (0..self.program.contracts.count()) |contract_index| {
+        const clause = self.program.contracts.at(contract_index);
+
+        if (clause.kind != .requires) continue;
+
+        const evaluated = try self.evaluateContract(clause, null);
+
+        if (boundary == .entry) try self.require(path, evaluated.safe);
+
+        const valid = try self.conjunction(evaluated.safe, evaluated.value.scalar);
+
+        if (boundary == .called) try self.require(path, valid);
+
+        path = try self.conjunction(path, valid);
+    }
+
+    return path;
+}
+
 fn postconditions(self: *Self, path: []const u8, value: Value) zx.Error!void {
+    if (comptime generated) {
+        _ = try execution.apply(self, .Returned, path, value);
+
+        return;
+    }
+
     var remaining = path;
 
     for (0..self.program.contracts.count()) |contract_index| {
@@ -315,7 +335,7 @@ fn disjunction(self: *Self, left: []const u8, right: []const u8) zx.Error![]cons
     return self.boolean(try terms.connect(self.allocator, .Or, left, right));
 }
 
-fn boolean(self: *Self, value: []const u8) zx.Error![]const u8 {
+pub fn boolean(self: *Self, value: []const u8) zx.Error![]const u8 {
     return self.graph.?.bind(value, 0, .{ .file_name = self.program.file_name, .span = .{ .start = 0, .end = 0 } });
 }
 
@@ -334,21 +354,7 @@ pub fn call(self: *Self) zx.Error!terms.Evaluation {
 
     defer self.scratch.rewindRetainingCapacity(checkpoint);
 
-    var path: []const u8 = "true";
-
-    for (0..self.program.contracts.count()) |contract_index| {
-        const contract = self.program.contracts.at(contract_index);
-
-        if (contract.kind != .requires) continue;
-
-        const evaluated = try self.evaluateContract(contract, null);
-        const valid = try self.conjunction(evaluated.safe, evaluated.value.scalar);
-
-        try self.require(path, valid);
-
-        path = try self.conjunction(path, valid);
-    }
-
+    const path = try self.preconditions(.called);
     const environment = try self.scratch.allocator().alloc(?Value, self.program.symbols.count());
 
     @memset(environment, null);
@@ -365,6 +371,7 @@ pub fn call(self: *Self) zx.Error!terms.Evaluation {
     }
 
     if (self.returns.items.len == 0) return self.reporter.fail(.contract, .{ .start = 0, .end = 0 }, "verified call has no return value");
+    if (comptime generated) return execution.merge(self);
 
     var value = self.returns.items[0].value;
     var returned: []const u8 = "false";

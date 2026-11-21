@@ -147,6 +147,8 @@ pub fn retain(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, input:
 }
 
 pub fn select(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, condition: []const u8, yes: terms.Value, no: terms.Value, span: zx.Span) zx.Error!terms.Value {
+    if (comptime generated) return @import("graph/selection.zig").select(self, &program, type_id, condition, &yes, &no, span);
+
     if (yes == .scalar and no == .scalar) {
         const selected = try terms.choose(self.allocator, condition, yes.scalar, no.scalar);
 

@@ -1,0 +1,7 @@
+import type { SymbolicSession } from "verification_host"
+
+export type Input = {
+    target: SymbolicSession,
+    returns: u64,
+    violations: string[]
+}

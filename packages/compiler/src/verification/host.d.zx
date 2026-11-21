@@ -1,0 +1,50 @@
+export type SelectionGraph = opaque
+
+export type SymbolicValue = opaque
+
+export type SymbolicTarget = opaque
+
+export type SymbolicSession = opaque
+
+export type ClauseTerm = {
+    safe: string,
+    predicate: string
+}
+
+export declare function symbolicText(value: SymbolicValue): string?
+
+export declare function symbolicFieldCount(value: SymbolicValue): u64
+
+export declare function sameSymbolicFields(left: SymbolicValue, right: SymbolicValue): bool
+
+export declare function symbolicField(value: SymbolicValue, index: u64): SymbolicValue
+
+export declare function targetSymbolicField(value: SymbolicTarget, index: u64): SymbolicTarget
+
+export declare function reuseSymbolicFields(target: SymbolicTarget, source: SymbolicValue): void
+
+export declare function reserveSymbolicFields(
+    graph: SelectionGraph,
+    target: SymbolicTarget,
+    count: u64
+): void throws { OutOfMemory }
+
+export declare function publishSymbolicText(
+    graph: SelectionGraph,
+    target: SymbolicTarget,
+    type_id: u32,
+    text: string
+): void throws { OutOfMemory, InvalidSource }
+
+
+export declare function evaluateClause(session: SymbolicSession, row: u64): ClauseTerm
+    throws { OutOfMemory, InvalidSource }
+
+export declare function bindSymbolicBoolean(session: SymbolicSession, term: string): string
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishClauseViolation(session: SymbolicSession, term: string): void
+    throws { OutOfMemory }
+
+export declare function selectSymbolicReturn(session: SymbolicSession, row: u64): string
+    throws { OutOfMemory, InvalidSource }

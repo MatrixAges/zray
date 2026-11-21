@@ -1,0 +1,74 @@
+import memory from "memory"
+import host from "verification_host"
+
+import conjunction from "../scalar/conjunction"
+import require from "./require"
+
+import type { ContractKind as Kind } from "core/contract_table/model"
+import type { StringBuffer } from "memory"
+import type { SymbolicSession } from "verification_host"
+
+export enum Mode {
+    Entry,
+    Called,
+    Returned
+}
+
+export type Input = {
+    session: SymbolicSession,
+    kinds: Kind[],
+    selected: Kind,
+    path: string[],
+    path_slot: StringBuffer,
+    mode: Mode
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return loop(0, {
+        while: row => row < in.kinds.length,
+        next: row => {
+            const { session, kinds, selected, mode } = in
+
+            if (kinds[row] == selected) {
+                const path = in.path[0]
+                const clause = host.evaluateClause(session, row)
+                const only_safety = mode == Mode.Entry
+
+                if (only_safety) {
+                    require({
+                        session,
+                        path,
+                        predicate: clause.safe
+                    })
+                }
+
+                const checked = conjunction({
+                    left: clause.safe,
+                    right: clause.predicate
+                })
+                const valid = host.bindSymbolicBoolean(session, checked)
+
+                if (!only_safety) {
+                    require({
+                        session,
+                        path,
+                        predicate: valid
+                    })
+                }
+
+                const combined = conjunction({
+                    left: path,
+                    right: valid
+                })
+                const next = host.bindSymbolicBoolean(session, combined)
+
+                memory.writeString(in.path_slot, 0, next)
+            }
+
+            row += 1
+        },
+        return: row => in.path[0]
+    })
+}

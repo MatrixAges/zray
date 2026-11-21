@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Merge" />
+
+    <Args in={Merge.Input} out={string} />
+
+    <Call fn="returns" in={$in} />
+    <Call fn="safety" in={$in} />
+
+    <Call
+        fn="finish"
+        in={{
+            target: $in.target,
+            returned: $ctx.returns,
+            safe: $ctx.safety
+        }}
+    />
+
+    <Return value={$ctx.finish} />
+</Module>

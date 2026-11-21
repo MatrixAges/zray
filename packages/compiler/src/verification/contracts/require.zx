@@ -1,0 +1,29 @@
+import host from "verification_host"
+
+import exclude from "../predicate/exclude"
+import { smt_false } from "../scalar/const"
+
+import type { SymbolicSession } from "verification_host"
+
+export type Input = {
+    session: SymbolicSession,
+    path: string,
+    predicate: string
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { session, path, predicate } = in
+
+    const unsafe = exclude({
+        left: path,
+        right: predicate
+    })
+
+    const obligation = host.bindSymbolicBoolean(session, unsafe)
+
+    if (obligation != smt_false) {
+        host.publishClauseViolation(session, obligation)
+    }
+}
