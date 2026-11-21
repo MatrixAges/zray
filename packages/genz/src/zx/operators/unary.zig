@@ -6,15 +6,14 @@ const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const Operator = std.meta.Child(@FieldType(ir.ExpressionTable, "unary_operators"));
 
-pub fn lower(self: *Lower, operator: Operator, operand: ir.ExprId) Lower.Error!node.ExpressionId {
+pub fn emit(self: *Lower, operator: Operator, operand: node.ExpressionId) Lower.Error!node.ExpressionId {
     const generated = @import("generated_unary_emit");
     const Input = std.meta.Child(generated.Input);
     const Output = std.meta.Child(generated.Output);
 
     comptime view.compatible(Operator, @FieldType(Input, "operator"));
 
-    const operands = try @import("../expressions/operands.zig").evaluate(self, .Single, &.{operand});
-    const input: Input = .{ .operator = @fromBackingInt(@intCast(@backingInt(operator))), .operand = @backingInt(operands[0]) };
+    const input: Input = .{ .operator = @fromBackingInt(@intCast(@backingInt(operator))), .operand = @backingInt(operand) };
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.FixedBufferAllocator.init(&buffer);
     const output = try zx.columns.invoke(generated.executeValue, memory.allocator(), @as(*const Input, &input));

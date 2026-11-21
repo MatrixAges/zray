@@ -1,34 +1,17 @@
-import type { Action } from "../dispatch"
-
-export enum Step {
-    Type,
-    OptionalType,
-    Operand,
-    TupleResult,
-    RawMember,
-    Anchor,
-    RawList,
-    List,
-    Items,
-    Key,
-    Optional,
-    Reference,
-    Member,
-    Index,
-    Length
-}
+import type { Lowering, ReadAction } from "lowering_host"
 
 export type Input = {
-    action: Action,
-    iteration: bool
+    frame: Lowering,
+    row: u32,
+    action: ReadAction,
+    iteration: bool,
+    type_id: u32,
+    result_type?: u32,
+    operand?: u32,
+    detail?: u32
 }
 
 export type Columns = {
     operand?: string,
-    index?: string,
-    items: string
-}
-
-export type Output = Columns & {
-    steps: Step[]
+    index?: string
 }

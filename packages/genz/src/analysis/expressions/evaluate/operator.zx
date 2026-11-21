@@ -1,0 +1,32 @@
+import host from "lowering_host"
+
+import binary from "./binary"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    id: u32,
+    binary: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, id } = in
+
+    const first = host.readOperatorOperand(frame, id, false)
+
+    if (in.binary) {
+        return binary({
+            frame,
+            operator: host.readBinaryOperator(frame, id),
+            left_ir: first,
+            right_ir: host.readOperatorOperand(frame, id, true)
+        })
+    }
+
+    const value = host.lowerExpression(frame, first, false, null)
+
+    return host.writeUnary(frame, id, value)
+}

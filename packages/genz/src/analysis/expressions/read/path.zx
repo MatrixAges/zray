@@ -1,0 +1,60 @@
+import host from "lowering_host"
+
+import segment from "./segment"
+
+import type { Lowering } from "lowering_host"
+import type { Path } from "../../access/projection/model"
+
+export type Input = Path & {
+    frame: Lowering
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { frame, anchor, fields, keys, starts, ends } = in
+
+    if (anchor == null) {
+        return null
+    }
+
+    const base = match {
+        in.managed => host.readList(frame, anchor),
+        _ => host.readAnchor(frame, anchor)
+    }
+
+    const root = match {
+        in.first_key == null => base,
+        _ => segment({
+            frame,
+            value: base,
+            fields,
+            start: in.first_start,
+            end: in.first_end,
+            key: in.first_key
+        })
+    }
+
+    const value = loop({
+        node: root,
+        position: keys.length
+    }, {
+        while: state => state.position != 0,
+        next: state => {
+            const position = state.position - 1
+
+            state.node = segment({
+                frame,
+                value: state.node,
+                fields,
+                start: starts[position],
+                end: ends[position],
+                key: keys[position]
+            })
+            state.position = position
+        },
+        return: state => state.node
+    })
+
+    return host.readFieldPath(frame, value, fields, 0, in.prefix)
+}

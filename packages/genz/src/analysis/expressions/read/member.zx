@@ -1,0 +1,39 @@
+import host from "lowering_host"
+import { ReadAction } from "lowering_host"
+
+import type { Input as Read } from "./model"
+
+export type Input = Read.Pick("frame", "row", "action", "iteration") & {
+    operand: u32,
+    index: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, operand, index, row, iteration } = in
+
+    if (in.action == ReadAction.TupleField) {
+        const previous = host.readTupleResult(frame, operand, index)
+
+        if (previous != null) {
+            return previous
+        }
+    }
+
+    if (iteration) {
+        const source = host.lowerExpression(frame, operand, false, null)
+
+        return host.readMember(frame, row, source, false, true)
+    }
+
+    const raw = host.readRawMember(frame, operand)
+
+    if (raw != null) {
+        return host.readMember(frame, row, raw, true, false)
+    }
+
+    const source = host.readAnchor(frame, operand)
+
+    return host.readMember(frame, row, source, false, false)
+}

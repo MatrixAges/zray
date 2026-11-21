@@ -15,7 +15,7 @@ pub const Entry = struct {
     }
 };
 
-pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, collections, growth, ownership, host };
+pub const Set = enum { main, checks, constant_seed, snapshot_seed, partition_seed, collections, growth, execution, host };
 const constant_fold = Entry{ .path = "zx/analysis/constants/evaluate.rx", .name = "constant_fold" };
 const input_snapshot = Entry{ .path = "inputs/snapshot/reuse.rx", .name = "input_snapshot", .owner = .compiler };
 const partition_groups = Entry{ .path = "genz/analysis/partition/plan.rx", .name = "partition_groups", .owner = .genz };
@@ -690,9 +690,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/operators/unary.zx", .name = "unary_emit", .owner = .genz },
     .{ .path = "genz/analysis/selection/labels/analyze.rx", .name = "selection_labels", .owner = .genz },
     .{ .path = "genz/analysis/selection/conditional.zx", .name = "conditional_emit", .owner = .genz },
-    .{ .path = "genz/analysis/expressions/operands.zx", .name = "expression_operands", .owner = .genz },
-    .{ .path = "genz/analysis/expressions/dispatch.zx", .name = "expression_dispatch", .owner = .genz },
-    .{ .path = "genz/analysis/expressions/read/plan.rx", .name = "expression_read", .owner = .genz },
     .{ .path = "genz/analysis/match/prepare.zx", .name = "match_prepare", .owner = .genz },
     .{ .path = "genz/analysis/match/plan.rx", .name = "match_plan", .owner = .genz },
     .{ .path = "genz/analysis/match/emit.rx", .name = "match_emit", .owner = .genz },
@@ -1029,7 +1026,14 @@ pub const collections = [_]Entry{
     .{ .path = "genz/analysis/members/remove_many.zx", .name = "members_remove_many", .owner = .genz },
 };
 
-pub const ownership = [_]Entry{
+pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/expressions/evaluate/regular.zx", .name = "lower_regular", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/evaluate/value.zx", .name = "lower_value", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/evaluate/iteration.zx", .name = "lower_iteration", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/evaluate/binary.zx", .name = "lower_binary", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/read/evaluate.zx", .name = "lower_read", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/read/path.zx", .name = "lower_projection_path", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/read/columns.zx", .name = "lower_read_columns", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/run.rx", .name = "uniqueness_program", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/visit/context.zx", .name = "uniqueness_body_view", .owner = .genz },
 };
@@ -1084,7 +1088,7 @@ pub fn of(set: Set) []const Entry {
         .checks => &checks,
         .collections => &collections,
         .growth => &growth,
-        .ownership => &ownership,
+        .execution => &execution,
         .host => &host,
         .constant_seed => &.{constant_fold},
         .snapshot_seed => &.{input_snapshot},
@@ -1102,7 +1106,7 @@ pub const ModuleEntry = struct {
 pub const module_entries = block: {
     @setEvalBranchQuota(10_000);
 
-    const sets = .{ Set.main, Set.collections, Set.growth, Set.ownership, Set.host };
+    const sets = .{ Set.main, Set.collections, Set.growth, Set.execution, Set.host };
     var count: usize = 0;
 
     for (sets) |set| {

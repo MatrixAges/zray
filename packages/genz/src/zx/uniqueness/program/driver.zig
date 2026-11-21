@@ -4,7 +4,7 @@ const Result = @import("../root.zig").Result;
 const Round = @import("driver/round.zig");
 const Replay = @import("../replay/shortcut/frame.zig");
 const program = @import("generated_uniqueness_program");
-pub const Api = @import("ownership_abi").layouts.@"zig:ownership_host";
+pub const Api = @import("execution_abi").layouts.@"zig:ownership_host";
 const Error = std.mem.Allocator.Error;
 const Self = @This();
 

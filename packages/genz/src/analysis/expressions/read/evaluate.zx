@@ -1,0 +1,70 @@
+import host from "lowering_host"
+import { ReadAction } from "lowering_host"
+
+import list from "./list"
+import member from "./member"
+
+import type { Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, action, iteration, type_id } = in
+
+    if (action == ReadAction.Empty) {
+        const result_type = host.lowerType(frame, type_id, true)
+
+        return host.readOptional(frame, result_type, null)
+    }
+
+    const operand = in.operand ?? host.invalidLowering()
+
+    switch (action) {
+        case ReadAction.Wrap:
+            const result_type = match {
+                iteration => host.lowerType(frame, type_id, true),
+                _ => in.result_type ?? host.invalidLowering()
+            }
+
+            const value = host.lowerExpression(frame, operand, false, null)
+
+            return host.readOptional(frame, result_type, value)
+        case ReadAction.Unwrap:
+            const value = host.lowerExpression(frame, operand, false, null)
+
+            return host.readOptional(frame, null, value)
+        case ReadAction.Reference: return host.readReference(
+            frame,
+            operand,
+            type_id,
+            iteration
+        )
+        case ReadAction.Field:
+            return member({
+                frame,
+                row: in.row,
+                action,
+                iteration,
+                operand,
+                index: in.detail ?? host.invalidLowering()
+            })
+        case ReadAction.TupleField:
+            return member({
+                frame,
+                row: in.row,
+                action,
+                iteration,
+                operand,
+                index: in.detail ?? host.invalidLowering()
+            })
+        case ReadAction.Index: return list({
+            ...in,
+            operand
+        })
+        case ReadAction.Length: return list({
+            ...in,
+            operand
+        })
+        case ReadAction.Empty: return host.invalidLowering()
+    }
+}

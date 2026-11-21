@@ -3,71 +3,121 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const Iteration = @import("../iteration_value/root.zig");
-const Action = @import("generated_expression_dispatch").Output;
-const entry = @import("generated_expression_read");
+const evaluate = @import("evaluate.zig");
+const borrow = evaluate.borrow;
+const Action = evaluate.Api.ReadAction;
+const emitter = @import("generated_lower_read");
+const layout = @import("generated_lower_read_columns");
 const projection = @import("../access/projection/read.zig");
 const path = @import("../access/projection/path.zig");
 const emit = @import("../access/emit.zig");
 const list = @import("../state_value/list.zig");
+const Error = Lower.Error;
+const Input = std.meta.Child(emitter.Input);
 
-pub fn lower(self: *Lower, row: u32, type_id: ir.TypeId, comptime action: Action, comptime iteration: bool, context: if (iteration) *Iteration else node.ExpressionId) Lower.Error!node.ExpressionId {
-    const request = comptime plan(action, iteration);
+pub fn lowerRead(frame: *const anyopaque, row: u32, action: Action, iteration: bool, result_type: ?u32) Error!u32 {
+    const self = borrow(frame);
     const table = &self.program.expressions;
-    const payload = if (comptime request.operand != null) table.payloads[row] else undefined;
-    const operand: ir.ExprId = if (comptime request.operand) |column| @fromBackingInt(@field(table, column)[payload]) else undefined;
-    const detail = if (comptime request.index) |column| @field(table, column)[payload] else undefined;
-    const is_member = action == .Field or action == .TupleField;
-    const target_type: ir.TypeId = if (is_member) @fromBackingInt(table.types[@backingInt(operand)]) else undefined;
-    var source: ?node.ExpressionId = null;
-    var result_type: ?node.ExpressionId = null;
-    var key: node.ExpressionId = undefined;
-    var raw = false;
 
-    inline for (request.steps) |step| switch (step) {
-        .Type => result_type = if (iteration) try self.typeExpr(type_id) else context,
-        .OptionalType => result_type = if (iteration) try @import("../iteration_value/types.zig").get(context, type_id) else context,
-        .Operand => source = try self.expr(operand),
-        .TupleResult => if (try @import("../collections.zig").projection(self, operand, detail)) |value| return value,
-        .RawMember => {
-            if (@import("../access/projection/rules.zig").raw(self, target_type, false)) source = try path.lower(self, operand);
-
-            raw = source != null;
-        },
-        .Anchor => if (source == null) {
-            source = try path.anchor(self, operand);
-        },
-        .RawList => {
-            source = try path.nested(self, operand);
-            raw = source != null;
-        },
-        .List => if (source == null) {
-            source = try list.expression(self, operand);
-        },
-        .Items => source = try emit.field(self, source.?, request.items),
-        .Key => key = try self.expr(@fromBackingInt(detail)),
-        .Optional => return emit.optional(self, result_type, source),
-        .Reference => return @import("../access/reference.zig").lowerMode(self, @fromBackingInt(@backingInt(operand)), type_id, iteration),
-        .Member => return projection.resolvedMember(self, type_id, target_type, .{ .target = operand, .index = detail }, source.?, raw, action == .TupleField, iteration),
-        .Index => {
-            const value = try @import("../intrinsics.zig").index(self, source.?, key);
-
-            return if (iteration) value else projection.resolvedIndex(self, type_id, operand, value, raw);
-        },
-        .Length => return emit.length(self, source.?, result_type.?, iteration),
+    const input: Input = switch (action) {
+        inline else => |kind| bound(table, frame, row, kind, iteration, result_type),
     };
 
-    unreachable;
+    return @backingInt(try evaluate.invoke(emitter, &input));
 }
 
-fn plan(comptime action: Action, comptime iteration: bool) @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {
-    @setEvalBranchQuota(120_000);
+fn bound(table: *const ir.ExpressionTable, frame: *const anyopaque, row: u32, comptime action: Action, iteration: bool, result_type: ?u32) Input {
+    const columns = comptime columnsFor(action);
+    const payload = table.payloads[row];
 
-    var buffer: [4096]u8 = undefined;
-    var memory = std.heap.FixedBufferAllocator.init(&buffer);
-    const request = entry.executeValue(memory.allocator(), &.{ .action = action, .iteration = iteration }) catch unreachable;
+    return .{
+        .frame = @ptrCast(frame),
+        .row = row,
+        .action = action,
+        .iteration = iteration,
+        .type_id = table.types[row],
+        .result_type = result_type,
+        .operand = if (columns.operand) |field| @field(table, field)[payload] else null,
+        .detail = if (columns.index) |field| @field(table, field)[payload] else null,
+    };
+}
 
-    if (request.steps.len == 0) @compileError("Missing recursive expression recipe");
+fn columnsFor(comptime action: Action) @typeInfo(@typeInfo(@TypeOf(layout.executeValue)).@"fn".return_type.?).error_union.payload {
+    @setEvalBranchQuota(50_000);
 
-    return request;
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return layout.executeValue(empty.allocator(), action) catch unreachable;
+}
+
+pub fn readOptional(frame: *const anyopaque, result_type: ?u32, value: ?u32) Error!u32 {
+    const cast = if (result_type) |id| @as(node.ExpressionId, @fromBackingInt(id)) else null;
+    const source = if (value) |id| @as(node.ExpressionId, @fromBackingInt(id)) else null;
+
+    return @backingInt(try emit.optional(borrow(frame), cast, source));
+}
+
+pub fn readReference(frame: *const anyopaque, symbol: u32, result_type: u32, iteration: bool) Error!u32 {
+    return @backingInt(try @import("../access/reference.zig").lowerMode(borrow(frame), @fromBackingInt(symbol), @fromBackingInt(result_type), iteration));
+}
+
+pub fn readTupleResult(frame: *const anyopaque, operand: u32, index: u32) Error!?u32 {
+    const value = try @import("../collections.zig").projection(borrow(frame), @fromBackingInt(operand), index);
+
+    return if (value) |id| @backingInt(id) else null;
+}
+
+pub fn readRawMember(frame: *const anyopaque, operand: u32) Error!?u32 {
+    const self = borrow(frame);
+    const type_id: ir.TypeId = @fromBackingInt(self.program.expressions.types[operand]);
+
+    if (!@import("../access/projection/rules.zig").raw(self, type_id, false)) return null;
+
+    const value = try path.lower(self, @fromBackingInt(operand));
+
+    return if (value) |id| @backingInt(id) else null;
+}
+
+pub fn readAnchor(frame: *const anyopaque, operand: u32) Error!u32 {
+    return @backingInt(try path.anchor(borrow(frame), @fromBackingInt(operand)));
+}
+
+pub fn readMember(frame: *const anyopaque, row: u32, source: u32, raw: bool, iteration: bool) Error!u32 {
+    const self = borrow(frame);
+    const table = &self.program.expressions;
+    const payload = table.payloads[row];
+    const target = table.projection_targets[payload];
+    const item: ir.Projection = .{ .target = @fromBackingInt(target), .index = table.projection_indices[payload] };
+
+    return @backingInt(try projection.resolvedMember(self, @fromBackingInt(table.types[row]), @fromBackingInt(table.types[target]), item, @fromBackingInt(source), raw, table.kinds[row] == .TupleField, iteration));
+}
+
+pub fn readRawList(frame: *const anyopaque, operand: u32) Error!?u32 {
+    const value = try path.nested(borrow(frame), @fromBackingInt(operand));
+
+    return if (value) |id| @backingInt(id) else null;
+}
+
+pub fn readList(frame: *const anyopaque, operand: u32) Error!u32 {
+    return @backingInt(try list.expression(borrow(frame), @fromBackingInt(operand)));
+}
+
+pub fn readField(frame: *const anyopaque, source: u32, name: []const u8) Error!u32 {
+    return @backingInt(try emit.field(borrow(frame), @fromBackingInt(source), name));
+}
+
+pub fn readIndex(frame: *const anyopaque, source: u32, key: u32) Error!u32 {
+    return @backingInt(try @import("../intrinsics.zig").index(borrow(frame), @fromBackingInt(source), @fromBackingInt(key)));
+}
+
+pub fn readIndexResult(frame: *const anyopaque, result_type: u32, operand: u32, value: u32, raw: bool) Error!u32 {
+    return @backingInt(try projection.resolvedIndex(borrow(frame), @fromBackingInt(result_type), @fromBackingInt(operand), @fromBackingInt(value), raw));
+}
+
+pub fn readLength(frame: *const anyopaque, source: u32, result_type: u32, iteration: bool) Error!u32 {
+    return @backingInt(try emit.length(borrow(frame), @fromBackingInt(source), @fromBackingInt(result_type), iteration));
+}
+
+pub fn readFieldPath(frame: *const anyopaque, source: u32, fields: []const []const u8, start: u64, end: u64) Error!u32 {
+    return @backingInt(try emit.fieldPath(borrow(frame), @fromBackingInt(source), fields[@intCast(start)..@intCast(end)]));
 }

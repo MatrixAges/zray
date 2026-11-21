@@ -4,7 +4,6 @@ const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const rules = @import("rules.zig");
-const emit = @import("../emit.zig");
 
 pub fn nested(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
     const type_id: ir.TypeId = @fromBackingInt(self.program.expressions.types[@backingInt(id)]);
@@ -56,25 +55,29 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
         else => unreachable,
     };
 
-    const base: ir.ExprId = @fromBackingInt(plan.anchor orelse return null);
-    var value = if (plan.managed) try @import("../../state_value/list.zig").expression(self, base) else try anchor(self, base);
+    const evaluation = @import("generated_lower_projection_path");
+    const Path = std.meta.Child(evaluation.Input);
 
-    if (plan.first_key) |key| {
-        value = try segment(self, value, plan.fields[plan.first_start..plan.first_end], key);
-    }
+    const walk: Path = .{
+        .frame = @ptrCast(self),
+        .anchor = plan.anchor,
+        .fields = plan.fields,
+        .keys = plan.keys,
+        .starts = plan.starts,
+        .ends = plan.ends,
+        .first_key = plan.first_key,
+        .first_start = plan.first_start,
+        .first_end = plan.first_end,
+        .prefix = plan.prefix,
+        .managed = plan.managed,
+    };
 
-    var keys = std.mem.reverseIterator(plan.keys);
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    while (keys.next()) |key| {
-        const index = keys.index;
-        value = try segment(self, value, plan.fields[plan.starts[index]..plan.ends[index]], key);
-    }
+    const result = evaluation.executeIn(empty.allocator(), &walk) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.IndexOutOfBounds => unreachable,
+    };
 
-    return try emit.fieldPath(self, value, plan.fields[0..plan.prefix]);
-}
-
-fn segment(self: *Lower, base: node.ExpressionId, fields: []const []const u8, key: u32) Lower.Error!node.ExpressionId {
-    const value = try emit.fieldPath(self, base, fields);
-
-    return @import("../../intrinsics.zig").index(self, value, try self.expr(@fromBackingInt(key)));
+    return if (result) |value| @fromBackingInt(value) else null;
 }

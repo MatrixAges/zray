@@ -1,0 +1,84 @@
+import { ExpressionKind } from "core/expression_table/kinds"
+import host from "lowering_host"
+import { ReadAction, Representation } from "lowering_host"
+
+import conditional from "./conditional"
+import operator from "./operator"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    id: u32,
+    kind: ExpressionKind,
+    type_id: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, id, kind, type_id } = in
+
+    const result_type = host.lowerType(frame, type_id, false)
+
+    return match kind {
+        ExpressionKind.Some =>
+            host.lowerRead(frame, id, ReadAction.Wrap, false, result_type),
+        ExpressionKind.OptionalValue =>
+            host.lowerRead(frame, id, ReadAction.Unwrap, false, result_type),
+        ExpressionKind.Reference =>
+            host.lowerRead(frame, id, ReadAction.Reference, false, result_type),
+        ExpressionKind.Field =>
+            host.lowerRead(frame, id, ReadAction.Field, false, result_type),
+        ExpressionKind.TupleField =>
+            host.lowerRead(frame, id, ReadAction.TupleField, false, result_type),
+        ExpressionKind.Index =>
+            host.lowerRead(frame, id, ReadAction.Index, false, result_type),
+        ExpressionKind.Length =>
+            host.lowerRead(frame, id, ReadAction.Length, false, result_type),
+        ExpressionKind.StoreGet => host.lowerStore(frame, id),
+        ExpressionKind.Task => host.lowerTask(frame, id),
+        ExpressionKind.AwaitTask => host.lowerWait(frame, id),
+        ExpressionKind.CancelTask => host.lowerCancel(frame, id),
+        ExpressionKind.Parallel => host.lowerParallel(frame, id),
+        ExpressionKind.Capture => host.lowerCapture(frame, id, false),
+        ExpressionKind.Unary => operator({
+            frame,
+            id,
+            binary: false
+        }),
+        ExpressionKind.Binary => operator({
+            frame,
+            id,
+            binary: true
+        }),
+        ExpressionKind.Conditional => conditional({
+            frame,
+            id,
+            value: false
+        }),
+        ExpressionKind.Match => host.lowerMatch(frame, id, false),
+        ExpressionKind.Object => host.lowerAggregate(frame, id, Representation.Regular),
+        ExpressionKind.List => host.lowerAggregate(frame, id, Representation.Regular),
+        ExpressionKind.Tuple => host.lowerAggregate(frame, id, Representation.Regular),
+        ExpressionKind.Template =>
+            host.lowerAggregate(frame, id, Representation.Regular),
+        ExpressionKind.ListOperation =>
+            host.lowerCollection(frame, id, Representation.Regular),
+        ExpressionKind.Transform => host.lowerTransform(frame, id),
+        ExpressionKind.Scope => host.lowerScope(frame, id, Representation.Regular),
+        ExpressionKind.Iteration => host.lowerIteration(frame, id, false),
+        ExpressionKind.ListUpdate => host.lowerUpdate(frame, id, false),
+        ExpressionKind.Call => host.lowerCall(frame, id, Representation.Regular, false),
+        ExpressionKind.Integer => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.NegativeInteger => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.Float => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.String => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.Boolean => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.None => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.Unit => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.EnumValue => host.lowerLiteral(frame, id, result_type),
+        ExpressionKind.ErrorValue => host.lowerLiteral(frame, id, result_type),
+        _ => host.invalidLowering()
+    }
+}

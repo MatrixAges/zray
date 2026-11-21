@@ -6,7 +6,15 @@ const view = @import("../../node/view.zig");
 const rows = @import("../../node/import_rows.zig");
 const Lower = @import("../lower.zig");
 
-pub fn lower(self: *Lower, operator: anytype, left: ir.ExprId, right: ir.ExprId) Lower.Error!node.ExpressionId {
+pub const Operands = struct {
+    left_ir: ir.ExprId,
+    right_ir: ir.ExprId,
+    left: node.ExpressionId,
+    right: node.ExpressionId,
+    type_expr: node.ExpressionId,
+};
+
+pub fn emit(self: *Lower, operator: anytype, operands: Operands) Lower.Error!node.ExpressionId {
     const generated = @import("generated_binary_emit");
     const Input = std.meta.Child(generated.Input);
     const Output = std.meta.Child(generated.Output);
@@ -14,7 +22,6 @@ pub fn lower(self: *Lower, operator: anytype, left: ir.ExprId, right: ir.ExprId)
 
     comptime view.compatible(@TypeOf(operator), @FieldType(Input, "operator"));
 
-    const operands = try @import("../expressions/operands.zig").evaluate(self, .Binary, &.{ left, right });
     const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), self.program.types);
 
@@ -22,11 +29,11 @@ pub fn lower(self: *Lower, operator: anytype, left: ir.ExprId, right: ir.ExprId)
         .expressions = &expressions,
         .types = &types,
         .operator = @fromBackingInt(@intCast(@backingInt(operator))),
-        .left_ir = @backingInt(left),
-        .right_ir = @backingInt(right),
-        .left = @backingInt(operands[0]),
-        .right = @backingInt(operands[1]),
-        .type_expr = @backingInt(operands[2]),
+        .left_ir = @backingInt(operands.left_ir),
+        .right_ir = @backingInt(operands.right_ir),
+        .left = @backingInt(operands.left),
+        .right = @backingInt(operands.right),
+        .type_expr = @backingInt(operands.type_expr),
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
         .serial = self.serial,

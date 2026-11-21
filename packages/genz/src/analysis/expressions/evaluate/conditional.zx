@@ -1,0 +1,33 @@
+import host from "lowering_host"
+import { ConditionalPart } from "lowering_host"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    id: u32,
+    value: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, id } = in
+
+    const test = host.readConditionalOperand(frame, id, ConditionalPart.Condition)
+    const yes = host.readConditionalOperand(frame, id, ConditionalPart.Yes)
+    const no = host.readConditionalOperand(frame, id, ConditionalPart.No)
+    const condition = host.lowerExpression(frame, test, false, null)
+
+    if (in.value) {
+        const accepted = host.lowerValueExpression(frame, yes)
+        const declined = host.lowerValueExpression(frame, no)
+
+        return host.writeConditional(frame, condition, accepted, declined)
+    }
+
+    const accepted = host.lowerExpression(frame, yes, false, null)
+    const declined = host.lowerExpression(frame, no, false, null)
+
+    return host.writeConditional(frame, condition, accepted, declined)
+}

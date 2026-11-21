@@ -11,7 +11,6 @@ const emission = @import("emission.zig");
 const conversion = @import("../state_value/conversion.zig");
 const workflow = @import("generated_call_workflow");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const Probe = @import("../expression_map.zig").Probe;
 pub const analysis = @import("analysis.zig");
 pub const functions = analysis.functions;
 pub const containsDescendant = analysis.containsDescendant;
@@ -19,29 +18,7 @@ pub const containsDescendant = analysis.containsDescendant;
 pub fn expression(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     if (!generated) return seed.expression(self, id);
 
-    const selected = policy.dispatch(self, id);
-    const probe: Probe = .{ .checked = selected.probe.checked, .value = selected.probe.value };
-
-    switch (selected.route) {
-        .Value => return self.exprWithCache(id, probe),
-        .Dereference => return emission.emit(self, null, .{ .value = try self.exprWithCache(id, probe) }),
-        .Object => return aggregate.objectValue(self, id),
-        else => {},
-    }
-
-    const value = self.program.expression(id);
-
-    return switch (selected.route) {
-        .Capture => @import("../capture.zig").lowerValue(self, value.type_id, value.value.capture),
-        .Tuple => @import("../aggregate/sequence.zig").lower(self, id, value, value.value.tuple, true),
-        .Collection => @import("../collections.zig").lowerValue(self, id, try self.layoutExpr(value.type_id)),
-        .Scope => @import("../scope.zig").lowerValue(self, value.value.scope),
-        .Iteration => @import("../iteration.zig").lowerValue(self, id, value.value.iteration),
-        .Match => @import("../match.zig").lowerValue(self, value.value.match_expr),
-        .Conditional => @import("../selection/conditional.zig").lowerValue(self, value.value.conditional),
-        .Invocation => invocation(self, value.value.call),
-        .Value, .Dereference, .Object => unreachable,
-    };
+    return @import("../expressions/evaluate.zig").value(self, id);
 }
 
 pub fn invocation(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {

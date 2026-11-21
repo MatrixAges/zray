@@ -1,0 +1,62 @@
+import host from "lowering_host"
+import { Representation } from "lowering_host"
+
+import { Expression } from "../../value/call/model"
+import conditional from "./conditional"
+
+import type { Lowering } from "lowering_host"
+import type { DispatchResult } from "../../value/call/model"
+
+export type Input = DispatchResult & {
+    frame: Lowering,
+    id: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, id, probe } = in
+
+    switch (in.route) {
+        case Expression.Value: return host.lowerExpression(
+            frame,
+            id,
+            probe.checked,
+            probe.value
+        )
+        case Expression.Dereference:
+            const value = host.lowerExpression(frame, id, probe.checked, probe.value)
+
+            return host.lowerDereference(frame, value)
+        case Expression.Object: return host.lowerAggregate(
+            frame,
+            id,
+            Representation.Value
+        )
+        case Expression.Capture: return host.lowerCapture(frame, id, true)
+        case Expression.Tuple: return host.lowerAggregate(
+            frame,
+            id,
+            Representation.Value
+        )
+        case Expression.Collection: return host.lowerCollection(
+            frame,
+            id,
+            Representation.Value
+        )
+        case Expression.Scope: return host.lowerScope(frame, id, Representation.Value)
+        case Expression.Iteration: return host.lowerIteration(frame, id, true)
+        case Expression.Match: return host.lowerMatch(frame, id, true)
+        case Expression.Conditional: return conditional({
+            frame,
+            id,
+            value: true
+        })
+        case Expression.Invocation: return host.lowerCall(
+            frame,
+            id,
+            Representation.Value,
+            true
+        )
+    }
+}

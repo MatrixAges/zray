@@ -306,7 +306,7 @@ pub fn regularWithCache(self: *Self, id: ir.ExprId, probe: Probe) Error!node.Exp
 }
 
 fn lowerUncached(self: *Self, id: ir.ExprId) Error!node.ExpressionId {
-    if (generated) return @import("expressions/dispatch.zig").lower(self, id);
+    if (generated) return @import("expressions/evaluate.zig").regular(self, id);
 
     const value = self.program.expression(id);
     const value_type = try self.typeExpr(value.type_id);
@@ -364,9 +364,9 @@ pub fn requestFunction(self: *Self, id: ir.FunctionId, variant: @import("functio
 }
 
 pub fn binary(self: *Self, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "binary")) Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("operators/seed.zig").binary(self, value);
+    if (generated) return @import("expressions/evaluate.zig").binary(self, value);
 
-    return @import("operators/binary.zig").lower(self, value.operator, value.left, value.right);
+    return @import("operators/seed.zig").binary(self, value);
 }
 
 /// The type expression of `id` in the current representation.

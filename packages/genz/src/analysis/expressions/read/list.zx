@@ -1,0 +1,51 @@
+import host from "lowering_host"
+import { ReadAction } from "lowering_host"
+
+import { items_field } from "../../iteration/types/const"
+
+import type { Input as Read } from "./model"
+
+export type Input = Read.Omit("operand") & {
+    operand: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, operand, iteration } = in
+
+    if (in.action == ReadAction.Length) {
+        const result_type = match {
+            iteration => host.lowerType(frame, in.type_id, false),
+            _ => in.result_type ?? host.invalidLowering()
+        }
+
+        if (iteration) {
+            const value = host.lowerExpression(frame, operand, false, null)
+
+            return host.readLength(frame, value, result_type, true)
+        }
+
+        const raw = host.readRawList(frame, operand)
+        const value = raw ?? host.readList(frame, operand)
+
+        return host.readLength(frame, value, result_type, false)
+    }
+
+    const key = in.detail ?? host.invalidLowering()
+
+    if (iteration) {
+        const target = host.lowerExpression(frame, operand, false, null)
+        const items = host.readField(frame, target, items_field)
+        const position = host.lowerExpression(frame, key, false, null)
+
+        return host.readIndex(frame, items, position)
+    }
+
+    const raw = host.readRawList(frame, operand)
+    const target = raw ?? host.readList(frame, operand)
+    const position = host.lowerExpression(frame, key, false, null)
+    const value = host.readIndex(frame, target, position)
+
+    return host.readIndexResult(frame, in.type_id, operand, value, raw != null)
+}

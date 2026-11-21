@@ -1,0 +1,31 @@
+import host from "lowering_host"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    operator: u8,
+    left_ir: u32,
+    right_ir: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, operator, left_ir, right_ir } = in
+
+    const left = host.lowerExpression(frame, left_ir, false, null)
+    const right = host.lowerExpression(frame, right_ir, false, null)
+    const type_id = host.readExpressionType(frame, left_ir)
+    const operand_type = host.lowerType(frame, type_id, false)
+
+    return host.writeBinary(
+        frame,
+        operator,
+        left_ir,
+        right_ir,
+        left,
+        right,
+        operand_type
+    )
+}

@@ -1,0 +1,172 @@
+export type Lowering = opaque
+
+export enum Representation {
+    Regular,
+    Value,
+    Iteration
+}
+
+export enum ReadAction {
+    Empty,
+    Wrap,
+    Unwrap,
+    Reference,
+    Field,
+    TupleField,
+    Index,
+    Length
+}
+
+export enum ConditionalPart {
+    Condition,
+    Yes,
+    No
+}
+
+export declare function lowerExpression(
+    frame: Lowering,
+    id: u32,
+    checked: bool,
+    cached: u32?
+): u32 throws { OutOfMemory }
+
+export declare function lowerRegular(
+    frame: Lowering,
+    id: u32,
+    checked: bool,
+    cached: u32?
+): u32 throws { OutOfMemory }
+
+export declare function lowerValueExpression(frame: Lowering, id: u32): u32
+    throws { OutOfMemory }
+
+export declare function lowerType(
+    frame: Lowering,
+    id: u32,
+    iteration: bool
+): u32 throws { OutOfMemory }
+
+export declare function lowerRead(
+    frame: Lowering,
+    id: u32,
+    action: ReadAction,
+    iteration: bool,
+    result_type: u32?
+): u32 throws { OutOfMemory }
+
+export declare function lowerLiteral(
+    frame: Lowering,
+    id: u32,
+    result_type: u32
+): u32 throws { OutOfMemory }
+
+export declare function lowerStore(frame: Lowering, id: u32): u32 throws { OutOfMemory }
+
+export declare function lowerTask(frame: Lowering, id: u32): u32 throws { OutOfMemory }
+
+export declare function lowerWait(frame: Lowering, id: u32): u32 throws { OutOfMemory }
+
+export declare function lowerCancel(frame: Lowering, id: u32): u32 throws { OutOfMemory }
+
+export declare function lowerParallel(frame: Lowering, id: u32): u32 throws { OutOfMemory }
+
+export declare function lowerCapture(
+    frame: Lowering,
+    id: u32,
+    value: bool
+): u32 throws { OutOfMemory }
+
+export declare function readOperatorOperand(frame: Lowering, id: u32, right: bool): u32
+
+export declare function readBinaryOperator(frame: Lowering, id: u32): u8
+
+export declare function readExpressionType(frame: Lowering, id: u32): u32
+
+export declare function writeUnary(frame: Lowering, id: u32, operand: u32): u32
+    throws { OutOfMemory }
+
+export declare function writeBinary(
+    frame: Lowering,
+    operator: u8,
+    left_ir: u32,
+    right_ir: u32,
+    left: u32,
+    right: u32,
+    operand_type: u32
+): u32 throws { OutOfMemory }
+
+export declare function readConditionalOperand(
+    frame: Lowering,
+    id: u32,
+    part: ConditionalPart
+): u32
+
+export declare function writeConditional(
+    frame: Lowering,
+    condition: u32,
+    yes: u32,
+    no: u32
+): u32 throws { OutOfMemory }
+
+export declare function lowerMatch(
+    frame: Lowering,
+    id: u32,
+    value: bool
+): u32 throws { OutOfMemory }
+
+export declare function lowerAggregate(
+    frame: Lowering,
+    id: u32,
+    mode: Representation
+): u32 throws { OutOfMemory }
+
+export declare function lowerCollection(
+    frame: Lowering,
+    id: u32,
+    mode: Representation
+): u32 throws { OutOfMemory }
+
+export declare function lowerTransform(frame: Lowering, id: u32): u32 throws { OutOfMemory }
+
+export declare function lowerScope(
+    frame: Lowering,
+    id: u32,
+    mode: Representation
+): u32 throws { OutOfMemory }
+
+export declare function lowerIteration(
+    frame: Lowering,
+    id: u32,
+    value: bool
+): u32 throws { OutOfMemory }
+
+export declare function lowerCall(
+    frame: Lowering,
+    id: u32,
+    mode: Representation,
+    value_call: bool
+): u32 throws { OutOfMemory }
+
+export declare function lowerUpdate(
+    frame: Lowering,
+    id: u32,
+    iteration: bool
+): u32 throws { OutOfMemory }
+
+export declare function lowerMutation(frame: Lowering, id: u32): u32 throws { OutOfMemory }
+
+export declare function reuseIteration(frame: Lowering, id: u32): void
+    throws { OutOfMemory }
+
+export declare function lowerUnpack(
+    frame: Lowering,
+    id: u32,
+    value: u32
+): u32 throws { OutOfMemory }
+
+export declare function lowerDereference(
+    frame: Lowering,
+    value: u32
+): u32 throws { OutOfMemory }
+
+export declare function invalidLowering(): u32

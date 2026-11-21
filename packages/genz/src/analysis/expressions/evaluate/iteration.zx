@@ -1,0 +1,105 @@
+import host from "lowering_host"
+import { ReadAction, Representation } from "lowering_host"
+
+import { Route } from "../../iteration/evaluation/model"
+import conditional from "./conditional"
+
+import type { Lowering } from "lowering_host"
+import type { Output as Plan } from "../../iteration/evaluation/model"
+
+export type Input = Plan & {
+    frame: Lowering,
+    id: u32,
+    argument?: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, id, probe } = in
+
+    switch (in.route) {
+        case Route.Argument: return in.argument ?? host.invalidLowering()
+        case Route.Cached:
+            const value = in.value ?? host.invalidLowering()
+
+            host.reuseIteration(frame, id)
+
+            return value
+        case Route.Fallback: return host.lowerRegular(
+            frame,
+            id,
+            probe.checked,
+            probe.value
+        )
+        case Route.Binary: return host.lowerRegular(
+            frame,
+            id,
+            probe.checked,
+            probe.value
+        )
+        case Route.Unpack:
+            const value = host.lowerRegular(frame, id, probe.checked, probe.value)
+
+            return host.lowerUnpack(frame, id, value)
+        case Route.Reference: return host.lowerRead(
+            frame,
+            id,
+            ReadAction.Reference,
+            true,
+            null
+        )
+        case Route.Field: return host.lowerRead(frame, id, ReadAction.Field, true, null)
+        case Route.Unwrap: return host.lowerRead(
+            frame,
+            id,
+            ReadAction.Unwrap,
+            true,
+            null
+        )
+        case Route.TupleField: return host.lowerRead(
+            frame,
+            id,
+            ReadAction.TupleField,
+            true,
+            null
+        )
+        case Route.Index: return host.lowerRead(frame, id, ReadAction.Index, true, null)
+        case Route.Length: return host.lowerRead(
+            frame,
+            id,
+            ReadAction.Length,
+            true,
+            null
+        )
+        case Route.Some: return host.lowerRead(frame, id, ReadAction.Wrap, true, null)
+        case Route.None: return host.lowerRead(frame, id, ReadAction.Empty, true, null)
+        case Route.Update: return host.lowerUpdate(frame, id, true)
+        case Route.Mutation: return host.lowerMutation(frame, id)
+        case Route.Aggregate: return host.lowerAggregate(
+            frame,
+            id,
+            Representation.Iteration
+        )
+        case Route.List: return host.lowerAggregate(frame, id, Representation.Iteration)
+        case Route.Collection: return host.lowerCollection(
+            frame,
+            id,
+            Representation.Iteration
+        )
+        case Route.Scope: return host.lowerScope(frame, id, Representation.Iteration)
+        case Route.Call: return host.lowerCall(
+            frame,
+            id,
+            Representation.Iteration,
+            in.value_call
+        )
+        case Route.Conditional: return conditional({
+            frame,
+            id,
+            value: false
+        })
+        case Route.Match: return host.lowerMatch(frame, id, false)
+        case Route.Inspect: return host.invalidLowering()
+    }
+}

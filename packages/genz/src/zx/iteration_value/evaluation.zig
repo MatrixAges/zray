@@ -5,58 +5,10 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
-const collections = @import("../collections.zig");
-const dispatch = @import("../expressions/dispatch.zig");
-const read = @import("../expressions/read.zig");
 const Probe = @import("../expression_map.zig").Probe;
 
 pub fn lower(self: *Context, id: ir.ExprId, probe: Probe) Lower.Error!node.ExpressionId {
-    const lowering = self.lowering;
-    const plan = select(self, id, probe);
-    const checked: Probe = .{ .checked = plan.probe.checked, .value = plan.probe.value };
-
-    switch (plan.route) {
-        .Argument => return self.argument.?.value,
-        .Cached => {
-            try self.reads.increment(lowering.allocator, id);
-
-            return @fromBackingInt(plan.value.?);
-        },
-        .Fallback, .Binary => return lowering.regularWithCache(id, checked),
-        .Unpack => return unpack(self, id, try lowering.regularWithCache(id, checked)),
-        inline .Reference, .Field, .Unwrap, .TupleField, .Index, .Length, .Some, .None => |route| {
-            const action: dispatch.Action = comptime switch (route) {
-                .Some => .Wrap,
-                .None => .Empty,
-                else => @field(dispatch.Action, @tagName(route)),
-            };
-
-            const row = @backingInt(id);
-            const type_id: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[row]);
-
-            return read.lower(lowering, row, type_id, action, true, self);
-        },
-        .Update => return @import("mutation.zig").update(self, id),
-        .Mutation => return @import("mutation.zig").operation(self, id),
-        .Aggregate => return @import("aggregate.zig").lower(self, id),
-        .Collection => {
-            const type_id: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[@backingInt(id)]);
-
-            return collections.lowerValue(lowering, id, try @import("types.zig").get(self, type_id));
-        },
-        else => {},
-    }
-
-    const value = lowering.program.expression(id);
-
-    return try switch (plan.route) {
-        .Scope => @import("scope.zig").lower(self, value.value.scope),
-        .List => @import("list.zig").lower(self, value.type_id, value.value.list),
-        .Call => @import("invocation.zig").lower(self, id, value, plan.value_call),
-        .Conditional => @import("../selection/conditional.zig").lower(lowering, value.value.conditional),
-        .Match => @import("../match.zig").lower(lowering, value.value.match_expr),
-        else => unreachable,
-    };
+    return @import("../expressions/evaluate.zig").iteration(self, id, select(self, id, probe));
 }
 
 const entry = @import("generated_iteration_evaluation");
