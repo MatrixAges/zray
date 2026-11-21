@@ -4,6 +4,7 @@ const Batch = @import("batch.zig");
 const Cache = @import("cache.zig");
 const publication = @import("function_sources/publication.zig");
 const cache_updates = @import("function_sources/cache_updates.zig");
+const planning = @import("function_sources_plan.zig");
 const generated = @import("parser_options").generated_parser;
 const zx = @import("zx");
 /// One unit to generate and the batch whose program and facts it comes from.
@@ -165,8 +166,35 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
 
     defer for (arenas) |*arena| arena.deinit();
 
+    if (comptime generated) {
+        var frame: Frame = .{
+            .owned = owned,
+            .temporary = temporary,
+            .dispatch = &dispatch,
+            .arenas = arenas,
+            .sources = sources,
+        };
+
+        errdefer frame.release();
+
+        const entry = @import("generated_run_function_sources");
+
+        const input: std.meta.Child(entry.Input) = .{
+            .batch = @ptrCast(&frame),
+            .count = count,
+            .cached = jobs.batch.cache != null,
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const success = entry.executeIn(empty.allocator(), &input) catch |err| return generationError(err);
+
+        if (!success) return error.OutOfMemory;
+
+        return sources;
+    }
+
     const cache = jobs.batch.cache orelse {
-        try produce(owned, temporary, &dispatch, null, null, arenas, sources);
+        try produceSeed(owned, temporary, &dispatch, null, null, arenas, sources);
 
         return sources;
     };
@@ -178,62 +206,140 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
 
     try spread(Search, &search, arenas[0..@min(arenas.len, count)]);
 
-    const plan = try @import("function_sources_plan.zig").create(temporary, search.fetched, cache);
+    const plan = try planning.create(temporary, search.fetched, cache);
 
-    // Copy borrowed cache bytes before record can replace and release cache entries.
-    if (comptime generated) {
-        try publication.restore(owned, search.fetched, plan, sources);
-    } else {
-        try @import("function_sources_seed.zig").restore(owned, search.fetched, plan, sources, arenas);
-    }
-
-    if (comptime generated) {
-        try cache_updates.record(cache, search.lookups, search.fetched, plan);
-    } else {
-        try recordFetched(cache, search.lookups, search.fetched);
-    }
-
-    try produce(owned, temporary, &dispatch, plan.pending, search.lookups, arenas, sources);
+    try @import("function_sources_seed.zig").restore(owned, search.fetched, plan, sources, arenas);
+    for (search.lookups, search.fetched) |found, *fetched| _ = try cache.record(found.name, found.key, fetched);
+    try produceSeed(owned, temporary, &dispatch, plan.pending, search.lookups, arenas, sources);
 
     return sources;
 }
 
-fn recordFetched(cache: *Cache, lookups: []const Batch.Lookup, results: []Cache.Fetched) std.mem.Allocator.Error!void {
-    for (lookups, results) |found, *fetched| _ = try cache.record(found.name, found.key, fetched);
-}
-
-fn produce(owned: std.mem.Allocator, temporary: std.mem.Allocator, dispatch: *const Dispatch, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
+fn produceSeed(owned: std.mem.Allocator, temporary: std.mem.Allocator, dispatch: *const Dispatch, pending: ?[]const u64, lookups: ?[]const Batch.Lookup, arenas: []std.heap.ArenaAllocator, sources: [][]const u8) generating.Error!void {
     const count = if (pending) |positions| positions.len else sources.len;
     const results = try temporary.alloc(publication.Result, count);
     var work = Work{ .dispatch = dispatch, .pending = pending, .results = results };
 
-    if (generated and pending != null) @memset(results, .{ .source = null });
-
-    defer if (generated) {
-        if (pending != null) for (results) |result| {
-            if (result.source) |source| std.heap.smp_allocator.free(source);
-        };
-    };
-
     try spread(Work, &work, arenas[0..@min(arenas.len, count)]);
 
-    if (comptime generated) {
-        try publication.generated(owned, temporary, results, pending, sources);
-    } else {
-        for (results, 0..) |result, index| {
-            const position = if (pending) |positions| positions[index] else index;
+    for (results, 0..) |result, index| {
+        const position = if (pending) |positions| positions[index] else index;
 
-            sources[position] = try owned.dupe(u8, result.source.?);
-        }
+        sources[position] = try owned.dupe(u8, result.source.?);
     }
 
     if (pending) |positions| {
-        if (comptime generated) {
-            try cache_updates.commit(dispatch.jobs.batch.cache.?, lookups.?, results, positions);
-        } else {
-            for (positions) |position| try dispatch.jobs.batch.remember(lookups.?[position], sources[position]);
+        for (positions) |position| try dispatch.jobs.batch.remember(lookups.?[position], sources[position]);
+    }
+}
+
+const SourceReuse = if (generated) @import("output_execution_abi").layouts.@"zig:output_host".SourceReuse else void;
+
+const CacheWork = struct {
+    rows: cache_updates.CachedRows,
+    plan: planning.Plan = undefined,
+    view: SourceReuse = undefined,
+};
+
+const Frame = struct {
+    owned: std.mem.Allocator,
+    temporary: std.mem.Allocator,
+    dispatch: *const Dispatch,
+    arenas: []std.heap.ArenaAllocator,
+    sources: [][]const u8,
+    cached: ?CacheWork = null,
+    results: []publication.Result = &.{},
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn release(self: *const Frame) void {
+        if (self.cached) |*cached| {
+            for (cached.rows.fetched) |fetched| cached.rows.cache.releaseFetched(fetched);
+
+            for (self.results) |result| {
+                if (result.source) |source| std.heap.smp_allocator.free(source);
+            }
         }
     }
+};
+
+pub fn readFunctionSources(handle: *const anyopaque) generating.Error!*const SourceReuse {
+    const frame = Frame.borrow(handle);
+    const count = frame.sources.len;
+    const cache = frame.dispatch.jobs.batch.cache.?;
+
+    var search: Search = .{
+        .dispatch = frame.dispatch,
+        .lookups = try frame.temporary.alloc(Batch.Lookup, count),
+        .fetched = try frame.temporary.alloc(Cache.Fetched, count),
+    };
+
+    @memset(search.fetched, .{});
+
+    frame.cached = .{ .rows = .{ .cache = cache, .lookups = search.lookups, .fetched = search.fetched } };
+
+    try spread(Search, &search, frame.arenas[0..@min(frame.arenas.len, count)]);
+
+    const cached = &frame.cached.?;
+    const plan = try planning.create(frame.temporary, search.fetched, cache);
+    cached.plan = plan;
+
+    cached.view = .{
+        .target = @ptrCast(&cached.rows),
+        .count = count,
+        .stored = plan.stored,
+        .ordered = plan.ordered,
+        .held = plan.held,
+        .discarded = plan.discarded,
+        .failures = plan.failures,
+        .last_failure = plan.last_failure,
+        .hits = plan.reused.len,
+        .pending = plan.pending.len,
+    };
+
+    return &cached.view;
+}
+
+pub fn restoreFunctionSources(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+    const cached = &frame.cached.?;
+
+    return publication.restore(frame.owned, cached.rows.fetched, cached.plan, frame.sources);
+}
+
+pub fn generateFunctionSources(handle: *const anyopaque) generating.Error!void {
+    const frame = Frame.borrow(handle);
+    const pending = if (frame.cached) |*cached| cached.plan.pending else null;
+    const count = if (pending) |positions| positions.len else frame.sources.len;
+    const results = try frame.temporary.alloc(publication.Result, count);
+
+    if (pending != null) @memset(results, .{ .source = null });
+
+    frame.results = results;
+
+    var work: Work = .{ .dispatch = frame.dispatch, .pending = pending, .results = results };
+
+    return spread(Work, &work, frame.arenas[0..@min(frame.arenas.len, count)]);
+}
+
+pub fn publishFunctionSources(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+    const pending = if (frame.cached) |*cached| cached.plan.pending else null;
+
+    try publication.generated(frame.owned, frame.temporary, frame.results, pending, frame.sources);
+
+    if (frame.cached) |*cached| {
+        try cache_updates.commit(cached.rows.cache, cached.rows.lookups, frame.results, cached.plan.pending);
+    }
+}
+
+fn generationError(err: anyerror) generating.Error {
+    return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.InvalidNames => error.InvalidNames,
+        error.InvalidFunction => error.InvalidFunction,
+        else => unreachable,
+    };
 }
 
 /// Runs `task` on this thread and the shared workers, one arena per participant, and reports the first failure.

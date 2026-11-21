@@ -6,6 +6,21 @@ export type GeneratedSourceRows = opaque
 
 export type CacheWriter = opaque
 
+export type FunctionSources = opaque
+
+export type SourceReuse = {
+    target: CachedSourceRows,
+    count: u64,
+    stored: u64[],
+    ordered: bool,
+    held: u64,
+    discarded: u64,
+    failures: u64,
+    last_failure?: u64,
+    hits: u64,
+    pending: u64
+}
+
 export declare function analyzeLibraryExport(
     entries: LibraryEntries,
     index: u64,
@@ -45,3 +60,21 @@ export declare function commitGeneratedSource(
 export declare function finishCacheWriting(cache: CacheWriter, join: bool): void
 
 export declare function startCacheWriting(cache: CacheWriter, background: bool): bool
+
+export declare function readFunctionSources(batch: FunctionSources): SourceReuse throws {
+    OutOfMemory,
+    InvalidNames,
+    InvalidFunction
+}
+
+export declare function restoreFunctionSources(batch: FunctionSources): void
+    throws { OutOfMemory }
+
+export declare function generateFunctionSources(batch: FunctionSources): void throws {
+    OutOfMemory,
+    InvalidNames,
+    InvalidFunction
+}
+
+export declare function publishFunctionSources(batch: FunctionSources): void
+    throws { OutOfMemory }

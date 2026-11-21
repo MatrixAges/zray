@@ -1,18 +1,6 @@
-import type { CachedSourceRows, GeneratedSourceRows } from "output_host"
+import type { GeneratedSourceRows, SourceReuse } from "output_host"
 
-export type Summary = {
-    held: u64,
-    discarded: u64,
-    failures: u64,
-    last_failure?: u64
-}
-
-export type Record = Summary & {
-    target: CachedSourceRows,
-    count: u64,
-    stored: u64[],
-    ordered: bool
-}
+export type Record = SourceReuse.Omit("hits", "pending")
 
 export type Pending = {
     target: GeneratedSourceRows,

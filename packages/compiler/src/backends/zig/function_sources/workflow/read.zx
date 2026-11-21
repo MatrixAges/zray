@@ -1,0 +1,14 @@
+import host from "output_host"
+
+import type { SourceReuse } from "output_host"
+import type { Input } from "./model"
+
+export type Output = SourceReuse?
+
+export default function (in: Input): Output {
+    if (!in.cached) {
+        return null
+    }
+
+    return host.readFunctionSources(in.batch)
+}

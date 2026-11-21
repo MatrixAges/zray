@@ -1,11 +1,10 @@
 const std = @import("std");
 const Batch = @import("../batch.zig");
 const Cache = @import("../cache.zig");
-const Plan = @import("../function_sources_plan.zig").Plan;
 const Result = @import("publication.zig").Result;
 const Error = std.mem.Allocator.Error;
 
-const CachedRows = struct {
+pub const CachedRows = struct {
     cache: *Cache,
     lookups: []const Batch.Lookup,
     fetched: []Cache.Fetched,
@@ -16,27 +15,6 @@ const GeneratedRows = struct {
     lookups: []const Batch.Lookup,
     results: []Result,
 };
-
-pub fn record(cache: *Cache, lookups: []const Batch.Lookup, fetched: []Cache.Fetched, plan: Plan) Error!void {
-    const frame: CachedRows = .{ .cache = cache, .lookups = lookups, .fetched = fetched };
-    const entry = @import("generated_record_cached_sources");
-
-    const request: std.meta.Child(entry.Input) = .{
-        .target = @ptrCast(&frame),
-        .count = fetched.len,
-        .stored = plan.stored,
-        .ordered = plan.ordered,
-        .held = plan.held,
-        .discarded = plan.discarded,
-        .failures = plan.failures,
-        .last_failure = plan.last_failure,
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const complete = entry.executeIn(fixed.allocator(), &request) catch |err| return failure(err);
-
-    if (!complete) return error.OutOfMemory;
-}
 
 pub fn commit(cache: *Cache, lookups: []const Batch.Lookup, results: []Result, positions: []const u64) Error!void {
     const frame: GeneratedRows = .{ .cache = cache, .lookups = lookups, .results = results };
