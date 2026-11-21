@@ -363,7 +363,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/link/graph/order.rx", .name = "artifact_graph" },
     .{ .path = "zx/modules/link/registration/register.zx", .name = "artifact_type_registration" },
     .{ .path = "zx/modules/forward_entry/build.rx", .name = "recursive_forward_entry" },
-    .{ .path = "zx/modules/forward_entry/recursive.zx", .name = "recursive_call" },
     .{ .path = "zx/ir/canonical/refinement/facts/mark.rx", .name = "refinement_mark" },
     .{ .path = "zx/ir/canonical/refinement/facts/restore.rx", .name = "refinement_restore" },
     .{ .path = "zx/ir/canonical/refinement/facts/add.rx", .name = "refinement_add" },
@@ -1018,6 +1017,7 @@ pub const collections = [_]Entry{
 
 pub const execution = [_]Entry{
     .{ .path = "zx/analysis/publication/module/publish.rx", .name = "analysis_publish_module" },
+    .{ .path = "zx/analysis/publication/entry/finish.rx", .name = "analysis_finish_entry" },
     .{ .path = "rx/analysis/project/workflow/infer/run.rx", .name = "rx_execute_inference", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/workflow/derive/run.rx", .name = "rx_execute_derivation", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/workflow/solve/constraints.zx", .name = "rx_execute_constraints", .owner = .rx_analysis },

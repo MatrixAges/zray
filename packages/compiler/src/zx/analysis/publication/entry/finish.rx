@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Entry" />
+
+    <Args in={Entry.Input} out={u32?} />
+
+    <Call fn="register" in={$in} />
+    <Call fn="validate" in={$in} />
+
+    <If on={!$ctx.validate}>
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="forward"
+        in={{
+            entry: $in.entry,
+            recursive: $ctx.register,
+            forward: !$in.resolved
+        }}
+    />
+
+    <Return value={$ctx.forward} />
+</Module>

@@ -1,0 +1,107 @@
+const std = @import("std");
+const zx = @import("zx");
+const ir = zx.ir;
+const function_body = @import("../../../modules/function_body.zig");
+const native_context = @import("../../../modules/native_context.zig");
+const checks = @import("../../../ir/validate.zig");
+const Resolved = @import("../../../modules/resolved.zig");
+const Initializer = @import("../../../modules/compiled.zig").StoreInitializer;
+
+const Frame = struct {
+    allocator: std.mem.Allocator,
+    program: *ir.Program,
+    verified: ?*const ir.FunctionTable,
+    issue: ?zx.Diagnostic = null,
+    suffix: ?*const ir.FunctionTable = null,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+const Output = struct {
+    entry: ?ir.FunctionId,
+    issue: ?zx.Diagnostic,
+    suffix: ?*const ir.FunctionTable,
+};
+
+pub fn finish(allocator: std.mem.Allocator, program: *ir.Program, resolved: ?*const Resolved.Input, declared: bool, initializers: []const Initializer) std.mem.Allocator.Error!Output {
+    const rule = @import("generated_analysis_finish_entry");
+    const column = zx.memory.borrowReadColumn(ir.FunctionId, "function", initializers);
+
+    var frame: Frame = .{
+        .allocator = allocator,
+        .program = program,
+        .verified = if (resolved) |bindings| &bindings.verified_functions else null,
+    };
+
+    const input: std.meta.Child(rule.Input) = .{
+        .entry = @ptrCast(&frame),
+        .calls = program.expressions.call_functions,
+        .base_count = program.functions.count(),
+        .declared = declared,
+        .type_only = program.type_only,
+        .resolved = resolved != null,
+        .native_count = program.native_modules.count(),
+        .check_prefix = checks.internal and resolved != null,
+        .initializers = @ptrCast(&column),
+        .initializer_count = initializers.len,
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    const entry = rule.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    return .{
+        .entry = if (entry) |id| @fromBackingInt(id) else null,
+        .issue = frame.issue,
+        .suffix = frame.suffix,
+    };
+}
+
+pub fn registerAnalysisBody(handle: *const anyopaque, split: bool) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+    const program = frame.program;
+    const row = try function_body.single(frame.allocator, program.*);
+
+    if (split) {
+        const tail = try frame.allocator.create(ir.FunctionTable);
+
+        tail.* = row;
+        frame.suffix = tail;
+    } else {
+        program.functions = row;
+    }
+}
+
+pub fn ownAnalysisNatives(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.program.native_modules = try native_context.copy(frame.allocator, frame.program.native_modules);
+}
+
+pub fn validateAnalysisPrefix(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+    const frame = Frame.borrow(handle);
+    var checked = frame.program.*;
+    var temporary = std.heap.ArenaAllocator.init(frame.allocator);
+
+    defer temporary.deinit();
+
+    if (frame.suffix) |suffix| checked.functions = try @import("../../../modules/link/function_table.zig").join(temporary.allocator(), checked.functions, suffix.*);
+
+    frame.issue = try checks.validateExtending(temporary.allocator(), checked, frame.verified.?.*);
+
+    return frame.issue == null;
+}
+
+pub fn rejectAnalysisInitializer(handle: *const anyopaque, message: []const u8) void {
+    Frame.borrow(handle).issue = .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message };
+}
+
+pub fn forwardAnalysisEntry(handle: *const anyopaque, function: u32) std.mem.Allocator.Error!void {
+    const frame = Frame.borrow(handle);
+
+    try function_body.entry(frame.allocator, frame.program, @fromBackingInt(function));
+}

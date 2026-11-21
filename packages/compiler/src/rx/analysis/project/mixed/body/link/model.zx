@@ -6,15 +6,10 @@ export type Boundary = {
 export type Body = {
     prepared: Boundary,
     current: Boundary,
-    body_functions: u64,
-    lowered: bool
+    body_functions: u64
 }
 
-export type Functions = {
+export type Plan = {
     replace_prefix: bool,
-    suffix?: u64
-}
-
-export type Plan = Functions & {
     type_prefix?: u64
 }

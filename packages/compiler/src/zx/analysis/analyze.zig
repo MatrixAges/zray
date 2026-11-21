@@ -31,6 +31,7 @@ pub const ResolvedResult = struct {
     nominal_types: Origins.Table = .{},
     store_initializers: []const @import("../modules/compiled.zig").StoreInitializer = &.{},
     entry_function: ?zx.ir.FunctionId = null,
+    function_suffix: ?*const zx.ir.FunctionTable = null,
 };
 
 pub const StoreBinding = struct { handle: []const u8, path: []const u8, type_name: ?[]const u8 = null, type_id: ?zx.ir.TypeId = null, readable: bool = true, writable: bool = true };
@@ -53,8 +54,8 @@ pub fn analyzeModule(allocator: std.mem.Allocator, parsed: *const ModuleResult.R
 
 pub fn analyzeResolvedIn(allocator: std.mem.Allocator, parsed: *const ModuleResult.Result, context: Context, resolved: Resolved.Input) std.mem.Allocator.Error!ResolvedResult {
     return switch (parsed.*) {
-        .native => |result| analyzeInputIn(allocator, Input.Native{ .value = result.value.parsed }, result.value.parsed.file_name, context, resolved, false),
-        .indexed => |*result| if (ModuleResult.indexed_enabled) analyzeInputIn(allocator, Input.Indexed{ .value = result }, result.file_name, context, resolved, false) else unreachable,
+        .native => |result| analyzeInputIn(allocator, Input.Native{ .value = result.value.parsed }, result.value.parsed.file_name, context, resolved),
+        .indexed => |*result| if (ModuleResult.indexed_enabled) analyzeInputIn(allocator, Input.Indexed{ .value = result }, result.file_name, context, resolved) else unreachable,
     };
 }
 
@@ -63,12 +64,12 @@ fn analyzeInput(allocator: std.mem.Allocator, input: anytype, file_name: []const
 
     errdefer arena.deinit();
 
-    const result = try analyzeInputIn(arena.allocator(), input, file_name, context, null, true);
+    const result = try analyzeInputIn(arena.allocator(), input, file_name, context, null);
 
     return .{ .arena = arena, .value = result.value, .nominal_types = result.nominal_types, .store_initializers = result.store_initializers, .entry_function = result.entry_function };
 }
 
-fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []const u8, context: Context, resolved: ?Resolved.Input, forward_entry: bool) std.mem.Allocator.Error!ResolvedResult {
+fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []const u8, context: Context, resolved: ?Resolved.Input) std.mem.Allocator.Error!ResolvedResult {
     var reporter: zx.Reporter = .{};
     var copied_types: zx.ir.TypeStorage = .{};
     var origins = Origins{ .allocator = allocator };
@@ -131,17 +132,42 @@ fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []con
         return .{ .value = .{ .diagnostic = reporter.diagnostic.? } };
     };
 
-    const recursive = try function_body.complete(allocator, &program, functions, input.header().functionName() != null);
+    const declared = input.header().functionName() != null;
+
+    if (comptime @TypeOf(input).completes_ownership) {
+        program.functions = functions;
+        program.native_modules = context.native_modules;
+
+        const initializers = if (resolved) |bindings| bindings.store_initializers else &.{};
+        const entry = try @import("publication/entry/host.zig").finish(allocator, &program, if (resolved) |*bindings| bindings else null, declared, initializers);
+
+        if (entry.issue) |issue| return .{ .value = .{ .diagnostic = issue } };
+
+        return .{
+            .value = .{ .ir = program },
+            .nominal_types = origins.items.view(),
+            .store_initializers = initializers,
+            .entry_function = entry.entry,
+            .function_suffix = entry.suffix,
+        };
+    }
+
+    return finishSeed(allocator, &program, declared, context, if (resolved) |*bindings| bindings else null, origins.items.view(), &reporter);
+}
+
+fn finishSeed(allocator: std.mem.Allocator, program: *zx.ir.Program, declared: bool, context: Context, resolved: ?*const Resolved.Input, origins: Origins.Table, reporter: *zx.Reporter) std.mem.Allocator.Error!ResolvedResult {
+    const functions = if (resolved) |bindings| bindings.functions else zx.ir.FunctionTable{};
+    const recursive = try function_body.completeSeed(allocator, program, functions, declared);
 
     program.native_modules = if (resolved != null) context.native_modules else try @import("../modules/native_context.zig").copy(allocator, context.native_modules);
 
-    if (!@TypeOf(input).completes_ownership) program.output_ownership = @import("../ownership/check.zig").analyze(allocator, program, &reporter) catch |err| {
+    program.output_ownership = @import("../ownership/check.zig").analyze(allocator, program.*, reporter) catch |err| {
         if (err == error.OutOfMemory) return error.OutOfMemory;
 
         return .{ .value = .{ .diagnostic = reporter.diagnostic.? } };
     };
 
-    if (!@TypeOf(input).completes_ownership and program.functions.count() > functions.count()) {
+    if (recursive != null) {
         @constCast(program.functions.ownership)[functions.count()] = switch (program.output_ownership) {
             .copy => .Copy,
             .borrowed => .Borrowed,
@@ -150,7 +176,7 @@ fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []con
     }
 
     if (resolved) |bindings| {
-        if (@import("../ir/validate.zig").internal) if (try @import("../ir/validate.zig").validateExtending(allocator, program, bindings.verified_functions)) |issue| return .{ .value = .{ .diagnostic = issue } };
+        if (@import("../ir/validate.zig").internal) if (try @import("../ir/validate.zig").validateExtending(allocator, program.*, bindings.verified_functions)) |issue| return .{ .value = .{ .diagnostic = issue } };
     }
 
     const initializers = if (resolved) |bindings| bindings.store_initializers else &.{};
@@ -160,17 +186,22 @@ fn analyzeInputIn(allocator: std.mem.Allocator, input: anytype, file_name: []con
     }
 
     var entry_function: ?zx.ir.FunctionId = null;
+    var function_suffix: ?*const zx.ir.FunctionTable = null;
 
-    if (forward_entry) {
-        if (recursive) |id| {
+    if (recursive) |id| {
+        if (resolved != null) {
+            const tail = try allocator.create(zx.ir.FunctionTable);
+
+            tail.* = program.functions.suffix(functions.count());
+            program.functions = functions;
+            function_suffix = tail;
+        } else if (std.meta.eql(function_body.value(program.*), program.functions.at(@backingInt(id)))) {
             // Seed ownership analysis can change the program after the recursive body was installed.
-            if (@TypeOf(input).completes_ownership or std.meta.eql(function_body.value(program), program.functions.at(@backingInt(id)))) {
-                try function_body.entry(allocator, &program, id);
+            try function_body.entry(allocator, program, id);
 
-                entry_function = id;
-            }
+            entry_function = id;
         }
     }
 
-    return .{ .value = .{ .ir = program }, .nominal_types = origins.items.view(), .store_initializers = initializers, .entry_function = entry_function };
+    return .{ .value = .{ .ir = program.* }, .nominal_types = origins, .store_initializers = initializers, .entry_function = entry_function, .function_suffix = function_suffix };
 }

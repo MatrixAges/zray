@@ -1,0 +1,2 @@
+export const missing_initializer: string =
+    "resolved Store initializer references a missing function"

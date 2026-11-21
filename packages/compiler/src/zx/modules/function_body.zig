@@ -1,7 +1,6 @@
 const std = @import("std");
 const ir = @import("zx").ir;
 const forward = @import("forward_entry/host.zig").write;
-const generated = @import("parser_options").generated_parser;
 
 pub fn value(program: ir.Program) ir.Function {
     return .{
@@ -19,16 +18,6 @@ pub fn value(program: ir.Program) ir.Function {
 }
 
 pub fn calls(expressions: ir.ExpressionTable, id: ir.FunctionId) bool {
-    if (comptime generated) {
-        const rule = @import("generated_recursive_call");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        return (rule.executeValue(empty.allocator(), .{
-            .calls = expressions.call_functions,
-            .candidate = @backingInt(id),
-        }) catch unreachable) != null;
-    }
-
     return std.mem.indexOfScalar(u32, expressions.call_functions, @backingInt(id)) != null;
 }
 
@@ -59,7 +48,7 @@ pub fn externalEntry(allocator: std.mem.Allocator, program: *ir.Program, id: ir.
     program.contracts = .{};
 }
 
-pub fn complete(allocator: std.mem.Allocator, program: *ir.Program, functions: ir.FunctionTable, declared: bool) std.mem.Allocator.Error!?ir.FunctionId {
+pub fn completeSeed(allocator: std.mem.Allocator, program: *ir.Program, functions: ir.FunctionTable, declared: bool) std.mem.Allocator.Error!?ir.FunctionId {
     program.functions = functions;
 
     if (!declared or program.type_only) return null;
@@ -68,15 +57,15 @@ pub fn complete(allocator: std.mem.Allocator, program: *ir.Program, functions: i
 
     if (!calls(program.expressions, id)) return null;
 
-    try appendEntry(allocator, program);
+    program.functions = try @import("link/function_table.zig").join(allocator, functions, try single(allocator, program.*));
 
     return id;
 }
 
-pub fn appendEntry(allocator: std.mem.Allocator, program: *ir.Program) std.mem.Allocator.Error!void {
+pub fn single(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error!ir.FunctionTable {
     var storage: ir.FunctionStorage = .{};
 
-    try storage.append(allocator, value(program.*));
+    try storage.append(allocator, value(program));
 
-    program.functions = try @import("link/function_table.zig").join(allocator, program.functions, try storage.finish(allocator));
+    return storage.finish(allocator);
 }

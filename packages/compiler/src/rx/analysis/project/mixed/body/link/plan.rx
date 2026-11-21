@@ -4,15 +4,6 @@
     <Args in={Link.Body} out={Link.Plan} />
 
     <Call
-        fn="functions"
-        in={$in.pick([
-            "prepared",
-            "body_functions",
-            "lowered"
-        ])}
-    />
-
-    <Call
         fn="types"
         in={$in.pick([
             "prepared",
@@ -22,7 +13,7 @@
 
     <Return
         value={{
-            ...$ctx.functions,
+            replace_prefix: $in.prepared.functions == $in.body_functions,
             type_prefix: $ctx.types
         }}
     />

@@ -96,7 +96,7 @@ pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Err
     var program = body.lowered.program;
     const destination = state.destination();
     const base = state.functions.view().prefix(prepared.functions);
-    const plan = @import("body/link.zig").prepare(state, .{ .functions = prepared.functions, .types = prepared.types }, program.functions.count(), true);
+    const plan = @import("body/link.zig").prepare(state, .{ .functions = prepared.functions, .types = prepared.types }, program.functions.count());
 
     // Without new functions, lowering returns a borrowed view of the analyzed prefix.
     if (plan.replace_prefix) program.functions = base;

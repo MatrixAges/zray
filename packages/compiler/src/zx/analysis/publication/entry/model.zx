@@ -1,0 +1,15 @@
+import type { ReadColumn } from "memory"
+import type { AnalysisEntry } from "project_host"
+
+export type Input = {
+    entry: AnalysisEntry,
+    calls: u32[],
+    base_count: u64,
+    declared: bool,
+    type_only: bool,
+    resolved: bool,
+    native_count: u64,
+    check_prefix: bool,
+    initializers: ReadColumn,
+    initializer_count: u64
+}

@@ -18,6 +18,8 @@ export type ArtifactLink = opaque
 
 export type AnalysisPublication = opaque
 
+export type AnalysisEntry = opaque
+
 export enum LibraryResolution {
     Found,
     Missing,
@@ -42,6 +44,20 @@ export declare function publishAnalysisExports(publication: AnalysisPublication)
     throws { OutOfMemory }
 
 export declare function publishAnalysisConstants(publication: AnalysisPublication): void
+    throws { OutOfMemory }
+
+export declare function registerAnalysisBody(entry: AnalysisEntry, split: bool): void
+    throws { OutOfMemory }
+
+export declare function ownAnalysisNatives(entry: AnalysisEntry): void
+    throws { OutOfMemory }
+
+export declare function validateAnalysisPrefix(entry: AnalysisEntry): bool
+    throws { OutOfMemory }
+
+export declare function rejectAnalysisInitializer(entry: AnalysisEntry, message: string): void
+
+export declare function forwardAnalysisEntry(entry: AnalysisEntry, id: u32): void
     throws { OutOfMemory }
 
 export declare function openProjectFrame(walk: ProjectWalk, row: u64): void

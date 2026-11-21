@@ -130,8 +130,7 @@ pub fn link(state: *State, analyzed: Analyzed) State.Error!Source.Loaded {
     const destination = state.destination();
     var program = analyzed.result.value.ir;
     const base = state.functions.view().prefix(analyzed.functions);
-    const functions = program.functions;
-    const plan = @import("body/link.zig").prepare(state, .{ .functions = analyzed.functions, .types = analyzed.types }, functions.count(), false);
+    const plan = @import("body/link.zig").prepare(state, .{ .functions = analyzed.functions, .types = analyzed.types }, program.functions.count());
 
     if (plan.replace_prefix) program.functions = base;
 
@@ -144,7 +143,7 @@ pub fn link(state: *State, analyzed: Analyzed) State.Error!Source.Loaded {
     return state.linked(Source.appendBody(.{
         .program = program,
         .base_functions = base,
-        .function_suffix = if (plan.suffix) |start| functions.suffix(start) else null,
+        .function_suffix = if (analyzed.result.function_suffix) |tail| tail.* else null,
         .verified_functions = state.verifiedFunctions(),
         .nominal_types = analyzed.result.nominal_types,
         .store_initializers = initializers,
