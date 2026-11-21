@@ -1,0 +1,20 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Change as Input, Names as Output } from "./model"
+
+export default function (in: Input): Output {
+    const names = memory.stringViews(in.target)
+    const condition = integers.widen(in.condition)
+    const step = integers.widen(in.step)
+    const condition_name = names[condition]
+    const step_name = names[step]
+
+    memory.writeString(in.target, condition, in.name)
+    memory.writeString(in.target, step, in.name)
+
+    return {
+        condition_name,
+        step_name
+    }
+}

@@ -5,6 +5,7 @@ export enum Assignment {
 }
 
 export type Input = {
+    condition: u32,
     body: u32,
     forwarded?: u32,
     postcondition: bool,
@@ -22,7 +23,8 @@ export type Evaluation = {
 }
 
 export type Output = Evaluation & {
-    first_test: bool,
+    condition: u32,
+    first_test?: u32,
     after_step: bool,
     classify_renewals: bool,
     inline_lists: bool,

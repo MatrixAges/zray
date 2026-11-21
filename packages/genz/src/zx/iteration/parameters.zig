@@ -15,6 +15,8 @@ const Plan = if (generated) std.meta.Child(entry.Output) else struct {
     remove_state_step: bool,
     remove_stack_condition: bool,
     remove_stack_step: bool,
+    condition_name: []const u8,
+    step_name: []const u8,
 };
 
 const Self = @This();
@@ -22,26 +24,21 @@ const Self = @This();
 lowering: *Lower,
 condition: ir.SymbolId,
 step: ir.SymbolId,
-condition_name: []const u8,
-step_name: []const u8,
 previous_context: ?*Context,
 plan: Plan,
 pub fn enter(lowering: *Lower, iteration: ir.Iteration, layout: Layout, name: []const u8, context: *Context) Lower.Error!Self {
     const condition = iteration.condition_parameter;
     const step = iteration.parameter;
-    const plan = decide(lowering, layout, condition, step);
+    const plan = bindNames(lowering, layout, condition, step, name);
 
     const scope: Self = .{
         .lowering = lowering,
         .condition = condition,
         .step = step,
-        .condition_name = lowering.names[@backingInt(condition)],
-        .step_name = lowering.names[@backingInt(step)],
         .previous_context = lowering.iteration_value,
         .plan = plan,
     };
 
-    scope.rename(name);
     errdefer scope.restore();
 
     const symbols = switch (layout) {
@@ -59,8 +56,7 @@ pub fn enter(lowering: *Lower, iteration: ir.Iteration, layout: Layout, name: []
 }
 
 pub fn rename(self: Self, name: []const u8) void {
-    self.lowering.names[@backingInt(self.condition)] = name;
-    self.lowering.names[@backingInt(self.step)] = name;
+    self.writeNames(name, name);
 }
 
 pub fn restoreContext(self: Self) void {
@@ -70,17 +66,59 @@ pub fn restoreContext(self: Self) void {
 pub fn restore(self: Self) void {
     self.restoreContext();
 
-    if (self.plan.remove_state_condition) _ = self.lowering.state_symbols.remove(self.condition);
-    if (self.plan.remove_state_step) _ = self.lowering.state_symbols.remove(self.step);
-    if (self.plan.remove_stack_condition) _ = self.lowering.stack_symbols.remove(self.condition);
-    if (self.plan.remove_stack_step) _ = self.lowering.stack_symbols.remove(self.step);
+    if (generated) {
+        self.removeMembers(&self.lowering.state_symbols, self.plan.remove_state_condition, self.plan.remove_state_step);
+        self.removeMembers(&self.lowering.stack_symbols, self.plan.remove_stack_condition, self.plan.remove_stack_step);
+    } else {
+        if (self.plan.remove_state_condition) _ = self.lowering.state_symbols.remove(self.condition);
+        if (self.plan.remove_state_step) _ = self.lowering.state_symbols.remove(self.step);
+        if (self.plan.remove_stack_condition) _ = self.lowering.stack_symbols.remove(self.condition);
+        if (self.plan.remove_stack_step) _ = self.lowering.stack_symbols.remove(self.step);
+    }
 
-    self.lowering.names[@backingInt(self.step)] = self.step_name;
-    self.lowering.names[@backingInt(self.condition)] = self.condition_name;
+    self.writeNames(self.plan.condition_name, self.plan.step_name);
 }
 
-fn decide(lowering: *const Lower, layout: Layout, condition: ir.SymbolId, step: ir.SymbolId) Plan {
-    if (comptime !generated) return seed(lowering, layout, condition, step);
+fn removeMembers(self: Self, symbols: *@import("../members.zig"), condition: bool, step: bool) void {
+    const ids = [_]ir.SymbolId{ self.condition, self.step };
+    const first = @intFromBool(!condition);
+    const end = ids.len - @intFromBool(!step);
+
+    for (ids[first..end]) |id| _ = symbols.remove(id);
+}
+
+fn writeNames(self: Self, condition: []const u8, step: []const u8) void {
+    if (!generated) {
+        self.lowering.names[@backingInt(self.step)] = step;
+        self.lowering.names[@backingInt(self.condition)] = condition;
+
+        return;
+    }
+
+    const operation = @import("generated_iteration_parameters_rename");
+
+    const input: std.meta.Child(operation.Input) = .{
+        .target = @ptrCast(&self.lowering.names),
+        .condition = @backingInt(self.condition),
+        .step = @backingInt(self.step),
+        .condition_name = condition,
+        .step_name = step,
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    zx.columns.invoke(operation.executeValue, fixed.allocator(), &input) catch unreachable;
+}
+
+fn bindNames(lowering: *Lower, layout: Layout, condition: ir.SymbolId, step: ir.SymbolId, name: []const u8) Plan {
+    if (comptime !generated) {
+        const plan = seed(lowering, layout, condition, step);
+
+        lowering.names[@backingInt(condition)] = name;
+        lowering.names[@backingInt(step)] = name;
+
+        return plan;
+    }
 
     const Index = std.meta.Child(@FieldType(Input, "state"));
     const state = lowering.state_symbols.view(Index);
@@ -92,19 +130,14 @@ fn decide(lowering: *const Lower, layout: Layout, condition: ir.SymbolId, step: 
         .step = @backingInt(step),
         .state = &state,
         .stack = &stack,
+        .target = @ptrCast(&lowering.names),
+        .name = name,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
     const output = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 
-    return .{
-        .add_condition = output.add_condition,
-        .add_step = output.add_step,
-        .remove_state_condition = output.remove_state_condition,
-        .remove_state_step = output.remove_state_step,
-        .remove_stack_condition = output.remove_stack_condition,
-        .remove_stack_step = output.remove_stack_step,
-    };
+    return zx.columns.view(Plan, output);
 }
 
 fn seed(lowering: *const Lower, layout: Layout, condition: ir.SymbolId, step: ir.SymbolId) Plan {
@@ -133,5 +166,7 @@ fn seed(lowering: *const Lower, layout: Layout, condition: ir.SymbolId, step: ir
         .remove_state_step = remove_state_step,
         .remove_stack_condition = remove_stack_condition,
         .remove_stack_step = remove_stack_step,
+        .condition_name = lowering.names[@backingInt(condition)],
+        .step_name = lowering.names[@backingInt(step)],
     };
 }

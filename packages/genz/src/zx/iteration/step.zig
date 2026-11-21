@@ -4,10 +4,12 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Fields = @import("fields/root.zig");
+const Parameters = @import("parameters.zig");
 const generated = @import("genz_options").generated_analysis;
 const entry = if (generated) @import("generated_iteration_step") else struct {};
 
 pub const Input = if (generated) std.meta.Child(entry.Input) else struct {
+    condition: u32,
     body: u32,
     forwarded: ?u32,
     postcondition: bool,
@@ -21,7 +23,8 @@ pub const Input = if (generated) std.meta.Child(entry.Input) else struct {
 const Plan = if (generated) std.meta.Child(entry.Output) else struct {
     step: u32,
     by_value: bool,
-    first_test: bool,
+    condition: u32,
+    first_test: ?u32,
     after_step: bool,
     classify_renewals: bool,
     inline_lists: bool,
@@ -38,6 +41,7 @@ pub fn plan(input: Input) Plan {
     return .{
         .step = result.step,
         .by_value = result.by_value,
+        .condition = result.condition,
         .first_test = result.first_test,
         .after_step = result.after_step,
         .classify_renewals = result.classify_renewals,
@@ -47,14 +51,49 @@ pub fn plan(input: Input) Plan {
     };
 }
 
-const Values = struct { condition: node.ExpressionId, value: node.ExpressionId };
+const Values = struct { condition: node.ExpressionId, value: node.ExpressionId, first: ?node.ExpressionId };
 
-pub fn lower(self: *Lower, schedule: Plan, condition: ir.ExprId) Lower.Error!Values {
-    const test_value = try self.expr(condition);
+pub const Scope = union(enum) {
+    projected: struct { fields: *const Fields, name: []const u8, seed: []const u8 },
+    ordinary: bool,
+};
+
+pub fn lower(self: *Lower, schedule: Plan, parameters: *const Parameters, scope: Scope) Lower.Error!Values {
+    const previous_fields = self.loop_fields;
+    const previous_deferred = self.deferred_lists;
+
+    defer {
+        self.loop_fields = previous_fields;
+        self.deferred_lists = previous_deferred;
+
+        if (scope == .ordinary) parameters.restoreContext();
+    }
+
+    const first = switch (scope) {
+        .projected => |projected| first: {
+            const first = if (schedule.first_test) |condition| initial: {
+                parameters.rename(projected.seed);
+                defer parameters.rename(projected.name);
+
+                break :initial try self.expr(@fromBackingInt(condition));
+            } else null;
+
+            self.loop_fields = projected.fields;
+
+            break :first first;
+        },
+        .ordinary => |deferred| ordinary: {
+            self.deferred_lists = deferred;
+
+            break :ordinary null;
+        },
+    };
+
+    const test_value = try self.expr(@fromBackingInt(schedule.condition));
     const body: ir.ExprId = @fromBackingInt(schedule.step);
     const value = if (schedule.by_value) try @import("../value_call/root.zig").expression(self, body) else try self.expr(body);
 
-    return .{ .condition = test_value, .value = value };
+    return .{ .condition = test_value, .value = value, .first = first };
 }
 
 pub const Write = struct {
@@ -101,7 +140,8 @@ fn seed(input: Input) Plan {
     return .{
         .step = if (input.projected) input.body else input.forwarded orelse input.body,
         .by_value = input.projected or input.forwarded != null or input.layout,
-        .first_test = input.projected and !input.postcondition,
+        .condition = input.condition,
+        .first_test = if (input.projected and !input.postcondition) input.condition else null,
         .after_step = input.projected or input.postcondition,
         .classify_renewals = !input.projected and input.selected_state and input.forwarded == null,
         .inline_lists = !input.projected and input.buffered,

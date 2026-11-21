@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Parameters" />
+
+    <Args in={Parameters.Enter} out={Parameters.Scope} />
+
+    <Call
+        module="plan"
+        in={$in.omit([
+            "target",
+            "name"
+        ])}
+    />
+
+    <Call
+        fn="capture"
+        in={$in.pick([
+            "target",
+            "condition",
+            "step",
+            "name"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$ctx.plan,
+            ...$ctx.capture
+        }}
+    />
+</Module>

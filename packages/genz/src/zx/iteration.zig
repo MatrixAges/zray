@@ -91,10 +91,6 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
 
     const seed = try self.builder.identifier(try self.fresh("loop_seed"));
     var fields = if (preparation.project_fields) try @import("iteration/fields/prepare.zig").prepare(self, iteration, type_id, &body, seed) else null;
-    const previous_fields = self.loop_fields;
-
-    defer self.loop_fields = previous_fields;
-
     const changed_name = if (preparation.track) try self.fresh("state_changed") else "";
     const tracking = if (changed_name.len != 0) changed_name else null;
     const parameters = try @import("iteration/parameters.zig").enter(self, iteration, preparation.parameters, name, &context);
@@ -132,6 +128,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
     const temporary = renewal_memory.allocator();
 
     const schedule = step.plan(.{
+        .condition = @backingInt(iteration.condition),
         .body = @backingInt(iteration.body),
         .forwarded = if (selected_call) |call| @backingInt(call) else null,
         .postcondition = iteration.postcondition,
@@ -161,18 +158,11 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
             .tracking = tracking,
         });
 
-        const first_condition = if (schedule.first_test) first: {
-            parameters.rename(seed_name);
-            defer parameters.rename(name);
-
-            break :first try self.expr(iteration.condition);
-        } else null;
-
-        self.loop_fields = selected;
-
-        const next = try step.lower(self, schedule, iteration.condition);
-
-        self.loop_fields = previous_fields;
+        const next = try step.lower(self, schedule, &parameters, .{ .projected = .{
+            .fields = selected,
+            .name = name,
+            .seed = seed_name,
+        } });
 
         var entered: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
 
@@ -205,7 +195,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         const restored = if (schedule.restore_projected) try aggregate.bind(self, &entered, try selected.restore(self, state)) else state;
         const result = try finish.lower(self, &entered, restored, .{ .renewals = growth, .declarations = prefix, .frame = framed });
 
-        if (first_condition) |first| {
+        if (next.first) |first| {
             var skipped: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
 
             defer if (generated) skipped.deinit();
@@ -216,16 +206,7 @@ fn lowerMode(self: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Mode, c
         return try aggregate.finish(self, &body, result);
     }
 
-    const previous_deferred = self.deferred_lists;
-
-    defer self.deferred_lists = previous_deferred;
-    self.deferred_lists = renewals.delayed;
-
-    const next = try step.lower(self, schedule, iteration.condition);
-
-    parameters.restoreContext();
-
-    self.deferred_lists = previous_deferred;
+    const next = try step.lower(self, schedule, &parameters, .{ .ordinary = renewals.delayed });
 
     const tracker = try state_declaration.declare(self, &body, .{
         .name = name,

@@ -1,4 +1,5 @@
 import type { Index } from "core/integer/index/model"
+import type { StringBuffer } from "memory"
 
 export enum Layout {
     Plain,
@@ -34,3 +35,24 @@ export type Output = {
     remove_stack_condition: bool,
     remove_stack_step: bool
 }
+
+export type Slots = Input.Pick("condition", "step")
+
+export type Names = {
+    condition_name: string,
+    step_name: string
+}
+
+export type Target = Slots & {
+    target: StringBuffer
+}
+
+export type Change = Target & {
+    name: string
+}
+
+export type Enter = Input & Change
+
+export type Scope = Output & Names
+
+export type Rename = Target & Names

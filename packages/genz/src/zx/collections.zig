@@ -1,11 +1,55 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
 const intrinsic = @import("intrinsics.zig");
 const growth = @import("growth.zig");
 const Operation = @FieldType(@FieldType(ir.ExpressionRow, "value"), "list_operation");
+const generated = @import("genz_options").generated_analysis;
+const operands = @import("generated_collection_operands");
+
+const Plan = if (generated) std.meta.Child(operands.Output) else struct {
+    clip: bool,
+    slice: bool,
+    argument: enum { Direct, Element, Items, Splice },
+};
+
+fn prepareOperands(kind: ir.ListOperation, represented: bool) Plan {
+    if (!generated) return .{
+        .clip = represented and kind != .slice,
+        .slice = kind == .slice,
+        .argument = switch (kind) {
+            .push => .Element,
+            .concat => .Items,
+            .splice => .Splice,
+            else => .Direct,
+        },
+    };
+
+    const plans = comptime blk: {
+        @setEvalBranchQuota(20_000);
+
+        const kinds = std.enums.values(ir.ListOperation);
+        const Input = std.meta.Child(operands.Input);
+        var result: [kinds.len][2]Plan = undefined;
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+        for (kinds) |operation| {
+            for ([2]bool{ false, true }) |selected| {
+                const input: Input = .{ .kind = @fromBackingInt(@backingInt(operation)), .represented = selected };
+                const output = zx.columns.invoke(operands.executeValue, fixed.allocator(), &input) catch unreachable;
+
+                result[@backingInt(operation)][@intFromBool(selected)] = zx.columns.view(Plan, output);
+            }
+        }
+
+        break :blk result;
+    };
+
+    return plans[@backingInt(kind)][@intFromBool(represented)];
+}
 
 pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     return lowerMode(self, id, null, false);
@@ -31,7 +75,6 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
     const type_id = row.type_id;
     const operation: Operation = row.value.list_operation;
     const flags = self.plan.get(id);
-    const generated = @import("genz_options").generated_analysis;
     var direct = self.builder.statementSequence(self.workspace);
     var legacy: std.ArrayList(node.Statement) = .empty;
 
@@ -41,11 +84,13 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
     const source_type = self.program.expression(operation.target).type_id;
     const provenance = @import("state_value/list.zig");
     const evaluated_source = try self.expr(operation.target);
-    const qualified_source = if (operation.kind != .slice and provenance.selected(self, source_type)) try @import("state_value/ownership.zig").clip(self, body, operation.target, evaluated_source) else evaluated_source;
+    const represented = provenance.selected(self, source_type);
+    const plan = prepareOperands(operation.kind, represented);
+    const qualified_source = if (plan.clip) try @import("state_value/ownership.zig").clip(self, body, operation.target, evaluated_source) else evaluated_source;
     const source_value = try aggregate.bind(self, body, qualified_source);
     const source = try provenance.items(self, source_type, source_value);
 
-    if (operation.kind == .slice) {
+    if (plan.slice) {
         const element = try @import("state_value/elements.zig").typeExpr(self, source_type);
         const length = try self.field(source, "len");
 
@@ -74,19 +119,21 @@ fn lowerMode(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
         return aggregate.finish(self, body, if (layout) |target| try self.cast(target, owned) else owned);
     }
 
-    const source_headered = if (provenance.selected(self, source_type)) try provenance.headered(self, source_value) else try self.builder.expression(.{ .boolean = flags.frontier });
+    const source_headered = if (represented) try provenance.headered(self, source_value) else try self.builder.expression(.{ .boolean = flags.frontier });
     const arguments = try self.allocator.alloc(node.ExpressionId, operation.arguments.len);
 
     for (operation.arguments, arguments) |argument, *value| {
         const evaluated = try aggregate.bind(self, body, try self.expr(argument));
 
-        value.* = if (operation.kind == .push)
-            try @import("state_value/elements.zig").write(self, body, source_type, evaluated)
+        value.* = switch (plan.argument) {
+            .Direct => evaluated,
+            .Element => try @import("state_value/elements.zig").write(self, body, source_type, evaluated),
+            .Items, .Splice => items: {
+                if (plan.argument == .Splice and argument != operation.arguments[2]) break :items evaluated;
 
-        else if (operation.kind == .concat or (operation.kind == .splice and argument == operation.arguments[2]))
-            try provenance.items(self, self.program.expression(argument).type_id, evaluated)
-        else
-            evaluated;
+                break :items try provenance.items(self, self.program.expression(argument).type_id, evaluated);
+            },
+        };
     }
 
     const child = self.program.typeOf(source_type).list;

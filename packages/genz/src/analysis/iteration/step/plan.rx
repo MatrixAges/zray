@@ -8,7 +8,8 @@
             value={{
                 step: $in.body,
                 by_value: true,
-                first_test: !$in.postcondition,
+                condition: $in.condition,
+                first_test: $in.postcondition ? null : $in.condition,
                 after_step: true,
                 classify_renewals: false,
                 inline_lists: false,
@@ -23,7 +24,8 @@
     <Return
         value={{
             ...$ctx.evaluation,
-            first_test: false,
+            condition: $in.condition,
+            first_test: null,
             after_step: $in.postcondition,
             classify_renewals: $in.selected_state && $in.forwarded == null,
             inline_lists: $in.buffered,
