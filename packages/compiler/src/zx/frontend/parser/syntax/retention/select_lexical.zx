@@ -1,0 +1,21 @@
+import type { Span, Token } from "../../../lexer/token_model"
+
+export type Output = {
+    tokens: Token[],
+    comments: Span[]
+}
+
+export type Input = Output & {
+    omit_tokens?: bool,
+    omit_comments?: bool
+}
+
+export default function (in: Input): Output {
+    const tokens: Token[] = []
+    const comments: Span[] = []
+
+    return {
+        tokens: in.omit_tokens == true ? tokens : in.tokens,
+        comments: in.omit_comments == true ? comments : in.comments
+    }
+}

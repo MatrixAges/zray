@@ -5,6 +5,7 @@ const lex = @import("lexer").lex;
 const compact = @import("compact_output.zig");
 const diagnostic = @import("diagnostic.zig");
 const retention = @import("retention/host.zig");
+const lexical = @import("retention/lexical.zig");
 
 pub const Parsed = struct {
     source: []const u8,
@@ -57,7 +58,7 @@ fn parseWithMode(comptime indexed: bool, copy_input: bool, allocator: std.mem.Al
 
         defer scratch.deinit();
 
-        const output = generated.executeIn(scratch.allocator(), owned_source) catch |err| {
+        const output = lexical.parse(generated, if (indexed) .none else .full, scratch.allocator(), null, owned_source) catch |err| {
             const issue = try diagnostic.generatedFailure(temporary, "expression parser", err);
 
             return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = issue } } };

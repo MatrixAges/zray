@@ -20,7 +20,7 @@ pub fn retain(comptime rule: type, allocator: std.mem.Allocator, source: []const
 
     errdefer arena.deinit();
 
-    const output = try compact.copy(arena.allocator(), source, syntax);
+    const output = try compact.retainSyntax(arena.allocator(), source, syntax);
 
     try order.publish(arena.allocator(), output, .retained);
 

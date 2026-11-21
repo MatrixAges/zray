@@ -1,10 +1,10 @@
 <Module>
-    <Call module="../../../../compiler/src/zx/frontend/lexer/scan" in={$in.source} />
+    <Call module="../../zx/frontend/lexer/scan" in={$in.source} />
 
     <Switch on={$ctx.scan.diagnostic.message == ""}>
         <Case value={true}>
             <Call
-                fn="../../../../compiler/src/zx/frontend/parser/types/parse"
+                fn="../../zx/frontend/parser/types/parse"
                 in={{
                     tokens: $ctx.scan.tokens,
                     start: $in.start,
@@ -17,7 +17,7 @@
 
         <Default>
             <Call
-                fn="../../../../compiler/src/zx/frontend/parser/types/lexical_failure"
+                fn="../../zx/frontend/parser/types/lexical_failure"
                 in={{
                     start: $in.start,
                     depth: $in.depth,

@@ -13,6 +13,8 @@ pub fn of(comptime Layout: type, comptime Syntax: type) Layout {
             &tables(std.meta.Child(@FieldType(Layout, name)), Syntax)
         else if (comptime std.mem.eql(u8, name, "function_name"))
             row(@typeInfo(@FieldType(Syntax, name)).optional.child)
+        else if (comptime std.mem.eql(u8, name, "tokens") or std.mem.eql(u8, name, "comments"))
+            &index(std.meta.Child(@FieldType(Layout, name)), @FieldType(Syntax, name))
         else
             &slice(std.meta.Child(@FieldType(Layout, name)), @FieldType(Syntax, name));
     }
@@ -54,6 +56,12 @@ fn slice(comptime Layout: type, comptime Slice: type) Layout {
     const Element = std.meta.Child(Slice);
 
     return .{ .stride = @sizeOf(Element) + row(Element), .padding = @alignOf(Element) - 1 };
+}
+
+fn index(comptime Layout: type, comptime Slice: type) Layout {
+    const Element = std.meta.Child(Slice);
+
+    return .{ .stride = @sizeOf(Element), .padding = @alignOf(Element) - 1 };
 }
 
 fn row(comptime Value: type) u64 {

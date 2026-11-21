@@ -1,11 +1,9 @@
 import {
     command_count,
-    lexer_command,
     abi_command,
     manifest_command,
     serve_command,
     partitions_option,
-    lexer_count,
     abi_count,
     manifest_count,
     partitioned_count,
@@ -26,7 +24,6 @@ export default function (in: Input): Output {
     }
 
     return match command {
-        lexer_command => count == lexer_count ? Command.Lexer : Command.Incomplete,
         abi_command => count == abi_count ? Command.StandardAbi : Command.Incomplete,
         manifest_command => match {
             count == manifest_count => Command.Manifest,

@@ -56,7 +56,7 @@ pub fn compile(allocator: std.mem.Allocator, source: []const u8, file_name: []co
 }
 
 pub fn compileWithContext(allocator: std.mem.Allocator, source: []const u8, file_name: []const u8, context: Context) std.mem.Allocator.Error!Result {
-    var parsed = try frontend.parseModule(allocator, source, file_name);
+    var parsed = try frontend.parseAnalysisModule(allocator, source, file_name);
 
     defer parsed.deinit();
 
@@ -96,7 +96,7 @@ pub fn checkSource(allocator: std.mem.Allocator, source: []const u8, file_name: 
         };
     }
 
-    var parsed = try frontend.parseModule(allocator, source, file_name);
+    var parsed = try frontend.parseAnalysisModule(allocator, source, file_name);
 
     defer parsed.deinit();
 

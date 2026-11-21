@@ -11,7 +11,12 @@
         out={Model.State}
     />
 
-    <Call module="prepare" in={$in.source} />
+    <Call
+        module="prepare"
+        in={{
+            source: $in.source
+        }}
+    />
 
     <Call
         fn="body/parse"

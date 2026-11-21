@@ -289,7 +289,7 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
         }
         fn parse(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, digest: Digest) std.mem.Allocator.Error!*Entry {
             const entry = try staged.create(Entry);
-            const result = try parser.parseModuleIn(std.heap.smp_allocator, scratch, request.source, request.path);
+            const result = try parser.parseAnalysisModuleIn(std.heap.smp_allocator, scratch, request.source, request.path);
             entry.* = .init(digest, result);
 
             return entry;
@@ -399,7 +399,7 @@ fn getEntry(self: *Self, comptime native: bool, source: []const u8, path: []cons
     var prepared = Entry.init(digest, if (native)
         .{ .native = try parser.parse(self.allocator, source, path) }
     else
-        try parser.parseModule(self.allocator, source, path));
+        try parser.parseAnalysisModule(self.allocator, source, path));
 
     errdefer prepared.result.deinit();
 

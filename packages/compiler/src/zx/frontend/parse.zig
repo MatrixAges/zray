@@ -5,6 +5,7 @@ const lex = @import("lexer").lex;
 const compact = @import("compact_output.zig");
 const diagnostic = @import("diagnostic.zig");
 const retention = @import("retention/host.zig");
+const lexical = @import("retention/lexical.zig");
 
 pub const Parsed = struct {
     source: []const u8,
@@ -24,13 +25,14 @@ pub const Result = struct {
 };
 
 pub const ModuleResult = @import("module_result.zig").Result;
+const Mode = enum { native, analysis, format };
 
 pub fn parse(allocator: std.mem.Allocator, source: []const u8, file_name: []const u8) std.mem.Allocator.Error!Result {
     var scratch = zx.Arena.init(compact.scratch_backing);
 
     defer scratch.deinit();
 
-    const result = try parseWithMode(false, allocator, &scratch, source, file_name);
+    const result = try parseWithMode(.native, allocator, &scratch, source, file_name);
 
     return result.native;
 }
@@ -40,18 +42,26 @@ pub fn parseModule(allocator: std.mem.Allocator, source: []const u8, file_name: 
 
     defer scratch.deinit();
 
-    return parseModuleIn(allocator, &scratch, source, file_name);
+    return parseWithMode(.format, allocator, &scratch, source, file_name);
+}
+
+pub fn parseAnalysisModule(allocator: std.mem.Allocator, source: []const u8, file_name: []const u8) std.mem.Allocator.Error!ModuleResult {
+    var scratch = zx.Arena.init(compact.scratch_backing);
+
+    defer scratch.deinit();
+
+    return parseAnalysisModuleIn(allocator, &scratch, source, file_name);
 }
 
 /// Parses with the generated parser's working memory in `scratch`, which is reset afterwards but keeps its pages, so a
 /// thread parsing module after module reuses them instead of mapping and faulting fresh ones.
-pub fn parseModuleIn(allocator: std.mem.Allocator, scratch: *zx.Arena, source: []const u8, file_name: []const u8) std.mem.Allocator.Error!ModuleResult {
-    return parseWithMode(true, allocator, scratch, source, file_name);
+pub fn parseAnalysisModuleIn(allocator: std.mem.Allocator, scratch: *zx.Arena, source: []const u8, file_name: []const u8) std.mem.Allocator.Error!ModuleResult {
+    return parseWithMode(.analysis, allocator, scratch, source, file_name);
 }
 
 const scratch_limit = 16 << 20;
 
-fn parseWithMode(comptime retain_indexed: bool, allocator: std.mem.Allocator, scratch: *zx.Arena, source: []const u8, file_name: []const u8) std.mem.Allocator.Error!ModuleResult {
+fn parseWithMode(comptime mode: Mode, allocator: std.mem.Allocator, scratch: *zx.Arena, source: []const u8, file_name: []const u8) std.mem.Allocator.Error!ModuleResult {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
@@ -63,10 +73,13 @@ fn parseWithMode(comptime retain_indexed: bool, allocator: std.mem.Allocator, sc
     if (@import("parser_options").generated_parser) {
         const generated = @import("generated_parser");
         const adapter = @import("program_adapter/root.zig");
+        var lexical_arena = zx.Arena.initSmall(allocator);
+        var retained_lexical = false;
 
         defer scratch.reset(scratch_limit);
+        defer if (!retained_lexical) lexical_arena.deinit();
 
-        const output = generated.executeIn(scratch.allocator(), owned_source) catch |err| {
+        const output = lexical.parse(generated, if (mode == .analysis) .comments else .full, scratch.allocator(), if (mode == .native) null else &lexical_arena, owned_source) catch |err| {
             const issue = try diagnostic.generatedFailure(arena.allocator(), "parser", err);
 
             return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = issue } } };
@@ -78,11 +91,14 @@ fn parseWithMode(comptime retain_indexed: bool, allocator: std.mem.Allocator, sc
             return .{ .native = .{ .arena = arena, .value = .{ .diagnostic = published } } };
         }
 
-        if (retain_indexed) {
+        if (mode != .native) {
             const retained = try retention.retain(@import("generated_program_retention_size"), allocator, owned_source, output);
+
+            retained_lexical = true;
 
             return .{ .indexed = .{
                 .arena = arena,
+                .lexical_arena = lexical_arena,
                 .syntax_arena = retained.arena,
                 .source = owned_source,
                 .file_name = owned_name,

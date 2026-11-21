@@ -1,7 +1,6 @@
 const std = @import("std");
-const source_inputs = @import("source_inputs.zig");
 
-pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step {
+pub fn add(b: *std.Build, programs: @import("parser_programs.zig").Programs, compiler: *std.Build.Dependency, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step {
     const step = b.step("test-template-preparation", "Validate generated template preparation semantics and resources");
     const resources_step = b.step("test-template-preparation-resources", "Validate generated template preparation allocation cleanup and result lifetime");
     const semantics_step = b.step("test-template-preparation-semantics", "Validate generated template parts references and interpolation metadata");
@@ -16,22 +15,7 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Depen
     });
 
     for ([_][]const u8{ "direct", "module" }) |route| {
-        const generate = b.addRunArtifact(cli.artifact("zxc"));
-        const is_module = std.mem.eql(u8, route, "module");
-
-        generate.addFileArg(compiler.path(if (is_module) "src/zx/frontend/lexical.rx" else "src/zx/frontend/parser/templates/prepare.rx"));
-        generate.setCwd(compiler.path("."));
-        generate.addArg("--out");
-
-        const source = generate.addOutputFileArg(b.fmt("template_preparation_{s}.zig", .{route}));
-
-        generate.addArg("--no-cache");
-
-        for ([_][]const u8{ "src/zx/frontend/lexer", "src/zx/frontend/parser/templates" }) |path| {
-            source_inputs.add(b, generate, compiler, path) catch @panic("unable to track template preparation sources");
-        }
-
-        const program = b.createModule(.{ .root_source_file = source, .target = target, .optimize = optimize });
+        const program = programs.byteInput(b, b.fmt("template_{s}", .{route}));
 
         const tests = b.addTest(.{ .root_module = b.createModule(.{
             .root_source_file = b.path("tests/bootstrap/template_preparation/resources_test.zig"),

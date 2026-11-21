@@ -5,7 +5,7 @@ const lexical_path = "lexical_path";
 const ownership_interface = "analysis/uniqueness/program/driver/native.d.zx";
 const lowering_declarations = "analysis/expressions/evaluate/";
 
-pub const Sources = struct { lexer: std.Build.LazyPath, standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, execution: std.Build.LazyPath, host: std.Build.LazyPath };
+pub const Sources = struct { standard_abi: std.Build.LazyPath, main: std.Build.LazyPath, checks: std.Build.LazyPath, collections: std.Build.LazyPath, growth: std.Build.LazyPath, execution: std.Build.LazyPath, host: std.Build.LazyPath };
 
 pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []const u8, partitions: u32, executable: *std.Build.Step.Compile) Sources {
     const target = b.graph.host;
@@ -59,18 +59,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     for (roots, directories, &tracked) |root, directory, *inputs| {
         inputs.* = sourceInputs(b, root, directory) catch @panic("unable to track RX and ZX bootstrap sources");
     }
-
-    const lexer_root = "zx/frontend/lexer";
-    const lexer_run = generatorRun(b, executable, stage0);
-
-    lexer_run.addArg("--lexer");
-    lexer_run.addDirectoryArg2(roots[0].path(b, lexer_root), .{});
-    lexer_run.addDirectoryArg2(roots[2], .{});
-    lexer_run.addFileInput(roots[2].path(b, "const.zx"));
-    lexer_run.addFileInput(roots[2].path(b, "ascii/const.zx"));
-    addSubtree(lexer_run, tracked[0], lexer_root);
-
-    sources.lexer = lexer_run.addOutputFileArg("lexer.zig");
 
     const interfaces = [_]manifest.Interface{
         .{

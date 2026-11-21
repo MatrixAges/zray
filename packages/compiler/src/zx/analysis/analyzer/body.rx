@@ -2,7 +2,7 @@
     <Type from="functions" as="Functions" />
     <Type from="context" as="Context" />
     <Type from="expressions/request" as="Request" />
-    <Type from="../../frontend/lexer/initial" as="Initial" />
+    <Type from="../../frontend/lexer/token_model" as="Token" />
     <Type from="model" as="Model" />
     <Type from="statements/traversal/finish" as="Finish" />
 
@@ -12,7 +12,7 @@
             functions: Functions.Functions,
             imports: Context.FunctionImports,
             source: Request.Source,
-            span: Initial.Input,
+            span: Token.Span,
             state: Model.Prepared
         }}
         out={Finish.Output}

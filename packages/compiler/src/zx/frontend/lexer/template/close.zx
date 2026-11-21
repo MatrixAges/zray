@@ -47,6 +47,7 @@ export default function (in: Input): Output {
         depth,
         frames: frames,
         number: in.number,
+        placement: in.placement,
         tokens: in.tokens,
         comments: in.comments,
         diagnostic: in.diagnostic

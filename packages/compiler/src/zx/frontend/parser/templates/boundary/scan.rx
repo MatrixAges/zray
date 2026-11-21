@@ -1,17 +1,18 @@
 <Module>
     <Type from="empty" as="Empty" />
+    <Type from="../../../lexer/storage" as="Storage" />
 
-    <Args in={u8[]} out={Empty.Output} />
+    <Args in={Storage.Input} out={Empty.Output} />
 
-    <Call fn="../../../lexer/utf8/validate" in={$in} />
+    <Call fn="../../../lexer/utf8/validate" in={$in.source} />
 
     <If on={$ctx.validate}>
-        <Call fn="initial" in={$in.length} />
+        <Call fn="initial" in={$in} />
 
         <Call
             fn="bytes"
             in={{
-                source: $in,
+                source: $in.source,
                 state: $ctx.initial
             }}
         />
@@ -37,7 +38,7 @@
                 in={{
                     code: "lexical",
                     start: 0,
-                    end: $in.length,
+                    end: $in.source.length,
                     message: "source must be valid UTF-8"
                 }}
             />

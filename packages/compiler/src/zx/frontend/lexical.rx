@@ -3,7 +3,12 @@
 
     <Args in={u8[]} out={Model.Prepared} />
 
-    <Call module="parser/templates/prepare" in={$in} />
+    <Call
+        module="parser/templates/prepare"
+        in={{
+            source: $in
+        }}
+    />
 
     <Return value={$ctx.prepare} />
 </Module>

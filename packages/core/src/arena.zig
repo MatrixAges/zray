@@ -13,6 +13,8 @@ first: ?*Chunk = null,
 current: ?*Chunk = null,
 /// Bytes used in the current chunk.
 end: usize = 0,
+
+minimum_chunk: usize = smallest - header,
 const Chunk = struct { next: ?*Chunk, size: usize };
 const header = std.mem.alignForward(usize, @sizeOf(Chunk), 16);
 /// The first chunk, with its header, fills one page.
@@ -21,6 +23,10 @@ pub const Checkpoint = struct { chunk: ?*Chunk, end: usize };
 
 pub fn init(child: std.mem.Allocator) Self {
     return .{ .child = child };
+}
+
+pub fn initSmall(child: std.mem.Allocator) Self {
+    return .{ .child = child, .minimum_chunk = 0 };
 }
 
 /// Starts with one chunk of `size` bytes, for a caller that knows how much it will allocate.
@@ -129,7 +135,7 @@ fn alloc(context: *anyopaque, len: usize, alignment: std.mem.Alignment, _: usize
     }
 
     const previous = if (self.current) |chunk| chunk.size else 0;
-    const size = @max(len + alignment.toByteUnits(), previous + previous / 2, smallest - header);
+    const size = @max(len + alignment.toByteUnits(), previous + previous / 2, self.minimum_chunk);
     const memory = self.child.rawAlloc(header + size, .of(Chunk), @returnAddress()) orelse return null;
     const chunk: *Chunk = @ptrCast(@alignCast(memory));
 

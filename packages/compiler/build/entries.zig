@@ -28,6 +28,7 @@ pub const main = [_]Entry{
     .{ .path = "zx/frontend/resources/scan.rx", .name = "resource_scan" },
     .{ .path = "lint/layout/layout.rx", .name = "layout_rule", .owner = .lint },
     .{ .path = "zx/modules/external/load.rx", .name = "external" },
+    .{ .path = "zx/frontend/lexer/scan.rx", .name = "lexer" },
     .{ .path = "zx/frontend/parser/program.rx", .name = "program", .import_name = "generated_parser" },
     .{ .path = "zx/frontend/parser/expression_text.rx", .name = "expression" },
     .{ .path = "zx/frontend/parser/syntax/retention/program.zx", .name = "program_retention_size" },

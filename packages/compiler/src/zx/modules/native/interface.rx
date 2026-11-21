@@ -1,5 +1,5 @@
 <Module>
-    <Type from="../../frontend/lexer/initial" as="Initial" />
+    <Type from="../../frontend/lexer/token_model" as="Token" />
     <Type from="../../frontend/parser/native/model" as="Model" />
     <Type from="signatures/check" as="Check" />
     <Type from="../../analysis/semantic/resolving/model" as="ResolvingModel" />
@@ -10,7 +10,7 @@
 
     <Args
         in={{
-            errors: Initial.Input[],
+            errors: Token.Span[],
             functions: Model.Function[],
             namespace: u8[][],
             parameters: Model.Parameter[],

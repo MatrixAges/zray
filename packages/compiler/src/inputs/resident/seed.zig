@@ -16,7 +16,6 @@ pub fn command(args: []const [:0]const u8) protocol.Command {
 
     const name = args[1];
 
-    if (std.mem.eql(u8, name, "--lexer")) return if (args.len == 5) .Lexer else .Incomplete;
     if (std.mem.eql(u8, name, "--standard-abi")) return if (args.len == 3) .StandardAbi else .Incomplete;
 
     if (std.mem.eql(u8, name, "--manifest")) {

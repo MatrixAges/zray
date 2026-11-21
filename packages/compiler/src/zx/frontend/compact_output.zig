@@ -2,9 +2,20 @@ const std = @import("std");
 /// Scratch backing for generated parser runs; a real heap so releasing the scratch arena returns its memory.
 pub const scratch_backing = std.heap.smp_allocator;
 
-/// Deep-copies a generated parser output into `allocator`, keeping text that already points into `source`.
-pub fn copy(allocator: std.mem.Allocator, source: []const u8, value: anytype) std.mem.Allocator.Error!@TypeOf(value) {
-    return clone(@TypeOf(value), allocator, source, value);
+pub fn retainSyntax(allocator: std.mem.Allocator, source: []const u8, value: anytype) std.mem.Allocator.Error!@TypeOf(value) {
+    const Syntax = std.meta.Child(@TypeOf(value));
+    const output = try allocator.create(Syntax);
+
+    inline for (@typeInfo(Syntax).@"struct".field_names) |name| {
+        const field = @field(value.*, name);
+
+        @field(output.*, name) = if (comptime std.mem.eql(u8, name, "tokens") or std.mem.eql(u8, name, "comments"))
+            try allocator.dupe(std.meta.Child(@TypeOf(field)), field)
+        else
+            try clone(@TypeOf(field), allocator, source, field);
+    }
+
+    return output;
 }
 
 fn clone(comptime T: type, allocator: std.mem.Allocator, source: []const u8, value: T) std.mem.Allocator.Error!T {

@@ -1,9 +1,10 @@
 import initial from "../../../lexer/initial"
 
+import type { Input as LexicalInput } from "../../../lexer/storage"
 import type { Template, Part, Event } from "../model"
 import type { State, Frame } from "./model"
 
-export type Input = u64
+export type Input = LexicalInput
 
 export type Output = State
 
@@ -17,7 +18,8 @@ export default function (in: Input): Output {
     return {
         lexer: initial({
             start: 0,
-            end: in
+            end: in.source.length,
+            placement: in.placement
         }),
         graph: {
             templates,

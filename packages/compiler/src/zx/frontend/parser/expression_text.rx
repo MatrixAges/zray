@@ -1,12 +1,14 @@
 <Module>
     <Type from="syntax/model" as="Model" />
+    <Type from="../lexer/storage" as="Storage" />
 
-    <Args in={u8[]} out={Model.Expression} />
+    <Args in={Storage.Request} out={Model.Expression} />
 
     <Call
         module="expression"
         in={{
-            source: $in,
+            source: $in.source,
+            placement: $in.placement,
             start: 0,
             depth: 0,
             minimum: 0,
@@ -16,5 +18,20 @@
 
     <Call fn="expressions/finish" />
 
-    <Return value={$ctx.finish} />
+    <Call
+        fn="syntax/retention/select_lexical"
+        in={{
+            tokens: $ctx.finish.tokens,
+            comments: $ctx.finish.comments,
+            omit_tokens: $in.omit_tokens,
+            omit_comments: $in.omit_comments
+        }}
+    />
+
+    <Return
+        value={{
+            ...$ctx.finish,
+            ...$ctx.select_lexical
+        }}
+    />
 </Module>

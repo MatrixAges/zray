@@ -1,9 +1,16 @@
 <Module>
     <Type from="syntax/model" as="Model" />
+    <Type from="../lexer/storage" as="Storage" />
 
-    <Args in={u8[]} out={Model.Program} />
+    <Args in={Storage.Request} out={Model.Program} />
 
-    <Call module="prepare" in={$in} />
+    <Call
+        module="prepare"
+        in={$in.pick([
+            "source",
+            "placement"
+        ])}
+    />
 
     <Call fn="program/imports" />
     <Call fn="program/declarations" />
@@ -11,6 +18,16 @@
     <Call fn="program/body" />
     <Call fn="program/diagnostic" />
     <Call fn="../diagnostic/present" />
+
+    <Call
+        fn="syntax/retention/select_lexical"
+        in={{
+            tokens: $ctx.prepare.lexical.lexed.tokens,
+            comments: $ctx.prepare.lexical.lexed.comments,
+            omit_tokens: $in.omit_tokens,
+            omit_comments: $in.omit_comments
+        }}
+    />
 
     <Return
         value={{
@@ -22,8 +39,7 @@
             },
             expressions: $ctx.body.body.expression.tree,
             blocks: $ctx.body.body.tree,
-            tokens: $ctx.body.body.expression.prepared.lexical.lexed.tokens,
-            comments: $ctx.body.body.expression.prepared.lexical.lexed.comments,
+            ...$ctx.select_lexical,
             imports: $ctx.body.prefix.imports,
             import_names: $ctx.body.prefix.names,
             import_sources: $ctx.body.prefix.sources,

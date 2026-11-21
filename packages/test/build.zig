@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
     const pkgs = b.dependency("pkgs", .{ .target = target, .optimize = optimize, .stage0 = stage0, .@"share-compiler-standard" = true, .@"generated-partitions" = @as(u32, 0) });
     const test_step = b.step("test", "Run ZX conformance catalogs and their integrity checks");
     const suites = @import("build/catalog.zig").load(b);
+    const parser_programs = @import("build/parser_programs.zig").create(b, compiler, target, optimize);
 
     test_step.dependOn(@import("build/function_analysis.zig").add(b, compiler, target, optimize));
     test_step.dependOn(@import("build/function_updates.zig").add(b, compiler, target, optimize));
@@ -43,13 +44,13 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(@import("build/gateway.zig").add(b, cli_dependency, compiler, target, optimize));
     test_step.dependOn(@import("build/frontend.zig").add(b, compiler, target, optimize, suites.frontend));
     test_step.dependOn(@import("build/scanner_metadata.zig").add(b, compiler, target, optimize));
-    test_step.dependOn(@import("build/type_parser.zig").add(b, cli_dependency, compiler, target, optimize));
+    test_step.dependOn(@import("build/type_parser.zig").add(b, parser_programs, compiler, target, optimize));
     test_step.dependOn(@import("build/type_resolution.zig").add(b, compiler, target, optimize));
     test_step.dependOn(@import("build/type_query.zig").add(b, compiler, target, optimize));
     test_step.dependOn(@import("build/function_effects.zig").add(b, compiler, target, optimize));
     test_step.dependOn(@import("build/native_modules.zig").add(b, compiler, target, optimize));
-    test_step.dependOn(@import("build/template_preparation.zig").add(b, cli_dependency, compiler, target, optimize));
-    test_step.dependOn(@import("build/expression_preparation.zig").add(b, cli_dependency, compiler, target, optimize));
+    test_step.dependOn(@import("build/template_preparation.zig").add(b, parser_programs, compiler, target, optimize));
+    test_step.dependOn(@import("build/expression_preparation.zig").add(b, parser_programs, compiler, target, optimize));
     test_step.dependOn(@import("build/import_paths.zig").add(b, cli_dependency, compiler, target, optimize));
     test_step.dependOn(@import("build/import_order.zig").add(b, cli_dependency, compiler, target, optimize));
     test_step.dependOn(@import("build/runtime.zig").add(b, compiler, cli_dependency, target, optimize, suites.runtime));

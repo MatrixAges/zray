@@ -3,7 +3,12 @@
 
     <Args in={Model.ExternalInput} out={Model.Result} />
 
-    <Call module="../../frontend/parser/program" in={$in.bytes} />
+    <Call
+        module="../../frontend/parser/program"
+        in={{
+            source: $in.bytes
+        }}
+    />
 
     <Call fn="declaration_only" />
 

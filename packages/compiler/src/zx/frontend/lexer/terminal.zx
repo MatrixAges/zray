@@ -1,0 +1,26 @@
+import append from "./append_token"
+import { Keyword } from "./keyword_model"
+import { Kind, Symbol } from "./token_model"
+
+import type { LexerState as Input } from "./model"
+import type { Token } from "./token_model"
+
+export type Output = Token[]
+
+export default function (in: Input): Output {
+    const length = in.source_length
+
+    return append({
+        tokens: in.tokens,
+        placement: in.placement,
+        token: {
+            kind: Kind.Eof,
+            word: Keyword.Root,
+            symbol: Symbol.None,
+            start: length,
+            end: length,
+            line_break: in.tokens.length != 0 && in.line_break,
+            dollar: false
+        }
+    })
+}

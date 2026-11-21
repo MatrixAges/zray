@@ -3,7 +3,7 @@ const zx = @import("zx");
 const generated = @import("parser_options").generated_parser;
 const seed = @import("resident/seed.zig");
 pub const settings = if (generated) @import("generated_resident_constants").@"zx.constants" else seed;
-pub const Command = enum { Missing, Unknown, Incomplete, Lexer, StandardAbi, Manifest, Partitioned, Serve, Warm };
+pub const Command = enum { Missing, Unknown, Incomplete, StandardAbi, Manifest, Partitioned, Serve, Warm };
 pub const Status = enum(u8) { Done, Failed, Stale, Declined };
 
 pub const Request = struct {

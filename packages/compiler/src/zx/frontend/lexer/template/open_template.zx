@@ -58,6 +58,7 @@ export default function (in: Input): Output {
         braces: 0,
         depth: in.depth + 1,
         frames: frames,
+        placement: in.placement,
         number: in.number,
         tokens: in.tokens,
         comments: in.comments,

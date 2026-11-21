@@ -1,3 +1,6 @@
+import memory from "memory"
+
+import append from "./append_token"
 import { kind_identifier, kind_keyword } from "./const"
 import { Keyword } from "./keyword_model"
 import keywordValue from "./keyword_value"
@@ -5,6 +8,7 @@ import tokenKind from "./token_kind"
 import { Symbol } from "./token_model"
 
 import type { LexerState } from "./model"
+import type { Span } from "./token_model"
 
 export type Input = {
     kind: string,
@@ -17,12 +21,22 @@ export type Input = {
 export type Output = LexerState
 
 export default function (in: Input): Output {
-    const span = {
-        start: in.start,
-        end: in.end
-    }
+    const placement = in.state.placement
 
     if (in.comment) {
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.comments)
+        }
+
+        const span: Span = {
+            start: in.start,
+            end: in.end
+        }
+
+        if (placement != null) {
+            memory.selectAllocator(placement.scope, placement.scratch)
+        }
+
         return {
             source_length: in.state.source_length,
             warmed: in.state.warmed,
@@ -39,6 +53,7 @@ export default function (in: Input): Output {
             braces: in.state.braces,
             depth: in.state.depth,
             frames: in.state.frames,
+            placement,
             number: in.state.number,
             tokens: in.state.tokens,
             comments: in.state.comments.push(span)[0],
@@ -57,14 +72,19 @@ export default function (in: Input): Output {
 
     const kind = tokenKind(in.kind)
 
-    const token = {
-        kind: kind,
-        word,
-        symbol: in.state.symbol,
-        span,
-        line_break: in.state.tokens.length != 0 && in.state.line_break,
-        dollar: in.state.dollar
-    }
+    const tokens = append({
+        tokens: in.state.tokens,
+        placement,
+        token: {
+            kind,
+            word,
+            symbol: in.state.symbol,
+            start: in.start,
+            end: in.end,
+            line_break: in.state.tokens.length != 0 && in.state.line_break,
+            dollar: in.state.dollar
+        }
+    })
 
     return {
         source_length: in.state.source_length,
@@ -82,8 +102,9 @@ export default function (in: Input): Output {
         braces: in.state.braces,
         depth: in.state.depth,
         frames: in.state.frames,
+        placement,
         number: in.state.number,
-        tokens: in.state.tokens.push(token)[0],
+        tokens,
         comments: in.state.comments,
         diagnostic: in.state.diagnostic
     }

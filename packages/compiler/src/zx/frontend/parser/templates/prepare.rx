@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Model" />
+    <Type from="../../lexer/storage" as="Storage" />
 
-    <Args in={u8[]} out={Model.Prepared} />
+    <Args in={Storage.Input} out={Model.Prepared} />
 
     <Call module="boundary/scan" in={$in} />
 
@@ -12,14 +13,14 @@
             fn="streams/initial"
             in={{
                 events: $ctx.scan.events,
-                length: $in.length
+                length: $in.source.length
             }}
         />
 
         <Call
             fn="streams/interpolations"
             in={{
-                source: $in,
+                source: $in.source,
                 state: $ctx.initial
             }}
         />

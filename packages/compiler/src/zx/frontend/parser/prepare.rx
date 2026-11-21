@@ -1,17 +1,18 @@
 <Module>
     <Type from="expressions/prepare/model" as="Model" />
+    <Type from="../lexer/storage" as="Storage" />
 
-    <Args in={u8[]} out={Model.PreparedInput} />
+    <Args in={Storage.Input} out={Model.PreparedInput} />
 
-    <Call module="../lexical" in={$in} />
+    <Call module="templates/prepare" in={$in} />
 
-    <Call fn="expressions/prepare/scan" in={$ctx.lexical.lexed.tokens} />
-    <Call fn="expressions/prepare/interpolations" in={$ctx.lexical.interpolations} />
+    <Call fn="expressions/prepare/scan" in={$ctx.prepare.lexed.tokens} />
+    <Call fn="expressions/prepare/interpolations" in={$ctx.prepare.interpolations} />
 
     <Return
         value={{
-            source: $in,
-            lexical: $ctx.lexical,
+            source: $in.source,
+            lexical: $ctx.prepare,
             hints: $ctx.scan,
             interpolation_hints: $ctx.interpolations
         }}

@@ -1,6 +1,6 @@
 <Module>
     <Type from="../../analysis/semantic/resolving/model" as="Model" />
-    <Type from="../../frontend/lexer/initial" as="Initial" />
+    <Type from="../../frontend/lexer/token_model" as="Token" />
     <Type from="../../frontend/parser/native/model" as="NativeModel" />
     <Type from="core/type_table/nominal" as="Nominal" />
     <Type from="../../analysis/semantic/merging/origin" as="Origin" />
@@ -12,7 +12,7 @@
     <Args
         in={{
             context: Model.Context,
-            errors: Initial.Input[],
+            errors: Token.Span[],
             functions: NativeModel.Function[],
             namespace: u8[][],
             origin: Nominal.Origin,

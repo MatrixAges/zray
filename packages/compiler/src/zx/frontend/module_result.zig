@@ -6,6 +6,7 @@ pub const indexed_enabled = @import("parser_options").generated_parser;
 
 pub const Indexed = if (indexed_enabled) struct {
     arena: std.heap.ArenaAllocator,
+    lexical_arena: zx.Arena,
     syntax_arena: zx.Arena,
     source: []const u8,
     file_name: []const u8,
@@ -23,7 +24,7 @@ pub const Result = union(enum) {
     pub fn queryCapacity(self: *const Self) usize {
         return switch (self.*) {
             .native => |*result| result.arena.queryCapacity(),
-            .indexed => |*result| if (indexed_enabled) result.arena.queryCapacity() + result.syntax_arena.queryCapacity() else unreachable,
+            .indexed => |*result| if (indexed_enabled) result.arena.queryCapacity() + result.lexical_arena.queryCapacity() + result.syntax_arena.queryCapacity() else unreachable,
         };
     }
 
@@ -32,6 +33,7 @@ pub const Result = union(enum) {
             .native => |*result| result.deinit(),
             .indexed => |*result| if (indexed_enabled) {
                 result.syntax_arena.deinit();
+                result.lexical_arena.deinit();
                 result.arena.deinit();
             } else unreachable,
         }
@@ -109,6 +111,14 @@ pub const Result = union(enum) {
         };
     }
     pub fn format(self: *const Self, allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
+        if (indexed_enabled and self.* == .indexed and self.indexed.output.tokens.len == 0) {
+            var parsed = try parser.parseModule(allocator, self.indexed.source, self.indexed.file_name);
+
+            defer parsed.deinit();
+
+            return parsed.format(allocator);
+        }
+
         const structured = try self.structure(allocator);
 
         defer allocator.free(structured);

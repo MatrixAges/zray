@@ -19,7 +19,6 @@ pub fn main(init: std.process.Init) !void {
         .Missing => error.MissingCommand,
         .Unknown => error.UnknownCommand,
         .Incomplete => error.OutputCountMismatch,
-        .Lexer => @import("generate_lexer.zig").generate(init, args[2], args[3], args[4]),
         .StandardAbi => @import("generate_types.zig").generate(init, args[2]),
         .Manifest, .Partitioned => @import("resident/service.zig").run(init, .{
             .manifest = args[2],

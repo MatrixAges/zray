@@ -1,0 +1,18 @@
+import type { Allocator, ArenaScope } from "memory"
+
+export type Placement = {
+    scope: ArenaScope,
+    comments: Allocator,
+    tokens?: Allocator,
+    scratch: Allocator
+}
+
+export type Input = {
+    source: u8[],
+    placement?: Placement
+}
+
+export type Request = Input & {
+    omit_tokens?: bool,
+    omit_comments?: bool
+}

@@ -1,18 +1,26 @@
 <Module>
     <Type from="expressions/parse" as="Parse" />
+    <Type from="../lexer/storage" as="Storage" />
 
     <Args
         in={{
             allow_lambda: bool,
             depth: u64,
             minimum: u8,
+            placement?: Storage.Placement,
             source: u8[],
             start: u64
         }}
         out={Parse.Output}
     />
 
-    <Call module="prepare" in={$in.source} />
+    <Call
+        module="prepare"
+        in={$in.pick([
+            "source",
+            "placement"
+        ])}
+    />
 
     <Call
         fn="expressions/parse"
