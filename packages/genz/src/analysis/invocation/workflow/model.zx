@@ -1,0 +1,22 @@
+export enum Form {
+    Regular,
+    Value,
+    Borrowed,
+    IterationInput,
+    IterationCall,
+    IterationRestore
+}
+
+export enum Step {
+    Evaluate,
+    Adapt,
+    Clip,
+    Store,
+    Invoke,
+    Convert,
+    Finish,
+    Bind,
+    View,
+    RestoreCache,
+    RestoreArgument
+}

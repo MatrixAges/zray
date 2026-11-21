@@ -1,0 +1,75 @@
+<Module>
+    <Type from="model" as="Invocation" />
+
+    <Args in={Invocation.Form} out={Invocation.Step[]} />
+
+    <Switch on={$in}>
+        <Case value={Invocation.Form.Regular}>
+            <Return
+                value={[
+                    Invocation.Step.Evaluate,
+                    Invocation.Step.Adapt,
+                    Invocation.Step.Store,
+                    Invocation.Step.Invoke,
+                    Invocation.Step.Convert,
+                    Invocation.Step.Finish
+                ]}
+            />
+        </Case>
+
+        <Case value={Invocation.Form.Value}>
+            <Return
+                value={[
+                    Invocation.Step.Evaluate,
+                    Invocation.Step.Adapt,
+                    Invocation.Step.Clip,
+                    Invocation.Step.Invoke,
+                    Invocation.Step.Convert,
+                    Invocation.Step.Finish
+                ]}
+            />
+        </Case>
+
+        <Case value={Invocation.Form.Borrowed}>
+            <Return
+                value={[
+                    Invocation.Step.Evaluate,
+                    Invocation.Step.Adapt,
+                    Invocation.Step.Clip,
+                    Invocation.Step.Invoke,
+                    Invocation.Step.Convert
+                ]}
+            />
+        </Case>
+
+        <Case value={Invocation.Form.IterationInput}>
+            <Return
+                value={[
+                    Invocation.Step.Evaluate,
+                    Invocation.Step.Bind,
+                    Invocation.Step.View
+                ]}
+            />
+        </Case>
+
+        <Case value={Invocation.Form.IterationCall}>
+            <Return
+                value={[
+                    Invocation.Step.Invoke,
+                    Invocation.Step.Bind,
+                    Invocation.Step.Convert,
+                    Invocation.Step.Finish
+                ]}
+            />
+        </Case>
+
+        <Case value={Invocation.Form.IterationRestore}>
+            <Return
+                value={[
+                    Invocation.Step.RestoreCache,
+                    Invocation.Step.RestoreArgument
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

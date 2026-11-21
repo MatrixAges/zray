@@ -749,6 +749,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/aggregate/binding/guard/build.rx", .name = "guarded_result_block", .owner = .genz },
     .{ .path = "genz/analysis/invocation/call.zx", .name = "invocation_call", .owner = .genz },
     .{ .path = "genz/analysis/invocation/builtin.zx", .name = "invocation_builtin", .owner = .genz },
+    .{ .path = "genz/analysis/invocation/workflow/plan.rx", .name = "call_workflow", .owner = .genz },
     .{ .path = "genz/analysis/invocation/regular/build.rx", .name = "regular_call_plan", .owner = .genz },
     .{ .path = "genz/analysis/invocation/regular/emission/build.rx", .name = "regular_call_emit", .owner = .genz },
     .{ .path = "genz/analysis/access/store.zx", .name = "store_access", .owner = .genz },

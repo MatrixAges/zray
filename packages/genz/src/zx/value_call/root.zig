@@ -1,5 +1,6 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
@@ -7,6 +8,8 @@ const generated = @import("genz_options").generated_analysis;
 const seed = @import("seed.zig");
 const policy = @import("policy.zig");
 const emission = @import("emission.zig");
+const conversion = @import("../state_value/conversion.zig");
+const workflow = @import("generated_call_workflow");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 const Probe = @import("../expression_map.zig").Probe;
 pub const analysis = @import("analysis.zig");
@@ -64,35 +67,46 @@ fn invokeBlock(self: *Lower, value: @FieldType(@FieldType(ir.ExpressionRow, "val
 
     defer body.deinit();
 
-    const result = try lowerInvocation(self, &body, value, false, pointer);
-
-    return aggregate.finish(self, &body, result);
+    return lowerInvocation(self, &body, value, false, pointer);
 }
 
-fn lowerInvocation(self: *Lower, body: *Sequence, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), borrowed: bool, pointer: bool) Lower.Error!node.ExpressionId {
+fn lowerInvocation(self: *Lower, body: *Sequence, value: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call"), comptime borrowed: bool, pointer: bool) Lower.Error!node.ExpressionId {
     const plan = policy.invocation(self, value, borrowed, pointer);
-    const function = self.program.functions.at(@backingInt(value.function));
+    const function = @backingInt(value.function);
+    const types = &self.program.functions;
+    var argument: node.ExpressionId = undefined;
+    var result: node.ExpressionId = undefined;
 
-    var argument = switch (plan.argument) {
-        .Value => try self.expr(value.argument),
-        .BorrowObject => try @import("argument.zig").borrow(self, body, value.argument),
-        .StackObject => try @import("borrowed_argument.zig").lower(self, body, .{ .value = try aggregate.objectValue(self, value.argument) }),
+    inline for (comptime zx.staticSequence(workflow, if (borrowed) .Borrowed else .Value)) |step| switch (step) {
+        .Evaluate => argument = switch (plan.argument) {
+            .Value => try self.expr(value.argument),
+            .BorrowObject => try @import("argument.zig").borrow(self, body, value.argument),
+            .StackObject => try @import("borrowed_argument.zig").lower(self, body, .{ .value = try aggregate.objectValue(self, value.argument) }),
+        },
+        .Adapt => if (plan.input_mode != .Keep) {
+            const bound = try aggregate.bind(self, body, argument);
+            const mode: conversion.Mode = if (plan.input_mode == .Value) .value else .borrow;
+
+            argument = try conversion.convert(self, body, @fromBackingInt(types.input_types[function]), bound, mode);
+        },
+        .Clip => if (plan.clip) {
+            argument = try @import("../state_value/ownership.zig").clip(self, body, value.argument, argument);
+        },
+        .Invoke => result = try emission.emit(self, body, .{ .function = value.function, .value = argument, .plan = plan }),
+        .Convert => {
+            const output: ir.TypeId = @fromBackingInt(types.output_types[function]);
+
+            result = switch (plan.return_mode) {
+                .Borrow => try conversion.convert(self, body, output, result, .borrow),
+                .Layout => try conversion.convert(self, body, output, result, .layout),
+                .Pointer => try conversion.convert(self, body, output, result, .pointer),
+                .Construct => try self.construct(output, result),
+                .Keep => result,
+            };
+        },
+        .Finish => result = try aggregate.finish(self, body, result),
+        else => @compileError("Invalid value invocation step"),
     };
 
-    if (plan.input_mode != .Keep) {
-        argument = try aggregate.bind(self, body, argument);
-        argument = try @import("../state_value/conversion.zig").convert(self, body, function.input_type, argument, if (plan.input_mode == .Value) .value else .borrow);
-    }
-
-    if (plan.clip) argument = try @import("../state_value/ownership.zig").clip(self, body, value.argument, argument);
-
-    const result = try emission.emit(self, body, .{ .function = value.function, .value = argument, .plan = plan });
-
-    return switch (plan.return_mode) {
-        .Borrow => @import("../state_value/conversion.zig").convert(self, body, function.output_type, result, .borrow),
-        .Layout => @import("../state_value/conversion.zig").convert(self, body, function.output_type, result, .layout),
-        .Pointer => @import("../state_value/conversion.zig").convert(self, body, function.output_type, result, .pointer),
-        .Construct => self.construct(function.output_type, result),
-        .Keep => result,
-    };
+    return result;
 }
