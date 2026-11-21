@@ -1,4 +1,4 @@
-import type { U32Buffer, U8Buffer } from "memory"
+import type { Destination as Headers } from "../model"
 
 export type Blocks = {
     starts: u32[],
@@ -16,9 +16,7 @@ export type Layout = {
     append: bool
 }
 
-export type Destination = Blocks & {
+export type Destination = Blocks & Headers & {
     tags: u8[],
-    offsets: u32[],
-    target_tags: U8Buffer,
-    target_offsets: U32Buffer
+    offsets: u32[]
 }

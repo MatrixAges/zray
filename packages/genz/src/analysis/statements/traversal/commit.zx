@@ -1,0 +1,32 @@
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+
+export type Input = {
+    starts: U32Buffer,
+    counts: U32Buffer,
+    cursor: u64,
+    start: u32,
+    count: u32,
+    consumed_previous: bool
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const row = in.cursor - 1
+
+    memory.writeU32(in.starts, row, in.start)
+    memory.writeU32(in.counts, row, in.count)
+
+    if (!in.consumed_previous) {
+        return row
+    }
+
+    const previous = row - 1
+
+    memory.writeU32(in.starts, previous, 0)
+    memory.writeU32(in.counts, previous, 0)
+
+    return previous
+}

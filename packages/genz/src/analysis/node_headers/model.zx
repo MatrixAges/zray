@@ -12,23 +12,23 @@ export type Layout = Headers & {
     limits?: u64[]
 }
 
-export type Rebase = Headers & {
-    bases: u32[],
-    target: U32Buffer
-}
-
-export type Selected = Headers.Pick("tags", "mask") & {
-    count: u64,
-    bases: U32Buffer,
+export type Destination = {
     target_tags: U8Buffer,
     target_offsets: U32Buffer,
     lengths: ColumnLengths
 }
 
-export type References = {
+export type Rebase = Headers & Destination & {
+    bases: u32[]
+}
+
+export type Selected = Headers.Pick("tags", "mask") & Destination & {
+    count: u64,
+    bases: U32Buffer
+}
+
+export type References = Destination & {
     tags: u8[],
     offsets: u32[],
-    indices: u32[],
-    target_tags: U8Buffer,
-    target_offsets: U32Buffer
+    indices: u32[]
 }

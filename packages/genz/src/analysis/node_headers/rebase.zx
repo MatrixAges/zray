@@ -15,8 +15,12 @@ export default function (in: Input): Output {
             const tag = integers.andBits(byte, mask)
             const offset = bases[tag] + offsets[index]
 
-            memory.writeU32(in.target, index, offset)
+            memory.writeU32(in.target_offsets, index, offset)
             index += 1
         }
     })
+
+    const copied = memory.copyBytes(in.target_tags, 0, tags, 0, tags.length)
+
+    memory.publishColumnLengths(in.lengths, tags.length)
 }

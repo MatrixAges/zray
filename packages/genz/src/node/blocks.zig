@@ -92,6 +92,7 @@ fn collect(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, sta
         comptime std.debug.assert(@sizeOf(std.meta.Child(@TypeOf(rows.tags.items))) == 1);
 
         const entry = @import("generated_node_block_publish");
+        const lengths: zx.memory.ColumnLengths = &.{ &rows.tags.items.len, &rows.offsets.items.len };
 
         const input: std.meta.Child(entry.Input) = .{
             .starts = starts,
@@ -100,6 +101,7 @@ fn collect(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, sta
             .offsets = rows.offsets.items,
             .target_tags = @ptrCast(&std.mem.sliceAsBytes(tags)),
             .target_offsets = @ptrCast(&offsets),
+            .lengths = @ptrCast(&lengths),
         };
 
         var fixed = std.heap.FixedBufferAllocator.init(&.{});
@@ -114,10 +116,10 @@ fn collect(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, sta
 
             target += count;
         }
-    }
 
-    rows.tags.items.len += length;
-    rows.offsets.items.len += length;
+        rows.tags.items.len += length;
+        rows.offsets.items.len += length;
+    }
 
     return .{ .start = @intCast(start), .len = @intCast(length) };
 }

@@ -197,6 +197,8 @@ pub fn function(self: *Self, name: []const u8, exported: bool) Error!node.Declar
     self.uses_io = false;
     self.uses_process = false;
 
+    if (generated) return @import("functions/body.zig").lower(self, name, exported);
+
     const errors = try @import("error_effects.zig").program(self);
     const needs_io = self.entry_flags.io;
     const needs_process = self.entry_flags.process;

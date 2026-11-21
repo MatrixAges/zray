@@ -18,4 +18,6 @@ export default function (in: Input): Output {
             index += 1
         }
     })
+
+    memory.publishColumnLengths(in.lengths, indices.length)
 }

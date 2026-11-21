@@ -75,7 +75,9 @@ pub fn rebase(target: anytype, tags: anytype, offsets: []const u32, counts: *con
     }
 
     const bases = payloadBases(target, counts);
-    const output = target.offsets.unusedCapacitySlice()[0..offsets.len];
+    const output_tags = bytes(target.tags.unusedCapacitySlice()[0..tags.len]);
+    const output_offsets = target.offsets.unusedCapacitySlice()[0..offsets.len];
+    const lengths: zx.memory.ColumnLengths = &.{ &target.tags.items.len, &target.offsets.items.len };
     const entry = @import("generated_node_header_rebase");
 
     const input: std.meta.Child(entry.Input) = .{
@@ -83,15 +85,14 @@ pub fn rebase(target: anytype, tags: anytype, offsets: []const u32, counts: *con
         .offsets = offsets,
         .mask = mask(std.meta.Elem(@TypeOf(tags))),
         .bases = &bases,
-        .target = @ptrCast(&output),
+        .target_tags = @ptrCast(&output_tags),
+        .target_offsets = @ptrCast(&output_offsets),
+        .lengths = @ptrCast(&lengths),
     };
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-    target.tags.appendSliceAssumeCapacity(tags);
-
-    target.offsets.items.len += offsets.len;
 }
 
 pub fn payloadBases(target: anytype, counts: *const Counts(@TypeOf(target))) Counts(@TypeOf(target)) {
@@ -167,6 +168,7 @@ pub fn publishReferences(target: anytype, indices: []const u32) void {
 
     const output_tags = std.mem.sliceAsBytes(target.tags.unusedCapacitySlice()[0..indices.len]);
     const output_offsets = target.offsets.unusedCapacitySlice()[0..indices.len];
+    const lengths: zx.memory.ColumnLengths = &.{ &target.tags.items.len, &target.offsets.items.len };
     const entry = @import("generated_node_header_references");
 
     const input: std.meta.Child(entry.Input) = .{
@@ -175,14 +177,12 @@ pub fn publishReferences(target: anytype, indices: []const u32) void {
         .indices = indices,
         .target_tags = @ptrCast(&output_tags),
         .target_offsets = @ptrCast(&output_offsets),
+        .lengths = @ptrCast(&lengths),
     };
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch unreachable;
-
-    target.tags.items.len += indices.len;
-    target.offsets.items.len += indices.len;
 }
 
 fn bytes(tags: anytype) []const u8 {

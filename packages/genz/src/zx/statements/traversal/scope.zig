@@ -1,8 +1,11 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Selection = @import("../switch/state.zig");
+const emission = @import("../emit.zig");
+const entry = @import("generated_statement_run_commit");
 const Self = @This();
 
 values: ir.Block,
@@ -46,26 +49,33 @@ pub fn close(self: *const Self, lowering: *Lower) void {
 }
 
 pub fn run(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), first: usize, count: usize) Lower.Error!void {
-    var offset = first + count;
+    var cursor = first + count;
 
-    while (offset > first) {
-        offset -= 1;
+    while (cursor > first) {
+        const offset = cursor - 1;
+        const result = try emission.emit(lowering, output, self.values, offset, self.routes[offset]);
 
-        const result = try @import("../emit.zig").emit(lowering, output, self.values, offset, self.routes[offset]);
-
-        self.put(offset, result.span);
-
-        if (result.consumed_previous) {
-            offset -= 1;
-
-            self.put(offset, .{});
-        }
+        cursor = self.publish(cursor, result);
     }
 }
 
 pub fn put(self: *const Self, offset: usize, span: node.Block) void {
-    self.starts[offset] = span.start;
-    self.counts[offset] = span.len;
+    _ = self.publish(offset + 1, .{ .span = span, .consumed_previous = false });
+}
+
+fn publish(self: *const Self, cursor: usize, result: emission.Output) usize {
+    const input: std.meta.Child(entry.Input) = .{
+        .starts = @ptrCast(&self.starts),
+        .counts = @ptrCast(&self.counts),
+        .cursor = cursor,
+        .start = result.span.start,
+        .count = result.span.len,
+        .consumed_previous = result.consumed_previous,
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    return @intCast(zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable);
 }
 
 pub fn finish(self: *const Self, lowering: *Lower) Lower.Error!node.Block {
