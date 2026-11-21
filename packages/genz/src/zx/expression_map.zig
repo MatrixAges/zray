@@ -215,6 +215,16 @@ pub fn Map(comptime Key: type) type {
 
             return result.removed;
         }
+        pub fn removeKeys(self: *Self, keys: []const u32) void {
+            if (keys.len == 0) return;
+
+            var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+            self.state = @import("generated_cache_remove_keys").executeState(fixed.allocator(), .{
+                .state = self.state,
+                .keys = .{ .items = keys, .storage = .plain },
+            }) catch unreachable;
+        }
         pub fn snapshot(self: *const Self, allocator: std.mem.Allocator, keys: []const Key) std.mem.Allocator.Error![]const ?u32 {
             if (keys.len == 0) return &.{};
 

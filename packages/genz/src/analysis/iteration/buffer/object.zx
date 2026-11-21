@@ -18,7 +18,7 @@ export default function (in: Input): Output {
         state: context,
         type_expr: layout,
         first: context.source.field_base,
-        count: integers.narrow(fields.length)
+        count: integers.narrow(fields.name.length)
     })
 
     return {

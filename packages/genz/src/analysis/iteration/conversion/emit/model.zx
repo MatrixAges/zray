@@ -2,7 +2,7 @@ import type { State as Context, Variables } from "../../../../ast/context/model"
 import type { Capture } from "../../../../ast/expressions/fallible"
 import type { Columns as Forms } from "../../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../../ast/expressions/model"
-import type { Field } from "../../../../ast/fields/model"
+import type { Columns as Fields } from "../../../../ast/fields/model"
 import type { Columns as Statements } from "../../../../ast/statements/model"
 import type { Plan } from "../model"
 
@@ -36,7 +36,7 @@ export type Frame = {
 export type State = {
     context: Context,
     declarations: Statements,
-    fields: Field[],
+    fields: Fields,
     nodes: Frame[],
     index: u64,
     uses_allocator: bool
@@ -59,7 +59,7 @@ export type Output = {
     statements: Statements,
     declarations: Statements,
     variables: Variables,
-    fields: Field[],
+    fields: Fields,
     root: u32,
     serial: u64,
     uses_allocator: bool,

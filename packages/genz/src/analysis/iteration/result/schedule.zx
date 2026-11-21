@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import { kind_list } from "core/type_table/const"
 
-import reuse from "./reuse"
+import findOwner from "./reuse"
 
 import type { Step as Input, Output } from "./model"
 
@@ -9,13 +9,15 @@ export default function (in: Input): Output {
     const { source, state } = in
 
     const transfers: u32[] = []
-    const reuses: u64?[] = []
+    const slots: u64[] = []
+    const reuse: bool[] = []
     const reads: u32[] = []
     const owners: u64[] = []
 
     return loop({
         transfers,
-        reuses,
+        slots,
+        reuse,
         reads,
         owners,
         position: 0
@@ -26,14 +28,17 @@ export default function (in: Input): Output {
             const type_id = source.table.types[integers.widen(id)]
 
             if (source.types.kinds[integers.widen(type_id)] == kind_list) {
-                const prior = reuse({
+                const prior = findOwner({
                     paths: state,
                     owners: current.owners,
                     position: current.position
                 })
 
+                const slot = prior ?? current.owners.length
+
                 current.transfers = current.transfers.push(id)[0]
-                current.reuses = current.reuses.push(prior)[0]
+                current.slots = current.slots.push(slot)[0]
+                current.reuse = current.reuse.push(prior != null)[0]
 
                 if (prior == null) {
                     current.owners = current.owners.push(current.position)[0]
@@ -47,7 +52,8 @@ export default function (in: Input): Output {
         return: current => ({
             ...current.pick([
                 "transfers",
-                "reuses",
+                "slots",
+                "reuse",
                 "reads"
             ]),
             projections: state.projections,

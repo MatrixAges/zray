@@ -10,6 +10,38 @@ const PlanInput = std.meta.Child(planner.Input);
 const PlanningMode = @FieldType(PlanInput, "mode");
 const resources = @import("generated_state_conversion_resources");
 const ResourceInput = std.meta.Child(resources.Input);
+const ResourceMode = @FieldType(ResourceInput, "mode");
+const ResourceOperation = @FieldType(ResourceInput, "operation");
+const ResourceSelection = @typeInfo(@typeInfo(@TypeOf(resources.executeValue)).@"fn".return_type.?).error_union.payload;
+const ResourceTable = [@typeInfo(ResourceMode).@"enum".field_names.len][@typeInfo(ResourceOperation).@"enum".field_names.len][2][2]ResourceSelection;
+const resource_table = resourceTable();
+
+fn resourceTable() ResourceTable {
+    @setEvalBranchQuota(1000000);
+
+    var table: ResourceTable = undefined;
+
+    for (&table, std.enums.values(ResourceMode)) |*modes, mode| {
+        for (modes, std.enums.values(ResourceOperation)) |*operations, operation| {
+            for (operations, 0..) |*options, referenced| {
+                for (options, 0..) |*selection, children| {
+                    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+                    const input: ResourceInput = .{
+                        .mode = mode,
+                        .operation = operation,
+                        .referenced = referenced != 0,
+                        .has_children = children != 0,
+                    };
+
+                    selection.* = zx.columns.invoke(resources.executeValue, fixed.allocator(), &input) catch unreachable;
+                }
+            }
+        }
+    }
+
+    return table;
+}
 
 pub fn lower(self: *Lower, body: anytype, id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     return lowerWithStorage(self, body, body, id, value, mode);
@@ -88,20 +120,12 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, plan: *const Plan, value:
     const serial = self.serial;
     const declarations = self.task_declarations.count();
     const type_expression = @import("../types.zig");
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     for (plan.types, plan.kinds, plan.modes, plan.count, layouts, targets, elements, origins) |type_id, kind, mode, children, *layout, *target, *element, *origin| {
         const selected: ir.TypeId = @fromBackingInt(type_id);
-
-        const request: ResourceInput = .{
-            .mode = zx.columns.view(@FieldType(ResourceInput, "mode"), mode),
-            .operation = zx.columns.view(@FieldType(ResourceInput, "operation"), kind),
-            .referenced = self.state_plan.referenced(selected),
-            .has_children = children != 0,
-        };
-
-        const selection = zx.columns.invoke(resources.executeValue, fixed.allocator(), &request) catch unreachable;
-
+        const referenced = @intFromBool(self.state_plan.referenced(selected));
+        const branched = @intFromBool(children != 0);
+        const selection = resource_table[@backingInt(mode)][@backingInt(kind)][referenced][branched];
         layout.* = @backingInt(try type_expression.resource(self, selected, selection.layout));
         target.* = if (selection.target == .None) layout.* else @backingInt(try type_expression.resource(self, selected, selection.target));
         element.* = if (selection.element == .None) 0 else @backingInt(try type_expression.resource(self, self.program.typeOf(selected).list, selection.element));

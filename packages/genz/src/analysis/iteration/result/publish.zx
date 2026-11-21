@@ -11,8 +11,9 @@ export default function (in: Input): Output {
         valid: in.state.valid,
         projections: in.state.projections,
         transfers: [],
-        reuses: [],
-        reads: [],
+        slots: [],
+        reuse: [],
+        reads: null,
         transfer_count: 0
     }
 }

@@ -31,8 +31,9 @@ export type Output = {
     valid: bool,
     projections: u32[],
     transfers: u32[],
-    reuses: u64?[],
-    reads: u32[],
+    slots: u64[],
+    reuse: bool[],
+    reads?: u32[],
     transfer_count: u64
 }
 

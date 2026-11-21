@@ -59,16 +59,11 @@ fn emitObject(self: *Lower, comptime generated: type, input: anytype) Lower.Erro
     const expressions = @import("../../node/view.zig").join(output.expressions.*, output.forms.*);
 
     try importRows(self, &self.builder.nodes.expressions, &expressions);
-    try self.builder.nodes.field_columns.reserve(self.allocator, output.fields.len);
 
-    for (output.fields) |field| {
-        self.builder.nodes.field_columns.append(.{
-            .name = field.name,
-            .value = @fromBackingInt(field.value),
-            .default_value = if (field.default_value) |value| @fromBackingInt(value) else null,
-            .comptime_parameter = field.comptime_parameter,
-        });
-    }
+    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
 
     return @fromBackingInt(output.root);
 }

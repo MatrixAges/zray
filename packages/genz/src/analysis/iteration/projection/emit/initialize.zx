@@ -1,4 +1,5 @@
 import initialize from "../../../../ast/context/initialize"
+import emptyFields from "../../../../ast/fields/empty"
 
 import type { Emit as Input, State as Output } from "../model"
 
@@ -13,7 +14,7 @@ export default function (in: Input): Output {
                 "serial"
             ])
         }),
-        fields: [],
+        fields: emptyFields({}),
         value: in.value,
         index: 0,
         valid: in.plan.valid

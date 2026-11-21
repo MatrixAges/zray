@@ -1,0 +1,34 @@
+import remove from "./remove"
+
+import type { State } from "./model"
+
+export type Input = {
+    state: State,
+    keys: u32[]
+}
+
+export type Output = State
+
+export default function (in: Input): Output {
+    if (in.state.count == 0) {
+        return in.state
+    }
+
+    const keys = in.keys
+
+    return loop({
+        state: in.state,
+        index: 0
+    }, {
+        while: current => current.index < keys.length,
+        next: current => {
+            current.state = remove({
+                state: current.state,
+                key: keys[current.index]
+            }).state
+
+            current.index += 1
+        },
+        return: current => current.state
+    })
+}

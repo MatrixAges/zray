@@ -4,9 +4,12 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 
-pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.ExpressionId) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("transfer_seed.zig").lower(context, body, type_id, source);
+pub const Result = struct {
+    root: node.ExpressionId,
+    cached: node.ExpressionId,
+};
 
+pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.ExpressionId) Lower.Error!Result {
     const self = context.lowering;
     const kind = try self.typeExpr(type_id);
     const element = try self.typeExpr(self.program.typeOf(type_id).list);
@@ -70,5 +73,5 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
     self.serial = output.serial;
     self.uses_allocator = true;
 
-    return @fromBackingInt(output.root);
+    return .{ .root = @fromBackingInt(output.root), .cached = @fromBackingInt(output.record.value) };
 }

@@ -36,79 +36,67 @@ pub fn candidate(allocator: std.mem.Allocator, program: ir.Program, selected: co
 pub fn lower(lowering: *Lower, selected: consumer.Consumer, state: node.ExpressionId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("result_seed.zig").lower(lowering, selected, state);
 
+    return materialize(lowering, null, {}, selected, state);
+}
+
+pub fn buffered(context: *@import("root.zig"), body: anytype, selected: consumer.Consumer, state: node.ExpressionId) Lower.Error!node.ExpressionId {
+    if (!@import("genz_options").generated_analysis) return @import("result_seed.zig").buffered(context, body, selected, state);
+
+    std.debug.assert(context.inline_lists);
+
+    return materialize(context.lowering, context, body, selected, state);
+}
+
+fn materialize(lowering: *Lower, context: ?*@import("root.zig"), body: anytype, selected: consumer.Consumer, state: node.ExpressionId) Lower.Error!node.ExpressionId {
     var scratch = std.heap.ArenaAllocator.init(lowering.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var buffered_allocator = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
 
-    const plan = try planning.analyze(buffered_allocator.allocator(), &lowering.program, &lowering.cache, selected, .Plan, false);
+    const temporary = buffered_allocator.allocator();
 
-    if (plan.primitive) return consumer.read(lowering, selected, selected.result, state);
+    const plan = if (@TypeOf(body) == void)
+        try planning.analyze(temporary, &lowering.program, &lowering.cache, selected, .Plan, false)
+    else
+        try planning.analyze(temporary, &lowering.program, &lowering.cache, selected, .Buffered, false);
+
+    if (plan.primitive) return project(lowering, context, selected, selected.result, state);
 
     std.debug.assert(plan.valid);
+    defer lowering.cache.removeKeys(plan.projections);
 
-    const projections = std.mem.bytesAsSlice(ir.ExprId, std.mem.sliceAsBytes(plan.projections));
+    if (comptime @TypeOf(body) != void) {
+        const values = try temporary.alloc(node.ExpressionId, @intCast(plan.transfer_count));
 
-    defer for (projections) |id| {
-        _ = lowering.cache.remove(id);
-    };
+        for (plan.transfers, plan.slots, plan.reuse) |raw, slot, reuse| {
+            const id: ir.ExprId = @fromBackingInt(raw);
+            const value = try project(lowering, context, selected, id, state);
 
-    for (projections) |id| try lowering.cache.put(lowering.allocator, id, try consumer.read(lowering, selected, id, state));
+            const result = if (reuse) values[@intCast(slot)] else first: {
+                const type_id: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[raw]);
+                const moved = try @import("transfer.zig").lower(context.?, body, type_id, value);
+
+                values[@intCast(slot)] = moved.cached;
+
+                break :first moved.root;
+            };
+
+            try lowering.cache.put(lowering.allocator, id, result);
+        }
+    }
+
+    for (plan.reads orelse plan.projections) |raw| {
+        const id: ir.ExprId = @fromBackingInt(raw);
+
+        try lowering.cache.put(lowering.allocator, id, try project(lowering, context, selected, id, state));
+    }
 
     return if (selected.layout) @import("../value_call/root.zig").expression(lowering, selected.result) else lowering.expr(selected.result);
 }
 
-pub fn buffered(context: *@import("root.zig"), body: anytype, selected: consumer.Consumer, state: node.ExpressionId) Lower.Error!node.ExpressionId {
-    const lowering = context.lowering;
-    const projection = @import("projection.zig");
+fn project(lowering: *Lower, context: ?*@import("root.zig"), selected: consumer.Consumer, id: ir.ExprId, state: node.ExpressionId) Lower.Error!node.ExpressionId {
+    if (context) |buffer| return @import("projection.zig").read(buffer, selected, id, state);
 
-    if (!@import("genz_options").generated_analysis) return @import("result_seed.zig").buffered(context, body, selected, state);
-
-    var scratch = std.heap.ArenaAllocator.init(lowering.workspace);
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var buffered_allocator = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
-
-    defer scratch.deinit();
-    std.debug.assert(context.inline_lists);
-
-    const temporary = buffered_allocator.allocator();
-    const plan = try planning.analyze(temporary, &lowering.program, &lowering.cache, selected, .Buffered, false);
-
-    if (plan.primitive) return projection.read(context, selected, selected.result, state);
-
-    std.debug.assert(plan.valid);
-
-    const projections = std.mem.bytesAsSlice(ir.ExprId, std.mem.sliceAsBytes(plan.projections));
-
-    defer for (projections) |id| {
-        _ = lowering.cache.remove(id);
-    };
-
-    const transferred = try temporary.alloc(node.ExpressionId, @intCast(plan.transfer_count));
-    var count: usize = 0;
-
-    for (plan.transfers, plan.reuses) |raw, reuse| {
-        const id: ir.ExprId = @fromBackingInt(raw);
-        const value = try projection.read(context, selected, id, state);
-
-        const result = if (reuse) |slot| transferred[@intCast(slot)] else first: {
-            const type_id = lowering.program.expression(id).type_id;
-            const result = try @import("transfer.zig").lower(context, body, type_id, value);
-            transferred[count] = context.transfers.at(context.transfers.len() - 1).value;
-            count += 1;
-
-            break :first result;
-        };
-
-        try lowering.cache.put(lowering.allocator, id, result);
-    }
-
-    for (plan.reads) |raw| {
-        const id: ir.ExprId = @fromBackingInt(raw);
-
-        try lowering.cache.put(lowering.allocator, id, try projection.read(context, selected, id, state));
-    }
-
-    return if (selected.layout) @import("../value_call/root.zig").expression(lowering, selected.result) else lowering.expr(selected.result);
+    return consumer.read(lowering, selected, id, state);
 }

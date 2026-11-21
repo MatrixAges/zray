@@ -1,5 +1,6 @@
 import bind from "../../../ast/body/binding"
 import initialize from "../../../ast/context/initialize"
+import emptyFields from "../../../ast/fields/empty"
 import { Mode } from "./model"
 
 import type { Input, State as Output } from "./model"
@@ -29,7 +30,7 @@ export default function (in: Input): Output {
     return {
         source: in,
         ...bound,
-        fields: [],
+        fields: emptyFields({}),
         owner: 0,
         items: 0,
         length: 0,

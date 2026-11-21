@@ -1030,6 +1030,7 @@ pub const collections = [_]Entry{
     .{ .path = "core/integer/map/lookup.zx", .name = "cache_lookup", .owner = .genz },
     .{ .path = "core/integer/map/read.zx", .name = "cache_read", .owner = .genz },
     .{ .path = "core/integer/map/remove.zx", .name = "cache_remove", .owner = .genz },
+    .{ .path = "core/integer/map/remove_keys.zx", .name = "cache_remove_keys", .owner = .genz },
     .{ .path = "core/integer/map/overwrite.zx", .name = "cache_overwrite", .owner = .genz },
     .{ .path = "core/integer/map/snapshot.zx", .name = "cache_snapshot", .owner = .genz },
     .{ .path = "core/integer/map/restore.zx", .name = "cache_restore", .owner = .genz },

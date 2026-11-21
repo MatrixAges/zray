@@ -4,7 +4,7 @@ import type { State as Context } from "../../../ast/context/model"
 import type { Capture } from "../../../ast/expressions/fallible"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
 import type { Columns as AstExpressions } from "../../../ast/expressions/model"
-import type { Field } from "../../../ast/fields/model"
+import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
 import type { State as History } from "../transfer/history/model"
 
@@ -69,7 +69,7 @@ export type Emit = {
 
 export type State = {
     context: Context,
-    fields: Field[],
+    fields: Fields,
     value: u32,
     index: u64,
     valid: bool
@@ -84,7 +84,7 @@ export type Output = {
     expressions: AstExpressions,
     forms: Forms,
     statements: Statements,
-    fields: Field[],
+    fields: Fields,
     root: u32,
     serial: u64,
     valid: bool

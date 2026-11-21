@@ -2,6 +2,7 @@ import integers from "std:integer"
 
 import field from "../../../../ast/context/field"
 import object from "../../../../ast/context/object"
+import concat from "../../../../ast/fields/concat"
 import fields from "../../buffer/fields"
 import project from "../../buffer/redirect/fields"
 import select from "../../buffer/redirect/select"
@@ -51,14 +52,17 @@ export default function (in: Input): Output {
     const value = object({
         state: selected.context,
         type_expr: in.source.prepared[index],
-        first: in.source.field_base + integers.narrow(in.state.fields.length),
-        count: integers.narrow(values.length)
+        first: in.source.field_base + integers.narrow(in.state.fields.name.length),
+        count: integers.narrow(values.name.length)
     })
 
     return {
         ...in.state,
         context: value.state,
         value: value.id,
-        fields: in.state.fields.concat(values)[0]
+        fields: concat({
+            left: in.state.fields,
+            right: values
+        })
     }
 }

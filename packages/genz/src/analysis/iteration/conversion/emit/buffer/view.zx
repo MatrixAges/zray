@@ -4,6 +4,7 @@ import integers from "std:integer"
 import boolean from "../../../../../ast/context/boolean"
 import field from "../../../../../ast/context/field"
 import object from "../../../../../ast/context/object"
+import concat from "../../../../../ast/fields/concat"
 import fields from "../../../buffer/fields"
 import { items_field } from "../../../types/const"
 
@@ -39,14 +40,17 @@ export default function (in: Input): Output {
     const value = object({
         state: flag.state,
         type_expr: in.source.layouts[in.node],
-        first: in.source.field_base + integers.narrow(in.state.fields.length),
-        count: integers.narrow(values.length)
+        first: in.source.field_base + integers.narrow(in.state.fields.name.length),
+        count: integers.narrow(values.name.length)
     })
 
     return {
         ...in.state,
         context: value.state,
-        fields: in.state.fields.concat(values)[0],
+        fields: concat({
+            left: in.state.fields,
+            right: values
+        }),
         nodes: in.state.nodes.with(in.node, {
             ...frame,
             result: value.id

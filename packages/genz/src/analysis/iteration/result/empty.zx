@@ -5,8 +5,9 @@ export default function (in: Input): Output {
         ...in.omit(["traverse"]),
         projections: [],
         transfers: [],
-        reuses: [],
-        reads: [],
+        slots: [],
+        reuse: [],
+        reads: null,
         transfer_count: 0
     }
 }

@@ -2,7 +2,7 @@ import type { Body } from "../../../ast/body/model"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
-import type { Field } from "../../../ast/fields/model"
+import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
 
 export enum Mode {
@@ -31,7 +31,7 @@ export type State = {
     source: Input,
     context: Context,
     body: Body,
-    fields: Field[],
+    fields: Fields,
     owner: u32,
     items: u32,
     length: u32,
@@ -49,7 +49,7 @@ export type Output = {
     expressions: Expressions,
     forms: Forms,
     statements: Statements,
-    fields: Field[],
+    fields: Fields,
     root: u32,
     serial: u64,
     uses_allocator: bool,

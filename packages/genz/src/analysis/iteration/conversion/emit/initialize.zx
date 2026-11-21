@@ -1,4 +1,5 @@
 import initialize from "../../../../ast/context/initialize"
+import emptyFields from "../../../../ast/fields/empty"
 import empty from "../../../../ast/statements/empty"
 
 import type { Input, State as Output, Frame } from "./model"
@@ -28,7 +29,7 @@ export default function (in: Input): Output {
             "serial"
         ])),
         declarations: empty({}),
-        fields: [],
+        fields: emptyFields({}),
         nodes,
         index: 0,
         uses_allocator: false

@@ -69,14 +69,10 @@ pub fn lower(context: *Context, args: Request) Lower.Error!node.ExpressionId {
     rows.appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
     rows.appendBorrowed(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return failure(err);
 
-    try self.builder.nodes.field_columns.reserve(self.allocator, result.fields.len);
-
-    for (result.fields) |field| self.builder.nodes.field_columns.append(.{
-        .name = field.name,
-        .value = @fromBackingInt(field.value),
-        .default_value = if (field.default_value) |value_id| @fromBackingInt(value_id) else null,
-        .comptime_parameter = field.comptime_parameter,
-    });
+    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, result.fields) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
 
     self.uses_allocator = self.uses_allocator or result.uses_allocator;
     self.serial = result.serial;
