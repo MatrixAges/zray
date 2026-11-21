@@ -1,49 +1,93 @@
 const std = @import("std");
-const zx = @import("zx");
+const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const policy = @import("policy.zig");
+const state = @import("../state_value/root.zig");
 const scope = @import("../state_value/scope.zig");
 const generated = @import("genz_options").generated_analysis;
-const entry = if (generated) @import("generated_function_value_workflow") else void;
-const Step = if (generated) std.meta.Child(entry.Output) else enum { Representation, Argument, Output, Body, Signature };
+const evaluation = @import("../expressions/evaluate.zig");
+const argument: ir.SymbolId = @fromBackingInt(0);
+const Representation = @typeInfo(@typeInfo(@TypeOf(state.enter)).@"fn".return_type.?).error_union.payload;
+const Error = Lower.Error;
 
-pub fn lower(self: *Lower, name: []const u8, comptime signature: bool) Lower.Error!node.Declaration {
-    const steps: []const Step = comptime if (generated)
-        zx.staticSequence(entry, if (signature) .Signature else .Body)
+const Frame = struct {
+    lowering: *Lower,
+    name: []const u8,
+    representation: Representation = null,
+    argument_scope: bool = false,
+    output: ?scope.Frame(.Value) = null,
+    declaration: node.Declaration = undefined,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn restore(self: *Frame) void {
+        if (self.output) |saved| saved.restore();
+        if (self.argument_scope) _ = self.lowering.state_symbols.remove(argument);
+        if (self.representation) |saved| saved.restore();
+    }
+};
 
-    else
-        &.{ .Representation, .Argument, .Output, if (signature) .Signature else .Body };
+pub fn lower(self: *Lower, name: []const u8, comptime signature: bool) Error!node.Declaration {
+    const mode = policy.value(self);
+    var frame: Frame = .{ .lowering = self, .name = name };
+    const body: *const anyopaque = @ptrCast(&frame);
 
-    return run(self, name, policy.value(self), steps);
+    defer frame.restore();
+
+    if (generated) {
+        const entry = @import("generated_lower_value_function");
+
+        const input: std.meta.Child(entry.Input) = .{
+            .body = @ptrCast(&frame),
+            .signature = signature,
+            .enter = mode.enter,
+            .bind_input = mode.bind_input,
+            .value_output = mode.value_output,
+        };
+
+        try evaluation.execute(entry, &input);
+    } else {
+        if (mode.enter) try enterFunctionRepresentation(body);
+        try bindFunctionArgument(body, mode.bind_input);
+
+        setFunctionOutput(body, mode.value_output);
+
+        if (signature) try emitValuePrototype(body) else try emitValueBody(body);
+    }
+
+    return frame.declaration;
 }
 
-inline fn run(self: *Lower, name: []const u8, mode: policy.Mode, comptime steps: []const Step) Lower.Error!node.Declaration {
-    return switch (steps[0]) {
-        .Representation => represented: {
-            const state = if (mode.enter) try @import("../state_value/root.zig").enter(self) else null;
+pub fn enterFunctionRepresentation(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
 
-            defer if (state) |saved| saved.restore();
+    frame.representation = try state.enter(frame.lowering);
+}
 
-            break :represented try run(self, name, mode, steps[1..]);
-        },
-        .Argument => bound: {
-            const argument: zx.ir.SymbolId = @fromBackingInt(0);
+pub fn bindFunctionArgument(handle: *const anyopaque, bind: bool) Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
 
-            if (mode.bind_input) try self.state_symbols.put(self.allocator, argument, {});
+    if (bind) try self.state_symbols.put(self.allocator, argument, {});
 
-            defer _ = self.state_symbols.remove(argument);
+    frame.argument_scope = true;
+}
 
-            break :bound try run(self, name, mode, steps[1..]);
-        },
-        .Output => selected: {
-            const output = scope.enter(self, .Value, .{ .value_output = mode.value_output });
+pub fn setFunctionOutput(handle: *const anyopaque, value: bool) void {
+    const frame = Frame.borrow(handle);
 
-            defer output.restore();
+    frame.output = scope.enter(frame.lowering, .Value, .{ .value_output = value });
+}
 
-            break :selected try run(self, name, mode, steps[1..]);
-        },
-        .Body => self.function(name, false),
-        .Signature => .{ .function = try self.prototype(name, false) },
-    };
+pub fn emitValuePrototype(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.declaration = .{ .function = try frame.lowering.prototype(frame.name, false) };
+}
+
+pub fn emitValueBody(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.declaration = try frame.lowering.function(frame.name, false);
 }

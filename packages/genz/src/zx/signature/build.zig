@@ -5,8 +5,14 @@ const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 
-pub fn build(self: *Lower, name: []const u8, exported: bool, errors: ?[]const []const u8) Lower.Error!node.Function {
-    if (!@import("genz_options").generated_analysis) return @import("seed.zig").build(self, name, exported, errors);
+pub const Request = struct {
+    name: []const u8,
+    exported: bool,
+    errors: ?[]const []const u8,
+};
+
+pub fn build(self: *Lower, request: *const Request) Lower.Error!node.Function {
+    if (!@import("genz_options").generated_analysis) return @import("seed.zig").build(self, request.name, request.exported, request.errors);
 
     const selection = @import("generated_function_signature_mode");
     const ModeInput = std.meta.Child(selection.Input);
@@ -27,14 +33,14 @@ pub fn build(self: *Lower, name: []const u8, exported: bool, errors: ?[]const []
     };
 
     const input: Input = .{
-        .name = name,
+        .name = request.name,
         .input_type = @backingInt(input_type),
         .output_type = @backingInt(output_type),
         .store_count = self.program.stores.count(),
         .io = self.entry_flags.io,
         .process = self.entry_flags.process,
-        .errors = errors,
-        .exported = exported,
+        .errors = request.errors,
+        .exported = request.exported,
         .inlined = self.entry_flags.inlined,
         .bases = &bases,
     };

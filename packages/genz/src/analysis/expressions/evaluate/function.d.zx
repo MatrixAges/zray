@@ -1,0 +1,50 @@
+export declare function prepareFunctionBody(body: FunctionBody): void
+    throws { OutOfMemory }
+
+export declare function lowerFunctionStatements(body: FunctionBody): void
+    throws { OutOfMemory }
+
+export declare function lowerFunctionContracts(body: FunctionBody): void
+    throws { OutOfMemory }
+
+export declare function lowerFunctionPrelude(body: FunctionBody): void
+    throws { OutOfMemory }
+
+export declare function lowerFunctionPending(body: FunctionBody): void
+    throws { OutOfMemory }
+
+export declare function lowerFunctionReferences(body: FunctionBody): void
+    throws { OutOfMemory }
+
+export declare function lowerFunctionCommit(body: FunctionBody): void
+    throws { OutOfMemory }
+
+export declare function publishFunctionBody(
+    body: FunctionBody,
+    prelude: BodySection,
+    pending: BodySection,
+    references: BodySection,
+    contracts: BodySection,
+    statements: BodySection,
+    commit: BodySection
+): void throws { OutOfMemory }
+
+export declare function enterFunctionRepresentation(body: ValueFunction): void
+    throws { OutOfMemory }
+
+export declare function bindFunctionArgument(body: ValueFunction, bind: bool): void
+    throws { OutOfMemory }
+
+export declare function setFunctionOutput(body: ValueFunction, value: bool): void
+
+export declare function emitValuePrototype(body: ValueFunction): void
+    throws { OutOfMemory }
+
+export declare function emitValueBody(body: ValueFunction): void throws { OutOfMemory }
+
+export declare function convertRepresentedCache(
+    cache: RepresentedCache,
+    index: u64,
+    slot: u64,
+    layout: u32?
+): void throws { OutOfMemory }

@@ -5,6 +5,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const scope = @import("scope.zig");
 const conversion = @import("conversion_emission.zig");
+const evaluation = @import("../expressions/evaluate.zig");
 const Cache = @import("../expression_map.zig").Map(ir.ExprId);
 
 pub fn enter(self: *Lower) Lower.Error!scope.Frame(.Represented) {
@@ -35,13 +36,31 @@ fn represent(self: *Lower) Lower.Error!Cache {
 
     const jobs = entry.executeIn(scratch, &source) catch |err| return failure(err);
     const converted = try scratch.alloc(u32, jobs.slots.len);
+    var frame: Conversion = .{ .lowering = self, .values = map.values.items, .result = converted };
+    const execution = @import("generated_convert_represented_cache");
 
-    for (jobs.slots, jobs.layouts, converted) |slot, layout, *value| {
-        const id: ?ir.TypeId = if (layout) |type_id| @fromBackingInt(type_id) else null;
-        value.* = @backingInt(try emit(self, id, @fromBackingInt(map.values.items[slot])));
-    }
+    const input: std.meta.Child(execution.Input) = .{
+        .cache = @ptrCast(&frame),
+        .slots = jobs.slots,
+        .layouts = jobs.layouts,
+    };
+
+    try evaluation.execute(execution, &input);
 
     return publish(self.allocator, source.keys, jobs.slots, converted);
+}
+
+const Conversion = struct {
+    lowering: *Lower,
+    values: []const u32,
+    result: []u32,
+};
+
+pub fn convertRepresentedCache(handle: *const anyopaque, index: u64, slot: u64, layout: ?u32) Lower.Error!void {
+    const frame: *Conversion = @ptrCast(@alignCast(@constCast(handle)));
+    const id: ?ir.TypeId = if (layout) |row| @fromBackingInt(row) else null;
+
+    frame.result[@intCast(index)] = @backingInt(try emit(frame.lowering, id, @fromBackingInt(frame.values[@intCast(slot)])));
 }
 
 fn publish(allocator: std.mem.Allocator, keys: []const u32, slots: []const u64, values: []const u32) Lower.Error!Cache {

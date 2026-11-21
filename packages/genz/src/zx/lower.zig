@@ -106,62 +106,7 @@ pub fn selectFunction(self: *Self, id: ir.FunctionId, selected: ir.Function) Err
 const ModuleDeclarations = @import("../node/stored.zig").Declarations;
 
 pub fn declarations(self: *Self) Error!ModuleDeclarations {
-    const type_only = self.program.type_only;
-    const local = self.function_modules == null;
-    const mode = @as(u2, @intFromBool(type_only)) << 1 | @intFromBool(local);
-
-    return switch (mode) {
-        inline else => |value| self.moduleDeclarations(value & 2 != 0, value & 1 != 0),
-    };
-}
-
-fn moduleDeclarations(self: *Self, comptime type_only: bool, comptime local: bool) Error!ModuleDeclarations {
-    const publication = @import("../node/declarations.zig");
-    var output = publication.init(self.builder.nodes, self.workspace);
-    var suffix = publication.init(self.builder.nodes, self.workspace);
-
-    defer if (generated) output.deinit();
-    defer if (generated) suffix.deinit();
-
-    var comparisons: std.ArrayList(ir.TypeId) = .empty;
-    var task_declarations = @import("auxiliary.zig").init();
-
-    self.comparisons = &comparisons;
-    self.task_declarations = &task_declarations;
-    const local_functions = if (local and !type_only) self.program.functions.count() else 0;
-    var function_requests = try @import("functions/requests.zig").init(self.allocator, local_functions);
-    self.function_requests = &function_requests;
-
-    const steps = comptime @import("module/workflow.zig").entrySteps(type_only, local);
-    const emission = @import("module/emitting.zig");
-
-    inline for (steps) |step| switch (step) {
-        .Standard => try emission.standard(self, &output),
-        .NativeImports => self.native_names = try @import("imports.zig").lower(self, &output),
-        .Types => try @import("types.zig").lower(self, &output, false),
-        .Exports => try emission.exports(self, &output),
-        .Constants => try @import("module/constants.zig").append(self, &output),
-        .Shape => try @import("shape.zig").lower(self, &output),
-        .Contracts => try emission.contracts(self, &output),
-        .Store => try @import("store.zig").declaration(self, &output),
-        .Entry => try @import("entry.zig").declarations(self, &output),
-        .ValueEntry => try @import("entry_values.zig").declarations(self, &output),
-        .RequestedFunctions => {
-            while (function_requests.next(self.program.functions.native_modules)) |request| {
-                try @import("functions/emit.zig").append(self, &output, request);
-            }
-        },
-        .ParallelAllocator => {
-            if (self.uses_parallel) try @import("parallel/allocator.zig").append(self, &suffix);
-        },
-        .Comparisons => {
-            for (comparisons.items) |type_id| try suffix.append(self.allocator, try @import("comparison.zig").ordering(self, type_id));
-        },
-    };
-
-    if (type_only) return publication.finish(&output, self.builder.nodes, self.allocator);
-
-    return task_declarations.assemble(self.allocator, self.builder.nodes, &output, &suffix);
+    return @import("module/execution/entry.zig").lower(self);
 }
 
 pub fn functionValue(self: *Self, name: []const u8) Error!node.Declaration {
@@ -259,7 +204,7 @@ pub fn prototype(self: *Self, name: []const u8, exported: bool) Error!node.Funct
 }
 
 fn prototypeWithErrors(self: *Self, name: []const u8, exported: bool, errors: ?[]const []const u8) Error!node.Function {
-    return @import("signature/build.zig").build(self, name, exported, errors);
+    return @import("signature/build.zig").build(self, &.{ .name = name, .exported = exported, .errors = errors });
 }
 
 const Probe = @import("expression_map.zig").Probe;

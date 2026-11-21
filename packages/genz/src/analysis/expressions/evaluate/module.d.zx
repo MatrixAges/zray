@@ -1,0 +1,74 @@
+export declare function emitModuleStandard(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleImports(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleTypes(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleExports(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleConstants(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleShape(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleAliases(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleStore(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleEntry(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitModuleValueEntry(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitFunctionModuleBody(
+    owner: ModuleFrame,
+    form: ModuleFunctionForm
+): void throws { OutOfMemory }
+
+export declare function moduleUsesParallel(owner: ModuleFrame): bool
+
+export declare function emitModuleParallelAllocator(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function moduleComparisonCount(owner: ModuleFrame): u64
+
+export declare function emitModuleComparison(owner: ModuleFrame, index: u64): void
+    throws { OutOfMemory }
+
+export declare function takeModuleFunction(owner: ModuleFrame): ModuleRequestForm
+
+export declare function emitRequestedNative(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function openRequestedFunction(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitRequestedStore(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function emitRequestedBody(owner: ModuleFrame, value: bool): void
+    throws { OutOfMemory }
+
+export declare function publishRequestedFunction(owner: ModuleFrame): void
+
+export declare function openSignatureUnit(
+    signatures: ModuleSignatures,
+    index: u64
+): SignatureForm throws { OutOfMemory, InvalidFunction }
+
+export declare function emitRegularSignature(signatures: ModuleSignatures): void
+    throws { OutOfMemory }
+
+export declare function emitValueSignature(signatures: ModuleSignatures): void
+    throws { OutOfMemory }
+
+export declare function publishSignatureUnit(signatures: ModuleSignatures): void
+    throws { OutOfMemory }

@@ -1,0 +1,25 @@
+import host from "lowering_host"
+import { ModuleFunctionForm } from "lowering_host"
+
+import type { Function as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { module_frame, form } = in
+
+    if (form == ModuleFunctionForm.Native) {
+        host.emitModuleImports(module_frame)
+        host.emitFunctionModuleBody(module_frame, ModuleFunctionForm.Native)
+
+        return
+    }
+
+    if (form != ModuleFunctionForm.Value) {
+        host.emitFunctionModuleBody(module_frame, ModuleFunctionForm.Regular)
+    }
+
+    if (form != ModuleFunctionForm.Regular) {
+        host.emitFunctionModuleBody(module_frame, ModuleFunctionForm.Value)
+    }
+}

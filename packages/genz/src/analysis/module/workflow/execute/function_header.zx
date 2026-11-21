@@ -1,0 +1,11 @@
+import host from "lowering_host"
+
+import type { ModuleFrame as Input } from "lowering_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.emitModuleStandard(in)
+    host.emitModuleTypes(in)
+    host.emitModuleStore(in)
+}

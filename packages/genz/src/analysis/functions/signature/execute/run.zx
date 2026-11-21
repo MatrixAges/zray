@@ -1,0 +1,39 @@
+import host from "lowering_host"
+import { SignatureForm } from "lowering_host"
+
+import type { ModuleSignatures } from "lowering_host"
+
+export type Input = {
+    signatures: ModuleSignatures,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { signatures, count } = in
+
+    const processed = loop({
+        index: 0
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const form = host.openSignatureUnit(signatures, state.index)
+
+            if (form != SignatureForm.Skip) {
+                if (form != SignatureForm.Value) {
+                    host.emitRegularSignature(signatures)
+                }
+
+                if (form != SignatureForm.Regular) {
+                    host.emitValueSignature(signatures)
+                }
+
+                host.publishSignatureUnit(signatures)
+            }
+
+            state.index = state.index + 1
+        },
+        return: state => state.index
+    })
+}

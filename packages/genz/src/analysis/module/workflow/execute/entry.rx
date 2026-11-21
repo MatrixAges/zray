@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Workflow" />
+
+    <Args in={Workflow.Entry} out={void} />
+
+    <Call fn="entry_header" in={$in} />
+
+    <If on={!$in.type_only}>
+        <Call fn="entry_body" in={$in.module_frame} />
+
+        <If on={$in.local}>
+            <Call fn="../../../functions/requests/execute/drain" in={$in.module_frame} />
+        </If>
+
+        <Call fn="suffix" in={$in.module_frame} />
+    </If>
+</Module>

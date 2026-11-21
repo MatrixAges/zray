@@ -41,12 +41,3 @@ export type Taken = {
     id: u32,
     form: Form
 }
-
-export enum EmitStep {
-    Native,
-    Enter,
-    Store,
-    Regular,
-    Value,
-    Parallel
-}

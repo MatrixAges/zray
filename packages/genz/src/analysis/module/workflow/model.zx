@@ -1,39 +1,6 @@
-export enum EntryStep {
-    Standard,
-    NativeImports,
-    Types,
-    Exports,
-    Constants,
-    Shape,
-    Contracts,
-    Store,
-    Entry,
-    ValueEntry,
-    RequestedFunctions,
-    ParallelAllocator,
-    Comparisons
-}
-
-export type Entry = {
-    type_only: bool,
-    local: bool
-}
-
 export enum FunctionForm {
     Native,
     Regular,
     RegularAndValue,
     Value
-}
-
-export enum FunctionStep {
-    Standard,
-    Types,
-    Store,
-    NativeImport,
-    NativeBody,
-    RegularBody,
-    ValueBody,
-    ParallelAllocator,
-    Comparisons
 }

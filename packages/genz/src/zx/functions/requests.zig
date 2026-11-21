@@ -6,7 +6,6 @@ const Seed = @import("requests/seed.zig");
 const creating = @import("generated_function_requests_create");
 const pushing = @import("generated_function_requests_push");
 const taking = if (generated) @import("generated_function_requests_take") else void;
-const emitting = if (generated) @import("generated_function_requests_emit") else void;
 const State = if (generated) @typeInfo(@typeInfo(@TypeOf(creating.executeState)).@"fn".return_type.?).error_union.payload else Seed;
 const Self = @This();
 
@@ -104,21 +103,6 @@ pub fn next(self: *Self, native_modules: []const ?u32) ?Request {
     if (result.form == .Done) return null;
 
     return .{ .id = @fromBackingInt(result.id), .form = result.form };
-}
-
-const EmitStep = if (generated) std.meta.Child(emitting.Output) else enum { Native, Enter, Store, Regular, Value, Parallel };
-
-pub fn steps(comptime form: Form) []const EmitStep {
-    if (generated) return zx.staticSequence(emitting, @fromBackingInt(@backingInt(form)));
-
-    return switch (form) {
-        .Done => &.{},
-        .Native => &.{.Native},
-        .FirstRegular => &.{ .Enter, .Store, .Regular, .Parallel },
-        .Regular => &.{ .Enter, .Regular, .Parallel },
-        .FirstValue => &.{ .Enter, .Store, .Value, .Parallel },
-        .Value => &.{ .Enter, .Value, .Parallel },
-    };
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {

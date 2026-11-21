@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Workflow" />
+
+    <Args in={Workflow.Function} out={void} />
+
+    <Call fn="function_header" in={$in.module_frame} />
+    <Call fn="function_bodies" in={$in} />
+    <Call fn="suffix" in={$in.module_frame} />
+</Module>

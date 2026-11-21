@@ -45,10 +45,21 @@ fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
 
     defer if (generated) output.deinit();
 
-    var emitted: std.StringHashMapUnmanaged(void) = .empty;
-
     try output.append(temporary, .{ .constant = .{ .name = "std", .value = try lower.builtin(.import, &.{try lower.builder.string("std")}) } });
     try @import("types.zig").lower(&lower, &output, false);
+
+    if (generated) {
+        try @import("modules/signature/execution.zig").lower(&lower, &output, names.functions, units);
+    } else {
+        try signatureSeed(&lower, &output, names, units);
+    }
+
+    return @import("../render.zig").renderStored(allocator, lower.builder.nodes, try publication.finish(&output, lower.builder.nodes, temporary));
+}
+
+fn signatureSeed(lower: *Lower, output: *publication.Output, names: Names, units: anytype) Error!void {
+    const temporary = lower.allocator;
+    var emitted: std.StringHashMapUnmanaged(void) = .empty;
 
     for (units) |item| {
         const unit = if (@TypeOf(item) == FunctionUnit) item.unit() else item;
@@ -63,25 +74,8 @@ fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
 
         if ((try emitted.getOrPut(temporary, name)).found_existing) continue;
 
-        var selected = if (generated) @import("functions/scope.zig").inherit(&lower, .Signature) else lower;
+        var selected = lower.*;
         const function_value = try selectFunction(&selected, id);
-
-        if (comptime @import("genz_options").generated_analysis) {
-            const signature_module = @import("modules/signature.zig");
-            const variants = signature_module.select(function_value.external != null, selected.value_functions[@backingInt(id)], unit == .regular);
-            const regular = if (variants.regular) try regularPrototype(&selected, id, function_value) else null;
-            const value = if (variants.value) try selected.valuePrototype("signature") else null;
-
-            try signature_module.append(&selected, &output, .{
-                .name = name,
-                .parameter_name = variants.parameter_name,
-                .regular = regular,
-                .value = value,
-            });
-
-            continue;
-        }
-
         const value = function_value.external == null and selected.value_functions[@backingInt(id)];
         var variants: std.ArrayList(node.Declaration) = .empty;
 
@@ -94,11 +88,9 @@ fn signatureFiles(allocator: std.mem.Allocator, backing: std.mem.Allocator, prog
         if (value) try variants.append(temporary, try signatureType(&selected, "callValue", try selected.valuePrototype("signature")));
         try output.append(temporary, .{ .constant = .{ .name = name, .exported = true, .value = try lower.builder.expression(.{ .namespace_type = variants.items }) } });
     }
-
-    return @import("../render.zig").renderStored(allocator, lower.builder.nodes, try publication.finish(&output, lower.builder.nodes, temporary));
 }
 
-fn regularPrototype(lower: *Lower, id: ir.FunctionId, function_value: ir.Function) Error!node.Function {
+pub fn regularPrototype(lower: *Lower, id: ir.FunctionId, function_value: ir.Function) Lower.Error!node.Function {
     if (function_value.external != null) return @import("external.zig").prototype(lower, function_value, @backingInt(id));
 
     return lower.prototype("signature", false);
@@ -123,7 +115,7 @@ fn signatureType(lower: *Lower, name: []const u8, prototype: node.Function) Erro
     return .{ .constant = .{ .name = name, .exported = true, .value = try lower.builtin(.TypeOf, &.{try lower.builder.field(container, "signature")}) } };
 }
 
-fn selectFunction(lower: *Lower, id: ir.FunctionId) Error!ir.Function {
+pub fn selectFunction(lower: *Lower, id: ir.FunctionId) (Lower.Error || error{InvalidFunction})!ir.Function {
     if (@backingInt(id) >= lower.program.functions.count()) return error.InvalidFunction;
 
     const selected = lower.program.functions.at(@backingInt(id));
@@ -235,69 +227,9 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
 
     const workflow = @import("module/workflow.zig");
     const form = workflow.functionForm(selected.external != null, lower.value_functions[@backingInt(id)], regular);
-
-    const declarations = switch (form) {
-        inline else => |variant| try functionDeclarations(&lower, selected, id, variant),
-    };
+    const declarations = try @import("module/execution/function.zig").lower(&lower, selected, id, form);
 
     return @import("../render.zig").renderStored(allocator, lower.builder.nodes, declarations);
-}
-
-fn functionDeclarations(lower: *Lower, selected: ir.Function, id: ir.FunctionId, comptime form: @import("module/workflow.zig").FunctionForm) Error!@import("../node/stored.zig").Declarations {
-    const temporary = lower.allocator;
-    var output = publication.init(lower.builder.nodes, lower.workspace);
-    var suffix = publication.init(lower.builder.nodes, lower.workspace);
-
-    defer if (generated) output.deinit();
-    defer if (generated) suffix.deinit();
-
-    var comparisons: std.ArrayList(ir.TypeId) = .empty;
-    var task_declarations = @import("auxiliary.zig").init();
-
-    lower.comparisons = &comparisons;
-    lower.task_declarations = &task_declarations;
-    lower.local_regular_function = form != .Value;
-
-    inline for (comptime @import("module/workflow.zig").functionSteps(form)) |step| switch (step) {
-        .Standard => try output.append(temporary, .{ .constant = .{ .name = "std", .value = try lower.builtin(.import, &.{try lower.builder.string("std")}) } }),
-        .Types => try @import("types.zig").lower(lower, &output, false),
-        .Store => try @import("store.zig").declaration(lower, &output),
-        .NativeImport => {
-            const external = selected.external.?;
-            const modules = lower.program.native_modules;
-            const module = modules.at(@backingInt(external.module));
-            const native_names = try temporary.alloc([]const u8, modules.count());
-
-            @memset(native_names, "");
-            native_names[@backingInt(external.module)] = "zx_native";
-
-            lower.native_names = native_names;
-
-            try output.append(temporary, .{ .constant = .{ .name = "zx_native", .value = try lower.builtin(.import, &.{try lower.builder.string(module.import_name)}) } });
-        },
-        .NativeBody, .RegularBody, .ValueBody => {
-            var declaration = switch (step) {
-                .NativeBody => try @import("external.zig").lower(lower, selected, @backingInt(id)),
-                .RegularBody => if (try @import("functions/adapter.zig").build(lower, id)) |adapter| adapter else try lower.function("call", false),
-                .ValueBody => try lower.functionValue("callValue"),
-                else => unreachable,
-            };
-
-            if (step != .ValueBody) declaration.function.name = "call";
-
-            declaration.function.exported = true;
-
-            try output.append(temporary, declaration);
-        },
-        .ParallelAllocator => {
-            if (lower.uses_parallel) try @import("parallel/allocator.zig").append(lower, &output);
-        },
-        .Comparisons => {
-            for (comparisons.items) |type_id| try suffix.append(temporary, try @import("comparison.zig").ordering(lower, type_id));
-        },
-    };
-
-    return task_declarations.assemble(temporary, lower.builder.nodes, &output, &suffix);
 }
 
 fn initialize(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, scratch: ?*TypeScratch, body: bool) Error!Lower {

@@ -1,0 +1,16 @@
+import host from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { body, bind_input, value_output } = in
+
+    if (in.enter) {
+        host.enterFunctionRepresentation(body)
+    }
+
+    host.bindFunctionArgument(body, bind_input)
+    host.setFunctionOutput(body, value_output)
+}

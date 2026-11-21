@@ -76,3 +76,45 @@ export type LoopOperands = {
     body: u32,
     by_value: bool
 }
+
+export type FunctionBody = opaque
+
+export type ValueFunction = opaque
+
+export type RepresentedCache = opaque
+
+export type ModuleFrame = opaque
+
+export enum BodySection {
+    Prelude,
+    Pending,
+    References,
+    Contracts,
+    Statements,
+    Commit
+}
+
+export enum ModuleFunctionForm {
+    Native,
+    Regular,
+    RegularAndValue,
+    Value
+}
+
+export enum ModuleRequestForm {
+    Done,
+    Native,
+    FirstRegular,
+    Regular,
+    FirstValue,
+    Value
+}
+
+export type ModuleSignatures = opaque
+
+export enum SignatureForm {
+    Skip,
+    Regular,
+    Value,
+    Both
+}

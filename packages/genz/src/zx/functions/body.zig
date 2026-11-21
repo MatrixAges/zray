@@ -1,69 +1,103 @@
-const zx = @import("zx");
+const std = @import("std");
 const node = @import("../../node.zig");
 const blocks = @import("../../node/blocks.zig");
 const Lower = @import("../lower.zig");
 const stores = @import("../store/transaction.zig");
+const signature = @import("../signature/build.zig");
 const prelude = @import("prelude/build.zig");
-const entry = @import("generated_function_body_workflow");
+const evaluation = @import("../expressions/evaluate.zig");
+const Section = evaluation.Api.BodySection;
+const Error = Lower.Error;
 
-const Spans = struct {
-    statements: node.Block,
-    contracts: node.Block,
-    prelude: node.Block,
-    pending: node.Block = .{},
-    references: node.Block,
-    commit: node.Block = .{},
+const Frame = struct {
+    lowering: *Lower,
+    signature_request: signature.Request,
+    sections: std.EnumArray(Section, node.Block) = .initFill(.{}),
+    flags: prelude.Flags = undefined,
+    declaration: node.Function = undefined,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
 };
 
-pub fn lower(self: *Lower, name: []const u8, exported: bool) Lower.Error!node.Declaration {
-    return if (self.program.stores.count() != 0) build(self, name, exported, .Store) else build(self, name, exported, .Plain);
-}
+pub fn lower(self: *Lower, name: []const u8, exported: bool) Error!node.Declaration {
+    const entry = @import("generated_lower_function_body");
 
-fn build(self: *Lower, name: []const u8, exported: bool, comptime form: entry.Input) Lower.Error!node.Declaration {
-    var spans: Spans = .{ .statements = undefined, .contracts = undefined, .prelude = undefined, .references = undefined };
-    var errors: ?[]const []const u8 = undefined;
-    var declaration: node.Function = undefined;
-    var flags: prelude.Flags = undefined;
-
-    inline for (comptime zx.staticSequence(entry, form)) |step| switch (step) {
-        .Errors => {
-            errors = try @import("../error_effects.zig").program(self);
-            flags = .{ .exported = exported, .io = self.entry_flags.io, .process = self.entry_flags.process };
-        },
-        .Workspace => try @import("context.zig").prepare(self, errors),
-        .Statements => spans.statements = try self.statements(self.program.body.block()),
-        .Contracts => spans.contracts = try @import("../contracts.zig").preconditions(self),
-        .Prelude => spans.prelude = try prelude.lower(self, flags),
-        .Pending => spans.pending = try stores.initialize(self),
-        .References => spans.references = try self.referenceBlock(),
-        .Commit => spans.commit = try stores.finish(self),
-        .Signature => declaration = try @import("../signature/build.zig").build(self, name, exported, errors),
+    var frame: Frame = .{
+        .lowering = self,
+        .signature_request = .{ .name = name, .exported = exported, .errors = undefined },
     };
 
-    declaration.body = try assemble(self, spans);
+    const input: std.meta.Child(entry.Input) = .{
+        .body = @ptrCast(&frame),
+        .stores = self.program.stores.count() != 0,
+    };
 
-    return .{ .function = declaration };
+    try evaluation.execute(entry, &input);
+
+    return .{ .function = frame.declaration };
 }
 
-fn assemble(self: *Lower, spans: Spans) Lower.Error!node.Block {
-    const order = comptime zx.staticSequence(entry, .Layout);
+pub fn prepareFunctionBody(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    frame.signature_request.errors = try @import("../error_effects.zig").program(self);
+    frame.flags = .{ .exported = frame.signature_request.exported, .io = self.entry_flags.io, .process = self.entry_flags.process };
+
+    try @import("context.zig").prepare(self, frame.signature_request.errors);
+}
+
+pub fn lowerFunctionStatements(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+
+    frame.sections.set(.Statements, try self.statements(self.program.body.block()));
+}
+
+pub fn lowerFunctionContracts(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.sections.set(.Contracts, try @import("../contracts.zig").preconditions(frame.lowering));
+}
+
+pub fn lowerFunctionPrelude(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.sections.set(.Prelude, try prelude.lower(frame.lowering, frame.flags));
+}
+
+pub fn lowerFunctionPending(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.sections.set(.Pending, try stores.initialize(frame.lowering));
+}
+
+pub fn lowerFunctionReferences(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.sections.set(.References, try frame.lowering.referenceBlock());
+}
+
+pub fn lowerFunctionCommit(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.sections.set(.Commit, try stores.finish(frame.lowering));
+}
+
+pub fn publishFunctionBody(handle: *const anyopaque, before: Section, pending: Section, references: Section, contracts: Section, statements: Section, commit: Section) Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    var declaration = try signature.build(self, &frame.signature_request);
+    const order = [_]Section{ before, pending, references, contracts, statements, commit };
     var starts: [order.len]u32 = undefined;
     var lengths: [order.len]u32 = undefined;
 
-    inline for (order, &starts, &lengths) |step, *start, *length| {
-        const block = switch (step) {
-            .Prelude => spans.prelude,
-            .Pending => spans.pending,
-            .References => spans.references,
-            .Contracts => spans.contracts,
-            .Statements => spans.statements,
-            .Commit => spans.commit,
-            else => @compileError("Build step in function body layout"),
-        };
-
+    inline for (order, &starts, &lengths) |section, *start, *length| {
+        const block = frame.sections.get(section);
         start.* = block.start;
         length.* = block.len;
     }
 
-    return blocks.join(self.allocator, self.builder.nodes, &starts, &lengths);
+    declaration.body = try blocks.join(self.allocator, self.builder.nodes, &starts, &lengths);
+    frame.declaration = declaration;
 }

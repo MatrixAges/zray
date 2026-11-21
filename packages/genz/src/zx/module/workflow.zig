@@ -1,65 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
 const generated = @import("genz_options").generated_analysis;
-const entry = if (generated) @import("generated_module_entry_workflow") else void;
-const functions = if (generated) @import("generated_module_function_workflow") else void;
 const signatures = if (generated) @import("generated_signature_module_select") else void;
 
-const EntryStep = if (generated) std.meta.Child(entry.Output) else enum {
-    Standard,
-    NativeImports,
-    Types,
-    Exports,
-    Constants,
-    Shape,
-    Contracts,
-    Store,
-    Entry,
-    ValueEntry,
-    RequestedFunctions,
-    ParallelAllocator,
-    Comparisons,
-};
+pub const FunctionForm = if (generated)
+    @import("../expressions/evaluate.zig").Api.ModuleFunctionForm
 
-pub const FunctionForm = if (generated) functions.Input else enum { Native, Regular, RegularAndValue, Value };
-
-const FunctionStep = if (generated) std.meta.Child(functions.Output) else enum {
-    Standard,
-    Types,
-    Store,
-    NativeImport,
-    NativeBody,
-    RegularBody,
-    ValueBody,
-    ParallelAllocator,
-    Comparisons,
-};
-
-pub fn entrySteps(comptime type_only: bool, comptime local: bool) []const EntryStep {
-    if (generated) return zx.staticSequence(entry, &.{ .type_only = type_only, .local = local });
-
-    const imports: []const EntryStep = if (local) &.{ .Standard, .NativeImports } else &.{.Standard};
-    const header: []const EntryStep = imports ++ &[_]EntryStep{ .Types, .Exports, .Constants };
-
-    if (type_only) return header;
-
-    const functions_to_emit: []const EntryStep = if (local) &.{.RequestedFunctions} else &.{};
-
-    return header ++ &[_]EntryStep{ .Shape, .Contracts, .Store, .Entry, .ValueEntry } ++ functions_to_emit ++ &[_]EntryStep{ .ParallelAllocator, .Comparisons };
-}
-
-pub fn functionSteps(comptime form: FunctionForm) []const FunctionStep {
-    if (generated) return zx.staticSequence(functions, form);
-
-    const body: []const FunctionStep = switch (form) {
-        .Native => &.{ .NativeImport, .NativeBody },
-        .Regular => &.{.RegularBody},
-        .RegularAndValue => &.{ .RegularBody, .ValueBody },
-        .Value => &.{.ValueBody},
-    };
-
-    return &[_]FunctionStep{ .Standard, .Types, .Store } ++ body ++ &[_]FunctionStep{ .ParallelAllocator, .Comparisons };
-}
+else
+    enum { Native, Regular, RegularAndValue, Value };
 
 pub fn functionForm(external: bool, value: bool, regular: bool) FunctionForm {
     if (!generated) {
