@@ -1,13 +1,14 @@
 const std = @import("std");
 const zx = @import("zx");
 const Trace = @import("../trace.zig");
+const Summaries = @import("../summaries.zig");
 const Cursor = @This();
 
 body: usize = 0,
 visit: usize = 0,
 
 phase: enum { start, settled, demanded, planned, done, reject } = .start,
-pub fn next(self: Cursor, active: []const bool, trace: *const Trace, changed: []const bool, agreed: bool) Cursor {
+pub fn next(self: Cursor, active: []const bool, trace: *const Trace, changed: []const bool, agreed: bool, summaries: *const Summaries) Cursor {
     if (!@import("genz_options").generated_analysis) {
         if (!agreed) return .{ .body = self.body, .visit = self.visit, .phase = .reject };
 
@@ -16,6 +17,7 @@ pub fn next(self: Cursor, active: []const bool, trace: *const Trace, changed: []
 
     const entry = @import("generated_uniqueness_shortcut_advance");
     const Input = std.meta.Child(entry.Input);
+    const storage = summaries.storage.?;
 
     const input: Input = .{
         .active = active,
@@ -24,6 +26,7 @@ pub fn next(self: Cursor, active: []const bool, trace: *const Trace, changed: []
         .planned = trace.planned.starts,
         .changed = changed,
         .agreed = agreed,
+        .demands = &.{ .cells = @ptrCast(&storage.demands), .count = storage.demands.len },
         .cursor = &.{ .body = self.body, .visit = self.visit, .phase = @fromBackingInt(@intCast(@backingInt(self.phase))) },
     };
 
@@ -79,7 +82,7 @@ pub fn publish(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace
 
             const record = if (changed) replacements[position].value else trace.planned.entries[first].value;
 
-            output.put(index, try record.plan().copy(allocator));
+            output.putSeed(index, try record.plan().copy(allocator));
 
             position += @intFromBool(changed);
         }

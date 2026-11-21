@@ -1,57 +1,13 @@
 <Module>
     <Type from="model" as="Trace" />
 
-    <Args in={Trace.Input} out={Trace.Cursor} />
+    <Args in={Trace.Advance} out={Trace.Cursor} />
 
-    <If on={!$in.agreed}>
-        <Return
-            value={{
-                ...$in.cursor,
-                phase: Trace.Phase.Reject
-            }}
-        />
+    <Call module="choose" in={$in.omit(["demands"])} />
+
+    <If on={$ctx.choose.phase == Trace.Phase.Reject}>
+        <Call fn="../../summaries/clear" in={$in.demands} />
     </If>
 
-    <If
-        on={$in.cursor.phase == Trace.Phase.Settled ||
-            $in.cursor.phase == Trace.Phase.Demanded}
-    >
-        <Call
-            fn="remaining"
-            in={$in.omit([
-                "active",
-                "changed",
-                "agreed"
-            ])}
-        />
-
-        <Return value={$ctx.remaining} />
-    </If>
-
-    <Call
-        fn="next"
-        in={$in.omit([
-            "settled",
-            "demanded",
-            "agreed"
-        ])}
-    />
-
-    <If on={$ctx.next.phase != Trace.Phase.Start}>
-        <Return value={$ctx.next} />
-    </If>
-
-    <Call
-        fn="remaining"
-        in={{
-            ...$in.pick([
-                "settled",
-                "demanded",
-                "planned"
-            ]),
-            cursor: $ctx.next
-        }}
-    />
-
-    <Return value={$ctx.remaining} />
+    <Return value={$ctx.choose} />
 </Module>

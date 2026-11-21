@@ -25,18 +25,15 @@ pub fn run(ctx: *Context) Error!?Analysis.Result {
     var agreed = true;
 
     while (true) {
-        cursor = cursor.next(ctx.calls.active, trace, ctx.replay.changed, agreed);
+        cursor = cursor.next(ctx.calls.active, trace, ctx.replay.changed, agreed, ctx.summaries);
 
         switch (cursor.phase) {
             .start => unreachable,
             .done => return try Cursor.publish(ctx.allocator, trace, ctx.replay, replacements.rows(), ctx.calls.active),
-            .reject => {
-                ctx.summaries.clearWants();
-
-                return null;
-            },
+            .reject => return null,
             inline .settled, .demanded, .planned => |phase| {
                 const kind = comptime @field(Memo.Kind, @tagName(phase));
+
                 agreed = try visit(kind, ctx, trace, &scratch, staged.allocator(), &replacements, cursor);
             },
         }

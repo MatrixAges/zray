@@ -60,10 +60,6 @@ pub fn flow(owner: std.mem.Allocator, held: []const bool, text_held: []const boo
     return .{ .held = result.held, .text_held = result.text_held, .written = result.written };
 }
 
-pub fn state(owner: std.mem.Allocator, source: []const u8) Error![]const u8 {
-    return retain(@import("generated_uniqueness_retain_state"), owner, source);
-}
-
 fn retain(comptime entry: type, owner: std.mem.Allocator, source: anytype) Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {
     const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer and @typeInfo(Parameter).pointer.size == .one;

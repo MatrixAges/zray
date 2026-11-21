@@ -15,9 +15,8 @@ export default function (in: Input): Output {
         return {
             body: null,
             exhausted: false,
-            first: head,
-            prefix: 0,
-            suffix: 0,
+            first: [],
+            second: [],
             grew: memory.readU64(state.positions, growth_slot) != 0,
             prefetch: false
         }
@@ -25,7 +24,7 @@ export default function (in: Input): Output {
 
     const available = state.capacity - head
     const prefix = count < available ? count : available
-    const index = memory.readU64(state.slots, head)
+    const index = in.slots[head]
     const next = head + 1
     const first = next == state.capacity ? 0 : next
 
@@ -44,9 +43,8 @@ export default function (in: Input): Output {
     return {
         body: exhausted ? null : index,
         exhausted,
-        first: head,
-        prefix,
-        suffix: count - prefix,
+        first: memory.borrowU64Range(in.slots, head, prefix),
+        second: memory.borrowU64Range(in.slots, 0, count - prefix),
         grew: false,
         prefetch: !exhausted && !in.following
     }

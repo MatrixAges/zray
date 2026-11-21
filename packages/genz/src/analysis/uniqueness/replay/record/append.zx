@@ -2,6 +2,7 @@ import columns from "memory/columns"
 
 import reserve from "./reserve"
 
+import type { ColumnAllocator } from "memory/columns"
 import type { Input as Rows } from "./reserve"
 
 export type Input = {
@@ -9,6 +10,9 @@ export type Input = {
     entries: Rows.Omit("used"),
     owner: u8[],
     entry: u8[],
+    state_offset: u64,
+    state: u8[],
+    recording: ColumnAllocator,
     used: u64
 }
 
@@ -16,6 +20,8 @@ export type Output = u64
 
 export default function (in: Input): Output {
     const { owners, entries, owner, entry, used } = in
+
+    const state = columns.copyColumnBytes(in.recording, in.state)
 
     reserve({
         ...owners,
@@ -28,6 +34,7 @@ export default function (in: Input): Output {
     })
 
     columns.writeRow(entries.rows, used, entry)
+    columns.writeRowByteField(entries.rows, used, in.state_offset, state)
     columns.writeRow(owners.rows, used, owner)
 
     return used + 1

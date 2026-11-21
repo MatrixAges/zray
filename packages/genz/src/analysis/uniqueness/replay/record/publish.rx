@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Record" />
+
+    <Args in={Record.Input} out={Record.Output} />
+
+    <Call fn="append" in={$in.append} />
+
+    <If on={$in.selection != null}>
+        <Call fn="../select" in={$in.selection} />
+
+        <Return
+            value={{
+                ...$ctx.select,
+                used: $ctx.append
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            following: false,
+            cursor: null,
+            used: $ctx.append
+        }}
+    />
+</Module>

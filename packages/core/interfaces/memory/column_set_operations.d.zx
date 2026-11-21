@@ -122,6 +122,11 @@ export declare function copyColumnText(
     source: string
 ): string throws { OutOfMemory }
 
+export declare function copyColumnBytes(
+    resource: ColumnAllocator,
+    source: u8[]
+): u8[] throws { OutOfMemory }
+
 export declare function copyColumnTexts(
     resource: ColumnAllocator,
     source: string[]

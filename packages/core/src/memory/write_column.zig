@@ -263,6 +263,17 @@ pub inline fn writeRowByteView(target: *const anyopaque, index: u64, source: []c
     try writeRow(target, index, std.mem.asBytes(&source));
 }
 
+pub fn writeRowByteField(target: *const anyopaque, index: u64, offset: u64, source: []const u8) IndexError!void {
+    const output: *const RowBuffer = @ptrCast(@alignCast(target));
+    const width = @sizeOf([]const u8);
+
+    if (index >= output.bytes.len / output.stride or offset > output.stride or width > output.stride - offset) return error.IndexOutOfBounds;
+
+    const first = @as(usize, @intCast(index)) * output.stride + @as(usize, @intCast(offset));
+
+    @memcpy(output.bytes[first..][0..width], std.mem.asBytes(&source));
+}
+
 /// The caller lends a mutable field of each row exclusively until the generated call returns.
 pub inline fn borrow(comptime T: type, comptime field: []const u8, rows: anytype) Column {
     return borrowNested(T, &.{field}, rows);

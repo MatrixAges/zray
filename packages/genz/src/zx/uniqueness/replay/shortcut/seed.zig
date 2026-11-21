@@ -24,7 +24,7 @@ pub fn run(allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary
     var agreed = true;
 
     while (true) {
-        cursor = cursor.next(active, trace, replay.changed, agreed);
+        cursor = cursor.next(active, trace, replay.changed, agreed, summaries);
 
         switch (cursor.phase) {
             .start => unreachable,

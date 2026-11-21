@@ -60,16 +60,32 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
     const positions: []const u64 = &self.positions;
     const Input = std.meta.Child(advancing.Input);
     const Feedback = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
+    const Plan = std.meta.Child(@typeInfo(@FieldType(Feedback, "plan")).optional.child);
+    const fields = if (previous) |value| value.plan else null;
+
+    const plan: Plan = if (fields) |bytes| planned: {
+        const target = if (frame.plans) |*value| value else unreachable;
+
+        break :planned .{
+            .plans = @ptrCast(&target.functions),
+            .entry = @ptrCast(&target.entry),
+            .count = target.functions.count,
+            .body = previous.?.body,
+            .fields = bytes,
+        };
+    } else undefined;
 
     const feedback: Feedback = if (previous) |value| .{
         .body = value.body,
         .changed = value.changed,
         .levels = std.mem.sliceAsBytes(value.levels),
         .grew = value.grew,
+        .plan = if (fields != null) &plan else null,
     } else undefined;
 
     const input: Input = .{
         .state = &self.queue(&positions),
+        .slots = self.slots,
         .phase = phase,
         .following = following,
         .outputs = @ptrCast(&frame.outputs),
@@ -81,11 +97,10 @@ pub fn advance(self: *Self, phase: Round.Phase, frame: *const Round.Frame, previ
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
     const output = try invoke(advancing, empty.allocator(), &input);
-    const first: usize = @intCast(output.first);
 
     return .{
         .visit = if (output.body) |body| .{ .body = @intCast(body) } else if (output.exhausted) .exhausted else .done,
-        .pending = .{ .first = self.slots[first..][0..@intCast(output.prefix)], .second = self.slots[0..@intCast(output.suffix)] },
+        .pending = .{ .first = output.first, .second = output.second },
         .grew = output.grew,
         .prefetch = output.prefetch,
     };

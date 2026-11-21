@@ -165,9 +165,11 @@ pub const Context = struct {
             .outputs = self.summaries.output,
             .dirty = rounds.ahead.dirty,
             .callers = rounds.reverse.callers,
+            .plans = if (generated and kind == .planned) plans.target() else null,
         };
 
         var feedback: ?Round.Feedback = null;
+        var completed_plan: if (generated and kind == .planned) analysis.Plan else void = undefined;
 
         while (true) {
             const claim = try rounds.work.advance(phase, &frame, feedback, self.replay.trace != null);
@@ -190,7 +192,16 @@ pub const Context = struct {
             switch (kind) {
                 .settled => feedback = try visits.settle(self, &round, index),
                 .demanded => feedback = try visits.demand(self, &round, index),
-                .planned => plans.put(index, try visits.plan(self, &round, index)),
+                .planned => {
+                    const value = try visits.plan(self, &round, index);
+
+                    if (generated) {
+                        completed_plan = value;
+                        feedback = .{ .body = index, .changed = &.{}, .plan = std.mem.asBytes(&completed_plan) };
+                    } else {
+                        plans.putSeed(index, value);
+                    }
+                },
             }
         }
     }

@@ -43,6 +43,12 @@
                     />
                 </If>
             </Case>
+
+            <Case value={Program.Phase.Plan}>
+                <If on={$in.previous.plan != null}>
+                    <Call fn="../../program/visit/publish" in={$in.previous.plan} />
+                </If>
+            </Case>
         </Switch>
 
         <If on={$in.previous.grew}>
@@ -54,6 +60,7 @@
         fn="take"
         in={$in.pick([
             "state",
+            "slots",
             "phase",
             "following"
         ])}

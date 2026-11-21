@@ -1,0 +1,11 @@
+import type { Selection, Step } from "../model"
+import type { Input as Append } from "./append"
+
+export type Input = {
+    append: Append,
+    selection?: Step
+}
+
+export type Output = Selection & {
+    used: u64
+}

@@ -1,3 +1,4 @@
+const memory = @import("zx").memory;
 const Level = @import("../level.zig").Level;
 
 pub const Phase = if (@import("genz_options").generated_analysis)
@@ -32,6 +33,12 @@ pub const Frame = struct {
     outputs: [][]Level,
     dirty: []bool,
     callers: []const []const u64,
+    plans: ?PlanTarget = null,
+};
+
+pub const PlanTarget = struct {
+    functions: memory.WriteColumn,
+    entry: memory.WriteColumn,
 };
 
 pub const Feedback = struct {
@@ -39,6 +46,7 @@ pub const Feedback = struct {
     changed: []const u64,
     levels: []const Level = &.{},
     grew: bool = false,
+    plan: ?[]const u8 = null,
 };
 
 pub const Claim = struct { visit: Visit, pending: Window, grew: bool, prefetch: bool };

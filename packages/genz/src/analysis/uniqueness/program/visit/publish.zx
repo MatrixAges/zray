@@ -1,6 +1,6 @@
 import memory from "memory"
 
-import type { Plan as Input } from "./model"
+import type { Plan as Input } from "../../work/round/model"
 
 export type Output = void
 

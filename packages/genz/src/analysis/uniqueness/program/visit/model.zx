@@ -45,11 +45,3 @@ export type Demand = Marks & {
     origin: Origin,
     growth: Growth
 }
-
-export type Plan = {
-    plans: WriteColumn,
-    entry: WriteColumn,
-    count: u64,
-    body: u64,
-    fields: u8[]
-}

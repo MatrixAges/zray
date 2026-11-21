@@ -6,6 +6,7 @@ const Creation = std.meta.Child(creating.Input);
 const PreviousParameter = @typeInfo(@FieldType(Creation, "previous")).optional.child;
 const indirect_previous = @typeInfo(PreviousParameter) == .pointer;
 const Previous = if (indirect_previous) std.meta.Child(PreviousParameter) else PreviousParameter;
+pub const SelectionInput = std.meta.Child(selecting.Input);
 const Self = @This();
 
 active: bool,
@@ -40,14 +41,18 @@ pub fn init(allocator: std.mem.Allocator, previous: anytype, key: [32]u8, identi
     return .{ .active = state.following, .changes = state.changed };
 }
 
-pub fn select(self: *Self, allocator: std.mem.Allocator, comptime kind: anytype, index: usize, starts: []const u32, verify: bool) std.mem.Allocator.Error!@import("../trace.zig").Selection {
-    const input: std.meta.Child(selecting.Input) = .{
+pub fn visit(self: *Self, comptime kind: anytype, index: usize, starts: []const u32, verify: bool) SelectionInput {
+    return .{
         .positions = @ptrCast(&self.cursors[@backingInt(kind)]),
         .index = index,
         .starts = starts,
         .changed = self.changes[index],
         .verify = verify,
     };
+}
+
+pub fn select(self: *Self, allocator: std.mem.Allocator, comptime kind: anytype, index: usize, starts: []const u32, verify: bool) std.mem.Allocator.Error!@import("../trace.zig").Selection {
+    const input = self.visit(kind, index, starts, verify);
 
     const result = columns.invoke(selecting.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,

@@ -78,17 +78,30 @@ pub const Replay = struct {
     pub fn met(self: *Replay, comptime kind: Kind, index: usize, value: Memo.Result(kind), memo: *const Memo) std.mem.Allocator.Error!void {
         const recording = if (self.recording) |*arena| arena.allocator() else return;
         const source = self.recalled orelse memo.lastState();
-        const state = if (generated) try @import("retain.zig").state(recording, source) else try recording.dupe(u8, source);
+        const trace = self.trace;
+        const history = if (trace) |previous| @field(previous, @tagName(kind)) else null;
+        const log = &@field(self, @tagName(kind));
+
+        const cursor = if (generated) selected: {
+            const selection = if (history) |visits| self.control.visit(kind, index, visits.starts, true) else null;
+            const result = try log.append(self.allocator, recording, @intCast(index), value, source, if (selection) |*row| row else null);
+
+            if (!result.following) self.trace = null;
+
+            break :selected result.cursor;
+        } else seeded: {
+            const state = try recording.dupe(u8, source);
+
+            try log.append(self.allocator, @intCast(index), value, state);
+
+            break :seeded if (history) |visits| try self.select(kind, index, visits.starts, true) else null;
+        };
 
         self.recalled = null;
 
-        try @field(self, @tagName(kind)).append(self.allocator, @intCast(index), value, state);
-
-        const trace = self.trace orelse return;
-        const visits = @field(trace, @tagName(kind));
-        const cursor = (try self.select(kind, index, visits.starts, true)) orelse return;
-
-        if (!try agree(kind, self.allocator, visits.entries[cursor].value, value)) self.trace = null;
+        if (cursor) |position| {
+            if (!try agree(kind, self.allocator, history.?.entries[position].value, value)) self.trace = null;
+        }
     }
     fn select(self: *Replay, comptime kind: Kind, index: usize, starts: []const u32, verify: bool) std.mem.Allocator.Error!?u32 {
         const selected = try self.control.select(self.allocator, kind, index, starts, verify);

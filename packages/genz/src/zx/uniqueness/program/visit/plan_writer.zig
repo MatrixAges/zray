@@ -50,15 +50,7 @@ fn allocate(allocator: std.mem.Allocator, active: []const bool) std.mem.Allocato
     return destination.rows(Plan);
 }
 
-pub fn put(self: *Self, index: usize, value: Plan) void {
-    if (!generated) {
-        if (index == self.rows.len) self.entry = value else self.rows[index] = value;
-
-        return;
-    }
-
-    const entry = @import("generated_uniqueness_visit_publish");
-
+pub fn target(self: *Self) @import("../../work/round.zig").PlanTarget {
     const entry_column: zx.memory.WriteColumn = .{
         .items = @ptrCast(&self.entry),
         .count = 1,
@@ -66,17 +58,11 @@ pub fn put(self: *Self, index: usize, value: Plan) void {
         .width = @sizeOf(Plan),
     };
 
-    const input: std.meta.Child(entry.Input) = .{
-        .plans = @ptrCast(&self.column),
-        .entry = @ptrCast(&entry_column),
-        .count = self.rows.len,
-        .body = index,
-        .fields = std.mem.asBytes(&value),
-    };
+    return .{ .functions = self.column, .entry = entry_column };
+}
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+pub fn putSeed(self: *Self, index: usize, value: Plan) void {
+    if (index == self.rows.len) self.entry = value else self.rows[index] = value;
 }
 
 pub fn result(self: *const Self) analysis.Result {
