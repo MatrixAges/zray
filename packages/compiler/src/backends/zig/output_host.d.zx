@@ -37,6 +37,32 @@ export type SourceReuse = {
     pending: u64
 }
 
+export type BootstrapTree = opaque
+
+export type BootstrapMirror = opaque
+
+export type BootstrapPartitionJob = opaque
+
+export enum PartitionFile {
+    Stub,
+    Exports,
+    Modules
+}
+
+export type BootstrapOutputPlan = {
+    target: BootstrapMirror,
+    changed: u64,
+    aligned: bool,
+    recorded: bool
+}
+
+export type BootstrapPartition = opaque
+
+export type BootstrapPartitionPlan = {
+    target: BootstrapPartition,
+    jobs: u64
+}
+
 export declare function analyzeLibraryExport(
     entries: LibraryEntries,
     index: u64,
@@ -130,3 +156,54 @@ export declare function emitLibraryInitializer(
     MissingNominalOrigin,
     InvalidNominalOrigin
 }
+
+export declare function renderBootstrapAdapter(target: BootstrapTree, row: u64): void
+    throws { BootstrapOutput }
+
+export declare function renderBootstrapOriginals(target: BootstrapTree): void
+    throws { BootstrapOutput }
+
+export declare function renderBootstrapRoot(target: BootstrapTree, partitioned: bool): void
+    throws { BootstrapOutput }
+
+export declare function placeBootstrapPartitions(target: BootstrapTree): void
+    throws { BootstrapOutput }
+
+export declare function hashBootstrapFiles(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function compareBootstrapFiles(target: BootstrapMirror): BootstrapOutputPlan
+    throws { BootstrapOutput }
+
+export declare function createBootstrapParents(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function writeBootstrapChanges(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function trimBootstrapFiles(target: BootstrapMirror, recorded: bool): void
+    throws { BootstrapOutput }
+
+export declare function commitBootstrapManifest(target: BootstrapMirror): void
+    throws { BootstrapOutput }
+
+export declare function renderPartitionFile(
+    target: BootstrapPartitionJob,
+    file: PartitionFile
+): void throws { BootstrapOutput }
+
+export declare function scanPartitionBodies(target: BootstrapPartition): void
+    throws { BootstrapOutput }
+
+export declare function scanPartitionSupport(target: BootstrapPartition): void
+    throws { BootstrapOutput }
+
+export declare function planPartitionLayout(target: BootstrapPartition): void
+    throws { BootstrapOutput }
+
+export declare function placePartitionFiles(
+    target: BootstrapPartition
+): BootstrapPartitionPlan throws { BootstrapOutput }
+
+export declare function emitPartitionJobs(target: BootstrapPartition): void
+    throws { BootstrapOutput }

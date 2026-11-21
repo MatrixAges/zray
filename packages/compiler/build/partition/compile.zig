@@ -1,5 +1,5 @@
 const std = @import("std");
-const file_manifest = @import("file_manifest.zig");
+const file_manifest = @import("file_manifest");
 const cache_key = @import("cache_key.zig");
 const state = @import("state.zig");
 const rules = @import("partition_rules");

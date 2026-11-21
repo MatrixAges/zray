@@ -1,0 +1,7 @@
+import type { BootstrapTree } from "output_host"
+
+export type Input = {
+    target: BootstrapTree,
+    adapters: u64,
+    partitioned: bool
+}

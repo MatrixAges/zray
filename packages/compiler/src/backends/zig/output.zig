@@ -6,6 +6,7 @@ pub const manifest_read = if (available) @import("generated_output_manifest_read
 pub const manifest_write = if (available) @import("generated_output_manifest_write") else null;
 pub const inventory = @import("output/inventory.zig");
 pub const assembly = @import("output/assembly.zig");
+pub const tree = @import("output/tree.zig");
 
 pub const Input = struct {
     paths: []const []const u8,

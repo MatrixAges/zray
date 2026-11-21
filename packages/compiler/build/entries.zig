@@ -1007,6 +1007,10 @@ pub const collections = [_]Entry{
 
 pub const execution = [_]Entry{
     .{ .path = "backends/zig/function_sources/workflow/run.rx", .name = "run_function_sources", .owner = .compiler },
+    .{ .path = "backends/zig/output/tree/run.rx", .name = "bootstrap_tree", .owner = .compiler },
+    .{ .path = "backends/zig/output/mirror/run.rx", .name = "bootstrap_mirror", .owner = .compiler },
+    .{ .path = "backends/zig/partition/emission/run.rx", .name = "bootstrap_partition", .owner = .compiler },
+    .{ .path = "backends/zig/partition/emission/render.zx", .name = "bootstrap_partition_job", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/workflow/application.rx", .name = "application_initializer_workflow", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/workflow/library.zx", .name = "library_initializer_workflow", .owner = .compiler },
     .{ .path = "backends/zig/cache/writes/workflow/run.rx", .name = "run_generation_cache_writer", .owner = .compiler },

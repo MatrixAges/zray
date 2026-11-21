@@ -453,7 +453,14 @@ fn cachedObjects(b: *std.Build, optimize: std.builtin.OptimizeMode, source: Sour
         .root_source_file = b.path("build/partition/compile.zig"),
         .target = b.graph.host,
         .optimize = .small,
-        .imports = &.{.{ .name = "partition_rules", .module = rules }},
+        .imports = &.{
+            .{ .name = "partition_rules", .module = rules },
+            .{ .name = "file_manifest", .module = b.createModule(.{
+                .root_source_file = b.path("src/backends/zig/output/manifest.zig"),
+                .target = b.graph.host,
+                .optimize = .small,
+            }) },
+        },
     }) });
 
     const run = b.addRunArtifact(tool);

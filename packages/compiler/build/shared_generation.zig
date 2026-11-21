@@ -147,7 +147,7 @@ fn emit(target: Target, library: *const compiler.library.Result, counts: Counts,
 
     const emitted = std.Io.Timestamp.now(io, .awake);
 
-    if (target.output) |path| try @import("shared_output.zig").write(io, target.allocator, resident.gpa, path, bundle, target.partitions);
+    if (target.output) |path| try compiler.zig.file_ledger.tree.write(io, target.allocator, resident.gpa, path, bundle, target.partitions);
 
     const written = std.Io.Timestamp.now(io, .awake);
 

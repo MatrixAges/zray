@@ -6,7 +6,7 @@ const Digest = [Blake3.digest_length]u8;
 const Encoded = @TypeOf(std.fmt.bytesToHex(@as(Digest, @splat(0)), .lower));
 const HashWriter = Io.Writer.Hashing(Blake3);
 const buffer_size = 16 * 1024;
-const Listed = @import("file_manifest.zig").Listed;
+const Listed = @import("file_manifest").Listed;
 const Members = @FieldType(std.meta.Child(rules.partition_cache_selection.Output), "members");
 
 pub const Shared = struct {

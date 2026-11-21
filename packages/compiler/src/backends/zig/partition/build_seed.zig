@@ -1,8 +1,8 @@
 const std = @import("std");
-const generation = @import("compiler").zig.partition;
-const Scanning = @import("scanning.zig");
-const parallel = @import("../parallel.zig");
-pub const File = @import("layout.zig").File;
+const generation = @import("../partition.zig");
+const Scanning = @import("workers.zig");
+const parallel = @import("../output/parallel.zig");
+pub const File = @import("placement.zig").File;
 
 const Exported = struct { callee: u32, variants: []const []const u8 };
 

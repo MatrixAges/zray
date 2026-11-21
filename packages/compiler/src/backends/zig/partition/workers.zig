@@ -1,7 +1,7 @@
 const std = @import("std");
-const parallel = @import("../parallel.zig");
-const File = @import("layout.zig").File;
-const Scanner = @import("compiler").zig.partition.Scanning;
+const parallel = @import("../output/parallel.zig");
+const File = @import("placement.zig").File;
+const Scanner = @import("../partition.zig").Scanning;
 const Self = @This();
 
 functions: []const File,

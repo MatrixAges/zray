@@ -1,0 +1,20 @@
+import host from "output_host"
+import { PartitionFile } from "output_host"
+
+import type { BootstrapPartitionJob } from "output_host"
+
+export type Input = {
+    target: BootstrapPartitionJob,
+    root: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (in.root) {
+        host.renderPartitionFile(in.target, PartitionFile.Exports)
+        host.renderPartitionFile(in.target, PartitionFile.Modules)
+    } else {
+        host.renderPartitionFile(in.target, PartitionFile.Stub)
+    }
+}

@@ -1,0 +1,9 @@
+import host from "output_host"
+
+import type { Input, Plan as Output } from "./model"
+
+export default function (in: Input): Output {
+    host.hashBootstrapFiles(in)
+
+    return host.compareBootstrapFiles(in)
+}

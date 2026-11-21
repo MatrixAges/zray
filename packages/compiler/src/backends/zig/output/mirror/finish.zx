@@ -1,0 +1,13 @@
+import host from "output_host"
+
+import type { Plan as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (!in.aligned) {
+        host.trimBootstrapFiles(in.target, in.recorded)
+    }
+
+    host.commitBootstrapManifest(in.target)
+}

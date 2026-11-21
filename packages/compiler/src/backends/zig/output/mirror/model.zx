@@ -1,0 +1,5 @@
+import type { BootstrapMirror, BootstrapOutputPlan } from "output_host"
+
+export type Input = BootstrapMirror
+
+export type Plan = BootstrapOutputPlan

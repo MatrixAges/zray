@@ -1,5 +1,5 @@
 const std = @import("std");
-/// The manifest `shared_output` writes into a generated tree: one `<hash:016x> <path>` line per file it wrote.
+/// Lists generated files as one `<hash:016x> <path>` line per file.
 pub const name = ".zxc-files";
 
 /// The files a manifest lists, in the order they were written.
