@@ -1,3 +1,5 @@
+import integers from "std:integer"
+
 import assignment from "../../../../ast/body/assignment"
 import dereference from "../../../../ast/context/dereference"
 import slot from "../../../construction/reference/slot"
@@ -5,9 +7,11 @@ import slot from "../../../construction/reference/slot"
 import type { Step as Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
+    const id = integers.widen(in.source.plan.references[in.state.layout_index])
+
     const storage = slot({
         context: in.state.context,
-        layout: in.source.layouts[in.state.layout_index]
+        layout: in.source.layouts[id]
     })
 
     const value = dereference({

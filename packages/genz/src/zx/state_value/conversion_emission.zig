@@ -4,44 +4,9 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Mode = @import("conversion.zig").Mode;
-const view = @import("../../node/view.zig");
 const planner = @import("generated_state_conversion_plan");
 const PlanInput = std.meta.Child(planner.Input);
 const PlanningMode = @FieldType(PlanInput, "mode");
-const resources = @import("generated_state_conversion_resources");
-const ResourceInput = std.meta.Child(resources.Input);
-const ResourceMode = @FieldType(ResourceInput, "mode");
-const ResourceOperation = @FieldType(ResourceInput, "operation");
-const ResourceSelection = @typeInfo(@typeInfo(@TypeOf(resources.executeValue)).@"fn".return_type.?).error_union.payload;
-const ResourceTable = [@typeInfo(ResourceMode).@"enum".field_names.len][@typeInfo(ResourceOperation).@"enum".field_names.len][2][2]ResourceSelection;
-const resource_table = resourceTable();
-
-fn resourceTable() ResourceTable {
-    @setEvalBranchQuota(1000000);
-
-    var table: ResourceTable = undefined;
-
-    for (&table, std.enums.values(ResourceMode)) |*modes, mode| {
-        for (modes, std.enums.values(ResourceOperation)) |*operations, operation| {
-            for (operations, 0..) |*options, referenced| {
-                for (options, 0..) |*selection, children| {
-                    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-                    const input: ResourceInput = .{
-                        .mode = mode,
-                        .operation = operation,
-                        .referenced = referenced != 0,
-                        .has_children = children != 0,
-                    };
-
-                    selection.* = zx.columns.invoke(resources.executeValue, fixed.allocator(), &input) catch unreachable;
-                }
-            }
-        }
-    }
-
-    return table;
-}
 
 pub fn lower(self: *Lower, body: anytype, id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     return lowerWithStorage(self, body, body, id, value, mode);
@@ -119,19 +84,32 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, plan: *const Plan, value:
     const origins = try temporary.alloc([]const u8, count);
     const serial = self.serial;
     const declarations = self.task_declarations.count();
-    const type_expression = @import("../types.zig");
+    const resolve = @import("generated_resolve_state_resources");
+    const Request = std.meta.Child(resolve.Input);
 
-    for (plan.types, plan.kinds, plan.modes, plan.count, layouts, targets, elements, origins) |type_id, kind, mode, children, *layout, *target, *element, *origin| {
-        const selected: ir.TypeId = @fromBackingInt(type_id);
-        const referenced = @intFromBool(self.state_plan.referenced(selected));
-        const branched = @intFromBool(children != 0);
-        const selection = resource_table[@backingInt(mode)][@backingInt(kind)][referenced][branched];
-        layout.* = @backingInt(try type_expression.resource(self, selected, selection.layout));
-        target.* = if (selection.target == .None) layout.* else @backingInt(try type_expression.resource(self, selected, selection.target));
-        element.* = if (selection.element == .None) 0 else @backingInt(try type_expression.resource(self, self.program.typeOf(selected).list, selection.element));
-        origin.* = if (selection.origin) try @import("origin.zig").name(self, selected) else &.{};
-    }
+    const tables: std.meta.Child(@FieldType(Request, "types")) = .{
+        .abi_types = @ptrCast(self.abi_types),
+        .abi_layouts = @ptrCast(self.abi_layouts),
+        .state_types = @ptrCast(self.state_types),
+        .state_layouts = @ptrCast(self.state_layouts),
+        .views = @ptrCast(self.view_types),
+    };
 
+    const request: Request = .{
+        .frame = @ptrCast(self),
+        .plan = zx.columns.pointer(@FieldType(Request, "plan"), plan),
+        .types = &tables,
+        .children = self.program.types.first,
+        .referenced = self.state_plan.borrowed,
+        .layouts = @ptrCast(&layouts),
+        .targets = @ptrCast(&targets),
+        .elements = @ptrCast(&elements),
+        .origins = @ptrCast(&origins),
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+    resolve.executeIn(fixed.allocator(), &request) catch |err| return failure(err);
     std.debug.assert(serial == self.serial and declarations == self.task_declarations.count());
 
     return .{
@@ -152,22 +130,7 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, plan: *const Plan, value:
 }
 
 pub fn apply(self: *Lower, borrow_storage: anytype, body: anytype, output: anytype) Lower.Error!node.ExpressionId {
-    if (!output.valid) return error.OutOfMemory;
-
-    const expressions = view.join(output.expressions.*, output.forms.*);
-    const statements = view.join(output.statements.*, output.variables.*);
-    const storage = view.join(output.storage.*, output.variables.*);
-    const borrowed = view.join(output.borrow_storage.*, output.variables.*);
-    const flat = view.join(output.body.*, output.variables.*);
-    @import("../../node/import_rows.zig").append(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return imported(err);
-    @import("../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return imported(err);
-
-    try self.hoistReferences(&storage);
-    @import("../../node/import_statements.zig").appendSelected(self.allocator, borrow_storage, &borrowed) catch |err| return imported(err);
-    @import("../../node/import_statements.zig").appendSelected(self.allocator, body, &flat) catch |err| return imported(err);
-    _ = @import("../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, output.fields) catch |err| return imported(err);
-    self.serial = @intCast(output.serial);
-    self.uses_allocator = self.uses_allocator or output.uses_allocator;
+    try @import("publication.zig").conversion(self, borrow_storage, body, output);
 
     return @fromBackingInt(output.root);
 }
@@ -176,13 +139,5 @@ fn failure(err: anyerror) Lower.Error {
     return switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         else => @panic("invalid state conversion"),
-    };
-}
-
-fn imported(err: anyerror) Lower.Error {
-    return switch (err) {
-        error.OutOfMemory => error.OutOfMemory,
-        error.InvalidAst => @panic("invalid state conversion AST"),
-        else => unreachable,
     };
 }

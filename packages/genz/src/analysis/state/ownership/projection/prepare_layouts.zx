@@ -1,0 +1,35 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    references: u32[],
+    layouts: u32[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, references, layouts } = in
+
+    const resolved = loop(0, {
+        while: index => index < references.length,
+        next: index => {
+            const id = references[index]
+
+            if (layouts[integers.widen(id)] == max_u32) {
+                const resolved = host.materializeType(
+                    frame,
+                    id,
+                    StoredType.StateLayout
+                )
+            }
+
+            index += 1
+        }
+    })
+}

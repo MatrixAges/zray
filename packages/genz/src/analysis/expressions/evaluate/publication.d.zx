@@ -1,0 +1,19 @@
+export declare function appendAstExpressions(target: AstPublication, segment: u64): void
+    throws { OutOfMemory }
+
+export declare function appendAstStatements(target: AstPublication): void
+    throws { OutOfMemory }
+
+export declare function appendAstStorage(target: AstPublication): void
+    throws { OutOfMemory }
+
+export declare function appendAstHelper(target: AstPublication): void
+    throws { OutOfMemory }
+
+export declare function appendAstBody(target: AstPublication, binding: bool): void
+    throws { OutOfMemory }
+
+export declare function appendAstFields(target: AstPublication): void
+    throws { OutOfMemory }
+
+export declare function finishAstPublication(target: AstPublication): void

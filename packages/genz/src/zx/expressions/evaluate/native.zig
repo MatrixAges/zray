@@ -34,6 +34,14 @@ pub fn lowerType(frame: *const anyopaque, id: u32, in_iteration: bool) Error!u32
         try self.typeExpr(@fromBackingInt(id)));
 }
 
+pub fn materializeType(frame: *const anyopaque, id: u32, representation: evaluate.Api.StoredType) Error!u32 {
+    return @backingInt(try @import("../../types.zig").resource(borrow(frame), @fromBackingInt(id), representation));
+}
+
+pub fn loweringOrigin(frame: *const anyopaque, id: u32) Error![]const u8 {
+    return @import("../../state_value/origin.zig").name(borrow(frame), @fromBackingInt(id));
+}
+
 pub fn lowerLiteral(frame: *const anyopaque, id: u32, value_type: u32) Error!u32 {
     return @backingInt(try @import("../../literals.zig").lower(borrow(frame), @fromBackingInt(id), @fromBackingInt(value_type)));
 }

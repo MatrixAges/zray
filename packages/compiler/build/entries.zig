@@ -964,11 +964,7 @@ pub const growth = [_]Entry{
     .{ .path = "genz/analysis/state/locals/inline_stored.zx", .name = "state_inline_stored", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/query.zx", .name = "state_element_query", .owner = .genz },
     .{ .path = "genz/analysis/state/elements/build.rx", .name = "state_element_emit", .owner = .genz },
-    .{ .path = "genz/analysis/state/conversion/view/query.zx", .name = "state_view_query", .owner = .genz },
-    .{ .path = "genz/analysis/state/conversion/view/initialize.zx", .name = "state_view_initialize", .owner = .genz },
-    .{ .path = "genz/analysis/state/conversion/view/walk.zx", .name = "state_view_plan", .owner = .genz },
     .{ .path = "genz/analysis/state/conversion/plan/build.rx", .name = "state_conversion_plan", .owner = .genz },
-    .{ .path = "genz/analysis/state/resources/conversion.zx", .name = "state_conversion_resources", .owner = .genz },
     .{ .path = "genz/analysis/state/conversion/emit/build.rx", .name = "state_conversion_emit", .owner = .genz },
     .{ .path = "genz/ast/declarations/table/create.zx", .name = "auxiliary_create", .owner = .genz },
     .{ .path = "genz/ast/declarations/table/constant.zx", .name = "auxiliary_constant", .owner = .genz },
@@ -977,8 +973,6 @@ pub const growth = [_]Entry{
     .{ .path = "genz/analysis/state/ownership/eligible.zx", .name = "ownership_eligible", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/needed.zx", .name = "ownership_needed", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/outlined.zx", .name = "ownership_outlined", .owner = .genz },
-    .{ .path = "genz/analysis/state/ownership/clear/plan.rx", .name = "ownership_clear_plan", .owner = .genz },
-    .{ .path = "genz/analysis/state/ownership/clear/build.rx", .name = "ownership_clear", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/projection/plan/build.rx", .name = "ownership_projection_plan", .owner = .genz },
     .{ .path = "genz/analysis/state/ownership/projection/build.rx", .name = "ownership_projection", .owner = .genz },
     .{ .path = "genz/analysis/growth/value/build.rx", .name = "growth_value", .owner = .genz },
@@ -1017,6 +1011,11 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/state/conversion/view/satisfy.zx", .name = "state_view_satisfy", .owner = .genz },
+    .{ .path = "genz/analysis/state/conversion/view/walk.zx", .name = "state_view_plan", .owner = .genz },
+    .{ .path = "genz/analysis/state/ownership/projection/prepare_layouts.zx", .name = "prepare_ownership_layouts", .owner = .genz },
+    .{ .path = "genz/analysis/state/resources/resolve.zx", .name = "resolve_state_resources", .owner = .genz },
+    .{ .path = "genz/analysis/state/publication/run.rx", .name = "publish_state_ast", .owner = .genz },
     .{ .path = "backends/zig/library_entries/publish.zx", .name = "library_publish_entries", .owner = .compiler },
     .{ .path = "rx/analysis/project/mixed/history/prefix/advance.zx", .name = "rx_mixed_history_advance", .owner = .rx_analysis },
     .{ .path = "zx/frontend/retention/order.zx", .name = "parser_publish_orders" },

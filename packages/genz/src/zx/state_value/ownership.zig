@@ -42,9 +42,3 @@ pub fn needed(self: *const Lower, id: ir.ExprId, type_id: ir.TypeId, slot: u32) 
 
     return @import("ownership/query.zig").needed(self, id, type_id, slot);
 }
-
-pub fn clear(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32) Lower.Error!void {
-    if (!@import("genz_options").generated_analysis) return @import("ownership/clear_seed.zig").clear(self, body, id, type_id, value, slot);
-
-    return @import("ownership/emission.zig").clear(self, body, id, type_id, value, slot);
-}

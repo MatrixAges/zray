@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={void} />
+
+    <Call
+        fn="expressions"
+        in={$in.pick([
+            "target",
+            "segments"
+        ])}
+    />
+
+    <Call
+        fn="attachments"
+        in={$in.pick([
+            "target",
+            "helper"
+        ])}
+    />
+
+    <Call fn="body" in={$in.target} />
+
+    <Call
+        fn="finish"
+        in={$in.pick([
+            "target",
+            "fields"
+        ])}
+    />
+</Module>

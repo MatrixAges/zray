@@ -1,0 +1,17 @@
+import host from "lowering_host"
+
+import type { Input as Publication } from "./model"
+
+export type Input = Publication.Pick("target", "fields")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, fields } = in
+
+    if (fields) {
+        host.appendAstFields(target)
+    }
+
+    host.finishAstPublication(target)
+}

@@ -1,0 +1,29 @@
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import { Resource } from "../../resources/model"
+import query from "./query"
+
+import type { Lowering } from "lowering_host"
+import type { Decision as Output, Query } from "./model"
+
+export type Input = Query & {
+    frame: Lowering
+}
+
+export default function (in: Input): Output {
+    const request = in.omit(["frame"])
+
+    return loop(query(request), {
+        while: decision => decision.resource != Resource.None,
+        next: decision => {
+            const kind = match decision.resource {
+                Resource.StateType => StoredType.StateType,
+                _ => StoredType.ViewType
+            }
+            const ready = host.materializeType(in.frame, in.type_id, kind)
+
+            decision = query(request)
+        }
+    })
+}

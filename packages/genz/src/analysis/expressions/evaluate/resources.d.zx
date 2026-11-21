@@ -1,0 +1,8 @@
+export declare function materializeType(
+    frame: Lowering,
+    id: u32,
+    representation: StoredType
+): u32 throws { OutOfMemory }
+
+export declare function loweringOrigin(frame: Lowering, id: u32): u8[]
+    throws { OutOfMemory }

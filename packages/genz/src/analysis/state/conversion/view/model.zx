@@ -34,8 +34,7 @@ export type Walk = {
     depth: u64,
     pending: Candidate,
     waiting: bool,
-    complete: bool,
-    resource: Resource
+    complete: bool
 }
 
 export type Step = {

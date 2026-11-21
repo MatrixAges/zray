@@ -1,0 +1,12 @@
+import host from "lowering_host"
+
+import type { AstPublication } from "lowering_host"
+
+export type Input = AstPublication
+
+export type Output = void
+
+export default function (in: Input): Output {
+    host.appendAstBody(in, true)
+    host.appendAstBody(in, false)
+}

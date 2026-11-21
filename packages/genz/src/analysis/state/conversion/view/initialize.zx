@@ -1,7 +1,5 @@
 import { max_u32 } from "core/const"
 
-import { Resource } from "../../resources/model"
-
 import type { Mode } from "../model"
 
 export type Input = {
@@ -36,7 +34,6 @@ export default function (in: Input): Output {
             slot: 0
         },
         waiting: true,
-        complete: false,
-        resource: Resource.None
+        complete: false
     }
 }

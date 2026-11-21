@@ -1,0 +1,83 @@
+import integers from "std:integer"
+import host from "lowering_host"
+import memory from "memory"
+
+import resolve from "./cache"
+import select from "./conversion"
+import { Resource } from "./model"
+
+import type { Lowering } from "lowering_host"
+import type { U32Buffer, U8ListBuffer } from "memory"
+import type { Plan } from "../conversion/model"
+import type { Types } from "./cache"
+
+export type Input = {
+    frame: Lowering,
+    plan: Plan,
+    types: Types,
+    children: u32[],
+    referenced: bool[],
+    layouts: U32Buffer,
+    targets: U32Buffer,
+    elements: U32Buffer,
+    origins: U8ListBuffer
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, plan, types, children, referenced } = in
+
+    const resolved = loop(0, {
+        while: row => row < plan.types.length,
+        next: row => {
+            const id = plan.types[row]
+            const type_index = integers.widen(id)
+            const resource = select({
+                mode: plan.modes[row],
+                operation: plan.kinds[row],
+                referenced: type_index < referenced.length && referenced[type_index],
+                has_children: plan.count[row] != 0
+            })
+
+            const layout = resolve({
+                frame,
+                types,
+                id,
+                kind: resource.layout
+            })
+
+            const target = match resource.target {
+                Resource.None => layout,
+                _ => resolve({
+                    frame,
+                    types,
+                    id,
+                    kind: resource.target
+                }),
+            }
+
+            const element = match resource.element {
+                Resource.None => 0,
+                _ => resolve({
+                    frame,
+                    types,
+                    id: children[type_index],
+                    kind: resource.element
+                }),
+            }
+
+            const origin = match {
+                resource.origin => host.loweringOrigin(frame, id),
+                _ => []
+            }
+
+            memory.writeU32(in.layouts, row, layout)
+            memory.writeU32(in.targets, row, target)
+            memory.writeU32(in.elements, row, element)
+            memory.writeU8List(in.origins, row, origin)
+
+            row += 1
+        }
+    })
+}

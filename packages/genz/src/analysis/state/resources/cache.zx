@@ -1,0 +1,59 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import { Resource } from "./model"
+
+import type { Lowering } from "lowering_host"
+
+export type Types = {
+    abi_types: u32[],
+    abi_layouts: u32[],
+    state_types: u32[],
+    state_layouts: u32[],
+    views: u32[]
+}
+
+export type Input = {
+    frame: Lowering,
+    types: Types,
+    id: u32,
+    kind: Resource
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, types, id, kind } = in
+
+    if (kind == Resource.None) {
+        return 0
+    }
+
+    const stored = match kind {
+        Resource.None => StoredType.None,
+        Resource.AbiType => StoredType.AbiType,
+        Resource.AbiLayout => StoredType.AbiLayout,
+        Resource.StateType => StoredType.StateType,
+        Resource.StateLayout => StoredType.StateLayout,
+        _ => StoredType.ViewType
+    }
+
+    const rows: u32[] = match stored {
+        StoredType.None => [],
+        StoredType.AbiType => types.abi_types,
+        StoredType.AbiLayout => types.abi_layouts,
+        StoredType.StateType => types.state_types,
+        StoredType.StateLayout => types.state_layouts,
+        _ => types.views
+    }
+
+    const cached = rows[integers.widen(id)]
+
+    if (cached == max_u32) {
+        return host.materializeType(frame, id, stored)
+    }
+
+    return cached
+}

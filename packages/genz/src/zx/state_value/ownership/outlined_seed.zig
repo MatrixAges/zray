@@ -27,7 +27,7 @@ pub fn append(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId,
     if (!self.task_declarations.containsSeedFunction(name)) {
         var statements: std.ArrayList(node.Statement) = .empty;
 
-        try ownership.clear(self, &statements, id, type_id, try self.builder.identifier("value"), slot);
+        try @import("clear_seed.zig").clear(self, &statements, id, type_id, try self.builder.identifier("value"), slot);
 
         try self.task_declarations.append(self.allocator, .{ .function = .{
             .name = name,

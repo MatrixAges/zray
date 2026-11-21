@@ -3,8 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
-const rows = @import("../../../node/import_rows.zig");
-const view = @import("../../../node/view.zig");
 
 pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, value: node.ExpressionId, slot: u32, required: bool) Lower.Error!node.ExpressionId {
     const planner = @import("generated_ownership_projection_plan");
@@ -56,12 +54,23 @@ pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, val
     } else null;
 
     self.serial = @intCast(request.qualified.serial);
-    const type_expr = try @import("../../types.zig").get(self, self.state_types, type_id);
 
-    const layouts = if (request.clear_plan) |plan|
-        try @import("emission.zig").resolveLayouts(self, temporary, plan.references)
-    else
-        &.{};
+    const type_expr = try @import("../../types.zig").get(self, self.state_types, type_id);
+    const layouts: []const u32 = @ptrCast(self.state_layouts);
+
+    if (request.clear_plan) |plan| {
+        if (plan.references.len != 0) {
+            const prepare = @import("generated_prepare_ownership_layouts");
+
+            const preparation: std.meta.Child(prepare.Input) = .{
+                .frame = @ptrCast(self),
+                .references = plan.references,
+                .layouts = layouts,
+            };
+
+            prepare.executeIn(temporary, &preparation) catch |err| return failure(err);
+        }
+    }
 
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../list_emission.zig").borrow(self));
 
@@ -81,61 +90,15 @@ pub fn lower(self: *Lower, body: anytype, id: ir.ExprId, type_id: ir.TypeId, val
     };
 
     const output = emitter.executeIn(temporary, &input) catch |err| return failure(err);
-    const result = output.result;
 
-    if (!result.valid) return error.OutOfMemory;
-
-    for (result.segments) |segment| {
-        const expressions = view.join(segment.expressions.*, segment.forms.*);
-
-        if (segment.borrow_text) {
-            rows.appendBorrowingText(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return imported(err);
-        } else {
-            rows.append(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return imported(err);
-        }
-    }
-
-    const statements = view.join(result.statements.*, result.variables.*);
-    const storage = view.join(result.storage.*, result.variables.*);
-    @import("../../../node/import_selected.zig").append(self.allocator, &self.builder.nodes.statements, &statements) catch |err| return imported(err);
-
-    try self.hoistReferences(&storage);
-
-    if (result.declaration) |declaration| {
-        const parameters = @import("../../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, declaration.parameters) catch |err| return imported(err);
-
-        try self.task_declarations.appendFunction(self.allocator, declaration.columns, parameters.start);
-    }
-
-    try appendBody(self, body, output.binding);
-    try appendBody(self, body, output.body);
-
-    self.serial = @intCast(result.serial);
+    try @import("../publication.zig").projection(self, body, output);
 
     return @fromBackingInt(output.root);
-}
-
-fn appendBody(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
-    const statements = view.join(source.statements.*, source.variables.*);
-    const importing = @import("../../../node/import_statements.zig");
-
-    if (source.borrow_text) {
-        importing.appendSelectedBorrowingText(self.allocator, target, &statements) catch |err| return imported(err);
-    } else {
-        importing.appendSelected(self.allocator, target, &statements) catch |err| return imported(err);
-    }
 }
 
 fn failure(err: anyerror) Lower.Error {
     return switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         else => @panic("invalid ownership projection generation"),
-    };
-}
-
-fn imported(err: rows.Error) Lower.Error {
-    return switch (err) {
-        error.OutOfMemory => error.OutOfMemory,
-        error.InvalidAst => @panic("invalid ownership projection AST"),
     };
 }

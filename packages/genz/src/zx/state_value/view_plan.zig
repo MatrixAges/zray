@@ -3,11 +3,9 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const querying = @import("generated_state_view_query");
-const Query = std.meta.Child(querying.Input);
-const Source = std.meta.Child(@FieldType(Query, "source"));
-const Conversion = std.meta.Child(@FieldType(Source, "source"));
 const planning = @import("generated_state_view_plan");
+const requirement = @import("generated_state_view_satisfy");
+const Conversion = std.meta.Child(@import("generated_state_conversion_plan").Input);
 const Plan = std.meta.Child(@import("generated_state_conversion_plan").Output);
 
 pub fn required(self: *Lower, id: ir.TypeId, input: bool) Lower.Error!bool {
@@ -22,62 +20,37 @@ pub fn required(self: *Lower, id: ir.TypeId, input: bool) Lower.Error!bool {
         .mode = if (input) .ViewValue else .ViewLayout,
     };
 
-    const source = borrowed(self, &conversion);
-    const query: Query = .{ .source = &source, .type_id = @backingInt(id), .mode = conversion.mode };
+    const Input = std.meta.Child(requirement.Input);
+    const source = borrow(std.meta.Child(@FieldType(Input, "source")), self, &conversion);
+
+    const request: Input = .{
+        .frame = @ptrCast(self),
+        .source = &source,
+        .type_id = conversion.root,
+        .mode = zx.columns.view(@FieldType(Input, "mode"), conversion.mode),
+    };
+
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const decision = zx.columns.invoke(requirement.executeValue, fixed.allocator(), &request) catch |err| return failure(err);
 
-    while (true) {
-        const decision = zx.columns.invoke(querying.executeValue, fixed.allocator(), &query) catch |err| return failure(err);
-
-        if (decision.resource == .None) return decision.operation != .Value;
-        try resolve(self, @backingInt(id), decision.resource);
-    }
+    return decision.operation != .Value;
 }
 
 pub fn build(self: *Lower, allocator: std.mem.Allocator, conversion: *const Conversion) Lower.Error!*const Plan {
-    const creating = @import("generated_state_view_initialize");
-    const CreateParameter = @typeInfo(@TypeOf(creating.executeState)).@"fn".param_types[1].?;
-    const CreateInput = Child(CreateParameter);
-    const initial: CreateInput = .{ .root = conversion.root, .mode = conversion.mode };
-    var state = creating.executeState(allocator, if (@typeInfo(CreateParameter) == .pointer) &initial else initial) catch |err| return failure(err);
-    const Parameter = @typeInfo(@TypeOf(planning.executeState)).@"fn".param_types[1].?;
-    const Input = Child(Parameter);
-    const source = borrowed(self, conversion);
+    const Input = std.meta.Child(planning.Input);
+    const source = borrow(std.meta.Child(@FieldType(Input, "source")), self, conversion);
+    const request: Input = .{ .frame = @ptrCast(self), .source = &source };
+    const result = planning.executeIn(allocator, &request) catch |err| return failure(err);
 
-    while (true) {
-        const input: Input = .{ .source = &source, .state = state };
-
-        state = planning.executeState(allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
-
-        if (state.complete) break;
-        try resolve(self, state.pending.type_id, state.resource);
-    }
-
-    const result = try allocator.create(Plan);
-
-    inline for (@typeInfo(Plan).@"struct".field_names) |name| @field(result, name) = @field(state.plan, name).items;
-
-    return result;
+    return zx.columns.pointer(*const Plan, result);
 }
 
-fn borrowed(self: *const Lower, conversion: *const Conversion) Source {
-    const view = @import("../../node/view.zig");
-
+fn borrow(comptime Source: type, self: *const Lower, conversion: *const Conversion) Source {
     return .{
-        .source = conversion,
-        .states = view.slice(@FieldType(Source, "states"), @as([]const node.ExpressionId, self.state_types)),
-        .views = view.slice(@FieldType(Source, "views"), @as([]const node.ExpressionId, self.view_types)),
+        .source = zx.columns.pointer(@FieldType(Source, "source"), conversion),
+        .states = @ptrCast(@as([]const node.ExpressionId, self.state_types)),
+        .views = @ptrCast(@as([]const node.ExpressionId, self.view_types)),
     };
-}
-
-fn resolve(self: *Lower, id: u32, resource: anytype) Lower.Error!void {
-    std.debug.assert(resource != .None);
-
-    _ = try @import("../types.zig").resource(self, @fromBackingInt(id), resource);
-}
-
-fn Child(comptime Value: type) type {
-    return if (@typeInfo(Value) == .pointer) std.meta.Child(Value) else Value;
 }
 
 fn failure(err: anyerror) Lower.Error {

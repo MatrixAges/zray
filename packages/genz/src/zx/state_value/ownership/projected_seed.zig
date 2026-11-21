@@ -16,7 +16,7 @@ pub fn lower(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, 
         .value = value,
     } });
 
-    if (!try @import("outlined_seed.zig").append(self, body, id, type_id, source, slot)) try ownership.clear(self, body, id, type_id, source, slot);
+    if (!try @import("outlined_seed.zig").append(self, body, id, type_id, source, slot)) try @import("clear_seed.zig").clear(self, body, id, type_id, source, slot);
 
     return source;
 }

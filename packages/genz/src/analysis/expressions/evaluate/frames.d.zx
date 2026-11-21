@@ -118,3 +118,14 @@ export enum SignatureForm {
     Value,
     Both
 }
+
+export type AstPublication = opaque
+
+export enum StoredType {
+    None,
+    AbiType,
+    AbiLayout,
+    StateType,
+    StateLayout,
+    ViewType
+}
