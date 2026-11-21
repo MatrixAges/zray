@@ -35,16 +35,9 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         else => unreachable,
     };
 
-    const layouts = try buffered.allocator().alloc(u32, plan.types.len);
-    const elements = try buffered.allocator().alloc(u32, plan.types.len);
     const serial = self.serial;
     const declarations = context.declarations.last;
-
-    for (plan.types, plan.kinds, layouts, elements, 0..) |type_id, kind, *layout, *element, index| {
-        const selected: ir.TypeId = @fromBackingInt(type_id);
-        layout.* = @backingInt(if (index == 0) root_layout else try @import("types.zig").get(context, selected));
-        element.* = if (kind == .Buffer) @backingInt(try @import("types.zig").get(context, self.program.typeOf(selected).list)) else 0;
-    }
+    const prepared = try prepareResources(context, buffered.allocator(), plan.types, plan.kinds, root_layout, .input);
 
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last));
 
@@ -53,8 +46,8 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
 
     const input: Input = .{
         .plan = plan,
-        .layouts = layouts,
-        .elements = elements,
+        .layouts = prepared.layouts,
+        .elements = prepared.operands,
         .value = @backingInt(value),
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
@@ -80,6 +73,64 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     };
 
     return result;
+}
+
+const ResourceDirection = enum { input, returned };
+const resource_entry = @import("generated_iteration_conversion_resources");
+const ResourceInput = std.meta.Child(resource_entry.Input);
+const ResourceSelection = @typeInfo(@typeInfo(@TypeOf(resource_entry.executeValue)).@"fn".return_type.?).error_union.payload;
+const Resource = @FieldType(ResourceSelection, "base");
+const Operation = @FieldType(ResourceInput, "operation");
+const Requirement = @typeInfo(@FieldType(ResourceInput, "requirement")).optional.child;
+
+fn selections(comptime direction: ResourceDirection) [@typeInfo(if (direction == .input) Operation else Requirement).@"enum".field_names.len]ResourceSelection {
+    @setEvalBranchQuota(20000);
+
+    var table: [@typeInfo(if (direction == .input) Operation else Requirement).@"enum".field_names.len]ResourceSelection = undefined;
+
+    for (std.enums.values(if (direction == .input) Operation else Requirement)) |kind| {
+        const input: ResourceInput = .{
+            .operation = if (direction == .input) kind else .Value,
+            .requirement = if (direction == .returned) kind else null,
+        };
+
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+
+        table[@backingInt(kind)] = zx.columns.invoke(resource_entry.executeValue, fixed.allocator(), &input) catch unreachable;
+    }
+
+    return table;
+}
+
+pub fn prepareResources(context: *Context, allocator: std.mem.Allocator, types: []const u32, requests: anytype, root: node.ExpressionId, comptime direction: ResourceDirection) Lower.Error!struct { layouts: []const u32, operands: []const u32 } {
+    const table = comptime selections(direction);
+    const layouts = try allocator.alloc(u32, types.len);
+    const operands = try allocator.alloc(u32, types.len);
+
+    for (types, requests, layouts, operands, 0..) |raw, request, *layout, *operand, index| {
+        const id: ir.TypeId = @fromBackingInt(raw);
+        const selection = table[@backingInt(request)];
+        const base = if (index == 0) root else try readResource(context, id, selection.base);
+        layout.* = @backingInt(if (selection.replacement == .None) base else try readResource(context, id, selection.replacement));
+        operand.* = @backingInt(try readResource(context, id, selection.operand));
+    }
+
+    return .{ .layouts = layouts, .operands = operands };
+}
+
+fn readResource(context: *Context, id: ir.TypeId, resource: Resource) Lower.Error!node.ExpressionId {
+    const self = context.lowering;
+    const types = @import("types.zig");
+
+    return switch (resource) {
+        .None => @fromBackingInt(0),
+        .IterationType => types.get(context, id),
+        .IterationItem => types.get(context, self.program.typeOf(id).list),
+        .NativeLayout => self.layoutExpr(id),
+        .NativeType => self.typeExpr(id),
+        .StateLayout => @import("../types.zig").get(self, self.state_layouts, id),
+        .Invalid => unreachable,
+    };
 }
 
 pub fn apply(context: *Context, output: anytype) Lower.Error!node.ExpressionId {

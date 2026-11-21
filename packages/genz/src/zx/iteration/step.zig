@@ -20,7 +20,7 @@ pub const Input = if (generated) std.meta.Child(entry.Input) else struct {
     discard: bool,
 };
 
-const Plan = if (generated) std.meta.Child(entry.Output) else struct {
+pub const Plan = if (generated) std.meta.Child(entry.Output) else struct {
     step: u32,
     by_value: bool,
     condition: u32,
@@ -51,7 +51,7 @@ pub fn plan(input: Input) Plan {
     };
 }
 
-const Values = struct { condition: node.ExpressionId, value: node.ExpressionId, first: ?node.ExpressionId };
+pub const Values = struct { condition: node.ExpressionId, value: node.ExpressionId, first: ?node.ExpressionId };
 
 pub const Scope = union(enum) {
     projected: struct { fields: *const Fields, name: []const u8, seed: []const u8 },

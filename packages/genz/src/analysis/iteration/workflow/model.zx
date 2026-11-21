@@ -1,0 +1,28 @@
+export enum Phase {
+    Open,
+    StateScope,
+    Parameters,
+    Ordinary,
+    Projected
+}
+
+export enum Step {
+    CreateState,
+    Select,
+    Prepare,
+    EvaluateInitial,
+    GuardInitial,
+    PrepareFields,
+    TrackChanges,
+    ConvertInitial,
+    Schedule,
+    Renewals,
+    EvaluateStep,
+    Declare,
+    EnterLoop,
+    SavePrefix,
+    WriteUpdate,
+    Frame,
+    Recover,
+    Finish
+}

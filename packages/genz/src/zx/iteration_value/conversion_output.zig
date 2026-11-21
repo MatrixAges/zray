@@ -4,6 +4,7 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
+const emission = @import("conversion_emission.zig");
 
 pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     const self = context.lowering;
@@ -51,25 +52,10 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const generated = @import("generated_conversion_output");
     const Input = std.meta.Child(generated.Input);
     const Source = std.meta.Child(@FieldType(Input, "source"));
-    const layouts = try temporary.alloc(u32, plan.types.len);
-    const operands = try temporary.alloc(u32, plan.types.len);
     const serial = self.serial;
     const declarations = context.declarations.last;
     const storage = self.referenceBatches();
-
-    for (plan.types, prepared.requirements, layouts, operands, 0..) |raw, requirement, *layout, *operand, index| {
-        const selected: ir.TypeId = @fromBackingInt(raw);
-        const regular = if (index == 0) root_layout else try self.layoutExpr(selected);
-
-        layout.* = @backingInt(if (requirement == .OptionalType) try self.typeExpr(selected) else regular);
-
-        operand.* = switch (requirement) {
-            .HeapType => @backingInt(try self.typeExpr(selected)),
-            .ReferenceLayout => @backingInt(try @import("../types.zig").get(self, self.state_layouts, selected)),
-            .Layout, .OptionalType, .Value => 0,
-            .Unsupported => unreachable,
-        };
-    }
+    const resources = try emission.prepareResources(context, temporary, plan.types, prepared.requirements, root_layout, .returned);
 
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last) and storage == self.referenceBatches());
 
@@ -77,7 +63,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
 
     const source: Source = .{
         .plan = plan,
-        .layouts = layouts,
+        .layouts = resources.layouts,
         .elements = &.{},
         .value = @backingInt(value),
         .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
@@ -91,7 +77,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
         .source = &source,
         .requirements = zx.columns.slice(@FieldType(Input, "requirements"), prepared.requirements),
         .ast = &ast,
-        .operands = operands,
+        .operands = resources.operands,
     };
 
     const output = generated.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
@@ -101,7 +87,7 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
 
     if (!output.result.valid) return error.OutOfMemory;
 
-    const result = try @import("conversion_emission.zig").apply(context, output.result);
+    const result = try emission.apply(context, output.result);
     const view = @import("../../node/view.zig");
     const prefix = view.join(output.storage.*, output.result.variables.*);
 

@@ -1,0 +1,68 @@
+<Module>
+    <Type from="model" as="Loop" />
+
+    <Args in={Loop.Phase} out={Loop.Step[]} />
+
+    <Switch on={$in}>
+        <Case value={Loop.Phase.Open}>
+            <Return
+                value={[
+                    Loop.Step.CreateState,
+                    Loop.Step.Select,
+                    Loop.Step.Prepare,
+                    Loop.Step.EvaluateInitial,
+                    Loop.Step.GuardInitial
+                ]}
+            />
+        </Case>
+
+        <Case value={Loop.Phase.StateScope}>
+            <Return
+                value={[
+                    Loop.Step.PrepareFields,
+                    Loop.Step.TrackChanges
+                ]}
+            />
+        </Case>
+
+        <Case value={Loop.Phase.Parameters}>
+            <Return
+                value={[
+                    Loop.Step.ConvertInitial,
+                    Loop.Step.Schedule,
+                    Loop.Step.Renewals
+                ]}
+            />
+        </Case>
+
+        <Case value={Loop.Phase.Ordinary}>
+            <Return
+                value={[
+                    Loop.Step.EvaluateStep,
+                    Loop.Step.Declare,
+                    Loop.Step.EnterLoop,
+                    Loop.Step.SavePrefix,
+                    Loop.Step.WriteUpdate,
+                    Loop.Step.Frame,
+                    Loop.Step.Recover,
+                    Loop.Step.Finish
+                ]}
+            />
+        </Case>
+
+        <Case value={Loop.Phase.Projected}>
+            <Return
+                value={[
+                    Loop.Step.Declare,
+                    Loop.Step.EvaluateStep,
+                    Loop.Step.EnterLoop,
+                    Loop.Step.SavePrefix,
+                    Loop.Step.WriteUpdate,
+                    Loop.Step.Frame,
+                    Loop.Step.Recover,
+                    Loop.Step.Finish
+                ]}
+            />
+        </Case>
+    </Switch>
+</Module>

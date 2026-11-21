@@ -17,7 +17,7 @@ pub const Request = struct {
     forwarded: bool,
 };
 
-const Plan = if (generated) std.meta.Child(entry.Output) else struct {
+pub const Plan = if (generated) std.meta.Child(entry.Output) else struct {
     parameters: ParameterLayout,
     layout: bool,
     selected_state: bool,
