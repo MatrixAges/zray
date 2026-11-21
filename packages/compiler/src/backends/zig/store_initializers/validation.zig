@@ -33,10 +33,3 @@ pub fn validate(workspace: std.mem.Allocator, program: *const zx.ir.Program, nat
         else => return false,
     };
 }
-
-pub fn compatible(actual: []const []const u8, expected: []const []const u8) bool {
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const names = @import("generated_store_initializer_names");
-
-    return zx.columns.invoke(names.executeValue, fixed.allocator(), &.{ .actual = actual, .expected = expected }) catch unreachable;
-}

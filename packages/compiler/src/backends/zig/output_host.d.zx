@@ -8,6 +8,22 @@ export type CacheWriter = opaque
 
 export type FunctionSources = opaque
 
+export type ApplicationInitializers = opaque
+
+export type LibraryInitializers = opaque
+
+export enum InitializerOrigin {
+    Owned,
+    Borrowed,
+    Linked
+}
+
+export type InitializerCandidate = {
+    identity: string,
+    type_id: u32,
+    names: u8[][]
+}
+
 export type SourceReuse = {
     target: CachedSourceRows,
     count: u64,
@@ -78,3 +94,39 @@ export declare function generateFunctionSources(batch: FunctionSources): void th
 
 export declare function publishFunctionSources(batch: FunctionSources): void
     throws { OutOfMemory }
+
+export declare function readApplicationInitializer(
+    target: ApplicationInitializers,
+    origin: InitializerOrigin,
+    index: u64
+): InitializerCandidate? throws {
+    OutOfMemory,
+    MissingNominalOrigin,
+    InvalidNominalOrigin
+}
+
+export declare function emitApplicationInitializer(
+    target: ApplicationInitializers,
+    row: u64
+): void throws {
+    OutOfMemory,
+    InvalidAnalysis,
+    ConflictingFunction,
+    InvalidNames,
+    InvalidFunction,
+    MissingNominalOrigin,
+    InvalidNominalOrigin
+}
+
+export declare function emitLibraryInitializer(
+    target: LibraryInitializers,
+    row: u64
+): void throws {
+    OutOfMemory,
+    InvalidAnalysis,
+    ConflictingFunction,
+    InvalidNames,
+    InvalidFunction,
+    MissingNominalOrigin,
+    InvalidNominalOrigin
+}

@@ -583,10 +583,6 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/function_files/register.rx", .name = "function_files_register", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/validation/eligible.zx", .name = "store_initializer_eligible", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/validation/validate.rx", .name = "store_initializer_validation", .owner = .compiler },
-    .{ .path = "backends/zig/store_initializers/validation/names.zx", .name = "store_initializer_names", .owner = .compiler },
-    .{ .path = "backends/zig/store_initializers/registry/initialize.zx", .name = "store_registry_initialize", .owner = .compiler },
-    .{ .path = "backends/zig/store_initializers/registry/register.rx", .name = "store_registry_register", .owner = .compiler },
-    .{ .path = "backends/zig/store_initializers/registry/coverage.zx", .name = "store_registry_coverage", .owner = .compiler },
     .{ .path = "backends/zig/publication/name.rx", .name = "publication_name", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/selection/strategy.zx", .name = "store_selection_strategy", .owner = .compiler },
     .{ .path = "backends/zig/store_initializers/selection/build.rx", .name = "store_initializer_selection", .owner = .compiler },
@@ -1011,6 +1007,8 @@ pub const collections = [_]Entry{
 
 pub const execution = [_]Entry{
     .{ .path = "backends/zig/function_sources/workflow/run.rx", .name = "run_function_sources", .owner = .compiler },
+    .{ .path = "backends/zig/store_initializers/workflow/application.rx", .name = "application_initializer_workflow", .owner = .compiler },
+    .{ .path = "backends/zig/store_initializers/workflow/library.zx", .name = "library_initializer_workflow", .owner = .compiler },
     .{ .path = "backends/zig/cache/writes/workflow/run.rx", .name = "run_generation_cache_writer", .owner = .compiler },
     .{ .path = "genz/analysis/iteration/fields/ownership/apply.zx", .name = "apply_loop_field_projection", .owner = .genz },
     .{ .path = "backends/zig/function_sources/updates/commit.zx", .name = "commit_pending_sources", .owner = .compiler },
