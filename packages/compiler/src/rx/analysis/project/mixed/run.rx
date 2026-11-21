@@ -1,0 +1,8 @@
+<Module>
+    <Type from="windows" as="Windows" />
+
+    <Args in={Windows.Input} out={void} />
+
+    <Call fn="windows" in={$in} />
+    <Call fn="publish" in={$in} />
+</Module>

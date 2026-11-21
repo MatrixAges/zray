@@ -4,6 +4,16 @@ export type Derivation = opaque
 
 export type Solver = opaque
 
+export type Mixed = opaque
+
+export enum MixedAction {
+    Exhausted,
+    Skip,
+    MissingSignature,
+    AnalyzeZX,
+    LowerRX
+}
+
 export declare function normalizeProjectSources(state: Inference): void
     throws { OutOfMemory, InvalidSource }
 
@@ -55,3 +65,34 @@ export declare function finishFlowConstraints(state: Solver): void
 
 export declare function resolveFlowConstraints(state: Solver): void
     throws { OutOfMemory, InvalidSource }
+
+export declare function mixedBatchEnd(state: Mixed, batch: u64): u64
+
+export declare function prefetchMixedWindow(state: Mixed, first: u64, end: u64): u64
+    throws { OutOfMemory }
+
+export declare function restoreMixedPrefix(state: Mixed, first: u64, limit: u64): u64
+    throws { OutOfMemory }
+
+export declare function selectMixedBody(state: Mixed, first: u64, limit: u64): MixedAction
+
+export declare function rejectMixedBody(state: Mixed): u64
+    throws { InvalidSourceGraph }
+
+export declare function analyzeMixedZX(state: Mixed): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function lowerMixedRX(state: Mixed): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function skipMixedBody(state: Mixed): u64
+
+export declare function recordMixedBody(state: Mixed): void
+
+export declare function materializeMixedModule(state: Mixed): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function publishMixedExports(state: Mixed): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function retainMixedHistory(state: Mixed): void

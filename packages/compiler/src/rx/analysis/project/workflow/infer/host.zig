@@ -7,7 +7,7 @@ const Inputs = @import("../../call_inputs.zig");
 const target = @import("../../../call/target.zig");
 const Frame = @import("../../history.zig").Frame;
 const registry = @import("../../../store/registry.zig");
-const workflow = @import("../schedule.zig");
+const workflow = @import("../errors.zig");
 const Error = zx.Error;
 const generated = @import("rx_options").generated_graph;
 

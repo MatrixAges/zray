@@ -1,18 +1,3 @@
-export enum Phase {
-    Window,
-    Finish
-}
-
-export enum Step {
-    PrepareWindow,
-    RestorePrefix,
-    DispatchBody,
-    RecordBody,
-    MaterializeOutput,
-    PublishExports,
-    RetainHistory
-}
-
 export enum Reuse {
     Fresh,
     Signatures,

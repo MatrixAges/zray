@@ -10,7 +10,7 @@ const source_graph = project.source_graph;
 const Frame = @import("../../history.zig").Frame;
 const Inputs = @import("../../call_inputs.zig");
 const entry_source = @import("../../entry.zig");
-const workflow = @import("../schedule.zig");
+const workflow = @import("../errors.zig");
 const Error = zx.Error;
 const generated = @import("rx_options").generated_graph;
 

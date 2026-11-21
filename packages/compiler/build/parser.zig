@@ -155,6 +155,8 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                 run.addFileInput(roots[3].path(b, ownership_interface));
                 run.addFileInput(lowering);
                 addSubtree(run, tracked[0], "zx/modules");
+                addSubtree(run, tracked[0], "rx/analysis/project/workflow");
+                addSubtree(run, tracked[0], "rx/analysis/project/mixed");
                 addSources(run, tracked[2]);
                 addSubtree(run, tracked[3], "analysis");
             },

@@ -5,7 +5,7 @@ const Graph = @import("../../../inference/types.zig");
 const SourceMap = @import("../../../source_map.zig");
 const Constraints = @import("../../constraints.zig");
 const Requests = @import("../../signatures/requests.zig");
-const workflow = @import("../schedule.zig");
+const workflow = @import("../errors.zig");
 const Error = zx.Error;
 const generated = @import("rx_options").generated_graph;
 

@@ -91,6 +91,7 @@ pub fn build(b: *std.Build) void {
     });
 
     rx_analysis.addImport("rx_options", rx_options_module);
+    rx_analysis.addImport("rx_execution_abi", parser_modules.execution.import_table.get("zxc_abi").?);
     parser_modules.execution.addImport("rx_project_host", rx_analysis);
 
     for (parser_modules.bindings) |binding| {
