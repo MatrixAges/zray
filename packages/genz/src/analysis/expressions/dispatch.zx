@@ -27,6 +27,7 @@ export enum Action {
     Conditional,
     Match,
     Object,
+    Empty,
     Invalid
 }
 

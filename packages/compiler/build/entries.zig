@@ -714,6 +714,7 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/selection/conditional.zx", .name = "conditional_emit", .owner = .genz },
     .{ .path = "genz/analysis/expressions/operands.zx", .name = "expression_operands", .owner = .genz },
     .{ .path = "genz/analysis/expressions/dispatch.zx", .name = "expression_dispatch", .owner = .genz },
+    .{ .path = "genz/analysis/expressions/read/plan.rx", .name = "expression_read", .owner = .genz },
     .{ .path = "genz/analysis/match/prepare.zx", .name = "match_prepare", .owner = .genz },
     .{ .path = "genz/analysis/match/plan.rx", .name = "match_plan", .owner = .genz },
     .{ .path = "genz/analysis/match/emit.rx", .name = "match_emit", .owner = .genz },

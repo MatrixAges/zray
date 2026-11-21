@@ -1,0 +1,38 @@
+import memory from "memory"
+
+import type { Path as Output, Segments as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { anchor, managed, field_count, walk, key_count } = in
+    const { fields, boundaries } = walk
+
+    if (key_count == 0) {
+        return {
+            anchor,
+            managed,
+            fields,
+            keys: [],
+            starts: [],
+            ends: [],
+            first_key: null,
+            first_start: 0,
+            first_end: 0,
+            prefix: field_count
+        }
+    }
+
+    const remaining = key_count - 1
+
+    return {
+        anchor,
+        managed,
+        fields,
+        keys: memory.borrowU32Range(walk.keys, 0, remaining),
+        starts: memory.borrowU64Range(boundaries, 0, remaining),
+        ends: memory.borrowU64Range(boundaries, 1, remaining),
+        first_key: walk.keys[remaining],
+        first_start: boundaries[remaining],
+        first_end: field_count,
+        prefix: boundaries[0]
+    }
+}

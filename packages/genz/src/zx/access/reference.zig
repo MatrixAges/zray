@@ -11,22 +11,22 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, type_id: ir.TypeId) Lower.Error!
 pub fn lowerMode(self: *Lower, symbol: ir.SymbolId, type_id: ir.TypeId, iteration: bool) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("reference_seed.zig").lower(self, symbol, type_id);
 
-    self.used[@backingInt(symbol)] = true;
-
-    if (iteration) return self.builder.identifier(self.names[@backingInt(symbol)]);
-
     const generated = @import("generated_reference_access");
     const Input = std.meta.Child(generated.Input);
     const Output = std.meta.Child(generated.Output);
     const stack = self.stack_symbols.view(std.meta.Child(@FieldType(Input, "stack")));
     const state = self.state_symbols.view(std.meta.Child(@FieldType(Input, "state")));
+    const index = @backingInt(symbol);
+    const used: []bool = self.used[index..][0..1];
 
     const input: Input = .{
-        .name = self.names[@backingInt(symbol)],
-        .symbol = @backingInt(symbol),
+        .name = self.names[index],
+        .symbol = index,
+        .used = @ptrCast(&used),
         .stack = &stack,
         .state = &state,
         .active = self.state_active,
+        .iteration = iteration,
         .public_value_output = self.public_value_output,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
     };

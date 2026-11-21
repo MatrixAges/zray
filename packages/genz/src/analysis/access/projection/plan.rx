@@ -6,28 +6,30 @@
     <Call fn="walk" in={$in} />
 
     <If on={$ctx.walk.anchor != null}>
-        <Return
-            value={{
+        <Call
+            fn="segments"
+            in={{
                 anchor: $ctx.walk.anchor,
-                fields: $ctx.walk.fields,
-                keys: $ctx.walk.keys,
-                boundaries: $ctx.walk.boundaries,
+                walk: $ctx.walk,
                 field_count: $ctx.walk.fields.length,
                 key_count: $ctx.walk.keys.length,
                 managed: false
             }}
         />
+
+        <Return value={$ctx.segments} />
     </If>
 
-    <Return
-        value={{
+    <Call
+        fn="segments"
+        in={{
             anchor: $ctx.walk.fallback,
-            fields: $ctx.walk.fields,
-            keys: $ctx.walk.keys,
-            boundaries: $ctx.walk.boundaries,
+            walk: $ctx.walk,
             field_count: $ctx.walk.fallback_fields,
             key_count: $ctx.walk.fallback_keys,
             managed: true
         }}
     />
+
+    <Return value={$ctx.segments} />
 </Module>

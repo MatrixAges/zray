@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Read" />
+
+    <Args in={Read.Input} out={Read.Output} />
+
+    <Call fn="columns" in={$in.action} />
+    <Call fn="steps" in={$in} />
+
+    <Return
+        value={{
+            ...$ctx.columns,
+            steps: $ctx.steps
+        }}
+    />
+</Module>

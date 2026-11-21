@@ -1,0 +1,42 @@
+import { items_field } from "../../iteration/types/const"
+import { Action } from "../dispatch"
+import {
+    index_key_column,
+    index_target_column,
+    length_column,
+    member_index_column,
+    member_target_column,
+    optional_column,
+    some_column,
+    symbol_column
+} from "./const"
+
+import type { Columns as Output } from "./model"
+
+export type Input = Action
+
+export default function (in: Input): Output {
+    const operand: string? = match in {
+        Action.Wrap => some_column,
+        Action.Unwrap => optional_column,
+        Action.Reference => symbol_column,
+        Action.Field => member_target_column,
+        Action.TupleField => member_target_column,
+        Action.Index => index_target_column,
+        Action.Length => length_column,
+        _ => null
+    }
+
+    const index: string? = match in {
+        Action.Field => member_index_column,
+        Action.TupleField => member_index_column,
+        Action.Index => index_key_column,
+        _ => null
+    }
+
+    return {
+        operand,
+        index,
+        items: items_field
+    }
+}

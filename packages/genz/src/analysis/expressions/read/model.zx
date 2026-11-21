@@ -1,0 +1,34 @@
+import type { Action } from "../dispatch"
+
+export enum Step {
+    Type,
+    OptionalType,
+    Operand,
+    TupleResult,
+    RawMember,
+    Anchor,
+    RawList,
+    List,
+    Items,
+    Key,
+    Optional,
+    Reference,
+    Member,
+    Index,
+    Length
+}
+
+export type Input = {
+    action: Action,
+    iteration: bool
+}
+
+export type Columns = {
+    operand?: string,
+    index?: string,
+    items: string
+}
+
+export type Output = Columns & {
+    steps: Step[]
+}

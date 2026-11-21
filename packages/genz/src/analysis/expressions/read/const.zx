@@ -1,0 +1,15 @@
+export const some_column: string = "some"
+
+export const optional_column: string = "optional_values"
+
+export const symbol_column: string = "references"
+
+export const member_target_column: string = "projection_targets"
+
+export const member_index_column: string = "projection_indices"
+
+export const index_target_column: string = "index_targets"
+
+export const index_key_column: string = "index_values"
+
+export const length_column: string = "lengths"

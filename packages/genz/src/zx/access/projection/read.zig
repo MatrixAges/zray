@@ -34,10 +34,8 @@ pub fn index(self: *Lower, id: ir.TypeId, target: ir.ExprId, key: ir.ExprId, ite
     const raw = try path.nested(self, target);
     const source = raw orelse try list.expression(self, target);
     const indexed = try @import("../../intrinsics.zig").index(self, source, try self.expr(key));
-    const target_type = typeOf(self, target);
-    const result = indexResult(self, id, target_type, raw != null);
 
-    return finish(self, id, target_type, indexed, result);
+    return resolvedIndex(self, id, target, indexed, raw != null);
 }
 
 pub fn length(self: *Lower, child: ir.ExprId, type_expr: node.ExpressionId, iteration: bool) Lower.Error!node.ExpressionId {
@@ -66,7 +64,18 @@ fn member(self: *Lower, id: ir.TypeId, item: ir.Projection, tuple_member: bool, 
         return finish(self, id, target_type, value, seed.result(self, id, target_type, raw != null, true));
     }
 
-    const read = try emitMember(self, id, target_type, item, source, raw != null, tuple_member, iteration);
+    return resolvedMember(self, id, target_type, item, source, raw != null, tuple_member, iteration);
+}
+
+pub fn resolvedIndex(self: *Lower, id: ir.TypeId, target: ir.ExprId, value: node.ExpressionId, raw: bool) Lower.Error!node.ExpressionId {
+    const target_type = typeOf(self, target);
+    const result = indexResult(self, id, target_type, raw);
+
+    return finish(self, id, target_type, value, result);
+}
+
+pub fn resolvedMember(self: *Lower, id: ir.TypeId, target_type: ir.TypeId, item: ir.Projection, source: node.ExpressionId, raw: bool, tuple_member: bool, iteration: bool) Lower.Error!node.ExpressionId {
+    const read = try emitMember(self, id, target_type, item, source, raw, tuple_member, iteration);
 
     return finish(self, id, target_type, read.value, read.result);
 }

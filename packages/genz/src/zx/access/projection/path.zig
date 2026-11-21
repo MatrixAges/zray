@@ -4,9 +4,10 @@ const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const rules = @import("rules.zig");
+const emit = @import("../emit.zig");
 
 pub fn nested(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
-    const type_id = self.program.expression(id).type_id;
+    const type_id: ir.TypeId = @fromBackingInt(self.program.expressions.types[@backingInt(id)]);
 
     if (!rules.raw(self, type_id, true)) return null;
 
@@ -57,16 +58,23 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!?node.ExpressionId {
 
     const base: ir.ExprId = @fromBackingInt(plan.anchor orelse return null);
     var value = if (plan.managed) try @import("../../state_value/list.zig").expression(self, base) else try anchor(self, base);
-    var remaining: usize = @intCast(plan.key_count);
-    var fields: usize = @intCast(plan.field_count);
 
-    while (remaining != 0) {
-        remaining -= 1;
-        const boundary: usize = @intCast(plan.boundaries[remaining]);
-        value = try @import("../emit.zig").fieldPath(self, value, plan.fields[boundary..fields]);
-        value = try @import("../../intrinsics.zig").index(self, value, try self.expr(@fromBackingInt(plan.keys[remaining])));
-        fields = boundary;
+    if (plan.first_key) |key| {
+        value = try segment(self, value, plan.fields[plan.first_start..plan.first_end], key);
     }
 
-    return try @import("../emit.zig").fieldPath(self, value, plan.fields[0..fields]);
+    var keys = std.mem.reverseIterator(plan.keys);
+
+    while (keys.next()) |key| {
+        const index = keys.index;
+        value = try segment(self, value, plan.fields[plan.starts[index]..plan.ends[index]], key);
+    }
+
+    return try emit.fieldPath(self, value, plan.fields[0..plan.prefix]);
+}
+
+fn segment(self: *Lower, base: node.ExpressionId, fields: []const []const u8, key: u32) Lower.Error!node.ExpressionId {
+    const value = try emit.fieldPath(self, base, fields);
+
+    return @import("../../intrinsics.zig").index(self, value, try self.expr(@fromBackingInt(key)));
 }

@@ -47,7 +47,18 @@ export type Path = {
     anchor?: u32,
     fields: u8[][],
     keys: u32[],
-    boundaries: u64[],
+    starts: u64[],
+    ends: u64[],
+    first_key?: u32,
+    first_start: u64,
+    first_end: u64,
+    prefix: u64,
+    managed: bool
+}
+
+export type Segments = {
+    anchor?: u32,
+    walk: Walk,
     field_count: u64,
     key_count: u64,
     managed: bool

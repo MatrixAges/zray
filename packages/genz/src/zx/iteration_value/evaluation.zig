@@ -7,7 +7,7 @@ const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const collections = @import("../collections.zig");
 const dispatch = @import("../expressions/dispatch.zig");
-const access = @import("../access/emit.zig");
+const read = @import("../expressions/read.zig");
 const Probe = @import("../expression_map.zig").Probe;
 
 pub fn lower(self: *Context, id: ir.ExprId, probe: Probe) Lower.Error!node.ExpressionId {
@@ -24,14 +24,17 @@ pub fn lower(self: *Context, id: ir.ExprId, probe: Probe) Lower.Error!node.Expre
         },
         .Fallback, .Binary => return lowering.regularWithCache(id, checked),
         .Unpack => return unpack(self, id, try lowering.regularWithCache(id, checked)),
-        inline .Reference, .Field, .Unwrap, .TupleField, .Index, .Length => |action| {
-            return dispatch.readValue(lowering, id, @field(dispatch.Action, @tagName(action)), self, null);
-        },
-        .Some => return dispatch.readValue(lowering, id, .Wrap, self, null),
-        .None => {
-            const type_id: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[@backingInt(id)]);
+        inline .Reference, .Field, .Unwrap, .TupleField, .Index, .Length, .Some, .None => |route| {
+            const action: dispatch.Action = comptime switch (route) {
+                .Some => .Wrap,
+                .None => .Empty,
+                else => @field(dispatch.Action, @tagName(route)),
+            };
 
-            return access.optional(lowering, try @import("types.zig").get(self, type_id), null);
+            const row = @backingInt(id);
+            const type_id: ir.TypeId = @fromBackingInt(lowering.program.expressions.types[row]);
+
+            return read.lower(lowering, row, type_id, action, true, self);
         },
         .Update => return @import("mutation.zig").update(self, id),
         .Mutation => return @import("mutation.zig").operation(self, id),

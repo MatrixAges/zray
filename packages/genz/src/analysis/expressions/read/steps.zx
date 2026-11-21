@@ -1,0 +1,77 @@
+import { Action } from "../dispatch"
+import { Step } from "./model"
+
+import type { Input } from "./model"
+
+export type Output = Step[]
+
+export default function (in: Input): Output {
+    return match in.action {
+        Action.Empty => [
+            Step.OptionalType,
+            Step.Optional
+        ],
+        Action.Wrap => [
+            Step.OptionalType,
+            Step.Operand,
+            Step.Optional
+        ],
+        Action.Unwrap => [
+            Step.Operand,
+            Step.Optional
+        ],
+        Action.Reference => [Step.Reference],
+        Action.Field => match {
+            in.iteration => [
+                Step.Operand,
+                Step.Member
+            ],
+            _ => [
+                Step.RawMember,
+                Step.Anchor,
+                Step.Member
+            ]
+        },
+        Action.TupleField => match {
+            in.iteration => [
+                Step.TupleResult,
+                Step.Operand,
+                Step.Member
+            ],
+            _ => [
+                Step.TupleResult,
+                Step.RawMember,
+                Step.Anchor,
+                Step.Member
+            ]
+        },
+        Action.Index => match {
+            in.iteration => [
+                Step.Operand,
+                Step.Items,
+                Step.Key,
+                Step.Index
+            ],
+            _ => [
+                Step.RawList,
+                Step.List,
+                Step.Key,
+                Step.Index
+            ]
+        },
+        Action.Length => match {
+            in.iteration => [
+                Step.Type,
+                Step.Operand,
+                Step.Length
+            ],
+            _ => [
+                Step.Type,
+                Step.RawList,
+                Step.List,
+                Step.Length
+            ]
+        },
+        _ => []
+    }
+}
