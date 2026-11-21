@@ -17,6 +17,7 @@ pub const Input = struct {
     lasting: std.mem.Allocator,
     owner: std.mem.Allocator,
     restored_growth: bool = false,
+    memo: ?*Memo = null,
 };
 
 pub fn Output(comptime kind: Memo.Kind, comptime deferred: bool) type {
@@ -24,6 +25,7 @@ pub fn Output(comptime kind: Memo.Kind, comptime deferred: bool) type {
         record: Memo.Result(kind),
         changed: if (deferred) void else []const u64 = if (deferred) {} else &.{},
         reads: if (deferred) []const Function.Read else void = if (deferred) &.{} else {},
+        row: ?u32 = null,
     };
 }
 

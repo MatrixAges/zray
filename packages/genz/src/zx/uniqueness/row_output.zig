@@ -1,6 +1,22 @@
 const std = @import("std");
 const memory = @import("zx").memory;
 const Growth = @import("growth.zig");
+const Function = @import("function.zig");
+
+pub const ContributionRows = struct {
+    callees: memory.ReadColumn,
+    levels: memory.ListColumn,
+    pub fn init(values: []const Function.Contribution) ContributionRows {
+        return .{
+            .callees = memory.borrowReadColumn(u32, "callee", values),
+            .levels = memory.borrowSliceColumn(&.{"levels"}, values),
+        };
+    }
+
+    pub fn view(self: *const ContributionRows, comptime View: type) View {
+        return .{ .callees = @ptrCast(&self.callees), .levels = @ptrCast(&self.levels), .count = self.callees.count };
+    }
+};
 
 pub fn Target(comptime Input: type, comptime field: []const u8) type {
     const Field = @FieldType(Input, field);

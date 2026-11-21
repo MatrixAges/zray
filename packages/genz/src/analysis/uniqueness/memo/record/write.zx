@@ -1,0 +1,37 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import commit from "./commit"
+import plan from "./plan"
+
+import type { Output as Analysis } from "../../function/visit/model"
+import type { Target } from "./model"
+
+export type Input = {
+    target: Target,
+    result: Analysis
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { target, result } = in
+    const { settlement, demand } = target
+
+    if (settlement != null) {
+        columns.writeRowList(settlement.passed, 0, settlement.contributions)
+        memory.writeColumnBytes(settlement.levels, 0, result.levels)
+    } else if (demand != null) {
+        columns.writeRowList(demand.mark_column, 0, demand.marks)
+        memory.copyColumnValue(demand.normalized, 0, demand.source_normalized)
+        memory.copyColumnValue(demand.renewed, 0, demand.source_renewed)
+        memory.writeColumnBool(demand.grew, 0, result.grew)
+    } else if (target.plan != null && result.plan != null) {
+        plan({
+            source: result.plan,
+            target: target.plan
+        })
+    }
+
+    return commit(target.writer)
+}

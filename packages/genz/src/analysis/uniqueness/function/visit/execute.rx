@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Visit" />
+
+    <Args in={Visit.Execution} out={Visit.Executed} />
+
+    <Call module="run" in={$in.omit(["memo"])} />
+
+    <If on={$in.memo != null}>
+        <Call
+            fn="../../memo/record/write"
+            in={{
+                target: $in.memo,
+                result: $ctx.run
+            }}
+        />
+
+        <Return
+            value={{
+                ...$ctx.run,
+                row: $ctx.write
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$ctx.run,
+            row: null
+        }}
+    />
+</Module>

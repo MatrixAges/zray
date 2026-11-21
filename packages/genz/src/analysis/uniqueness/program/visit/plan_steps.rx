@@ -30,7 +30,6 @@
         <Return
             value={[
                 Visit.Step.AdoptAhead,
-                Visit.Step.SaveOwned,
                 Visit.Step.RecordTrace,
                 Visit.Step.RetainOutput
             ]}
@@ -41,7 +40,6 @@
         value={[
             Visit.Step.ResetScratch,
             Visit.Step.Analyze,
-            Visit.Step.SaveOwned,
             Visit.Step.RecordTrace,
             Visit.Step.RetainOutput
         ]}

@@ -51,7 +51,8 @@ fn recover(comptime kind: Memo.Kind, ctx: *Context, body: usize, growth: *Growth
         .lasting = ctx.roundMemory(),
         .owner = ctx.memo.arena.allocator(),
         .restored_growth = kind == .demanded,
+        .memo = ctx.memo,
     });
 
-    return (try ctx.memo.putVisit(kind, result.record, true)).row;
+    return result.row.?;
 }

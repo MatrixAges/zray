@@ -1,12 +1,12 @@
+import memory from "memory"
 import columns from "memory/columns"
 
 import record from "./contribution"
 
-import type { Contribution } from "../../replay/ordered/model"
-import type { ContributionTarget } from "./columns"
+import type { ContributionRows, ContributionTarget } from "./columns"
 
 export type Input = {
-    source: Contribution[],
+    source: ContributionRows,
     target: ContributionTarget,
     output: u8[]
 }
@@ -16,20 +16,18 @@ export type Output = u8[]
 export default function (in: Input): Output {
     const { source, target } = in
 
-    columns.allocateRows(target.storage, source.length)
+    columns.allocateRows(target.storage, source.count)
 
     const first: u64 = 0
 
     const retained = loop(first, {
-        while: index => index < source.length,
+        while: index => index < source.count,
         next: index => {
-            const row = source[index]
-
             record({
                 target: target.columns,
                 index,
-                callee: row.callee,
-                levels: row.levels
+                callee: memory.readColumnU32(source.callees, index),
+                levels: memory.borrowListBytes(source.levels, index)
             })
             index += 1
         }

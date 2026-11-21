@@ -1,13 +1,14 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import merge from "./merge"
 
 import type { AtomicRows } from "std:bytes"
-import type { Contribution } from "../../replay/ordered/model"
+import type { ContributionRows } from "../result/columns"
 
 export type Input = {
     inputs: AtomicRows,
-    contributions: Contribution[]
+    contributions: ContributionRows
 }
 
 export type Output = u64[]
@@ -21,19 +22,21 @@ export default function (in: Input): Output {
         changed,
         index: 0
     }, {
-        while: state => state.index < contributions.length,
+        while: state => state.index < contributions.count,
         next: state => {
-            const record = contributions[state.index]
+            const callee = memory.readColumnU32(contributions.callees, state.index)
+            const levels = memory.borrowListBytes(contributions.levels, state.index)
+
             const changes = merge({
                 rows: inputs,
-                row: record.callee,
+                row: callee,
                 first: 0,
-                levels: record.levels,
+                levels,
                 joining: false
             })
 
             if (changes != 0) {
-                state.changed = state.changed.push(integers.widen(record.callee))[0]
+                state.changed = state.changed.push(integers.widen(callee))[0]
             }
 
             state.index += 1

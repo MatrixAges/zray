@@ -13,8 +13,10 @@ pub fn retain(owner: std.mem.Allocator, passed: []const Function.Contribution, o
 
     result.init();
 
+    const source = rows.ContributionRows.init(passed);
+
     const input: Input = .{
-        .source = zx.columns.storage.view(@FieldType(Input, "source"), passed),
+        .source = &source.view(rows.Target(Input, "source")),
         .target = &.{ .storage = @ptrCast(&result.buffer), .columns = &result.view },
         .output = @ptrCast(output),
     };

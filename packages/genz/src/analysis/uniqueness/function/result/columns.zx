@@ -1,4 +1,4 @@
-import type { WriteColumn } from "memory"
+import type { ListColumn, ReadColumn, WriteColumn } from "memory"
 import type { Storage } from "../../growth/output"
 
 export type ContributionColumns = {
@@ -15,6 +15,12 @@ export type MarkColumns = {
 
 export type ContributionTarget = Storage & {
     columns: ContributionColumns
+}
+
+export type ContributionRows = {
+    callees: ReadColumn,
+    levels: ListColumn,
+    count: u64
 }
 
 export type MarkTarget = Storage & {

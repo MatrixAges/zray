@@ -221,30 +221,6 @@ pub fn putOwnedPlan(self: *Self, key: Digest, plan: Function.Plan) std.mem.Alloc
     return value;
 }
 
-pub fn Stored(comptime kind: Kind) type {
-    return struct { value: Result(kind), row: u32 };
-}
-
-pub fn putVisit(self: *Self, comptime kind: Kind, record: Result(kind), comptime owned: bool) std.mem.Allocator.Error!Stored(kind) {
-    const owner = self.arena.allocator();
-
-    const value: Result(kind) = if (owned) record else switch (kind) {
-        .settled => try @import("function/summary.zig").retain(owner, record.passed, record.output),
-        .demanded => .{
-            .marks = try @import("retain.zig").marks(owner, record.marks),
-            .normalized = record.normalized,
-            .renewed = record.renewed,
-            .grew = record.grew,
-        },
-        .planned => record,
-    };
-
-    const table = &@field(self, @tagName(kind));
-    const row = try table.put(self.indexAllocator(), self.key, value, &self.changed);
-
-    return .{ .value = value, .row = row };
-}
-
 /// The flow of the body `key` names; it only reads, so the bodies of one layer look up at once.
 pub fn getFlowed(self: *const Self, key: Digest) ?Flowed {
     return self.flowed.get(key);

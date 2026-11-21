@@ -8,6 +8,8 @@ const Round = @import("../work/round.zig");
 const select = @import("visit/select.zig");
 const compute = @import("visit/compute.zig");
 const demand_visit = @import("visit/demand.zig");
+const settle_visit = @import("visit/settlement.zig");
+const adopt_plan = @import("visit/adopt_plan.zig");
 const sequence = @import("generated_uniqueness_visit_sequence");
 const Error = std.mem.Allocator.Error;
 
@@ -74,9 +76,7 @@ fn Visit(comptime kind: Memo.Kind) type {
                 .AdoptAhead => try self.adopt(persistent),
                 .ResetScratch => _ = self.round.reset(.retain_capacity),
                 .Analyze => try self.analyze(persistent),
-                .Apply => try self.apply(origin.?),
-                .SaveBorrowed => try self.save(false),
-                .SaveOwned => try self.save(true),
+                .Apply => try self.apply(),
                 .RecordTrace => try self.ctx.replay.met(kind, self.index, self.record, self.ctx.memo),
                 .RetainOutput => self.record = Memo.Planned.fromPlan(try self.record.plan().copy(self.ctx.allocator)),
             };
@@ -92,17 +92,24 @@ fn Visit(comptime kind: Memo.Kind) type {
         }
         fn adopt(self: *Self, comptime persistent: bool) Error!void {
             const found = self.ahead.?;
+            const ctx = self.ctx;
+            const scratch = self.round.allocator();
 
             self.record = switch (kind) {
-                .settled => .{ .passed = found.passed, .output = found.output },
-                .demanded => adopted: {
-                    const ctx = self.ctx;
-                    const growth = &ctx.bodies.units[self.index].growth;
-                    self.changed = try demand_visit.apply(self.round.allocator(), self.owner(persistent), ctx.summaries, growth, found.growth, found.marks, .Ahead, found.grew);
+                .settled => settled: {
+                    const result = try settle_visit.apply(scratch, ctx.summaries, &.{ .passed = found.passed, .output = found.output }, ctx.memo);
+                    self.changed = result.changed;
 
-                    break :adopted .{ .marks = found.marks, .normalized = growth.normalized, .renewed = growth.renewed, .grew = found.grew };
+                    break :settled result.stored.?;
                 },
-                .planned => Memo.Planned.fromPlan(try found.copy(self.owner(persistent))),
+                .demanded => adopted: {
+                    const growth = &ctx.bodies.units[self.index].growth;
+                    const result = try demand_visit.apply(scratch, self.owner(persistent), ctx.summaries, growth, found.growth, found.marks, .Ahead, found.grew, ctx.memo);
+                    self.changed = result.changed;
+
+                    break :adopted result.stored.?;
+                },
+                .planned => try adopt_plan.run(self.owner(persistent), &found, if (persistent) ctx.memo else null),
             };
         }
         fn analyze(self: *Self, comptime persistent: bool) Error!void {
@@ -117,35 +124,32 @@ fn Visit(comptime kind: Memo.Kind) type {
                 .scratch = self.round.allocator(),
                 .lasting = if (kind == .planned) ctx.roundMemory() else ctx.rounds.?.ahead.kept(),
                 .owner = self.owner(persistent),
+                .memo = if (persistent) ctx.memo else null,
             });
 
             self.record = result.record;
             self.changed = result.changed;
         }
-
-        fn apply(self: *Self, comptime origin: select.Origin) Error!void {
+        fn apply(self: *Self) Error!void {
             const ctx = self.ctx;
             const scratch = self.round.allocator();
             const record = self.record;
 
             self.changed = switch (kind) {
-                .settled => try Function.replay(scratch, ctx.summaries, record.passed),
-                .demanded => try demand_visit.apply(
+                .settled => (try settle_visit.apply(scratch, ctx.summaries, &record, null)).changed,
+                .demanded => (try demand_visit.apply(
                     scratch,
                     scratch,
                     ctx.summaries,
                     &ctx.bodies.units[self.index].growth,
                     .{ .normalized = record.normalized, .renewed = record.renewed },
                     record.marks,
-                    origin,
+                    .Cached,
                     false,
-                ),
+                    null,
+                )).changed,
                 .planned => unreachable,
             };
-        }
-
-        fn save(self: *Self, comptime owned: bool) Error!void {
-            self.record = (try self.ctx.memo.putVisit(kind, self.record, owned)).value;
         }
 
         fn output(self: *const Self) Output(kind) {

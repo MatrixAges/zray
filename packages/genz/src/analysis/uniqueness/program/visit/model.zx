@@ -1,7 +1,12 @@
-import type { WriteColumn } from "memory"
+import type { Allocator, ArenaScope, WriteColumn } from "memory"
 import type { WriteColumn as Column } from "memory/columns"
+import type { Input as RetainSettlement } from "../../function/result/retain"
+import type { Input as Contributions } from "../../function/updates/contributions"
 import type { Input as Marks } from "../../function/updates/marks"
+import type { Target as MemoTarget } from "../../memo/record/model"
+import type { Planned } from "../../replay/ordered/model"
 import type { Growth as GrowthRetention } from "../../retain/model"
+import type { Input as RetainRows } from "../../retain/rows"
 import type { Phase } from "../model"
 
 export enum Origin {
@@ -24,8 +29,6 @@ export enum Step {
     ResetScratch,
     Analyze,
     Apply,
-    SaveBorrowed,
-    SaveOwned,
     RecordTrace,
     RetainOutput
 }
@@ -53,5 +56,32 @@ export type GrowthSnapshot = {
 
 export type Demand = Marks & {
     origin: Origin,
-    growth: Growth
+    growth: Growth,
+    save?: DemandSave
+}
+
+export type DemandSave = {
+    memo: MemoTarget,
+    marks: RetainRows,
+    grew: bool
+}
+
+export type Settlement = Contributions & {
+    save?: SettlementSave
+}
+
+export type SettlementSave = {
+    memo: MemoTarget,
+    retain: SettlementRetention
+}
+
+export type SettlementRetention = RetainSettlement & {
+    scope: ArenaScope,
+    owner: Allocator,
+    scratch: Allocator
+}
+
+export type PlanAdoption = {
+    source: Planned,
+    memo?: MemoTarget
 }

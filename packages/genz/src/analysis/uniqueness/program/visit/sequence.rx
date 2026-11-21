@@ -46,21 +46,9 @@
     </If>
 
     <If on={$in.origin == Visit.Origin.Ahead}>
-        <If on={$in.phase == Program.Phase.Settle}>
-            <Return
-                value={[
-                    Visit.Step.AdoptAhead,
-                    Visit.Step.SaveBorrowed,
-                    Visit.Step.Apply,
-                    Visit.Step.RecordTrace
-                ]}
-            />
-        </If>
-
         <Return
             value={[
                 Visit.Step.AdoptAhead,
-                Visit.Step.SaveBorrowed,
                 Visit.Step.RecordTrace
             ]}
         />
@@ -69,7 +57,6 @@
     <Return
         value={[
             Visit.Step.Analyze,
-            Visit.Step.SaveOwned,
             Visit.Step.RecordTrace
         ]}
     />

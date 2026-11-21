@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Visit" />
+
+    <Args in={Visit.Settlement} out={u64[]} />
+
+    <If on={$in.save != null}>
+        <Call fn="retain_settlement" in={$in.save.retain} />
+
+        <Call
+            fn="../../memo/record/write"
+            in={{
+                target: $in.save.memo,
+                result: {
+                    levels: $ctx.retain_settlement,
+                    changed: [],
+                    grew: false,
+                    plan: null
+                }
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../function/updates/contributions"
+        in={$in.omit(["save"])}
+    />
+
+    <Return value={$ctx.contributions} />
+</Module>

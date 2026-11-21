@@ -8,6 +8,7 @@ const Slots = @import("../../slots.zig");
 const Summaries = @import("../../summaries.zig");
 const compute = @import("compute.zig");
 const rows = @import("../../row_output.zig");
+const record = @import("../../memo/record.zig");
 const generated = @import("generated_uniqueness_function_visit");
 const body_view = @import("generated_uniqueness_body_view");
 const Input = std.meta.Child(generated.Input);
@@ -29,6 +30,7 @@ const Frame = struct {
     lasting: std.mem.Allocator,
     owner: std.mem.Allocator,
     restored_growth: bool = false,
+    memo: ?*Memo = null,
 };
 
 pub fn run(comptime kind: Memo.Kind, comptime deferred: bool, in: compute.Input) Error!compute.Output(kind, deferred) {
@@ -44,6 +46,7 @@ pub fn run(comptime kind: Memo.Kind, comptime deferred: bool, in: compute.Input)
         .lasting = in.lasting,
         .owner = in.owner,
         .restored_growth = in.restored_growth,
+        .memo = in.memo,
     });
 }
 
@@ -126,6 +129,15 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
     const target: []Growth.Rows = @as(*[1]Growth.Rows, @ptrCast(growth));
     const install_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", target);
     const install_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", target);
+    var stored: record.Frame(kind, rows.Target(Input, "memo")) = undefined;
+
+    if (frame.memo) |memo| stored.open(memo, &scope, &frame.scratch, switch (kind) {
+        .settled => .{ .passed = &passed.buffer },
+        .demanded => .{ .marks = &marks.buffer, .growth = growth },
+        .planned => {},
+    });
+
+    defer if (frame.memo != null) stored.table.finish();
 
     const input: Input = .{
         .view = zx.columns.pointer(@FieldType(Input, "view"), view),
@@ -135,6 +147,7 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         .types = &types,
         .deferred = deferred,
         .independent = independent,
+        .memo = if (frame.memo != null) &stored.target else null,
         .settlement = if (kind == .settled) &.{
             .input = @ptrCast(&metadata.input),
             .targets = &.{
@@ -163,18 +176,19 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
     };
 
     const value = zx.columns.invoke(generated.executeValue, scope.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership visit failed: {s}", .{@errorName(err)}),
     };
 
     return .{
-        .record = switch (kind) {
+        .record = if (frame.memo != null) stored.value else switch (kind) {
             .settled => .{ .passed = passed.rows(), .output = @ptrCast(value.levels) },
             .demanded => .{ .marks = marks.rows(), .normalized = growth.normalized, .renewed = growth.renewed, .grew = value.grew },
             .planned => Memo.Planned.fromPlan(Function.Plan.fromColumns(value.plan.?)),
         },
         .changed = if (deferred) {} else value.changed,
         .reads = if (!deferred) {} else if (kind == .settled) settlement_reads.rows() else demand_reads.rows(),
+        .row = if (value.row) |row| @intCast(row) else null,
     };
 }
 

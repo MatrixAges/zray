@@ -20,5 +20,22 @@
         <Call fn="growth" in={$in.growth} />
     </If>
 
+    <If on={$in.save != null}>
+        <Call fn="../../retain/rows" in={$in.save.marks} />
+
+        <Call
+            fn="../../memo/record/write"
+            in={{
+                target: $in.save.memo,
+                result: {
+                    levels: [],
+                    changed: $ctx.marks,
+                    grew: $in.save.grew,
+                    plan: null
+                }
+            }}
+        />
+    </If>
+
     <Return value={$ctx.marks} />
 </Module>
