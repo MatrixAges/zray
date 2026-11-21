@@ -8,95 +8,142 @@ import type { Frame, Input, Schedule as Output } from "./model"
 
 export default function (in: Input): Output {
     const parents: Frame[] = []
+    const actions: Action[] = []
+    const offsets: u32[] = []
+    const counts: u32[] = []
+    const scopes: u64[] = []
+    const placements: u64[] = []
+    const rollback: u64[] = []
 
     return loop({
-        frame: frame({
+        ...frame({
             first: in.first,
             count: in.count
         }),
         parents,
-        actions: [Action.Open],
-        offsets: [integers.narrow(in.first)],
-        counts: [integers.narrow(in.count)],
-        live: in.count,
-        capacity: in.count,
-        depth: 1,
+        actions,
+        offsets,
+        counts,
+        scopes,
+        placements,
+        rollback,
+        active: 0,
+        live: 0,
+        capacity: 0,
+        depth: 0,
         selections: 0,
         selection_depth: 0,
         done: false
     }, {
         while: state => !state.done,
         next: state => {
+            const { first, count, cursor, phase, no, case_end, case_cursor, named } =
+                state
             const next = step({
-                frame: state.frame,
+                first,
+                count,
+                cursor,
+                phase,
+                no,
+                case_end,
+                case_cursor,
+                named,
                 rows: in.rows
             })
 
             if (next.action != Action.Descend) {
-                state.actions = state.actions.push(next.action)[0]
-                state.offsets = state.offsets.push(next.first)[0]
-                state.counts = state.counts.push(next.count)[0]
+                const scope = state.parents.length
+                const selection = state.selections == 0 ? 0 : state.selections - 1
+                const placement = match next.action {
+                    Action.Open => state.live,
+                    Action.Selection => state.selections,
+                    _ => selection
+                }
 
-                if (next.action == Action.Selection) {
+                state.actions = state.actions.push(next.action)[0]
+                state.offsets = state.offsets.push(next.offset)[0]
+                state.counts = state.counts.push(next.length)[0]
+                state.scopes = state.scopes.push(scope)[0]
+                state.placements = state.placements.push(placement)[0]
+                state.rollback = state.rollback.push(state.active)[0]
+
+                if (next.action == Action.Open) {
+                    state.active = state.actions.length
+                    state.live += state.count
+
+                    if (state.live > state.capacity) {
+                        state.capacity = state.live
+                    }
+
+                    const depth = scope + 1
+
+                    if (depth > state.depth) {
+                        state.depth = depth
+                    }
+                } else if (next.action == Action.Selection) {
+                    state.active = state.actions.length
                     state.selections += 1
 
                     if (state.selections > state.selection_depth) {
                         state.selection_depth = state.selections
                     }
                 } else if (next.action == Action.EndSelection) {
+                    state.active = state.rollback[state.active - 1]
                     state.selections -= 1
+                } else if (next.action == Action.Close) {
+                    state.active = state.rollback[state.active - 1]
+                    state.live -= state.count
                 }
             }
 
             const block = next.child
+            const block_index = integers.widen(block ?? 0)
+            const closing = next.action == Action.Close
+            const popping = closing && state.parents.length != 0
+            const advanced = next.omit([
+                "action",
+                "offset",
+                "length",
+                "child"
+            ])
+
+            const resume: Frame = match {
+                block != null => frame({
+                    first: integers.widen(in.rows.block_first[block_index]),
+                    count: integers.widen(in.rows.block_count[block_index])
+                }),
+                popping => {
+                    ...state.parents[state.parents.length - 1]
+                },
+                _ => advanced
+            }
 
             if (block != null) {
-                state.parents = state.parents.push(next.frame)[0]
-
-                const index = integers.widen(block)
-                const first = in.rows.block_first[index]
-                const count = in.rows.block_count[index]
-
-                state.frame = frame({
-                    first: integers.widen(first),
-                    count: integers.widen(count)
-                })
-
-                state.actions = state.actions.push(Action.Open)[0]
-                state.offsets = state.offsets.push(first)[0]
-                state.counts = state.counts.push(count)[0]
-
-                state.live += integers.widen(count)
-
-                if (state.live > state.capacity) {
-                    state.capacity = state.live
-                }
-
-                const depth = state.parents.length + 1
-
-                if (depth > state.depth) {
-                    state.depth = depth
-                }
-            } else if (next.action == Action.Close) {
-                state.live -= state.frame.count
-
-                if (state.parents.length == 0) {
-                    state.done = true
-                } else {
-                    const last = state.parents.length - 1
-
-                    state.frame = state.parents[last]
-                    state.parents = state.parents.pop()[0]
-                }
-            } else {
-                state.frame = next.frame
+                state.parents = state.parents.push({
+                    ...advanced
+                })[0]
+            } else if (popping) {
+                state.parents = state.parents.pop()[0]
             }
+
+            state.first = resume.first
+            state.count = resume.count
+            state.cursor = resume.cursor
+            state.phase = resume.phase
+            state.no = resume.no
+            state.case_end = resume.case_end
+            state.case_cursor = resume.case_cursor
+            state.named = resume.named
+            state.done = closing && !popping
         },
         return: state => ({
             flat: false,
             actions: state.actions,
             offsets: state.offsets,
             counts: state.counts,
+            scopes: state.scopes,
+            placements: state.placements,
+            rollback: state.rollback,
             capacity: state.capacity,
             depth: state.depth,
             selection_depth: state.selection_depth

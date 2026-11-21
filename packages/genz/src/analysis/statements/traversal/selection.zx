@@ -5,17 +5,17 @@ import { Action, Phase } from "./model"
 import type { Position as Input, Step as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { frame, rows } = in
+    const { rows } = in
+
+    const frame = in.omit(["rows"])
 
     if (frame.phase == Phase.SaveDefault) {
         return {
-            frame: {
-                ...frame,
-                phase: Phase.Defaults
-            },
+            ...frame,
+            phase: Phase.Defaults,
             action: Action.Fallback,
-            first: 0,
-            count: 0,
+            offset: 0,
+            length: 0,
             child: null
         }
     }
@@ -24,13 +24,11 @@ export default function (in: Input): Output {
         const label = rows.case_values[frame.case_cursor]
 
         return {
-            frame: {
-                ...frame,
-                phase: Phase.Named
-            },
+            ...frame,
+            phase: Phase.Named,
             action: Action.SaveCase,
-            first: label ?? 0,
-            count: integers.narrow(frame.named),
+            offset: label ?? 0,
+            length: integers.narrow(frame.named),
             child: null
         }
     }
@@ -49,42 +47,36 @@ export default function (in: Input): Output {
 
         if (cursor == frame.case_end) {
             return {
-                frame: {
-                    ...frame,
-                    phase: Phase.Named,
-                    case_cursor: cursor,
-                    named
-                },
+                ...frame,
+                phase: Phase.Named,
+                case_cursor: cursor,
+                named,
                 action: Action.Resolve,
-                first: 0,
-                count: integers.narrow(named),
+                offset: 0,
+                length: integers.narrow(named),
                 child: null
             }
         }
 
         return {
-            frame: {
-                ...frame,
-                phase: Phase.SaveDefault,
-                case_cursor: cursor + 1,
-                named
-            },
+            ...frame,
+            phase: Phase.SaveDefault,
+            case_cursor: cursor + 1,
+            named,
             action: Action.Descend,
-            first: 0,
-            count: 0,
+            offset: 0,
+            length: 0,
             child: rows.case_bodies[cursor]
         }
     }
 
     if (frame.named == 0) {
         return {
-            frame: {
-                ...frame,
-                phase: Phase.Statements
-            },
+            ...frame,
+            phase: Phase.Statements,
             action: Action.EndSelection,
-            first: integers.narrow(frame.cursor - frame.first),
-            count: 0,
+            offset: integers.narrow(frame.cursor - frame.first),
+            length: 0,
             child: null
         }
     }
@@ -102,15 +94,13 @@ export default function (in: Input): Output {
     const label = rows.case_values[cursor]
 
     return {
-        frame: {
-            ...frame,
-            phase: Phase.SaveNamed,
-            case_cursor: cursor,
-            named
-        },
+        ...frame,
+        phase: Phase.SaveNamed,
+        case_cursor: cursor,
+        named,
         action: Action.Case,
-        first: label ?? 0,
-        count: integers.narrow(named),
+        offset: label ?? 0,
+        length: integers.narrow(named),
         child: rows.case_bodies[cursor]
     }
 }

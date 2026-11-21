@@ -8,32 +8,41 @@ import selection from "./selection"
 import type { Position as Input, Step as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { frame, rows } = in
+    const { rows } = in
+
+    const frame = in.omit(["rows"])
+
+    if (frame.phase == Phase.Open) {
+        return {
+            ...frame,
+            phase: Phase.Statements,
+            action: Action.Open,
+            offset: integers.narrow(frame.first),
+            length: integers.narrow(frame.count),
+            child: null
+        }
+    }
 
     const position = frame.cursor - frame.first
 
     if (frame.phase == Phase.No) {
         return {
-            frame: {
-                ...frame,
-                phase: Phase.Join
-            },
+            ...frame,
+            phase: Phase.Join,
             action: Action.SaveYes,
-            first: 0,
-            count: 0,
+            offset: 0,
+            length: 0,
             child: frame.no
         }
     }
 
     if (frame.phase == Phase.Join) {
         return {
-            frame: {
-                ...frame,
-                phase: Phase.Statements
-            },
+            ...frame,
+            phase: Phase.Statements,
             action: Action.Join,
-            first: integers.narrow(position),
-            count: 0,
+            offset: integers.narrow(position),
+            length: 0,
             child: null
         }
     }
@@ -44,10 +53,10 @@ export default function (in: Input): Output {
 
     if (position == 0) {
         return {
-            frame,
+            ...frame,
             action: Action.Close,
-            first: 0,
-            count: 0,
+            offset: 0,
+            length: 0,
             child: null
         }
     }
@@ -60,13 +69,11 @@ export default function (in: Input): Output {
 
     if (start < frame.cursor) {
         return {
-            frame: {
-                ...frame,
-                cursor: start
-            },
+            ...frame,
+            cursor: start,
             action: Action.Execute,
-            first: integers.narrow(start - frame.first),
-            count: integers.narrow(frame.cursor - start),
+            offset: integers.narrow(start - frame.first),
+            length: integers.narrow(frame.cursor - start),
             child: null
         }
     }
@@ -79,31 +86,27 @@ export default function (in: Input): Output {
         const count = integers.widen(rows.selection_count[payload])
 
         return {
-            frame: {
-                ...frame,
-                cursor,
-                phase: Phase.Defaults,
-                case_end: first + count,
-                case_cursor: first,
-                named: 0
-            },
+            ...frame,
+            cursor,
+            phase: Phase.Defaults,
+            case_end: first + count,
+            case_cursor: first,
+            named: 0,
             action: Action.Selection,
-            first: integers.narrow(position - 1),
-            count: 0,
+            offset: integers.narrow(position - 1),
+            length: 0,
             child: null
         }
     }
 
     return {
-        frame: {
-            ...frame,
-            cursor,
-            phase: Phase.No,
-            no: rows.branch_no[payload]
-        },
+        ...frame,
+        cursor,
+        phase: Phase.No,
+        no: rows.branch_no[payload],
         action: Action.Condition,
-        first: integers.narrow(position - 1),
-        count: 0,
+        offset: integers.narrow(position - 1),
+        length: 0,
         child: rows.branch_yes[payload]
     }
 }

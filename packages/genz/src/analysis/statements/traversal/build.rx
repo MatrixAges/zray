@@ -10,6 +10,9 @@
                 actions: [],
                 offsets: [],
                 counts: [],
+                scopes: [],
+                placements: [],
+                rollback: [],
                 capacity: $in.count,
                 depth: 1,
                 selection_depth: 0

@@ -11,7 +11,7 @@ export default function (in: Input): Output {
     return {
         ...in,
         cursor: in.first + in.count,
-        phase: Phase.Statements,
+        phase: Phase.Open,
         no: 0,
         case_end: 0,
         case_cursor: 0,

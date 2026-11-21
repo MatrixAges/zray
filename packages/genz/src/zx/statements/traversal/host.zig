@@ -45,37 +45,38 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
 
     const scopes = try scratch.alloc(Scope, @intCast(plan.depth));
     const selections = try scratch.alloc(Selection, @intCast(plan.selection_depth));
-    var depth: usize = 0;
-    var selection_depth: usize = 0;
-    var occupied: usize = 0;
     var child: node.Block = .{};
 
-    errdefer while (depth != 0) {
-        depth -= 1;
+    for (plan.actions, plan.offsets, plan.counts, plan.scopes, plan.placements, 0..) |action, first, count, slot, place, index| {
+        errdefer {
+            var active = plan.rollback[index];
 
-        scopes[depth].close(self);
-    };
+            while (active != 0) {
+                const opened = active - 1;
 
-    for (plan.actions, plan.offsets, plan.counts) |action, first, count| {
-        if (action == .Open) {
-            const range: ir.Block = .{ .control = values.control, .first = first, .len = count };
+                switch (plan.actions[opened]) {
+                    .Open => scopes[plan.scopes[opened]].close(self),
+                    .Selection => selections[plan.placements[opened]].leave(self),
+                    else => unreachable,
+                }
 
-            scopes[depth] = try Scope.open(self, range, .{
-                .starts = workspace.starts[occupied..][0..range.len],
-                .counts = workspace.counts[occupied..][0..range.len],
-                .routes = workspace.routes[occupied..][0..range.len],
-            });
-
-            occupied += range.len;
-            depth += 1;
-
-            continue;
+                active = plan.rollback[opened];
+            }
         }
 
-        const scope = &scopes[depth - 1];
+        const scope = &scopes[slot];
 
         switch (action) {
-            .Open, .Descend => unreachable,
+            .Open => {
+                const range: ir.Block = .{ .control = values.control, .first = first, .len = count };
+
+                scope.* = try Scope.open(self, range, .{
+                    .starts = workspace.starts[place..][0..count],
+                    .counts = workspace.counts[place..][0..count],
+                    .routes = workspace.routes[place..][0..count],
+                });
+            },
+            .Descend => unreachable,
             .Execute => try scope.run(self, &output, first, count),
             .Condition => scope.condition = try self.expr(scope.values.at(first).branch.condition),
             .SaveYes => scope.yes = child,
@@ -83,34 +84,21 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
                 output.clearRetainingCapacity();
                 scope.put(first, try @import("../basic.zig").branch(self, &output, scope.condition, scope.yes, child));
             },
-            .Selection => {
-                const selection = &selections[selection_depth];
-
-                try selection.enter(self, scope.values.at(first).switch_stmt);
-
-                scope.selection = selection;
-                selection_depth += 1;
-            },
-            .Fallback => scope.selection.?.fallback = child,
-            .Resolve => try scope.selection.?.resolve(self, count),
-            .Case => try scope.selection.?.beforeCase(self, count, @fromBackingInt(first)),
-            .SaveCase => try scope.selection.?.afterCase(self, count, @fromBackingInt(first), child),
+            .Selection => try selections[place].enter(self, scope.values.at(first).switch_stmt),
+            .Fallback => selections[place].fallback = child,
+            .Resolve => try selections[place].resolve(self, count),
+            .Case => try selections[place].beforeCase(self, count, @fromBackingInt(first)),
+            .SaveCase => try selections[place].afterCase(self, count, @fromBackingInt(first), child),
             .EndSelection => {
-                const selection = scope.selection.?;
+                const selection = &selections[place];
 
                 scope.put(first, try selection.finish(self));
                 selection.leave(self);
-
-                scope.selection = null;
-                selection_depth -= 1;
             },
             .Close => {
                 child = try scope.finish(self);
 
                 scope.close(self);
-
-                occupied -= scope.values.len;
-                depth -= 1;
             },
         }
     }

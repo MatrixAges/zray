@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
-const Selection = @import("../switch/state.zig");
 const emission = @import("../emit.zig");
 const entry = @import("generated_statement_run_commit");
 const Self = @This();
@@ -16,7 +15,6 @@ state_symbols: []const ir.SymbolId = &.{},
 stack_symbols: []const ir.SymbolId = &.{},
 condition: node.ExpressionId = undefined,
 yes: node.Block = undefined,
-selection: ?*Selection = null,
 pub const Buffer = struct {
     starts: []u32,
     counts: []u32,
@@ -42,8 +40,6 @@ pub fn open(lowering: *Lower, values: ir.Block, buffer: Buffer) Lower.Error!Self
 }
 
 pub fn close(self: *const Self, lowering: *Lower) void {
-    if (self.selection) |selection| selection.leave(lowering);
-
     lowering.stack_symbols.removeMany(self.stack_symbols);
     lowering.state_symbols.removeMany(self.state_symbols);
 }
