@@ -1,0 +1,8 @@
+<Module>
+    <Type from="register" as="Link" />
+
+    <Args in={Link.Input} out={void} />
+
+    <Call fn="register" in={$in} />
+    <Call fn="assemble" in={$in} />
+</Module>

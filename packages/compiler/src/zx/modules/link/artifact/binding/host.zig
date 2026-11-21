@@ -26,51 +26,60 @@ const Attributes = std.meta.Child(@FieldType(Source, "attributes"));
 const abi = @import("abi.zig");
 const NativeBinding = std.meta.Child(@typeInfo(@FieldType(Binding, "native")).optional.child);
 const Empty = std.meta.Child(@FieldType(abi.Input, "empty"));
+const empty = function_destination.empty(Empty);
 const view_budget = 64 * 1024;
 
-pub fn bind(self: *Builder, setup: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, owned: *std.heap.ArenaAllocator) Builder.Error!?abi.Retained {
-    var providers: dependencies.Providers = undefined;
-    var target: function_destination.View(Destination) = undefined;
-    var inline_depths: [inline_depth_slots]u32 = undefined;
-    var scope: memory.ArenaScope = .{ .active = owned.allocator() };
-    const order = self.plan.registration;
-    const capacity = @min(order.len, @max(1, view_budget / (@sizeOf(View) + @sizeOf(abi.Row))));
-    const views = try setup.alloc(View, capacity);
-    const rows = try setup.alloc(abi.Row, capacity);
+pub const Window = struct {
+    providers: dependencies.Providers,
+    target: function_destination.View(Destination),
+    inline_depths: [inline_depth_slots]u32,
+    scope: memory.ArenaScope,
+    views: []View,
+    rows: []abi.Row,
+    input: abi.Input,
+    entry: ?abi.Retained,
+    pub fn init(self: *Window, builder: *Builder, setup: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, owned: *std.heap.ArenaAllocator) std.mem.Allocator.Error!void {
+        const count = @min(builder.plan.registration.len, @max(1, view_budget / (@sizeOf(View) + @sizeOf(abi.Row))));
+        const views = try setup.alloc(View, count);
+        const rows = try setup.alloc(abi.Row, count);
 
-    providers.init(self);
-    target.init(&self.allocator, &self.functions);
+        self.views = views;
+        self.rows = rows;
+        self.entry = null;
+        self.scope = .{ .active = owned.allocator() };
 
-    var input: abi.Input = .{
-        .rows = &.{},
-        .scope = @ptrCast(&scope),
-        .scratch = @ptrCast(scratch),
-        .owned = @ptrCast(owned),
-        .storage = target.input.storage,
-        .linked = @ptrCast(&self.module_functions),
-        .empty = &function_destination.empty(Empty),
-    };
+        self.providers.init(builder);
+        self.target.init(&builder.allocator, &builder.functions);
 
-    var first: usize = 0;
-    var entry: ?abi.Retained = null;
+        self.input = .{
+            .rows = &.{},
+            .scope = @ptrCast(&self.scope),
+            .scratch = @ptrCast(scratch),
+            .owned = @ptrCast(owned),
+            .storage = self.target.input.storage,
+            .linked = @ptrCast(&builder.module_functions),
+            .empty = &empty,
+        };
+    }
+    pub fn capacity(self: *const Window) usize {
+        return self.views.len;
+    }
 
-    while (first < order.len) {
-        const count = @min(capacity, order.len - first);
-
-        for (order[first..][0..count], views[0..count], rows[0..count]) |index, *view, *row| {
-            view.borrow(self, @intCast(index), &providers, &target.input, &inline_depths);
+    pub fn bind(self: *Window, builder: *Builder, first: usize, count: usize) Builder.Error!void {
+        for (builder.plan.registration[first..][0..count], self.views[0..count], self.rows[0..count]) |index, *view, *row| {
+            view.borrow(builder, @intCast(index), &self.providers, &self.target.input, &self.inline_depths);
 
             view.record = .{ .module = index, .binding = &view.input };
             row.* = &view.record;
         }
 
-        input.rows = rows[0..count];
-        entry = try execute(scope.allocator(), &input);
-        first += count;
-    }
+        self.input.rows = self.rows[0..count];
 
-    return entry;
-}
+        const entry = try execute(self.scope.allocator(), &self.input);
+
+        self.entry = entry;
+    }
+};
 
 fn execute(allocator: std.mem.Allocator, input: *const abi.Input) Builder.Error!?abi.Retained {
     const result = abi.entry.executeIn(allocator, input) catch |err| switch (@as(anyerror, err)) {

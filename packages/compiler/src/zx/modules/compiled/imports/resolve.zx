@@ -1,0 +1,21 @@
+import host from "project_host"
+import { LibraryResolution } from "project_host"
+
+import { Status } from "./model"
+
+import type { CompiledImport as Input } from "project_host"
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const resolution = host.resolveCompiledImport(in)
+
+    if (resolution == LibraryResolution.Found) {
+        return host.reuseCompiledLibrary(in) ? Status.Reused : Status.NeedsLink
+    }
+
+    return match resolution {
+        LibraryResolution.Missing => Status.MissingLibrary,
+        _ => Status.ConflictingArtifact
+    }
+}

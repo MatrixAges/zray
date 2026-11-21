@@ -1,0 +1,13 @@
+import type { CompiledImport } from "project_host"
+
+export type Input = CompiledImport
+
+export enum Status {
+    Reused,
+    NeedsLink,
+    Ready,
+    MissingLibrary,
+    ConflictingArtifact,
+    InvalidLibrary,
+    MissingPublicModule
+}

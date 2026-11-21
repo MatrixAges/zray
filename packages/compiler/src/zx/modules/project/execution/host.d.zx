@@ -12,6 +12,16 @@ export type CacheSlot = opaque
 
 export type CacheReplacement = opaque
 
+export type CompiledImport = opaque
+
+export type ArtifactLink = opaque
+
+export enum LibraryResolution {
+    Found,
+    Missing,
+    Conflict
+}
+
 export enum CacheWrite {
     Stored,
     MissingOrigin,
@@ -108,3 +118,40 @@ export declare function stageCacheSlot(slot: CacheSlot): void
 export declare function appendCacheSlot(slot: CacheSlot): void
 
 export declare function replaceCacheSlot(slot: CacheSlot, existing: CacheReplacement): void
+
+export declare function resolveCompiledImport(frame: CompiledImport): LibraryResolution
+    throws { OutOfMemory }
+
+export declare function reuseCompiledLibrary(frame: CompiledImport): bool
+
+export declare function reserveCompiledImport(frame: CompiledImport): void
+    throws { OutOfMemory }
+
+export declare function bindCompiledImport(frame: CompiledImport): bool
+    throws { OutOfMemory }
+
+export declare function publishCompiledInitializers(frame: CompiledImport): void
+
+export declare function rememberCompiledLibrary(frame: CompiledImport): void
+
+export declare function selectCompiledMember(frame: CompiledImport): bool
+
+export declare function orderArtifactLink(frame: ArtifactLink): void
+    throws { OutOfMemory, InvalidModule, MissingModule, CyclicDependency }
+
+export declare function registerArtifactTypes(frame: ArtifactLink): void
+    throws { OutOfMemory, InvalidModule, MissingNominalOrigin, ConflictingNominalType }
+
+export declare function openArtifactBinding(frame: ArtifactLink): u64
+    throws { OutOfMemory }
+
+export declare function artifactWindowCapacity(frame: ArtifactLink): u64
+
+export declare function bindArtifactWindow(frame: ArtifactLink, first: u64, count: u64): void throws {
+    OutOfMemory,
+    InvalidAnalysis,
+    InvalidModule,
+    InvalidIr,
+    MissingNominalOrigin,
+    ConflictingInterface
+}

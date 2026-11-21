@@ -1,9 +1,11 @@
 const std = @import("std");
+const zx = @import("zx");
 const compiled = @import("../compiled.zig");
 const Index = @import("imports/index.zig");
 const Destination = @import("load.zig").Destination;
 const Initializers = std.ArrayList(compiled.StoreInitializer);
 const generated = @import("parser_options").generated_parser;
+const Resolution = if (generated) @import("project_execution_abi").layouts.@"zig:project_host".LibraryResolution else enum { Found, Missing, Conflict };
 pub const Error = std.mem.Allocator.Error || error{ MissingLibrary, ConflictingArtifact, InvalidLibrary, MissingPublicModule };
 
 pub const Unit = struct {
@@ -18,46 +20,146 @@ pub const Unit = struct {
 
 pub const Cache = std.AutoHashMapUnmanaged(usize, Unit);
 
+const Load = struct {
+    allocator: std.mem.Allocator,
+    project: *const @import("../project.zig").Options,
+    target: *const compiled.Target,
+    destination: Destination,
+    cache: *Cache,
+    initializers: *Initializers,
+    index: usize = undefined,
+    names: ?Index = null,
+    staged: Unit = undefined,
+    staged_initializers: []const compiled.StoreInitializer = undefined,
+    unit: *const Unit = undefined,
+    result: *const compiled.Export = undefined,
+    fn borrow(handle: *const anyopaque) *Load {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
 pub fn load(allocator: std.mem.Allocator, project: *const @import("../project.zig").Options, target: compiled.Target, destination: Destination, cache: *Cache, initializers: *Initializers) Error!*const compiled.Export {
-    const index = switch (try compiled.resolve.library(allocator, project.compiled_libraries, project.root_dir, target)) {
-        .found => |value| value,
-        .conflict => return error.ConflictingArtifact,
-        .missing => return error.MissingLibrary,
+    var frame: Load = .{
+        .allocator = allocator,
+        .project = project,
+        .target = &target,
+        .destination = destination,
+        .cache = cache,
+        .initializers = initializers,
     };
 
-    if (cache.getPtr(index)) |unit| return unit.find(target.name) orelse error.MissingPublicModule;
-    try cache.ensureUnusedCapacity(allocator, 1);
+    defer if (frame.names) |names| names.deinit(allocator);
 
-    const library = &project.compiled_libraries[index];
+    if (comptime generated) {
+        const rule = @import("generated_compiled_import_execute");
+        const input: rule.Input = @ptrCast(&frame);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    try initializers.ensureUnusedCapacity(allocator, library.store_initializers.len);
+        switch (try rule.executeIn(empty.allocator(), input)) {
+            .Ready => {},
+            .MissingLibrary => return error.MissingLibrary,
+            .ConflictingArtifact => return error.ConflictingArtifact,
+            .InvalidLibrary => return error.InvalidLibrary,
+            .MissingPublicModule => return error.MissingPublicModule,
+            .Reused, .NeedsLink => unreachable,
+        }
+    } else try seed(&frame);
 
-    const staged = prepare: {
-        const names = try Index.init(allocator, library.exports.len);
+    return frame.result;
+}
 
-        errdefer names.deinit(allocator);
+fn seed(frame: *Load) Error!void {
+    switch (try resolveCompiledImport(frame)) {
+        .Found => {},
+        .Missing => return error.MissingLibrary,
+        .Conflict => return error.ConflictingArtifact,
+    }
 
-        const linked = (if (comptime generated)
-            @import("host/root.zig").load(allocator, library.*, destination, names.buckets())
-        else
-            compiled.loadInto(allocator, library.*, destination)) catch |err| {
-            if (err == error.OutOfMemory) return error.OutOfMemory;
+    if (!reuseCompiledLibrary(frame)) {
+        try reserveCompiledImport(frame);
+        if (!try bindCompiledImport(frame)) return error.InvalidLibrary;
 
-            return error.InvalidLibrary;
-        };
+        publishCompiledInitializers(frame);
+        rememberCompiledLibrary(frame);
+    }
 
-        var unit: Unit = .{ .exports = linked.exports, .names = names };
+    if (!selectCompiledMember(frame)) return error.MissingPublicModule;
+}
 
-        try unit.names.finish(linked.exports);
+pub fn resolveCompiledImport(handle: *const anyopaque) std.mem.Allocator.Error!Resolution {
+    const frame = Load.borrow(handle);
 
-        break :prepare .{ .unit = unit, .initializers = linked.store_initializers };
+    return switch (try compiled.resolve.library(frame.allocator, frame.project.compiled_libraries, frame.project.root_dir, frame.target.*)) {
+        .found => |index| found: {
+            frame.index = index;
+
+            break :found .Found;
+        },
+        .conflict => .Conflict,
+        .missing => .Missing,
+    };
+}
+
+pub fn reuseCompiledLibrary(handle: *const anyopaque) bool {
+    const frame = Load.borrow(handle);
+
+    frame.unit = frame.cache.getPtr(frame.index) orelse return false;
+
+    return true;
+}
+
+pub fn reserveCompiledImport(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    const frame = Load.borrow(handle);
+    const library = &frame.project.compiled_libraries[frame.index];
+
+    try frame.cache.ensureUnusedCapacity(frame.allocator, 1);
+    try frame.initializers.ensureUnusedCapacity(frame.allocator, library.store_initializers.len);
+
+    const names = try Index.init(frame.allocator, library.exports.len);
+
+    frame.names = names;
+}
+
+pub fn bindCompiledImport(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+    const frame = Load.borrow(handle);
+    const library = &frame.project.compiled_libraries[frame.index];
+
+    const linked = (if (comptime generated)
+        @import("host/root.zig").load(frame.allocator, library.*, frame.destination, frame.names.?.buckets())
+    else
+        compiled.loadInto(frame.allocator, library.*, frame.destination)) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return false,
     };
 
-    initializers.appendSliceAssumeCapacity(staged.initializers);
-    cache.putAssumeCapacity(index, staged.unit);
+    frame.names.?.finish(linked.exports) catch return false;
 
-    // A missing requested name still leaves the successfully loaded library cached.
-    return staged.unit.find(target.name) orelse error.MissingPublicModule;
+    frame.staged = .{ .exports = linked.exports, .names = frame.names.? };
+    frame.staged_initializers = linked.store_initializers;
+
+    return true;
+}
+
+pub fn publishCompiledInitializers(handle: *const anyopaque) void {
+    const frame = Load.borrow(handle);
+
+    frame.initializers.appendSliceAssumeCapacity(frame.staged_initializers);
+}
+
+pub fn rememberCompiledLibrary(handle: *const anyopaque) void {
+    const frame = Load.borrow(handle);
+    const slot = frame.cache.getOrPutAssumeCapacity(frame.index);
+    slot.value_ptr.* = frame.staged;
+    frame.unit = slot.value_ptr;
+    frame.names = null;
+}
+
+pub fn selectCompiledMember(handle: *const anyopaque) bool {
+    const frame = Load.borrow(handle);
+
+    frame.result = frame.unit.find(frame.target.name) orelse return false;
+
+    return true;
 }
 
 pub fn message(err: Error) []const u8 {

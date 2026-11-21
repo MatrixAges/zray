@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Import" />
+
+    <Args in={Import.Input} out={Import.Status} />
+
+    <Call fn="resolve" in={$in} />
+
+    <If on={$ctx.resolve == Import.Status.NeedsLink}>
+        <Call fn="bind" in={$in} />
+
+        <If on={!$ctx.bind}>
+            <Return value={Import.Status.InvalidLibrary} />
+        </If>
+
+        <Call fn="publish" in={$in} />
+
+        <Else>
+            <If on={$ctx.resolve != Import.Status.Reused}>
+                <Return value={$ctx.resolve} />
+            </If>
+        </Else>
+    </If>
+
+    <Call fn="select" in={$in} />
+
+    <Return value={$ctx.select} />
+</Module>

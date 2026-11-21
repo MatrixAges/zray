@@ -1017,6 +1017,8 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "zx/modules/compiled/imports/load.rx", .name = "compiled_import_execute" },
+    .{ .path = "zx/modules/link/entry/link.rx", .name = "artifact_link_execute" },
     .{ .path = "zx/modules/project/execution/native/import.rx", .name = "project_execute_native" },
     .{ .path = "zx/modules/project/execution/native/invalidate.zx", .name = "project_invalidate_native" },
     .{ .path = "zx/modules/semantic_cache/using_native/load.rx", .name = "semantic_cache_load_native" },

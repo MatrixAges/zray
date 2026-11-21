@@ -21,92 +21,151 @@ pub const Result = struct {
     }
 };
 
+const Binding = if (generated) @import("link/artifact/binding/host.zig").Window else void;
+
+const Frame = struct {
+    owned: std.heap.ArenaAllocator,
+    temporary: std.heap.ArenaAllocator,
+    workspace: std.heap.ArenaAllocator,
+    modules: []const model.Module,
+    entry: []const u8,
+    plan: graph.Plan = undefined,
+    types: Types = undefined,
+    builder: Builder = undefined,
+    binding: Binding = undefined,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
 pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: []const u8) Error!Result {
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    var frame: Frame = .{
+        .owned = .init(allocator),
+        .temporary = .init(allocator),
+        .workspace = .init(allocator),
+        .modules = modules,
+        .entry = entry,
+    };
 
-    errdefer arena.deinit();
+    errdefer frame.owned.deinit();
+    defer frame.temporary.deinit();
+    defer frame.workspace.deinit();
 
-    var temporary = std.heap.ArenaAllocator.init(allocator);
+    const program = if (comptime generated) program: {
+        const rule = @import("generated_artifact_link_execute");
+        const request: rule.Input = @ptrCast(&frame);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    defer temporary.deinit();
+        try rule.executeIn(empty.allocator(), request);
 
-    var module_scratch = std.heap.ArenaAllocator.init(allocator);
+        break :program try publish(&frame);
+    } else try seed(&frame);
 
-    defer module_scratch.deinit();
+    return .{ .arena = frame.owned, .program = program, .nominal_types = frame.types.origins.items.view() };
+}
 
-    const owned = arena.allocator();
-    const scratch = temporary.allocator();
-    const workspace = module_scratch.allocator();
-    const plan = try graph.prepare(scratch, modules, entry);
-    const mappings = try scratch.alloc([]const ir.TypeId, modules.len);
-    const function_ids = try scratch.alloc(?ir.FunctionId, modules.len);
-    var types = try Types.init(owned);
+pub fn orderArtifactLink(handle: *const anyopaque) graph.Error!void {
+    const frame = Frame.borrow(handle);
+    frame.plan = try graph.prepare(frame.temporary.allocator(), frame.modules, frame.entry);
+}
 
-    @memset(function_ids, null);
+pub fn registerArtifactTypes(handle: *const anyopaque) Types.Error!void {
+    const frame = Frame.borrow(handle);
+    const owned = frame.owned.allocator();
+    const workspace = frame.workspace.allocator();
+    const scratch = frame.temporary.allocator();
+    const mappings = try scratch.alloc([]const ir.TypeId, frame.modules.len);
+    const ids = try scratch.alloc(?ir.FunctionId, frame.modules.len);
+
+    frame.types = try Types.init(owned);
+
+    @memset(ids, null);
 
     if (comptime generated) {
-        try @import("link/registration/host.zig").register(&types, modules, plan.registration, mappings, scratch, &module_scratch);
+        try @import("link/registration/host.zig").register(&frame.types, frame.modules, frame.plan.registration, mappings, scratch, &frame.workspace);
     } else {
-        for (plan.registration) |row| {
+        for (frame.plan.registration) |row| {
             const index: usize = @intCast(row);
 
-            mappings[index] = try types.appendTemporary(scratch, workspace, &modules[index]);
+            mappings[index] = try frame.types.appendTemporary(scratch, workspace, &frame.modules[index]);
 
-            if (!module_scratch.reset(.retain_capacity)) return error.OutOfMemory;
+            if (!frame.workspace.reset(.retain_capacity)) return error.OutOfMemory;
         }
     }
 
-    var builder: Builder = .{
+    frame.builder = .{
         .allocator = owned,
         .temporary = workspace,
-        .modules = modules,
-        .plan = plan,
+        .modules = frame.modules,
+        .plan = frame.plan,
         .type_mappings = mappings,
-        .module_functions = function_ids,
+        .module_functions = ids,
     };
+}
 
-    const function = if (comptime generated)
-        try @import("link/artifact/binding/host.zig").bind(&builder, scratch, &module_scratch, &arena)
+pub fn openArtifactBinding(handle: *const anyopaque) std.mem.Allocator.Error!u64 {
+    const frame = Frame.borrow(handle);
 
-    else seed: {
-        for (plan.dependencies) |index| try linkDependencySeed(&builder, @intCast(index), &module_scratch);
+    try frame.binding.init(&frame.builder, frame.temporary.allocator(), &frame.workspace, &frame.owned);
 
-        break :seed try builder.moduleSeed(plan.entry, true);
-    };
+    return frame.plan.registration.len;
+}
 
-    _ = module_scratch.reset(.free_all);
+pub fn artifactWindowCapacity(handle: *const anyopaque) u64 {
+    return Frame.borrow(handle).binding.capacity();
+}
 
-    const selected = &modules[plan.entry];
+pub fn bindArtifactWindow(handle: *const anyopaque, first: u64, count: u64) Builder.Error!void {
+    const frame = Frame.borrow(handle);
+
+    try frame.binding.bind(&frame.builder, @intCast(first), @intCast(count));
+}
+
+fn publish(frame: *Frame) model.Error!ir.Program {
+    const builder = &frame.builder;
+    _ = frame.workspace.reset(.free_all);
+
     const native_modules = builder.native_modules.view();
 
-    const program = if (comptime generated)
-        try @import("link/result/publication/host.zig").finish(owned, scratch, selected, function, .{
-            .types = &types.items,
-            .functions = &builder.functions,
-            .native_modules = &native_modules,
-        }, mappings[plan.entry])
+    return @import("link/result/publication/host.zig").finish(
+        frame.owned.allocator(),
+        frame.temporary.allocator(),
+        &frame.modules[frame.plan.entry],
+        frame.binding.entry,
+        .{ .types = &frame.types.items, .functions = &builder.functions, .native_modules = &native_modules },
+        builder.type_mappings[frame.plan.entry],
+    );
+}
 
-    else seed: {
-        const retained = if (function) |*found| found else null;
-        const body = if (retained) |value| &value.body else null;
-        const recursive = if (retained) |value| value.recursive else null;
+fn seed(frame: *Frame) Error!ir.Program {
+    try orderArtifactLink(frame);
+    try registerArtifactTypes(frame);
 
-        if (recursive != null) try builder.functions.append(owned, body.?.*);
+    const builder = &frame.builder;
 
-        const tables: result.Tables = .{
-            .types = types.items.view(),
-            .functions = builder.functions.view(),
-            .native_modules = native_modules,
-        };
+    for (frame.plan.dependencies) |index| try linkDependencySeed(builder, @intCast(index), &frame.workspace);
 
-        const program = try result.materialize(owned, selected, body, recursive, tables, mappings[plan.entry]);
+    const function = try builder.moduleSeed(frame.plan.entry, true);
+    _ = frame.workspace.reset(.free_all);
 
-        if (try @import("../ir/validate.zig").validate(scratch, program) != null) return error.InvalidIr;
+    const retained = if (function) |*found| found else null;
+    const body = if (retained) |value| &value.body else null;
+    const recursive = if (retained) |value| value.recursive else null;
+    const owned = frame.owned.allocator();
 
-        break :seed program;
+    if (recursive != null) try builder.functions.append(owned, body.?.*);
+
+    const tables: result.Tables = .{
+        .types = frame.types.items.view(),
+        .functions = builder.functions.view(),
+        .native_modules = builder.native_modules.view(),
     };
 
-    return .{ .arena = arena, .program = program, .nominal_types = types.origins.items.view() };
+    const program = try result.materialize(owned, &frame.modules[frame.plan.entry], body, recursive, tables, builder.type_mappings[frame.plan.entry]);
+
+    if (try @import("../ir/validate.zig").validate(frame.temporary.allocator(), program) != null) return error.InvalidIr;
+
+    return program;
 }
 
 fn linkDependencySeed(builder: *Builder, index: usize, scratch: *std.heap.ArenaAllocator) Error!void {
