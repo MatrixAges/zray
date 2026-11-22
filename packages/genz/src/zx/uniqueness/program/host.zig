@@ -5,7 +5,6 @@ const Ahead = @import("../ahead.zig");
 const Pool = @import("../pool.zig");
 const Topology = @import("../topology.zig");
 const Replay = @import("../trace.zig").Replay;
-const generated = @import("genz_options").generated_analysis;
 const Error = std.mem.Allocator.Error;
 const Bodies = @import("bodies.zig");
 
@@ -15,7 +14,7 @@ pub const Context = struct {
     temporary: std.mem.Allocator,
     slots: analysis.Slots,
     summaries: *analysis.Summaries,
-    bodies: *const Bodies,
+    bodies: *Bodies,
     calls: Topology.Calls,
     exported: []const ir.FunctionId,
     memo: *analysis.Memo,
@@ -29,42 +28,29 @@ pub const Context = struct {
         reverse: Topology.Plan,
         ahead: Ahead,
     };
-    pub fn run(self: *Context) Error!analysis.Result {
-        errdefer self.release();
-
-        if (generated) return @import("driver.zig").run(self);
-
-        return @import("seed.zig").run(self);
-    }
-
     pub fn roundMemory(self: *Context) std.mem.Allocator {
         if (self.round_memory == null) self.round_memory = .init(self.workspace);
 
         return self.round_memory.?.allocator();
     }
-    pub fn open(self: *Context) Error!void {
+
+    pub fn prepareWorkers(self: *Context) Error!Ahead {
         const memory = self.roundMemory();
+
         self.pool = try Pool.init(memory, self.concurrent);
 
-        const ahead = try Ahead.init(memory, &self.pool.?, self.slots, self.summaries, self.bodies, self.calls.recursive);
-
-        const prepared = if (generated)
-            try analysis.Work.open(self.workspace, memory, self.calls.callees, self.exported)
-
-        else seed: {
-            const reverse = try Topology.buildSeed(memory, self.calls.callees, self.exported);
-            const work = try analysis.Work.init(self.workspace, self.calls.active.len);
-
-            break :seed .{ .work = work, .reverse = reverse };
-        };
+        return Ahead.init(memory, &self.pool.?, self.slots, self.summaries, self.bodies, self.calls.recursive);
+    }
+    pub fn openSeed(self: *Context) Error!void {
+        const ahead = try self.prepareWorkers();
+        const reverse = try Topology.buildSeed(self.roundMemory(), self.calls.callees, self.exported);
+        const work = try analysis.Work.init(self.workspace, self.calls.active.len);
 
         self.rounds = .{
-            .work = prepared.work,
-            .reverse = prepared.reverse,
+            .work = work,
+            .reverse = reverse,
             .ahead = ahead,
         };
-
-        if (generated) self.rounds.?.ahead.memo_rows.init(self.bodies);
     }
 
     pub fn release(self: *Context) void {

@@ -2,7 +2,7 @@ import host from "ownership_host"
 
 import type { Input as Execution } from "./model"
 
-export type Input = Execution & {
+export type Input = Execution.Pick("frame", "recording") & {
     reused: bool
 }
 

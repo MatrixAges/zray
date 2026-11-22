@@ -40,28 +40,42 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
 
     const memo = persistent orelse &local;
     const temporary = scratch.allocator();
-    const slots = basis.slots;
     var summary_memory = std.heap.ArenaAllocator.init(workspace);
 
     defer summary_memory.deinit();
 
-    const prepared = if (@import("genz_options").generated_analysis)
-        try @import("summaries/storage.zig").prepare(temporary, summary_memory.allocator(), &program, basis)
+    var replay = Trace.Replay{ .allocator = temporary };
+    var summaries: Summaries = undefined;
+    var bodies: Bodies = undefined;
 
-    else seed: {
-        const calls = try @import("topology/seed.zig").collect(temporary, program);
-        const summaries = try Summaries.createSeed(summary_memory.allocator(), &program, basis, calls.active);
-
-        break :seed .{ .calls = calls, .summaries = summaries };
+    var state: @import("program/host.zig").Context = .{
+        .allocator = allocator,
+        .workspace = workspace,
+        .temporary = temporary,
+        .slots = basis.slots,
+        .summaries = &summaries,
+        .bodies = &bodies,
+        .calls = undefined,
+        .exported = exported,
+        .memo = memo,
+        .replay = &replay,
+        .concurrent = concurrent,
     };
 
-    const topology = prepared.calls;
-    var summaries = prepared.summaries;
-    summaries.return_allocations = return_allocations;
-
-    var replay = Trace.Replay{ .allocator = temporary };
-
     defer replay.deinit();
+    errdefer state.release();
+
+    if (@import("genz_options").generated_analysis) return @import("program/driver.zig").run(&state, .{
+        .program = &program,
+        .basis = basis,
+        .return_allocations = return_allocations,
+        .summary_allocator = summary_memory.allocator(),
+    });
+
+    const topology = try @import("topology/seed.zig").collect(temporary, program);
+
+    summaries = try Summaries.createSeed(summary_memory.allocator(), &program, basis, topology.active);
+    summaries.return_allocations = return_allocations;
 
     const identities = if (memo.persistent) hashed: {
         const shared = Identity.program(program, basis, return_allocations);
@@ -77,23 +91,10 @@ fn analyzeWithConcurrency(allocator: std.mem.Allocator, workspace: std.mem.Alloc
         break :hashed values;
     } else &.{};
 
-    const bodies = try Bodies.init(temporary, &program, topology.callees, identities);
+    bodies = try Bodies.init(temporary, &program, topology.callees, identities);
+    state.calls = topology;
 
-    var state: @import("program/host.zig").Context = .{
-        .allocator = allocator,
-        .workspace = workspace,
-        .temporary = temporary,
-        .slots = slots,
-        .summaries = &summaries,
-        .bodies = &bodies,
-        .calls = topology,
-        .exported = exported,
-        .memo = memo,
-        .replay = &replay,
-        .concurrent = concurrent,
-    };
-
-    return state.run();
+    return @import("program/seed.zig").run(&state);
 }
 
 /// The plan of an entry body analyzed on its own, as a host entry into functions planned for another program: no

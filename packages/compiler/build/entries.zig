@@ -1112,6 +1112,7 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/expressions/read/path.zx", .name = "lower_projection_path", .owner = .genz },
     .{ .path = "genz/analysis/expressions/read/columns.zx", .name = "lower_read_columns", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/program/run.rx", .name = "uniqueness_program", .owner = .genz },
+    .{ .path = "genz/analysis/uniqueness/identity/worker.zx", .name = "uniqueness_identity_worker", .owner = .genz },
     .{ .path = "genz/analysis/uniqueness/function/visit/context.zx", .name = "uniqueness_body_view", .owner = .genz },
 };
 

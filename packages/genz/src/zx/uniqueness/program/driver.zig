@@ -1,6 +1,12 @@
 const std = @import("std");
+const ir = @import("zx").ir;
+const Analysis = @import("../root.zig");
+const Ahead = @import("../ahead.zig");
+const Identity = @import("../identity.zig");
+const Trace = @import("../trace.zig");
+const Bodies = @import("bodies.zig");
 const Context = @import("host.zig").Context;
-const Result = @import("../root.zig").Result;
+const Result = Analysis.Result;
 const Round = @import("driver/round.zig");
 const Replay = @import("../replay/shortcut/frame.zig");
 const program = @import("generated_uniqueness_program");
@@ -8,18 +14,29 @@ pub const Api = @import("execution_abi").layouts.@"zig:ownership_host";
 const Error = std.mem.Allocator.Error;
 const Self = @This();
 
-ctx: *Context,
-result: Result = .{ .functions = &.{}, .entry = .{ .flags = &.{} } },
+pub const Preparation = struct {
+    program: *const ir.Program,
+    basis: *const Analysis.Basis,
+    return_allocations: []const bool,
+    summary_allocator: std.mem.Allocator,
+};
 
+ctx: *Context,
+preparation: Preparation,
+shared_identity: Trace.Digest = undefined,
+identities: []const Trace.Digest = &.{},
+ahead: Ahead = undefined,
+result: Result = .{ .functions = &.{}, .entry = .{ .flags = &.{} } },
 active: union(enum) { none, round: Round, replay: Replay } = .none,
-pub fn run(ctx: *Context) Error!Result {
-    var frame: Self = .{ .ctx = ctx };
+pub fn run(ctx: *Context, preparation: Preparation) Error!Result {
+    var frame: Self = .{ .ctx = ctx, .preparation = preparation };
 
     defer frame.close();
 
     const input: std.meta.Child(program.Input) = .{
         .frame = @ptrCast(&frame),
-        .recording = ctx.replay.recording != null,
+        .persistent = ctx.memo.persistent,
+        .recording = ctx.memo.record_trace,
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
@@ -43,8 +60,59 @@ fn close(self: *Self) void {
     self.active = .none;
 }
 
-pub fn openOwnership(handle: *const anyopaque) Error!void {
-    try borrow(handle).ctx.open();
+pub fn prepareOwnershipStorage(handle: *const anyopaque) Error!void {
+    const self = borrow(handle);
+    const input = &self.preparation;
+    const ctx = self.ctx;
+    const prepared = try @import("../summaries/storage.zig").prepare(ctx.temporary, input.summary_allocator, input.program, input.basis);
+
+    ctx.calls = prepared.calls;
+    ctx.summaries.* = prepared.summaries;
+    ctx.summaries.return_allocations = input.return_allocations;
+}
+
+pub fn prepareOwnershipIdentities(handle: *const anyopaque) Error!void {
+    const self = borrow(handle);
+    const input = &self.preparation;
+    const ctx = self.ctx;
+
+    self.shared_identity = Identity.program(input.program.*, input.basis, input.return_allocations);
+    self.identities = try Identity.bodies(ctx.temporary, input.program, ctx.calls.active, &self.shared_identity, input.basis.contents);
+}
+
+pub fn prepareOwnershipReplay(handle: *const anyopaque) Error!void {
+    const self = borrow(handle);
+    const ctx = self.ctx;
+    const memo = ctx.memo;
+    const previous = if (memo.trace) |*trace| trace else null;
+    const key = Identity.combine(&self.shared_identity, std.mem.sliceAsBytes(ctx.exported));
+    ctx.replay.* = try .init(ctx.temporary, memo.arena.child_allocator, previous, key, self.identities, ctx.calls.callees);
+}
+
+pub fn prepareOwnershipBodies(handle: *const anyopaque) Error!void {
+    const self = borrow(handle);
+    const ctx = self.ctx;
+
+    ctx.bodies.* = try Bodies.init(ctx.temporary, self.preparation.program, ctx.calls.callees, self.identities);
+}
+
+pub fn prepareOwnershipWorkers(handle: *const anyopaque) Error!void {
+    const self = borrow(handle);
+
+    self.ahead = try self.ctx.prepareWorkers();
+}
+
+pub fn prepareOwnershipQueue(handle: *const anyopaque) Error!void {
+    const self = borrow(handle);
+    const ctx = self.ctx;
+    const prepared = try Analysis.Work.open(ctx.workspace, ctx.roundMemory(), ctx.calls.callees, ctx.exported);
+    ctx.rounds = .{ .work = prepared.work, .reverse = prepared.reverse, .ahead = self.ahead };
+}
+
+pub fn bindOwnershipMemoRows(handle: *const anyopaque) void {
+    const ctx = borrow(handle).ctx;
+
+    ctx.rounds.?.ahead.memo_rows.init(ctx.bodies);
 }
 
 pub fn releaseOwnership(handle: *const anyopaque) void {

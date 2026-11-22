@@ -55,66 +55,107 @@ fn content(symbols: *const ir.SymbolTable, expressions: *const ir.ExpressionTabl
     return self.finish();
 }
 
-/// The content of every function body, hashed on all cores; external functions have none.
-pub fn contents(allocator: std.mem.Allocator, value: *const ir.Program) std.mem.Allocator.Error![]const [32]u8 {
-    const Hashing = struct {
-        program: *const ir.Program,
-        result: [][32]u8,
-        next: std.atomic.Value(usize) = .init(0),
-        fn run(work: *@This(), _: usize) void {
-            while (true) {
-                const index = work.next.fetchAdd(1, .monotonic);
-
-                if (index >= work.result.len) return;
-
-                work.result[index] = if (work.program.functions.native_modules[index] != null) @splat(0) else hashBody(work.program, index);
-            }
-        }
+const Hashing = struct {
+    program: *const ir.Program,
+    mode: Mode,
+    result: [][32]u8,
+    next: std.atomic.Value(usize) = .init(0),
+    const Mode = union(enum) {
+        contents,
+        memo: MemoRows,
     };
 
-    var work = Hashing{ .program = value, .result = try allocator.alloc([32]u8, value.functions.count()) };
-
-    @import("zx").parallel.spread(Hashing, &work, Hashing.run, work.result.len);
-
-    return work.result;
-}
-
-pub fn bodies(allocator: std.mem.Allocator, program_view: *const ir.Program, active: []const bool, shared: *const [32]u8, known: []const [32]u8) std.mem.Allocator.Error![]const [32]u8 {
-    const Hashing = struct {
-        program: *const ir.Program,
+    const MemoRows = struct {
         active: []const bool,
         shared: *const [32]u8,
         known: []const [32]u8,
-        result: [][32]u8,
-        next: std.atomic.Value(usize) = .init(0),
-        fn run(work: *@This(), _: usize) void {
-            while (true) {
-                const index = work.next.fetchAdd(1, .monotonic);
+    };
+    fn collect(allocator: std.mem.Allocator, program_view: *const ir.Program, mode: Mode, count: usize) std.mem.Allocator.Error![]const [32]u8 {
+        var work: Hashing = .{ .program = program_view, .mode = mode, .result = try allocator.alloc([32]u8, count) };
 
-                if (index >= work.result.len) return;
+        @import("zx").parallel.spread(Hashing, &work, run, count);
 
-                if (work.active[index]) {
-                    const digest = if (index < work.known.len) work.known[index] else hashBody(work.program, index);
-
-                    work.result[index] = combine(work.shared, &digest);
-                } else {
-                    work.result[index] = @splat(0);
-                }
+        return work.result;
+    }
+    fn run(self: *Hashing, _: usize) void {
+        if (!@import("genz_options").generated_analysis) {
+            switch (self.mode) {
+                .contents => self.seed(true),
+                .memo => self.seed(false),
             }
+
+            return;
         }
+
+        const entry = @import("generated_uniqueness_identity_worker");
+        const memo = if (self.mode == .memo) self.mode.memo else null;
+
+        const input: std.meta.Child(entry.Input) = .{
+            .worker = @ptrCast(self),
+            .contents = memo == null,
+            .native_modules = self.program.functions.native_modules,
+            .active = if (memo) |rows| rows.active else &.{},
+            .known_count = if (memo) |rows| rows.known.len else 0,
+        };
+
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        entry.executeIn(empty.allocator(), &input) catch unreachable;
+    }
+
+    fn seed(self: *Hashing, comptime only_contents: bool) void {
+        while (self.claim()) |row| {
+            self.result[row] = if (only_contents)
+                if (self.program.functions.native_modules[row] != null) @splat(0) else hashBody(self.program, row)
+
+            else if (!self.mode.memo.active[row])
+                @splat(0)
+            else if (row < self.mode.memo.known.len)
+                combine(self.mode.memo.shared, &self.mode.memo.known[row])
+            else
+                self.hashAndCombine(row);
+        }
+    }
+    fn claim(self: *Hashing) ?usize {
+        const row = self.next.fetchAdd(1, .monotonic);
+
+        return if (row < self.result.len) row else null;
+    }
+    fn hashAndCombine(self: *const Hashing, row: usize) [32]u8 {
+        const content_digest = hashBody(self.program, row);
+
+        return combine(self.mode.memo.shared, &content_digest);
+    }
+    fn borrow(handle: *const anyopaque) *Hashing {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+/// External functions have no body fingerprint.
+pub fn contents(allocator: std.mem.Allocator, value: *const ir.Program) std.mem.Allocator.Error![]const [32]u8 {
+    return Hashing.collect(allocator, value, .contents, value.functions.count());
+}
+
+pub fn bodies(allocator: std.mem.Allocator, program_view: *const ir.Program, active: []const bool, shared: *const [32]u8, known: []const [32]u8) std.mem.Allocator.Error![]const [32]u8 {
+    return Hashing.collect(allocator, program_view, .{ .memo = .{ .active = active, .shared = shared, .known = known } }, active.len);
+}
+
+pub fn claimOwnershipIdentity(handle: *const anyopaque) ?u64 {
+    const row = Hashing.borrow(handle).claim() orelse return null;
+
+    return @intCast(row);
+}
+
+pub fn writeOwnershipIdentity(handle: *const anyopaque, index: u64, action: @import("program/driver.zig").Api.IdentityRow) void {
+    const work = Hashing.borrow(handle);
+    const row: usize = @intCast(index);
+
+    work.result[row] = switch (action) {
+        .Zero => @splat(0),
+        .Content => hashBody(work.program, row),
+        .Known => combine(work.mode.memo.shared, &work.mode.memo.known[row]),
+        .Body => work.hashAndCombine(row),
     };
-
-    var work = Hashing{
-        .program = program_view,
-        .active = active,
-        .shared = shared,
-        .known = known,
-        .result = try allocator.alloc([32]u8, active.len),
-    };
-
-    @import("zx").parallel.spread(Hashing, &work, Hashing.run, active.len);
-
-    return work.result;
 }
 
 fn hashBody(program_view: *const ir.Program, index: usize) [32]u8 {

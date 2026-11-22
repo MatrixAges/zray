@@ -4,6 +4,7 @@ export type Kind = RoundKind
 
 export type Input = {
     frame: Execution,
+    persistent: bool,
     recording: bool
 }
 

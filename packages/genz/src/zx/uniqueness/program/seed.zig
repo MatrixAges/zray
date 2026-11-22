@@ -17,7 +17,7 @@ pub fn run(ctx: *Context) Error!analysis.Result {
         }
     }
 
-    try ctx.open();
+    try ctx.openSeed();
 
     var result: analysis.Result = .{ .functions = &.{}, .entry = .{ .flags = &.{} } };
 

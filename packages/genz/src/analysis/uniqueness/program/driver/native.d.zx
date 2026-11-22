@@ -1,5 +1,14 @@
 export type Execution = opaque
 
+export type IdentityWorker = opaque
+
+export enum IdentityRow {
+    Zero,
+    Content,
+    Known,
+    Body
+}
+
 export enum RoundKind {
     Settle,
     Demand,
@@ -21,7 +30,25 @@ export enum ReplayPhase {
     Reject
 }
 
-export declare function openOwnership(in: Execution): void throws { OutOfMemory }
+export declare function prepareOwnershipStorage(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipIdentities(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipReplay(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipBodies(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipWorkers(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function prepareOwnershipQueue(in: Execution): void
+    throws { OutOfMemory }
+
+export declare function bindOwnershipMemoRows(in: Execution): void
 
 export declare function releaseOwnership(in: Execution): void
 
@@ -64,3 +91,11 @@ export declare function recoverOwnershipVisit(
 export declare function publishOwnershipReplay(in: Execution): void throws { OutOfMemory }
 
 export declare function finishOwnershipReplay(in: Execution): void
+
+export declare function claimOwnershipIdentity(worker: IdentityWorker): u64?
+
+export declare function writeOwnershipIdentity(
+    worker: IdentityWorker,
+    row: u64,
+    action: IdentityRow
+): void
