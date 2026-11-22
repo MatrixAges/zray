@@ -35,28 +35,7 @@ pub fn build(self: *Lower, body: anytype, args: Input) Lower.Error!node.Expressi
 
     const result = entry.executeIn(memory.allocator(), &input) catch |err| return failure(err);
 
-    if (!result.valid) return error.OutOfMemory;
-
-    const name = try self.allocator.dupe(u8, result.statements.constant_name[0]);
-    const names = [_][]const u8{name};
-    var expressions = result.expressions.*;
-    var statements = result.statements.*;
-    var fields = result.fields.*;
-
-    expressions.identifier = &names;
-    statements.constant_name = &names;
-
-    if (result.origin_owned) {
-        const field_names = try memory.allocator().dupe([]const u8, fields.name);
-        const index = field_names.len - 1;
-        field_names[index] = try self.allocator.dupe(u8, field_names[index]);
-        fields.name = field_names;
-    }
-
-    @import("../../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-    _ = @import("../../../node/import_fields.zig").appendBorrowingText(self.allocator, &self.builder.nodes.field_columns, &fields) catch |err| return failure(err);
-    @import("../../../node/import_statements.zig").appendBorrowingText(self.allocator, body, &statements) catch |err| return failure(err);
-    self.serial = @intCast(result.serial);
+    try @import("publication.zig").layout(self, body, result);
 
     return @fromBackingInt(result.root);
 }

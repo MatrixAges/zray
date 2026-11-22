@@ -68,24 +68,7 @@ fn build(context: *const Context, lowering: *Lower, request: Request) Lower.Erro
 
     const result = (entry.executeIn(memory.allocator(), &input) catch |err| return failure(err)) orelse return null;
 
-    if (!result.valid) return error.OutOfMemory;
-
-    var expressions = result.expressions.*;
-    var fields = result.fields.*;
-
-    if (result.origin_owned) {
-        const names = try memory.allocator().dupe([]const u8, expressions.field_name);
-        const field_names = try memory.allocator().dupe([]const u8, fields.name);
-        const name = try lowering.allocator.dupe(u8, names[names.len - 1]);
-
-        names[names.len - 1] = name;
-        field_names[field_names.len - 1] = name;
-        expressions.field_name = names;
-        fields.name = field_names;
-    }
-
-    @import("../../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-    _ = @import("../../../node/import_fields.zig").appendBorrowingText(lowering.allocator, &lowering.builder.nodes.field_columns, &fields) catch |err| return failure(err);
+    try @import("publication.zig").projection(lowering, result);
 
     return @fromBackingInt(result.root);
 }

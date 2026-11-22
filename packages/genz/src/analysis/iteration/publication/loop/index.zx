@@ -1,0 +1,16 @@
+export {
+    appendLoopState,
+    appendLoopTracker,
+    appendLoopGuard,
+    appendLoopPrefix,
+    appendLoopBody,
+    appendLoopEntry,
+    ownLoopBindingName,
+    ownLoopOriginName,
+    appendLoopFieldExpressions,
+    appendLoopFields,
+    finishLoopFieldLayout,
+    appendLoopAssignmentExpressions,
+    appendLoopAssignmentStatements,
+    finishLoopAssignment
+} from "lowering_host"

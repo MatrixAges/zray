@@ -23,7 +23,6 @@ pub fn lower(
 
     const module = @import("generated_iteration_frame");
     const Input = std.meta.Child(module.Input);
-    const Output = std.meta.Child(module.Output);
 
     const input: Input = .{
         .condition = @backingInt(check.condition),
@@ -42,32 +41,68 @@ pub fn lower(
 
     if (!output.valid) return error.OutOfMemory;
 
-    const Statement = std.meta.Child(@FieldType(Output, "statement"));
-    const statement = zx.columns.view(Statement, output.statement);
+    const frame: Publication = .{ .lowering = self, .prefix = prefix, .output = &output };
+    const publish = @import("generated_publish_loop_frame");
 
-    if (output.guard) |guard| {
-        const Guard = std.meta.Child(@typeInfo(@FieldType(Output, "guard")).optional.child);
-        const expressions = zx.columns.view(std.meta.Child(@FieldType(Guard, "expressions")), guard.expressions);
-        const stop = zx.columns.view(std.meta.Child(@FieldType(Guard, "stop")), guard.stop);
-        const exit = zx.columns.view(std.meta.Child(@FieldType(Guard, "exit")), guard.exit);
+    const publication: std.meta.Child(publish.Input) = .{
+        .target = @ptrCast(&frame),
+        .guarded = output.guard != null,
+        .entry = output.entry != null,
+    };
 
-        try appendRows(self, &self.builder.nodes.expressions, &expressions);
-        try appendRows(self, &nodes.statements, &exit);
-        try appendRows(self, &nodes.statements, &stop);
-    }
-
-    _ = try @import("../../node/blocks.zig").tail(self.allocator, nodes, &.{prefix.start}, &.{prefix.len});
-
-    try appendRows(self, &self.builder.nodes.statements, &statement);
-
-    if (output.entry) |entry| {
-        const Branch = std.meta.Child(@typeInfo(@FieldType(Output, "entry")).optional.child);
-        const branch = zx.columns.view(Branch, entry);
-
-        try appendRows(self, &self.builder.nodes.statements, &branch);
-    }
+    try @import("../expressions/evaluate.zig").execute(publish, &publication);
 
     return .{ .start = output.start, .len = output.count };
+}
+
+const frame_entry = @import("generated_iteration_frame");
+const FrameOutput = std.meta.Child(frame_entry.Output);
+const FrameValue = @typeInfo(@typeInfo(@TypeOf(frame_entry.executeValue)).@"fn".return_type.?).error_union.payload;
+
+const Publication = struct {
+    lowering: *Lower,
+    prefix: node.Block,
+    output: *const FrameValue,
+    fn borrow(handle: *const anyopaque) *const Publication {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
+pub fn appendLoopGuard(handle: *const anyopaque) Lower.Error!void {
+    const frame = Publication.borrow(handle);
+    const self = frame.lowering;
+    const nodes = self.builder.nodes;
+    const guard = frame.output.guard.?;
+    const Guard = std.meta.Child(@typeInfo(@FieldType(FrameOutput, "guard")).optional.child);
+    const expressions = zx.columns.view(std.meta.Child(@FieldType(Guard, "expressions")), guard.expressions);
+    const exit = zx.columns.view(std.meta.Child(@FieldType(Guard, "exit")), guard.exit);
+    const stop = zx.columns.view(std.meta.Child(@FieldType(Guard, "stop")), guard.stop);
+
+    try appendRows(self, &nodes.expressions, &expressions);
+    try appendRows(self, &nodes.statements, &exit);
+    try appendRows(self, &nodes.statements, &stop);
+}
+
+pub fn appendLoopPrefix(handle: *const anyopaque) Lower.Error!void {
+    const frame = Publication.borrow(handle);
+    const self = frame.lowering;
+
+    _ = try @import("../../node/blocks.zig").tail(self.allocator, self.builder.nodes, &.{frame.prefix.start}, &.{frame.prefix.len});
+}
+
+pub fn appendLoopBody(handle: *const anyopaque) Lower.Error!void {
+    const frame = Publication.borrow(handle);
+    const body = zx.columns.view(std.meta.Child(@FieldType(FrameOutput, "statement")), frame.output.statement);
+
+    try appendRows(frame.lowering, &frame.lowering.builder.nodes.statements, &body);
+}
+
+pub fn appendLoopEntry(handle: *const anyopaque) Lower.Error!void {
+    const frame = Publication.borrow(handle);
+    const Branch = std.meta.Child(@typeInfo(@FieldType(FrameOutput, "entry")).optional.child);
+    const branch = zx.columns.view(Branch, frame.output.entry.?);
+
+    try appendRows(frame.lowering, &frame.lowering.builder.nodes.statements, &branch);
 }
 
 fn seed(self: *Lower, prefix: node.Block, body: node.Block, check: Check) Lower.Error!node.Block {

@@ -52,9 +52,18 @@ pub fn prepare(self: *Lower, iteration: ir.Iteration, type_id: ir.TypeId, body: 
 
     if (!plan.valid) return null;
 
-    const field_types = try memory.allocator().alloc(u32, fields.len);
+    const resolver = @import("generated_resolve_loop_field_types");
+    const Resolve = std.meta.Child(resolver.Input);
+    var field_types = try memory.allocator().alloc(u32, fields.len);
+    const first = types.first[@backingInt(type_id)];
 
-    for (field_types, 0..) |*value, index| value.* = @backingInt(try self.typeExpr(fields.at(index).type_id));
+    const resolution: Resolve = .{
+        .frame = @ptrCast(self),
+        .types = types.field_types[first..][0..fields.len],
+        .target = @ptrCast(&field_types),
+    };
+
+    try @import("../../expressions/evaluate.zig").execute(resolver, &resolution);
 
     const abi_type = try @import("../../types.zig").get(self, self.abi_types, type_id);
 

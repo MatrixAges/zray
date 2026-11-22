@@ -171,3 +171,17 @@ export type CallAstPublication = opaque
 export type IterationPublication = opaque
 
 export type IterationProjectionFrame = opaque
+
+export type LoopStatePublication = opaque
+
+export type LoopFramePublication = opaque
+
+export type LoopFieldPublication = opaque
+
+export type LoopAssignmentPublication = opaque
+
+export enum LoopNameStorage {
+    Borrow,
+    Own,
+    Reuse
+}

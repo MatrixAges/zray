@@ -28,7 +28,6 @@ pub fn declare(self: *Lower, body: *@import("../iteration_value/root.zig").State
 
     const entry = @import("generated_iteration_state_declaration");
     const Input = std.meta.Child(entry.Input);
-    const Output = std.meta.Child(entry.Output);
     const Binding = std.meta.Child(@FieldType(Input, "declaration"));
 
     const binding: Binding = .{
@@ -47,22 +46,54 @@ pub fn declare(self: *Lower, body: *@import("../iteration_value/root.zig").State
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.FixedBufferAllocator.init(&buffer);
     const output = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch |err| return failure(err);
-    const declaration = zx.columns.view(std.meta.Child(@FieldType(Output, "declaration")), output.declaration);
+    const frame: Publication = .{ .lowering = self, .body = body, .output = &output };
+    const publish = @import("generated_publish_loop_state");
 
-    statements.appendBorrowingText(self.allocator, body, &declaration) catch |err| return failure(err);
+    const publication: std.meta.Child(publish.Input) = .{
+        .target = @ptrCast(&frame),
+        .tracked = output.tracker != null,
+    };
+
+    try @import("../expressions/evaluate.zig").execute(publish, &publication);
 
     const tracker = output.tracker orelse return null;
-    const State = std.meta.Child(@typeInfo(@FieldType(Output, "tracker")).optional.child);
-    const expressions = zx.columns.view(std.meta.Child(@FieldType(State, "expressions")), tracker.expressions);
-    const flag = zx.columns.view(std.meta.Child(@FieldType(State, "declaration")), tracker.declaration);
-    @import("../../node/import_rows.zig").appendBorrowed(self.allocator, &self.builder.nodes.expressions, &expressions) catch |err| return failure(err);
-
-    statements.appendBorrowingText(self.allocator, body, &flag) catch |err| return failure(err);
 
     return .{ .generated = .{
         .target = @fromBackingInt(tracker.target),
         .value = @fromBackingInt(tracker.value),
     } };
+}
+
+const state_entry = @import("generated_iteration_state_declaration");
+const StateOutput = std.meta.Child(state_entry.Output);
+const StateValue = @typeInfo(@typeInfo(@TypeOf(state_entry.executeValue)).@"fn".return_type.?).error_union.payload;
+
+const Publication = struct {
+    lowering: *Lower,
+    body: *@import("../../node/blocks.zig").Sequence,
+    output: *const StateValue,
+    fn borrow(handle: *const anyopaque) *const Publication {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
+pub fn appendLoopState(handle: *const anyopaque) Lower.Error!void {
+    const frame = Publication.borrow(handle);
+    const declaration = zx.columns.view(std.meta.Child(@FieldType(StateOutput, "declaration")), frame.output.declaration);
+
+    statements.appendBorrowingText(frame.lowering.allocator, frame.body, &declaration) catch |err| return failure(err);
+}
+
+pub fn appendLoopTracker(handle: *const anyopaque) Lower.Error!void {
+    const frame = Publication.borrow(handle);
+    const tracker = frame.output.tracker.?;
+    const lowering = frame.lowering;
+    const TrackerOutput = std.meta.Child(@typeInfo(@FieldType(StateOutput, "tracker")).optional.child);
+    const expressions = zx.columns.view(std.meta.Child(@FieldType(TrackerOutput, "expressions")), tracker.expressions);
+    const flag = zx.columns.view(std.meta.Child(@FieldType(TrackerOutput, "declaration")), tracker.declaration);
+    @import("../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, &expressions) catch |err| return failure(err);
+
+    statements.appendBorrowingText(lowering.allocator, frame.body, &flag) catch |err| return failure(err);
 }
 
 fn seed(self: *Lower, body: *std.ArrayList(node.Statement), args: Declaration) Lower.Error!?Tracker {

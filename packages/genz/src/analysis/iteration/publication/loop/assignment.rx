@@ -1,0 +1,10 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Assignment} out={void} />
+
+    <Call fn="names" in={$in} />
+    <Call fn="index.appendLoopAssignmentExpressions" in={$in.target} />
+    <Call fn="index.appendLoopAssignmentStatements" in={$in.target} />
+    <Call fn="index.finishLoopAssignment" in={$in.target} />
+</Module>
