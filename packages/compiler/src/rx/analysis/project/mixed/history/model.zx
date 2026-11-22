@@ -1,3 +1,5 @@
+import type { BoolBuffer, WriteColumn } from "memory"
+import type { HistoryFunctionRange, HistoryModuleLink } from "rx_project_host"
 import type { ColumnPair } from "../../../../../zx/ir/compare/model"
 import type { Inputs as SourceInputs } from "../../history/model"
 import type { Input as Dependencies } from "./changed"
@@ -21,7 +23,26 @@ export type Reanalysis = {
     alignment: Alignment,
     dependencies: Dependencies,
     compiled_dependency: bool,
-    functions: FunctionRange
+    functions: FunctionRange,
+    comparison: Comparison
+}
+
+export type Comparison = {
+    link: HistoryModuleLink,
+    functions: HistoryFunctionRange
+}
+
+export type RecordTarget = {
+    row: u64,
+    analyzed: u64,
+    counter: WriteColumn,
+    redone: BoolBuffer,
+    aligned: BoolBuffer
+}
+
+export type Record = {
+    target: RecordTarget,
+    analysis?: Reanalysis
 }
 
 export enum Assessment {
@@ -42,5 +63,7 @@ export type Graph = {
 export type Start = {
     inputs: SourceInputs,
     boundary: Checkpoints,
-    graph: Graph
+    graph: Graph,
+    alignment: Alignment,
+    functions: HistoryFunctionRange
 }

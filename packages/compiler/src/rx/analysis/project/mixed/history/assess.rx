@@ -21,5 +21,15 @@
 
     <Call fn="stable" in={$in.functions} />
 
+    <If on={$ctx.stable == History.Assessment.CompareFunctions}>
+        <Call module="compare_functions" in={$in.comparison} />
+
+        <If on={$ctx.compare_functions}>
+            <Return value={History.Assessment.Unchanged} />
+        </If>
+
+        <Return value={History.Assessment.Changed} />
+    </If>
+
     <Return value={$ctx.stable} />
 </Module>

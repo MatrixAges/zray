@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="History" />
+
+    <Args in={History.Comparison} out={bool} />
+
+    <Call fn="index.matchHistoryLink" in={$in.link} />
+
+    <If on={!$ctx.matchHistoryLink}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.matchHistoryHeaders" in={$in.functions} />
+
+    <If on={!$ctx.matchHistoryHeaders}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.matchHistoryBodies" in={$in.functions} />
+
+    <Return value={$ctx.matchHistoryBodies} />
+</Module>

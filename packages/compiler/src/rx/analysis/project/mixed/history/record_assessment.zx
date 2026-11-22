@@ -1,0 +1,22 @@
+import memory from "memory"
+
+import { Assessment } from "./model"
+
+import type { RecordTarget } from "./model"
+
+export type Input = {
+    target: RecordTarget,
+    assessment: Assessment
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target } = in
+
+    if (in.assessment == Assessment.Misaligned) {
+        memory.writeBool(target.aligned, 0, false)
+    } else if (in.assessment == Assessment.Unchanged) {
+        memory.writeBool(target.redone, target.row, false)
+    }
+}

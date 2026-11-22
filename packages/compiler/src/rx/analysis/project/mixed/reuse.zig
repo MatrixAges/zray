@@ -8,7 +8,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const comparisons = @import("frontend").compare_ir;
 const State = @import("state.zig");
 const history = @import("../history.zig");
 const columns = @import("../history/columns.zig");
@@ -70,7 +69,12 @@ pub fn begin(state: *const State, cache: *const project.ParseCache, record: ?*hi
     const previous = if (owner.previous) |*value| value else return self;
 
     self.previous = previous;
-    self.aligned = matches(state, previous, &owner.shape, &self.boundaries[0]);
+
+    self.aligned = if (comptime generated)
+        @import("history/start.zig").matches(state, previous, &owner.shape, &self.boundaries[0])
+
+    else
+        matchesSeed(state, previous, &owner.shape, &self.boundaries[0]);
 
     if (comptime batch_reuse) {
         if (self.aligned) {
@@ -151,6 +155,9 @@ pub fn reusable(self: *const Self, state: *const State, index: usize, position: 
 /// Records that `index` was analyzed, and whether the tables still match the earlier analysis after it.
 pub fn analyzed(self: *Self, state: *const State, index: usize, position: usize) void {
     const owner = self.record orelse return;
+
+    if (comptime generated) return @import("history/record.zig").analyzed(self, state, owner, index, position);
+
     const start = &self.boundaries[position];
     const end = &self.boundaries[position + 1];
 
@@ -164,20 +171,9 @@ pub fn analyzed(self: *Self, state: *const State, index: usize, position: usize)
 
     if (!self.aligned) return;
 
-    if (comptime generated) {
-        switch (alignment.assess(state, previous, self.redone, index, position, start, end)) {
-            .Misaligned => self.aligned = false,
-            .Changed => {},
-            .Unchanged => self.redone[index] = false,
-            .CompareFunctions => self.redone[index] = !repeated(state, previous, index, start.functions, end.functions),
-        }
-
-        return;
-    }
-
     const earlier = previous.boundaries[position..][0..2];
 
-    self.aligned = alignment.matches(state, previous, start, &earlier[1], end);
+    self.aligned = alignment.matchesSeed(state, previous, start, &earlier[1], end);
 
     if (!self.aligned or self.reaches(state, index)) return;
 
@@ -206,11 +202,6 @@ fn repeated(state: *const State, previous: *const history.Retained, index: usize
     const earlier = previous.finished.get(index) orelse return false;
     const left = previous.functions;
     const right = state.functions.view();
-
-    if (comptime generated) {
-        return @import("history/linked.zig").equal(&current, &earlier) and
-            comparisons.headers(&left, &right, start, end) and comparisons.bodies(&left, &right, start, end);
-    }
 
     if (!columns.same(current, earlier)) return false;
 
@@ -272,22 +263,12 @@ fn unchanged(self: *const Self, state: *const State, index: usize) bool {
 }
 
 /// Whether this analysis starts from the tables the earlier one started from, over the same modules in the same order.
-fn matches(state: *const State, previous: *const history.Retained, shape: *const [32]u8, initial: *const history.Checkpoint) bool {
+fn matchesSeed(state: *const State, previous: *const history.Retained, shape: *const [32]u8, initial: *const history.Checkpoint) bool {
     const earlier = previous.derived.dependencies;
     const current = state.graph;
 
     if (!matchesGraph(earlier, current, &previous.shape, shape, &previous.boundaries[0], initial)) return false;
-
-    const start: history.Checkpoint = .{
-        .types = @splat(0),
-        .origins = @splat(0),
-        .functions = 0,
-        .native_modules = 0,
-        .initializers = 0,
-        .libraries = 0,
-    };
-
-    if (!alignment.matches(state, previous, &start, initial, initial)) return false;
+    if (!alignment.matchesSeed(state, previous, &history.Checkpoint.zero, initial, initial)) return false;
 
     return signatures(previous.functions, state.functions.view(), initial.functions);
 }
@@ -295,39 +276,6 @@ fn matches(state: *const State, previous: *const history.Retained, shape: *const
 fn matchesGraph(earlier: Graph, current: Graph, earlier_shape: *const [32]u8, current_shape: *const [32]u8, earlier_boundary: *const history.Checkpoint, current_boundary: *const history.Checkpoint) bool {
     const earlier_paths = earlier.modules.items(.path);
     const current_paths = current.modules.items(.path);
-
-    if (comptime generated) {
-        const rule = @import("generated_rx_mixed_history_start");
-        const Input = std.meta.Child(rule.Input);
-        const Boundaries = std.meta.Child(@FieldType(Input, "boundary"));
-        const Checkpoint = std.meta.Child(@FieldType(Boundaries, "before"));
-        const Extent = std.meta.Child(@FieldType(Checkpoint, "extent"));
-        const earlier_extent = alignment.extent(Extent, earlier_boundary);
-        const current_extent = alignment.extent(Extent, current_boundary);
-        const earlier_view = checkpointView(Checkpoint, earlier_boundary, &earlier_extent);
-        const current_view = checkpointView(Checkpoint, current_boundary, &current_extent);
-
-        const input: Input = .{
-            .inputs = &.{
-                .earlier = earlier_shape,
-                .current = current_shape,
-                .earlier_count = earlier_paths.len,
-                .current_count = current_paths.len,
-            },
-            .boundary = &.{ .before = &earlier_view, .after = &current_view },
-            .graph = &.{
-                .earlier_order = std.mem.sliceAsBytes(earlier.order),
-                .current_order = std.mem.sliceAsBytes(current.order),
-                .earlier_paths = earlier_paths,
-                .current_paths = current_paths,
-                .shared_paths = earlier_paths.ptr == current_paths.ptr,
-            },
-        };
-
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        return zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-    }
 
     if (!@import("../history/admission.zig").sameInputs(earlier_shape, current_shape, earlier_paths.len, current_paths.len)) return false;
     if (!earlier_boundary.eql(current_boundary.*)) return false;
@@ -338,20 +286,8 @@ fn matchesGraph(earlier: Graph, current: Graph, earlier_shape: *const [32]u8, cu
     return true;
 }
 
-fn checkpointView(comptime Target: type, value: *const history.Checkpoint, counts: @FieldType(Target, "extent")) Target {
-    return .{
-        .types = std.mem.asBytes(&value.types),
-        .origins = std.mem.asBytes(&value.origins),
-        .extent = counts,
-    };
-}
-
 /// Compares the function rows' signature columns; the tables each row points to belong to one analysis.
 fn signatures(left: ir.FunctionTable, right: ir.FunctionTable, count: usize) bool {
-    if (comptime generated) {
-        return comparisons.headers(&left, &right, 0, count);
-    }
-
     inline for (@typeInfo(ir.FunctionTable).@"struct".field_names) |name| {
         const Element = std.meta.Elem(@FieldType(ir.FunctionTable, name));
         const shared = comptime @typeInfo(Element) == .pointer and @typeInfo(Element).pointer.size == .one;

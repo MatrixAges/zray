@@ -17,5 +17,17 @@
 
     <Call fn="graph_match" in={$in.graph} />
 
-    <Return value={$ctx.graph_match} />
+    <If on={!$ctx.graph_match}>
+        <Return value={false} />
+    </If>
+
+    <Call module="align" in={$in.alignment} />
+
+    <If on={!$ctx.align}>
+        <Return value={false} />
+    </If>
+
+    <Call fn="index.matchHistoryHeaders" in={$in.functions} />
+
+    <Return value={$ctx.matchHistoryHeaders} />
 </Module>

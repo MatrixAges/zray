@@ -12,6 +12,10 @@ export type HistoryStores = opaque
 
 export type HistoryParseCache = opaque
 
+export type HistoryFunctionRange = opaque
+
+export type HistoryModuleLink = opaque
+
 export type HistoryXmlNode = opaque
 
 export type HistoryXmlRows = opaque
@@ -136,6 +140,12 @@ export declare function historyBodyOpening(
     path: string,
     text: string
 ): u64? throws { OutOfMemory }
+
+export declare function matchHistoryLink(link: HistoryModuleLink): bool
+
+export declare function matchHistoryHeaders(range: HistoryFunctionRange): bool
+
+export declare function matchHistoryBodies(range: HistoryFunctionRange): bool
 
 export declare function historyStoreNode(
     stores: HistoryStores,

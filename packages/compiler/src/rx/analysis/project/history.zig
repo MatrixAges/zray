@@ -40,6 +40,14 @@ pub const Checkpoint = extern struct {
     native_modules: usize,
     initializers: usize,
     libraries: usize,
+    pub const zero: Checkpoint = .{
+        .types = @splat(0),
+        .origins = @splat(0),
+        .functions = 0,
+        .native_modules = 0,
+        .initializers = 0,
+        .libraries = 0,
+    };
     pub fn eql(self: Checkpoint, other: Checkpoint) bool {
         return std.meta.eql(self, other);
     }

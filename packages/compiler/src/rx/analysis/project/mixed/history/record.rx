@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="History" />
+
+    <Args in={History.Record} out={void} />
+
+    <Call fn="record_analyzed" in={$in.target} />
+
+    <If on={$in.analysis != null}>
+        <Call module="assess" in={$in.analysis} />
+
+        <Call
+            fn="record_assessment"
+            in={{
+                target: $in.target,
+                assessment: $ctx.assess
+            }}
+        />
+    </If>
+</Module>
