@@ -1,0 +1,42 @@
+import integers from "std:integer"
+import { ExpressionKind } from "core/expression_table/kinds"
+import host from "verification_host"
+
+import encode from "../../predicate/literal"
+import { smt_false, smt_true } from "../../scalar/const"
+
+import type { Payload } from "./model"
+
+export type Input = Payload & {
+    kind: ExpressionKind
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, columns, payload, kind } = in
+
+    if (kind == ExpressionKind.Boolean) {
+        const value = columns.booleans[payload] ? smt_true : smt_false
+
+        host.writeSymbolicLiteral(frame, value)
+
+        return
+    }
+
+    const enumeration = kind == ExpressionKind.EnumValue
+
+    const value = match kind {
+        ExpressionKind.EnumValue => integers.widen(columns.enumerations[payload]),
+        ExpressionKind.NegativeInteger => columns.negative_integers[payload],
+        _ => columns.integers[payload]
+    }
+
+    const text = encode({
+        value,
+        width: host.symbolicLiteralWidth(frame, enumeration),
+        negative: kind == ExpressionKind.NegativeInteger
+    })
+
+    host.writeSymbolicLiteral(frame, text)
+}

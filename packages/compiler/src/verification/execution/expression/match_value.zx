@@ -1,0 +1,87 @@
+import integers from "std:integer"
+import host from "verification_host"
+import { SymbolicOperand } from "verification_host"
+
+import connect from "../../predicate/connect"
+import guarded from "../../predicate/guard.rx"
+import { Operator } from "../../predicate/model"
+import conjunction from "../../scalar/conjunction"
+import { smt_true } from "../../scalar/const"
+
+import type { Payload as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, columns, payload } = in
+
+    const subject = columns.match_subjects[payload]
+
+    const subject_safe = match {
+        subject == null => smt_true,
+        _ => host.evaluateSymbolicOperand(frame, SymbolicOperand.Third, subject)
+    }
+
+    const fallback =
+        host.evaluateSymbolicOperand(
+            frame,
+            SymbolicOperand.Result,
+            columns.match_fallbacks[payload]
+        )
+
+    const first = integers.widen(columns.match_first[payload])
+    const end = first + integers.widen(columns.match_count[payload])
+
+    const combined = loop(end, {
+        while: row => row > first,
+        next: row => {
+            row -= 1
+
+            const safe =
+                host.evaluateSymbolicOperand(
+                    frame,
+                    SymbolicOperand.First,
+                    columns.match_conditions[row]
+                )
+            const yes =
+                host.evaluateSymbolicOperand(
+                    frame,
+                    SymbolicOperand.Second,
+                    columns.match_results[row]
+                )
+            const no = host.symbolicOperandSafety(frame, SymbolicOperand.Result)
+            const test = host.symbolicOperandText(frame, SymbolicOperand.First)
+            const condition = match {
+                subject == null => test,
+                _ => connect({
+                    operator: Operator.Equal,
+                    left: host.symbolicOperandText(frame, SymbolicOperand.Third),
+                    right: test
+                })
+            }
+
+            host.selectSymbolicExpression(
+                frame,
+                condition,
+                SymbolicOperand.Second,
+                SymbolicOperand.Result
+            )
+            host.writeSymbolicSafety(frame, guarded({
+                condition,
+                safe,
+                yes,
+                no
+            }))
+            host.retainSymbolicExpression(frame)
+        }
+    })
+
+    if (subject != null) {
+        const safe = conjunction({
+            left: subject_safe,
+            right: host.symbolicOperandSafety(frame, SymbolicOperand.Result)
+        })
+
+        host.writeSymbolicSafety(frame, safe)
+    }
+}

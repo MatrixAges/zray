@@ -9,31 +9,13 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
     const invocation = expression.value.call;
     const function = self.program.functions.at(@backingInt(invocation.function));
 
-    if (comptime @import("parser_options").generated_parser) {
-        const rule = @import("generated_verification_graph_call");
-        const Input = std.meta.Child(rule.Input);
+    if (function.stores.count() != 0) return self.reporter.fail(.unsupported, expression.span, "verification does not model Store calls");
+    if (function.external != null) return self.reporter.fail(.unsupported, expression.span, "verification requires a ZX body for each executed call; external semantics are not modeled");
 
-        const request: Input = .{
-            .calls = function.expressions.call_functions,
-            .target = @backingInt(invocation.function),
-            .stores = function.stores.count(),
-            .external = function.external != null,
-            .depth = self.call_depth,
-        };
+    if (std.mem.indexOfScalar(u32, function.expressions.call_functions, @backingInt(invocation.function)) != null)
+        return self.reporter.fail(.unsupported, expression.span, "symbolic execution does not support recursive functions");
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        if (zx.columns.invoke(rule.executeValue, empty.allocator(), &request) catch unreachable) |message|
-            return self.reporter.fail(.unsupported, expression.span, message);
-    } else {
-        if (function.stores.count() != 0) return self.reporter.fail(.unsupported, expression.span, "verification does not model Store calls");
-        if (function.external != null) return self.reporter.fail(.unsupported, expression.span, "verification requires a ZX body for each executed call; external semantics are not modeled");
-
-        if (std.mem.indexOfScalar(u32, function.expressions.call_functions, @backingInt(invocation.function)) != null)
-            return self.reporter.fail(.unsupported, expression.span, "symbolic execution does not support recursive functions");
-
-        if (self.call_depth >= 128) return self.reporter.fail(.unsupported, expression.span, "verification call depth exceeds 128");
-    }
+    if (self.call_depth >= 128) return self.reporter.fail(.unsupported, expression.span, "verification call depth exceeds 128");
 
     const argument = try self.evaluate(invocation.argument);
     const cached = try self.graph.calls.lookup(self.allocator, @backingInt(invocation.function), argument.value);
@@ -52,7 +34,7 @@ pub fn evaluate(self: *Expressions, expression: ir.ExpressionRow) zx.Error!terms
     return .{ .value = callee.value, .safe = try terms.connect(self.allocator, .And, argument.safe, callee.safe) };
 }
 
-fn execute(self: *Expressions, function: ir.Function, input: terms.Value) zx.Error!terms.Evaluation {
+pub fn execute(self: *Expressions, function: ir.Function, input: terms.Value) zx.Error!terms.Evaluation {
     var program = self.program;
 
     program.input_type = function.input_type;

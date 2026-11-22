@@ -7,6 +7,9 @@ const Value = terms.Value;
 const Evaluation = terms.Evaluation;
 const Self = @This();
 const Graph = @import("graph.zig");
+const generated = @import("parser_options").generated_parser;
+const source = @import("execution/expression.zig");
+const Columns = if (generated) source.Columns else void;
 
 allocator: std.mem.Allocator,
 scratch: *zx.Arena,
@@ -15,16 +18,28 @@ environment: []?Value,
 reporter: *zx.Reporter,
 graph: *Graph,
 cache: std.AutoHashMapUnmanaged(ir.ExprId, Evaluation) = .empty,
+columns: ?Columns = null,
 depth: usize = 0,
 call_depth: usize = 0,
 pub fn evaluate(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
     if (self.cache.get(id)) |result| return result;
 
-    const expression = self.program.expression(id);
+    const result = if (comptime generated) blk: {
+        const table = &self.program.expressions;
+        const row = @backingInt(id);
+        const target: ir.TypeId = @fromBackingInt(table.types[row]);
+        const span: zx.Span = .{ .start = @intCast(table.span_start[row]), .end = @intCast(table.span_end[row]) };
 
-    try self.graph.step(expression.span);
+        try self.graph.step(span);
 
-    const result = try self.retain(expression, try self.evaluateRaw(id, expression));
+        break :blk try self.retainAt(target, span, try source.execute(self, id, target, span));
+    } else blk: {
+        const expression = self.program.expression(id);
+
+        try self.graph.step(expression.span);
+
+        break :blk try self.retain(expression, try self.evaluateRaw(id, expression));
+    };
 
     try self.cache.put(self.scratch.allocator(), id, result);
 
@@ -32,13 +47,17 @@ pub fn evaluate(self: *Self, id: ir.ExprId) zx.Error!Evaluation {
 }
 
 fn retain(self: *Self, expression: ir.ExpressionRow, result: Evaluation) zx.Error!Evaluation {
+    return self.retainAt(expression.type_id, expression.span, result);
+}
+
+pub fn retainAt(self: *Self, target: ir.TypeId, span: zx.Span, result: Evaluation) zx.Error!Evaluation {
     return .{
-        .value = try self.graph.retain(self.program, expression.type_id, result.value, expression.span),
-        .safe = try self.boolean(result.safe, expression.span),
+        .value = try self.graph.retain(self.program, target, result.value, span),
+        .safe = try self.boolean(result.safe, span),
     };
 }
 
-fn boolean(self: *Self, value: []const u8, span: zx.Span) zx.Error![]const u8 {
+pub fn boolean(self: *Self, value: []const u8, span: zx.Span) zx.Error![]const u8 {
     return self.graph.bind(value, 0, .{ .file_name = self.program.file_name, .span = span });
 }
 

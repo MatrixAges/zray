@@ -8,6 +8,25 @@ export type SymbolicSession = opaque
 
 export type SymbolicBlock = opaque
 
+export type SymbolicExpression = opaque
+
+export type SymbolicInvocation = opaque
+
+export enum SymbolicOperand {
+    First,
+    Second,
+    Third,
+    Result
+}
+
+export type SymbolicCallDescription = {
+    calls: u32[],
+    target: u32,
+    stores: u64,
+    external: bool,
+    depth: u64
+}
+
 export type ClauseTerm = {
     safe: string,
     predicate: string
@@ -78,3 +97,84 @@ export declare function bindSymbolicParallel(block: SymbolicBlock, index: u64, s
 
 export declare function rejectSymbolicStatement(block: SymbolicBlock): string?
     throws { InvalidSource }
+
+export declare function rejectSymbolicExpression(frame: SymbolicExpression, message: string): void
+    throws { InvalidSource }
+
+export declare function loadSymbolicReference(frame: SymbolicExpression, symbol: u32): void
+    throws { InvalidSource }
+
+export declare function symbolicLiteralWidth(frame: SymbolicExpression, enumeration: bool): u64
+
+export declare function writeSymbolicLiteral(frame: SymbolicExpression, value: string): void
+
+export declare function evaluateSymbolicOperand(
+    frame: SymbolicExpression,
+    slot: SymbolicOperand,
+    expression: u32
+): string throws { OutOfMemory, InvalidSource }
+
+export declare function symbolicOperandText(
+    frame: SymbolicExpression,
+    slot: SymbolicOperand
+): string
+
+export declare function symbolicOperandSafety(
+    frame: SymbolicExpression,
+    slot: SymbolicOperand
+): string
+
+export declare function projectSymbolicOperand(frame: SymbolicExpression, index: u32): void
+
+export declare function writeSymbolicUnary(frame: SymbolicExpression, invert: bool): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function writeSymbolicBinary(frame: SymbolicExpression, left: u32): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function selectSymbolicExpression(
+    frame: SymbolicExpression,
+    condition: string,
+    yes: SymbolicOperand,
+    no: SymbolicOperand
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function retainSymbolicExpression(frame: SymbolicExpression): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function bindSymbolicExpressionSafety(frame: SymbolicExpression, safe: string): string
+    throws { OutOfMemory, InvalidSource }
+
+export declare function writeSymbolicSafety(frame: SymbolicExpression, safe: string): void
+
+export declare function reserveSymbolicAggregate(frame: SymbolicExpression, count: u32): void
+    throws { OutOfMemory }
+
+export declare function writeSymbolicAggregateField(frame: SymbolicExpression, index: u32): void
+
+export declare function runSymbolicExpressionCall(
+    frame: SymbolicExpression,
+    target: u32,
+    argument: u32
+): void throws { OutOfMemory, InvalidSource }
+
+export declare function describeSymbolicCall(call: SymbolicInvocation): SymbolicCallDescription
+
+export declare function rejectSymbolicCall(call: SymbolicInvocation, message: string): void
+    throws { InvalidSource }
+
+export declare function evaluateSymbolicCallArgument(call: SymbolicInvocation): string
+    throws { OutOfMemory, InvalidSource }
+
+export declare function findSymbolicCallee(call: SymbolicInvocation): bool
+    throws { OutOfMemory }
+
+export declare function evaluateSymbolicCallee(call: SymbolicInvocation): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function publishSymbolicCallee(call: SymbolicInvocation): void
+    throws { OutOfMemory }
+
+export declare function symbolicCalleeSafety(call: SymbolicInvocation): string
+
+export declare function writeSymbolicCallSafety(call: SymbolicInvocation, safe: string): void

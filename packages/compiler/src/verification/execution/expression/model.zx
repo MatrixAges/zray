@@ -1,0 +1,52 @@
+import type { Expressions } from "core/expression_table/model"
+import type { SymbolicExpression } from "verification_host"
+
+export type Columns = Expressions.Pick(
+    "kinds",
+    "payloads",
+    "integers",
+    "negative_integers",
+    "enumerations",
+    "booleans",
+    "references",
+    "projection_targets",
+    "projection_indices",
+    "unary_operators",
+    "unary_operands",
+    "binary_left",
+    "binary_right",
+    "conditional_conditions",
+    "conditional_yes",
+    "conditional_no",
+    "call_functions",
+    "call_arguments",
+    "match_first",
+    "match_count",
+    "match_subjects",
+    "match_fallbacks",
+    "match_conditions",
+    "match_results",
+    "sequence_first",
+    "sequence_count",
+    "sequence_items",
+    "object_first",
+    "object_count",
+    "object_evaluation_first",
+    "object_evaluation_count",
+    "object_evaluation_values",
+    "object_field_indices",
+    "object_field_values"
+)
+
+export type Input = {
+    frame: SymbolicExpression,
+    columns: Columns,
+    id: u64,
+    depth: u64
+}
+
+export type Payload = {
+    frame: SymbolicExpression,
+    columns: Columns,
+    payload: u64
+}

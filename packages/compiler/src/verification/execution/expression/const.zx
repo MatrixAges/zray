@@ -1,0 +1,6 @@
+export const max_depth: u64 = 256
+
+export const depth_message: string = "verification expression depth exceeds 256"
+
+export const unsupported_message: string =
+    "formal verification does not yet model this expression"

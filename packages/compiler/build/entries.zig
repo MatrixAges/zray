@@ -1012,6 +1012,8 @@ pub const execution = [_]Entry{
     .{ .path = "verification/execution/merge/run.rx", .name = "merge_symbolic_returns", .owner = .compiler },
     .{ .path = "verification/execution/block/walk.zx", .name = "walk_symbolic_block", .owner = .compiler },
     .{ .path = "verification/execution/parallel/run.rx", .name = "run_symbolic_parallel", .owner = .compiler },
+    .{ .path = "verification/execution/expression/walk.zx", .name = "walk_symbolic_expression", .owner = .compiler },
+    .{ .path = "verification/execution/call/run.rx", .name = "run_symbolic_expression_call", .owner = .compiler },
     .{ .path = "backends/zig/output/tree/run.rx", .name = "bootstrap_tree", .owner = .compiler },
     .{ .path = "backends/zig/output/mirror/run.rx", .name = "bootstrap_mirror", .owner = .compiler },
     .{ .path = "backends/zig/partition/emission/run.rx", .name = "bootstrap_partition", .owner = .compiler },

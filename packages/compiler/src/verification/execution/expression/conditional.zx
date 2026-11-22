@@ -1,0 +1,49 @@
+import host from "verification_host"
+import { SymbolicOperand } from "verification_host"
+
+import guarded from "../../predicate/guard.rx"
+
+import type { Payload as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, columns, payload } = in
+
+    const safe =
+        host.evaluateSymbolicOperand(
+            frame,
+            SymbolicOperand.First,
+            columns.conditional_conditions[payload]
+        )
+
+    const yes =
+        host.evaluateSymbolicOperand(
+            frame,
+            SymbolicOperand.Second,
+            columns.conditional_yes[payload]
+        )
+
+    const no =
+        host.evaluateSymbolicOperand(
+            frame,
+            SymbolicOperand.Third,
+            columns.conditional_no[payload]
+        )
+
+    const condition = host.symbolicOperandText(frame, SymbolicOperand.First)
+
+    host.selectSymbolicExpression(
+        frame,
+        condition,
+        SymbolicOperand.Second,
+        SymbolicOperand.Third
+    )
+
+    host.writeSymbolicSafety(frame, guarded({
+        condition,
+        safe,
+        yes,
+        no
+    }))
+}

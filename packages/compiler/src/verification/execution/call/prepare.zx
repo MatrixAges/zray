@@ -1,0 +1,18 @@
+import host from "verification_host"
+
+import admission from "../../graph/call"
+
+import type { Input } from "./model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const request = host.describeSymbolicCall(in)
+    const rejection = admission(request)
+
+    if (rejection != null) {
+        host.rejectSymbolicCall(in, rejection)
+    }
+
+    return host.evaluateSymbolicCallArgument(in)
+}

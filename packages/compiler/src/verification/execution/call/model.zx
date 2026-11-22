@@ -1,0 +1,8 @@
+import type { SymbolicInvocation } from "verification_host"
+
+export type Input = SymbolicInvocation
+
+export type Solve = {
+    call: SymbolicInvocation,
+    argument_safe: string
+}

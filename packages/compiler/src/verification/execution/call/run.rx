@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Call" />
+
+    <Args in={Call.Input} out={void} />
+
+    <Call fn="prepare" in={$in} />
+
+    <Call
+        fn="solve"
+        in={{
+            call: $in,
+            argument_safe: $ctx.prepare
+        }}
+    />
+</Module>

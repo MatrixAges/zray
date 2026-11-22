@@ -9,7 +9,7 @@ fn Lookup(comptime Key: type) type {
 }
 
 const Source = struct {
-    const Key = struct { target: u32, start: usize, length: usize, digest: u64 };
+    pub const Key = struct { target: u32, start: usize, length: usize, digest: u64 };
 
     const Context = struct {
         leaves: []const []const u8,

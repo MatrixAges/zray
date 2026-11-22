@@ -25,6 +25,12 @@ pub fn binary(allocator: std.mem.Allocator, table: *const ir.ExpressionTable, id
     if (left.value != .scalar or right.value != .scalar) return null;
     if (comptime !generated) return seed.binary(allocator, operator, target, left, right);
 
+    return binaryWithColumns(allocator, table, id, target, left, right);
+}
+
+pub fn binaryWithColumns(allocator: std.mem.Allocator, table: *const ir.ExpressionTable, id: ir.ExprId, target: ir.Type, left: Evaluation, right: Evaluation) zx.Error!?Evaluation {
+    if (left.value != .scalar or right.value != .scalar) return null;
+
     const rule = @import("generated_verification_binary");
     const Input = std.meta.Child(rule.Input);
     const operators = zx.columns.slice([]const @FieldType(Input, "operator"), table.binary_operators);

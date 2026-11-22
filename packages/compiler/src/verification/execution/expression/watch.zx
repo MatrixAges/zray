@@ -1,0 +1,46 @@
+import integers from "std:integer"
+import host from "verification_host"
+import { SymbolicOperand } from "verification_host"
+
+import conjunction from "../../scalar/conjunction"
+import { smt_true } from "../../scalar/const"
+
+import type { SymbolicExpression } from "verification_host"
+
+export type Input = {
+    frame: SymbolicExpression,
+    values: u32[],
+    first: u32,
+    count: u32
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { frame, values } = in
+
+    const first = integers.widen(in.first)
+    const end = first + integers.widen(in.count)
+
+    return loop({
+        row: first,
+        safe: smt_true
+    }, {
+        while: state => state.row < end,
+        next: state => {
+            const safe =
+                host.evaluateSymbolicOperand(
+                    frame,
+                    SymbolicOperand.First,
+                    values[state.row]
+                )
+            const checked = conjunction({
+                left: state.safe,
+                right: safe
+            })
+            state.safe = host.bindSymbolicExpressionSafety(frame, checked)
+            state.row += 1
+        },
+        return: state => state.safe
+    })
+}

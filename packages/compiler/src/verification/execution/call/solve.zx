@@ -1,0 +1,23 @@
+import host from "verification_host"
+
+import conjunction from "../../scalar/conjunction"
+
+import type { Solve as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const call = in.call
+
+    if (!host.findSymbolicCallee(call)) {
+        host.evaluateSymbolicCallee(call)
+        host.publishSymbolicCallee(call)
+    }
+
+    const safe = conjunction({
+        left: in.argument_safe,
+        right: host.symbolicCalleeSafety(call)
+    })
+
+    host.writeSymbolicCallSafety(call, safe)
+}
