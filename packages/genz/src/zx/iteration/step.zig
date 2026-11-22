@@ -79,15 +79,18 @@ pub fn store(self: *Lower, body: *@import("../iteration_value/root.zig").Stateme
         return self.builder.statements(body.items);
     }
 
-    const prefix = try self.builder.finishStatements(body);
-
-    const count = try @import("assignment.zig").lower(self, .{
+    return publish(self, body, .{
         .type_id = write.type_id,
         .active = schedule.assignment == .State and self.state_active,
         .target = write.target,
         .value = value,
         .mark = if (tracker) |flag| flag.generated else null,
     });
+}
+
+pub fn publish(self: *Lower, body: *@import("../iteration_value/root.zig").Statements, write: @import("assignment.zig").Write) Lower.Error!node.Block {
+    const prefix = try self.builder.finishStatements(body);
+    const count = try @import("assignment.zig").lower(self, write);
 
     return .{ .start = prefix.start, .len = prefix.len + count };
 }

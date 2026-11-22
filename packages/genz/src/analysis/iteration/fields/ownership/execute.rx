@@ -1,0 +1,15 @@
+<Module>
+    <Type from="execute_model" as="Projection" />
+
+    <Args in={Projection.Input} out={u32} />
+
+    <Call fn="index.publishLoopFieldOperands" in={$in.target} />
+
+    <If on={$in.replaces}>
+        <Call fn="index.replaceLoopFields" in={$in.target} />
+    </If>
+
+    <Call fn="rebuild" in={$in} />
+
+    <Return value={$ctx.rebuild} />
+</Module>

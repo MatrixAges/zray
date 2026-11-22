@@ -2,6 +2,8 @@ import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
 
 export type Admission = LoopAdmission
 
+export type Frame = LoopFrame
+
 export type Input = {
     frame: Lowering,
     loop_frame: LoopFrame,

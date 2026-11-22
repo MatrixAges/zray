@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Loop" />
+
+    <Args in={Loop.Frame} out={void} />
+
+    <Call fn="index.loopUsesStateScope" in={$in} />
+
+    <If on={$ctx.loopUsesStateScope}>
+        <Call fn="index.enterLoopRepresentation" in={$in} />
+    </If>
+
+    <Call fn="index.createLoopSeed" in={$in} />
+    <Call fn="index.loopProjectsFields" in={$in} />
+
+    <If on={$ctx.loopProjectsFields}>
+        <Call fn="index.prepareLoopFields" in={$in} />
+    </If>
+
+    <Call fn="index.loopTracksChange" in={$in} />
+
+    <If on={$ctx.loopTracksChange}>
+        <Call fn="index.trackLoopChange" in={$in} />
+    </If>
+
+    <Call fn="index.openLoopParameters" in={$in} />
+</Module>

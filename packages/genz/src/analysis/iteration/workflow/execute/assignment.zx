@@ -1,0 +1,18 @@
+import host from "lowering_host"
+import { LoopAssignment } from "lowering_host"
+
+import type { LoopFrame as Input } from "lowering_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const assignment = host.loopAssignment(in)
+
+    const value = match assignment {
+        LoopAssignment.Projected => host.projectLoopAssignment(in),
+        LoopAssignment.State => host.clipLoopAssignment(in),
+        _ => host.loopNextValue(in)
+    }
+
+    host.commitLoopUpdate(in, value)
+}

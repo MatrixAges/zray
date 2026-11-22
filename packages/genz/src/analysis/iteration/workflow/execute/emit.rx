@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Loop" />
+
+    <Args in={Loop.Frame} out={u32} />
+
+    <Call fn="index.emitLoopRenewals" in={$in} />
+    <Call fn="index.loopProjects" in={$in} />
+
+    <If on={$ctx.loopProjects}>
+        <Call fn="index.maskLoopBorrowedFields" in={$in} />
+        <Call fn="index.declareProjectedLoopState" in={$in} />
+    </If>
+
+    <Call fn="index.publishLoopDeclarations" in={$in} />
+    <Call fn="assignment" in={$in} />
+    <Call fn="index.frameLoweredLoop" in={$in} />
+    <Call fn="index.resetLoopResult" in={$in} />
+    <Call fn="index.loopRestoresFields" in={$in} />
+
+    <If on={$ctx.loopRestoresFields}>
+        <Call fn="index.restoreLoopFields" in={$in} />
+    </If>
+
+    <Call fn="finish" in={$in} />
+
+    <Return value={$ctx.finish} />
+</Module>

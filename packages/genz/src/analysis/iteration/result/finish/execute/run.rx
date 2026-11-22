@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Result" />
+
+    <Args in={Result.Input} out={u32} />
+
+    <Call fn="prepare" in={$in} />
+
+    <Call
+        fn="complete"
+        in={{
+            target: $in.target,
+            state: $in.state,
+            completion: $in.completion,
+            prepared: $ctx.prepare
+        }}
+    />
+
+    <Return value={$ctx.complete} />
+</Module>

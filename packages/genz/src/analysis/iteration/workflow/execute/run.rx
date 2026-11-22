@@ -15,9 +15,12 @@
         <Return value={$ctx.dereference} />
     </If>
 
-    <Call fn="parameters" in={$in.loop_frame} />
+    <Call module="parameters" in={$in.loop_frame} />
+
+    <Call fn="storage" in={$in.loop_frame} />
     <Call fn="evaluate" in={$in} />
-    <Call fn="emit" in={$in.loop_frame} />
+
+    <Call module="emit" in={$in.loop_frame} />
 
     <Return value={$ctx.emit} />
 </Module>

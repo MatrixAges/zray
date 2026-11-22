@@ -1,0 +1,23 @@
+import host from "lowering_host"
+import { LoopStorage } from "lowering_host"
+
+import type { LoopFrame } from "lowering_host"
+
+export type Input = LoopFrame
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const kind = host.loopStorage(in)
+
+    const value = match kind {
+        LoopStorage.Dereference => host.dereferenceLoopInitial(in),
+        LoopStorage.Deep => host.deepenLoopInitial(in),
+        LoopStorage.State => host.representLoopInitial(in, false),
+        LoopStorage.StateValue => host.representLoopInitial(in, true),
+        LoopStorage.Clip => host.clipLoopInitial(in),
+        _ => host.loopInitialValue(in)
+    }
+
+    host.planLoopUpdate(in, value)
+}

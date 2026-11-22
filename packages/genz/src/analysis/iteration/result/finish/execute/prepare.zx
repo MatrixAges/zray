@@ -1,0 +1,24 @@
+import host from "lowering_host"
+import { LoopResultWrap } from "lowering_host"
+
+import { Preparation } from "../model"
+
+import type { Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { target } = in
+
+    return match in.preparation {
+        Preparation.BufferedConsumer => host.consumeDeepLoopResult(target, true),
+        Preparation.DeepConsumer => host.consumeDeepLoopResult(target, false),
+        Preparation.Consumer => host.consumeLoopProjection(target, false),
+        Preparation.ConvertedConsumer => host.consumeLoopProjection(target, true),
+        Preparation.Unit => host.makeLoopResultUnit(target),
+        Preparation.Reserve => host.reserveLoopResult(target),
+        Preparation.Layout => host.wrapLoopResult(target, LoopResultWrap.Layout),
+        Preparation.Pointer => host.wrapLoopResult(target, LoopResultWrap.Pointer),
+        _ => host.wrapLoopResult(target, LoopResultWrap.Block)
+    }
+}

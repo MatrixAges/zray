@@ -185,3 +185,28 @@ export enum LoopNameStorage {
     Own,
     Reuse
 }
+
+export enum LoopStorage {
+    Keep,
+    Dereference,
+    Deep,
+    State,
+    StateValue,
+    Clip
+}
+
+export enum LoopAssignment {
+    Direct,
+    State,
+    Projected
+}
+
+export type LoopFieldRebuild = opaque
+
+export type LoopResultFrame = opaque
+
+export enum LoopResultWrap {
+    Block,
+    Layout,
+    Pointer
+}

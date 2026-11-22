@@ -1,3 +1,4 @@
+const zx = @import("zx");
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Frame = @import("frame.zig");
@@ -8,6 +9,7 @@ const scope = @import("../../state_value/scope.zig");
 const result = @import("../result.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
+const Api = @import("../../expressions/evaluate.zig").Api;
 
 pub fn loopProjects(handle: *const anyopaque) bool {
     return Frame.borrow(handle).fields != null;
@@ -78,25 +80,47 @@ pub fn declareLoopState(handle: *const anyopaque) Error!void {
 }
 
 pub fn enterLoweredLoop(handle: *const anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
+    const projected = loopProjects(handle);
 
-    frame.growth = try frame.renewals.store(self, frame.type_id, .{
-        .reference = if (frame.fields != null) frame.seed else frame.state,
-    });
+    try emitLoopRenewals(handle);
 
-    if (frame.fields) |*fields| {
-        const body = frame.output();
-
-        try fields.maskBorrowed(self, body);
-
-        _ = try declarations.declare(self, body, .{
-            .name = frame.name,
-            .layout = fields.layout,
-            .initial = try fields.initial(self),
-        });
+    if (projected) {
+        try maskLoopBorrowedFields(handle);
+        try declareProjectedLoopState(handle);
     }
 
+    return publishLoopDeclarations(handle);
+}
+
+pub fn emitLoopRenewals(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.growth = try frame.renewals.store(frame.lowering, frame.type_id, .{
+        .reference = if (frame.fields != null) frame.seed else frame.state,
+    });
+}
+
+pub fn maskLoopBorrowedFields(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    return frame.fields.?.maskBorrowed(frame.lowering, frame.output());
+}
+
+pub fn declareProjectedLoopState(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const fields = &frame.fields.?;
+    const self = frame.lowering;
+
+    _ = try declarations.declare(self, frame.output(), .{
+        .name = frame.name,
+        .layout = fields.layout,
+        .initial = try fields.initial(self),
+    });
+}
+
+pub fn publishLoopDeclarations(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
     const output = frame.output();
 
     frame.prefix.declarations = if (generated) try output.block(self.allocator) else try self.builder.statements(output.items);
@@ -114,6 +138,38 @@ pub fn writeLoopUpdate(handle: *const anyopaque) Error!void {
     }, frame.tracker);
 }
 
+pub fn loopAssignment(handle: *const anyopaque) Api.LoopAssignment {
+    return zx.columns.view(Api.LoopAssignment, Frame.borrow(handle).schedule.assignment);
+}
+
+pub fn loopNextValue(handle: *const anyopaque) u32 {
+    return @backingInt(Frame.borrow(handle).next.value);
+}
+
+pub fn projectLoopAssignment(handle: *const anyopaque) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try frame.fields.?.qualify(frame.lowering, &frame.loop, frame.iteration.body, frame.next.value));
+}
+
+pub fn clipLoopAssignment(handle: *const anyopaque) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.loop, frame.iteration.body, frame.next.value));
+}
+
+pub fn commitLoopUpdate(handle: *const anyopaque, value: u32) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.update = try step.publish(frame.lowering, &frame.loop, .{
+        .type_id = frame.type_id,
+        .active = frame.schedule.assignment == .State and frame.lowering.state_active,
+        .target = frame.state,
+        .value = @fromBackingInt(value),
+        .mark = if (frame.tracker) |flag| flag.generated else null,
+    });
+}
+
 pub fn frameLoweredLoop(handle: *const anyopaque) Error!void {
     const frame = Frame.borrow(handle);
     const projected = frame.fields != null;
@@ -128,24 +184,46 @@ pub fn frameLoweredLoop(handle: *const anyopaque) Error!void {
 }
 
 pub fn recoverLoweredLoop(handle: *const anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const output = frame.output();
+    resetLoopResult(handle);
 
-    output.clearRetainingCapacity();
+    if (loopRestoresFields(handle)) try restoreLoopFields(handle);
+}
+
+pub fn resetLoopResult(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+
+    frame.output().clearRetainingCapacity();
 
     frame.recovered = frame.state;
+}
 
-    if (frame.fields) |*fields| {
-        if (frame.schedule.restore_projected) frame.recovered = try aggregate.bind(self, output, try fields.restore(self, frame.state));
-    }
+pub fn loopRestoresFields(handle: *const anyopaque) bool {
+    const frame = Frame.borrow(handle);
+
+    return frame.fields != null and frame.schedule.restore_projected;
+}
+
+pub fn restoreLoopFields(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+
+    frame.recovered = try aggregate.bind(self, frame.output(), try frame.fields.?.restore(self, frame.state));
 }
 
 pub fn finishLoweredLoop(handle: *const anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
+    const value = try completeLoopResult(handle);
 
-    const finish: result.Result = .{
+    if (loopProjects(handle)) {
+        if (loopFirstTest(handle)) |first| return finishSkippedLoop(handle, value, first);
+
+        return finishProjectedLoop(handle, value);
+    }
+
+    return if (loopHasInitialGuard(handle)) finishGuardedLoop(handle, value) else value;
+}
+
+fn resultConfig(frame: *Frame) result.Result {
+    return .{
         .consumer = frame.consumer,
         .deep = frame.initial.deep,
         .context = &frame.context,
@@ -158,22 +236,44 @@ pub fn finishLoweredLoop(handle: *const anyopaque) Error!u32 {
         .changed_name = frame.changed_name,
         .mode = frame.mode,
     };
+}
 
-    const value = try finish.lower(self, frame.output(), frame.recovered, frame.prefix);
+pub fn completeLoopResult(handle: *const anyopaque) Error!u32 {
+    const frame = Frame.borrow(handle);
 
-    if (frame.fields != null) {
-        if (frame.next.first) |first| {
-            var skipped = Frame.statements(self);
+    return @backingInt(try resultConfig(frame).lower(frame.lowering, frame.output(), frame.recovered, frame.prefix));
+}
 
-            defer if (generated) skipped.deinit();
+pub fn loopFirstTest(handle: *const anyopaque) ?u32 {
+    const frame = Frame.borrow(handle);
 
-            return @backingInt(try aggregate.finishGuarded(self, &frame.body, first, value, try finish.lower(self, &skipped, frame.seed, .{})));
-        }
+    return if (frame.next.first) |first| @backingInt(first) else null;
+}
 
-        return @backingInt(try aggregate.finish(self, &frame.body, value));
-    }
+pub fn finishSkippedLoop(handle: *const anyopaque, value: u32, first: u32) Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    var skipped = Frame.statements(self);
 
-    if (frame.guard) |*guard| return @backingInt(try guard.finish(self, value));
+    defer if (generated) skipped.deinit();
 
-    return @backingInt(value);
+    const fallback = try resultConfig(frame).lower(self, &skipped, frame.seed, .{});
+
+    return @backingInt(try aggregate.finishGuarded(self, &frame.body, @fromBackingInt(first), @fromBackingInt(value), fallback));
+}
+
+pub fn finishProjectedLoop(handle: *const anyopaque, value: u32) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try aggregate.finish(frame.lowering, &frame.body, @fromBackingInt(value)));
+}
+
+pub fn loopHasInitialGuard(handle: *const anyopaque) bool {
+    return Frame.borrow(handle).guard != null;
+}
+
+pub fn finishGuardedLoop(handle: *const anyopaque, value: u32) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try frame.guard.?.finish(frame.lowering, @fromBackingInt(value)));
 }

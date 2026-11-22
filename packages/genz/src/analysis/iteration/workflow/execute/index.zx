@@ -1,0 +1,19 @@
+export {
+    loopUsesStateScope,
+    enterLoopRepresentation,
+    createLoopSeed,
+    loopProjectsFields,
+    prepareLoopFields,
+    loopTracksChange,
+    trackLoopChange,
+    openLoopParameters,
+    loopProjects,
+    emitLoopRenewals,
+    maskLoopBorrowedFields,
+    declareProjectedLoopState,
+    publishLoopDeclarations,
+    frameLoweredLoop,
+    resetLoopResult,
+    loopRestoresFields,
+    restoreLoopFields
+} from "lowering_host"

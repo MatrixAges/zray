@@ -1,0 +1,7 @@
+import type { LoopFieldRebuild } from "lowering_host"
+
+export type Input = {
+    target: LoopFieldRebuild,
+    replaces: bool,
+    layout?: u32
+}

@@ -61,34 +61,76 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     if (!planned.valid) return error.OutOfMemory;
 
-    @import("../../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, planned.expressions) catch |err| return failure(err);
+    var work: Rebuild = .{
+        .context = self,
+        .projection = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) },
+        .planned = planned,
+        .value = request.value,
+        .temporary = temporary,
+    };
 
-    const replacements = try temporary.alloc(u32, planned.requests.fields.len);
+    const execute = @import("generated_rebuild_loop_fields");
 
-    if (replacements.len != 0) {
-        const frame: Frame = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) };
-        const apply = @import("generated_apply_loop_field_projection");
-        const Apply = std.meta.Child(apply.Input);
+    const request_execution: std.meta.Child(execute.Input) = .{
+        .target = @ptrCast(&work),
+        .replaces = planned.requests.fields.len != 0,
+        .layout = if (request.layout) |layout| @backingInt(layout) else null,
+    };
 
-        const edits: Apply = .{
-            .target = @ptrCast(&frame),
-            .requests = zx.columns.pointer(@FieldType(Apply, "requests"), planned.requests),
-            .values = planned.values,
-            .replacements = @ptrCast(&replacements),
-        };
+    return try @import("../../expressions/evaluate.zig").invoke(execute, &request_execution);
+}
 
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-        apply.executeIn(fixed.allocator(), &edits) catch |err| return failure(err);
+const Rebuild = struct {
+    context: *const Context,
+    projection: Frame,
+    planned: @typeInfo(entry.Output).optional.child,
+    value: node.ExpressionId,
+    temporary: std.mem.Allocator,
+    replacements: []const u32 = &.{},
+    fn borrow(handle: *const anyopaque) *Rebuild {
+        return @ptrCast(@alignCast(@constCast(handle)));
     }
+};
 
-    const layout = request.layout orelse try lowering.layoutExpr(self.type_id);
+pub fn publishLoopFieldOperands(handle: *const anyopaque) Lower.Error!void {
+    const work = Rebuild.borrow(handle);
+    const lowering = work.projection.lowering;
 
-    return try projection.rebuild(self, lowering, request.value, layout, .{
-        .values = planned.values,
-        .changed = planned.requests.fields,
-        .replacements = replacements,
-    });
+    @import("../../../node/import_rows.zig").appendBorrowed(lowering.allocator, &lowering.builder.nodes.expressions, work.planned.expressions) catch |err| return failure(err);
+}
+
+pub fn replaceLoopFields(handle: *const anyopaque) Lower.Error!void {
+    const work = Rebuild.borrow(handle);
+    const apply = @import("generated_apply_loop_field_projection");
+    const Apply = std.meta.Child(apply.Input);
+    var replacements = try work.temporary.alloc(u32, work.planned.requests.fields.len);
+
+    const edits: Apply = .{
+        .target = @ptrCast(&work.projection),
+        .requests = zx.columns.pointer(@FieldType(Apply, "requests"), work.planned.requests),
+        .values = work.planned.values,
+        .replacements = @ptrCast(&replacements),
+    };
+
+    try @import("../../expressions/evaluate.zig").execute(apply, &edits);
+
+    work.replacements = replacements;
+}
+
+pub fn resolveLoopFieldLayout(handle: *const anyopaque) Lower.Error!u32 {
+    const work = Rebuild.borrow(handle);
+
+    return @backingInt(try work.projection.lowering.layoutExpr(work.context.type_id));
+}
+
+pub fn rebuildLoopFields(handle: *const anyopaque, layout: u32) Lower.Error!u32 {
+    const work = Rebuild.borrow(handle);
+
+    return @backingInt(try projection.rebuild(work.context, work.projection.lowering, work.value, @fromBackingInt(layout), .{
+        .values = work.planned.values,
+        .changed = work.planned.requests.fields,
+        .replacements = work.replacements,
+    }));
 }
 
 const Frame = struct {

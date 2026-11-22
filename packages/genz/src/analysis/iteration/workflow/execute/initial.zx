@@ -30,7 +30,16 @@ export default function (in: Input): Output {
         host.setLoopInitialScope(loop_frame, false)
     }
 
-    host.saveLoopInitial(loop_frame, value)
+    const saved = match {
+        host.loopBindsInitial(loop_frame) => host.bindLoopInitial(loop_frame, value),
+        _ => value
+    }
+
+    host.storeLoopInitial(loop_frame, saved)
+
+    if (host.loopGuardsInitial(loop_frame)) {
+        host.guardLoopInitial(loop_frame)
+    }
 
     return admission
 }

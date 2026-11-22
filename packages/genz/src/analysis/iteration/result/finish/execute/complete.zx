@@ -1,0 +1,27 @@
+import host from "lowering_host"
+
+import { Completion } from "../model"
+
+import type { Complete as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { target, completion, state, prepared } = in
+
+    const guard: u32? = match completion {
+        Completion.Prepared => null,
+        Completion.State => null,
+        _ => host.guardLoopResult(target)
+    }
+
+    const value = match completion {
+        Completion.Prepared => prepared,
+        Completion.GuardPrepared => prepared,
+        Completion.GuardDeep => host.convertLoopResult(target, true),
+        Completion.GuardConstruct => host.convertLoopResult(target, false),
+        _ => state
+    }
+
+    return host.publishLoopResult(target, value, guard)
+}

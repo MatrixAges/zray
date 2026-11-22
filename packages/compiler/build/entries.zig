@@ -1074,6 +1074,8 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/consumer/execute/run.zx", .name = "lower_loop_consumer", .owner = .genz },
     .{ .path = "genz/analysis/consumer/read/execute.zx", .name = "lower_loop_path", .owner = .genz },
     .{ .path = "genz/analysis/iteration/layout/execute.zx", .name = "execute_loop_layout", .owner = .genz },
+    .{ .path = "genz/analysis/iteration/fields/ownership/execute.rx", .name = "rebuild_loop_fields", .owner = .genz },
+    .{ .path = "genz/analysis/iteration/result/finish/execute/run.rx", .name = "publish_loop_result", .owner = .genz },
     .{ .path = "genz/analysis/iteration/workflow/execute/run.rx", .name = "lower_loop", .owner = .genz },
     .{ .path = "genz/analysis/match/execute.zx", .name = "lower_match_result", .owner = .genz },
     .{ .path = "genz/analysis/scope/bindings/run.zx", .name = "lower_scope_bindings", .owner = .genz },

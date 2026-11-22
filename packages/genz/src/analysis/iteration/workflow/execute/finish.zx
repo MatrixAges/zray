@@ -1,0 +1,23 @@
+import host from "lowering_host"
+
+import type { LoopFrame as Input } from "lowering_host"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const result = host.completeLoopResult(in)
+
+    if (host.loopProjects(in)) {
+        const first = host.loopFirstTest(in)
+
+        return match {
+            first != null => host.finishSkippedLoop(in, result, first),
+            _ => host.finishProjectedLoop(in, result)
+        }
+    }
+
+    return match {
+        host.loopHasInitialGuard(in) => host.finishGuardedLoop(in, result),
+        _ => result
+    }
+}

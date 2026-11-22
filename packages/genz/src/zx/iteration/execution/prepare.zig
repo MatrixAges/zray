@@ -74,28 +74,75 @@ pub fn setLoopInitialScope(handle: *const anyopaque, active: bool) void {
 }
 
 pub fn saveLoopInitial(handle: *const anyopaque, value: u32) Error!void {
+    storeLoopInitial(handle, if (loopBindsInitial(handle)) try bindLoopInitial(handle, value) else value);
+
+    if (loopGuardsInitial(handle)) try guardLoopInitial(handle);
+}
+
+pub fn loopBindsInitial(handle: *const anyopaque) bool {
+    return Frame.borrow(handle).initial.local;
+}
+
+pub fn bindLoopInitial(handle: *const anyopaque, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const expression: node.ExpressionId = @fromBackingInt(value);
 
-    frame.initial_value = if (frame.initial.local) try aggregate.bind(self, &frame.body, expression) else expression;
+    return @backingInt(try aggregate.bind(frame.lowering, &frame.body, @fromBackingInt(value)));
+}
 
-    if (frame.initial.guard != .None) {
-        frame.guard = try @import("../../iteration_value/initial.zig").create(self, &frame.body, frame.iteration, frame.consumer, frame.initial_value, frame.initial.guard);
-    }
+pub fn storeLoopInitial(handle: *const anyopaque, value: u32) void {
+    Frame.borrow(handle).initial_value = @fromBackingInt(value);
+}
+
+pub fn loopGuardsInitial(handle: *const anyopaque) bool {
+    return Frame.borrow(handle).initial.guard != .None;
+}
+
+pub fn guardLoopInitial(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    frame.guard = try @import("../../iteration_value/initial.zig").create(frame.lowering, &frame.body, frame.iteration, frame.consumer, frame.initial_value, frame.initial.guard);
 }
 
 pub fn prepareLoopState(handle: *const anyopaque) Error!void {
+    if (loopUsesStateScope(handle)) try enterLoopRepresentation(handle);
+
+    try createLoopSeed(handle);
+    if (loopProjectsFields(handle)) try prepareLoopFields(handle);
+    if (loopTracksChange(handle)) try trackLoopChange(handle);
+}
+
+pub fn loopUsesStateScope(handle: *const anyopaque) bool {
+    return Frame.borrow(handle).initial.state_scope;
+}
+
+pub fn enterLoopRepresentation(handle: *const anyopaque) Error!void {
     const frame = Frame.borrow(handle);
-    const self = frame.lowering;
+    frame.representation = try @import("../../state_value/root.zig").enter(frame.lowering);
+}
 
-    if (frame.initial.state_scope) frame.representation = try @import("../../state_value/root.zig").enter(self);
+pub fn createLoopSeed(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    const lowering = frame.lowering;
 
-    frame.seed = try self.builder.identifier(try self.fresh("loop_seed"));
+    frame.seed = try lowering.builder.identifier(try lowering.fresh("loop_seed"));
+}
 
-    if (frame.initial.project_fields) frame.fields = try @import("../fields/prepare.zig").prepare(self, frame.iteration, frame.type_id, &frame.body, frame.seed);
+pub fn loopProjectsFields(handle: *const anyopaque) bool {
+    return Frame.borrow(handle).initial.project_fields;
+}
 
-    frame.changed_name = if (frame.initial.track) try self.fresh("state_changed") else "";
+pub fn prepareLoopFields(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+    frame.fields = try @import("../fields/prepare.zig").prepare(frame.lowering, frame.iteration, frame.type_id, &frame.body, frame.seed);
+}
+
+pub fn loopTracksChange(handle: *const anyopaque) bool {
+    return Frame.borrow(handle).initial.track;
+}
+
+pub fn trackLoopChange(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    frame.changed_name = try frame.lowering.fresh("state_changed");
 }
 
 pub fn openLoopParameters(handle: *const anyopaque) Error!void {
@@ -105,17 +152,54 @@ pub fn openLoopParameters(handle: *const anyopaque) Error!void {
 }
 
 pub fn prepareLoopUpdate(handle: *const anyopaque) Error!void {
+    const value = switch (Frame.borrow(handle).initial.storage) {
+        .Keep => loopInitialValue(handle),
+        .Dereference => try dereferenceLoopInitial(handle),
+        .Deep => try deepenLoopInitial(handle),
+        .State => try representLoopInitial(handle, false),
+        .StateValue => try representLoopInitial(handle, true),
+        .Clip => try clipLoopInitial(handle),
+    };
+
+    return planLoopUpdate(handle, value);
+}
+
+pub fn loopStorage(handle: *const anyopaque) Api.LoopStorage {
+    return zx.columns.view(Api.LoopStorage, Frame.borrow(handle).initial.storage);
+}
+
+pub fn loopInitialValue(handle: *const anyopaque) u32 {
+    return @backingInt(Frame.borrow(handle).initial_value);
+}
+
+pub fn dereferenceLoopInitial(handle: *const anyopaque) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try @import("../../access/emit.zig").dereference(frame.lowering, frame.initial_value));
+}
+
+pub fn deepenLoopInitial(handle: *const anyopaque) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, frame.initial_value, false));
+}
+
+pub fn representLoopInitial(handle: *const anyopaque, by_value: bool) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try @import("../../state_value/conversion.zig").convert(frame.lowering, &frame.body, frame.type_id, frame.initial_value, if (by_value) .value_layout else .value));
+}
+
+pub fn clipLoopInitial(handle: *const anyopaque) Error!u32 {
+    const frame = Frame.borrow(handle);
+
+    return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, frame.initial_value));
+}
+
+pub fn planLoopUpdate(handle: *const anyopaque, value: u32) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
-    const value = frame.initial_value;
-
-    frame.initial_state = switch (frame.initial.storage) {
-        .Keep => value,
-        .Dereference => try @import("../../access/emit.zig").dereference(self, value),
-        .Deep => try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, value, false),
-        .State, .StateValue => try @import("../../state_value/conversion.zig").convert(self, &frame.body, frame.type_id, value, if (frame.initial.storage == .StateValue) .value_layout else .value),
-        .Clip => try @import("../../state_value/ownership.zig").clip(self, &frame.body, frame.iteration.initial, value),
-    };
+    frame.initial_state = @fromBackingInt(value);
 
     frame.schedule = step.plan(.{
         .condition = @backingInt(frame.iteration.condition),

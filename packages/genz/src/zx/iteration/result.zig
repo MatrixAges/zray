@@ -5,6 +5,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const Context = @import("../iteration_value/root.zig");
+const evaluation = @import("../expressions/evaluate.zig");
 const generated = @import("genz_options").generated_analysis;
 const entry = if (generated) @import("generated_iteration_result_finish") else struct {};
 
@@ -35,68 +36,46 @@ pub const Result = struct {
     changed_name: []const u8,
     mode: Mode,
     pub fn lower(config: Result, self: *Lower, body: *Context.Statements, state: node.ExpressionId, previous: Prefix) Lower.Error!node.ExpressionId {
-        const actions = config.plan();
-        const prepared = try config.prepare(self, body, state, actions.preparation);
+        const frame: Publication = .{
+            .config = config,
+            .lowering = self,
+            .body = body,
+            .state = state,
+            .prefix = previous,
+        };
 
-        const guard: ?aggregate.Guard = switch (actions.completion) {
+        const actions = config.plan();
+
+        if (generated) {
+            const execute = @import("generated_publish_loop_result");
+            const Input = std.meta.Child(execute.Input);
+
+            const input: Input = .{
+                .target = @ptrCast(&frame),
+                .state = @backingInt(state),
+                .preparation = zx.columns.view(@FieldType(Input, "preparation"), actions.preparation),
+                .completion = zx.columns.view(@FieldType(Input, "completion"), actions.completion),
+            };
+
+            return evaluation.invoke(execute, &input);
+        }
+
+        const prepared = try frame.prepare(actions.preparation);
+
+        const guard = switch (actions.completion) {
             .Prepared, .State => null,
-            else => .{
-                .condition = try self.builder.identifier(config.changed_name),
-                .fallback = config.initial,
-            },
+            else => try frame.guard(),
         };
 
         const value = switch (actions.completion) {
             .Prepared, .GuardPrepared => prepared,
             .State, .GuardState => state,
-            .GuardDeep => try @import("../iteration_value/conversion.zig").convert(config.context, config.type_id, state, true),
-            .GuardConstruct => try self.construct(config.type_id, state),
+            .GuardDeep => try frame.convert(true),
+            .GuardConstruct => try frame.convert(false),
         };
 
-        const appended = if (generated) try body.block(self.allocator) else try self.builder.statements(body.items);
-
-        const final = try @import("../../node/blocks.zig").tail(
-            self.allocator,
-            self.builder.nodes,
-            &.{ previous.renewals.start, previous.declarations.start, previous.frame.start, appended.start },
-            &.{ previous.renewals.len, previous.declarations.len, previous.frame.len, appended.len },
-        );
-
-        return aggregate.finishStored(self, final, value, guard);
+        return frame.publish(value, guard);
     }
-    fn prepare(config: Result, self: *Lower, body: *Context.Statements, state: node.ExpressionId, action: Preparation) Lower.Error!node.ExpressionId {
-        return switch (action) {
-            .BufferedConsumer => @import("../iteration_value/result.zig").buffered(config.context, body, config.consumer.?, state),
-            .DeepConsumer => @import("../iteration_value/result.zig").lower(self, config.consumer.?, state),
-            .Consumer, .ConvertedConsumer => projected: {
-                const consumer = config.consumer.?;
-                const value = try @import("../iteration_consumer.zig").read(self, consumer, consumer.result, state);
-
-                if (action == .Consumer) break :projected value;
-
-                const bound = try aggregate.bind(self, body, value);
-                const type_id = self.program.expression(consumer.result).type_id;
-
-                break :projected @import("../state_value/conversion.zig").convert(self, body, type_id, bound, .pointer);
-            },
-            .Unit => self.builder.expression(.unit),
-            .Reserve => reserved: {
-                self.serial = std.math.add(usize, self.serial, 1) catch return error.OutOfMemory;
-
-                break :reserved state;
-            },
-            .Block, .Layout, .Pointer => wrapped: {
-                var inner: Context.Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
-
-                defer if (generated) inner.deinit();
-
-                const value = if (action == .Block) state else try @import("../state_value/conversion.zig").convert(self, &inner, config.type_id, state, if (action == .Layout) .layout else .pointer);
-
-                break :wrapped aggregate.finish(self, &inner, value);
-            },
-        };
-    }
-
     fn plan(config: Result) Plan {
         if (!generated) return config.seedPlan();
 
@@ -155,3 +134,120 @@ pub const Result = struct {
         return .{ .preparation = action, .completion = completion };
     }
 };
+
+const Publication = struct {
+    config: Result,
+    lowering: *Lower,
+    body: *Context.Statements,
+    state: node.ExpressionId,
+    prefix: Prefix,
+    fn borrow(target: *const anyopaque) *const Publication {
+        return @ptrCast(@alignCast(target));
+    }
+    fn prepare(self: *const Publication, action: Preparation) Lower.Error!node.ExpressionId {
+        return switch (action) {
+            .BufferedConsumer => self.deep(true),
+            .DeepConsumer => self.deep(false),
+            .Consumer => self.project(false),
+            .ConvertedConsumer => self.project(true),
+            .Unit => self.lowering.builder.expression(.unit),
+            .Reserve => self.reserve(),
+            .Block, .Layout, .Pointer => self.wrap(action),
+        };
+    }
+    fn deep(self: *const Publication, buffered: bool) Lower.Error!node.ExpressionId {
+        const consumer = self.config.consumer.?;
+
+        return if (buffered)
+            @import("../iteration_value/result.zig").buffered(self.config.context, self.body, consumer, self.state)
+        else
+            @import("../iteration_value/result.zig").lower(self.lowering, consumer, self.state);
+    }
+    fn project(self: *const Publication, converted: bool) Lower.Error!node.ExpressionId {
+        const lowering = self.lowering;
+        const consumer = self.config.consumer.?;
+        const value = try @import("../iteration_consumer.zig").read(lowering, consumer, consumer.result, self.state);
+
+        if (!converted) return value;
+
+        const bound = try aggregate.bind(lowering, self.body, value);
+        const type_id = lowering.program.expression(consumer.result).type_id;
+
+        return @import("../state_value/conversion.zig").convert(lowering, self.body, type_id, bound, .pointer);
+    }
+    fn reserve(self: *const Publication) Lower.Error!node.ExpressionId {
+        const lowering = self.lowering;
+        lowering.serial = std.math.add(usize, lowering.serial, 1) catch return error.OutOfMemory;
+
+        return self.state;
+    }
+    fn wrap(self: *const Publication, action: Preparation) Lower.Error!node.ExpressionId {
+        const lowering = self.lowering;
+        var inner: Context.Statements = if (generated) lowering.builder.statementSequence(lowering.workspace) else .empty;
+
+        defer if (generated) inner.deinit();
+
+        const value = if (action == .Block) self.state else try @import("../state_value/conversion.zig").convert(lowering, &inner, self.config.type_id, self.state, if (action == .Layout) .layout else .pointer);
+
+        return aggregate.finish(lowering, &inner, value);
+    }
+    fn guard(self: *const Publication) Lower.Error!node.ExpressionId {
+        return self.lowering.builder.identifier(self.config.changed_name);
+    }
+    fn convert(self: *const Publication, deep_result: bool) Lower.Error!node.ExpressionId {
+        return if (deep_result)
+            @import("../iteration_value/conversion.zig").convert(self.config.context, self.config.type_id, self.state, true)
+        else
+            self.lowering.construct(self.config.type_id, self.state);
+    }
+    fn publish(self: *const Publication, value: node.ExpressionId, condition: ?node.ExpressionId) Lower.Error!node.ExpressionId {
+        const lowering = self.lowering;
+        const previous = self.prefix;
+        const appended = if (generated) try self.body.block(lowering.allocator) else try lowering.builder.statements(self.body.items);
+
+        const final = try @import("../../node/blocks.zig").tail(
+            lowering.allocator,
+            lowering.builder.nodes,
+            &.{ previous.renewals.start, previous.declarations.start, previous.frame.start, appended.start },
+            &.{ previous.renewals.len, previous.declarations.len, previous.frame.len, appended.len },
+        );
+
+        return aggregate.finishStored(lowering, final, value, if (condition) |guard_id| .{ .condition = guard_id, .fallback = self.config.initial } else null);
+    }
+};
+
+pub fn consumeDeepLoopResult(handle: *const anyopaque, buffered: bool) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).deep(buffered));
+}
+
+pub fn consumeLoopProjection(handle: *const anyopaque, converted: bool) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).project(converted));
+}
+
+pub fn makeLoopResultUnit(handle: *const anyopaque) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).lowering.builder.expression(.unit));
+}
+
+pub fn reserveLoopResult(handle: *const anyopaque) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).reserve());
+}
+
+pub fn wrapLoopResult(handle: *const anyopaque, form: evaluation.Api.LoopResultWrap) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).wrap(switch (form) {
+        .Block => .Block,
+        .Layout => .Layout,
+        .Pointer => .Pointer,
+    }));
+}
+
+pub fn guardLoopResult(handle: *const anyopaque) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).guard());
+}
+
+pub fn convertLoopResult(handle: *const anyopaque, deep: bool) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).convert(deep));
+}
+
+pub fn publishLoopResult(handle: *const anyopaque, value: u32, guard: ?u32) Lower.Error!u32 {
+    return @backingInt(try Publication.borrow(handle).publish(@fromBackingInt(value), if (guard) |condition| @fromBackingInt(condition) else null));
+}

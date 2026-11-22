@@ -1,0 +1,13 @@
+import type { LoopResultFrame } from "lowering_host"
+import type { Completion, Preparation } from "../model"
+
+export type Input = {
+    target: LoopResultFrame,
+    state: u32,
+    preparation: Preparation,
+    completion: Completion
+}
+
+export type Complete = Input.Pick("target", "state", "completion") & {
+    prepared: u32
+}
