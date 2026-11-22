@@ -1,0 +1,13 @@
+export type VerificationPublication = opaque
+
+export declare function verificationEvidence(allocator, context: VerificationPublication): u8[]
+    throws { OutOfMemory }
+
+export declare function finishVerificationDigest(context: VerificationPublication): u8[]
+
+export declare function verificationPathText(context: VerificationPublication): string
+
+export declare function writeVerificationOutput(
+    context: VerificationPublication,
+    content: u8[]
+): void throws { WriteFailed }

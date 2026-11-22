@@ -1,0 +1,36 @@
+import bytes from "std:bytes"
+import memory from "memory"
+import host from "verification_report_host"
+
+import { binding_separator, counterexample_header, line_end } from "./const"
+
+import type { Counterexample as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { context, model, bindings } = in
+    const { symbols, paths, count } = bindings
+
+    const newline = bytes.fromText(line_end)
+    const separator = bytes.fromText(binding_separator)
+
+    host.writeVerificationOutput(context, bytes.fromText(counterexample_header))
+    host.writeVerificationOutput(context, model)
+    host.writeVerificationOutput(context, newline)
+
+    const written = loop(0, {
+        while: index => index < count,
+        next: index => {
+            const symbol = memory.readTextColumn(symbols, index)
+            const path = memory.readTextColumn(paths, index)
+
+            host.writeVerificationOutput(context, bytes.fromText(symbol))
+            host.writeVerificationOutput(context, separator)
+            host.writeVerificationOutput(context, bytes.fromText(path))
+            host.writeVerificationOutput(context, newline)
+
+            index += 1
+        }
+    })
+}

@@ -90,6 +90,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/verification/host.d.zx", .{directories[0]}), .module = "verification_host" },
         .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host" },
         .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host" },
+        .{ .path = b.fmt("{s}/verification/solver/publication/host.d.zx", .{directories[0]}), .module = "verification_report_host" },
         .{ .path = b.fmt("{s}/backends/hardware/construction/workflow/host.d.zx", .{directories[0]}), .module = "hardware_build_host" },
         hardware_graph_interface,
         .{ .path = b.fmt("{s}/backends/verilog/workflow/writer.d.zx", .{directories[0]}), .module = "verilog_host" },
@@ -297,13 +298,25 @@ pub const Shared = struct { generated: *std.Build.Module, checks: *std.Build.Mod
 
 pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, source: Sources, strip: ?bool, partitions: u32) Shared {
     const abi = b.createModule(.{ .root_source_file = source.main.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
+    const execution_abi = b.createModule(.{ .root_source_file = source.execution.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip });
+
+    const standard_types = b.createModule(.{
+        .root_source_file = b.path("build/standard_types.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "main", .module = abi },
+            .{ .name = "execution", .module = execution_abi },
+        },
+    });
+
     const memory = b.dependency("core", .{ .target = target, .optimize = optimize }).module("memory");
 
     const standard = b.createModule(.{
         .root_source_file = b.dependency("zxc_std", .{}).path("src/root.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "zxc_abi", .module = abi }},
+        .imports = &.{.{ .name = "zxc_abi", .module = standard_types }},
     });
 
     standard.addImport("sha256_backend", b.dependency("zxc_std", .{ .target = target, .optimize = optimize }).module("sha256_backend"));
@@ -422,7 +435,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         .optimize = optimize,
         .strip = strip,
         .imports = &.{
-            .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = source.execution.path(b, "types.zig"), .target = target, .optimize = optimize, .strip = strip }) },
+            .{ .name = "zxc_abi", .module = execution_abi },
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
             .{ .name = "memory", .module = memory },

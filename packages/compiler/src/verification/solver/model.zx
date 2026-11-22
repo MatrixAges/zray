@@ -6,7 +6,8 @@ export enum Verdict {
     Unknown,
     VersionFailed,
     SolverFailed,
-    InvalidResponse
+    InvalidResponse,
+    Unsupported
 }
 
 export type Report = {

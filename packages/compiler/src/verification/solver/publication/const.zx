@@ -1,0 +1,20 @@
+export const default_solver: string = "z3"
+
+export const proof_path_prefix: string = ".zxc/proofs/"
+
+export const proof_path_suffix: string = "/correctness.smt2"
+
+export const unsupported_prefix: string = "verification: "
+
+export const verified_prefix: string =
+    "verified: entry paths satisfy supported safety obligations and reached contracts; query: "
+
+export const counterexample_header: string = "verification failed: counterexample\n"
+
+export const unfounded_prefix: string = "verification not proved: "
+
+export const infeasible_prefix: string = "preconditions are "
+
+export const binding_separator: string = " = "
+
+export const line_end: string = "\n"

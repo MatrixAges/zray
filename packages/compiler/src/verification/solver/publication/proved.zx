@@ -1,0 +1,16 @@
+import bytes from "std:bytes"
+import host from "verification_report_host"
+
+import { line_end, verified_prefix } from "./const"
+
+import type { Message as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { context, text } = in
+
+    host.writeVerificationOutput(context, bytes.fromText(verified_prefix))
+    host.writeVerificationOutput(context, bytes.fromText(text))
+    host.writeVerificationOutput(context, bytes.fromText(line_end))
+}

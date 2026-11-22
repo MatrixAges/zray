@@ -127,6 +127,7 @@ pub fn create(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         generated.execution.addImport("verification_host", module);
         generated.execution.addImport("verification_program_host", module);
         generated.execution.addImport("verification_publication_host", module);
+        generated.execution.addImport("verification_report_host", module);
         generated.execution.addImport("hardware_build_host", module);
         generated.execution.addImport("hardware_graph_host", module);
         generated.execution.addImport("verilog_host", module);

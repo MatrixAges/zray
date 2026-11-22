@@ -1,0 +1,69 @@
+<Module>
+    <Type from="model" as="Publication" />
+    <Type from="../model" as="Solver" />
+
+    <Args in={Publication.Input} out={Solver.Verdict} />
+
+    <If on={$in.diagnostic != null}>
+        <Call
+            fn="unsupported"
+            in={$in.pick([
+                "context",
+                "diagnostic"
+            ])}
+        />
+
+        <Return value={Solver.Verdict.Unsupported} />
+    </If>
+
+    <Call fn="prepare" in={$in} />
+
+    <Call module="../check" />
+
+    <Switch on={$ctx.check.verdict}>
+        <Case value={Solver.Verdict.Proved}>
+            <Call
+                fn="proved"
+                in={{
+                    context: $in.context,
+                    text: $ctx.prepare.path
+                }}
+            />
+        </Case>
+
+        <Case value={Solver.Verdict.Counterexample}>
+            <Call
+                fn="counterexample"
+                in={{
+                    context: $in.context,
+                    model: $ctx.check.model,
+                    bindings: $in.bindings
+                }}
+            />
+        </Case>
+
+        <Case value={Solver.Verdict.Infeasible}>
+            <Call
+                fn="unproved"
+                in={{
+                    context: $in.context,
+                    text: $ctx.check.status,
+                    preconditions: true
+                }}
+            />
+        </Case>
+
+        <Case value={Solver.Verdict.Unknown}>
+            <Call
+                fn="unproved"
+                in={{
+                    context: $in.context,
+                    text: $ctx.check.status,
+                    preconditions: false
+                }}
+            />
+        </Case>
+    </Switch>
+
+    <Return value={$ctx.check.verdict} />
+</Module>

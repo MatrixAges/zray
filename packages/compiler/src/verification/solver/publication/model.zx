@@ -1,0 +1,40 @@
+import type { Writer } from "std:bytes"
+import type { Sha256State } from "std:crypto"
+import type { TextColumn } from "memory"
+import type { VerificationPublication } from "verification_report_host"
+import type { Proof } from "../model"
+
+export type Bindings = {
+    symbols: TextColumn,
+    paths: TextColumn,
+    count: u64
+}
+
+export type Destination = {
+    context: VerificationPublication,
+    hash: Sha256State,
+    path_writer: Writer
+}
+
+export type Input = Destination & Proof.Pick("feasibility", "correctness") & {
+    diagnostic?: string,
+    output?: string,
+    solver?: string,
+    bindings: Bindings
+}
+
+export type Path = Destination & Proof.Pick("feasibility", "correctness", "evidence")
+
+export type Message = {
+    context: VerificationPublication,
+    text: string
+}
+
+export type Failure = Message & {
+    preconditions: bool
+}
+
+export type Counterexample = Message.Pick("context") & {
+    model: u8[],
+    bindings: Bindings
+}

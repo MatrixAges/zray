@@ -1,0 +1,21 @@
+import bytes from "std:bytes"
+import host from "verification_report_host"
+
+import { infeasible_prefix, line_end, unfounded_prefix } from "./const"
+
+import type { Failure as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { context, text, preconditions } = in
+
+    host.writeVerificationOutput(context, bytes.fromText(unfounded_prefix))
+
+    if (preconditions) {
+        host.writeVerificationOutput(context, bytes.fromText(infeasible_prefix))
+    }
+
+    host.writeVerificationOutput(context, bytes.fromText(text))
+    host.writeVerificationOutput(context, bytes.fromText(line_end))
+}
