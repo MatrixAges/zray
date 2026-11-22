@@ -3,18 +3,15 @@ const zx = @import("zx");
 const model = @import("model.zig");
 const Self = @This();
 const enabled = @import("rx_options").generated_graph;
-
-pub const Request = struct { owner: usize, source: model.Source };
 const Edges = struct { targets: []const u64, end: usize };
 
 seen: []u32,
 queue: []u64,
-sources: model.Sources,
 end: usize = 0,
 
 cursor: usize = 0,
 edge_end: usize = 0,
-pub fn init(allocator: std.mem.Allocator, count: usize, sources: model.Sources) std.mem.Allocator.Error!Self {
+pub fn init(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!Self {
     const seen = try allocator.alloc(u32, count);
 
     errdefer allocator.free(seen);
@@ -23,7 +20,7 @@ pub fn init(allocator: std.mem.Allocator, count: usize, sources: model.Sources) 
 
     @memset(seen, 0);
 
-    return .{ .seen = seen, .queue = queue, .sources = sources };
+    return .{ .seen = seen, .queue = queue };
 }
 
 pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
@@ -31,7 +28,7 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
     allocator.free(self.seen);
 }
 
-pub fn advance(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?Request {
+pub fn advance(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?usize {
     if (comptime !enabled) return self.advanceSeed(adjacency, edges);
 
     const rule = @import("generated_source_graph_frontier");
@@ -42,7 +39,6 @@ pub fn advance(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?Re
         .end = self.end,
         .targets = edges.targets,
         .cursor = self.cursor,
-        .sources = &.{ .zx_count = self.sources.zx_count, .rx_end = self.sources.rx_end },
         .starts = @ptrCast(&adjacency.starts),
         .ends = @ptrCast(&adjacency.ends),
         .edge_start = self.edge_end,
@@ -55,20 +51,10 @@ pub fn advance(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?Re
     self.cursor = @intCast(result.cursor);
     self.edge_end = edges.end;
 
-    const request = result.request orelse return null;
-    const row: usize = @intCast(request.row);
-
-    return .{
-        .owner = @intCast(request.owner),
-        .source = switch (request.kind) {
-            .ZX => .{ .zx = row },
-            .RX => .{ .rx = row },
-            .Store => .{ .store = row },
-        },
-    };
+    return if (result.owner) |owner| @intCast(owner) else null;
 }
 
-fn advanceSeed(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?Request {
+fn advanceSeed(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?usize {
     if (self.cursor != 0) {
         const previous: usize = @intCast(self.queue[self.cursor - 1]);
         adjacency.starts[previous] = self.edge_end;
@@ -93,5 +79,5 @@ fn advanceSeed(self: *Self, adjacency: *const model.Adjacency, edges: Edges) ?Re
 
     self.cursor += 1;
 
-    return .{ .owner = owner, .source = self.sources.at(owner) };
+    return owner;
 }

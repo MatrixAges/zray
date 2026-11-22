@@ -86,6 +86,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}lowering.d.zx", .{lowering_prefix}), .module = "lowering_host" },
         .{ .path = b.fmt("{s}/zx/modules/project/execution/host.d.zx", .{directories[0]}), .module = "project_host" },
         .{ .path = b.fmt("{s}/rx/analysis/project/workflow/host.d.zx", .{directories[0]}), .module = "rx_project_host" },
+        .{ .path = b.fmt("{s}/rx/analysis/project/source_graph/host.d.zx", .{directories[0]}), .module = "rx_graph_host" },
         .{ .path = b.fmt("{s}/backends/zig/output_host.d.zx", .{directories[0]}), .module = "output_host" },
         .{ .path = b.fmt("{s}/backends/zig/gateway/workflow/host.d.zx", .{directories[0]}), .module = "gateway_bundle_host" },
         .{ .path = b.fmt("{s}/backends/zig/state/publication/host.d.zx", .{directories[0]}), .module = "state_publication_host" },

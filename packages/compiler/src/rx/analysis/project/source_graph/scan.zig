@@ -5,6 +5,9 @@ const project = @import("frontend").project;
 const Collector = @import("collect.zig");
 const Frontier = @import("frontier.zig");
 const model = @import("model.zig");
+const rx_edges = @import("rx_edges.zig");
+const zx_edges = @import("zx_edges.zig");
+const enabled = @import("rx_options").generated_graph;
 
 pub fn run(collector: *Collector, adjacency: *model.Adjacency, roots: []const u64, sources: []const project.Source, modules: []const rx.ModuleSource, stores: []const rx.ModuleSource, shared: ?*project.ParseCache, prefetched: ?*project.ParseCache.Prefetched) Collector.Error!usize {
     const backing = collector.backing;
@@ -14,74 +17,154 @@ pub fn run(collector: *Collector, adjacency: *model.Adjacency, roots: []const u6
 
     const cache = shared orelse &local;
     const paths = collector.modules.items(.path);
-    var parsed_modules = try cache.prefetchRegistered(backing, sources, paths[0..sources.len]);
+    var parsed = try cache.prefetchRegistered(backing, sources, paths[0..sources.len]);
 
-    defer parsed_modules.deinit(backing);
+    defer parsed.deinit(backing);
 
-    var pending = try Frontier.init(backing, collector.modules.len, collector.sources);
+    var frontier = try Frontier.init(backing, collector.modules.len);
 
-    defer pending.deinit(backing);
+    defer frontier.deinit(backing);
 
-    var reused: usize = 0;
-    defer cache.reused += reused;
+    var scan: Scan = .{
+        .collector = collector,
+        .adjacency = adjacency,
+        .roots = roots,
+        .sources = sources,
+        .modules = modules,
+        .stores = stores,
+        .parsed = &parsed,
+        .frontier = &frontier,
+    };
 
-    var request = pending.advance(adjacency, .{ .targets = roots, .end = 0 });
+    defer cache.reused += scan.reused;
 
-    while (request) |next| {
-        const index = next.owner;
-        const module = next.source;
+    if (comptime enabled) {
+        const rule = @import("generated_rx_visit_source_graph");
 
-        collector.begin(index, if (module == .zx) sources[module.zx].source else "");
+        const input: std.meta.Child(rule.Input) = .{
+            .target = @ptrCast(&scan),
+            .zx_count = collector.sources.zx_count,
+            .rx_end = collector.sources.rx_end,
+            .end = collector.modules.len,
+        };
 
-        switch (module) {
-            .rx => |source_index| try @import("rx_edges.zig").collect(collector, modules[source_index]),
-            .store => |source_index| try @import("rx_edges.zig").collect(collector, stores[source_index]),
-            .zx => |source_index| {
-                const source = sources[source_index];
-                const parsed = parsed_modules.module(source_index);
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-                reused += 1;
+        zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+            error.InvalidGraph => return error.InvalidGraph,
+            else => unreachable,
+        };
+    } else {
+        var next = scan.first();
 
-                if (parsed.diagnostic()) |issue| {
-                    collector.issue = .{
-                        .path = paths[index],
-                        .location = rx.sourceLocation(source.source, issue.span.start),
-                        .code = @tagName(issue.code),
-                        .message = try collector.allocator.dupe(u8, issue.message),
-                    };
+        while (next) |owner| {
+            switch (collector.sources.at(owner)) {
+                .zx => try scan.collectZX(owner),
+                .rx => |row| try scan.collectRX(owner, modules[row]),
+                .store => |row| try scan.collectRX(owner, stores[row]),
+            }
 
-                    return error.InvalidGraph;
-                }
-
-                switch (parsed.*) {
-                    .native => |result| try @import("zx_edges.zig").collect(collector, zx.syntax.header.Native{ .program = result.value.parsed.ast }),
-                    .indexed => |*result| if (project.ParseCache.indexed_enabled) {
-                        const header = result.header();
-
-                        if (comptime @import("rx_options").generated_graph) {
-                            try @import("imports/indexed.zig").collect(collector, header);
-                        } else {
-                            try @import("zx_edges.zig").collect(collector, header);
-                        }
-                    } else unreachable,
-                }
-            },
+            next = try scan.finish(owner);
         }
-
-        collector.modules.items(.dependencies)[index] = try collector.edges.toOwnedSlice(collector.allocator);
-
-        const targets = collector.targets.items;
-
-        request = pending.advance(adjacency, .{ .targets = targets[pending.edge_end..], .end = targets.len });
-        _ = collector.temporary.reset(.retain_capacity);
     }
 
     adjacency.targets = collector.targets.items;
 
     if (prefetched) |output| {
-        output.* = parsed_modules;
-        parsed_modules = .{};
+        output.* = parsed;
+        parsed = .{};
     }
 
-    return pending.end;
+    return frontier.end;
+}
+
+const Scan = struct {
+    collector: *Collector,
+    adjacency: *model.Adjacency,
+    roots: []const u64,
+    sources: []const project.Source,
+    modules: []const rx.ModuleSource,
+    stores: []const rx.ModuleSource,
+    parsed: *project.ParseCache.Prefetched,
+    frontier: *Frontier,
+    reused: usize = 0,
+    fn borrow(handle: *const anyopaque) *Scan {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn first(self: *Scan) ?usize {
+        return self.frontier.advance(self.adjacency, .{ .targets = self.roots, .end = 0 });
+    }
+    fn collectZX(self: *Scan, owner: usize) Collector.Error!void {
+        const source = self.sources[owner];
+        const parsed = self.parsed.module(owner);
+        const collector = self.collector;
+
+        collector.begin(owner, source.source);
+
+        self.reused += 1;
+
+        if (parsed.diagnostic()) |issue| {
+            collector.issue = .{
+                .path = collector.modules.items(.path)[owner],
+                .location = rx.sourceLocation(source.source, issue.span.start),
+                .code = @tagName(issue.code),
+                .message = try collector.allocator.dupe(u8, issue.message),
+            };
+
+            return error.InvalidGraph;
+        }
+
+        switch (parsed.*) {
+            .native => |result| try zx_edges.collect(collector, zx.syntax.header.Native{ .program = result.value.parsed.ast }),
+            .indexed => |*result| if (project.ParseCache.indexed_enabled) {
+                const header = result.header();
+
+                if (comptime enabled) {
+                    try @import("imports/indexed.zig").collect(collector, header);
+                } else {
+                    try zx_edges.collect(collector, header);
+                }
+            } else unreachable,
+        }
+    }
+    fn collectRX(self: *Scan, owner: usize, module: rx.ModuleSource) Collector.Error!void {
+        self.collector.begin(owner, "");
+        try rx_edges.collect(self.collector, module);
+    }
+    fn finish(self: *Scan, owner: usize) Collector.Error!?usize {
+        const collector = self.collector;
+
+        collector.modules.items(.dependencies)[owner] = try collector.edges.toOwnedSlice(collector.allocator);
+
+        const targets = collector.targets.items;
+        const next = self.frontier.advance(self.adjacency, .{ .targets = targets[self.frontier.edge_end..], .end = targets.len });
+
+        _ = collector.temporary.reset(.retain_capacity);
+
+        return next;
+    }
+};
+
+pub fn firstSourceGraphVisit(handle: *const anyopaque) u64 {
+    const scan = Scan.borrow(handle);
+
+    return scan.first() orelse scan.collector.modules.len;
+}
+
+pub fn readSourceGraphZX(handle: *const anyopaque, owner: u64) Collector.Error!void {
+    try Scan.borrow(handle).collectZX(@intCast(owner));
+}
+
+pub fn readSourceGraphRX(handle: *const anyopaque, owner: u64, row: u64, store: bool) Collector.Error!void {
+    const scan = Scan.borrow(handle);
+    const index: usize = @intCast(row);
+
+    try scan.collectRX(@intCast(owner), if (store) scan.stores[index] else scan.modules[index]);
+}
+
+pub fn finishSourceGraphVisit(handle: *const anyopaque, owner: u64) Collector.Error!u64 {
+    const scan = Scan.borrow(handle);
+
+    return (try scan.finish(@intCast(owner))) orelse scan.collector.modules.len;
 }

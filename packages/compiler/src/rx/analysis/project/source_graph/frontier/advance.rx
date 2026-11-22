@@ -30,8 +30,7 @@
         in={{
             queue: $in.queue,
             cursor: $in.cursor,
-            end: $ctx.enqueue,
-            sources: $in.sources
+            end: $ctx.enqueue
         }}
     />
 
@@ -39,7 +38,7 @@
         value={{
             end: $ctx.enqueue,
             cursor: $ctx.select.cursor,
-            request: $ctx.select.request
+            owner: $ctx.select.owner
         }}
     />
 </Module>

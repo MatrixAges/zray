@@ -1,0 +1,22 @@
+import type { TextColumn } from "memory"
+import type { GraphConstruction } from "rx_graph_host"
+import type { Ranges as SourceRanges } from "../source"
+
+export type Ranges = SourceRanges & {
+    end: u64
+}
+
+export type Registration = {
+    target: GraphConstruction,
+    ranges: Ranges
+}
+
+export type RootPaths = Registration & {
+    explicit: TextColumn,
+    explicit_count: u64,
+    include_rx: bool
+}
+
+export type Input = RootPaths & {
+    retain_parses: bool
+}

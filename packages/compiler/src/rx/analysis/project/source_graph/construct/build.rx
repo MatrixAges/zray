@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Graph" />
+
+    <Args in={Graph.Input} out={void} />
+
+    <Call
+        fn="register"
+        in={$in.pick([
+            "target",
+            "ranges"
+        ])}
+    />
+
+    <Call fn="roots" in={$in.omit(["retain_parses"])} />
+    <Call fn="host.scanSourceGraph" in={$in.target} />
+
+    <Call
+        fn="host.orderSourceGraph"
+        in={[
+            $in.target,
+            $ctx.scanSourceGraph
+        ]}
+    />
+
+    <If on={$in.retain_parses}>
+        <Call fn="host.publishSourceGraphParses" in={$in.target} />
+    </If>
+
+    <Call fn="host.publishSourceGraph" in={$in.target} />
+</Module>

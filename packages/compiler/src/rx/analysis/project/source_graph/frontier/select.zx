@@ -1,7 +1,5 @@
 import memory from "memory"
 
-import source from "../source"
-
 import type { Position, Selection } from "./model"
 
 export type Input = Position
@@ -12,7 +10,7 @@ export default function (in: Input): Output {
     if (in.cursor == in.end) {
         return {
             cursor: in.cursor,
-            request: null
+            owner: null
         }
     }
 
@@ -20,9 +18,6 @@ export default function (in: Input): Output {
 
     return {
         cursor: in.cursor + 1,
-        request: source({
-            owner,
-            sources: in.sources
-        })
+        owner
     }
 }

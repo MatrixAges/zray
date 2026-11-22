@@ -1,0 +1,13 @@
+export const invalid_registration: string =
+    "RX source registration requires a project relative path of the expected module kind"
+
+export const duplicate_path: string =
+    "source paths must be unique after normalization across RX, ZX and Store definitions"
+
+export const duplicate_store: string = "Store definition path is already registered"
+
+export const missing_entry: string =
+    "entry module is missing from the registered source set"
+
+export const missing_root: string =
+    "source graph root is missing from the registered input set"

@@ -1,0 +1,48 @@
+import bytes from "std:bytes"
+import host from "rx_graph_host"
+
+import { store_suffix } from "../../../../../const"
+import { Kind } from "../../../../path_kind/model"
+import normalize from "../../../../path_segments/normalize"
+import { duplicate_path, duplicate_store, invalid_registration } from "./const"
+
+import type { Registration as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, ranges } = in
+
+    const registered = loop(0, {
+        while: row => row < ranges.end,
+        next: row => {
+            const path = host.sourceGraphPath(target, row)
+            const is_store = row >= ranges.rx_end
+
+            if (row >= ranges.zx_count) {
+                const plan = normalize({
+                    directory: [],
+                    path: bytes.fromText(path),
+                    kind: is_store ? Kind.SpecialFile : Kind.ModuleFile,
+                    suffix: is_store ? store_suffix : ""
+                })
+
+                if (!plan.valid) {
+                    host.rejectSourceGraphPath(
+                        target,
+                        row,
+                        false,
+                        invalid_registration
+                    )
+                }
+            }
+
+            if (!host.claimSourceGraphPath(target, row, path)) {
+                const message = is_store ? duplicate_store : duplicate_path
+                host.rejectSourceGraphPath(target, row, !is_store, message)
+            }
+
+            row += 1
+        }
+    })
+}

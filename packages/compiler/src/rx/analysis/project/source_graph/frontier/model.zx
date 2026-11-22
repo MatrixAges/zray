@@ -1,5 +1,4 @@
 import type { U32Buffer, U64Buffer } from "memory"
-import type { Output as Request, Ranges } from "../source"
 
 export type Queue = {
     seen: U32Buffer,
@@ -11,8 +10,7 @@ export type Queue = {
 export type Position = {
     queue: U64Buffer,
     cursor: u64,
-    end: u64,
-    sources: Ranges
+    end: u64
 }
 
 export type Publication = {
@@ -24,12 +22,11 @@ export type Publication = {
     edge_end: u64
 }
 
-export type Input = Queue & Position.Omit("queue", "end") &
-    Publication.Omit("queue", "cursor")
+export type Input = Queue & Publication.Omit("queue")
 
 export type Selection = {
     cursor: u64,
-    request?: Request
+    owner?: u64
 }
 
 export type Output = Selection & {

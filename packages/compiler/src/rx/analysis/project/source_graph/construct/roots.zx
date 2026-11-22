@@ -1,0 +1,34 @@
+import memory from "memory"
+import host from "rx_graph_host"
+
+import { missing_entry, missing_root } from "./const"
+
+import type { RootPaths as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, ranges } = in
+
+    const entry = host.resolveSourceGraphEntry(target, missing_entry)
+    const rx_count = in.include_rx ? ranges.rx_end - ranges.zx_count : 0
+    const additional = rx_count + in.explicit_count
+    const start = 1 + rx_count
+    const store_start = 1 + additional
+    const store_count = ranges.end - ranges.rx_end
+
+    host.allocateSourceGraphRoots(target, store_start + store_count, entry)
+    host.writeSourceGraphRootRange(target, 1, ranges.zx_count, rx_count)
+    host.writeSourceGraphRootRange(target, store_start, ranges.rx_end, store_count)
+
+    const written = loop(0, {
+        while: row => row < in.explicit_count,
+        next: row => {
+            const path = memory.readTextColumn(in.explicit, row)
+            host.writeSourceGraphRoot(target, start + row, path, missing_root)
+            row += 1
+        }
+    })
+
+    host.finishSourceGraphRoots(target, additional)
+}

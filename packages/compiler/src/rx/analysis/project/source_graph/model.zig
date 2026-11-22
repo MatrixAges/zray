@@ -3,6 +3,24 @@ const rx = @import("rx");
 const project = @import("frontend").project;
 const Diagnostic = @import("../../call/target.zig").Diagnostic;
 
+pub const Options = struct {
+    entry: []const u8,
+    additional_roots: []const []const u8 = &.{},
+    /// Add the registered RX modules before the explicit roots.
+    include_rx_modules: bool = false,
+    sources: []const project.Source,
+    modules: []const rx.ModuleSource,
+    stores: []const rx.ModuleSource = &.{},
+    project: project.Options,
+    parse_cache: ?*project.ParseCache = null,
+    /// Optional output for the immediately following signature analysis. Requires a shared cache.
+    prefetched: ?*project.ParseCache.Prefetched = null,
+    scratch_allocator: ?std.mem.Allocator = null,
+    /// Optional caller-owned index. Its buckets use the scratch allocator and its keys may borrow the result.
+    registered_paths: ?*project.source_index.Map = null,
+    retain_source_dependencies: bool = false,
+};
+
 pub const Source = union(enum) { zx: usize, rx: usize, store: usize };
 
 pub const Sources = struct {

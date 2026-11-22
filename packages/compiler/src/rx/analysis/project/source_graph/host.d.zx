@@ -1,0 +1,65 @@
+export type GraphConstruction = opaque
+
+export type GraphVisit = opaque
+
+export declare function sourceGraphPath(target: GraphConstruction, row: u64): string
+
+export declare function claimSourceGraphPath(
+    target: GraphConstruction,
+    row: u64,
+    path: string
+): bool throws { OutOfMemory }
+
+export declare function rejectSourceGraphPath(
+    target: GraphConstruction,
+    row: u64,
+    normalized: bool,
+    message: string
+): void throws { OutOfMemory, InvalidGraph }
+
+export declare function resolveSourceGraphEntry(target: GraphConstruction, missing: string): u64
+    throws { OutOfMemory, InvalidGraph }
+
+export declare function allocateSourceGraphRoots(
+    target: GraphConstruction,
+    count: u64,
+    entry: u64
+): void throws { OutOfMemory }
+
+export declare function writeSourceGraphRootRange(
+    target: GraphConstruction,
+    start: u64,
+    first: u64,
+    count: u64
+): void
+
+export declare function writeSourceGraphRoot(
+    target: GraphConstruction,
+    row: u64,
+    path: string,
+    missing: string
+): void throws { OutOfMemory, InvalidGraph }
+
+export declare function finishSourceGraphRoots(target: GraphConstruction, count: u64): void
+    throws { OutOfMemory }
+
+export declare function scanSourceGraph(target: GraphConstruction): u64
+    throws { OutOfMemory, InvalidGraph }
+
+export declare function orderSourceGraph(target: GraphConstruction, reached: u64): void
+    throws { OutOfMemory, InvalidGraph }
+
+export declare function publishSourceGraphParses(target: GraphConstruction): void
+
+export declare function publishSourceGraph(target: GraphConstruction): void
+
+export declare function firstSourceGraphVisit(target: GraphVisit): u64
+
+export declare function readSourceGraphZX(target: GraphVisit, owner: u64): void
+    throws { OutOfMemory, InvalidGraph }
+
+export declare function readSourceGraphRX(target: GraphVisit, owner: u64, row: u64, store: bool): void
+    throws { OutOfMemory, InvalidGraph }
+
+export declare function finishSourceGraphVisit(target: GraphVisit, owner: u64): u64
+    throws { OutOfMemory, InvalidGraph }
