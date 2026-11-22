@@ -1,0 +1,65 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Input} out={Publication.Output} />
+
+    <If on={$in.entry == null && $in.changes.length == 0}>
+        <Return
+            value={{
+                entry: null,
+                functions: null
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../uniqueness/program/allocators.selectAllocator"
+        in={[
+            $in.allocators.scope,
+            $in.allocators.owned
+        ]}
+    />
+
+    <If on={$in.entry != null}>
+        <Call fn="retain" in={$in.entry} />
+
+        <If on={$in.changes.length != 0}>
+            <Call
+                fn="functions"
+                in={{
+                    source: $in.source,
+                    changes: $in.changes
+                }}
+            />
+
+            <Return
+                value={{
+                    entry: $ctx.retain,
+                    functions: $ctx.functions
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                entry: $ctx.retain,
+                functions: null
+            }}
+        />
+    </If>
+
+    <Call
+        fn="functions"
+        in={{
+            source: $in.source,
+            changes: $in.changes
+        }}
+    />
+
+    <Return
+        value={{
+            entry: null,
+            functions: $ctx.functions
+        }}
+    />
+</Module>

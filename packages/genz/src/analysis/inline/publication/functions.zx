@@ -1,0 +1,39 @@
+import retain from "./retain"
+
+import type { Rebuilt } from "../apply"
+import type { Columns } from "./model"
+
+export type Input = {
+    source: Columns,
+    changes: Rebuilt[]
+}
+
+export type Output = Columns
+
+export default function (in: Input): Output {
+    const { source, changes } = in
+
+    return loop({
+        index: 0,
+        symbols: source.symbols.slice(),
+        expressions: source.expressions.slice(),
+        control: source.control.slice(),
+        roots: source.roots.slice()
+    }, {
+        while: current => current.index < changes.length,
+        next: current => {
+            const body = retain(changes[current.index])
+            const { unit } = body
+
+            if (body.symbols != null) {
+                current.symbols = current.symbols.with(unit, body.symbols)
+            }
+
+            current.expressions = current.expressions.with(unit, body.expressions)
+            current.control = current.control.with(unit, body.control)
+            current.roots = current.roots.with(unit, body.root)
+            current.index += 1
+        },
+        return: current => current.omit(["index"])
+    })
+}

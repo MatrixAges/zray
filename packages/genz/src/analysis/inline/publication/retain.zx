@@ -1,0 +1,36 @@
+import strings from "std:string"
+import copyControl from "core/ir/copy/control"
+import copyExpressions from "core/ir/copy/expressions"
+import copySymbols from "core/ir/copy/symbols"
+
+import type { Symbols } from "core/symbol_table/model"
+import type { Rebuilt } from "../apply"
+
+export type Input = Rebuilt
+
+export type Output = Rebuilt
+
+export default function (in: Input): Output {
+    const { unit, root } = in
+
+    const symbols: Symbols? = match {
+        in.symbols != null => copySymbols({
+            source: in.symbols,
+            names: strings.copyList(in.symbols.names)
+        }),
+        _ => null
+    }
+
+    const expressions = copyExpressions({
+        source: in.expressions,
+        strings: strings.copyList(in.expressions.strings)
+    })
+
+    return {
+        unit,
+        root,
+        symbols,
+        expressions,
+        control: copyControl(in.control)
+    }
+}

@@ -36,71 +36,43 @@ pub fn prepare(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .output_type = @backingInt(program.output_type),
     };
 
-    const input: Input = .{
-        .program = &view,
-        .allocator = @ptrCast(&temporary),
+    const Allocators = std.meta.Child(@FieldType(Input, "allocators"));
+    var scope = zx.memory.ArenaScope{ .active = temporary };
+
+    const allocators: Allocators = .{
+        .scope = @ptrCast(&scope),
+        .scratch = @ptrCast(&temporary),
+        .owned = @ptrCast(&allocator),
     };
 
-    const output = generated.execute(&scratch, &input) catch |err| switch (err) {
+    const input: Input = .{
+        .program = &view,
+        .allocators = &allocators,
+    };
+
+    const output = generated.executeIn(scope.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
     var result = program;
 
-    if (output.entry) |entry| {
-        const rebuilt = try own(allocator, unwrap(entry));
+    if (output.entry) |body| {
+        const entry = unwrap(body);
 
-        result.symbols = rebuilt.symbols orelse program.symbols;
-        result.expressions = rebuilt.expressions;
-        result.body = rebuilt.body;
+        if (entry.symbols) |symbols| result.symbols = columns.columns(ir.SymbolTable, unwrap(symbols));
+
+        result.expressions = columns.columns(ir.ExpressionTable, unwrap(entry.expressions));
+        result.body = .{ .control = columns.pointer(*const ir.ControlTable, entry.control), .root = @fromBackingInt(entry.root) };
     }
 
-    if (output.functions.len != 0) result.functions = try publishFunctions(allocator, program.functions, output.functions);
+    if (output.functions) |published| {
+        const body_columns = unwrap(published);
 
-    return result;
-}
-
-const Owned = struct { symbols: ?ir.SymbolTable, expressions: ir.ExpressionTable, body: ir.ControlBody };
-
-fn publishFunctions(allocator: std.mem.Allocator, source: ir.FunctionTable, changes: anytype) std.mem.Allocator.Error!ir.FunctionTable {
-    const symbols = try allocator.dupe(*const ir.SymbolTable, source.symbols);
-    const expressions = try allocator.dupe(*const ir.ExpressionTable, source.expressions);
-    const control = try allocator.dupe(*const ir.ControlTable, source.control);
-    const roots = try allocator.dupe(?u32, source.roots);
-    const owned = try allocator.alloc(Owned, changes.len);
-
-    for (changes, owned) |change, *row| {
-        const rebuilt = unwrap(change);
-        const index: usize = @intCast(rebuilt.unit);
-
-        row.* = try own(allocator, rebuilt);
-
-        if (row.symbols) |*replacement| symbols[index] = replacement;
-
-        expressions[index] = &row.expressions;
-        control[index] = row.body.control;
-        roots[index] = rebuilt.root;
+        inline for (@typeInfo(@TypeOf(body_columns)).@"struct".field_names) |name| {
+            @field(result.functions, name) = columns.slice(@FieldType(ir.FunctionTable, name), @field(body_columns, name));
+        }
     }
 
-    var result = source;
-
-    result.symbols = symbols;
-    result.expressions = expressions;
-    result.control = control;
-    result.roots = roots;
-
     return result;
-}
-
-fn own(allocator: std.mem.Allocator, rebuilt: anytype) std.mem.Allocator.Error!Owned {
-    const control = try allocator.create(ir.ControlTable);
-
-    control.* = try columns.own(allocator, columns.columns(ir.ControlTable, rebuilt.control.*), .{});
-
-    return .{
-        .symbols = if (rebuilt.symbols) |symbols| try columns.own(allocator, columns.columns(ir.SymbolTable, symbols.*), .{}) else null,
-        .expressions = try columns.own(allocator, columns.columns(ir.ExpressionTable, rebuilt.expressions.*), .{}),
-        .body = .{ .control = control, .root = @fromBackingInt(rebuilt.root) },
-    };
 }

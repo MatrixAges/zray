@@ -1,0 +1,17 @@
+import type { Result as Allocators } from "../../facts/allocators"
+import type { Functions } from "../../model"
+import type { Rebuilt } from "../apply"
+
+export type Columns = Functions.Pick("symbols", "expressions", "control", "roots")
+
+export type Output = {
+    entry?: Rebuilt,
+    functions?: Columns
+}
+
+export type Input = {
+    source: Columns,
+    changes: Rebuilt[],
+    entry?: Rebuilt,
+    allocators: Allocators
+}

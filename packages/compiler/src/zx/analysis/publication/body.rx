@@ -3,7 +3,7 @@
 
     <Args in={IR.Body} out={IR.Body} />
 
-    <Call fn="../../modules/artifact/materializing/control" in={$in.control} />
+    <Call fn="../../modules/artifact/materializing/columns.control" in={$in.control} />
 
     <Call
         module="values"

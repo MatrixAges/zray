@@ -12,7 +12,7 @@
     </Task>
 
     <Call
-        fn="../../modules/artifact/materializing/symbols"
+        fn="../../modules/artifact/materializing/columns.symbols"
         in={{
             source: $in.symbols,
             names: $ctx.task.names
@@ -20,7 +20,7 @@
     />
 
     <Call
-        fn="../../modules/artifact/materializing/expressions"
+        fn="../../modules/artifact/materializing/columns.expressions"
         in={{
             source: $in.expressions,
             strings: $ctx.task.strings

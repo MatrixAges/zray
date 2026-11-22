@@ -1,4 +1,5 @@
-import own from "../../../artifact/materializing/symbols"
+import own from "core/ir/copy/symbols"
+
 import copyNames from "../../../copy_names"
 import ids from "./ids"
 

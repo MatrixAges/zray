@@ -40,7 +40,7 @@
         }}
     />
 
-    <Call fn="../../../artifact/materializing/control" in={$in.control} />
+    <Call fn="../../../artifact/materializing/columns.control" in={$in.control} />
 
     <Call
         fn="../../../artifact/materializing/metadata"

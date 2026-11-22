@@ -68,7 +68,7 @@
     </Task>
 
     <Call
-        fn="../materializing/symbols"
+        fn="../materializing/columns.symbols"
         in={{
             source: $in.symbols,
             types: $ctx.task.symbols,
@@ -77,7 +77,7 @@
     />
 
     <Call
-        fn="../materializing/expressions"
+        fn="../materializing/columns.expressions"
         in={{
             source: $in.expressions,
             types: $ctx.columns.types,

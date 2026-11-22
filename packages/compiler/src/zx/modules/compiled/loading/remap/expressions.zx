@@ -1,6 +1,6 @@
 import integers from "std:integer"
+import own from "core/ir/copy/expressions"
 
-import own from "../../../artifact/materializing/expressions"
 import copyNames from "../../../copy_names"
 import ids from "./ids"
 

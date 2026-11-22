@@ -1,6 +1,7 @@
+import ownExpressions from "core/ir/copy/expressions"
+import ownSymbols from "core/ir/copy/symbols"
+
 import copyNames from "../../copy_names"
-import ownExpressions from "../materializing/expressions"
-import ownSymbols from "../materializing/symbols"
 import ids from "./ids"
 
 import type { Contracts } from "core/contract_table/model"

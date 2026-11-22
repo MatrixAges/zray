@@ -4,7 +4,7 @@
     <Args in={Control.Control?} out={Control.Control?} />
 
     <If on={$in != null}>
-        <Call fn="control" in={$in} />
+        <Call fn="columns.control" in={$in} />
 
         <Return value={$ctx.control} />
     </If>
