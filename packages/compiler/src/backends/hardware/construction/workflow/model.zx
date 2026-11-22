@@ -1,0 +1,37 @@
+import type { HardwareBuild } from "hardware_build_host"
+import type { SymbolicValue } from "verification_host"
+import type { Ports } from "../../../../verification/execution/program/model"
+
+export type Sizes = {
+    build: HardwareBuild,
+    inputs: u64,
+    definitions: u64
+}
+
+export type OutputTree = {
+    build: HardwareBuild,
+    types: Ports,
+    type_id: u32,
+    value: SymbolicValue,
+    path: string
+}
+
+export type Safety = {
+    build: HardwareBuild,
+    expression: string
+}
+
+export type Input = Sizes & {
+    types: Ports,
+    rows: DefinitionRows
+    output_path: string
+    output_type: u32,
+    output: SymbolicValue,
+    safety: string
+}
+
+export type DefinitionRows = {
+    names: string[],
+    expressions: string[],
+    widths: u16[]
+}

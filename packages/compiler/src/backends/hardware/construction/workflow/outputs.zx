@@ -1,0 +1,105 @@
+import integers from "std:integer"
+import { scalar_void } from "core/type_table/const"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+import host from "hardware_build_host"
+import symbolic from "verification_host"
+
+import name from "../../../../verification/ports/name"
+import fieldPath from "../../../../verification/ports/path"
+import portType from "./port_type"
+
+import type { OutputTree as Input } from "./model"
+
+export type Output = void
+
+export default function flatten(in: Input): Output {
+    const { build, types, type_id, value, path } = in
+
+    const row = integers.widen(type_id)
+    const shape = kind(types.kinds[row])
+
+    if (shape == Kind.Object || shape == Kind.Tuple) {
+        const first = integers.widen(types.first[row])
+        const count = integers.widen(types.second[row])
+        const object = shape == Kind.Object
+        const children = object ? types.field_types : types.children
+
+        if (
+            symbolic.symbolicText(value) != null ||
+                symbolic.symbolicFieldCount(value) != count
+        ) {
+            host.rejectHardwareTerm()
+        }
+
+        const done = loop(0, {
+            while: index => index < count,
+            next: index => {
+                const label: string? = match object {
+                    true => types.field_names[first + index],
+                    _ => null
+                }
+                const child_path = fieldPath({
+                    parent: path,
+                    field: label,
+                    index
+                })
+
+                flatten({
+                    build,
+                    types,
+                    type_id: children[first + index],
+                    value: symbolic.symbolicField(value, index),
+                    path: child_path
+                })
+                index += 1
+            }
+        })
+
+        return
+    }
+
+    if (shape == Kind.Scalar && types.first[row] == scalar_void) {
+        return
+    }
+
+    const text = symbolic.symbolicText(value)
+
+    if (text == null) {
+        host.rejectHardwareTerm()
+
+        return
+    }
+
+    const port = portType({
+        types,
+        type_id
+    })
+
+    if (port.width == 0) {
+        host.rejectHardwareTerm()
+    }
+
+    const node = host.parseHardwareNode(build, text)
+    const width = host.hardwareNodeWidth(build, node)
+    const boolean = host.hardwareNodeIsBoolean(build, node)
+
+    if (width != port.width || boolean != port.boolean) {
+        host.rejectHardwareTerm()
+    }
+
+    const symbol = name({
+        index: host.hardwareOutputCount(build),
+        output: true
+    })
+
+    host.writeHardwareOutput(
+        build,
+        symbol,
+        path,
+        node,
+        port.width,
+        port.boolean,
+        port.signed
+    )
+}

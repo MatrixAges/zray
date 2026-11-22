@@ -1,0 +1,52 @@
+<Module>
+    <Type from="model" as="Hardware" />
+
+    <Args in={Hardware.Input} out={u32} />
+
+    <Call
+        fn="reserve"
+        in={$in.pick([
+            "build",
+            "inputs",
+            "definitions"
+        ])}
+    />
+
+    <Call
+        fn="inputs"
+        in={$in.pick([
+            "build",
+            "inputs",
+            "types"
+        ])}
+    />
+
+    <Call
+        fn="definitions"
+        in={$in.pick([
+            "build",
+            "rows"
+        ])}
+    />
+
+    <Call
+        fn="outputs"
+        in={{
+            build: $in.build,
+            types: $in.types,
+            type_id: $in.output_type,
+            value: $in.output,
+            path: $in.output_path
+        }}
+    />
+
+    <Call
+        fn="safety"
+        in={{
+            build: $in.build,
+            expression: $in.safety
+        }}
+    />
+
+    <Return value={$ctx.safety} />
+</Module>

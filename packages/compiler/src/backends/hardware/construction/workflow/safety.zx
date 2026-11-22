@@ -1,0 +1,17 @@
+import host from "hardware_build_host"
+
+import type { Safety as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { build, expression } = in
+
+    const node = host.parseHardwareNode(build, expression)
+
+    if (!host.hardwareNodeIsBoolean(build, node)) {
+        host.rejectHardwareTerm()
+    }
+
+    return node
+}

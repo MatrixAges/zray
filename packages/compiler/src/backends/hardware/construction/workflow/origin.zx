@@ -1,0 +1,24 @@
+import host from "hardware_build_host"
+
+import type { HardwareBuild } from "hardware_build_host"
+
+export type Input = {
+    build: HardwareBuild,
+    file: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { build, file } = in
+
+    const previous = host.hardwareOriginFile(build)
+
+    if (previous != null) {
+        if (previous == file) {
+            return previous
+        }
+    }
+
+    return host.retainHardwareOrigin(build, file)
+}

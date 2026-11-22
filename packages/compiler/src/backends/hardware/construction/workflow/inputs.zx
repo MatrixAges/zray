@@ -1,0 +1,38 @@
+import host from "hardware_build_host"
+
+import portType from "./port_type"
+
+import type { Input as Request } from "./model"
+
+export type Input = Request.Pick("build", "inputs", "types")
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { build, inputs, types } = in
+
+    const written = loop(0, {
+        while: row => row < inputs,
+        next: row => {
+            const port = portType({
+                types,
+                type_id: host.hardwareInputType(build, row)
+            })
+
+            if (port.width == 0) {
+                host.rejectHardwareTerm()
+            }
+
+            host.writeHardwareInput(
+                build,
+                row,
+                port.width,
+                port.boolean,
+                port.signed
+            )
+            row += 1
+        }
+    })
+
+    host.bindHardwareInputs(build)
+}

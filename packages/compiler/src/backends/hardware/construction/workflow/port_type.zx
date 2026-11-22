@@ -1,0 +1,46 @@
+import integers from "std:integer"
+import { scalar_bool } from "core/type_table/const"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+
+import numeric from "../../../../verification/scalar/numeric"
+
+import type { Ports } from "../../../../verification/execution/program/model"
+
+export type Input = {
+    types: Ports,
+    type_id: u32
+}
+
+export type Output = {
+    width: u64,
+    signed: bool,
+    boolean: bool
+}
+
+export default function (in: Input): Output {
+    const row = integers.widen(in.type_id)
+
+    if (kind(in.types.kinds[row]) != Kind.Scalar) {
+        return {
+            width: 0,
+            signed: false,
+            boolean: false
+        }
+    }
+
+    const scalar = in.types.first[row]
+
+    if (scalar == scalar_bool) {
+        return {
+            width: 1,
+            signed: false,
+            boolean: true
+        }
+    }
+
+    return {
+        ...numeric(scalar),
+        boolean: false
+    }
+}

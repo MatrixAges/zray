@@ -1020,6 +1020,7 @@ pub const execution = [_]Entry{
     .{ .path = "verification/graph/workflow/run.rx", .name = "bind_symbolic_definition", .owner = .compiler },
     .{ .path = "verification/query/assembly/run.rx", .name = "assemble_symbolic_query", .owner = .compiler },
     .{ .path = "verification/call_cache/lookup.zx", .name = "lookup_symbolic_call", .owner = .compiler },
+    .{ .path = "backends/hardware/construction/workflow/run.rx", .name = "build_hardware_graph", .owner = .compiler },
     .{ .path = "backends/zig/output/tree/run.rx", .name = "bootstrap_tree", .owner = .compiler },
     .{ .path = "backends/zig/output/mirror/run.rx", .name = "bootstrap_mirror", .owner = .compiler },
     .{ .path = "backends/zig/partition/emission/run.rx", .name = "bootstrap_partition", .owner = .compiler },

@@ -1,0 +1,19 @@
+import host from "hardware_build_host"
+
+import { maximum_nodes } from "../../const"
+
+import type { Sizes as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { build, inputs, definitions } = in
+
+    const symbols = inputs + definitions
+    const nodes = symbols < maximum_nodes ? symbols : maximum_nodes
+
+    host.reserveHardwareVariables(build, symbols)
+    host.reserveHardwareCache(build, definitions)
+    host.reserveHardwareInputs(build, inputs)
+    host.reserveHardwareNodes(build, nodes)
+}

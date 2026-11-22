@@ -7,3 +7,5 @@ export const maximum_source_bytes: u64 = 67108864
 export const maximum_depth: u64 = 512
 
 export const maximum_nodes: u64 = 100000
+
+export const output_path: string = "out"
