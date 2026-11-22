@@ -107,15 +107,42 @@ pub fn install(program: *ir.Program, selected: anytype, comptime form: body.Inpu
 }
 
 pub inline fn publish(parent: *Lower, child: *const Lower, comptime form: entry.Input) void {
-    const output = comptime rule(form).publish;
+    const flags = comptime rule(form).publish;
+    const entry_effects = @import("generated_function_scope_effects");
+    const Input = std.meta.Child(entry_effects.Input);
+    const Effects = std.meta.Child(@FieldType(Input, "parent"));
 
-    inline for (.{ "uses_allocator", "uses_io", "uses_parallel" }) |field| {
-        if (@field(output, field)) @field(parent, field) = @field(parent, field) or @field(child, field);
-    }
+    const before: Effects = .{
+        .input = flags.input and parent.used[0],
+        .uses_allocator = parent.uses_allocator,
+        .uses_io = parent.uses_io,
+        .uses_parallel = parent.uses_parallel,
+    };
 
-    if (output.input) parent.used[0] = parent.used[0] or child.used[0];
-    if (output.serial) parent.serial = child.serial;
-    if (output.references) parent.reference_storage = child.reference_storage;
+    const after: Effects = .{
+        .input = flags.input and child.used[0],
+        .uses_allocator = child.uses_allocator,
+        .uses_io = child.uses_io,
+        .uses_parallel = child.uses_parallel,
+    };
+
+    const enabled: Effects = .{
+        .input = flags.input,
+        .uses_allocator = flags.uses_allocator,
+        .uses_io = flags.uses_io,
+        .uses_parallel = flags.uses_parallel,
+    };
+
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const request: Input = .{ .parent = &before, .child = &after, .publish = &enabled };
+    const result = zx.columns.invoke(entry_effects.executeValue, fixed.allocator(), &request) catch unreachable;
+
+    if (flags.uses_allocator) parent.uses_allocator = result.uses_allocator;
+    if (flags.uses_io) parent.uses_io = result.uses_io;
+    if (flags.uses_parallel) parent.uses_parallel = result.uses_parallel;
+    if (flags.input) parent.used[0] = result.input;
+    if (flags.serial) parent.serial = child.serial;
+    if (flags.references) parent.reference_storage = child.reference_storage;
 }
 
 fn rule(comptime form: entry.Input) Rule {

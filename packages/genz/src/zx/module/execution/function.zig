@@ -30,9 +30,11 @@ pub fn lower(self: *Lower, definition: ir.Function, id: ir.FunctionId, form: For
         try evaluation.execute(entry, &input);
     } else {
         try seed(handle, form);
+
+        return frame.finishSeed(false);
     }
 
-    return frame.finish(false);
+    return frame.result;
 }
 
 fn seed(handle: *const anyopaque, form: Form) Lower.Error!void {

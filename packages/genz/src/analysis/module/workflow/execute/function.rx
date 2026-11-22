@@ -6,4 +6,7 @@
     <Call fn="function_header" in={$in.module_frame} />
     <Call fn="function_bodies" in={$in} />
     <Call fn="suffix" in={$in.module_frame} />
+    <Call fn="index.appendModuleAuxiliary" in={$in.module_frame} />
+    <Call fn="index.appendModuleSuffix" in={$in.module_frame} />
+    <Call fn="index.finishModuleDeclarations" in={$in.module_frame} />
 </Module>

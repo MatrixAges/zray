@@ -91,3 +91,5 @@ export enum StoredType {
 }
 
 export type CallAstPublication = opaque
+
+export type PreconditionFrame = opaque

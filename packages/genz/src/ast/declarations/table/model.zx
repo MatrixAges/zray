@@ -1,6 +1,7 @@
+import type { ColumnAllocator } from "memory/columns"
 import type { DeclarationsKind } from "../../../printer/model/declarations"
 import type { Columns as Functions } from "../function"
-import type { Constant } from "../model"
+import type { Columns as Constants, Constant } from "../model"
 
 export type Table = {
     tags: DeclarationsKind[],
@@ -29,6 +30,13 @@ export type Result = {
 export type ConstantInput = {
     state: Table,
     value: Constant
+}
+
+export type ConstantBatch = {
+    state: Table,
+    source: Constants.Omit("tags"),
+    allocator: ColumnAllocator,
+    borrow_text: bool
 }
 
 export type Replacement = {

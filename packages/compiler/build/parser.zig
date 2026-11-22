@@ -425,6 +425,7 @@ pub fn shared(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
             .{ .name = "zxc_standard", .module = standard },
             .{ .name = "zxc_string", .module = string },
             .{ .name = "memory", .module = memory },
+            .{ .name = memory_columns, .module = memory },
         },
     });
 

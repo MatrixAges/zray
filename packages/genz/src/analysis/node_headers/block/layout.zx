@@ -1,5 +1,6 @@
 import integers from "std:integer"
 
+import packed from "./sequence/borrow"
 import sequence from "./sequence/layout"
 
 import type { LayoutRequest as Input, Layout as Output } from "./model"
@@ -9,6 +10,14 @@ export default function (in: Input): Output {
         return sequence(in.pick([
             "parts",
             "last",
+            "end",
+            "at_tail"
+        ]))
+    }
+
+    if (in.parts.length != 0) {
+        return packed(in.pick([
+            "parts",
             "end",
             "at_tail"
         ]))

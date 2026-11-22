@@ -33,18 +33,34 @@ pub fn replace(self: *Self, index: usize, value: node.Declaration) void {
 pub fn appendConstants(self: *Self, allocator: std.mem.Allocator, source: anytype, comptime borrow_text: bool) std.mem.Allocator.Error![]const []const u8 {
     const first = self.state.constant_name.items.len;
 
-    for (source.offsets) |offset| {
-        var value = constant(source, offset);
+    if (source.offsets.len == 0) return self.state.constant_name.items[first..];
 
-        if (!borrow_text) value.name = try allocator.dupe(u8, value.name);
-        try self.writeConstant(allocator, @import("generated_auxiliary_constant"), 0, value);
-    }
+    const entry = @import("generated_auxiliary_constant");
+    const Request = Input(entry.executeState);
+    const Source = @FieldType(Request, "source");
+    const columns = borrow(Child(Source), source.*);
+
+    try self.apply(allocator, entry, .{
+        .state = self.state,
+        .source = if (@typeInfo(Source) == .pointer) &columns else columns,
+        .allocator = @ptrCast(&allocator),
+        .borrow_text = borrow_text,
+    });
 
     return self.state.constant_name.items[first..];
 }
 
 pub fn replaceConstant(self: *Self, allocator: std.mem.Allocator, index: usize, source: anytype) std.mem.Allocator.Error!void {
-    return self.writeConstant(allocator, @import("generated_auxiliary_replace"), index, constant(source, source.offsets[0]));
+    const entry = @import("generated_auxiliary_replace");
+    const Request = Input(entry.executeState);
+    const Value = @FieldType(Request, "value");
+    const value = borrow(Child(Value), constant(source, source.offsets[0]));
+
+    return self.apply(allocator, entry, .{
+        .state = self.state,
+        .value = if (@typeInfo(Value) == .pointer) &value else value,
+        .index = index,
+    });
 }
 
 const Constant = struct { name: []const u8, type_expr: ?u32, value: u32, exported: bool };
@@ -56,18 +72,6 @@ fn constant(source: anytype, offset: u32) Constant {
         .value = source.constant_value[offset],
         .exported = source.constant_exported[offset],
     };
-}
-
-fn writeConstant(self: *Self, allocator: std.mem.Allocator, comptime entry: type, index: usize, source: Constant) std.mem.Allocator.Error!void {
-    const ValueField = @FieldType(Input(entry.executeState), "value");
-    const value = borrow(Child(ValueField), source);
-    var input: Input(entry.executeState) = undefined;
-
-    input.state = self.state;
-    input.value = if (@typeInfo(ValueField) == .pointer) &value else value;
-
-    if (@hasField(@TypeOf(input), "index")) input.index = index;
-    try self.apply(allocator, entry, input);
 }
 
 pub fn appendFunction(self: *Self, allocator: std.mem.Allocator, source: anytype, parameter_base: u32) std.mem.Allocator.Error!void {
@@ -114,14 +118,7 @@ pub fn store(self: *const Self, allocator: std.mem.Allocator, nodes: *@import(".
     return .{ .start = start, .len = @intCast(self.count()) };
 }
 
-pub fn assemble(self: *const Self, allocator: std.mem.Allocator, nodes: *@import("../node/storage.zig"), prefix: *@import("../node/declarations.zig").Output, suffix: *@import("../node/declarations.zig").Output) std.mem.Allocator.Error!stored.Declarations {
-    if (generated) {
-        try prefix.spans.append(try self.store(allocator, nodes));
-        try prefix.spans.extend(&suffix.spans);
-
-        return prefix.spans.finish(allocator);
-    }
-
+pub fn assembleSeed(self: *const Self, allocator: std.mem.Allocator, nodes: *@import("../node/storage.zig"), prefix: *@import("../node/declarations.zig").Output, suffix: *@import("../node/declarations.zig").Output) std.mem.Allocator.Error!stored.Declarations {
     const first = try nodes.declarations(allocator, prefix.items);
     const middle = try self.store(allocator, nodes);
     const last = try nodes.declarations(allocator, suffix.items);

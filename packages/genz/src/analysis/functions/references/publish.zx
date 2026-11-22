@@ -1,19 +1,14 @@
 import memory from "memory"
 
-import type { ColumnLengths, U32Buffer } from "memory"
+import { word_radix } from "../../node_headers/block/const"
 
-export type Input = {
-    starts: U32Buffer,
-    counts: U32Buffer,
-    lengths: ColumnLengths,
-    first: u32,
-    count: u32
-}
+import type { Input } from "./model"
 
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.writeU32(in.starts, 0, in.first)
-    memory.writeU32(in.counts, 0, in.count)
-    memory.publishColumnLengths(in.lengths, 1)
+    const count = in.payload.tags.length
+    const span = in.payload.existing * word_radix + count
+
+    memory.appendU64(in.payload.allocator, in.spans, span)
 }

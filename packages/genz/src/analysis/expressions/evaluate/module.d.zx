@@ -72,3 +72,9 @@ export declare function emitValueSignature(signatures: ModuleSignatures): void
 
 export declare function publishSignatureUnit(signatures: ModuleSignatures): void
     throws { OutOfMemory }
+
+export declare function appendModuleAuxiliary(owner: ModuleFrame): void throws { OutOfMemory }
+
+export declare function appendModuleSuffix(owner: ModuleFrame): void throws { OutOfMemory }
+
+export declare function finishModuleDeclarations(owner: ModuleFrame): void throws { OutOfMemory }

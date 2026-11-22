@@ -116,6 +116,10 @@ pub fn join(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32
         collectSeed(node.Block, allocator, &storage.statements, starts, counts, false);
 }
 
+pub fn joinStatementSpans(allocator: std.mem.Allocator, storage: *Storage, spans: []const u64) std.mem.Allocator.Error!node.Block {
+    return collectSource(node.Block, allocator, &storage.statements, &.{}, &.{}, spans, 0, false);
+}
+
 pub fn joinDeclarations(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32, counts: []const u32) std.mem.Allocator.Error!Declarations {
     return collectSource(Declarations, allocator, &storage.declaration_rows, starts, counts, &.{}, 0, false);
 }

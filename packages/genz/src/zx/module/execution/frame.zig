@@ -24,6 +24,7 @@ tasks: Auxiliary,
 requests: ?*RequestsFrame = null,
 
 function: ?*const Function = null,
+result: Stored = undefined,
 pub fn init(lowering: *Lower) Self {
     return .{
         .lowering = lowering,
@@ -53,10 +54,30 @@ pub fn deinit(self: *Self) void {
     }
 }
 
-pub fn finish(self: *Self, type_only: bool) Lower.Error!Stored {
+pub fn finishSeed(self: *Self, type_only: bool) Lower.Error!Stored {
     const lowering = self.lowering;
 
     if (type_only) return publication.finish(&self.output, lowering.builder.nodes, lowering.allocator);
 
-    return self.tasks.assemble(lowering.allocator, lowering.builder.nodes, &self.output, &self.suffix);
+    return self.tasks.assembleSeed(lowering.allocator, lowering.builder.nodes, &self.output, &self.suffix);
+}
+
+pub fn appendModuleAuxiliary(handle: *const anyopaque) Lower.Error!void {
+    const frame = borrow(handle);
+    const lowering = frame.lowering;
+
+    try frame.output.spans.append(try frame.tasks.store(lowering.allocator, lowering.builder.nodes));
+}
+
+pub fn appendModuleSuffix(handle: *const anyopaque) Lower.Error!void {
+    const frame = borrow(handle);
+
+    try frame.output.spans.extend(&frame.suffix.spans);
+}
+
+pub fn finishModuleDeclarations(handle: *const anyopaque) Lower.Error!void {
+    const frame = borrow(handle);
+    const lowering = frame.lowering;
+
+    frame.result = try frame.output.spans.finish(lowering.allocator);
 }

@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Contract" />
+
+    <Args in={Contract.Frame} out={void} />
+
+    <Call fn="index.evaluatePrecondition" in={$in} />
+    <Call fn="index.emitPrecondition" in={$in} />
+    <Call fn="index.publishPreconditionScope" in={$in} />
+</Module>

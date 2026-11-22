@@ -4,89 +4,71 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const generated = @import("genz_options").generated_analysis;
 const scope = @import("functions/scope.zig");
+const evaluation = @import("expressions/evaluate.zig");
 const Sequence = @import("../node/blocks.zig").Sequence;
+const Error = Lower.Error;
 
-pub fn preconditions(self: *Lower) Lower.Error!node.Block {
-    const Statements = if (generated) Sequence else std.ArrayList(node.Statement);
-
-    var statements: Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
-
-    defer if (generated) statements.deinit();
-
-    const contracts = self.program.contracts;
-    var start: usize = 0;
-
-    while (start < contracts.count()) {
-        const index = if (generated) next(contracts.kinds, start) orelse break else start;
-
-        start = index + 1;
-
-        if (!generated and contracts.kinds[index] != .Requires) continue;
-
-        const contract = contracts.at(index);
-        var predicate: Lower = undefined;
-
-        if (generated) {
-            predicate = scope.inherit(self, .Predicate);
-
-            scope.install(&predicate.program, &contract, .Predicate);
-
-            try predicate.refreshEntry();
-            try scope.reserve(&predicate, self.allocator, .Predicate);
-        } else {
-            predicate = try seed(self, &contract);
-        }
-
-        const value = try predicate.expr(contract.predicate);
-
-        if (generated) {
-            try @import("intrinsics/guard.zig").precondition(self, &statements, value);
-        } else {
-            try @import("intrinsics.zig").failIf(self, &statements, try self.builder.expression(.{ .unary = .{ .operator = .not, .operand = value } }), "PreconditionFailed");
-        }
-
-        if (generated) {
-            scope.publish(self, &predicate, .Predicate);
-        } else {
-            self.used[0] = self.used[0] or predicate.used[0];
-            self.uses_allocator = self.uses_allocator or predicate.uses_allocator;
-            self.uses_io = self.uses_io or predicate.uses_io;
-            self.serial = predicate.serial;
-            self.reference_storage = predicate.reference_storage;
-        }
+const Frame = struct {
+    lowering: *Lower,
+    statements: Sequence,
+    predicate: Lower = undefined,
+    expression: zx.ir.ExprId = undefined,
+    value: node.ExpressionId = undefined,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
     }
+};
 
-    return self.builder.finishStatements(&statements);
+pub fn preconditions(self: *Lower) Error!node.Block {
+    if (!generated) return @import("contracts/seed.zig").lower(self);
+
+    const kinds = self.program.contracts.kinds;
+
+    if (kinds.len == 0) return .{ .start = @intCast(self.builder.nodes.statements.tags.items.len), .len = 0 };
+
+    const entry = @import("generated_lower_preconditions");
+    const Input = std.meta.Child(entry.Input);
+    var frame: Frame = .{ .lowering = self, .statements = self.builder.statementSequence(self.workspace) };
+
+    defer frame.statements.deinit();
+
+    const input: Input = .{ .frame = @ptrCast(&frame), .kinds = zx.columns.slice(@FieldType(Input, "kinds"), kinds) };
+
+    try evaluation.execute(entry, &input);
+
+    return self.builder.finishStatements(&frame.statements);
 }
 
-fn seed(self: *Lower, contract: *const zx.ir.Contract) Lower.Error!Lower {
-    var predicate = self.*;
-    predicate.state_symbols = self.state_symbols.inherit();
-    predicate.program.symbols = contract.symbols;
-    predicate.program.expressions = contract.expressions;
+pub fn openPreconditionScope(handle: *const anyopaque, index: u64) Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const contract = self.program.contracts.at(@intCast(index));
+    const predicate = &frame.predicate;
+
+    predicate.* = scope.inherit(self, .Predicate);
+
+    scope.install(&predicate.program, &contract, .Predicate);
 
     try predicate.refreshEntry();
+    try scope.reserve(predicate, self.allocator, .Predicate);
 
-    predicate.names = try self.allocator.dupe([]const u8, &.{"in"});
-    predicate.used = try self.allocator.alloc(bool, 1);
-    predicate.cache_reads = try self.allocator.alloc(u64, contract.expressions.count());
-    predicate.cache = .empty;
-    predicate.stack_symbols = .empty;
-    predicate.uses_allocator = false;
-    predicate.uses_io = false;
-
-    @memset(predicate.used, false);
-    @memset(predicate.cache_reads, 0);
-
-    return predicate;
+    frame.expression = contract.predicate;
 }
 
-fn next(kinds: []const zx.ir.ContractTable.Kind, start: usize) ?usize {
-    const entry = @import("generated_precondition_next");
-    const Input = std.meta.Child(entry.Input);
-    const input: Input = .{ .kinds = zx.columns.slice(@FieldType(Input, "kinds"), kinds), .start = start };
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
-    const index = zx.columns.invoke(entry.executeValue, memory.allocator(), &input) catch unreachable;
+pub fn evaluatePrecondition(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
 
-    return if (index) |value| @intCast(value) else null;
+    frame.value = try frame.predicate.expr(frame.expression);
+}
+
+pub fn emitPrecondition(handle: *const anyopaque) Error!void {
+    const frame = Frame.borrow(handle);
+
+    try @import("intrinsics/guard.zig").precondition(frame.lowering, &frame.statements, frame.value);
+}
+
+pub fn publishPreconditionScope(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+
+    scope.publish(frame.lowering, &frame.predicate, .Predicate);
 }

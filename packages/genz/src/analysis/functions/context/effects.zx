@@ -1,0 +1,27 @@
+import type { Publication } from "./scope"
+
+export type Effects = Publication.Omit(
+    "references",
+    "serial"
+)
+
+export type Input = {
+    parent: Effects,
+    child: Effects,
+    publish: Effects
+}
+
+export type Output = Effects
+
+export default function (in: Input): Output {
+    const { parent, child, publish } = in
+
+    return {
+        input: parent.input || (publish.input && child.input),
+        uses_allocator: parent.uses_allocator ||
+            (publish.uses_allocator && child.uses_allocator),
+        uses_io: parent.uses_io || (publish.uses_io && child.uses_io),
+        uses_parallel: parent.uses_parallel ||
+            (publish.uses_parallel && child.uses_parallel)
+    }
+}

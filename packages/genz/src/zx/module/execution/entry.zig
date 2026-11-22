@@ -30,9 +30,11 @@ pub fn lower(self: *Lower) Lower.Error!Stored {
         try evaluation.execute(entry, &input);
     } else {
         try seed(handle, type_only, local);
+
+        return frame.finishSeed(type_only);
     }
 
-    return frame.finish(type_only);
+    return frame.result;
 }
 
 fn seed(handle: *const anyopaque, type_only: bool, local: bool) Lower.Error!void {

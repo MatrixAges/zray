@@ -1,0 +1,38 @@
+import { word_radix } from "../const"
+
+import type { LayoutRequest, Layout as Output } from "../model"
+
+export type Input = LayoutRequest.Pick(
+    "parts",
+    "end",
+    "at_tail"
+)
+
+export default function (in: Input): Output {
+    const start = in.parts[0] / word_radix
+
+    const range = loop({
+        count: 0,
+        contiguous: true,
+        index: 0
+    }, {
+        while: state => state.index < in.parts.length,
+        next: state => {
+            const part = in.parts[state.index]
+            const adjacent = part / word_radix == start + state.count
+
+            state.contiguous = state.contiguous && adjacent
+            state.count += part % word_radix
+            state.index += 1
+        }
+    })
+
+    const at_end = start + range.count == in.end
+    const borrow = range.contiguous && (at_end || !in.at_tail)
+
+    return {
+        start: borrow ? start : in.end,
+        count: range.count,
+        append: !borrow
+    }
+}

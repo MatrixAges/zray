@@ -1,0 +1,9 @@
+import type { ContractKind } from "core/contract_table/model"
+import type { PreconditionFrame } from "lowering_host"
+
+export type Input = {
+    frame: PreconditionFrame,
+    kinds: ContractKind[]
+}
+
+export type Frame = PreconditionFrame

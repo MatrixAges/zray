@@ -1,0 +1,14 @@
+<Module>
+    <Type from="model" as="References" />
+    <Type from="../../node_headers/model" as="Headers" />
+
+    <Args in={References.Input} out={Headers.Check} />
+
+    <Call module="../../node_headers/payload/validated" in={$in.payload} />
+
+    <If on={$ctx.validated == Headers.Check.Valid}>
+        <Call fn="publish" in={$in} />
+    </If>
+
+    <Return value={$ctx.validated} />
+</Module>

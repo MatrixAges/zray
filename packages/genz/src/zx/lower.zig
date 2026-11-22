@@ -57,7 +57,7 @@ constructed_outputs: []const bool = &.{},
 value_output: bool = false,
 public_value_output: bool = false,
 stack_symbols: @import("members.zig") = .empty,
-reference_storage: if (generated) std.MultiArrayList(node.Block) else std.ArrayList(node.Statement) = .empty,
+reference_storage: if (generated) std.ArrayList(u64) else std.ArrayList(node.Statement) = .empty,
 projected_symbols: ?[]const bool = null,
 input_aliases: ?[]const bool = null,
 iteration_value: ?*@import("iteration_value/root.zig") = null,
@@ -149,52 +149,17 @@ pub fn function(self: *Self, name: []const u8, exported: bool) Error!node.Declar
 }
 
 pub fn hoistReferences(self: *Self, source: anytype) Error!void {
-    const rows = &self.builder.nodes.statements;
-    const count = source.tags.len;
-
-    if (count == 0) return;
-
-    const first = rows.tags.items.len;
-
-    try self.reference_storage.ensureUnusedCapacity(self.allocator, 1);
-
-    @import("../node/import_selected.zig").append(self.allocator, rows, source) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
-    };
-
-    const entry = @import("generated_function_reference_publish");
-    const slot = self.reference_storage.len;
-    var capacity = self.reference_storage.slice();
-    capacity.len = capacity.capacity;
-
-    const starts: []u32 = capacity.items(.start)[slot..][0..1];
-    const counts: []u32 = capacity.items(.len)[slot..][0..1];
-    const lengths: zx.memory.ColumnLengths = &.{&self.reference_storage.len};
-
-    const input: std.meta.Child(entry.Input) = .{
-        .starts = @ptrCast(&starts),
-        .counts = @ptrCast(&counts),
-        .lengths = @ptrCast(&lengths),
-        .first = @intCast(first),
-        .count = @intCast(count),
-    };
-
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+    return @import("functions/references.zig").append(self, source);
 }
 
 pub fn referenceBatches(self: *const Self) usize {
-    return if (generated) self.reference_storage.len else self.reference_storage.items.len;
+    return self.reference_storage.items.len;
 }
 
 pub fn referenceBlock(self: *const Self) Error!node.Block {
     if (!generated) return self.builder.statements(self.reference_storage.items);
 
-    const storage = &self.reference_storage;
-
-    return blocks.join(self.allocator, self.builder.nodes, storage.items(.start), storage.items(.len));
+    return blocks.joinStatementSpans(self.allocator, self.builder.nodes, self.reference_storage.items);
 }
 
 pub fn prototype(self: *Self, name: []const u8, exported: bool) Error!node.Function {

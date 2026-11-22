@@ -1,0 +1,53 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+import memory from "memory/columns"
+
+import { DeclarationsKind } from "../../../printer/model/declarations"
+
+import type { ConstantBatch as Input, Result as Output } from "./model"
+
+export default function (in: Input): Output {
+    const count = in.source.offsets.length
+    const first = in.state.tags.length
+    const limit = integers.widen(max_u32)
+
+    if (count > limit - first) {
+        return {
+            state: in.state,
+            valid: false
+        }
+    }
+
+    const state = loop(in.state, {
+        while: current => current.tags.length < first + count,
+        next: current => {
+            const index = current.tags.length - first
+            const row = integers.widen(in.source.offsets[index])
+            const name = in.source.constant_name[row]
+            const offset = integers.narrow(current.constant_name.length)
+
+            const owned = match {
+                in.borrow_text => name,
+                _ => memory.copyColumnBytes(in.allocator, name)
+            }
+
+            current.tags = current.tags.push(DeclarationsKind.Constant)[0]
+            current.offsets = current.offsets.push(offset)[0]
+            current.constant_name = current.constant_name.push(owned)[0]
+            current.constant_type_expr = current.constant_type_expr.push(
+                in.source.constant_type_expr[row]
+            )[0]
+            current.constant_value = current.constant_value.push(
+                in.source.constant_value[row]
+            )[0]
+            current.constant_exported = current.constant_exported.push(
+                in.source.constant_exported[row]
+            )[0]
+        }
+    })
+
+    return {
+        state,
+        valid: true
+    }
+}
