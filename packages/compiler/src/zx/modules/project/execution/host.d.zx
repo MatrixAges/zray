@@ -1,5 +1,9 @@
 export type ProjectWalk = opaque
 
+export type ProjectState = opaque
+
+export type ProjectImport = opaque
+
 export type ProjectBody = opaque
 
 export type ProjectEntry = opaque
@@ -34,6 +38,30 @@ export enum CacheWrite {
     Invalid
 }
 
+export enum ProjectImportRoute {
+    Native,
+    Legacy,
+    Intrinsic,
+    Resolve,
+    DuplicateBinding,
+    InvalidSpecifier,
+    DuplicateInterface,
+    InterfaceConflict,
+    InvalidLegacy,
+    MissingLegacy
+}
+
+export enum ProjectSourceAction {
+    Descend,
+    Bind,
+    DeferSignature,
+    SkipSignature,
+    RejectRx,
+    Missing,
+    Cycle,
+    Depth
+}
+
 export declare function publishSyntaxOrder(output: SyntaxOrders, constant: u64?): void
     throws { OutOfMemory }
 
@@ -65,6 +93,12 @@ export declare function rejectAnalysisInitializer(entry: AnalysisEntry, message:
 export declare function forwardAnalysisEntry(entry: AnalysisEntry, id: u32): void
     throws { OutOfMemory }
 
+export declare function copyProjectTypes(state: ProjectState): void throws { OutOfMemory }
+
+export declare function copyProjectNatives(state: ProjectState): void throws { OutOfMemory }
+
+export declare function copyProjectOrigins(state: ProjectState): void throws { OutOfMemory }
+
 export declare function openProjectFrame(walk: ProjectWalk, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
@@ -80,6 +114,52 @@ export declare function resumeProjectImport(
 
 export declare function visitProjectImport(walk: ProjectWalk, row: u64): u64?
     throws { OutOfMemory, InvalidSource }
+
+export declare function routeProjectImport(frame: ProjectImport): ProjectImportRoute
+    throws { OutOfMemory }
+
+export declare function rejectProjectRoute(
+    frame: ProjectImport,
+    route: ProjectImportRoute,
+    message: string
+): void throws { InvalidSource }
+
+export declare function bindProjectNative(frame: ProjectImport): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function bindProjectLegacy(frame: ProjectImport): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function bindProjectIntrinsic(frame: ProjectImport): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function resolveProjectImport(frame: ProjectImport): bool
+    throws { OutOfMemory, InvalidSource }
+
+export declare function selectProjectSource(frame: ProjectImport): ProjectSourceAction
+
+export declare function projectImportSourceRow(frame: ProjectImport): u64
+
+export declare function prepareProjectSource(frame: ProjectImport, row: u64): void
+
+export declare function loadProjectLibrary(frame: ProjectImport): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function bindProjectSignature(frame: ProjectImport): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function bindProjectBody(frame: ProjectImport): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function deferProjectSignature(frame: ProjectImport): void
+    throws { OutOfMemory, InvalidSource }
+
+export declare function rejectProjectSource(
+    frame: ProjectImport,
+    action: ProjectSourceAction
+): void throws { InvalidSource }
+
+export declare function recordProjectImport(frame: ProjectImport): void throws { OutOfMemory }
 
 export declare function finishProjectFrame(walk: ProjectWalk): void
     throws { OutOfMemory, InvalidSource }

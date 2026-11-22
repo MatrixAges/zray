@@ -1,0 +1,13 @@
+export const duplicate_binding: string = "duplicate import binding"
+
+export const invalid_specifier: string = "invalid or unknown import specifier"
+
+export const duplicate_interface: string = "duplicate native interface module"
+
+export const interface_conflict: string =
+    "native declarations conflict with legacy external signatures"
+
+export const invalid_legacy: string =
+    "external interfaces require a default function import"
+
+export const missing_legacy: string = "this module has no registered pure interfaces"

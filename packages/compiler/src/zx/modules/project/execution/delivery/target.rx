@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.Binding} out={u64?} />
+
+    <Call fn="index.resolveProjectImport" in={$in.frame} />
+
+    <If on={$ctx.resolveProjectImport}>
+        <Call module="source" in={$in} />
+
+        <Return value={$ctx.source} />
+    </If>
+
+    <Call fn="index.loadProjectLibrary" in={$in.frame} />
+
+    <Call module="bind" in={$in} />
+
+    <Return value={null} />
+</Module>

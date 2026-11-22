@@ -1,0 +1,9 @@
+import type { ProjectImport } from "project_host"
+
+export type Input = {
+    frame: ProjectImport,
+    signature: bool,
+    completed?: u64
+}
+
+export type Binding = Input.Omit("completed")

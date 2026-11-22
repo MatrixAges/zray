@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Shared} out={State.Admission} />
+    <Args in={State.Open} out={State.Admission} />
 
     <Call
         module="../../../analysis/semantic/validate_types"
@@ -41,6 +41,10 @@
     <If on={!$ctx.origins}>
         <Return value={State.Admission.Nominal} />
     </If>
+
+    <Call fn="index.copyProjectTypes" in={$in.state} />
+    <Call fn="index.copyProjectNatives" in={$in.state} />
+    <Call fn="index.copyProjectOrigins" in={$in.state} />
 
     <Return value={State.Admission.Ready} />
 </Module>

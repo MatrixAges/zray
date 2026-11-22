@@ -71,14 +71,9 @@ export type TargetRoute = {
 
 export type Import = {
     target: Target,
-    claim?: Claim,
-    exported: bool,
-    signature: bool
+    claim?: Claim
 }
 
 export type ImportRoute = TargetRoute & {
     duplicate?: u64
-    next?: u64
-    exported: bool
-    record: bool
 }

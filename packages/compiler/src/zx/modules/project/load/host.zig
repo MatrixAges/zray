@@ -15,17 +15,11 @@ fn Result(comptime module: type) type {
     return @typeInfo(@TypeOf(module.executeValue(undefined, undefined))).error_union.payload;
 }
 
-const Route = union(enum) { target: Target.Route, interface: Interface.Route };
+pub const Route = union(enum) { target: Target.Route, interface: Interface.Route };
 
-const ImportPlan = struct {
-    route: Route,
-    exported: bool,
-    record: bool,
-};
+const ImportResult = union(enum) { selected: Route, duplicate: zx.ast.Name };
 
-const ImportResult = union(enum) { selected: ImportPlan, duplicate: zx.ast.Name };
-
-pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const interface.Native, scoped: []const interface.Native, externals: []const interface.External, item: anytype, phase: Phase) std.mem.Allocator.Error!ImportResult {
+pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const interface.Native, scoped: []const interface.Native, externals: []const interface.External, item: anytype) std.mem.Allocator.Error!ImportResult {
     const indexed = enabled and @hasField(@TypeOf(item.header), "storage");
 
     if (comptime !indexed) {
@@ -79,8 +73,6 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
                 },
             },
             .claim = if (claim) |*view| view else null,
-            .exported = item.exported,
-            .signature = phase == .signature,
         };
 
         const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
@@ -95,11 +87,7 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
         else
             .{ .target = result.route };
 
-        return .{ .selected = .{
-            .route = selected,
-            .exported = result.exported,
-            .record = result.record,
-        } };
+        return .{ .selected = selected };
     }
 
     const kind = Target.classify(item.path);
@@ -113,11 +101,7 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
     else
         .{ .target = kind };
 
-    return .{ .selected = .{
-        .route = selected,
-        .exported = item.exported,
-        .record = phase == .body,
-    } };
+    return .{ .selected = selected };
 }
 
 pub fn states(allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error![]State {

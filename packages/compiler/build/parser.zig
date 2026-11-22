@@ -118,7 +118,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
                     .path = b.fmt("{s}/analysis/iteration/transfer/history", .{directories[3]}),
                     .prefix = "genz/analysis/iteration/transfer/history/",
                 } },
-                .execution => &.{ manifest_roots[0], manifest_roots[2], manifest_roots[3] },
+                .execution => &.{ manifest_roots[0], manifest_roots[1], manifest_roots[2], manifest_roots[3] },
                 .growth, .host => manifest_roots[2..],
                 else => &manifest_roots,
             },

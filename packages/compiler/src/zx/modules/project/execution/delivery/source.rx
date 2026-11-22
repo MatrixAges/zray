@@ -1,0 +1,50 @@
+<Module>
+    <Type from="model" as="Delivery" />
+    <Type from="index" as="Host" />
+
+    <Args in={Delivery.Binding} out={u64?} />
+
+    <Call fn="index.selectProjectSource" in={$in.frame} />
+
+    <Switch on={$ctx.selectProjectSource}>
+        <Case value={Host.ProjectSourceAction.Descend}>
+            <Call fn="index.projectImportSourceRow" in={$in.frame} />
+
+            <Return value={$ctx.projectImportSourceRow} />
+        </Case>
+
+        <Case value={Host.ProjectSourceAction.Bind}>
+            <Call fn="index.projectImportSourceRow" in={$in.frame} />
+
+            <Call
+                fn="index.prepareProjectSource"
+                in={[
+                    $in.frame,
+                    $ctx.projectImportSourceRow
+                ]}
+            />
+
+            <Call module="bind" in={$in} />
+        </Case>
+
+        <Case value={Host.ProjectSourceAction.DeferSignature}>
+            <Call fn="index.deferProjectSignature" in={$in.frame} />
+        </Case>
+
+        <Case value={Host.ProjectSourceAction.SkipSignature}>
+            <Return value={null} />
+        </Case>
+
+        <Default>
+            <Call
+                fn="index.rejectProjectSource"
+                in={[
+                    $in.frame,
+                    $ctx.selectProjectSource
+                ]}
+            />
+        </Default>
+    </Switch>
+
+    <Return value={null} />
+</Module>

@@ -7,12 +7,12 @@ const Phase = @import("../load/host.zig").Phase;
 const errorSet = @import("invoke.zig").errorSet;
 const Frame = @import("../../project.zig").LoadFrame;
 
-const Header = union(enum) {
+pub const Header = union(enum) {
     native: zx.syntax.header.Native,
     indexed: if (indexed) @TypeOf(@as(Inputs.Indexed, undefined).header()) else void,
 };
 
-const Walk = struct {
+pub const Walk = struct {
     project: *Project,
     phase: Phase,
     paths: std.heap.ArenaAllocator,
@@ -20,7 +20,7 @@ const Walk = struct {
     fn borrow(handle: *const anyopaque) *Walk {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
-    fn active(self: *Walk) *Frame {
+    pub fn active(self: *Walk) *Frame {
         const frames = self.project.load_frames.items;
 
         return &frames[frames.len - 1];
@@ -90,24 +90,12 @@ pub fn suspendedProjectImport(handle: *const anyopaque) u64 {
 
 pub fn resumeProjectImport(handle: *const anyopaque, row: u64, child: u64) zx.Error!void {
     const walk = Walk.borrow(handle);
-    const frame = walk.active();
 
-    return switch (walk.header) {
-        .native => |header| walk.project.resumeImport(frame, header, @intCast(row), @intCast(child), walk.phase),
-        .indexed => |header| if (indexed) walk.project.resumeImport(frame, header, @intCast(row), @intCast(child), walk.phase) else unreachable,
-    };
+    _ = try @import("delivery/frame.zig").run(walk, @intCast(row), child);
 }
 
 pub fn visitProjectImport(handle: *const anyopaque, row: u64) zx.Error!?u64 {
-    const walk = Walk.borrow(handle);
-    const frame = walk.active();
-
-    const next = try switch (walk.header) {
-        .native => |header| walk.project.visitImport(frame, header, @intCast(row), walk.phase, &walk.paths),
-        .indexed => |header| if (indexed) walk.project.visitImport(frame, header, @intCast(row), walk.phase, &walk.paths) else unreachable,
-    };
-
-    return if (next) |child| child else null;
+    return @import("delivery/frame.zig").run(Walk.borrow(handle), @intCast(row), null);
 }
 
 pub fn finishProjectFrame(handle: *const anyopaque) zx.Error!void {

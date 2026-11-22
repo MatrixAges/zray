@@ -1,0 +1,63 @@
+<Module>
+    <Type from="model" as="Delivery" />
+    <Type from="index" as="Host" />
+
+    <Args in={Delivery.Input} out={u64?} />
+
+    <If on={$in.completed != null}>
+        <Call
+            fn="index.prepareProjectSource"
+            in={[
+                $in.frame,
+                $in.completed
+            ]}
+        />
+
+        <Call module="bind" in={$in.omit(["completed"])} />
+
+        <Return value={null} />
+    </If>
+
+    <Call fn="index.routeProjectImport" in={$in.frame} />
+
+    <If on={$ctx.routeProjectImport == Host.ProjectImportRoute.Resolve}>
+        <Call module="target" in={$in.omit(["completed"])} />
+
+        <Return value={$ctx.target} />
+    </If>
+
+    <Switch on={$ctx.routeProjectImport}>
+        <Case value={Host.ProjectImportRoute.Native}>
+            <Call fn="index.bindProjectNative" in={$in.frame} />
+        </Case>
+
+        <Case value={Host.ProjectImportRoute.Legacy}>
+            <Call fn="index.bindProjectLegacy" in={$in.frame} />
+        </Case>
+
+        <Case value={Host.ProjectImportRoute.Intrinsic}>
+            <Call fn="index.bindProjectIntrinsic" in={$in.frame} />
+        </Case>
+
+        <Default>
+            <Call fn="diagnostic" in={$ctx.routeProjectImport} />
+
+            <Call
+                fn="index.rejectProjectRoute"
+                in={[
+                    $in.frame,
+                    $ctx.routeProjectImport,
+                    $ctx.diagnostic
+                ]}
+            />
+
+            <Return value={null} />
+        </Default>
+    </Switch>
+
+    <If on={!$in.signature}>
+        <Call fn="index.recordProjectImport" in={$in.frame} />
+    </If>
+
+    <Return value={null} />
+</Module>

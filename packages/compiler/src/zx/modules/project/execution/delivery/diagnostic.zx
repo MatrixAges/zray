@@ -1,0 +1,26 @@
+import { ProjectImportRoute } from "project_host"
+
+import {
+    duplicate_binding,
+    invalid_specifier,
+    duplicate_interface,
+    interface_conflict,
+    invalid_legacy,
+    missing_legacy
+} from "./const"
+
+export type Input = ProjectImportRoute
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return match in {
+        ProjectImportRoute.DuplicateBinding => duplicate_binding,
+        ProjectImportRoute.InvalidSpecifier => invalid_specifier,
+        ProjectImportRoute.DuplicateInterface => duplicate_interface,
+        ProjectImportRoute.InterfaceConflict => interface_conflict,
+        ProjectImportRoute.InvalidLegacy => invalid_legacy,
+        ProjectImportRoute.MissingLegacy => missing_legacy,
+        _ => ""
+    }
+}

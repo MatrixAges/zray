@@ -11,9 +11,7 @@
             <Return
                 value={{
                     route: Target.Route.Invalid,
-                    duplicate: $ctx.claim,
-                    exported: false,
-                    record: false
+                    duplicate: $ctx.claim
                 }}
             />
         </If>
@@ -24,8 +22,7 @@
     <Return
         value={{
             ...$ctx.target,
-            exported: $in.exported,
-            record: !$in.signature
+            duplicate: null
         }}
     />
 </Module>

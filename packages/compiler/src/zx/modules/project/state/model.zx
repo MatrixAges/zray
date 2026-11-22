@@ -1,6 +1,7 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
+import type { ProjectState } from "project_host"
 
 export type Shared = {
     table: Table,
@@ -9,6 +10,10 @@ export type Shared = {
     names: string[],
     scalar_count: u64,
     maximum_count: u64
+}
+
+export type Open = Shared & {
+    state: ProjectState
 }
 
 export enum Admission {

@@ -1,0 +1,14 @@
+<Module>
+    <Type from="model" as="Delivery" />
+
+    <Args in={Delivery.Binding} out={void} />
+
+    <If on={$in.signature}>
+        <Call fn="index.bindProjectSignature" in={$in.frame} />
+
+        <Else>
+            <Call fn="index.bindProjectBody" in={$in.frame} />
+            <Call fn="index.recordProjectImport" in={$in.frame} />
+        </Else>
+    </If>
+</Module>
