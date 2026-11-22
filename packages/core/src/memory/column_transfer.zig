@@ -1,9 +1,10 @@
 const std = @import("std");
 const Bytes = []const u8;
-const Kind = enum { value, text, optional_text, words, texts, optional_texts, text_views, optional_text_views };
+const Kind = enum { value, repeated, text, optional_text, words, texts, optional_texts, text_views, optional_text_views };
 
 pub const Column = struct {
     source: [*]const u8,
+    source_count: usize,
     storage: *std.ArrayList(u8),
     width: usize,
     kind: Kind,
@@ -26,6 +27,7 @@ pub fn bind(target: anytype, source: anytype, comptime copy_payloads: bool, comp
 
     return .{
         .source = @ptrCast(source.ptr),
+        .source_count = source.len,
         .storage = @ptrCast(target),
         .width = @sizeOf(Value),
         .kind = comptime kind(Value, copy_payloads, borrow_text),
@@ -37,6 +39,23 @@ pub fn bind(target: anytype, source: anytype, comptime copy_payloads: bool, comp
             }
         }.ensure,
     };
+}
+
+pub fn repeat(target: anytype, value: anytype) Column {
+    const Value = std.meta.Elem(@TypeOf(target.items));
+    var column = bind(target, @as(*const [1]Value, @ptrCast(value))[0..], false, false);
+
+    column.kind = .repeated;
+
+    return column;
+}
+
+pub fn matches(target: *const anyopaque, index: u64, count: u64) bool {
+    for (group(target, index)) |column| {
+        if (column.width != 0 and column.kind != .repeated and column.source_count != count) return false;
+    }
+
+    return true;
 }
 
 fn kind(comptime Value: type, comptime copy_payloads: bool, comptime borrow_text: bool) Kind {
@@ -123,6 +142,12 @@ fn copyColumn(allocator: std.mem.Allocator, column: Column, first: usize, count:
 
             @memcpy(target, source);
         },
+        .repeated => {
+            const source = column.source[0..column.width];
+            const target = column.storage.items.ptr[column.storage.items.len * column.width ..];
+
+            for (0..count) |index| @memcpy(target[index * column.width ..][0..column.width], source);
+        },
         .text => try cloneRange(Bytes, false, allocator, column, first, count),
         .optional_text => try cloneRange(?Bytes, false, allocator, column, first, count),
         .words => try cloneRange([]const u32, false, allocator, column, first, count),
@@ -137,7 +162,7 @@ fn discardColumns(allocator: std.mem.Allocator, columns: []const Column, count: 
     var iterator = std.mem.reverseIterator(columns);
 
     while (iterator.next()) |column| switch (column.kind) {
-        .value => {},
+        .value, .repeated => {},
         .text => releaseRange(Bytes, false, allocator, column, count),
         .optional_text => releaseRange(?Bytes, false, allocator, column, count),
         .words => releaseRange([]const u32, false, allocator, column, count),

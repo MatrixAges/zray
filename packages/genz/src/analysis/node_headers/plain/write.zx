@@ -1,0 +1,39 @@
+import memory from "memory"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { allocator, groups, count } = in
+
+    const base = memory.reserveColumnGroup(allocator, groups, 0, count)
+
+    if (in.borrowed) {
+        const copied = memory.copyColumnGroup(allocator, groups, 0, 0, count)
+
+        if (copied) {
+            memory.publishColumnGroup(groups, 0, count)
+        }
+
+        return copied
+    }
+
+    const completed = loop({
+        row: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.row < count,
+        next: state => {
+            state.valid = memory.copyColumnGroup(allocator, groups, 0, state.row, 1)
+
+            if (state.valid) {
+                memory.publishColumnGroup(groups, 0, 1)
+                state.row += 1
+            }
+        },
+        return: state => state.valid
+    })
+
+    return completed
+}

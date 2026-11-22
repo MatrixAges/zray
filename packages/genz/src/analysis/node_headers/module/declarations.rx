@@ -1,0 +1,14 @@
+<Module>
+    <Type from="model" as="Module" />
+    <Type from="../model" as="Headers" />
+
+    <Args in={Module.Input} out={Headers.Check} />
+
+    <If on={$in.declarations != null}>
+        <Call module="../payload/validated" in={$in.declarations} />
+
+        <Return value={$ctx.validated} />
+    </If>
+
+    <Return value={Headers.Check.Valid} />
+</Module>

@@ -5,6 +5,141 @@ const headers = @import("headers.zig");
 const generated = @import("genz_options").generated_analysis;
 const Layout = enum { dense, selected };
 
+pub const Plain = struct {
+    slice: [1][]const transfer.Column = undefined,
+    groups: transfer.Groups = undefined,
+    pub fn bind(self: *Plain, comptime Input: type, allocator: *const std.mem.Allocator, columns: []const transfer.Column, count: usize, existing: usize, borrowed: bool) Input {
+        self.slice = .{columns};
+        self.groups = &self.slice;
+
+        return .{
+            .allocator = @ptrCast(allocator),
+            .groups = @ptrCast(&self.groups),
+            .count = count,
+            .existing = existing,
+            .borrowed = borrowed,
+        };
+    }
+
+    pub fn append(allocator: std.mem.Allocator, columns: []const transfer.Column, count: usize, existing: usize, borrowed: bool) headers.Error!void {
+        const entry = @import("generated_node_plain_append");
+        var packed_columns: Plain = .{};
+        const input = packed_columns.bind(std.meta.Child(entry.Input), &allocator, columns, count, existing, borrowed);
+        var fixed = std.heap.FixedBufferAllocator.init(&.{});
+        const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| return failure(err);
+
+        return switch (result) {
+            .Valid => {},
+            .Invalid => error.InvalidAst,
+            .Exhausted => error.OutOfMemory,
+        };
+    }
+};
+
+pub fn Binding(comptime Target: type, comptime View: type) type {
+    const Payloads = @FieldType(std.meta.Child(Target), "payloads");
+    const names = @typeInfo(Payloads).@"struct".field_names;
+    const width = fields(Payloads, View);
+
+    const complete = comptime complete: {
+        @setEvalBranchQuota(100_000);
+
+        var supplied: [names.len]bool = undefined;
+        var present: usize = 2;
+
+        for (names, &supplied) |name, *flag| {
+            const shape = sourceShape(@FieldType(Payloads, name), View, name);
+
+            flag.* = shape.complete;
+            present += shape.present;
+        }
+
+        if (present != @typeInfo(View).@"struct".field_names.len) @compileError("AST import has unknown columns");
+
+        break :complete supplied;
+    };
+
+    return struct {
+        const Self = @This();
+
+        buffers: [width]transfer.Column = undefined,
+        slices: [names.len][]const transfer.Column = undefined,
+        groups: transfer.Groups = undefined,
+        counts: [names.len]u32 = @splat(0),
+        bases: [names.len]u32 = undefined,
+        count_view: []u32 = undefined,
+        base_view: []u32 = undefined,
+        views: headers.Views = .{},
+        length_slots: [2]*usize = undefined,
+        lengths: zx.memory.ColumnLengths = undefined,
+        pub fn bind(self: *Self, comptime Input: type, allocator: *const std.mem.Allocator, target: Target, source: *const View, comptime copy_payloads: bool, comptime borrow_text: bool) Input {
+            @setEvalBranchQuota(100_000);
+
+            const Tag = std.meta.Elem(@TypeOf(target.tags.items));
+
+            comptime @import("view.zig").compatible(Tag, std.meta.Elem(@FieldType(View, "tags")));
+
+            comptime var first: usize = 0;
+
+            inline for (names, &self.slices) |name, *group| {
+                const column = &@field(target.payloads, name);
+                const end = first + comptime widthOf(std.meta.Child(@TypeOf(column)), View, name);
+
+                attach(column, source, name, self.buffers[first..end], copy_payloads, borrow_text);
+
+                group.* = self.buffers[first..end];
+                first = end;
+            }
+
+            self.groups = &self.slices;
+            self.count_view = &self.counts;
+            self.base_view = &self.bases;
+            self.length_slots = .{ &target.tags.items.len, &target.offsets.items.len };
+            self.lengths = &self.length_slots;
+
+            var input = self.views.bind(Input, allocator, target, &self.lengths);
+
+            input.tags = std.mem.sliceAsBytes(source.tags);
+            input.offsets = source.offsets;
+            input.mask = headers.mask(Tag);
+            input.bases = @ptrCast(&self.base_view);
+            input.groups = @ptrCast(&self.groups);
+            input.counts = &self.counts;
+            input.count_buffer = @ptrCast(&self.count_view);
+            input.complete = &complete;
+            input.existing = target.tags.items.len;
+            input.layout = .Dense;
+
+            return input;
+        }
+    };
+}
+
+const Shape = struct { present: usize, complete: bool };
+
+fn sourceShape(comptime Column: type, comptime View: type, comptime prefix: []const u8) Shape {
+    if (@hasField(Column, "fields")) {
+        const Fields = @FieldType(Column, "fields");
+        var shape: Shape = .{ .present = 0, .complete = true };
+
+        for (@typeInfo(Fields).@"struct".field_names) |name| {
+            const child = sourceShape(@FieldType(Fields, name), View, prefix ++ "_" ++ name);
+
+            shape.present += child.present;
+            shape.complete = shape.complete and child.complete;
+        }
+
+        return shape;
+    }
+
+    const Value = std.meta.Elem(@FieldType(@FieldType(Column, "values"), "items"));
+    const present = @hasField(View, prefix);
+
+    if (present and Value != void) @import("view.zig").compatible(Value, std.meta.Elem(@FieldType(View, prefix)));
+
+    return .{ .present = @intFromBool(present), .complete = present or Value == void };
+}
+
 pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype, counts: *const headers.Counts(@TypeOf(target)), comptime layout: Layout, comptime copy_payloads: bool, comptime borrow_text: bool) headers.Error!void {
     @setEvalBranchQuota(100_000);
 
@@ -72,6 +207,13 @@ pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype, co
     };
 
     if (!complete) return error.OutOfMemory;
+}
+
+pub fn failure(err: anyerror) headers.Error {
+    return switch (err) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        else => unreachable,
+    };
 }
 
 fn fields(comptime Payloads: type, comptime View: type) usize {

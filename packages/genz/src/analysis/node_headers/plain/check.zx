@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import fits from "../fits"
+import { Check } from "../model"
+
+import type { Input } from "./model"
+
+export type Output = Check
+
+export default function (in: Input): Output {
+    if (!memory.columnGroupMatchesLength(in.groups, 0, in.count)) {
+        return Check.Invalid
+    }
+
+    const capacity = fits(in.pick([
+        "existing",
+        "count"
+    ]))
+
+    return capacity ? Check.Valid : Check.Exhausted
+}

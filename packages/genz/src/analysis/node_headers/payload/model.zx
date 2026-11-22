@@ -19,3 +19,12 @@ export type Preparation = Columns & {
 export type Input = Rebase & Preparation & Tail & {
     layout: Layout
 }
+
+export type Validation = Columns & {
+    complete: bool[]
+}
+
+export type Bound = Input & Validation & {
+    count_buffer: U32Buffer,
+    existing: u64
+}

@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Module" />
+    <Type from="../model" as="Headers" />
+
+    <Args in={Module.Input} out={Headers.Check} />
+
+    <Call module="../payload/validated" in={$in.expressions} />
+
+    <If on={$ctx.validated != Headers.Check.Valid}>
+        <Return value={$ctx.validated} />
+    </If>
+
+    <Call module="members" in={$in} />
+
+    <Return value={$ctx.members} />
+</Module>

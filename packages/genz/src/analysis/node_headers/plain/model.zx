@@ -1,0 +1,9 @@
+import type { Allocator, ColumnTransfers } from "memory"
+
+export type Input = {
+    allocator: Allocator,
+    groups: ColumnTransfers,
+    count: u64,
+    existing: u64,
+    borrowed: bool
+}

@@ -79,6 +79,12 @@ export declare function reserveColumnGroup(
     count: u64
 ): u64 throws { OutOfMemory }
 
+export declare function columnGroupMatchesLength(
+    groups: ColumnTransfers,
+    group: u64,
+    count: u64
+): bool
+
 export declare function discardColumnGroup(
     allocator: Allocator,
     groups: ColumnTransfers,

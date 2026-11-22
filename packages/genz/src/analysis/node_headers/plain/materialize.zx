@@ -1,0 +1,58 @@
+import memory from "memory/columns"
+
+import type { ColumnAllocator, RowBuffer, WriteColumn } from "memory/columns"
+import type { Columns } from "../../../ast/fields/model"
+
+export type Target = {
+    name: WriteColumn,
+    value: WriteColumn,
+    default_value: WriteColumn,
+    comptime_parameter: WriteColumn
+}
+
+export type Input = {
+    source: Columns,
+    target: Target,
+    rows: RowBuffer,
+    allocator: ColumnAllocator
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { source, target } = in
+
+    const count = source.name.length
+    const values_fit = source.value.length == count
+    const defaults_fit = source.default_value.length == count
+    const comptime_fits = source.comptime_parameter.length == count
+
+    const valid = values_fit && defaults_fit && comptime_fits
+
+    if (!valid) {
+        return false
+    }
+
+    memory.allocateRowsWithAllocator(in.allocator, in.rows, count)
+
+    const written = loop(0, {
+        while: row => row < count,
+        next: row => {
+            memory.writeColumnBytes(target.name, row, source.name[row])
+            memory.writeColumnU32(target.value, row, source.value[row])
+            memory.writeColumnOptionalU32(
+                target.default_value,
+                row,
+                source.default_value[row]
+            )
+            memory.writeColumnBool(
+                target.comptime_parameter,
+                row,
+                source.comptime_parameter[row]
+            )
+            row += 1
+        }
+    })
+
+    return true
+}

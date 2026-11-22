@@ -1,0 +1,9 @@
+import type { Bound } from "../payload/model"
+import type { Input as Plain } from "../plain/model"
+
+export type Input = {
+    expressions: Bound,
+    statements?: Bound,
+    fields?: Plain,
+    declarations?: Bound
+}
