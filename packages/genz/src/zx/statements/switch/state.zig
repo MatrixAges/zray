@@ -55,22 +55,22 @@ pub fn resolve(self: *Self, lowering: *Lower, named: usize) Lower.Error!void {
     self.literals = try allocator.alloc(?u32, named);
 }
 
-pub fn beforeCase(self: *Self, lowering: *Lower, index: usize, label: ir.ExprId) Lower.Error!void {
-    self.comparisons[index] = if (self.selected) 0 else @backingInt(try equal(self, lowering, label));
+pub fn resetCase(self: *Self, index: usize) void {
+    self.comparisons[index] = 0;
     self.literals[index] = null;
 }
 
-pub fn afterCase(self: *Self, lowering: *Lower, index: usize, label: ir.ExprId, child: node.Block) Lower.Error!void {
+pub fn saveCase(self: *Self, index: usize, child: node.Block) void {
     self.starts[index] = child.start;
     self.counts[index] = child.len;
+}
 
-    if (self.selected) {
-        if (index + 1 == self.starts.len) {
-            self.comparisons[index] = @backingInt(try equal(self, lowering, label));
-        } else {
-            self.literals[index] = @backingInt(try labels_analysis.literal(lowering, label));
-        }
-    }
+pub fn compareCase(self: *Self, lowering: *Lower, index: usize, label: ir.ExprId) Lower.Error!void {
+    self.comparisons[index] = @backingInt(try equal(self, lowering, label));
+}
+
+pub fn literalCase(self: *Self, lowering: *Lower, index: usize, label: ir.ExprId) Lower.Error!void {
+    self.literals[index] = @backingInt(try labels_analysis.literal(lowering, label));
 }
 
 pub fn finish(self: *Self, lowering: *Lower) Lower.Error!node.Block {

@@ -1,0 +1,33 @@
+import step from "./step"
+
+import type { Run as Input } from "./model"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { traversal, plan } = in
+
+    return loop({
+        index: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.index < plan.actions.length,
+        next: state => {
+            const index = state.index
+
+            state.valid = step({
+                traversal,
+                action: plan.actions[index],
+                first: plan.offsets[index],
+                count: plan.counts[index],
+                scope: plan.scopes[index],
+                placement: plan.placements[index]
+            })
+
+            if (state.valid) {
+                state.index += 1
+            }
+        },
+        return: state => state.index
+    })
+}

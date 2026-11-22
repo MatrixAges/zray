@@ -1,0 +1,49 @@
+import host from "lowering_host"
+
+import { Action } from "../model"
+import selectionCase from "./case"
+import runScope from "./scope"
+
+import type { Step as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { action, traversal, scope, first, count, placement } = in
+
+    return match action {
+        Action.Open =>
+            host.openStatementScope(traversal, scope, first, count, placement),
+        Action.Execute => runScope({
+            traversal,
+            scope,
+            first,
+            count
+        }),
+        Action.Condition => host.lowerStatementCondition(traversal, scope, first),
+        Action.SaveYes => host.saveStatementBranch(traversal, scope),
+        Action.Join => host.joinStatementBranch(traversal, scope, first),
+        Action.Selection =>
+            host.openStatementSelection(traversal, scope, first, placement),
+        Action.Fallback => host.saveStatementFallback(traversal, placement),
+        Action.Resolve => host.resolveStatementSelection(traversal, placement, count),
+        Action.Case => selectionCase({
+            traversal,
+            placement,
+            count,
+            first,
+            after: false
+        }),
+        Action.SaveCase => selectionCase({
+            traversal,
+            placement,
+            count,
+            first,
+            after: true
+        }),
+        Action.EndSelection =>
+            host.finishStatementSelection(traversal, scope, first, placement),
+        Action.Close => host.finishStatementScope(traversal, scope),
+        _ => false
+    }
+}

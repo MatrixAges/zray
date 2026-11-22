@@ -1,0 +1,97 @@
+export declare function openStatementScope(
+    traversal: StatementTraversal,
+    scope: u64,
+    start: u32,
+    count: u32,
+    placement: u64
+): bool
+
+export declare function lowerStatementAt(
+    traversal: StatementTraversal,
+    scope: u64,
+    cursor: u64
+): u64?
+
+export declare function finishStatementScope(traversal: StatementTraversal, scope: u64): bool
+
+export declare function releaseStatementScope(traversal: StatementTraversal, scope: u64): void
+
+export declare function lowerStatementCondition(
+    traversal: StatementTraversal,
+    scope: u64,
+    offset: u32
+): bool
+
+export declare function saveStatementBranch(traversal: StatementTraversal, scope: u64): bool
+
+export declare function joinStatementBranch(
+    traversal: StatementTraversal,
+    scope: u64,
+    offset: u32
+): bool
+
+export declare function openStatementSelection(
+    traversal: StatementTraversal,
+    scope: u64,
+    offset: u32,
+    placement: u64
+): bool
+
+export declare function saveStatementFallback(
+    traversal: StatementTraversal,
+    placement: u64
+): bool
+
+export declare function resolveStatementSelection(
+    traversal: StatementTraversal,
+    placement: u64,
+    count: u32
+): bool
+
+export declare function statementSelectionUsesSwitch(
+    traversal: StatementTraversal,
+    placement: u64
+): bool
+
+export declare function statementSelectionCaseCount(
+    traversal: StatementTraversal,
+    placement: u64
+): u64
+
+export declare function resetStatementCase(
+    traversal: StatementTraversal,
+    placement: u64,
+    index: u32
+): void
+
+export declare function saveStatementCase(
+    traversal: StatementTraversal,
+    placement: u64,
+    index: u32
+): void
+
+export declare function lowerStatementComparison(
+    traversal: StatementTraversal,
+    placement: u64,
+    index: u32,
+    label: u32
+): bool
+
+export declare function lowerStatementCaseLiteral(
+    traversal: StatementTraversal,
+    placement: u64,
+    index: u32,
+    label: u32
+): bool
+
+export declare function finishStatementSelection(
+    traversal: StatementTraversal,
+    scope: u64,
+    offset: u32,
+    placement: u64
+): bool
+
+export declare function releaseStatementSelection(
+    traversal: StatementTraversal,
+    placement: u64
+): void

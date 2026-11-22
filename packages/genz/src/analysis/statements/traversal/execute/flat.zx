@@ -1,0 +1,30 @@
+import host from "lowering_host"
+
+import scope from "./scope"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { traversal, first, count } = in
+
+    if (!host.openStatementScope(traversal, 0, first, count, 0)) {
+        return false
+    }
+
+    const lowered = scope({
+        traversal,
+        scope: 0,
+        first: 0,
+        count
+    })
+
+    const valid = lowered && host.finishStatementScope(traversal, 0)
+
+    if (!valid) {
+        host.releaseStatementScope(traversal, 0)
+    }
+
+    return valid
+}

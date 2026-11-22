@@ -1,0 +1,30 @@
+import integers from "std:integer"
+import host from "lowering_host"
+
+import type { Scope as Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { traversal, first, count, scope } = in
+
+    const start = integers.widen(first)
+    const end = start + integers.widen(count)
+
+    return loop({
+        cursor: end,
+        valid: true
+    }, {
+        while: state => state.valid && state.cursor > start,
+        next: state => {
+            const next = host.lowerStatementAt(traversal, scope, state.cursor)
+
+            if (next == null) {
+                state.valid = false
+            } else {
+                state.cursor = next
+            }
+        },
+        return: state => state.valid
+    })
+}

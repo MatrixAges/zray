@@ -1,3 +1,5 @@
+export type StatementTraversal = opaque
+
 export type SequenceFrame = opaque
 
 export type ObjectFrame = opaque

@@ -1,0 +1,29 @@
+import host from "lowering_host"
+
+import { Action } from "../model"
+
+import type { Rollback as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { traversal, plan, failed } = in
+
+    const restored = loop(plan.rollback[failed], {
+        while: active => active != 0,
+        next: active => {
+            const opened = active - 1
+
+            if (plan.actions[opened] == Action.Open) {
+                host.releaseStatementScope(traversal, plan.scopes[opened])
+            } else {
+                host.releaseStatementSelection(
+                    traversal,
+                    plan.placements[opened]
+                )
+            }
+
+            active = plan.rollback[opened]
+        }
+    })
+}

@@ -1049,6 +1049,7 @@ pub const execution = [_]Entry{
     .{ .path = "zx/modules/project/execution/entry.rx", .name = "project_execute_entry" },
     .{ .path = "genz/analysis/functions/signature/execute/run.zx", .name = "lower_module_signatures", .owner = .genz },
     .{ .path = "genz/analysis/functions/body/execute/run.rx", .name = "lower_function_body", .owner = .genz },
+    .{ .path = "genz/analysis/statements/traversal/execute/run.rx", .name = "execute_statement_traversal", .owner = .genz },
     .{ .path = "genz/analysis/functions/value/execute/run.rx", .name = "lower_value_function", .owner = .genz },
     .{ .path = "genz/analysis/state/entry/execute.zx", .name = "convert_represented_cache", .owner = .genz },
     .{ .path = "genz/analysis/module/workflow/execute/entry.rx", .name = "lower_entry_declarations", .owner = .genz },

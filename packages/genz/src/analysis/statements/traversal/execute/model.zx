@@ -1,0 +1,29 @@
+import type { StatementTraversal } from "lowering_host"
+import type { Action, Schedule } from "../model"
+
+export type Input = {
+    traversal: StatementTraversal,
+    plan: Schedule,
+    first: u32,
+    count: u32
+}
+
+export type Run = Input.Pick("traversal", "plan")
+
+export type Rollback = Run & {
+    failed: u64
+}
+
+export type Step = Input.Pick("traversal") & {
+    action: Action,
+    first: u32,
+    count: u32,
+    scope: u64,
+    placement: u64
+}
+
+export type Scope = Step.Pick("traversal", "first", "count", "scope")
+
+export type Case = Step.Pick("traversal", "placement", "count", "first") & {
+    after: bool
+}

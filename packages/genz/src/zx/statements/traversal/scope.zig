@@ -44,22 +44,11 @@ pub fn close(self: *const Self, lowering: *Lower) void {
     lowering.state_symbols.removeMany(self.state_symbols);
 }
 
-pub fn run(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), first: usize, count: usize) Lower.Error!void {
-    var cursor = first + count;
-
-    while (cursor > first) {
-        const offset = cursor - 1;
-        const result = try emission.emit(lowering, output, self.values, offset, self.routes[offset]);
-
-        cursor = self.publish(cursor, result);
-    }
-}
-
 pub fn put(self: *const Self, offset: usize, span: node.Block) void {
     _ = self.publish(offset + 1, .{ .span = span, .consumed_previous = false });
 }
 
-fn publish(self: *const Self, cursor: usize, result: emission.Output) usize {
+pub fn publish(self: *const Self, cursor: usize, result: emission.Output) usize {
     const input: std.meta.Child(entry.Input) = .{
         .starts = @ptrCast(&self.starts),
         .counts = @ptrCast(&self.counts),

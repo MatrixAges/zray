@@ -5,9 +5,27 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Scope = @import("scope.zig");
 const Selection = @import("../switch/state.zig");
+const emission = @import("../emit.zig");
+const basic = @import("../basic.zig");
 const entry = @import("generated_statement_traversal");
+const execute = @import("generated_execute_statement_traversal");
 const Input = std.meta.Child(entry.Input);
 const Rows = std.meta.Child(@FieldType(Input, "rows"));
+
+const Frame = struct {
+    lowering: *Lower,
+    control: @FieldType(ir.Block, "control"),
+    workspace: Scope.Buffer,
+    scopes: []Scope,
+    selections: []Selection,
+    output: std.ArrayList(node.Statement) = .empty,
+    child: node.Block = .{},
+    fn borrow(handle: *const anyopaque) *Frame {
+        const reference: *const *Frame = @ptrCast(@alignCast(handle));
+
+        return reference.*;
+    }
+};
 
 pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     var arena = std.heap.ArenaAllocator.init(self.workspace);
@@ -23,87 +41,187 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const capacity: usize = @intCast(plan.capacity);
     const spans = try scratch.alloc(u32, std.math.mul(usize, capacity, 2) catch return error.OutOfMemory);
     const routes = try scratch.alloc(u8, capacity);
-    var output: std.ArrayList(node.Statement) = .empty;
+    var flat_scope: [1]Scope = undefined;
 
-    defer output.deinit(self.allocator);
-
-    const workspace: Scope.Buffer = .{
-        .starts = spans[0..capacity],
-        .counts = spans[capacity..],
-        .routes = routes,
+    var frame: Frame = .{
+        .lowering = self,
+        .control = values.control,
+        .workspace = .{
+            .starts = spans[0..capacity],
+            .counts = spans[capacity..],
+            .routes = routes,
+        },
+        .scopes = if (plan.flat) &flat_scope else try scratch.alloc(Scope, @intCast(plan.depth)),
+        .selections = if (plan.flat) &.{} else try scratch.alloc(Selection, @intCast(plan.selection_depth)),
     };
 
-    if (plan.flat) {
-        const scope = try Scope.open(self, values, workspace);
+    defer frame.output.deinit(self.allocator);
 
-        defer scope.close(self);
+    const Execution = std.meta.Child(execute.Input);
+    const Schedule = std.meta.Child(@FieldType(Execution, "plan"));
+    const schedule = zx.columns.view(Schedule, plan);
+    const reference = &frame;
 
-        try scope.run(self, &output, 0, values.len);
+    const request: Execution = .{
+        .traversal = @ptrCast(&reference),
+        .plan = &schedule,
+        .first = @intCast(values.first),
+        .count = @intCast(values.len),
+    };
 
-        return scope.finish(self);
-    }
+    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    const valid = execute.executeIn(fixed.allocator(), &request) catch |err| return failure(err);
 
-    const scopes = try scratch.alloc(Scope, @intCast(plan.depth));
-    const selections = try scratch.alloc(Selection, @intCast(plan.selection_depth));
-    var child: node.Block = .{};
+    if (!valid) return error.OutOfMemory;
 
-    for (plan.actions, plan.offsets, plan.counts, plan.scopes, plan.placements, 0..) |action, first, count, slot, place, index| {
-        errdefer {
-            var active = plan.rollback[index];
+    return frame.child;
+}
 
-            while (active != 0) {
-                const opened = active - 1;
+pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count: u32, placement: u64) bool {
+    const frame = Frame.borrow(handle);
+    const workspace = frame.workspace;
+    const scope = &frame.scopes[@intCast(slot)];
+    const start: usize = @intCast(placement);
+    const range: ir.Block = .{ .control = frame.control, .first = first, .len = count };
 
-                switch (plan.actions[opened]) {
-                    .Open => scopes[plan.scopes[opened]].close(self),
-                    .Selection => selections[plan.placements[opened]].leave(self),
-                    else => unreachable,
-                }
+    scope.* = Scope.open(frame.lowering, range, .{
+        .starts = workspace.starts[start..][0..count],
+        .counts = workspace.counts[start..][0..count],
+        .routes = workspace.routes[start..][0..count],
+    }) catch return false;
 
-                active = plan.rollback[opened];
-            }
-        }
+    return true;
+}
 
-        const scope = &scopes[slot];
+pub fn lowerStatementAt(handle: *const anyopaque, slot: u64, cursor: u64) ?u64 {
+    const frame = Frame.borrow(handle);
+    const scope = &frame.scopes[@intCast(slot)];
+    const offset: usize = @intCast(cursor - 1);
+    const result = emission.emit(frame.lowering, &frame.output, scope.values, offset, scope.routes[offset]) catch return null;
 
-        switch (action) {
-            .Open => {
-                const range: ir.Block = .{ .control = values.control, .first = first, .len = count };
+    return scope.publish(@intCast(cursor), result);
+}
 
-                scope.* = try Scope.open(self, range, .{
-                    .starts = workspace.starts[place..][0..count],
-                    .counts = workspace.counts[place..][0..count],
-                    .routes = workspace.routes[place..][0..count],
-                });
-            },
-            .Descend => unreachable,
-            .Execute => try scope.run(self, &output, first, count),
-            .Condition => scope.condition = try self.expr(scope.values.at(first).branch.condition),
-            .SaveYes => scope.yes = child,
-            .Join => {
-                output.clearRetainingCapacity();
-                scope.put(first, try @import("../basic.zig").branch(self, &output, scope.condition, scope.yes, child));
-            },
-            .Selection => try selections[place].enter(self, scope.values.at(first).switch_stmt),
-            .Fallback => selections[place].fallback = child,
-            .Resolve => try selections[place].resolve(self, count),
-            .Case => try selections[place].beforeCase(self, count, @fromBackingInt(first)),
-            .SaveCase => try selections[place].afterCase(self, count, @fromBackingInt(first), child),
-            .EndSelection => {
-                const selection = &selections[place];
+pub fn finishStatementScope(handle: *const anyopaque, slot: u64) bool {
+    const frame = Frame.borrow(handle);
+    const scope = &frame.scopes[@intCast(slot)];
 
-                scope.put(first, try selection.finish(self));
-                selection.leave(self);
-            },
-            .Close => {
-                child = try scope.finish(self);
+    frame.child = scope.finish(frame.lowering) catch return false;
 
-                scope.close(self);
-            },
-        }
-    }
+    scope.close(frame.lowering);
 
-    return child;
+    return true;
+}
+
+pub fn releaseStatementScope(handle: *const anyopaque, slot: u64) void {
+    const frame = Frame.borrow(handle);
+
+    frame.scopes[@intCast(slot)].close(frame.lowering);
+}
+
+pub fn lowerStatementCondition(handle: *const anyopaque, slot: u64, offset: u32) bool {
+    const frame = Frame.borrow(handle);
+    const scope = &frame.scopes[@intCast(slot)];
+    scope.condition = frame.lowering.expr(scope.values.at(offset).branch.condition) catch return false;
+
+    return true;
+}
+
+pub fn saveStatementBranch(handle: *const anyopaque, slot: u64) bool {
+    const frame = Frame.borrow(handle);
+
+    frame.scopes[@intCast(slot)].yes = frame.child;
+
+    return true;
+}
+
+pub fn joinStatementBranch(handle: *const anyopaque, slot: u64, offset: u32) bool {
+    const frame = Frame.borrow(handle);
+    const scope = &frame.scopes[@intCast(slot)];
+
+    frame.output.clearRetainingCapacity();
+
+    const branch = basic.branch(frame.lowering, &frame.output, scope.condition, scope.yes, frame.child) catch return false;
+
+    scope.put(offset, branch);
+
+    return true;
+}
+
+pub fn openStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64) bool {
+    const frame = Frame.borrow(handle);
+    const scope = &frame.scopes[@intCast(slot)];
+
+    frame.selections[@intCast(placement)].enter(frame.lowering, scope.values.at(offset).switch_stmt) catch return false;
+
+    return true;
+}
+
+pub fn saveStatementFallback(handle: *const anyopaque, placement: u64) bool {
+    const frame = Frame.borrow(handle);
+
+    frame.selections[@intCast(placement)].fallback = frame.child;
+
+    return true;
+}
+
+pub fn resolveStatementSelection(handle: *const anyopaque, placement: u64, count: u32) bool {
+    const frame = Frame.borrow(handle);
+
+    frame.selections[@intCast(placement)].resolve(frame.lowering, count) catch return false;
+
+    return true;
+}
+
+pub fn statementSelectionUsesSwitch(handle: *const anyopaque, placement: u64) bool {
+    return Frame.borrow(handle).selections[@intCast(placement)].selected;
+}
+
+pub fn statementSelectionCaseCount(handle: *const anyopaque, placement: u64) u64 {
+    return Frame.borrow(handle).selections[@intCast(placement)].starts.len;
+}
+
+pub fn resetStatementCase(handle: *const anyopaque, placement: u64, index: u32) void {
+    Frame.borrow(handle).selections[@intCast(placement)].resetCase(index);
+}
+
+pub fn saveStatementCase(handle: *const anyopaque, placement: u64, index: u32) void {
+    const frame = Frame.borrow(handle);
+
+    frame.selections[@intCast(placement)].saveCase(index, frame.child);
+}
+
+pub fn lowerStatementComparison(handle: *const anyopaque, placement: u64, index: u32, label: u32) bool {
+    const frame = Frame.borrow(handle);
+
+    frame.selections[@intCast(placement)].compareCase(frame.lowering, index, @fromBackingInt(label)) catch return false;
+
+    return true;
+}
+
+pub fn lowerStatementCaseLiteral(handle: *const anyopaque, placement: u64, index: u32, label: u32) bool {
+    const frame = Frame.borrow(handle);
+
+    frame.selections[@intCast(placement)].literalCase(frame.lowering, index, @fromBackingInt(label)) catch return false;
+
+    return true;
+}
+
+pub fn finishStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64) bool {
+    const frame = Frame.borrow(handle);
+    const selection = &frame.selections[@intCast(placement)];
+    const block = selection.finish(frame.lowering) catch return false;
+
+    frame.scopes[@intCast(slot)].put(offset, block);
+    selection.leave(frame.lowering);
+
+    return true;
+}
+
+pub fn releaseStatementSelection(handle: *const anyopaque, placement: u64) void {
+    const frame = Frame.borrow(handle);
+
+    frame.selections[@intCast(placement)].leave(frame.lowering);
 }
 
 fn failure(err: anyerror) Lower.Error {

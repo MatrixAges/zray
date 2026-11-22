@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Execution" />
+
+    <Args in={Execution.Input} out={bool} />
+
+    <If on={$in.plan.flat}>
+        <Call fn="flat" in={$in} />
+
+        <Return value={$ctx.flat} />
+    </If>
+
+    <Call
+        fn="walk"
+        in={$in.pick([
+            "traversal",
+            "plan"
+        ])}
+    />
+
+    <If on={$ctx.walk != $in.plan.actions.length}>
+        <Call
+            fn="rollback"
+            in={{
+                traversal: $in.traversal,
+                plan: $in.plan,
+                failed: $ctx.walk
+            }}
+        />
+
+        <Return value={false} />
+    </If>
+
+    <Return value={true} />
+</Module>
