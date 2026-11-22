@@ -1,0 +1,26 @@
+import host from "rx_project_host"
+
+import type { MixedObservationCapture } from "rx_project_host"
+
+export type Input = {
+    capture: MixedObservationCapture,
+    count: u64,
+    functions: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const detached = loop(first, {
+        while: row => row < in.count,
+        next: row => {
+            const functions = host.capturedMixedCallFunctions(in.capture, row)
+
+            host.detachMixedCall(in.capture, row, functions == in.functions)
+
+            row += 1
+        }
+    })
+}

@@ -1,0 +1,31 @@
+import host from "rx_project_host"
+
+import type { MixedObservationPublish } from "rx_project_host"
+
+export type Input = {
+    target: MixedObservationPublish,
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const restored = loop(first, {
+        while: row => row < in.count,
+        next: row => {
+            const target = in.target
+
+            if (host.mixedCallNeedsPrefix(target, row)) {
+                host.restoreMixedCallPrefix(target, row)
+            }
+
+            host.restoreMixedCallContext(target, row)
+
+            row += 1
+        }
+    })
+
+    host.restoreMixedReturnContext(in.target)
+}

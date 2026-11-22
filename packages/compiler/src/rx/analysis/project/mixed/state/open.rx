@@ -1,0 +1,12 @@
+<Module>
+    <Type from="host" as="State" />
+
+    <Args in={State.MixedState} out={void} />
+
+    <Call fn="host.installMixedTypes" in={$in} />
+    <Call fn="host.installMixedNatives" in={$in} />
+    <Call fn="host.openMixedResults" in={$in} />
+    <Call fn="host.installMixedOrigins" in={$in} />
+    <Call fn="host.installMixedSignatures" in={$in} />
+    <Call fn="host.installMixedInitializers" in={$in} />
+</Module>

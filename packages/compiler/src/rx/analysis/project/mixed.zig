@@ -132,6 +132,7 @@ const Transaction = struct {
         }
 
         try self.materialize();
+        try self.publishObservations();
         try self.publishExports();
 
         self.reuse.finish(state, self.selected, self.sources);
@@ -145,7 +146,15 @@ const Transaction = struct {
         return consumed;
     }
     fn materialize(self: *Transaction) Error!void {
-        self.output.* = try Publication.materialize(self.state, self.derived, self.entry, self.exports.len != 0);
+        try Publication.materialize(self.state, self.output, self.exports.len != 0);
+    }
+    fn publishObservations(self: *Transaction) std.mem.Allocator.Error!void {
+        const observed = self.entry orelse return;
+
+        try observed.publish(self.state);
+
+        self.output.calls = observed.calls;
+        self.output.result = observed.result;
     }
 
     fn publishExports(self: *Transaction) Error!void {
@@ -318,6 +327,10 @@ pub fn recordMixedBody(handle: *const anyopaque) void {
 
 pub fn materializeMixedModule(handle: *const anyopaque) State.Error!void {
     try borrow(handle).materialize();
+}
+
+pub fn publishMixedObservations(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    try borrow(handle).publishObservations();
 }
 
 pub fn publishMixedExports(handle: *const anyopaque) State.Error!void {

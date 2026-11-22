@@ -1,8 +1,10 @@
 const std = @import("std");
+const rx = @import("rx");
+const rx_analysis = @import("rx_analysis");
 const f = @import("fixture.zig");
 const compiler = f.compiler;
 
-pub fn analyze(allocator: std.mem.Allocator, distinct: bool, call: bool) !compiler.AnalysisResult {
+pub fn analyze(allocator: std.mem.Allocator, distinct: bool, zx_consumer: bool) !compiler.AnalysisResult {
     var original = try f.library(std.testing.allocator, .single);
 
     defer original.deinit();
@@ -21,19 +23,57 @@ pub fn analyze(allocator: std.mem.Allocator, distinct: bool, call: bool) !compil
 
     second.instance = "counter@2";
 
-    const source = if (call)
-        "import read from \"first\"\nexport type Input = void\nexport type Output = u64\nexport default function (in: Input): Output { return read(in) }\n"
-
-    else
-        "import first from \"first\"\nimport second from \"second\"\nexport type Input = u64\nexport type Output = u64\nexport default function (in: Input): Output { return in }\n";
-
-    return compiler.project.analyze(allocator, &.{.{ .path = "main.zx", .source = source }}, .{
-        .entry = "main.zx",
+    const options: compiler.project.Options = .{
+        .entry = if (zx_consumer) "main.zx" else "main.rx",
         .root_dir = "/consumer",
         .packages = &.{
             .{ .specifier = "first", .compiled = .{ .instance = first.instance, .artifact = first.artifact, .name = "left" } },
             .{ .specifier = "second", .compiled = .{ .instance = if (distinct) second.instance else first.instance, .artifact = first.artifact, .name = "left" } },
         },
         .compiled_libraries = if (distinct) &.{ first, second } else &.{first},
+    };
+
+    if (zx_consumer) {
+        const source =
+            \\import read from "first"
+            \\export type Input = void
+            \\export type Output = u64
+            \\export default function (in: Input): Output { return read(in) }
+        ;
+
+        return compiler.project.analyze(allocator, &.{.{ .path = options.entry, .source = source }}, options);
+    }
+
+    const source =
+        \\<Module>
+        \\    <Call module="first" in={$in} />
+        \\    <Call module="second" in={$in} />
+        \\    <Return value={$ctx.second} />
+        \\</Module>
+    ;
+    var parsed = try rx.parseXml(allocator, source);
+
+    defer parsed.deinit();
+
+    try std.testing.expect(parsed.value == .node);
+
+    var inferred = try rx_analysis.project.infer(allocator, .{
+        .entry = options.entry,
+        .modules = &.{.{ .path = options.entry, .node = parsed.value.node }},
+        .sources = &.{},
+        .project = options,
     });
+
+    errdefer inferred.deinit();
+
+    try std.testing.expect(inferred.value == .contract);
+
+    const contract = inferred.value.contract;
+
+    return .{
+        .arena = inferred.arena,
+        .value = .{ .ir = contract.program },
+        .nominal_types = contract.nominal_types,
+        .store_initializers = contract.store_initializers,
+    };
 }

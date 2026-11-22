@@ -1,13 +1,12 @@
 import integers from "std:integer"
+import host from "rx_project_host"
 
-export enum Form {
-    Missing,
-    InvalidFunction,
-    TypeOnly,
-    Function
-}
+import { invalid_entry_function, missing_entry } from "./const"
+
+import type { MixedEntry } from "rx_project_host"
 
 export type Input = {
+    target: MixedEntry,
     present: bool,
     function?: u32,
     natives: u32?[],
@@ -16,37 +15,31 @@ export type Input = {
     has_members: bool
 }
 
-export type Output = {
-    form: Form,
-    visible: u64,
-    entry?: u32
-}
+export type Output = void
 
 export default function (in: Input): Output {
+    const target = in.target
     const id = in.function
     const count = in.natives.length
 
     if (!in.present) {
-        return {
-            form: Form.Missing,
-            visible: 0
-        }
+        host.rejectMixedEntry(target, missing_entry)
+
+        return
     }
 
     if (id == null) {
-        return {
-            form: Form.TypeOnly,
-            visible: count
-        }
+        host.installMixedTypeEntry(target, count)
+
+        return
     }
 
     const row = integers.widen(id)
 
     if (row >= count) {
-        return {
-            form: Form.InvalidFunction,
-            visible: 0
-        }
+        host.rejectMixedEntry(target, invalid_entry_function)
+
+        return
     }
 
     const inline_body = (
@@ -56,15 +49,12 @@ export default function (in: Input): Output {
     )
 
     if (inline_body) {
-        return {
-            form: Form.Function,
-            visible: row
-        }
+        host.installMixedFunctionEntry(target, id, row, null)
+
+        return
     }
 
-    return {
-        form: Form.Function,
-        visible: count,
-        entry: in.natives[row] == null ? id : null
-    }
+    const entry: u32? = in.natives[row] == null ? id : null
+
+    host.installMixedFunctionEntry(target, id, count, entry)
 }

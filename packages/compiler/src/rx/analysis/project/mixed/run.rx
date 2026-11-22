@@ -4,5 +4,6 @@
     <Args in={Windows.Input} out={void} />
 
     <Call fn="windows" in={$in} />
-    <Call fn="publish" in={$in} />
+
+    <Call module="publication/run" in={$in} />
 </Module>

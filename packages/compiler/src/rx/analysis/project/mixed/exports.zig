@@ -1,7 +1,6 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const rx = @import("rx");
-const zx = @import("zx");
 const Export = @import("../../project.zig").Export;
 const State = @import("state.zig");
 const generated = @import("rx_options").generated_graph and @bitSizeOf(usize) == 64 and @alignOf(usize) >= @alignOf(u64);
@@ -20,26 +19,18 @@ pub fn collect(state: *State, requested: []const Export, roots: []const usize) S
 
     if (comptime generated) {
         const rule = @import("generated_rx_mixed_exports");
+        const target: Publication = .{ .state = state, .requested = requested, .result = result };
 
         const input: std.meta.Child(rule.Input) = .{
+            .target = @ptrCast(&target),
             .roots = @ptrCast(roots),
             .compiled = state.finished.present,
             .invalid_name = invalid,
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const plan = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
-        const prefix: usize = @intCast(plan.count);
+        try @import("body.zig").run(rule, &input);
 
-        for (requested[0..prefix], roots[0..prefix], result[0..prefix]) |exported, root, *item| {
-            item.* = try materialize(state, exported, state.finished.getAssumePresent(root));
-        }
-
-        return switch (plan.issue) {
-            .None => result,
-            .InvalidName => state.fail(location, invalid_name),
-            .UncompiledRoot => state.fail(location, missing_root),
-        };
+        return result;
     }
 
     for (requested, roots, result, 0..) |exported, root, *item, index| {
@@ -51,6 +42,26 @@ pub fn collect(state: *State, requested: []const Export, roots: []const usize) S
     }
 
     return result;
+}
+
+const Publication = struct {
+    state: *State,
+    requested: []const Export,
+    result: []frontend.project.compiled.Export,
+    fn borrow(handle: *const anyopaque) *const Publication {
+        return @ptrCast(@alignCast(handle));
+    }
+};
+
+pub fn installMixedExport(handle: *const anyopaque, row: u64, root: u64) std.mem.Allocator.Error!void {
+    const target = Publication.borrow(handle);
+    const index: usize = @intCast(row);
+
+    target.result[index] = try materialize(target.state, target.requested[index], target.state.finished.getAssumePresent(@intCast(root)));
+}
+
+pub fn rejectMixedExport(handle: *const anyopaque, message: []const u8) State.Error!void {
+    return Publication.borrow(handle).state.fail(.{ .offset = 0, .line = 1, .column = 1 }, message);
 }
 
 fn materialize(state: *const State, exported: Export, loaded: frontend.project.artifact.source_link.Loaded) std.mem.Allocator.Error!frontend.project.compiled.Export {

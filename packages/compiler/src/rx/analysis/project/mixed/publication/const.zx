@@ -1,0 +1,10 @@
+export const missing_entry: string = "entry source module was not compiled"
+
+export const invalid_entry_function: string =
+    "resolved function is outside the shared function table"
+
+export const invalid_export_name: string =
+    "public module names must be nonempty and unique"
+
+export const missing_export: string =
+    "public module was not compiled in the shared source graph"

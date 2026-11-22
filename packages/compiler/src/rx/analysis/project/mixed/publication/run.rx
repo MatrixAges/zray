@@ -1,0 +1,16 @@
+<Module>
+    <Type from="../windows" as="Windows" />
+
+    <Args in={Windows.Input} out={void} />
+
+    <Call fn="host.materializeMixedModule" in={$in.state} />
+    <Call fn="host.publishMixedObservations" in={$in.state} />
+
+    <If on={$in.has_exports}>
+        <Call fn="host.publishMixedExports" in={$in.state} />
+    </If>
+
+    <If on={$in.retain}>
+        <Call fn="host.retainMixedHistory" in={$in.state} />
+    </If>
+</Module>
