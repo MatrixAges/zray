@@ -63,3 +63,9 @@ pub inline fn wakeAllU32(target: *const anyopaque, index: u64) error{IndexOutOfB
 pub inline fn spinHint() void {
     std.atomic.spinLoopHint();
 }
+
+pub inline fn fetchAddIndexRelaxed(target: *const anyopaque, amount: u64) u64 {
+    const index: *std.atomic.Value(usize) = @ptrCast(@alignCast(@constCast(target)));
+
+    return index.fetchAdd(@intCast(amount), .monotonic);
+}

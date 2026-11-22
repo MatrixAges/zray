@@ -17,6 +17,7 @@ const Inputs = @import("../call_inputs.zig");
 const Body = @import("body.zig");
 const Schedule = @import("schedule.zig");
 const Candidates = @import("ahead/candidates.zig");
+const generated = @import("rx_options").generated_graph;
 const Self = @This();
 
 arenas: []std.heap.ArenaAllocator = &.{},
@@ -102,35 +103,78 @@ pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, 
         return batch.consumed;
     }
 
-    const Work = struct {
-        state: *const State,
-        results: []Result,
-        arenas: []std.heap.ArenaAllocator,
-        next: std.atomic.Value(usize) = .init(0),
-        fn run(work: *@This(), participant: usize) void {
-            const arena = work.arenas[participant].allocator();
-
-            while (true) {
-                const position = work.next.fetchAdd(1, .monotonic);
-
-                if (position >= work.results.len) return;
-
-                switch (work.results[position]) {
-                    .zx => |*item| {
-                        item.scratch = .init(arena);
-                        item.outcome = Zx.analyze(work.state, arena, &item.scratch.?, item.prepared, &.{}) catch null;
-                    },
-                    .rx => |*item| item.value = Rx.lower(work.state, arena, item.prepared) catch null,
-                }
-            }
-        }
-    };
-
     var work = Work{ .state = state, .results = self.items.items(.result), .arenas = self.arenas };
 
     zx.parallel.spread(Work, &work, Work.run, batch.participants);
 
     return batch.consumed;
+}
+
+const Work = struct {
+    state: *const State,
+    results: []Result,
+    arenas: []std.heap.ArenaAllocator,
+    next: std.atomic.Value(usize) = .init(0),
+    fn run(work: *Work, participant: usize) void {
+        const worker: Worker = .{ .state = work.state, .results = work.results, .arena = work.arenas[participant].allocator() };
+
+        if (comptime generated) {
+            const rule = @import("generated_rx_mixed_worker");
+
+            const input: std.meta.Child(rule.Input) = .{
+                .worker = @ptrCast(&worker),
+                .cursor = @ptrCast(&work.next),
+                .count = work.results.len,
+            };
+
+            var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+            rule.executeIn(empty.allocator(), &input) catch unreachable;
+
+            return;
+        }
+
+        while (true) {
+            const position = work.next.fetchAdd(1, .monotonic);
+
+            if (position >= work.results.len) return;
+
+            switch (work.results[position]) {
+                .zx => worker.analyze(position),
+                .rx => worker.lower(position),
+            }
+        }
+    }
+};
+
+const Worker = struct {
+    state: *const State,
+    results: []Result,
+    arena: std.mem.Allocator,
+    fn borrow(handle: *const anyopaque) *const Worker {
+        return @ptrCast(@alignCast(handle));
+    }
+    fn analyze(self: *const Worker, position: usize) void {
+        const item = &self.results[position].zx;
+        item.scratch = .init(self.arena);
+        item.outcome = Zx.analyze(self.state, self.arena, &item.scratch.?, item.prepared, &.{}) catch null;
+    }
+    fn lower(self: *const Worker, position: usize) void {
+        const item = &self.results[position].rx;
+        item.value = Rx.lower(self.state, self.arena, item.prepared) catch null;
+    }
+};
+
+pub fn preparedMixedIsZX(handle: *const anyopaque, row: u64) bool {
+    return Worker.borrow(handle).results[@intCast(row)] == .zx;
+}
+
+pub fn runPreparedMixedZX(handle: *const anyopaque, row: u64) void {
+    Worker.borrow(handle).analyze(@intCast(row));
+}
+
+pub fn runPreparedMixedRX(handle: *const anyopaque, row: u64) void {
+    Worker.borrow(handle).lower(@intCast(row));
 }
 
 const Preparation = struct {

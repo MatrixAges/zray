@@ -1,0 +1,15 @@
+import host from "rx_project_host"
+
+import type { Mixed as Input } from "rx_project_host"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const next = host.linkPreparedMixedZX(in)
+
+    if (next != null) {
+        return next
+    }
+
+    return host.analyzeMixedZX(in)
+}

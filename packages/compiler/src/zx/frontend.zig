@@ -13,7 +13,6 @@ pub const replaceParseEntry = parse_cache.replaceParseEntry;
 pub const bindPrefetchedParse = parse_cache.bindPrefetchedParse;
 pub const discardStagedParse = parse_cache.discardStagedParse;
 pub const parseWorkerFailed = parse_cache.parseWorkerFailed;
-pub const claimParseWorkerRows = parse_cache.claimParseWorkerRows;
 pub const failParseWorker = parse_cache.failParseWorker;
 pub const bindParseWorkerHit = parse_cache.bindParseWorkerHit;
 pub const stageParseWorkerResult = parse_cache.stageParseWorkerResult;

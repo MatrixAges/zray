@@ -7,6 +7,8 @@ const State = @import("mixed/state.zig");
 const Inputs = @import("call_inputs.zig");
 const Schedule = @import("mixed/schedule.zig");
 const Ahead = @import("mixed/ahead.zig");
+const Rx = @import("mixed/rx.zig");
+const Zx = @import("mixed/zx.zig");
 const Reuse = @import("mixed/reuse.zig");
 const Publication = @import("mixed/publication.zig");
 const Dispatch = @import("mixed/schedule/dispatch.zig").Result;
@@ -120,8 +122,8 @@ const Transaction = struct {
             switch (next.action) {
                 .Skip => {},
                 .MissingSignature => return self.reject(next.index),
-                .AnalyzeZX => try self.analyze(next),
-                .LowerRX => try self.lower(next),
+                .AnalyzeZX => if (!try self.linkPreparedZX(next)) try self.analyzeAtTurn(next),
+                .LowerRX => if (!try self.linkPreparedRX(next)) try self.lowerAtTurn(next),
             }
 
             self.reuse.analyzed(state, next.index, next.position);
@@ -162,30 +164,41 @@ const Transaction = struct {
 
         return error.InvalidSourceGraph;
     }
-    fn analyze(self: *Transaction, next: Dispatch) Error!void {
+    fn linkPreparedZX(self: *Transaction, next: Dispatch) Error!bool {
         const state = self.state;
-        const index = next.index;
-        const module = @import("mixed/zx.zig");
+        const loaded = try self.ahead.link(state, next.prepared_row) orelse return false;
 
-        const loaded = try self.ahead.link(state, next.prepared_row) orelse
-            try module.compile(state, self.cache, self.sources, index, null);
+        state.finished.set(next.index, loaded);
 
-        state.finished.set(index, loaded);
+        return true;
     }
-    fn lower(self: *Transaction, next: Dispatch) Error!void {
+    fn analyzeAtTurn(self: *Transaction, next: Dispatch) Error!void {
         const state = self.state;
-        const index = next.index;
+        const loaded = try Zx.compile(state, self.cache, self.sources, next.index, null);
+
+        state.finished.set(next.index, loaded);
+    }
+
+    fn linkPreparedRX(self: *Transaction, next: Dispatch) Error!bool {
+        const state = self.state;
+        const lowered = self.ahead.lowered(state, next.prepared_row) orelse return false;
+
+        _ = state.scratch.reset(.retain_capacity);
+
+        self.installLowered(next.index, try Rx.link(state, lowered.prepared, lowered.body));
+
+        return true;
+    }
+    fn lowerAtTurn(self: *Transaction, next: Dispatch) Error!void {
         const derived = self.derived;
-        const source = derived.dependencies.sources.at(index).rx;
-        const module = @import("mixed/rx.zig");
+        const source = derived.dependencies.sources.at(next.index).rx;
+        const linked = try Rx.compile(self.state, self.cache, self.sources, next.index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
 
-        const linked = if (self.ahead.lowered(state, next.prepared_row)) |lowered| ready: {
-            _ = state.scratch.reset(.retain_capacity);
+        self.installLowered(next.index, linked);
+    }
 
-            break :ready try module.link(state, lowered.prepared, lowered.body);
-        } else try module.compile(state, self.cache, self.sources, index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
-
-        state.finished.set(index, linked.loaded);
+    fn installLowered(self: *Transaction, index: usize, linked: Rx.Result) void {
+        self.state.finished.set(index, linked.loaded);
 
         if (linked.metadata) |metadata| self.entry = metadata;
     }
@@ -233,7 +246,7 @@ pub fn rejectMixedBody(handle: *const anyopaque) error{InvalidSourceGraph}!u64 {
 pub fn analyzeMixedZX(handle: *const anyopaque) State.Error!u64 {
     const self = borrow(handle);
 
-    try self.analyze(self.pending);
+    try self.analyzeAtTurn(self.pending);
 
     return self.pending.following;
 }
@@ -241,7 +254,23 @@ pub fn analyzeMixedZX(handle: *const anyopaque) State.Error!u64 {
 pub fn lowerMixedRX(handle: *const anyopaque) State.Error!u64 {
     const self = borrow(handle);
 
-    try self.lower(self.pending);
+    try self.lowerAtTurn(self.pending);
+
+    return self.pending.following;
+}
+
+pub fn linkPreparedMixedZX(handle: *const anyopaque) State.Error!?u64 {
+    const self = borrow(handle);
+
+    if (!try self.linkPreparedZX(self.pending)) return null;
+
+    return self.pending.following;
+}
+
+pub fn linkPreparedMixedRX(handle: *const anyopaque) State.Error!?u64 {
+    const self = borrow(handle);
+
+    if (!try self.linkPreparedRX(self.pending)) return null;
 
     return self.pending.following;
 }

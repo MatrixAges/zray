@@ -1048,6 +1048,7 @@ pub const execution = [_]Entry{
     .{ .path = "rx/analysis/project/workflow/solve/constraints.zx", .name = "rx_execute_constraints", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/run.rx", .name = "rx_execute_mixed", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/schedule/prepare.rx", .name = "rx_mixed_collect", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/mixed/ahead/work.zx", .name = "rx_mixed_worker", .owner = .rx_analysis },
     .{ .path = "zx/modules/compiled/imports/load.rx", .name = "compiled_import_execute" },
     .{ .path = "zx/modules/link/entry/link.rx", .name = "artifact_link_execute" },
     .{ .path = "zx/modules/project/execution/native/import.rx", .name = "project_execute_native" },

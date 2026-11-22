@@ -8,6 +8,8 @@ export type Mixed = opaque
 
 export type MixedPreparation = opaque
 
+export type MixedWorker = opaque
+
 export type HistoryStores = opaque
 
 export type HistoryParseCache = opaque
@@ -105,7 +107,13 @@ export declare function selectMixedBody(state: Mixed, first: u64, limit: u64): M
 export declare function rejectMixedBody(state: Mixed): u64
     throws { InvalidSourceGraph }
 
+export declare function linkPreparedMixedZX(state: Mixed): u64?
+    throws { OutOfMemory, InvalidSourceGraph }
+
 export declare function analyzeMixedZX(state: Mixed): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function linkPreparedMixedRX(state: Mixed): u64?
     throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function lowerMixedRX(state: Mixed): u64
@@ -134,6 +142,12 @@ export declare function prepareMixedPosition(
 ): bool throws { OutOfMemory }
 
 export declare function preparedMixedPositions(state: MixedPreparation): u64[]
+
+export declare function preparedMixedIsZX(worker: MixedWorker, row: u64): bool
+
+export declare function runPreparedMixedZX(worker: MixedWorker, row: u64): void
+
+export declare function runPreparedMixedRX(worker: MixedWorker, row: u64): void
 
 export declare function historyBodyOpening(
     cache: HistoryParseCache,

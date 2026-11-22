@@ -1,6 +1,9 @@
 import host from "rx_project_host"
 import { MixedAction } from "rx_project_host"
 
+import lower from "./body/execute_rx"
+import analyze from "./body/execute_zx"
+
 import type { Mixed } from "rx_project_host"
 
 export type Input = {
@@ -45,8 +48,8 @@ export default function (in: Input): Output {
             state.position = match action {
                 MixedAction.Exhausted => state.limit,
                 MixedAction.MissingSignature => host.rejectMixedBody(handle),
-                MixedAction.AnalyzeZX => host.analyzeMixedZX(handle),
-                MixedAction.LowerRX => host.lowerMixedRX(handle),
+                MixedAction.AnalyzeZX => analyze(handle),
+                MixedAction.LowerRX => lower(handle),
                 _ => host.skipMixedBody(handle)
             }
 

@@ -370,8 +370,6 @@ export declare function discardStagedParse(entry: ParseCacheEntry): void
 
 export declare function parseWorkerFailed(worker: ParseWorker): bool
 
-export declare function claimParseWorkerRows(worker: ParseWorker, count: u64): u64
-
 export declare function failParseWorker(worker: ParseWorker): void
 
 export declare function bindParseWorkerHit(worker: ParseWorker, row: u64, hit: u64): void

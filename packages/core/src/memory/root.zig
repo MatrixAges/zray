@@ -19,6 +19,7 @@ pub const writeStreamText = stream.writeText;
 pub const writeStreamJsonBytes = stream.writeJsonBytes;
 const atomic = @import("atomic.zig");
 pub const loadU32Acquire = atomic.loadU32Acquire;
+pub const fetchAddIndexRelaxed = atomic.fetchAddIndexRelaxed;
 pub const storeU32Release = atomic.storeU32Release;
 pub const compareExchangeU32Acquire = atomic.compareExchangeU32Acquire;
 pub const exchangeU32Release = atomic.exchangeU32Release;

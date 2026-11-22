@@ -74,3 +74,5 @@ export declare function wakeAllU32(
 ): void throws { IndexOutOfBounds }
 
 export declare function spinHint(): void
+
+export declare function fetchAddIndexRelaxed(target: AtomicIndex, amount: u64): u64

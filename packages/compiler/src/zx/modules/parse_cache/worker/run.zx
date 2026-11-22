@@ -1,3 +1,4 @@
+import memory from "memory"
 import host from "project_host"
 
 import classify from "./classify"
@@ -21,7 +22,7 @@ export default function (in: Input): Output {
     const completed = loop(true, {
         while: running => running && !host.parseWorkerFailed(worker),
         next: running => {
-            const first = host.claimParseWorkerRows(worker, width)
+            const first = memory.fetchAddIndexRelaxed(in.cursor, width)
 
             if (first >= count) {
                 running = false

@@ -403,6 +403,7 @@ const ParseWork = struct {
 
         const input: std.meta.Child(rule.Input) = .{
             .worker = @ptrCast(&worker),
+            .cursor = @ptrCast(&work.next),
             .cache = &.{
                 .keys = entries.keys.items,
                 .buckets = @ptrCast(&entries.buckets),
@@ -440,10 +441,6 @@ const ParseWorker = struct {
 
 pub fn parseWorkerFailed(handle: *const anyopaque) bool {
     return ParseWorker.borrow(handle).work.failed.load(.monotonic);
-}
-
-pub fn claimParseWorkerRows(handle: *const anyopaque, count: u64) u64 {
-    return ParseWorker.borrow(handle).work.next.fetchAdd(@intCast(count), .monotonic);
 }
 
 pub fn failParseWorker(handle: *const anyopaque) void {
