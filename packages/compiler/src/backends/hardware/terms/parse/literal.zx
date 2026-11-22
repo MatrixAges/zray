@@ -1,0 +1,57 @@
+import host from "hardware_build_host"
+import memory from "memory"
+
+import { Form } from "../model"
+import intern from "./intern"
+
+import type { HardwareBuild } from "hardware_build_host"
+import type { Head } from "../model"
+
+export type Input = {
+    build: HardwareBuild,
+    expression: string,
+    head: Head
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { build, expression, head } = in
+    const { form, start, next } = head
+
+    const key = memory.borrowTextRange(expression, start, next - start)
+
+    if (form != Form.Constant) {
+        const binding = host.hardwareVariable(build, key)
+
+        if (binding != null) {
+            return binding
+        }
+
+        if (form == Form.Name) {
+            host.rejectHardwareTerm()
+        }
+    }
+
+    const boolean = form != Form.Constant
+    const width: u64 = boolean ? 1 : head.bits
+
+    const first: u64 = match form {
+        Form.True => 1,
+        Form.False => 0,
+        _ => head.value
+    }
+
+    return intern({
+        build,
+        key,
+        form: Form.Constant,
+        width,
+        boolean,
+        first,
+        second: 0,
+        third: 0,
+        operator: null,
+        extra: 0
+    })
+}

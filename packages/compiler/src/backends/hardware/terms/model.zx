@@ -1,4 +1,7 @@
+import type { Form } from "hardware_build_host"
 import type { Sort, Family } from "../binary/model"
+
+export { Form } from "hardware_build_host"
 
 export type Cursor = {
     source: u8[],
@@ -8,22 +11,6 @@ export type Cursor = {
 export type Token = {
     start: u64,
     text: u8[]
-}
-
-export enum Form {
-    Invalid,
-    Open,
-    Indexed,
-    Name,
-    True,
-    False,
-    Constant,
-    Invert,
-    Negate,
-    Select,
-    Binary,
-    SignExtend,
-    ZeroExtend
 }
 
 export type Head = {
@@ -44,8 +31,13 @@ export type ReadHead = {
 export type Operation = {
     form: Form,
     family: Family,
-    extra: u16,
+    extra: u64,
     left: Sort,
     right: Sort,
     third: Sort
+}
+
+export type TermSort = {
+    width: u64,
+    boolean: bool
 }

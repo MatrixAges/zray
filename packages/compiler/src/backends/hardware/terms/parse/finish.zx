@@ -1,0 +1,25 @@
+import host from "hardware_build_host"
+
+import boundary from "../boundary"
+
+import type { End as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { build, source, closing } = in
+
+    const end = boundary({
+        source,
+        offset: host.hardwareTermOffset(build),
+        closing
+    })
+
+    if (end == null) {
+        host.rejectHardwareTerm()
+
+        return
+    }
+
+    host.setHardwareTermOffset(build, end)
+}

@@ -1,0 +1,69 @@
+import host from "hardware_build_host"
+
+import { maximum_depth } from "../../const"
+import { Form } from "../model"
+import read from "../read.rx"
+import apply from "./application"
+import literal from "./literal"
+
+import type { Read as Input } from "./model"
+
+export type Output = u32
+
+export default function walk(in: Input): Output {
+    const { build, expression, source, depth } = in
+
+    if (depth >= maximum_depth) {
+        host.rejectHardwareTerm()
+    }
+
+    const head = read({
+        source,
+        offset: host.hardwareTermOffset(build)
+    })
+
+    host.setHardwareTermOffset(build, head.next)
+
+    const { form, arity } = head
+
+    if (form == Form.Invalid) {
+        host.rejectHardwareTerm()
+    }
+
+    if (arity == 0) {
+        return literal({
+            build,
+            expression,
+            head
+        })
+    }
+
+    const nested = {
+        build,
+        expression,
+        source,
+        depth: depth + 1
+    }
+
+    const left = walk(nested)
+
+    const right: u32? = match arity >= 2 {
+        true => walk(nested),
+        _ => null
+    }
+
+    const third: u32? = match arity == 3 {
+        true => walk(nested),
+        _ => null
+    }
+
+    return apply({
+        build,
+        expression,
+        source,
+        head,
+        left,
+        right,
+        third
+    })
+}

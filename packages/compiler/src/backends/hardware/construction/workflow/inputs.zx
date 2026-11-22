@@ -1,5 +1,6 @@
 import host from "hardware_build_host"
 
+import requireSpace from "../../terms/parse/space"
 import portType from "./port_type"
 
 import type { Input as Request } from "./model"
@@ -19,9 +20,10 @@ export default function (in: Input): Output {
                 type_id: host.hardwareInputType(build, row)
             })
 
-            if (port.width == 0) {
-                host.rejectHardwareTerm()
-            }
+            requireSpace({
+                build,
+                width: port.width
+            })
 
             host.writeHardwareInput(
                 build,

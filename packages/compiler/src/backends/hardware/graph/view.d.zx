@@ -48,3 +48,7 @@ export declare function hardwareGraphNodeFamily(node: Node): Family
 export declare function hardwareGraphNodeRendering(node: Node): Rendering
 
 export declare function hardwareGraphNodeToken(node: Node): string
+
+export declare function hardwareTermOperator(text: string): u8?
+
+export declare function hardwareTermFamily(operator: u8): Family

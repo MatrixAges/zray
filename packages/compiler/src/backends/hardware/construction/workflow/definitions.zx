@@ -1,5 +1,6 @@
 import host from "hardware_build_host"
 
+import parse from "../../terms/parse/run.rx"
 import preserveOrigin from "./origin"
 
 import type { Input as Request } from "./model"
@@ -20,7 +21,10 @@ export default function (in: Input): Output {
             })
 
             host.setHardwareOrigin(build, file, row)
-            const node = host.parseHardwareNode(build, rows.expressions[row])
+            const node = parse({
+                build,
+                expression: rows.expressions[row]
+            })
 
             host.publishHardwareDefinition(
                 build,

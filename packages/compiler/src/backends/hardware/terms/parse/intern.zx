@@ -1,0 +1,55 @@
+import lookup from "core/bytes/map/lookup"
+import slot from "core/bytes/map/slot"
+import host from "hardware_build_host"
+
+import requireSpace from "./space"
+
+import type { Store as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { build, key } = in
+
+    const found = lookup({
+        keys: host.hardwareCacheKeys(build),
+        values: host.hardwareCacheValues(build),
+        key,
+        full: host.hardwareCacheFull(build)
+    })
+
+    if (found.value != null) {
+        return found.value
+    }
+
+    if (found.grow) {
+        host.growHardwareCache(build)
+    }
+
+    const position = match found.grow {
+        true => slot({
+            keys: host.hardwareCacheKeys(build),
+            key
+        }),
+        _ => found.position
+    }
+
+    requireSpace({
+        build,
+        width: in.width
+    })
+
+    return host.appendHardwareTerm(
+        build,
+        position,
+        key,
+        in.form,
+        in.width,
+        in.boolean,
+        in.first,
+        in.second,
+        in.third,
+        in.operator,
+        in.extra
+    )
+}

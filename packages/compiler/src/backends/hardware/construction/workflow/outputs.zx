@@ -7,6 +7,7 @@ import symbolic from "verification_host"
 
 import name from "../../../../verification/ports/name"
 import fieldPath from "../../../../verification/ports/path"
+import parse from "../../terms/parse/run.rx"
 import portType from "./port_type"
 
 import type { OutputTree as Input } from "./model"
@@ -80,8 +81,12 @@ export default function flatten(in: Input): Output {
         host.rejectHardwareTerm()
     }
 
-    const node = host.parseHardwareNode(build, text)
-    const width = host.hardwareNodeWidth(build, node)
+    const node = parse({
+        build,
+        expression: text
+    })
+
+    const width = integers.widenShort(host.hardwareNodeWidth(build, node))
     const boolean = host.hardwareNodeIsBoolean(build, node)
 
     if (width != port.width || boolean != port.boolean) {

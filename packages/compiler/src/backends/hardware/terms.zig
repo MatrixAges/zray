@@ -21,6 +21,10 @@ origin: ?ir.Origin = null,
 pub fn add(self: *Self, node: ir.Node) Error!ir.Id {
     if (self.nodes.items.len >= max_nodes or node.sort.width == 0 or node.sort.width > limits.maximum_bit_width) return error.InvalidHardwareTerm;
 
+    return self.append(node);
+}
+
+pub fn append(self: *Self, node: ir.Node) std.mem.Allocator.Error!ir.Id {
     const id: ir.Id = @fromBackingInt(@intCast(self.nodes.items.len));
     var located = node;
     located.origin = self.origin;
@@ -31,19 +35,6 @@ pub fn add(self: *Self, node: ir.Node) Error!ir.Id {
 }
 
 pub fn intern(self: *Self, key: []const u8, node: ir.Node) Error!ir.Id {
-    if (comptime generated) {
-        return switch (try self.cache.entry(self.scratch, key)) {
-            .present => |id| id,
-            .vacant => |position| blk: {
-                const id = try self.add(node);
-
-                self.cache.fillVacant(position, key, id);
-
-                break :blk id;
-            },
-        };
-    }
-
     if (self.cache.get(key)) |existing| return existing;
 
     try self.cache.ensureUnusedCapacity(self.scratch, 1);
@@ -55,7 +46,7 @@ pub fn intern(self: *Self, key: []const u8, node: ir.Node) Error!ir.Id {
     return id;
 }
 
-pub const parse = if (generated) @import("terms/reader.zig").parse else @import("terms/seed.zig").parse;
+pub const parse = @import("terms/seed.zig").parse;
 
 pub fn fromSourceError(err: error{ OutOfMemory, IndexOutOfBounds, IntegerOverflow }) Error {
     return switch (err) {

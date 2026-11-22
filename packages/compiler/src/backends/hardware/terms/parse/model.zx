@@ -1,0 +1,33 @@
+import type { Form, HardwareBuild } from "hardware_build_host"
+import type { Cursor, Head, TermSort } from "../model"
+
+export type Input = {
+    build: HardwareBuild,
+    expression: string
+}
+
+export type Read = Input & Cursor.Pick("source") & {
+    depth: u64
+}
+
+export type End = Read.Pick("build", "source") & {
+    closing: bool
+}
+
+export type Store = TermSort & {
+    build: HardwareBuild,
+    key: string,
+    form: Form,
+    first: u64,
+    second: u32,
+    third: u32,
+    operator?: u8,
+    extra: u64
+}
+
+export type Apply = Read.Omit("depth") & {
+    head: Head,
+    left: u32,
+    right?: u32,
+    third?: u32
+}

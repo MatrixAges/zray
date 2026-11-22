@@ -1,0 +1,25 @@
+import host from "hardware_build_host"
+
+import type { HardwareBuild } from "hardware_build_host"
+import type { Sort as Output } from "../../binary/model"
+
+export type Input = {
+    build: HardwareBuild,
+    node?: u32
+}
+
+export default function (in: Input): Output {
+    const { build, node } = in
+
+    if (node == null) {
+        return {
+            width: 0,
+            boolean: false
+        }
+    }
+
+    return {
+        width: host.hardwareNodeWidth(build, node),
+        boolean: host.hardwareNodeIsBoolean(build, node)
+    }
+}

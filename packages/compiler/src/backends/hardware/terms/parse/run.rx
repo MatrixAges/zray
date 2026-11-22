@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Term" />
+
+    <Args in={Term.Input} out={u32} />
+
+    <Call fn="begin" in={$in} />
+
+    <Call
+        fn="walk"
+        in={{
+            build: $in.build,
+            expression: $in.expression,
+            source: $ctx.begin,
+            depth: 0
+        }}
+    />
+
+    <Call
+        fn="finish"
+        in={{
+            build: $in.build,
+            source: $ctx.begin,
+            closing: false
+        }}
+    />
+
+    <Return value={$ctx.walk} />
+</Module>

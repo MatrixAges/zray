@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = @import("../ir.zig");
 const capacity = @import("generated_byte_map_capacity");
 const lookup = @import("generated_byte_map_lookup");
-const slot = @import("generated_byte_map_slot");
 const rehash = @import("generated_byte_map_rehash");
 const Rows = std.MultiArrayList(struct { key: ?[]const u8, value: u32 });
 const Terms = @import("../terms.zig");
@@ -78,21 +77,6 @@ pub fn find(self: *const Self, allocator: std.mem.Allocator, key: []const u8) Er
     const input: std.meta.Child(lookup.Input) = .{ .keys = cols.keys, .values = cols.values, .key = key, .full = self.count == self.limit };
 
     return zx.columns.invoke(lookup.executeValue, allocator, &input) catch |err| Terms.fromSourceError(err);
-}
-
-const Entry = union(enum) { present: ir.Id, vacant: usize };
-
-pub fn entry(self: *Self, allocator: std.mem.Allocator, key: []const u8) Error!Entry {
-    const found = try self.find(allocator, key);
-
-    if (found.value) |id| return .{ .present = @fromBackingInt(id) };
-    if (!found.grow) return .{ .vacant = @intCast(found.position) };
-    try self.ensureTotalCapacity(allocator, self.count + 1);
-
-    const input: std.meta.Child(slot.Input) = .{ .keys = self.view().keys, .key = key };
-    const position = zx.columns.invoke(slot.executeValue, allocator, &input) catch |err| return Terms.fromSourceError(err);
-
-    return .{ .vacant = @intCast(position) };
 }
 
 pub fn fillVacant(self: *Self, position: usize, key: []const u8, id: ir.Id) void {

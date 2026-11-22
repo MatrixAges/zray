@@ -1,0 +1,20 @@
+import bytes from "std:bytes"
+import host from "hardware_build_host"
+
+import { maximum_source_bytes } from "../../const"
+
+import type { Input } from "./model"
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    const source = bytes.fromText(in.expression)
+
+    if (source.length > maximum_source_bytes) {
+        host.rejectHardwareTerm()
+    }
+
+    host.setHardwareTermOffset(in.build, 0)
+
+    return source
+}

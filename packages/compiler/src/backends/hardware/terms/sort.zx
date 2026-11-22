@@ -1,10 +1,11 @@
+import integers from "std:integer"
+
 import { Result } from "../binary/model"
 import result from "../binary/result"
 import { maximum_bit_width } from "../const"
 import { Form } from "./model"
 
-import type { Sort as Output } from "../binary/model"
-import type { Operation as Input } from "./model"
+import type { Operation as Input, TermSort as Output } from "./model"
 
 export default function (in: Input): Output {
     const { form, left, right, third, extra } = in
@@ -20,13 +21,15 @@ export default function (in: Input): Output {
     }
 
     if (form == Form.SignExtend || form == Form.ZeroExtend) {
-        if (left.boolean || extra > maximum_bit_width) {
+        const maximum = integers.widenShort(maximum_bit_width)
+
+        if (left.boolean || extra > maximum) {
             return invalid
         }
 
-        const width = left.width + extra
+        const width = integers.widenShort(left.width) + extra
 
-        if (width > maximum_bit_width) {
+        if (width > maximum) {
             return invalid
         }
 
@@ -41,7 +44,10 @@ export default function (in: Input): Output {
             return invalid
         }
 
-        return left
+        return {
+            width: integers.widenShort(left.width),
+            boolean: left.boolean
+        }
     }
 
     if (form == Form.Select) {
@@ -51,7 +57,10 @@ export default function (in: Input): Output {
             return invalid
         }
 
-        return right
+        return {
+            width: integers.widenShort(right.width),
+            boolean: right.boolean
+        }
     }
 
     return match result({
@@ -60,7 +69,10 @@ export default function (in: Input): Output {
         right
     }) {
         Result.Boolean => boolean,
-        Result.Operand => left,
+        Result.Operand => {
+            width: integers.widenShort(left.width),
+            boolean: left.boolean
+        },
         _ => invalid
     }
 }

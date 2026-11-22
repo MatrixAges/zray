@@ -1,0 +1,25 @@
+import integers from "std:integer"
+import host from "hardware_build_host"
+
+import { maximum_bit_width, maximum_nodes } from "../../const"
+
+import type { HardwareBuild } from "hardware_build_host"
+
+export type Input = {
+    build: HardwareBuild,
+    width: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { build, width } = in
+
+    if (host.hardwareNodeCount(build) >= maximum_nodes) {
+        host.rejectHardwareTerm()
+    }
+
+    if (width == 0 || width > integers.widenShort(maximum_bit_width)) {
+        host.rejectHardwareTerm()
+    }
+}

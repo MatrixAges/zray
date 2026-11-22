@@ -1,0 +1,82 @@
+import integers from "std:integer"
+import host from "hardware_build_host"
+import graph from "hardware_graph_host"
+import memory from "memory"
+
+import { Family } from "../../binary/model"
+import { Form } from "../model"
+import derive from "../sort"
+import finish from "./finish"
+import intern from "./intern"
+import operandSort from "./operand_sort"
+
+import type { Apply as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { build, expression, source, head, left, right, third } = in
+    const { form, start, next, operator_start, bits } = head
+
+    finish({
+        build,
+        source,
+        closing: true
+    })
+
+    const token = match form {
+        Form.Binary => graph.hardwareTermOperator(
+            memory.borrowTextRange(
+                expression,
+                operator_start,
+                next - operator_start
+            )
+        ),
+        _ => null
+    }
+
+    if (form == Form.Binary && token == null) {
+        host.rejectHardwareTerm()
+    }
+
+    const family = token == null ? Family.Logical : graph.hardwareTermFamily(token)
+
+    const extra = bits
+
+    const sort = derive({
+        form,
+        family,
+        extra,
+        left: operandSort({
+            build,
+            node: left
+        }),
+        right: operandSort({
+            build,
+            node: right
+        }),
+        third: operandSort({
+            build,
+            node: third
+        })
+    })
+
+    if (sort.width == 0) {
+        host.rejectHardwareTerm()
+    }
+
+    const end = host.hardwareTermOffset(build)
+    const key = memory.borrowTextRange(expression, start, end - start)
+
+    return intern({
+        ...sort,
+        build,
+        key,
+        form,
+        first: integers.widen(left),
+        second: right ?? 0,
+        third: third ?? 0,
+        operator: token,
+        extra
+    })
+}

@@ -145,3 +145,13 @@ pub fn hardwareGraphNodeRendering(handle: *const anyopaque) native.Rendering {
 pub fn hardwareGraphNodeToken(handle: *const anyopaque) []const u8 {
     return traits(handle).token;
 }
+
+pub fn hardwareTermOperator(text: []const u8) ?u8 {
+    const operator = binary.names.get(text) orelse return null;
+
+    return @intCast(@backingInt(operator));
+}
+
+pub fn hardwareTermFamily(operator: u8) native.Family {
+    return @fromBackingInt(@backingInt(binary.traits(@fromBackingInt(@intCast(operator))).family));
+}
