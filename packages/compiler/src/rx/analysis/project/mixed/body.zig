@@ -5,6 +5,16 @@ const admission = if (generated) @import("generated_rx_mixed_body_admit") else v
 const Source = if (generated) @FieldType(std.meta.Child(admission.Input), "source") else enum { ZX, RX, Store };
 pub const Action = if (generated) admission.Output else enum { Skip, MissingSignature, AnalyzeZX, LowerRX };
 
+pub fn run(comptime rule: type, input: *const std.meta.Child(rule.Input)) State.Error!void {
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+    return rule.executeIn(empty.allocator(), input) catch |err| switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.InvalidSourceGraph => error.InvalidSourceGraph,
+        else => unreachable,
+    };
+}
+
 pub fn admit(state: *const State, index: usize) Action {
     const source: Source = switch (state.graph.sources.at(index)) {
         .zx => .ZX,

@@ -1,0 +1,18 @@
+<Module>
+    <Type from="commit" as="Link" />
+
+    <Args in={Link.Request} out={void} />
+
+    <Call fn="types" in={$in.boundary} />
+
+    <Call
+        fn="commit"
+        in={{
+            body: $in.body,
+            source: $in.source,
+            replace_prefix:
+                $in.boundary.prepared.functions == $in.boundary.body_functions,
+            type_prefix: $ctx.types
+        }}
+    />
+</Module>

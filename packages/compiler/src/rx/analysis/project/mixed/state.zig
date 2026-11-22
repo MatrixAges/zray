@@ -5,7 +5,6 @@ const ir = @import("zx").ir;
 const target = @import("../../call/target.zig");
 const SourceGraph = @import("../source_graph.zig").Graph;
 const Types = frontend.project.artifact.type_link.Table;
-const Source = frontend.project.artifact.source_link;
 const Finished = @import("finished.zig");
 const Self = @This();
 pub const Error = std.mem.Allocator.Error || error{InvalidSourceGraph};
@@ -79,12 +78,6 @@ pub fn initializersView(self: *Self) std.mem.Allocator.Error![]const frontend.pr
     }
 
     return self.retained_initializers;
-}
-
-pub fn linked(self: *Self, loaded: Source.Loaded) Source.Loaded {
-    self.verified = self.functions.count();
-
-    return loaded;
 }
 
 pub fn signature(self: *const Self, index: usize) ?frontend.project.signature_project.Module {

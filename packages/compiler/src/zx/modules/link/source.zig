@@ -48,6 +48,10 @@ pub fn append(input: Input, destination: program_link.Destination) program_link.
 }
 
 pub fn appendBody(input: Input, destination: program_link.Destination) program_link.Error!Loaded {
+    return appendBorrowedBody(&input, destination);
+}
+
+pub fn appendBorrowedBody(input: *const Input, destination: program_link.Destination) program_link.Error!Loaded {
     const program = &input.program;
     const base = input.base_functions orelse program.functions;
     var scratch = std.heap.ArenaAllocator.init(destination.temporary);
@@ -84,7 +88,7 @@ pub fn appendBody(input: Input, destination: program_link.Destination) program_l
         .type_suffix = input.type_suffix,
     });
 
-    return finish(&input, destination, &nodes, &tail, base.count(), type_prefix);
+    return finish(input, destination, &nodes, &tail, base.count(), type_prefix);
 }
 
 fn finish(input: *const Input, destination: program_link.Destination, nodes: *Nodes, tail: *const ir.FunctionTable, first: usize, type_prefix: usize) program_link.Error!Loaded {

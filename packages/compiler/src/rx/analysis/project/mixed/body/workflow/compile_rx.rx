@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Body" />
+
+    <Args in={Body.RXBody} out={void} />
+
+    <Call fn="host.bindMixedRXBody" in={$in.body} />
+
+    <Call
+        fn="host.lowerMixedRXBody"
+        in={[
+            $in.body,
+            $in.index == $in.entry
+        ]}
+    />
+
+    <If on={$ctx.lowerMixedRXBody}>
+        <Call fn="host.linkMixedRXBody" in={$in.body} />
+
+        <Else>
+            <Call fn="host.reportMixedRXBody" in={$in.body} />
+        </Else>
+    </If>
+</Module>

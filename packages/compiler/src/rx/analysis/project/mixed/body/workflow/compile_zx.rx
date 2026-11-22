@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Body" />
+
+    <Args in={Body.ZXBody} out={void} />
+
+    <Call
+        module="prepare_zx"
+        in={{
+            source: $in.source,
+            check: true
+        }}
+    />
+
+    <Call fn="host.analyzeMixedZXBody" in={$in.body} />
+
+    <If on={$ctx.analyzeMixedZXBody}>
+        <If on={$in.setter}>
+            <Call fn="authorize_setter" in={$in.body} />
+        </If>
+
+        <Call fn="host.linkMixedZXBody" in={$in.body} />
+
+        <Else>
+            <Call fn="host.reportMixedZXBody" in={$in.body} />
+        </Else>
+    </If>
+</Module>

@@ -1,0 +1,68 @@
+import host from "rx_project_host"
+
+import { ImportKind } from "../../../../../zx/frontend/parser/imports/model"
+
+import type { MixedImports } from "rx_project_host"
+import type { Import } from "../../../../../zx/frontend/parser/imports/model"
+
+export type Input = {
+    binding: MixedImports,
+    imports: Import[]
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const collected = loop({
+        row: first,
+        imports_started: false,
+        exports_started: false
+    }, {
+        while: state => state.row < in.imports.length,
+        next: state => {
+            const item = in.imports[state.row]
+
+            if (item.kind != ImportKind.TypeOnly) {
+                const binding = in.binding
+                const count = host.selectMixedImport(binding, state.row)
+
+                if (count != 0) {
+                    const exported = item.exported
+                    const started = match exported {
+                        true => state.exports_started,
+                        _ => state.imports_started
+                    }
+
+                    host.reserveMixedImportBindings(
+                        binding,
+                        exported,
+                        count,
+                        !started
+                    )
+
+                    const copied = loop(first, {
+                        while: index => index < count,
+                        next: index => {
+                            host.appendMixedImportBinding(
+                                binding,
+                                exported,
+                                index
+                            )
+                            index += 1
+                        }
+                    })
+
+                    if (exported) {
+                        state.exports_started = true
+                    } else {
+                        state.imports_started = true
+                    }
+                }
+            }
+
+            state.row += 1
+        }
+    })
+}

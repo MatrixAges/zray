@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Body" />
+
+    <Args in={Body.Preparation} out={void} />
+
+    <Call fn="host.openMixedZXPreparation" in={$in.source} />
+
+    <If on={$in.check}>
+        <Call
+            fn="host.checkMixedZXPreparation"
+            in={[
+                $in.source,
+                $ctx.openMixedZXPreparation
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="host.bindMixedZXPreparation"
+        in={[
+            $in.source,
+            $ctx.openMixedZXPreparation,
+            $in.check
+        ]}
+    />
+</Module>

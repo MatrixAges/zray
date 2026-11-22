@@ -4,6 +4,11 @@ const zx = @import("zx");
 const State = @import("state.zig");
 const target = @import("../../call/target.zig");
 const Source = frontend.project.artifact.source_link;
+const Body = @import("body.zig");
+const generated = @import("rx_options").generated_graph;
+const Signature = frontend.project.signature_project.Module;
+const Parse = frontend.project.ParseCache.ModuleResult;
+const ParseHandle = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedZXParse else anyopaque;
 const Binding = std.meta.Child(@FieldType(frontend.ResolvedImports, "imports"));
 
 /// A module ready for analysis: its parse and the functions its imports bind, which the shared tables already hold.
@@ -39,52 +44,184 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
     state.owner = index;
     _ = state.scratch.reset(.retain_capacity);
     const temporary = state.scratch.allocator();
-    const prepared = try prepare(state, temporary, cache, sources, index, true);
-
-    const stores: @FieldType(frontend.Context, "stores") = if (setter) |grant|
-        try temporary.dupe(std.meta.Child(@FieldType(frontend.Context, "stores")), &.{.{ .handle = "$store", .path = grant.name, .type_id = grant.type_id, .readable = false }})
-
-    else
-        &.{};
-
     var scratch = zx.Arena.init(temporary);
 
     defer scratch.deinit();
 
-    var analyzed = switch (try analyze(state, temporary, &scratch, prepared, stores)) {
-        .analyzed => |value| value,
-        .diagnostic => |issue| return diagnostic(state, prepared.source, issue),
+    var work: Serial = .{
+        .preparation = .{ .state = state, .allocator = temporary, .cache = cache, .sources = sources, .index = index },
+        .scratch = &scratch,
+        .setter = setter,
     };
 
-    if (setter) |grant| {
-        const program = &analyzed.result.value.ir;
+    if (comptime generated) {
+        const rule = @import("generated_rx_compile_mixed_zx");
+        const input: std.meta.Child(rule.Input) = .{ .body = @ptrCast(&work), .source = @ptrCast(&work.preparation), .setter = setter != null };
 
-        if (!state.signature(index).?.signature.has_store or program.stores.count() != 1) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "Store setter requires its declared authorized slot");
+        try Body.run(rule, &input);
+    } else {
+        const parsed = try work.preparation.open();
 
-        const paths = try temporary.dupe([]const u8, program.stores.paths);
+        try work.preparation.check(parsed);
+        try work.preparation.bind(parsed, true);
+        if (!try work.run()) return work.report();
 
-        paths[0] = try temporary.dupe(u8, grant.path);
-        program.stores.paths = paths;
+        if (setter != null) {
+            if (!work.preparation.signature.signature.has_store or work.outcome.analyzed.result.value.ir.stores.count() != 1) return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "Store setter requires its declared authorized slot");
+            try work.installSetter();
+        }
+
+        try work.finish();
     }
 
-    return link(state, analyzed);
+    return work.loaded;
 }
 
 /// Reads the parse of `index` and binds its imports; the shared tables must hold every module it depends on.
 pub fn prepare(state: *State, bindings: std.mem.Allocator, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, index: usize, checking: bool) State.Error!Prepared {
-    const path = state.graph.modules.items(.path)[index];
-    const source = sources[state.graph.sources.at(index).zx];
-    const signature = state.signature(index) orelse return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source module signature is missing");
-    const parsed = try cache.getModule(source.source, path);
+    var preparation: Preparation = .{ .state = state, .allocator = bindings, .cache = cache, .sources = sources, .index = index };
 
-    if (checking) if (try parsed.check(bindings)) |issue| return diagnostic(state, source.source, issue);
+    if (comptime generated) {
+        const rule = @import("generated_rx_prepare_mixed_zx");
+        const input: std.meta.Child(rule.Input) = .{ .source = @ptrCast(&preparation), .check = checking };
 
-    const imports = switch (parsed.*) {
-        .native => |result| try @import("imports.zig").collect(state, bindings, zx.syntax.header.Native{ .program = result.value.parsed.ast }, index, signature, source.source),
-        .indexed => |*result| if (frontend.project.ParseCache.indexed_enabled) try @import("imports.zig").collect(state, bindings, result.header(), index, signature, source.source) else unreachable,
-    };
+        try Body.run(rule, &input);
+    } else {
+        const parsed = try preparation.open();
 
-    return .{ .index = index, .source = source.source, .parsed = parsed, .type_imports = signature.type_imports, .constant_imports = signature.constant_imports, .imports = imports.functions, .exports = signature.signature.exports, .constant_exports = signature.signature.constant_exports, .members = imports.published, .checked = checking };
+        if (checking) try preparation.check(parsed);
+        try preparation.bind(parsed, checking);
+    }
+
+    return preparation.result;
+}
+
+const Preparation = struct {
+    state: *State,
+    allocator: std.mem.Allocator,
+    cache: *frontend.project.ParseCache,
+    sources: []const frontend.project.Source,
+    index: usize,
+    source: []const u8 = undefined,
+    signature: Signature = undefined,
+    result: Prepared = undefined,
+    fn borrow(handle: *const anyopaque) *Preparation {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn open(self: *Preparation) State.Error!*const Parse {
+        const state = self.state;
+        const index = self.index;
+        const path = state.graph.modules.items(.path)[index];
+
+        self.source = self.sources[state.graph.sources.at(index).zx].source;
+        self.signature = state.signature(index) orelse return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source module signature is missing");
+
+        return self.cache.getModule(self.source, path);
+    }
+    fn check(self: *Preparation, parsed: *const Parse) State.Error!void {
+        if (try parsed.check(self.allocator)) |issue| return diagnostic(self.state, self.source, issue);
+    }
+
+    fn bind(self: *Preparation, parsed: *const Parse, checked: bool) State.Error!void {
+        const collector = @import("imports.zig");
+
+        const bindings = switch (parsed.*) {
+            .native => |result| try collector.collect(self.state, self.allocator, zx.syntax.header.Native{ .program = result.value.parsed.ast }, self.index, self.signature, self.source),
+            .indexed => |*result| if (frontend.project.ParseCache.indexed_enabled) try collector.collect(self.state, self.allocator, result.header(), self.index, self.signature, self.source) else unreachable,
+        };
+
+        self.result = .{
+            .index = self.index,
+            .source = self.source,
+            .parsed = parsed,
+            .type_imports = self.signature.type_imports,
+            .constant_imports = self.signature.constant_imports,
+            .imports = bindings.functions,
+            .exports = self.signature.signature.exports,
+            .constant_exports = self.signature.signature.constant_exports,
+            .members = bindings.published,
+            .checked = checked,
+        };
+    }
+};
+
+const Serial = struct {
+    preparation: Preparation,
+    scratch: *zx.Arena,
+    setter: ?target.Setter,
+    outcome: Outcome = undefined,
+    loaded: Source.Loaded = undefined,
+    fn borrow(handle: *const anyopaque) *Serial {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn run(self: *Serial) std.mem.Allocator.Error!bool {
+        const preparation = &self.preparation;
+        const temporary = preparation.allocator;
+
+        const stores: @FieldType(frontend.Context, "stores") = if (self.setter) |grant|
+            try temporary.dupe(std.meta.Child(@FieldType(frontend.Context, "stores")), &.{.{ .handle = "$store", .path = grant.name, .type_id = grant.type_id, .readable = false }})
+
+        else
+            &.{};
+
+        self.outcome = try analyze(preparation.state, temporary, self.scratch, preparation.result, stores);
+
+        return self.outcome == .analyzed;
+    }
+    fn report(self: *Serial) State.Error {
+        return diagnostic(self.preparation.state, self.preparation.source, self.outcome.diagnostic);
+    }
+    fn installSetter(self: *Serial) std.mem.Allocator.Error!void {
+        const program = &self.outcome.analyzed.result.value.ir;
+        const temporary = self.preparation.allocator;
+        const paths = try temporary.dupe([]const u8, program.stores.paths);
+        paths[0] = try temporary.dupe(u8, self.setter.?.path);
+        program.stores.paths = paths;
+    }
+
+    fn finish(self: *Serial) State.Error!void {
+        self.loaded = try link(self.preparation.state, self.outcome.analyzed);
+    }
+};
+
+pub fn openMixedZXPreparation(handle: *const anyopaque) State.Error!*const ParseHandle {
+    return @ptrCast(try Preparation.borrow(handle).open());
+}
+
+pub fn checkMixedZXPreparation(handle: *const anyopaque, parsed: *const anyopaque) State.Error!void {
+    try Preparation.borrow(handle).check(@ptrCast(@alignCast(parsed)));
+}
+
+pub fn bindMixedZXPreparation(handle: *const anyopaque, parsed: *const anyopaque, checked: bool) State.Error!void {
+    try Preparation.borrow(handle).bind(@ptrCast(@alignCast(parsed)), checked);
+}
+
+pub fn analyzeMixedZXBody(handle: *const anyopaque) std.mem.Allocator.Error!bool {
+    return Serial.borrow(handle).run();
+}
+
+pub fn reportMixedZXBody(handle: *const anyopaque) State.Error!void {
+    return Serial.borrow(handle).report();
+}
+
+pub fn mixedZXSetterDeclared(handle: *const anyopaque) bool {
+    return Serial.borrow(handle).preparation.signature.signature.has_store;
+}
+
+pub fn mixedZXSetterSlots(handle: *const anyopaque) u64 {
+    return Serial.borrow(handle).outcome.analyzed.result.value.ir.stores.count();
+}
+
+pub fn rejectMixedZXSetter(handle: *const anyopaque, message: []const u8) State.Error!void {
+    return Serial.borrow(handle).preparation.state.fail(.{ .offset = 0, .line = 1, .column = 1 }, message);
+}
+
+pub fn installMixedZXSetter(handle: *const anyopaque) std.mem.Allocator.Error!void {
+    try Serial.borrow(handle).installSetter();
+}
+
+pub fn linkMixedZXBody(handle: *const anyopaque) State.Error!void {
+    try Serial.borrow(handle).finish();
 }
 
 /// Analyzes a prepared body against the shared tables, which it only reads, so bodies that depend on none of each
@@ -131,36 +268,21 @@ pub fn current(state: *const State, analyzed: Analyzed) bool {
 /// Links an analyzed body. The tables may have grown, and moved, since the analysis read them, but the rows it read are
 /// unchanged, so the body refers to them where they are now.
 pub fn link(state: *State, analyzed: Analyzed) State.Error!Source.Loaded {
-    const destination = state.destination();
     var program = analyzed.result.value.ir;
-    const base = state.functions.view().prefix(analyzed.functions);
-    const plan = @import("body/link.zig").prepare(state, .{ .functions = analyzed.functions, .types = analyzed.types }, program.functions.count());
-
-    if (plan.replace_prefix) program.functions = base;
-
     program.native_modules = state.native_modules.view();
     program.exports = analyzed.exports;
     program.constant_exports = analyzed.constant_exports;
 
-    const initializers = try state.initializersView();
-
-    return state.linked(Source.appendBody(.{
+    var body: Source.Input = .{
         .program = program,
-        .base_functions = base,
         .function_suffix = if (analyzed.result.function_suffix) |tail| tail.* else null,
-        .verified_functions = state.verifiedFunctions(),
         .nominal_types = analyzed.result.nominal_types,
-        .store_initializers = initializers,
-        .shared_initializers = initializers,
         .members = analyzed.members,
         .owned_declarations = true,
-        .base_types = plan.type_prefix,
         .type_suffix = analyzed.result.type_suffix,
-    }, destination) catch |err| {
-        if (err == error.OutOfMemory) return error.OutOfMemory;
+    };
 
-        return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source module body cannot be linked to its shared compilation context");
-    });
+    return @import("body/link.zig").publish(state, &body, .{ .functions = analyzed.functions, .types = analyzed.types }, .source);
 }
 
 pub fn diagnostic(state: *State, source: []const u8, issue: zx.Diagnostic) State.Error {

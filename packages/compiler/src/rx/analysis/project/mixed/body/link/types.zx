@@ -1,6 +1,6 @@
 import type { Body } from "./model"
 
-export type Input = Body.Pick("prepared", "current")
+export type Input = Body
 
 export type Output = u64?
 

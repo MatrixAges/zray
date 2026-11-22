@@ -7,6 +7,8 @@ const Inputs = @import("../call_inputs.zig");
 const Signature = @import("../signatures.zig").Signature;
 const Compilation = @import("../../module_compile.zig");
 const Source = frontend.project.artifact.source_link;
+const Body = @import("body.zig");
+const generated = @import("rx_options").generated_graph;
 pub const Result = struct { loaded: Source.Loaded, metadata: ?*Compilation.Metadata };
 
 /// A module ready for lowering: the functions its calls bind, which the shared tables already hold, and the extent of
@@ -28,27 +30,94 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
     state.owner = index;
     var buffer: [std.heap.page_size_min / 8]u8 = undefined;
     var temporary = std.heap.BufferFirstAllocator.init(&buffer, state.scratch.child_allocator);
-    const ids = try @import("callees.zig").load(state, temporary.allocator(), cache, sources, module);
 
-    defer temporary.allocator().free(ids);
+    var work: Serial = .{
+        .state = state,
+        .cache = cache,
+        .sources = sources,
+        .index = index,
+        .module = module,
+        .signature = signature,
+        .arguments = arguments,
+        .temporary = temporary.allocator(),
+    };
 
-    const entry = index == state.graph.entry;
+    defer if (work.ids) |ids| work.temporary.free(ids);
 
-    if (!entry) _ = state.scratch.reset(.retain_capacity);
+    if (comptime generated) {
+        const rule = @import("generated_rx_compile_mixed_rx");
+        const input: std.meta.Child(rule.Input) = .{ .body = @ptrCast(&work), .index = index, .entry = state.graph.entry };
 
-    const allocator = if (entry) state.allocator else state.scratch.allocator();
-    const prepared = try prepare(state, index, module, signature, ids, arguments, state.functions.view());
-    const result = try lower(state, allocator, prepared);
+        try Body.run(rule, &input);
+    } else {
+        try work.bind();
+        if (!try work.run(index == state.graph.entry)) return work.report();
+        try work.finish();
+    }
 
-    if (result == .diagnostic) {
-        const copied = try @import("../../call/target.zig").failure(state.allocator, result.diagnostic);
+    return work.linked;
+}
 
-        state.issue = copied.diagnostic;
+const Serial = struct {
+    state: *State,
+    cache: *frontend.project.ParseCache,
+    sources: []const frontend.project.Source,
+    index: usize,
+    module: Loading.Module,
+    signature: Signature,
+    arguments: Inputs.Module,
+    temporary: std.mem.Allocator,
+    ids: ?[]const ir.FunctionId = null,
+    prepared: Prepared = undefined,
+    result: Compilation.Value = undefined,
+    linked: Result = undefined,
+    fn borrow(handle: *const anyopaque) *Serial {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+    fn bind(self: *Serial) State.Error!void {
+        self.ids = try @import("callees.zig").load(self.state, self.temporary, self.cache, self.sources, self.module);
+    }
+
+    fn run(self: *Serial, entry: bool) State.Error!bool {
+        const state = self.state;
+
+        if (!entry) _ = state.scratch.reset(.retain_capacity);
+
+        const allocator = if (entry) state.allocator else state.scratch.allocator();
+
+        self.prepared = try prepare(state, self.index, self.module, self.signature, self.ids.?, self.arguments, state.functions.view());
+        self.result = try lower(state, allocator, self.prepared);
+
+        return self.result == .body;
+    }
+
+    fn report(self: *Serial) State.Error {
+        const copied = try @import("../../call/target.zig").failure(self.state.allocator, self.result.diagnostic);
+
+        self.state.issue = copied.diagnostic;
 
         return error.InvalidSourceGraph;
     }
 
-    return link(state, prepared, result.body);
+    fn finish(self: *Serial) State.Error!void {
+        self.linked = try link(self.state, self.prepared, self.result.body);
+    }
+};
+
+pub fn bindMixedRXBody(handle: *const anyopaque) State.Error!void {
+    try Serial.borrow(handle).bind();
+}
+
+pub fn lowerMixedRXBody(handle: *const anyopaque, entry: bool) State.Error!bool {
+    return Serial.borrow(handle).run(entry);
+}
+
+pub fn reportMixedRXBody(handle: *const anyopaque) State.Error!void {
+    return Serial.borrow(handle).report();
+}
+
+pub fn linkMixedRXBody(handle: *const anyopaque) State.Error!void {
+    try Serial.borrow(handle).finish();
 }
 
 /// Binds the calls of `module` to the functions `ids` names, over the shared tables as they stand.
@@ -93,28 +162,14 @@ pub fn current(state: *const State, prepared: Prepared, body: Compilation.Body) 
 /// Links a lowered module. The tables may have grown, and moved, since it was lowered, but the rows it read are
 /// unchanged, so the module refers to them where they are now.
 pub fn link(state: *State, prepared: Prepared, body: Compilation.Body) State.Error!Result {
-    var program = body.lowered.program;
-    const destination = state.destination();
-    const base = state.functions.view().prefix(prepared.functions);
-    const plan = @import("body/link.zig").prepare(state, .{ .functions = prepared.functions, .types = prepared.types }, program.functions.count());
-
-    // Without new functions, lowering returns a borrowed view of the analyzed prefix.
-    if (plan.replace_prefix) program.functions = base;
-
-    const loaded = state.linked(Source.appendBody(.{
-        .program = program,
-        .base_functions = base,
+    var input: Source.Input = .{
+        .program = body.lowered.program,
         .function_suffix = if (body.lowered.function_suffix.count() != 0) body.lowered.function_suffix else null,
-        .verified_functions = state.verifiedFunctions(),
         .nominal_types = body.nominal_types,
         .store_initializers = body.lowered.store_initializers,
-        .shared_initializers = try state.initializersView(),
-        .base_types = plan.type_prefix,
-    }, destination) catch |err| {
-        if (err == error.OutOfMemory) return error.OutOfMemory;
+    };
 
-        return state.fail(prepared.module.source.node.location, "RX module body cannot be linked to its shared compilation context");
-    });
+    const loaded = try @import("body/link.zig").publish(state, &input, .{ .functions = prepared.functions, .types = prepared.types }, .{ .flow = prepared.module.source.node.location });
 
     return .{ .loaded = loaded, .metadata = body.metadata };
 }

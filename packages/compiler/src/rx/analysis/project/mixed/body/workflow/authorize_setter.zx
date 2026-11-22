@@ -1,0 +1,18 @@
+import host from "rx_project_host"
+
+import { invalid_setter, setter_slots } from "./const"
+
+import type { MixedZXBody as Input } from "rx_project_host"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    if (
+        !host.mixedZXSetterDeclared(in) ||
+            host.mixedZXSetterSlots(in) != setter_slots
+    ) {
+        host.rejectMixedZXSetter(in, invalid_setter)
+    } else {
+        host.installMixedZXSetter(in)
+    }
+}

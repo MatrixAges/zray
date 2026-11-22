@@ -1,0 +1,31 @@
+import host from "rx_project_host"
+
+import { invalid_flow_body, invalid_source_body } from "./const"
+
+import type { MixedBodyLink } from "rx_project_host"
+import type { Body, Plan } from "./model"
+
+export type Link = {
+    body: MixedBodyLink,
+    source: bool
+}
+
+export type Request = Link & {
+    boundary: Body
+}
+
+export type Input = Link & Plan
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { body, replace_prefix, type_prefix } = in
+
+    if (host.appendMixedBodyLink(body, replace_prefix, type_prefix)) {
+        host.confirmMixedBodyLink(body)
+    } else {
+        const message = in.source ? invalid_source_body : invalid_flow_body
+
+        host.rejectMixedBodyLink(body, message)
+    }
+}

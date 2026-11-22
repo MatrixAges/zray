@@ -12,6 +12,18 @@ export type MixedWorker = opaque
 
 export type MixedCallees = opaque
 
+export type MixedImports = opaque
+
+export type MixedBodyLink = opaque
+
+export type MixedZXPreparation = opaque
+
+export type MixedZXParse = opaque
+
+export type MixedZXBody = opaque
+
+export type MixedRXBody = opaque
+
 export type ImportedCallee = {
     function_id?: u32,
     setter: bool,
@@ -178,6 +190,76 @@ export declare function rejectMixedCallee(
     name: bool,
     message: string
 ): void throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function selectMixedImport(binding: MixedImports, row: u64): u64
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function reserveMixedImportBindings(
+    binding: MixedImports,
+    exported: bool,
+    count: u64,
+    include_prefix: bool
+): void throws { OutOfMemory }
+
+export declare function appendMixedImportBinding(
+    binding: MixedImports,
+    exported: bool,
+    row: u64
+): void throws { OutOfMemory }
+
+export declare function appendMixedBodyLink(
+    body: MixedBodyLink,
+    replace_prefix: bool,
+    type_prefix: u64?
+): bool throws { OutOfMemory }
+
+export declare function confirmMixedBodyLink(body: MixedBodyLink): void
+
+export declare function rejectMixedBodyLink(body: MixedBodyLink, message: string): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function openMixedZXPreparation(source: MixedZXPreparation): MixedZXParse
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function checkMixedZXPreparation(
+    source: MixedZXPreparation,
+    parsed: MixedZXParse
+): void throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function bindMixedZXPreparation(
+    source: MixedZXPreparation,
+    parsed: MixedZXParse,
+    checked: bool
+): void throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function analyzeMixedZXBody(body: MixedZXBody): bool throws { OutOfMemory }
+
+export declare function reportMixedZXBody(body: MixedZXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function mixedZXSetterDeclared(body: MixedZXBody): bool
+
+export declare function mixedZXSetterSlots(body: MixedZXBody): u64
+
+export declare function rejectMixedZXSetter(body: MixedZXBody, message: string): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function installMixedZXSetter(body: MixedZXBody): void throws { OutOfMemory }
+
+export declare function linkMixedZXBody(body: MixedZXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function bindMixedRXBody(body: MixedRXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function lowerMixedRXBody(body: MixedRXBody, entry: bool): bool
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function reportMixedRXBody(body: MixedRXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
+
+export declare function linkMixedRXBody(body: MixedRXBody): void
+    throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function historyBodyOpening(
     cache: HistoryParseCache,
