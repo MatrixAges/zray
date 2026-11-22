@@ -2,10 +2,11 @@ const std = @import("std");
 const zx = @import("zx");
 const Storage = @import("../node/storage.zig");
 const view = @import("../node/view.zig");
+const schema = @import("../node/schema.zig");
 const Range = @import("../node/stored.zig").Declarations;
 const generated = @import("generated_printer");
 const Input = @typeInfo(generated.Input).pointer.child;
-const Source = @typeInfo(@FieldType(Input, "source")).pointer.child;
+const Source = schema.Source;
 const selection = @import("generated_printer_selection");
 const Selection = std.meta.Child(selection.Input);
 const Ranges = std.meta.Child(@typeInfo(@FieldType(Selection, "ranges")).optional.child);
@@ -32,11 +33,11 @@ fn render(
         .indices => []const u32,
     },
 ) (std.mem.Allocator.Error || if (shape == .indices) error{InvalidAst} else error{})![]u8 {
-    const expressions = view.rows(@typeInfo(@FieldType(Source, "expressions")).pointer.child, &nodes.expressions);
-    const statements = view.rows(@typeInfo(@FieldType(Source, "statements")).pointer.child, &nodes.statements);
-    const declaration_rows = view.rows(@typeInfo(@FieldType(Source, "declarations")).pointer.child, &nodes.declaration_rows);
-    const fields = view.members(@typeInfo(@FieldType(Source, "fields")).pointer.child, &nodes.field_columns);
-    const arms = view.members(@typeInfo(@FieldType(Source, "arms")).pointer.child, &nodes.arm_columns);
+    const expressions = view.rows(schema.Expressions, &nodes.expressions);
+    const statements = view.rows(schema.Statements, &nodes.statements);
+    const declaration_rows = view.rows(schema.Declarations, &nodes.declaration_rows);
+    const fields = view.members(schema.Fields, &nodes.field_columns);
+    const arms = view.members(schema.Arms, &nodes.arm_columns);
 
     const source = Source{
         .expressions = &expressions,

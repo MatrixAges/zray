@@ -110,11 +110,11 @@ pub fn compatible(comptime From: type, comptime To: type) void {
     if (left.len != right.len) @compileError("AST enum view has a different member count");
 
     for (left, right) |before, after| {
-        if (!std.mem.eql(u8, pascal(before), after) or @backingInt(@field(From, before)) != @backingInt(@field(To, after))) @compileError("AST enum view has a different member mapping");
+        if (!std.mem.eql(u8, pascal(before), pascal(after)) or @backingInt(@field(From, before)) != @backingInt(@field(To, after))) @compileError("AST enum view has a different member mapping");
     }
 }
 
-fn pascal(comptime source: []const u8) []const u8 {
+pub fn pascal(comptime source: []const u8) []const u8 {
     comptime var result: []const u8 = "";
     comptime var upper = true;
 

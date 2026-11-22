@@ -4,17 +4,18 @@ const Rows = @import("rows.zig").Rows;
 const Columns = @import("columns.zig").Columns;
 const Plain = @import("import_payloads.zig").Plain;
 const direct = @import("direct.zig");
+const schema = @import("schema.zig");
 const generated = @import("genz_options").generated_analysis;
 pub const stored = @import("stored.zig");
 
 const Self = @This();
 
 allocator: std.mem.Allocator,
-expressions: Rows(stored.Value(node.Expression)) = .init(),
-statements: Rows(stored.Value(node.Statement)) = .init(),
-declaration_rows: Rows(stored.Value(node.Declaration)) = .init(),
-field_columns: Columns(node.Field) = .init(),
-arm_columns: Columns(node.SelectionArm) = .init(),
+expressions: Rows(stored.Value(node.Expression), schema.Expressions) = .init(),
+statements: Rows(stored.Value(node.Statement), schema.Statements) = .init(),
+declaration_rows: Rows(stored.Value(node.Declaration), schema.Declarations) = .init(),
+field_columns: Columns(node.Field, schema.Fields, "") = .init(),
+arm_columns: Columns(node.SelectionArm, schema.Arms, "") = .init(),
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{ .allocator = allocator };
 }

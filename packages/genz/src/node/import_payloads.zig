@@ -31,10 +31,15 @@ pub const Plain = struct {
         if (rows.len == 0) return;
 
         const names = @typeInfo(@TypeOf(target.fields)).@"struct".field_names;
+        const Row = std.meta.Elem(@TypeOf(rows));
         var columns: [names.len]transfer.Column = undefined;
 
         inline for (names, &columns) |name, *column| {
-            column.* = transfer.borrowRowField(&@field(target.fields, name).values, name, rows);
+            const values = &@field(target.fields, name).values;
+
+            comptime @import("view.zig").compatible(@FieldType(Row, name), std.meta.Elem(@TypeOf(values.items)));
+
+            column.* = transfer.borrowRowField(values, name, rows);
         }
 
         return Plain.append(allocator, &columns, rows.len, target.count(), true) catch |err| switch (err) {

@@ -1,14 +1,24 @@
 const std = @import("std");
+const schema = @import("schema.zig");
+const view = @import("view.zig");
 
-pub fn Columns(comptime Value: type) type {
-    if (@typeInfo(Value) != .@"struct") return Scalar(Value);
+pub fn Columns(comptime Value: type, comptime Layout: type, comptime path: []const u8) type {
+    if (@typeInfo(Value) != .@"struct") {
+        const Element = if (Layout == void or Value == void) Value else schema.element(Layout, path);
+
+        return Scalar(Value, Element);
+    }
 
     const names = @typeInfo(Value).@"struct".field_names;
 
     const Fields = blk: {
         var types: [names.len]type = undefined;
 
-        for (names, &types) |name, *target| target.* = Columns(@FieldType(Value, name));
+        for (names, &types) |name, *target| {
+            const field = if (path.len == 0) name else path ++ "_" ++ name;
+
+            target.* = Columns(@FieldType(Value, name), Layout, field);
+        }
 
         break :blk @Struct(.auto, null, names, &types, &@splat(.{}));
     };
@@ -43,11 +53,13 @@ pub fn Columns(comptime Value: type) type {
     };
 }
 
-fn Scalar(comptime Value: type) type {
+fn Scalar(comptime Value: type, comptime Element: type) type {
+    comptime view.compatible(Value, Element);
+
     return struct {
         const Self = @This();
 
-        values: std.ArrayList(Value) = .empty,
+        values: std.ArrayList(Element) = .empty,
         pub fn init() Self {
             return .{};
         }
@@ -56,11 +68,13 @@ fn Scalar(comptime Value: type) type {
         }
 
         pub fn append(self: *Self, value: Value) void {
-            self.values.appendAssumeCapacity(value);
+            self.values.appendAssumeCapacity(if (Value == Element) value else @as(*const Element, @ptrCast(&value)).*);
         }
 
         pub fn get(self: *const Self, index: usize) Value {
-            return self.values.items[index];
+            const item = &self.values.items[index];
+
+            return if (Value == Element) item.* else @as(*const Value, @ptrCast(item)).*;
         }
         pub fn count(self: *const Self) usize {
             return self.values.items.len;

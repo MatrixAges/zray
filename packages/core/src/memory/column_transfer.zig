@@ -45,8 +45,9 @@ pub fn bind(target: anytype, source: anytype, comptime copy_payloads: bool, comp
 pub fn borrowRowField(target: anytype, comptime name: []const u8, rows: anytype) Column {
     const Row = std.meta.Elem(@TypeOf(rows));
     const Value = std.meta.Elem(@TypeOf(target.items));
+    const Field = @FieldType(Row, name);
 
-    comptime std.debug.assert(@FieldType(Row, name) == Value);
+    comptime std.debug.assert(@sizeOf(Field) == @sizeOf(Value) and @alignOf(Field) == @alignOf(Value));
 
     var column = bind(target, @as([]const Value, &.{}), false, true);
     const bytes: [*]const u8 = @ptrCast(rows.ptr);

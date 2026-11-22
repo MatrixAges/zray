@@ -1,17 +1,20 @@
 const std = @import("std");
 const Columns = @import("columns.zig").Columns;
+const schema = @import("schema.zig");
+const view = @import("view.zig");
 
-pub fn Rows(comptime Row: type) type {
+pub fn Rows(comptime Row: type, comptime Layout: type) type {
     return struct {
         const Self = @This();
-        const names = @typeInfo(Row).@"union".field_names;
-        const Tag = std.meta.Tag(Row);
+        const NativeTag = std.meta.Tag(Row);
+        const Tag = if (Layout == void) NativeTag else schema.element(Layout, "tags");
+        const names = if (Layout == void) @typeInfo(Row).@"union".field_names else &schema.payloadNames(NativeTag, Tag);
         const Header = struct { tag: Tag, offset: u32 };
 
         const Payloads = blk: {
             var types: [names.len]type = undefined;
 
-            for (names, &types) |name, *target| target.* = Columns(@FieldType(Row, name));
+            for (names, &types) |name, *target| target.* = Columns(@FieldType(Row, name), Layout, name);
 
             break :blk @Struct(.auto, null, names, &types, &@splat(.{}));
         };
@@ -41,14 +44,16 @@ pub fn Rows(comptime Row: type) type {
 
             return switch (value) {
                 inline else => |payload, selected| stored: {
-                    const items = &@field(self.payloads, @tagName(selected));
+                    const name = @tagName(selected);
+                    const tag = if (Layout == void) selected else @field(Tag, view.pascal(name));
+                    const items = &@field(self.payloads, name);
                     const index: u32 = @intCast(items.count());
 
                     try items.reserve(allocator, 1);
 
                     items.append(payload);
 
-                    break :stored .{ .tag = selected, .offset = index };
+                    break :stored .{ .tag = tag, .offset = index };
                 },
             };
         }
@@ -57,7 +62,11 @@ pub fn Rows(comptime Row: type) type {
             const offset = self.offsets.items[id];
 
             return switch (self.tags.items[id]) {
-                inline else => |tag| @unionInit(Row, @tagName(tag), @field(self.payloads, @tagName(tag)).get(offset)),
+                inline else => |tag| row: {
+                    const name = names[@backingInt(tag)];
+
+                    break :row @unionInit(Row, name, @field(self.payloads, name).get(offset));
+                },
             };
         }
     };
