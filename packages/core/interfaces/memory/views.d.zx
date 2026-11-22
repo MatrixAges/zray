@@ -185,6 +185,12 @@ export declare function clearU32Buffer(
     count: u64
 ): void throws { IndexOutOfBounds }
 
+export declare function fillU32Buffer(
+    target: U32Buffer,
+    count: u64,
+    value: u32
+): void throws { IndexOutOfBounds }
+
 export declare function growU32Scratch(
     scratch: U32Scratch,
     count: u64,

@@ -1,0 +1,19 @@
+import memory from "memory"
+
+import type { U32Buffer } from "memory"
+
+export type Buffers = {
+    abi_types: U32Buffer,
+    abi_layouts: U32Buffer
+}
+
+export type Input = Buffers & {
+    count: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    memory.allocateU32Views(in.abi_types, in.count)
+    memory.allocateU32Views(in.abi_layouts, in.count)
+}

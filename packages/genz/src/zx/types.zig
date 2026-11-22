@@ -118,12 +118,13 @@ fn shared(self: *Lower, output: *@import("../node/declarations.zig").Output) Low
     self.abi_layouts = self.layouts;
 
     if (self.type_scratch != null) return;
+    if (@import("genz_options").generated_analysis) return @import("types/workspace.zig").prepareShared(self);
 
     self.state_types = try self.allocator.alloc(node.ExpressionId, self.types.len);
     self.state_layouts = try self.allocator.alloc(node.ExpressionId, self.types.len);
     self.view_types = try self.allocator.alloc(node.ExpressionId, self.types.len);
 
-    for ([_][]node.ExpressionId{ self.abi_types, self.abi_layouts, self.state_types, self.state_layouts, self.view_types }) |table| Scratch.fill(table);
+    for ([_][]node.ExpressionId{ self.abi_types, self.abi_layouts, self.state_types, self.state_layouts, self.view_types }) |table| @memset(table, unset);
 }
 
 fn abi(self: *Lower, index: usize) Lower.Error!void {

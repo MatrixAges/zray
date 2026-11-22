@@ -115,7 +115,7 @@ const Work = struct {
     /// generating unit after unit reuses them instead of mapping and faulting fresh ones.
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
         var scratch = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-        var types: generating.TypeScratch = .{ .allocator = std.heap.page_allocator };
+        var types: generating.TypeScratch = .init(std.heap.page_allocator);
 
         defer scratch.deinit();
         defer types.deinit();

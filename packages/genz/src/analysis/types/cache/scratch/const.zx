@@ -1,0 +1,13 @@
+export const abi_types_column: u64 = 0
+
+export const abi_layouts_column: u64 = 1
+
+export const state_types_column: u64 = 2
+
+export const state_layouts_column: u64 = 3
+
+export const views_column: u64 = 4
+
+export const touched_column: u64 = 5
+
+export const column_count: u64 = 6

@@ -18,8 +18,8 @@ pub fn borrow(lower: *const Lower) Self {
         .state_types = @ptrCast(lower.state_types),
         .state_layouts = @ptrCast(lower.state_layouts),
         .views = @ptrCast(lower.view_types),
-        .rows = if (scratch) |storage| storage.columns(lower.abi_types.len).touched else &.{},
-        .count = if (scratch) |storage| @as(*[1]u32, @ptrCast(&storage.dirty)) else &.{},
+        .rows = if (scratch) |storage| storage.columns.touched else &.{},
+        .count = if (scratch) |storage| storage.touchedCount() else &.{},
     };
 }
 

@@ -1,0 +1,27 @@
+import { max_u32, max_u64 } from "core/const"
+import memory from "memory"
+
+import { column_count, touched_column } from "./const"
+
+import type { Backing } from "./model"
+
+export type Input = Backing
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const capacity = memory.u32BufferLength(in.items) / column_count
+
+    if (in.count > capacity) {
+        if (in.count > max_u64 / column_count) {
+            return null
+        }
+
+        memory.growU32Scratch(in.storage, in.count * column_count, true)
+        memory.fillU32Buffer(in.items, in.count * touched_column, max_u32)
+
+        return in.count
+    }
+
+    return capacity
+}

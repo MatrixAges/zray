@@ -2,23 +2,28 @@ import integers from "std:integer"
 import { max_u32 } from "core/const"
 import memory from "memory"
 
-import type { U32Buffer } from "memory"
-import type { Columns } from "../model"
+import type { Tables } from "./model"
 
-export type Input = Columns.Omit("touched") & {
-    rows: u32[],
-    count: U32Buffer
-}
+export type Input = Tables
 
 export type Output = void
 
 export default function (in: Input): Output {
+    const { count } = in.touched
+
+    const length = integers.widen(memory.readU32(count, 0))
+
+    if (length == 0) {
+        return
+    }
+
+    const rows = memory.u32Views(in.touched.rows)
     const first: u64 = 0
 
     const reset = loop(first, {
-        while: index => index < in.rows.length,
+        while: index => index < length,
         next: index => {
-            const row = integers.widen(in.rows[index])
+            const row = integers.widen(rows[index])
             memory.writeU32(in.abi_types, row, max_u32)
             memory.writeU32(in.abi_layouts, row, max_u32)
             memory.writeU32(in.state_types, row, max_u32)
@@ -28,5 +33,5 @@ export default function (in: Input): Output {
         }
     })
 
-    memory.writeU32(in.count, 0, 0)
+    memory.writeU32(count, 0, 0)
 }

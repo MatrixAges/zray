@@ -1,0 +1,40 @@
+import memory from "memory"
+
+import {
+    abi_types_column,
+    abi_layouts_column,
+    state_types_column,
+    state_layouts_column,
+    views_column,
+    touched_column
+} from "./const"
+
+import type { U32Buffer } from "memory"
+import type { Tables } from "./model"
+
+export type Input = {
+    items: U32Buffer,
+    tables: Tables,
+    count: u64,
+    stride: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { items, tables, count, stride } = in
+
+    memory.bindU32Range(items, tables.abi_types, abi_types_column * stride, count)
+    memory.bindU32Range(items, tables.abi_layouts, abi_layouts_column * stride, count)
+    memory.bindU32Range(items, tables.state_types, state_types_column * stride, count)
+
+    memory.bindU32Range(
+        items,
+        tables.state_layouts,
+        state_layouts_column * stride,
+        count
+    )
+
+    memory.bindU32Range(items, tables.views, views_column * stride, count)
+    memory.bindU32Range(items, tables.touched.rows, touched_column * stride, count)
+}

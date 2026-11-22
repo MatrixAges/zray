@@ -447,11 +447,15 @@ pub inline fn u32BufferLength(source: *const anyopaque) u64 {
 }
 
 pub inline fn clearU32Buffer(target: *const anyopaque, count: u64) error{IndexOutOfBounds}!void {
+    return fillU32Buffer(target, count, 0);
+}
+
+pub inline fn fillU32Buffer(target: *const anyopaque, count: u64, value: u32) error{IndexOutOfBounds}!void {
     const view: *const []u32 = @ptrCast(@alignCast(target));
 
     if (count > view.len) return error.IndexOutOfBounds;
 
-    @memset(view.*[0..@intCast(count)], 0);
+    @memset(view.*[0..@intCast(count)], value);
 }
 
 pub const U32Scratch = struct {
