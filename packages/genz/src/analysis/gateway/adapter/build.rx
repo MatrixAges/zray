@@ -3,7 +3,7 @@
 
     <Args in={Adapter.Input} out={Adapter.Output} />
 
-    <If on={$in.slots.length == 0}>
+    <If on={$in.slots.count == 0}>
         <Return value={null} />
 
         <Else>

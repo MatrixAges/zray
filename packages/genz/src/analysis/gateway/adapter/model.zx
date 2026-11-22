@@ -1,3 +1,4 @@
+import type { ReadColumn } from "memory"
 import type {
     Input as Bases,
     State as Context,
@@ -8,13 +9,15 @@ import type { Columns as Fields } from "../../../ast/fields/model"
 import type { State as Statements } from "../../../ast/statements/builder/model"
 import type { Columns as StatementColumns } from "../../../ast/statements/model"
 
-export type Slot = {
-    index: u64,
-    writable: bool
+export type SlotRange = {
+    indices: ReadColumn,
+    writable: ReadColumn,
+    first: u64,
+    count: u64
 }
 
 export type Input = {
-    slots: Slot[],
+    slots: SlotRange,
     service_index: u64,
     bases: Bases,
     declaration_base: u32

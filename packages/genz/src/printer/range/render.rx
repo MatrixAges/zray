@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Range" />
+
+    <Args in={Range.Input} out={bool} />
+
+    <Call
+        fn="count"
+        in={{
+            first: $in.source.first,
+            available: $in.source.declarations.tags.length,
+            count: $in.count
+        }}
+    />
+
+    <If on={$ctx.count != null}>
+        <Call
+            module="../render"
+            in={{
+                source: {
+                    ...$in.source,
+                    count: $ctx.count
+                },
+                output: $in.writer
+            }}
+        />
+
+        <Return value={true} />
+    </If>
+
+    <Return value={false} />
+</Module>

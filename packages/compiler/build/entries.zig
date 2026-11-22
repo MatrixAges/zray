@@ -529,7 +529,6 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/bundle_abi/view.rx", .name = "bundle_abi_view", .owner = .compiler },
     .{ .path = "backends/zig/gateway/bindings/build.rx", .name = "gateway_bindings", .owner = .compiler },
     .{ .path = "backends/zig/gateway/routes/services.zx", .name = "gateway_route_services", .owner = .compiler },
-    .{ .path = "backends/zig/gateway/slots.zx", .name = "gateway_slots", .owner = .compiler },
     .{ .path = "backends/zig/gateway/imports.zx", .name = "gateway_imports", .owner = .compiler },
     .{ .path = "backends/zig/library_entry/build.rx", .name = "library_entry", .owner = .compiler },
     .{ .path = "library/entry_view/select.rx", .name = "library_entry_view", .owner = .compiler },
@@ -585,6 +584,7 @@ pub const main = [_]Entry{
     .{ .path = "lint/imports/order/compare.rx", .name = "import_order", .owner = .lint },
     .{ .path = "lint/configuration/yaml/gap/resolve.rx", .name = "yaml_gap", .owner = .lint },
     .{ .path = "genz/printer/render.rx", .name = "printer", .owner = .genz },
+    .{ .path = "genz/printer/range/render.rx", .name = "printer_module_range", .owner = .genz },
     .{ .path = "genz/printer/selection/render.rx", .name = "printer_selection", .owner = .genz },
     .{ .path = "genz/analysis/facts/analyze.rx", .name = "function_facts", .owner = .genz },
     .{ .path = "genz/analysis/value/input_aliases/analyze.rx", .name = "input_aliases", .owner = .genz },
@@ -992,6 +992,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },
     .{ .path = "backends/zig/function_sources/workflow/run.rx", .name = "run_function_sources", .owner = .compiler },
     .{ .path = "verification/graph/selection/select.zx", .name = "select_symbolic_value", .owner = .compiler },
     .{ .path = "verification/contracts/apply.zx", .name = "apply_symbolic_contracts", .owner = .compiler },
@@ -1116,6 +1117,7 @@ pub const host = [_]Entry{
     .{ .path = "genz/analysis/host/metadata/catalog/build.rx", .name = "host_catalog", .owner = .genz },
     .{ .path = "genz/analysis/host/metadata/resources/build.rx", .name = "host_resources", .owner = .genz },
     .{ .path = "genz/printer/render.rx", .name = "printer", .owner = .genz },
+    .{ .path = "genz/printer/range/render.rx", .name = "printer_module_range", .owner = .genz },
     .{ .path = "genz/printer/selection/render.rx", .name = "printer_selection", .owner = .genz },
     .{ .path = "genz/analysis/partition/cache/prefix.zx", .name = "partition_cache_prefix" },
     .{ .path = "genz/analysis/partition/cache/external.zx", .name = "partition_cache_external" },

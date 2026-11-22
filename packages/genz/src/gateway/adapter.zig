@@ -24,10 +24,9 @@ pub fn lowerStored(builder: Builder, service: Service, index: usize) std.mem.All
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
-    const Slots = @FieldType(Input, "slots");
-    const framed = @typeInfo(Slots) == .@"struct";
-    const Slice = if (framed) @FieldType(Slots, "items") else Slots;
-    const slots = try @import("slots.zig").borrow(Slice, builder.allocator, service.slots);
+    const Range = std.meta.Child(@FieldType(Input, "slots"));
+    const columns = @import("slots.zig").rows(service.slots);
+    const slots = columns.bind(Range);
 
     const bases: Bases = .{
         .capture = null,
@@ -39,7 +38,7 @@ pub fn lowerStored(builder: Builder, service: Service, index: usize) std.mem.All
 
     const input: Input = .{
         .bases = &bases,
-        .slots = if (framed) .{ .items = slots, .storage = .plain } else slots,
+        .slots = &slots,
         .service_index = index,
         .declaration_base = @intCast(builder.nodes.declaration_rows.tags.items.len),
     };

@@ -1,13 +1,13 @@
 import type { Table } from "core/type_table/model"
 import type { ByteWriter } from "memory"
 import type { Input as Bases } from "../../../ast/context/model"
-import type { Slot } from "../adapter/model"
+import type { SlotRange } from "../adapter/model"
 import type { Input as DispatchInput, Route } from "../dispatch/model"
 import type { Input as InvokeInput } from "../invoke/model"
 import type { Input as PreludeInput } from "../prelude/model"
 
 export type Service = {
-    slots: Slot[],
+    slots: SlotRange,
     requires_io: bool,
     requires_process: bool,
     types: Table,
@@ -16,7 +16,7 @@ export type Service = {
 }
 
 export type ServiceColumns = {
-    slots: Slot[],
+    slots: SlotRange,
     ends: u64[],
     requires_io: bool[],
     requires_process: bool[],

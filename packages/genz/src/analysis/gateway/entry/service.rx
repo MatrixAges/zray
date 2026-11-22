@@ -20,7 +20,7 @@
                 declaration_base: 0,
                 index: $in.index,
                 writes_store: $ctx.writes_store,
-                slot_count: $in.slots.length,
+                slot_count: $in.slots.count,
                 requires_io: $in.requires_io,
                 requires_process: $in.requires_process,
                 types: $in.types,

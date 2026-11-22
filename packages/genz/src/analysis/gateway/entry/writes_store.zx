@@ -1,9 +1,21 @@
-import type { Slot } from "../adapter/model"
+import columns from "memory"
 
-export type Input = Slot[]
+import type { SlotRange as Input } from "../adapter/model"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    return in.some(slot => slot.writable)
+    const end = in.first + in.count
+
+    return loop({
+        row: in.first,
+        writable: false
+    }, {
+        while: state => state.row < end && !state.writable,
+        next: state => {
+            state.writable = columns.readColumnBool(in.writable, state.row)
+            state.row += 1
+        },
+        return: state => state.writable
+    })
 }

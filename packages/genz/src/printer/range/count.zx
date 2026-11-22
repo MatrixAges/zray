@@ -1,0 +1,24 @@
+import integers from "std:integer"
+import { max_u32 } from "core/const"
+
+import type { Bounds as Input } from "./model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { available, first, count } = in
+
+    const start = integers.widen(first)
+
+    if (available > integers.widen(max_u32) || start > available) {
+        return null
+    }
+
+    const remaining = integers.narrow(available - start)
+
+    if (count == null) {
+        return remaining
+    }
+
+    return count <= remaining ? count : null
+}

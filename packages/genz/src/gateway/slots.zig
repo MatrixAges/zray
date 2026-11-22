@@ -1,31 +1,30 @@
 const std = @import("std");
-const zx = @import("zx");
+const memory = @import("zx").memory;
 const Slot = @import("root.zig").Slot;
+const Self = @This();
 
-pub fn borrow(comptime Target: type, allocator: std.mem.Allocator, values: []const Slot) std.mem.Allocator.Error!Target {
-    const Element = std.meta.Child(Target);
-    const indirect = @typeInfo(Element) == .pointer;
-    const Row = if (indirect) std.meta.Child(Element) else Element;
+indices: memory.ReadColumn,
+writable: memory.ReadColumn,
+pub fn columns(indices: []const u64, writable: []const bool) Self {
+    return .{ .indices = dense(u64, indices), .writable = dense(bool, writable) };
+}
 
-    if (comptime @sizeOf(usize) == @sizeOf(u64)) {
-        if (comptime !indirect) return zx.columns.storage.view(Target, values);
+pub fn rows(values: []const Slot) Self {
+    return .{
+        .indices = memory.borrowReadColumn(u64, "index", values),
+        .writable = memory.borrowReadColumn(bool, "writable", values),
+    };
+}
 
-        const pointers = try allocator.alloc(Element, values.len);
+pub fn bind(self: *const Self, comptime Range: type) Range {
+    return .{
+        .indices = @ptrCast(&self.indices),
+        .writable = @ptrCast(&self.writable),
+        .first = 0,
+        .count = self.indices.count,
+    };
+}
 
-        for (values, pointers) |*value, *pointer| pointer.* = zx.columns.storage.view(Element, value);
-
-        return pointers;
-    }
-
-    const headers = try allocator.alloc(Row, values.len);
-
-    for (values, headers) |value, *header| header.* = .{ .index = @intCast(value.index), .writable = value.writable };
-
-    if (comptime !indirect) return headers;
-
-    const pointers = try allocator.alloc(Element, values.len);
-
-    for (headers, pointers) |*header, *pointer| pointer.* = header;
-
-    return pointers;
+fn dense(comptime T: type, values: []const T) memory.ReadColumn {
+    return .{ .bytes = std.mem.sliceAsBytes(values), .count = values.len, .stride = @sizeOf(T), .offset = 0 };
 }

@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import columns from "memory"
 
 import binary from "../../../ast/context/binary"
 import builtin from "../../../ast/context/builtin"
@@ -24,11 +25,12 @@ export default function (in: Input): Output {
         state: in,
         index: 0
     }, {
-        while: current => current.index < slots.length,
+        while: current => current.index < slots.count,
         next: current => {
-            const slot = slots[current.index]
+            const row = slots.first + current.index
+            const index = columns.readColumnU64(slots.indices, row)
             const local = slotName(current.index)
-            const global = slotName(slot.index)
+            const global = slotName(index)
             const change = field({
                 state: current.state.context,
                 target: in.symbols.changes,
@@ -79,7 +81,7 @@ export default function (in: Input): Output {
                 pending
             }
 
-            if (!slot.writable) {
+            if (!columns.readColumnBool(slots.writable, row)) {
                 const condition = binary({
                     state: current.state.context,
                     operator: B.NotEqual,

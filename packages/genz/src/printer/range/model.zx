@@ -1,0 +1,14 @@
+import type { ByteWriter } from "memory"
+import type { Source } from "../model"
+
+export type Input = {
+    source: Source,
+    writer: ByteWriter,
+    count?: u32
+}
+
+export type Bounds = {
+    first: u32,
+    available: u64,
+    count?: u32
+}

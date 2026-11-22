@@ -1,11 +1,11 @@
-import type { Slot } from "../adapter/model"
+import type { SlotRange } from "../adapter/model"
 import type { ServiceColumns } from "./model"
 
 export type Input = ServiceColumns.Pick("slots", "ends") & {
     index: u64
 }
 
-export type Output = Slot[]
+export type Output = SlotRange
 
 export default function (in: Input): Output {
     const { slots, ends, index } = in
@@ -13,5 +13,9 @@ export default function (in: Input): Output {
     const first = index == 0 ? 0 : ends[index - 1]
     const count = ends[index] - first
 
-    return slots.splice(first, count, [])[1]
+    return {
+        ...slots,
+        first,
+        count
+    }
 }

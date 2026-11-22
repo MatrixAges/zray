@@ -1,10 +1,12 @@
 const std = @import("std");
 const zx = @import("zx");
 const model = @import("root.zig");
+const Slots = @import("slots.zig");
 pub const Options = struct { services: []const model.Service, service_modules: []const []const u8, routes: []const model.Route, listen: []const u8, max_header_bytes: u32, max_body_bytes: u32 };
 
 pub const ServiceColumns = struct {
-    slots: []const model.Slot,
+    indices: []const u64,
+    writable: []const bool,
     ends: []const u64,
     requires_io: []const bool,
     requires_process: []const bool,
@@ -35,14 +37,19 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
     const Bound = std.meta.Child(@typeInfo(@FieldType(Input, "bound")).optional.child);
     const Types = std.meta.Child(@FieldType(Bound, "types"));
+    const Range = std.meta.Child(@FieldType(Bound, "slots"));
+    var columns: Slots = undefined;
+    var slots: Range = undefined;
     var table: Types = undefined;
     var source: Bound = undefined;
 
     if (bound) |value| {
         table = zx.ir.TypeTable.borrow(Types, value.types);
+        columns = Slots.columns(value.indices, value.writable);
+        slots = columns.bind(Range);
 
         source = .{
-            .slots = try @import("slots.zig").borrow(@FieldType(Bound, "slots"), workspace, value.slots),
+            .slots = &slots,
             .ends = value.ends,
             .requires_io = value.requires_io,
             .requires_process = value.requires_process,
@@ -60,7 +67,7 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
         .writer = @ptrCast(&writer),
         .services = if (bound == null) try services(@FieldType(Input, "services"), workspace, options.services) else &.{},
         .bound = if (bound != null) &source else null,
-        .routes = try routes(@FieldType(Input, "routes"), workspace, options.routes),
+        .routes = zx.columns.storage.view(@FieldType(Input, "routes"), options.routes),
         .service_modules = options.service_modules,
         .listen = options.listen,
         .max_header_bytes = options.max_header_bytes,
@@ -75,40 +82,30 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
     return writer.finish();
 }
 
-fn routes(comptime Target: type, allocator: std.mem.Allocator, values: []const model.Route) std.mem.Allocator.Error!Target {
-    if (comptime @sizeOf(usize) == @sizeOf(u64)) return zx.columns.storage.view(Target, values);
-
-    const Row = std.meta.Child(Target);
-    const headers = try allocator.alloc(Row, values.len);
-
-    for (values, headers) |value, *header| {
-        header.* = .{ .method = value.method, .path = value.path, .service = @intCast(value.service) };
-    }
-
-    return headers;
-}
-
 fn services(comptime Target: type, allocator: std.mem.Allocator, values: []const model.Service) std.mem.Allocator.Error!Target {
     const Pointer = std.meta.Child(Target);
     const Row = std.meta.Child(Pointer);
     const Types = std.meta.Child(@FieldType(Row, "types"));
-    const tables = try allocator.alloc(Types, values.len);
-    const headers = try allocator.alloc(Row, values.len);
+    const Range = std.meta.Child(@FieldType(Row, "slots"));
+    const Storage = struct { types: Types, columns: Slots, slots: Range, row: Row };
+    const entries = try allocator.alloc(Storage, values.len);
     const pointers = try allocator.alloc(Pointer, values.len);
 
-    for (values, tables, headers, pointers) |value, *table, *header, *pointer| {
-        table.* = zx.ir.TypeTable.borrow(Types, value.output.types);
+    for (values, entries, pointers) |value, *entry, *pointer| {
+        entry.types = zx.ir.TypeTable.borrow(Types, value.output.types);
+        entry.columns = Slots.rows(value.slots);
+        entry.slots = entry.columns.bind(Range);
 
-        header.* = .{
-            .slots = try @import("slots.zig").borrow(@FieldType(Row, "slots"), allocator, value.slots),
+        entry.row = .{
+            .slots = &entry.slots,
             .requires_io = value.requires_io,
             .requires_process = value.requires_process,
-            .types = table,
+            .types = &entry.types,
             .input_type = @backingInt(value.input_type),
             .output_type = @backingInt(value.output.id),
         };
 
-        pointer.* = header;
+        pointer.* = &entry.row;
     }
 
     return pointers;

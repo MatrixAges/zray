@@ -1,7 +1,7 @@
 const std = @import("std");
 pub const available = @import("genz_options").generated;
 const zx = @import("zx");
-const generated = @import("generated_printer");
+const generated = @import("generated_printer_module_range");
 const Input = std.meta.Child(generated.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
 
@@ -35,13 +35,6 @@ pub fn render(allocator: std.mem.Allocator, workspace: std.mem.Allocator, compti
     const field_columns = project(std.meta.Child(@FieldType(Source, "fields")), if (@hasField(Module, "fields")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "fields")), module.fields)} else .{});
     const arm_columns = project(std.meta.Child(@FieldType(Source, "arms")), if (@hasField(Module, "arms")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "arms")), module.arms)} else .{});
     const first = if (@hasField(Module, "first")) module.first else 0;
-    const end = std.math.cast(u32, declarations.tags.len) orelse return error.OutOfMemory;
-
-    if (first > end) return error.OutOfMemory;
-
-    const count = if (@hasField(Module, "count")) module.count else end - first;
-
-    if (count > end - first) return error.OutOfMemory;
 
     const source: Source = .{
         .expressions = &expression_columns,
@@ -50,19 +43,25 @@ pub fn render(allocator: std.mem.Allocator, workspace: std.mem.Allocator, compti
         .fields = &field_columns,
         .arms = &arm_columns,
         .first = first,
-        .count = count,
+        .count = 0,
     };
 
     var output: zx.memory.ByteWriter = .{ .allocator = allocator };
 
     defer output.deinit();
 
-    const input: Input = .{ .source = &source, .output = @ptrCast(&output) };
+    const input: Input = .{
+        .source = &source,
+        .writer = @ptrCast(&output),
+        .count = if (@hasField(Module, "count")) module.count else null,
+    };
 
-    generated.executeIn(workspace, &input) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+    const valid = zx.columns.invoke(generated.executeValue, workspace, &input) catch |err| switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    if (!valid) return error.OutOfMemory;
 
     return output.finish();
 }

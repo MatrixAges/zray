@@ -63,6 +63,15 @@ pub const planPartitionLayout = bootstrap_partition.planPartitionLayout;
 pub const placePartitionFiles = bootstrap_partition.placePartitionFiles;
 pub const emitPartitionJobs = bootstrap_partition.emitPartitionJobs;
 pub const renderPartitionFile = bootstrap_partition.renderPartitionFile;
+const gateway_bundle = @import("backends/zig/gateway/workflow.zig");
+pub const bindGatewayState = gateway_bundle.bindGatewayState;
+pub const reserveGatewayFiles = gateway_bundle.reserveGatewayFiles;
+pub const appendGatewayModules = gateway_bundle.appendGatewayModules;
+pub const appendGatewayFacade = gateway_bundle.appendGatewayFacade;
+pub const publishGatewayContract = gateway_bundle.publishGatewayContract;
+pub const publishGatewayState = gateway_bundle.publishGatewayState;
+pub const publishGatewayApplication = gateway_bundle.publishGatewayApplication;
+
 const generation_cache = @import("backends/zig/cache.zig");
 pub const finishCacheWriting = generation_cache.finishCacheWriting;
 pub const startCacheWriting = generation_cache.startCacheWriting;

@@ -1,0 +1,8 @@
+import type { GatewayBundle } from "gateway_bundle_host"
+
+export type Input = {
+    frame: GatewayBundle,
+    has_library: bool,
+    modules: u64,
+    public_modules: u64
+}

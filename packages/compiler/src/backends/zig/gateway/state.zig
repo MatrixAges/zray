@@ -98,12 +98,12 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     }
 
     const objects = try @import("../state/objects.zig").create(allocator, output.modules, output.writable, independent);
-    const slots = try @import("slots.zig").create(allocator, output.indices, output.access);
 
     return .{
         .objects = objects,
         .bound = .{
-            .slots = slots,
+            .indices = output.indices,
+            .writable = output.access,
             .ends = output.ends,
             .requires_io = requires_io,
             .requires_process = requires_process,

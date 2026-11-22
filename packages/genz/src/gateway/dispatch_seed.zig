@@ -70,7 +70,7 @@ pub fn lower(builder: Builder, routes: []const model.Route) std.mem.Allocator.Er
     } };
 }
 
-fn callService(builder: Builder, index: usize) std.mem.Allocator.Error!node.ExpressionId {
+fn callService(builder: Builder, index: u64) std.mem.Allocator.Error!node.ExpressionId {
     return builder.call(try builder.identifier(try std.fmt.allocPrint(builder.allocator, "invoke_{d}", .{index})), &.{
         try builder.identifier("scope"),
         try builder.identifier("io"),
