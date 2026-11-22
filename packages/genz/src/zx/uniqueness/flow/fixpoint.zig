@@ -5,9 +5,20 @@ const Slots = @import("../slots.zig");
 const Body = @import("body.zig");
 const Walk = @import("walk.zig");
 const create = @import("generated_uniqueness_flow_queue");
-const advance = @import("generated_uniqueness_flow_advance");
+const run = @import("generated_uniqueness_flow_fixpoint");
+const Error = std.mem.Allocator.Error;
 
-pub fn settle(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator, functions: zx.ir.FunctionTable, slots: Slots) std.mem.Allocator.Error!void {
+const Frame = struct {
+    owner: std.mem.Allocator,
+    functions: *const zx.ir.FunctionTable,
+    walk: Walk,
+    bodies: []?*const Body.Facts,
+    fn borrow(handle: *const anyopaque) *Frame {
+        return @ptrCast(@alignCast(@constCast(handle)));
+    }
+};
+
+pub fn settle(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator, functions: *const zx.ir.FunctionTable, slots: Slots) Error!void {
     const size = functions.count();
     const indices = try owner.alloc(u32, size);
     const queued = try owner.alloc(u8, size);
@@ -31,7 +42,7 @@ pub fn settle(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    var count = zx.columns.invoke(create.executeValue, empty.allocator(), &input) catch |err| switch (err) {
+    const count = zx.columns.invoke(create.executeValue, empty.allocator(), &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
@@ -40,36 +51,43 @@ pub fn settle(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator
 
     @memset(bodies, null);
 
-    var walk = Walk{ .allocator = workspace, .flow = flow, .slots = slots };
+    var frame: Frame = .{
+        .owner = owner,
+        .functions = functions,
+        .bodies = bodies,
+        .walk = .{ .allocator = workspace, .flow = flow, .slots = slots },
+    };
 
-    defer walk.deinit();
+    defer frame.walk.deinit();
 
-    var changed: ?u32 = null;
-
-    while (true) {
-        const next_input: std.meta.Child(advance.Input) = .{
+    const request: std.meta.Child(run.Input) = .{
+        .flow = @ptrCast(&frame),
+        .queue = &.{
             .indices = @ptrCast(&indices),
             .queued = @ptrCast(&queued),
             .first = first,
             .items = items,
             .count = count,
-            .changed = changed,
-        };
+            .changed = null,
+        },
+    };
 
-        const next = zx.columns.invoke(advance.executeValue, empty.allocator(), &next_input) catch unreachable;
-        const index = next.index orelse return;
-        count = next.count;
-        const function = functions.at(index);
-        var facts: ?*const Body.Facts = null;
+    run.executeIn(empty.allocator(), &request) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+}
 
-        if (next.retain) {
-            if (bodies[index] == null) {
-                bodies[index] = try walk.keep(owner, &function);
-            }
+pub fn retainFlowFacts(handle: *const anyopaque, index: u32) Error!void {
+    const frame = Frame.borrow(handle);
 
-            facts = bodies[index];
-        }
-
-        changed = if (try walk.visit(index, &function, facts)) index else null;
+    if (frame.bodies[index] == null) {
+        frame.bodies[index] = try frame.walk.keep(frame.owner, Body.View.at(frame.functions, index));
     }
+}
+
+pub fn visitRecursiveFlow(handle: *const anyopaque, index: u32, retained: bool) Error!bool {
+    const frame = Frame.borrow(handle);
+
+    return frame.walk.visit(index, Body.View.at(frame.functions, index), if (retained) frame.bodies[index] else null);
 }

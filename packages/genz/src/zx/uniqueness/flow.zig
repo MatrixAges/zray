@@ -19,41 +19,58 @@ written: []const []const bool,
 /// `memo` keeps the summaries of each body by its `contents` and its callees' summaries, so a later program walks only
 /// the bodies whose content or callees changed.
 pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, program: ir.Program, slots: Slots, texts: []const bool, contents: []const [32]u8, types: [32]u8, memo: ?*Memo) std.mem.Allocator.Error!Self {
-    const count = program.functions.count();
     var scratch = std.heap.ArenaAllocator.init(workspace);
 
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
+
+    if (generated_analysis) return @import("flow/execution.zig").solve(.{
+        .allocator = allocator,
+        .workspace = workspace,
+        .temporary = temporary,
+        .program = &program,
+        .slots = slots,
+        .texts = texts,
+        .contents = contents,
+        .types = types,
+        .memo = memo,
+    });
+
     const self = try @import("flow/initial.zig").create(allocator, program, slots, texts);
 
     if (try @import("flow/layers/root.zig").build(temporary, &program.functions, self.held, memo != null)) |found| {
-        const remembered: ?Remembered = if (memo) |value| .{
-            .memo = value,
-            .types = types,
-            .contents = contents,
-            .keys = try temporary.alloc(Memo.Digest, count),
-            .found = try temporary.alloc(bool, count),
-        } else null;
+        const remembered = if (memo) |value|
+            try Remembered.init(temporary, value, types, contents, program.functions.count())
+        else
+            null;
 
-        try self.layered(&program.functions, slots, found, remembered);
-    } else if (generated_analysis) {
-        try @import("flow/fixpoint.zig").settle(self, temporary, workspace, program.functions, slots);
+        try self.layeredSeed(&program.functions, slots, found, remembered);
     } else try self.settleSeed(temporary, program, slots);
 
     return self;
 }
 
-const Layers = @import("flow/layers/root.zig").Plan;
+pub const Layers = @import("flow/layers/root.zig").Plan;
 
 /// What looking bodies up in a memo needs: the digests of the types and of each body, and per body its key and whether
 /// the memo held it.
-const Remembered = struct {
+pub const Remembered = struct {
     memo: *Memo,
     types: [32]u8,
     contents: []const [32]u8,
     keys: []Memo.Digest,
     found: []bool,
+    pub fn init(allocator: std.mem.Allocator, memo: *Memo, types: [32]u8, contents: []const [32]u8, count: usize) std.mem.Allocator.Error!Remembered {
+        return .{
+            .memo = memo,
+            .types = types,
+            .contents = contents,
+            .keys = try allocator.alloc(Memo.Digest, count),
+            .found = try allocator.alloc(bool, count),
+        };
+    }
+
     /// The key of a body: its content within the types, and the summaries of each function it calls.
     fn key(self: Remembered, flow: Self, expressions: *const ir.ExpressionTable, index: usize) Memo.Digest {
         if (generated_analysis) return @import("flow/key.zig").build(flow, expressions.call_functions, &self.types, &self.contents[index]);
@@ -81,58 +98,65 @@ const Remembered = struct {
     }
 };
 
-fn layered(self: Self, functions: *const ir.FunctionTable, slots: Slots, found: Layers, remembered: ?Remembered) std.mem.Allocator.Error!void {
+fn layeredSeed(self: Self, functions: *const ir.FunctionTable, slots: Slots, found: Layers, remembered: ?Remembered) std.mem.Allocator.Error!void {
     if (found.order.len == 0) return;
 
-    const width = @import("zx").parallel.width();
-    const walkers = try std.heap.page_allocator.alloc(Walker, width);
+    const walkers = try Walker.open();
 
-    defer std.heap.page_allocator.free(walkers);
-
-    for (walkers) |*walker| walker.* = .{
-        .bodies = if (generated_analysis) {} else .init(std.heap.page_allocator),
-        .lasting = .init(std.heap.page_allocator),
-    };
-
-    defer for (walkers) |*walker| {
-        if (walker.walk) |*walk| walk.deinit();
-        if (!generated_analysis) walker.bodies.deinit();
-
-        walker.lasting.deinit();
-    };
+    defer Walker.close(walkers);
 
     var start: usize = 0;
 
     for (found.ends) |boundary| {
         const end: usize = @intCast(boundary);
 
-        if (!generated_analysis and start == end) continue;
+        if (start == end) continue;
 
         var layer = Layer{ .flow = self, .table = functions, .slots = slots, .functions = found.order[start..end], .walkers = walkers, .remembered = remembered };
 
         start = end;
 
-        @import("zx").parallel.spread(Layer, &layer, Layer.run, @min(width, layer.functions.len));
-
-        if (layer.failed.load(.monotonic)) return error.OutOfMemory;
+        try layer.spread();
 
         const kept = remembered orelse continue;
 
         for (layer.functions) |index| {
-            if (!generated_analysis and functions.native_modules[index] != null) continue;
+            if (functions.native_modules[index] != null) continue;
             if (kept.found[index]) kept.memo.keepFlowed(kept.keys[index]) else try kept.memo.putFlowed(kept.keys[index], self.held[index], self.text_held[index], self.written[index]);
         }
     }
 }
 
-const Walker = struct {
+pub const Walker = struct {
     bodies: if (generated_analysis) void else std.heap.ArenaAllocator,
     lasting: std.heap.ArenaAllocator,
     walk: ?Walk = null,
+    pub fn open() std.mem.Allocator.Error![]Walker {
+        const allocator = std.heap.page_allocator;
+        const walkers = try allocator.alloc(Walker, @import("zx").parallel.width());
+
+        for (walkers) |*walker| walker.* = .{
+            .bodies = if (generated_analysis) {} else .init(allocator),
+            .lasting = .init(allocator),
+        };
+
+        return walkers;
+    }
+
+    pub fn close(walkers: []Walker) void {
+        for (walkers) |*walker| {
+            if (walker.walk) |*walk| walk.deinit();
+            if (!generated_analysis) walker.bodies.deinit();
+
+            walker.lasting.deinit();
+        }
+
+        std.heap.page_allocator.free(walkers);
+    }
 };
 
 /// Walks the bodies of one layer, each participant with its own arenas.
-const Layer = struct {
+pub const Layer = struct {
     flow: Self,
     table: *const ir.FunctionTable,
     slots: Slots,
@@ -141,27 +165,53 @@ const Layer = struct {
     remembered: ?Remembered,
     next: std.atomic.Value(usize) = .init(0),
     failed: std.atomic.Value(bool) = .init(false),
+    const Participant = struct {
+        layer: *Layer,
+        walk: *Walk,
+        fn borrow(handle: *const anyopaque) *const Participant {
+            return @ptrCast(@alignCast(handle));
+        }
+    };
+    pub fn spread(self: *Layer) std.mem.Allocator.Error!void {
+        @import("zx").parallel.spread(Layer, self, run, @min(self.walkers.len, self.functions.len));
+
+        if (self.failed.load(.monotonic)) return error.OutOfMemory;
+    }
+    fn claim(self: *Layer) ?u32 {
+        const position = self.next.fetchAdd(1, .monotonic);
+
+        return if (position < self.functions.len) self.functions[position] else null;
+    }
     fn run(self: *Layer, participant: usize) void {
         const walker = &self.walkers[participant];
 
         if (walker.walk == null) walker.walk = .{ .allocator = walker.lasting.allocator(), .flow = self.flow, .slots = self.slots };
 
-        while (true) {
-            const position = self.next.fetchAdd(1, .monotonic);
+        if (generated_analysis) {
+            const entry = @import("generated_uniqueness_flow_worker");
+            const selected: Participant = .{ .layer = self, .walk = &walker.walk.? };
 
-            if (position >= self.functions.len) return;
+            const input: std.meta.Child(entry.Input) = .{
+                .worker = @ptrCast(&selected),
+                .remembered = self.remembered != null,
+                .held = self.flow.held,
+            };
 
-            const index = self.functions[position];
+            @import("../expressions/evaluate.zig").execute(entry, &input) catch self.failed.store(true, .monotonic);
 
-            self.step(walker, index) catch {
+            return;
+        }
+
+        while (self.claim()) |index| {
+            self.stepSeed(walker, index) catch {
                 self.failed.store(true, .monotonic);
 
                 return;
             };
         }
     }
-    fn step(self: *Layer, walker: *Walker, index: u32) std.mem.Allocator.Error!void {
-        if (!generated_analysis and self.table.native_modules[index] != null) return;
+    fn stepSeed(self: *Layer, walker: *Walker, index: u32) std.mem.Allocator.Error!void {
+        if (self.table.native_modules[index] != null) return;
 
         if (self.remembered) |kept| {
             const key = kept.key(self.flow, self.table.expressions[index], index);
@@ -169,7 +219,7 @@ const Layer = struct {
             kept.keys[index] = key;
 
             kept.found[index] = if (kept.memo.getFlowed(key)) |value|
-                if (generated_analysis) walker.walk.?.adopt(index, value) else Seed.adopt(self.flow, index, value)
+                Seed.adopt(self.flow, index, value)
 
             else
                 false;
@@ -180,13 +230,6 @@ const Layer = struct {
         if (self.flow.held[index].len == 0) return;
 
         const function = self.table.at(index);
-
-        if (generated_analysis) {
-            _ = try walker.walk.?.visit(index, &function, null);
-
-            return;
-        }
-
         defer _ = walker.bodies.reset(.retain_capacity);
         const body = try Body.create(walker.bodies.allocator(), function, self.slots);
         const walk = &walker.walk.?;
@@ -194,6 +237,28 @@ const Layer = struct {
         _ = try walk.analyze(index, &body, @constCast(self.flow.held[index]), @constCast(self.flow.text_held[index]), @constCast(self.flow.written[index]));
     }
 };
+
+pub fn claimFlowBody(handle: *const anyopaque) ?u32 {
+    return Layer.Participant.borrow(handle).layer.claim();
+}
+
+pub fn adoptFlowMemo(handle: *const anyopaque, index: u32) bool {
+    const worker = Layer.Participant.borrow(handle);
+    const layer = worker.layer;
+    const remembered = layer.remembered.?;
+    const key = remembered.key(layer.flow, layer.table.expressions[index], index);
+    remembered.keys[index] = key;
+    const adopted = if (remembered.memo.getFlowed(key)) |value| worker.walk.adopt(index, value) else false;
+
+    remembered.found[index] = adopted;
+
+    return adopted;
+}
+
+pub fn walkFlowBody(handle: *const anyopaque, index: u32) std.mem.Allocator.Error!void {
+    const worker = Layer.Participant.borrow(handle);
+    _ = try worker.walk.visit(index, Body.View.at(worker.layer.table, index), null);
+}
 
 /// Settles summaries over a call graph with cycles: a body is walked again whenever a callee's summary grows.
 fn settleSeed(self: Self, allocator: std.mem.Allocator, program: ir.Program, slots: Slots) std.mem.Allocator.Error!void {

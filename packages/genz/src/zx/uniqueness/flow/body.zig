@@ -7,21 +7,32 @@ const saving = @import("generated_uniqueness_flow_save_facts");
 const Input = std.meta.Child(generated.Input);
 pub const Facts = std.meta.Child(saving.Output);
 
-pub fn source(comptime Target: type, function: *const ir.Function) Target {
-    const block = function.body.block();
+pub const View = struct {
+    expressions: *const ir.ExpressionTable,
+    block: ir.Block,
+    symbols: usize,
+    pub fn at(functions: *const ir.FunctionTable, index: u32) View {
+        return .{
+            .expressions = functions.expressions[index],
+            .block = functions.controlAt(index).block(),
+            .symbols = functions.symbols[index].count(),
+        };
+    }
+};
 
+pub fn source(comptime Target: type, view: View) Target {
     return .{
-        .expressions = zx.columns.pointer(@FieldType(Target, "expressions"), &function.expressions),
-        .control = zx.columns.pointer(@FieldType(Target, "control"), block.control),
-        .symbols = function.symbols.count(),
-        .first = @intCast(block.first),
-        .count = @intCast(block.len),
+        .expressions = zx.columns.pointer(@FieldType(Target, "expressions"), view.expressions),
+        .control = zx.columns.pointer(@FieldType(Target, "control"), view.block.control),
+        .symbols = view.symbols,
+        .first = @intCast(view.block.first),
+        .count = @intCast(view.block.len),
     };
 }
 
 /// A worklist can revisit a function after its preparation arena has been reset.
-pub fn keep(owner: std.mem.Allocator, temporary: std.mem.Allocator, function: *const ir.Function, slots: Slots) std.mem.Allocator.Error!*const Facts {
-    const order = source(std.meta.Child(@FieldType(Input, "source")), function);
+pub fn keep(owner: std.mem.Allocator, temporary: std.mem.Allocator, view: View, slots: Slots) std.mem.Allocator.Error!*const Facts {
+    const order = source(std.meta.Child(@FieldType(Input, "source")), view);
     const input: Input = .{ .source = &order, .counts = slots.counts };
 
     const facts = generated.executeIn(temporary, &input) catch |err| switch (err) {

@@ -60,15 +60,15 @@ fn workspace(self: *Self) std.mem.Allocator {
     return scratch.allocator();
 }
 
-pub fn keep(self: *Self, owner: std.mem.Allocator, function: *const ir.Function) std.mem.Allocator.Error!*const Body.Facts {
-    return Body.keep(owner, self.workspace(), function, self.slots);
+pub fn keep(self: *Self, owner: std.mem.Allocator, view: Body.View) std.mem.Allocator.Error!*const Body.Facts {
+    return Body.keep(owner, self.workspace(), view, self.slots);
 }
 
-pub fn visit(self: *Self, index: u32, function: *const ir.Function, saved: ?*const Body.Facts) std.mem.Allocator.Error!bool {
+pub fn visit(self: *Self, index: u32, view: Body.View, saved: ?*const Body.Facts) std.mem.Allocator.Error!bool {
     const slots = self.slots;
     const layout = Layout{ .offsets = slots.offsets, .members = @ptrCast(slots.members), .unwrapped = @ptrCast(slots.unwrapped) };
     const environment = Environment{ .layout = &layout, .type_kinds = slots.types.kinds, .type_first = slots.types.first, .counts = slots.counts };
-    const source = Body.source(std.meta.Child(@FieldType(Input, "source")), function);
+    const source = Body.source(std.meta.Child(@FieldType(Input, "source")), view);
     const current = self.row(index);
 
     const input: Input = .{

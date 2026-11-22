@@ -1,0 +1,44 @@
+import integers from "std:integer"
+import host from "ownership_host"
+
+import type { Layers as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { flow, remembered, order, ends, hits } = in
+
+    const solved = loop({
+        layer: 0,
+        first: 0
+    }, {
+        while: state => state.layer < ends.length,
+        next: state => {
+            const end = ends[state.layer]
+
+            host.solveFlowLayer(flow, state.first, end)
+
+            if (remembered) {
+                const committed = loop({
+                    position: state.first
+                }, {
+                    while: commit => commit.position < end,
+                    next: commit => {
+                        const body = integers.widen(order[commit.position])
+
+                        if (hits[body]) {
+                            host.keepFlowMemo(flow, body)
+                        } else {
+                            host.publishFlowMemo(flow, body)
+                        }
+
+                        commit.position += 1
+                    }
+                })
+            }
+
+            state.first = end
+            state.layer += 1
+        }
+    })
+}
