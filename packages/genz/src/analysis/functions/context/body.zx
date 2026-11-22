@@ -1,6 +1,7 @@
 export enum Form {
     Function,
-    Predicate
+    Predicate,
+    Native
 }
 
 export enum Field {
@@ -30,9 +31,15 @@ export default function (in: Input): Output {
             Field.StoreMode,
             Field.Contracts
         ],
-        _ => [
+        Form.Predicate => [
             Field.Symbols,
             Field.Expressions
+        ],
+        _ => [
+            Field.InputType,
+            Field.OutputType,
+            Field.Stores,
+            Field.StoreMode
         ]
     }
 }

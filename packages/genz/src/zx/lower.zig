@@ -83,10 +83,14 @@ pub fn refreshEntry(self: *Self) Error!void {
 }
 
 /// Select a function body while retaining the program's shared type and function tables.
-pub fn selectFunction(self: *Self, id: ir.FunctionId, selected: ir.Function) Error!void {
+pub fn selectFunction(self: *Self, id: ir.FunctionId) Error!void {
+    const index = @backingInt(id);
+
     if (generated) {
-        @import("functions/scope.zig").install(&self.program, &selected, .Function);
+        @import("functions/scope.zig").installFunction(&self.program, index, .Function);
     } else {
+        const selected = self.program.functions.at(index);
+
         self.program.symbols = selected.symbols;
         self.program.expressions = selected.expressions;
         self.program.body = selected.body;

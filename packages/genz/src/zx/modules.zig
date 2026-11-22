@@ -75,12 +75,21 @@ fn signatureSeed(lower: *Lower, output: *publication.Output, names: Names, units
         if ((try emitted.getOrPut(temporary, name)).found_existing) continue;
 
         var selected = lower.*;
-        const function_value = try selectFunction(&selected, id);
-        const value = function_value.external == null and selected.value_functions[@backingInt(id)];
+        const index = @backingInt(id);
+
+        if (index >= selected.program.functions.count()) return error.InvalidFunction;
+        try selected.selectFunction(id);
+
+        const native = selected.program.functions.native_modules[index] != null;
+        const value = !native and selected.value_functions[index];
         var variants: std.ArrayList(node.Declaration) = .empty;
 
         if (!value or unit == .regular) {
-            const prototype = try regularPrototype(&selected, id, function_value);
+            const prototype = if (native) native_prototype: {
+                const signature = ir.SignatureTable.read(&selected.program.functions, index);
+
+                break :native_prototype try @import("external.zig").prototype(&selected, &signature, index);
+            } else try selected.prototype("signature", false);
 
             try variants.append(temporary, try signatureType(&selected, "call", prototype));
         }
@@ -88,12 +97,6 @@ fn signatureSeed(lower: *Lower, output: *publication.Output, names: Names, units
         if (value) try variants.append(temporary, try signatureType(&selected, "callValue", try selected.valuePrototype("signature")));
         try output.append(temporary, .{ .constant = .{ .name = name, .exported = true, .value = try lower.builder.expression(.{ .namespace_type = variants.items }) } });
     }
-}
-
-pub fn regularPrototype(lower: *Lower, id: ir.FunctionId, function_value: ir.Function) Lower.Error!node.Function {
-    if (function_value.external != null) return @import("external.zig").prototype(lower, function_value, @backingInt(id));
-
-    return lower.prototype("signature", false);
 }
 
 fn signatureType(lower: *Lower, name: []const u8, prototype: node.Function) Error!node.Declaration {
@@ -113,16 +116,6 @@ fn signatureType(lower: *Lower, name: []const u8, prototype: node.Function) Erro
     const container = try lower.builder.expression(.{ .namespace_type = declarations });
 
     return .{ .constant = .{ .name = name, .exported = true, .value = try lower.builtin(.TypeOf, &.{try lower.builder.field(container, "signature")}) } };
-}
-
-pub fn selectFunction(lower: *Lower, id: ir.FunctionId) (Lower.Error || error{InvalidFunction})!ir.Function {
-    if (@backingInt(id) >= lower.program.functions.count()) return error.InvalidFunction;
-
-    const selected = lower.program.functions.at(@backingInt(id));
-
-    try lower.selectFunction(id, selected);
-
-    return selected;
 }
 
 pub fn publicEntry(allocator: std.mem.Allocator, backing: std.mem.Allocator, program: ir.Program, names: Names, facts: Analysis, members: []const PublicMember) Error![]u8 {
@@ -219,15 +212,21 @@ fn functionPrepared(allocator: std.mem.Allocator, backing: std.mem.Allocator, pr
 
     const temporary = arena.allocator();
     var lower = try initialize(temporary, backing, program, names, facts, working, false);
-    const selected = try selectFunction(&lower, id);
+    const native = program.functions.native_modules[@backingInt(id)] != null;
 
-    @import("functions/context.zig").selectPlan(&lower, id);
+    if (!generated) {
+        const context = @import("functions/context.zig");
 
-    if (selected.external == null) try @import("functions/context.zig").reserve(&lower);
+        try lower.selectFunction(id);
+
+        context.selectPlan(&lower, id);
+
+        if (!native) try context.reserve(&lower);
+    }
 
     const workflow = @import("module/workflow.zig");
-    const form = workflow.functionForm(selected.external != null, lower.value_functions[@backingInt(id)], regular);
-    const declarations = try @import("module/execution/function.zig").lower(&lower, selected, id, form);
+    const form = workflow.functionForm(native, lower.value_functions[@backingInt(id)], regular);
+    const declarations = try @import("module/execution/function.zig").lower(&lower, id, form);
 
     return @import("../render.zig").renderStored(allocator, lower.builder.nodes, declarations);
 }

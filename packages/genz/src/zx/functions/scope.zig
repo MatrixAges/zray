@@ -91,17 +91,29 @@ pub fn reserve(self: *Lower, allocator: std.mem.Allocator, comptime form: entry.
     try context.clear(self);
 }
 
-pub fn install(program: *ir.Program, selected: anytype, comptime form: body.Input) void {
+pub fn installPredicate(program: *ir.Program, predicates: *const ir.ContractTable, index: usize) void {
+    inline for (comptime zx.staticSequence(body, .Predicate)) |field| {
+        switch (field) {
+            .Symbols => program.symbols = predicates.symbols[index].*,
+            .Expressions => program.expressions = predicates.expressions[index].*,
+            else => @compileError("Predicate scope can only install symbol and expression columns"),
+        }
+    }
+}
+
+pub fn installFunction(program: *ir.Program, index: usize, comptime form: body.Input) void {
+    const functions = &program.functions;
+
     inline for (comptime zx.staticSequence(body, form)) |field| {
         switch (field) {
-            .Symbols => program.symbols = selected.symbols,
-            .Expressions => program.expressions = selected.expressions,
-            .Body => program.body = selected.body,
-            .InputType => program.input_type = selected.input_type,
-            .OutputType => program.output_type = selected.output_type,
-            .Stores => program.stores = selected.stores,
-            .StoreMode => program.store_mode = selected.store_mode,
-            .Contracts => program.contracts = selected.contracts,
+            .Symbols => program.symbols = functions.symbols[index].*,
+            .Expressions => program.expressions = functions.expressions[index].*,
+            .Body => program.body = functions.controlAt(index),
+            .InputType => program.input_type = @fromBackingInt(functions.input_types[index]),
+            .OutputType => program.output_type = @fromBackingInt(functions.output_types[index]),
+            .Stores => program.stores = functions.stores[index].*,
+            .StoreMode => program.store_mode = functions.store_modes[index],
+            .Contracts => program.contracts = functions.contracts[index].*,
         }
     }
 }

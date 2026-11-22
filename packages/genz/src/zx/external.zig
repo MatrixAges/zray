@@ -7,7 +7,7 @@ const Lower = @import("lower.zig");
 const generated = @import("genz_options").generated_analysis;
 const seed = @import("external_seed.zig");
 
-pub fn lower(self: *Lower, function: ir.Function, index: usize) Lower.Error!node.Declaration {
+pub fn lower(self: *Lower, function: *const ir.Signature, index: usize) Lower.Error!node.Declaration {
     if (!generated) return seed.lower(self, function, index);
 
     const entry = @import("generated_external_body");
@@ -57,7 +57,7 @@ pub fn lower(self: *Lower, function: ir.Function, index: usize) Lower.Error!node
     return .{ .function = declaration };
 }
 
-pub fn prototype(self: *Lower, function: ir.Function, index: usize) Lower.Error!node.Function {
+pub fn prototype(self: *Lower, function: *const ir.Signature, index: usize) Lower.Error!node.Function {
     if (!generated) return seed.prototype(self, function, index);
 
     const entry = @import("generated_external_prototype");

@@ -22,6 +22,11 @@ export declare function emitModuleAliases(owner: ModuleFrame): void
 export declare function emitModuleStore(owner: ModuleFrame): void
     throws { OutOfMemory }
 
+export declare function openFunctionModule(owner: ModuleFrame): void
+    throws { OutOfMemory }
+
+export declare function openNativeFunctionModule(owner: ModuleFrame): void
+
 export declare function emitModuleEntry(owner: ModuleFrame): void
     throws { OutOfMemory }
 
@@ -62,7 +67,13 @@ export declare function publishRequestedFunction(owner: ModuleFrame): void
 export declare function openSignatureUnit(
     signatures: ModuleSignatures,
     index: u64
-): SignatureForm throws { OutOfMemory, InvalidFunction }
+): ModuleFunctionForm? throws { OutOfMemory, InvalidFunction }
+
+export declare function installSignatureBody(signatures: ModuleSignatures): void
+    throws { OutOfMemory }
+
+export declare function emitNativeSignature(signatures: ModuleSignatures): void
+    throws { OutOfMemory }
 
 export declare function emitRegularSignature(signatures: ModuleSignatures): void
     throws { OutOfMemory }
@@ -70,8 +81,10 @@ export declare function emitRegularSignature(signatures: ModuleSignatures): void
 export declare function emitValueSignature(signatures: ModuleSignatures): void
     throws { OutOfMemory }
 
-export declare function publishSignatureUnit(signatures: ModuleSignatures): void
-    throws { OutOfMemory }
+export declare function publishSignatureUnit(
+    signatures: ModuleSignatures,
+    parameter_name: string
+): void throws { OutOfMemory }
 
 export declare function appendModuleAuxiliary(owner: ModuleFrame): void throws { OutOfMemory }
 

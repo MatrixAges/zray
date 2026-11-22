@@ -1,5 +1,4 @@
 const std = @import("std");
-const zx = @import("zx");
 const generated = @import("genz_options").generated_analysis;
 const signatures = if (generated) @import("generated_signature_module_select") else void;
 
@@ -41,7 +40,7 @@ fn variants() [8]FunctionForm {
 
         const selection = signatures.executeValue(fixed.allocator(), &input) catch unreachable;
 
-        form.* = @fromBackingInt(@backingInt(selection.form));
+        form.* = @fromBackingInt(@backingInt(selection));
     }
 
     return forms;

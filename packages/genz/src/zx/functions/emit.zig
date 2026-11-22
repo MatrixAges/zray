@@ -8,18 +8,17 @@ const Output = @import("../../node/declarations.zig").Output;
 
 pub fn native(self: *Lower, output: *Output, id: ir.FunctionId) Lower.Error!void {
     const index = @backingInt(id);
-    const function = self.program.functions.at(index);
+    const signature = ir.SignatureTable.read(&self.program.functions, index);
 
-    try output.append(self.allocator, try @import("../external.zig").lower(self, function, index));
+    try output.append(self.allocator, try @import("../external.zig").lower(self, &signature, index));
 }
 
 pub fn open(self: *Lower, helper: *Lower, id: ir.FunctionId) Lower.Error!void {
     const index = @backingInt(id);
-    const function = self.program.functions.at(index);
 
     helper.* = if (generated) scope.inherit(self, .Function) else self.*;
 
-    try helper.selectFunction(id, function);
+    try helper.selectFunction(id);
     @import("context.zig").selectPlan(helper, id);
     helper.pending_name = try std.fmt.allocPrint(self.allocator, "zx_pending_{d}", .{index});
 

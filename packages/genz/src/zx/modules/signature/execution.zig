@@ -4,8 +4,7 @@ const Lower = @import("../../lower.zig");
 const Output = @import("../../../node/declarations.zig").Output;
 const Module = @import("../../modules.zig");
 const signature = @import("../signature.zig");
-const evaluation = @import("../../expressions/evaluate.zig");
-const Form = evaluation.Api.SignatureForm;
+const workflow = @import("../../module/workflow.zig");
 
 const Units = union(enum) {
     mixed: []const Module.Unit,
@@ -19,7 +18,6 @@ const Frame = struct {
     units: Units,
     emitted: std.StringHashMapUnmanaged(void) = .empty,
     selected: Lower = undefined,
-    definition: ir.Function = undefined,
     id: ir.FunctionId = undefined,
     prototypes: signature.Prototypes = undefined,
     fn borrow(handle: *const anyopaque) *Frame {
@@ -42,7 +40,7 @@ pub fn lower(self: *Lower, output: *Output, names: []const []const u8, units: an
     try entry.executeIn(empty.allocator(), &input);
 }
 
-pub fn openSignatureUnit(handle: *const anyopaque, index: u64) (Lower.Error || error{InvalidFunction})!Form {
+pub fn openSignatureUnit(handle: *const anyopaque, index: u64) (Lower.Error || error{InvalidFunction})!?workflow.FunctionForm {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const row: usize = @intCast(index);
@@ -54,29 +52,46 @@ pub fn openSignatureUnit(handle: *const anyopaque, index: u64) (Lower.Error || e
 
     const id = switch (unit) {
         .function, .regular => |id| id,
-        else => return .Skip,
+        else => return null,
     };
 
-    const name = std.fs.path.stem(frame.names[@backingInt(id)]);
+    const function_row = @backingInt(id);
 
-    if ((try frame.emitted.getOrPut(self.allocator, name)).found_existing) return .Skip;
+    if (function_row >= self.program.functions.count()) return error.InvalidFunction;
+
+    const name = std.fs.path.stem(frame.names[function_row]);
+
+    if ((try frame.emitted.getOrPut(self.allocator, name)).found_existing) return null;
 
     frame.selected = @import("../../functions/scope.zig").inherit(self, .Signature);
-    frame.definition = try Module.selectFunction(&frame.selected, id);
     frame.id = id;
-    const variants = signature.select(frame.definition.external != null, frame.selected.value_functions[@backingInt(id)], unit == .regular);
+    frame.prototypes = .{ .name = name, .regular = null, .value = null };
 
-    frame.prototypes = .{ .name = name, .parameter_name = variants.parameter_name, .regular = null, .value = null };
+    return workflow.functionForm(
+        self.program.functions.native_modules[function_row] != null,
+        self.value_functions[function_row],
+        unit == .regular,
+    );
+}
 
-    if (variants.regular) return if (variants.value) .Both else .Regular;
+pub fn installSignatureBody(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
 
-    return .Value;
+    try frame.selected.selectFunction(frame.id);
+}
+
+pub fn emitNativeSignature(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const row = @backingInt(frame.id);
+    const declaration = ir.SignatureTable.read(&frame.selected.program.functions, row);
+
+    frame.prototypes.regular = try @import("../../external.zig").prototype(&frame.selected, &declaration, row);
 }
 
 pub fn emitRegularSignature(handle: *const anyopaque) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
-    frame.prototypes.regular = try Module.regularPrototype(&frame.selected, frame.id, frame.definition);
+    frame.prototypes.regular = try frame.selected.prototype("signature", false);
 }
 
 pub fn emitValueSignature(handle: *const anyopaque) Lower.Error!void {
@@ -85,8 +100,8 @@ pub fn emitValueSignature(handle: *const anyopaque) Lower.Error!void {
     frame.prototypes.value = try frame.selected.valuePrototype("signature");
 }
 
-pub fn publishSignatureUnit(handle: *const anyopaque) Lower.Error!void {
+pub fn publishSignatureUnit(handle: *const anyopaque, parameter_name: []const u8) Lower.Error!void {
     const frame = Frame.borrow(handle);
 
-    return signature.append(&frame.selected, frame.output, frame.prototypes);
+    return signature.append(&frame.selected, frame.output, frame.prototypes, parameter_name);
 }

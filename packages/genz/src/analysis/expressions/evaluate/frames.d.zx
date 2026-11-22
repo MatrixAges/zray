@@ -70,13 +70,6 @@ export enum ModuleRequestForm {
 
 export type ModuleSignatures = opaque
 
-export enum SignatureForm {
-    Skip,
-    Regular,
-    Value,
-    Both
-}
-
 export type AstPublication = opaque
 
 export type DirectAstRows = opaque

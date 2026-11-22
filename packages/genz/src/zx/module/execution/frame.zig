@@ -14,8 +14,6 @@ pub const RequestsFrame = struct {
     selected: Lower = undefined,
 };
 
-pub const Function = struct { id: ir.FunctionId, definition: ir.Function };
-
 lowering: *Lower,
 output: publication.Output,
 suffix: publication.Output,
@@ -23,7 +21,7 @@ comparisons: std.ArrayList(ir.TypeId) = .empty,
 tasks: Auxiliary,
 requests: ?*RequestsFrame = null,
 
-function: ?*const Function = null,
+function: ?ir.FunctionId = null,
 result: Stored = undefined,
 pub fn init(lowering: *Lower) Self {
     return .{

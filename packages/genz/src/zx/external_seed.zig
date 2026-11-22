@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 
-pub fn lower(self: *Lower, function: ir.Function, index: usize) Lower.Error!node.Declaration {
+pub fn lower(self: *Lower, function: *const ir.Signature, index: usize) Lower.Error!node.Declaration {
     const implementation = function.external.?;
     self.uses_allocator = false;
 
@@ -53,7 +53,7 @@ pub fn lower(self: *Lower, function: ir.Function, index: usize) Lower.Error!node
     return .{ .function = declaration };
 }
 
-pub fn prototype(self: *Lower, function: ir.Function, index: usize) Lower.Error!node.Function {
+pub fn prototype(self: *Lower, function: *const ir.Signature, index: usize) Lower.Error!node.Function {
     const implementation = function.external.?;
     const parameters = try self.allocator.alloc(node.Field, 2 + @as(usize, @intFromBool(implementation.io_argument)) + @as(usize, @intFromBool(implementation.process_argument)));
 

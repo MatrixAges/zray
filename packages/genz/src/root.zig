@@ -430,6 +430,8 @@ pub const moduleComparisonCount = module_emission.moduleComparisonCount;
 pub const emitModuleComparison = module_emission.emitModuleComparison;
 const function_module = @import("zx/module/execution/function.zig");
 pub const emitFunctionModuleBody = function_module.emitFunctionModuleBody;
+pub const openFunctionModule = function_module.openFunctionModule;
+pub const openNativeFunctionModule = function_module.openNativeFunctionModule;
 const module_requests = @import("zx/module/execution/requests.zig");
 pub const takeModuleFunction = module_requests.takeModuleFunction;
 pub const emitRequestedNative = module_requests.emitRequestedNative;
@@ -440,6 +442,8 @@ pub const publishRequestedFunction = module_requests.publishRequestedFunction;
 const signature_execution = @import("zx/modules/signature/execution.zig");
 
 pub const openSignatureUnit = signature_execution.openSignatureUnit;
+pub const installSignatureBody = signature_execution.installSignatureBody;
+pub const emitNativeSignature = signature_execution.emitNativeSignature;
 pub const emitRegularSignature = signature_execution.emitRegularSignature;
 pub const emitValueSignature = signature_execution.emitValueSignature;
 pub const publishSignatureUnit = signature_execution.publishSignatureUnit;

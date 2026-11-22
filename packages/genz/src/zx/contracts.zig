@@ -42,17 +42,18 @@ pub fn preconditions(self: *Lower) Error!node.Block {
 pub fn openPreconditionScope(handle: *const anyopaque, index: u64) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
-    const contract = self.program.contracts.at(@intCast(index));
+    const contracts = &self.program.contracts;
+    const row: usize = @intCast(index);
     const predicate = &frame.predicate;
 
     predicate.* = scope.inherit(self, .Predicate);
 
-    scope.install(&predicate.program, &contract, .Predicate);
+    scope.installPredicate(&predicate.program, contracts, row);
 
     try predicate.refreshEntry();
     try scope.reserve(predicate, self.allocator, .Predicate);
 
-    frame.expression = contract.predicate;
+    frame.expression = @fromBackingInt(contracts.predicates[row]);
 }
 
 pub fn evaluatePrecondition(handle: *const anyopaque) Error!void {

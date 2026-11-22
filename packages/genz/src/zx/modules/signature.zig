@@ -2,31 +2,14 @@ const std = @import("std");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const rows = @import("../../node/import_rows.zig");
-const selection = @import("generated_signature_module_select");
-const Variants = std.meta.Child(selection.Output);
-
-pub fn select(external: bool, value_function: bool, pointer_variant: bool) Variants {
-    const input: std.meta.Child(selection.Input) = .{
-        .external = external,
-        .value_function = value_function,
-        .pointer_variant = pointer_variant,
-    };
-
-    var buffer: [std.heap.page_size_min]u8 = undefined;
-    var fixed = std.heap.FixedBufferAllocator.init(&buffer);
-    const output = selection.executeIn(fixed.allocator(), &input) catch unreachable;
-
-    return output.*;
-}
 
 pub const Prototypes = struct {
     name: []const u8,
-    parameter_name: []const u8,
     regular: ?node.Function,
     value: ?node.Function,
 };
 
-pub fn append(lower: *Lower, output: *@import("../../node/declarations.zig").Output, prototypes: Prototypes) Lower.Error!void {
+pub fn append(lower: *Lower, output: *@import("../../node/declarations.zig").Output, prototypes: Prototypes, parameter_name: []const u8) Lower.Error!void {
     const entry = @import("generated_signature_module_build");
     const Input = std.meta.Child(entry.Input);
     const Prototype = std.meta.Child(@typeInfo(@FieldType(Input, "regular")).optional.child);
@@ -36,8 +19,8 @@ pub fn append(lower: *Lower, output: *@import("../../node/declarations.zig").Out
 
     const input: Input = .{
         .name = prototypes.name,
-        .regular = if (prototypes.regular) |function| try prepare(lower, function, prototypes.parameter_name, &regular) else null,
-        .value = if (prototypes.value) |function| try prepare(lower, function, prototypes.parameter_name, &value) else null,
+        .regular = if (prototypes.regular) |function| try prepare(lower, function, parameter_name, &regular) else null,
+        .value = if (prototypes.value) |function| try prepare(lower, function, parameter_name, &value) else null,
         .expression_base = @intCast(nodes.expressions.tags.items.len),
         .declaration_base = @intCast(nodes.declaration_rows.tags.items.len),
         .statement_base = @intCast(nodes.statements.tags.items.len),

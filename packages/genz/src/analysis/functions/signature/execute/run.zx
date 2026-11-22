@@ -1,5 +1,7 @@
 import host from "lowering_host"
-import { SignatureForm } from "lowering_host"
+import { ModuleFunctionForm } from "lowering_host"
+
+import { unnamed_parameter } from "../module/const"
 
 import type { ModuleSignatures } from "lowering_host"
 
@@ -20,16 +22,22 @@ export default function (in: Input): Output {
         next: state => {
             const form = host.openSignatureUnit(signatures, state.index)
 
-            if (form != SignatureForm.Skip) {
-                if (form != SignatureForm.Value) {
-                    host.emitRegularSignature(signatures)
+            if (form != null) {
+                if (form == ModuleFunctionForm.Native) {
+                    host.emitNativeSignature(signatures)
+                } else {
+                    host.installSignatureBody(signatures)
+
+                    if (form != ModuleFunctionForm.Value) {
+                        host.emitRegularSignature(signatures)
+                    }
+
+                    if (form != ModuleFunctionForm.Regular) {
+                        host.emitValueSignature(signatures)
+                    }
                 }
 
-                if (form != SignatureForm.Regular) {
-                    host.emitValueSignature(signatures)
-                }
-
-                host.publishSignatureUnit(signatures)
+                host.publishSignatureUnit(signatures, unnamed_parameter)
             }
 
             state.index = state.index + 1

@@ -24,14 +24,14 @@ pub fn emitModuleImports(handle: *const anyopaque) Error!void {
         return;
     };
 
-    const external = selected.definition.external.?;
+    const external = self.program.functions.native_modules[@backingInt(selected)].?;
     const modules = self.program.native_modules;
-    const module = modules.at(@backingInt(external.module));
+    const module = modules.at(external);
     const native_names = try self.allocator.alloc([]const u8, modules.count());
 
     @memset(native_names, "");
-    native_names[@backingInt(external.module)] = "zx_native";
 
+    native_names[external] = "zx_native";
     self.native_names = native_names;
 
     const value = try self.builtin(.import, &.{try self.builder.string(module.import_name)});

@@ -8,14 +8,12 @@ const evaluation = @import("../../expressions/evaluate.zig");
 const Stored = @import("../../../node/stored.zig").Declarations;
 const generated = @import("genz_options").generated_analysis;
 
-pub fn lower(self: *Lower, definition: ir.Function, id: ir.FunctionId, form: Form) Lower.Error!Stored {
+pub fn lower(self: *Lower, id: ir.FunctionId, form: Form) Lower.Error!Stored {
     var frame = Frame.init(self);
 
     defer frame.deinit();
 
-    const selected: Frame.Function = .{ .id = id, .definition = definition };
-
-    frame.function = &selected;
+    frame.function = id;
 
     frame.install();
 
@@ -37,6 +35,24 @@ pub fn lower(self: *Lower, definition: ir.Function, id: ir.FunctionId, form: For
     return frame.result;
 }
 
+pub fn openFunctionModule(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const id = frame.function.?;
+    const context = @import("../../functions/context.zig");
+
+    try self.selectFunction(id);
+
+    context.selectPlan(self, id);
+
+    try context.reserve(self);
+}
+
+pub fn openNativeFunctionModule(handle: *const anyopaque) void {
+    const frame = Frame.borrow(handle);
+    @import("../../functions/scope.zig").installFunction(&frame.lowering.program, @backingInt(frame.function.?), .Native);
+}
+
 fn seed(handle: *const anyopaque, form: Form) Lower.Error!void {
     try publication.emitModuleStandard(handle);
     try publication.emitModuleTypes(handle);
@@ -56,11 +72,16 @@ fn seed(handle: *const anyopaque, form: Form) Lower.Error!void {
 pub fn emitFunctionModuleBody(handle: *const anyopaque, form: Form) Lower.Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
-    const selected = frame.function.?;
+    const id = frame.function.?;
 
     var declaration = switch (form) {
-        .Native => try @import("../../external.zig").lower(self, selected.definition, @backingInt(selected.id)),
-        .Regular => if (try @import("../../functions/adapter.zig").build(self, selected.id)) |adapter| adapter else try self.function("call", false),
+        .Native => native: {
+            const index = @backingInt(id);
+            const signature = ir.SignatureTable.read(&self.program.functions, index);
+
+            break :native try @import("../../external.zig").lower(self, &signature, index);
+        },
+        .Regular => if (try @import("../../functions/adapter.zig").build(self, id)) |adapter| adapter else try self.function("call", false),
         .Value => try self.functionValue("callValue"),
         .RegularAndValue => unreachable,
     };
