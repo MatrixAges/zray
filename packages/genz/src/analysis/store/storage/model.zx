@@ -1,10 +1,11 @@
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { State as Builder } from "../../../ast/declarations/builder/model"
 import type { Module as Snapshot } from "../../../ast/snapshot/model"
-import type { Object, Policy } from "../lifecycle/model"
+import type { Policy } from "../lifecycle/model"
+import type { Objects } from "../objects/model"
 
 export type Input = {
-    objects: Object[],
+    objects: Objects,
     bases: Bases,
     declaration_base: u32
 }

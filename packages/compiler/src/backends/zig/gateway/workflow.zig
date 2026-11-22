@@ -4,7 +4,7 @@ const Library = @import("../../../library/root.zig").Result;
 const Bundle = @import("../library.zig").Bundle;
 const File = @import("../modules.zig").File;
 const State = @import("state.zig");
-const prefixed = @import("imports.zig").prefixed;
+const imports_writer = @import("imports.zig");
 const generated = @import("parser_options").generated_parser;
 const Self = @This();
 pub const Options = struct { routes: []const generating.gateway.Route, listen: []const u8, max_header_bytes: u32, max_body_bytes: u32 };
@@ -13,7 +13,7 @@ allocator: std.mem.Allocator,
 options: Options,
 library: ?*const Library = null,
 bundle: ?*const Bundle = null,
-mapped: State.Result = .{ .objects = &.{} },
+mapped: State.Result = .{},
 files: std.ArrayList(File) = .empty,
 state_imports: []const []const u8 = undefined,
 
@@ -93,7 +93,14 @@ pub fn appendGatewayFacade(handle: *const anyopaque, index: u64) void {
 }
 
 fn publishContract(self: *Self) std.mem.Allocator.Error!void {
-    const state_imports = try prefixed(self.allocator, "application=gateway_storage_contract", "module_name", self.mapped.objects);
+    const prefix = "application=gateway_storage_contract";
+
+    const state_imports = if (generated and self.mapped.object_columns != null)
+        try imports_writer.prefixedColumns(self.allocator, prefix, self.mapped.object_columns.?.modules, self.mapped.object_columns.?.count)
+
+    else
+        try imports_writer.prefixed(self.allocator, prefix, "module_name", self.mapped.objects);
+
     const initial_imports = state_imports[1..];
     const source = try generating.gateway.storage.render(self.allocator, initial_imports);
 
@@ -107,7 +114,12 @@ pub fn publishGatewayContract(handle: *const anyopaque) std.mem.Allocator.Error!
 }
 
 fn publishState(self: *Self) std.mem.Allocator.Error!void {
-    const source = try generating.zx.state.renderStorage(self.allocator, self.mapped.objects);
+    const state = generating.zx.state;
+
+    const source = if (state.generated and self.mapped.object_columns != null)
+        try state.renderColumns(self.allocator, self.mapped.object_columns.?, .{}, false)
+    else
+        try state.renderStorage(self.allocator, self.mapped.objects);
 
     self.files.appendAssumeCapacity(.{ .name = "zxc_gateway_state", .source = source, .imports = self.state_imports });
 }
@@ -118,7 +130,7 @@ pub fn publishGatewayState(handle: *const anyopaque) std.mem.Allocator.Error!voi
 
 fn publishApplication(self: *Self) std.mem.Allocator.Error!void {
     const service_files = if (self.bundle) |bundle| self.files.items[bundle.modules.len..][0..bundle.public_modules.len] else &.{};
-    const imports = try prefixed(self.allocator, "zxc_gateway_state", "name", service_files);
+    const imports = try imports_writer.prefixed(self.allocator, "zxc_gateway_state", "name", service_files);
     const renderer = generating.gateway.entry;
 
     const input: renderer.Options = .{

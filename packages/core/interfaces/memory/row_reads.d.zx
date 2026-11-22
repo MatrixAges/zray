@@ -91,6 +91,11 @@ export declare function readColumnOptionalU32(
     index: u64
 ): u32? throws { IndexOutOfBounds }
 
+export declare function readColumnOptionalBool(
+    source: ReadColumn,
+    index: u64
+): bool? throws { IndexOutOfBounds }
+
 export declare function readColumnOptionalU8(
     source: ReadColumn,
     index: u64

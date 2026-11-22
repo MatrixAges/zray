@@ -12,7 +12,7 @@ import type { State as Input, State as Output, Work } from "./model"
 
 export default function (in: Input): Output {
     const changes = in.changes
-    const count = in.source.objects.length
+    const count = in.source.objects.count
 
     const prepared = match {
         count == 0 => evaluate({

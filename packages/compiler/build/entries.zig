@@ -529,6 +529,7 @@ pub const main = [_]Entry{
     .{ .path = "backends/zig/bundle_abi/view.rx", .name = "bundle_abi_view", .owner = .compiler },
     .{ .path = "backends/zig/gateway/bindings/build.rx", .name = "gateway_bindings", .owner = .compiler },
     .{ .path = "backends/zig/gateway/routes/services.zx", .name = "gateway_route_services", .owner = .compiler },
+    .{ .path = "backends/zig/gateway/routes/publish.zx", .name = "gateway_route_publish", .owner = .compiler },
     .{ .path = "backends/zig/gateway/imports.zx", .name = "gateway_imports", .owner = .compiler },
     .{ .path = "backends/zig/library_entry/build.rx", .name = "library_entry", .owner = .compiler },
     .{ .path = "library/entry_view/select.rx", .name = "library_entry_view", .owner = .compiler },

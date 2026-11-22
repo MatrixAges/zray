@@ -1,0 +1,9 @@
+import type { ReadColumn, TextColumn } from "memory"
+
+export type Objects = {
+    modules: TextColumn,
+    writable: ReadColumn,
+    independent?: ReadColumn,
+    uniform_independent: bool,
+    count: u64
+}

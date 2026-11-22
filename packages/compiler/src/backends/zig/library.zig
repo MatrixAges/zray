@@ -14,7 +14,8 @@ pub const PublicModule = struct {
     state_entry: bool = false,
     allocator_entry: bool = false,
     constant_only: bool = false,
-    requirements: ?@import("genz").zx.state.Requirements = null,
+    requires_io: ?bool = null,
+    requires_process: bool = false,
 };
 
 pub const Options = struct { signatures: bool = false };

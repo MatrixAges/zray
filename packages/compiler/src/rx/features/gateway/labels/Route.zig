@@ -1,6 +1,6 @@
 const dsl = @import("dsl");
 const checks = @import("../../../checks.zig");
-pub const Method = enum { GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH };
+pub const Method = enum(u8) { GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH };
 
 const RouteBase = dsl.element("Route", struct {
     path: []const u8,

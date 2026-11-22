@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import { Policy } from "../../lifecycle/model"
 import owner from "./owner"
 
@@ -15,9 +17,9 @@ export default function (in: Input): Output {
         index: 0
     }, {
         while: current =>
-            current.index < objects.length && current.work.state.context.valid,
+            current.index < objects.count && current.work.state.context.valid,
         next: current => {
-            if (objects[current.index].writable) {
+            if (memory.readColumnBool(objects.writable, current.index)) {
                 current.work = owner({
                     work: current.work,
                     index: current.index

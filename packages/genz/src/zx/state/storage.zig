@@ -1,5 +1,6 @@
 const std = @import("std");
 const Object = @import("../state.zig").Object;
+const ObjectColumns = @import("objects.zig");
 
 pub fn writable(objects: []const Object) bool {
     if (@import("genz_options").generated_analysis) return policy(objects) != .ReadOnly;
@@ -20,9 +21,11 @@ fn policy(objects: []const Object) @typeInfo(@typeInfo(@TypeOf(@import("generate
     const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
+    const columns = ObjectColumns.fromRows(objects);
+    const view = columns.bind(std.meta.Child(@FieldType(Input, "objects")));
 
     const input: Input = .{
-        .objects = @import("zx").columns.slice(@FieldType(Input, "objects"), objects),
+        .objects = &view,
     };
 
     var memory = std.heap.FixedBufferAllocator.init(&.{});

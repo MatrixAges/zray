@@ -1,7 +1,7 @@
 import type { Index } from "core/bytes/index/model"
 import type { Stores } from "core/store_table/model"
 import type { Table } from "core/type_table/model"
-import type { U8Buffer, U32Buffer } from "memory"
+import type { ReadColumn, TextColumn, U8Buffer, U32Buffer } from "memory"
 import type { Initializers } from "../../store_initializers/model"
 
 export enum Status {
@@ -21,6 +21,15 @@ export type Member = {
     requires_process: bool
 }
 
+export type Members = {
+    export_names: TextColumn,
+    names: TextColumn,
+    functions: ReadColumn,
+    requires_io: ReadColumn,
+    requires_process: ReadColumn,
+    count: u64
+}
+
 export type Descriptors = {
     input_types: U32Buffer,
     output_types: U32Buffer,
@@ -38,7 +47,7 @@ export type Input = {
     types: Table,
     type_names: string[],
     functions: Functions,
-    members: Member[],
+    members: Members,
     initializers: Initializers,
     independent: bool,
     descriptors: Descriptors

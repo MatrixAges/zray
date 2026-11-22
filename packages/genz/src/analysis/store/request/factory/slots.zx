@@ -9,7 +9,7 @@ export default function (in: Input): Output {
         state: in,
         index: 0
     }, {
-        while: current => current.index < objects.length && current.state.context.valid,
+        while: current => current.index < objects.count && current.state.context.valid,
         next: current => {
             current.state = slot({
                 state: current.state,

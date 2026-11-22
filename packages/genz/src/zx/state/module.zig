@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const state = @import("../state.zig");
 
-pub fn render(allocator: std.mem.Allocator, objects: []const state.Object, requirements: state.Requirements, execute: bool) std.mem.Allocator.Error![]u8 {
+pub fn render(allocator: std.mem.Allocator, objects: state.ObjectColumns, requirements: state.Requirements, execute: bool) std.mem.Allocator.Error![]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -15,10 +15,11 @@ pub fn render(allocator: std.mem.Allocator, objects: []const state.Object, requi
     const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
     const indirect = @typeInfo(Parameter) == .pointer;
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
+    const view = objects.bind(std.meta.Child(@FieldType(Input, "objects")));
 
     const input: Input = .{
         .writer = @ptrCast(&writer),
-        .objects = zx.columns.slice(@FieldType(Input, "objects"), objects),
+        .objects = &view,
         .execute = execute,
         .io = requirements.io,
         .process = requirements.process,

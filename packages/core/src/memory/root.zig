@@ -223,6 +223,7 @@ pub const readIndirectTextColumn = rows.readIndirectText;
 pub const readOptionalIndirectTextColumn = rows.readOptionalIndirectText;
 pub const readColumnU8 = rows.readColumnU8;
 pub const readColumnBool = rows.readColumnBool;
+pub const readColumnOptionalBool = rows.readColumnOptionalBool;
 pub const readColumnI32 = rows.readColumnI32;
 pub const readColumnU16 = rows.readColumnU16;
 pub const readColumnU32 = rows.readColumnU32;

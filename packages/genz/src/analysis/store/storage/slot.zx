@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import memory from "memory"
 
 import field from "../../../ast/context/field"
 import identifier from "../../../ast/context/identifier"
@@ -21,7 +22,7 @@ export type Output = State
 
 export default function (in: Input): Output {
     const owned = in.state.policy == Policy.Independent &&
-        in.state.source.objects[in.index].writable
+        memory.readColumnBool(in.state.source.objects.writable, in.index)
 
     const declarations = match {
         owned => declaration({

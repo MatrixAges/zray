@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import owner from "./owner"
 
 import type { Release as Input, Release as Output } from "../model"
@@ -11,9 +13,9 @@ export default function (in: Input): Output {
         owned: initial,
         index: 0
     }, {
-        while: current => current.index < objects.length && current.context.valid,
+        while: current => current.index < objects.count && current.context.valid,
         next: current => {
-            if (objects[current.index].writable) {
+            if (memory.readColumnBool(objects.writable, current.index)) {
                 const condition = owner({
                     context: current.context,
                     self: in.state.self,

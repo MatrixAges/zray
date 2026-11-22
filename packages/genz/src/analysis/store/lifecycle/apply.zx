@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import evaluate from "../../../ast/statements/builder/evaluate"
 import item from "./apply_item"
 import { Method } from "./const"
@@ -41,10 +43,10 @@ export default function (in: Input): Output {
 
     const result = loop(work, {
         while: current =>
-            current.index < objects.length && current.context.valid &&
+            current.index < objects.count && current.context.valid &&
             current.statements.valid,
         next: current => {
-            if (objects[current.index].writable) {
+            if (memory.readColumnBool(objects.writable, current.index)) {
                 current = item({
                     work: current,
                     self,

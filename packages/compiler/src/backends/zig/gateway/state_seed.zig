@@ -51,7 +51,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
             binding.* = .{ .index = global, .writable = slot.writable };
         }
 
-        const requirements = facade.requirements orelse return error.InvalidModule;
+        const requires_io = facade.requires_io orelse return error.InvalidModule;
 
         service.* = .{
             .name = facade.name,
@@ -59,8 +59,8 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
             .slots = bindings,
             .input_type = program.input_type,
             .output = .{ .types = program.types, .id = program.output_type },
-            .requires_io = requirements.io,
-            .requires_process = requirements.process,
+            .requires_io = requires_io,
+            .requires_process = facade.requires_process,
         };
     }
 

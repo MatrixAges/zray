@@ -1,6 +1,9 @@
 const std = @import("std");
+pub const generated = @import("genz_options").generated_analysis;
 pub const Requirements = struct { io: bool = false, process: bool = false };
 pub const Object = struct { independent: bool = false, module_name: []const u8, writable: bool };
+pub const ObjectColumns = @import("state/objects.zig");
+pub const renderColumns = @import("state/module.zig").render;
 
 pub fn render(allocator: std.mem.Allocator, objects: []const Object) std.mem.Allocator.Error![]u8 {
     return renderWithIo(allocator, objects, false);
@@ -19,7 +22,7 @@ pub fn renderStorage(allocator: std.mem.Allocator, objects: []const Object) std.
 }
 
 fn renderConfigured(allocator: std.mem.Allocator, objects: []const Object, requirements: Requirements, execute: bool) std.mem.Allocator.Error![]u8 {
-    if (@import("genz_options").generated_analysis) return @import("state/module.zig").render(allocator, objects, requirements, execute);
+    if (generated) return renderColumns(allocator, ObjectColumns.fromRows(objects), requirements, execute);
 
     var arena = std.heap.ArenaAllocator.init(allocator);
 

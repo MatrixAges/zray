@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import memory from "memory"
 
 import { readonly_error } from "./const"
 import present from "./present"
@@ -18,10 +19,10 @@ export default function (in: Input): Output {
 
     const result = loop(initial, {
         while: current =>
-            current.index < objects.length && current.context.valid &&
+            current.index < objects.count && current.context.valid &&
             current.statements.valid,
         next: current => {
-            if (!objects[current.index].writable) {
+            if (!memory.readColumnBool(objects.writable, current.index)) {
                 const condition = present({
                     context: current.context,
                     changes,

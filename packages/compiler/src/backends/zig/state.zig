@@ -49,9 +49,15 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
     }
 
     const imports = plan.imports;
-    const objects = try @import("state/objects.zig").create(allocator, imports[1..], program.stores.writable, independent);
     const requirements = bundle.requirements.?;
-    const source = try emit(allocator, objects, requirements, options.cache);
+
+    const source = try emit(allocator, temporary, .{
+        .names = imports[1..],
+        .writable = program.stores.writable,
+        .independent = independent,
+        .requirements = requirements,
+    }, options.cache);
+
     const files = try allocator.alloc(modules.File, bundle.modules.len + 1);
 
     @memcpy(files[0..bundle.modules.len], bundle.modules);
@@ -92,29 +98,44 @@ fn failure(err: anyerror) std.mem.Allocator.Error {
     };
 }
 
-fn emit(allocator: std.mem.Allocator, objects: []const generating.Object, requirements: generating.Requirements, cache: ?*Cache) std.mem.Allocator.Error![]const u8 {
-    const store = cache orelse return generating.renderWithCapabilities(allocator, objects, requirements);
+const Storage = struct {
+    names: []const []const u8,
+    writable: []const bool,
+    independent: bool,
+    requirements: generating.Requirements,
+};
 
-    const key = fingerprint: {
-        const metadata = try std.json.Stringify.valueAlloc(allocator, .{ .objects = objects, .requirements = requirements }, .{});
+fn emit(allocator: std.mem.Allocator, temporary: std.mem.Allocator, storage: Storage, cache: ?*Cache) std.mem.Allocator.Error![]const u8 {
+    const objects = if (!generating.generated or cache != null)
+        try @import("state/objects.zig").create(temporary, storage.names, storage.writable, storage.independent)
+    else
+        &.{};
 
-        defer allocator.free(metadata);
-
+    const key = if (cache) |store| fingerprint: {
+        const metadata = try std.json.Stringify.valueAlloc(temporary, .{ .objects = objects, .requirements = storage.requirements }, .{});
         var hash = zx.Sha256.init(.{});
 
         hash.update("zxc.zig.state.memory.v5");
         hash.update(metadata);
 
-        break :fingerprint hash.finalResult();
-    };
+        const key = hash.finalResult();
 
-    if (try store.get("zxc_state", key)) |source| return allocator.dupe(u8, source);
+        if (try store.get("zxc_state", key)) |source| return allocator.dupe(u8, source);
 
-    const source = try generating.renderWithCapabilities(allocator, objects, requirements);
+        break :fingerprint key;
+    } else null;
 
-    store.generated += 1;
+    const source = if (comptime generating.generated) render: {
+        const columns = generating.ObjectColumns.fromBindings(storage.names, storage.writable, storage.independent);
 
-    try store.put("zxc_state", key, source);
+        break :render try generating.renderColumns(allocator, columns, storage.requirements, true);
+    } else try generating.renderWithCapabilities(allocator, objects, storage.requirements);
+
+    if (cache) |store| {
+        store.generated += 1;
+
+        try store.put("zxc_state", key.?, source);
+    }
 
     return source;
 }

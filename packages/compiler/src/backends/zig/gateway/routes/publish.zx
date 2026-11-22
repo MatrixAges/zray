@@ -1,0 +1,46 @@
+import integers from "std:integer"
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { ReadColumn, TextColumn, WriteColumn as U64Column } from "memory"
+import type { WriteColumn } from "memory/columns"
+
+export type Input = {
+    count: u64,
+    paths: TextColumn,
+    methods: ReadColumn,
+    services: ReadColumn,
+    method_names: string[],
+    output_paths: WriteColumn,
+    output_methods: WriteColumn,
+    output_services: U64Column
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const published = loop(0, {
+        while: row => row < in.count,
+        next: row => {
+            const method = memory.readColumnOptionalU8(in.methods, row)
+            const name: string? = match {
+                method == null => null,
+                _ => in.method_names[integers.widenByte(method)]
+            }
+
+            columns.writeColumnText(
+                in.output_paths,
+                row,
+                memory.readTextColumn(in.paths, row)
+            )
+            columns.writeColumnOptionalText(in.output_methods, row, name)
+            memory.writeColumnU64(
+                in.output_services,
+                row,
+                integers.widen(memory.readColumnU32(in.services, row))
+            )
+
+            row += 1
+        }
+    })
+}

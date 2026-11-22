@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import memory from "memory"
 
 import { initial_prefix } from "../lifecycle/const"
 import name from "../lifecycle/name"
@@ -13,7 +14,7 @@ export default function (in: Input): Output {
         state: in,
         index: 0
     }, {
-        while: current => current.index < objects.length && current.state.context.valid,
+        while: current => current.index < objects.count && current.state.context.valid,
         next: current => {
             current.state = importModule({
                 state: current.state,
@@ -21,7 +22,13 @@ export default function (in: Input): Output {
                     prefix: bytes.fromText(initial_prefix),
                     index: current.index
                 }),
-                module_name: objects[current.index].module_name
+                module_name:
+                    bytes.fromText(
+                        memory.readTextColumn(
+                            objects.modules,
+                            current.index
+                        )
+                    )
             })
             current.index += 1
         },

@@ -1,12 +1,7 @@
 import type { State as Context, Input as Bases } from "../../../ast/context/model"
 import type { Module as Snapshot } from "../../../ast/snapshot/model"
 import type { State as StatementsBuilder } from "../../../ast/statements/builder/model"
-
-export type Object = {
-    module_name: u8[],
-    writable: bool,
-    independent: bool
-}
+import type { Objects } from "../objects/model"
 
 export enum Policy {
     ReadOnly,
@@ -15,7 +10,7 @@ export enum Policy {
 }
 
 export type Input = {
-    objects: Object[],
+    objects: Objects,
     bases: Bases
 }
 

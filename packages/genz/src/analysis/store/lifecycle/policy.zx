@@ -1,33 +1,38 @@
+import memory from "memory"
+
 import { Policy } from "./model"
 
-import type { Object } from "./model"
+import type { Objects } from "../objects/model"
 
 export type Input = {
-    objects: Object[]
+    objects: Objects
 }
 
 export type Output = Policy
 
 export default function (in: Input): Output {
     const objects = in.objects
+    const individual = objects.independent
 
     return loop({
         index: 0,
-        writable: false,
-        shared: false
+        policy: Policy.ReadOnly,
+        complete: false
     }, {
-        while: current => current.index < objects.length && !current.shared,
+        while: current => current.index < objects.count && !current.complete,
         next: current => {
-            const object = objects[current.index]
+            if (memory.readColumnBool(objects.writable, current.index)) {
+                const independent = match {
+                    individual == null => objects.uniform_independent,
+                    _ => memory.readColumnBool(individual, current.index)
+                }
 
-            current.shared = object.writable && !object.independent
-            current.writable = current.writable || object.writable
+                current.policy = independent ? Policy.Independent : Policy.Shared
+                current.complete = individual == null || !independent
+            }
+
             current.index += 1
         },
-        return: current => match {
-            current.shared => Policy.Shared,
-            current.writable => Policy.Independent,
-            _ => Policy.ReadOnly
-        }
+        return: current => current.policy
     })
 }

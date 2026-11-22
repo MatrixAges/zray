@@ -1,5 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
+const memory = zx.memory;
 const generating = @import("genz");
 const Library = @import("../../../library/root.zig").Result;
 const Bundle = @import("../library.zig").Bundle;
@@ -7,7 +8,8 @@ const names = @import("../names.zig");
 const InitializerView = @import("../store_initializers/view.zig");
 
 pub const Result = struct {
-    objects: []const generating.zx.state.Object,
+    objects: []const generating.zx.state.Object = &.{},
+    object_columns: ?generating.zx.state.ObjectColumns = null,
     services: []const generating.gateway.Service = &.{},
     bound: ?generating.gateway.entry.ServiceColumns = null,
 };
@@ -24,8 +26,7 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     const identities = try names.create(allocator, bundle.arena.child_allocator, library.program, library.nominal_types);
     const entry = @import("generated_gateway_bindings");
     const Input = std.meta.Child(entry.Input);
-    const MemberRef = std.meta.Child(@FieldType(Input, "members"));
-    const Member = if (@typeInfo(MemberRef) == .pointer) std.meta.Child(MemberRef) else MemberRef;
+    const Members = std.meta.Child(@FieldType(Input, "members"));
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const Functions = std.meta.Child(@FieldType(Input, "functions"));
     const Initializers = std.meta.Child(@FieldType(Input, "initializers"));
@@ -35,25 +36,6 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     defer scratch.deinit();
 
     const temporary = scratch.allocator();
-    const rows = try temporary.alloc(Member, library.exports.len);
-
-    const members = if (comptime @typeInfo(MemberRef) == .pointer)
-        try temporary.alloc(MemberRef, rows.len)
-    else
-        rows;
-
-    for (library.exports, bundle.public_modules, rows, members) |*exported, *facade, *row, *member| {
-        row.* = .{
-            .export_name = exported.name,
-            .name = facade.name,
-            .function_id = if (exported.function) |id| @backingInt(id) else null,
-            .requires_io = if (facade.requirements) |requirements| requirements.io else null,
-            .requires_process = if (facade.requirements) |requirements| requirements.process else false,
-        };
-
-        if (comptime @typeInfo(MemberRef) == .pointer) member.* = row;
-    }
-
     var descriptors: std.MultiArrayList(Descriptor) = .empty;
 
     try descriptors.resize(allocator, library.exports.len);
@@ -67,12 +49,26 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
     const initializers = try InitializerView.init(temporary, bundle.store_initializers);
     const types = zx.ir.TypeTable.borrow(Types, library.program.types);
     const functions = zx.columns.borrow(Functions, &library.program.functions);
+    const export_names = memory.borrowTextColumn("name", library.exports);
+    const facade_names = memory.borrowTextColumn("name", bundle.public_modules);
+    const facade_functions = memory.borrowOptionalU32Column("function", library.exports);
+    const facade_io = memory.borrowReadColumn(?bool, "requires_io", bundle.public_modules);
+    const facade_process = memory.borrowReadColumn(bool, "requires_process", bundle.public_modules);
+
+    const members: Members = .{
+        .export_names = @ptrCast(&export_names),
+        .names = @ptrCast(&facade_names),
+        .functions = @ptrCast(&facade_functions),
+        .requires_io = @ptrCast(&facade_io),
+        .requires_process = @ptrCast(&facade_process),
+        .count = library.exports.len,
+    };
 
     const input: Input = .{
         .types = &types,
         .type_names = identities.types,
         .functions = &functions,
-        .members = members,
+        .members = &members,
         .initializers = &initializers.input(Initializers),
         .independent = independent,
         .descriptors = &Descriptors{
@@ -97,10 +93,21 @@ pub fn create(allocator: std.mem.Allocator, library: *const Library, bundle: Bun
         .InvalidInitializer => return error.InvalidInitializer,
     }
 
-    const objects = try @import("../state/objects.zig").create(allocator, output.modules, output.writable, independent);
+    const object_columns = if (generating.zx.state.generated)
+        generating.zx.state.ObjectColumns.fromBindings(output.modules, output.writable, independent)
+
+    else
+        null;
+
+    const objects = if (comptime generating.zx.state.generated)
+        &.{}
+
+    else
+        try @import("../state/objects.zig").create(allocator, output.modules, output.writable, independent);
 
     return .{
         .objects = objects,
+        .object_columns = object_columns,
         .bound = .{
             .indices = output.indices,
             .writable = output.access,

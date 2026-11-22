@@ -1,10 +1,10 @@
 import type { ByteWriter } from "memory"
 import type { Module as Snapshot } from "../../../ast/snapshot/model"
-import type { Object } from "../lifecycle/model"
+import type { Objects } from "../objects/model"
 
 export type Input = {
     writer: ByteWriter,
-    objects: Object[],
+    objects: Objects,
     execute: bool,
     io: bool,
     process: bool
