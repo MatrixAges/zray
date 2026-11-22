@@ -5,9 +5,9 @@ const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
 const elements = @import("../state_value/elements.zig");
 const ownership = @import("../state_value/ownership.zig");
-const generated = @import("genz_options").generated_analysis;
 const blocks = @import("../../node/blocks.zig");
-const Statements = if (generated) blocks.Sequence else std.ArrayList(node.Statement);
+const Frame = @import("execution.zig").Frame;
+const Statements = std.ArrayList(node.Statement);
 
 pub const Request = struct {
     operation: ir.ExprId,
@@ -25,8 +25,30 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     const evaluated = try self.expr(args.transform.initial.?);
     const initial = if (self.state_active) try ownership.erase(self, body, type_id, evaluated) else evaluated;
 
-    if (!generated) try body.append(self.allocator, .{ .variable = .{ .name = accumulator, .type_expr = args.layout, .value = initial } });
+    try body.append(self.allocator, .{ .variable = .{ .name = accumulator, .type_expr = args.layout, .value = initial } });
 
+    const entered = try renew(self, args.operation, type_id, accumulator);
+
+    if (entered.len != 0) try body.append(self.allocator, .{ .branch = .{
+        .condition = try self.builder.expression(.{ .binary = .{ .operator = .not_equal, .left = try self.field(args.source, "len"), .right = try self.builder.integer(0) } }),
+        .yes = entered,
+        .no = .{},
+    } });
+
+    var loop: Statements = .empty;
+    const callback = if (self.state_active) try ownership.erase(self, &loop, type_id, args.callback) else args.callback;
+
+    try loop.append(self.allocator, .{ .assignment = .{ .target = try self.builder.identifier(accumulator), .value = callback } });
+
+    const result = try self.builder.identifier(accumulator);
+    const capture = try elements.captureName(self, &loop, source_type, element);
+
+    try body.append(self.allocator, .{ .for_loop = .{ .iterable = args.source, .capture = capture, .body = try self.builder.statements(loop.items) } });
+
+    return @import("../aggregate.zig").finish(self, body, result);
+}
+
+fn renew(self: *Lower, operation: ir.ExprId, type_id: ir.TypeId, accumulator: []const u8) Lower.Error!node.Block {
     var renewal_scope = std.heap.ArenaAllocator.init(self.workspace);
     var renewal_buffer: [256]u8 = undefined;
     var renewal_memory = std.heap.BufferFirstAllocator.init(&renewal_buffer, renewal_scope.allocator());
@@ -34,45 +56,46 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     defer renewal_scope.deinit();
 
     const renewals = try @import("../iteration/renewal.zig").plan(self, renewal_memory.allocator(), .{
-        .owner = args.operation,
+        .owner = operation,
         .type_id = type_id,
         .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
     });
 
-    const entered = try renewals.store(self, type_id, .{ .name = accumulator });
+    return renewals.store(self, type_id, .{ .name = accumulator });
+}
 
-    if (!generated and entered.len != 0) try body.append(self.allocator, .{ .branch = .{
-        .condition = try self.builder.expression(.{ .binary = .{ .operator = .not_equal, .left = try self.field(args.source, "len"), .right = try self.builder.integer(0) } }),
-        .yes = entered,
-        .no = .{},
-    } });
+pub fn lowerReduceInitial(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    frame.name = self.names[@backingInt(frame.transform.parameters[0])];
+    frame.initial = try self.expr(frame.transform.initial.?);
+}
 
-    var loop: Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+pub fn convertReduceInitial(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
 
-    defer if (generated) loop.deinit();
+    frame.initial = try ownership.erase(frame.lowering, &frame.body, frame.typeId(), frame.initial);
+}
 
-    const callback = if (self.state_active) try ownership.erase(self, &loop, type_id, args.callback) else args.callback;
+pub fn renewReduceStorage(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
 
-    if (!generated) {
-        try loop.append(self.allocator, .{ .assignment = .{ .target = try self.builder.identifier(accumulator), .value = callback } });
+    frame.entered = try renew(frame.lowering, frame.id, frame.typeId(), frame.name);
+}
 
-        const result = try self.builder.identifier(accumulator);
-        const capture = try elements.captureName(self, &loop, source_type, element);
+pub fn convertReduceCallback(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
 
-        try body.append(self.allocator, .{ .for_loop = .{ .iterable = args.source, .capture = capture, .body = try self.builder.statements(loop.items) } });
+    frame.callback = try ownership.erase(frame.lowering, &frame.loop, frame.typeId(), frame.callback);
+}
 
-        return @import("../aggregate.zig").finish(self, body, result);
-    }
-
-    var binding = self.builder.statementSequence(self.workspace);
-
-    defer binding.deinit();
-
-    const capture = try elements.captureName(self, &binding, source_type, element);
+pub fn publishReduceTransform(handle: *const anyopaque) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
     const label = try self.fresh("block");
-    const outer_prefix = try body.block(self.allocator);
-    const callback_body = try loop.block(self.allocator);
-    const element_binding = try binding.block(self.allocator);
+    const outer_prefix = try frame.body.block(self.allocator);
+    const callback_body = try frame.loop.block(self.allocator);
+    const element_binding = try frame.binding.block(self.allocator);
     const nodes = self.builder.nodes;
     const element_body = try blocks.join(self.allocator, nodes, &.{ element_binding.start, callback_body.start }, &.{ element_binding.len, callback_body.len });
     const before = node.Block{ .start = element_body.start, .len = callback_body.len };
@@ -81,17 +104,17 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     const Input = std.meta.Child(entry.Input);
 
     const input: Input = .{
-        .source = @backingInt(args.source),
-        .initial = @backingInt(initial),
-        .callback = @backingInt(callback),
-        .layout = @backingInt(args.layout),
-        .accumulator = accumulator,
-        .capture = capture,
+        .source = @backingInt(frame.source),
+        .initial = @backingInt(frame.initial),
+        .callback = @backingInt(frame.callback),
+        .layout = @backingInt(frame.layout),
+        .accumulator = frame.name,
+        .capture = frame.capture,
         .label = label,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
-        .entered_start = entered.start,
-        .entered_count = entered.len,
+        .entered_start = frame.entered.start,
+        .entered_count = frame.entered.len,
         .element_start = element_body.start,
         .before_assignment = before.len,
         .element_count = element_body.len,
@@ -111,13 +134,16 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     const outer = view.join(output.outer.*, output.variables.*);
 
     try append(self, &self.builder.nodes.expressions, output.expressions);
-    try blocks.appendAtTail(self.allocator, nodes, before);
-    try append(self, &self.builder.nodes.statements, output.update);
-    try blocks.appendAtTail(self.allocator, nodes, after);
-    try blocks.appendAtTail(self.allocator, nodes, outer_prefix);
-    try append(self, &self.builder.nodes.statements, &outer);
 
-    return @fromBackingInt(output.root);
+    try @import("publication.zig").append(self, &.{
+        .element = before,
+        .step = output.update,
+        .remainder = after,
+        .outer = outer_prefix,
+        .result = .{ .reduce = &outer },
+    });
+
+    return output.root;
 }
 
 fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {

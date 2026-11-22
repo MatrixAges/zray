@@ -1089,6 +1089,8 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/expressions/evaluate/value.zx", .name = "lower_value", .owner = .genz },
     .{ .path = "genz/analysis/expressions/evaluate/iteration.zx", .name = "lower_iteration", .owner = .genz },
     .{ .path = "genz/analysis/iteration/mutation/execute/run.rx", .name = "execute_iteration_mutation", .owner = .genz },
+    .{ .path = "genz/analysis/transform/execute/run.rx", .name = "execute_transform", .owner = .genz },
+    .{ .path = "genz/analysis/transform/publication/append.zx", .name = "publish_transform_fragments", .owner = .genz },
     .{ .path = "genz/analysis/expressions/evaluate/binary.zx", .name = "lower_binary", .owner = .genz },
     .{ .path = "genz/analysis/expressions/read/evaluate.zx", .name = "lower_read", .owner = .genz },
     .{ .path = "genz/analysis/expressions/read/path.zx", .name = "lower_projection_path", .owner = .genz },

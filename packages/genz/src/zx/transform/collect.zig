@@ -1,6 +1,5 @@
 const std = @import("std");
 const zx = @import("zx");
-const ir = zx.ir;
 const node = @import("../../node.zig");
 const columns = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
@@ -8,58 +7,55 @@ const aggregate = @import("../aggregate.zig");
 const elements = @import("../state_value/elements.zig");
 const conversion = @import("../state_value/conversion_emission.zig");
 const blocks = @import("../../node/blocks.zig");
+const Frame = @import("execution.zig").Frame;
 
-pub const Request = struct {
-    transform: ir.Transform,
-    source: node.ExpressionId,
-    type_id: ir.TypeId,
-    callback: node.ExpressionId,
-};
+pub fn prepareCollectTransform(handle: *const anyopaque, mapping: bool) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
 
-pub fn lower(self: *Lower, body: *blocks.Sequence, request: Request) Lower.Error!node.ExpressionId {
-    const transform = request.transform;
-    const mapping = transform.kind == .map;
-    const element = transform.parameters[0];
-    const capture = self.names[@backingInt(element)];
-    const source_type = self.program.expression(transform.target).type_id;
+    frame.name = if (mapping) "" else try self.fresh("items");
 
-    try @import("context.zig").bind(self, body, transform);
+    const element = try elements.typeExpr(self, frame.typeId());
 
-    const name = if (mapping) "" else try self.fresh("items");
-    const element_type = try elements.typeExpr(self, request.type_id);
-    const allocation = try prepare(self, body, mapping, request.source, element_type, name);
-    const result = if (mapping) try aggregate.bind(self, body, allocation) else allocation;
-    const index_capture = if (mapping) try self.fresh("index") else null;
-    var loop = self.builder.statementSequence(self.workspace);
+    frame.result = try prepare(self, &frame.body, mapping, frame.source, element, frame.name);
+}
 
-    defer loop.deinit();
+pub fn bindMapTransformResult(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
 
-    const value = if (mapping) try aggregate.bind(self, &loop, request.callback) else try self.builder.identifier(capture);
-    const stored = try elements.write(self, &loop, request.type_id, value);
+    frame.result = try aggregate.bind(self, &frame.body, frame.result);
+    frame.index = try self.fresh("index");
+}
 
-    if (!mapping) self.used[@backingInt(element)] = true;
+pub fn storeMapTransformValue(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const value = try aggregate.bind(self, &frame.loop, frame.callback);
 
-    var binding = self.builder.statementSequence(self.workspace);
+    frame.stored = try elements.write(self, &frame.loop, frame.typeId(), value);
+}
 
-    defer binding.deinit();
+pub fn storeFilterTransformValue(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const element = @backingInt(frame.transform.parameters[0]);
+    const value = try self.builder.identifier(self.names[element]);
 
-    const captured = try elements.captureName(self, &binding, source_type, element);
+    frame.stored = try elements.write(self, &frame.loop, frame.typeId(), value);
+    self.used[element] = true;
+}
 
-    try binding.extend(&loop);
+pub fn publishCollectTransform(handle: *const anyopaque) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
 
-    const outer = try body.block(self.allocator);
-    const element_body = try binding.block(self.allocator);
+    try frame.binding.extend(&frame.loop);
 
-    return publish(self, outer, element_body, .{
-        .source = request.source,
-        .value = stored,
-        .result = result,
-        .callback = request.callback,
-        .capture = captured,
-        .index = index_capture,
-        .name = name,
-        .type_id = request.type_id,
-    });
+    const outer = try frame.body.block(self.allocator);
+    const element_body = try frame.binding.block(self.allocator);
+
+    return @backingInt(try publish(frame, outer, element_body));
 }
 
 fn prepare(self: *Lower, body: *blocks.Sequence, mapping: bool, source: node.ExpressionId, element: node.ExpressionId, name: []const u8) Lower.Error!node.ExpressionId {
@@ -99,18 +95,8 @@ fn prepare(self: *Lower, body: *blocks.Sequence, mapping: bool, source: node.Exp
     return @fromBackingInt(output.id);
 }
 
-const Result = struct {
-    source: node.ExpressionId,
-    value: node.ExpressionId,
-    result: node.ExpressionId,
-    callback: node.ExpressionId,
-    capture: []const u8,
-    index: ?[]const u8,
-    name: []const u8,
-    type_id: ir.TypeId,
-};
-
-fn publish(self: *Lower, body: node.Block, loop: node.Block, result: Result) Lower.Error!node.ExpressionId {
+fn publish(frame: *Frame, body: node.Block, loop: node.Block) Lower.Error!node.ExpressionId {
+    const self = frame.lowering;
     const entry = @import("generated_transform_collect_publish");
     const Input = std.meta.Child(entry.Input);
     var boundary: conversion.Capture = undefined;
@@ -118,13 +104,13 @@ fn publish(self: *Lower, body: node.Block, loop: node.Block, result: Result) Low
 
     const input: Input = .{
         .bases = &bases,
-        .source = @backingInt(result.source),
-        .value = @backingInt(result.value),
-        .result = @backingInt(result.result),
-        .callback = @backingInt(result.callback),
-        .capture = result.capture,
-        .index = result.index,
-        .name = result.name,
+        .source = @backingInt(frame.source),
+        .value = @backingInt(frame.stored),
+        .result = @backingInt(frame.result),
+        .callback = @backingInt(frame.callback),
+        .capture = frame.capture,
+        .index = frame.index,
+        .name = frame.name,
         .element_start = loop.start,
         .element_count = loop.len,
         .outer_count = body.len,
@@ -144,14 +130,18 @@ fn publish(self: *Lower, body: node.Block, loop: node.Block, result: Result) Low
     const expressions = columns.join(output.context.expressions.*, output.context.forms.*);
 
     try append(self, &nodes.expressions, &expressions);
-    try append(self, &nodes.statements, output.branch_body);
-    try blocks.appendAtTail(self.allocator, nodes, loop);
-    try append(self, &nodes.statements, output.update);
-    try blocks.appendAtTail(self.allocator, nodes, body);
-    try append(self, &nodes.statements, output.context.statements);
+
+    try @import("publication.zig").append(self, &.{
+        .prelude = output.branch_body,
+        .element = loop,
+        .step = output.update,
+        .outer = body,
+        .result = .{ .statements = output.context.statements },
+    });
 
     self.uses_allocator = true;
-    const owned = try @import("../state_value/list.zig").owned(self, result.type_id, @fromBackingInt(output.result), try self.builder.expression(.{ .boolean = false }));
+
+    const owned = try @import("../state_value/list.zig").owned(self, frame.typeId(), @fromBackingInt(output.result), try self.builder.expression(.{ .boolean = false }));
 
     return aggregate.finishStored(self, .{ .start = output.outer_start, .len = output.outer_count }, owned, null);
 }

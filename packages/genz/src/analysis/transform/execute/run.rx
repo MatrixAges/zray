@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Transform" />
+
+    <Args in={Transform.Input} out={Transform.Output} />
+
+    <If on={$in.kind == Transform.TransformKind.Sort}>
+        <Call fn="index.lowerTransformSort" in={$in.frame} />
+
+        <Return value={$ctx.lowerTransformSort} />
+    </If>
+
+    <Call fn="index.enterTransformParameters" in={$in.frame} />
+
+    <If
+        on={$in.kind == Transform.TransformKind.Every ||
+            $in.kind == Transform.TransformKind.Some}
+    >
+        <Call module="predicate" in={$in.frame} />
+
+        <Return value={$ctx.predicate} />
+    </If>
+
+    <Call fn="index.tryTransformSimd" in={$in.frame} />
+
+    <If on={$ctx.tryTransformSimd != null}>
+        <Return value={$ctx.tryTransformSimd} />
+    </If>
+
+    <Call fn="index.bindTransformSource" in={$in.frame} />
+    <Call fn="index.resolveTransformResultType" in={$in.frame} />
+    <Call fn="index.lowerTransformCallback" in={$in.frame} />
+
+    <If on={$in.kind == Transform.TransformKind.Reduce}>
+        <Call module="reduce" in={$in.frame} />
+
+        <Return value={$ctx.reduce} />
+    </If>
+
+    <Call module="collect" in={$in} />
+
+    <Return value={$ctx.collect} />
+</Module>

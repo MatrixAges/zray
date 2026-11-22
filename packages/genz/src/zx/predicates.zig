@@ -1,48 +1,36 @@
 const std = @import("std");
-const ir = @import("zx").ir;
-const node = @import("../node.zig");
 const view = @import("../node/view.zig");
 const Lower = @import("lower.zig");
-const aggregate = @import("aggregate.zig");
-const blocks = @import("../node/blocks.zig");
+const Frame = @import("transform/execution.zig").Frame;
 
-pub fn lower(self: *Lower, value: ir.Transform) Lower.Error!node.ExpressionId {
-    if (!@import("genz_options").generated_analysis) return @import("predicates/seed.zig").lower(self, value);
+pub fn prepareTransformPredicate(handle: *const anyopaque) Lower.Error!void {
+    const frame = Frame.borrow(handle);
 
+    frame.label = try frame.lowering.fresh("predicate");
+}
+
+pub fn publishTransformPredicate(handle: *const anyopaque) Lower.Error!u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
     const generated = @import("generated_predicate_emit");
     const Input = std.meta.Child(generated.Input);
-    var body = self.builder.statementSequence(self.workspace);
-
-    defer body.deinit();
-
-    const source = try aggregate.bind(self, &body, try @import("state_value/list.zig").expression(self, value.target));
-    const label = try self.fresh("predicate");
-    const callback = try self.expr(value.body);
-
-    try @import("transform/context.zig").bind(self, &body, value);
-
-    var loop = self.builder.statementSequence(self.workspace);
-
-    defer loop.deinit();
-
-    const capture = try @import("state_value/elements.zig").captureName(self, &loop, self.program.expression(value.target).type_id, value.parameters[0]);
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
 
     defer scratch.deinit();
 
-    const outer = try body.block(self.allocator);
-    const element_body = try loop.block(self.allocator);
+    const outer = try frame.body.block(self.allocator);
+    const element_body = try frame.binding.block(self.allocator);
 
     const input = Input{
-        .source = @backingInt(source),
-        .label = label,
-        .callback = @backingInt(callback),
-        .kind = switch (value.kind) {
+        .source = @backingInt(frame.source),
+        .label = frame.label,
+        .callback = @backingInt(frame.callback),
+        .kind = switch (frame.transform.kind) {
             .every => .Every,
             .some => .Some,
             else => unreachable,
         },
-        .capture = capture,
+        .capture = frame.capture,
         .outer_count = outer.len,
         .element_count = element_body.len,
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
@@ -59,13 +47,16 @@ pub fn lower(self: *Lower, value: ir.Transform) Lower.Error!node.ExpressionId {
     const expressions = view.join(output.expressions.*, output.forms.*);
 
     try append(self, &self.builder.nodes.expressions, &expressions);
-    try append(self, &self.builder.nodes.statements, output.stop);
-    try blocks.appendAtTail(self.allocator, self.builder.nodes, element_body);
-    try append(self, &self.builder.nodes.statements, output.decision);
-    try blocks.appendAtTail(self.allocator, self.builder.nodes, outer);
-    try append(self, &self.builder.nodes.statements, output.main);
 
-    return @fromBackingInt(output.root);
+    try @import("transform/publication.zig").append(self, &.{
+        .prelude = output.stop,
+        .element = element_body,
+        .step = output.decision,
+        .outer = outer,
+        .result = .{ .statements = output.main },
+    });
+
+    return output.root;
 }
 
 fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {

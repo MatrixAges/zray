@@ -1,0 +1,13 @@
+import type { TransformKind } from "core/expression_table/kinds"
+import type { TransformFrame } from "lowering_host"
+
+export { TransformKind } from "core/expression_table/kinds"
+
+export type Frame = TransformFrame
+
+export type Input = {
+    frame: Frame,
+    kind: TransformKind
+}
+
+export type Output = u32?

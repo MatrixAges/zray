@@ -8,7 +8,12 @@ pub fn bind(self: *Lower, body: anytype, transform: ir.Transform) Lower.Error!vo
 
     const initial = transform.initial orelse return;
     const value = try self.expr(initial);
-    const symbol = @backingInt(transform.parameters[1]);
+
+    return publish(self, body, transform.parameters[1], value);
+}
+
+pub fn publish(self: *Lower, body: anytype, parameter: ir.SymbolId, value: node.ExpressionId) Lower.Error!void {
+    const symbol = @backingInt(parameter);
 
     const statement: node.Statement = if (self.used[symbol])
         .{ .constant = .{

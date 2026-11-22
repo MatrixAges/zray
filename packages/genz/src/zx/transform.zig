@@ -4,22 +4,25 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
 const generated = @import("genz_options").generated_analysis;
-const Statements = if (generated) @import("../node/blocks.zig").Sequence else std.ArrayList(node.Statement);
+const Statements = std.ArrayList(node.Statement);
 
 pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.ExpressionId {
+    if (generated) return @import("transform/execution.zig").lower(self, id, value);
+
+    return lowerSeed(self, id, value);
+}
+
+fn lowerSeed(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.ExpressionId {
     if (value.kind == .sort) return @import("sorting/root.zig").lower(self, id, value);
 
     const state_symbols = try @import("state_value/locals.zig").parameters(self, value);
 
     defer self.state_symbols.removeMany(state_symbols);
 
-    if (value.kind == .every or value.kind == .some) return @import("predicates.zig").lower(self, value);
+    if (value.kind == .every or value.kind == .some) return @import("predicates/seed.zig").lower(self, value);
     if (try @import("simd/root.zig").lower(self, id, value)) |result| return result;
 
-    var body: Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
-
-    defer if (generated) body.deinit();
-
+    var body: Statements = .empty;
     const source = try aggregate.bind(self, &body, try @import("state_value/list.zig").expression(self, value.target));
     const type_id = self.program.expression(id).type_id;
     const result_type = try self.typeExpr(type_id);
@@ -30,13 +33,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Lower.Error!node.
         .transform = value,
         .source = source,
         .layout = result_type,
-        .callback = callback,
-    });
-
-    if (generated) return @import("transform/collect.zig").lower(self, &body, .{
-        .transform = value,
-        .source = source,
-        .type_id = type_id,
         .callback = callback,
     });
 

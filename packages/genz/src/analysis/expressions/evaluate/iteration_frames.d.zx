@@ -130,6 +130,22 @@ export enum LoopResultWrap {
 
 export type IterationMutationFrame = opaque
 
+export type TransformFrame = opaque
+
+export type TransformPublication = opaque
+
+export enum TransformStatements {
+    Prelude,
+    Step,
+    Result
+}
+
+export enum TransformSpan {
+    Element,
+    Remainder,
+    Outer
+}
+
 export enum IterationMutationMode {
     Push,
     Pop,

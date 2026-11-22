@@ -1,0 +1,12 @@
+<Module>
+    <Type from="model" as="Transform" />
+
+    <Args in={Transform.Input} out={u32} />
+
+    <Call fn="bind_context" in={$in.frame} />
+    <Call fn="prepare_collection" in={$in} />
+    <Call fn="index.bindTransformElement" in={$in.frame} />
+    <Call fn="index.publishCollectTransform" in={$in.frame} />
+
+    <Return value={$ctx.publishCollectTransform} />
+</Module>

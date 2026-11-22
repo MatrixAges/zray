@@ -1,0 +1,30 @@
+import host from "lowering_host"
+import { TransformSpan, TransformStatements } from "lowering_host"
+
+import type { TransformPublication } from "lowering_host"
+
+export type Input = {
+    target: TransformPublication,
+    prelude: bool,
+    remainder: bool
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { target, prelude, remainder } = in
+
+    if (prelude) {
+        host.appendTransformStatements(target, TransformStatements.Prelude)
+    }
+
+    host.appendTransformSpan(target, TransformSpan.Element)
+    host.appendTransformStatements(target, TransformStatements.Step)
+
+    if (remainder) {
+        host.appendTransformSpan(target, TransformSpan.Remainder)
+    }
+
+    host.appendTransformSpan(target, TransformSpan.Outer)
+    host.appendTransformStatements(target, TransformStatements.Result)
+}

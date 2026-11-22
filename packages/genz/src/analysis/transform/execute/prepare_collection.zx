@@ -1,0 +1,21 @@
+import { TransformKind } from "core/expression_table/kinds"
+import host from "lowering_host"
+
+import type { Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { frame, kind } = in
+
+    const mapping = kind == TransformKind.Map
+
+    host.prepareCollectTransform(frame, mapping)
+
+    if (mapping) {
+        host.bindMapTransformResult(frame)
+        host.storeMapTransformValue(frame)
+    } else {
+        host.storeFilterTransformValue(frame)
+    }
+}

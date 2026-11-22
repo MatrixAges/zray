@@ -1,0 +1,14 @@
+<Module>
+    <Type from="model" as="Transform" />
+
+    <Args in={Transform.Frame} out={u32} />
+
+    <Call fn="index.bindTransformSource" in={$in} />
+    <Call fn="index.prepareTransformPredicate" in={$in} />
+    <Call fn="index.lowerTransformCallback" in={$in} />
+    <Call fn="bind_context" in={$in} />
+    <Call fn="index.bindTransformElement" in={$in} />
+    <Call fn="index.publishTransformPredicate" in={$in} />
+
+    <Return value={$ctx.publishTransformPredicate} />
+</Module>

@@ -1,0 +1,15 @@
+import host from "lowering_host"
+
+import type { Frame as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const initial = host.transformContextInitial(in)
+
+    if (initial != null) {
+        const value = host.lowerTransformContextInitial(in, initial)
+
+        host.publishTransformContext(in, value)
+    }
+}
