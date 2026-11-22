@@ -5,10 +5,14 @@ import type { Mixed as Input } from "rx_project_host"
 export type Output = u64
 
 export default function (in: Input): Output {
-    const next = host.linkPreparedMixedZX(in)
+    const row = host.preparedMixedZXRow(in)
 
-    if (next != null) {
-        return next
+    if (row != null) {
+        if (host.acceptsPreparedMixedZX(in, row)) {
+            return host.linkPreparedMixedZX(in, row)
+        }
+
+        host.retirePreparedMixedZX(in, row)
     }
 
     return host.analyzeMixedZX(in)

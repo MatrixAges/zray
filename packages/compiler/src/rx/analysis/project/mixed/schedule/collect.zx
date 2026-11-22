@@ -5,7 +5,7 @@ import preview from "./preview"
 
 import type { Request, Started } from "./preparation"
 
-export type Input = Request.Omit("minimum") & {
+export type Input = Request.Pick("selection", "workspace", "capacity") & {
     initial: Started
 }
 
@@ -28,13 +28,18 @@ export default function (in: Input): Output {
             const index = order[position]
             const is_zx = index < signatures.length
 
-            if (host.prepareMixedPosition(
-                workspace,
-                position,
-                index,
-                is_zx
-            )) {
+            host.openMixedCandidate(workspace, index)
+
+            const ready = match is_zx {
+                true => host.prepareMixedZXCandidate(workspace, index),
+                _ => host.prepareMixedRXCandidate(workspace, index)
+            }
+
+            if (ready != null) {
+                host.recordMixedCandidate(workspace, position, ready)
                 stage.accepted += 1
+            } else {
+                host.restoreMixedCandidateDiagnostic(workspace)
             }
 
             stage.cursor += 1

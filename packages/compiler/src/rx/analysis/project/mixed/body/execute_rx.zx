@@ -5,10 +5,10 @@ import type { Mixed as Input } from "rx_project_host"
 export type Output = u64
 
 export default function (in: Input): Output {
-    const next = host.linkPreparedMixedRX(in)
+    const row = host.acceptedPreparedMixedRX(in)
 
-    if (next != null) {
-        return next
+    if (row != null) {
+        return host.linkPreparedMixedRX(in, row)
     }
 
     return host.lowerMixedRX(in)

@@ -19,6 +19,8 @@ const Schedule = @import("schedule.zig");
 const Candidates = @import("ahead/candidates.zig");
 const generated = @import("rx_options").generated_graph;
 const Self = @This();
+const Diagnostic = @import("../../call/target.zig").Diagnostic;
+const CandidateHandle = if (Candidates.generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedCandidate else anyopaque;
 
 arenas: []std.heap.ArenaAllocator = &.{},
 /// Holds the prepared bindings of the current run.
@@ -50,7 +52,6 @@ const Result = union(enum) {
 /// Fewer modules than this are analyzed at their turn: waking the other cores costs more than a run of two or three
 /// modules saves.
 const minimum = 4;
-pub const Lowered = struct { prepared: Rx.Prepared, body: Compilation.Body };
 
 fn initArenas(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
     if (self.arenas.len != 0) return;
@@ -69,6 +70,22 @@ pub fn deinit(self: *Self) void {
 }
 
 fn clearResults(self: *Self) void {
+    if (self.items.len == 0) return;
+
+    if (comptime generated) {
+        const rule = @import("generated_rx_retire_mixed_results");
+        const input: std.meta.Child(rule.Input) = .{ .workspace = @ptrCast(self), .rows = self.items.len };
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
+
+        rule.executeIn(empty.allocator(), &input) catch unreachable;
+
+        return;
+    }
+
+    self.clearSeed();
+}
+
+fn clearSeed(self: *Self) void {
     for (self.items.items(.result)) |*result| {
         if (result.* == .zx) result.zx.release();
     }
@@ -76,38 +93,68 @@ fn clearResults(self: *Self) void {
     self.items.clearRetainingCapacity();
 }
 
+fn borrowWorkspace(handle: *const anyopaque) *Self {
+    return @ptrCast(@alignCast(@constCast(handle)));
+}
+
+pub fn mixedResultIsZX(handle: *const anyopaque, row: u64) bool {
+    return borrowWorkspace(handle).items.items(.result)[@intCast(row)] == .zx;
+}
+
+pub fn releaseMixedZXResult(handle: *const anyopaque, row: u64) void {
+    borrowWorkspace(handle).items.items(.result)[@intCast(row)].zx.release();
+}
+
+pub fn clearMixedResults(handle: *const anyopaque) void {
+    borrowWorkspace(handle).items.clearRetainingCapacity();
+}
+
+pub fn resetMixedWorker(handle: *const anyopaque, index: u64) void {
+    _ = borrowWorkspace(handle).arenas[@intCast(index)].reset(.retain_capacity);
+}
+
+fn resetBindings(self: *Self) void {
+    _ = self.bindings.reset(.retain_capacity);
+    self.next_item = 0;
+}
+
+pub fn resetMixedBindings(handle: *const anyopaque) void {
+    borrowWorkspace(handle).resetBindings();
+}
+
 /// Analyzes a bounded prefix of the run and returns its module count. Runs below the parallel minimum are left to
 /// their turn; only successfully prepared modules consume the batch's parallel slots.
 pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, reuse: *const Reuse, window: Schedule.Window, arguments: *const Inputs) std.mem.Allocator.Error!usize {
-    const used = @min(self.arenas.len, self.items.len);
-
-    self.clearResults();
-
-    for (self.arenas[0..used]) |*arena| _ = arena.reset(.retain_capacity);
-
-    _ = self.bindings.reset(.retain_capacity);
-    self.next_item = 0;
     const owner = state.owner;
     defer state.owner = owner;
 
     var frame: Preparation = .{ .ahead = self, .state = state, .cache = cache, .sources = sources, .derived = derived, .arguments = arguments };
 
-    const batch = if (comptime Candidates.generated)
-        try collect(&frame, reuse, window)
-    else
-        try self.collectSeed(&frame, reuse, window);
+    if (comptime Candidates.generated) return executeWindow(&frame, reuse, window);
+
+    const used = @min(self.arenas.len, self.items.len);
+
+    self.clearSeed();
+
+    for (self.arenas[0..used]) |*arena| _ = arena.reset(.retain_capacity);
+
+    self.resetBindings();
+
+    const batch = try self.collectSeed(&frame, reuse, window);
 
     if (batch.participants == 0) {
-        self.clearResults();
-
-        return batch.consumed;
+        self.clearSeed();
+    } else {
+        self.execute(state, batch.participants);
     }
 
+    return batch.consumed;
+}
+
+fn execute(self: *Self, state: *const State, participants: usize) void {
     var work = Work{ .state = state, .results = self.items.items(.result), .arenas = self.arenas };
 
-    zx.parallel.spread(Work, &work, Work.run, batch.participants);
-
-    return batch.consumed;
+    zx.parallel.spread(Work, &work, Work.run, participants);
 }
 
 const Work = struct {
@@ -184,26 +231,49 @@ const Preparation = struct {
     sources: []const frontend.project.Source,
     derived: Frame,
     arguments: *const Inputs,
+    issue: ?Diagnostic = null,
+    candidate: Result = undefined,
     fn borrow(handle: *const anyopaque) *Preparation {
         return @ptrCast(@alignCast(@constCast(handle)));
     }
-    fn append(self: *Preparation, position: usize, index: usize, action: Body.Action) std.mem.Allocator.Error!bool {
-        const state = self.state;
-        const issue = state.issue;
-        state.owner = index;
+    fn open(self: *Preparation, index: usize) void {
+        self.issue = self.state.issue;
+        self.state.owner = index;
+    }
 
-        const result = prepare(self.ahead, state, self.cache, self.sources, self.derived, index, self.arguments, action) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            else => {
-                state.issue = issue;
+    fn restore(self: *Preparation) void {
+        self.state.issue = self.issue;
+    }
 
-                return false;
-            },
+    fn prepareZX(self: *Preparation, index: usize) State.Error!Zx.Prepared {
+        return Zx.prepare(self.state, self.ahead.bindings.allocator(), self.cache, self.sources, index, false);
+    }
+    fn prepareRX(self: *Preparation, index: usize) State.Error!Rx.Prepared {
+        const source = self.state.graph.sources.at(index).rx;
+        const module = self.derived.loaded.modules[source];
+        const callees = @import("callees.zig");
+        const ids = try callees.load(self.state, self.ahead.bindings.allocator(), self.cache, self.sources, module);
+
+        return Rx.prepare(self.state, index, module, self.derived.resolved.at(source), ids, self.arguments.module(source), self.state.functions.view());
+    }
+    fn append(self: *Preparation, position: u64, result: *const Result) std.mem.Allocator.Error!void {
+        try self.ahead.items.append(self.state.allocator, .{ .position = position, .result = result.* });
+    }
+    fn appendSeed(self: *Preparation, position: usize, index: usize, action: Body.Action) std.mem.Allocator.Error!void {
+        self.open(index);
+
+        const result: State.Error!Result = switch (action) {
+            .AnalyzeZX => if (self.prepareZX(index)) |prepared| .{ .zx = .{ .prepared = prepared } } else |err| err,
+            .LowerRX => if (self.prepareRX(index)) |prepared| .{ .rx = .{ .prepared = prepared } } else |err| err,
+            .Skip, .MissingSignature => unreachable,
         };
 
-        try self.ahead.items.append(state.allocator, .{ .position = position, .result = result });
+        const ready = result catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.InvalidSourceGraph => return self.restore(),
+        };
 
-        return true;
+        try self.append(position, &ready);
     }
 };
 
@@ -215,15 +285,55 @@ pub fn reserveMixedWorkers(handle: *const anyopaque) std.mem.Allocator.Error!u64
     return frame.ahead.arenas.len;
 }
 
-pub fn prepareMixedPosition(handle: *const anyopaque, position: u64, index: u64, is_zx: bool) std.mem.Allocator.Error!bool {
-    return Preparation.borrow(handle).append(@intCast(position), @intCast(index), if (is_zx) .AnalyzeZX else .LowerRX);
+pub fn openMixedCandidate(handle: *const anyopaque, index: u64) void {
+    Preparation.borrow(handle).open(@intCast(index));
+}
+
+pub fn prepareMixedZXCandidate(handle: *const anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
+    const frame = Preparation.borrow(handle);
+
+    const prepared = frame.prepareZX(@intCast(index)) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidSourceGraph => return null,
+    };
+
+    frame.candidate = .{ .zx = .{ .prepared = prepared } };
+
+    return @ptrCast(&frame.candidate);
+}
+
+pub fn prepareMixedRXCandidate(handle: *const anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
+    const frame = Preparation.borrow(handle);
+
+    const prepared = frame.prepareRX(@intCast(index)) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.InvalidSourceGraph => return null,
+    };
+
+    frame.candidate = .{ .rx = .{ .prepared = prepared } };
+
+    return @ptrCast(&frame.candidate);
+}
+
+pub fn recordMixedCandidate(handle: *const anyopaque, position: u64, candidate: *const anyopaque) std.mem.Allocator.Error!void {
+    try Preparation.borrow(handle).append(position, @ptrCast(@alignCast(candidate)));
+}
+
+pub fn restoreMixedCandidateDiagnostic(handle: *const anyopaque) void {
+    Preparation.borrow(handle).restore();
 }
 
 pub fn preparedMixedPositions(handle: *const anyopaque) []const u64 {
     return Preparation.borrow(handle).ahead.items.items(.position);
 }
 
-fn collect(frame: *Preparation, reuse: *const Reuse, window: Schedule.Window) std.mem.Allocator.Error!Schedule.Batch {
+pub fn executeMixedWorkers(handle: *const anyopaque, participants: u64) void {
+    const frame = Preparation.borrow(handle);
+
+    frame.ahead.execute(frame.state, @intCast(participants));
+}
+
+fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Window) std.mem.Allocator.Error!usize {
     const collect_plan = @import("generated_rx_mixed_collect");
     const Input = std.meta.Child(collect_plan.Input);
     const Selection = std.meta.Child(@FieldType(Input, "selection"));
@@ -246,18 +356,19 @@ fn collect(frame: *Preparation, reuse: *const Reuse, window: Schedule.Window) st
             .positions = @ptrCast(&positions),
         },
         .workspace = @ptrCast(frame),
+        .prior = &.{ .workspace = @ptrCast(frame.ahead), .rows = frame.ahead.items.len, .workers = frame.ahead.arenas.len },
         .minimum = minimum,
         .capacity = slots.len,
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const batch = zx.columns.invoke(collect_plan.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const consumed = zx.columns.invoke(collect_plan.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return .{ .consumed = @intCast(batch.consumed), .participants = @intCast(batch.participants) };
+    return @intCast(consumed);
 }
 
 fn collectSeed(self: *Self, frame: *Preparation, reuse: *const Reuse, window: Schedule.Window) std.mem.Allocator.Error!Schedule.Batch {
@@ -287,60 +398,58 @@ fn collectSeed(self: *Self, frame: *Preparation, reuse: *const Reuse, window: Sc
 
         const index = state.graph.order[candidate.position];
 
-        _ = try frame.append(candidate.position, index, candidate.action);
+        try frame.appendSeed(candidate.position, index, candidate.action);
     }
 
     return Schedule.preparedBatch(window, self.items.items(.position), self.arenas.len, limit, minimum);
 }
 
-fn prepare(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, index: usize, arguments: *const Inputs, action: Body.Action) State.Error!Result {
-    const allocator = self.bindings.allocator();
+pub fn zxRow(self: *const Self, selected: ?usize) ?usize {
+    const row = selected orelse return null;
 
-    switch (action) {
-        .AnalyzeZX => return .{ .zx = .{ .prepared = try Zx.prepare(state, allocator, cache, sources, index, false) } },
-        .LowerRX => {
-            const source = state.graph.sources.at(index).rx;
-            const module = derived.loaded.modules[source];
-            const callees = @import("callees.zig");
-            const ids = try callees.load(state, allocator, cache, sources, module);
-
-            return .{ .rx = .{ .prepared = try Rx.prepare(state, index, module, derived.resolved.at(source), ids, arguments.module(source), state.functions.view()) } };
-        },
-        .Skip, .MissingSignature => unreachable,
-    }
+    return if (self.items.items(.result)[row] == .zx) row else null;
 }
 
-/// Links a prepared body while its analysis storage is still alive.
-pub fn link(self: *Self, state: *State, selected: ?usize) State.Error!?frontend.project.artifact.source_link.Loaded {
-    const row = selected orelse return null;
-    const item = &self.items.items(.result)[row];
+pub fn acceptsZX(self: *const Self, state: *const State, row: usize) bool {
+    const item = &self.items.items(.result)[row].zx;
+    const outcome = if (item.outcome) |*value| value else return false;
 
-    if (item.* != .zx) return null;
+    return outcome.* == .analyzed and Zx.current(state, outcome.analyzed);
+}
 
-    defer item.zx.release();
+pub fn retireZX(self: *Self, row: usize) void {
+    self.items.items(.result)[row].zx.release();
+}
 
-    const outcome = item.zx.outcome orelse return null;
+/// Links an accepted body while its dedicated analysis storage is still alive.
+pub fn linkZX(self: *Self, state: *State, row: usize) State.Error!frontend.project.artifact.source_link.Loaded {
+    const item = &self.items.items(.result)[row].zx;
 
-    if (outcome != .analyzed or !Zx.current(state, outcome.analyzed)) return null;
+    defer item.release();
 
     _ = state.scratch.reset(.retain_capacity);
 
-    return try Zx.link(state, outcome.analyzed);
+    return Zx.link(state, item.outcome.?.analyzed);
 }
 
-/// The lowering `analyze` made of the RX module `index`, while the tables still allow linking it.
-pub fn lowered(self: *const Self, state: *const State, selected: ?usize) ?Lowered {
+pub fn acceptedRX(self: *const Self, state: *const State, selected: ?usize) ?usize {
     const row = selected orelse return null;
     const item = &self.items.items(.result)[row];
 
-    const lowering = switch (item.*) {
-        .rx => |value| value,
-        .zx => return null,
-    };
+    if (item.* != .rx) return null;
 
-    const value = lowering.value orelse return null;
+    const lowering = &item.rx;
+    const value = if (lowering.value) |*value| value else return null;
 
-    return if (value == .body and Rx.current(state, lowering.prepared, value.body)) .{ .prepared = lowering.prepared, .body = value.body } else null;
+    return if (value.* == .body and Rx.current(state, lowering.prepared, value.body)) row else null;
+}
+
+pub fn linkRX(self: *Self, state: *State, row: usize) State.Error!Rx.Result {
+    const item = &self.items.items(.result)[row].rx;
+
+    _ = state.scratch.reset(.retain_capacity);
+
+    return Rx.link(state, item.prepared, item.value.?.body);
 }
 
 pub fn next(self: *Self, state: *const State, first: usize, end: usize, keep_skipped: bool) ?@import("schedule/dispatch.zig").Result {

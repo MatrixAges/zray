@@ -1045,6 +1045,7 @@ pub const execution = [_]Entry{
     .{ .path = "rx/analysis/project/workflow/solve/constraints.zx", .name = "rx_execute_constraints", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/run.rx", .name = "rx_execute_mixed", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/schedule/prepare.rx", .name = "rx_mixed_collect", .owner = .rx_analysis },
+    .{ .path = "rx/analysis/project/mixed/ahead/retire.zx", .name = "rx_retire_mixed_results", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/ahead/work.zx", .name = "rx_mixed_worker", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/callees/bind.zx", .name = "rx_mixed_callees", .owner = .rx_analysis },
     .{ .path = "rx/analysis/project/mixed/imports/collect.zx", .name = "rx_mixed_import_bindings", .owner = .rx_analysis },

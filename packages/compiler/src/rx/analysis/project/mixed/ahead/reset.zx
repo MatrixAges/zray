@@ -1,0 +1,35 @@
+import host from "rx_project_host"
+
+import retire from "./retire"
+
+import type { Input as Previous } from "./retire"
+
+export type Input = Previous & {
+    workers: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const { workspace, workers, rows } = in
+
+    if (rows != 0) {
+        retire({
+            workspace,
+            rows
+        })
+
+        const used = rows < workers ? rows : workers
+        const first: u64 = 0
+
+        const reset = loop(first, {
+            while: index => index < used,
+            next: index => {
+                host.resetMixedWorker(workspace, index)
+                index += 1
+            }
+        })
+    }
+
+    host.resetMixedBindings(workspace)
+}

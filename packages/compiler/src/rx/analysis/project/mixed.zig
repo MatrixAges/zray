@@ -165,13 +165,24 @@ const Transaction = struct {
         return error.InvalidSourceGraph;
     }
     fn linkPreparedZX(self: *Transaction, next: Dispatch) Error!bool {
-        const state = self.state;
-        const loaded = try self.ahead.link(state, next.prepared_row) orelse return false;
+        const row = self.ahead.zxRow(next.prepared_row) orelse return false;
 
-        state.finished.set(next.index, loaded);
+        if (!self.ahead.acceptsZX(self.state, row)) {
+            self.ahead.retireZX(row);
+
+            return false;
+        }
+
+        try self.installPreparedZX(next, row);
 
         return true;
     }
+    fn installPreparedZX(self: *Transaction, next: Dispatch, row: usize) Error!void {
+        const loaded = try self.ahead.linkZX(self.state, row);
+
+        self.state.finished.set(next.index, loaded);
+    }
+
     fn analyzeAtTurn(self: *Transaction, next: Dispatch) Error!void {
         const state = self.state;
         const loaded = try Zx.compile(state, self.cache, self.sources, next.index, null);
@@ -180,12 +191,9 @@ const Transaction = struct {
     }
 
     fn linkPreparedRX(self: *Transaction, next: Dispatch) Error!bool {
-        const state = self.state;
-        const lowered = self.ahead.lowered(state, next.prepared_row) orelse return false;
+        const row = self.ahead.acceptedRX(self.state, next.prepared_row) orelse return false;
 
-        _ = state.scratch.reset(.retain_capacity);
-
-        self.installLowered(next.index, try Rx.link(state, lowered.prepared, lowered.body));
+        self.installLowered(next.index, try self.ahead.linkRX(self.state, row));
 
         return true;
     }
@@ -259,18 +267,40 @@ pub fn lowerMixedRX(handle: *const anyopaque) State.Error!u64 {
     return self.pending.following;
 }
 
-pub fn linkPreparedMixedZX(handle: *const anyopaque) State.Error!?u64 {
+pub fn preparedMixedZXRow(handle: *const anyopaque) ?u64 {
     const self = borrow(handle);
 
-    if (!try self.linkPreparedZX(self.pending)) return null;
+    return if (self.ahead.zxRow(self.pending.prepared_row)) |row| row else null;
+}
+
+pub fn acceptsPreparedMixedZX(handle: *const anyopaque, row: u64) bool {
+    const self = borrow(handle);
+
+    return self.ahead.acceptsZX(self.state, @intCast(row));
+}
+
+pub fn retirePreparedMixedZX(handle: *const anyopaque, row: u64) void {
+    borrow(handle).ahead.retireZX(@intCast(row));
+}
+
+pub fn linkPreparedMixedZX(handle: *const anyopaque, row: u64) State.Error!u64 {
+    const self = borrow(handle);
+
+    try self.installPreparedZX(self.pending, @intCast(row));
 
     return self.pending.following;
 }
 
-pub fn linkPreparedMixedRX(handle: *const anyopaque) State.Error!?u64 {
+pub fn acceptedPreparedMixedRX(handle: *const anyopaque) ?u64 {
     const self = borrow(handle);
 
-    if (!try self.linkPreparedRX(self.pending)) return null;
+    return if (self.ahead.acceptedRX(self.state, self.pending.prepared_row)) |row| row else null;
+}
+
+pub fn linkPreparedMixedRX(handle: *const anyopaque, row: u64) State.Error!u64 {
+    const self = borrow(handle);
+
+    self.installLowered(self.pending.index, try self.ahead.linkRX(self.state, @intCast(row)));
 
     return self.pending.following;
 }

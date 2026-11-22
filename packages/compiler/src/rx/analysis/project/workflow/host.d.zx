@@ -8,6 +8,10 @@ export type Mixed = opaque
 
 export type MixedPreparation = opaque
 
+export type MixedWorkspace = opaque
+
+export type MixedCandidate = opaque
+
 export type MixedWorker = opaque
 
 export type MixedCallees = opaque
@@ -128,13 +132,21 @@ export declare function selectMixedBody(state: Mixed, first: u64, limit: u64): M
 export declare function rejectMixedBody(state: Mixed): u64
     throws { InvalidSourceGraph }
 
-export declare function linkPreparedMixedZX(state: Mixed): u64?
+export declare function preparedMixedZXRow(state: Mixed): u64?
+
+export declare function acceptsPreparedMixedZX(state: Mixed, row: u64): bool
+
+export declare function retirePreparedMixedZX(state: Mixed, row: u64): void
+
+export declare function linkPreparedMixedZX(state: Mixed, row: u64): u64
     throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function analyzeMixedZX(state: Mixed): u64
     throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function linkPreparedMixedRX(state: Mixed): u64?
+export declare function acceptedPreparedMixedRX(state: Mixed): u64?
+
+export declare function linkPreparedMixedRX(state: Mixed, row: u64): u64
     throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function lowerMixedRX(state: Mixed): u64
@@ -155,14 +167,39 @@ export declare function retainMixedHistory(state: Mixed): void
 export declare function reserveMixedWorkers(state: MixedPreparation): u64
     throws { OutOfMemory }
 
-export declare function prepareMixedPosition(
+export declare function mixedResultIsZX(workspace: MixedWorkspace, row: u64): bool
+
+export declare function releaseMixedZXResult(workspace: MixedWorkspace, row: u64): void
+
+export declare function clearMixedResults(workspace: MixedWorkspace): void
+
+export declare function resetMixedWorker(workspace: MixedWorkspace, index: u64): void
+
+export declare function resetMixedBindings(workspace: MixedWorkspace): void
+
+export declare function openMixedCandidate(state: MixedPreparation, index: u64): void
+
+export declare function prepareMixedZXCandidate(
+    state: MixedPreparation,
+    index: u64
+): MixedCandidate? throws { OutOfMemory }
+
+export declare function prepareMixedRXCandidate(
+    state: MixedPreparation,
+    index: u64
+): MixedCandidate? throws { OutOfMemory }
+
+export declare function recordMixedCandidate(
     state: MixedPreparation,
     position: u64,
-    index: u64,
-    is_zx: bool
-): bool throws { OutOfMemory }
+    result: MixedCandidate
+): void throws { OutOfMemory }
+
+export declare function restoreMixedCandidateDiagnostic(state: MixedPreparation): void
 
 export declare function preparedMixedPositions(state: MixedPreparation): u64[]
+
+export declare function executeMixedWorkers(state: MixedPreparation, participants: u64): void
 
 export declare function preparedMixedIsZX(worker: MixedWorker, row: u64): bool
 

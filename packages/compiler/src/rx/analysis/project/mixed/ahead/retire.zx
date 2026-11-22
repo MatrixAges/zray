@@ -1,0 +1,27 @@
+import host from "rx_project_host"
+
+import type { MixedWorkspace } from "rx_project_host"
+
+export type Input = {
+    workspace: MixedWorkspace,
+    rows: u64
+}
+
+export type Output = void
+
+export default function (in: Input): Output {
+    const first: u64 = 0
+
+    const retired = loop(first, {
+        while: row => row < in.rows,
+        next: row => {
+            if (host.mixedResultIsZX(in.workspace, row)) {
+                host.releaseMixedZXResult(in.workspace, row)
+            }
+
+            row += 1
+        }
+    })
+
+    host.clearMixedResults(in.workspace)
+}

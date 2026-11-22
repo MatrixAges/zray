@@ -1,16 +1,28 @@
 <Module>
     <Type from="preparation" as="Preparation" />
-    <Type from="prepared" as="Batch" />
 
-    <Args in={Preparation.Request} out={Batch.Output} />
+    <Args in={Preparation.Request} out={u64} />
 
-    <Call fn="start" in={$in.omit(["capacity"])} />
+    <Call fn="../ahead/reset" in={$in.prior} />
+
+    <Call
+        fn="start"
+        in={$in.pick([
+            "selection",
+            "workspace",
+            "minimum"
+        ])}
+    />
 
     <If on={$ctx.start != null}>
         <Call
             fn="collect"
             in={{
-                ...$in.omit(["minimum"]),
+                ...$in.pick([
+                    "selection",
+                    "workspace",
+                    "capacity"
+                ]),
                 initial: $ctx.start
             }}
         />
@@ -27,15 +39,26 @@
             }}
         />
 
-        <Return value={$ctx.prepared} />
+        <If on={$ctx.prepared.participants != 0}>
+            <Call
+                fn="host.executeMixedWorkers"
+                in={[
+                    $in.workspace,
+                    $ctx.prepared.participants
+                ]}
+            />
+
+            <Else>
+                <If on={$ctx.collect.length != 0}>
+                    <Call fn="host.clearMixedResults" in={$in.prior.workspace} />
+                </If>
+            </Else>
+        </If>
+
+        <Return value={$ctx.prepared.consumed} />
 
         <Else>
-            <Return
-                value={{
-                    consumed: $in.selection.end - $in.selection.start,
-                    participants: 0
-                }}
-            />
+            <Return value={$in.selection.end - $in.selection.start} />
         </Else>
     </If>
 </Module>
