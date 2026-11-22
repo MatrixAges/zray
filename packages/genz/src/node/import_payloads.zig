@@ -27,6 +27,21 @@ pub const Plain = struct {
 
         return invoke(entry.executeValue, &input);
     }
+    pub fn appendBorrowedRows(allocator: std.mem.Allocator, target: anytype, rows: anytype) std.mem.Allocator.Error!void {
+        if (rows.len == 0) return;
+
+        const names = @typeInfo(@TypeOf(target.fields)).@"struct".field_names;
+        var columns: [names.len]transfer.Column = undefined;
+
+        inline for (names, &columns) |name, *column| {
+            column.* = transfer.borrowRowField(&@field(target.fields, name).values, name, rows);
+        }
+
+        return Plain.append(allocator, &columns, rows.len, target.count(), true) catch |err| switch (err) {
+            error.OutOfMemory => error.OutOfMemory,
+            error.InvalidAst => unreachable,
+        };
+    }
 };
 
 pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layout) type {

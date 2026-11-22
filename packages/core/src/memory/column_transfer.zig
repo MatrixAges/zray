@@ -1,12 +1,13 @@
 const std = @import("std");
 const Bytes = []const u8;
-const Kind = enum { value, repeated, text, optional_text, words, texts, optional_texts, text_views, optional_text_views };
+const Kind = enum { value, strided, repeated, text, optional_text, words, texts, optional_texts, text_views, optional_text_views };
 
 pub const Column = struct {
     source: [*]const u8,
     source_count: usize,
     storage: *std.ArrayList(u8),
     width: usize,
+    stride: u32 = 0,
     kind: Kind,
     grow: *const fn (*anyopaque, std.mem.Allocator, usize) std.mem.Allocator.Error!void,
 };
@@ -39,6 +40,22 @@ pub fn bind(target: anytype, source: anytype, comptime copy_payloads: bool, comp
             }
         }.ensure,
     };
+}
+
+pub fn borrowRowField(target: anytype, comptime name: []const u8, rows: anytype) Column {
+    const Row = std.meta.Elem(@TypeOf(rows));
+    const Value = std.meta.Elem(@TypeOf(target.items));
+
+    comptime std.debug.assert(@FieldType(Row, name) == Value);
+
+    var column = bind(target, @as([]const Value, &.{}), false, true);
+    const bytes: [*]const u8 = @ptrCast(rows.ptr);
+    column.source = if (rows.len == 0) bytes else bytes + @offsetOf(Row, name);
+    column.source_count = rows.len;
+    column.stride = @sizeOf(Row);
+    column.kind = .strided;
+
+    return column;
 }
 
 pub fn repeat(target: anytype, value: anytype) Column {
@@ -154,6 +171,15 @@ fn copyColumn(allocator: std.mem.Allocator, column: Column, first: usize, count:
 
             @memcpy(target, source);
         },
+        .strided => {
+            const target = column.storage.items.ptr[column.storage.items.len * column.width ..];
+            const stride: usize = column.stride;
+            const source = column.source[first * stride ..];
+
+            for (0..count) |index| {
+                @memcpy(target[index * column.width ..][0..column.width], source[index * stride ..][0..column.width]);
+            }
+        },
         .repeated => {
             const source = column.source[0..column.width];
             const target = column.storage.items.ptr[column.storage.items.len * column.width ..];
@@ -174,7 +200,7 @@ fn discardColumns(allocator: std.mem.Allocator, columns: []const Column, count: 
     var iterator = std.mem.reverseIterator(columns);
 
     while (iterator.next()) |column| switch (column.kind) {
-        .value, .repeated => {},
+        .value, .strided, .repeated => {},
         .text => releaseRange(Bytes, false, allocator, column, count),
         .optional_text => releaseRange(?Bytes, false, allocator, column, count),
         .words => releaseRange([]const u32, false, allocator, column, count),

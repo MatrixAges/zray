@@ -29,6 +29,7 @@ pub const lowerType = lowering.lowerType;
 pub const materializeType = lowering.materializeType;
 pub const loweringOrigin = lowering.loweringOrigin;
 const publication = @import("zx/state_value/publication.zig");
+pub const prepareDirectAstRow = @import("node/direct.zig").prepareDirectAstRow;
 pub const appendAstExpressions = publication.appendAstExpressions;
 pub const appendAstStatements = publication.appendAstStatements;
 pub const appendAstStorage = publication.appendAstStorage;

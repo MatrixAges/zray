@@ -1,0 +1,39 @@
+import integers from "std:integer"
+import host from "lowering_host"
+import memory from "memory"
+
+import { word_radix } from "./block/const"
+
+import type { DirectAstRows } from "lowering_host"
+import type { ColumnLengths, U8Buffer, U32Buffer } from "memory"
+
+export type Input = {
+    rows: DirectAstRows,
+    start: u64,
+    count: u64,
+    tags: U8Buffer,
+    offsets: U32Buffer,
+    lengths: ColumnLengths
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { rows, count } = in
+
+    const start = integers.narrow(in.start)
+
+    const published = loop(0, {
+        while: position => position < count,
+        next: position => {
+            const header = host.prepareDirectAstRow(rows, position)
+
+            memory.writeU8(in.tags, 0, integers.narrowByte(header / word_radix))
+            memory.writeU32(in.offsets, 0, integers.narrow(header % word_radix))
+            memory.publishColumnLengths(in.lengths, 1)
+            position += 1
+        }
+    })
+
+    return start
+}

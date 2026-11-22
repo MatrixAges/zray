@@ -2,6 +2,9 @@ const std = @import("std");
 const node = @import("../node.zig");
 const Rows = @import("rows.zig").Rows;
 const Columns = @import("columns.zig").Columns;
+const Plain = @import("import_payloads.zig").Plain;
+const direct = @import("direct.zig");
+const generated = @import("genz_options").generated_analysis;
 pub const stored = @import("stored.zig");
 
 const Self = @This();
@@ -17,6 +20,8 @@ pub fn init(allocator: std.mem.Allocator) Self {
 }
 
 pub fn append(self: *Self, allocator: std.mem.Allocator, value: node.Expression) std.mem.Allocator.Error!node.ExpressionId {
+    if (comptime generated) return @fromBackingInt(try direct.append(self, allocator, "expressions", @as([]const node.Expression, &.{value})));
+
     return @fromBackingInt(try self.expressions.append(allocator, try stored.copy(self, allocator, value)));
 }
 
@@ -25,6 +30,11 @@ pub fn get(self: *const Self, id: node.ExpressionId) stored.Value(node.Expressio
 }
 
 pub fn block(self: *Self, allocator: std.mem.Allocator, values: []const node.Statement) std.mem.Allocator.Error!node.Block {
+    if (comptime generated) return .{
+        .start = try direct.append(self, allocator, "statements", values),
+        .len = @intCast(values.len),
+    };
+
     const start: u32 = @intCast(self.statements.tags.items.len);
 
     for (values) |value| _ = try self.statements.append(allocator, try stored.copy(self, allocator, value));
@@ -41,8 +51,12 @@ pub fn statement(self: *const Self, selected: node.Block, index: usize) stored.V
 pub fn fields(self: *Self, allocator: std.mem.Allocator, values: []const node.Field) std.mem.Allocator.Error!stored.Fields {
     const start: u32 = @intCast(self.field_columns.count());
 
-    try self.field_columns.reserve(allocator, values.len);
-    for (values) |value| self.field_columns.append(value);
+    if (comptime generated) {
+        try Plain.appendBorrowedRows(allocator, &self.field_columns, values);
+    } else {
+        try self.field_columns.reserve(allocator, values.len);
+        for (values) |value| self.field_columns.append(value);
+    }
 
     return .{ .start = start, .len = @intCast(values.len) };
 }
@@ -50,13 +64,22 @@ pub fn fields(self: *Self, allocator: std.mem.Allocator, values: []const node.Fi
 pub fn arms(self: *Self, allocator: std.mem.Allocator, values: []const node.SelectionArm) std.mem.Allocator.Error!stored.Arms {
     const start: u32 = @intCast(self.arm_columns.count());
 
-    try self.arm_columns.reserve(allocator, values.len);
-    for (values) |value| self.arm_columns.append(value);
+    if (comptime generated) {
+        try Plain.appendBorrowedRows(allocator, &self.arm_columns, values);
+    } else {
+        try self.arm_columns.reserve(allocator, values.len);
+        for (values) |value| self.arm_columns.append(value);
+    }
 
     return .{ .start = start, .len = @intCast(values.len) };
 }
 
 pub fn declarations(self: *Self, allocator: std.mem.Allocator, values: []const node.Declaration) std.mem.Allocator.Error!stored.Declarations {
+    if (comptime generated) return .{
+        .start = try direct.append(self, allocator, "declaration_rows", values),
+        .len = @intCast(values.len),
+    };
+
     const start: u32 = @intCast(self.declaration_rows.tags.items.len);
 
     for (values) |value| _ = try self.declaration_rows.append(allocator, try stored.copy(self, allocator, value));
@@ -90,9 +113,11 @@ pub fn materializeDeclaration(self: *const Self, allocator: std.mem.Allocator, i
 
 pub fn materializeFunction(self: *const Self, allocator: std.mem.Allocator, index: u32) std.mem.Allocator.Error!node.Function {
     const value = self.declaration_rows.get(index).function;
-    const parameters = try allocator.alloc(node.Field, value.parameters.len);
 
-    for (parameters, 0..) |*parameter, offset| parameter.* = self.field_columns.get(value.parameters.start + offset);
+    const parameters = if (comptime generated)
+        try self.borrowedParameters(allocator, value.parameters)
+    else
+        try self.seedParameters(allocator, value.parameters);
 
     return .{
         .name = value.name,
@@ -104,4 +129,28 @@ pub fn materializeFunction(self: *const Self, allocator: std.mem.Allocator, inde
         .inlined = value.inlined,
         .calling_convention = value.calling_convention,
     };
+}
+
+fn borrowedParameters(self: *const Self, allocator: std.mem.Allocator, range: stored.Fields) std.mem.Allocator.Error![]const node.Field {
+    const columns = &self.field_columns.fields;
+    const start = range.start;
+    const count = range.len;
+
+    return @import("import_fields.zig").materializeBorrowingText(allocator, &.{
+        .name = columns.name.values.items[start..][0..count],
+        .value = columns.value.values.items[start..][0..count],
+        .default_value = columns.default_value.values.items[start..][0..count],
+        .comptime_parameter = columns.comptime_parameter.values.items[start..][0..count],
+    }) catch |err| switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.InvalidAst => unreachable,
+    };
+}
+
+fn seedParameters(self: *const Self, allocator: std.mem.Allocator, range: stored.Fields) std.mem.Allocator.Error![]const node.Field {
+    const parameters = try allocator.alloc(node.Field, range.len);
+
+    for (parameters, 0..) |*parameter, offset| parameter.* = self.field_columns.get(range.start + offset);
+
+    return parameters;
 }

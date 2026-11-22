@@ -994,6 +994,7 @@ pub const collections = [_]Entry{
 };
 
 pub const execution = [_]Entry{
+    .{ .path = "genz/analysis/node_headers/direct.zx", .name = "direct_ast_range", .owner = .genz },
     .{ .path = "backends/zig/gateway/workflow/build.rx", .name = "gateway_bundle", .owner = .compiler },
     .{ .path = "backends/zig/state/publication/build.rx", .name = "publish_state", .owner = .compiler },
     .{ .path = "backends/zig/function_sources/workflow/run.rx", .name = "run_function_sources", .owner = .compiler },

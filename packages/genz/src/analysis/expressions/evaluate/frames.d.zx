@@ -79,6 +79,8 @@ export enum SignatureForm {
 
 export type AstPublication = opaque
 
+export type DirectAstRows = opaque
+
 export type FieldProjection = opaque
 
 export enum StoredType {

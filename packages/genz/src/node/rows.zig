@@ -6,6 +6,7 @@ pub fn Rows(comptime Row: type) type {
         const Self = @This();
         const names = @typeInfo(Row).@"union".field_names;
         const Tag = std.meta.Tag(Row);
+        const Header = struct { tag: Tag, offset: u32 };
 
         const Payloads = blk: {
             var types: [names.len]type = undefined;
@@ -25,29 +26,33 @@ pub fn Rows(comptime Row: type) type {
             return result;
         }
         pub fn append(self: *Self, allocator: std.mem.Allocator, value: Row) std.mem.Allocator.Error!u32 {
-            if (self.tags.items.len >= std.math.maxInt(u32)) return error.OutOfMemory;
-
+            const header = try self.prepare(allocator, value);
             const id: u32 = @intCast(self.tags.items.len);
-            const tag = std.meta.activeTag(value);
 
+            self.tags.appendAssumeCapacity(header.tag);
+            self.offsets.appendAssumeCapacity(header.offset);
+
+            return id;
+        }
+        pub fn prepare(self: *Self, allocator: std.mem.Allocator, value: Row) std.mem.Allocator.Error!Header {
+            if (self.tags.items.len >= std.math.maxInt(u32)) return error.OutOfMemory;
             try self.tags.ensureUnusedCapacity(allocator, 1);
             try self.offsets.ensureUnusedCapacity(allocator, 1);
 
-            switch (value) {
-                inline else => |payload, selected| {
+            return switch (value) {
+                inline else => |payload, selected| stored: {
                     const items = &@field(self.payloads, @tagName(selected));
                     const index: u32 = @intCast(items.count());
 
                     try items.reserve(allocator, 1);
 
                     items.append(payload);
-                    self.tags.appendAssumeCapacity(tag);
-                    self.offsets.appendAssumeCapacity(index);
-                },
-            }
 
-            return id;
+                    break :stored .{ .tag = selected, .offset = index };
+                },
+            };
         }
+
         pub fn get(self: *const Self, id: u32) Row {
             const offset = self.offsets.items[id];
 
