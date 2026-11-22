@@ -7,6 +7,7 @@ const evaluation = @import("../expressions/evaluate.zig");
 const layout = @import("layout.zig");
 const object = @import("object.zig");
 const operands = @import("operands.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const Error = Lower.Error;
 const Object = @FieldType(@FieldType(ir.ExpressionRow, "value"), "object");
 const entry = @import("generated_lower_object_elements");
@@ -21,7 +22,7 @@ const Frame = struct {
     references: []node.ExpressionId,
     names: [][]const u8,
     values: []u32,
-    body: std.ArrayList(node.Statement) = .empty,
+    body: Sequence,
     type_id: ir.TypeId = undefined,
     plan: layout.Plan = undefined,
     field_names: []const []const u8 = undefined,
@@ -44,7 +45,10 @@ pub fn lower(self: *Lower, temporary: std.mem.Allocator, id: ir.ExprId, source: 
         .references = try temporary.alloc(node.ExpressionId, length),
         .names = try temporary.alloc([]const u8, length),
         .values = try temporary.alloc(u32, length),
+        .body = self.builder.statementSequence(temporary),
     };
+
+    defer frame.body.deinit();
 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),

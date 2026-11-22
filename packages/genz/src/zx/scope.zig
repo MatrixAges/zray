@@ -65,7 +65,7 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
         offset -= 1;
 
-        const reused = if (reuse) |*active| try active.publish(self, &output, offset) else null;
+        const reused = if (reuse) |*active| try active.publishSeed(self, &output, offset) else null;
         const span = reused orelse try lowerBinding(self, &output, schedule.seedNext(self, scope, offset + 1), plan.type_id, &reuse);
 
         starts[offset] = span.start;
@@ -79,7 +79,7 @@ fn lowerMode(self: *Lower, scope: ir.ScopeRow, layout: bool) Lower.Error!node.Ex
 
 fn lowerBinding(self: *Lower, output: *std.ArrayList(node.Statement), binding: schedule.Binding, result_type: ir.TypeId, reuse: *const ?Reuse) Lower.Error!node.Block {
     return switch (binding.action) {
-        .Reuse => (try reuse.*.?.publish(self, output, binding.position)).?,
+        .Reuse => (try reuse.*.?.publishSeed(self, output, binding.position)).?,
         .Skip => .{},
         .Task => @import("tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol.?)], binding.value, false),
         .Discard, .Value, .Ordinary => publishBinding(self, output, binding, result_type, reuse.* != null and reuse.*.?.variables[binding.position]),

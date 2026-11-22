@@ -6,8 +6,9 @@ const rows = @import("../../node/import_rows.zig");
 const Lower = @import("../lower.zig");
 const Change = @import("../object_update.zig").Change;
 const Plan = @import("matching.zig").Plan;
+const Sequence = @import("../../node/blocks.zig").Sequence;
 
-pub fn expression(self: *Lower, temporary: std.mem.Allocator, plan: Plan, body: *std.ArrayList(node.Statement)) Lower.Error!node.ExpressionId {
+pub fn expression(self: *Lower, temporary: std.mem.Allocator, plan: Plan, body: *Sequence) Lower.Error!node.ExpressionId {
     const change = plan.change;
     const generated = @import("generated_object_update_expression");
     const Input = std.meta.Child(generated.Input);
@@ -72,7 +73,7 @@ pub fn expression(self: *Lower, temporary: std.mem.Allocator, plan: Plan, body: 
     return @fromBackingInt(output.root);
 }
 
-pub fn statementBlock(self: *Lower, prefix: []const node.Statement, change: Change) Lower.Error!node.Block {
+pub fn statementBlock(self: *Lower, change: Change) Lower.Error!node.Block {
     const generated = @import("generated_object_update_statements");
     const Input = std.meta.Child(generated.Input);
     const value = try self.expr(change.field.value);
@@ -104,11 +105,11 @@ pub fn statementBlock(self: *Lower, prefix: []const node.Statement, change: Chan
     if (!output.valid) return error.OutOfMemory;
 
     const expressions = view.join(output.expressions.*, output.forms.*);
-    const flat = view.join(output.statements.*, output.variables.*);
+    const statements = view.join(output.statements.*, output.variables.*);
 
     try append(self, &self.builder.nodes.expressions, &expressions);
 
-    const block = try self.builder.publishStatements(prefix, &flat);
+    const block = try self.builder.publishStatements(&.{}, &statements);
 
     self.used[@backingInt(change.previous)] = true;
 
@@ -122,7 +123,7 @@ fn append(self: *Lower, target: anytype, source: anytype) Lower.Error!void {
     };
 }
 
-fn operand(self: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, selected: bool) Lower.Error!node.ExpressionId {
+fn operand(self: *Lower, body: *Sequence, id: ir.ExprId, selected: bool) Lower.Error!node.ExpressionId {
     const lowered = try self.expr(id);
 
     if (selected) return lowered;

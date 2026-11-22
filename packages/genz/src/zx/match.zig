@@ -6,6 +6,7 @@ const Lower = @import("lower.zig");
 const aggregate = @import("aggregate.zig");
 const evaluation = @import("expressions/evaluate.zig");
 const bridge = @import("match/bridge.zig");
+const Sequence = @import("../node/blocks.zig").Sequence;
 
 pub fn lower(self: *Lower, selection: ir.MatchRow) Lower.Error!node.ExpressionId {
     return lowerMode(self, selection, false);
@@ -21,7 +22,7 @@ const Frame = struct {
     mode: bridge.ResultMode,
     subject: ?ir.ExprId,
     previous: ?node.ExpressionId,
-    body: std.ArrayList(node.Statement) = .empty,
+    body: Sequence,
     installed: bool = false,
     fn borrow(handle: *const anyopaque) *Frame {
         return @ptrCast(@alignCast(@constCast(handle)));
@@ -29,7 +30,7 @@ const Frame = struct {
     fn restore(self: *Frame) void {
         if (self.installed) self.lowering.cache.restoreEntry(self.lowering.allocator, self.subject.?, self.previous);
 
-        self.body.deinit(self.lowering.allocator);
+        self.body.deinit();
     }
 };
 
@@ -45,6 +46,7 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
         .mode = prepared.result,
         .subject = subject,
         .previous = if (subject) |id| self.cache.get(id) else null,
+        .body = self.builder.statementSequence(self.workspace),
     };
 
     defer frame.restore();
@@ -73,7 +75,7 @@ pub fn publishMatchSubject(handle: *const anyopaque, value: u32, discard: bool) 
 
     frame.installed = true;
 
-    if (discard) try frame.body.append(self.allocator, .{ .discard = binding });
+    if (discard) try frame.body.append(try self.builder.statements(&.{.{ .discard = binding }}));
 }
 
 pub fn lowerMatchArms(handle: *const anyopaque, fallback: u32) Lower.Error!u32 {

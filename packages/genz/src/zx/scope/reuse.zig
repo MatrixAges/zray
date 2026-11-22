@@ -79,13 +79,7 @@ pub fn restore(self: *const Self, lowering: *Lower) void {
     names(lowering, &self.state, true);
 }
 
-pub fn publish(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), index: usize) Lower.Error!?node.Block {
-    if (!generated) {
-        if (!(try self.state.append(lowering, output, index))) return null;
-
-        return try lowering.builder.statements(output.items);
-    }
-
+pub fn publish(self: *const Self, lowering: *Lower, index: usize) Lower.Error!?node.Block {
     const row = self.state.changes[index] orelse return null;
     const facts = self.state.candidates;
 
@@ -96,7 +90,13 @@ pub fn publish(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.
         .type_id = @fromBackingInt(facts.types[row]),
     };
 
-    return try @import("../object_update/emit.zig").statementBlock(lowering, output.items, change);
+    return try @import("../object_update/emit.zig").statementBlock(lowering, change);
+}
+
+pub fn publishSeed(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), index: usize) Lower.Error!?node.Block {
+    if (!(try self.state.append(lowering, output, index))) return null;
+
+    return try lowering.builder.statements(output.items);
 }
 
 fn names(lowering: *Lower, state: *const Active, restoring: bool) void {

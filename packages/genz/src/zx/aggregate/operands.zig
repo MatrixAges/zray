@@ -4,6 +4,7 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const view = @import("../../node/view.zig");
 const Lower = @import("../lower.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 pub const generated = @import("genz_options").generated_analysis;
 
 pub const Observation = struct {
@@ -12,7 +13,7 @@ pub const Observation = struct {
     references: []const node.ExpressionId,
 };
 
-pub fn bind(self: *Lower, scratch: std.mem.Allocator, body: *std.ArrayList(node.Statement), names: []const []const u8, values: []const u32) Lower.Error!void {
+pub fn bind(self: *Lower, scratch: std.mem.Allocator, body: *Sequence, names: []const []const u8, values: []const u32) Lower.Error!void {
     if (names.len == 0) return;
 
     const entry = @import("generated_aggregate_operand_bindings");

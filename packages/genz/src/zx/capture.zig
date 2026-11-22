@@ -1,4 +1,3 @@
-const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
@@ -27,7 +26,10 @@ pub fn lowerValue(self: *Lower, type_id: ir.TypeId, child: ir.ExprId) Lower.Erro
         break :blk try self.expr(child);
     };
 
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body = self.builder.statementSequence(self.workspace);
+
+    defer body.deinit();
+
     const payload_type = if (prepared.is_void) @as(node.ExpressionId, @fromBackingInt(0)) else try self.typeExpr(children.at(1));
     const succeeded = try emission.result(self, &body, captured, payload_type, prepared.is_void);
     const originated = try @import("state_value/origin.zig").tuple(self, type_id, succeeded);

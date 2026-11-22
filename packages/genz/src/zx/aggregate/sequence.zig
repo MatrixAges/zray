@@ -5,6 +5,8 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const generated = @import("genz_options").generated_analysis;
+const Sequence = @import("../../node/blocks.zig").Sequence;
+const Statements = if (generated) Sequence else std.ArrayList(node.Statement);
 const entry = @import("generated_aggregate_sequence");
 
 const Policy = if (generated) @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload else struct {
@@ -14,7 +16,7 @@ const Policy = if (generated) @typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@
 
 const Frame = struct {
     lowering: *Lower,
-    body: *std.ArrayList(node.Statement),
+    body: *Statements,
     expressions: []node.ExpressionId,
     type_id: ir.TypeId,
     element: @FieldType(Policy, "element"),
@@ -29,7 +31,10 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
         }
     }
 
-    var body: std.ArrayList(node.Statement) = .empty;
+    var body: Statements = if (generated) self.builder.statementSequence(self.workspace) else .empty;
+
+    defer if (generated) body.deinit();
+
     const expressions = try self.allocator.alloc(node.ExpressionId, items.len);
     var frame: Frame = .{ .lowering = self, .body = &body, .expressions = expressions, .type_id = value.type_id, .element = plan.element };
 

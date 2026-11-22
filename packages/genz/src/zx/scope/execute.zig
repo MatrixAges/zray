@@ -148,8 +148,8 @@ pub fn scopeBindingType(handle: *const anyopaque) u32 {
 pub fn reuseScopeBinding(handle: *const anyopaque) Error!void {
     const frame = borrow(handle);
     const item = schedule.binding(frame.request);
-    var output: std.ArrayList(node.Statement) = .empty;
-    frame.emitted = (try frame.state.regular.aliases.*.?.publish(frame.lowering, &output, item.position)).?;
+
+    frame.emitted = (try frame.state.regular.aliases.*.?.publish(frame.lowering, item.position)).?;
 }
 
 pub fn emitScopeTask(handle: *const anyopaque) Error!void {
