@@ -3,3 +3,17 @@ export const task_route: u8 = 1
 export const store_route: u8 = 2
 
 export const fuse_route: u8 = 4
+
+export const operation_mask: u64 = 56
+
+export const evaluate_operation: u8 = 8
+
+export const bind_operation: u8 = 16
+
+export const parallel_operation: u8 = 24
+
+export const destructure_operation: u8 = 32
+
+export const write_operation: u8 = 40
+
+export const return_operation: u8 = 48

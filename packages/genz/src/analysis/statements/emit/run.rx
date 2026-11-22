@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Emit" />
+
+    <Args in={Emit.Input} out={Emit.Output} />
+
+    <Call fn="prefix" in={$in} />
+
+    <If on={$ctx.prefix == null}>
+        <Return value={null} />
+    </If>
+
+    <Call fn="body" in={$in} />
+
+    <If on={$ctx.body}>
+        <Call
+            fn="publish"
+            in={{
+                traversal: $in.traversal,
+                scope: $in.scope,
+                index: $in.index,
+                prefix: $ctx.prefix
+            }}
+        />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <Return value={null} />
+</Module>

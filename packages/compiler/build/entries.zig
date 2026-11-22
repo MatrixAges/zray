@@ -683,7 +683,6 @@ pub const main = [_]Entry{
     .{ .path = "genz/analysis/statements/destructure/build.rx", .name = "destructure_emit", .owner = .genz },
     .{ .path = "genz/analysis/statements/result/build.rx", .name = "result_emit", .owner = .genz },
     .{ .path = "genz/analysis/statements/block/plan.zx", .name = "statement_block_plan", .owner = .genz },
-    .{ .path = "genz/analysis/statements/block/const.zx", .name = "statement_block_constants", .owner = .genz },
     .{ .path = "genz/analysis/statements/traversal/build.rx", .name = "statement_traversal", .owner = .genz },
     .{ .path = "genz/analysis/statements/traversal/commit.zx", .name = "statement_run_commit", .owner = .genz },
     .{ .path = "genz/analysis/statements/basic/discard.zx", .name = "statement_discard", .owner = .genz },

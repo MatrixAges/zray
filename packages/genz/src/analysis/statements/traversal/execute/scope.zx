@@ -1,6 +1,8 @@
 import integers from "std:integer"
 import host from "lowering_host"
 
+import emit from "../../emit/run.rx"
+
 import type { Scope as Input } from "./model"
 
 export type Output = bool
@@ -17,7 +19,13 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.cursor > start,
         next: state => {
-            const next = host.lowerStatementAt(traversal, scope, state.cursor)
+            const index = state.cursor - 1
+            const next = emit({
+                traversal,
+                scope,
+                index,
+                route: host.statementRoute(traversal, scope, index)
+            })
 
             if (next == null) {
                 state.valid = false

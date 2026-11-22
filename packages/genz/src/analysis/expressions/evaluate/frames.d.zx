@@ -12,6 +12,12 @@ export type LoopFrame = opaque
 
 export type MatchFrame = opaque
 
+export enum StatementResultMode {
+    Plain,
+    State,
+    View
+}
+
 export enum CallArgument {
     Value,
     Tuple,

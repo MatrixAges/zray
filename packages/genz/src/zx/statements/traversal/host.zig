@@ -5,25 +5,40 @@ const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Scope = @import("scope.zig");
 const Selection = @import("../switch/state.zig");
-const emission = @import("../emit.zig");
 const basic = @import("../basic.zig");
 const entry = @import("generated_statement_traversal");
 const execute = @import("generated_execute_statement_traversal");
 const Input = std.meta.Child(entry.Input);
 const Rows = std.meta.Child(@FieldType(Input, "rows"));
 
-const Frame = struct {
+pub const Frame = struct {
     lowering: *Lower,
     control: @FieldType(ir.Block, "control"),
     workspace: Scope.Buffer,
     scopes: []Scope,
     selections: []Selection,
     output: std.ArrayList(node.Statement) = .empty,
+    sequence: @import("../../../node/blocks.zig").Sequence,
+    prefix: node.Block = undefined,
+    body: node.Block = undefined,
+    consumed_previous: bool = undefined,
+    binding: @FieldType(ir.StatementRow, "constant") = undefined,
+    borrowed: ?node.ExpressionId = null,
     child: node.Block = .{},
-    fn borrow(handle: *const anyopaque) *Frame {
+    pub fn borrow(handle: *const anyopaque) *Frame {
         const reference: *const *Frame = @ptrCast(@alignCast(handle));
 
         return reference.*;
+    }
+    pub fn block(self: *const Frame, slot: u64) ir.Block {
+        return self.scopes[@intCast(slot)].values;
+    }
+
+    pub fn emitted(self: *Frame, span: node.Block, consumed_previous: bool) bool {
+        self.body = span;
+        self.consumed_previous = consumed_previous;
+
+        return true;
     }
 };
 
@@ -53,9 +68,11 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         },
         .scopes = if (plan.flat) &flat_scope else try scratch.alloc(Scope, @intCast(plan.depth)),
         .selections = if (plan.flat) &.{} else try scratch.alloc(Selection, @intCast(plan.selection_depth)),
+        .sequence = self.builder.statementSequence(self.workspace),
     };
 
     defer frame.output.deinit(self.allocator);
+    defer frame.sequence.deinit();
 
     const Execution = std.meta.Child(execute.Input);
     const Schedule = std.meta.Child(@FieldType(Execution, "plan"));
@@ -93,13 +110,15 @@ pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count
     return true;
 }
 
-pub fn lowerStatementAt(handle: *const anyopaque, slot: u64, cursor: u64) ?u64 {
+pub fn statementRoute(handle: *const anyopaque, slot: u64, index: u64) u8 {
+    return Frame.borrow(handle).scopes[@intCast(slot)].routes[@intCast(index)];
+}
+
+pub fn commitStatementSpan(handle: *const anyopaque, slot: u64, cursor: u64) u64 {
     const frame = Frame.borrow(handle);
     const scope = &frame.scopes[@intCast(slot)];
-    const offset: usize = @intCast(cursor - 1);
-    const result = emission.emit(frame.lowering, &frame.output, scope.values, offset, scope.routes[offset]) catch return null;
 
-    return scope.publish(@intCast(cursor), result);
+    return scope.publish(@intCast(cursor), frame.body, frame.consumed_previous);
 }
 
 pub fn finishStatementScope(handle: *const anyopaque, slot: u64) bool {

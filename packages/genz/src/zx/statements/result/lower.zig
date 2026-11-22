@@ -1,46 +1,11 @@
 const std = @import("std");
 const zx = @import("zx");
-const ir = zx.ir;
 const node = @import("../../../node.zig");
 const rows = @import("../../../node/import_rows.zig");
 const Lower = @import("../../lower.zig");
-const generated = @import("genz_options").generated_analysis;
 const Sequence = @import("../../../node/blocks.zig").Sequence;
 
-pub fn publish(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize, value: ?ir.ExprId, fuse: bool) Lower.Error!struct { block: node.Block, consumed_previous: bool } {
-    if (!generated) {
-        const consumed_previous = try @import("seed.zig").append(self, output, values, offset, value);
-
-        return .{ .block = try self.builder.statements(output.items), .consumed_previous = consumed_previous };
-    }
-
-    var sequence = self.builder.statementSequence(self.workspace);
-
-    defer sequence.deinit();
-
-    var returned: ?node.ExpressionId = null;
-    var consumed_previous = false;
-
-    if (fuse) {
-        const binding = values.at(offset - 1).constant;
-        returned = try @import("../../iteration_consumer.zig").lower(self, binding.symbol, binding.value, value.?, self.value_output);
-        consumed_previous = returned != null;
-    }
-
-    if (value) |id| {
-        if (returned == null) returned = if (self.value_output) try @import("../../value_call/root.zig").expression(self, id) else try self.expr(id);
-        if (self.state_active) returned = try @import("../../state_value/ownership.zig").clip(self, &sequence, id, returned.?);
-    }
-
-    if (self.public_value_output and self.state_active) if (returned) |result| {
-        const boundary = try @import("../../aggregate.zig").bind(self, &sequence, result);
-        returned = try @import("../../state_value/conversion.zig").convert(self, &sequence, self.program.output_type, boundary, .view_layout);
-    };
-
-    return .{ .block = try emit(self, &sequence, returned), .consumed_previous = consumed_previous };
-}
-
-fn emit(self: *Lower, sequence: *Sequence, value: ?node.ExpressionId) Lower.Error!node.Block {
+pub fn emit(self: *Lower, sequence: *Sequence, value: ?node.ExpressionId) Lower.Error!node.Block {
     const entry = @import("generated_result_emit");
     const Input = std.meta.Child(entry.Input);
     const Output = std.meta.Child(entry.Output);

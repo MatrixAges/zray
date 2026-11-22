@@ -5,7 +5,17 @@ import { StoreMode } from "core/function_table/complete"
 import { kind_task } from "core/type_table/const"
 import memory from "memory"
 
-import { fuse_route, store_route, task_route } from "./const"
+import {
+    bind_operation,
+    destructure_operation,
+    evaluate_operation,
+    fuse_route,
+    parallel_operation,
+    return_operation,
+    store_route,
+    task_route,
+    write_operation
+} from "./const"
 
 import type { Input } from "./model"
 
@@ -61,7 +71,21 @@ export default function (in: Input): Output {
             const binding = task ? task_route : 0
             const returned = fuse ? fuse_route : 0
 
-            memory.writeU8(in.target, state.index, before + binding + returned)
+            const operation = match statement {
+                StatementKind.Evaluate => evaluate_operation,
+                StatementKind.Constant => bind_operation,
+                StatementKind.Parallel => parallel_operation,
+                StatementKind.Destructure => destructure_operation,
+                StatementKind.StoreSet => write_operation,
+                StatementKind.Result => return_operation,
+                _ => 0
+            }
+
+            memory.writeU8(
+                in.target,
+                state.index,
+                operation + before + binding + returned
+            )
             state.previous_store = expression == ExpressionKind.StoreGet
             state.index += 1
         }

@@ -41,7 +41,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     while (offset > 0) {
         offset -= 1;
 
-        const result = try @import("emit.zig").emit(self, &output, values, offset, 0);
+        const result = try emit(self, &output, values, offset);
 
         starts[offset] = result.span.start;
         counts[offset] = result.span.len;
@@ -54,4 +54,61 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     }
 
     return blocks.join(self.allocator, self.builder.nodes, starts, counts);
+}
+
+fn emit(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize) Lower.Error!struct { span: node.Block, consumed_previous: bool } {
+    const basic = @import("basic.zig");
+
+    output.clearRetainingCapacity();
+
+    var consumed_previous = false;
+    const transaction = try @import("../store/begin.zig").lower(self, values, offset);
+
+    const body = switch (values.at(offset)) {
+        .evaluate => |id| try basic.discard(self, output, try @import("../iteration.zig").discard(self, id)),
+        .parallel => |invocations| try @import("../parallel/root.zig").lower(self, invocations),
+        .constant => |binding| bound: {
+            const bind = @import("../binding.zig");
+
+            if (bind.before(self, binding.value, binding.symbol, false) == .Task) {
+                break :bound try @import("../tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false);
+            }
+
+            const locals = @import("../value_call/locals.zig");
+            const borrowed = try locals.optionalCall(self, output, binding.symbol, binding.value, self.program.output_type);
+            const by_value = self.stack_symbols.contains(binding.symbol);
+            const value = borrowed orelse if (by_value) try @import("../value_call/root.zig").expression(self, binding.value) else try self.expr(binding.value);
+
+            break :bound try bind.publish(self, output, .{ .symbol = binding.symbol, .value = value, .by_value = by_value });
+        },
+        .destructure => |binding| try @import("destructure/lower.zig").publish(self, output, binding),
+        .result => |value| result: {
+            consumed_previous = try @import("result/seed.zig").append(self, output, values, offset, value);
+
+            break :result try self.builder.statements(output.items);
+        },
+        .branch => |branch| conditional: {
+            const condition = try self.expr(branch.condition);
+            const yes = try lower(self, branch.yes);
+            const no = try lower(self, branch.no);
+
+            break :conditional try basic.branch(self, output, condition, yes, no);
+        },
+        .switch_stmt => |selection| try @import("switch/seed.zig").lowerSwitch(self, selection),
+        .store_set => |setter| set: {
+            const target = try basic.storeTarget(self, setter.slot);
+            const value = try self.expr(setter.value);
+
+            break :set try basic.assignment(self, output, target, value);
+        },
+    };
+
+    const span = if (transaction.len == 0) body else try blocks.join(
+        self.allocator,
+        self.builder.nodes,
+        &.{ transaction.start, body.start },
+        &.{ transaction.len, body.len },
+    );
+
+    return .{ .span = span, .consumed_previous = consumed_previous };
 }

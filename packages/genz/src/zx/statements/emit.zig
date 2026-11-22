@@ -1,86 +1,177 @@
-const std = @import("std");
-const ir = @import("zx").ir;
-const node = @import("../../node.zig");
-const Lower = @import("../lower.zig");
-const emission = @import("basic.zig");
-const planning = @import("block.zig");
-const blocks = @import("../../node/blocks.zig");
-const generated = @import("genz_options").generated_analysis;
+const Frame = @import("traversal/host.zig").Frame;
+const Api = @import("../expressions/evaluate.zig").Api;
+const basic = @import("basic.zig");
 
-pub const Output = struct { span: node.Block, consumed_previous: bool };
+pub fn beginStatementStore(handle: *const anyopaque, slot: u64, index: u64) ?bool {
+    const frame = Frame.borrow(handle);
+    frame.prefix = @import("../store/begin.zig").lower(frame.lowering, frame.block(slot), @intCast(index)) catch return null;
 
-pub fn emit(self: *Lower, output: *std.ArrayList(node.Statement), values: ir.Block, offset: usize, route: u8) Lower.Error!Output {
-    const locals = @import("../value_call/locals.zig");
+    return frame.prefix.len != 0;
+}
 
-    output.clearRetainingCapacity();
+pub fn joinStatementSpans(handle: *const anyopaque) bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
 
-    var consumed_previous = false;
-
-    const transaction = if (if (generated) route & planning.flags.store_route != 0 else true)
-        try @import("../store/begin.zig").lower(self, values, offset)
-    else
-        node.Block{};
-
-    const body = switch (values.at(offset)) {
-        .evaluate => |id| try emission.discard(self, output, try @import("../iteration.zig").discard(self, id)),
-        .parallel => |invocations| try @import("../parallel/root.zig").lower(self, invocations),
-        .constant => |binding| binding_block: {
-            const task = if (generated) route & planning.flags.task_route != 0 else @import("../binding.zig").before(self, binding.value, binding.symbol, false) == .Task;
-
-            if (task) break :binding_block try @import("../tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false);
-
-            var sequence = self.builder.statementSequence(self.workspace);
-
-            defer if (generated) sequence.deinit();
-
-            const local = if (generated) &sequence else output;
-            const borrowed = try locals.optionalCall(self, local, binding.symbol, binding.value, self.program.output_type);
-            const value = borrowed orelse if (self.stack_symbols.contains(binding.symbol)) try @import("../value_call/root.zig").expression(self, binding.value) else try self.expr(binding.value);
-
-            break :binding_block try @import("../binding.zig").publish(self, local, .{
-                .symbol = binding.symbol,
-                .value = value,
-                .by_value = self.stack_symbols.contains(binding.symbol),
-            });
-        },
-        .destructure => |binding| try @import("destructure/lower.zig").publish(self, output, binding),
-        .result => |value| result: {
-            const fuse = if (generated) route & planning.flags.fuse_route != 0 else false;
-            const lowered = try @import("result/lower.zig").publish(self, output, values, offset, value, fuse);
-
-            consumed_previous = lowered.consumed_previous;
-
-            break :result lowered.block;
-        },
-        .branch => |branch| conditional: {
-            if (generated) unreachable;
-
-            const condition = try self.expr(branch.condition);
-            const seed = @import("seed.zig");
-            const yes = try seed.lower(self, branch.yes);
-            const no = try seed.lower(self, branch.no);
-
-            break :conditional try emission.branch(self, output, condition, yes, no);
-        },
-        .switch_stmt => |selection| conditional: {
-            if (generated) unreachable;
-
-            break :conditional try @import("switch/seed.zig").lowerSwitch(self, selection);
-        },
-        .store_set => |setter| store_set: {
-            const target = try emission.storeTarget(self, setter.slot);
-            const value = try self.expr(setter.value);
-
-            break :store_set try emission.assignment(self, output, target, value);
-        },
-    };
-
-    const span = if (transaction.len == 0) body else try blocks.join(
+    frame.body = @import("../../node/blocks.zig").join(
         self.allocator,
         self.builder.nodes,
-        &.{ transaction.start, body.start },
-        &.{ transaction.len, body.len },
-    );
+        &.{ frame.prefix.start, frame.body.start },
+        &.{ frame.prefix.len, frame.body.len },
+    ) catch return false;
 
-    return .{ .span = span, .consumed_previous = consumed_previous };
+    return true;
+}
+
+pub fn emitEvaluation(handle: *const anyopaque, slot: u64, index: u64) bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const id = frame.block(slot).at(@intCast(index)).evaluate;
+    const value = @import("../iteration.zig").discard(self, id) catch return false;
+    const span = basic.discard(self, &frame.output, value) catch return false;
+
+    return frame.emitted(span, false);
+}
+
+pub fn emitParallelStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
+    const frame = Frame.borrow(handle);
+    const invocations = frame.block(slot).at(@intCast(index)).parallel;
+    const span = @import("../parallel/root.zig").lower(frame.lowering, invocations) catch return false;
+
+    return frame.emitted(span, false);
+}
+
+pub fn emitTaskStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const binding = frame.block(slot).at(@intCast(index)).constant;
+    const span = @import("../tasks/root.zig").bind(self, self.names[@backingInt(binding.symbol)], binding.value, false) catch return false;
+
+    return frame.emitted(span, false);
+}
+
+pub fn statementBinding(handle: *const anyopaque, slot: u64, index: u64) u32 {
+    const frame = Frame.borrow(handle);
+
+    frame.sequence.clearRetainingCapacity();
+
+    frame.binding = frame.block(slot).at(@intCast(index)).constant;
+
+    return @backingInt(frame.binding.value);
+}
+
+pub fn borrowStatementBinding(handle: *const anyopaque) bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const locals = @import("../value_call/locals.zig");
+    const binding = frame.binding;
+    frame.borrowed = locals.optionalCall(self, &frame.sequence, binding.symbol, binding.value, self.program.output_type) catch return false;
+
+    return true;
+}
+
+pub fn statementBindingUsesValue(handle: *const anyopaque) bool {
+    const frame = Frame.borrow(handle);
+
+    return frame.lowering.stack_symbols.contains(frame.binding.symbol);
+}
+
+pub fn borrowedStatementValue(handle: *const anyopaque) ?u32 {
+    return if (Frame.borrow(handle).borrowed) |id| @backingInt(id) else null;
+}
+
+pub fn lowerStatementExpression(handle: *const anyopaque, value: u32, by_value: bool) ?u32 {
+    const self = Frame.borrow(handle).lowering;
+    const id = @as(@import("zx").ir.ExprId, @fromBackingInt(value));
+
+    const result = if (by_value)
+        @import("../value_call/root.zig").expression(self, id) catch return null
+
+    else
+        self.expr(id) catch return null;
+
+    return @backingInt(result);
+}
+
+pub fn emitStatementBinding(handle: *const anyopaque, value: u32) bool {
+    const frame = Frame.borrow(handle);
+
+    const span = @import("../binding.zig").publish(frame.lowering, &frame.sequence, .{
+        .symbol = frame.binding.symbol,
+        .value = @fromBackingInt(value),
+        .by_value = frame.lowering.stack_symbols.contains(frame.binding.symbol),
+    }) catch return false;
+
+    return frame.emitted(span, false);
+}
+
+pub fn emitDestructureStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
+    const frame = Frame.borrow(handle);
+    const binding = frame.block(slot).at(@intCast(index)).destructure;
+    const span = @import("destructure/lower.zig").publish(frame.lowering, &frame.output, binding) catch return false;
+
+    return frame.emitted(span, false);
+}
+
+pub fn emitStoreWriteStatement(handle: *const anyopaque, slot: u64, index: u64) bool {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const setter = frame.block(slot).at(@intCast(index)).store_set;
+    const target = basic.storeTarget(self, setter.slot) catch return false;
+    const value = self.expr(setter.value) catch return false;
+    const span = basic.assignment(self, &frame.output, target, value) catch return false;
+
+    return frame.emitted(span, false);
+}
+
+pub fn statementResult(handle: *const anyopaque, slot: u64, index: u64) ?u32 {
+    const frame = Frame.borrow(handle);
+    const source = frame.block(slot).at(@intCast(index)).result;
+
+    frame.sequence.clearRetainingCapacity();
+
+    return if (source) |id| @backingInt(id) else null;
+}
+
+pub fn statementResultUsesValue(handle: *const anyopaque) bool {
+    return Frame.borrow(handle).lowering.value_output;
+}
+
+pub fn statementResultMode(handle: *const anyopaque) Api.StatementResultMode {
+    const self = Frame.borrow(handle).lowering;
+
+    if (!self.state_active) return .Plain;
+
+    return if (self.public_value_output) .View else .State;
+}
+
+pub fn fuseStatementResult(handle: *const anyopaque, slot: u64, index: u64, value: u32, by_value: bool) bool {
+    const frame = Frame.borrow(handle);
+    const binding = frame.block(slot).at(@intCast(index - 1)).constant;
+    frame.borrowed = @import("../iteration_consumer.zig").lower(frame.lowering, binding.symbol, binding.value, @fromBackingInt(value), by_value) catch return false;
+
+    return true;
+}
+
+pub fn clipStatementResult(handle: *const anyopaque, source: u32, value: u32) ?u32 {
+    const frame = Frame.borrow(handle);
+    const result = @import("../state_value/ownership.zig").clip(frame.lowering, &frame.sequence, @fromBackingInt(source), @fromBackingInt(value)) catch return null;
+
+    return @backingInt(result);
+}
+
+pub fn viewStatementResult(handle: *const anyopaque, value: u32) ?u32 {
+    const frame = Frame.borrow(handle);
+    const self = frame.lowering;
+    const boundary = @import("../aggregate.zig").bind(self, &frame.sequence, @fromBackingInt(value)) catch return null;
+    const result = @import("../state_value/conversion.zig").convert(self, &frame.sequence, self.program.output_type, boundary, .view_layout) catch return null;
+
+    return @backingInt(result);
+}
+
+pub fn emitStatementResult(handle: *const anyopaque, value: ?u32, consumed_previous: bool) bool {
+    const frame = Frame.borrow(handle);
+    const span = @import("result/lower.zig").emit(frame.lowering, &frame.sequence, if (value) |id| @fromBackingInt(id) else null) catch return false;
+
+    return frame.emitted(span, consumed_previous);
 }

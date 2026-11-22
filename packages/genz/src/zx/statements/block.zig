@@ -2,8 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Lower = @import("../lower.zig");
-const generated = @import("genz_options").generated_analysis;
-pub const flags = if (generated) @import("generated_statement_block_constants").@"zx.constants" else void;
 
 pub fn fill(self: *const Lower, values: ir.Block, target: []u8) Lower.Error!void {
     if (values.len == 0) return;

@@ -1,0 +1,38 @@
+import integers from "std:integer"
+import host from "lowering_host"
+
+import {
+    bind_operation,
+    destructure_operation,
+    evaluate_operation,
+    operation_mask,
+    parallel_operation,
+    return_operation,
+    write_operation
+} from "../block/const"
+import binding from "./binding"
+import result from "./result"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { traversal, scope, index, route } = in
+
+    const operation = integers.andBits(integers.widenByte(route), operation_mask)
+
+    return match operation {
+        integers.widenByte(evaluate_operation) =>
+            host.emitEvaluation(traversal, scope, index),
+        integers.widenByte(bind_operation) => binding(in),
+        integers.widenByte(parallel_operation) =>
+            host.emitParallelStatement(traversal, scope, index),
+        integers.widenByte(destructure_operation) =>
+            host.emitDestructureStatement(traversal, scope, index),
+        integers.widenByte(write_operation) =>
+            host.emitStoreWriteStatement(traversal, scope, index),
+        integers.widenByte(return_operation) => result(in),
+        _ => false
+    }
+}

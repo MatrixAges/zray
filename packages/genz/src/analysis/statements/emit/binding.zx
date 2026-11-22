@@ -1,0 +1,35 @@
+import integers from "std:integer"
+import host from "lowering_host"
+
+import { task_route } from "../block/const"
+
+import type { Input } from "./model"
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { traversal, scope, index, route } = in
+
+    const bits = integers.widenByte(route)
+    const task = integers.andBits(bits, integers.widenByte(task_route)) != 0
+
+    if (task) {
+        return host.emitTaskStatement(traversal, scope, index)
+    }
+
+    const value = host.statementBinding(traversal, scope, index)
+
+    if (!host.borrowStatementBinding(traversal)) {
+        return false
+    }
+
+    const borrowed = host.borrowedStatementValue(traversal)
+    const by_value = host.statementBindingUsesValue(traversal)
+
+    const lowered: u32? = match {
+        borrowed != null => borrowed,
+        _ => host.lowerStatementExpression(traversal, value, by_value)
+    }
+
+    return lowered != null && host.emitStatementBinding(traversal, lowered)
+}

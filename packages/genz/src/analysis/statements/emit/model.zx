@@ -1,0 +1,14 @@
+import type { StatementTraversal } from "lowering_host"
+
+export type Input = {
+    traversal: StatementTraversal,
+    scope: u64,
+    index: u64,
+    route: u8
+}
+
+export type Output = u64?
+
+export type Publication = Input.Omit("route") & {
+    prefix: bool?
+}

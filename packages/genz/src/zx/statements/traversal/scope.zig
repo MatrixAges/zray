@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
-const emission = @import("../emit.zig");
 const entry = @import("generated_statement_run_commit");
 const Self = @This();
 
@@ -45,17 +44,17 @@ pub fn close(self: *const Self, lowering: *Lower) void {
 }
 
 pub fn put(self: *const Self, offset: usize, span: node.Block) void {
-    _ = self.publish(offset + 1, .{ .span = span, .consumed_previous = false });
+    _ = self.publish(offset + 1, span, false);
 }
 
-pub fn publish(self: *const Self, cursor: usize, result: emission.Output) usize {
+pub fn publish(self: *const Self, cursor: usize, span: node.Block, consumed_previous: bool) usize {
     const input: std.meta.Child(entry.Input) = .{
         .starts = @ptrCast(&self.starts),
         .counts = @ptrCast(&self.counts),
         .cursor = cursor,
-        .start = result.span.start,
-        .count = result.span.len,
-        .consumed_previous = result.consumed_previous,
+        .start = span.start,
+        .count = span.len,
+        .consumed_previous = consumed_previous,
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
